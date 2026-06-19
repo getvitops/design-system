@@ -20,6 +20,10 @@ export default defineConfig({
   // ── Lint / format (Oxlint / Oxfmt, via `vp check` / `vp fmt`) ──
   lint: {
     ignorePatterns: ['dist/**', 'node_modules/**'],
+    options: {
+      typeAware: true,
+      typeCheck: true,
+    },
   },
   fmt: {
     semi: true,
@@ -29,6 +33,8 @@ export default defineConfig({
   // ── Tasks (Vite Task, via `vp run <name>`) ──
   run: {
     tasks: {
+      dev: { command: 'vp dev' },
+
       // Full build: colours → CSS, then JS. Sequential (&&) so a CSS failure
       // aborts the build instead of letting a stale deploy through.
       build: { command: 'vp run build:css && vp run build:js' },

@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <link rel="stylesheet" href="dist/styles.min.css" />
+  </head>
+  <body>
+    <div class="centered page">
+      <header>
+        <div class="eyebrow-doc">Vitops · CSS framework</div>
+        <h1 class="title">A small layout vocabulary you can hold in your head.</h1>
+        <p class="lead">
+          Named width tracks, container-gated utilities, relationship-based rhythm, and a staged
+          animation library — built for the Bricks page builder. Every demo below runs on the real
+          framework CSS.
+        </p>
+
+        <div class="why">
+          <strong>Why this exists</strong>
+          <p>
+            Applying a few well-named classes is far easier to manage and keep consistent than
+            configuring the same settings by hand on every element in the Bricks UI — change the
+            class once, every element follows. And Bricks ships no animation library, so this
+            provides one.
+          </p>
+        </div>
+      </header>
+
+      <hr class="divider" />
+
+      <!-- ============ CENTERED ============ -->
+      <h2><span class="n">01</span>The centered grid</h2>
+      <p>
+        Put <code>.centered</code> on an element and its children land in the <b>measure</b> track —
+        the reading column. Add <code>.breakout</code>, <code>.spotlight</code>, or
+        <code>.fullbleed</code> to step a child outward. Tracks are symmetric and named, so the
+        system fits in one picture. Drag the dials:
+      </p>
+
+      <div class="diagram-wrap">
+        <div class="diagram-stage">
+          <div class="diagram">
+            <div class="gutter-label">↤ gutter · clamp(1rem, 4cqi, max) · gutter ↦</div>
+            <div class="band full">fullbleed <span class="w">edge to edge</span></div>
+            <div class="band spotlight">spotlight <span class="w" id="w-spot"></span></div>
+            <div class="band breakout">breakout <span class="w" id="w-break"></span></div>
+            <div class="band measure">measure <span class="w" id="w-meas"></span></div>
+          </div>
+        </div>
+        <div class="controls">
+          <div class="control">
+            <label for="c-measure">measure</label
+            ><input type="range" id="c-measure" min="40" max="90" value="65" /><span
+              class="val"
+              id="v-measure"
+              >65ch</span
+            >
+          </div>
+          <div class="control">
+            <label for="c-breakout">breakout</label
+            ><input type="range" id="c-breakout" min="60" max="120" value="90" /><span
+              class="val"
+              id="v-breakout"
+              >90ch</span
+            >
+          </div>
+          <div class="control">
+            <label for="c-spotlight">spotlight</label
+            ><input type="range" id="c-spotlight" min="90" max="160" value="120" /><span
+              class="val"
+              id="v-spotlight"
+              >120ch</span
+            >
+          </div>
+          <div class="control">
+            <label for="c-gutter">gutter max</label
+            ><input type="range" id="c-gutter" min="1" max="6" value="3" step="0.5" /><span
+              class="val"
+              id="v-gutter"
+              >3rem</span
+            >
+          </div>
+        </div>
+      </div>
+      <p class="note">
+        Widths are in <code>ch</code>, so the reading column tracks character count, not pixels. The
+        gutter is the only track that holds a minimum when space is tight — the rest collapse inward
+        on small screens.
+      </p>
+
+      <div class="cards">
+        <div class="card">
+          <h4><code>.measure</code></h4>
+          <p>Reading column. The default for every child.</p>
+        </div>
+        <div class="card">
+          <h4><code>.breakout</code></h4>
+          <p>One step wider — cards, callouts, contained images.</p>
+        </div>
+        <div class="card">
+          <h4><code>.spotlight</code></h4>
+          <p>Wider still — feature media, galleries.</p>
+        </div>
+        <div class="card">
+          <h4><code>.fullbleed</code></h4>
+          <p>Edge to edge — hero bands, backgrounds.</p>
+        </div>
+      </div>
+      <p class="note">
+        Container-gated variants (<code>.breakout-md</code>, <code>.spotlight-lg</code>) widen only
+        past a breakpoint — sm 30 · md 48 · lg 64 · xl 80rem.
+      </p>
+
+      <h3>Composing within a track</h3>
+      <p>
+        Tracks set <em>how wide</em> a block is; a handful of utilities set
+        <em>what happens inside</em> it. All are container-gated with the same sm/md/lg/xl suffixes,
+        so they reshape as the container grows — mobile-first, stacked by default.
+      </p>
+      <div class="cards">
+        <div class="card">
+          <h4><code>.flex</code> · <code>.flex-row</code> · <code>.flex-col</code></h4>
+          <p>
+            Turn a block into a flex container and set its direction.
+            <code>.flex-row-md</code> stays stacked until the container hits md, then goes
+            side-by-side.
+          </p>
+        </div>
+        <div class="card">
+          <h4><code>.split-1-2</code> · <code>2-1</code> · <code>1-3</code> · <code>3-1</code></h4>
+          <p>
+            Proportional columns inside a flex parent — a 1∶2 sidebar, a 1∶3 media tile. Bare
+            <code>.split</code> gives equal columns.
+          </p>
+        </div>
+        <div class="card">
+          <h4><code>.align-*</code> · <code>.justify-*</code></h4>
+          <p>
+            Cross-axis (start / center / end / stretch) and main-axis (start / center / end /
+            between) control for flex parents.
+          </p>
+        </div>
+        <div class="card">
+          <h4><code>.text-start</code> · <code>.text-center</code> · <code>.text-end</code></h4>
+          <p>
+            Logical text alignment, also tier-gated (<code>.text-center-md</code>) for
+            per-breakpoint shifts.
+          </p>
+        </div>
+      </div>
+      <p class="note">
+        The whole layout vocabulary is roughly two dozen names: four tracks, a flex toggle, four
+        splits, alignment, and text — composable, and small enough to diagram.
+      </p>
+
+      <hr class="divider" />
+
+      <!-- ============ COLOR ============ -->
+      <h2><span class="n">02</span>Color</h2>
+      <p>
+        Six raw ramps, seven steps each (dark → light). Semantic roles map onto them, so re-aiming a
+        role — <code>success</code> from pine to cobalt — is a one-line change.
+      </p>
+      <div id="ramps"></div>
+      <h3>Semantic roles</h3>
+      <div class="sem-grid" id="semantic"></div>
+
+      <hr class="divider" />
+
+      <hr class="divider" />
+
+      <!-- ============ DARK MODE ============ -->
+      <h2><span class="n">02b</span>Dark mode</h2>
+      <p>
+        Named ramps never change — pine is always pine. Dark mode only remaps which
+        <em>step</em> each semantic role points at, so components referencing semantic tokens
+        (<code>--color-surface</code>, <code>--color-success</code>) adapt automatically. Bricks
+        toggles the mode; the build emits the remapping.
+      </p>
+
+      <p>
+        Try it — this toggles <code>[data-theme="dark"]</code> on the page, exactly what the
+        generated dark block keys off:
+      </p>
+      <button id="theme-toggle" class="theme-btn">Switch to dark mode</button>
+
+      <div class="dark-demo">
+        <div
+          class="dark-swatch"
+          style="background: var(--color-surface); color: var(--color-surface-xxl)"
+        >
+          <code>--color-surface</code><span>surface role</span>
+        </div>
+        <div class="dark-swatch" style="background: var(--color-success-d); color: #fff">
+          <code>--color-success-d</code><span>success role</span>
+        </div>
+        <div class="dark-swatch" style="background: var(--color-brand-primary-d); color: #fff">
+          <code>--color-brand-primary-d</code><span>brand (identity)</span>
+        </div>
+      </div>
+      <p class="note">
+        Watch <code>surface</code> and <code>success</code> flip in dark (they invert), while
+        <code>brand-primary</code> holds steady — it has no dark remap, so it resolves the same in
+        both modes.
+      </p>
+
+      <h3>Authoring dark in <code>colors.json</code></h3>
+      <p>
+        Three forms, increasing in control. The build resolves each step's dark value in priority
+        order: explicit override → invert mirror → identity.
+      </p>
+      <div class="cards">
+        <div class="card">
+          <h4>String — no dark remap</h4>
+          <p>
+            <code>"info": "cobalt"</code><br />Light maps 1:1 to the ramp; dark stays the same. For
+            roles that look right in both modes.
+          </p>
+        </div>
+        <div class="card">
+          <h4>Invert — symmetric flip</h4>
+          <p>
+            <code>"surface": { "name": "navy", "invert": true }</code><br />Dark mirrors every step:
+            xxd↔xxl, d↔l, base→base. The common dark-mode case.
+          </p>
+        </div>
+        <div class="card">
+          <h4>Invert + overrides</h4>
+          <p>
+            <code>"success": { "name": "pine", "invert": true, "dark": { "base": "l" } }</code
+            ><br />Invert sets the baseline; explicit per-step overrides win where the mechanical
+            flip isn\'t right.
+          </p>
+        </div>
+      </div>
+      <p class="note">
+        In the Bricks palette each semantic colour carries both a <code>light</code> and
+        <code>dark</code> reference to its named variable, so the indirection holds in both modes
+        and Bricks\' own light/dark toggle drives it.
+      </p>
+
+      <hr class="divider" />
+
+      <!-- ============ COMPONENTS ============ -->
+      <h2><span class="n">02c</span>Component patterns</h2>
+      <p>
+        A few interaction patterns encode the hover/active/focus behaviour once, so applying them is
+        consistent and judgment-free. Buttons and links are styled at the element level (via
+        zero-specificity <code>:where()</code>, so any class — including Bricks\' own — overrides
+        them); badges and cards are classes.
+      </p>
+
+      <h3>Buttons</h3>
+      <p>
+        Bare <code>&lt;button&gt;</code> defaults to primary. Role variants are a class on the
+        element. Hover darkens a step, click presses, keyboard focus rings.
+      </p>
+      <div class="comp-row">
+        <button>Primary</button>
+        <button class="success">Success</button>
+        <button class="danger">Danger</button>
+        <button class="warning">Warning</button>
+        <button class="info">Info</button>
+      </div>
+      <p class="note">
+        Hover, click, and tab to them — the states are real, from the generated
+        <code>patterns.css</code>.
+      </p>
+
+      <h3>Links</h3>
+      <p>
+        Bare <code>&lt;a&gt;</code> gets the link pattern — coloured, underlined, hover shifts the
+        text colour, focus rings.
+      </p>
+      <p class="comp-links">
+        Here is some prose with <a href="#components">a styled link</a> inside it, and
+        <a href="#components">another one</a> for good measure.
+      </p>
+
+      <h3>Badges</h3>
+      <p>Coloured pills via <code>.badge</code> + a role variant. Non-interactive.</p>
+      <div class="comp-row">
+        <span class="badge">Neutral</span>
+        <span class="badge-success">Success</span>
+        <span class="badge-danger">Danger</span>
+        <span class="badge-warning">Warning</span>
+        <span class="badge-info">Info</span>
+      </div>
+
+      <h3>Cards</h3>
+      <p>
+        The <code>.card</code> pattern is structural only — no automatic motion. To make one lift on
+        hover, compose it with the interaction layer: <code>class="card interactive lift"</code>.
+      </p>
+      <div class="comp-cards">
+        <div class="card">
+          <strong>Static card</strong>
+          <p style="margin: 0.4em 0 0; max-width: none; font-size: 14px">
+            Just structure — radius, padding, surface background. No hover.
+          </p>
+        </div>
+        <div class="card interactive lift">
+          <strong>Interactive card</strong>
+          <p style="margin: 0.4em 0 0; max-width: none; font-size: 14px">
+            Same card, plus <code>interactive lift</code> — hover to see it rise.
+          </p>
+        </div>
+      </div>
+
+      <h3>Interaction layer</h3>
+      <p>
+        Compose motion onto anything. <code>.interactive</code> sets up the transition once;
+        modifiers set independent properties so they stack. Hover these:
+      </p>
+      <div class="comp-row">
+        <span class="interactive lift demo-chip">lift</span>
+        <span class="interactive grow demo-chip">grow</span>
+        <span class="interactive tilt demo-chip">tilt</span>
+        <span class="interactive glow demo-chip">glow</span>
+        <span class="interactive press demo-chip">press (click)</span>
+      </div>
+      <p class="note">
+        Hover gated behind <code>@media (hover: hover)</code>; focus uses
+        <code>:focus-visible</code>; reduced-motion drops the movement.
+      </p>
+
+      <!-- ============ RHYTHM ============ -->
+      <h2><span class="n">03</span>Vertical rhythm</h2>
+      <p>
+        Put <code>.rhythm</code> on a container; adjacent siblings get spacing by
+        <em>relationship</em> — a heading hugs its paragraph, a new section gets air. Gaps are
+        multiples of one line (<code>rlh</code>), scaled by one dial:
+      </p>
+      <div class="preview-box">
+        <div
+          class="rhythm"
+          id="rhythm-demo"
+          style="--rhythm-base: calc(1rlh * var(--rhythm-scale))"
+        >
+          <h3>A heading</h3>
+          <p style="max-width: none">
+            The paragraph sits close beneath its heading — they read as one unit (h → p, the
+            tightest gap).
+          </p>
+          <p style="max-width: none">
+            A second paragraph keeps a looser, one-line gap from the first (p → p).
+          </p>
+          <p style="max-width: none">
+            A paragraph can introduce a list, which hugs its lead-in (p → ul):
+          </p>
+          <ul style="max-width: none; padding-inline-start: 1.4em">
+            <li>List items sit tight against each other (li → li)</li>
+            <li>so the list reads as one grouped block</li>
+            <li>rather than scattered lines</li>
+          </ul>
+          <p style="max-width: none">After the list, prose resumes with a normal gap (ul → p).</p>
+          <h3>A new section</h3>
+          <p style="max-width: none">
+            Gets the most space above it (p → h), signalling a fresh idea.
+          </p>
+        </div>
+      </div>
+      <div class="control" style="max-width: 480px">
+        <label for="c-rhythm">rhythm scale</label
+        ><input type="range" id="c-rhythm" min="0.6" max="1.6" value="1" step="0.05" /><span
+          class="val"
+          id="v-rhythm"
+          >1.0</span
+        >
+      </div>
+      <p class="note">
+        The ratios between relationships stay fixed; the dial scales them all together.
+      </p>
+
+      <hr class="divider" />
+
+      <!-- ============ ANIMATIONS ============ -->
+      <h2><span class="n">04</span>Animations</h2>
+      <p>
+        Effects are split by rendering stage — <b>composite</b> (transform/opacity),
+        <b>paint</b> (filter/clip), <b>layout</b> (size). Click any tile to replay it:
+      </p>
+      <div class="anim-gallery" id="effects"></div>
+      <p class="note">
+        In production a timeline class drives them: <code>.anim-view</code> (progress tied to the
+        element entering the viewport), <code>.anim-scroll</code> (tied to overall page scroll), or
+        <code>.anim-trigger</code> (fired once by an observer when the element appears). Here we
+        replay on click to show the motion.
+      </p>
+
+      <h3>Float presets</h3>
+      <p>Continuous ambient movement — waypoint-based loops for orbits, bounces, and drifts:</p>
+      <div class="float-gallery" id="floats"></div>
+
+      <footer>
+        <p>
+          Vitops · a minimal framework for Bricks. Every value above is read live from the build
+          output. Drag a dial or click a tile to feel how the system responds.
+        </p>
+      </footer>
+    </div>
+
+    <script>
+      document.documentElement.classList.replace('no-js', 'js');
+      const $ = (id) => document.getElementById(id);
+      const root = document.documentElement.style;
+
+      // ---- Centered diagram ----
+      const cm = $('c-measure'),
+        cb = $('c-breakout'),
+        cs2 = $('c-spotlight'),
+        cg = $('c-gutter');
+      function tracks() {
+        if (+cb.value <= +cm.value) cb.value = +cm.value + 5;
+        if (+cs2.value <= +cb.value) cs2.value = +cb.value + 5;
+        root.setProperty('--width-measure', cm.value + 'ch');
+        root.setProperty('--width-breakout', cb.value + 'ch');
+        root.setProperty('--width-spotlight', cs2.value + 'ch');
+        root.setProperty('--gutter', 'clamp(1rem, 4cqi, ' + cg.value + 'rem)');
+        $('v-measure').textContent = cm.value + 'ch';
+        $('v-breakout').textContent = cb.value + 'ch';
+        $('v-spotlight').textContent = cs2.value + 'ch';
+        $('v-gutter').textContent = +cg.value + 'rem';
+        $('w-meas').textContent = cm.value + 'ch';
+        $('w-break').textContent = cb.value + 'ch';
+        $('w-spot').textContent = cs2.value + 'ch';
+      }
+      [cm, cb, cs2, cg].forEach((e) => e.addEventListener('input', tracks));
+      tracks();
+
+      // ---- Rhythm ----
+      const cr = $('c-rhythm');
+      function rhythm() {
+        root.setProperty('--rhythm-scale', cr.value);
+        $('v-rhythm').textContent = (+cr.value).toFixed(1);
+      }
+      cr.addEventListener('input', rhythm);
+      rhythm();
+
+      // ---- Color ramps + semantic ----
+      const ramps = ['pine', 'navy', 'amber', 'rust', 'cobalt', 'grey'];
+      const steps = ['xxd', 'xd', 'd', '', 'l', 'xl', 'xxl'];
+      const cssv = getComputedStyle(document.documentElement);
+      const wrap = $('ramps');
+      ramps.forEach((name) => {
+        const row = document.createElement('div');
+        row.className = 'ramp-row';
+        const b = document.createElement('b');
+        b.textContent = name;
+        const r = document.createElement('div');
+        r.className = 'ramp';
+        steps.forEach((s, i) => {
+          const v = '--color-' + name + (s ? '-' + s : '');
+          const c = cssv.getPropertyValue(v).trim();
+          const sw = document.createElement('span');
+          sw.style.background = c;
+          sw.style.color = i < 3 ? '#fff' : 'rgba(0,0,0,.55)';
+          sw.textContent = s || '·';
+          r.appendChild(sw);
+        });
+        row.append(b, r);
+        wrap.appendChild(row);
+      });
+      const roles = [
+        ['brand-primary', 'pine'],
+        ['surface', 'navy'],
+        ['success', 'pine'],
+        ['info', 'cobalt'],
+        ['danger', 'rust'],
+        ['warning', 'amber'],
+        ['neutral', 'grey'],
+      ];
+      const sg = $('semantic');
+      roles.forEach(([role, ramp]) => {
+        const d = document.createElement('div');
+        d.className = 'sem';
+        d.style.background = cssv.getPropertyValue('--color-' + role).trim();
+        if (['warning'].includes(role)) d.style.color = 'var(--color-surface-xxd)';
+        d.textContent = role + ' → ' + ramp;
+        sg.appendChild(d);
+      });
+
+      // ---- Animation effect gallery (replay on click) ----
+      // Each effect: [class, stage, the from/to custom properties the keyframe reads]
+      const effects = [
+        ['fade-in', 'composite', { '--opacity-from': 0, '--opacity-to': 1 }],
+        ['slide-up', 'composite', { '--translate-y-from': '2rem', '--translate-y-to': 0 }],
+        ['slide-left', 'composite', { '--translate-x-from': '2rem', '--translate-x-to': 0 }],
+        [
+          'scale-up',
+          'composite',
+          { '--scale-x-from': 0.6, '--scale-y-from': 0.6, '--scale-x-to': 1, '--scale-y-to': 1 },
+        ],
+        ['rotate-cw', 'composite', { '--rotate-from': '0deg', '--rotate-to': '360deg' }],
+        ['blur-in', 'paint', { '--blur-from': '10px', '--blur-to': '0px' }],
+        [
+          'fade-scale',
+          'composite',
+          {
+            '--opacity-from': 0,
+            '--opacity-to': 1,
+            '--scale-x-from': 0.6,
+            '--scale-y-from': 0.6,
+            '--scale-x-to': 1,
+            '--scale-y-to': 1,
+          },
+        ],
+        [
+          'fade-slide',
+          'composite',
+          {
+            '--opacity-from': 0,
+            '--opacity-to': 1,
+            '--translate-y-from': '2rem',
+            '--translate-y-to': 0,
+          },
+        ],
+      ];
+      const eg = $('effects');
+      effects.forEach(([cls, stage, vars]) => {
+        const cell = document.createElement('div');
+        cell.className = 'anim-cell';
+        // Render the from/to property pairs as a small table
+        const props = Object.keys(vars)
+          .filter((k) => k.endsWith('-from'))
+          .map((fromK) => {
+            const base = fromK.replace('-from', '');
+            const toK = base + '-to';
+            const name = base.replace('--', '');
+            return (
+              '<tr><td>' +
+              name +
+              '</td><td>' +
+              vars[fromK] +
+              '</td><td>' +
+              (toK in vars ? vars[toK] : '—') +
+              '</td></tr>'
+            );
+          })
+          .join('');
+        cell.innerHTML =
+          '<div class="demo"><div class="chip"></div></div>' +
+          '<code>.' +
+          cls +
+          '</code>' +
+          '<div class="stage-tag">' +
+          stage +
+          '</div>' +
+          '<table class="props"><thead><tr><th>prop</th><th>from</th><th>to</th></tr></thead><tbody>' +
+          props +
+          '</tbody></table>' +
+          '<div class="hint">click to replay</div>';
+        const chip = cell.querySelector('.chip');
+        const play = () => {
+          chip.style.animation = 'none';
+          void chip.offsetWidth;
+          chip.style.animation = (stage === 'paint' ? 'paint' : 'composite') + ' .6s both';
+          for (const k in vars) chip.style.setProperty(k, vars[k]);
+        };
+        cell.addEventListener('click', play);
+        eg.appendChild(cell);
+        setTimeout(play, 200);
+      });
+
+      // ---- Float presets (continuous) ----
+      const floats = [
+        'float-circular',
+        'float-bounce-y',
+        'float-drift-x',
+        'float-gentle',
+        'float-diamond',
+        'float-figure-8',
+      ];
+      const fg = $('floats');
+      floats.forEach((cls) => {
+        const cell = document.createElement('div');
+        cell.className = 'float-cell';
+        cell.innerHTML =
+          '<div class="orbit"><div class="dot ' +
+          cls +
+          '" style="--float-radius:18px;--float-distance:16px"></div></div><code>.' +
+          cls +
+          '</code>';
+        fg.appendChild(cell);
+      });
+
+      // ---- Dark mode toggle (flips [data-theme] like Bricks would) ----
+      const themeBtn = document.getElementById('theme-toggle');
+      if (themeBtn) {
+        themeBtn.addEventListener('click', () => {
+          const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+          document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+          themeBtn.textContent = isDark ? 'Switch to dark mode' : 'Switch to light mode';
+        });
+      }
+    </script>
+  </body>
+</html>
