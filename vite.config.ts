@@ -28,6 +28,8 @@ export default defineConfig({
   fmt: {
     semi: true,
     singleQuote: true,
+    // Don't format build artifacts: minified CSS and emitted JSON.
+    ignorePatterns: ['dist/**', 'node_modules/**'],
   },
 
   // ── Tasks (Vite Task, via `vp run <name>`) ──
@@ -48,6 +50,9 @@ export default defineConfig({
         command:
           'lightningcss --minify --bundle --sourcemap -o dist/styles.min.css ./src/css/index.css',
         dependsOn: ['generate:theme'],
+        // Static partials (layout.css, future patterns/*.css) are inlined by
+        // lightningcss --bundle; declare them so edits bust this task's cache.
+        input: ['src/css/**/*.css'],
         output: ['dist/*.css*'],
       },
 

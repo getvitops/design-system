@@ -1,6 +1,6 @@
 allowBuilds:
-  '@lyricalstring/gale': set this to true or false
-  lightningcss-cli: set this to true or false
+  '@lyricalstring/gale': true
+  lightningcss-cli: true
 minimumReleaseAgeExclude:
   - '@voidzero-dev/vite-plus-core@0.2.1'
   - '@voidzero-dev/vite-plus-darwin-arm64@0.2.1'
