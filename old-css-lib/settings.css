@@ -1,0 +1,29 @@
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (any-pointer: coarse) {
+  [class^='tappable'],
+  [class*=' tappable'] {
+    position: relative;
+  }
+
+  .tappable::after,
+  .tappable-after::after,
+  .tappable-before::before {
+    content: '';
+    position: absolute;
+    display: block;
+    block-size: var(--min-tappable-size);
+    inline-size: var(--min-tappable-size);
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+  }
+}

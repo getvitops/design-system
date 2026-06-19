@@ -1,0 +1,69 @@
+/** Cluster pattern - flexible grouping of inline elements with consistent spacing
+ *
+ * Uses place-content for 9 alignment positions:
+ *   .cluster-start-start   .cluster-start-center   .cluster-start-end
+ *   .cluster-center-start  .cluster-center-center  .cluster-center-end
+ *   .cluster-end-start     .cluster-end-center     .cluster-end-end
+ *
+ * First value = block axis (align-content), Second value = inline axis (justify-content)
+ */
+
+.cluster,
+[class^='cluster-'],
+[class*=' cluster-'] {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* 9 alignment positions using place-content */
+.cluster-start-start {
+  place-content: start start;
+}
+.cluster-start-center {
+  place-content: start center;
+}
+.cluster-start-end {
+  place-content: start end;
+}
+
+.cluster-center-start {
+  place-content: center start;
+}
+.cluster-center-center {
+  place-content: center center;
+}
+.cluster-center-end {
+  place-content: center end;
+}
+
+.cluster-end-start {
+  place-content: end start;
+}
+.cluster-end-center {
+  place-content: end center;
+}
+.cluster-end-end {
+  place-content: end end;
+}
+
+/* Shorthand aliases for common single-axis defaults */
+.cluster-start {
+  place-content: start start;
+}
+.cluster-center {
+  place-content: center center;
+}
+.cluster-end {
+  place-content: end end;
+}
+
+/* Space distribution variants */
+.cluster-between {
+  justify-content: space-between;
+}
+.cluster-around {
+  justify-content: space-around;
+}
+.cluster-evenly {
+  justify-content: space-evenly;
+}

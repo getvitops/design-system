@@ -1,0 +1,68 @@
+/** Icon pattern - consistent icon sizing and styling */
+
+.icon {
+  --_icon-size: var(--icon-size, 1.25em);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--_icon-size);
+  block-size: var(--_icon-size);
+  flex-shrink: 0;
+  vertical-align: middle;
+
+  /** SVG inside icon wrapper */
+  > svg {
+    inline-size: 100%;
+    block-size: 100%;
+    fill: currentColor;
+  }
+
+  /** Image-based icons */
+  > img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: contain;
+  }
+}
+
+/** Mask-based icon pattern for CSS-only icons */
+.icon-mask {
+  --_icon-size: var(--icon-size, 1.25em);
+
+  display: inline-block;
+  inline-size: var(--_icon-size);
+  block-size: var(--_icon-size);
+  background-color: currentColor;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  vertical-align: middle;
+}
+
+/** Icon button - icon with tappable target */
+.icon-button {
+  --_icon-button-size: var(--icon-button-size, 2.5rem);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--_icon-button-size);
+  block-size: var(--_icon-button-size);
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--icon-button-radius, 0.375rem);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:focus-visible {
+    outline: 2px solid var(--icon-button-focus-color, oklch(0.6 0.2 250));
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

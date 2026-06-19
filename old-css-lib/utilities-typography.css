@@ -1,0 +1,76 @@
+/**
+ * Typography Utilities
+ *
+ * @utility rules for typography.
+ * Font sizes and families are defined in typography.css and fonts.css.
+ *
+ * Two modes (like space system):
+ * - Static (text-<size>): assigns --_fs-static
+ * - Fluid (text-fluid): assigns --_fs-fluid via clamp() + cqi
+ *
+ * Elements read: --_fs: var(--_fs-fluid, var(--_fs-static))
+ */
+
+/* ============================================
+ * Measure Utilities
+ * ============================================ */
+
+@utility measure-narrow {
+  max-width: var(--measure-narrow);
+}
+
+@utility measure-base {
+  max-width: var(--measure-base);
+}
+
+@utility measure-wide {
+  max-width: var(--measure-wide);
+}
+
+/* ============================================
+ * Static Text Size Utilities
+ * ============================================ */
+
+@utility text-1 {
+  --_fs-static: var(--font-size-1);
+}
+@utility text-2 {
+  --_fs-static: var(--font-size-2);
+}
+@utility text-3 {
+  --_fs-static: var(--font-size-3);
+}
+@utility text-4 {
+  --_fs-static: var(--font-size-4);
+}
+@utility text-5 {
+  --_fs-static: var(--font-size-5);
+}
+@utility text-6 {
+  --_fs-static: var(--font-size-6);
+}
+
+/* ============================================
+ * Fluid Typography Toggle (space toggle hack)
+ * --_fs-use-fluid: " " = fluid ON (inherits to children)
+ * --_fs-use-fluid: initial = fluid OFF (default)
+ * ============================================ */
+
+@utility text-fluid {
+  --_fs-use-fluid: ;
+}
+
+@utility text-static {
+  --_fs-use-fluid: initial;
+}
+
+/* Fluid density modifiers */
+@utility text-fluid-tight {
+  --text-fluid-min: calc(var(--_fs-static) * 0.85);
+  --text-fluid-max: calc(var(--_fs-static) * 1.1);
+}
+
+@utility text-fluid-loose {
+  --text-fluid-min: calc(var(--_fs-static) * 0.6);
+  --text-fluid-max: calc(var(--_fs-static) * 1.5);
+}

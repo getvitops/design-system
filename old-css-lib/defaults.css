@@ -1,0 +1,140 @@
+:root {
+  interpolate-size: allow-keywords;
+  --min-tappable-size: 44px;
+  --default-flow-gap: 1.1lh;
+}
+
+body {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1 1 auto;
+}
+
+/** override intrinsic sizing of images, videos, etc. */
+img,
+video,
+picture,
+object,
+iframe,
+embed {
+  min-inline-size: 100%;
+  block-size: auto;
+  object-fit: cover;
+}
+
+/** normalize list styles - markers align with column inline-start */
+ol,
+ul[role='list'] {
+  --_marker-offset: 0em;
+  --_marker-width: 1em;
+  --list-item-gap: 0.75lh;
+
+  list-style-position: outside;
+
+  &.no-list-markers {
+    --_marker-width: 0em;
+    --_marker-offset: 0em;
+    list-style-type: none;
+  }
+}
+
+ul[role='list'] {
+  list-style-type: disc;
+  margin-inline-start: calc(var(--_marker-width) - var(--_marker-offset));
+
+  > li + li {
+    margin-block-start: var(--list-item-gap);
+  }
+}
+
+ul:not([role='list']) > li {
+  list-style-type: none;
+}
+
+/** reset preflight border */
+.google-map * {
+  border-style: none;
+}
+
+.flex-evenly > * {
+  flex: 1;
+}
+
+/* 1. Define your custom focus style for when it IS visible */
+:focus-visible {
+  outline: 3px solid #4a90e2;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* 2. Hide the outline ONLY when the browser says it isn't needed */
+:focus:not(:focus-visible) {
+  outline: transparent;
+}
+
+a.btn {
+  text-decoration: none;
+}
+
+/* TODO: find a better place for this */
+#mobile-menu {
+  font-size: 1.2rem;
+  padding: 10px;
+
+  /* Final state of the exit animation */
+  opacity: 0;
+  translate: -100%;
+
+  transition-timing-function: var(--animation-timing-function);
+
+  transition:
+    opacity 0.4s,
+    translate 0.4s,
+    overlay 0.4s allow-discrete,
+    display 0.4s allow-discrete;
+  /* Equivalent to
+  transition: all 0.7s allow-discrete; */
+
+  &:popover-open {
+    opacity: 1;
+    translate: 0%;
+  }
+
+  /* Needs to be after the previous [popover]:popover-open rule
+  to take effect, as the specificity is the same */
+  @starting-style {
+    &:popover-open {
+      opacity: 0;
+      translate: -100%;
+    }
+  }
+
+  /* Transition for the popover's backdrop */
+
+  &::backdrop {
+    background-color: transparent;
+    transition:
+      display 0.7s allow-discrete,
+      overlay 0.7s allow-discrete,
+      background-color 0.7s;
+    /* Equivalent to
+    transition: all 0.7s allow-discrete; */
+  }
+
+  &:popover-open::backdrop {
+    background-color: rgb(0 0 0 / 25%);
+  }
+
+  /* The nesting selector (&) cannot represent pseudo-elements
+  so this starting-style rule cannot be nested */
+
+  @starting-style {
+    &:popover-open::backdrop {
+      background-color: transparent;
+    }
+  }
+}

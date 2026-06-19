@@ -1,0 +1,235 @@
+/** Nav pattern — base, drawer, navbar presentations */
+
+nav:has(> .nav-items) {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.nav-header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border-subtle, #e5e7eb);
+}
+
+.nav-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  > li {
+    display: flex;
+  }
+
+  a,
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+    font-family: inherit;
+  }
+}
+
+.nav-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border-subtle, #e5e7eb);
+}
+
+/** Dropdown submenu */
+.dropdown-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.25em;
+}
+
+.dropdown-icon,
+.collapse-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.dropdown-menu {
+  position: absolute;
+  margin: 0;
+  inset: auto;
+
+  .menu {
+    min-width: 13rem;
+  }
+}
+
+/** Accordion/collapse submenu — marker suppression via details.css */
+.nav-collapse {
+  border: none;
+  padding: 0;
+  width: 100%;
+
+  > summary {
+    overflow: clip;
+  }
+}
+
+.collapse-menu {
+  list-style: none;
+  padding-inline-start: 1.5rem;
+  margin-block-start: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: inherit;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+
+    &:hover {
+      background-color: var(--color-surface-raised, rgb(0 0 0 / 0.05));
+    }
+  }
+}
+
+.social-links a {
+  display: inline-flex;
+  padding: 0.5rem;
+}
+
+/** Drawer presentation */
+.drawer-trigger {
+  position: var(--drawer-trigger-position, absolute);
+  inline-size: fit-content;
+  z-index: var(--z-tier-overlay);
+}
+
+.drawer-menu {
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 2.5rem;
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  width: 100%;
+  opacity: 0;
+  translate: -100%;
+  transition-timing-function: var(--animation-timing-function);
+  transition:
+    opacity 0.4s,
+    translate 0.4s,
+    overlay 0.4s allow-discrete,
+    display 0.4s allow-discrete;
+
+  &[open],
+  &:popover-open {
+    display: flex;
+    opacity: 1;
+    translate: 0%;
+  }
+
+  @starting-style {
+    &[open],
+    &:popover-open {
+      opacity: 0;
+      translate: -100%;
+    }
+  }
+
+  &::backdrop {
+    background-color: transparent;
+    transition:
+      display 0.7s allow-discrete,
+      overlay 0.7s allow-discrete,
+      background-color 0.7s;
+  }
+
+  &[open]::backdrop,
+  &:popover-open::backdrop {
+    background-color: rgb(0 0 0 / 25%);
+  }
+
+  @starting-style {
+    &[open]::backdrop,
+    &:popover-open::backdrop {
+      background-color: transparent;
+    }
+  }
+}
+
+.drawer-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+}
+
+.drawer-nav {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/** Navbar presentation */
+.navbar {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+
+  nav {
+    flex: 1;
+    flex-direction: row;
+  }
+
+  .nav-items {
+    flex: 1;
+    flex-direction: row;
+    gap: 2.25rem;
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .nav-actions {
+    flex-direction: row;
+    gap: 2.25rem;
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .nav-header {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.navbar-sticky {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-tier-sticky);
+}
+
+/** Nav item layout shorthands (used via itemAttrs.class) */
+.nav-split {
+  margin-block-start: auto;
+
+  .navbar & {
+    margin-block-start: 0;
+    margin-inline-start: auto;
+  }
+}

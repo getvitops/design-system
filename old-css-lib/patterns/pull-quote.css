@@ -1,0 +1,75 @@
+/** Pull Quote pattern - highlighted inline quotes (NOT blockquote - that's for external refs) */
+
+.pull-quote {
+  /**
+   * Cascading fallback pattern:
+   * pull-quote-specific → group (via pattern-mapping.css) → default
+   */
+  --_pull-quote-font-size: var(--fs-pull-quote, var(--fs-pull-quote-group, var(--fs-default)));
+  --_pull-quote-padding: var(--p-pull-quote, var(--p-pull-quote-group, var(--p-default)));
+  --_pull-quote-radius: var(--br-pull-quote, var(--br-pull-quote-group, var(--br-default)));
+  --_pull-quote-border: var(--b-pull-quote, var(--b-pull-quote-group, var(--b-default)));
+  --_pull-quote-shadow: var(--ds-pull-quote, var(--ds-pull-quote-group, var(--ds-default)));
+
+  position: relative;
+  padding: var(--_pull-quote-padding);
+  font-size: var(--_pull-quote-font-size);
+  line-height: 1.4;
+  border: var(--_pull-quote-border);
+  border-radius: var(--_pull-quote-radius);
+  box-shadow: var(--_pull-quote-shadow);
+  font-style: italic;
+
+  /** Quote marks using pseudo-elements */
+  &::before {
+    content: '\201C';
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    font-size: 4em;
+    line-height: 1;
+    opacity: 0.3;
+    font-style: normal;
+    font-family: Georgia, serif;
+  }
+
+  /** Attribution/source */
+  .pull-quote__attribution {
+    display: block;
+    margin-block-start: 1rem;
+    font-size: 0.875rem;
+    font-style: normal;
+    opacity: 0.7;
+
+    &::before {
+      content: '— ';
+    }
+  }
+
+  /** Border accent variant */
+  &.pull-quote--border {
+    border-inline-start: 4px solid currentColor;
+    padding-inline-start: 1.5rem;
+  }
+
+  &.pull-quote--border::before {
+    display: none;
+  }
+}
+
+/** Figure-based pull quote for semantic markup */
+figure.pull-quote-figure {
+  .pull-quote {
+    margin: 0;
+  }
+
+  figcaption {
+    font-size: 0.875rem;
+    opacity: 0.7;
+    margin-block-start: 0.75rem;
+
+    &::before {
+      content: '— ';
+    }
+  }
+}

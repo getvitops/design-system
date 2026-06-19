@@ -1,0 +1,15 @@
+/**
+ * Generated Font Utilities
+ *
+ * Auto-generated from site.config.* by lib/generate-theme.ts
+ * Do not edit directly - run `npm run generate:theme` to regenerate.
+ */
+
+/* Font-specific utilities */
+@utility font-mulish {
+  font-family: var(--font-mulish);
+}
+
+@utility font-open-sans {
+  font-family: var(--font-open-sans);
+}

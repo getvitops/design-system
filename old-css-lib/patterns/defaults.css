@@ -1,0 +1,115 @@
+/**
+ * Pattern Defaults - Base defaults and group-level defaults
+ *
+ * This file defines the ultimate fallback values and group-level defaults.
+ * Pattern-to-group mappings are generated in pattern-mapping.css.
+ *
+ * Pattern Groupings:
+ * - tag: badge, label, status, tooltip
+ * - control: button, link, toggle, switch, combobox, select, checkbox
+ * - panel: card, dialog, modal, dropdown, notification, popover, tab-panel, tile, comment
+ * - area: drawer, section, aside, banner, notification-area
+ * - content: details, accordion, figure, list, tree
+ * - pull: blockquote, pull-quote
+ *
+ * Common Properties:
+ * - ds (drop-shadow / box-shadow)
+ * - b (border)
+ * - br (border-radius)
+ * - p (padding)
+ * - fs (font-size)
+ *
+ * Usage pattern in component files:
+ * .btn {
+ *   box-shadow: var(--ds-button, var(--ds-button-group, var(--ds-default)));
+ *   border: var(--b-button, var(--b-button-group, var(--b-default)));
+ *   border-radius: var(--br-button, var(--br-button-group, var(--br-default)));
+ *   padding: var(--p-button, var(--p-button-group, var(--p-default)));
+ * }
+ *
+ * The --*-button-group variables are generated in pattern-mapping.css and
+ * reference the appropriate group (e.g., --ds-control for button).
+ */
+
+:root {
+  /* ========================================
+   * Default values (ultimate fallbacks)
+   * ======================================== */
+
+  /* Drop shadow defaults */
+  --ds-default: none;
+
+  /* Border defaults */
+  --b-default: 1px solid oklch(0.85 0 0);
+
+  /* Border radius defaults */
+  --br-default: 0.375rem;
+
+  /* Padding defaults */
+  --p-default: 1rem;
+
+  /* Font size defaults */
+  --fs-default: 1rem;
+
+  /* ========================================
+   * Group-level defaults
+   * These define the base style for each pattern group
+   * ======================================== */
+
+  /* Tag group (badge, label, status, tooltip) */
+  --ds-tag: var(--ds-default);
+  --b-tag: none;
+  --br-tag: 0.25rem;
+  --p-tag: 0.25em 0.5em;
+  --fs-tag: 0.75rem;
+
+  /* Control group (button, link, toggle, switch, etc.) */
+  --ds-control: var(--ds-default);
+  --b-control: var(--b-default);
+  --br-control: var(--br-default);
+  --p-control: 0.5em 1em;
+  --fs-control: var(--fs-default);
+
+  /* Panel group (card, dialog, modal, dropdown, notification, etc.) */
+  --ds-panel: 0 4px 12px oklch(0 0 0 / 0.15);
+  --b-panel: var(--b-default);
+  --br-panel: 0.5rem;
+  --p-panel: 1rem;
+  --fs-panel: var(--fs-default);
+
+  /* Area group (drawer, tab-panel, section, aside, banner) */
+  --ds-area: var(--ds-default);
+  --b-area: var(--b-default);
+  --br-area: 0;
+  --p-area: 1.5rem;
+  --fs-area: var(--fs-default);
+
+  /* Content group (details, accordion, figure, list, tree) */
+  --ds-content: var(--ds-default);
+  --b-content: var(--b-default);
+  --br-content: 0.5rem;
+  --p-content: 1rem;
+  --fs-content: var(--fs-default);
+
+  /* Pull group (blockquote, pull-quote) */
+  --ds-pull: var(--ds-default);
+  --b-pull: none;
+  --br-pull: 0;
+  --p-pull: 1.5rem;
+  --fs-pull: 1.25rem;
+
+  /* ========================================
+   * Z-Index Elevation Tiers
+   *
+   * Most UI patterns (dropdown, dialog, notification, tooltip,
+   * popover, lightbox) use the Popover API or <dialog> and get
+   * browser-managed top-layer stacking — they don't need z-index.
+   *
+   * These tokens cover the remaining cases: sticky elements,
+   * non-top-layer overlays, and top-most fixed UI.
+   * ======================================== */
+  --z-tier-raised: 1;
+  --z-tier-sticky: 100;
+  --z-tier-overlay: 200;
+  --z-tier-top: 1000;
+}

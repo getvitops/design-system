@@ -1,0 +1,91 @@
+@import 'tailwindcss';
+@plugin "../../lib/tailwind-space-plugin.ts";
+@import './fonts.css';
+@import './colors.css';
+@import './utilities.css';
+@import './utilities-animations.css';
+@import './utilities-anim.css';
+@import './utilities-colors.css';
+@import './utilities-fonts.css';
+@import './utilities-font-roles.css';
+@import './utilities-typography.css';
+@layer base {
+  @import './defaults.css';
+  @import './settings.css';
+  @import './typography.css';
+  @import './animations.css';
+}
+@layer utilities {
+  @import './patterns/grouped.css';
+}
+@layer components {
+  @import './patterns/defaults.css';
+  @import './patterns/pattern-mapping.css';
+  @import './patterns/anchor-link.css';
+  @import './patterns/banner.css';
+  @import './patterns/cluster.css';
+  @import './patterns/carousel.css';
+  @import './patterns/combobox.css';
+  @import './patterns/comment.css';
+  @import './patterns/copy.css';
+  @import './patterns/details.css';
+  @import './patterns/drawer.css';
+  @import './patterns/entries.css';
+  @import './patterns/dialog.css';
+  @import './patterns/forms.css';
+  @import './patterns/horizontal-scroll.css';
+  @import './patterns/icon.css';
+  @import './patterns/lightbox.css';
+  @import './patterns/layouts.css';
+  @import './patterns/list.css';
+  @import './patterns/marquee.css';
+  @import './patterns/masonry.css';
+  @import './patterns/media.css';
+  @import './patterns/nav.css';
+  @import './patterns/notification.css';
+  @import './patterns/overlay.css';
+  @import './patterns/popover.css';
+  @import './patterns/pull-quote.css';
+  @import './patterns/scroll-based.css';
+  @import './patterns/scroll-target.css';
+  @import './patterns/separator.css';
+  @import './patterns/splitter.css';
+  @import './patterns/dropdown.css';
+  @import './patterns/stack.css';
+  @import './patterns/sticky.css';
+  @import './patterns/svg.css';
+  @import './patterns/table.css';
+  @import './patterns/tag.css';
+  @import './patterns/text-changes.css';
+  @import './patterns/tooltip.css';
+  @import './patterns/tree.css';
+}
+@plugin "daisyui" {
+  themes: false;
+  exclude:
+    [ 'carousel',
+    'dropdown',
+    'stack',
+    'drawer',
+    'join',
+    ];
+}
+@import './daisyui-theme.css';
+
+html {
+  scrollbar-gutter: stable;
+  scroll-behavior: smooth;
+  scroll-padding-block-start: var(--top-offset, 0);
+}
+
+wc-entries {
+  @container body (inline-size < 450px) {
+    .entries__nav {
+      flex-direction: column;
+    }
+  }
+
+  .entries__scroll {
+    border: 1px solid currentColor;
+  }
+}

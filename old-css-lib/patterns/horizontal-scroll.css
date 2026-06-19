@@ -1,0 +1,56 @@
+/* Horizontal Scroll Pattern
+ * Scrolls a section horizontally during vertical page scroll
+ * Based on: https://scroll-driven-animations.style/demos/horizontal-section/css/
+ *
+ * Usage:
+ *   <section id="sectionPin" class="horizontal-scroll">
+ *     <div class="horizontal-scroll__sticky">
+ *       <div class="horizontal-scroll__track">
+ *         <!-- Your horizontally-scrolling content here -->
+ *       </div>
+ *     </div>
+ *   </section>
+ */
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    @keyframes horizontal-scroll-move {
+      to {
+        /* Center the last item (90cqi wide) in the container (100cqi):
+           offset = (100cqi - 90cqi) / 2 = 5cqi less than full alignment */
+        transform: translateX(calc(-100% + 95cqi));
+      }
+    }
+
+    .horizontal-scroll:not([class*='horizontal-scroll--disabled']) {
+      /* Stretch height to create room for the horizontal scroll animation */
+      height: 300vh;
+      overflow-x: clip;
+      container-type: inline-size;
+
+      /* Create a view timeline for the animation */
+      view-timeline-name: --horizontal-scroll-tl;
+      view-timeline-axis: block;
+
+      > .horizontal-scroll__sticky {
+        /* Stick to top while scrolling through the section */
+        position: sticky;
+        top: 0;
+        height: 100cqb;
+        width: 100cqi;
+        overflow-x: clip;
+
+        > .horizontal-scroll__track {
+          height: 100cqb;
+          width: 150cqi; /* Adjust based on content width */
+          will-change: transform;
+
+          /* Hook animation to the view timeline */
+          animation: linear horizontal-scroll-move forwards;
+          animation-timeline: --horizontal-scroll-tl;
+          animation-range: contain 0% contain 100%;
+        }
+      }
+    }
+  }
+}

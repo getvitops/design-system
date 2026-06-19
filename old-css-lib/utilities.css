@@ -1,0 +1,57 @@
+:root {
+  --region-padding-block: 4rem;
+}
+
+@variant sm {
+  :root {
+    --region-padding-block: 5rem;
+  }
+}
+
+@variant md {
+  :root {
+    --region-padding-block: 6rem;
+  }
+}
+
+@variant lg {
+  :root {
+    --region-padding-block: 8rem;
+  }
+}
+
+@utility region-fluid {
+  padding-block: clamp(
+    var(--region-padding-block-min),
+    var(--region-padding-block-preferred),
+    var(--region-padding-block-max)
+  );
+}
+
+@utility region {
+  padding-block: var(--region-padding-block);
+}
+
+@utility w-measure {
+  --_width: var(--width-measure);
+}
+
+@utility w-breakout {
+  --_width: var(--width-breakout);
+}
+
+@utility w-feature {
+  --_width: var(--width-feature);
+}
+
+@utility w-full-bleed {
+  --_width: none;
+}
+
+/** Bordered — setter for border-width and border-style.
+ *  Getter is in patterns/grouped.css (components layer).
+ *  @see patterns/grouped.css for .bordered getter and .grouped.bordered composition */
+@utility bordered {
+  --_bw: var(--bw, 1px);
+  --_bs: var(--bs, solid);
+}

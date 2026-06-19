@@ -1,0 +1,321 @@
+/*
+ * CSS-only Carousel Pattern
+ * Based on: https://chrome.dev/carousel-configurator/
+ *
+ * Browser requirements:
+ * - ::scroll-button()     — Chrome/Edge 135+
+ * - ::scroll-marker-group — Chrome/Edge 135+
+ * - ::column              — Chrome/Edge 135+
+ * - scroll-state()        — Chrome/Edge 135+
+ * - interactivity: inert  — Chrome/Edge 135+
+ *
+ * Modes:
+ *   Default (non-paged): grid layout, per-item scrolling
+ *   .carousel--auto-pages: CSS columns, per-page scrolling via ::column
+ *
+ * Modifiers:
+ *   .carousel--scroll-buttons  — prev/next anchor-positioned buttons
+ *   .carousel--scroll-markers  — dot navigation (per-item or per-page)
+ *   .carousel--inert           — dim/disable off-screen content
+ *   .carousel--force-stop      — always stop at each snap point
+ *   .carousel--auto-pages      — switch to paged (columns) mode
+ *
+ * CSS Variables (user-overridable):
+ *   --carousel-slide-size       — grid column size (default: 100%)
+ *   --carousel-gap              — gap between slides (default: 1rem)
+ *   --carousel-button-color     — button color (default: currentColor)
+ *   --carousel-marker-color     — marker dot color (default: currentColor)
+ *   --carousel-marker-active-color — active marker color
+ *   --carousel-marker-offset    — marker group inset from bottom (default: 1rem)
+ *   --carousel-columns          — items per page in auto-pages mode (default: 1)
+ *   --carousel-inert-opacity    — dimmed slide opacity (default: 0.25)
+ *   --carousel-padding          — padding around carousel (default: 1rem)
+ *   --carousel-scroll-padding   — scroll snap padding (default: 1rem)
+ */
+
+.carousel {
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+  scroll-padding: var(--carousel-scroll-padding, 1rem);
+  padding: var(--carousel-padding, 1rem);
+  max-inline-size: 100%;
+  anchor-name: --carousel;
+  anchor-scope: --carousel;
+
+  /* ── Non-paged (default) — grid layout ── */
+
+  &:not(.carousel--auto-pages) {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: var(--carousel-slide-size, 100%);
+    gap: var(--carousel-gap, 1rem);
+
+    > * {
+      scroll-snap-align: center;
+    }
+
+    > [part='autoplay'] {
+      scroll-snap-align: unset;
+    }
+  }
+
+  /* ── Paged — CSS columns ── */
+
+  &.carousel--auto-pages {
+    columns: var(--carousel-columns, 1);
+    text-align: center;
+
+    > * {
+      break-inside: avoid;
+      display: inline-grid;
+    }
+
+    &::column {
+      scroll-snap-align: center;
+    }
+  }
+
+  /* ── Scroll Buttons — anchor-positioned ── */
+
+  &.carousel--scroll-buttons {
+    &::scroll-button(*) {
+      position: fixed;
+      position-anchor: --carousel;
+      position-visibility: always;
+      cursor: pointer;
+      font-size: 1.5rem;
+      inline-size: 44px;
+      aspect-ratio: 1;
+      display: flex;
+      place-items: center;
+      place-content: center;
+      border: none;
+      border-radius: 50%;
+      color: var(--carousel-button-color, currentColor);
+      background: oklch(0.97 0 0);
+      opacity: 0.9;
+      transition:
+        opacity 0.2s ease,
+        background 0.2s ease;
+    }
+
+    &::scroll-button(*):hover {
+      opacity: 1;
+      background: oklch(0.93 0 0);
+    }
+
+    &::scroll-button(*):focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
+
+    &::scroll-button(*):disabled {
+      cursor: not-allowed;
+      opacity: 0.2;
+    }
+
+    &::scroll-button(left) {
+      position-area: inline-start center;
+      content: '\2190' / 'Previous';
+    }
+
+    &::scroll-button(right) {
+      position-area: inline-end center;
+      content: '\2192' / 'Next';
+    }
+  }
+
+  /* ── Scroll Markers — anchor-positioned group ── */
+
+  &.carousel--scroll-markers {
+    scroll-marker-group: after;
+
+    &::scroll-marker-group {
+      position: fixed;
+      position-anchor: --carousel;
+      position-area: block-end;
+      position-visibility: always;
+      margin-block-end: var(--carousel-marker-offset, 1rem);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding-block: 0.5rem;
+    }
+
+    /* Non-paged: per-item markers */
+    &:not(.carousel--auto-pages) {
+      > *::scroll-marker {
+        content: '';
+        inline-size: 0.75rem;
+        block-size: 0.75rem;
+        border-radius: 50%;
+        background-color: var(--carousel-marker-color, currentColor);
+        opacity: 0.4;
+        cursor: pointer;
+        transition: opacity 0.2s ease;
+      }
+
+      > [data-carousel-clone]::scroll-marker,
+      > [part='autoplay']::scroll-marker {
+        content: none;
+      }
+
+      > *::scroll-marker:target-current {
+        opacity: 1;
+        background-color: var(
+          --carousel-marker-active-color,
+          var(--carousel-marker-color, currentColor)
+        );
+      }
+
+      > *::scroll-marker:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+      }
+    }
+
+    /* Paged: per-column markers */
+    &.carousel--auto-pages {
+      &::column::scroll-marker {
+        content: '';
+        inline-size: 0.75rem;
+        block-size: 0.75rem;
+        border-radius: 50%;
+        background-color: var(--carousel-marker-color, currentColor);
+        opacity: 0.4;
+        cursor: pointer;
+        transition: opacity 0.2s ease;
+      }
+
+      &::column::scroll-marker:target-current {
+        opacity: 1;
+        background-color: var(
+          --carousel-marker-active-color,
+          var(--carousel-marker-color, currentColor)
+        );
+      }
+
+      &::column::scroll-marker:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+      }
+    }
+  }
+
+  /* ── Inert — dim/disable off-screen content ──
+   *
+   * Non-paged: scroll-state container query on grandchildren.
+   * Per CSS containment spec, @container queries target ancestors,
+   * not the container itself. Direct children get container-type,
+   * their children receive the query.
+   *
+   * Paged: view-timeline animation since ::column does not
+   * support container-type: scroll-state.
+   */
+
+  &.carousel--inert {
+    /* Non-paged */
+    &:not(.carousel--auto-pages) > * {
+      container-type: scroll-state;
+
+      > * {
+        transition: opacity 0.5s ease;
+
+        @container not scroll-state(snapped) {
+          interactivity: inert;
+          opacity: var(--carousel-inert-opacity, 0.25);
+        }
+      }
+    }
+
+    /* Paged */
+    &.carousel--auto-pages > * {
+      animation: carousel-offscreen-inert linear both;
+      animation-timeline: view(x);
+    }
+  }
+
+  /* ── Autoplay — play/pause toggle ── */
+
+  & > [part='autoplay'] {
+    position: fixed;
+    position-anchor: --carousel;
+    position-area: block-end inline-end;
+    position-visibility: always;
+    margin-block-end: var(--carousel-marker-offset, 1rem);
+    margin-inline-end: 0.5rem;
+    z-index: var(--z-tier-raised, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2rem;
+    block-size: 2rem;
+    border: none;
+    border-radius: 50%;
+    background: oklch(0.97 0 0);
+    color: var(--carousel-button-color, currentColor);
+    opacity: 0.7;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: opacity 0.2s ease;
+
+    &:hover {
+      opacity: 1;
+    }
+
+    &:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
+  }
+
+  /* ── Force Stop — always stop at each snap point ── */
+
+  &.carousel--force-stop {
+    /* Non-paged */
+    &:not(.carousel--auto-pages) > * {
+      scroll-snap-stop: always;
+    }
+
+    /* Paged */
+    &.carousel--auto-pages::column {
+      scroll-snap-stop: always;
+    }
+  }
+}
+
+/* ── Keyframes ── */
+
+@keyframes carousel-offscreen-inert {
+  entry 0%,
+  exit 100% {
+    interactivity: inert;
+    opacity: var(--carousel-inert-opacity, 0.25);
+  }
+
+  entry 100%,
+  exit 0% {
+    interactivity: auto;
+    opacity: 1;
+  }
+}
+
+/* ── Reduced Motion ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .carousel {
+    scroll-behavior: auto;
+
+    &.carousel--inert:not(.carousel--auto-pages) > * > * {
+      transition: none;
+    }
+
+    &.carousel--inert.carousel--auto-pages > * {
+      animation: none;
+    }
+  }
+}

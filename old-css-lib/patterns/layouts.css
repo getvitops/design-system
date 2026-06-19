@@ -1,0 +1,51 @@
+@theme inline {
+  --width-content: 50rem;
+  --width-breakout: 70rem;
+  --width-feature: 90rem;
+  --width-measure: 60ch;
+  --gutter: clamp(1.5rem, 4cqi, 4rem);
+}
+
+.centered,
+.section {
+  --_content: min(var(--width-content), 100% - var(--gutter) * 2);
+  --_breakout: minmax(0, calc((var(--width-breakout) - var(--width-content)) / 2));
+  --_feature: minmax(0, calc((var(--width-feature) - var(--width-breakout)) / 2));
+
+  position: relative;
+  display: grid;
+  grid-template-columns:
+    [full-start] minmax(var(--gutter), 1fr)
+    [feature-start] var(--_feature)
+    [breakout-start] var(--_breakout)
+    [content-start] var(--_content) [content-end]
+    var(--_breakout) [breakout-end]
+    var(--_feature) [feature-end]
+    minmax(var(--gutter), 1fr) [full-end];
+  text-align: start;
+
+  > * {
+    grid-column: content;
+  }
+
+  > .breakout {
+    grid-column: breakout;
+  }
+
+  > .feature {
+    grid-column: feature;
+  }
+
+  > .full-bleed {
+    grid-column: full;
+  }
+}
+
+.region,
+.section {
+  padding-block: var(--region-padding-block);
+}
+
+:is(.flow, .section) > * + * {
+  margin-block-start: var(--flow-gap, var(--default-flow-gap));
+}

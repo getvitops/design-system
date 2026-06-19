@@ -1,0 +1,12 @@
+/**
+ * Generated Font Theme
+ *
+ * Auto-generated from site.config.* by lib/generate-theme.ts
+ * Do not edit directly - run `npm run generate:theme` to regenerate.
+ */
+
+@theme inline {
+  --font-body: var(--font-mulish), var(--font-serif);
+  --font-display: var(--font-mulish), var(--font-serif);
+  --font-accent: var(--font-mulish), var(--font-serif);
+}

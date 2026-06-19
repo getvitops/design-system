@@ -1,0 +1,55 @@
+/**
+ * Animation Range Utilities
+ *
+ * Use with custom properties for fine-tuning:
+ *   --range-start: 0%    (start position within range)
+ *   --range-end: 100%    (end position within range)
+ *
+ * Examples:
+ *   <div class="anim-view fade-in range-entry">                    <!-- entry 0% to entry 100% -->
+ *   <div class="anim-view fade-in range-entry" style="--range-end: 50%">  <!-- entry 0% to entry 50% -->
+ *   <div class="anim-view fade-in range-entry-exit">               <!-- entry 0% to exit 100% -->
+ */
+
+/* Single range utilities */
+@utility range-entry {
+  animation-range: entry var(--range-start, 10%) entry var(--range-end, 90%);
+}
+
+@utility range-exit {
+  animation-range: exit var(--range-start, 10%) exit var(--range-end, 90%);
+}
+
+@utility range-contain {
+  animation-range: contain var(--range-start, 10%) contain var(--range-end, 90%);
+}
+
+@utility range-cover {
+  animation-range: cover var(--range-start, 10%) cover var(--range-end, 90%);
+}
+
+/* Cross-range utilities (start in one range, end in another) */
+@utility range-entry-exit {
+  animation-range: entry var(--range-start, 0%) exit var(--range-end, 100%);
+}
+
+@utility range-entry-contain {
+  animation-range: entry var(--range-start, 0%) contain var(--range-end, 100%);
+}
+
+@utility range-contain-exit {
+  animation-range: contain var(--range-start, 0%) exit var(--range-end, 100%);
+}
+
+/* Common presets */
+@utility range-entry-half {
+  animation-range: entry 0% entry 50%;
+}
+
+@utility range-exit-half {
+  animation-range: exit 50% exit 100%;
+}
+
+@utility range-cover-full {
+  animation-range: cover 0% cover 100%;
+}

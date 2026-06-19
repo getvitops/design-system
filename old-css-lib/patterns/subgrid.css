@@ -1,0 +1,235 @@
+/** Subgrid pattern - content-aligned cards and layouts using CSS subgrid */
+
+/**
+ * Simple subgrid - set --items-per-row and children auto-align
+ *
+ * Usage:
+ *   <ul class="subgrid" style="--items-per-row: 3; --rows-per-item: 2">
+ *     <li><h3>Heading</h3><p>Content</p></li>
+ *     ...
+ *   </ul>
+ *
+ * Or use utility classes: .subgrid-cols-2, .subgrid-cols-3, .subgrid-rows-2, etc.
+ */
+.subgrid {
+  --_items-per-row: var(--items-per-row, 3);
+  --_rows-per-item: var(--rows-per-item, 2);
+  --_subgrid-gap: var(--subgrid-gap, 1.5rem);
+
+  display: grid;
+  grid-template-columns: repeat(var(--_items-per-row), 1fr);
+  gap: var(--_subgrid-gap);
+
+  > * {
+    grid-row: span var(--_rows-per-item);
+    display: grid;
+    grid-template-rows: subgrid;
+  }
+
+  /** Column count utilities */
+  &.subgrid-cols-1 {
+    --_items-per-row: 1;
+  }
+  &.subgrid-cols-2 {
+    --_items-per-row: 2;
+  }
+  &.subgrid-cols-3 {
+    --_items-per-row: 3;
+  }
+  &.subgrid-cols-4 {
+    --_items-per-row: 4;
+  }
+
+  /** Row span utilities */
+  &.subgrid-rows-2 {
+    --_rows-per-item: 2;
+  }
+  &.subgrid-rows-3 {
+    --_rows-per-item: 3;
+  }
+  &.subgrid-rows-4 {
+    --_rows-per-item: 4;
+  }
+
+  /** Responsive - drops to fewer columns at breakpoints */
+  &.subgrid-responsive {
+    @media (width < 60rem) {
+      --_items-per-row: min(var(--items-per-row, 3), 2);
+    }
+    @media (width < 40rem) {
+      --_items-per-row: 1;
+    }
+  }
+}
+
+/** Legacy: subgrid-container (deprecated, use .subgrid instead) */
+@scope (.subgrid-container) {
+  :scope {
+    --_subgrid-columns: var(--subgrid-columns, 3);
+    --_subgrid-gap: var(--subgrid-gap, 1.5rem);
+
+    display: grid;
+    grid-template-columns: repeat(var(--_subgrid-columns), 1fr);
+    gap: var(--_subgrid-gap);
+  }
+
+  :scope.subgrid-container--2 {
+    --_subgrid-columns: 2;
+  }
+  :scope.subgrid-container--3 {
+    --_subgrid-columns: 3;
+  }
+  :scope.subgrid-container--4 {
+    --_subgrid-columns: 4;
+  }
+
+  @container (max-width: 60rem) {
+    :scope.subgrid-container--responsive {
+      --_subgrid-columns: 2;
+    }
+  }
+  @container (max-width: 40rem) {
+    :scope.subgrid-container--responsive {
+      --_subgrid-columns: 1;
+    }
+  }
+}
+
+/** Subgrid card - aligns internal content across siblings */
+.subgrid-card {
+  --_card-rows: var(--subgrid-card-rows, 4);
+
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span var(--_card-rows);
+  padding: var(--subgrid-card-padding);
+  border: var(--b-card);
+  border-radius: var(--br-card);
+
+  /** Card sections that align across cards */
+  .subgrid-card__header {
+    /* First row */
+  }
+
+  .subgrid-card__media {
+    /* Second row - often an image */
+    margin-inline: calc(-1 * var(--subgrid-card-padding, 0px));
+
+    > img {
+      inline-size: 100%;
+      block-size: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .subgrid-card__body {
+    /* Third row - main content */
+  }
+
+  .subgrid-card__footer {
+    /* Fourth row - actions, align to bottom */
+    align-self: end;
+  }
+}
+
+/** Pricing table with aligned features */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--pricing-columns, 3), 1fr);
+}
+
+.pricing-card {
+  --_pricing-rows: var(--pricing-card-rows, auto);
+
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span var(--_pricing-rows);
+  gap: 0;
+  border: var(--b-card);
+  border-radius: var(--br-card);
+  overflow: hidden;
+
+  .pricing-card__header {
+    padding: var(--pricing-header-padding);
+    text-align: center;
+  }
+
+  .pricing-card__price {
+    padding: var(--pricing-price-padding);
+    text-align: center;
+    font-size: var(--pricing-price-size);
+    font-weight: 700;
+  }
+
+  .pricing-card__features {
+    padding: var(--pricing-features-padding);
+    list-style: none;
+    margin: 0;
+  }
+
+  .pricing-card__feature {
+    padding-block: 0.5rem;
+    border-block-end: var(--b-card);
+
+    &:last-child {
+      border-block-end: none;
+    }
+  }
+
+  .pricing-card__cta {
+    padding: var(--pricing-cta-padding);
+    text-align: center;
+    align-self: end;
+  }
+
+  /** Featured/highlighted card */
+  &.pricing-card--featured {
+    scale: 1.02;
+    z-index: 1;
+  }
+}
+
+/** Comparison table with subgrid */
+.comparison-table {
+  --_comparison-columns: var(--comparison-columns, 4);
+
+  display: grid;
+  grid-template-columns:
+    minmax(150px, 1fr)
+    repeat(calc(var(--_comparison-columns) - 1), minmax(100px, 1fr));
+  border: var(--b-card);
+  border-radius: var(--br-card);
+  overflow: hidden;
+
+  .comparison-table__header {
+    display: contents;
+  }
+
+  .comparison-table__header > * {
+    padding: var(--comparison-header-padding);
+    font-weight: 600;
+    text-align: center;
+    border-block-end: var(--b-card);
+  }
+
+  .comparison-table__row {
+    display: contents;
+  }
+
+  .comparison-table__row > * {
+    padding: var(--comparison-cell-padding);
+    border-block-end: var(--b-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .comparison-table__row > *:first-child {
+    justify-content: flex-start;
+    font-weight: 500;
+  }
+
+  .comparison-table__row:last-child > * {
+    border-block-end: none;
+  }
+}

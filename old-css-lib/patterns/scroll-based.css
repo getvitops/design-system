@@ -1,0 +1,259 @@
+/** Scroll-based patterns - parallax, snap, spy, scroll-driven animations */
+
+/** Scroll Snap Container */
+.scroll-snap {
+  --_snap-type: var(--snap-type, both mandatory);
+  --_snap-padding: var(--snap-padding, 0);
+
+  overflow: auto;
+  scroll-snap-type: var(--_snap-type);
+  scroll-padding: var(--_snap-padding);
+  overscroll-behavior: contain;
+
+  /** Horizontal scroll snap */
+  &.scroll-snap--x {
+    --_snap-type: x mandatory;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    flex-wrap: nowrap;
+  }
+
+  /** Vertical scroll snap */
+  &.scroll-snap--y {
+    --_snap-type: y mandatory;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  /** Proximity snap (less strict) */
+  &.scroll-snap--proximity {
+    --_snap-type: both proximity;
+  }
+
+  /** Snap items */
+  > * {
+    scroll-snap-align: var(--snap-align, start);
+    scroll-snap-stop: var(--snap-stop, normal);
+  }
+
+  /** Center-aligned snap */
+  &.scroll-snap--center > * {
+    scroll-snap-align: center;
+  }
+
+  /** End-aligned snap */
+  &.scroll-snap--end > * {
+    scroll-snap-align: end;
+  }
+
+  /** Always stop at each item */
+  &.scroll-snap--always > * {
+    scroll-snap-stop: always;
+  }
+
+  /** Hide scrollbar */
+  &.scroll-snap--hide-scrollbar {
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+/** Scroll Spy - highlight nav items based on scroll position using scroll-state() */
+.scroll-spy {
+  container-type: scroll-state;
+
+  /** Section being tracked */
+  .scroll-spy__section {
+    container-type: scroll-state;
+  }
+
+  /** Navigation link highlighting when section is visible */
+  @container scroll-state(snapped: block) {
+    .scroll-spy__link[data-active] {
+      color: var(--scroll-spy-active-color, currentColor);
+      font-weight: 600;
+    }
+  }
+}
+
+/** Parallax effect using scroll-driven animations */
+.parallax {
+  --_parallax-speed: var(--parallax-speed, 0.5);
+
+  overflow: hidden;
+  position: relative;
+
+  /** Parallax layer that moves slower */
+  .parallax__layer {
+    position: absolute;
+    inset: calc(-50% * var(--_parallax-speed)) 0;
+    animation: parallax-scroll linear;
+    animation-timeline: scroll(root);
+
+    @media (prefers-reduced-motion: reduce) {
+      inset: 0;
+    }
+  }
+
+  .parallax__layer > img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+
+  /** Foreground content */
+  .parallax__content {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+@keyframes parallax-scroll {
+  from {
+    translate: 0 calc(-25% * var(--_parallax-speed, 0.5));
+  }
+  to {
+    translate: 0 calc(25% * var(--_parallax-speed, 0.5));
+  }
+}
+
+/** Scroll Progress indicator */
+.scroll-progress {
+  --_progress-height: var(--scroll-progress-height, 3px);
+
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  block-size: var(--_progress-height);
+  z-index: var(--z-tier-top);
+
+  .scroll-progress__bar {
+    block-size: 100%;
+    background: var(--scroll-progress-color, currentColor);
+    transform-origin: left;
+    animation: scroll-progress-grow linear;
+    animation-timeline: scroll(root);
+  }
+}
+
+@keyframes scroll-progress-grow {
+  from {
+    scale: 0 1;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+
+/** Infinite scroll / List virtualization helpers */
+.virtual-list {
+  contain: strict;
+  overflow-y: auto;
+
+  /** Items use content-visibility for performance */
+  .virtual-list__item {
+    content-visibility: auto;
+    contain-intrinsic-size: var(--virtual-item-height, auto 100px);
+  }
+}
+
+/** Scroll-driven reveal animation */
+.scroll-reveal {
+  animation: scroll-reveal linear both;
+  animation-timeline: view();
+  animation-range: entry 0% cover 40%;
+
+  @media (prefers-reduced-motion: reduce) {
+    opacity: 1;
+  }
+
+  /** Direction variants */
+  &.scroll-reveal--up {
+    animation-name: scroll-reveal-up;
+  }
+
+  &.scroll-reveal--down {
+    animation-name: scroll-reveal-down;
+  }
+
+  &.scroll-reveal--left {
+    animation-name: scroll-reveal-left;
+  }
+
+  &.scroll-reveal--right {
+    animation-name: scroll-reveal-right;
+  }
+
+  /** Scale variant */
+  &.scroll-reveal--scale {
+    animation-name: scroll-reveal-scale;
+  }
+}
+
+@keyframes scroll-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scroll-reveal-up {
+  from {
+    opacity: 0;
+    translate: 0 2rem;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes scroll-reveal-down {
+  from {
+    opacity: 0;
+    translate: 0 -2rem;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes scroll-reveal-left {
+  from {
+    opacity: 0;
+    translate: -2rem 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes scroll-reveal-right {
+  from {
+    opacity: 0;
+    translate: 2rem 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes scroll-reveal-scale {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}

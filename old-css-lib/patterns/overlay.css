@@ -1,0 +1,21 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+  z-index: -1;
+  width: 100%;
+
+  > * {
+    width: 100%;
+    height: 100%;
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--overlay, transparent);
+    filter: var(--overlay-filter, none);
+    pointer-events: none;
+  }
+}

@@ -1,0 +1,96 @@
+/** Combobox pattern - enhanced select with search/filter using native elements */
+
+.combobox {
+  /**
+   * Cascading fallback pattern:
+   * combobox-specific → group (via pattern-mapping.css) → default
+   */
+  --_combobox-border: var(--b-combobox, var(--b-combobox-group, var(--b-default, none)));
+  --_combobox-radius: var(--br-combobox, var(--br-combobox-group, var(--br-default, 0.375rem)));
+  --_combobox-padding: var(--p-combobox, var(--p-combobox-group, var(--p-default, 0.5rem 0.75rem)));
+  --_combobox-shadow: var(--ds-combobox, var(--ds-combobox-group, var(--ds-default, none)));
+
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+
+  .combobox__input {
+    padding: var(--_combobox-padding);
+    border: var(--_combobox-border);
+    border-radius: var(--_combobox-radius);
+
+    &:focus {
+      outline: 2px solid var(--combobox-focus-color, currentColor);
+      outline-offset: 2px;
+    }
+  }
+
+  /** Listbox using datalist for native autocomplete */
+  .combobox__listbox {
+    position: absolute;
+    inset-block-start: 100%;
+    inset-inline: 0;
+    z-index: var(--z-tier-overlay);
+    margin-block-start: 0.25rem;
+    padding: 0.25rem;
+    border: var(--_combobox-border);
+    border-radius: var(--_combobox-radius);
+    box-shadow: var(--_combobox-shadow);
+    max-block-size: 15rem;
+    overflow-y: auto;
+    list-style: none;
+
+    /** Hidden by default, shown via JS or :has() */
+    display: none;
+  }
+
+  /** Show listbox when input is focused and has content */
+  &:has(.combobox__input:focus):has(.combobox__listbox:not(:empty)) .combobox__listbox {
+    display: block;
+  }
+
+  .combobox__option {
+    padding: var(--_combobox-padding);
+    border-radius: calc(var(--_combobox-radius) - 0.125rem);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+
+    &[aria-disabled='true'] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .combobox__empty {
+    padding: var(--_combobox-padding);
+    text-align: center;
+    opacity: 0.7;
+  }
+
+  /** Loading state */
+  &.combobox--loading .combobox__input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10' stroke-dasharray='32' stroke-dashoffset='32'%3E%3Canimate attributeName='stroke-dashoffset' dur='1s' values='32;0' repeatCount='indefinite'/%3E%3C/circle%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1.25rem;
+    padding-inline-end: 2.5rem;
+  }
+
+  /** Clearable variant */
+  &.combobox--clearable .combobox__clear {
+    position: absolute;
+    inset-inline-end: 0.5rem;
+    inset-block-start: 50%;
+    translate: 0 -50%;
+    padding: 0.25rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.15s ease;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}

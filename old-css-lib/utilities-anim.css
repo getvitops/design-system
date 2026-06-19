@@ -1,0 +1,410 @@
+/**
+ * Animation Utilities
+ *
+ * Decomposed @utility blocks for Tailwind variant support.
+ *
+ * Tier 1 — Timeline (animation-timeline + fill):
+ *   anim-view, anim-scroll, anim-trigger
+ *
+ * Tier 2 — Effects (animation-name + CSS variables):
+ *   Compositor: fade-in/out, slide-up/down/left/right, scale-up/down, rotate-cw/ccw
+ *   Paint:      blur-in/out, elevate-up/down, reveal-left/right/up/down
+ *   Layout:     size-grow, size-shrink
+ *   Journey:    fade-journey, slide-journey, scale-journey, blur-journey
+ *
+ * Float presets (waypoint or path-based continuous movement):
+ *   float-circular, float-bounce-y, float-drift-x, float-gentle, etc.
+ *
+ * Usage:
+ *   <div class="anim-view fade-in slide-up range-entry">
+ *   <div class="@md:anim-view @md:fade-in @md:slide-up">
+ *   <div class="float-circular" style="--float-radius: 15px">
+ */
+
+/* ===========================================
+ * Tier 1: Timeline Utilities
+ * =========================================== */
+
+@utility anim-view {
+  animation-timeline: view();
+  animation-fill-mode: both;
+}
+
+@utility anim-scroll {
+  animation-timeline: scroll();
+  animation-fill-mode: both;
+}
+
+@utility anim-trigger {
+  animation-duration: var(--trigger-animation-duration);
+  animation-fill-mode: both;
+}
+
+/* ===========================================
+ * Tier 2: Compositor Effects
+ * animation-name: composite
+ * =========================================== */
+
+/* --- Fade --- */
+
+@utility fade-in {
+  animation-name: composite;
+  --opacity-from: 0;
+  --opacity-to: 1;
+}
+
+@utility fade-out {
+  animation-name: composite;
+  --opacity-from: 1;
+  --opacity-to: 0;
+}
+
+/* --- Slide --- */
+
+@utility slide-up {
+  animation-name: composite;
+  --translate-y-from: var(--slide-distance, 2rem);
+  --translate-y-to: 0;
+}
+
+@utility slide-down {
+  animation-name: composite;
+  --translate-y-from: calc(-1 * var(--slide-distance, 2rem));
+  --translate-y-to: 0;
+}
+
+@utility slide-left {
+  animation-name: composite;
+  --translate-x-from: var(--slide-distance, 2rem);
+  --translate-x-to: 0;
+}
+
+@utility slide-right {
+  animation-name: composite;
+  --translate-x-from: calc(-1 * var(--slide-distance, 2rem));
+  --translate-x-to: 0;
+}
+
+/* --- Scale --- */
+
+@utility scale-up {
+  animation-name: composite;
+  --scale-x-from: 0.9;
+  --scale-y-from: 0.9;
+}
+
+@utility scale-down {
+  animation-name: composite;
+  --scale-x-from: 1.1;
+  --scale-y-from: 1.1;
+}
+
+/* --- Rotate --- */
+
+@utility rotate-cw {
+  animation-name: composite;
+  --rotate-from: 0deg;
+  --rotate-to: 360deg;
+}
+
+@utility rotate-ccw {
+  animation-name: composite;
+  --rotate-from: 0deg;
+  --rotate-to: -360deg;
+}
+
+/* ===========================================
+ * Tier 2: Paint Effects
+ * animation-name: paint
+ * =========================================== */
+
+/* --- Blur --- */
+
+@utility blur-in {
+  animation-name: paint;
+  --blur-from: var(--blur-amount, 10px);
+  --blur-to: 0;
+}
+
+@utility blur-out {
+  animation-name: paint;
+  --blur-from: 0;
+  --blur-to: var(--blur-amount, 10px);
+}
+
+/* --- Elevate --- */
+
+@utility elevate-up {
+  animation-name: paint;
+  --shadow-from: 0 0 0 transparent;
+  --shadow-to: var(--default-shadow, 0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+@utility elevate-down {
+  animation-name: paint;
+  --shadow-from: var(--default-shadow, 0 4px 6px rgba(0, 0, 0, 0.1));
+  --shadow-to: 0 0 0 transparent;
+}
+
+/* --- Reveal (clip-path) --- */
+
+@utility reveal-left {
+  animation-name: paint;
+  --clip-from: inset(0 100% 0 0);
+  --clip-to: inset(0);
+}
+
+@utility reveal-right {
+  animation-name: paint;
+  --clip-from: inset(0 0 0 100%);
+  --clip-to: inset(0);
+}
+
+@utility reveal-up {
+  animation-name: paint;
+  --clip-from: inset(100% 0 0 0);
+  --clip-to: inset(0);
+}
+
+@utility reveal-down {
+  animation-name: paint;
+  --clip-from: inset(0 0 100% 0);
+  --clip-to: inset(0);
+}
+
+/* ===========================================
+ * Tier 2: Layout Effects
+ * animation-name: layout
+ * =========================================== */
+
+@utility size-grow {
+  animation-name: layout;
+  overflow: clip;
+  --height-from: 0;
+  --height-to: auto;
+}
+
+@utility size-shrink {
+  animation-name: layout;
+  overflow: clip;
+  --height-from: auto;
+  --height-to: 0;
+}
+
+/* ===========================================
+ * Tier 2: Journey Effects
+ * Multi-phase entry → hold → exit
+ * =========================================== */
+
+@utility fade-journey {
+  animation-name: fade-journey;
+  animation-range: entry exit;
+  --opacity-from: 0;
+  --opacity-to: 1;
+}
+
+@utility slide-journey {
+  animation-name: slide-journey;
+  animation-range: entry exit;
+}
+
+@utility scale-journey {
+  animation-name: scale-journey;
+  animation-range: entry exit;
+  --scale-x-from: 0.8;
+  --scale-y-from: 0.8;
+}
+
+@utility blur-journey {
+  animation-name: blur-journey;
+  animation-range: entry exit;
+  --blur-from: 5px;
+  --blur-to: 0;
+}
+
+/* Journey compositions (multi-value animation-name) */
+
+@utility fade-slide-journey {
+  animation-name: fade-journey, slide-journey;
+  animation-range: entry exit;
+  --opacity-from: 0;
+  --opacity-to: 1;
+}
+
+@utility fade-scale-journey {
+  animation-name: fade-journey, scale-journey;
+  animation-range: entry exit;
+  --opacity-from: 0;
+  --opacity-to: 1;
+  --scale-x-from: 0.8;
+  --scale-y-from: 0.8;
+}
+
+@utility fade-blur-journey {
+  animation-name: fade-journey, blur-journey;
+  animation-range: entry exit;
+  --opacity-from: 0;
+  --opacity-to: 1;
+  --blur-from: 5px;
+  --blur-to: 0;
+}
+
+@utility fade-slide-scale-journey {
+  animation-name: fade-journey, slide-journey, scale-journey;
+  animation-range: entry exit;
+  --opacity-from: 0;
+  --opacity-to: 1;
+  --scale-x-from: 0.8;
+  --scale-y-from: 0.8;
+}
+
+@utility fade-scale-blur-journey {
+  animation-name: fade-journey, scale-journey, blur-journey;
+  animation-range: entry exit;
+  --opacity-from: 0;
+  --opacity-to: 1;
+  --scale-x-from: 0.8;
+  --scale-y-from: 0.8;
+  --blur-from: 5px;
+  --blur-to: 0;
+}
+
+/* ===========================================
+ * Float Presets — Waypoint-based
+ * Each sets --float-x-*/
+--float-y-* + easing
+ * =========================================== */
+
+/* Circular orbit (clockwise) */
+@utility float-circular {
+  --float-easing: var(--ease-float-sine);
+  --float-x-0: 0;
+  --float-y-0: calc(-1 * var(--float-radius, 10px));
+  --float-x-25: var(--float-radius, 10px);
+  --float-y-25: 0;
+  --float-x-50: 0;
+  --float-y-50: var(--float-radius, 10px);
+  --float-x-75: calc(-1 * var(--float-radius, 10px));
+  --float-y-75: 0;
+}
+
+/* Circular orbit (counter-clockwise) */
+@utility float-circular-ccw {
+  --float-easing: var(--ease-float-sine);
+  --float-x-0: 0;
+  --float-y-0: calc(-1 * var(--float-radius, 10px));
+  --float-x-25: calc(-1 * var(--float-radius, 10px));
+  --float-y-25: 0;
+  --float-x-50: 0;
+  --float-y-50: var(--float-radius, 10px);
+  --float-x-75: var(--float-radius, 10px);
+  --float-y-75: 0;
+}
+
+/* Figure-8 (lemniscate approximation) */
+@utility float-figure-8 {
+  --float-easing: var(--ease-float-sine);
+  --float-x-0: 0;
+  --float-y-0: 0;
+  --float-x-25: var(--float-radius, 15px);
+  --float-y-25: calc(-1 * var(--float-radius, 15px) * 0.5);
+  --float-x-50: 0;
+  --float-y-50: 0;
+  --float-x-75: calc(-1 * var(--float-radius, 15px));
+  --float-y-75: calc(var(--float-radius, 15px) * 0.5);
+}
+
+/* Vertical bounce (1D, y-axis only) */
+@utility float-bounce-y {
+  --float-easing: var(--ease-float-bounce);
+  --float-x-0: 0;
+  --float-y-0: calc(-1 * var(--float-distance, 8px));
+  --float-x-25: 0;
+  --float-y-25: 0;
+  --float-x-50: 0;
+  --float-y-50: var(--float-distance, 8px);
+  --float-x-75: 0;
+  --float-y-75: 0;
+}
+
+/* Horizontal drift (1D, x-axis only) */
+@utility float-drift-x {
+  --float-easing: var(--ease-float-bounce);
+  --float-x-0: calc(-1 * var(--float-distance, 10px));
+  --float-y-0: 0;
+  --float-x-25: 0;
+  --float-y-25: 0;
+  --float-x-50: var(--float-distance, 10px);
+  --float-y-50: 0;
+  --float-x-75: 0;
+  --float-y-75: 0;
+}
+
+/* Gentle drift (subtle organic movement) */
+@utility float-gentle {
+  --float-easing: var(--ease-float-sine);
+  --float-x-0: calc(-1 * var(--float-radius, 5px));
+  --float-y-0: calc(-1 * var(--float-radius, 5px) * 0.7);
+  --float-x-25: calc(var(--float-radius, 5px) * 0.5);
+  --float-y-25: calc(-1 * var(--float-radius, 5px) * 0.3);
+  --float-x-50: calc(var(--float-radius, 5px) * 0.8);
+  --float-y-50: calc(var(--float-radius, 5px) * 0.6);
+  --float-x-75: calc(-1 * var(--float-radius, 5px) * 0.3);
+  --float-y-75: var(--float-radius, 5px);
+}
+
+/* Diamond pattern */
+@utility float-diamond {
+  --float-easing: var(--ease-float-sine);
+  --float-x-0: 0;
+  --float-y-0: calc(-1 * var(--float-radius, 10px));
+  --float-x-25: var(--float-radius, 10px);
+  --float-y-25: 0;
+  --float-x-50: 0;
+  --float-y-50: var(--float-radius, 10px);
+  --float-x-75: calc(-1 * var(--float-radius, 10px));
+  --float-y-75: 0;
+}
+
+/* ===========================================
+ * Float Presets — Path-based
+ * Uses offset-path + offset-distance
+ * =========================================== */
+
+@utility float-path {
+  offset-path: var(--float-path, circle(30px));
+  offset-rotate: var(--float-rotate, 0deg);
+  animation-name: float-path;
+  animation-duration: var(--float-duration, 4s);
+  animation-timing-function: var(--float-easing, linear);
+  animation-iteration-count: var(--float-iterations, infinite);
+  animation-fill-mode: both;
+}
+
+@utility float-path-circle {
+  --float-path: circle(var(--float-radius, 30px));
+}
+
+@utility float-path-ellipse {
+  --float-path: ellipse(var(--float-radius-x, 40px) var(--float-radius-y, 20px));
+}
+
+/* ===========================================
+ * Float Modifiers
+ * =========================================== */
+
+@utility float-slow {
+  --float-duration: 8s;
+}
+
+@utility float-fast {
+  --float-duration: 2s;
+}
+
+@utility float-linear {
+  --float-easing: linear;
+}
+
+@utility float-organic {
+  --float-easing: ease-in-out;
+}

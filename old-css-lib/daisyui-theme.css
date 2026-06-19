@@ -1,0 +1,73 @@
+/**
+ * Generated DaisyUI Themes
+ *
+ * Auto-generated from site.config.* by lib/generate-theme.ts
+ * Do not edit directly - run `npm run generate:theme` to regenerate.
+ * Uses CSS variable references to the extended palette in colors.css
+ */
+
+@plugin "daisyui/theme" {
+  name: 'light';
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  /* Brand colors */
+  --color-primary: var(--color-primary-700);
+  --color-primary-content: var(--color-primary-700-text);
+  --color-secondary: var(--color-secondary-300);
+  --color-secondary-content: var(--color-secondary-300-text);
+  --color-accent: var(--color-accent-500);
+  --color-accent-content: var(--color-accent-500-text);
+  --color-neutral: var(--color-neutral-500);
+  --color-neutral-content: var(--color-neutral-500-text);
+
+  /* Base/surface colors (direct values) */
+  --color-base-100: oklch(98.9% 0.0034 67.78);
+  --color-base-200: oklch(97.5% 0.0134 60.57);
+  --color-base-300: oklch(97.4% 0.0062 75.41);
+  --color-base-content: color-mix(in oklch, var(--text-dark) 90%, oklch(98.9% 0.0034 67.78));
+
+  /* Status colors */
+  --color-info: var(--color-info-300);
+  --color-info-content: var(--color-info-300-text);
+  --color-success: var(--color-success-500);
+  --color-success-content: var(--color-success-500-text);
+  --color-warning: var(--color-warning-300);
+  --color-warning-content: var(--color-warning-300-text);
+  --color-error: var(--color-error-300);
+  --color-error-content: var(--color-error-300-text);
+}
+
+@plugin "daisyui/theme" {
+  name: 'dark';
+  default: false;
+  prefersdark: true;
+  color-scheme: dark;
+
+  /* Brand colors (same as light) */
+  --color-primary: var(--color-primary-700);
+  --color-primary-content: var(--color-primary-700-text);
+  --color-secondary: var(--color-secondary-300);
+  --color-secondary-content: var(--color-secondary-300-text);
+  --color-accent: var(--color-accent-500);
+  --color-accent-content: var(--color-accent-500-text);
+  --color-neutral: var(--color-neutral-500);
+  --color-neutral-content: var(--color-neutral-500-text);
+
+  /* Base/surface colors (direct values, dark - inverted) */
+  --color-base-100: oklch(97.4% 0.0062 75.41);
+  --color-base-200: oklch(97.5% 0.0134 60.57);
+  --color-base-300: oklch(98.9% 0.0034 67.78);
+  --color-base-content: color-mix(in oklch, var(--text-dark) 90%, oklch(97.4% 0.0062 75.41));
+
+  /* Status colors (same as light) */
+  --color-info: var(--color-info-300);
+  --color-info-content: var(--color-info-300-text);
+  --color-success: var(--color-success-500);
+  --color-success-content: var(--color-success-500-text);
+  --color-warning: var(--color-warning-300);
+  --color-warning-content: var(--color-warning-300-text);
+  --color-error: var(--color-error-300);
+  --color-error-content: var(--color-error-300-text);
+}

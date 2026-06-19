@@ -1,0 +1,118 @@
+/** Tag pattern - labels, badges, and status indicators */
+
+.tag {
+  /**
+   * Cascading fallback pattern:
+   * pattern-specific → group-level → default
+   */
+  --_tag-padding: var(--p-tag, var(--p-tag-group, var(--p-default)));
+  --_tag-radius: var(--br-tag, var(--br-tag-group, var(--br-default)));
+  --_tag-font-size: var(--fs-tag, var(--fs-tag-group, var(--fs-default)));
+  --_tag-shadow: var(--ds-tag, var(--ds-tag-group, var(--ds-default)));
+  --_tag-border: var(--b-tag, var(--b-tag-group, var(--b-default)));
+
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: var(--_tag-padding);
+  font-size: var(--_tag-font-size);
+  font-weight: 500;
+  line-height: 1.2;
+  border: var(--_tag-border);
+  border-radius: var(--_tag-radius);
+  box-shadow: var(--_tag-shadow);
+  white-space: nowrap;
+  vertical-align: middle;
+
+  /** Tag icon */
+  .tag__icon {
+    flex-shrink: 0;
+    inline-size: 1em;
+    block-size: 1em;
+  }
+
+  /** Removable tag with close button */
+  .tag__remove {
+    flex-shrink: 0;
+    margin-inline-start: 0.25em;
+    padding: 0.125em;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    opacity: 0.6;
+    line-height: 1;
+    transition: opacity 0.15s ease;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+/** Badge - numeric indicator, typically for notifications */
+.badge-indicator {
+  /**
+   * Cascading fallback pattern:
+   * badge-specific → group (via pattern-mapping.css) → default
+   */
+  --_badge-size: var(--badge-size, 1.25rem);
+  --_badge-font-size: var(--fs-badge, var(--fs-badge-group, var(--fs-default)));
+  --_badge-radius: var(--br-badge, var(--br-badge-group, var(--br-default)));
+  --_badge-shadow: var(--ds-badge, var(--ds-badge-group, var(--ds-default)));
+  --_badge-border: var(--b-badge, var(--b-badge-group, var(--b-default)));
+  --_badge-padding: var(--p-badge, var(--p-badge-group, var(--p-default)));
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: var(--_badge-size);
+  block-size: var(--_badge-size);
+  padding-inline: 0.25em;
+  font-size: var(--_badge-font-size);
+  font-weight: 600;
+  line-height: 1;
+  border-radius: var(--_badge-radius);
+  box-shadow: var(--_badge-shadow);
+
+  /** Dot badge (no content) */
+  &.badge-indicator--dot {
+    --_badge-size: 0.5rem;
+    min-inline-size: var(--_badge-size);
+    padding: 0;
+  }
+
+  /** Positioned badge (for overlaying on icons/avatars) */
+  &.badge-indicator--positioned {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+    translate: 50% -50%;
+  }
+}
+
+/** Status indicator - small dot showing online/offline/busy status */
+.status-dot {
+  --_status-size: var(--status-size, 0.5rem);
+
+  display: inline-block;
+  inline-size: var(--_status-size);
+  block-size: var(--_status-size);
+  border-radius: 50%;
+
+  /** Pulsing animation for active status */
+  &.status-dot--pulse {
+    animation: status-pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes status-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 4px currentColor;
+    opacity: 0.5;
+  }
+}

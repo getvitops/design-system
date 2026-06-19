@@ -1,0 +1,85 @@
+/** Popover pattern using native Popover API with anchor positioning */
+[popover] {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  overflow: visible; /* Allows shadows or anchors to bleed out if needed */
+  inset: auto; /* Reset the default inset: 0 to allow manual positioning */
+
+  &:popover-open {
+    opacity: 1;
+  }
+
+  /* Reset default popover styles */
+  &:not(:popover-open):not([open]) {
+    display: none;
+  }
+
+  /** Starting style for transition */
+  @starting-style {
+    &:popover-open {
+      opacity: 0;
+    }
+  }
+}
+
+/** Popover with anchor positioning */
+.popover-anchor {
+  anchor-name: --popover-anchor;
+  position: relative;
+
+  [popover] {
+    position: absolute;
+    position-anchor: --popover-anchor;
+    inset: auto;
+  }
+
+  /** Position variants */
+  [popover].popover--top {
+    position-area: block-start center;
+    margin-block-end: 0.5rem;
+  }
+
+  [popover].popover--bottom {
+    position-area: block-end center;
+    margin-block-start: 0.5rem;
+  }
+
+  [popover].popover--left {
+    position-area: center inline-start;
+    margin-inline-end: 0.5rem;
+  }
+
+  [popover].popover--right {
+    position-area: center inline-end;
+    margin-inline-start: 0.5rem;
+  }
+
+  [popover].popover--top-start {
+    position-area: block-start span-inline-end;
+  }
+
+  [popover].popover--top-end {
+    position-area: block-start span-inline-start;
+  }
+
+  [popover].popover--bottom-start {
+    position-area: block-end span-inline-end;
+  }
+
+  [popover].popover--bottom-end {
+    position-area: block-end span-inline-start;
+  }
+}
+
+@keyframes popover-enter {
+  from {
+    opacity: 0;
+    scale: 0.95;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}

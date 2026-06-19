@@ -1,0 +1,116 @@
+/**
+ * Bordered getter — applies border-width and border-style from variables
+ * set by @utility bordered (in utilities.css).
+ *
+ * Variables:
+ *   --bw  — override border-width (public, default: 1px)
+ *   --bs  — override border-style (public, default: solid)
+ *   --_bw — resolved border-width (private, set by @utility bordered)
+ *   --_bs — resolved border-style (private, set by @utility bordered)
+ *
+ * @example
+ *   <div class="bordered">                         — 1px solid border
+ *   <div class="bordered [--bw:2px] [--bs:dashed]"> — 2px dashed border
+ */
+
+.bordered {
+  border-width: var(--_bw);
+  border-style: var(--_bs);
+}
+
+/**
+ * Grouped — collapses border-radius on adjacent siblings sharing the class.
+ * Applied to each element in a group (not the parent).
+ *
+ * Orientation:
+ *   .grouped        — vertical (block direction, default)
+ *   .grouped-inline — horizontal (inline direction)
+ *
+ * Border collapsing (compose with .bordered):
+ *   Adjacent .bordered siblings have their leading border removed
+ *   (block-start for vertical, inline-start for horizontal)
+ *
+ * Sibling detection:
+ *   First in group:  :not(.grouped + .grouped)   — no grouped sibling before
+ *   Last in group:   :not(:has(+ .grouped))       — no grouped sibling after
+ *   Only in group:   both match → full border-radius
+ *   Middle of group: neither matches → border-radius: 0
+ *
+ * Variables:
+ *   --br-grouped — override radius (public, inherits from parent)
+ *
+ * Integration with patterns (parent sets --br-grouped, children inherit):
+ *   .accordion--bordered { --br-grouped: var(--_accordion-radius); }
+ *   .list--bordered       { --br-grouped: calc(var(--_br) - 1px); }
+ *   .input-group           { --br-grouped: var(--_input-group-radius); }
+ *
+ * @example
+ *   <div class="flex flex-col">
+ *     <div class="grouped bordered p-4">First</div>
+ *     <div class="grouped bordered p-4">Middle</div>
+ *     <div class="grouped bordered p-4">Last</div>
+ *   </div>
+ *
+ *   <div class="flex">
+ *     <button class="grouped-inline bordered btn">Left</button>
+ *     <button class="grouped-inline bordered btn">Center</button>
+ *     <button class="grouped-inline bordered btn">Right</button>
+ *   </div>
+ */
+
+/* ============================================
+ * Shared base: resolve radius, reset
+ * ============================================ */
+
+.grouped,
+.grouped-inline {
+  --_grouped-br: var(--br-grouped, var(--br-default));
+  border-radius: 0;
+}
+
+/* ============================================
+ * Vertical (block direction) — default
+ * ============================================ */
+
+/* First in group */
+.grouped:not(.grouped + .grouped) {
+  border-start-start-radius: var(--_grouped-br);
+  border-start-end-radius: var(--_grouped-br);
+}
+
+/* Last in group */
+.grouped:not(:has(+ .grouped)) {
+  border-end-start-radius: var(--_grouped-br);
+  border-end-end-radius: var(--_grouped-br);
+}
+
+/* ============================================
+ * Horizontal (inline direction)
+ * ============================================ */
+
+/* First in group */
+.grouped-inline:not(.grouped-inline + .grouped-inline) {
+  border-start-start-radius: var(--_grouped-br);
+  border-end-start-radius: var(--_grouped-br);
+}
+
+/* Last in group */
+.grouped-inline:not(:has(+ .grouped-inline)) {
+  border-start-end-radius: var(--_grouped-br);
+  border-end-end-radius: var(--_grouped-br);
+}
+
+/* ============================================
+ * Border collapsing (compose with .bordered)
+ *
+ * Removes the leading border on adjacent
+ * siblings to prevent doubled borders.
+ * ============================================ */
+
+.grouped.bordered + .grouped.bordered {
+  border-block-start-width: 0;
+}
+
+.grouped-inline.bordered + .grouped-inline.bordered {
+  border-inline-start-width: 0;
+}

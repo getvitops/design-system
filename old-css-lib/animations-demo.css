@@ -1,0 +1,221 @@
+/**
+ * Animations Demo Styles
+ *
+ * Bespoke styles for animation demos that go beyond the class-based system.
+ * Most demos use the utility system directly (e.g. anim-view fade-in slide-up).
+ * This file covers custom layouts, demo keyframes, and animations that
+ * require named timelines or non-standard composition.
+ */
+
+/* ============================================
+ * Animated Properties: Demo Keyframes
+ * Simple looping keyframes to illustrate each
+ * animatable property in the overview section
+ * ============================================ */
+
+@keyframes demo-translate {
+  from {
+    translate: -0.5rem 0;
+  }
+  to {
+    translate: 0.5rem 0;
+  }
+}
+
+@keyframes demo-scale {
+  from {
+    scale: 0.85;
+  }
+  to {
+    scale: 1.15;
+  }
+}
+
+@keyframes demo-blur {
+  from {
+    filter: blur(0);
+  }
+  to {
+    filter: blur(4px);
+  }
+}
+
+@keyframes demo-shadow {
+  from {
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  to {
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  }
+}
+
+@keyframes demo-brightness {
+  from {
+    filter: brightness(1);
+  }
+  to {
+    filter: brightness(0.5);
+  }
+}
+
+@keyframes demo-clip {
+  from {
+    clip-path: inset(0);
+  }
+  to {
+    clip-path: inset(0 50% 0 0);
+  }
+}
+
+@keyframes demo-height {
+  from {
+    height: 1rem;
+  }
+  to {
+    height: 4rem;
+  }
+}
+
+@keyframes demo-width {
+  from {
+    width: 2rem;
+  }
+  to {
+    width: 6rem;
+  }
+}
+
+/* Polyfill notice for browsers without scroll-driven animations support */
+@supports not (animation-timeline: scroll()) {
+  .scroll-demo-notice {
+    display: block;
+  }
+}
+
+.scroll-demo-notice {
+  display: none;
+}
+
+/* ============================================
+ * Scroll Timeline: Progress Bar
+ * Bespoke: uses composite keyframe directly
+ * with scale-x to fill from left to right
+ * ============================================ */
+
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: var(--color-primary-500);
+  transform-origin: left;
+  z-index: 1000;
+  --scale-x-from: 0;
+  animation: composite linear;
+  animation-timeline: scroll();
+}
+
+/* ============================================
+ * Scroll Timeline: Color Shift
+ * Bespoke: uses color-shift utility keyframe
+ * ============================================ */
+
+.scroll-color-shift {
+  animation: color-shift linear;
+  animation-timeline: scroll();
+}
+
+/* ============================================
+ * Parallax Effect
+ * Bespoke: custom layout + translate animation
+ * ============================================ */
+
+.parallax-container {
+  height: 400px;
+  overflow: hidden;
+  position: relative;
+}
+
+.parallax-bg {
+  position: absolute;
+  inset: -50% 0;
+  background: linear-gradient(135deg, var(--color-primary-300), var(--color-secondary-500));
+  --translate-y-from: 25%;
+  --translate-y-to: -25%;
+  animation: composite linear;
+  animation-timeline: view();
+}
+
+.parallax-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============================================
+ * Staggered Animation with Named Timelines
+ * Bespoke: uses named view timeline + per-child
+ * animation ranges via sibling-index()
+ * ============================================ */
+
+.stagger-container {
+  view-timeline-name: --stagger-timeline;
+}
+
+.stagger-item {
+  --opacity-from: 0;
+  --opacity-to: 1;
+  --translate-y-from: 50px;
+  --stagger-entry: 20%;
+  --stagger-step: 5%;
+  --stagger-offset: calc(var(--stagger-entry) + sibling-index() * var(--stagger-step));
+  animation: composite linear both;
+  animation-timeline: --stagger-timeline;
+  animation-range: entry var(--stagger-offset) cover 100%;
+}
+
+/* ============================================
+ * Sticky Progress Indicator
+ * Bespoke: uses composite keyframe directly
+ * with scale-x scoped to a section's view
+ * ============================================ */
+
+.section-progress-container {
+  position: relative;
+}
+
+.section-progress-bar {
+  position: sticky;
+  top: 60px;
+  height: 4px;
+  background: var(--color-neutral-200);
+  z-index: 10;
+}
+
+.section-progress-fill {
+  height: 100%;
+  background: var(--color-accent-500);
+  transform-origin: left;
+  --scale-x-from: 0;
+  animation: composite linear;
+  animation-timeline: view();
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}

@@ -1,0 +1,64 @@
+/** Marquee pattern - CSS-only infinite scrolling text/content */
+
+.marquee {
+  --_marquee-direction: var(--marquee-direction, normal);
+
+  display: flex;
+  overflow: hidden;
+  user-select: none;
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+
+  /** Content wrapper - duplicated for seamless loop */
+  .marquee__content {
+    display: flex;
+    flex-shrink: 0;
+    min-inline-size: 100%;
+    animation: marquee-scroll var(--marquee-duration, 20s) linear infinite;
+    animation-direction: var(--_marquee-direction);
+  }
+
+  /** Pause on hover */
+  &.marquee--pause-hover:hover .marquee__content {
+    animation-play-state: paused;
+  }
+
+  /** Reverse direction */
+  &.marquee--reverse {
+    --_marquee-direction: reverse;
+  }
+
+  /** Vertical marquee */
+  &.marquee--vertical {
+    flex-direction: column;
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+  }
+
+  &.marquee--vertical .marquee__content {
+    flex-direction: column;
+    animation-name: marquee-scroll-vertical;
+  }
+
+  /** Individual items */
+  .marquee__item {
+    flex-shrink: 0;
+  }
+}
+
+@keyframes marquee-scroll {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: -100% 0;
+  }
+}
+
+@keyframes marquee-scroll-vertical {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 0 -100%;
+  }
+}

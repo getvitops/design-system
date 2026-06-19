@@ -1,0 +1,189 @@
+/** SVG pattern - consistent SVG styling and utilities */
+
+/** Inline SVG defaults */
+svg {
+  /** Prevent SVGs from shrinking in flex containers */
+  flex-shrink: 0;
+
+  /** Default sizing */
+  block-size: var(--svg-size, 1em);
+
+  /** Inherit color by default */
+  fill: currentColor;
+}
+
+/** SVG container wrapper */
+.svg-container {
+  --_svg-size: var(--svg-size, 1.5rem);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--_svg-size);
+  block-size: var(--_svg-size);
+
+  > svg {
+    inline-size: 100%;
+    block-size: 100%;
+  }
+}
+
+/** SVG with stroke styling */
+.svg-stroke {
+  --_stroke-width: var(--svg-stroke-width, 2);
+  --_stroke-color: var(--svg-stroke-color, currentColor);
+  --_stroke-linecap: var(--svg-stroke-linecap, round);
+  --_stroke-linejoin: var(--svg-stroke-linejoin, round);
+
+  > svg {
+    fill: none;
+    stroke: var(--_stroke-color);
+    stroke-width: var(--_stroke-width);
+    stroke-linecap: var(--_stroke-linecap);
+    stroke-linejoin: var(--_stroke-linejoin);
+  }
+}
+
+/** Animated SVG patterns */
+.svg-animated {
+  /** Spin animation */
+  &.svg-animated--spin > svg {
+    animation: svg-spin 1s linear infinite;
+  }
+
+  /** Pulse animation */
+  &.svg-animated--pulse > svg {
+    animation: svg-pulse 1.5s ease-in-out infinite;
+  }
+
+  /** Bounce animation */
+  &.svg-animated--bounce > svg {
+    animation: svg-bounce 1s ease infinite;
+  }
+
+  /** Draw animation for stroke SVGs */
+  &.svg-animated--draw > svg {
+    stroke-dasharray: var(--svg-dash-length, 100);
+    stroke-dashoffset: var(--svg-dash-length, 100);
+    animation: svg-draw 1.5s ease forwards;
+
+    @media (prefers-reduced-motion: reduce) {
+      stroke-dashoffset: 0;
+    }
+  }
+}
+
+/** SVG background pattern */
+.svg-pattern {
+  --_pattern-size: var(--svg-pattern-size, 20px);
+  --_pattern-color: var(--svg-pattern-color, currentColor);
+
+  background-size: var(--_pattern-size) var(--_pattern-size);
+
+  /** Dots pattern */
+  &.svg-pattern--dots {
+    background-image: radial-gradient(var(--_pattern-color) 1px, transparent 1px);
+  }
+
+  /** Grid pattern */
+  &.svg-pattern--grid {
+    background-image:
+      linear-gradient(var(--_pattern-color) 1px, transparent 1px),
+      linear-gradient(90deg, var(--_pattern-color) 1px, transparent 1px);
+  }
+
+  /** Diagonal lines */
+  &.svg-pattern--diagonal {
+    background-image: repeating-linear-gradient(
+      45deg,
+      var(--_pattern-color),
+      var(--_pattern-color) 1px,
+      transparent 1px,
+      transparent 10px
+    );
+  }
+
+  /** Cross pattern */
+  &.svg-pattern--cross {
+    background-image:
+      linear-gradient(var(--_pattern-color) 1px, transparent 1px),
+      linear-gradient(90deg, var(--_pattern-color) 1px, transparent 1px);
+    background-position: center center;
+  }
+}
+
+/** SVG decorative shape utilities */
+.svg-shape {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+
+  /** Flip variants */
+  &.svg-shape--flip-x {
+    transform: scaleX(-1);
+  }
+
+  &.svg-shape--flip-y {
+    transform: scaleY(-1);
+  }
+
+  /** Position variants for dividers */
+  &.svg-shape--top {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+  }
+
+  &.svg-shape--bottom {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline: 0;
+  }
+}
+
+/** SVG sprite reference utility */
+.svg-use {
+  display: inline-block;
+  vertical-align: middle;
+
+  > svg {
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+  }
+}
+
+@keyframes svg-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes svg-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes svg-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-25%);
+  }
+}
+
+@keyframes svg-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}

@@ -1,0 +1,362 @@
+/** Forms pattern - form groups, field containers, and enhanced inputs */
+
+/** Form Group - label + input + helper/error container */
+.form-group {
+  /**
+   * Cascading fallback pattern:
+   * form-group-specific → group (via pattern-mapping.css) → default
+   */
+  --_form-group-gap: var(--form-group-gap, 0.5rem);
+  --_fs: var(--fs-form-group, var(--fs-form-group-group, var(--fs-default)));
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--_form-group-gap);
+
+  .form-group__label {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    font-weight: 500;
+    font-size: var(--fs-form-label, 0.875rem);
+  }
+
+  .form-group__required {
+    color: currentColor;
+  }
+
+  .form-group__optional {
+    font-weight: 400;
+    font-size: 0.75em;
+    opacity: 0.7;
+  }
+
+  .form-group__helper {
+    font-size: var(--form-helper-size, 0.75rem);
+  }
+
+  .form-group__error {
+    font-size: var(--form-error-size, 0.75rem);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .form-group__counter {
+    font-size: var(--form-counter-size, 0.75rem);
+    margin-inline-start: auto;
+  }
+}
+
+/** Fieldset - grouped form controls */
+fieldset.fieldset,
+.fieldset {
+  /**
+   * Cascading fallback pattern:
+   * fieldset-specific → group (via pattern-mapping.css) → default
+   */
+  --_fieldset-padding: var(--p-fieldset, var(--p-fieldset-group, var(--p-default)));
+  --_fieldset-radius: var(--br-fieldset, var(--br-fieldset-group, var(--br-default)));
+  --_fieldset-border: var(--b-fieldset, var(--b-fieldset-group, var(--b-default)));
+  --_fieldset-shadow: var(--ds-fieldset, var(--ds-fieldset-group, var(--ds-default)));
+
+  border: var(--_fieldset-border);
+  border-radius: var(--_fieldset-radius);
+  padding: var(--_fieldset-padding);
+  box-shadow: var(--_fieldset-shadow);
+  margin: 0;
+
+  > legend {
+    font-weight: 600;
+    padding-inline: 0.5rem;
+    margin-inline-start: -0.5rem;
+  }
+
+  .fieldset__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--fieldset-gap, 1.5rem);
+  }
+
+  /** Borderless variant */
+  &.fieldset--borderless {
+    border: none;
+    padding: 0;
+  }
+}
+
+/** Input wrapper with icons/addons */
+.input-group {
+  /**
+   * Cascading fallback pattern:
+   * input-group-specific → group (via pattern-mapping.css) → default
+   */
+  --_input-group-padding: var(--p-input-group, var(--p-input-group-group, var(--p-default)));
+  --_input-group-radius: var(--br-input-group, var(--br-input-group-group, var(--br-default)));
+  --_input-group-border: var(--b-input-group, var(--b-input-group-group, var(--b-default)));
+  --_input-group-shadow: var(--ds-input-group, var(--ds-input-group-group, var(--ds-default)));
+
+  display: flex;
+  align-items: stretch;
+
+  /** Bridge to .grouped-inline for radius collapsing */
+  --br-grouped: var(--_input-group-radius);
+
+  /** Leading/trailing icons or text */
+  .input-group__addon {
+    display: flex;
+    align-items: center;
+    padding-inline: 0.75rem;
+    border: var(--_input-group-border);
+  }
+
+  .input-group__addon:first-child {
+    border-inline-end: none;
+  }
+
+  .input-group__addon:last-child {
+    border-inline-start: none;
+  }
+
+  /** Input in group */
+  > input,
+  > select,
+  > textarea {
+    flex: 1;
+    min-inline-size: 0;
+  }
+
+  /** Icon inside input */
+  .input-group__icon {
+    position: absolute;
+    inset-block: 0;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+    color: currentColor;
+    opacity: 0.5;
+  }
+
+  .input-group__icon--start {
+    inset-inline-start: 0.75rem;
+  }
+
+  .input-group__icon--end {
+    inset-inline-end: 0.75rem;
+  }
+
+  &.input-group--has-icon-start > input {
+    padding-inline-start: 2.5rem;
+  }
+
+  &.input-group--has-icon-end > input {
+    padding-inline-end: 2.5rem;
+  }
+}
+
+/** Custom checkbox/radio styling */
+.custom-check {
+  /**
+   * Cascading fallback pattern:
+   * checkbox-specific → group (via pattern-mapping.css) → default
+   */
+  --_check-size: var(--check-size, 1.25rem);
+  --_check-padding: var(--p-checkbox, var(--p-checkbox-group, var(--p-default)));
+  --_check-radius: var(--br-checkbox, var(--br-checkbox-group, var(--br-default)));
+  --_check-border: var(--b-checkbox, var(--b-checkbox-group, var(--b-default)));
+  --_check-shadow: var(--ds-checkbox, var(--ds-checkbox-group, var(--ds-default)));
+
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+
+  input[type='checkbox'],
+  input[type='radio'] {
+    position: absolute;
+    opacity: 0;
+    inline-size: 0;
+    block-size: 0;
+  }
+
+  .custom-check__box {
+    flex-shrink: 0;
+    inline-size: var(--_check-size);
+    block-size: var(--_check-size);
+    border: var(--_check-border);
+    border-radius: var(--_check-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  input[type='radio'] + .custom-check__box {
+    border-radius: 50%;
+  }
+
+  .custom-check__indicator {
+    opacity: 0;
+    transform: scale(0.5);
+    transition:
+      opacity 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  /** Checked state */
+  input:checked + .custom-check__box .custom-check__indicator {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /** Focus state */
+  input:focus-visible + .custom-check__box {
+    outline: 2px solid var(--check-focus-color, oklch(0.6 0.2 250));
+    outline-offset: 2px;
+  }
+
+  /** Disabled state */
+  input:disabled + .custom-check__box {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:has(input:disabled) {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  /** Indeterminate checkbox */
+  input:indeterminate + .custom-check__box .custom-check__indicator--check {
+    display: none;
+  }
+
+  input:indeterminate + .custom-check__box .custom-check__indicator--indeterminate {
+    display: block;
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .custom-check__indicator--indeterminate {
+    display: none;
+    inline-size: 0.5rem;
+    block-size: 2px;
+  }
+}
+
+/** Switch/Toggle styling */
+.switch {
+  /**
+   * Cascading fallback pattern:
+   * switch-specific → group (via pattern-mapping.css) → default
+   */
+  --_switch-width: var(--switch-width, 2.5rem);
+  --_switch-height: var(--switch-height, 1.5rem);
+  --_switch-thumb-size: var(--switch-thumb-size, 1.25rem);
+  --_switch-padding: var(--p-switch, var(--p-switch-group, var(--p-default)));
+  --_switch-radius: var(--br-switch, var(--br-switch-group, var(--br-default)));
+  --_switch-border: var(--b-switch, var(--b-switch-group, var(--b-default)));
+  --_switch-shadow: var(--ds-switch, var(--ds-switch-group, var(--ds-default)));
+
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+
+  input {
+    position: absolute;
+    opacity: 0;
+    inline-size: 0;
+    block-size: 0;
+  }
+
+  .switch__track {
+    position: relative;
+    inline-size: var(--_switch-width);
+    block-size: var(--_switch-height);
+    border-radius: var(--_switch-radius);
+    box-shadow: var(--_switch-shadow);
+    transition: background-color 0.2s ease;
+  }
+
+  .switch__thumb {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 2px;
+    translate: 0 -50%;
+    inline-size: var(--_switch-thumb-size);
+    block-size: var(--_switch-thumb-size);
+    border-radius: 50%;
+    transition:
+      translate 0.2s ease,
+      inset-inline-start 0.2s ease;
+  }
+
+  /** Checked state */
+  input:checked + .switch__track .switch__thumb {
+    inset-inline-start: calc(100% - var(--_switch-thumb-size) - 2px);
+  }
+
+  /** Focus state */
+  input:focus-visible + .switch__track {
+    outline: 2px solid var(--switch-focus-color, oklch(0.6 0.2 250));
+    outline-offset: 2px;
+  }
+
+  /** Disabled state */
+  input:disabled + .switch__track {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:has(input:disabled) {
+    cursor: not-allowed;
+  }
+}
+
+/** Base Select styling with appearance: base-select */
+.custom-select {
+  /**
+   * Cascading fallback pattern:
+   * select-specific → group (via pattern-mapping.css) → default
+   */
+  --_select-padding: var(--p-select, var(--p-select-group, var(--p-default)));
+  --_select-radius: var(--br-select, var(--br-select-group, var(--br-default)));
+  --_select-border: var(--b-select, var(--b-select-group, var(--b-default)));
+  --_select-shadow: var(--ds-select, var(--ds-select-group, var(--ds-default)));
+
+  position: relative;
+  display: inline-block;
+
+  select {
+    appearance: base-select;
+    padding: var(--_select-padding);
+    border: var(--_select-border);
+    border-radius: var(--_select-radius);
+    box-shadow: var(--_select-shadow);
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--select-focus-color, oklch(0.6 0.2 250));
+      outline-offset: 2px;
+    }
+  }
+
+  /** Custom dropdown arrow */
+  &::after {
+    content: '';
+    position: absolute;
+    inset-inline-end: 0.75rem;
+    inset-block-start: 50%;
+    translate: 0 -50%;
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+    border-inline-end: 2px solid currentColor;
+    border-block-end: 2px solid currentColor;
+    transform: rotate(45deg);
+    pointer-events: none;
+    opacity: 0.5;
+  }
+}

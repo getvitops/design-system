@@ -1,0 +1,131 @@
+/** Table pattern - responsive, styled data tables */
+
+table,
+.table {
+  /**
+   * Cascading fallback pattern:
+   * table-specific -> group (via pattern-mapping.css) -> default
+   */
+  --_table-padding: var(--p-table, var(--p-table-group, var(--p-default)));
+  --_table-border: var(--b-table, var(--b-table-group, var(--b-default)));
+  --_table-radius: var(--br-table, var(--br-table-group, var(--br-default)));
+  --_table-shadow: var(--ds-table, var(--ds-table-group, var(--ds-default)));
+  --_table-fs: var(--fs-table, var(--fs-table-group, var(--fs-default)));
+
+  /** Table-specific variables */
+  --_table-cell-padding: var(--table-cell-padding, 0.75em 1em);
+  --_table-stripe-opacity: var(--table-stripe-opacity, 0.04);
+  --_table-hover-opacity: var(--table-hover-opacity, 0.08);
+  --_table-caption-fs: var(--table-caption-fs, 0.875em);
+  --_table-caption-gap: var(--table-caption-gap, 0.75em);
+
+  inline-size: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: var(--_table-fs);
+  text-align: start;
+
+  /** Caption */
+  > caption {
+    caption-side: bottom;
+    padding-block-start: var(--_table-caption-gap);
+    font-size: var(--_table-caption-fs);
+    opacity: 0.7;
+    text-align: start;
+  }
+
+  /** Header */
+  > thead {
+    text-align: start;
+
+    > tr > th {
+      padding: var(--_table-cell-padding);
+      font-weight: 600;
+      text-align: inherit;
+      border-block-end: var(--_table-border);
+    }
+  }
+
+  /** Body */
+  > tbody > tr > td {
+    padding: var(--_table-cell-padding);
+    border-block-end: var(--_table-border);
+    vertical-align: baseline;
+  }
+
+  /** Last row has no border */
+  > tbody > tr:last-child > td {
+    border-block-end: none;
+  }
+
+  /** Footer */
+  > tfoot {
+    > tr > td,
+    > tr > th {
+      padding: var(--_table-cell-padding);
+      font-weight: 600;
+      border-block-start: var(--_table-border);
+    }
+  }
+
+  /** ===== Variants ===== */
+
+  /** Bordered - full grid lines */
+  &.table--bordered {
+    border: var(--_table-border);
+    border-radius: var(--_table-radius);
+    overflow: hidden;
+
+    > thead > tr > th,
+    > tbody > tr > td,
+    > tfoot > tr > td,
+    > tfoot > tr > th {
+      border: var(--_table-border);
+    }
+  }
+
+  /** Striped rows */
+  &.table--striped > tbody > tr:nth-child(even) {
+    background: oklch(0 0 0 / var(--_table-stripe-opacity));
+  }
+
+  /** Hoverable rows */
+  &.table--hover > tbody > tr:hover {
+    background: oklch(0 0 0 / var(--_table-hover-opacity));
+  }
+
+  /** Compact - tighter cell padding */
+  &.table--compact {
+    --_table-cell-padding: var(--table-compact-padding, 0.375em 0.75em);
+  }
+
+  /** Numeric column alignment */
+  [data-numeric] {
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /** Fixed layout for predictable column widths */
+  &.table--fixed {
+    table-layout: fixed;
+  }
+
+  /** Sticky header */
+  &.table--sticky-header > thead > tr > th {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: var(--z-tier-raised);
+    background: inherit;
+  }
+}
+
+/** Responsive wrapper - horizontal scroll on overflow */
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  > table,
+  > .table {
+    min-inline-size: var(--table-min-inline-size, 100%);
+  }
+}

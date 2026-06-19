@@ -1,0 +1,287 @@
+/**
+ * Generated Pattern Mappings
+ *
+ * Auto-generated from site.config.* by lib/generate-theme.ts
+ * Do not edit directly - run `npm run generate:theme` to regenerate.
+ *
+ * This file maps each pattern to its group's defaults.
+ * Pattern files use: var(--ds-button, var(--ds-button-group, var(--ds-default)))
+ */
+
+:root {
+  /* accordion -> content */
+  --ds-accordion-group: var(--ds-content);
+  --b-accordion-group: var(--b-content);
+  --r-accordion-group: var(--r-content);
+  --p-accordion-group: var(--p-content);
+  --fs-accordion-group: var(--fs-content);
+
+  /* aside -> area */
+  --ds-aside-group: var(--ds-area);
+  --b-aside-group: var(--b-area);
+  --r-aside-group: var(--r-area);
+  --p-aside-group: var(--p-area);
+  --fs-aside-group: var(--fs-area);
+
+  /* badge -> tag */
+  --ds-badge-group: var(--ds-tag);
+  --b-badge-group: var(--b-tag);
+  --r-badge-group: var(--r-tag);
+  --p-badge-group: var(--p-tag);
+  --fs-badge-group: var(--fs-tag);
+
+  /* banner -> area */
+  --ds-banner-group: var(--ds-area);
+  --b-banner-group: var(--b-area);
+  --r-banner-group: var(--r-area);
+  --p-banner-group: var(--p-area);
+  --fs-banner-group: var(--fs-area);
+
+  /* blockquote -> pull */
+  --ds-blockquote-group: var(--ds-pull);
+  --b-blockquote-group: var(--b-pull);
+  --r-blockquote-group: var(--r-pull);
+  --p-blockquote-group: var(--p-pull);
+  --fs-blockquote-group: var(--fs-pull);
+
+  /* button -> control */
+  --ds-button-group: var(--ds-control);
+  --b-button-group: var(--b-control);
+  --r-button-group: var(--r-control);
+  --p-button-group: var(--p-control);
+  --fs-button-group: var(--fs-control);
+
+  /* card -> panel */
+  --ds-card-group: var(--ds-panel);
+  --b-card-group: var(--b-panel);
+  --r-card-group: var(--r-panel);
+  --p-card-group: var(--p-panel);
+  --fs-card-group: var(--fs-panel);
+
+  /* checkbox -> control */
+  --ds-checkbox-group: var(--ds-control);
+  --b-checkbox-group: var(--b-control);
+  --r-checkbox-group: var(--r-control);
+  --p-checkbox-group: var(--p-control);
+  --fs-checkbox-group: var(--fs-control);
+
+  /* chip-list -> control */
+  --ds-chip-list-group: var(--ds-control);
+  --b-chip-list-group: var(--b-control);
+  --r-chip-list-group: var(--r-control);
+  --p-chip-list-group: var(--p-control);
+  --fs-chip-list-group: var(--fs-control);
+
+  /* combobox -> control */
+  --ds-combobox-group: var(--ds-control);
+  --b-combobox-group: var(--b-control);
+  --r-combobox-group: var(--r-control);
+  --p-combobox-group: var(--p-control);
+  --fs-combobox-group: var(--fs-control);
+
+  /* comment -> panel */
+  --ds-comment-group: var(--ds-panel);
+  --b-comment-group: var(--b-panel);
+  --r-comment-group: var(--r-panel);
+  --p-comment-group: var(--p-panel);
+  --fs-comment-group: var(--fs-panel);
+
+  /* copy -> control */
+  --ds-copy-group: var(--ds-control);
+  --b-copy-group: var(--b-control);
+  --r-copy-group: var(--r-control);
+  --p-copy-group: var(--p-control);
+  --fs-copy-group: var(--fs-control);
+
+  /* details -> content */
+  --ds-details-group: var(--ds-content);
+  --b-details-group: var(--b-content);
+  --r-details-group: var(--r-content);
+  --p-details-group: var(--p-content);
+  --fs-details-group: var(--fs-content);
+
+  /* dialog -> panel */
+  --ds-dialog-group: var(--ds-panel);
+  --b-dialog-group: var(--b-panel);
+  --r-dialog-group: var(--r-panel);
+  --p-dialog-group: var(--p-panel);
+  --fs-dialog-group: var(--fs-panel);
+
+  /* drawer -> area */
+  --ds-drawer-group: var(--ds-area);
+  --b-drawer-group: var(--b-area);
+  --r-drawer-group: var(--r-area);
+  --p-drawer-group: var(--p-area);
+  --fs-drawer-group: var(--fs-area);
+
+  /* dropdown -> panel */
+  --ds-dropdown-group: var(--ds-panel);
+  --b-dropdown-group: var(--b-panel);
+  --r-dropdown-group: var(--r-panel);
+  --p-dropdown-group: var(--p-panel);
+  --fs-dropdown-group: var(--fs-panel);
+
+  /* fieldset -> panel */
+  --ds-fieldset-group: var(--ds-panel);
+  --b-fieldset-group: var(--b-panel);
+  --r-fieldset-group: var(--r-panel);
+  --p-fieldset-group: var(--p-panel);
+  --fs-fieldset-group: var(--fs-panel);
+
+  /* figure -> content */
+  --ds-figure-group: var(--ds-content);
+  --b-figure-group: var(--b-content);
+  --r-figure-group: var(--r-content);
+  --p-figure-group: var(--p-content);
+  --fs-figure-group: var(--fs-content);
+
+  /* filtered-list -> control */
+  --ds-filtered-list-group: var(--ds-control);
+  --b-filtered-list-group: var(--b-control);
+  --r-filtered-list-group: var(--r-control);
+  --p-filtered-list-group: var(--p-control);
+  --fs-filtered-list-group: var(--fs-control);
+
+  /* input-group -> control */
+  --ds-input-group-group: var(--ds-control);
+  --b-input-group-group: var(--b-control);
+  --r-input-group-group: var(--r-control);
+  --p-input-group-group: var(--p-control);
+  --fs-input-group-group: var(--fs-control);
+
+  /* label -> tag */
+  --ds-label-group: var(--ds-tag);
+  --b-label-group: var(--b-tag);
+  --r-label-group: var(--r-tag);
+  --p-label-group: var(--p-tag);
+  --fs-label-group: var(--fs-tag);
+
+  /* lightbox -> panel */
+  --ds-lightbox-group: var(--ds-panel);
+  --b-lightbox-group: var(--b-panel);
+  --r-lightbox-group: var(--r-panel);
+  --p-lightbox-group: var(--p-panel);
+  --fs-lightbox-group: var(--fs-panel);
+
+  /* link -> control */
+  --ds-link-group: var(--ds-control);
+  --b-link-group: var(--b-control);
+  --r-link-group: var(--r-control);
+  --p-link-group: var(--p-control);
+  --fs-link-group: var(--fs-control);
+
+  /* list -> content */
+  --ds-list-group: var(--ds-content);
+  --b-list-group: var(--b-content);
+  --r-list-group: var(--r-content);
+  --p-list-group: var(--p-content);
+  --fs-list-group: var(--fs-content);
+
+  /* modal -> panel */
+  --ds-modal-group: var(--ds-panel);
+  --b-modal-group: var(--b-panel);
+  --r-modal-group: var(--r-panel);
+  --p-modal-group: var(--p-panel);
+  --fs-modal-group: var(--fs-panel);
+
+  /* notification -> panel */
+  --ds-notification-group: var(--ds-panel);
+  --b-notification-group: var(--b-panel);
+  --r-notification-group: var(--r-panel);
+  --p-notification-group: var(--p-panel);
+  --fs-notification-group: var(--fs-panel);
+
+  /* notification-area -> area */
+  --ds-notification-area-group: var(--ds-area);
+  --b-notification-area-group: var(--b-area);
+  --r-notification-area-group: var(--r-area);
+  --p-notification-area-group: var(--p-area);
+  --fs-notification-area-group: var(--fs-area);
+
+  /* popover -> panel */
+  --ds-popover-group: var(--ds-panel);
+  --b-popover-group: var(--b-panel);
+  --r-popover-group: var(--r-panel);
+  --p-popover-group: var(--p-panel);
+  --fs-popover-group: var(--fs-panel);
+
+  /* pull-quote -> pull */
+  --ds-pull-quote-group: var(--ds-pull);
+  --b-pull-quote-group: var(--b-pull);
+  --r-pull-quote-group: var(--r-pull);
+  --p-pull-quote-group: var(--p-pull);
+  --fs-pull-quote-group: var(--fs-pull);
+
+  /* section -> area */
+  --ds-section-group: var(--ds-area);
+  --b-section-group: var(--b-area);
+  --r-section-group: var(--r-area);
+  --p-section-group: var(--p-area);
+  --fs-section-group: var(--fs-area);
+
+  /* select -> control */
+  --ds-select-group: var(--ds-control);
+  --b-select-group: var(--b-control);
+  --r-select-group: var(--r-control);
+  --p-select-group: var(--p-control);
+  --fs-select-group: var(--fs-control);
+
+  /* status -> tag */
+  --ds-status-group: var(--ds-tag);
+  --b-status-group: var(--b-tag);
+  --r-status-group: var(--r-tag);
+  --p-status-group: var(--p-tag);
+  --fs-status-group: var(--fs-tag);
+
+  /* switch -> control */
+  --ds-switch-group: var(--ds-control);
+  --b-switch-group: var(--b-control);
+  --r-switch-group: var(--r-control);
+  --p-switch-group: var(--p-control);
+  --fs-switch-group: var(--fs-control);
+
+  /* tab-panel -> panel */
+  --ds-tab-panel-group: var(--ds-panel);
+  --b-tab-panel-group: var(--b-panel);
+  --r-tab-panel-group: var(--r-panel);
+  --p-tab-panel-group: var(--p-panel);
+  --fs-tab-panel-group: var(--fs-panel);
+
+  /* table -> content */
+  --ds-table-group: var(--ds-content);
+  --b-table-group: var(--b-content);
+  --r-table-group: var(--r-content);
+  --p-table-group: var(--p-content);
+  --fs-table-group: var(--fs-content);
+
+  /* tile -> panel */
+  --ds-tile-group: var(--ds-panel);
+  --b-tile-group: var(--b-panel);
+  --r-tile-group: var(--r-panel);
+  --p-tile-group: var(--p-panel);
+  --fs-tile-group: var(--fs-panel);
+
+  /* toggle -> control */
+  --ds-toggle-group: var(--ds-control);
+  --b-toggle-group: var(--b-control);
+  --r-toggle-group: var(--r-control);
+  --p-toggle-group: var(--p-control);
+  --fs-toggle-group: var(--fs-control);
+
+  /* tooltip -> tag */
+  --ds-tooltip-group: var(--ds-tag);
+  --b-tooltip-group: var(--b-tag);
+  --r-tooltip-group: var(--r-tag);
+  --p-tooltip-group: var(--p-tag);
+  --fs-tooltip-group: var(--fs-tag);
+
+  /* tree -> content */
+  --ds-tree-group: var(--ds-content);
+  --b-tree-group: var(--b-content);
+  --r-tree-group: var(--r-content);
+  --p-tree-group: var(--p-content);
+  --fs-tree-group: var(--fs-content);
+  /* Component overrides */
+  --drawer-max-inline-size: 280px;
+  --drawer-max-block-size: 50dvb;
+}

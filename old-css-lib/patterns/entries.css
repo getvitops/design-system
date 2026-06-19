@@ -1,0 +1,155 @@
+/** Entries pattern — adaptive data display
+ *
+ * Wraps heading + <dl> pairs that are progressively enhanced into different
+ * structural views via the WCEntries web component:
+ *
+ * 1. No JS (default): all heading + dl pairs render stacked (semantic fallback).
+ * 2. JS (no projection): stacked dl at narrow, table at wide.
+ * 3. JS + projection + narrow: table inside scroll container, sticky first
+ *    column, nav buttons scroll columns into view.
+ * 4. JS + projection + wide: full table, no nav.
+ *
+ * TODO: When container style queries with custom properties land (Interop 2026),
+ * replace ResizeObserver with pure CSS: set --entries-view via space toggle hack
+ * based on container inline-size, then use @container style(--entries-view: tabular)
+ * to toggle visibility. This removes all JS from mode switching.
+ */
+
+wc-entries {
+  display: block;
+  container-type: inline-size;
+}
+
+/* ── Narrow / list view (default) ── */
+
+wc-entries > dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25em 1em;
+
+  > dt {
+    font-weight: 600;
+  }
+}
+
+wc-entries > :is(h1, h2, h3, h4, h5, h6) + dl {
+  margin-block-start: 0.25em;
+}
+
+wc-entries > dl + :is(h1, h2, h3, h4, h5, h6) {
+  margin-block-start: var(--entries-gap, 1.5em);
+}
+
+/* ── Generated table (hidden by default, shown when wide or projection) ── */
+
+wc-entries:defined > .entries__table {
+  display: none;
+}
+
+/* ── Column nav (JS-created, projection only) ── */
+
+.entries__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--entries-nav-gap, 0.5rem);
+  margin-block-end: 1em;
+}
+
+.entries__nav-btn {
+  border: var(--b-control, var(--b-default));
+  border-radius: var(--br-control, var(--br-default));
+  padding: 0.5em 0.75em;
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--fs-tag, 0.75rem);
+  font-family: inherit;
+  color: inherit;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.entries__nav-btn:hover {
+  background: oklch(0 0 0 / 0.05);
+}
+
+.entries__nav-btn[aria-pressed='true'] {
+  background: oklch(0 0 0 / 0.08);
+  font-weight: 600;
+}
+
+.entries__nav-btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* ── Projection mode (narrow): scrollable table with sticky first column ── */
+
+wc-entries:defined.entries--projection > .entries__scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  scroll-padding-inline-start: var(--_entries-sticky-width, 0px);
+}
+
+wc-entries:defined.entries--projection > .entries__scroll > .entries__table {
+  display: table;
+  min-inline-size: max-content;
+}
+
+/* Sticky first column */
+wc-entries:defined.entries--projection:not(.entries--wide) > .entries__scroll > .entries__table {
+  > thead > tr > th:first-child,
+  > tbody > tr > td:first-child,
+  > tfoot > tr > td:first-child,
+  > tfoot > tr > th:first-child {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: var(--z-tier-raised);
+    background: var(--entries-sticky-bg, var(--color-base-100, canvas));
+  }
+
+  > thead > tr > th:first-child {
+    z-index: calc(var(--z-tier-raised) + 1);
+  }
+}
+
+/* ── Singular mode (projection + narrow): one data column visible ── */
+
+wc-entries:defined.entries--singular:not(.entries--wide) {
+  > .entries__scroll {
+    overflow-x: visible;
+  }
+
+  > .entries__scroll > .entries__table {
+    inline-size: 100%;
+    min-inline-size: 100%;
+
+    > :is(thead, tbody) > tr > :first-child {
+      width: 1%;
+    }
+  }
+}
+
+/* ── Wide mode ── */
+
+wc-entries:defined.entries--wide > .entries__table {
+  display: table;
+}
+
+/* Accessible hiding — keeps content in accessibility tree */
+wc-entries:defined:is(.entries--wide, .entries--projection) > :is(h1, h2, h3, h4, h5, h6, dl) {
+  @apply sr-only;
+}
+
+wc-entries:defined.entries--wide > .entries__nav {
+  display: none;
+}
+
+/* In wide projection mode, remove scroll constraints */
+wc-entries:defined.entries--wide.entries--projection > .entries__scroll {
+  overflow-x: visible;
+}
+
+wc-entries:defined.entries--wide.entries--projection > .entries__scroll > .entries__table {
+  min-inline-size: 100%;
+}

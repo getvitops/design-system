@@ -1,0 +1,130 @@
+/* Scroll Target Group
+ * CSS-only scroll spy using the :target-current pseudo-class
+ * Requires: scroll-target-group: auto on the nav/TOC container
+ * Browser: Chrome/Edge 133+
+ */
+
+/* TOC container with scroll-target-group */
+.scroll-target-group {
+  scroll-target-group: auto;
+}
+
+/* TOC link styling */
+.scroll-target-group a {
+  transition: var(--scroll-target-transition, color 0.3s ease, background-color 0.3s ease);
+  text-decoration: none;
+  color: var(--scroll-target-inactive-color, currentColor);
+}
+
+/* Active state via :target-current */
+.scroll-target-group a:target-current {
+  color: var(--scroll-target-active-color, currentColor);
+}
+
+/* Optional: indicator dot variant */
+.scroll-target-group--indicator a {
+  position: relative;
+  padding-inline-start: calc(var(--scroll-target-indicator-size, 3px) * 3);
+}
+
+.scroll-target-group--indicator a::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--scroll-target-indicator-size, 3px);
+  height: var(--scroll-target-indicator-size, 3px);
+  border-radius: 50%;
+  background-color: transparent;
+  transition: var(--scroll-target-transition, color 0.3s ease, background-color 0.3s ease);
+}
+
+.scroll-target-group--indicator a:target-current::before {
+  background-color: var(--scroll-target-active-color, currentColor);
+}
+
+/* Optional: bar indicator variant */
+.scroll-target-group--bar a {
+  position: relative;
+  padding-inline-start: calc(var(--scroll-target-indicator-size, 3px) + 0.75rem);
+}
+
+.scroll-target-group--bar a::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--scroll-target-indicator-size, 3px);
+  background-color: transparent;
+  transition: var(--scroll-target-transition, color 0.3s ease, background-color 0.3s ease);
+}
+
+.scroll-target-group--bar a:target-current::before {
+  background-color: var(--scroll-target-active-color, currentColor);
+}
+
+/* Progressive enhancement - hide scroll-spy TOC if not supported */
+@supports not (scroll-target-group: auto) {
+  .scroll-target-group--hide-unsupported {
+    display: none;
+  }
+}
+
+/* TOC sidebar layout for patterns page */
+.toc-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+
+  @container body (inline-size >= 64rem) {
+    grid-template-columns: 16rem 1fr;
+    gap: var(--gutter, 2rem);
+  }
+}
+
+.toc-sidebar {
+  display: none;
+
+  @container body (inline-size >= 64rem) {
+    display: block;
+    position: sticky;
+    top: calc(var(--top-offset, 0px) + var(--sticky-offset, 1rem));
+    height: fit-content;
+    max-height: calc(100svh - calc(var(--top-offset, 0px) + var(--sticky-offset, 1rem)) * 2);
+    overflow-y: auto;
+    padding-block: 1rem;
+  }
+}
+
+.toc-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.toc-sidebar a {
+  display: block;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  transition: var(--scroll-target-transition, color 0.3s ease, background-color 0.3s ease);
+}
+
+.toc-sidebar a:target-current {
+  color: var(--scroll-target-active-color, currentColor);
+  font-weight: 500;
+}
+
+/* Mobile TOC (inline banner) - show on small screens, hide on large */
+.toc-inline {
+  position: sticky;
+  top: var(--top-offset, 0);
+  z-index: var(--z-tier-sticky);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+
+  @container body (inline-size >= 64rem) {
+    display: none;
+  }
+}

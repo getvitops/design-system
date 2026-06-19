@@ -1,0 +1,82 @@
+/*
+ * CSS-only Stacking Cards Pattern
+ * Based on: https://scroll-driven-animations.style/demos/stacking-cards/css/
+ *
+ * Browser requirements:
+ * - animation-timeline: view() — Chrome/Edge 115+
+ * - animation-range           — Chrome/Edge 115+
+ *
+ * Usage:
+ * <div class="stack" style="--stack-count: 4">
+ *   <div class="stack__card" style="--stack-index: 1">...</div>
+ *   <div class="stack__card" style="--stack-index: 2">...</div>
+ *   <div class="stack__card" style="--stack-index: 3">...</div>
+ *   <div class="stack__card" style="--stack-index: 4">...</div>
+ * </div>
+ */
+
+.stack {
+  --stack-count: 4;
+  --stack-card-height: 60vh;
+  display: grid;
+}
+
+.stack__card {
+  --stack-index: 1;
+  position: sticky;
+  top: var(--stack-top, 10vh);
+}
+
+.stack__card__content {
+  box-shadow: var(--ds-card, var(--ds-panel, var(--ds-default)));
+  border-radius: var(--br-card, var(--br-panel, var(--br-default)));
+  min-block-size: var(--stack-card-height);
+}
+
+@supports (animation-timeline: view()) {
+  .stack__card {
+    --_index0: calc(var(--stack-index) - 1);
+    --_reverse-index: calc(var(--stack-count) - var(--_index0));
+    --_reverse-index0: calc(var(--_reverse-index) - 1);
+
+    view-timeline: --card block;
+  }
+
+  @keyframes stack-scale {
+    to {
+      transform: scale(calc(1.1 - calc(0.1 * var(--_reverse-index))));
+    }
+  }
+
+  .stack__card__content {
+    animation: stack-scale linear forwards;
+    animation-timeline: --card;
+    animation-range: contain 0% contain 100%;
+  }
+}
+
+/* Variant: with opacity fade for older cards */
+@supports (animation-timeline: view()) {
+  @keyframes stack-fade {
+    to {
+      opacity: calc(0.5 + 0.5 * (var(--_reverse-index) / var(--stack-count)));
+    }
+  }
+
+  .stack--fade .stack__card__content {
+    animation:
+      stack-scale linear forwards,
+      stack-fade linear forwards;
+    animation-timeline: --card, --card;
+    animation-range:
+      contain 0% contain 100%,
+      contain 0% contain 100%;
+  }
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .stack__card__content {
+    animation: none !important;
+  }
+}

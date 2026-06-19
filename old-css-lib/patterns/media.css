@@ -1,0 +1,74 @@
+/** Media/Tile pattern - horizontal media object layout */
+
+.media {
+  display: flex;
+
+  /** Media figure (image/icon container) */
+  .media__figure {
+    flex-shrink: 0;
+  }
+
+  .media__figure > img,
+  .media__figure > svg {
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+
+  /** Media body (content area) */
+  .media__body {
+    flex: 1;
+    min-inline-size: 0;
+  }
+}
+
+/** Tile pattern - card-like clickable media object */
+.tile {
+  /**
+   * Cascading fallback pattern:
+   * tile-specific → group (via pattern-mapping.css) → default
+   */
+  --_tile-padding: var(--p-tile, var(--p-tile-group, var(--p-default)));
+  --_tile-radius: var(--br-tile, var(--br-tile-group, var(--br-default)));
+  --_tile-shadow: var(--ds-tile, var(--ds-tile-group, var(--ds-default)));
+  --_tile-border: var(--b-tile, var(--b-tile-group, var(--b-default)));
+
+  display: flex;
+  align-items: flex-start;
+  padding: var(--_tile-padding);
+  border: var(--_tile-border);
+  border-radius: var(--_tile-radius);
+  box-shadow: var(--_tile-shadow);
+  text-decoration: none;
+  color: inherit;
+
+  &:focus-visible {
+    outline: 2px solid var(--tile-focus-color, oklch(0.6 0.2 250));
+    outline-offset: 2px;
+  }
+
+  /** Tile figure */
+  .tile__figure {
+    flex-shrink: 0;
+    border-radius: calc(var(--_tile-radius) - 0.25rem);
+    overflow: hidden;
+  }
+
+  .tile__figure > img {
+    display: block;
+    object-fit: cover;
+  }
+
+  /** Tile body */
+  .tile__body {
+    flex: 1;
+    min-inline-size: 0;
+  }
+
+  /** Tile actions */
+  .tile__actions {
+    flex-shrink: 0;
+    align-self: center;
+  }
+}

@@ -1,0 +1,310 @@
+/**
+ * Animation System
+ *
+ * Three keyframes split by rendering stage:
+ *   composite  — opacity + translate/scale/rotate (compositor, cheapest)
+ *   paint      — filter (blur, drop-shadow, etc.) + clip-path (paint stage)
+ *   layout     — height (layout stage, most expensive)
+ *
+ * One animation per element. Effects within the same keyframe compose
+ * naturally via CSS variables. Cross-keyframe effects (e.g. fade + blur)
+ * require separate nested elements.
+ *
+ * Two-tier decomposition (see utilities-anim.css for @utility blocks):
+ *
+ *   Tier 1 — Timeline: anim-view, anim-scroll, anim-trigger
+ *   Tier 2 — Effects (each sets animation-name + variables):
+ *     composite: fade-in, fade-out, slide-up, slide-down, slide-left, slide-right,
+ *                scale-up, scale-down, rotate-cw, rotate-ccw
+ *     paint:     blur-in, blur-out, elevate-up, elevate-down,
+ *                reveal-left, reveal-right, reveal-up, reveal-down
+ *     layout:    size-grow, size-shrink
+ *     journey:   fade-journey, slide-journey, scale-journey, blur-journey
+ *
+ * Float animation (continuous movement):
+ *   float keyframe with 4 configurable waypoints (0/25/50/75%)
+ *   float-path keyframe with offset-path for arbitrary paths
+ *
+ * Examples:
+ *   <div class="anim-view fade-in slide-up range-entry">
+ *   <div class="@md:anim-view @md:fade-in @md:slide-up">
+ *   <div class="anim-trigger fade-in scale-up">
+ *   <div class="anim-scroll rotate-cw">
+ *   <div class="float-circular" style="--float-radius: 15px">
+ *
+ * Cross-stage composition (requires nesting):
+ *   <div class="anim-view fade-in">        <!-- composite -->
+ *     <div class="anim-view blur-in">      <!-- paint -->
+ *       Content
+ *     </div>
+ *   </div>
+ */
+
+/* ===========================================
+ * Configuration
+ * =========================================== */
+
+:root {
+  --custom-ease-in: cubic-bezier(0.33, 1, 0.68, 1);
+  --custom-ease-out: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --animation-duration-fast: 150ms;
+  --animation-duration-base: 250ms;
+  --animation-duration-slow: 500ms;
+  --animation-duration-xslow: 2s;
+  --animation-duration: var(--_animation-duration, var(--animation-duration-slow));
+  --trigger-animation-duration: var(--animation-duration-xslow);
+
+  /* Float easing presets */
+  /* Sinusoidal — smooth continuous speed, natural for 2D orbits */
+  --ease-float-sine: linear(0, 0.024, 0.095, 0.206, 0.354, 0.5, 0.646, 0.794, 0.905, 0.976, 1);
+  /* Soft bounce — decelerates at peaks, good for 1D oscillation */
+  --ease-float-bounce: linear(0, 0.11, 0.36, 0.64, 0.89, 1, 0.89, 0.64, 0.36, 0.11, 0);
+}
+
+/* ===========================================
+ * View Transitions (page navigation)
+ * =========================================== */
+
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-children(*) {
+  animation-duration: var(--animation-duration-xslow);
+}
+
+/* ===========================================
+ * Keyframes - Layout Stage (most expensive)
+ * =========================================== */
+
+@keyframes layout {
+  from {
+    height: var(--height-from, auto);
+  }
+  to {
+    height: var(--height-to, auto);
+  }
+}
+
+/* ===========================================
+ * Keyframes - Compositor Stage (cheapest, GPU)
+ * opacity + individual transform properties
+ * =========================================== */
+
+@keyframes composite {
+  from {
+    opacity: var(--opacity-from, 1);
+    translate: var(--translate-x-from, 0) var(--translate-y-from, 0);
+    scale: var(--scale-x-from, 1) var(--scale-y-from, 1);
+    rotate: var(--rotate-from, 0deg);
+  }
+  to {
+    opacity: var(--opacity-to, 1);
+    translate: var(--translate-x-to, 0) var(--translate-y-to, 0);
+    scale: var(--scale-x-to, 1) var(--scale-y-to, 1);
+    rotate: var(--rotate-to, 0deg);
+  }
+}
+
+/* ===========================================
+ * Keyframes - Paint Stage
+ * filter functions + clip-path
+ * =========================================== */
+
+@keyframes paint {
+  from {
+    filter: blur(var(--blur-from, 0px)) drop-shadow(var(--shadow-from, 0 0 0 transparent))
+      brightness(var(--brightness-from, 1)) grayscale(var(--grayscale-from, 0))
+      contrast(var(--contrast-from, 1)) saturate(var(--saturate-from, 1))
+      sepia(var(--sepia-from, 0)) hue-rotate(var(--hue-rotate-from, 0deg));
+    clip-path: var(--clip-from, none);
+  }
+  to {
+    filter: blur(var(--blur-to, 0px)) drop-shadow(var(--shadow-to, 0 0 0 transparent))
+      brightness(var(--brightness-to, 1)) grayscale(var(--grayscale-to, 0))
+      contrast(var(--contrast-to, 1)) saturate(var(--saturate-to, 1)) sepia(var(--sepia-to, 0))
+      hue-rotate(var(--hue-rotate-to, 0deg));
+    clip-path: var(--clip-to, none);
+  }
+}
+
+/* ===========================================
+ * Keyframes - Journey (Multi-Phase)
+ * Entry → Hold → Exit pattern
+ * =========================================== */
+
+@keyframes fade-journey {
+  0%,
+  100% {
+    opacity: var(--opacity-from, 0);
+  }
+  25%,
+  75% {
+    opacity: var(--opacity-to, 1);
+  }
+}
+
+@keyframes slide-journey {
+  0% {
+    translate: var(--translate-x-from, 0) var(--translate-y-from, 0);
+  }
+  25%,
+  75% {
+    translate: var(--translate-x-to, 0) var(--translate-y-to, 0);
+  }
+  100% {
+    translate: calc(var(--translate-x-from, 0) * -1) calc(var(--translate-y-from, 0) * -1);
+  }
+}
+
+@keyframes scale-journey {
+  0%,
+  100% {
+    scale: var(--scale-x-from, 0.8) var(--scale-y-from, 0.8);
+  }
+  25%,
+  75% {
+    scale: var(--scale-x-to, 1) var(--scale-y-to, 1);
+  }
+}
+
+@keyframes blur-journey {
+  0%,
+  100% {
+    filter: blur(var(--blur-from, 5px));
+  }
+  25%,
+  75% {
+    filter: blur(var(--blur-to, 0));
+  }
+}
+
+/* ===========================================
+ * Keyframes - Float (Continuous Movement)
+ * 4 configurable waypoints, loops back to start
+ * =========================================== */
+
+@keyframes float {
+  0%,
+  100% {
+    translate: var(--float-x-0, 0) var(--float-y-0, 0);
+  }
+  25% {
+    translate: var(--float-x-25, 0) var(--float-y-25, 0);
+  }
+  50% {
+    translate: var(--float-x-50, 0) var(--float-y-50, 0);
+  }
+  75% {
+    translate: var(--float-x-75, 0) var(--float-y-75, 0);
+  }
+}
+
+@keyframes float-path {
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
+}
+
+/* ===========================================
+ * Keyframes - Utility
+ * =========================================== */
+
+@keyframes color-shift {
+  0% {
+    background-color: var(--bg-color-shift-from);
+  }
+  100% {
+    background-color: var(--bg-color-shift-to);
+  }
+}
+
+@keyframes bg-position-reveal {
+  from {
+    background-position: var(--bg-position-reveal-from);
+  }
+  to {
+    background-position: var(--bg-position-reveal-to);
+  }
+}
+
+/* ===========================================
+ * Trigger Play-State
+ * Controlled by IntersectionObserver in deferred.ts
+ * =========================================== */
+
+:where(:root:not(.no-js)) {
+  .anim-trigger {
+    animation-play-state: paused;
+  }
+
+  .triggered.anim-trigger,
+  .triggered > .anim-trigger {
+    animation-play-state: running;
+  }
+}
+
+/* ===========================================
+ * Float Base (getter for all float presets)
+ * =========================================== */
+
+:is(
+  [class*='float-circular'],
+  [class*='float-figure'],
+  [class*='float-bounce'],
+  [class*='float-drift'],
+  [class*='float-gentle'],
+  [class*='float-diamond']
+) {
+  animation-name: float;
+  animation-duration: var(--float-duration, 4s);
+  animation-timing-function: var(--float-easing, ease-in-out);
+  animation-iteration-count: var(--float-iterations, infinite);
+  animation-fill-mode: both;
+}
+
+/* ===========================================
+ * Stagger Support
+ * =========================================== */
+
+.stagger {
+  --_stagger-amount: var(--stagger-amount, 0.1s);
+}
+
+.stagger > * {
+  --_stagger-index: sibling-index();
+  animation-delay: calc(var(--_stagger-index) * var(--_stagger-amount));
+}
+
+/* ===========================================
+ * Utility Classes
+ * =========================================== */
+
+/* Scroll-based height adjustment (for sticky headers, etc.) */
+.scroll-size {
+  animation: layout linear both;
+  animation-timeline: scroll();
+}
+
+/* Text reveal effect */
+.text-reveal {
+  text-box: initial;
+  animation: bg-position-reveal linear both;
+  animation-timeline: view();
+  animation-range: entry 50% cover 50%;
+  background: var(
+    --text-reveal-background,
+    linear-gradient(
+      var(--text-reveal-slant),
+      var(--text-reveal-color-from) 50%,
+      var(--text-reveal-color-to) 50%
+    )
+  );
+  background-size: 200% 200%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}

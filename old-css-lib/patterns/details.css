@@ -1,0 +1,112 @@
+/** Details/Disclosure pattern using native <details> with CSS animations */
+
+details,
+.details {
+  /**
+   * Cascading fallback pattern:
+   * details-specific -> group (via pattern-mapping.css) -> default
+   */
+  --_details-content-margin: var(
+    --p-details-content,
+    var(--p-details-content-group, var(--p-default, 1rem))
+  );
+  --_details-padding: var(--p-details, var(--p-details-group, var(--p-default)));
+  --_details-border: var(--b-details, var(--b-details-group, var(--b-default)));
+  --_details-radius: var(--br-details, var(--br-details-group, var(--br-default)));
+  --_details-shadow: var(--ds-details, var(--ds-details-group, var(--ds-default)));
+  --_details-fs: var(--fs-details, var(--fs-details-group, var(--fs-default)));
+
+  /** Summary styling */
+  > summary {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &::marker {
+      content: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
+  }
+
+  /** Disclosure icon (provided by component markup, not ::before) */
+  > summary > .details-icon {
+    flex-shrink: 0;
+    margin-inline-start: auto;
+    transition: rotate 0.3s ease;
+  }
+
+  /** Rotate icon when open — override via --_details-icon-rotate */
+  &[open] > summary > .details-icon {
+    rotate: var(--_details-icon-rotate, 90deg);
+  }
+
+  /**
+   * Content wrapper for animation.
+   *
+   * IMPORTANT: Do not use view timeline animations (e.g. anim-view fade-in slide-up) on
+   * parent containers of <details> groups. View timeline animations recalculate
+   * progress based on the element's viewport intersection, so when a details
+   * opens and the container height changes, the translate/opacity shift causes
+   * a visible ~1px jank. Use trigger-* animations instead (one-shot, unaffected
+   * by height changes).
+   */
+  &::details-content {
+    display: block;
+    overflow: hidden;
+    block-size: 0;
+    opacity: 0;
+    transition:
+      block-size 0.3s ease,
+      opacity 0.3s ease,
+      content-visibility 0.3s allow-discrete;
+  }
+
+  /** Spacing between summary and content, applied to siblings to avoid shadow DOM issues */
+  > summary + * {
+    margin-block-start: var(--_details-content-margin);
+  }
+
+  > :not(summary) {
+    margin-inline: var(--_details-content-margin);
+
+    &:last-child {
+      margin-block-end: var(--_details-content-margin);
+    }
+  }
+
+  &[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+  }
+
+  /** Marker at the start (icon is at end by default) */
+  &.details--marker-start > summary > .details-icon {
+    order: -1;
+    margin-inline-start: 0;
+    margin-inline-end: auto;
+  }
+
+  /** Plus/minus marker variant — toggle two sibling icon elements */
+  &.details--plus-minus > summary > .details-icon--minus {
+    display: none;
+  }
+  &.details--plus-minus[open] > summary > .details-icon--plus {
+    display: none;
+  }
+  &.details--plus-minus[open] > summary > .details-icon--minus {
+    display: inline-flex;
+  }
+  &.details--plus-minus[open] > summary > .details-icon {
+    rotate: none;
+  }
+}

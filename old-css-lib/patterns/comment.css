@@ -1,0 +1,97 @@
+/** Comment pattern - threaded comment/reply structures */
+
+.comment {
+  /**
+   * Cascading fallback pattern:
+   * comment-specific → group (via pattern-mapping.css) → default
+   */
+  --_comment-padding: var(--p-comment, var(--p-comment-group, var(--p-default)));
+  --_comment-radius: var(--br-comment, var(--br-comment-group, var(--br-default)));
+  --_comment-border: var(--b-comment, var(--b-comment-group, var(--b-default)));
+  --_comment-shadow: var(--ds-comment, var(--ds-comment-group, var(--ds-default)));
+
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto auto;
+  grid-template-areas:
+    'avatar header'
+    'avatar body'
+    'avatar footer';
+  gap: 1rem;
+  column-gap: 0.75rem;
+
+  .comment__avatar {
+    grid-area: avatar;
+    align-self: start;
+  }
+
+  .comment__header {
+    grid-area: header;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+
+  .comment__author {
+    font-weight: 600;
+  }
+
+  .comment__date {
+    font-size: 0.875em;
+    opacity: 0.7;
+  }
+
+  .comment__body {
+    grid-area: body;
+  }
+
+  .comment__footer {
+    grid-area: footer;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .comment__action {
+    font-size: 0.875em;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+
+    &:hover,
+    &:focus-visible {
+      opacity: 1;
+    }
+  }
+
+  /** Nested replies */
+  .comment__replies {
+    grid-column: 1 / -1;
+    margin-inline-start: var(--comment-indent, 2rem);
+    padding-inline-start: var(--comment-indent, 2rem);
+    border-inline-start: 2px solid currentColor;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /** Compact variant without avatar column */
+  &.comment--compact {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'header'
+      'body'
+      'footer';
+  }
+
+  &.comment--compact .comment__avatar {
+    display: none;
+  }
+}
+
+/** Comment thread container */
+.comment-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}

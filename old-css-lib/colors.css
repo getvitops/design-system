@@ -1,0 +1,485 @@
+/**
+ * Generated Theme
+ *
+ * Auto-generated from site.config.* by lib/generate-theme.ts
+ * Do not edit directly - run `npm run generate:theme` to regenerate.
+ * Default color scheme: light
+ *
+ * Light/dark theming is handled by daisyui-theme.css
+ */
+
+/* Color scheme preference: light first */
+:root {
+  color-scheme: light dark;
+}
+
+@theme inline {
+  /* Text Colors */
+  --text-light: oklch(98% 0 0);
+  --text-dark: oklch(15% 0.01 0);
+  --text-light-muted: oklch(75% 0 0);
+  --text-dark-muted: oklch(45% 0.01 0);
+
+  /* ============================================
+   * Named Palettes
+   * ============================================ */
+
+  /* orange palette */
+  --color-orange: oklch(66.8% 0.1611 37.83);
+  --color-orange-100: oklch(86.9% 0.1611 37.83);
+  --color-orange-300: oklch(66.8% 0.1611 37.83);
+  --color-orange-500: oklch(49.1% 0.1611 37.83);
+  --color-orange-700: oklch(31.5% 0.1611 37.83);
+  --color-orange-900: oklch(13.8% 0.1611 37.83);
+
+  --color-orange-100-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-orange-100));
+  --color-orange-100-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-orange-100)
+  );
+  --color-orange-300-text: color-mix(in oklch, var(--text-light) 90%, var(--color-orange-300));
+  --color-orange-300-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-orange-300)
+  );
+  --color-orange-500-text: color-mix(in oklch, var(--text-light) 90%, var(--color-orange-500));
+  --color-orange-500-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-orange-500)
+  );
+  --color-orange-700-text: color-mix(in oklch, var(--text-light) 90%, var(--color-orange-700));
+  --color-orange-700-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-orange-700)
+  );
+  --color-orange-900-text: color-mix(in oklch, var(--text-light) 90%, var(--color-orange-900));
+  --color-orange-900-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-orange-900)
+  );
+
+  /* blue palette */
+  --color-blue: oklch(36.6% 0.1896 266.94);
+  --color-blue-100: oklch(88.4% 0.1896 266.94);
+  --color-blue-300: oklch(71.1% 0.1896 266.94);
+  --color-blue-500: oklch(53.8% 0.1896 266.94);
+  --color-blue-700: oklch(36.6% 0.1896 266.94);
+  --color-blue-900: oklch(15.5% 0.1896 266.94);
+
+  --color-blue-100-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-blue-100));
+  --color-blue-100-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-blue-100)
+  );
+  --color-blue-300-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-blue-300));
+  --color-blue-300-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-blue-300)
+  );
+  --color-blue-500-text: color-mix(in oklch, var(--text-light) 90%, var(--color-blue-500));
+  --color-blue-500-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-blue-500)
+  );
+  --color-blue-700-text: color-mix(in oklch, var(--text-light) 90%, var(--color-blue-700));
+  --color-blue-700-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-blue-700)
+  );
+  --color-blue-900-text: color-mix(in oklch, var(--text-light) 90%, var(--color-blue-900));
+  --color-blue-900-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-blue-900)
+  );
+
+  /* green palette */
+  --color-green: oklch(45.5% 0.0716 212.26);
+  --color-green-100: oklch(86.7% 0.0716 212.26);
+  --color-green-300: oklch(66.1% 0.0716 212.26);
+  --color-green-500: oklch(45.5% 0.0716 212.26);
+  --color-green-700: oklch(29.3% 0.0716 212.26);
+  --color-green-900: oklch(13.1% 0.0716 212.26);
+
+  --color-green-100-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-green-100));
+  --color-green-100-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-green-100)
+  );
+  --color-green-300-text: color-mix(in oklch, var(--text-light) 90%, var(--color-green-300));
+  --color-green-300-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-green-300)
+  );
+  --color-green-500-text: color-mix(in oklch, var(--text-light) 90%, var(--color-green-500));
+  --color-green-500-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-green-500)
+  );
+  --color-green-700-text: color-mix(in oklch, var(--text-light) 90%, var(--color-green-700));
+  --color-green-700-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-green-700)
+  );
+  --color-green-900-text: color-mix(in oklch, var(--text-light) 90%, var(--color-green-900));
+  --color-green-900-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-green-900)
+  );
+
+  /* yellow palette */
+  --color-yellow: oklch(67.6% 0.1441 70.57);
+  --color-yellow-100: oklch(87.2% 0.1441 70.57);
+  --color-yellow-300: oklch(67.6% 0.1441 70.57);
+  --color-yellow-500: oklch(49.7% 0.1441 70.57);
+  --color-yellow-700: oklch(31.8% 0.1441 70.57);
+  --color-yellow-900: oklch(13.9% 0.1441 70.57);
+
+  --color-yellow-100-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-yellow-100));
+  --color-yellow-100-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-yellow-100)
+  );
+  --color-yellow-300-text: color-mix(in oklch, var(--text-light) 90%, var(--color-yellow-300));
+  --color-yellow-300-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-yellow-300)
+  );
+  --color-yellow-500-text: color-mix(in oklch, var(--text-light) 90%, var(--color-yellow-500));
+  --color-yellow-500-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-yellow-500)
+  );
+  --color-yellow-700-text: color-mix(in oklch, var(--text-light) 90%, var(--color-yellow-700));
+  --color-yellow-700-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-yellow-700)
+  );
+  --color-yellow-900-text: color-mix(in oklch, var(--text-light) 90%, var(--color-yellow-900));
+  --color-yellow-900-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-yellow-900)
+  );
+
+  /* beige palette */
+  --color-beige: oklch(98.9% 0.0034 67.78);
+  --color-beige-100: oklch(98.9% 0.0034 67.78);
+  --color-beige-300: oklch(78% 0.0034 67.78);
+  --color-beige-500: oklch(57.2% 0.0034 67.78);
+  --color-beige-700: oklch(36.3% 0.0034 67.78);
+  --color-beige-900: oklch(15.4% 0.0034 67.78);
+
+  --color-beige-100-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-beige-100));
+  --color-beige-100-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-beige-100)
+  );
+  --color-beige-300-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-beige-300));
+  --color-beige-300-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-beige-300)
+  );
+  --color-beige-500-text: color-mix(in oklch, var(--text-light) 90%, var(--color-beige-500));
+  --color-beige-500-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-beige-500)
+  );
+  --color-beige-700-text: color-mix(in oklch, var(--text-light) 90%, var(--color-beige-700));
+  --color-beige-700-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-beige-700)
+  );
+  --color-beige-900-text: color-mix(in oklch, var(--text-light) 90%, var(--color-beige-900));
+  --color-beige-900-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-beige-900)
+  );
+
+  /* neutral palette */
+  --color-neutral: oklch(50% 0 0);
+  --color-neutral-100: oklch(89.5% 0 0);
+  --color-neutral-200: oklch(80.1% 0 0);
+  --color-neutral-300: oklch(74.4% 0 0);
+  --color-neutral-500: oklch(50% 0 0);
+  --color-neutral-700: oklch(26.6% 0 0);
+  --color-neutral-800: oklch(21.2% 0 0);
+  --color-neutral-900: oklch(15.8% 0 0);
+
+  --color-neutral-100-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-neutral-100));
+  --color-neutral-100-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-neutral-100)
+  );
+  --color-neutral-200-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-neutral-200));
+  --color-neutral-200-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-neutral-200)
+  );
+  --color-neutral-300-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-neutral-300));
+  --color-neutral-300-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-neutral-300)
+  );
+  --color-neutral-500-text: color-mix(in oklch, var(--text-light) 90%, var(--color-neutral-500));
+  --color-neutral-500-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-neutral-500)
+  );
+  --color-neutral-700-text: color-mix(in oklch, var(--text-light) 90%, var(--color-neutral-700));
+  --color-neutral-700-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-neutral-700)
+  );
+  --color-neutral-800-text: color-mix(in oklch, var(--text-light) 90%, var(--color-neutral-800));
+  --color-neutral-800-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-neutral-800)
+  );
+  --color-neutral-900-text: color-mix(in oklch, var(--text-light) 90%, var(--color-neutral-900));
+  --color-neutral-900-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-neutral-900)
+  );
+
+  /* success palette */
+  --color-success: oklch(59.2% 0.172 142.5);
+  --color-success-100: oklch(89.4% 0.172 142.5);
+  --color-success-300: oklch(74.3% 0.172 142.5);
+  --color-success-500: oklch(59.2% 0.172 142.5);
+  --color-success-700: oklch(37.5% 0.172 142.5);
+  --color-success-900: oklch(15.8% 0.172 142.5);
+
+  --color-success-100-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-success-100));
+  --color-success-100-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-success-100)
+  );
+  --color-success-300-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-success-300));
+  --color-success-300-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-success-300)
+  );
+  --color-success-500-text: color-mix(in oklch, var(--text-light) 90%, var(--color-success-500));
+  --color-success-500-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-success-500)
+  );
+  --color-success-700-text: color-mix(in oklch, var(--text-light) 90%, var(--color-success-700));
+  --color-success-700-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-success-700)
+  );
+  --color-success-900-text: color-mix(in oklch, var(--text-light) 90%, var(--color-success-900));
+  --color-success-900-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-success-900)
+  );
+
+  /* warning palette */
+  --color-warning: oklch(74.9% 0.152 83.16);
+  --color-warning-100: oklch(89.6% 0.152 83.16);
+  --color-warning-300: oklch(74.9% 0.152 83.16);
+  --color-warning-500: oklch(54.9% 0.152 83.16);
+  --color-warning-700: oklch(35% 0.152 83.16);
+  --color-warning-900: oklch(15% 0.152 83.16);
+
+  --color-warning-100-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-warning-100));
+  --color-warning-100-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-warning-100)
+  );
+  --color-warning-300-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-warning-300));
+  --color-warning-300-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-warning-300)
+  );
+  --color-warning-500-text: color-mix(in oklch, var(--text-light) 90%, var(--color-warning-500));
+  --color-warning-500-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-warning-500)
+  );
+  --color-warning-700-text: color-mix(in oklch, var(--text-light) 90%, var(--color-warning-700));
+  --color-warning-700-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-warning-700)
+  );
+  --color-warning-900-text: color-mix(in oklch, var(--text-light) 90%, var(--color-warning-900));
+  --color-warning-900-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-warning-900)
+  );
+
+  /* error palette */
+  --color-error: oklch(62.8% 0.258 29.23);
+  --color-error-100: oklch(85.6% 0.258 29.23);
+  --color-error-300: oklch(62.8% 0.258 29.23);
+  --color-error-500: oklch(46.3% 0.258 29.23);
+  --color-error-700: oklch(29.8% 0.258 29.23);
+  --color-error-900: oklch(13.3% 0.258 29.23);
+
+  --color-error-100-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-error-100));
+  --color-error-100-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-error-100)
+  );
+  --color-error-300-text: color-mix(in oklch, var(--text-light) 90%, var(--color-error-300));
+  --color-error-300-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-error-300)
+  );
+  --color-error-500-text: color-mix(in oklch, var(--text-light) 90%, var(--color-error-500));
+  --color-error-500-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-error-500)
+  );
+  --color-error-700-text: color-mix(in oklch, var(--text-light) 90%, var(--color-error-700));
+  --color-error-700-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-error-700)
+  );
+  --color-error-900-text: color-mix(in oklch, var(--text-light) 90%, var(--color-error-900));
+  --color-error-900-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-error-900)
+  );
+
+  /* info palette */
+  --color-info: oklch(70% 0.15 240);
+  --color-info-100: oklch(88% 0.15 240);
+  --color-info-300: oklch(70% 0.15 240);
+  --color-info-500: oklch(51.4% 0.15 240);
+  --color-info-700: oklch(32.9% 0.15 240);
+  --color-info-900: oklch(14.3% 0.15 240);
+
+  --color-info-100-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-info-100));
+  --color-info-100-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-info-100)
+  );
+  --color-info-300-text: color-mix(in oklch, var(--text-dark) 90%, var(--color-info-300));
+  --color-info-300-text-muted: color-mix(
+    in oklch,
+    var(--text-dark-muted) 80%,
+    var(--color-info-300)
+  );
+  --color-info-500-text: color-mix(in oklch, var(--text-light) 90%, var(--color-info-500));
+  --color-info-500-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-info-500)
+  );
+  --color-info-700-text: color-mix(in oklch, var(--text-light) 90%, var(--color-info-700));
+  --color-info-700-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-info-700)
+  );
+  --color-info-900-text: color-mix(in oklch, var(--text-light) 90%, var(--color-info-900));
+  --color-info-900-text-muted: color-mix(
+    in oklch,
+    var(--text-light-muted) 80%,
+    var(--color-info-900)
+  );
+  /* ============================================
+   * Semantic Mappings
+   * ============================================ */
+
+  /* Semantic Role Mappings */
+  /* primary -> blue */
+  --color-primary-100: var(--color-blue-100);
+  --color-primary-100-text: var(--color-blue-100-text);
+  --color-primary-100-text-muted: var(--color-blue-100-text-muted);
+  --color-primary-300: var(--color-blue-300);
+  --color-primary-300-text: var(--color-blue-300-text);
+  --color-primary-300-text-muted: var(--color-blue-300-text-muted);
+  --color-primary-500: var(--color-blue-500);
+  --color-primary-500-text: var(--color-blue-500-text);
+  --color-primary-500-text-muted: var(--color-blue-500-text-muted);
+  --color-primary-700: var(--color-blue-700);
+  --color-primary-700-text: var(--color-blue-700-text);
+  --color-primary-700-text-muted: var(--color-blue-700-text-muted);
+  --color-primary-900: var(--color-blue-900);
+  --color-primary-900-text: var(--color-blue-900-text);
+  --color-primary-900-text-muted: var(--color-blue-900-text-muted);
+
+  /* secondary -> orange */
+  --color-secondary-100: var(--color-orange-100);
+  --color-secondary-100-text: var(--color-orange-100-text);
+  --color-secondary-100-text-muted: var(--color-orange-100-text-muted);
+  --color-secondary-300: var(--color-orange-300);
+  --color-secondary-300-text: var(--color-orange-300-text);
+  --color-secondary-300-text-muted: var(--color-orange-300-text-muted);
+  --color-secondary-500: var(--color-orange-500);
+  --color-secondary-500-text: var(--color-orange-500-text);
+  --color-secondary-500-text-muted: var(--color-orange-500-text-muted);
+  --color-secondary-700: var(--color-orange-700);
+  --color-secondary-700-text: var(--color-orange-700-text);
+  --color-secondary-700-text-muted: var(--color-orange-700-text-muted);
+  --color-secondary-900: var(--color-orange-900);
+  --color-secondary-900-text: var(--color-orange-900-text);
+  --color-secondary-900-text-muted: var(--color-orange-900-text-muted);
+
+  /* accent -> green */
+  --color-accent-100: var(--color-green-100);
+  --color-accent-100-text: var(--color-green-100-text);
+  --color-accent-100-text-muted: var(--color-green-100-text-muted);
+  --color-accent-300: var(--color-green-300);
+  --color-accent-300-text: var(--color-green-300-text);
+  --color-accent-300-text-muted: var(--color-green-300-text-muted);
+  --color-accent-500: var(--color-green-500);
+  --color-accent-500-text: var(--color-green-500-text);
+  --color-accent-500-text-muted: var(--color-green-500-text-muted);
+  --color-accent-700: var(--color-green-700);
+  --color-accent-700-text: var(--color-green-700-text);
+  --color-accent-700-text-muted: var(--color-green-700-text-muted);
+  --color-accent-900: var(--color-green-900);
+  --color-accent-900-text: var(--color-green-900-text);
+  --color-accent-900-text-muted: var(--color-green-900-text-muted);
+}

@@ -1,0 +1,148 @@
+/** Tree pattern - hierarchical tree view using nested details/lists */
+
+.tree {
+  /**
+   * Cascading fallback pattern:
+   * tree-specific → group (via pattern-mapping.css) → default
+   */
+  --_tree-radius: var(--br-tree, var(--br-tree-group, var(--br-default, 0)));
+  --_tree-border: var(--b-tree, var(--b-tree-group, var(--b-default, none)));
+  --_tree-shadow: var(--ds-tree, var(--ds-tree-group, var(--ds-default, none)));
+  --_tree-padding: var(--p-tree, var(--p-tree-group, var(--p-default, 0)));
+
+  list-style: none;
+  margin: 0;
+  padding: var(--_tree-padding);
+
+  /** Tree item */
+  .tree__item {
+    position: relative;
+  }
+
+  /** Nested tree */
+  .tree__item > .tree {
+    margin-inline-start: var(--tree-indent, 1.5rem);
+    padding-inline-start: var(--tree-indent, 1.5rem);
+    border-inline-start: 1px solid currentColor;
+  }
+
+  /** Tree item content row */
+  .tree__content {
+    display: flex;
+    align-items: center;
+    gap: var(--tree-gap, 0.25rem);
+    padding: 0.25rem 0;
+    cursor: default;
+  }
+
+  /** Expandable tree item (using details) */
+  details.tree__item {
+    > summary {
+      display: flex;
+      align-items: center;
+      gap: var(--tree-gap, 0.25rem);
+      padding: 0.25rem 0;
+      cursor: pointer;
+      list-style: none;
+
+      &::-webkit-details-marker {
+        display: none;
+      }
+
+      &::marker {
+        content: none;
+      }
+    }
+
+    > summary:focus-visible {
+      outline: 2px solid var(--tree-focus-color, currentColor);
+      outline-offset: 2px;
+    }
+  }
+
+  /** Expand/collapse indicator */
+  .tree__toggle {
+    flex-shrink: 0;
+    inline-size: var(--tree-icon-size, 1.25rem);
+    block-size: var(--tree-icon-size, 1.25rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+  }
+
+  details.tree__item[open] > summary .tree__toggle {
+    transform: rotate(90deg);
+  }
+
+  /** Default chevron icon for toggle */
+  .tree__toggle::before {
+    content: '';
+    inline-size: 0.5rem;
+    block-size: 0.5rem;
+    border-inline-end: 2px solid currentColor;
+    border-block-end: 2px solid currentColor;
+    transform: rotate(-45deg);
+  }
+
+  /** Tree item icon */
+  .tree__icon {
+    flex-shrink: 0;
+    inline-size: var(--tree-icon-size, 1.25rem);
+    block-size: var(--tree-icon-size, 1.25rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /** Tree label/text */
+  .tree__label {
+    flex: 1;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /** Tree item actions (hover-visible) */
+  .tree__actions {
+    display: flex;
+    gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .tree__item:hover .tree__actions,
+  .tree__item:focus-within .tree__actions {
+    opacity: 1;
+  }
+
+  /** Drag state */
+  .tree__item.tree__item--dragging {
+    opacity: 0.5;
+  }
+
+  /** Connector lines variant */
+  &.tree--lines .tree__item {
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset-inline-start: calc(-1 * var(--tree-indent, 1.5rem) + 0.5rem);
+      inset-block-start: 0;
+      block-size: 1rem;
+      inline-size: calc(var(--tree-indent, 1.5rem) - 0.5rem);
+      border-inline-start: 1px solid currentColor;
+      border-block-end: 1px solid currentColor;
+    }
+
+    &:last-child::before {
+      block-size: 1rem;
+    }
+  }
+
+  &.tree--lines > .tree__item::before {
+    display: none;
+  }
+}

@@ -1,0 +1,34 @@
+/** Tooltip pattern - small popover on hover using anchor positioning */
+
+.tooltip-trigger {
+  position: relative;
+  anchor-name: --tooltip-anchor;
+
+  [popover].tooltip {
+    /**
+     * Cascading fallback pattern:
+     * tooltip-specific -> group (via pattern-mapping.css) -> default
+     */
+    --_p: var(--p-tooltip, var(--p-tooltip-group, var(--p-default)));
+    --_b: var(--b-tooltip, var(--b-tooltip-group, var(--b-default)));
+    --_br: var(--br-tooltip, var(--br-tooltip-group, var(--br-default)));
+    --_ds: var(--ds-tooltip, var(--ds-tooltip-group, var(--ds-default)));
+    --_fs: var(--fs-tooltip, var(--fs-tooltip-group, var(--fs-default)));
+
+    position: absolute;
+    position-anchor: --tooltip-anchor;
+    position-area: block-start center;
+    margin-block-end: 0.5rem;
+    font-size: var(--_fs);
+    white-space: nowrap;
+    max-inline-size: 20rem;
+    box-shadow: var(--_ds);
+  }
+
+  /** Show tooltip on hover/focus */
+  &:hover [popover].tooltip,
+  &:focus-within [popover].tooltip {
+    opacity: 1;
+    visibility: visible;
+  }
+}
