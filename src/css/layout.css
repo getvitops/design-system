@@ -1,0 +1,296 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   2. TYPOGRAPHY — piece classes
+   Specific, named text roles. These assume the fluid step scale and the
+   font, line-height, and tracking tokens are registered in Bricks' Variables
+   Manager (or defined globally). Each class styles one editorial role.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.display {
+  font-family: var(--font-display);
+  font-size: var(--text-7);
+  line-height: var(--lh-display, 1.0);
+  letter-spacing: var(--tracking-display, -0.035em);
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-6);
+  line-height: var(--lh-tight, 1.12);
+  letter-spacing: var(--tracking-h, -0.025em);
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.heading {
+  font-family: var(--font-display);
+  font-size: var(--text-5);
+  line-height: var(--lh-snug, 1.3);
+  letter-spacing: var(--tracking-h, -0.025em);
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--text-2);
+  line-height: var(--lh-snug, 1.3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--color-brand-primary-l);
+}
+
+.copy {
+  font-family: var(--font-sans);
+  font-size: var(--text-3);
+  line-height: var(--lh-body, 1.55);
+  text-wrap: pretty;
+}
+
+.caption {
+  font-family: var(--font-sans);
+  font-size: var(--text-2);
+  line-height: var(--lh-snug, 1.3);
+  color: var(--color-neutral-l);
+}
+
+.quote {
+  font-family: var(--font-display);
+  font-size: var(--text-5);
+  line-height: var(--lh-snug, 1.3);
+  font-style: italic;
+  text-wrap: balance;
+  border-inline-start: 3px solid var(--color-brand-primary);
+  padding-inline-start: var(--space-4, 1.5rem);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3. RHYTHM — automatic vertical rhythm between sibling elements
+   Put .rhythm on a container. Adjacent siblings get margin-top based on the
+   relationship between the two elements. Gaps are multiples of --rhythm-base
+   (1rlh × dial). :where() keeps selectors at 0 specificity so .m-* overrides win.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --rhythm-scale: 1;                                /* global dial */
+  --rhythm-base: calc(1rlh * var(--rhythm-scale));  /* one root line-height × dial */
+
+  --rhythm-h-p:    0.4;
+  --rhythm-p-p:    0.9;
+  --rhythm-p-h:    1.6;
+  --rhythm-h-h:    0.6;
+  --rhythm-p-list: 0.5;
+  --rhythm-list-p: 0.9;
+  --rhythm-li-li:  0.3;
+  --rhythm-text-media: 1.2;
+  --rhythm-media-text: 1.2;
+}
+
+/* .rhythm establishes a flow-root: contains child top-margins (no collapse-out)
+   and gives the parser a non-empty bare rule to register. */
+.rhythm { display: flow-root; }
+.rhythm > * + * { margin-top: calc(var(--rhythm-base) * var(--rhythm-p-p)); }
+.rhythm > :where(h1,h2,h3,h4,h5,h6) + p { margin-top: calc(var(--rhythm-base) * var(--rhythm-h-p)); }
+.rhythm > p + :where(h1,h2,h3,h4,h5,h6) { margin-top: calc(var(--rhythm-base) * var(--rhythm-p-h)); }
+.rhythm > :where(h1,h2,h3,h4,h5,h6) + :where(h1,h2,h3,h4,h5,h6) { margin-top: calc(var(--rhythm-base) * var(--rhythm-h-h)); }
+.rhythm > p + :where(ul,ol) { margin-top: calc(var(--rhythm-base) * var(--rhythm-p-list)); }
+.rhythm > :where(ul,ol) + p { margin-top: calc(var(--rhythm-base) * var(--rhythm-list-p)); }
+.rhythm :where(ul,ol) > li + li { margin-top: calc(var(--rhythm-base) * var(--rhythm-li-li)); }
+.rhythm > :where(p,h1,h2,h3,h4,h5,h6,ul,ol) + :where(figure,img,picture,video) { margin-top: calc(var(--rhythm-base) * var(--rhythm-text-media)); }
+.rhythm > :where(figure,img,picture,video) + :where(p,h1,h2,h3,h4,h5,h6,ul,ol) { margin-top: calc(var(--rhythm-base) * var(--rhythm-media-text)); }
+
+/* Manual rhythm overrides (apply to the second element of a pair) */
+.m-h-p        { margin-top: calc(var(--rhythm-base) * var(--rhythm-h-p)); }
+.m-p-p        { margin-top: calc(var(--rhythm-base) * var(--rhythm-p-p)); }
+.m-p-h        { margin-top: calc(var(--rhythm-base) * var(--rhythm-p-h)); }
+.m-h-h        { margin-top: calc(var(--rhythm-base) * var(--rhythm-h-h)); }
+.m-p-list     { margin-top: calc(var(--rhythm-base) * var(--rhythm-p-list)); }
+.m-list-p     { margin-top: calc(var(--rhythm-base) * var(--rhythm-list-p)); }
+.m-li-li      { margin-top: calc(var(--rhythm-base) * var(--rhythm-li-li)); }
+.m-text-media { margin-top: calc(var(--rhythm-base) * var(--rhythm-text-media)); }
+.m-media-text { margin-top: calc(var(--rhythm-base) * var(--rhythm-media-text)); }
+
+.m-0  { margin-top: 0; }
+.m-xs { margin-top: calc(var(--rhythm-base) * 0.25); }
+.m-s  { margin-top: calc(var(--rhythm-base) * 0.5); }
+.m-m  { margin-top: calc(var(--rhythm-base) * 1); }
+.m-l  { margin-top: calc(var(--rhythm-base) * 1.5); }
+.m-xl { margin-top: calc(var(--rhythm-base) * 2); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4. CENTERED SECTIONS — named-track grid
+   Put .centered on a Div. Children default to the measure (reading) track;
+   add .breakout / .spotlight / .fullbleed to widen. Track widths in ch so the
+   reading measure is character-based and the subtraction math stays consistent.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --width-measure: 65ch;
+  --width-breakout: 90ch;
+  --width-spotlight: 120ch;
+  --gutter: clamp(1rem, 4cqi, 3rem);
+}
+
+body { container-type: inline-size; }
+
+.centered {
+  --_measure: min(var(--width-measure), 100% - var(--gutter) * 2);
+  --_breakout: minmax(0, calc((var(--width-breakout) - var(--width-measure)) / 2));
+  --_spotlight: minmax(0, calc((var(--width-spotlight) - var(--width-breakout)) / 2));
+  position: relative;
+  display: grid;
+  grid-template-columns:
+    [full-start] minmax(var(--gutter), 1fr)
+    [spotlight-start] var(--_spotlight)
+    [breakout-start] var(--_breakout)
+    [measure-start] var(--_measure) [measure-end]
+    var(--_breakout) [breakout-end]
+    var(--_spotlight) [spotlight-end]
+    minmax(var(--gutter), 1fr) [full-end];
+}
+
+.centered > * { grid-column: measure; }
+
+/* Bare placement. .measure restates the default (redundant but parser-visible). */
+.measure   { grid-column: measure; }
+.breakout  { grid-column: breakout; }
+.spotlight { grid-column: spotlight; }
+.fullbleed { grid-column: full; }
+
+/* Promotion variants (base = measure; widen past each container breakpoint) */
+@container (min-width: 30rem) {
+  .measure-sm { grid-column: measure; } .breakout-sm { grid-column: breakout; }
+  .spotlight-sm { grid-column: spotlight; } .fullbleed-sm { grid-column: full; }
+}
+@container (min-width: 48rem) {
+  .measure-md { grid-column: measure; } .breakout-md { grid-column: breakout; }
+  .spotlight-md { grid-column: spotlight; } .fullbleed-md { grid-column: full; }
+}
+@container (min-width: 64rem) {
+  .measure-lg { grid-column: measure; } .breakout-lg { grid-column: breakout; }
+  .spotlight-lg { grid-column: spotlight; } .fullbleed-lg { grid-column: full; }
+}
+@container (min-width: 80rem) {
+  .measure-xl { grid-column: measure; } .breakout-xl { grid-column: breakout; }
+  .spotlight-xl { grid-column: spotlight; } .fullbleed-xl { grid-column: full; }
+}
+
+/* Vertical rhythm region (usually on the Section) */
+.region {
+  padding-block: clamp(var(--region-space-min, 3rem), var(--region-space, 8vh), var(--region-space-max, 8rem));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5. LAYOUT UTILITIES — flex direction, splits, alignment, text-align
+   Container-gated (unnamed @container): resolve against the nearest
+   container-type ancestor. Bare = base/mobile; -sm -md -lg -xl widen up.
+   Breakpoints: sm 30rem · md 48rem · lg 64rem · xl 80rem.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Flex direction (display + direction; tiered classes set both) ── */
+.flex     { display: flex; }
+.flex-row { flex-direction: row; }
+.flex-col { flex-direction: column; }
+
+@container (min-width: 30rem) {
+  .flex-sm { display: flex; }
+  .flex-row-sm { display: flex; flex-direction: row; }
+  .flex-col-sm { display: flex; flex-direction: column; }
+}
+@container (min-width: 48rem) {
+  .flex-md { display: flex; }
+  .flex-row-md { display: flex; flex-direction: row; }
+  .flex-col-md { display: flex; flex-direction: column; }
+}
+@container (min-width: 64rem) {
+  .flex-lg { display: flex; }
+  .flex-row-lg { display: flex; flex-direction: row; }
+  .flex-col-lg { display: flex; flex-direction: column; }
+}
+@container (min-width: 80rem) {
+  .flex-xl { display: flex; }
+  .flex-row-xl { display: flex; flex-direction: row; }
+  .flex-col-xl { display: flex; flex-direction: column; }
+}
+
+/* ── Splits (internal fractions). .split sets its own flex context so it works
+   standalone AND is registered by Bricks' parser (a non-empty bare rule). ── */
+.split { display: flex; }
+.split > * { flex: 1; }
+.split-1-2 > :first-child { flex: 1; } .split-1-2 > :last-child { flex: 2; }
+.split-2-1 > :first-child { flex: 2; } .split-2-1 > :last-child { flex: 1; }
+.split-1-3 > :first-child { flex: 1; } .split-1-3 > :last-child { flex: 3; }
+.split-3-1 > :first-child { flex: 3; } .split-3-1 > :last-child { flex: 1; }
+
+@container (min-width: 30rem) {
+  .split-sm > * { flex: 1; }
+  .split-1-2-sm > :first-child { flex: 1; } .split-1-2-sm > :last-child { flex: 2; }
+  .split-2-1-sm > :first-child { flex: 2; } .split-2-1-sm > :last-child { flex: 1; }
+  .split-1-3-sm > :first-child { flex: 1; } .split-1-3-sm > :last-child { flex: 3; }
+  .split-3-1-sm > :first-child { flex: 3; } .split-3-1-sm > :last-child { flex: 1; }
+}
+@container (min-width: 48rem) {
+  .split-md > * { flex: 1; }
+  .split-1-2-md > :first-child { flex: 1; } .split-1-2-md > :last-child { flex: 2; }
+  .split-2-1-md > :first-child { flex: 2; } .split-2-1-md > :last-child { flex: 1; }
+  .split-1-3-md > :first-child { flex: 1; } .split-1-3-md > :last-child { flex: 3; }
+  .split-3-1-md > :first-child { flex: 3; } .split-3-1-md > :last-child { flex: 1; }
+}
+@container (min-width: 64rem) {
+  .split-lg > * { flex: 1; }
+  .split-1-2-lg > :first-child { flex: 1; } .split-1-2-lg > :last-child { flex: 2; }
+  .split-2-1-lg > :first-child { flex: 2; } .split-2-1-lg > :last-child { flex: 1; }
+  .split-1-3-lg > :first-child { flex: 1; } .split-1-3-lg > :last-child { flex: 3; }
+  .split-3-1-lg > :first-child { flex: 3; } .split-3-1-lg > :last-child { flex: 1; }
+}
+@container (min-width: 80rem) {
+  .split-xl > * { flex: 1; }
+  .split-1-2-xl > :first-child { flex: 1; } .split-1-2-xl > :last-child { flex: 2; }
+  .split-2-1-xl > :first-child { flex: 2; } .split-2-1-xl > :last-child { flex: 1; }
+  .split-1-3-xl > :first-child { flex: 1; } .split-1-3-xl > :last-child { flex: 3; }
+  .split-3-1-xl > :first-child { flex: 3; } .split-3-1-xl > :last-child { flex: 1; }
+}
+
+/* ── Alignment (flex parents) + text-align. Bare classes, then shared tiers. ── */
+.align-start   { align-items: flex-start; }
+.align-center  { align-items: center; }
+.align-end     { align-items: flex-end; }
+.align-stretch { align-items: stretch; }
+
+.justify-start   { justify-content: flex-start; }
+.justify-center  { justify-content: center; }
+.justify-end     { justify-content: flex-end; }
+.justify-between { justify-content: space-between; }
+
+.text-start  { text-align: start; }
+.text-center { text-align: center; }
+.text-end    { text-align: end; }
+
+@container (min-width: 30rem) {
+  .align-start-sm { align-items: flex-start; } .align-center-sm { align-items: center; }
+  .align-end-sm { align-items: flex-end; } .align-stretch-sm { align-items: stretch; }
+  .justify-start-sm { justify-content: flex-start; } .justify-center-sm { justify-content: center; }
+  .justify-end-sm { justify-content: flex-end; } .justify-between-sm { justify-content: space-between; }
+  .text-start-sm { text-align: start; } .text-center-sm { text-align: center; } .text-end-sm { text-align: end; }
+}
+@container (min-width: 48rem) {
+  .align-start-md { align-items: flex-start; } .align-center-md { align-items: center; }
+  .align-end-md { align-items: flex-end; } .align-stretch-md { align-items: stretch; }
+  .justify-start-md { justify-content: flex-start; } .justify-center-md { justify-content: center; }
+  .justify-end-md { justify-content: flex-end; } .justify-between-md { justify-content: space-between; }
+  .text-start-md { text-align: start; } .text-center-md { text-align: center; } .text-end-md { text-align: end; }
+}
+@container (min-width: 64rem) {
+  .align-start-lg { align-items: flex-start; } .align-center-lg { align-items: center; }
+  .align-end-lg { align-items: flex-end; } .align-stretch-lg { align-items: stretch; }
+  .justify-start-lg { justify-content: flex-start; } .justify-center-lg { justify-content: center; }
+  .justify-end-lg { justify-content: flex-end; } .justify-between-lg { justify-content: space-between; }
+  .text-start-lg { text-align: start; } .text-center-lg { text-align: center; } .text-end-lg { text-align: end; }
+}
+@container (min-width: 80rem) {
+  .align-start-xl { align-items: flex-start; } .align-center-xl { align-items: center; }
+  .align-end-xl { align-items: flex-end; } .align-stretch-xl { align-items: stretch; }
+  .justify-start-xl { justify-content: flex-start; } .justify-center-xl { justify-content: center; }
+  .justify-end-xl { justify-content: flex-end; } .justify-between-xl { justify-content: space-between; }
+  .text-start-xl { text-align: start; } .text-center-xl { text-align: center; } .text-end-xl { text-align: end; }
+}

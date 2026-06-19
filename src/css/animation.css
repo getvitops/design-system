@@ -1,0 +1,722 @@
+/**
+ * Animation System
+ *
+ * Three keyframes split by rendering stage:
+ *   composite  — opacity + translate/scale/rotate (compositor, cheapest)
+ *   paint      — filter (blur, drop-shadow, etc.) + clip-path (paint stage)
+ *   layout     — height (layout stage, most expensive)
+ *
+ * One animation per element. Effects within the same keyframe compose
+ * naturally via CSS variables. Cross-keyframe effects (e.g. fade + blur)
+ * require separate nested elements.
+ *
+ * Two-tier decomposition (timeline + effect classes):
+ *
+ *   Tier 1 — Timeline: anim-view, anim-scroll, anim-trigger
+ *   Tier 2 — Effects (each sets animation-name + variables):
+ *     composite: fade-in, fade-out, slide-up, slide-down, slide-left, slide-right,
+ *                scale-up, scale-down, rotate-cw, rotate-ccw
+ *     paint:     blur-in, blur-out, elevate-up, elevate-down,
+ *                reveal-left, reveal-right, reveal-up, reveal-down
+ *     layout:    size-grow, size-shrink
+ *     journey:   fade-journey, slide-journey, scale-journey, blur-journey
+ *
+ * Float animation (continuous movement):
+ *   float keyframe with 4 configurable waypoints (0/25/50/75%)
+ *   float-path keyframe with offset-path for arbitrary paths
+ *
+ * Examples:
+ *   <div class="anim-view fade-in slide-up range-entry">
+ *   <div class="anim-trigger fade-in scale-up">
+ *   <div class="anim-scroll rotate-cw">
+ *   <div class="float-circular" style="--float-radius: 15px">
+ *
+ * Cross-stage composition (requires nesting):
+ *   <div class="anim-view fade-in">        <!-- composite -->
+ *     <div class="anim-view blur-in">      <!-- paint -->
+ *       Content
+ *     </div>
+ *   </div>
+ */
+
+/* ===========================================
+ * Configuration
+ * =========================================== */
+
+:root {
+  --custom-ease-in: cubic-bezier(0.33, 1, 0.68, 1);
+  --custom-ease-out: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --animation-duration-fast: 150ms;
+  --animation-duration-base: 250ms;
+  --animation-duration-slow: 500ms;
+  --animation-duration-xslow: 2s;
+  --animation-duration: var(--_animation-duration, var(--animation-duration-slow));
+  --trigger-animation-duration: var(--animation-duration-xslow);
+
+  /* Float easing presets */
+  /* Sinusoidal — smooth continuous speed, natural for 2D orbits */
+  --ease-float-sine: linear(0, 0.024, 0.095, 0.206, 0.354, 0.5, 0.646, 0.794, 0.905, 0.976, 1);
+  /* Soft bounce — decelerates at peaks, good for 1D oscillation */
+  --ease-float-bounce: linear(0, 0.11, 0.36, 0.64, 0.89, 1, 0.89, 0.64, 0.36, 0.11, 0);
+}
+
+/* ===========================================
+ * View Transitions (page navigation)
+ * =========================================== */
+
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-children(*) {
+  animation-duration: var(--animation-duration-xslow);
+}
+
+/* ===========================================
+ * Keyframes - Layout Stage (most expensive)
+ * =========================================== */
+
+@keyframes layout {
+  from { height: var(--height-from, auto); }
+  to { height: var(--height-to, auto); }
+}
+
+/* ===========================================
+ * Keyframes - Compositor Stage (cheapest, GPU)
+ * opacity + individual transform properties
+ * =========================================== */
+
+@keyframes composite {
+  from {
+    opacity: var(--opacity-from, 1);
+    translate: var(--translate-x-from, 0) var(--translate-y-from, 0);
+    scale: var(--scale-x-from, 1) var(--scale-y-from, 1);
+    rotate: var(--rotate-from, 0deg);
+  }
+  to {
+    opacity: var(--opacity-to, 1);
+    translate: var(--translate-x-to, 0) var(--translate-y-to, 0);
+    scale: var(--scale-x-to, 1) var(--scale-y-to, 1);
+    rotate: var(--rotate-to, 0deg);
+  }
+}
+
+/* ===========================================
+ * Keyframes - Paint Stage
+ * filter functions + clip-path
+ * =========================================== */
+
+@keyframes paint {
+  from {
+    filter:
+      blur(var(--blur-from, 0px))
+      drop-shadow(var(--shadow-from, 0 0 0 transparent))
+      brightness(var(--brightness-from, 1))
+      grayscale(var(--grayscale-from, 0))
+      contrast(var(--contrast-from, 1))
+      saturate(var(--saturate-from, 1))
+      sepia(var(--sepia-from, 0))
+      hue-rotate(var(--hue-rotate-from, 0deg));
+    clip-path: var(--clip-from, none);
+  }
+  to {
+    filter:
+      blur(var(--blur-to, 0px))
+      drop-shadow(var(--shadow-to, 0 0 0 transparent))
+      brightness(var(--brightness-to, 1))
+      grayscale(var(--grayscale-to, 0))
+      contrast(var(--contrast-to, 1))
+      saturate(var(--saturate-to, 1))
+      sepia(var(--sepia-to, 0))
+      hue-rotate(var(--hue-rotate-to, 0deg));
+    clip-path: var(--clip-to, none);
+  }
+}
+
+/* ===========================================
+ * Keyframes - Journey (Multi-Phase)
+ * Entry → Hold → Exit pattern
+ * =========================================== */
+
+@keyframes fade-journey {
+  0%, 100% { opacity: var(--opacity-from, 0); }
+  25%, 75% { opacity: var(--opacity-to, 1); }
+}
+
+@keyframes slide-journey {
+  0% { translate: var(--translate-x-from, 0) var(--translate-y-from, 0); }
+  25%, 75% { translate: var(--translate-x-to, 0) var(--translate-y-to, 0); }
+  100% { translate: calc(var(--translate-x-from, 0) * -1) calc(var(--translate-y-from, 0) * -1); }
+}
+
+@keyframes scale-journey {
+  0%, 100% { scale: var(--scale-x-from, 0.8) var(--scale-y-from, 0.8); }
+  25%, 75% { scale: var(--scale-x-to, 1) var(--scale-y-to, 1); }
+}
+
+@keyframes blur-journey {
+  0%, 100% { filter: blur(var(--blur-from, 5px)); }
+  25%, 75% { filter: blur(var(--blur-to, 0)); }
+}
+
+/* ===========================================
+ * Keyframes - Float (Continuous Movement)
+ * 4 configurable waypoints, loops back to start
+ * =========================================== */
+
+@keyframes float {
+  0%, 100% { translate: var(--float-x-0, 0) var(--float-y-0, 0); }
+  25%      { translate: var(--float-x-25, 0) var(--float-y-25, 0); }
+  50%      { translate: var(--float-x-50, 0) var(--float-y-50, 0); }
+  75%      { translate: var(--float-x-75, 0) var(--float-y-75, 0); }
+}
+
+@keyframes float-path {
+  from { offset-distance: 0%; }
+  to   { offset-distance: 100%; }
+}
+
+/* ===========================================
+ * Keyframes - Utility
+ * =========================================== */
+
+@keyframes color-shift {
+  0% { background-color: var(--bg-color-shift-from); }
+  100% { background-color: var(--bg-color-shift-to); }
+}
+
+@keyframes bg-position-reveal {
+  from { background-position: var(--bg-position-reveal-from); }
+  to { background-position: var(--bg-position-reveal-to); }
+}
+
+/* ===========================================
+ * Trigger Play-State
+ * Controlled by IntersectionObserver in deferred.ts
+ * =========================================== */
+
+:where(:root:not(.no-js)) {
+  .anim-trigger {
+    animation-play-state: paused;
+  }
+
+  .triggered.anim-trigger,
+  .triggered > .anim-trigger {
+    animation-play-state: running;
+  }
+}
+
+/* ===========================================
+ * Float Base (getter for all float presets)
+ * =========================================== */
+
+:is(
+  [class*="float-circular"],
+  [class*="float-figure"],
+  [class*="float-bounce"],
+  [class*="float-drift"],
+  [class*="float-gentle"],
+  [class*="float-diamond"]
+) {
+  animation-name: float;
+  animation-duration: var(--float-duration, 4s);
+  animation-timing-function: var(--float-easing, ease-in-out);
+  animation-iteration-count: var(--float-iterations, infinite);
+  animation-fill-mode: both;
+}
+
+/* ===========================================
+ * Stagger Support
+ * =========================================== */
+
+.stagger {
+  --_stagger-amount: var(--stagger-amount, 0.1s);
+}
+
+.stagger > * {
+  /* Default: no stagger (index 0). JS (applyRowStagger) sets a per-item
+     --_stagger-index inline, which wins. Where sibling-index() is supported
+     it provides a JS-free fallback via the @supports block below. */
+  --_stagger-index: 0;
+  animation-delay: calc(var(--_stagger-index) * var(--_stagger-amount));
+}
+
+/* sibling-index() is near-baseline (lacking only Firefox as of 2026). Guarded so
+   that on unsupported engines the declaration is skipped and delay stays 0
+   (items animate together) rather than producing an invalid animation-delay. */
+@supports (--x: sibling-index()) {
+  .stagger > * {
+    --_stagger-index: sibling-index();
+  }
+}
+
+/* ===========================================
+ * Utility Classes
+ * =========================================== */
+
+/* Scroll-based height adjustment (for sticky headers, etc.) */
+.scroll-size {
+  animation: layout linear both;
+  animation-timeline: scroll();
+}
+
+/* Text reveal effect */
+/* Text reveal — scroll-driven two-tone fill.
+   Text starts in --text-reveal-color-from and fills to --text-reveal-color-to
+   as the element scrolls through the viewport. Pure CSS (no JS dependency).
+
+   Robustness: background-clip:text + transparent color can hide text if the
+   technique is unsupported, so we (a) only apply the clip/transparent inside an
+   @supports guard, and (b) default the visible color to the "from" tone so any
+   failure leaves readable text rather than blank space. Scroll-timeline is also
+   guarded — without it the text simply shows the final (to) color, still legible. */
+.text-reveal {
+  /* Fallback baseline: ordinary visible text in the start color. */
+  color: var(--text-reveal-color-from, currentColor);
+}
+
+@supports ((background-clip: text) or (-webkit-background-clip: text)) {
+  .text-reveal {
+    background: var(--text-reveal-background, linear-gradient(
+      var(--text-reveal-slant, 90deg),
+      var(--text-reveal-color-to) 50%,
+      var(--text-reveal-color-from) 50%
+    ));
+    background-size: 200% 100%;
+    background-position: 100% 0;            /* start: showing the "from" half */
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+}
+
+/* Drive the fill with the scroll timeline only where supported. Without this,
+   the @supports block above still renders the gradient at its start position
+   (readable in the "from" color), so nothing disappears. */
+@supports (animation-timeline: view()) {
+  .text-reveal {
+    animation: bg-position-reveal linear both;
+    animation-timeline: view();
+    animation-range: entry 50% cover 50%;
+    --bg-position-reveal-from: 100% 0;
+    --bg-position-reveal-to: 0% 0;
+  }
+}
+/**
+ * Animation Utilities
+ *
+ * Effect and timeline classes, decomposed so each does one thing.
+ *
+ * Tier 1 — Timeline (animation-timeline + fill):
+ *   anim-view, anim-scroll, anim-trigger
+ *
+ * Tier 2 — Effects (animation-name + CSS variables):
+ *   Compositor: fade-in/out, slide-up/down/left/right, scale-up/down, rotate-cw/ccw
+ *   Paint:      blur-in/out, elevate-up/down, reveal-left/right/up/down
+ *   Layout:     size-grow, size-shrink
+ *   Journey:    fade-journey, slide-journey, scale-journey, blur-journey
+ *
+ * Float presets (waypoint or path-based continuous movement):
+ *   float-circular, float-bounce-y, float-drift-x, float-gentle, etc.
+ *
+ * Usage:
+ *   <div class="anim-view fade-in slide-up range-entry">
+ *   <div class="float-circular" style="--float-radius: 15px">
+ */
+
+/* ===========================================
+ * Tier 1: Timeline Utilities
+ * =========================================== */
+
+.anim-view {
+  animation-timeline: view();
+  animation-fill-mode: both;
+}
+
+.anim-scroll {
+  animation-timeline: scroll();
+  animation-fill-mode: both;
+}
+
+.anim-trigger {
+  animation-duration: var(--trigger-animation-duration);
+  animation-fill-mode: both;
+}
+
+/* Fallback: when scroll-driven timelines are unsupported, deferred.ts adds
+   .no-scroll-timeline to <html>. Without a timeline, view()/scroll() animations
+   never advance and elements would stick at their `from` keyframe (e.g.
+   opacity:0, clipped, blurred). Cancel the animation so they render in their
+   natural, fully-visible state. Trigger animations are unaffected (JS-driven). */
+:root.no-scroll-timeline .anim-view,
+:root.no-scroll-timeline .anim-scroll {
+  animation: none;
+}
+
+/* ===========================================
+ * Tier 2: Compositor Effects
+ * animation-name: composite
+ * =========================================== */
+
+/* --- Fade --- */
+
+.fade-in {
+  animation-name: composite;
+  --opacity-from: 0;
+  --opacity-to: 1;
+}
+
+.fade-out {
+  animation-name: composite;
+  --opacity-from: 1;
+  --opacity-to: 0;
+}
+
+/* --- Slide --- */
+
+.slide-up {
+  animation-name: composite;
+  --translate-y-from: var(--slide-distance, 2rem);
+  --translate-y-to: 0;
+}
+
+.slide-down {
+  animation-name: composite;
+  --translate-y-from: calc(-1 * var(--slide-distance, 2rem));
+  --translate-y-to: 0;
+}
+
+.slide-left {
+  animation-name: composite;
+  --translate-x-from: var(--slide-distance, 2rem);
+  --translate-x-to: 0;
+}
+
+.slide-right {
+  animation-name: composite;
+  --translate-x-from: calc(-1 * var(--slide-distance, 2rem));
+  --translate-x-to: 0;
+}
+
+/* --- Scale --- */
+
+.scale-up {
+  animation-name: composite;
+  --scale-x-from: 0.9;
+  --scale-y-from: 0.9;
+}
+
+.scale-down {
+  animation-name: composite;
+  --scale-x-from: 1.1;
+  --scale-y-from: 1.1;
+}
+
+/* --- Rotate --- */
+
+.rotate-cw {
+  animation-name: composite;
+  --rotate-from: 0deg;
+  --rotate-to: 360deg;
+}
+
+.rotate-ccw {
+  animation-name: composite;
+  --rotate-from: 0deg;
+  --rotate-to: -360deg;
+}
+
+/* ===========================================
+ * Tier 2: Paint Effects
+ * animation-name: paint
+ * =========================================== */
+
+/* --- Blur --- */
+
+.blur-in {
+  animation-name: paint;
+  --blur-from: var(--blur-amount, 10px);
+  --blur-to: 0;
+}
+
+.blur-out {
+  animation-name: paint;
+  --blur-from: 0;
+  --blur-to: var(--blur-amount, 10px);
+}
+
+/* --- Elevate --- */
+
+.elevate-up {
+  animation-name: paint;
+  --shadow-from: 0 0 0 transparent;
+  --shadow-to: var(--default-shadow, 0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.elevate-down {
+  animation-name: paint;
+  --shadow-from: var(--default-shadow, 0 4px 6px rgba(0, 0, 0, 0.1));
+  --shadow-to: 0 0 0 transparent;
+}
+
+/* --- Reveal (clip-path) --- */
+
+.reveal-left {
+  animation-name: paint;
+  --clip-from: inset(0 100% 0 0);
+  --clip-to: inset(0);
+}
+
+.reveal-right {
+  animation-name: paint;
+  --clip-from: inset(0 0 0 100%);
+  --clip-to: inset(0);
+}
+
+.reveal-up {
+  animation-name: paint;
+  --clip-from: inset(100% 0 0 0);
+  --clip-to: inset(0);
+}
+
+.reveal-down {
+  animation-name: paint;
+  --clip-from: inset(0 0 100% 0);
+  --clip-to: inset(0);
+}
+
+/* ===========================================
+ * Tier 2: Layout Effects
+ * animation-name: layout
+ * =========================================== */
+
+.size-grow {
+  animation-name: layout;
+  overflow: clip;
+  --height-from: 0;
+  --height-to: auto;
+}
+
+.size-shrink {
+  animation-name: layout;
+  overflow: clip;
+  --height-from: auto;
+  --height-to: 0;
+}
+
+/* ===========================================
+ * Tier 2: Journey Effects
+ * Multi-phase entry → hold → exit
+ * =========================================== */
+
+.fade-journey {
+  animation-name: fade-journey;
+  animation-range: entry exit;
+  --opacity-from: 0;
+  --opacity-to: 1;
+}
+
+.slide-journey {
+  animation-name: slide-journey;
+  animation-range: entry exit;
+}
+
+.scale-journey {
+  animation-name: scale-journey;
+  animation-range: entry exit;
+  --scale-x-from: 0.8;
+  --scale-y-from: 0.8;
+}
+
+.blur-journey {
+  animation-name: blur-journey;
+  animation-range: entry exit;
+  --blur-from: 5px;
+  --blur-to: 0;
+}
+
+/* Journey compositions (multi-value animation-name) */
+
+.fade-slide-journey {
+  animation-name: fade-journey, slide-journey;
+  animation-range: entry exit;
+  --opacity-from: 0;
+  --opacity-to: 1;
+}
+
+.fade-scale-journey {
+  animation-name: fade-journey, scale-journey;
+  animation-range: entry exit;
+  --opacity-from: 0;
+  --opacity-to: 1;
+  --scale-x-from: 0.8;
+  --scale-y-from: 0.8;
+}
+
+.fade-blur-journey {
+  animation-name: fade-journey, blur-journey;
+  animation-range: entry exit;
+  --opacity-from: 0;
+  --opacity-to: 1;
+  --blur-from: 5px;
+  --blur-to: 0;
+}
+
+.fade-slide-scale-journey {
+  animation-name: fade-journey, slide-journey, scale-journey;
+  animation-range: entry exit;
+  --opacity-from: 0;
+  --opacity-to: 1;
+  --scale-x-from: 0.8;
+  --scale-y-from: 0.8;
+}
+
+.fade-scale-blur-journey {
+  animation-name: fade-journey, scale-journey, blur-journey;
+  animation-range: entry exit;
+  --opacity-from: 0;
+  --opacity-to: 1;
+  --scale-x-from: 0.8;
+  --scale-y-from: 0.8;
+  --blur-from: 5px;
+  --blur-to: 0;
+}
+
+/* ===========================================
+ * Float Presets — Waypoint-based
+ * Each sets float-x / float-y waypoint vars + easing
+ * =========================================== */
+
+/* Circular orbit (clockwise) */
+.float-circular {
+  --float-easing: var(--ease-float-sine);
+  --float-x-0: 0;
+  --float-y-0: calc(-1 * var(--float-radius, 10px));
+  --float-x-25: var(--float-radius, 10px);
+  --float-y-25: 0;
+  --float-x-50: 0;
+  --float-y-50: var(--float-radius, 10px);
+  --float-x-75: calc(-1 * var(--float-radius, 10px));
+  --float-y-75: 0;
+}
+
+/* Circular orbit (counter-clockwise) */
+.float-circular-ccw {
+  --float-easing: var(--ease-float-sine);
+  --float-x-0: 0;
+  --float-y-0: calc(-1 * var(--float-radius, 10px));
+  --float-x-25: calc(-1 * var(--float-radius, 10px));
+  --float-y-25: 0;
+  --float-x-50: 0;
+  --float-y-50: var(--float-radius, 10px);
+  --float-x-75: var(--float-radius, 10px);
+  --float-y-75: 0;
+}
+
+/* Figure-8 (lemniscate approximation) */
+.float-figure-8 {
+  --float-easing: var(--ease-float-sine);
+  --float-x-0: 0;
+  --float-y-0: 0;
+  --float-x-25: var(--float-radius, 15px);
+  --float-y-25: calc(-1 * var(--float-radius, 15px) * 0.5);
+  --float-x-50: 0;
+  --float-y-50: 0;
+  --float-x-75: calc(-1 * var(--float-radius, 15px));
+  --float-y-75: calc(var(--float-radius, 15px) * 0.5);
+}
+
+/* Vertical bounce (1D, y-axis only) */
+.float-bounce-y {
+  --float-easing: var(--ease-float-bounce);
+  --float-x-0: 0;
+  --float-y-0: calc(-1 * var(--float-distance, 8px));
+  --float-x-25: 0;
+  --float-y-25: 0;
+  --float-x-50: 0;
+  --float-y-50: var(--float-distance, 8px);
+  --float-x-75: 0;
+  --float-y-75: 0;
+}
+
+/* Horizontal drift (1D, x-axis only) */
+.float-drift-x {
+  --float-easing: var(--ease-float-bounce);
+  --float-x-0: calc(-1 * var(--float-distance, 10px));
+  --float-y-0: 0;
+  --float-x-25: 0;
+  --float-y-25: 0;
+  --float-x-50: var(--float-distance, 10px);
+  --float-y-50: 0;
+  --float-x-75: 0;
+  --float-y-75: 0;
+}
+
+/* Gentle drift (subtle organic movement) */
+.float-gentle {
+  --float-easing: var(--ease-float-sine);
+  --float-x-0: calc(-1 * var(--float-radius, 5px));
+  --float-y-0: calc(-1 * var(--float-radius, 5px) * 0.7);
+  --float-x-25: calc(var(--float-radius, 5px) * 0.5);
+  --float-y-25: calc(-1 * var(--float-radius, 5px) * 0.3);
+  --float-x-50: calc(var(--float-radius, 5px) * 0.8);
+  --float-y-50: calc(var(--float-radius, 5px) * 0.6);
+  --float-x-75: calc(-1 * var(--float-radius, 5px) * 0.3);
+  --float-y-75: var(--float-radius, 5px);
+}
+
+/* Diamond pattern */
+.float-diamond {
+  --float-easing: var(--ease-float-sine);
+  --float-x-0: 0;
+  --float-y-0: calc(-1 * var(--float-radius, 10px));
+  --float-x-25: var(--float-radius, 10px);
+  --float-y-25: 0;
+  --float-x-50: 0;
+  --float-y-50: var(--float-radius, 10px);
+  --float-x-75: calc(-1 * var(--float-radius, 10px));
+  --float-y-75: 0;
+}
+
+/* ===========================================
+ * Float Presets — Path-based
+ * Uses offset-path + offset-distance
+ * =========================================== */
+
+.float-path {
+  offset-path: var(--float-path, circle(30px));
+  offset-rotate: var(--float-rotate, 0deg);
+  animation-name: float-path;
+  animation-duration: var(--float-duration, 4s);
+  animation-timing-function: var(--float-easing, linear);
+  animation-iteration-count: var(--float-iterations, infinite);
+  animation-fill-mode: both;
+}
+
+.float-path-circle {
+  --float-path: circle(var(--float-radius, 30px));
+}
+
+.float-path-ellipse {
+  --float-path: ellipse(var(--float-radius-x, 40px) var(--float-radius-y, 20px));
+}
+
+/* ===========================================
+ * Float Modifiers
+ * =========================================== */
+
+.float-slow {
+  --float-duration: 8s;
+}
+
+.float-fast {
+  --float-duration: 2s;
+}
+
+.float-linear {
+  --float-easing: linear;
+}
+
+.float-organic {
+  --float-easing: ease-in-out;
+}

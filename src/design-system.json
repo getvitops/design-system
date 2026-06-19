@@ -1,0 +1,172 @@
+{
+  "colors": {
+    "named": {
+      "pine": {
+        "xxd": "#00120A",
+        "xd": "#073929",
+        "d": "#29634D",
+        "base": "#4A9075",
+        "l": "#70AA92",
+        "xl": "#94C4AF",
+        "xxl": "#B9DECE"
+      },
+      "navy": {
+        "xxd": "#090D14",
+        "xd": "#0F141D",
+        "d": "#141B26",
+        "base": "#1A2230",
+        "l": "#48505D",
+        "xl": "#7B828E",
+        "xxl": "#B3B9C3"
+      },
+      "amber": {
+        "xxd": "#150B00",
+        "xd": "#583D00",
+        "d": "#A6770F",
+        "base": "#F5B94A",
+        "l": "#FAC76F",
+        "xl": "#FED48E",
+        "xxl": "#FFE2B3"
+      },
+      "rust": {
+        "xxd": "#230001",
+        "xd": "#611212",
+        "d": "#9E3935",
+        "base": "#E0625A",
+        "l": "#F0837A",
+        "xl": "#FFA39A",
+        "xxl": "#FFC9C3"
+      },
+      "cobalt": {
+        "xxd": "#010631",
+        "xd": "#1B336F",
+        "d": "#4365B5",
+        "base": "#6F9BFF",
+        "l": "#8EB2FF",
+        "xl": "#ADC8FF",
+        "xxl": "#CCDDFF"
+      },
+      "grey": {
+        "xxd": "#090D15",
+        "xd": "#272D38",
+        "d": "#48505F",
+        "base": "#6C7689",
+        "l": "#8B93A4",
+        "xl": "#AAB2C0",
+        "xxl": "#CBD2DD"
+      }
+    },
+    "semantic": {
+      "brand-primary": "pine",
+      "surface": {
+        "name": "navy",
+        "invert": true
+      },
+      "success": {
+        "name": "pine",
+        "invert": true,
+        "dark": {
+          "base": "l"
+        }
+      },
+      "info": "cobalt",
+      "danger": "rust",
+      "warning": "amber",
+      "neutral": {
+        "name": "grey",
+        "invert": true
+      }
+    },
+    "utilities": [
+      "bg",
+      "text",
+      "border"
+    ]
+  },
+  "shadows": {
+    "sm": "0 1px 2px rgb(0 0 0 / 0.08)",
+    "md": "0 4px 6px rgb(0 0 0 / 0.12)",
+    "lg": "0 10px 15px rgb(0 0 0 / 0.18)",
+    "xl": "0 20px 25px rgb(0 0 0 / 0.22)"
+  },
+  "patterns": {
+    "button": {
+      "element": "button",
+      "default_role": "brand-primary",
+      "base": {
+        "padding": "0.6em 1.2em",
+        "border-radius": "0.4rem",
+        "border": "none",
+        "font-weight": "600",
+        "font-family": "inherit",
+        "font-size": "inherit",
+        "cursor": "pointer",
+        "color": "#fff"
+      },
+      "states": {
+        "hover": {
+          "step": 1
+        },
+        "active": {
+          "scale": 0.97
+        },
+        "focus-visible": {
+          "ring": true
+        }
+      },
+      "roles": [
+        "success",
+        "danger",
+        "warning",
+        "info"
+      ]
+    },
+    "link": {
+      "element": "a",
+      "default_role": "brand-primary",
+      "base": {
+        "color": "var(--color-brand-primary-d)",
+        "text-decoration": "underline",
+        "text-underline-offset": "0.15em"
+      },
+      "states": {
+        "hover": {
+          "step": 1
+        },
+        "focus-visible": {
+          "ring": true
+        }
+      },
+      "roles": []
+    },
+    "badge": {
+      "class": "badge",
+      "default_role": "neutral",
+      "base": {
+        "display": "inline-block",
+        "padding": "0.2em 0.6em",
+        "border-radius": "999px",
+        "font-size": "0.85em",
+        "font-weight": "600",
+        "color": "#fff"
+      },
+      "states": {},
+      "roles": [
+        "success",
+        "danger",
+        "warning",
+        "info"
+      ]
+    },
+    "card": {
+      "class": "card",
+      "base": {
+        "border-radius": "0.75rem",
+        "padding": "1.5rem",
+        "background": "var(--color-surface-xxl)"
+      },
+      "states": {},
+      "roles": []
+    }
+  }
+}
