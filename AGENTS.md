@@ -6,6 +6,8 @@ It is composed of:
 - Variable-based lightweight CSS Framework for high level design patterns and common utilities (e.g. track-based centering of content, vertical rhythm, UI patterns)
 - Lit-based Web Components for patterns that benefit from progressive enhancement (they are styled via the CSS Framework, and are fully operable, although degraded, in non-JS environments)
 
+Prefer using modern CSS/HTML features (e.g. CSS Anchor Positioning API, Dialog, Invoker Commands API, Scroll Timelines, etc.) over JavaScript.
+
 ## Development
 
 The build system uses `vite-plus` (`vp`), which is a wrapper for common tools for SDLC tasks:
@@ -37,3 +39,13 @@ Other tools used:
 ## Output
 
 - Bricks Builder supports some design system features out of the box (e.g. Font, Spacing, Typography, and Color Managers), so when targeting it some parts that would be in the CSS output are instead output as JSON so they can be imported into Bricks for use in the UI and which outputs the CSS itself.
+
+## Design Guidelines
+
+- Set of CSS properties for colors, spacing, typography (fonts, scale, roles: display|title|heading|body|quote|caption|eyebrow|code|lead|footnote|tag (each with font, size, decoration, transform, tracking, etc.)), animations (kinds, curves, durations), pattern primitives (border, drop-shadow, padding)
+- General layout utilities (.centered, .flex*, .split*, .rhythm)
+- Color utilities (.bg*, .text*)
+- Spacing utilties (.space\*)
+- Typographic utilities (.font-display, .font-title, ...)
+- Animation utilities (see @src/css/animations.css)
+- Patterns (link, button, card, badge, etc.)
