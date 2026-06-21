@@ -4,9 +4,7 @@
   transition-property: translate, scale, rotate, filter, box-shadow, background-color, color;
   transition-duration: var(--interact-duration, 200ms);
   transition-timing-function: var(--interact-easing, ease);
-  translate: 0 0;
-  scale: 1;
-  rotate: 0deg;
+  translate: 0 0; scale: 1; rotate: 0deg;
   padding: 0.6em 1.2em;
   border-radius: 0.4rem;
   border: none;
@@ -18,9 +16,9 @@
   background-color: var(--color-brand-primary-d);
 }
 @media (hover: hover) {
-  :where(button):hover {
-    background-color: var(--color-brand-primary-xd);
-  }
+:where(button):hover {
+  background-color: var(--color-brand-primary-xd);
+}
 }
 :where(button):active {
   scale: 0.97;
@@ -29,13 +27,11 @@
   outline: none;
   box-shadow: 0 0 0 3px var(--color-brand-primary-l);
 }
-button.success {
-  background-color: var(--color-success-d);
-}
+button.success { background-color: var(--color-success-d); }
 @media (hover: hover) {
-  button.success:hover {
-    background-color: var(--color-success-xd);
-  }
+button.success:hover {
+  background-color: var(--color-success-xd);
+}
 }
 button.success:active {
   scale: 0.97;
@@ -44,13 +40,11 @@ button.success:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--color-success-l);
 }
-button.danger {
-  background-color: var(--color-danger-d);
-}
+button.danger { background-color: var(--color-danger-d); }
 @media (hover: hover) {
-  button.danger:hover {
-    background-color: var(--color-danger-xd);
-  }
+button.danger:hover {
+  background-color: var(--color-danger-xd);
+}
 }
 button.danger:active {
   scale: 0.97;
@@ -59,13 +53,11 @@ button.danger:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--color-danger-l);
 }
-button.warning {
-  background-color: var(--color-warning-d);
-}
+button.warning { background-color: var(--color-warning-d); }
 @media (hover: hover) {
-  button.warning:hover {
-    background-color: var(--color-warning-xd);
-  }
+button.warning:hover {
+  background-color: var(--color-warning-xd);
+}
 }
 button.warning:active {
   scale: 0.97;
@@ -74,13 +66,11 @@ button.warning:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--color-warning-l);
 }
-button.info {
-  background-color: var(--color-info-d);
-}
+button.info { background-color: var(--color-info-d); }
 @media (hover: hover) {
-  button.info:hover {
-    background-color: var(--color-info-xd);
-  }
+button.info:hover {
+  background-color: var(--color-info-xd);
+}
 }
 button.info:active {
   scale: 0.97;
@@ -94,17 +84,15 @@ button.info:focus-visible {
   transition-property: translate, scale, rotate, filter, box-shadow, background-color, color;
   transition-duration: var(--interact-duration, 200ms);
   transition-timing-function: var(--interact-easing, ease);
-  translate: 0 0;
-  scale: 1;
-  rotate: 0deg;
+  translate: 0 0; scale: 1; rotate: 0deg;
   color: var(--color-brand-primary-d);
   text-decoration: underline;
   text-underline-offset: 0.15em;
 }
 @media (hover: hover) {
-  :where(a):hover {
-    color: var(--color-brand-primary-xd);
-  }
+:where(a):hover {
+  color: var(--color-brand-primary-xd);
+}
 }
 :where(a):focus-visible {
   outline: none;
@@ -120,21 +108,14 @@ button.info:focus-visible {
   color: #fff;
   background-color: var(--color-neutral-d);
 }
-.badge-success {
-  background-color: var(--color-success-d);
-}
-.badge-danger {
-  background-color: var(--color-danger-d);
-}
-.badge-warning {
-  background-color: var(--color-warning-d);
-}
-.badge-info {
-  background-color: var(--color-info-d);
-}
+.badge-success { background-color: var(--color-success-d); }
+.badge-danger { background-color: var(--color-danger-d); }
+.badge-warning { background-color: var(--color-warning-d); }
+.badge-info { background-color: var(--color-info-d); }
 
 .card {
   border-radius: 0.75rem;
   padding: 1.5rem;
   background: var(--color-surface-xxl);
 }
+

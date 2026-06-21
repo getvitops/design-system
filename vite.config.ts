@@ -56,6 +56,19 @@ export default defineConfig({
         output: ['dist/*.css*'],
       },
 
+      // Docs bundle: a standalone (non-Bricks) build the docsite links, so the
+      // page renders self-sufficiently (colours, fonts, type scale all emitted).
+      // Generates non-bricks → bundles to dist/styles.docs.css → regenerates
+      // bricks so the working tree's src/css/generated/* ends in canonical
+      // (committed) bricks state. Kept a plain command (not the cached
+      // generate:theme) so the two generator runs stay strictly ordered.
+      'build:docs': {
+        command:
+          'node lib/generate-design-system.ts && lightningcss --minify --bundle -o dist/styles.docs.css ./src/css/index.css && node lib/generate-design-system.ts --bricks',
+        input: ['lib/generate-design-system.ts', 'src/design-system.json', 'src/css/**/*.css'],
+        output: ['dist/styles.docs.css*'],
+      },
+
       // Codegen: colors.json → src/color.css + dist/bricks-colors.json.
       // `input` is declared explicitly because vp's auto-tracker misses files
       // passed to `node` as argv (it only sees what the *task* reads, not what

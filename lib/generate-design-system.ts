@@ -67,11 +67,23 @@ interface ColorConfig {
   semantic: Record<string, SemanticConfig>;
   utilities?: string[];
 }
+// Fluid modular type scale config. --text-1..steps anchored at baseStep, modular
+// `ratio` between adjacent steps. With `fluid`, each step is a clamp() that eases
+// from a tighter `minRatio` scale at minVw to the full `ratio` scale at maxVw.
+interface TypeScale {
+  base: string; // anchor size, e.g. "1.125rem" (assumed rem)
+  ratio: number; // modular ratio between steps at large viewports
+  steps: number; // how many --text-N tokens to emit
+  baseStep?: number; // 1-based index of the anchor step (default: middle)
+  fluid?: { minVw: string; maxVw: string; minRatio: number };
+}
 interface DesignSystem {
   colors: ColorConfig;
   shadows?: Record<string, string>;
   patterns?: PatternsConfig;
   typography?: TypographyConfig;
+  fonts?: Record<string, string>; // --font-<name> family stacks
+  typeScale?: TypeScale; // --text-N fluid scale
 }
 
 const rootPath = join(import.meta.dirname, '..');
@@ -227,6 +239,62 @@ const decls = (obj: Record<string, string>, indent = '  ') =>
   Object.entries(obj)
     .map(([k, v]) => `${indent}${k}: ${v};`)
     .join('\n');
+
+// ── type-tokens.css (font families + fluid type scale) ──────────────────────
+// Bricks-gated like color.css: outside Bricks emit the CSS tokens (--font-*,
+// --text-N); in Bricks the Font + Fluid Typography managers provide them live
+// from the imported settings, so we emit a stub. The .font-* role classes
+// (typography.css) always emit either way — Bricks doesn't generate those.
+const round = (n: number) => Number(n.toFixed(4)).toString();
+const rem = (v: string) => parseFloat(v); // values assumed in rem
+
+// Build the --text-1..steps map for a TypeScale (fluid clamp() per step).
+const fluidScale = (s: TypeScale): Record<string, string> => {
+  const out: Record<string, string> = {};
+  const base = rem(s.base);
+  const baseStep = s.baseStep ?? Math.ceil(s.steps / 2);
+  for (let n = 1; n <= s.steps; n++) {
+    const k = n - baseStep; // 0 at the anchor, +1 per step up
+    const vMax = base * Math.pow(s.ratio, k); // size at large viewport
+    if (!s.fluid) {
+      out[`--text-${n}`] = `${round(vMax)}rem`;
+      continue;
+    }
+    const { minVw, maxVw, minRatio } = s.fluid;
+    const vMin = base * Math.pow(minRatio, k); // size at small viewport
+    const lo = Math.min(vMin, vMax);
+    const hi = Math.max(vMin, vMax);
+    if (lo === hi) {
+      out[`--text-${n}`] = `${round(vMax)}rem`;
+      continue;
+    }
+    // Linear interpolation vMin@minVw → vMax@maxVw: pref = intercept + slope·100vw.
+    const slope = (vMax - vMin) / (rem(maxVw) - rem(minVw));
+    const intercept = vMin - slope * rem(minVw);
+    const sign = slope < 0 ? '-' : '+';
+    const pref = `calc(${round(intercept)}rem ${sign} ${round(Math.abs(slope * 100))}vw)`;
+    out[`--text-${n}`] = `clamp(${round(lo)}rem, ${pref}, ${round(hi)}rem)`;
+  }
+  return out;
+};
+
+const typeTokensOutputPath = join(cssPath, 'type-tokens.css');
+{
+  if (BRICKS) {
+    writeFileSync(
+      typeTokensOutputPath,
+      '/* Fonts + type scale provided by Bricks (Font + Fluid Typography managers). */\n',
+    );
+    console.log(`✓ ${typeTokensOutputPath} (bricks mode — fonts/scale owned by Bricks)`);
+  } else {
+    const root: Record<string, string> = {};
+    for (const [name, stack] of Object.entries(ds.fonts ?? {})) root[`--font-${name}`] = stack;
+    if (ds.typeScale) Object.assign(root, fluidScale(ds.typeScale));
+    const css = `/* GENERATED font families + fluid type scale — do not edit by hand. */\n:root {\n${decls(root)}\n}\n`;
+    writeFileSync(typeTokensOutputPath, css);
+    console.log(`✓ ${typeTokensOutputPath} (standalone — fonts + fluid scale)`);
+  }
+}
 
 // ── tokens.css (pattern token cascade) ──────────────────────────────────────
 // Always emitted (independent of --bricks): structural tokens Bricks doesn't own.

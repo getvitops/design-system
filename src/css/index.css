@@ -1,6 +1,7 @@
 @import './animation.css';
 @import './generated/color.css';
 @import './generated/shadows.css';
+@import './generated/type-tokens.css';
 @import './generated/tokens.css';
 @import './generated/typography.css';
 @import './layout.css';
