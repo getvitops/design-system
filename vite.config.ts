@@ -62,10 +62,16 @@ export default defineConfig({
       // bricks so the working tree's src/css/generated/* ends in canonical
       // (committed) bricks state. Kept a plain command (not the cached
       // generate:theme) so the two generator runs stay strictly ordered.
+      //
+      // `input` tracks only the *true* sources: the generator, the JSON, and the
+      // static partials (`src/css/*.css` does NOT recurse into `generated/`). The
+      // generated CSS is fully derived from those AND is mutated by this command
+      // itself (non-bricks → bricks), so tracking it would key the cache on a
+      // state inconsistent with the emitted bundle and serve a stale docs build.
       'build:docs': {
         command:
           'node lib/generate-design-system.ts && lightningcss --minify --bundle -o dist/styles.docs.css ./src/css/index.css && node lib/generate-design-system.ts --bricks',
-        input: ['lib/generate-design-system.ts', 'src/design-system.json', 'src/css/**/*.css'],
+        input: ['lib/generate-design-system.ts', 'src/design-system.json', 'src/css/*.css'],
         output: ['dist/styles.docs.css*'],
       },
 

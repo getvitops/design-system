@@ -1,0 +1,224 @@
+{
+  "variables": [
+    {
+      "id": "ec66e3",
+      "name": "text-2xs",
+      "value": "clamp(0.5787rem, calc(0.7639rem - 0.2314vw), 0.7118rem)",
+      "category": "fb07d6",
+      "scale": {
+        "scale": -3,
+        "scaleName": "2xs"
+      }
+    },
+    {
+      "id": "783d02",
+      "name": "text-xs",
+      "value": "clamp(0.6944rem, calc(0.8374rem - 0.1787vw), 0.7972rem)",
+      "category": "fb07d6",
+      "scale": {
+        "scale": -2,
+        "scaleName": "xs"
+      }
+    },
+    {
+      "id": "b1d46c",
+      "name": "text-s",
+      "value": "clamp(0.8333rem, calc(0.9161rem - 0.1035vw), 0.8929rem)",
+      "category": "fb07d6",
+      "scale": {
+        "scale": -1,
+        "scaleName": "s"
+      }
+    },
+    {
+      "id": "390dfe",
+      "name": "text-m",
+      "value": "1rem",
+      "category": "fb07d6",
+      "scale": {
+        "scale": 0,
+        "scaleName": "m"
+      }
+    },
+    {
+      "id": "20340c",
+      "name": "text-l",
+      "value": "clamp(1.12rem, calc(1.0887rem + 0.1391vw), 1.2rem)",
+      "category": "fb07d6",
+      "scale": {
+        "scale": 1,
+        "scaleName": "l"
+      }
+    },
+    {
+      "id": "b72bf6",
+      "name": "text-xl",
+      "value": "clamp(1.2544rem, calc(1.1818rem + 0.3228vw), 1.44rem)",
+      "category": "fb07d6",
+      "scale": {
+        "scale": 2,
+        "scaleName": "xl"
+      }
+    },
+    {
+      "id": "3e63d7",
+      "name": "text-2xl",
+      "value": "clamp(1.4049rem, calc(1.2785rem + 0.5619vw), 1.728rem)",
+      "category": "fb07d6",
+      "scale": {
+        "scale": 3,
+        "scaleName": "2xl"
+      }
+    },
+    {
+      "id": "859b65",
+      "name": "text-3xl",
+      "value": "clamp(1.5735rem, calc(1.3778rem + 0.8697vw), 2.0736rem)",
+      "category": "fb07d6",
+      "scale": {
+        "scale": 4,
+        "scaleName": "3xl"
+      }
+    },
+    {
+      "id": "086634",
+      "name": "space-2xs",
+      "value": "clamp(0.512rem, calc(0.6048rem - 0.116vw), 0.5787rem)",
+      "category": "38aa13",
+      "scale": {
+        "scale": -3,
+        "scaleName": "2xs"
+      }
+    },
+    {
+      "id": "74bf6d",
+      "name": "space-xs",
+      "value": "clamp(0.64rem, calc(0.7157rem - 0.0947vw), 0.6944rem)",
+      "category": "38aa13",
+      "scale": {
+        "scale": -2,
+        "scaleName": "xs"
+      }
+    },
+    {
+      "id": "48fe97",
+      "name": "space-s",
+      "value": "clamp(0.8rem, calc(0.8464rem - 0.058vw), 0.8333rem)",
+      "category": "38aa13",
+      "scale": {
+        "scale": -1,
+        "scaleName": "s"
+      }
+    },
+    {
+      "id": "fa31fb",
+      "name": "space-m",
+      "value": "1rem",
+      "category": "38aa13",
+      "scale": {
+        "scale": 0,
+        "scaleName": "m"
+      }
+    },
+    {
+      "id": "64cbc3",
+      "name": "space-l",
+      "value": "clamp(1.2rem, calc(1.1804rem + 0.087vw), 1.25rem)",
+      "category": "38aa13",
+      "scale": {
+        "scale": 1,
+        "scaleName": "l"
+      }
+    },
+    {
+      "id": "dcf257",
+      "name": "space-xl",
+      "value": "clamp(1.44rem, calc(1.3921rem + 0.213vw), 1.5625rem)",
+      "category": "38aa13",
+      "scale": {
+        "scale": 2,
+        "scaleName": "xl"
+      }
+    },
+    {
+      "id": "21293d",
+      "name": "space-2xl",
+      "value": "clamp(1.728rem, calc(1.6399rem + 0.3915vw), 1.9531rem)",
+      "category": "38aa13",
+      "scale": {
+        "scale": 3,
+        "scaleName": "2xl"
+      }
+    },
+    {
+      "id": "849f4d",
+      "name": "font-display",
+      "value": "'Mulish', system-ui, -apple-system, 'Segoe UI', sans-serif"
+    },
+    {
+      "id": "cfe869",
+      "name": "font-sans",
+      "value": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+    },
+    {
+      "id": "4aea80",
+      "name": "font-mono",
+      "value": "ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, monospace"
+    }
+  ],
+  "categories": [
+    {
+      "id": "fb07d6",
+      "name": "Typography",
+      "scale": {
+        "scaleScope": "typography",
+        "scaleType": "tshirt",
+        "scaleNames": [
+          "2xs",
+          "xs",
+          "s",
+          "m",
+          "l",
+          "xl",
+          "2xl",
+          "3xl"
+        ],
+        "prefix": "text-",
+        "minFontSize": 16,
+        "minScaleRatio": 1.12,
+        "minScaleRatioSelect": 1.12,
+        "maxFontSize": 16,
+        "maxScaleRatio": 1.2,
+        "maxScaleRatioSelect": 1.2,
+        "baseline": "m"
+      },
+      "utilityClasses": []
+    },
+    {
+      "id": "38aa13",
+      "name": "Spacing",
+      "scale": {
+        "scaleScope": "spacing",
+        "scaleType": "tshirt",
+        "scaleNames": [
+          "2xs",
+          "xs",
+          "s",
+          "m",
+          "l",
+          "xl",
+          "2xl"
+        ],
+        "prefix": "space-",
+        "minFontSize": 16,
+        "minScaleRatio": 1.2,
+        "minScaleRatioSelect": 1.2,
+        "maxFontSize": 16,
+        "maxScaleRatio": 1.25,
+        "maxScaleRatioSelect": 1.25,
+        "baseline": "m"
+      },
+      "utilityClasses": []
+    }
+  ]
+}

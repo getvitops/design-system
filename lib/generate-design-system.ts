@@ -67,14 +67,19 @@ interface ColorConfig {
   semantic: Record<string, SemanticConfig>;
   utilities?: string[];
 }
-// Fluid modular type scale config. --text-1..steps anchored at baseStep, modular
-// `ratio` between adjacent steps. With `fluid`, each step is a clamp() that eases
-// from a tighter `minRatio` scale at minVw to the full `ratio` scale at maxVw.
-interface TypeScale {
+// Fluid modular scale config (type + spacing). Tokens are named by `names`
+// (Bricks' t-shirt scale, e.g. 2xs..2xl) or numeric 1..steps when `names` is
+// absent. Values anchor at `baseStep`, modular `ratio` between adjacent steps.
+// With `fluid`, each step is a clamp() easing from a tighter `minRatio` scale at
+// minVw to the full `ratio` scale at maxVw. `baseline` is the Bricks GUI scale
+// centre (metadata only — emitted values are always explicit).
+interface ScaleConfig {
   base: string; // anchor size, e.g. "1.125rem" (assumed rem)
   ratio: number; // modular ratio between steps at large viewports
-  steps: number; // how many --text-N tokens to emit
-  baseStep?: number; // 1-based index of the anchor step (default: middle)
+  steps?: number; // token count when `names` is absent (numeric tokens)
+  names?: string[]; // token names (t-shirt scale); default 1..steps
+  baseStep?: number; // 1-based index of the value anchor (default: middle)
+  baseline?: string; // Bricks GUI scale centre (default: middle name)
   fluid?: { minVw: string; maxVw: string; minRatio: number };
 }
 interface DesignSystem {
@@ -83,7 +88,8 @@ interface DesignSystem {
   patterns?: PatternsConfig;
   typography?: TypographyConfig;
   fonts?: Record<string, string>; // --font-<name> family stacks
-  typeScale?: TypeScale; // --text-N fluid scale
+  typeScale?: ScaleConfig; // --text-<name> fluid scale
+  spaceScale?: ScaleConfig; // --space-<name> fluid scale (additive)
 }
 
 const rootPath = join(import.meta.dirname, '..');
@@ -248,51 +254,69 @@ const decls = (obj: Record<string, string>, indent = '  ') =>
 const round = (n: number) => Number(n.toFixed(4)).toString();
 const rem = (v: string) => parseFloat(v); // values assumed in rem
 
-// Build the --text-1..steps map for a TypeScale (fluid clamp() per step).
-const fluidScale = (s: TypeScale): Record<string, string> => {
-  const out: Record<string, string> = {};
+// One step of a built scale: its token `name`, the fluid `value` (clamp() or a
+// plain rem), the `max` rem alone (the large-viewport size, used as a literal
+// fallback), and `offset` from the GUI `baseline` (Bricks' signed scale index).
+interface ScaleStep {
+  name: string;
+  value: string;
+  max: string;
+  offset: number;
+}
+
+// Build the steps for a ScaleConfig. Names come from `names` (t-shirt) or 1..steps.
+const buildScale = (s: ScaleConfig): ScaleStep[] => {
+  const names = s.names ?? Array.from({ length: s.steps ?? 0 }, (_, i) => String(i + 1));
   const base = rem(s.base);
-  const baseStep = s.baseStep ?? Math.ceil(s.steps / 2);
-  for (let n = 1; n <= s.steps; n++) {
-    const k = n - baseStep; // 0 at the anchor, +1 per step up
+  const baseStep = s.baseStep ?? Math.ceil(names.length / 2); // 1-based value anchor
+  const baselineIdx = s.baseline ? names.indexOf(s.baseline) : baseStep - 1; // GUI centre
+  return names.map((name, i) => {
+    const k = i - (baseStep - 1); // 0 at the value anchor, +1 per step up
     const vMax = base * Math.pow(s.ratio, k); // size at large viewport
-    if (!s.fluid) {
-      out[`--text-${n}`] = `${round(vMax)}rem`;
-      continue;
+    const max = `${round(vMax)}rem`;
+    let value = max;
+    if (s.fluid) {
+      const { minVw, maxVw, minRatio } = s.fluid;
+      const vMin = base * Math.pow(minRatio, k); // size at small viewport
+      const lo = Math.min(vMin, vMax);
+      const hi = Math.max(vMin, vMax);
+      if (lo !== hi) {
+        // Linear interp vMin@minVw → vMax@maxVw: pref = intercept + slope·100vw.
+        const slope = (vMax - vMin) / (rem(maxVw) - rem(minVw));
+        const intercept = vMin - slope * rem(minVw);
+        const sign = slope < 0 ? '-' : '+';
+        const pref = `calc(${round(intercept)}rem ${sign} ${round(Math.abs(slope * 100))}vw)`;
+        value = `clamp(${round(lo)}rem, ${pref}, ${round(hi)}rem)`;
+      }
     }
-    const { minVw, maxVw, minRatio } = s.fluid;
-    const vMin = base * Math.pow(minRatio, k); // size at small viewport
-    const lo = Math.min(vMin, vMax);
-    const hi = Math.max(vMin, vMax);
-    if (lo === hi) {
-      out[`--text-${n}`] = `${round(vMax)}rem`;
-      continue;
-    }
-    // Linear interpolation vMin@minVw → vMax@maxVw: pref = intercept + slope·100vw.
-    const slope = (vMax - vMin) / (rem(maxVw) - rem(minVw));
-    const intercept = vMin - slope * rem(minVw);
-    const sign = slope < 0 ? '-' : '+';
-    const pref = `calc(${round(intercept)}rem ${sign} ${round(Math.abs(slope * 100))}vw)`;
-    out[`--text-${n}`] = `clamp(${round(lo)}rem, ${pref}, ${round(hi)}rem)`;
-  }
-  return out;
+    return { name, value, max, offset: i - baselineIdx };
+  });
 };
+
+// Built scales, reused across type-tokens.css, typography.css fallback, and the
+// Bricks variables JSON. `text-<name>` → max rem lookup feeds the literal fallback.
+const typeSteps = ds.typeScale ? buildScale(ds.typeScale) : [];
+const spaceSteps = ds.spaceScale ? buildScale(ds.spaceScale) : [];
+const textMax: Record<string, string> = Object.fromEntries(
+  typeSteps.map((s) => [`text-${s.name}`, s.max]),
+);
 
 const typeTokensOutputPath = join(cssPath, 'type-tokens.css');
 {
   if (BRICKS) {
     writeFileSync(
       typeTokensOutputPath,
-      '/* Fonts + type scale provided by Bricks (Font + Fluid Typography managers). */\n',
+      '/* Fonts + type/space scales provided by Bricks (Font + Variables managers). */\n',
     );
-    console.log(`✓ ${typeTokensOutputPath} (bricks mode — fonts/scale owned by Bricks)`);
+    console.log(`✓ ${typeTokensOutputPath} (bricks mode — fonts/scales owned by Bricks)`);
   } else {
     const root: Record<string, string> = {};
     for (const [name, stack] of Object.entries(ds.fonts ?? {})) root[`--font-${name}`] = stack;
-    if (ds.typeScale) Object.assign(root, fluidScale(ds.typeScale));
-    const css = `/* GENERATED font families + fluid type scale — do not edit by hand. */\n:root {\n${decls(root)}\n}\n`;
+    for (const s of typeSteps) root[`--text-${s.name}`] = s.value;
+    for (const s of spaceSteps) root[`--space-${s.name}`] = s.value;
+    const css = `/* GENERATED font families + fluid type/space scales — do not edit by hand. */\n:root {\n${decls(root)}\n}\n`;
     writeFileSync(typeTokensOutputPath, css);
-    console.log(`✓ ${typeTokensOutputPath} (standalone — fonts + fluid scale)`);
+    console.log(`✓ ${typeTokensOutputPath} (standalone — fonts + fluid scales)`);
   }
 }
 
@@ -357,6 +381,13 @@ const typographyOutputPath = join(cssPath, 'typography.css');
     color: ['color', 'color'],
   };
 
+  // Give scale refs an ultimate literal fallback so type still sizes before the
+  // Bricks Variables import: var(--text-l) → var(--text-l, <max rem>).
+  const withScaleFallback = (v: string) =>
+    v.replace(/var\(\s*(--text-[\w-]+)\s*\)/g, (m, name) =>
+      textMax[name.slice(2)] ? `var(${name}, ${textMax[name.slice(2)]})` : m,
+    );
+
   const roleDecls = (role: string, spec: TypographyRole): Record<string, string> => {
     const out: Record<string, string> = {};
     for (const [key, [prop, sfx]] of Object.entries(KEYMAP)) {
@@ -364,7 +395,9 @@ const typographyOutputPath = join(cssPath, 'typography.css');
       const raw =
         key === 'family'
           ? (families[spec.family as string] ?? String(spec.family))
-          : String(spec[key]);
+          : key === 'size'
+            ? withScaleFallback(String(spec[key]))
+            : String(spec[key]);
       out[prop] = `var(--${role}-${sfx}, ${raw})`;
     }
     return out;
@@ -546,3 +579,78 @@ writeFileSync(
 console.log(
   `✓ dist/bricks-colors-named.json (${namedColors.length}) + bricks-colors-semantic.json (${semanticColors.length})`,
 );
+
+// ── Bricks Global Variables (fonts + type/space scales) ─────────────────────
+// Confirmed schema (captured from a UI export): a category carrying a `scale`
+// object becomes a GUI-selectable Typography/Spacing scale; its variables carry
+// `scale`/`scaleName` + a literal clamp() value. Fonts ride along as
+// uncategorized variables. Always emitted (like the colour palettes). Bricks
+// stores each `value` verbatim, so the scale metadata is best-effort — its
+// generator params only matter if the user regenerates the scale in the GUI.
+{
+  type BrxScale = { scale: number; scaleName: string };
+  type BrxVar = { id: string; name: string; value: string; category?: string; scale?: BrxScale };
+  type BrxCat = { id: string; name: string; scale: Record<string, unknown>; utilityClasses: [] };
+
+  const scaleMeta = (scope: string, prefix: string, s: ScaleConfig, names: string[]) => {
+    const px = Math.round(rem(s.base) * 16);
+    const lo = s.fluid?.minRatio ?? s.ratio;
+    return {
+      scaleScope: scope,
+      scaleType: 'tshirt',
+      scaleNames: names,
+      prefix,
+      minFontSize: px,
+      minScaleRatio: lo,
+      minScaleRatioSelect: lo,
+      maxFontSize: px,
+      maxScaleRatio: s.ratio,
+      maxScaleRatioSelect: s.ratio,
+      baseline: s.baseline ?? names[Math.floor((names.length - 1) / 2)],
+    };
+  };
+
+  const categories: BrxCat[] = [];
+  const variables: BrxVar[] = [];
+
+  const addScale = (
+    label: string,
+    scope: string,
+    prefix: string,
+    cfg: ScaleConfig | undefined,
+    steps: ScaleStep[],
+  ) => {
+    if (!cfg || !steps.length) return;
+    const names = steps.map((s) => s.name);
+    const catId = id(`varcat:${scope}`);
+    categories.push({
+      id: catId,
+      name: label,
+      scale: scaleMeta(scope, prefix, cfg, names),
+      utilityClasses: [],
+    });
+    for (const st of steps)
+      variables.push({
+        id: id(`var:${prefix}${st.name}`),
+        name: `${prefix}${st.name}`,
+        value: st.value,
+        category: catId,
+        scale: { scale: st.offset, scaleName: st.name },
+      });
+  };
+
+  addScale('Typography', 'typography', 'text-', ds.typeScale, typeSteps);
+  addScale('Spacing', 'spacing', 'space-', ds.spaceScale, spaceSteps);
+
+  // Fonts: uncategorized variables ({id,name,value}).
+  for (const [name, stack] of Object.entries(ds.fonts ?? {}))
+    variables.push({ id: id(`var:font-${name}`), name: `font-${name}`, value: stack });
+
+  writeFileSync(
+    join(distPath, 'bricks-variables.json'),
+    JSON.stringify({ variables, categories }, null, 2),
+  );
+  console.log(
+    `✓ dist/bricks-variables.json (${variables.length} vars, ${categories.length} scales)`,
+  );
+}

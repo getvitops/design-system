@@ -1,15 +1,15 @@
 /* GENERATED typography roles — do not edit by hand. */
 .font-display {
   font-family: var(--display-ff, var(--font-display));
-  font-size: var(--display-fs, var(--text-7));
+  font-size: var(--display-fs, var(--text-3xl, 2.0736rem));
   font-weight: var(--display-fw, 700);
-  line-height: var(--display-lh, 1.0);
+  line-height: var(--display-lh, 1);
   letter-spacing: var(--display-ls, -0.035em);
   text-wrap: var(--display-tw, balance);
 }
 .font-title {
   font-family: var(--title-ff, var(--font-display));
-  font-size: var(--title-fs, var(--text-6));
+  font-size: var(--title-fs, var(--text-2xl, 1.728rem));
   font-weight: var(--title-fw, 600);
   line-height: var(--title-lh, 1.12);
   letter-spacing: var(--title-ls, -0.025em);
@@ -17,7 +17,7 @@
 }
 .font-heading {
   font-family: var(--heading-ff, var(--font-display));
-  font-size: var(--heading-fs, var(--text-5));
+  font-size: var(--heading-fs, var(--text-xl, 1.44rem));
   font-weight: var(--heading-fw, 600);
   line-height: var(--heading-lh, 1.3);
   letter-spacing: var(--heading-ls, -0.025em);
@@ -25,21 +25,21 @@
 }
 .font-lead {
   font-family: var(--lead-ff, var(--font-sans));
-  font-size: var(--lead-fs, var(--text-4));
+  font-size: var(--lead-fs, var(--text-l, 1.2rem));
   font-weight: var(--lead-fw, 400);
   line-height: var(--lead-lh, 1.5);
   text-wrap: var(--lead-tw, pretty);
 }
 .font-body {
   font-family: var(--body-ff, var(--font-sans));
-  font-size: var(--body-fs, var(--text-3));
+  font-size: var(--body-fs, var(--text-m, 1rem));
   font-weight: var(--body-fw, 400);
   line-height: var(--body-lh, 1.55);
   text-wrap: var(--body-tw, pretty);
 }
 .font-quote {
   font-family: var(--quote-ff, var(--font-display));
-  font-size: var(--quote-fs, var(--text-5));
+  font-size: var(--quote-fs, var(--text-xl, 1.44rem));
   font-weight: var(--quote-fw, 400);
   font-style: var(--quote-fst, italic);
   line-height: var(--quote-lh, 1.3);
@@ -47,14 +47,14 @@
 }
 .font-caption {
   font-family: var(--caption-ff, var(--font-sans));
-  font-size: var(--caption-fs, var(--text-2));
+  font-size: var(--caption-fs, var(--text-s, 0.8333rem));
   font-weight: var(--caption-fw, 400);
   line-height: var(--caption-lh, 1.3);
   color: var(--caption-color, var(--color-neutral-l));
 }
 .font-eyebrow {
   font-family: var(--eyebrow-ff, var(--font-sans));
-  font-size: var(--eyebrow-fs, var(--text-2));
+  font-size: var(--eyebrow-fs, var(--text-s, 0.8333rem));
   font-weight: var(--eyebrow-fw, 600);
   line-height: var(--eyebrow-lh, 1.3);
   letter-spacing: var(--eyebrow-ls, 0.08em);
@@ -63,7 +63,7 @@
 }
 .font-footnote {
   font-family: var(--footnote-ff, var(--font-sans));
-  font-size: var(--footnote-fs, var(--text-1));
+  font-size: var(--footnote-fs, var(--text-xs, 0.6944rem));
   font-weight: var(--footnote-fw, 400);
   line-height: var(--footnote-lh, 1.4);
   color: var(--footnote-color, var(--color-neutral-l));
@@ -84,15 +84,15 @@
 }
 h1 {
   font-family: var(--display-ff, var(--font-display));
-  font-size: var(--display-fs, var(--text-7));
+  font-size: var(--display-fs, var(--text-3xl, 2.0736rem));
   font-weight: var(--display-fw, 700);
-  line-height: var(--display-lh, 1.0);
+  line-height: var(--display-lh, 1);
   letter-spacing: var(--display-ls, -0.035em);
   text-wrap: var(--display-tw, balance);
 }
 h2 {
   font-family: var(--title-ff, var(--font-display));
-  font-size: var(--title-fs, var(--text-6));
+  font-size: var(--title-fs, var(--text-2xl, 1.728rem));
   font-weight: var(--title-fw, 600);
   line-height: var(--title-lh, 1.12);
   letter-spacing: var(--title-ls, -0.025em);
@@ -100,7 +100,7 @@ h2 {
 }
 h3 {
   font-family: var(--heading-ff, var(--font-display));
-  font-size: var(--heading-fs, var(--text-5));
+  font-size: var(--heading-fs, var(--text-xl, 1.44rem));
   font-weight: var(--heading-fw, 600);
   line-height: var(--heading-lh, 1.3);
   letter-spacing: var(--heading-ls, -0.025em);
@@ -108,7 +108,7 @@ h3 {
 }
 h4 {
   font-family: var(--heading-ff, var(--font-display));
-  font-size: var(--heading-fs, var(--text-5));
+  font-size: var(--heading-fs, var(--text-xl, 1.44rem));
   font-weight: var(--heading-fw, 600);
   line-height: var(--heading-lh, 1.3);
   letter-spacing: var(--heading-ls, -0.025em);
