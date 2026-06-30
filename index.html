@@ -20,7 +20,7 @@
       body {
         margin: 0;
         font-family: var(--font-sans);
-        font-size: var(--text-3);
+        font-size: var(--text-m);
         line-height: 1.55;
         background: var(--color-surface-xxl);
         color: var(--color-surface-xxd);
@@ -61,7 +61,7 @@
         margin-block: 1rem;
       }
       .section-no {
-        color: var(--color-brand-primary-base);
+        color: var(--color-brand-primary);
         margin-inline-end: 0.5em;
       }
       /* Card separation: previews the (not-yet-ported) panel pattern — a border +
@@ -86,7 +86,7 @@
       }
       .gutter-label {
         text-align: center;
-        font-size: var(--text-1);
+        font-size: var(--text-xs);
         color: var(--color-surface-xxl);
         opacity: 0.8;
       }
@@ -99,14 +99,14 @@
         padding: 0.6rem;
         border-radius: calc(var(--br-default) / 1.5);
         color: #fff;
-        font-size: var(--text-2);
+        font-size: var(--text-s);
         white-space: nowrap;
       }
       .band .w {
         opacity: 0.75;
         font-size: 0.85em;
       }
-      .band.full {
+      .band.fullbleed {
         width: 100%;
         background: var(--color-grey-d);
       }
@@ -120,7 +120,7 @@
       }
       .band.measure {
         width: min(100%, 65ch);
-        background: var(--color-amber-base);
+        background: var(--color-amber);
         color: var(--color-surface-xxd);
       }
 
@@ -137,15 +137,15 @@
         gap: 0.75rem;
       }
       .control label {
-        font-size: var(--text-2);
+        font-size: var(--text-s);
       }
       .control input {
         width: 100%;
-        accent-color: var(--color-brand-primary-base);
+        accent-color: var(--color-brand-primary);
       }
       .control .val {
         font-family: var(--font-mono);
-        font-size: var(--text-1);
+        font-size: var(--text-xs);
         text-align: right;
       }
 
@@ -169,7 +169,7 @@
         align-items: flex-end;
         justify-content: center;
         padding-bottom: 0.3em;
-        font-size: var(--text-1);
+        font-size: var(--text-xs);
       }
       .sem-grid {
         display: grid;
@@ -180,7 +180,7 @@
         padding: 1.5rem 0.75rem;
         border-radius: var(--br-default);
         color: #fff;
-        font-size: var(--text-2);
+        font-size: var(--text-s);
         text-align: center;
       }
 
@@ -198,7 +198,7 @@
       }
       .dark-swatch span {
         opacity: 0.85;
-        font-size: var(--text-1);
+        font-size: var(--text-xs);
       }
 
       /* ── Typography showcase ── */
@@ -212,7 +212,7 @@
       }
       .type-row .label {
         font-family: var(--font-mono);
-        font-size: var(--text-1);
+        font-size: var(--text-xs);
         opacity: 0.7;
       }
 
@@ -251,11 +251,11 @@
         width: 2.5rem;
         height: 2.5rem;
         border-radius: 0.5rem;
-        background: var(--color-brand-primary-base);
+        background: var(--color-brand-primary);
       }
       .anim-cell .stage-tag {
         justify-self: start;
-        font-size: var(--text-1);
+        font-size: var(--text-xs);
         padding: 0.1em 0.6em;
         border-radius: 999px;
         background: var(--color-cobalt-d);
@@ -264,7 +264,7 @@
       .anim-cell .props {
         width: 100%;
         border-collapse: collapse;
-        font-size: var(--text-1);
+        font-size: var(--text-xs);
         font-family: var(--font-mono);
       }
       .anim-cell .props th {
@@ -273,7 +273,7 @@
         font-weight: 600;
       }
       .anim-cell .hint {
-        font-size: var(--text-1);
+        font-size: var(--text-xs);
         opacity: 0.6;
       }
       .float-cell {
@@ -288,7 +288,7 @@
         width: 1.5rem;
         height: 1.5rem;
         border-radius: 50%;
-        background: var(--color-amber-base);
+        background: var(--color-amber);
       }
 
       @media (max-width: 32rem) {
@@ -335,8 +335,8 @@
         <p>
           Type roles are generated from <code>design-system.json</code> into
           <code>.font-*</code> classes, sized on a fluid modular scale
-          (<code>--text-1</code>…<code>--text-7</code>, each a <code>clamp()</code> that eases its
-          ratio between small and large viewports). Resize the window to watch them breathe.
+          (<code>--text-2xs</code>…<code>--text-3xl</code>, each a <code>clamp()</code> that eases
+          its ratio between small and large viewports). Resize the window to watch them breathe.
         </p>
       </section>
 
@@ -394,7 +394,7 @@
       <hr class="measure" />
 
       <!-- ============ CENTERED GRID ============ -->
-      <section class="rhythm measure">
+      <section class="rhythm">
         <h2><span class="section-no">02</span>The centered grid</h2>
         <p>
           Put <code>.centered</code> on an element and its children land in the <b>measure</b> track
@@ -405,9 +405,9 @@
       </section>
 
       <div class="breakout">
-        <div class="diagram">
+        <div class="centered">
           <div class="gutter-label">↤ gutter · clamp(1rem, 4cqi, max) · gutter ↦</div>
-          <div class="band full">fullbleed <span class="w">edge to edge</span></div>
+          <div class="band fullbleed">fullbleed <span class="w">edge to edge</span></div>
           <div class="band spotlight">spotlight <span class="w" id="w-spot"></span></div>
           <div class="band breakout">breakout <span class="w" id="w-break"></span></div>
           <div class="band measure">measure <span class="w" id="w-meas"></span></div>
@@ -769,84 +769,74 @@
         sg.appendChild(d);
       });
 
-      // ---- Animation effect gallery (replay on click) ----
-      // Each effect: [class, stage, the from/to custom properties the keyframe reads]
+      // ---- Animation effect gallery (dogfoods the real framework classes) ----
+      // Each tile applies the actual effect class(es) + .anim-trigger and replays
+      // by re-adding .triggered — the framework's own trigger API, not an inline
+      // hack. Composite-stage classes stack: the `composite` keyframe reads every
+      // transform/opacity var, so fade-in + scale-up combine into one animation.
       const effects = [
-        ['fade-in', 'composite', { '--opacity-from': 0, '--opacity-to': 1 }],
-        ['slide-up', 'composite', { '--translate-y-from': '2rem', '--translate-y-to': 0 }],
-        ['slide-left', 'composite', { '--translate-x-from': '2rem', '--translate-x-to': 0 }],
-        [
-          'scale-up',
-          'composite',
-          { '--scale-x-from': 0.6, '--scale-y-from': 0.6, '--scale-x-to': 1, '--scale-y-to': 1 },
-        ],
-        ['rotate-cw', 'composite', { '--rotate-from': '0deg', '--rotate-to': '360deg' }],
-        ['blur-in', 'paint', { '--blur-from': '10px', '--blur-to': '0px' }],
-        [
-          'fade-scale',
-          'composite',
-          {
-            '--opacity-from': 0,
-            '--opacity-to': 1,
-            '--scale-x-from': 0.6,
-            '--scale-y-from': 0.6,
-            '--scale-x-to': 1,
-            '--scale-y-to': 1,
-          },
-        ],
-        [
-          'fade-slide',
-          'composite',
-          {
-            '--opacity-from': 0,
-            '--opacity-to': 1,
-            '--translate-y-from': '2rem',
-            '--translate-y-to': 0,
-          },
-        ],
+        [['fade-in'], 'composite'],
+        [['slide-up'], 'composite'],
+        [['slide-left'], 'composite'],
+        [['scale-up'], 'composite'],
+        [['rotate-cw'], 'composite'],
+        [['blur-in'], 'paint'],
+        [['fade-in', 'scale-up'], 'composite'],
+        [['fade-in', 'slide-up'], 'composite'],
+      ];
+      // Probe these var bases to build each tile's from/to table from what the
+      // applied classes actually set (so the table can't drift from the CSS).
+      const propBases = [
+        'opacity',
+        'translate-x',
+        'translate-y',
+        'scale-x',
+        'scale-y',
+        'rotate',
+        'blur',
+        'brightness',
       ];
       const eg = $('effects');
-      effects.forEach(([cls, stage, vars]) => {
+      effects.forEach(([classes, stage]) => {
         const cell = document.createElement('div');
         cell.className = 'anim-cell';
-        const props = Object.keys(vars)
-          .filter((k) => k.endsWith('-from'))
-          .map((fromK) => {
-            const base = fromK.replace('-from', '');
-            const toK = base + '-to';
-            const name = base.replace('--', '');
-            return (
-              '<tr><td>' +
-              name +
-              '</td><td>' +
-              vars[fromK] +
-              '</td><td>' +
-              (toK in vars ? vars[toK] : '—') +
-              '</td></tr>'
-            );
-          })
-          .join('');
         cell.innerHTML =
           '<div class="demo"><div class="chip"></div></div>' +
           '<code class="font-code">.' +
-          cls +
+          classes.join('.') +
           '</code>' +
           '<div class="stage-tag">' +
           stage +
           '</div>' +
-          '<table class="props"><thead><tr><th>prop</th><th>from</th><th>to</th></tr></thead><tbody>' +
-          props +
-          '</tbody></table>' +
+          '<table class="props"><thead><tr><th>prop</th><th>from</th><th>to</th></tr></thead><tbody></tbody></table>' +
           '<div class="hint">click to replay</div>';
         const chip = cell.querySelector('.chip');
+        const on = [...classes, 'anim-trigger'];
+        eg.appendChild(cell); // attach first — getComputedStyle is empty while detached
+        chip.classList.add(...on); // apply so class-supplied vars resolve
+        const cs = getComputedStyle(chip);
+        cell.querySelector('tbody').innerHTML = propBases
+          .map((base) => {
+            const from = cs.getPropertyValue('--' + base + '-from').trim();
+            const to = cs.getPropertyValue('--' + base + '-to').trim();
+            if (!from && !to) return '';
+            return (
+              '<tr><td>' +
+              base +
+              '</td><td>' +
+              (from || '—') +
+              '</td><td>' +
+              (to || '—') +
+              '</td></tr>'
+            );
+          })
+          .join('');
         const play = () => {
-          chip.style.animation = 'none';
-          void chip.offsetWidth;
-          chip.style.animation = (stage === 'paint' ? 'paint' : 'composite') + ' .6s both';
-          for (const k in vars) chip.style.setProperty(k, vars[k]);
+          chip.classList.remove(...on, 'triggered');
+          void chip.offsetWidth; // reflow → restart from the `from` keyframe
+          chip.classList.add(...on, 'triggered');
         };
         cell.addEventListener('click', play);
-        eg.appendChild(cell);
         setTimeout(play, 200);
       });
 

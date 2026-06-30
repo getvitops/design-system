@@ -132,13 +132,13 @@ body {
   position: relative;
   display: grid;
   grid-template-columns:
-    [full-start] minmax(var(--gutter), 1fr)
+    [fullbleed-start] minmax(var(--gutter), 1fr)
     [spotlight-start] var(--_spotlight)
     [breakout-start] var(--_breakout)
     [measure-start] var(--_measure) [measure-end]
     var(--_breakout) [breakout-end]
     var(--_spotlight) [spotlight-end]
-    minmax(var(--gutter), 1fr) [full-end];
+    minmax(var(--gutter), 1fr) [fullbleed-end];
 }
 
 .centered > * {
@@ -156,7 +156,7 @@ body {
   grid-column: spotlight;
 }
 .fullbleed {
-  grid-column: full;
+  grid-column: fullbleed;
 }
 
 /* Promotion variants (base = measure; widen past each container breakpoint) */
@@ -171,7 +171,7 @@ body {
     grid-column: spotlight;
   }
   .fullbleed-sm {
-    grid-column: full;
+    grid-column: fullbleed;
   }
 }
 @container (min-width: 48rem) {
@@ -185,7 +185,7 @@ body {
     grid-column: spotlight;
   }
   .fullbleed-md {
-    grid-column: full;
+    grid-column: fullbleed;
   }
 }
 @container (min-width: 64rem) {
@@ -199,7 +199,7 @@ body {
     grid-column: spotlight;
   }
   .fullbleed-lg {
-    grid-column: full;
+    grid-column: fullbleed;
   }
 }
 @container (min-width: 80rem) {
@@ -213,7 +213,7 @@ body {
     grid-column: spotlight;
   }
   .fullbleed-xl {
-    grid-column: full;
+    grid-column: fullbleed;
   }
 }
 
