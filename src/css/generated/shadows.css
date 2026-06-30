@@ -6,15 +6,7 @@
   --shadow-xl: 0 20px 25px rgb(0 0 0 / 0.22);
 }
 
-.drop-shadow-sm {
-  filter: drop-shadow(var(--shadow-sm));
-}
-.drop-shadow-md {
-  filter: drop-shadow(var(--shadow-md));
-}
-.drop-shadow-lg {
-  filter: drop-shadow(var(--shadow-lg));
-}
-.drop-shadow-xl {
-  filter: drop-shadow(var(--shadow-xl));
-}
+.drop-shadow-sm { filter: drop-shadow(var(--shadow-sm)); }
+.drop-shadow-md { filter: drop-shadow(var(--shadow-md)); }
+.drop-shadow-lg { filter: drop-shadow(var(--shadow-lg)); }
+.drop-shadow-xl { filter: drop-shadow(var(--shadow-xl)); }
