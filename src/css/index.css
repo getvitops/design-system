@@ -1,4 +1,5 @@
 @import './animation.css';
+@import './generated/animation-effects.css';
 @import './generated/color.css';
 @import './generated/shadows.css';
 @import './generated/type-tokens.css';

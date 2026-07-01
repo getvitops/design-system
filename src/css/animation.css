@@ -1,6 +1,10 @@
 /**
  * Animation System — three orthogonal layers
  *
+ * This file is the ENGINE (keyframes, drivers, floats, utilities), hand-written.
+ * The effect + journey classes are GENERATED from design-system.json `animations`
+ * into ./generated/animation-effects.css (imported right after this file).
+ *
  *   Effects (the WHAT): set only `--_anim` (which keyframe) +
  *     `--<prop>-from/-to` vars. Inert alone — a driver supplies the mechanism.
  *   Drivers (the HOW/WHEN): pair an effect with a mechanism —
@@ -341,6 +345,11 @@
 .animate-view {
   animation-name: var(--_anim);
   animation-timeline: view();
+  /* Finish the entrance early — by default within the first 20% of the element's
+     travel through the viewport — so it reads as "already in" once on screen
+     (fill: both holds the end state). Override the stops via --anim-range;
+     journey effects set their own `entry exit` range and are unaffected. */
+  animation-range: var(--anim-range, entry 0% cover 20%);
 }
 
 .animate-scroll {
@@ -363,32 +372,33 @@
 }
 
 /* ===========================================
- * Tier 1b: Transition drivers (state-flip — reversible, interruptible)
- * Reuse the effects' --<prop>-from/-to vars but tween with transitions, so the
- * effect plays forward when the state turns on and reverses when it turns off.
- * Resting = `from`; the active state flips to `to`.
- *   transition-active → toggled by .is-active or [data-active] (JS / state attr)
- *   transition-hover  → :hover / :focus-visible (pure CSS, keyboard-accessible)
- * Covers compositor + the full paint chain (filter + clip-path); only layout
- * (auto height) stays keyframe-only. The property/var set mirrors the composite
- * and paint keyframes exactly, so any of those effects works as a transition.
+ * Tier 1b: Transition base (state-flip — reversible, interruptible)
+ * `.transition` transitions every animatable property, applying each from a
+ * single current var (--t-<prop>). The generated state variants (hover-<fx> /
+ * active-<fx> in animation-effects.css) set those vars per state, so different
+ * effects bind to different states on one element:
+ *   <div class="transition hover-slide-up active-elevate-up">
+ * Covers compositor + the full paint chain; layout (auto height) is keyframe-only.
  * =========================================== */
 
-/* Plain class selectors (not :where) so the driver's transition + resting state
-   win over any element-level transition (e.g. a button pattern's), and so the
-   active rule (2 simple selectors) outranks the resting rule (1). */
-.transition-active,
-.transition-hover {
+.transition {
   animation: none; /* state-driven, not keyframe-driven */
-  opacity: var(--opacity-from, 1);
-  translate: var(--translate-x-from, 0) var(--translate-y-from, 0);
-  scale: var(--scale-x-from, 1) var(--scale-y-from, 1);
-  rotate: var(--rotate-from, 0deg);
-  filter: blur(var(--blur-from, 0px)) drop-shadow(var(--shadow-from, 0 0 0 transparent))
-    brightness(var(--brightness-from, 1)) grayscale(var(--grayscale-from, 0))
-    contrast(var(--contrast-from, 1)) saturate(var(--saturate-from, 1)) sepia(var(--sepia-from, 0))
-    hue-rotate(var(--hue-rotate-from, 0deg));
-  clip-path: var(--clip-from, none);
+  /* Each property reads the internal --t-<prop> (set per state by the variants),
+     falling back to the SAME --<prop>-from endpoint the keyframes read — so the
+     from/to vars are one shared convention across keyframe and transition modes. */
+  opacity: var(--t-opacity, var(--opacity-from, 1));
+  translate: var(--t-translate-x, var(--translate-x-from, 0))
+    var(--t-translate-y, var(--translate-y-from, 0));
+  scale: var(--t-scale-x, var(--scale-x-from, 1)) var(--t-scale-y, var(--scale-y-from, 1));
+  rotate: var(--t-rotate, var(--rotate-from, 0deg));
+  filter: blur(var(--t-blur, var(--blur-from, 0px)))
+    drop-shadow(var(--t-shadow, var(--shadow-from, 0 0 0 transparent)))
+    brightness(var(--t-brightness, var(--brightness-from, 1)))
+    grayscale(var(--t-grayscale, var(--grayscale-from, 0)))
+    contrast(var(--t-contrast, var(--contrast-from, 1)))
+    saturate(var(--t-saturate, var(--saturate-from, 1))) sepia(var(--t-sepia, var(--sepia-from, 0)))
+    hue-rotate(var(--t-hue-rotate, var(--hue-rotate-from, 0deg)));
+  clip-path: var(--t-clip, var(--clip-from, none));
   transition:
     opacity var(--animation-duration) var(--custom-ease-out),
     translate var(--animation-duration) var(--custom-ease-out),
@@ -396,21 +406,6 @@
     rotate var(--animation-duration) var(--custom-ease-out),
     filter var(--animation-duration) var(--custom-ease-out),
     clip-path var(--animation-duration) var(--custom-ease-out);
-}
-
-.transition-active.is-active,
-.transition-active[data-active],
-.transition-hover:hover,
-.transition-hover:focus-visible {
-  opacity: var(--opacity-to, 1);
-  translate: var(--translate-x-to, 0) var(--translate-y-to, 0);
-  scale: var(--scale-x-to, 1) var(--scale-y-to, 1);
-  rotate: var(--rotate-to, 0deg);
-  filter: blur(var(--blur-to, 0px)) drop-shadow(var(--shadow-to, 0 0 0 transparent))
-    brightness(var(--brightness-to, 1)) grayscale(var(--grayscale-to, 0))
-    contrast(var(--contrast-to, 1)) saturate(var(--saturate-to, 1)) sepia(var(--sepia-to, 0))
-    hue-rotate(var(--hue-rotate-to, 0deg));
-  clip-path: var(--clip-to, none);
 }
 
 /* Respect reduced-motion: drop keyframes, transitions, and continuous floats so
@@ -424,224 +419,9 @@
   .float-path {
     animation: none !important;
   }
-  .transition-active,
-  .transition-hover {
+  .transition {
     transition: none !important;
   }
-}
-
-/* ===========================================
- * Tier 2: Compositor Effects
- * --_anim: composite
- * =========================================== */
-
-/* --- Fade --- */
-
-.fade-in {
-  --_anim: composite;
-  --opacity-from: 0;
-}
-
-.fade-out {
-  --_anim: composite;
-  --opacity-from: 1;
-  --opacity-to: 0;
-}
-
-/* --- Slide --- */
-
-.slide-up {
-  --_anim: composite;
-  --translate-y-from: var(--slide-distance, 2rem);
-}
-
-.slide-down {
-  --_anim: composite;
-  --translate-y-from: calc(-1 * var(--slide-distance, 2rem));
-}
-
-.slide-left {
-  --_anim: composite;
-  --translate-x-from: var(--slide-distance, 2rem);
-}
-
-.slide-right {
-  --_anim: composite;
-  --translate-x-from: calc(-1 * var(--slide-distance, 2rem));
-}
-
-/* --- Scale --- */
-
-.scale-up {
-  --_anim: composite;
-  --scale-x-from: 0.9;
-  --scale-y-from: 0.9;
-}
-
-.scale-down {
-  --_anim: composite;
-  --scale-x-from: 1.1;
-  --scale-y-from: 1.1;
-}
-
-/* --- Rotate --- */
-
-.rotate-cw {
-  --_anim: composite;
-  --rotate-from: 0deg;
-  --rotate-to: 360deg;
-}
-
-.rotate-ccw {
-  --_anim: composite;
-  --rotate-from: 0deg;
-  --rotate-to: -360deg;
-}
-
-/* ===========================================
- * Tier 2: Paint Effects
- * --_anim: paint
- * =========================================== */
-
-/* --- Blur --- */
-
-.blur-in {
-  --_anim: paint;
-  --blur-from: var(--blur-amount, 10px);
-}
-
-.blur-out {
-  --_anim: paint;
-  --blur-from: 0;
-  --blur-to: var(--blur-amount, 10px);
-}
-
-/* --- Elevate --- */
-
-.elevate-up {
-  --_anim: paint;
-  --shadow-from: 0 0 0 transparent;
-  --shadow-to: var(--default-shadow, 0 4px 6px rgba(0, 0, 0, 0.1));
-}
-
-.elevate-down {
-  --_anim: paint;
-  --shadow-from: var(--default-shadow, 0 4px 6px rgba(0, 0, 0, 0.1));
-  --shadow-to: 0 0 0 transparent;
-}
-
-/* --- Reveal (clip-path) --- */
-
-.reveal-left {
-  --_anim: paint;
-  --clip-from: inset(0 100% 0 0);
-  --clip-to: inset(0);
-}
-
-.reveal-right {
-  --_anim: paint;
-  --clip-from: inset(0 0 0 100%);
-  --clip-to: inset(0);
-}
-
-.reveal-up {
-  --_anim: paint;
-  --clip-from: inset(100% 0 0 0);
-  --clip-to: inset(0);
-}
-
-.reveal-down {
-  --_anim: paint;
-  --clip-from: inset(0 0 100% 0);
-  --clip-to: inset(0);
-}
-
-/* ===========================================
- * Tier 2: Layout Effects
- * --_anim: layout
- * =========================================== */
-
-.size-grow {
-  --_anim: layout;
-  overflow: clip;
-  --height-from: 0;
-  --height-to: auto;
-}
-
-.size-shrink {
-  --_anim: layout;
-  overflow: clip;
-  --height-from: auto;
-  --height-to: 0;
-}
-
-/* ===========================================
- * Tier 2: Journey Effects
- * Multi-phase entry → hold → exit
- * =========================================== */
-
-.fade-journey {
-  --_anim: fade-journey;
-  animation-range: entry exit;
-  --opacity-from: 0;
-}
-
-.slide-journey {
-  --_anim: slide-journey;
-  animation-range: entry exit;
-}
-
-.scale-journey {
-  --_anim: scale-journey;
-  animation-range: entry exit;
-  --scale-x-from: 0.8;
-  --scale-y-from: 0.8;
-}
-
-.blur-journey {
-  --_anim: blur-journey;
-  animation-range: entry exit;
-  --blur-from: 5px;
-}
-
-/* Journey compositions (multi-value animation-name) */
-
-.fade-slide-journey {
-  --_anim: fade-journey, slide-journey;
-  animation-range: entry exit;
-  --opacity-from: 0;
-}
-
-.fade-scale-journey {
-  --_anim: fade-journey, scale-journey;
-  animation-range: entry exit;
-  --opacity-from: 0;
-  --scale-x-from: 0.8;
-  --scale-y-from: 0.8;
-}
-
-.fade-blur-journey {
-  --_anim: fade-journey, blur-journey;
-  animation-range: entry exit;
-  --opacity-from: 0;
-  --blur-from: 5px;
-}
-
-.fade-slide-scale-journey {
-  --_anim: fade-journey, slide-journey, scale-journey;
-  animation-range: entry exit;
-  --opacity-from: 0;
-  --scale-x-from: 0.8;
-  --scale-y-from: 0.8;
-}
-
-.fade-scale-blur-journey {
-  --_anim: fade-journey, scale-journey, blur-journey;
-  animation-range: entry exit;
-  --opacity-from: 0;
-  --scale-x-from: 0.8;
-  --scale-y-from: 0.8;
-  --blur-from: 5px;
 }
 
 /* ===========================================

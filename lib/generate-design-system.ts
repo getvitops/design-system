@@ -82,6 +82,20 @@ interface ScaleConfig {
   baseline?: string; // Bricks GUI scale centre (default: middle name)
   fluid?: { minVw: string; maxVw: string; minRatio: number };
 }
+// Animation effects: pure value layer emitted as .<name> { --_anim; --<var>; }.
+// The keyframes + drivers (the engine) stay hand-written in src/css/animation.css.
+type Vars = Record<string, string | number>;
+interface AnimEffect {
+  kf: string; // --_anim keyframe (composite | paint | layout)
+  css?: Vars; // extra literal declarations (e.g. overflow: clip)
+  vars?: Vars; // --<key>: <value> (only non-default from/to values)
+}
+interface AnimationsConfig {
+  effects?: Record<string, AnimEffect>; // composite/paint/layout effect classes
+  // Journeys: compose base parts → .<parts>-journey with merged vars + a
+  // multi-value --_anim, so new compositions are one line in `compose`.
+  journeys?: { base?: Record<string, Vars>; compose?: string[][] };
+}
 interface DesignSystem {
   colors: ColorConfig;
   shadows?: Record<string, string>;
@@ -90,6 +104,7 @@ interface DesignSystem {
   fonts?: Record<string, string>; // --font-<name> family stacks
   typeScale?: ScaleConfig; // --text-<name> fluid scale
   spaceScale?: ScaleConfig; // --space-<name> fluid scale (additive)
+  animations?: AnimationsConfig; // effect + journey classes (engine stays static)
 }
 
 const rootPath = join(import.meta.dirname, '..');
@@ -235,7 +250,7 @@ const STEP_INDEX: Record<string, number> = Object.fromEntries(STEP_ORDER.map((s,
 const shiftStep = (step: string, by: number): string => {
   const i = STEP_INDEX[step] ?? STEP_ORDER.indexOf('base');
   const j = Math.max(0, Math.min(STEP_ORDER.length - 1, i - by)); // darker = lower index
-  return STEP_ORDER[j];
+  return STEP_ORDER[j] as string;
 };
 
 // Resolve a role's base step. Patterns sit at "d" (the role's main usable shade).
@@ -524,6 +539,94 @@ for (const [pname, p] of Object.entries(patterns?.items ?? {})) {
 const patternsOutputPath = join(cssPath, 'patterns.css');
 writeFileSync(patternsOutputPath, pat);
 console.log(`✓ ${patternsOutputPath}`);
+
+// ── animation-effects.css (effect + journey classes) ────────────────────────
+// Always emitted (structural, like typography). Each effect is a pure value
+// layer: .<name> { --_anim: <kf>; <css>; --<var>: <val>; }. The keyframes,
+// drivers, floats, and utilities stay hand-written in src/css/animation.css.
+{
+  const anim = ds.animations ?? {};
+  const asStr = (v: string | number) => String(v);
+  const block = (sel: string, d: Record<string, string>) => `.${sel} {\n${decls(d)}\n}\n`;
+
+  let out = `/* GENERATED animation effects + journeys — do not edit by hand. */\n`;
+
+  for (const [name, e] of Object.entries(anim.effects ?? {})) {
+    const d: Record<string, string> = { '--_anim': e.kf };
+    for (const [k, v] of Object.entries(e.css ?? {})) d[k] = asStr(v);
+    for (const [k, v] of Object.entries(e.vars ?? {})) d[`--${k}`] = asStr(v);
+    out += block(name, d);
+  }
+
+  // Journeys: each composition merges its base parts' vars + a multi-value --_anim.
+  const base = anim.journeys?.base ?? {};
+  for (const parts of anim.journeys?.compose ?? []) {
+    const d: Record<string, string> = {
+      '--_anim': parts.map((p) => `${p}-journey`).join(', '),
+      'animation-range': 'entry exit',
+    };
+    for (const p of parts)
+      for (const [k, v] of Object.entries(base[p] ?? {})) d[`--${k}`] = asStr(v);
+    out += block(`${parts.join('-')}-journey`, d);
+  }
+
+  // State-flip variants: compose with the `.transition` base. For each
+  // composite/paint effect, hover-<fx>/active-<fx> funnel the effect's from/to
+  // into per-state --t-<prop> vars, so different effects bind to different
+  // states on one element (e.g. hover-slide-up + active-elevate-up).
+  const STATE_DEFAULT: Record<string, string> = {
+    opacity: '1',
+    'translate-x': '0',
+    'translate-y': '0',
+    'scale-x': '1',
+    'scale-y': '1',
+    rotate: '0deg',
+    blur: '0px',
+    shadow: '0 0 0 transparent',
+    brightness: '1',
+    grayscale: '0',
+    contrast: '1',
+    saturate: '1',
+    sepia: '0',
+    'hue-rotate': '0deg',
+    clip: 'none',
+  };
+  // Distinct states so different effects bind independently. hover/focus are
+  // split (not bundled) so you can pair them for a11y (hover-fx focus-fx) or
+  // give focus its own effect.
+  const STATES: [string, (s: string) => string][] = [
+    ['hover', (s) => `.${s}:hover`],
+    ['focus', (s) => `.${s}:focus-visible`],
+    ['active', (s) => `.${s}.is-active, .${s}[data-active]`],
+  ];
+  out += `\n/* State-flip variants — compose with .transition (hover-/focus-/active-<fx>). */\n`;
+  for (const [name, e] of Object.entries(anim.effects ?? {})) {
+    if (e.kf !== 'composite' && e.kf !== 'paint') continue; // no layout/journey state-flips
+    const props: Record<string, { from?: string; to?: string }> = {};
+    for (const [k, v] of Object.entries(e.vars ?? {})) {
+      const m = /^(.*)-(from|to)$/.exec(k);
+      if (m) (props[m[1] as string] ??= {})[m[2] as 'from' | 'to'] = asStr(v);
+    }
+    // Rest: the shared --<prop>-from/-to endpoints (the same vars the keyframes
+    // read); emit only non-defaults. The .transition base reads --<prop>-from.
+    const rest: Record<string, string> = {};
+    for (const [p, ft] of Object.entries(props)) {
+      if (ft.from != null && ft.from !== STATE_DEFAULT[p]) rest[`--${p}-from`] = ft.from;
+      if (ft.to != null && ft.to !== STATE_DEFAULT[p]) rest[`--${p}-to`] = ft.to;
+    }
+    // State: flip the internal current var to the shared `to` endpoint.
+    const flip: Record<string, string> = Object.fromEntries(
+      Object.keys(props).map((p) => [`--t-${p}`, `var(--${p}-to, ${STATE_DEFAULT[p]})`]),
+    );
+    if (Object.keys(rest).length)
+      out += `${STATES.map(([s]) => `.${s}-${name}`).join(', ')} {\n${decls(rest)}\n}\n`;
+    for (const [s, sel] of STATES) out += `${sel(`${s}-${name}`)} {\n${decls(flip)}\n}\n`;
+  }
+
+  const animOutputPath = join(cssPath, 'animation-effects.css');
+  writeFileSync(animOutputPath, out);
+  console.log(`✓ ${animOutputPath}`);
+}
 
 // ── Bricks palettes ─────────────────────────────────────────────────────────
 mkdirSync(distPath, { recursive: true });
