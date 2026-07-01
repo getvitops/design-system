@@ -230,6 +230,28 @@
         grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
         gap: 1rem;
       }
+      /* Driver-demo boxes (hover/state/scroll/stagger examples). */
+      .fx-box {
+        display: grid;
+        place-items: center;
+        min-height: 4.5rem;
+        padding: 1rem;
+        border: 0;
+        border-radius: var(--br-default);
+        background: var(--color-brand-primary);
+        color: #fff;
+        text-align: center;
+        cursor: default;
+      }
+      .fx-box code {
+        background: none;
+        color: inherit;
+        font-size: 0.8em;
+      }
+      .fx-box[data-toggle],
+      .stagger .fx-box {
+        cursor: pointer;
+      }
       .anim-cell,
       .float-cell {
         padding: 1rem;
@@ -672,10 +694,64 @@
       </section>
       <div class="gallery breakout" id="effects"></div>
       <p class="font-caption measure">
-        In production a timeline class drives them: <code>.anim-view</code> (progress tied to the
-        element entering the viewport), <code>.anim-scroll</code> (tied to page scroll), or
-        <code>.anim-trigger</code> (fired once by an observer). Here we replay on click.
+        An effect only sets <code>--_anim</code> + <code>--*-from/-to</code> vars; a
+        <b>driver</b> supplies the mechanism. The tiles above use
+        <code>.animate-trigger</code> (plays once when <code>.is-active</code> is set). The same
+        effects also drive scroll timelines and state-flip transitions — below.
       </p>
+
+      <section class="rhythm measure">
+        <h3>State-flip via transitions</h3>
+        <p>
+          <code>.transition-hover</code> and <code>.transition-active</code> tween the same
+          <code>from</code>/<code>to</code> vars with a CSS <em>transition</em> instead of a
+          keyframe, so they reverse cleanly. Hover the first two; click the third to toggle
+          <code>.is-active</code>.
+        </p>
+      </section>
+      <div class="row breakout">
+        <div
+          class="fx-box scale-up transition-hover"
+          style="--scale-x-from: 0.85; --scale-y-from: 0.85"
+        >
+          <code>.scale-up.transition-hover</code>
+        </div>
+        <div class="fx-box slide-up transition-hover" style="--translate-y-from: 0.5rem">
+          <code>.slide-up.transition-hover</code>
+        </div>
+        <div
+          class="fx-box fade-in slide-up transition-active"
+          data-toggle
+          style="--opacity-from: 0.3; --translate-y-from: 0.75rem"
+        >
+          <code>.transition-active</code> — click
+        </div>
+      </div>
+
+      <section class="rhythm measure">
+        <h3>Scroll-driven</h3>
+        <p>
+          <code>.animate-view</code> ties the effect's progress to the element entering the viewport
+          (no JS — a CSS <code>view()</code> timeline). Scroll this row in and out to scrub it:
+        </p>
+      </section>
+      <div class="row breakout">
+        <div class="fx-box fade-in slide-up animate-view">
+          <code>.fade-in.slide-up.animate-view</code>
+        </div>
+        <div class="fx-box scale-up animate-view"><code>.scale-up.animate-view</code></div>
+        <div class="fx-box blur-in animate-view"><code>.blur-in.animate-view</code></div>
+      </div>
+
+      <section class="rhythm measure">
+        <h3>Staggered trigger</h3>
+        <p>
+          A <code>.stagger</code> container delays each child by its row position
+          (<code>--stagger-amount</code>); <code>.animate-trigger</code> children play as the group
+          scrolls in. Click to replay:
+        </p>
+      </section>
+      <div class="gallery breakout stagger" id="stagger-demo" style="--stagger-amount: 0.5s"></div>
 
       <section class="rhythm measure">
         <h3>Float presets</h3>
@@ -770,10 +846,10 @@
       });
 
       // ---- Animation effect gallery (dogfoods the real framework classes) ----
-      // Each tile applies the actual effect class(es) + .anim-trigger and replays
-      // by re-adding .triggered — the framework's own trigger API, not an inline
-      // hack. Composite-stage classes stack: the `composite` keyframe reads every
-      // transform/opacity var, so fade-in + scale-up combine into one animation.
+      // Each tile applies the actual effect class(es) + .animate-trigger and
+      // replays by re-adding .is-active — the framework's own trigger API, not an
+      // inline hack. Composite-stage classes stack: the `composite` keyframe reads
+      // every transform/opacity var, so fade-in + scale-up combine into one.
       const effects = [
         [['fade-in'], 'composite'],
         [['slide-up'], 'composite'],
@@ -811,7 +887,7 @@
           '<table class="props"><thead><tr><th>prop</th><th>from</th><th>to</th></tr></thead><tbody></tbody></table>' +
           '<div class="hint">click to replay</div>';
         const chip = cell.querySelector('.chip');
-        const on = [...classes, 'anim-trigger'];
+        const on = [...classes, 'animate-trigger'];
         eg.appendChild(cell); // attach first — getComputedStyle is empty while detached
         chip.classList.add(...on); // apply so class-supplied vars resolve
         const cs = getComputedStyle(chip);
@@ -832,9 +908,9 @@
           })
           .join('');
         const play = () => {
-          chip.classList.remove(...on, 'triggered');
+          chip.classList.remove(...on, 'is-active');
           void chip.offsetWidth; // reflow → restart from the `from` keyframe
-          chip.classList.add(...on, 'triggered');
+          chip.classList.add(...on, 'is-active');
         };
         cell.addEventListener('click', play);
         setTimeout(play, 200);
@@ -846,7 +922,6 @@
         'float-bounce-y',
         'float-drift-x',
         'float-gentle',
-        'float-diamond',
         'float-figure-8',
       ];
       const fg = $('floats');
@@ -854,13 +929,36 @@
         const cell = document.createElement('div');
         cell.className = 'float-cell';
         cell.innerHTML =
-          '<div class="orbit"><div class="dot ' +
+          '<div class="orbit"><div class="dot float ' +
           cls +
-          '" style="--float-radius:18px;--float-distance:16px"></div></div><code class="font-code">.' +
+          '" style="--float-radius:18px;--float-distance:16px"></div></div><code class="font-code">.float.' +
           cls +
           '</code>';
         fg.appendChild(cell);
       });
+
+      // ---- State-flip: click toggles .is-active on [data-toggle] elements ----
+      document.querySelectorAll('[data-toggle]').forEach((el) => {
+        el.addEventListener('click', () => el.classList.toggle('is-active'));
+      });
+
+      // ---- Staggered trigger demo (cascade in; click anywhere to replay) ----
+      const sd = $('stagger-demo');
+      for (let i = 1; i <= 6; i++) {
+        const c = document.createElement('div');
+        c.className = 'fx-box fade-in slide-up animate-trigger';
+        c.style.setProperty('--translate-y-from', '1.25rem');
+        c.textContent = String(i);
+        sd.appendChild(c);
+      }
+      const replayStagger = () => {
+        const kids = [...sd.children];
+        kids.forEach((k) => k.classList.remove('is-active'));
+        void sd.offsetWidth; // reflow → restart the cascade
+        kids.forEach((k) => k.classList.add('is-active'));
+      };
+      sd.addEventListener('click', replayStagger);
+      setTimeout(replayStagger, 400);
 
       // ---- Dark mode toggle (flips [data-brx-theme] like Bricks would) ----
       const themeBtn = $('theme-toggle');

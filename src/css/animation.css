@@ -1,42 +1,34 @@
 /**
- * Animation System
+ * Animation System — three orthogonal layers
  *
- * Three keyframes split by rendering stage:
- *   composite  — opacity + translate/scale/rotate (compositor, cheapest)
- *   paint      — filter (blur, drop-shadow, etc.) + clip-path (paint stage)
- *   layout     — height (layout stage, most expensive)
+ *   Effects (the WHAT): set only `--_anim` (which keyframe) +
+ *     `--<prop>-from/-to` vars. Inert alone — a driver supplies the mechanism.
+ *   Drivers (the HOW/WHEN): pair an effect with a mechanism —
+ *     · animate-view / animate-scroll — keyframe linked to a scroll timeline
+ *     · animate-trigger              — keyframe, time-based; plays once when
+ *                                      .is-active / [data-active] is set
+ *     · transition-active / -hover   — TRANSITION (not keyframe) over the same
+ *                                      from/to vars, so it reverses on state flip
+ *   Both driver families read the same `--<prop>-*` vars, so one effect
+ *   (e.g. .fade-in) works in every mode with no redefinition.
  *
- * One animation per element. Effects within the same keyframe compose
- * naturally via CSS variables. Cross-keyframe effects (e.g. fade + blur)
- * require separate nested elements.
+ * Effects by rendering stage (cheapest → most expensive):
+ *   composite: fade-in/out, slide-up/down/left/right, scale-up/down, rotate-cw/ccw
+ *   paint:     blur-in/out, elevate-up/down, reveal-left/right/up/down
+ *   layout:    size-grow, size-shrink            (keyframe-only — auto height)
+ *   journey:   fade-journey, slide-journey, …    (multi-phase; view timeline)
+ * One keyframe per element: same-stage effects compose via vars (fade-in +
+ * scale-up); cross-stage (fade + blur) needs nested elements.
  *
- * Two-tier decomposition (timeline + effect classes):
+ * Float (continuous, self-contained — no driver): add `.float` + a preset,
+ *   e.g. <div class="float float-circular" style="--float-radius:15px">.
+ *   Path variants use `.float-path` (offset-path).
  *
- *   Tier 1 — Timeline: anim-view, anim-scroll, anim-trigger
- *   Tier 2 — Effects (each sets animation-name + variables):
- *     composite: fade-in, fade-out, slide-up, slide-down, slide-left, slide-right,
- *                scale-up, scale-down, rotate-cw, rotate-ccw
- *     paint:     blur-in, blur-out, elevate-up, elevate-down,
- *                reveal-left, reveal-right, reveal-up, reveal-down
- *     layout:    size-grow, size-shrink
- *     journey:   fade-journey, slide-journey, scale-journey, blur-journey
- *
- * Float animation (continuous movement):
- *   float keyframe with 4 configurable waypoints (0/25/50/75%)
- *   float-path keyframe with offset-path for arbitrary paths
- *
- * Examples:
- *   <div class="anim-view fade-in slide-up range-entry">
- *   <div class="anim-trigger fade-in scale-up">
- *   <div class="anim-scroll rotate-cw">
- *   <div class="float-circular" style="--float-radius: 15px">
- *
- * Cross-stage composition (requires nesting):
- *   <div class="anim-view fade-in">        <!-- composite -->
- *     <div class="anim-view blur-in">      <!-- paint -->
- *       Content
- *     </div>
- *   </div>
+ * Usage:
+ *   <div class="fade-in slide-up animate-view">     <!-- scroll-into-view -->
+ *   <div class="fade-in scale-up animate-trigger">  <!-- play once on enter -->
+ *   <button class="scale-up transition-hover">      <!-- grow on hover -->
+ *   <div class="fade-in slide-up transition-active"><!-- flip via .is-active -->
  */
 
 /* ===========================================
@@ -77,8 +69,12 @@
  * =========================================== */
 
 @keyframes layout {
-  from { height: var(--height-from, auto); }
-  to { height: var(--height-to, auto); }
+  from {
+    height: var(--height-from, auto);
+  }
+  to {
+    height: var(--height-to, auto);
+  }
 }
 
 /* ===========================================
@@ -108,26 +104,16 @@
 
 @keyframes paint {
   from {
-    filter:
-      blur(var(--blur-from, 0px))
-      drop-shadow(var(--shadow-from, 0 0 0 transparent))
-      brightness(var(--brightness-from, 1))
-      grayscale(var(--grayscale-from, 0))
-      contrast(var(--contrast-from, 1))
-      saturate(var(--saturate-from, 1))
-      sepia(var(--sepia-from, 0))
-      hue-rotate(var(--hue-rotate-from, 0deg));
+    filter: blur(var(--blur-from, 0px)) drop-shadow(var(--shadow-from, 0 0 0 transparent))
+      brightness(var(--brightness-from, 1)) grayscale(var(--grayscale-from, 0))
+      contrast(var(--contrast-from, 1)) saturate(var(--saturate-from, 1))
+      sepia(var(--sepia-from, 0)) hue-rotate(var(--hue-rotate-from, 0deg));
     clip-path: var(--clip-from, none);
   }
   to {
-    filter:
-      blur(var(--blur-to, 0px))
-      drop-shadow(var(--shadow-to, 0 0 0 transparent))
-      brightness(var(--brightness-to, 1))
-      grayscale(var(--grayscale-to, 0))
-      contrast(var(--contrast-to, 1))
-      saturate(var(--saturate-to, 1))
-      sepia(var(--sepia-to, 0))
+    filter: blur(var(--blur-to, 0px)) drop-shadow(var(--shadow-to, 0 0 0 transparent))
+      brightness(var(--brightness-to, 1)) grayscale(var(--grayscale-to, 0))
+      contrast(var(--contrast-to, 1)) saturate(var(--saturate-to, 1)) sepia(var(--sepia-to, 0))
       hue-rotate(var(--hue-rotate-to, 0deg));
     clip-path: var(--clip-to, none);
   }
@@ -139,24 +125,49 @@
  * =========================================== */
 
 @keyframes fade-journey {
-  0%, 100% { opacity: var(--opacity-from, 0); }
-  25%, 75% { opacity: var(--opacity-to, 1); }
+  0%,
+  100% {
+    opacity: var(--opacity-from, 0);
+  }
+  25%,
+  75% {
+    opacity: var(--opacity-to, 1);
+  }
 }
 
 @keyframes slide-journey {
-  0% { translate: var(--translate-x-from, 0) var(--translate-y-from, 0); }
-  25%, 75% { translate: var(--translate-x-to, 0) var(--translate-y-to, 0); }
-  100% { translate: calc(var(--translate-x-from, 0) * -1) calc(var(--translate-y-from, 0) * -1); }
+  0% {
+    translate: var(--translate-x-from, 0) var(--translate-y-from, 0);
+  }
+  25%,
+  75% {
+    translate: var(--translate-x-to, 0) var(--translate-y-to, 0);
+  }
+  100% {
+    translate: calc(var(--translate-x-from, 0) * -1) calc(var(--translate-y-from, 0) * -1);
+  }
 }
 
 @keyframes scale-journey {
-  0%, 100% { scale: var(--scale-x-from, 0.8) var(--scale-y-from, 0.8); }
-  25%, 75% { scale: var(--scale-x-to, 1) var(--scale-y-to, 1); }
+  0%,
+  100% {
+    scale: var(--scale-x-from, 0.8) var(--scale-y-from, 0.8);
+  }
+  25%,
+  75% {
+    scale: var(--scale-x-to, 1) var(--scale-y-to, 1);
+  }
 }
 
 @keyframes blur-journey {
-  0%, 100% { filter: blur(var(--blur-from, 5px)); }
-  25%, 75% { filter: blur(var(--blur-to, 0)); }
+  0%,
+  100% {
+    filter: blur(var(--blur-from, 5px));
+  }
+  25%,
+  75% {
+    filter: blur(var(--blur-to, 0));
+  }
 }
 
 /* ===========================================
@@ -165,63 +176,80 @@
  * =========================================== */
 
 @keyframes float {
-  0%, 100% { translate: var(--float-x-0, 0) var(--float-y-0, 0); }
-  25%      { translate: var(--float-x-25, 0) var(--float-y-25, 0); }
-  50%      { translate: var(--float-x-50, 0) var(--float-y-50, 0); }
-  75%      { translate: var(--float-x-75, 0) var(--float-y-75, 0); }
+  0%,
+  100% {
+    translate: var(--float-x-0, 0) var(--float-y-0, 0);
+  }
+  25% {
+    translate: var(--float-x-25, 0) var(--float-y-25, 0);
+  }
+  50% {
+    translate: var(--float-x-50, 0) var(--float-y-50, 0);
+  }
+  75% {
+    translate: var(--float-x-75, 0) var(--float-y-75, 0);
+  }
 }
 
 @keyframes float-path {
-  from { offset-distance: 0%; }
-  to   { offset-distance: 100%; }
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
 }
 
 /* ===========================================
  * Keyframes - Utility
  * =========================================== */
 
-@keyframes color-shift {
-  0% { background-color: var(--bg-color-shift-from); }
-  100% { background-color: var(--bg-color-shift-to); }
-}
-
 @keyframes bg-position-reveal {
-  from { background-position: var(--bg-position-reveal-from); }
-  to { background-position: var(--bg-position-reveal-to); }
+  from {
+    background-position: var(--bg-position-reveal-from);
+  }
+  to {
+    background-position: var(--bg-position-reveal-to);
+  }
 }
 
 /* ===========================================
  * Trigger Play-State
- * Controlled by IntersectionObserver in deferred.ts
+ * Paused until activated. deferred.ts adds .is-active via IntersectionObserver,
+ * but [data-active] / .is-active can also be toggled by any state logic. Gated
+ * on JS (no-js → animation runs immediately, so content is never stuck hidden).
  * =========================================== */
 
 :where(:root:not(.no-js)) {
-  .anim-trigger {
+  .animate-trigger {
     animation-play-state: paused;
   }
 
-  .triggered.anim-trigger,
-  .triggered > .anim-trigger {
+  :is(.is-active, [data-active]).animate-trigger,
+  :is(.is-active, [data-active]) > .animate-trigger {
     animation-play-state: running;
   }
 }
 
 /* ===========================================
- * Float Base (getter for all float presets)
+ * Float Base — required alongside a preset: class="float float-circular"
+ * (A plain base class beats the old [class*='float-…'] list: extensible, and
+ *  the float-slow/fast/linear modifiers can't accidentally match it.)
  * =========================================== */
 
-:is(
-  [class*="float-circular"],
-  [class*="float-figure"],
-  [class*="float-bounce"],
-  [class*="float-drift"],
-  [class*="float-gentle"],
-  [class*="float-diamond"]
-) {
+.float {
   animation-name: float;
   animation-duration: var(--float-duration, 4s);
   animation-timing-function: var(--float-easing, ease-in-out);
   animation-iteration-count: var(--float-iterations, infinite);
+}
+
+/* animation-fill-mode: both — hoisted for every keyframe-driven animation. */
+.animate-view,
+.animate-scroll,
+.animate-trigger,
+.float,
+.float-path {
   animation-fill-mode: both;
 }
 
@@ -277,13 +305,16 @@
 
 @supports ((background-clip: text) or (-webkit-background-clip: text)) {
   .text-reveal {
-    background: var(--text-reveal-background, linear-gradient(
-      var(--text-reveal-slant, 90deg),
-      var(--text-reveal-color-to) 50%,
-      var(--text-reveal-color-from) 50%
-    ));
+    background: var(
+      --text-reveal-background,
+      linear-gradient(
+        var(--text-reveal-slant, 90deg),
+        var(--text-reveal-color-to) 50%,
+        var(--text-reveal-color-from) 50%
+      )
+    );
     background-size: 200% 100%;
-    background-position: 100% 0;            /* start: showing the "from" half */
+    background-position: 100% 0; /* start: showing the "from" half */
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;
@@ -302,45 +333,24 @@
     --bg-position-reveal-to: 0% 0;
   }
 }
-/**
- * Animation Utilities
- *
- * Effect and timeline classes, decomposed so each does one thing.
- *
- * Tier 1 — Timeline (animation-timeline + fill):
- *   anim-view, anim-scroll, anim-trigger
- *
- * Tier 2 — Effects (animation-name + CSS variables):
- *   Compositor: fade-in/out, slide-up/down/left/right, scale-up/down, rotate-cw/ccw
- *   Paint:      blur-in/out, elevate-up/down, reveal-left/right/up/down
- *   Layout:     size-grow, size-shrink
- *   Journey:    fade-journey, slide-journey, scale-journey, blur-journey
- *
- * Float presets (waypoint or path-based continuous movement):
- *   float-circular, float-bounce-y, float-drift-x, float-gentle, etc.
- *
- * Usage:
- *   <div class="anim-view fade-in slide-up range-entry">
- *   <div class="float-circular" style="--float-radius: 15px">
- */
 
 /* ===========================================
- * Tier 1: Timeline Utilities
+ * Tier 1a: Keyframe drivers (animation-name from the effect's --_anim)
  * =========================================== */
 
-.anim-view {
+.animate-view {
+  animation-name: var(--_anim);
   animation-timeline: view();
-  animation-fill-mode: both;
 }
 
-.anim-scroll {
+.animate-scroll {
+  animation-name: var(--_anim);
   animation-timeline: scroll();
-  animation-fill-mode: both;
 }
 
-.anim-trigger {
+.animate-trigger {
+  animation-name: var(--_anim);
   animation-duration: var(--trigger-animation-duration);
-  animation-fill-mode: both;
 }
 
 /* Fallback: when scroll-driven timelines are unsupported, deferred.ts adds
@@ -348,26 +358,92 @@
    never advance and elements would stick at their `from` keyframe (e.g.
    opacity:0, clipped, blurred). Cancel the animation so they render in their
    natural, fully-visible state. Trigger animations are unaffected (JS-driven). */
-:root.no-scroll-timeline .anim-view,
-:root.no-scroll-timeline .anim-scroll {
+:root.no-scroll-timeline :where(.animate-view, .animate-scroll) {
   animation: none;
 }
 
 /* ===========================================
+ * Tier 1b: Transition drivers (state-flip — reversible, interruptible)
+ * Reuse the effects' --<prop>-from/-to vars but tween with transitions, so the
+ * effect plays forward when the state turns on and reverses when it turns off.
+ * Resting = `from`; the active state flips to `to`.
+ *   transition-active → toggled by .is-active or [data-active] (JS / state attr)
+ *   transition-hover  → :hover / :focus-visible (pure CSS, keyboard-accessible)
+ * Covers compositor + the full paint chain (filter + clip-path); only layout
+ * (auto height) stays keyframe-only. The property/var set mirrors the composite
+ * and paint keyframes exactly, so any of those effects works as a transition.
+ * =========================================== */
+
+/* Plain class selectors (not :where) so the driver's transition + resting state
+   win over any element-level transition (e.g. a button pattern's), and so the
+   active rule (2 simple selectors) outranks the resting rule (1). */
+.transition-active,
+.transition-hover {
+  animation: none; /* state-driven, not keyframe-driven */
+  opacity: var(--opacity-from, 1);
+  translate: var(--translate-x-from, 0) var(--translate-y-from, 0);
+  scale: var(--scale-x-from, 1) var(--scale-y-from, 1);
+  rotate: var(--rotate-from, 0deg);
+  filter: blur(var(--blur-from, 0px)) drop-shadow(var(--shadow-from, 0 0 0 transparent))
+    brightness(var(--brightness-from, 1)) grayscale(var(--grayscale-from, 0))
+    contrast(var(--contrast-from, 1)) saturate(var(--saturate-from, 1)) sepia(var(--sepia-from, 0))
+    hue-rotate(var(--hue-rotate-from, 0deg));
+  clip-path: var(--clip-from, none);
+  transition:
+    opacity var(--animation-duration) var(--custom-ease-out),
+    translate var(--animation-duration) var(--custom-ease-out),
+    scale var(--animation-duration) var(--custom-ease-out),
+    rotate var(--animation-duration) var(--custom-ease-out),
+    filter var(--animation-duration) var(--custom-ease-out),
+    clip-path var(--animation-duration) var(--custom-ease-out);
+}
+
+.transition-active.is-active,
+.transition-active[data-active],
+.transition-hover:hover,
+.transition-hover:focus-visible {
+  opacity: var(--opacity-to, 1);
+  translate: var(--translate-x-to, 0) var(--translate-y-to, 0);
+  scale: var(--scale-x-to, 1) var(--scale-y-to, 1);
+  rotate: var(--rotate-to, 0deg);
+  filter: blur(var(--blur-to, 0px)) drop-shadow(var(--shadow-to, 0 0 0 transparent))
+    brightness(var(--brightness-to, 1)) grayscale(var(--grayscale-to, 0))
+    contrast(var(--contrast-to, 1)) saturate(var(--saturate-to, 1)) sepia(var(--sepia-to, 0))
+    hue-rotate(var(--hue-rotate-to, 0deg));
+  clip-path: var(--clip-to, none);
+}
+
+/* Respect reduced-motion: drop keyframes, transitions, and continuous floats so
+   elements settle at their natural resolved state. Plain selectors + !important
+   so this reliably overrides the driver/float rules (a legitimate a11y override). */
+@media (prefers-reduced-motion: reduce) {
+  .animate-view,
+  .animate-scroll,
+  .animate-trigger,
+  .float,
+  .float-path {
+    animation: none !important;
+  }
+  .transition-active,
+  .transition-hover {
+    transition: none !important;
+  }
+}
+
+/* ===========================================
  * Tier 2: Compositor Effects
- * animation-name: composite
+ * --_anim: composite
  * =========================================== */
 
 /* --- Fade --- */
 
 .fade-in {
-  animation-name: composite;
+  --_anim: composite;
   --opacity-from: 0;
-  --opacity-to: 1;
 }
 
 .fade-out {
-  animation-name: composite;
+  --_anim: composite;
   --opacity-from: 1;
   --opacity-to: 0;
 }
@@ -375,39 +451,35 @@
 /* --- Slide --- */
 
 .slide-up {
-  animation-name: composite;
+  --_anim: composite;
   --translate-y-from: var(--slide-distance, 2rem);
-  --translate-y-to: 0;
 }
 
 .slide-down {
-  animation-name: composite;
+  --_anim: composite;
   --translate-y-from: calc(-1 * var(--slide-distance, 2rem));
-  --translate-y-to: 0;
 }
 
 .slide-left {
-  animation-name: composite;
+  --_anim: composite;
   --translate-x-from: var(--slide-distance, 2rem);
-  --translate-x-to: 0;
 }
 
 .slide-right {
-  animation-name: composite;
+  --_anim: composite;
   --translate-x-from: calc(-1 * var(--slide-distance, 2rem));
-  --translate-x-to: 0;
 }
 
 /* --- Scale --- */
 
 .scale-up {
-  animation-name: composite;
+  --_anim: composite;
   --scale-x-from: 0.9;
   --scale-y-from: 0.9;
 }
 
 .scale-down {
-  animation-name: composite;
+  --_anim: composite;
   --scale-x-from: 1.1;
   --scale-y-from: 1.1;
 }
@@ -415,32 +487,31 @@
 /* --- Rotate --- */
 
 .rotate-cw {
-  animation-name: composite;
+  --_anim: composite;
   --rotate-from: 0deg;
   --rotate-to: 360deg;
 }
 
 .rotate-ccw {
-  animation-name: composite;
+  --_anim: composite;
   --rotate-from: 0deg;
   --rotate-to: -360deg;
 }
 
 /* ===========================================
  * Tier 2: Paint Effects
- * animation-name: paint
+ * --_anim: paint
  * =========================================== */
 
 /* --- Blur --- */
 
 .blur-in {
-  animation-name: paint;
+  --_anim: paint;
   --blur-from: var(--blur-amount, 10px);
-  --blur-to: 0;
 }
 
 .blur-out {
-  animation-name: paint;
+  --_anim: paint;
   --blur-from: 0;
   --blur-to: var(--blur-amount, 10px);
 }
@@ -448,13 +519,13 @@
 /* --- Elevate --- */
 
 .elevate-up {
-  animation-name: paint;
+  --_anim: paint;
   --shadow-from: 0 0 0 transparent;
   --shadow-to: var(--default-shadow, 0 4px 6px rgba(0, 0, 0, 0.1));
 }
 
 .elevate-down {
-  animation-name: paint;
+  --_anim: paint;
   --shadow-from: var(--default-shadow, 0 4px 6px rgba(0, 0, 0, 0.1));
   --shadow-to: 0 0 0 transparent;
 }
@@ -462,43 +533,43 @@
 /* --- Reveal (clip-path) --- */
 
 .reveal-left {
-  animation-name: paint;
+  --_anim: paint;
   --clip-from: inset(0 100% 0 0);
   --clip-to: inset(0);
 }
 
 .reveal-right {
-  animation-name: paint;
+  --_anim: paint;
   --clip-from: inset(0 0 0 100%);
   --clip-to: inset(0);
 }
 
 .reveal-up {
-  animation-name: paint;
+  --_anim: paint;
   --clip-from: inset(100% 0 0 0);
   --clip-to: inset(0);
 }
 
 .reveal-down {
-  animation-name: paint;
+  --_anim: paint;
   --clip-from: inset(0 0 100% 0);
   --clip-to: inset(0);
 }
 
 /* ===========================================
  * Tier 2: Layout Effects
- * animation-name: layout
+ * --_anim: layout
  * =========================================== */
 
 .size-grow {
-  animation-name: layout;
+  --_anim: layout;
   overflow: clip;
   --height-from: 0;
   --height-to: auto;
 }
 
 .size-shrink {
-  animation-name: layout;
+  --_anim: layout;
   overflow: clip;
   --height-from: auto;
   --height-to: 0;
@@ -510,76 +581,67 @@
  * =========================================== */
 
 .fade-journey {
-  animation-name: fade-journey;
+  --_anim: fade-journey;
   animation-range: entry exit;
   --opacity-from: 0;
-  --opacity-to: 1;
 }
 
 .slide-journey {
-  animation-name: slide-journey;
+  --_anim: slide-journey;
   animation-range: entry exit;
 }
 
 .scale-journey {
-  animation-name: scale-journey;
+  --_anim: scale-journey;
   animation-range: entry exit;
   --scale-x-from: 0.8;
   --scale-y-from: 0.8;
 }
 
 .blur-journey {
-  animation-name: blur-journey;
+  --_anim: blur-journey;
   animation-range: entry exit;
   --blur-from: 5px;
-  --blur-to: 0;
 }
 
 /* Journey compositions (multi-value animation-name) */
 
 .fade-slide-journey {
-  animation-name: fade-journey, slide-journey;
+  --_anim: fade-journey, slide-journey;
   animation-range: entry exit;
   --opacity-from: 0;
-  --opacity-to: 1;
 }
 
 .fade-scale-journey {
-  animation-name: fade-journey, scale-journey;
+  --_anim: fade-journey, scale-journey;
   animation-range: entry exit;
   --opacity-from: 0;
-  --opacity-to: 1;
   --scale-x-from: 0.8;
   --scale-y-from: 0.8;
 }
 
 .fade-blur-journey {
-  animation-name: fade-journey, blur-journey;
+  --_anim: fade-journey, blur-journey;
   animation-range: entry exit;
   --opacity-from: 0;
-  --opacity-to: 1;
   --blur-from: 5px;
-  --blur-to: 0;
 }
 
 .fade-slide-scale-journey {
-  animation-name: fade-journey, slide-journey, scale-journey;
+  --_anim: fade-journey, slide-journey, scale-journey;
   animation-range: entry exit;
   --opacity-from: 0;
-  --opacity-to: 1;
   --scale-x-from: 0.8;
   --scale-y-from: 0.8;
 }
 
 .fade-scale-blur-journey {
-  animation-name: fade-journey, scale-journey, blur-journey;
+  --_anim: fade-journey, scale-journey, blur-journey;
   animation-range: entry exit;
   --opacity-from: 0;
-  --opacity-to: 1;
   --scale-x-from: 0.8;
   --scale-y-from: 0.8;
   --blur-from: 5px;
-  --blur-to: 0;
 }
 
 /* ===========================================
@@ -590,38 +652,26 @@
 /* Circular orbit (clockwise) */
 .float-circular {
   --float-easing: var(--ease-float-sine);
-  --float-x-0: 0;
   --float-y-0: calc(-1 * var(--float-radius, 10px));
   --float-x-25: var(--float-radius, 10px);
-  --float-y-25: 0;
-  --float-x-50: 0;
   --float-y-50: var(--float-radius, 10px);
   --float-x-75: calc(-1 * var(--float-radius, 10px));
-  --float-y-75: 0;
 }
 
 /* Circular orbit (counter-clockwise) */
 .float-circular-ccw {
   --float-easing: var(--ease-float-sine);
-  --float-x-0: 0;
   --float-y-0: calc(-1 * var(--float-radius, 10px));
   --float-x-25: calc(-1 * var(--float-radius, 10px));
-  --float-y-25: 0;
-  --float-x-50: 0;
   --float-y-50: var(--float-radius, 10px);
   --float-x-75: var(--float-radius, 10px);
-  --float-y-75: 0;
 }
 
 /* Figure-8 (lemniscate approximation) */
 .float-figure-8 {
   --float-easing: var(--ease-float-sine);
-  --float-x-0: 0;
-  --float-y-0: 0;
   --float-x-25: var(--float-radius, 15px);
   --float-y-25: calc(-1 * var(--float-radius, 15px) * 0.5);
-  --float-x-50: 0;
-  --float-y-50: 0;
   --float-x-75: calc(-1 * var(--float-radius, 15px));
   --float-y-75: calc(var(--float-radius, 15px) * 0.5);
 }
@@ -629,27 +679,15 @@
 /* Vertical bounce (1D, y-axis only) */
 .float-bounce-y {
   --float-easing: var(--ease-float-bounce);
-  --float-x-0: 0;
   --float-y-0: calc(-1 * var(--float-distance, 8px));
-  --float-x-25: 0;
-  --float-y-25: 0;
-  --float-x-50: 0;
   --float-y-50: var(--float-distance, 8px);
-  --float-x-75: 0;
-  --float-y-75: 0;
 }
 
 /* Horizontal drift (1D, x-axis only) */
 .float-drift-x {
   --float-easing: var(--ease-float-bounce);
   --float-x-0: calc(-1 * var(--float-distance, 10px));
-  --float-y-0: 0;
-  --float-x-25: 0;
-  --float-y-25: 0;
   --float-x-50: var(--float-distance, 10px);
-  --float-y-50: 0;
-  --float-x-75: 0;
-  --float-y-75: 0;
 }
 
 /* Gentle drift (subtle organic movement) */
@@ -665,19 +703,6 @@
   --float-y-75: var(--float-radius, 5px);
 }
 
-/* Diamond pattern */
-.float-diamond {
-  --float-easing: var(--ease-float-sine);
-  --float-x-0: 0;
-  --float-y-0: calc(-1 * var(--float-radius, 10px));
-  --float-x-25: var(--float-radius, 10px);
-  --float-y-25: 0;
-  --float-x-50: 0;
-  --float-y-50: var(--float-radius, 10px);
-  --float-x-75: calc(-1 * var(--float-radius, 10px));
-  --float-y-75: 0;
-}
-
 /* ===========================================
  * Float Presets — Path-based
  * Uses offset-path + offset-distance
@@ -690,7 +715,6 @@
   animation-duration: var(--float-duration, 4s);
   animation-timing-function: var(--float-easing, linear);
   animation-iteration-count: var(--float-iterations, infinite);
-  animation-fill-mode: both;
 }
 
 .float-path-circle {
