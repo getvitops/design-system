@@ -1,5 +1,5 @@
 allowBuilds:
-  '@lyricalstring/gale': true
+  lightningcss: true
   lightningcss-cli: true
 minimumReleaseAgeExclude:
   - '@voidzero-dev/vite-plus-core@0.2.1'
