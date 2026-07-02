@@ -28,8 +28,9 @@ export default defineConfig({
   fmt: {
     semi: true,
     singleQuote: true,
-    // Don't format build artifacts: minified CSS and emitted JSON.
-    ignorePatterns: ['dist/**', 'node_modules/**'],
+    // Don't format generated/build output: the codegen emits its own style, so
+    // formatting it just creates churn against the next `vp run build`.
+    ignorePatterns: ['dist/**', 'src/css/generated/**', 'node_modules/**'],
   },
 
   // ── Tasks (Vite Task, via `vp run <name>`) ──

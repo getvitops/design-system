@@ -1,2 +1,6 @@
 node_modules/
 *.env*
+
+# Generated / build output (emitted by the codegen + build; rebuilt via `vp run build`)
+dist/
+src/css/generated/
