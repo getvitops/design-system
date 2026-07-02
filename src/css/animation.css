@@ -346,10 +346,10 @@
   animation-name: var(--_anim);
   animation-timeline: view();
   /* Finish the entrance early — by default within the first 20% of the element's
-     travel through the viewport — so it reads as "already in" once on screen
-     (fill: both holds the end state). Override the stops via --anim-range;
-     journey effects set their own `entry exit` range and are unaffected. */
-  animation-range: var(--anim-range, entry 0% cover 20%);
+     ENTRY into the viewport — so it's done just after it appears (fill: both
+     holds the end state). Override the stops via --anim-range; journey effects
+     set their own `entry exit` range and are unaffected. */
+  animation-range: var(--anim-range, entry 0% entry 20%);
 }
 
 .animate-scroll {
