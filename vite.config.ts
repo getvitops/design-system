@@ -38,12 +38,22 @@ export default defineConfig({
     tasks: {
       dev: { command: 'vp dev' },
 
-      // Full build: colours → CSS, then JS. Sequential (&&) so a CSS failure
-      // aborts the build instead of letting a stale deploy through.
-      build: { command: 'vp run build:css && vp run build:js' },
+      // Full build: colours → CSS, then JS, then the Bricks PHP elements.
+      // Sequential (&&) so a failure aborts before a stale deploy ships. Elements
+      // copy runs last (dist/ already populated; pack.clean:false keeps it intact).
+      build: { command: 'vp run build:css && vp run build:js && vp run build:elements' },
 
       // JS: bundle deferred.ts via tsdown.
       'build:js': { command: 'vp pack', output: ['dist/*.js*'] },
+
+      // Bricks custom PHP elements: copy the repo-owned sources into dist/bricks/
+      // so they ship through the same dist/ symlink/rsync the theme already uses.
+      // The theme registers them via a glob over dist/bricks/elements (functions.php).
+      'build:elements': {
+        command: 'mkdir -p dist/bricks && cp -R bricks/elements dist/bricks/',
+        input: ['bricks/**/*.php'],
+        output: ['dist/bricks/**'],
+      },
 
       // CSS: bundle @imports + minify with lightningcss. Depends on colour
       // codegen so src/color.css exists before bundling.
