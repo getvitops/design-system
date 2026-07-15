@@ -1,0 +1,87 @@
+/**
+ * Details — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Details — native <details> with animated ::details-content ───────────── */
+details,
+.details {
+  --_content-margin: var(--p-details-content, var(--p-details-group, var(--p-default)));
+
+  > summary {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+    &::marker {
+      content: none;
+    }
+    &:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
+  }
+
+  > summary > .details-icon {
+    flex-shrink: 0;
+    margin-inline-start: auto;
+    transition: rotate 0.3s ease;
+  }
+
+  &[open] > summary > .details-icon {
+    rotate: var(--_details-icon-rotate, 90deg);
+  }
+
+  &::details-content {
+    display: block;
+    overflow: hidden;
+    block-size: 0;
+    opacity: 0;
+    transition:
+      block-size 0.3s ease,
+      opacity 0.3s ease,
+      content-visibility 0.3s allow-discrete;
+  }
+
+  > summary + * {
+    margin-block-start: var(--_content-margin);
+  }
+
+  > :not(summary) {
+    margin-inline: var(--_content-margin);
+
+    &:last-child {
+      margin-block-end: var(--_content-margin);
+    }
+  }
+
+  &[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+  }
+
+  &.details--marker-start > summary > .details-icon {
+    order: -1;
+    margin-inline-start: 0;
+    margin-inline-end: auto;
+  }
+
+  /* Plus/minus variant — toggle two sibling icon elements */
+  &.details--plus-minus > summary > .details-icon--minus {
+    display: none;
+  }
+  &.details--plus-minus[open] > summary > .details-icon--plus {
+    display: none;
+  }
+  &.details--plus-minus[open] > summary > .details-icon--minus {
+    display: inline-flex;
+  }
+  &.details--plus-minus[open] > summary > .details-icon {
+    rotate: none;
+  }
+}

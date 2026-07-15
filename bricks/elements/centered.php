@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class Vitops_Element_Centered extends \Bricks\Element {
-	public $category      = 'layout';
+	public $category      = 'vitops';
 	public $name          = 'vitops-centered';
 	public $icon          = 'ti-layout-width-default';
 	public $css_selector  = '.centered';

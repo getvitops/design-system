@@ -3,15 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vitops — a small CSS framework for Bricks</title>
+    <title>Vitops — CSS framework: living reference</title>
     <!-- Standalone (non-Bricks) build: emits every token live, so this page
-         renders the real framework on its own. See `vp run build:docs`. -->
+         renders the real framework on its own. `vp run build:docs`.
+         ONE page: every class, each with a live mini-demo, an aside TOC that is
+         a split sidebar on wide screens and a drawer on mobile — all built from
+         the framework's own classes (the page dogfoods what it documents). -->
     <link rel="stylesheet" href="./dist/styles.docs.css" />
+    <!-- Progressive enhancement: polyfills (Popover, anchor positioning, scroll
+         timelines, view transitions, web components) + deferred component behaviour.
+         Both are ES modules; polyfills feature-detect and no-op on modern browsers. -->
+    <script type="module" src="./dist/polyfills.js"></script>
+    <script defer src="./dist/deferred.js"></script>
+    <!-- Lit custom elements (splitter, image-compare, dismissable, copy, carousel,
+         entries, color-scheme-toggle, multi-field). Progressive: markup degrades
+         without JS; these upgrade it on load. -->
+    <script type="module" src="./dist/elements.js"></script>
+    <!-- Live design-system editor (docs-only): reads dist/design-manifest.json and
+         layers runtime :root overrides so the page's tokens can be tuned live. -->
+    <script type="module" src="./dist/editor.js"></script>
     <style>
-      /* ── Docsite scaffolding ──────────────────────────────────────────────
-         Only styles with NO framework equivalent live here. Everything is built
-         from framework tokens (--color-*, --text-*, --shadow-*, --br-*, --font-*)
-         so the chrome stays consistent and flips with the dark-mode toggle. */
+      /* ── Docsite scaffolding — only styles with NO framework equivalent ──── */
       *,
       *::before,
       *::after {
@@ -24,7 +36,6 @@
         line-height: 1.55;
         background: var(--color-surface-xxl);
         color: var(--color-surface-xxd);
-        padding-block: 3rem;
         -webkit-font-smoothing: antialiased;
         transition:
           background-color 0.3s ease,
@@ -41,11 +52,6 @@
       figure {
         margin: 0;
       }
-      /* Vertical air between the top-level tracks of the page grid. */
-      .centered > * + * {
-        margin-block-start: 2.75rem;
-      }
-      /* Inline code chips in prose — the .font-code class styles type only. */
       :not(pre) > code {
         font-family: var(--font-mono);
         font-size: 0.85em;
@@ -53,32 +59,267 @@
         color: var(--color-neutral-xxd);
         padding: 0.1em 0.4em;
         border-radius: var(--br-default);
+        white-space: nowrap;
       }
       hr {
         border: 0;
         border-top: 1px solid var(--color-surface-l);
         opacity: 0.5;
-        margin-block: 1rem;
+        margin-block: 2rem;
       }
       .section-no {
         color: var(--color-brand-primary);
         margin-inline-end: 0.5em;
       }
-      /* Card separation: previews the (not-yet-ported) panel pattern — a border +
-         shadow drawn from the same tokens the partial will eventually consume. */
       .card {
         border: 1px solid var(--color-surface-l);
         box-shadow: var(--shadow-md);
       }
-      .grid {
-        display: grid;
+      .callout {
+        border-inline-start: 3px solid var(--color-brand-primary);
+        padding: 0.75rem 1rem;
+        background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+        border-radius: var(--br-default);
+      }
+
+      /* ── Page shell: top bar ── */
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
         gap: 1rem;
-        grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+        justify-content: space-between;
+        padding: 0.85rem clamp(1rem, 4cqi, 2rem);
+        background: color-mix(in srgb, var(--color-surface-xxl) 88%, transparent);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--color-surface-l);
+      }
+      .topbar .brand {
+        font-weight: 700;
+      }
+      .topbar .spacer {
+        flex: 1;
+      }
+      #theme-toggle {
+        cursor: pointer;
+      }
+
+      /* ── Page shell: split TOC layout ──
+         .toc-layout / .toc-sidebar / .toc-inline are FRAMEWORK classes; the page
+         only adds cosmetic spacing. Sidebar shows ≥64rem; below that the drawer
+         trigger takes over. */
+      .page {
+        padding: 2rem clamp(1rem, 4cqi, 2rem) 5rem;
+      }
+      .toc-sidebar nav a .n {
+        color: var(--color-brand-primary);
+        display: inline-block;
+        width: 1.9ch;
+        font-variant-numeric: tabular-nums;
+      }
+      .drawer-menu .drawer-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        margin-top: 1.5rem;
+      }
+      .drawer-menu .drawer-nav a {
+        text-decoration: none;
+        color: var(--color-surface-xxd);
+        padding: 0.4rem 0.6rem;
+        border-radius: var(--br-default);
+        font-size: var(--text-s);
+      }
+      .drawer-menu .drawer-nav a .n {
+        color: var(--color-brand-primary);
+        margin-inline-end: 0.5ch;
+      }
+
+      /* ── API reference rows ── */
+      .api-list {
+        margin: 0;
+      }
+      .api-row {
+        display: grid;
+        grid-template-columns: minmax(11rem, 18rem) 1fr;
+        gap: 0.4rem 2rem;
+        padding-block: 0.7rem;
+        border-top: 1px solid var(--color-surface-l);
+        align-items: baseline;
+      }
+      @media (max-width: 44rem) {
+        .api-row {
+          grid-template-columns: 1fr;
+          gap: 0.25rem;
+        }
+      }
+      .api-sig {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        align-items: baseline;
+      }
+      .api-sig code {
+        font-size: 0.9em;
+        background: var(--color-surface-l);
+        white-space: normal;
+      }
+      .api-desc {
+        color: var(--color-surface-xd);
+      }
+      .api-desc code {
+        white-space: normal;
+      }
+      .api-desc .sub {
+        display: block;
+        margin-block-start: 0.35rem;
+        font-size: var(--text-s);
+        opacity: 0.9;
+      }
+      .api-desc .sub strong {
+        color: var(--color-surface-xxd);
+        font-weight: 600;
+      }
+
+      /* ── responsive / state / Tailwind tags ── */
+      .t {
+        font-family: var(--font-sans);
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 0.1em 0.55em;
+        border-radius: 999px;
+        white-space: nowrap;
+        line-height: 1.6;
+      }
+      .t-resp {
+        background: color-mix(in srgb, var(--color-info) 18%, transparent);
+        color: var(--color-info-d);
+      }
+      .t-state {
+        background: color-mix(in srgb, var(--color-warning) 22%, transparent);
+        color: var(--color-warning-d);
+      }
+      .t-tw {
+        background: color-mix(in srgb, var(--color-cobalt) 20%, transparent);
+        color: var(--color-cobalt-xxd);
+      }
+      [data-brx-theme='dark'] .t-resp {
+        color: var(--color-info-l);
+      }
+      [data-brx-theme='dark'] .t-state {
+        color: var(--color-warning-l);
+      }
+      [data-brx-theme='dark'] .t-tw {
+        color: var(--color-cobalt-l);
+      }
+
+      /* ── Demo helpers (compact, gridded) ── */
+      .demo {
+        margin-block: 0.85rem 1.25rem;
+      }
+      .demo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+        gap: 0.6rem;
+      }
+      .demo-cell {
+        border: 1px solid var(--color-surface-l);
+        border-radius: var(--br-default);
+        padding: 0.6rem;
+        display: grid;
+        gap: 0.45rem;
+        align-content: start;
+        background: var(--color-surface-xxl);
+      }
+      .demo-cell > code {
+        font-size: 0.72rem;
+        justify-self: start;
+      }
+      .demo-frame {
+        border: 1px dashed var(--color-surface-l);
+        border-radius: var(--br-default);
+        padding: 0.75rem;
+      }
+      .box {
+        background: var(--color-brand-primary);
+        color: #fff;
+        border-radius: calc(var(--br-default) / 1.5);
+        min-height: 1.6rem;
+        display: grid;
+        place-items: center;
+        font-size: var(--text-xs);
+        padding: 0.25rem 0.4rem;
+      }
+      .box.b2 {
+        background: var(--color-cobalt);
+      }
+      /* Like .box, but sets NO `display` — so responsive display utilities
+         (.hidden / .md-hidden / .md-inline-block) can win the cascade. */
+      .viz-chip {
+        background: var(--color-brand-primary);
+        color: #fff;
+        border-radius: calc(var(--br-default) / 1.5);
+        text-align: center;
+        font-size: var(--text-xs);
+        padding: 0.25rem 0.4rem;
+      }
+      .viz-chip.b2 {
+        background: var(--color-cobalt);
+      }
+      .box.b3 {
+        background: var(--color-amber);
+        color: var(--color-surface-xxd);
+      }
+      .mini-flex {
+        display: flex;
+        gap: 0.3rem;
+        min-height: 4rem;
+        background: var(--color-surface-l);
+        border-radius: calc(var(--br-default) / 1.5);
+        padding: 0.3rem;
+      }
+      .mini-flex .box {
+        min-width: 1.8rem;
+      }
+      .swatch-note {
+        font-size: var(--text-xs);
+        opacity: 0.7;
+      }
+
+      /* ── Interactive control panels (sliders) ── */
+      .controls {
+        display: grid;
+        gap: 0.6rem;
+        margin-top: 1rem;
+      }
+      .control {
+        display: grid;
+        grid-template-columns: 7rem 1fr 4rem;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .control label {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+      }
+      .control .val {
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        text-align: right;
       }
 
       /* ── Centered-grid diagram ── */
       .diagram {
         display: grid;
+        /* Fixed single column (minmax(0,1fr)) so the wide fullbleed band can't
+           balloon the implicit track and knock the narrower bands off-centre. */
+        grid-template-columns: minmax(0, 1fr);
+        justify-items: center;
         gap: 0.5rem;
         padding: 1rem;
         border-radius: var(--br-default);
@@ -106,47 +347,27 @@
         opacity: 0.75;
         font-size: 0.85em;
       }
-      .band.fullbleed {
+      /* Proportional illustration of the track ratios (the demo itself sits in the
+         measure track, so it can't render the true ch widths — tune the real
+         tracks in the Theme editor → Layout). fullbleed spills into the gutter. */
+      /* Distinct class names (not measure/breakout/spotlight/fullbleed) so these
+         demo bands don't collide with the framework's named-track placement
+         utilities, which would set grid-column and knock them out of the grid. */
+      .band-fullbleed {
         width: 100%;
         background: var(--color-grey-d);
       }
-      .band.spotlight {
-        width: min(100%, 120ch);
+      .band-spotlight {
+        width: 84%;
         background: var(--color-cobalt-d);
       }
-      .band.breakout {
-        width: min(100%, 90ch);
+      .band-breakout {
+        width: 64%;
         background: var(--color-pine-d);
       }
-      .band.measure {
-        width: min(100%, 65ch);
-        background: var(--color-amber);
-        color: var(--color-surface-xxd);
-      }
-
-      /* ── Slider controls ── */
-      .controls {
-        display: grid;
-        gap: 0.75rem;
-        margin-top: 1.25rem;
-      }
-      .control {
-        display: grid;
-        grid-template-columns: 7rem 1fr 4.5rem;
-        align-items: center;
-        gap: 0.75rem;
-      }
-      .control label {
-        font-size: var(--text-s);
-      }
-      .control input {
-        width: 100%;
-        accent-color: var(--color-brand-primary);
-      }
-      .control .val {
-        font-family: var(--font-mono);
-        font-size: var(--text-xs);
-        text-align: right;
+      .band-measure {
+        width: 46%;
+        background: var(--color-brand-primary);
       }
 
       /* ── Colour ramps + semantic roles ── */
@@ -184,23 +405,6 @@
         text-align: center;
       }
 
-      /* ── Dark-mode swatches ── */
-      .dark-demo {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-        gap: 1rem;
-      }
-      .dark-swatch {
-        padding: 1.5rem 1rem;
-        border-radius: var(--br-default);
-        display: grid;
-        gap: 0.4rem;
-      }
-      .dark-swatch span {
-        opacity: 0.85;
-        font-size: var(--text-xs);
-      }
-
       /* ── Typography showcase ── */
       .type-row {
         display: grid;
@@ -216,21 +420,12 @@
         opacity: 0.7;
       }
 
-      /* ── Component preview rows ── */
-      .row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        align-items: center;
-      }
-
       /* ── Animation + float galleries ── */
       .gallery {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
         gap: 1rem;
       }
-      /* Driver-demo boxes (hover/state/scroll/stagger examples). */
       .fx-box {
         display: grid;
         place-items: center;
@@ -264,7 +459,7 @@
       .anim-cell {
         cursor: pointer;
       }
-      .anim-cell .demo {
+      .anim-cell .demo-stage {
         display: grid;
         place-items: center;
         height: 4rem;
@@ -282,17 +477,6 @@
         border-radius: 999px;
         background: var(--color-cobalt-d);
         color: #fff;
-      }
-      .anim-cell .props {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: var(--text-xs);
-        font-family: var(--font-mono);
-      }
-      .anim-cell .props th {
-        text-align: left;
-        opacity: 0.6;
-        font-weight: 600;
       }
       .anim-cell .hint {
         font-size: var(--text-xs);
@@ -326,511 +510,2833 @@
     </style>
   </head>
   <body>
-    <div class="centered">
-      <!-- ============ HEADER ============ -->
-      <header class="rhythm measure">
-        <p class="font-eyebrow">Vitops · CSS framework</p>
-        <h1>A small layout vocabulary you can hold in your head.</h1>
-        <p class="font-lead">
-          Named width tracks, container-gated utilities, relationship-based rhythm, schema-driven
-          colour and type, and a staged animation library. Every demo below runs on the real
-          framework CSS.
-        </p>
-      </header>
+    <!-- Skip link — dogfoods .sr-only + .not-sr-only (reveals on focus) -->
+    <a
+      href="#content"
+      class="sr-only"
+      style="position: fixed; top: 0.5rem; left: 0.5rem; z-index: 100"
+      onfocus="this.classList.replace('sr-only', 'not-sr-only')"
+      onblur="this.classList.replace('not-sr-only', 'sr-only')"
+      >Skip to content</a
+    >
 
-      <div class="card rhythm measure">
-        <p class="font-heading">Why this exists</p>
-        <p>
-          Applying a few well-named classes is far easier to keep consistent than configuring the
-          same settings by hand — change the class once, every element follows.
-        </p>
+    <div class="topbar">
+      <span class="brand">Vitops</span>
+      <span class="font-caption">CSS framework · living reference</span>
+      <span class="spacer"></span>
+      <!-- Mobile TOC: native Popover drawer, no JS. Hidden ≥64rem (dogfoods .lg-hidden). -->
+      <button class="drawer-trigger lg-hidden" popovertarget="toc-drawer" style="position: static">
+        ☰ Contents
+      </button>
+      <button id="theme-toggle">Switch to dark mode</button>
+    </div>
+
+    <!-- Scroll-progress bar (framework class, pure CSS) -->
+    <div class="scroll-progress"><div class="scroll-progress__bar"></div></div>
+
+    <!-- Mobile drawer TOC (Popover API) -->
+    <nav id="toc-drawer" popover class="drawer-menu">
+      <button class="drawer-close" popovertarget="toc-drawer" popovertargetaction="hide">✕</button>
+      <p class="font-eyebrow">Contents</p>
+      <div class="drawer-nav scroll-target-group" id="toc-drawer-nav"></div>
+    </nav>
+
+    <div class="page">
+      <div class="toc-layout">
+        <!-- Aside sidebar TOC (≥64rem). Highlights the current section via
+             :target-current — pure CSS, no JS. -->
+        <aside class="toc-sidebar">
+          <nav class="scroll-target-group scroll-target-group--bar" id="toc-sidebar-nav"></nav>
+        </aside>
+
+        <main id="content" class="centered">
+          <!-- ============ INTRO ============ -->
+          <header class="rhythm measure">
+            <p class="font-eyebrow">Vitops · CSS framework</p>
+            <h1>Every class, with a live demo.</h1>
+            <p class="font-lead">
+              Named width tracks, container-gated utilities, relationship-based rhythm,
+              schema-driven colour and type, a staged animation library, and a component layer —
+              each documented below with a working example rendered by the real framework CSS. The
+              table of contents is itself built from framework classes (<code>.toc-layout</code> /
+              <code>.drawer</code> / <code>.scroll-target-group</code>).
+            </p>
+          </header>
+
+          <hr class="measure" />
+
+          <!-- ============ 00 CONVENTIONS ============ -->
+          <section class="rhythm measure" id="conventions">
+            <h2><span class="section-no">00</span>Conventions</h2>
+            <p>
+              Names follow
+              <b>Tailwind’s vocabulary wherever there’s an equivalent</b> (<code>items-*</code>,
+              <code>justify-*</code>, <code>text-*</code>, <code>bg-*</code>, the
+              <code>sm/md/lg/xl</code> breakpoints), so one vocabulary spans the CSS, Bricks, and
+              Tailwind outputs. The only difference is the <b>variant separator</b>: Tailwind uses
+              <code>:</code> (and <code>@</code> for container queries); the CSS/Bricks formats swap
+              it for a dash <code>-</code>. So Tailwind’s <code>@md:split-1-2</code> and
+              <code>hover:flip-fade-in</code> become <code>md-split-1-2</code> and
+              <code>hover-fade-in</code> here.
+            </p>
+
+            <p>Three markers appear on headings and individual classes:</p>
+            <div class="rhythm">
+              <div class="card rhythm">
+                <p>
+                  <span class="t t-resp">responsive</span>
+                  Has <b>container-query variants</b> gated by a bare breakpoint prefix, resolved
+                  against the nearest <b>container</b> (not the viewport): <code>sm-</code> 30rem ·
+                  <code>md-</code> 48rem · <code>lg-</code> 64rem · <code>xl-</code> 80rem. e.g.
+                  <code>flex-col md-flex-row</code>.
+                </p>
+              </div>
+              <div class="card rhythm">
+                <p>
+                  <span class="t t-state">state</span>
+                  Reacts to an <b>interaction or activation state</b>. For animation
+                  <em>effects</em>, trigger-prefixed variants exist — <code>hover-</code>,
+                  <code>focus-</code>, <code>active-</code> (pair with <code>.transition</code> for
+                  a reversible flip). For components it means <code>:hover</code> /
+                  <code>:focus-visible</code> / <code>.is-active</code> /
+                  <code>[open]</code> states.
+                </p>
+              </div>
+              <div class="card rhythm">
+                <p>
+                  <span class="t t-tw">Tailwind</span>
+                  <b>Not emitted in the <code>tailwind</code> build.</b> Tailwind already provides
+                  the equivalent — either a native utility (<code>flex</code>, <code>items-*</code>,
+                  <code>hidden</code>, <code>sr-only</code>) or one generated from a
+                  <code>@theme</code> token (<code>bg-*</code>/<code>text-*</code>/<code
+                    >border-*</code
+                  >
+                  colours, <code>drop-shadow-*</code>, the <code>m-*</code> spacing scale). In that
+                  format, use Tailwind’s own class; these exist only in the css/bricks outputs.
+                </p>
+              </div>
+            </div>
+            <p class="font-caption">
+              Note: the <code>tailwind</code> build is a minimal
+              <b>token + utility + engine + structure</b> layer. The component library (dialogs,
+              drawers, carousel, forms, …) and extended structural utilities (<code>cluster</code>,
+              <code>subgrid</code>, <code>sticky</code>, …) ship only in the css/bricks outputs —
+              they’re not <span class="t t-tw">Tailwind</span>-tagged (Tailwind has no equivalent),
+              they’re simply outside that bundle.
+            </p>
+            <p class="font-caption">
+              <b>Reading the entries.</b> Each row lists the base class; sub-elements
+              (<code>__part</code>) and modifiers (<code>--variant</code>) are shown inline in the
+              description.
+            </p>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 01 TYPOGRAPHY ============ -->
+          <section class="rhythm measure" id="typography">
+            <h2><span class="section-no">01</span>Typography</h2>
+            <p>
+              Type roles are generated from <code>design-system.json</code> onto a fluid modular
+              scale. Bare <code>h1</code>–<code>h4</code> map to display/title/heading roles
+              automatically.
+            </p>
+
+            <div class="demo">
+              <div class="type-row">
+                <span class="label">.font-display</span><span class="font-display">Display</span>
+              </div>
+              <div class="type-row">
+                <span class="label">.font-title</span><span class="font-title">Title heading</span>
+              </div>
+              <div class="type-row">
+                <span class="label">.font-heading</span
+                ><span class="font-heading">Section heading</span>
+              </div>
+              <div class="type-row">
+                <span class="label">.font-lead</span
+                ><span class="font-lead"
+                  >A lead paragraph introduces a section with a little size.</span
+                >
+              </div>
+              <div class="type-row">
+                <span class="label">.font-body</span
+                ><span class="font-body">Body copy — the workhorse role for running prose.</span>
+              </div>
+              <div class="type-row">
+                <span class="label">.font-quote</span
+                ><span class="font-quote">“A pull quote, set in the display face, italic.”</span>
+              </div>
+              <div class="type-row">
+                <span class="label">.font-caption</span
+                ><span class="font-caption">A caption, muted and small, for asides.</span>
+              </div>
+              <div class="type-row">
+                <span class="label">.font-eyebrow</span
+                ><span class="font-eyebrow">Eyebrow label</span>
+              </div>
+              <div class="type-row">
+                <span class="label">.font-footnote</span
+                ><span class="font-footnote">A footnote — the smallest step on the scale.</span>
+              </div>
+              <div class="type-row">
+                <span class="label">.font-code</span
+                ><span class="font-code">const code = true;</span>
+              </div>
+              <div class="type-row">
+                <span class="label">.font-tag</span><span class="font-tag">Tag label</span>
+              </div>
+            </div>
+
+            <h3>Type roles</h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.font-display</code></div>
+                <div class="api-desc">Largest, most prominent role — hero and display text.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.font-title</code></div>
+                <div class="api-desc">Primary page or section title.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.font-heading</code></div>
+                <div class="api-desc">Subsection heading.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.font-lead</code></div>
+                <div class="api-desc">Lead / introductory paragraph opening a section.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.font-body</code></div>
+                <div class="api-desc">Default running body copy.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.font-quote</code></div>
+                <div class="api-desc">Pull quote or inline quotation.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.font-caption</code></div>
+                <div class="api-desc">Caption for figures, images, and asides.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.font-eyebrow</code></div>
+                <div class="api-desc">Kicker / eyebrow label above a heading.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.font-footnote</code></div>
+                <div class="api-desc">Footnote or fine print.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.font-code</code></div>
+                <div class="api-desc">Inline or block code.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.font-tag</code></div>
+                <div class="api-desc">Tag or label text.</div>
+              </div>
+            </dl>
+
+            <div class="demo demo-frame rhythm">
+              <p class="pull-quote">
+                Design is intelligence made visible.<span class="pull-quote__attribution"
+                  >Alina Wheeler</span
+                >
+              </p>
+              <p>
+                An <a class="link" href="#typography">explicit link</a>, an
+                <a class="link link--external" href="#" target="_blank" rel="noopener"
+                  >external link</a
+                >, and a <a class="link link--icon" href="mailto:hello@example.com">mailto link</a>.
+              </p>
+              <p class="cluster cluster-start" style="align-items: center; gap: 1rem">
+                <span>Inbox <span class="badge-indicator">3</span></span>
+                <span
+                  >Status <span class="status-dot status-dot-success"></span>
+                  <span class="status-dot status-dot-danger status-dot--pulse"></span
+                ></span>
+                <button class="icon-button" aria-label="Menu">☰</button>
+                <span class="tag"><span class="tag__icon">#</span>label</span>
+              </p>
+            </div>
+
+            <h3>Typographic utilities</h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.pull-quote</code></div>
+                <div class="api-desc">
+                  Highlighted inline quote with a decorative opening mark.<span class="sub"
+                    ><strong>Parts:</strong> <code>.pull-quote__attribution</code>.
+                    <strong>Modifiers:</strong> <code>.pull-quote--border</code>. Figure variant:
+                    <code>.pull-quote-figure</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.badge-indicator</code></div>
+                <div class="api-desc">
+                  Numeric notification bubble (distinct from <code>.badge</code>).<span class="sub"
+                    ><strong>Modifiers:</strong> <code>.badge-indicator--dot</code>,
+                    <code>.badge-indicator--positioned</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.status-dot--pulse</code></div>
+                <div class="api-desc">Animated pulsing modifier for <code>.status-dot</code>.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.link</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Explicit anchor affordance with decoration + focus handling.<span class="sub"
+                    ><strong>Modifiers:</strong> <code>.link--icon</code> (mailto:/tel:),
+                    <code>.link--external</code> (target=_blank arrow).</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.icon</code></div>
+                <div class="api-desc">Inline sizing wrapper for an svg/img icon.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.icon-mask</code></div>
+                <div class="api-desc">CSS-mask icon painted with <code>currentColor</code>.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.icon-button</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">Tappable square icon button.</div>
+              </div>
+            </dl>
+
+            <div class="demo">
+              <span class="copy">
+                <button class="copy__button">
+                  <span class="copy__icon"></span> <code>npm i vitops</code>
+                </button>
+                <span class="copy__tooltip">Copied!</span>
+              </span>
+              <p class="swatch-note">Progressive enhancement wires the clipboard write via Lit.</p>
+            </div>
+
+            <h3>Copy to clipboard</h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.copy</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Copy-to-clipboard control (inline-flex shell; behaviour via Lit).<span class="sub"
+                    ><strong>Parts:</strong> <code>.copy__button</code>, <code>.copy__icon</code>,
+                    <code>.copy__icon--success</code>, <code>.copy__tooltip</code>.
+                    <strong>Modifiers:</strong> <code>.copy--success</code>.</span
+                  >
+                </div>
+              </div>
+            </dl>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 02 COLOR ============ -->
+          <section class="rhythm measure" id="color">
+            <h2><span class="section-no">02</span>Color &amp; shadow</h2>
+            <p>
+              Colour utilities exist for both <b>named ramps</b> and <b>semantic roles</b>. Every
+              ramp and role carries a 7-step scale; the base step has no suffix. Only
+              <code>bg</code>, <code>text</code>, and <code>border</code> families are emitted (per
+              <code>design-system.json</code>).
+            </p>
+
+            <div class="card rhythm">
+              <p class="font-caption">
+                <strong>Steps</strong> (suffix): <code>-xxd</code> <code>-xd</code> <code>-d</code>
+                <b>(base — no suffix)</b> <code>-l</code> <code>-xl</code> <code>-xxl</code> —
+                darkest → lightest.
+              </p>
+              <p class="font-caption">
+                <strong>Named ramps:</strong> <code>pine</code> <code>navy</code> <code>amber</code>
+                <code>rust</code> <code>cobalt</code> <code>grey</code>
+              </p>
+              <p class="font-caption">
+                <strong>Semantic roles:</strong> <code>brand-primary</code> <code>surface</code>
+                <code>neutral</code> <code>success</code> <code>info</code> <code>warning</code>
+                <code>danger</code>
+              </p>
+            </div>
+
+            <div class="demo">
+              <p class="swatch-note">
+                Named ramps — each swatch is a real <code>.bg-*</code> class:
+              </p>
+              <div id="ramps"></div>
+              <p class="swatch-note" style="margin-top: 1rem">
+                Semantic roles (flip with dark mode):
+              </p>
+              <div class="sem-grid" id="semantic"></div>
+              <p class="cluster cluster-start" style="gap: 0.75rem; margin-top: 1rem">
+                <span class="text-danger">.text-danger</span>
+                <span class="text-info">.text-info</span>
+                <span class="text-success">.text-success</span>
+                <span
+                  class="bordered border-warning"
+                  style="padding: 0.15rem 0.5rem; border: 2px solid"
+                  >.border-warning</span
+                >
+              </p>
+            </div>
+
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.bg-{ramp|role}[-step]</code><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">
+                  Background colour. e.g. <code>.bg-surface</code>,
+                  <code>.bg-brand-primary-d</code>, <code>.bg-pine</code>,
+                  <code>.bg-amber-xxl</code>.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.text-{ramp|role}[-step]</code><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">
+                  Text colour. e.g. <code>.text-neutral-xd</code>, <code>.text-danger</code>,
+                  <code>.text-cobalt-l</code>.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.border-{ramp|role}[-step]</code><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">
+                  Border colour. e.g. <code>.border-surface-l</code>, <code>.border-warning</code>.
+                </div>
+              </div>
+            </dl>
+
+            <h3>Drop shadows</h3>
+            <div class="demo demo-grid">
+              <div class="demo-cell">
+                <div
+                  class="box drop-shadow-sm"
+                  style="
+                    min-height: 3rem;
+                    background: var(--color-surface-xxl);
+                    color: var(--color-surface-xxd);
+                  "
+                >
+                  sm
+                </div>
+                <code>.drop-shadow-sm</code>
+              </div>
+              <div class="demo-cell">
+                <div
+                  class="box drop-shadow-md"
+                  style="
+                    min-height: 3rem;
+                    background: var(--color-surface-xxl);
+                    color: var(--color-surface-xxd);
+                  "
+                >
+                  md
+                </div>
+                <code>.drop-shadow-md</code>
+              </div>
+              <div class="demo-cell">
+                <div
+                  class="box drop-shadow-lg"
+                  style="
+                    min-height: 3rem;
+                    background: var(--color-surface-xxl);
+                    color: var(--color-surface-xxd);
+                  "
+                >
+                  lg
+                </div>
+                <code>.drop-shadow-lg</code>
+              </div>
+              <div class="demo-cell">
+                <div
+                  class="box drop-shadow-xl"
+                  style="
+                    min-height: 3rem;
+                    background: var(--color-surface-xxl);
+                    color: var(--color-surface-xxd);
+                  "
+                >
+                  xl
+                </div>
+                <code>.drop-shadow-xl</code>
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.drop-shadow-sm</code></div>
+                <div class="api-desc">Subtle drop-shadow filter (<code>--shadow-sm</code>).</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.drop-shadow-md</code></div>
+                <div class="api-desc">Medium drop-shadow filter.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.drop-shadow-lg</code></div>
+                <div class="api-desc">Large drop-shadow filter.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.drop-shadow-xl</code></div>
+                <div class="api-desc">Extra-large drop-shadow filter.</div>
+              </div>
+            </dl>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 03 LAYOUT ============ -->
+          <section class="rhythm measure" id="layout">
+            <h2><span class="section-no">03</span>Layout &amp; spacing</h2>
+            <p>
+              The core layout vocabulary: the centered named-track grid, flex helpers, ratio splits,
+              alignment, relationship-based rhythm, and the spacing scale. Most carry
+              <span class="t t-resp">responsive</span> container-query variants.
+            </p>
+
+            <div class="demo">
+              <div class="diagram">
+                <div class="gutter-label">↤ gutter · clamp(1rem, 4cqi, max) · gutter ↦</div>
+                <div class="band band-fullbleed">fullbleed <span class="w">edge to edge</span></div>
+                <div class="band band-spotlight">spotlight <span class="w">120ch</span></div>
+                <div class="band band-breakout">breakout <span class="w">90ch</span></div>
+                <div class="band band-measure">measure <span class="w">65ch</span></div>
+              </div>
+              <p class="swatch-note">
+                The whole page runs on this grid. These tracks are global — tune
+                <code>measure</code>/<code>breakout</code>/<code>spotlight</code>/<code
+                  >gutter</code
+                >
+                live in the Theme editor (🎨 button) → <b>Layout</b>.
+              </p>
+            </div>
+
+            <h3>Centered grid tracks</h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.centered</code></div>
+                <div class="api-desc">
+                  Establishes the named-track centering grid; children default to the
+                  <b>measure</b> track.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.measure</code><span class="t t-resp">responsive</span>
+                </div>
+                <div class="api-desc">Places a child in the reading-measure (default) track.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.breakout</code><span class="t t-resp">responsive</span>
+                </div>
+                <div class="api-desc">Widens a child to the breakout track.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.spotlight</code><span class="t t-resp">responsive</span>
+                </div>
+                <div class="api-desc">Widens a child to the wider spotlight track.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.fullbleed</code><span class="t t-resp">responsive</span>
+                </div>
+                <div class="api-desc">Stretches a child edge-to-edge across the full grid.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.region</code></div>
+                <div class="api-desc">Adds clamped vertical padding for a rhythm section.</div>
+              </div>
+            </dl>
+
+            <h3>Flexbox</h3>
+            <div class="demo">
+              <div class="mini-flex flex-col md-flex-row">
+                <div class="box">A</div>
+                <div class="box b2">B</div>
+                <div class="box b3">C</div>
+              </div>
+              <p class="swatch-note">
+                <code>.flex-col md-flex-row</code> — column, then row ≥48rem.
+              </p>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.flex</code><span class="t t-resp">responsive</span
+                  ><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc"><code>display: flex</code>.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.flex-row</code><span class="t t-resp">responsive</span
+                  ><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">Flex direction row.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.flex-col</code><span class="t t-resp">responsive</span
+                  ><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">Flex direction column.</div>
+              </div>
+            </dl>
+
+            <h3>Split columns</h3>
+            <div class="demo rhythm">
+              <div class="split" style="gap: 0.4rem">
+                <div class="box">1</div>
+                <div class="box b2">1</div>
+              </div>
+              <div class="split split-1-2" style="gap: 0.4rem">
+                <div class="box">1</div>
+                <div class="box b2">2</div>
+              </div>
+              <div class="split split-2-1" style="gap: 0.4rem">
+                <div class="box">2</div>
+                <div class="box b2">1</div>
+              </div>
+              <div class="split split-1-3" style="gap: 0.4rem">
+                <div class="box">1</div>
+                <div class="box b2">3</div>
+              </div>
+              <div class="split split-3-2" style="gap: 0.4rem">
+                <div class="box">3</div>
+                <div class="box b2">2</div>
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.split</code><span class="t t-resp">responsive</span>
+                </div>
+                <div class="api-desc">
+                  Two-child flex container; children share space equally by default.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.split-1-2</code> … <code>.split-4-1</code
+                  ><span class="t t-resp">responsive</span>
+                </div>
+                <div class="api-desc">
+                  Ratio modifiers — add alongside <code>.split</code>. Fixed first:second ratios:
+                  <code>1-2</code>, <code>2-1</code>, <code>1-3</code>, <code>3-1</code>,
+                  <code>1-4</code>, <code>4-1</code>, <code>2-3</code>, <code>3-2</code>.
+                </div>
+              </div>
+            </dl>
+
+            <h3>Alignment</h3>
+            <p class="swatch-note">
+              <code>align-items</code>, <code>justify-content</code> and <code>text-align</code>
+              utilities. One small demo per class. All carry
+              <span class="t t-resp">responsive</span> container-query variants
+              (<code>md-items-center</code>) and mirror <span class="t t-tw">Tailwind</span> names.
+            </p>
+            <div class="demo demo-grid">
+              <div class="demo-cell">
+                <div class="mini-flex items-start" style="min-height: 3rem">
+                  <div class="box">1</div>
+                  <div class="box b2" style="min-height: 2.4rem">2</div>
+                  <div class="box b3">3</div>
+                </div>
+                <code>.items-start</code>
+              </div>
+              <div class="demo-cell">
+                <div class="mini-flex items-center" style="min-height: 3rem">
+                  <div class="box">1</div>
+                  <div class="box b2" style="min-height: 2.4rem">2</div>
+                  <div class="box b3">3</div>
+                </div>
+                <code>.items-center</code>
+              </div>
+              <div class="demo-cell">
+                <div class="mini-flex items-end" style="min-height: 3rem">
+                  <div class="box">1</div>
+                  <div class="box b2" style="min-height: 2.4rem">2</div>
+                  <div class="box b3">3</div>
+                </div>
+                <code>.items-end</code>
+              </div>
+              <div class="demo-cell">
+                <div class="mini-flex items-stretch" style="min-height: 3rem">
+                  <div class="box">1</div>
+                  <div class="box b2">2</div>
+                  <div class="box b3">3</div>
+                </div>
+                <code>.items-stretch</code>
+              </div>
+              <div class="demo-cell">
+                <div class="mini-flex justify-start">
+                  <div class="box">1</div>
+                  <div class="box b2">2</div>
+                </div>
+                <code>.justify-start</code>
+              </div>
+              <div class="demo-cell">
+                <div class="mini-flex justify-center">
+                  <div class="box">1</div>
+                  <div class="box b2">2</div>
+                </div>
+                <code>.justify-center</code>
+              </div>
+              <div class="demo-cell">
+                <div class="mini-flex justify-end">
+                  <div class="box">1</div>
+                  <div class="box b2">2</div>
+                </div>
+                <code>.justify-end</code>
+              </div>
+              <div class="demo-cell">
+                <div class="mini-flex justify-between">
+                  <div class="box">1</div>
+                  <div class="box b2">2</div>
+                  <div class="box b3">3</div>
+                </div>
+                <code>.justify-between</code>
+              </div>
+              <div class="demo-cell">
+                <div class="demo-frame text-start">start-aligned text</div>
+                <code>.text-start</code>
+              </div>
+              <div class="demo-cell">
+                <div class="demo-frame text-center">centered text</div>
+                <code>.text-center</code>
+              </div>
+              <div class="demo-cell">
+                <div class="demo-frame text-end">end-aligned text</div>
+                <code>.text-end</code>
+              </div>
+            </div>
+
+            <h3>Vertical rhythm</h3>
+            <div class="demo">
+              <div class="rhythm demo-frame">
+                <h4>Section heading</h4>
+                <p>Paragraph after a heading gets a tight gap above it.</p>
+                <p>A following paragraph gets a looser paragraph-to-paragraph gap.</p>
+                <h4>Next heading</h4>
+                <p>Note the larger paragraph→heading gap above this one.</p>
+              </div>
+              <p class="swatch-note">
+                Gaps scale with the global rhythm dial (<code>--rhythm-scale</code>) — tune it live
+                in the Theme editor (🎨 button) → <b>Layout</b>.
+              </p>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.rhythm</code></div>
+                <div class="api-desc">
+                  Flow-root container that auto-spaces adjacent siblings by element-pair
+                  relationship.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.m-h-p</code> · <code>.m-p-p</code> · <code>.m-p-h</code> ·
+                  <code>.m-h-h</code>
+                </div>
+                <div class="api-desc">
+                  Manual rhythm overrides — heading→paragraph, paragraph→paragraph,
+                  paragraph→heading, heading→heading gaps.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.m-p-list</code> · <code>.m-list-p</code> · <code>.m-li-li</code>
+                </div>
+                <div class="api-desc">
+                  List rhythm — paragraph→list, list→paragraph, item→item gaps.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.m-text-media</code> · <code>.m-media-text</code></div>
+                <div class="api-desc">Text↔media gaps.</div>
+              </div>
+            </dl>
+
+            <h3>Spacing scale (top margin)</h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.m-0</code> <code>.m-xs</code> <code>.m-s</code> <code>.m-m</code>
+                  <code>.m-l</code> <code>.m-xl</code><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">
+                  Top-margin steps: 0, 0.25×, 0.5×, 1×, 1.5×, 2× base. (The relationship-rhythm
+                  overrides above are bespoke — not Tailwind.)
+                </div>
+              </div>
+            </dl>
+
+            <h3>Cluster (wrapping flex group)</h3>
+            <div class="demo">
+              <div class="cluster cluster-between demo-frame" style="gap: 0.4rem">
+                <span class="tag">alpha</span><span class="tag">bravo</span
+                ><span class="tag">charlie</span><span class="tag">delta</span
+                ><span class="tag">echo</span>
+              </div>
+              <p class="swatch-note">
+                <code>.cluster.cluster-between</code> — wraps and distributes.
+              </p>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.cluster</code></div>
+                <div class="api-desc">Wrapping flex group with configurable gap.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.cluster-{block}-{inline}</code></div>
+                <div class="api-desc">
+                  Place-content on both axes — <code>{start|center|end}</code> ×
+                  <code>{start|center|end}</code> (e.g. <code>.cluster-center-end</code>), plus
+                  shorthands <code>.cluster-start</code> <code>.cluster-center</code>
+                  <code>.cluster-end</code>.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.cluster-{between|around|evenly}</code></div>
+                <div class="api-desc">
+                  Distribute with <code>space-between</code> / <code>-around</code> /
+                  <code>-evenly</code>.
+                </div>
+              </div>
+            </dl>
+
+            <h3>Borders / Grouping</h3>
+            <p class="font-caption">
+              Put a <code>.group*</code> class on the <strong>container</strong>; its direct
+              children collapse their shared radius and borders. <code>.group-inline</code> and
+              <code>.group-block</code> force the axis; bare <code>.group</code> follows the
+              container’s flex-direction (try resizing the last demo across the md breakpoint).
+            </p>
+            <div class="demo">
+              <span class="bordered" style="padding: 0.3rem 0.7rem; display: inline-block"
+                >.bordered</span
+              >
+              <p class="font-caption" style="margin-top: 0.8rem">
+                <code>.group-inline</code> — horizontal
+              </p>
+              <div class="flex group group-inline" style="gap: 0">
+                <button class="bordered">One</button><button class="bordered">Two</button
+                ><button class="bordered">Three</button>
+              </div>
+              <p class="font-caption" style="margin-top: 0.8rem">
+                <code>.group-block</code> — vertical
+              </p>
+              <div class="flex flex-col group group-block" style="gap: 0; max-inline-size: 8rem">
+                <button class="bordered">One</button>
+                <button class="bordered">Two</button>
+                <button class="bordered">Three</button>
+              </div>
+              <p class="font-caption" style="margin-top: 0.8rem">
+                <code>.group</code> — auto (vertical below md, horizontal at md+)
+              </p>
+              <div class="flex flex-col md-flex-row group" style="gap: 0; max-inline-size: 18rem">
+                <button class="bordered">One</button>
+                <button class="bordered">Two</button>
+                <button class="bordered">Three</button>
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.bordered</code></div>
+                <div class="api-desc">Token-driven border width / style / colour.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.group</code> <span class="t t-resp">responsive</span>
+                </div>
+                <div class="api-desc">
+                  Parent-based: collapse radius + shared borders across direct children. Axis
+                  follows the container’s <code>flex-direction</code> (inline by default, auto-block
+                  when it’s a column via the <code>--_flex-direction</code> style query; inline is
+                  the fallback where style queries are unsupported).
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.group-inline</code></div>
+                <div class="api-desc">
+                  Force the inline (row) axis — no style-query support needed.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.group-block</code></div>
+                <div class="api-desc">
+                  Force the block (column) axis — no style-query support needed.
+                </div>
+              </div>
+            </dl>
+
+            <h3>Display &amp; visibility <span class="font-caption">(new)</span></h3>
+            <p class="font-caption">
+              Tailwind-exact display utilities plus responsive reveal/hide counterparts, and the
+              screen-reader helper. These fill a gap in the css/bricks output — Tailwind ships them
+              natively.
+            </p>
+            <div class="demo">
+              <div class="demo-frame">
+                <span class="hidden md-inline-block viz-chip" style="padding: 0.3rem 0.7rem"
+                  >visible ≥48rem</span
+                >
+                <span class="md-hidden viz-chip b2" style="padding: 0.3rem 0.7rem"
+                  >hidden ≥48rem</span
+                >
+                <p class="swatch-note">
+                  <code>hidden md-inline-block</code> and <code>md-hidden</code> — resize the window
+                  across 48rem to see them swap.
+                </p>
+                <p style="margin-top: 0.5rem">
+                  There is a screen-reader-only note here →
+                  <span class="sr-only">This text is only announced to assistive tech.</span>
+                  <span class="font-caption"
+                    >(the <code>.sr-only</code> span is visually absent)</span
+                  >
+                </p>
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.block</code> · <code>.inline</code> · <code>.inline-block</code> ·
+                  <code>.grid</code><span class="t t-resp">responsive</span
+                  ><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">
+                  Set <code>display</code>. Responsive tiers reveal at a breakpoint
+                  (<code>md-block</code>, <code>lg-flex</code>, …) — pair with <code>.hidden</code>.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.hidden</code><span class="t t-resp">responsive</span
+                  ><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">
+                  <code>display: none</code>. <code>.{bp}-hidden</code> hides at a tier;
+                  <code>hidden md-flex</code> reveals at a tier (Tailwind idiom).
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.sr-only</code> · <code>.not-sr-only</code
+                  ><span class="t t-resp">responsive</span><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">
+                  Visually hidden but exposed to assistive tech; <code>.not-sr-only</code> reverses
+                  it (e.g. a skip-link that appears on focus). Responsive variants flip visibility
+                  per tier.
+                </div>
+              </div>
+            </dl>
+
+            <h3>Disclosure <span class="font-caption">(new — animatable show/hide)</span></h3>
+            <p class="font-caption">
+              Layered by support: the grid <code>0fr↔1fr</code> hack (broad), native
+              <code>&lt;details&gt;</code> animation via <code>::details-content</code>, and
+              <code>interpolate-size</code> where available. <code>.reveal-fade</code> handles
+              <code>display:none</code> fades with <code>allow-discrete</code> +
+              <code>@starting-style</code>.
+            </p>
+            <div class="demo">
+              <button data-reveal-toggle="reveal-demo">Toggle .reveal</button>
+              <div class="reveal" id="reveal-demo" style="margin-top: 0.5rem">
+                <div>
+                  <div class="card" style="padding: 1rem">
+                    This panel animates its height between <code>0fr</code> and <code>1fr</code> —
+                    no fixed height, no JS measurement. Toggling <code>.is-open</code> is all it
+                    takes.
+                  </div>
+                </div>
+              </div>
+              <details style="margin-top: 1rem">
+                <summary>
+                  Native &lt;details&gt; (animates via <code>::details-content</code>)
+                </summary>
+                <p style="margin-top: 0.5rem">
+                  Fully accessible and JS-free; enhances to a smooth open where the browser supports
+                  animating the details content box.
+                </p>
+              </details>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.reveal</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Grid <code>0fr↔1fr</code> height animation; needs one child wrapper. Open via
+                  <code>.is-open</code>, <code>[data-open]</code>, or nesting under an
+                  <code>[open]</code> element.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.reveal-h</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Direct <code>height: auto↔0</code> animation where
+                  <code>interpolate-size</code> is supported (no wrapper). Falls back to
+                  <code>.reveal</code> elsewhere.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.reveal-fade</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  <code>display:none↔block</code> fade using
+                  <code>transition-behavior: allow-discrete</code> + <code>@starting-style</code>.
+                </div>
+              </div>
+            </dl>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 04 STRUCTURAL ============ -->
+          <section class="rhythm measure" id="structure">
+            <h2><span class="section-no">04</span>Structural patterns</h2>
+
+            <div class="callout">
+              <p>
+                <strong>Prefer <code>.subgrid</code> over auto-flow grid / masonry.</strong> In
+                almost every layout, subgrid is the <em>correct</em> default: it aligns rows and
+                columns across siblings in a controlled, predictable grid. Auto-flow placement (and
+                <code>.masonry</code>) let items break wherever they fit — you rarely actually want
+                those arbitrary breaks. Reach for auto-flow / masonry only when ragged, packed
+                placement is genuinely the goal (e.g. a photo wall); otherwise start from
+                <code>.subgrid</code>.
+              </p>
+            </div>
+
+            <div class="demo rhythm">
+              <p class="swatch-note">
+                Subgrid cards — media, body, and footer rows align across siblings:
+              </p>
+              <div class="subgrid subgrid-cols-3" style="gap: 0.75rem">
+                <div class="subgrid-card card" style="padding: 0.75rem">
+                  <div class="subgrid-card__media box" style="min-height: 3rem">media</div>
+                  <p class="font-heading">Alpha</p>
+                  <p class="font-caption">Short body.</p>
+                  <div class="subgrid-card__footer"><button>Go</button></div>
+                </div>
+                <div class="subgrid-card card" style="padding: 0.75rem">
+                  <div class="subgrid-card__media box b2" style="min-height: 3rem">media</div>
+                  <p class="font-heading">Bravo</p>
+                  <p class="font-caption">
+                    A longer body that wraps onto two lines to prove the footers still line up.
+                  </p>
+                  <div class="subgrid-card__footer"><button>Go</button></div>
+                </div>
+                <div class="subgrid-card card" style="padding: 0.75rem">
+                  <div class="subgrid-card__media box b3" style="min-height: 3rem">media</div>
+                  <p class="font-heading">Charlie</p>
+                  <p class="font-caption">Body.</p>
+                  <div class="subgrid-card__footer"><button>Go</button></div>
+                </div>
+              </div>
+              <div class="separator separator--with-text">
+                <span class="separator__text">media object &amp; tile</span>
+              </div>
+              <div class="media">
+                <div class="media__figure box" style="width: 3.5rem; height: 3.5rem">img</div>
+                <div class="media__body">
+                  <p class="font-heading">Media object</p>
+                  <p class="font-caption">Non-shrinking figure beside a flexible body.</p>
+                </div>
+              </div>
+            </div>
+
+            <h3>Subgrid</h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.subgrid</code></div>
+                <div class="api-desc">
+                  Subgrid container aligning child rows across items.<span class="sub"
+                    ><strong>Modifiers:</strong> <code>.subgrid-cols-1…4</code>,
+                    <code>.subgrid-rows-2…4</code>, <code>.subgrid-responsive</code> (fewer columns
+                    when narrow).</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.subgrid-card</code></div>
+                <div class="api-desc">
+                  Subgrid card whose internal rows align across siblings.<span class="sub"
+                    ><strong>Parts:</strong> <code>.subgrid-card__media</code>,
+                    <code>.subgrid-card__footer</code>.</span
+                  >
+                </div>
+              </div>
+            </dl>
+
+            <h3>Pricing &amp; comparison tables</h3>
+            <div class="demo">
+              <div
+                class="pricing-grid"
+                style="
+                  --pricing-columns: 3;
+                  --pricing-card-rows: 4;
+                  grid-template-rows: auto auto 1fr auto;
+                  gap: 1rem;
+                "
+              >
+                <div class="pricing-card">
+                  <div class="pricing-card__header font-heading">Starter</div>
+                  <div class="pricing-card__price">$0</div>
+                  <ul class="pricing-card__features font-caption">
+                    <li class="pricing-card__feature">1 project</li>
+                    <li class="pricing-card__feature">Community support</li>
+                  </ul>
+                  <div class="pricing-card__cta"><button class="badge">Choose</button></div>
+                </div>
+                <div class="pricing-card pricing-card--featured">
+                  <div class="pricing-card__header font-heading">Pro</div>
+                  <div class="pricing-card__price">$12</div>
+                  <ul class="pricing-card__features font-caption">
+                    <li class="pricing-card__feature">Unlimited projects</li>
+                    <li class="pricing-card__feature">Email support</li>
+                  </ul>
+                  <div class="pricing-card__cta"><button>Choose</button></div>
+                </div>
+                <div class="pricing-card">
+                  <div class="pricing-card__header font-heading">Team</div>
+                  <div class="pricing-card__price">$29</div>
+                  <ul class="pricing-card__features font-caption">
+                    <li class="pricing-card__feature">SSO &amp; roles</li>
+                    <li class="pricing-card__feature">Priority support</li>
+                  </ul>
+                  <div class="pricing-card__cta"><button>Choose</button></div>
+                </div>
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.pricing-grid</code></div>
+                <div class="api-desc">Subgrid grid of pricing columns.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.pricing-card</code></div>
+                <div class="api-desc">
+                  Subgrid pricing card with aligned feature rows.<span class="sub"
+                    ><strong>Parts:</strong> <code>.pricing-card__header</code>,
+                    <code>__price</code>, <code>__features</code>, <code>__feature</code>,
+                    <code>__cta</code>. <strong>Modifiers:</strong>
+                    <code>.pricing-card--featured</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.comparison-table</code></div>
+                <div class="api-desc">
+                  Subgrid comparison table — label column plus data columns.<span class="sub"
+                    ><strong>Parts:</strong> <code>.comparison-table__header</code>,
+                    <code>__row</code> (both <code>display: contents</code>).</span
+                  >
+                </div>
+              </div>
+            </dl>
+
+            <h3>Masonry <span class="font-caption">(auto-placement — see callout)</span></h3>
+            <div class="demo">
+              <div class="masonry" style="--masonry-columns: 3; --masonry-gap: 0.5rem; gap: 0.5rem">
+                <div class="masonry__item box" style="height: 4rem">1</div>
+                <div class="masonry__item box b2" style="height: 6rem">2</div>
+                <div class="masonry__item box b3" style="height: 3rem">3</div>
+                <div class="masonry__item box b2" style="height: 5rem">4</div>
+                <div class="masonry__item box b3" style="height: 4rem">5</div>
+                <div class="masonry__item box" style="height: 5.5rem">6</div>
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.masonry</code></div>
+                <div class="api-desc">
+                  Masonry grid with a CSS-columns fallback.<span class="sub"
+                    ><strong>Parts:</strong> <code>.masonry__item</code>,
+                    <code>.masonry__item--span-2</code>, <code>--span-3</code>.</span
+                  >
+                </div>
+              </div>
+            </dl>
+
+            <h3>Media &amp; tile</h3>
+            <div class="demo rhythm">
+              <div class="media">
+                <div class="media__figure box" style="width: 3.5rem; height: 3.5rem">img</div>
+                <div class="media__body">
+                  <p class="font-heading">Media object</p>
+                  <p class="font-caption">Non-shrinking figure beside a flexible body.</p>
+                </div>
+              </div>
+              <a class="tile" href="#structure">
+                <div class="tile__figure box" style="width: 3rem; height: 3rem">img</div>
+                <div class="tile__body">
+                  <p class="font-heading">Clickable tile</p>
+                  <p class="font-caption">Border + shadow; the whole tile is a link.</p>
+                </div>
+                <div class="tile__actions">→</div>
+              </a>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.media</code></div>
+                <div class="api-desc">
+                  Flex media object (figure + body).<span class="sub"
+                    ><strong>Parts:</strong> <code>.media__figure</code>,
+                    <code>.media__body</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.tile</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Clickable card-like media object with border + shadow.<span class="sub"
+                    ><strong>Parts:</strong> <code>.tile__figure</code>, <code>.tile__body</code>,
+                    <code>.tile__actions</code>.</span
+                  >
+                </div>
+              </div>
+            </dl>
+
+            <h3>Overlay (tint layer)</h3>
+            <div class="demo rhythm">
+              <div
+                style="
+                  position: relative;
+                  display: grid;
+                  place-items: center;
+                  min-block-size: 8rem;
+                  border-radius: var(--br-default, 0.5rem);
+                  overflow: hidden;
+                  text-align: center;
+                  color: #fff;
+                "
+              >
+                <div
+                  class="overlay"
+                  style="--overlay: color-mix(in oklch, var(--color-navy) 55%, transparent)"
+                >
+                  <div class="box" style="width: 100%; height: 100%"></div>
+                </div>
+                <p class="font-heading">Legible text over a tinted layer</p>
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.overlay</code><span class="t t-state">new</span></div>
+                <div class="api-desc">
+                  Decorative tint/filter layer (<code
+                    >position: absolute; inset: 0; z-index: -1</code
+                  >) that sits behind sibling content; its <code>::before</code> is
+                  <code>pointer-events: none</code> so content stays interactive.<span class="sub"
+                    ><strong>Tokens:</strong> <code>--overlay</code> (background tint),
+                    <code>--overlay-filter</code> (e.g. <code>grayscale(1) brightness(0.7)</code>).
+                    Give the parent <code>position: relative</code> and place the media inside
+                    <code>.overlay &gt; *</code>.</span
+                  >
+                </div>
+              </div>
+            </dl>
+
+            <h3>Separator</h3>
+            <div class="demo rhythm" style="color: var(--color-surface-xd)">
+              <div class="separator"></div>
+              <div class="separator separator--dashed"></div>
+              <div class="separator separator--dotted"></div>
+              <div class="separator separator--fade"></div>
+              <div class="separator separator--with-text">
+                <span class="separator__text">or</span>
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.separator</code></div>
+                <div class="api-desc">
+                  Horizontal / vertical divider line.<span class="sub"
+                    ><strong>Modifiers:</strong> <code>--vertical</code>, <code>--dashed</code>,
+                    <code>--dotted</code>, <code>--fade</code>, <code>--with-text</code>,
+                    <code>--ornament</code>. <strong>Parts:</strong> <code>.separator__text</code>,
+                    <code>.separator__ornament</code> (<code>--diamond</code>,
+                    <code>--star</code>).</span
+                  >
+                </div>
+              </div>
+            </dl>
+
+            <h3>Sticky positioning</h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.sticky</code></div>
+                <div class="api-desc">
+                  <code>position: sticky</code>, pinned to top by default.<span class="sub"
+                    ><strong>Modifiers:</strong> <code>--bottom</code>, <code>--inline-start</code>,
+                    <code>--inline-end</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.sticky-header</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Sticky header with scroll “stuck” detection.<span class="sub"
+                    ><strong>Parts:</strong> <code>.sticky-header__stuck-only</code>,
+                    <code>__unstuck-only</code>, <code>__logo</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.sticky-nav</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Sticky nav with scroll-snap active-state detection.<span class="sub"
+                    ><strong>Parts:</strong> <code>.sticky-nav__item</code>, <code>__link</code>,
+                    <code>__indicator</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.sticky-sidebar</code> · <code>.sticky-footer</code> ·
+                  <code>.sticky-table</code>
+                </div>
+                <div class="api-desc">
+                  Sticky scrollable sidebar; sticky footer; table with sticky header row (<code
+                    >.sticky-table--first-col</code
+                  >
+                  also pins column 1).
+                </div>
+              </div>
+            </dl>
+
+            <h3>Scroll-driven stacking &amp; splitters</h3>
+            <div class="demo rhythm">
+              <wc-split-panel style="block-size: 7rem; border-radius: var(--br-default)">
+                <div
+                  slot="start"
+                  class="bg-brand-primary"
+                  style="height: 100%; display: grid; place-items: center; color: #fff"
+                >
+                  start
+                </div>
+                <div
+                  slot="end"
+                  class="bg-cobalt-d"
+                  style="height: 100%; display: grid; place-items: center; color: #fff"
+                >
+                  end
+                </div>
+              </wc-split-panel>
+              <wc-image-compare
+                before-label="Before"
+                after-label="After"
+                style="max-inline-size: 26rem; display: block"
+              >
+                <img
+                  slot="before"
+                  alt="Before"
+                  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='240'%3E%3Crect width='520' height='240' fill='%234a9075'/%3E%3C/svg%3E"
+                />
+                <img
+                  slot="after"
+                  alt="After"
+                  src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='240'%3E%3Crect width='520' height='240' fill='%232f6fb3'/%3E%3C/svg%3E"
+                />
+              </wc-image-compare>
+              <p class="swatch-note">
+                <code>&lt;wc-split-panel&gt;</code> and <code>&lt;wc-image-compare&gt;</code> — drag
+                the handles. Progressive enhancement: without JS the tags render their slotted
+                content inertly.
+              </p>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.stack</code></div>
+                <div class="api-desc">
+                  Grid of scroll-driven stacking cards (view-timeline).<span class="sub"
+                    ><strong>Parts:</strong> <code>.stack__card</code>,
+                    <code>.stack__card__content</code>. <strong>Modifiers:</strong>
+                    <code>.stack--fade</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.splitter</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Two-panel resizable splitter shell.<span class="sub"
+                    ><strong>Parts:</strong> <code>.splitter__panel</code>,
+                    <code>.splitter__handle</code>. <strong>Modifiers:</strong>
+                    <code>.splitter--vertical</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.image-compare</code></div>
+                <div class="api-desc">
+                  Before/after image comparison.<span class="sub"
+                    ><strong>Parts:</strong> <code>__before</code>, <code>__after</code>,
+                    <code>__handle</code>, <code>__grip</code>,
+                    <code>__label</code> (<code>--before</code>/<code>--after</code>).
+                    <strong>Modifiers:</strong> <code>.image-compare--vertical</code>.</span
+                  >
+                </div>
+              </div>
+            </dl>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 05 PATTERNS ============ -->
+          <section class="rhythm measure" id="patterns">
+            <h2><span class="section-no">05</span>UI patterns</h2>
+            <p>
+              Component patterns generated from <code>design-system.json</code>.
+              <b>Buttons and links</b> are styled via zero-specificity element selectors (<code
+                >:where(button)</code
+              >
+              / <code>:where(a)</code>) — no class needed for the base — with class-based colour
+              roles.
+            </p>
+
+            <div class="demo rhythm">
+              <div class="card" style="padding: 1rem">
+                <p class="font-heading">Card</p>
+                <p class="font-caption">A padded, rounded panel on <code>surface-xxl</code>.</p>
+              </div>
+              <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
+                <button>Button</button><button class="success">success</button
+                ><button class="danger">danger</button><button class="warning">warning</button
+                ><button class="info">info</button>
+              </p>
+              <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
+                <span class="badge">badge</span><span class="badge badge-success">success</span
+                ><span class="badge badge-danger">danger</span
+                ><span class="badge badge-warning">warning</span
+                ><span class="badge badge-info">info</span>
+              </p>
+              <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
+                <span class="tag">tag</span><span class="tag tag-success">success</span
+                ><span class="tag tag-danger">danger</span
+                ><span class="tag tag-warning">warning</span><span class="tag tag-info">info</span>
+                <span class="status-dot status-dot-success"></span
+                ><span class="status-dot status-dot-danger"></span
+                ><span class="status-dot status-dot-warning"></span
+                ><span class="status-dot status-dot-info"></span>
+              </p>
+            </div>
+
+            <h3>Card</h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.card</code></div>
+                <div class="api-desc">
+                  Padded, rounded panel on <code>surface-xxl</code> — the general-purpose container
+                  for grouping related content.
+                </div>
+              </div>
+            </dl>
+
+            <h3>Buttons &amp; links</h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>button</code> · <code>a</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Base button / link styling applied by element selector (hover / active /
+                  focus-visible states).
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>button.{success|danger|warning|info}</code
+                  ><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">Filled button colour-role variants.</div>
+              </div>
+            </dl>
+
+            <h3>Badges, tags &amp; status</h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.badge</code> · <code>.badge-{success|danger|warning|info}</code>
+                </div>
+                <div class="api-desc">
+                  Pill badge; neutral by default, plus semantic colour variants.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.tag</code> · <code>.tag-{success|danger|warning|info}</code>
+                </div>
+                <div class="api-desc">
+                  Outlined inline tag; neutral by default.<span class="sub"
+                    ><strong>Parts:</strong> <code>.tag__icon</code>, <code>.tag__remove</code>
+                    <span class="t t-state">state</span>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.status-dot</code> · <code>.status-dot-{success|danger|warning|info}</code>
+                </div>
+                <div class="api-desc">Small round status indicator; neutral by default.</div>
+              </div>
+            </dl>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 06 FORMS ============ -->
+          <section class="rhythm measure" id="forms">
+            <h2><span class="section-no">06</span>Forms</h2>
+            <div class="demo demo-frame rhythm">
+              <div class="form-group">
+                <label class="form-group__label" for="d-email"
+                  >Email <span class="form-group__optional">(optional)</span></label
+                >
+                <input id="d-email" type="email" placeholder="you@example.com" />
+                <span class="form-group__helper">We’ll never share it.</span>
+              </div>
+              <div class="input-group input-group--has-icon-start">
+                <span class="input-group__icon input-group__icon--start">🔍</span>
+                <input type="search" placeholder="Search…" />
+              </div>
+              <label class="custom-check">
+                <input type="checkbox" checked />
+                <span class="custom-check__box"
+                  ><span class="custom-check__indicator custom-check__indicator--check"></span
+                ></span>
+                Subscribe to updates
+              </label>
+              <label class="switch">
+                <input type="checkbox" checked />
+                <span class="switch__track"><span class="switch__thumb"></span></span>
+                Dark mode
+              </label>
+              <label class="form-group__label" for="d-select">Plan</label>
+              <select class="custom-select" id="d-select">
+                <option>Starter</option>
+                <option>Pro</option>
+                <option>Enterprise</option>
+              </select>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.form-group</code></div>
+                <div class="api-desc">
+                  Label + control + helper/error stack.<span class="sub"
+                    ><strong>Parts:</strong> <code>__label</code>, <code>__optional</code>,
+                    <code>__helper</code>, <code>__error</code>, <code>__counter</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.fieldset</code></div>
+                <div class="api-desc">
+                  Grouped controls container.<span class="sub"
+                    ><strong>Parts:</strong> <code>.fieldset__content</code>.
+                    <strong>Modifiers:</strong> <code>.fieldset--borderless</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.input-group</code></div>
+                <div class="api-desc">
+                  Input flanked by icons / addons.<span class="sub"
+                    ><strong>Parts:</strong> <code>__addon</code>,
+                    <code>__icon</code> (<code>--start</code>/<code>--end</code>).
+                    <strong>Modifiers:</strong> <code>--has-icon-start</code>,
+                    <code>--has-icon-end</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.custom-check</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Styled checkbox / radio wrapping a hidden native input.<span class="sub"
+                    ><strong>Parts:</strong> <code>__box</code>,
+                    <code>__indicator</code>
+                    (<code>--check</code>/<code>--indeterminate</code>).</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.switch</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Toggle switch wrapping a hidden native input.<span class="sub"
+                    ><strong>Parts:</strong> <code>.switch__track</code>,
+                    <code>.switch__thumb</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.custom-select</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Styled native <code>&lt;select&gt;</code> via
+                  <code>appearance: base-select</code> with caret pseudo-element.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.combobox</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Filterable listbox shell. <strong>TODO:</strong> the Lit component (<code
+                    >&lt;wc-combobox&gt;</code
+                  >
+                  for filtering/selection) is not built yet — the CSS shell renders but is
+                  inert.<span class="sub"
+                    ><strong>Parts:</strong> <code>__input</code>, <code>__listbox</code>,
+                    <code>__option</code>, <code>__empty</code>, <code>__clear</code>.
+                    <strong>Modifiers:</strong> <code>--loading</code>,
+                    <code>--clearable</code>.</span
+                  >
+                </div>
+              </div>
+            </dl>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 07 NAV ============ -->
+          <section class="rhythm measure" id="nav">
+            <h2><span class="section-no">07</span>Navigation</h2>
+            <div class="demo demo-frame">
+              <header class="navbar">
+                <span class="brand">Logo</span>
+                <nav>
+                  <ul class="nav-items">
+                    <li><a class="nav-link" href="#nav">Home</a></li>
+                    <li><a class="nav-link" href="#nav">Docs</a></li>
+                    <li><a class="nav-link" href="#nav">Pricing</a></li>
+                  </ul>
+                </nav>
+                <span class="nav-split"></span>
+                <div class="social-links">
+                  <a href="#nav" aria-label="X">✕</a><a href="#nav" aria-label="GitHub">⌂</a>
+                </div>
+              </header>
+              <details class="nav-collapse" style="margin-top: 0.75rem">
+                <summary>More <span class="collapse-icon">▾</span></summary>
+                <ul class="collapse-menu">
+                  <li><a href="#nav">Changelog</a></li>
+                  <li><a href="#nav">Status</a></li>
+                </ul>
+              </details>
+            </div>
+            <!-- Menu: WP-menu-driven responsive nav. Accordion below md, pop-out
+                 dropdowns at/above it. The "Company" branch is depth-capped
+                 (--desktop-branch) so its 3rd tier only appears on desktop. -->
+            <div class="demo demo-frame">
+              <nav class="menu menu--bp-md" aria-label="Demo">
+                <ul class="menu__list">
+                  <li class="menu__item"><a class="menu__link" href="#nav">Home</a></li>
+                  <li class="menu__item menu__item--branch">
+                    <details class="menu__disclosure">
+                      <summary class="menu__summary split-link">
+                        <a class="menu__link split-link__link" href="#nav">Products</a>
+                        <span class="menu__toggle split-link__toggle" aria-hidden="true"
+                          ><span class="split-link__caret">▾</span></span
+                        >
+                      </summary>
+                      <ul class="menu__submenu">
+                        <li class="menu__item"><a class="menu__link" href="#nav">Overview</a></li>
+                        <li class="menu__item"><a class="menu__link" href="#nav">Pricing</a></li>
+                        <li class="menu__item menu__item--desktop-branch">
+                          <details class="menu__disclosure">
+                            <summary class="menu__summary split-link">
+                              <a class="menu__link split-link__link" href="#nav">Integrations</a>
+                              <span class="menu__toggle split-link__toggle" aria-hidden="true"
+                                ><span class="split-link__caret">▾</span></span
+                              >
+                            </summary>
+                            <ul class="menu__submenu">
+                              <li class="menu__item">
+                                <a class="menu__link" href="#nav">Slack</a>
+                              </li>
+                              <li class="menu__item">
+                                <a class="menu__link" href="#nav">GitHub</a>
+                              </li>
+                            </ul>
+                          </details>
+                        </li>
+                      </ul>
+                    </details>
+                  </li>
+                  <li class="menu__item"><a class="menu__link" href="#nav">Docs</a></li>
+                </ul>
+              </nav>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.navbar</code> · <code>.navbar-sticky</code></div>
+                <div class="api-desc">Horizontal navbar layout; sticky-to-top modifier.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.nav-items</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Flex list of nav links (<code>nav &gt; .nav-items</code>).
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.nav-link</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Link/button-styled nav item inside <code>.nav-items</code>.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.nav-header</code> · <code>.nav-actions</code> · <code>.nav-split</code>
+                </div>
+                <div class="api-desc">
+                  Nav header region (bottom divider); action region (top divider); auto-margin gap
+                  pushing following items apart.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.dropdown-menu</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Absolutely positioned dropdown submenu wrapper.<span class="sub"
+                    ><strong>Related:</strong> <code>.dropdown-trigger</code>,
+                    <code>.dropdown-icon</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.nav-collapse</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Accordion submenu using <code>&lt;details&gt;</code>.<span class="sub"
+                    ><strong>Related:</strong> <code>.collapse-menu</code>,
+                    <code>.collapse-icon</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.drawer-menu</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Full-screen slide-in nav drawer via <code>[open]</code> / Popover API with
+                  backdrop.<span class="sub"
+                    ><strong>Parts:</strong> <code>.drawer-trigger</code>,
+                    <code>.drawer-close</code>, <code>.drawer-nav</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.social-links</code></div>
+                <div class="api-desc">Inline row of padded social link anchors.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.menu</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Responsive nav (Bricks <code>vitops-menu</code>, WP-menu-driven). Branch items are
+                  split-links: a parent <code>&lt;a&gt;</code> + a
+                  <code>&lt;details&gt;</code> disclosure. Accordion below the breakpoint; pop-out
+                  dropdowns at/above it (open on hover, focus, or click). No JS.<span class="sub"
+                    ><strong>Parts:</strong> <code>__list</code>,
+                    <code>__item</code> (<code>--branch</code>), <code>__disclosure</code>,
+                    <code>__summary</code>, <code>__link</code>, <code>__toggle</code>,
+                    <code>__submenu</code>. <strong>Breakpoint:</strong>
+                    <code>.menu--bp-{sm,md,lg,xl}</code>. <strong>Depth caps:</strong>
+                    <code>.menu__item--desktop-branch</code> / <code>--mobile-branch</code> hide a
+                    level's caret+submenu at one breakpoint.</span
+                  >
+                </div>
+              </div>
+            </dl>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 08 DIALOGS / POPOVERS ============ -->
+          <section class="rhythm measure" id="overlays">
+            <h2><span class="section-no">08</span>Dialogs/Popovers</h2>
+            <div class="demo">
+              <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
+                <button popovertarget="d-dialog">Open dialog</button>
+                <button popovertarget="d-drawer">Open drawer</button>
+                <span class="popover-anchor">
+                  <button popovertarget="d-pop">Popover</button>
+                  <div popover id="d-pop" class="popover--bottom card" style="padding: 0.75rem">
+                    Anchored popover, positioned with the CSS Anchor API.
+                  </div>
+                </span>
+                <button type="button" class="tooltip-trigger" popovertarget="d-tip">
+                  Hover for tooltip
+                </button>
+                <span popover id="d-tip" class="tooltip"
+                  >Anchored below — flips above when there's no room.</span
+                >
+              </p>
+              <dialog popover id="d-dialog" class="dialog">
+                <div class="dialog__header">
+                  <p class="dialog__title">Dialog title</p>
+                  <button class="dialog__close" popovertarget="d-dialog" popovertargetaction="hide">
+                    ✕
+                  </button>
+                </div>
+                <div class="dialog__body">
+                  A native <code>&lt;dialog&gt;</code> with animated backdrop.
+                </div>
+                <div class="dialog__footer">
+                  <button popovertarget="d-dialog" popovertargetaction="hide">Close</button>
+                </div>
+              </dialog>
+              <div popover id="d-drawer" class="drawer drawer--right">
+                <button class="dialog__close" popovertarget="d-drawer" popovertargetaction="hide">
+                  ✕
+                </button>
+                <p class="font-heading">Drawer</p>
+                <p class="font-caption">
+                  Slides in from the right; <code>[popover]</code> variant.
+                </p>
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.dialog</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Native <code>&lt;dialog&gt;</code> modal with animated backdrop.<span class="sub"
+                    ><strong>Parts:</strong> <code>__header</code>, <code>__title</code>,
+                    <code>__close</code>, <code>__body</code>, <code>__footer</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.drawer</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Slide-in panel as <code>&lt;dialog&gt;</code> or <code>[popover]</code>.<span
+                    class="sub"
+                    ><strong>Modifiers:</strong> <code>--left</code>, <code>--right</code>,
+                    <code>--top</code>, <code>--bottom</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.popover-anchor</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Anchor wrapper positioning a child <code>[popover]</code>.<span class="sub"
+                    ><strong>Placement:</strong> <code>.popover--top/-bottom/-left/-right</code> (+
+                    <code>-start</code>/<code>-end</code> corners).</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.tooltip</code> · <code>.tooltip-trigger</code
+                  ><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Small anchored popover shown on hover/focus of its trigger. Anchored below by
+                  default and flips to the opposite side when the edge is near.<span class="sub"
+                    ><strong>Placement:</strong> override the logical inset (e.g.
+                    <code>inset-inline-start: anchor(inline-end)</code>) to re-point it to any
+                    side/corner — the flip chain adapts.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.dropdown--show-on-hover</code> · <code>.split-link--show-on-hover</code
+                  ><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">Hover/click popover menu with no scrim.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.split-link</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Split button: a primary <code>&lt;a&gt;</code> flush with a
+                  <code>&lt;button popovertarget&gt;</code> that toggles an anchored
+                  <code>[popover]</code> of secondary content. No JS — native Popover API + Anchor
+                  Positioning; the invoker also gets <code>aria-expanded</code> for free.<span
+                    class="sub"
+                    ><strong>Parts:</strong> <code>__link</code>, <code>__toggle</code>,
+                    <code>__caret</code>, <code>__panel</code> (<code>--editing</code> for the
+                    builder's visible variant). <strong>Placement:</strong> set
+                    <code>--split-link-area</code> to any logical <code>position-area</code> (e.g.
+                    <code>block-end span-inline-end</code>); each instance needs a unique
+                    <code>anchor-name</code>/<code>position-anchor</code> pair.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.notification</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Toast with entry/exit animation and progress bar.<span class="sub"
+                    ><strong>Parts:</strong> <code>__icon</code>, <code>__content</code>,
+                    <code>__title</code>, <code>__message</code>, <code>__actions</code>,
+                    <code>__close</code>, <code>__progress</code>. <strong>Modifiers:</strong>
+                    <code>--exiting</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.lightbox</code> · <code>.lightbox-dialog</code
+                  ><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Thumbnail grid + full-screen <code>&lt;dialog&gt;</code> with view
+                  transitions.<span class="sub"
+                    ><strong>Parts:</strong> <code>.lightbox__item</code>, <code>__thumb</code>;
+                    <code>.lightbox-dialog__content</code>, <code>__image</code>,
+                    <code>__close</code>, <code>__nav</code>, <code>__nav-button</code>,
+                    <code>__caption</code>.</span
+                  >
+                </div>
+              </div>
+            </dl>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 09 CONTENT ============ -->
+          <section class="rhythm measure" id="content">
+            <h2><span class="section-no">09</span>Content blocks</h2>
+            <div class="demo rhythm">
+              <div class="table-wrapper">
+                <table class="table table--striped table--hover">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Role</th>
+                      <th data-numeric>Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Ada</td>
+                      <td>Engineer</td>
+                      <td data-numeric>98</td>
+                    </tr>
+                    <tr>
+                      <td>Linus</td>
+                      <td>Maintainer</td>
+                      <td data-numeric>91</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <details class="details details--plus-minus">
+                <summary>What is a disclosure? <span class="details-icon"></span></summary>
+                <p>A native <code>&lt;details&gt;</code> with an animated content box.</p>
+              </details>
+              <wc-dismissable>
+                <div class="banner banner--dismissible">
+                  <div class="banner__content">🎉 A dismissible announcement banner.</div>
+                  <button class="banner__close" data-dismiss aria-label="Dismiss">✕</button>
+                </div>
+              </wc-dismissable>
+              <ul class="list list--divided list--interactive">
+                <li class="list__item">
+                  <span class="list__icon">◆</span>
+                  <span class="list__content"
+                    ><span class="list__title">List item</span
+                    ><span class="list__subtitle">with a subtitle</span></span
+                  >
+                  <span class="list__trailing">›</span>
+                </li>
+                <li class="list__item">
+                  <span class="list__icon">◆</span>
+                  <span class="list__content"><span class="list__title">Second item</span></span>
+                  <span class="list__trailing">›</span>
+                </li>
+              </ul>
+              <div class="chip-list">
+                <span class="chip-list__chip"
+                  >react <button class="chip-list__chip-remove">✕</button></span
+                >
+                <span class="chip-list__chip"
+                  >css <button class="chip-list__chip-remove">✕</button></span
+                >
+                <input class="chip-list__input" placeholder="Add…" />
+              </div>
+              <div class="comment-thread">
+                <div class="comment">
+                  <div class="comment__avatar box" style="width: 2.5rem; height: 2.5rem">A</div>
+                  <div class="comment__header">
+                    <span class="comment__author">Ada</span>
+                    <span class="comment__date">2h ago</span>
+                  </div>
+                  <div class="comment__body">Grid areas keep the avatar column aligned.</div>
+                  <div class="comment__footer">
+                    <a class="comment__action" href="#content">Reply</a>
+                    <a class="comment__action" href="#content">Like</a>
+                  </div>
+                  <div class="comment__replies">
+                    <div class="comment comment--compact">
+                      <div class="comment__header">
+                        <span class="comment__author">Linus</span>
+                        <span class="comment__date">1h ago</span>
+                      </div>
+                      <div class="comment__body">Compact variant drops the avatar.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.table</code> · <code>.table-wrapper</code
+                  ><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Data table (bare <code>&lt;table&gt;</code> or class) + horizontal-scroll
+                  wrapper.<span class="sub"
+                    ><strong>Modifiers:</strong> <code>--bordered</code>, <code>--striped</code>,
+                    <code>--hover</code>, <code>--compact</code>, <code>--fixed</code>,
+                    <code>--sticky-header</code>; <code>[data-numeric]</code> cells.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.details</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Native <code>&lt;details&gt;</code> disclosure with animated content.<span
+                    class="sub"
+                    ><strong>Parts:</strong>
+                    <code>.details-icon</code> (<code>--plus</code>/<code>--minus</code>).
+                    <strong>Modifiers:</strong> <code>--marker-start</code>,
+                    <code>--plus-minus</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.comment</code> · <code>.comment-thread</code
+                  ><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Threaded comment grid + vertical stack.<span class="sub"
+                    ><strong>Parts:</strong> <code>__avatar</code>, <code>__header</code>,
+                    <code>__author</code>, <code>__date</code>, <code>__body</code>,
+                    <code>__footer</code>, <code>__action</code>, <code>__replies</code>.
+                    <strong>Modifiers:</strong> <code>--compact</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.banner</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Full-width announcement bar.<span class="sub"
+                    ><strong>Parts:</strong> <code>__close</code>, <code>__content</code>,
+                    <code>__action</code>. <strong>Modifiers:</strong> <code>--dismissible</code>,
+                    <code>--sticky</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>&lt;wc-dismissable&gt;</code><span class="t t-state">Lit</span>
+                </div>
+                <div class="api-desc">
+                  Light-DOM wrapper that fades out + removes itself when a descendant
+                  <code>[data-dismiss]</code> is clicked (see the banner above). Reusable by any
+                  dismissable UI — banner, notification, chip, alert.<span class="sub"
+                    ><strong>Attributes:</strong> <code>duration</code> (ms, auto-dismiss),
+                    <code>exit</code> (ms, fade-out). <strong>Fires:</strong>
+                    <code>dismiss</code> (cancelable).</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.list</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Base list.<span class="sub"
+                    ><strong>Parts:</strong> <code>__item</code>, <code>__icon</code>,
+                    <code>__content</code>, <code>__title</code>, <code>__subtitle</code>,
+                    <code>__trailing</code>. <strong>Modifiers:</strong> <code>--interactive</code>,
+                    <code>--divided</code>, <code>--bordered</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.facet-list</code></div>
+                <div class="api-desc">
+                  Filter facet list.<span class="sub"
+                    ><strong>Parts:</strong> <code>__item</code> (<code>--active</code>),
+                    <code>__checkbox</code>, <code>__label</code>, <code>__name</code>,
+                    <code>__count</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.filtered-list</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Searchable filtered list (native <code>:has</code>).<span class="sub"
+                    ><strong>Parts:</strong> <code>__search</code>, <code>__input</code>,
+                    <code>__search-icon</code>, <code>__clear</code>, <code>__results</code>,
+                    <code>__empty</code>, <code>__match</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.virtual-list</code></div>
+                <div class="api-desc">
+                  Lazy / virtualized scroll list.<span class="sub"
+                    ><strong>Parts:</strong> <code>__item</code>, <code>__sentinel</code>,
+                    <code>__loading</code>, <code>__end</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.chip-list</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Chip / token input container.<span class="sub"
+                    ><strong>Parts:</strong> <code>__chip</code>, <code>__chip-remove</code>,
+                    <code>__input</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.tree</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Hierarchical tree over nested lists / <code>&lt;details&gt;</code>.<span
+                    class="sub"
+                    ><strong>Parts:</strong> <code>__item</code> (<code>--dragging</code>),
+                    <code>__content</code>, <code>__toggle</code>, <code>__icon</code>,
+                    <code>__label</code>, <code>__actions</code>. <strong>Modifiers:</strong>
+                    <code>--lines</code>.</span
+                  >
+                </div>
+              </div>
+            </dl>
+
+            <h3>List semantics</h3>
+            <p class="swatch-note">
+              Removing bullets with <code>list-style: none</code> makes some screen readers (Safari
+              + VoiceOver) stop announcing a <code>&lt;ul&gt;</code> as a list. Add
+              <code>role="list"</code> to restore the semantics. Plain <code>&lt;ul&gt;</code>/<code
+                >&lt;ol&gt;</code
+              >
+              keep theirs automatically.
+            </p>
+            <div class="demo demo-grid">
+              <div class="demo-cell">
+                <ul>
+                  <li>Bulleted</li>
+                  <li>native list</li>
+                </ul>
+                <code>&lt;ul&gt;</code>
+              </div>
+              <div class="demo-cell">
+                <ol>
+                  <li>Ordered</li>
+                  <li>native list</li>
+                </ol>
+                <code>&lt;ol&gt;</code>
+              </div>
+              <div class="demo-cell">
+                <ul role="list" style="list-style: none; padding: 0; margin: 0">
+                  <li>Unstyled</li>
+                  <li>still a list</li>
+                </ul>
+                <code>&lt;ul role="list"&gt;</code>
+              </div>
+            </div>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 10 CAROUSEL ============ -->
+          <section class="rhythm measure" id="carousel">
+            <h2><span class="section-no">10</span>Carousel &amp; marquee</h2>
+            <div class="demo rhythm">
+              <div
+                class="carousel carousel--scroll-buttons carousel--scroll-markers"
+                style="--carousel-columns: 3"
+              >
+                <div class="box" style="min-height: 5rem">Slide 1</div>
+                <div class="box b2" style="min-height: 5rem">Slide 2</div>
+                <div class="box b3" style="min-height: 5rem">Slide 3</div>
+                <div class="box" style="min-height: 5rem">Slide 4</div>
+                <div class="box b2" style="min-height: 5rem">Slide 5</div>
+              </div>
+              <div class="marquee marquee--pause-hover">
+                <div class="marquee__content">
+                  <span class="marquee__item tag">CSS</span
+                  ><span class="marquee__item tag">Bricks</span
+                  ><span class="marquee__item tag">Astro</span
+                  ><span class="marquee__item tag">Lit</span
+                  ><span class="marquee__item tag">Tailwind</span>
+                </div>
+              </div>
+              <p class="swatch-note">
+                Both are pure CSS (scroll-snap / infinite loop); hover the marquee to pause.
+              </p>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.carousel</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  CSS scroll-snap carousel using <code>::scroll-button</code> /
+                  <code>::scroll-marker-group</code> / <code>::column</code>.<span class="sub"
+                    ><strong>Modifiers:</strong> <code>--auto-pages</code>,
+                    <code>--scroll-buttons</code>, <code>--scroll-markers</code>,
+                    <code>--inert</code>, <code>--force-stop</code>; <code>[part=autoplay]</code>,
+                    <code>[data-carousel-clone]</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.marquee</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  CSS infinite scrolling row/column (content duplicated for a seamless loop).<span
+                    class="sub"
+                    ><strong>Parts:</strong> <code>__content</code>, <code>__item</code>.
+                    <strong>Modifiers:</strong> <code>--pause-hover</code>, <code>--reverse</code>,
+                    <code>--vertical</code>.</span
+                  >
+                </div>
+              </div>
+            </dl>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 11 ANIMATION ============ -->
+          <section class="rhythm measure" id="animation">
+            <h2><span class="section-no">11</span>Animation</h2>
+            <p>
+              Effects are pure value layers; a <b>driver</b> decides when they play. Every effect
+              <span class="t t-state">state</span> also ships <code>hover-</code>,
+              <code>focus-</code>, and <code>active-</code> trigger variants — pair those with
+              <code>.transition</code> for a reversible state-flip.
+            </p>
+
+            <div class="demo">
+              <p class="swatch-note">
+                Effects (click a tile to replay via <code>.animate-trigger</code>):
+              </p>
+              <div class="gallery" id="effects"></div>
+              <p class="swatch-note" style="margin-top: 1rem">
+                Hover-flip drivers (<code>.transition.hover-*</code>):
+              </p>
+              <div class="gallery">
+                <div class="fx-box transition hover-fade-in"><code>hover-fade-in</code></div>
+                <div class="fx-box transition hover-scale-up"><code>hover-scale-up</code></div>
+                <div class="fx-box transition hover-slide-up"><code>hover-slide-up</code></div>
+                <div class="fx-box transition hover-elevate-up"><code>hover-elevate-up</code></div>
+              </div>
+              <p class="swatch-note" style="margin-top: 1rem">
+                Staggered trigger (click to replay), and float presets:
+              </p>
+              <div class="gallery stagger" id="stagger-demo"></div>
+              <div class="gallery" id="floats" style="margin-top: 1rem"></div>
+            </div>
+
+            <h3>Drivers</h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.animate-view</code></div>
+                <div class="api-desc">
+                  Play the effect on a <code>view()</code> scroll-into-view timeline (finishes
+                  within first 20% of entry; override via <code>--anim-range</code>).
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.animate-scroll</code></div>
+                <div class="api-desc">
+                  Link the effect to a root <code>scroll()</code> timeline for scrub-on-scroll.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.animate-trigger</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Time-based, paused until <code>.is-active</code> / <code>[data-active]</code>,
+                  then plays once.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.transition</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Reversible / interruptible state-flip over the same from/to vars; pairs with
+                  <code>hover-</code>/<code>focus-</code>/<code>active-</code> effects.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.scroll-size</code></div>
+                <div class="api-desc">
+                  Scroll-driven height animation (sticky headers) via a
+                  <code>scroll()</code> timeline.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.stagger</code></div>
+                <div class="api-desc">
+                  Stagger container — children get incremental <code>animation-delay</code>; tune
+                  with <code>--stagger-amount</code>.
+                </div>
+              </div>
+            </dl>
+
+            <h3>Effects <span class="t t-state">state</span></h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.fade-in</code> · <code>.fade-out</code></div>
+                <div class="api-desc">Fade opacity in / out.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.slide-{up|down|left|right}</code></div>
+                <div class="api-desc">
+                  Translate in from a direction (<code>--slide-distance</code>, default 2rem).
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.scale-up</code> · <code>.scale-down</code></div>
+                <div class="api-desc">Scale up from 0.9 / down from 1.1.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.rotate-cw</code> · <code>.rotate-ccw</code></div>
+                <div class="api-desc">Rotate ±360°.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.blur-in</code> · <code>.blur-out</code></div>
+                <div class="api-desc">
+                  Blur to / from sharp (<code>--blur-amount</code>, default 10px).
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.elevate-up</code> · <code>.elevate-down</code></div>
+                <div class="api-desc">
+                  Grow / shrink drop-shadow (<code>--default-shadow</code>).
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.reveal-{up|down|left|right}</code></div>
+                <div class="api-desc">Clip-path wipe reveal from a direction.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.size-grow</code> · <code>.size-shrink</code></div>
+                <div class="api-desc">
+                  Keyframe-only height grow/shrink from/to 0 (<code>overflow: clip</code>).
+                </div>
+              </div>
+            </dl>
+
+            <h3>Journeys <span class="font-caption">(multi-stage entry → hold → exit)</span></h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.fade-journey</code> · <code>.slide-journey</code> ·
+                  <code>.scale-journey</code> · <code>.blur-journey</code>
+                </div>
+                <div class="api-desc">
+                  Single-property in-hold-out across the element’s viewport pass.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.fade-slide-journey</code> · <code>.fade-scale-journey</code> ·
+                  <code>.fade-blur-journey</code>
+                </div>
+                <div class="api-desc">Two-property composed journeys.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.fade-slide-scale-journey</code> · <code>.fade-scale-blur-journey</code>
+                </div>
+                <div class="api-desc">Three-property composed journeys.</div>
+              </div>
+            </dl>
+
+            <h3>Float drivers</h3>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.float</code></div>
+                <div class="api-desc">
+                  Continuous self-contained float base; requires a preset. Reads
+                  <code>--float-duration</code>/<code>-easing</code>/<code>-iterations</code>.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.float-circular</code> · <code>.float-circular-ccw</code> ·
+                  <code>.float-figure-8</code>
+                </div>
+                <div class="api-desc">
+                  Orbit / figure-eight waypoint paths (<code>--float-radius</code>).
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.float-bounce-y</code> · <code>.float-drift-x</code> ·
+                  <code>.float-gentle</code>
+                </div>
+                <div class="api-desc">
+                  1D bounce / drift (<code>--float-distance</code>) and subtle organic drift.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.float-path</code> · <code>.float-path-circle</code> ·
+                  <code>.float-path-ellipse</code>
+                </div>
+                <div class="api-desc">
+                  <code>offset-path</code>-based float (<code>--float-path</code>).
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.float-{slow|fast|linear|organic}</code></div>
+                <div class="api-desc">
+                  Timing modifiers — 8s / 2s duration; linear / ease-in-out easing.
+                </div>
+              </div>
+            </dl>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 12 TEXT EFFECTS ============ -->
+          <section class="rhythm measure" id="text-effects">
+            <h2><span class="section-no">12</span>Text effects</h2>
+            <div class="demo rhythm">
+              <p class="font-heading text-gradient-animate">Animated gradient text</p>
+              <p>
+                A
+                <span class="text-highlight">highlighted phrase</span> sweeps its background on
+                hover (or when <code>.text-highlight--active</code> is set).
+              </p>
+              <p class="typing typing--loop" style="max-width: 22ch">Typewriter effect…</p>
+              <p class="font-heading">
+                We build
+                <span class="text-flip" style="--text-flip-items: 3">
+                  <span class="text-flip__item">websites</span>
+                  <span class="text-flip__item">brands</span>
+                  <span class="text-flip__item">systems</span>
+                </span>
+              </p>
+              <p class="font-heading">
+                Made for
+                <span class="text-rotate" style="--text-rotate-items: 3">
+                  <span class="text-rotate__item">speed</span>
+                  <span class="text-rotate__item">scale</span>
+                  <span class="text-rotate__item">humans</span>
+                </span>
+              </p>
+              <p class="font-heading text-stagger" aria-label="Stagger">
+                <span class="text-stagger__char" aria-hidden="true">S</span
+                ><span class="text-stagger__char" aria-hidden="true">t</span
+                ><span class="text-stagger__char" aria-hidden="true">a</span
+                ><span class="text-stagger__char" aria-hidden="true">g</span
+                ><span class="text-stagger__char" aria-hidden="true">g</span
+                ><span class="text-stagger__char" aria-hidden="true">e</span
+                ><span class="text-stagger__char" aria-hidden="true">r</span>
+              </p>
+              <p class="font-heading text-scramble" aria-label="Scramble">
+                <span class="text-scramble__char" aria-hidden="true">S</span
+                ><span class="text-scramble__char text-scramble__char--scrambled" aria-hidden="true"
+                  >c</span
+                ><span class="text-scramble__char" aria-hidden="true">r</span
+                ><span class="text-scramble__char text-scramble__char--scrambled" aria-hidden="true"
+                  >a</span
+                ><span class="text-scramble__char" aria-hidden="true">m</span
+                ><span class="text-scramble__char text-scramble__char--scrambled" aria-hidden="true"
+                  >b</span
+                ><span class="text-scramble__char" aria-hidden="true">l</span
+                ><span class="text-scramble__char" aria-hidden="true">e</span>
+              </p>
+              <p
+                class="font-title text-reveal"
+                style="--text-reveal-color-to: var(--color-brand-primary)"
+              >
+                Scroll-driven two-tone fill
+              </p>
+              <p class="font-caption">
+                Flip / rotate / stagger / reveal are pure CSS. Scramble is a CSS shell — its
+                per-character shuffle enhances progressively via JS (static
+                <code>--scrambled</code> chars shown here).
+              </p>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.typing</code></div>
+                <div class="api-desc">
+                  Typewriter reveal with blinking caret
+                  (<code>--typing-speed</code>/<code>--typing-steps</code>).<span class="sub"
+                    ><strong>Modifiers:</strong> <code>--loop</code>,
+                    <code>--no-cursor</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.text-flip</code></div>
+                <div class="api-desc">
+                  3D rotating word list.<span class="sub"
+                    ><strong>Parts:</strong> <code>.text-flip__item</code> (up to 5,
+                    staggered).</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.text-rotate</code></div>
+                <div class="api-desc">
+                  Fade/slide rotating word list.<span class="sub"
+                    ><strong>Parts:</strong> <code>.text-rotate__item</code> (up to 5).</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.text-scramble</code></div>
+                <div class="api-desc">
+                  Per-character scramble shell (randomisation via Lit).<span class="sub"
+                    ><strong>Parts:</strong> <code>.text-scramble__char</code>,
+                    <code>--scrambled</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.text-gradient-animate</code></div>
+                <div class="api-desc">
+                  Animated moving gradient fill on text
+                  (<code>--text-gradient-colors</code>/<code>-speed</code>).
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.text-highlight</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Highlight sweep on <code>:hover</code> or
+                  <code>.text-highlight--active</code>.<span class="sub"
+                    ><strong>Vars:</strong> <code>--text-highlight-color</code>,
+                    <code>--text-highlight-duration</code>, <code>--text-highlight-pad-block</code>,
+                    <code>--text-highlight-pad-inline</code>, <code>--text-highlight-radius</code>,
+                    <code>--text-highlight-skew</code> (skew needs
+                    <code>display:inline-block</code>).</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.text-stagger</code></div>
+                <div class="api-desc">
+                  Character stagger pop-in.<span class="sub"
+                    ><strong>Parts:</strong> <code>.text-stagger__char</code> (up to 10).</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.text-reveal</code></div>
+                <div class="api-desc">
+                  Scroll-driven two-tone text fill (from/to colours) via view timeline.
+                </div>
+              </div>
+            </dl>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 13 SCROLL ============ -->
+          <section class="rhythm measure" id="scroll">
+            <h2><span class="section-no">13</span>Scroll</h2>
+            <div class="callout">
+              <p>
+                <strong>This page is the demo.</strong> The reading-progress bar at the very top is
+                <code>.scroll-progress</code>; the sidebar / mobile drawer is
+                <code>.toc-layout</code> + <code>.scroll-target-group</code>, highlighting the
+                current section via <code>:target-current</code> as you scroll — all pure CSS.
+              </p>
+            </div>
+            <div class="demo">
+              <p class="swatch-note">
+                Horizontal scroll-snap (<code>.scroll-snap.scroll-snap--x</code>):
+              </p>
+              <div
+                class="scroll-snap scroll-snap--x scroll-snap--center"
+                style="display: flex; gap: 0.5rem; overflow-x: auto"
+              >
+                <div class="box" style="min-width: 8rem; min-height: 4rem">1</div>
+                <div class="box b2" style="min-width: 8rem; min-height: 4rem">2</div>
+                <div class="box b3" style="min-width: 8rem; min-height: 4rem">3</div>
+                <div class="box" style="min-width: 8rem; min-height: 4rem">4</div>
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.scroll-snap</code></div>
+                <div class="api-desc">
+                  Scroll-snap container.<span class="sub"
+                    ><strong>Modifiers:</strong> <code>--x</code>, <code>--y</code>,
+                    <code>--proximity</code>, <code>--center</code>, <code>--end</code>,
+                    <code>--always</code>, <code>--hide-scrollbar</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.scroll-spy</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  <code>scroll-state()</code> nav highlighter.<span class="sub"
+                    ><strong>Parts:</strong> <code>__section</code>, <code>__link</code> (active via
+                    <code>[data-active]</code>).</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.parallax</code></div>
+                <div class="api-desc">
+                  Parallax container.<span class="sub"
+                    ><strong>Parts:</strong> <code>__layer</code>, <code>__content</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.scroll-progress</code></div>
+                <div class="api-desc">
+                  Fixed top scroll progress bar.<span class="sub"
+                    ><strong>Parts:</strong> <code>.scroll-progress__bar</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.scroll-reveal</code></div>
+                <div class="api-desc">
+                  <code>view()</code>-driven entrance fade.<span class="sub"
+                    ><strong>Modifiers:</strong> <code>--up</code>, <code>--down</code>,
+                    <code>--left</code>, <code>--right</code>, <code>--scale</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.horizontal-scroll</code></div>
+                <div class="api-desc">
+                  Pin a section and scroll it sideways on vertical scroll.<span class="sub"
+                    ><strong>Parts:</strong> <code>__sticky</code>, <code>__track</code>.
+                    <strong>Modifiers:</strong> <code>--disabled</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.scroll-target-group</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  <code>:target-current</code> scroll-spy TOC.<span class="sub"
+                    ><strong>Modifiers:</strong> <code>--indicator</code>, <code>--bar</code>,
+                    <code>--hide-unsupported</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.toc-layout</code> · <code>.toc-sidebar</code> · <code>.toc-inline</code
+                  ><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Responsive TOC grid — sticky sidebar (≥64rem) + inline/mobile bar; links highlight
+                  on
+                  <code>:target-current</code>.
+                </div>
+              </div>
+            </dl>
+          </section>
+
+          <hr class="measure" />
+
+          <!-- ============ 14 SVG ============ -->
+          <section class="rhythm measure" id="svg">
+            <h2><span class="section-no">14</span>SVG</h2>
+            <div class="demo demo-grid">
+              <div class="demo-cell">
+                <span
+                  class="svg-container"
+                  style="--svg-size: 2rem; color: var(--color-brand-primary)"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="12" r="9" />
+                  </svg>
+                </span>
+                <code>.svg-container</code>
+              </div>
+              <div class="demo-cell">
+                <span
+                  class="svg-container svg-animated svg-animated--spin"
+                  style="--svg-size: 2rem; color: var(--color-cobalt)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round" />
+                  </svg>
+                </span>
+                <code>.svg-animated--spin</code>
+              </div>
+              <div class="demo-cell">
+                <div
+                  class="svg-pattern svg-pattern--dots"
+                  style="height: 3rem; border-radius: var(--br-default)"
+                ></div>
+                <code>.svg-pattern--dots</code>
+              </div>
+              <div class="demo-cell">
+                <div
+                  class="svg-pattern svg-pattern--grid"
+                  style="height: 3rem; border-radius: var(--br-default)"
+                ></div>
+                <code>.svg-pattern--grid</code>
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.svg-container</code></div>
+                <div class="api-desc">
+                  Square inline-flex icon box sized by <code>--svg-size</code> (default 1.5rem).
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.svg-stroke</code></div>
+                <div class="api-desc">
+                  Stroke-only icon styling (fill none; <code>--svg-stroke-*</code> controls).
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.svg-animated</code></div>
+                <div class="api-desc">
+                  Animated-SVG wrapper.<span class="sub"
+                    ><strong>Modifiers:</strong> <code>--spin</code>, <code>--pulse</code>,
+                    <code>--bounce</code>, <code>--draw</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.svg-pattern</code></div>
+                <div class="api-desc">
+                  CSS background pattern (<code>--svg-pattern-*</code>).<span class="sub"
+                    ><strong>Modifiers:</strong> <code>--dots</code>, <code>--grid</code>,
+                    <code>--diagonal</code>, <code>--cross</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.svg-shape</code></div>
+                <div class="api-desc">
+                  Full-width decorative shape / divider.<span class="sub"
+                    ><strong>Modifiers:</strong> <code>--flip-x</code>, <code>--flip-y</code>,
+                    <code>--top</code>, <code>--bottom</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.svg-use</code></div>
+                <div class="api-desc">
+                  Inline-block wrapper for a <code>&lt;use&gt;</code>-referenced SVG, filling its
+                  box.
+                </div>
+              </div>
+            </dl>
+          </section>
+
+          <hr class="measure" />
+          <footer class="rhythm measure">
+            <p class="font-caption">
+              Every class above is rendered by the real framework build
+              (<code>dist/styles.docs.css</code>). Source of truth:
+              <code>src/css/</code> + <code>src/design-system.json</code>. The
+              <span class="t t-tw">Tailwind</span> tag marks classes dropped from the
+              <code>tailwind</code> build because Tailwind supplies them.
+            </p>
+          </footer>
+        </main>
       </div>
-
-      <hr class="measure" />
-
-      <!-- ============ TYPOGRAPHY ============ -->
-      <section class="rhythm measure">
-        <h2><span class="section-no">01</span>Typography</h2>
-        <p>
-          Type roles are generated from <code>design-system.json</code> into
-          <code>.font-*</code> classes, sized on a fluid modular scale
-          (<code>--text-2xs</code>…<code>--text-3xl</code>, each a <code>clamp()</code> that eases
-          its ratio between small and large viewports). Resize the window to watch them breathe.
-        </p>
-      </section>
-
-      <div class="breakout">
-        <div class="type-row">
-          <span class="label">.font-display</span><span class="font-display">Display</span>
-        </div>
-        <div class="type-row">
-          <span class="label">.font-title</span><span class="font-title">Title heading</span>
-        </div>
-        <div class="type-row">
-          <span class="label">.font-heading</span><span class="font-heading">Section heading</span>
-        </div>
-        <div class="type-row">
-          <span class="label">.font-lead</span
-          ><span class="font-lead"
-            >A lead paragraph that introduces a section with a little size.</span
-          >
-        </div>
-        <div class="type-row">
-          <span class="label">.font-body</span
-          ><span class="font-body"
-            >Body copy — the workhorse role for running prose at a comfortable measure.</span
-          >
-        </div>
-        <div class="type-row">
-          <span class="label">.font-quote</span
-          ><span class="font-quote">“A pull quote, set in the display face, italic.”</span>
-        </div>
-        <div class="type-row">
-          <span class="label">.font-caption</span
-          ><span class="font-caption"
-            >A caption, muted and small, for asides and figure notes.</span
-          >
-        </div>
-        <div class="type-row">
-          <span class="label">.font-eyebrow</span><span class="font-eyebrow">Eyebrow label</span>
-        </div>
-        <div class="type-row">
-          <span class="label">.font-footnote</span
-          ><span class="font-footnote">A footnote — the smallest step on the scale.</span>
-        </div>
-        <div class="type-row">
-          <span class="label">.font-code</span><span class="font-code">const code = true;</span>
-        </div>
-        <div class="type-row">
-          <span class="label">.font-tag</span><span class="font-tag">Tag label</span>
-        </div>
-      </div>
-      <p class="font-caption measure">
-        Bare <code>h1</code>–<code>h4</code> map to the display/title/heading roles automatically,
-        so headings on this page need no classes.
-      </p>
-
-      <hr class="measure" />
-
-      <!-- ============ CENTERED GRID ============ -->
-      <section class="rhythm">
-        <h2><span class="section-no">02</span>The centered grid</h2>
-        <p>
-          Put <code>.centered</code> on an element and its children land in the <b>measure</b> track
-          — the reading column. Add <code>.breakout</code>, <code>.spotlight</code>, or
-          <code>.fullbleed</code> to step a child outward. Tracks are symmetric and named, so the
-          system fits in one picture. Drag the dials:
-        </p>
-      </section>
-
-      <div class="breakout">
-        <div class="centered">
-          <div class="gutter-label">↤ gutter · clamp(1rem, 4cqi, max) · gutter ↦</div>
-          <div class="band fullbleed">fullbleed <span class="w">edge to edge</span></div>
-          <div class="band spotlight">spotlight <span class="w" id="w-spot"></span></div>
-          <div class="band breakout">breakout <span class="w" id="w-break"></span></div>
-          <div class="band measure">measure <span class="w" id="w-meas"></span></div>
-        </div>
-        <div class="controls">
-          <div class="control">
-            <label for="c-measure">measure</label
-            ><input type="range" id="c-measure" min="40" max="90" value="65" /><span
-              class="val"
-              id="v-measure"
-              >65ch</span
-            >
-          </div>
-          <div class="control">
-            <label for="c-breakout">breakout</label
-            ><input type="range" id="c-breakout" min="60" max="120" value="90" /><span
-              class="val"
-              id="v-breakout"
-              >90ch</span
-            >
-          </div>
-          <div class="control">
-            <label for="c-spotlight">spotlight</label
-            ><input type="range" id="c-spotlight" min="90" max="160" value="120" /><span
-              class="val"
-              id="v-spotlight"
-              >120ch</span
-            >
-          </div>
-          <div class="control">
-            <label for="c-gutter">gutter max</label
-            ><input type="range" id="c-gutter" min="1" max="6" value="3" step="0.5" /><span
-              class="val"
-              id="v-gutter"
-              >3rem</span
-            >
-          </div>
-        </div>
-      </div>
-
-      <p class="font-caption measure">
-        Widths are in <code>ch</code>, so the reading column tracks character count, not pixels. The
-        gutter is the only track that holds a minimum when space is tight — the rest collapse inward
-        on small screens.
-      </p>
-
-      <div class="grid breakout">
-        <div class="card">
-          <p>
-            <strong><code>.measure</code></strong>
-          </p>
-          <p class="font-caption">Reading column. The default for every child.</p>
-        </div>
-        <div class="card">
-          <p>
-            <strong><code>.breakout</code></strong>
-          </p>
-          <p class="font-caption">One step wider — cards, callouts, contained images.</p>
-        </div>
-        <div class="card">
-          <p>
-            <strong><code>.spotlight</code></strong>
-          </p>
-          <p class="font-caption">Wider still — feature media, galleries.</p>
-        </div>
-        <div class="card">
-          <p>
-            <strong><code>.fullbleed</code></strong>
-          </p>
-          <p class="font-caption">Edge to edge — hero bands, backgrounds.</p>
-        </div>
-      </div>
-
-      <section class="rhythm measure">
-        <h3>Composing within a track</h3>
-        <p>
-          Tracks set <em>how wide</em> a block is; a handful of utilities set
-          <em>what happens inside</em> it. All are container-gated with the same sm/md/lg/xl
-          suffixes, so they reshape as the container grows — mobile-first, stacked by default:
-          <code>.flex</code> / <code>.flex-row</code> / <code>.flex-col</code>,
-          <code>.split-1-2</code> and friends, <code>.align-*</code> / <code>.justify-*</code>, and
-          <code>.text-*</code>.
-        </p>
-      </section>
-
-      <hr class="measure" />
-
-      <!-- ============ COLOR ============ -->
-      <section class="rhythm measure">
-        <h2><span class="section-no">03</span>Colour</h2>
-        <p>
-          Six raw ramps, seven steps each (dark → light). Semantic roles map onto them, so re-aiming
-          a role — <code>success</code> from pine to cobalt — is a one-line change. Each swatch
-          below is a generated <code>.bg-*</code> utility class.
-        </p>
-      </section>
-      <div id="ramps" class="breakout"></div>
-
-      <section class="rhythm measure">
-        <h3>Semantic roles</h3>
-      </section>
-      <div class="sem-grid breakout" id="semantic"></div>
-
-      <hr class="measure" />
-
-      <!-- ============ DARK MODE ============ -->
-      <section class="rhythm measure">
-        <h2><span class="section-no">04</span>Dark mode</h2>
-        <p>
-          Named ramps never change — pine is always pine. Dark mode only remaps which
-          <em>step</em> each semantic role points at, so components referencing semantic tokens
-          (<code>--color-surface</code>, <code>--color-success</code>) adapt automatically. Bricks
-          toggles the mode; the build emits the remapping.
-        </p>
-        <p>
-          Try it — this flips <code>[data-brx-theme="dark"]</code> on the page, exactly what the
-          generated dark block keys off. The whole page background is itself a surface token, so it
-          flips too:
-        </p>
-        <button id="theme-toggle">Switch to dark mode</button>
-      </section>
-
-      <div class="dark-demo breakout">
-        <div
-          class="dark-swatch"
-          style="background: var(--color-surface); color: var(--color-surface-xxl)"
-        >
-          <code>--color-surface</code><span>surface role</span>
-        </div>
-        <div class="dark-swatch" style="background: var(--color-success-d); color: #fff">
-          <code>--color-success-d</code><span>success role</span>
-        </div>
-        <div class="dark-swatch" style="background: var(--color-brand-primary-d); color: #fff">
-          <code>--color-brand-primary-d</code><span>brand (identity)</span>
-        </div>
-      </div>
-
-      <p class="font-caption measure">
-        Watch <code>surface</code> and <code>success</code> flip in dark (they invert), while
-        <code>brand-primary</code> holds steady — it has no dark remap, so it resolves the same in
-        both modes.
-      </p>
-
-      <hr class="measure" />
-
-      <!-- ============ COMPONENTS ============ -->
-      <section class="rhythm measure">
-        <h2><span class="section-no">05</span>Component patterns</h2>
-        <p>
-          Interaction patterns encode the hover/active/focus behaviour once, so applying them is
-          consistent and judgment-free. Buttons and links are styled at the element level (via
-          zero-specificity <code>:where()</code>, so any class — including Bricks' own — overrides
-          them); badges and cards are classes.
-        </p>
-
-        <h3>Buttons</h3>
-        <p>
-          Bare <code>&lt;button&gt;</code> defaults to primary. Role variants are a class on the
-          element. Hover darkens a step, click presses, keyboard focus rings.
-        </p>
-      </section>
-      <div class="row breakout">
-        <button>Primary</button>
-        <button class="success">Success</button>
-        <button class="danger">Danger</button>
-        <button class="warning">Warning</button>
-        <button class="info">Info</button>
-      </div>
-
-      <section class="rhythm measure">
-        <h3>Links</h3>
-        <p>
-          Bare <code>&lt;a&gt;</code> gets the link pattern — coloured, underlined, hover shifts the
-          text colour, focus rings. Here is some prose with
-          <a href="#components">a styled link</a> inside it, and
-          <a href="#components">another one</a> for good measure.
-        </p>
-
-        <h3>Badges</h3>
-        <p>Coloured pills via <code>.badge</code> + a role variant. Non-interactive.</p>
-      </section>
-      <div class="row breakout">
-        <span class="badge">Neutral</span>
-        <span class="badge-success">Success</span>
-        <span class="badge-danger">Danger</span>
-        <span class="badge-warning">Warning</span>
-        <span class="badge-info">Info</span>
-      </div>
-
-      <section class="rhythm measure">
-        <h3>Cards</h3>
-        <p>
-          The <code>.card</code> pattern is structural — radius, padding, and a surface background.
-          (Border + shadow shown here preview the panel pattern still to be ported.)
-        </p>
-      </section>
-      <div class="grid breakout">
-        <div class="card">
-          <p><strong>Surface card</strong></p>
-          <p class="font-caption">Structure only — radius, padding, surface background.</p>
-        </div>
-        <div class="card">
-          <p><strong>Another card</strong></p>
-          <p class="font-caption">
-            Backgrounds are semantic <code>--color-surface-xxl</code>, so cards flip with the theme.
-          </p>
-        </div>
-      </div>
-
-      <hr class="measure" />
-
-      <!-- ============ RHYTHM ============ -->
-      <section class="rhythm measure">
-        <h2><span class="section-no">06</span>Vertical rhythm</h2>
-        <p>
-          Put <code>.rhythm</code> on a container; adjacent siblings get spacing by
-          <em>relationship</em> — a heading hugs its paragraph, a new section gets air. Gaps are
-          multiples of one line (<code>rlh</code>), scaled by one dial:
-        </p>
-      </section>
-
-      <div class="card breakout">
-        <div class="rhythm" id="rhythm-demo">
-          <h3>A heading</h3>
-          <p>
-            The paragraph sits close beneath its heading — they read as one unit (h → p, the
-            tightest gap).
-          </p>
-          <p>A second paragraph keeps a looser, one-line gap from the first (p → p).</p>
-          <p>A paragraph can introduce a list, which hugs its lead-in (p → ul):</p>
-          <ul style="padding-inline-start: 1.4em">
-            <li>List items sit tight against each other (li → li)</li>
-            <li>so the list reads as one grouped block</li>
-            <li>rather than scattered lines</li>
-          </ul>
-          <p>After the list, prose resumes with a normal gap (ul → p).</p>
-          <h3>A new section</h3>
-          <p>Gets the most space above it (p → h), signalling a fresh idea.</p>
-        </div>
-      </div>
-
-      <div class="measure">
-        <div class="control">
-          <label for="c-rhythm">rhythm scale</label
-          ><input type="range" id="c-rhythm" min="0.6" max="1.6" value="1" step="0.05" /><span
-            class="val"
-            id="v-rhythm"
-            >1.0</span
-          >
-        </div>
-      </div>
-
-      <hr class="measure" />
-
-      <!-- ============ ANIMATIONS ============ -->
-      <section class="rhythm measure">
-        <h2><span class="section-no">07</span>Animations</h2>
-        <p>
-          Effects are split by rendering stage — <b>composite</b> (transform/opacity),
-          <b>paint</b> (filter/clip), <b>layout</b> (size). Click any tile to replay it:
-        </p>
-      </section>
-      <div class="gallery breakout" id="effects"></div>
-      <p class="font-caption measure">
-        An effect only sets <code>--_anim</code> + <code>--*-from/-to</code> vars; a
-        <b>driver</b> supplies the mechanism. The tiles above use
-        <code>.animate-trigger</code> (plays once when <code>.is-active</code> is set). The same
-        effects also drive scroll timelines and state-flip transitions — below.
-      </p>
-
-      <section class="rhythm measure">
-        <h3>State-flip via transitions</h3>
-        <p>
-          A <code>.transition</code> base plus generated
-          <code>hover-</code>/<code>focus-</code>/<code>active-&lt;fx&gt;</code> variants tween the
-          same <code>--&lt;prop&gt;-from/-to</code> vars as the keyframes — but with a CSS
-          <em>transition</em>, so they reverse cleanly. Because each variant binds one effect to one
-          state, <b>different effects can bind to different states on the same element</b> (last
-          tile). Hover the first two; click the third to toggle <code>.is-active</code>.
-        </p>
-      </section>
-      <div class="row breakout">
-        <div
-          class="fx-box transition hover-scale-up"
-          style="--scale-x-from: 0.85; --scale-y-from: 0.85"
-        >
-          <code>hover-scale-up</code>
-        </div>
-        <div
-          class="fx-box transition focus-slide-up"
-          tabindex="0"
-          style="--translate-y-from: 0.5rem"
-        >
-          <code>focus-slide-up</code> (tab to it)
-        </div>
-        <div
-          class="fx-box transition hover-slide-up active-elevate-up"
-          data-toggle
-          tabindex="0"
-          style="--translate-y-from: 0.6rem; --default-shadow: 0 10px 20px rgba(0, 0, 0, 0.35)"
-        >
-          <code>hover-slide-up active-elevate-up</code> — hover slides, click elevates
-        </div>
-      </div>
-
-      <section class="rhythm measure">
-        <h3>Scroll-driven</h3>
-        <p>
-          <code>.animate-view</code> ties the effect's progress to the element entering the viewport
-          (no JS — a CSS <code>view()</code> timeline). Scroll this row in and out to scrub it:
-        </p>
-      </section>
-      <div class="row breakout">
-        <div class="fx-box fade-in slide-up animate-view">
-          <code>.fade-in.slide-up.animate-view</code>
-        </div>
-        <div class="fx-box scale-up animate-view"><code>.scale-up.animate-view</code></div>
-        <div class="fx-box blur-in animate-view"><code>.blur-in.animate-view</code></div>
-      </div>
-
-      <section class="rhythm measure">
-        <h3>Staggered trigger</h3>
-        <p>
-          A <code>.stagger</code> container delays each child by its row position
-          (<code>--stagger-amount</code>); <code>.animate-trigger</code> children play as the group
-          scrolls in. Click to replay:
-        </p>
-      </section>
-      <div class="gallery breakout stagger" id="stagger-demo" style="--stagger-amount: 0.5s"></div>
-
-      <section class="rhythm measure">
-        <h3>Float presets</h3>
-        <p>Continuous ambient movement — waypoint-based loops for orbits, bounces, and drifts:</p>
-      </section>
-      <div class="gallery breakout" id="floats"></div>
-
-      <footer class="measure" style="margin-top: 3.5rem">
-        <p class="font-footnote">
-          Vitops · a minimal framework for Bricks. Every value above is read live from the
-          standalone build output. Drag a dial or click a tile to feel how the system responds.
-        </p>
-      </footer>
     </div>
 
     <script>
       document.documentElement.classList.replace('no-js', 'js');
       const $ = (id) => document.getElementById(id);
-      const root = document.documentElement.style;
 
-      // ---- Centered diagram ----
-      const cm = $('c-measure'),
-        cb = $('c-breakout'),
-        cs2 = $('c-spotlight'),
-        cg = $('c-gutter');
-      function tracks() {
-        if (+cb.value <= +cm.value) cb.value = +cm.value + 5;
-        if (+cs2.value <= +cb.value) cs2.value = +cb.value + 5;
-        root.setProperty('--width-measure', cm.value + 'ch');
-        root.setProperty('--width-breakout', cb.value + 'ch');
-        root.setProperty('--width-spotlight', cs2.value + 'ch');
-        root.setProperty('--gutter', 'clamp(1rem, 4cqi, ' + cg.value + 'rem)');
-        $('v-measure').textContent = cm.value + 'ch';
-        $('v-breakout').textContent = cb.value + 'ch';
-        $('v-spotlight').textContent = cs2.value + 'ch';
-        $('v-gutter').textContent = +cg.value + 'rem';
-        $('w-meas').textContent = cm.value + 'ch';
-        $('w-break').textContent = cb.value + 'ch';
-        $('w-spot').textContent = cs2.value + 'ch';
-      }
-      [cm, cb, cs2, cg].forEach((e) => e.addEventListener('input', tracks));
-      tracks();
-
-      // ---- Rhythm ----
-      const cr = $('c-rhythm');
-      function rhythm() {
-        root.setProperty('--rhythm-scale', cr.value);
-        $('v-rhythm').textContent = (+cr.value).toFixed(1);
-      }
-      cr.addEventListener('input', rhythm);
-      rhythm();
-
-      // ---- Colour ramps + semantic (dogfood: each swatch is a .bg-* utility) ----
-      const ramps = ['pine', 'navy', 'amber', 'rust', 'cobalt', 'grey'];
-      const steps = ['xxd', 'xd', 'd', '', 'l', 'xl', 'xxl'];
-      const wrap = $('ramps');
-      ramps.forEach((name) => {
-        const row = document.createElement('div');
-        row.className = 'ramp-row';
-        const b = document.createElement('b');
-        b.textContent = name;
-        const r = document.createElement('div');
-        r.className = 'ramp';
-        steps.forEach((s, i) => {
-          const token = name + (s ? '-' + s : '');
-          const sw = document.createElement('span');
-          sw.className = 'bg-' + token; // generated utility class
-          sw.style.color = i < 3 ? '#fff' : 'rgba(0,0,0,.55)';
-          sw.textContent = s || '·';
-          r.appendChild(sw);
-        });
-        row.append(b, r);
-        wrap.appendChild(row);
+      // ---- Build the TOC (sidebar + drawer) from the sections on the page ----
+      const sections = [...document.querySelectorAll('main > section[id]')].map((s) => ({
+        id: s.id,
+        no: s.querySelector('.section-no')?.textContent ?? '',
+        title: (s.querySelector('h2')?.textContent ?? '').replace(/^\d+/, '').trim(),
+      }));
+      const sidebarNav = $('toc-sidebar-nav');
+      const drawerNav = $('toc-drawer-nav');
+      sections.forEach(({ id, no, title }) => {
+        const mk = () => {
+          const a = document.createElement('a');
+          a.href = '#' + id;
+          a.innerHTML = '<span class="n">' + no + '</span> ' + title;
+          return a;
+        };
+        sidebarNav?.appendChild(mk());
+        const da = mk();
+        da.setAttribute('popovertarget', 'toc-drawer');
+        da.setAttribute('popovertargetaction', 'hide');
+        drawerNav?.appendChild(da);
       });
 
+      // Centered-grid track widths are global structural knobs — tune them live in
+      // the Theme editor (dist/editor.js) → Layout, not with per-demo sliders.
+
+      // ---- Colour ramps + semantic roles (each swatch IS a .bg-* utility) ----
+      const ramps = ['pine', 'navy', 'amber', 'rust', 'cobalt', 'grey'];
+      const steps = ['xxd', 'xd', 'd', '', 'l', 'xl', 'xxl'];
+      const rampWrap = $('ramps');
+      if (rampWrap) {
+        ramps.forEach((name) => {
+          const row = document.createElement('div');
+          row.className = 'ramp-row';
+          const b = document.createElement('b');
+          b.textContent = name;
+          const r = document.createElement('div');
+          r.className = 'ramp';
+          steps.forEach((s, i) => {
+            const token = name + (s ? '-' + s : '');
+            const sw = document.createElement('span');
+            sw.className = 'bg-' + token;
+            sw.style.color = i < 3 ? '#fff' : 'rgba(0,0,0,.55)';
+            sw.textContent = s || '·';
+            r.appendChild(sw);
+          });
+          row.append(b, r);
+          rampWrap.appendChild(row);
+        });
+      }
       const roles = [
         ['brand-primary', 'pine'],
         ['surface', 'navy'],
@@ -841,19 +3347,17 @@
         ['neutral', 'grey'],
       ];
       const sg = $('semantic');
-      roles.forEach(([role, ramp]) => {
-        const d = document.createElement('div');
-        d.className = 'sem bg-' + role; // generated semantic utility class
-        if (role === 'warning') d.style.color = 'var(--color-surface-xxd)';
-        d.textContent = role + ' → ' + ramp;
-        sg.appendChild(d);
-      });
+      if (sg) {
+        roles.forEach(([role, ramp]) => {
+          const d = document.createElement('div');
+          d.className = 'sem bg-' + role;
+          if (role === 'warning') d.style.color = 'var(--color-surface-xxd)';
+          d.textContent = role + ' → ' + ramp;
+          sg.appendChild(d);
+        });
+      }
 
-      // ---- Animation effect gallery (dogfoods the real framework classes) ----
-      // Each tile applies the actual effect class(es) + .animate-trigger and
-      // replays by re-adding .is-active — the framework's own trigger API, not an
-      // inline hack. Composite-stage classes stack: the `composite` keyframe reads
-      // every transform/opacity var, so fade-in + scale-up combine into one.
+      // ---- Animation effect gallery ----
       const effects = [
         [['fade-in'], 'composite'],
         [['slide-up'], 'composite'],
@@ -861,66 +3365,37 @@
         [['scale-up'], 'composite'],
         [['rotate-cw'], 'composite'],
         [['blur-in'], 'paint'],
+        [['reveal-left'], 'paint'],
         [['fade-in', 'scale-up'], 'composite'],
-        [['fade-in', 'slide-up'], 'composite'],
-      ];
-      // Probe these var bases to build each tile's from/to table from what the
-      // applied classes actually set (so the table can't drift from the CSS).
-      const propBases = [
-        'opacity',
-        'translate-x',
-        'translate-y',
-        'scale-x',
-        'scale-y',
-        'rotate',
-        'blur',
-        'brightness',
       ];
       const eg = $('effects');
-      effects.forEach(([classes, stage]) => {
-        const cell = document.createElement('div');
-        cell.className = 'anim-cell';
-        cell.innerHTML =
-          '<div class="demo"><div class="chip"></div></div>' +
-          '<code class="font-code">.' +
-          classes.join('.') +
-          '</code>' +
-          '<div class="stage-tag">' +
-          stage +
-          '</div>' +
-          '<table class="props"><thead><tr><th>prop</th><th>from</th><th>to</th></tr></thead><tbody></tbody></table>' +
-          '<div class="hint">click to replay</div>';
-        const chip = cell.querySelector('.chip');
-        const on = [...classes, 'animate-trigger'];
-        eg.appendChild(cell); // attach first — getComputedStyle is empty while detached
-        chip.classList.add(...on); // apply so class-supplied vars resolve
-        const cs = getComputedStyle(chip);
-        cell.querySelector('tbody').innerHTML = propBases
-          .map((base) => {
-            const from = cs.getPropertyValue('--' + base + '-from').trim();
-            const to = cs.getPropertyValue('--' + base + '-to').trim();
-            if (!from && !to) return '';
-            return (
-              '<tr><td>' +
-              base +
-              '</td><td>' +
-              (from || '—') +
-              '</td><td>' +
-              (to || '—') +
-              '</td></tr>'
-            );
-          })
-          .join('');
-        const play = () => {
-          chip.classList.remove(...on, 'is-active');
-          void chip.offsetWidth; // reflow → restart from the `from` keyframe
-          chip.classList.add(...on, 'is-active');
-        };
-        cell.addEventListener('click', play);
-        setTimeout(play, 200);
-      });
+      if (eg) {
+        effects.forEach(([classes, stage]) => {
+          const cell = document.createElement('div');
+          cell.className = 'anim-cell';
+          cell.innerHTML =
+            '<div class="demo-stage"><div class="chip"></div></div>' +
+            '<code class="font-code">.' +
+            classes.join('.') +
+            '</code>' +
+            '<div class="stage-tag">' +
+            stage +
+            '</div>' +
+            '<div class="hint">click to replay</div>';
+          const chip = cell.querySelector('.chip');
+          const on = [...classes, 'animate-trigger'];
+          eg.appendChild(cell);
+          const play = () => {
+            chip.classList.remove(...on, 'is-active');
+            void chip.offsetWidth;
+            chip.classList.add(...on, 'is-active');
+          };
+          cell.addEventListener('click', play);
+          setTimeout(play, 200);
+        });
+      }
 
-      // ---- Float presets (continuous) ----
+      // ---- Float presets ----
       const floats = [
         'float-circular',
         'float-bounce-y',
@@ -929,40 +3404,51 @@
         'float-figure-8',
       ];
       const fg = $('floats');
-      floats.forEach((cls) => {
-        const cell = document.createElement('div');
-        cell.className = 'float-cell';
-        cell.innerHTML =
-          '<div class="orbit"><div class="dot float ' +
-          cls +
-          '" style="--float-radius:18px;--float-distance:16px"></div></div><code class="font-code">.float.' +
-          cls +
-          '</code>';
-        fg.appendChild(cell);
-      });
+      if (fg) {
+        floats.forEach((cls) => {
+          const cell = document.createElement('div');
+          cell.className = 'float-cell';
+          cell.innerHTML =
+            '<div class="orbit"><div class="dot float ' +
+            cls +
+            '" style="--float-radius:18px;--float-distance:16px"></div></div><code class="font-code">.float.' +
+            cls +
+            '</code>';
+          fg.appendChild(cell);
+        });
+      }
+
+      // ---- Staggered trigger demo ----
+      const sd = $('stagger-demo');
+      if (sd) {
+        for (let i = 1; i <= 6; i++) {
+          const c = document.createElement('div');
+          c.className = 'fx-box fade-in slide-up animate-trigger';
+          c.style.setProperty('--translate-y-from', '1.25rem');
+          c.textContent = String(i);
+          sd.appendChild(c);
+        }
+        const replayStagger = () => {
+          const kids = [...sd.children];
+          kids.forEach((k) => k.classList.remove('is-active'));
+          void sd.offsetWidth;
+          kids.forEach((k) => k.classList.add('is-active'));
+        };
+        sd.addEventListener('click', replayStagger);
+        // First reveal is driven by scroll-into-view (deferred.ts triggerObserver
+        // adds .is-active per child as each row enters the viewport); clicking replays.
+      }
 
       // ---- State-flip: click toggles .is-active on [data-toggle] elements ----
       document.querySelectorAll('[data-toggle]').forEach((el) => {
         el.addEventListener('click', () => el.classList.toggle('is-active'));
       });
 
-      // ---- Staggered trigger demo (cascade in; click anywhere to replay) ----
-      const sd = $('stagger-demo');
-      for (let i = 1; i <= 6; i++) {
-        const c = document.createElement('div');
-        c.className = 'fx-box fade-in slide-up animate-trigger';
-        c.style.setProperty('--translate-y-from', '1.25rem');
-        c.textContent = String(i);
-        sd.appendChild(c);
-      }
-      const replayStagger = () => {
-        const kids = [...sd.children];
-        kids.forEach((k) => k.classList.remove('is-active'));
-        void sd.offsetWidth; // reflow → restart the cascade
-        kids.forEach((k) => k.classList.add('is-active'));
-      };
-      sd.addEventListener('click', replayStagger);
-      setTimeout(replayStagger, 400);
+      // ---- Disclosure demo: toggle .is-open on .reveal via a button ----
+      document.querySelectorAll('[data-reveal-toggle]').forEach((btn) => {
+        const target = $(btn.getAttribute('data-reveal-toggle'));
+        btn.addEventListener('click', () => target?.classList.toggle('is-open'));
+      });
 
       // ---- Dark mode toggle (flips [data-brx-theme] like Bricks would) ----
       const themeBtn = $('theme-toggle');

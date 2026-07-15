@@ -1,0 +1,68 @@
+/**
+ * Popover — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Popover — native Popover API reset + anchored position variants ───────── */
+[popover] {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  overflow: visible;
+  inset: auto;
+
+  &:popover-open {
+    opacity: 1;
+  }
+
+  &:not(:popover-open):not([open]) {
+    display: none;
+  }
+
+  @starting-style {
+    &:popover-open {
+      opacity: 0;
+    }
+  }
+}
+
+.popover-anchor {
+  anchor-name: --popover-anchor;
+  position: relative;
+
+  [popover] {
+    position: absolute;
+    position-anchor: --popover-anchor;
+    inset: auto;
+  }
+
+  [popover].popover--top {
+    position-area: block-start center;
+    margin-block-end: 0.5rem;
+  }
+  [popover].popover--bottom {
+    position-area: block-end center;
+    margin-block-start: 0.5rem;
+  }
+  [popover].popover--left {
+    position-area: center inline-start;
+    margin-inline-end: 0.5rem;
+  }
+  [popover].popover--right {
+    position-area: center inline-end;
+    margin-inline-start: 0.5rem;
+  }
+  [popover].popover--top-start {
+    position-area: block-start span-inline-end;
+  }
+  [popover].popover--top-end {
+    position-area: block-start span-inline-start;
+  }
+  [popover].popover--bottom-start {
+    position-area: block-end span-inline-end;
+  }
+  [popover].popover--bottom-end {
+    position-area: block-end span-inline-start;
+  }
+}

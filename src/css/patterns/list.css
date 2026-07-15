@@ -1,0 +1,272 @@
+/**
+ * List — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── List family — base list, facets, filtered search, virtual, chips ─────── */
+.list {
+  --_p: var(--p-list, var(--p-list-group, var(--p-default)));
+  --_b: var(--b-list, var(--b-list-group, var(--b-default)));
+  --_br: var(--br-list, var(--br-list-group, var(--br-default)));
+  --_ds: var(--ds-list, var(--ds-list-group, var(--ds-default)));
+  --_fs: var(--fs-list, var(--fs-list-group, var(--fs-default)));
+
+  list-style: none;
+  margin: 0;
+  padding: var(--_p);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--_fs);
+
+  .list__item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: var(--list-item-padding, 0.75rem 1rem);
+  }
+
+  &.list--interactive .list__item {
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--list-focus-color, currentColor);
+      outline-offset: -2px;
+    }
+  }
+
+  .list__icon {
+    flex-shrink: 0;
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+  }
+
+  .list__content {
+    flex: 1;
+    min-inline-size: 0;
+  }
+
+  .list__title {
+    font-weight: 500;
+  }
+
+  .list__subtitle {
+    font-size: 0.875em;
+    opacity: 0.7;
+  }
+
+  .list__trailing {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &.list--divided .list__item + .list__item {
+    border-block-start: 1px solid var(--list-divider-color, var(--color-surface-l));
+  }
+
+  &.list--bordered {
+    border: var(--_b);
+    border-radius: var(--_br);
+    box-shadow: var(--_ds);
+    /* Bridge to .group-block for child radius collapsing (compose group group-block) */
+    --br-grouped: calc(var(--_br) - 1px);
+  }
+}
+
+.facet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  .facet-list__item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .facet-list__checkbox {
+    flex-shrink: 0;
+  }
+
+  .facet-list__label {
+    flex: 1;
+    min-inline-size: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
+
+  .facet-list__name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .facet-list__count {
+    flex-shrink: 0;
+    font-size: 0.75em;
+    padding: 0.125rem 0.375rem;
+    border-radius: var(--br-count, var(--br-pill, 999px));
+    background: var(--color-surface-l);
+  }
+
+  .facet-list__item--active .facet-list__name {
+    font-weight: 600;
+  }
+}
+
+.filtered-list {
+  --_b: var(--b-filtered-list, var(--b-content, var(--b-default)));
+  --_br: var(--br-filtered-list, var(--br-content, var(--br-default)));
+  --_fs: var(--fs-filtered-list, var(--fs-content, var(--fs-default)));
+
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  font-size: var(--_fs);
+
+  .filtered-list__search {
+    position: relative;
+  }
+
+  .filtered-list__input {
+    inline-size: 100%;
+    padding: 0.5rem 0.75rem;
+    padding-inline-start: 2.25rem;
+    border: var(--_b);
+    border-radius: var(--_br);
+
+    &:focus {
+      outline: 2px solid var(--filter-focus-color, var(--color-brand-primary-l));
+      outline-offset: 2px;
+    }
+  }
+
+  .filtered-list__search-icon {
+    position: absolute;
+    inset-inline-start: 0.75rem;
+    inset-block-start: 50%;
+    translate: 0 -50%;
+    pointer-events: none;
+    opacity: 0.5;
+  }
+
+  .filtered-list__clear {
+    position: absolute;
+    inset-inline-end: 0.5rem;
+    inset-block-start: 50%;
+    translate: 0 -50%;
+    padding: 0.25rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.15s ease;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  .filtered-list__results {
+    max-block-size: var(--filter-max-height, 20rem);
+    overflow-y: auto;
+  }
+
+  .filtered-list__empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    opacity: 0.7;
+  }
+
+  .filtered-list__match {
+    padding-inline: 0.125rem;
+    border-radius: 0.125rem;
+    background: var(--color-warning-l);
+  }
+}
+
+.virtual-list {
+  contain: strict;
+  overflow-y: auto;
+
+  .virtual-list__item {
+    content-visibility: auto;
+    contain-intrinsic-size: var(--virtual-item-size, auto 60px);
+  }
+
+  .virtual-list__sentinel {
+    block-size: 1px;
+  }
+
+  .virtual-list__loading,
+  .virtual-list__end {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0.7;
+  }
+
+  .virtual-list__end {
+    font-size: 0.875rem;
+  }
+}
+
+.chip-list {
+  --_p: var(--p-chip-list, var(--p-control, var(--p-default)));
+  --_b: var(--b-chip-list, var(--b-control, var(--b-default)));
+  --_br: var(--br-chip-list, var(--br-control, var(--br-default)));
+  --_fs: var(--fs-chip-list, var(--fs-control, var(--fs-default)));
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: var(--_p);
+  border: var(--_b);
+  border-radius: var(--_br);
+  min-block-size: 2.5rem;
+  align-items: center;
+  font-size: var(--_fs);
+
+  .chip-list__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--br-chip, var(--br-tag, 0.25rem));
+    font-size: 0.875rem;
+    background: var(--color-surface-l);
+  }
+
+  .chip-list__chip-remove {
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    opacity: 0.6;
+    line-height: 1;
+    transition: opacity 0.15s ease;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  .chip-list__input {
+    flex: 1;
+    min-inline-size: 6rem;
+    border: none;
+    background: transparent;
+    outline: none;
+    padding: 0.25rem;
+  }
+
+  &:focus-within {
+    outline: 2px solid var(--chip-list-focus-color, var(--color-brand-primary-l));
+    outline-offset: 2px;
+  }
+}

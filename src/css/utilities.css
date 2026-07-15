@@ -1,0 +1,351 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   UTILITIES — display / visibility / disclosure (CSS + Bricks output only)
+   Tailwind ships hidden/sr-only/block/flex/grid natively, so these live ONLY in
+   the static framework and are deliberately NOT emitted by emitTailwind().
+
+   Responsive variant naming matches layout.css (Tailwind-aligned): the base
+   utility is emitted bare, then each tier repeats it with an sm-/md-/lg-/xl-
+   prefix inside an unnamed `@container (min-width: Xrem)` block, resolving
+   against the nearest container-type ancestor (body { container-type }).
+   Breakpoints: sm 30rem · md 48rem · lg 64rem · xl 80rem.
+
+   CASCADE NOTE: this file MUST be imported AFTER layout.css. Tailwind's
+   `hidden md-flex` idiom relies on every breakpoint display variant sitting
+   later in the cascade than every bare display utility. layout.css already owns
+   bare `.flex` + `.{bp}-flex`; to keep the reveal idiom working we re-emit the
+   `.{bp}-flex` reveal variants (identical decls) so they land after this file's
+   bare `.hidden`. The later copy wins; behaviour is unchanged.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Display / visibility — Tailwind-exact base values ──
+   Base = mobile. `hidden` hides; the sm-/md-/lg-/xl- variants below REVEAL
+   (block/flex/inline/inline-block/grid) or HIDE (`.{bp}-hidden`) at a tier.
+   Bare `.flex` is intentionally omitted — layout.css owns it. */
+.block {
+  display: block;
+}
+.inline {
+  display: inline;
+}
+.inline-block {
+  display: inline-block;
+}
+.grid {
+  display: grid;
+}
+.hidden {
+  display: none;
+}
+
+@container (min-width: 30rem) {
+  .sm-block {
+    display: block;
+  }
+  .sm-flex {
+    display: flex;
+  }
+  .sm-inline {
+    display: inline;
+  }
+  .sm-inline-block {
+    display: inline-block;
+  }
+  .sm-grid {
+    display: grid;
+  }
+  .sm-hidden {
+    display: none;
+  }
+}
+@container (min-width: 48rem) {
+  .md-block {
+    display: block;
+  }
+  .md-flex {
+    display: flex;
+  }
+  .md-inline {
+    display: inline;
+  }
+  .md-inline-block {
+    display: inline-block;
+  }
+  .md-grid {
+    display: grid;
+  }
+  .md-hidden {
+    display: none;
+  }
+}
+@container (min-width: 64rem) {
+  .lg-block {
+    display: block;
+  }
+  .lg-flex {
+    display: flex;
+  }
+  .lg-inline {
+    display: inline;
+  }
+  .lg-inline-block {
+    display: inline-block;
+  }
+  .lg-grid {
+    display: grid;
+  }
+  .lg-hidden {
+    display: none;
+  }
+}
+@container (min-width: 80rem) {
+  .xl-block {
+    display: block;
+  }
+  .xl-flex {
+    display: flex;
+  }
+  .xl-inline {
+    display: inline;
+  }
+  .xl-inline-block {
+    display: inline-block;
+  }
+  .xl-grid {
+    display: grid;
+  }
+  .xl-hidden {
+    display: none;
+  }
+}
+
+/* ── Screen-reader-only (visually hidden but exposed to AT) ──
+   Standard recipe: pull out of flow, clamp to 1px, clip, unwrap. `.not-sr-only`
+   reverses it (e.g. reveal a skip-link on focus). Both get sm-/md-/lg-/xl-
+   variants so visibility can flip per container tier. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0); /* legacy fallback */
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}
+.not-sr-only {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  white-space: normal;
+}
+
+@container (min-width: 30rem) {
+  .sm-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+  }
+  .sm-not-sr-only {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+  }
+}
+@container (min-width: 48rem) {
+  .md-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+  }
+  .md-not-sr-only {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+  }
+}
+@container (min-width: 64rem) {
+  .lg-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+  }
+  .lg-not-sr-only {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+  }
+}
+@container (min-width: 80rem) {
+  .xl-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+  }
+  .xl-not-sr-only {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DISCLOSURE — animatable show/hide (auto ↔ 0), layered by support
+   Layer 1 (primary, broadly supported): CSS grid 0fr↔1fr hack. Needs ONE child
+     wrapper; the wrapper clips its own content as the track reveals.
+   Layer 2 (progressive): interpolate-size + native height:auto animation.
+   Layer 3 (native <details>): animate ::details-content directly.
+   `.reveal-fade` covers the display:none fade case with the allow-discrete +
+   @starting-style idiom (same as nav.css `.drawer-menu`).
+   Toggle: consumer sets `.is-open` / `[data-open]` (mirrors .is-active /
+   [data-active] in animation.css), OR nests under an [open] element (<details>).
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --reveal-duration: 0.4s;
+}
+
+/* ── Layer 1: grid-rows hack (primary) ──
+   Markup:
+     <div class="reveal" id="panel">        <!-- the animated track -->
+       <div> … </div>                          <!-- required single wrapper -->
+     </div>
+   Toggle .is-open / [data-open] on `.reveal` (JS/Lit), or nest under an [open]
+   element (e.g. <details>). The wrapper needs min-height:0 + overflow:hidden so
+   the content can be clipped to the 0fr track. */
+.reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--reveal-duration) var(--interact-easing, ease);
+}
+.reveal > * {
+  min-height: 0;
+  overflow: hidden;
+}
+.reveal.is-open,
+.reveal[data-open],
+:where([open]) > .reveal {
+  grid-template-rows: 1fr;
+}
+
+/* ── Layer 2: native height:auto animation (progressive enhancement) ──
+   Where interpolate-size is supported, animate height directly (no wrapper
+   needed). Guarded so unsupported engines keep the grid hack above. */
+@supports (interpolate-size: allow-keywords) {
+  :root {
+    interpolate-size: allow-keywords;
+  }
+  .reveal-h {
+    height: auto;
+    overflow: hidden;
+    transition: height var(--reveal-duration) var(--interact-easing, ease);
+  }
+  .reveal-h:not(.is-open):not([data-open]) {
+    height: 0;
+  }
+}
+
+/* ── Layer 3: native <details> disclosure ──
+   Markup:
+     <details>
+       <summary>Toggle</summary>
+       … content …
+     </details>
+   Animate the UA-generated content box directly; interpolate-size (Layer 2)
+   lets block-size reach `auto`. Guarded — engines without ::details-content just
+   snap open (fully accessible). */
+@supports selector(::details-content) {
+  details::details-content {
+    overflow: clip;
+    block-size: 0;
+    transition:
+      block-size var(--reveal-duration) var(--interact-easing, ease),
+      content-visibility var(--reveal-duration) allow-discrete;
+  }
+  details[open]::details-content {
+    block-size: auto;
+  }
+}
+
+/* ── display:none fade/slide — allow-discrete + @starting-style ──
+   Same idiom as nav.css `.drawer-menu`. Base is display:none; the open state
+   restores display and fades in, and `display`/`overlay` are transitioned with
+   allow-discrete so the element animates out before it is removed. `overlay` is
+   a no-op unless the element is in the top layer (popover/dialog) — harmless.
+   Markup: <div class="reveal-fade" [data-open]?> … </div>  (toggle .is-open) */
+.reveal-fade {
+  display: none;
+  opacity: 0;
+  transition:
+    opacity var(--reveal-duration) var(--interact-easing, ease),
+    overlay var(--reveal-duration) allow-discrete,
+    display var(--reveal-duration) allow-discrete;
+}
+.reveal-fade.is-open,
+.reveal-fade[data-open] {
+  display: block;
+  opacity: 1;
+}
+@starting-style {
+  .reveal-fade.is-open,
+  .reveal-fade[data-open] {
+    opacity: 0;
+  }
+}

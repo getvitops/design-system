@@ -1,0 +1,72 @@
+/**
+ * Icon — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Icon — sizing wrapper, CSS-mask icon, and tappable icon button ───────── */
+.icon {
+  --_size: var(--icon-size, 1.25em);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--_size);
+  block-size: var(--_size);
+  flex-shrink: 0;
+  vertical-align: middle;
+
+  > svg {
+    inline-size: 100%;
+    block-size: 100%;
+    fill: currentColor;
+  }
+
+  > img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: contain;
+  }
+}
+
+.icon-mask {
+  --_size: var(--icon-size, 1.25em);
+
+  display: inline-block;
+  inline-size: var(--_size);
+  block-size: var(--_size);
+  background-color: currentColor;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  vertical-align: middle;
+}
+
+.icon-button {
+  --_size: var(--icon-button-size, 2.5rem);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--_size);
+  block-size: var(--_size);
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--icon-button-radius, 0.375rem);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: var(--color-surface-l);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--icon-button-focus-color, var(--color-brand-primary-l));
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

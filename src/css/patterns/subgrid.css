@@ -1,0 +1,178 @@
+/**
+ * Subgrid — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Subgrid — content-aligned cards/tables via CSS subgrid ────────────────── */
+.subgrid {
+  --_items-per-row: var(--items-per-row, 3);
+  --_rows-per-item: var(--rows-per-item, 2);
+  --_subgrid-gap: var(--subgrid-gap, 1.5rem);
+
+  display: grid;
+  grid-template-columns: repeat(var(--_items-per-row), 1fr);
+  gap: var(--_subgrid-gap);
+
+  > * {
+    grid-row: span var(--_rows-per-item);
+    display: grid;
+    grid-template-rows: subgrid;
+  }
+
+  &.subgrid-cols-1 {
+    --_items-per-row: 1;
+  }
+  &.subgrid-cols-2 {
+    --_items-per-row: 2;
+  }
+  &.subgrid-cols-3 {
+    --_items-per-row: 3;
+  }
+  &.subgrid-cols-4 {
+    --_items-per-row: 4;
+  }
+
+  &.subgrid-rows-2 {
+    --_rows-per-item: 2;
+  }
+  &.subgrid-rows-3 {
+    --_rows-per-item: 3;
+  }
+  &.subgrid-rows-4 {
+    --_rows-per-item: 4;
+  }
+
+  &.subgrid-responsive {
+    @media (width < 60rem) {
+      --_items-per-row: min(var(--items-per-row, 3), 2);
+    }
+    @media (width < 40rem) {
+      --_items-per-row: 1;
+    }
+  }
+}
+
+/* Subgrid card — internal rows align across siblings */
+.subgrid-card {
+  --_card-rows: var(--subgrid-card-rows, 4);
+  --_card-padding: var(--subgrid-card-padding, 1.5rem);
+
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span var(--_card-rows);
+  padding: var(--_card-padding);
+  border: var(--b-card, var(--b-card-group, var(--b-default)));
+  border-radius: var(--br-card, var(--br-card-group, var(--br-default)));
+
+  .subgrid-card__media {
+    margin-inline: calc(-1 * var(--_card-padding));
+
+    > img {
+      inline-size: 100%;
+      block-size: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .subgrid-card__footer {
+    align-self: end;
+  }
+}
+
+/* Pricing table with aligned feature rows */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--pricing-columns, 3), 1fr);
+}
+
+.pricing-card {
+  --_pricing-rows: var(--pricing-card-rows, auto);
+
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span var(--_pricing-rows);
+  gap: 0;
+  border: var(--b-card, var(--b-card-group, var(--b-default)));
+  border-radius: var(--br-card, var(--br-card-group, var(--br-default)));
+  overflow: hidden;
+
+  .pricing-card__header {
+    padding: var(--pricing-header-padding, 1.5rem);
+    text-align: center;
+  }
+
+  .pricing-card__price {
+    padding: var(--pricing-price-padding, 1rem 1.5rem);
+    text-align: center;
+    font-size: var(--pricing-price-size, 2.5rem);
+    font-weight: 700;
+  }
+
+  .pricing-card__features {
+    padding: var(--pricing-features-padding, 1.5rem);
+    list-style: none;
+    margin: 0;
+  }
+
+  .pricing-card__feature {
+    padding-block: 0.5rem;
+    border-block-end: var(--b-card, var(--b-card-group, var(--b-default)));
+
+    &:last-child {
+      border-block-end: none;
+    }
+  }
+
+  .pricing-card__cta {
+    padding: var(--pricing-cta-padding, 1.5rem);
+    text-align: center;
+    align-self: end;
+  }
+
+  &.pricing-card--featured {
+    scale: 1.02;
+    z-index: var(--z-tier-raised);
+  }
+}
+
+/* Comparison table with subgrid columns */
+.comparison-table {
+  --_comparison-columns: var(--comparison-columns, 4);
+
+  display: grid;
+  grid-template-columns:
+    minmax(150px, 1fr)
+    repeat(calc(var(--_comparison-columns) - 1), minmax(100px, 1fr));
+  border: var(--b-card, var(--b-card-group, var(--b-default)));
+  border-radius: var(--br-card, var(--br-card-group, var(--br-default)));
+  overflow: hidden;
+
+  .comparison-table__header,
+  .comparison-table__row {
+    display: contents;
+  }
+
+  .comparison-table__header > * {
+    padding: var(--comparison-header-padding, 1rem);
+    font-weight: 600;
+    text-align: center;
+    border-block-end: var(--b-card, var(--b-card-group, var(--b-default)));
+  }
+
+  .comparison-table__row > * {
+    padding: var(--comparison-cell-padding, 1rem);
+    border-block-end: var(--b-card, var(--b-card-group, var(--b-default)));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .comparison-table__row > *:first-child {
+    justify-content: flex-start;
+    font-weight: 500;
+  }
+
+  .comparison-table__row:last-child > * {
+    border-block-end: none;
+  }
+}

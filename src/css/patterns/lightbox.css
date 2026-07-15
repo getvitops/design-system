@@ -1,0 +1,156 @@
+/**
+ * Lightbox — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Lightbox — thumbnail grid + full-screen dialog w/ view transitions ────── */
+.lightbox {
+  --_br: var(--br-lightbox, var(--br-lightbox-group, var(--br-default)));
+
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--lightbox-thumb-size, 150px), 1fr));
+  gap: var(--lightbox-gap, 0.5rem);
+
+  .lightbox__item {
+    position: relative;
+    aspect-ratio: var(--lightbox-aspect, 1);
+    overflow: hidden;
+    border-radius: var(--_br);
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--lightbox-focus-color, currentColor);
+      outline-offset: 2px;
+    }
+  }
+
+  .lightbox__thumb {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    transition: scale 0.3s ease;
+    view-transition-name: match-element;
+  }
+
+  .lightbox__item:hover .lightbox__thumb {
+    scale: 1.05;
+  }
+}
+
+dialog.lightbox-dialog {
+  position: fixed;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  max-inline-size: 100%;
+  max-block-size: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: var(--lightbox-dialog-bg, oklch(0 0 0 / 0.92));
+  color: #fff;
+  display: grid;
+  place-items: center;
+
+  &::backdrop {
+    background: transparent;
+  }
+
+  &[open] {
+    display: grid;
+  }
+
+  .lightbox-dialog__content {
+    position: relative;
+    max-inline-size: 90vw;
+    max-block-size: 90vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lightbox-dialog__image {
+    max-inline-size: 100%;
+    max-block-size: 90vh;
+    object-fit: contain;
+    view-transition-name: match-element;
+  }
+
+  .lightbox-dialog__close {
+    position: absolute;
+    inset-block-start: 1rem;
+    inset-inline-end: 1rem;
+    inline-size: 3rem;
+    block-size: 3rem;
+    padding: 0;
+    background: var(--lightbox-close-bg, transparent);
+    border: none;
+    border-radius: 50%;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease;
+    z-index: 10;
+
+    &:hover {
+      background: var(--lightbox-close-hover-bg, oklch(1 0 0 / 0.15));
+    }
+    &:focus-visible {
+      outline: 2px solid var(--lightbox-focus-color, currentColor);
+      outline-offset: 2px;
+    }
+  }
+
+  .lightbox-dialog__nav {
+    position: absolute;
+    inset-block: 0;
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+
+    &[data-direction='prev'] {
+      inset-inline-start: 0;
+    }
+    &[data-direction='next'] {
+      inset-inline-end: 0;
+    }
+  }
+
+  .lightbox-dialog__nav-button {
+    inline-size: 3rem;
+    block-size: 3rem;
+    padding: 0;
+    background: var(--lightbox-nav-bg, transparent);
+    border: none;
+    border-radius: 50%;
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background: var(--lightbox-nav-hover-bg, oklch(1 0 0 / 0.15));
+    }
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+  }
+
+  .lightbox-dialog__caption {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline: 0;
+    padding: 1rem 2rem;
+    text-align: center;
+  }
+}
+
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 0.3s;
+}

@@ -1,0 +1,108 @@
+/**
+ * Drawer — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Drawer — slide-in panel (works as <dialog> or [popover]) ──────────────── */
+.drawer {
+  --_p: var(--p-drawer, var(--p-drawer-group, var(--p-default)));
+  --_b: var(--b-drawer, var(--b-drawer-group, var(--b-default)));
+  --_ds: var(--ds-drawer, var(--ds-drawer-group, var(--ds-default)));
+
+  position: var(--_drawer-position, fixed);
+  position-anchor: var(--_drawer-anchor);
+  margin: 0;
+  padding: var(--_p);
+  border: var(--_b);
+  box-shadow: var(--_ds);
+  background: var(--color-surface-xxl);
+  color: var(--color-surface-xxd);
+  max-inline-size: none;
+  max-block-size: none;
+
+  &::backdrop {
+    backdrop-filter: blur(4px);
+  }
+
+  &,
+  &.drawer--left {
+    inset-block: 0;
+    inset-inline-start: 0;
+    block-size: 100dvh;
+    inline-size: min(100dvi, var(--drawer-max-inline-size, 280px));
+    border-radius: 0;
+
+    &[open],
+    &:popover-open {
+      animation: drawer-slide-in-left 0.3s ease;
+    }
+  }
+
+  &.drawer--right {
+    inset-block: 0;
+    inset-inline-end: 0;
+    inset-inline-start: auto;
+    inline-size: min(100dvi, var(--drawer-max-inline-size, 280px));
+
+    &[open],
+    &:popover-open {
+      animation: drawer-slide-in-right 0.3s ease;
+    }
+  }
+
+  &.drawer--top {
+    inset-block-start: 0;
+    inset-inline: 0;
+    block-size: min(100dvb, var(--drawer-max-block-size, 100dvb));
+
+    &[open],
+    &:popover-open {
+      animation: drawer-slide-in-top 0.3s ease;
+    }
+  }
+
+  &.drawer--bottom {
+    inset-block-end: 0;
+    inset-block-start: auto;
+    inset-inline: 0;
+    block-size: min(100dvb, var(--drawer-max-block-size, 100dvb));
+
+    &[open],
+    &:popover-open {
+      animation: drawer-slide-in-bottom 0.3s ease;
+    }
+  }
+}
+
+@keyframes drawer-slide-in-left {
+  from {
+    translate: -100% 0;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+@keyframes drawer-slide-in-right {
+  from {
+    translate: 100% 0;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+@keyframes drawer-slide-in-top {
+  from {
+    translate: 0 -100%;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+@keyframes drawer-slide-in-bottom {
+  from {
+    translate: 0 100%;
+  }
+  to {
+    translate: 0 0;
+  }
+}

@@ -1,0 +1,40 @@
+/**
+ * Masonry — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Masonry — grid masonry with CSS-columns fallback ──────────────────────── */
+.masonry {
+  columns: var(--masonry-columns, 3);
+
+  > * {
+    break-inside: avoid;
+  }
+
+  @supports (grid-template-rows: masonry) {
+    & {
+      display: grid;
+      grid-template-columns: repeat(var(--masonry-columns, 3), 1fr);
+      grid-template-rows: masonry;
+      gap: var(--masonry-gap, 1rem);
+      columns: unset;
+    }
+
+    > * {
+      break-inside: unset;
+    }
+  }
+}
+
+.masonry__item {
+  display: block;
+
+  @supports (grid-template-rows: masonry) {
+    &.masonry__item--span-2 {
+      grid-column: span 2;
+    }
+    &.masonry__item--span-3 {
+      grid-column: span 3;
+    }
+  }
+}

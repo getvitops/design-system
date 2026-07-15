@@ -1,0 +1,212 @@
+/**
+ * Splitter — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Splitter + Image-compare — CSS shell; drag behaviour lands via Lit ────── */
+.splitter {
+  --_splitter-handle-size: var(--splitter-handle-size, 8px);
+
+  display: flex;
+
+  &:not(.splitter--vertical) {
+    flex-direction: row;
+  }
+  &.splitter--vertical {
+    flex-direction: column;
+  }
+
+  .splitter__panel {
+    overflow: auto;
+  }
+
+  .splitter__panel:first-child {
+    flex: var(--splitter-ratio, 1);
+  }
+  .splitter__panel:last-child {
+    flex: calc(2 - var(--splitter-ratio, 1));
+  }
+
+  .splitter__handle {
+    flex-shrink: 0;
+    background: currentColor;
+    opacity: 0.15;
+    transition: opacity 0.15s ease;
+    position: relative;
+
+    &:hover,
+    &:focus-visible {
+      opacity: 0.3;
+    }
+    &:focus-visible {
+      outline: 2px solid;
+      outline-offset: 2px;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 50%;
+      translate: -50% -50%;
+      background: currentColor;
+      opacity: 0.3;
+      border-radius: 1px;
+    }
+  }
+
+  &:not(.splitter--vertical) .splitter__handle {
+    inline-size: var(--_splitter-handle-size);
+    cursor: col-resize;
+
+    &::after {
+      inline-size: 2px;
+      block-size: 24px;
+    }
+  }
+
+  &.splitter--vertical .splitter__handle {
+    block-size: var(--_splitter-handle-size);
+    cursor: row-resize;
+
+    &::after {
+      inline-size: 24px;
+      block-size: 2px;
+    }
+  }
+}
+
+.image-compare {
+  --_compare-position: var(--compare-position, 50%);
+  --_compare-handle-size: var(--compare-handle-size, 40px);
+
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+
+  .image-compare__before {
+    position: absolute;
+    inset: 0;
+    clip-path: inset(0 calc(100% - var(--_compare-position)) 0 0);
+  }
+
+  .image-compare__before > img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+
+  .image-compare__after {
+    display: block;
+  }
+
+  .image-compare__after > img {
+    inline-size: 100%;
+    block-size: auto;
+    display: block;
+  }
+
+  .image-compare__handle {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: var(--_compare-position);
+    translate: -50% 0;
+    inline-size: var(--_compare-handle-size);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: ew-resize;
+  }
+
+  .image-compare__handle::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 50%;
+    translate: -50% 0;
+    inline-size: 2px;
+    background: currentColor;
+  }
+
+  .image-compare__grip {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    translate: -50% -50%;
+    inline-size: var(--_compare-handle-size);
+    block-size: var(--_compare-handle-size);
+    background: currentColor;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .image-compare__grip::before,
+  .image-compare__grip::after {
+    content: '';
+    inline-size: 0;
+    block-size: 0;
+    border: 5px solid transparent;
+  }
+
+  .image-compare__grip::before {
+    border-inline-end-color: currentColor;
+  }
+  .image-compare__grip::after {
+    border-inline-start-color: currentColor;
+  }
+
+  .image-compare__label {
+    position: absolute;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+  }
+
+  .image-compare__label--before {
+    inset-block-end: 1rem;
+    inset-inline-start: 1rem;
+  }
+  .image-compare__label--after {
+    inset-block-end: 1rem;
+    inset-inline-end: 1rem;
+  }
+
+  &.image-compare--vertical {
+    touch-action: pan-x;
+
+    .image-compare__before {
+      clip-path: inset(0 0 calc(100% - var(--_compare-position)) 0);
+    }
+
+    .image-compare__handle {
+      inset-block-start: var(--_compare-position);
+      inset-inline: 0;
+      inset-block-end: auto;
+      translate: 0 -50%;
+      flex-direction: row;
+      cursor: ns-resize;
+    }
+
+    .image-compare__handle::before {
+      inset-inline: 0;
+      inset-block: auto;
+      inline-size: 100%;
+      block-size: 2px;
+      translate: 0 -50%;
+    }
+
+    .image-compare__grip::before {
+      border-block-end-color: currentColor;
+      border-inline-end-color: transparent;
+    }
+    .image-compare__grip::after {
+      border-block-start-color: currentColor;
+      border-inline-start-color: transparent;
+    }
+  }
+}

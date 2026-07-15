@@ -1,0 +1,64 @@
+/**
+ * Banner — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Banner — full-width announcement; colour via bg-/text- utilities ─────── */
+.banner {
+  --_p: var(--p-banner, var(--p-banner-group, var(--p-default)));
+  --_br: var(--br-banner, var(--br-banner-group, var(--br-default)));
+  --_b: var(--b-banner, var(--b-banner-group, var(--b-default)));
+
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--_p);
+  border: var(--_b);
+  border-radius: var(--_br);
+
+  &.banner--dismissible {
+    padding-inline-end: calc(1rem + 2.5rem);
+  }
+
+  .banner__close {
+    position: absolute;
+    inset-inline-end: 1rem;
+    inset-block: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+
+    &:hover,
+    &:focus-visible {
+      opacity: 1;
+    }
+  }
+
+  &.banner--sticky {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: var(--z-tier-sticky);
+  }
+
+  .banner__content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--banner-gap, 1rem);
+  }
+
+  .banner__action {
+    flex-shrink: 0;
+  }
+}

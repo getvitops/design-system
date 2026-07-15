@@ -1,0 +1,68 @@
+/**
+ * Tooltip — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Tooltip — anchored popover shown on hover/focus ───────────────────────── */
+/* Shown in the top layer via the Popover API: deferred.ts opens it on
+   hover/focus, and the trigger's `popovertarget` is the no-JS click fallback.
+   The top layer is what makes the flip work — it escapes the page's
+   container-query containment (`body { container-type }`), so the fixed
+   tooltip's containing block is the viewport and the flip fallbacks resolve
+   against the viewport edges (a plain :hover reveal stays trapped in that
+   containment and can only shift, never flip). Trigger and tooltip are siblings
+   so the tooltip is not a descendant of its own anchor. Several tooltips on one
+   page each need a distinct --tooltip anchor name (or an `anchor-scope`
+   wrapper); the single shared name here is fine for one-off use. */
+.tooltip-trigger {
+  anchor-name: --tooltip-anchor;
+}
+
+[popover].tooltip {
+  --_p: var(--p-tooltip, var(--p-tooltip-group, var(--p-default)));
+  --_br: var(--br-tooltip, var(--br-tooltip-group, var(--br-default)));
+  --_ds: var(--ds-tooltip, var(--ds-tooltip-group, var(--ds-default)));
+  --_fs: var(--fs-tooltip, var(--fs-tooltip-group, var(--fs-default)));
+
+  /* Anchored via inset(), NOT position-area: the flip try-tactics only flip
+     anchor()-based insets — position-area silently shifts-to-fit. Placement is a
+     logical inset + matching self-alignment; overriding them re-points it to any
+     side/corner and the flip chain adapts — nothing assumes top/bottom, so the
+     same pattern serves an edge icon or an `inline-end` megamenu. `margin` is the
+     uniform anchor gap and flips with the inset. (flip-* is Anchor Positioning v2
+     — native Chrome only; polyfilled engines keep the default side.) */
+  position: fixed;
+  position-anchor: --tooltip-anchor;
+  inset: auto;
+  inset-block-start: anchor(block-end);
+  justify-self: anchor-center;
+  position-try-fallbacks:
+    flip-block,
+    flip-inline,
+    flip-block flip-inline;
+  margin: 0.5rem;
+  padding: var(--_p);
+  border-radius: var(--_br);
+  box-shadow: var(--_ds);
+  background: var(--color-surface-xxd);
+  color: var(--color-surface-xxl);
+  font-size: var(--_fs);
+  white-space: nowrap;
+  max-inline-size: 20rem;
+  pointer-events: none;
+
+  /* The Popover API toggles display; fade across the top-layer transition. */
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    overlay 0.15s allow-discrete,
+    display 0.15s allow-discrete;
+
+  &:popover-open {
+    opacity: 1;
+
+    @starting-style {
+      opacity: 0;
+    }
+  }
+}

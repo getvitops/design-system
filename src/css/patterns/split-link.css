@@ -1,0 +1,113 @@
+/**
+ * Split Link — a primary <a> paired with a <button> that toggles an anchored
+ * [popover] of secondary content (the "split button" pattern).
+ *
+ * No JS: the toggle uses the native Popover API (a `popovertarget` invoker); the
+ * panel is placed with CSS Anchor Positioning. Placement is authored via a single
+ * `--split-link-area` custom property (a `position-area` value expressed with
+ * logical keywords) — the Bricks control writes it onto the wrapper, where it
+ * inherits down to the panel.
+ *
+ * Anchoring: the panel lives in the top layer, so a plain `position: relative`
+ * parent can't contain it — each instance needs a unique `anchor-name`. The Bricks
+ * element sets `anchor-name` on the wrapper and a matching `position-anchor` on the
+ * panel inline (derived from the element id). For hand-authored one-offs, add your
+ * own matching pair.
+ *
+ * `.split-link--show-on-hover` (a CSS-only, non-top-layer hover reveal) lives in
+ * dropdown.css and is a separate mechanism from this click-to-toggle component.
+ */
+
+/* ── Group — the link and its toggle sit flush as one control ──────────────── */
+.split-link {
+  display: inline-flex;
+  align-items: stretch;
+  position: relative; /* containing-block fallback where anchoring is unsupported */
+}
+
+.split-link__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--split-link-toggle-pad, 0.5rem);
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  line-height: 1;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: var(--color-surface-l);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--split-link-focus-color, var(--color-brand-primary-l));
+    outline-offset: 2px;
+  }
+
+  /* Caret flips while the panel is open (button reflects aria-expanded). */
+  .split-link__caret {
+    display: inline-block;
+    transition: rotate 0.15s ease;
+  }
+
+  &[aria-expanded='true'] .split-link__caret {
+    rotate: 180deg;
+  }
+}
+
+/* ── Panel — the content box (shared by the live popover and the builder's
+      always-visible editing variant, which omits the `popover` attribute) ───── */
+.split-link__panel {
+  --_p: var(--p-split-link, var(--p-split-link-group, var(--p-panel)));
+  --_b: var(--b-split-link, var(--b-split-link-group, var(--b-panel)));
+  --_br: var(--br-split-link, var(--br-split-link-group, var(--br-panel)));
+  --_ds: var(--ds-split-link, var(--ds-split-link-group, var(--ds-panel)));
+
+  min-inline-size: max-content;
+  max-inline-size: min(24rem, 90vw);
+  padding: var(--_p);
+  border: var(--_b);
+  border-radius: var(--_br);
+  box-shadow: var(--_ds);
+  background: var(--color-surface-xxl);
+  color: var(--color-surface-xxd);
+}
+
+/* Top-layer popover: anchored + placed via position-area. */
+[popover].split-link__panel {
+  position: fixed;
+  inset: auto;
+  /* Logical default: open below the group, spanning toward inline-end. The
+     Bricks placement control overrides --split-link-area. position-area shifts
+     to stay on-screen (it does not flip — a click panel staying put is fine). */
+  position-area: var(--split-link-area, block-end span-inline-end);
+  margin: var(--split-link-gap, 0.5rem);
+  z-index: var(--z-tier-overlay);
+
+  /* Popover API toggles display; fade across the top-layer transition. */
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    overlay 0.15s allow-discrete,
+    display 0.15s allow-discrete;
+
+  &:popover-open {
+    opacity: 1;
+
+    @starting-style {
+      opacity: 0;
+    }
+  }
+
+  &::backdrop {
+    background: transparent;
+  }
+}
+
+/* Builder-only: rendered without the `popover` attribute so nested content is
+   visible and droppable while editing (a live [popover] is display:none). */
+.split-link__panel--editing {
+  margin-block-start: var(--split-link-gap, 0.5rem);
+}

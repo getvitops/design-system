@@ -1,0 +1,127 @@
+/**
+ * Sticky — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Sticky — position:sticky variants + scroll-state() stuck detection ────── */
+.sticky {
+  --_sticky-offset: var(--sticky-offset, 0);
+
+  position: sticky;
+  inset-block-start: var(--_sticky-offset);
+  z-index: var(--z-tier-sticky);
+
+  &.sticky--bottom {
+    inset-block-start: auto;
+    inset-block-end: var(--_sticky-offset);
+  }
+
+  &.sticky--inline-start {
+    inset-inline-start: var(--_sticky-offset);
+    inset-block-start: auto;
+  }
+
+  &.sticky--inline-end {
+    inset-inline-end: var(--_sticky-offset);
+    inset-inline-start: auto;
+    inset-block-start: auto;
+  }
+}
+
+.sticky-header {
+  --_sticky-offset: var(--sticky-header-offset, 0);
+
+  position: sticky;
+  inset-block-start: var(--_sticky-offset);
+  z-index: var(--z-tier-sticky);
+  container-type: scroll-state;
+
+  .sticky-header__stuck-only {
+    display: none;
+  }
+
+  @container scroll-state(stuck: top) {
+    .sticky-header__logo {
+      scale: 0.85;
+    }
+    .sticky-header__stuck-only {
+      display: block;
+    }
+    .sticky-header__unstuck-only {
+      display: none;
+    }
+  }
+}
+
+.sticky-sidebar {
+  --_sticky-offset: var(--sticky-sidebar-offset, 1rem);
+  --_sticky-max-height: var(--sticky-sidebar-max-height, calc(100vh - 2rem));
+
+  position: sticky;
+  inset-block-start: var(--_sticky-offset);
+  max-block-size: var(--_sticky-max-height);
+  overflow-y: auto;
+  align-self: flex-start;
+}
+
+table.sticky-table {
+  position: relative;
+
+  thead {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 10;
+  }
+
+  thead th {
+    background: inherit;
+  }
+
+  &.sticky-table--first-col th:first-child,
+  &.sticky-table--first-col td:first-child {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 5;
+  }
+
+  &.sticky-table--first-col thead th:first-child {
+    z-index: 15;
+  }
+}
+
+.sticky-footer {
+  --_sticky-offset: var(--sticky-footer-offset, 0);
+
+  position: sticky;
+  inset-block-end: var(--_sticky-offset);
+  z-index: var(--z-tier-sticky);
+  container-type: scroll-state;
+}
+
+.sticky-nav {
+  position: sticky;
+  inset-block-start: var(--sticky-nav-offset, 0);
+  z-index: var(--z-tier-sticky);
+
+  .sticky-nav__item {
+    container-type: scroll-state;
+  }
+
+  .sticky-nav__indicator {
+    opacity: 0;
+    scale: 0.8;
+    transition:
+      opacity 0.2s ease,
+      scale 0.2s ease;
+  }
+
+  @container scroll-state(snapped: block) {
+    .sticky-nav__link {
+      font-weight: 600;
+    }
+    .sticky-nav__indicator {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+}

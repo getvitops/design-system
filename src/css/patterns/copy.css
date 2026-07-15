@@ -1,0 +1,82 @@
+/**
+ * Copy — copy-to-clipboard button CSS shell migrated from old-css-lib. The
+ * button, mask icons and success/"Copied!" affordance are pure CSS; the
+ * clipboard write + success-state toggle arrive with its Lit component (which
+ * adds `.copy--success`).
+ */
+
+.copy {
+  --_size: var(--copy-size, 2.5rem);
+  --_p: var(--p-copy, var(--p-control, var(--p-default)));
+  --_br: var(--br-copy, var(--br-control, var(--br-default)));
+  --_ds: var(--ds-copy, var(--ds-control, var(--ds-default)));
+  --_b: var(--b-copy, var(--b-control, var(--b-default)));
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  .copy__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: var(--_size);
+    min-block-size: var(--_size);
+    padding: var(--_p);
+    background: transparent;
+    border: var(--_b);
+    border-radius: var(--_br);
+    box-shadow: var(--_ds);
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      transform 0.1s ease;
+
+    &:active {
+      transform: scale(0.95);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--copy-focus-color, var(--color-brand-primary-l));
+      outline-offset: 2px;
+    }
+  }
+
+  .copy__icon {
+    inline-size: 1.25em;
+    block-size: 1.25em;
+    background-color: currentColor;
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512'%3E%3Cpath d='M208 0H332.1c12.7 0 24.9 5.1 33.9 14.1l67.9 67.9c9 9 14.1 21.2 14.1 33.9V336c0 26.5-21.5 48-48 48H208c-26.5 0-48-21.5-48-48V48c0-26.5 21.5-48 48-48zM48 128h80v64H64V448H256V416h64v48c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V176c0-26.5 21.5-48 48-48z'/%3E%3C/svg%3E");
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+  }
+
+  .copy__icon--success {
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512'%3E%3Cpath d='M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z'/%3E%3C/svg%3E");
+  }
+
+  .copy__tooltip {
+    position: absolute;
+    inset-block-end: 100%;
+    inset-inline-start: 50%;
+    translate: -50% 0;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 0.25rem;
+    white-space: nowrap;
+    background: var(--color-surface-xxd);
+    color: var(--color-surface-xxl);
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 0.15s ease,
+      visibility 0.15s ease;
+  }
+
+  &.copy--success .copy__tooltip {
+    opacity: 1;
+    visibility: visible;
+  }
+}

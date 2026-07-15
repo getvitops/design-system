@@ -1,0 +1,67 @@
+/**
+ * Stack — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Stack — scroll-driven stacking cards (view-timeline) ──────────────────── */
+.stack {
+  --stack-count: 4;
+  --stack-card-height: 60vh;
+  display: grid;
+}
+
+.stack__card {
+  --stack-index: 1;
+  position: sticky;
+  top: var(--stack-top, 10vh);
+}
+
+.stack__card__content {
+  box-shadow: var(--ds-card, var(--ds-card-group, var(--ds-default)));
+  border-radius: var(--br-card, var(--br-card-group, var(--br-default)));
+  min-block-size: var(--stack-card-height);
+}
+
+@supports (animation-timeline: view()) {
+  .stack__card {
+    --_index0: calc(var(--stack-index) - 1);
+    --_reverse-index: calc(var(--stack-count) - var(--_index0));
+    --_reverse-index0: calc(var(--_reverse-index) - 1);
+
+    view-timeline: --card block;
+  }
+
+  @keyframes stack-scale {
+    to {
+      transform: scale(calc(1.1 - calc(0.1 * var(--_reverse-index))));
+    }
+  }
+
+  .stack__card__content {
+    animation: stack-scale linear forwards;
+    animation-timeline: --card;
+    animation-range: contain 0% contain 100%;
+  }
+
+  @keyframes stack-fade {
+    to {
+      opacity: calc(0.5 + 0.5 * (var(--_reverse-index) / var(--stack-count)));
+    }
+  }
+
+  .stack--fade .stack__card__content {
+    animation:
+      stack-scale linear forwards,
+      stack-fade linear forwards;
+    animation-timeline: --card, --card;
+    animation-range:
+      contain 0% contain 100%,
+      contain 0% contain 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stack__card__content {
+    animation: none !important;
+  }
+}

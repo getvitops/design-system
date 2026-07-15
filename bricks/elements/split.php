@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class Vitops_Element_Split extends \Bricks\Element {
-	public $category      = 'layout';
+	public $category      = 'vitops';
 	public $name          = 'vitops-split';
 	public $icon          = 'ti-layout-column2';
 	public $css_selector  = '.split';

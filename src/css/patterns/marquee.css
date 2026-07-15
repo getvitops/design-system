@@ -1,0 +1,68 @@
+/**
+ * Marquee — CSS-only infinite scrolling row/column migrated from old-css-lib.
+ * Duplicate the .marquee__content for a seamless loop. Pauses on hover with the
+ * --pause-hover modifier; reverses / goes vertical via modifiers.
+ */
+
+.marquee {
+  --_marquee-direction: var(--marquee-direction, normal);
+
+  display: flex;
+  overflow: hidden;
+  user-select: none;
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+
+  .marquee__content {
+    display: flex;
+    flex-shrink: 0;
+    min-inline-size: 100%;
+    animation: marquee-scroll var(--marquee-duration, 20s) linear infinite;
+    animation-direction: var(--_marquee-direction);
+  }
+
+  &.marquee--pause-hover:hover .marquee__content {
+    animation-play-state: paused;
+  }
+
+  &.marquee--reverse {
+    --_marquee-direction: reverse;
+  }
+
+  &.marquee--vertical {
+    flex-direction: column;
+    mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+
+    .marquee__content {
+      flex-direction: column;
+      animation-name: marquee-scroll-vertical;
+    }
+  }
+
+  .marquee__item {
+    flex-shrink: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marquee__content {
+      animation: none;
+    }
+  }
+}
+
+@keyframes marquee-scroll {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: -100% 0;
+  }
+}
+
+@keyframes marquee-scroll-vertical {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 0 -100%;
+  }
+}

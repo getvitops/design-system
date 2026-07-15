@@ -1,3 +1,4 @@
+@import './global.css';
 @import './animation.css';
 @import './generated/animation-effects.css';
 @import './generated/color.css';
@@ -6,4 +7,52 @@
 @import './generated/tokens.css';
 @import './generated/typography.css';
 @import './layout.css';
+/* was layout-extra.css */
+@import './patterns/cluster.css';
+@import './patterns/grouped.css';
+@import './patterns/subgrid.css';
+@import './patterns/masonry.css';
+@import './patterns/media.css';
+@import './patterns/separator.css';
+@import './patterns/sticky.css';
+@import './patterns/stack.css';
+@import './patterns/splitter.css';
+@import './utilities.css';
 @import './generated/patterns.css';
+/* was overlays.css */
+@import './patterns/dialog.css';
+@import './patterns/drawer.css';
+@import './patterns/popover.css';
+@import './patterns/tooltip.css';
+@import './patterns/dropdown.css';
+@import './patterns/split-link.css';
+@import './patterns/menu.css';
+@import './patterns/notification.css';
+@import './patterns/lightbox.css';
+@import './patterns/overlay.css';
+/* was forms.css */
+@import './patterns/forms.css';
+@import './patterns/combobox.css';
+/* was content.css */
+@import './patterns/table.css';
+@import './patterns/details.css';
+@import './patterns/comment.css';
+@import './patterns/banner.css';
+@import './patterns/list.css';
+@import './patterns/tree.css';
+/* was typographic.css */
+@import './patterns/pull-quote.css';
+@import './patterns/tag.css';
+@import './patterns/anchor-link.css';
+@import './patterns/icon.css';
+@import './patterns/code.css';
+/* was scroll.css */
+@import './patterns/scroll-based.css';
+@import './patterns/horizontal-scroll.css';
+@import './patterns/scroll-target.css';
+@import './patterns/text-effects.css';
+@import './patterns/svg.css';
+@import './patterns/marquee.css';
+@import './patterns/nav.css';
+@import './patterns/carousel.css';
+@import './patterns/copy.css';

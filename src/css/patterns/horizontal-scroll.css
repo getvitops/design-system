@@ -1,0 +1,40 @@
+/**
+ * Horizontal Scroll — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Horizontal scroll — pin a section, scroll it sideways on vertical scroll ─ */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    @keyframes horizontal-scroll-move {
+      to {
+        transform: translateX(calc(-100% + 95cqi));
+      }
+    }
+
+    .horizontal-scroll:not([class*='horizontal-scroll--disabled']) {
+      height: 300vh;
+      overflow-x: clip;
+      container-type: inline-size;
+      view-timeline-name: --horizontal-scroll-tl;
+      view-timeline-axis: block;
+
+      > .horizontal-scroll__sticky {
+        position: sticky;
+        top: 0;
+        height: 100cqb;
+        width: 100cqi;
+        overflow-x: clip;
+
+        > .horizontal-scroll__track {
+          height: 100cqb;
+          width: 150cqi;
+          will-change: transform;
+          animation: linear horizontal-scroll-move forwards;
+          animation-timeline: --horizontal-scroll-tl;
+          animation-range: contain 0% contain 100%;
+        }
+      }
+    }
+  }
+}

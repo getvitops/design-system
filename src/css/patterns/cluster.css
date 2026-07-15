@@ -1,0 +1,64 @@
+/**
+ * Cluster — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Cluster — flexible wrapping group with 9 alignment positions ─────────── */
+/* First value = block axis (align-content), second = inline axis (justify). */
+.cluster,
+[class^='cluster-'],
+[class*=' cluster-'] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cluster-gap, 0.5rem);
+}
+
+.cluster-start-start {
+  place-content: start start;
+}
+.cluster-start-center {
+  place-content: start center;
+}
+.cluster-start-end {
+  place-content: start end;
+}
+.cluster-center-start {
+  place-content: center start;
+}
+.cluster-center-center {
+  place-content: center center;
+}
+.cluster-center-end {
+  place-content: center end;
+}
+.cluster-end-start {
+  place-content: end start;
+}
+.cluster-end-center {
+  place-content: end center;
+}
+.cluster-end-end {
+  place-content: end end;
+}
+
+/* Single-axis shorthands */
+.cluster-start {
+  place-content: start start;
+}
+.cluster-center {
+  place-content: center center;
+}
+.cluster-end {
+  place-content: end end;
+}
+
+/* Space distribution */
+.cluster-between {
+  justify-content: space-between;
+}
+.cluster-around {
+  justify-content: space-around;
+}
+.cluster-evenly {
+  justify-content: space-evenly;
+}

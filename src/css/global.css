@@ -1,0 +1,7 @@
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scrollbar-gutter: stable;
+    scroll-behavior: smooth;
+    scroll-padding-block-start: var(--top-offset, 0);
+  }
+}

@@ -1,0 +1,86 @@
+/**
+ * Grouped — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Bordered — width/style hooks so .grouped can collapse shared borders ──── */
+.bordered {
+  --_bw: var(--bw, 1px);
+  --_bs: var(--bs, solid);
+  border-width: var(--_bw);
+  border-style: var(--_bs);
+  border-color: var(--bc, var(--color-surface-xl, currentColor));
+}
+
+/* ── Group — collapse border-radius (+ shared borders) across direct children ─
+   Put the class on the CONTAINER, not each child. Compose children with .bordered
+   to also collapse their shared borders.
+     .group-inline / .group-block  force the axis (no style-query support needed).
+     .group                        defaults to inline and auto-flips to block when
+                                   its container is a column — read from the
+                                   --_flex-direction the flex utilities publish, via
+                                   a style query (progressive; inline is the fallback). */
+.group,
+.group-inline,
+.group-block {
+  --_grouped-br: var(--br-grouped, var(--br-default));
+}
+.group > *,
+.group-inline > *,
+.group-block > * {
+  border-radius: 0;
+}
+
+/* Corners common to both axes: first child keeps the start-start corner, last the
+   end-end corner. */
+.group > :first-child,
+.group-inline > :first-child,
+.group-block > :first-child {
+  border-start-start-radius: var(--_grouped-br);
+}
+.group > :last-child,
+.group-inline > :last-child,
+.group-block > :last-child {
+  border-end-end-radius: var(--_grouped-br);
+}
+
+/* Inline axis — default + explicit .group-inline (also the bare-.group fallback). */
+.group > :first-child,
+.group-inline > :first-child {
+  border-end-start-radius: var(--_grouped-br);
+}
+.group > :last-child,
+.group-inline > :last-child {
+  border-start-end-radius: var(--_grouped-br);
+}
+.group > .bordered + .bordered,
+.group-inline > .bordered + .bordered {
+  border-inline-start-width: 0;
+}
+
+/* Block axis — explicit .group-block, no style query needed. */
+.group-block > :first-child {
+  border-start-end-radius: var(--_grouped-br);
+}
+.group-block > :last-child {
+  border-end-start-radius: var(--_grouped-br);
+}
+.group-block > .bordered + .bordered {
+  border-block-start-width: 0;
+}
+
+/* Auto axis — bare .group follows a column container, overriding the inline default. */
+@container style(--_flex-direction: column) {
+  .group > :first-child {
+    border-end-start-radius: 0;
+    border-start-end-radius: var(--_grouped-br);
+  }
+  .group > :last-child {
+    border-start-end-radius: 0;
+    border-end-start-radius: var(--_grouped-br);
+  }
+  .group > .bordered + .bordered {
+    border-inline-start-width: var(--_bw, 1px);
+    border-block-start-width: 0;
+  }
+}

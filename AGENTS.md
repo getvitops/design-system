@@ -54,20 +54,36 @@ Other tools used:
 `src/design-system.json` is the source of truth. `lib/generate-design-system.ts` reads it and emits four kinds of output:
 
 - `src/css/generated/color.css` — `:root` tokens (named ramps + semantic roles), dark-mode overrides under `:root[data-brx-theme="dark"]`, and colour utility classes (`bg-`, `text-`, `border-`, …) for both named and semantic.
-- `src/css/generated/shadows.css` — `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Always emitted regardless of `--bricks`.
+- `src/css/generated/shadows.css` — `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Always emitted for the `css`/`bricks` formats.
 - `src/css/generated/patterns.css` — component CSS for entries under `patterns` in the JSON (button, link, badge, card). Each pattern has `base` declarations, `states` (hover/active/focus-visible) with shortcuts (`step`, `scale`, `lift`, `shadow`, `ring`, `css`), and `roles` (semantic colour variants). Always emitted.
 - `src/css/generated/animation-effects.css` — the effect + journey classes from `animations` in the JSON (`.fade-in`, `.reveal-left`, `.<parts>-journey`, …), each a pure value layer (`--_anim` + `--<prop>-from/-to`). Journeys are composed from `animations.journeys.base` + `compose`. Always emitted. The animation **engine** (keyframes, drivers, floats, utilities) stays hand-written in `src/css/animation.css`.
 - `dist/bricks-colors-{named,semantic}.json` — palettes for Bricks Builder's Color Manager. Each semantic entry carries `darkEnabled` + a `dark` ref so Bricks generates the dark-mode overrides on import.
 
-`src/css/index.css` is the lightningcss bundle entry. Static partials (`animation.css`, `layout.css`) live at `src/css/` root; everything generated lives under `src/css/generated/`. Keep that split when adding files.
+`src/css/index.css` is the lightningcss bundle entry. Core primitives (`global.css`, `animation.css`, `layout.css`, `utilities.css`) live at `src/css/` root; everything generated lives under `src/css/generated/`; and each UI pattern is its own partial under `src/css/patterns/` (one file per pattern — `dialog.css`, `table.css`, `cluster.css`, `overlay.css`, …), mirroring `old-css-lib/patterns/`. Keep that three-way split when adding files, and wire any new partial into `index.css` (order matters for the cascade).
 
-### `--bricks` mode
+### `--format` mode
 
-`generate:theme` runs `node lib/generate-design-system.ts --bricks` by default. When the flag is **set**, `color.css` is a one-line stub — Bricks is expected to provide the colour `:root` tokens, dark overrides, and utility classes live from the imported palette JSONs. When the flag is **unset**, the script emits the full standalone colour layer (useful for non-Bricks consumers / docs). `patterns.css`, `shadows.css`, and the Bricks JSONs always emit regardless. Pattern `states` reference shadows via `"shadow": "<name>"`, compiled to `filter: drop-shadow(var(--shadow-<name>))`.
+The generator takes `--format <css|bricks|tailwind>` (default `bricks`; `--bricks` is a back-compat alias for `--format=bricks`).
+
+- **`bricks`** — `color.css` and `type-tokens.css` are one-line stubs; Bricks provides the colour `:root` tokens, dark overrides, utility classes, fonts, and type/space scales live from the imported palette + Variables JSONs. `patterns.css`, `shadows.css`, `tokens.css`, `typography.css`, `animation-effects.css`, and the Bricks JSONs emit. Pattern `states` reference shadows via `"shadow": "<name>"`, compiled to `filter: drop-shadow(var(--shadow-<name>))`.
+- **`css`** — same set, but `color.css`/`type-tokens.css` emit the full standalone colour + font/scale layer (self-contained; used by the docs build and non-Bricks consumers).
+- **`tailwind`** — bypasses all the per-file outputs and emits **one** self-contained `dist/tailwind.css` for Tailwind v4 (Astro): `@import "tailwindcss"` + `@theme` tokens (colours, `--font-*`, `--text-*`, `--spacing-*`, `--shadow-*`, `--container-{sm,md,lg,xl}`), a dark block, `@custom-variant is-active`, and `@utility` for the bespoke families (type roles, animation effects + `flip-<fx>`, split ratios, track placement) with the animation engine + structural CSS + patterns inlined. Tailwind's own engine expands `@md:`/`hover:`/… on demand, so no pre-expanded per-breakpoint/pseudo classes are emitted; native families (`flex`/`items`/`justify`/`text`/`bg`/`p`/`gap`) come from Tailwind + `@theme`. Run via `npx vp run build:tailwind` (standalone; not in the default `build` chain, not piped through lightningcss).
+
+### Utility variant naming (Tailwind-aligned)
+
+Responsive/state utilities follow Tailwind's left-to-right order in every format; CSS/Bricks swap `:` for `-`, Tailwind keeps `:` (and `@` for container queries):
+
+| Intent           | CSS / Bricks               | Tailwind                                |
+| ---------------- | -------------------------- | --------------------------------------- |
+| responsive split | `md-split-1-2`             | `@md:split-1-2`                         |
+| responsive align | `md-items-center`          | `@md:items-center`                      |
+| hover effect     | `transition hover-fade-in` | `transition fade-in hover:flip-fade-in` |
+
+Container breakpoints are bare prefixes (`sm-`/`md-`/`lg-`/`xl-` = 30/48/64/80rem). Base utility names mirror Tailwind (`items-*` not `align-*`), so one vocabulary spans all three formats.
 
 ## Build system
 
-All tasks go through `npx vp run <name>` (see [vite.config.ts](vite.config.ts)). The chain is `build` → `build:css` → `generate:theme` (`dependsOn`), then `build:js` runs after `build:css`.
+All tasks go through `npx vp run <name>` (see [vite.config.ts](vite.config.ts)). `build` delegates to `build:bricks` (the default target); format-specific full builds are separate `build:<type>` tasks rather than a `--format` flag on `build` (vp appends forwarded args to the command tail, which would corrupt the last sub-task, and it only resolves `vp run <task>` in-process when that appears literally in the command). `build:bricks` runs `build:css && build:js && build:elements`; `build:css` has `dependsOn: generate:theme`.
 
 Two non-obvious caching/ordering gotchas:
 

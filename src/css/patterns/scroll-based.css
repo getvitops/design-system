@@ -1,0 +1,227 @@
+/**
+ * Scroll Based — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Scroll snap ──────────────────────────────────────────────────────────── */
+.scroll-snap {
+  --_snap-type: var(--snap-type, both mandatory);
+  --_snap-padding: var(--snap-padding, 0);
+
+  overflow: auto;
+  scroll-snap-type: var(--_snap-type);
+  scroll-padding: var(--_snap-padding);
+  overscroll-behavior: contain;
+
+  &.scroll-snap--x {
+    --_snap-type: x mandatory;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    flex-wrap: nowrap;
+  }
+
+  &.scroll-snap--y {
+    --_snap-type: y mandatory;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  &.scroll-snap--proximity {
+    --_snap-type: both proximity;
+  }
+
+  > * {
+    scroll-snap-align: var(--snap-align, start);
+    scroll-snap-stop: var(--snap-stop, normal);
+  }
+
+  &.scroll-snap--center > * {
+    scroll-snap-align: center;
+  }
+  &.scroll-snap--end > * {
+    scroll-snap-align: end;
+  }
+  &.scroll-snap--always > * {
+    scroll-snap-stop: always;
+  }
+
+  &.scroll-snap--hide-scrollbar {
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+/* ── Scroll spy — highlight nav via scroll-state() ────────────────────────── */
+.scroll-spy {
+  container-type: scroll-state;
+
+  .scroll-spy__section {
+    container-type: scroll-state;
+  }
+
+  @container scroll-state(snapped: block) {
+    .scroll-spy__link[data-active] {
+      color: var(--scroll-spy-active-color, currentColor);
+      font-weight: 600;
+    }
+  }
+}
+
+/* ── Parallax — scroll-driven layer offset ────────────────────────────────── */
+.parallax {
+  --_parallax-speed: var(--parallax-speed, 0.5);
+
+  overflow: hidden;
+  position: relative;
+
+  .parallax__layer {
+    position: absolute;
+    inset: calc(-50% * var(--_parallax-speed)) 0;
+    animation: parallax-scroll linear;
+    animation-timeline: scroll(root);
+
+    @media (prefers-reduced-motion: reduce) {
+      inset: 0;
+      animation: none;
+    }
+  }
+
+  .parallax__layer > img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+
+  .parallax__content {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+@keyframes parallax-scroll {
+  from {
+    translate: 0 calc(-25% * var(--_parallax-speed, 0.5));
+  }
+  to {
+    translate: 0 calc(25% * var(--_parallax-speed, 0.5));
+  }
+}
+
+/* ── Scroll progress bar ──────────────────────────────────────────────────── */
+.scroll-progress {
+  --_progress-height: var(--scroll-progress-height, 3px);
+
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  block-size: var(--_progress-height);
+  z-index: var(--z-tier-top);
+
+  .scroll-progress__bar {
+    block-size: 100%;
+    background: var(--scroll-progress-color, var(--color-brand-primary));
+    transform-origin: left;
+    animation: scroll-progress-grow linear;
+    animation-timeline: scroll(root);
+  }
+}
+
+@keyframes scroll-progress-grow {
+  from {
+    scale: 0 1;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+
+/* ── Scroll reveal — view()-driven entrance ───────────────────────────────── */
+.scroll-reveal {
+  animation: scroll-reveal linear both;
+  animation-timeline: view();
+  animation-range: entry 0% cover 40%;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    opacity: 1;
+  }
+
+  &.scroll-reveal--up {
+    animation-name: scroll-reveal-up;
+  }
+  &.scroll-reveal--down {
+    animation-name: scroll-reveal-down;
+  }
+  &.scroll-reveal--left {
+    animation-name: scroll-reveal-left;
+  }
+  &.scroll-reveal--right {
+    animation-name: scroll-reveal-right;
+  }
+  &.scroll-reveal--scale {
+    animation-name: scroll-reveal-scale;
+  }
+}
+
+@keyframes scroll-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes scroll-reveal-up {
+  from {
+    opacity: 0;
+    translate: 0 2rem;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes scroll-reveal-down {
+  from {
+    opacity: 0;
+    translate: 0 -2rem;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes scroll-reveal-left {
+  from {
+    opacity: 0;
+    translate: -2rem 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes scroll-reveal-right {
+  from {
+    opacity: 0;
+    translate: 2rem 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes scroll-reveal-scale {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}

@@ -1,0 +1,45 @@
+/**
+ * Dropdown — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Dropdown — hover/click popover menu, no scrim ─────────────────────────── */
+.dropdown--show-on-hover,
+.split-link--show-on-hover {
+  position: relative;
+
+  /* Override the [popover] display:none (specificity 0,2,1 > 0,1,2) */
+  > [popover]:not(:popover-open) {
+    display: block;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    padding-block-start: var(--dropdown-gap, 0.5rem);
+    transition:
+      opacity 0.2s ease,
+      translate 0.2s ease,
+      visibility 0.2s allow-discrete;
+    inset: auto;
+    margin: 0;
+  }
+
+  &:hover > [popover]:not(:popover-open) {
+    opacity: 1;
+    visibility: visible;
+    translate: 0;
+    pointer-events: auto;
+    z-index: var(--z-tier-overlay);
+  }
+
+  > [popover]:popover-open {
+    opacity: 1;
+    visibility: visible;
+    translate: 0;
+    pointer-events: auto;
+    padding-block-start: var(--dropdown-gap, 0.5rem);
+  }
+
+  > [popover]::backdrop {
+    background: transparent !important;
+  }
+}

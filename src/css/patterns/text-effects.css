@@ -1,0 +1,317 @@
+/**
+ * Text effects — typewriter, flip, rotate, gradient, highlight and stagger text
+ * animations migrated from old-css-lib. Pure-CSS value + keyframe layers; each
+ * degrades under prefers-reduced-motion. `.text-scramble` is a CSS shell — the
+ * per-character randomisation arrives with its Lit component.
+ */
+
+/* ── Typing — typewriter reveal with blinking caret ───────────────────────── */
+.typing {
+  --_typing-speed: var(--typing-speed, 3s);
+  --_typing-steps: var(--typing-steps, 20);
+  --_cursor-color: var(--typing-cursor-color, currentColor);
+  --_cursor-width: var(--typing-cursor-width, 2px);
+
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  border-inline-end: var(--_cursor-width) solid var(--_cursor-color);
+  animation:
+    typing-text var(--_typing-speed) steps(var(--_typing-steps)) forwards,
+    typing-cursor 0.75s step-end infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    border-inline-end: none;
+    animation: none;
+  }
+
+  &.typing--loop {
+    animation:
+      typing-text var(--_typing-speed) steps(var(--_typing-steps)) infinite alternate,
+      typing-cursor 0.75s step-end infinite;
+  }
+
+  &.typing--no-cursor {
+    animation: typing-text var(--_typing-speed) steps(var(--_typing-steps)) forwards;
+    border-inline-end: none;
+  }
+}
+
+@keyframes typing-text {
+  from {
+    inline-size: 0;
+  }
+  to {
+    inline-size: 100%;
+  }
+}
+@keyframes typing-cursor {
+  50% {
+    border-color: transparent;
+  }
+}
+
+/* ── Text flip — 3D rotating word list ────────────────────────────────────── */
+.text-flip {
+  --_flip-duration: var(--text-flip-duration, 3s);
+  --_flip-items: var(--text-flip-items, 3);
+
+  display: inline-block;
+  position: relative;
+  perspective: 1000px;
+  overflow: hidden;
+  vertical-align: bottom;
+
+  .text-flip__item {
+    display: block;
+    animation: text-flip-rotate calc(var(--_flip-duration) * var(--_flip-items)) infinite;
+    backface-visibility: hidden;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+
+      &:not(:first-child) {
+        display: none;
+      }
+    }
+  }
+
+  .text-flip__item:nth-child(1) {
+    animation-delay: 0s;
+  }
+  .text-flip__item:nth-child(2) {
+    animation-delay: var(--_flip-duration);
+  }
+  .text-flip__item:nth-child(3) {
+    animation-delay: calc(var(--_flip-duration) * 2);
+  }
+  .text-flip__item:nth-child(4) {
+    animation-delay: calc(var(--_flip-duration) * 3);
+  }
+  .text-flip__item:nth-child(5) {
+    animation-delay: calc(var(--_flip-duration) * 4);
+  }
+
+  .text-flip__item:not(:first-child) {
+    position: absolute;
+    inset: 0;
+  }
+}
+
+@keyframes text-flip-rotate {
+  0%,
+  20% {
+    opacity: 1;
+    transform: rotateX(0);
+  }
+  25%,
+  100% {
+    opacity: 0;
+    transform: rotateX(-90deg);
+  }
+}
+
+/* ── Text rotate — fade/slide word list ───────────────────────────────────── */
+.text-rotate {
+  --_rotate-duration: var(--text-rotate-duration, 2s);
+  --_rotate-items: var(--text-rotate-items, 3);
+
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+  vertical-align: bottom;
+
+  .text-rotate__item {
+    display: block;
+    opacity: 0;
+    animation: text-rotate-fade calc(var(--_rotate-duration) * var(--_rotate-items)) infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+      opacity: 1;
+      animation: none;
+
+      &:not(:first-child) {
+        display: none;
+      }
+    }
+  }
+
+  .text-rotate__item:nth-child(1) {
+    animation-delay: 0s;
+  }
+  .text-rotate__item:nth-child(2) {
+    animation-delay: var(--_rotate-duration);
+  }
+  .text-rotate__item:nth-child(3) {
+    animation-delay: calc(var(--_rotate-duration) * 2);
+  }
+  .text-rotate__item:nth-child(4) {
+    animation-delay: calc(var(--_rotate-duration) * 3);
+  }
+  .text-rotate__item:nth-child(5) {
+    animation-delay: calc(var(--_rotate-duration) * 4);
+  }
+
+  .text-rotate__item:not(:first-child) {
+    position: absolute;
+    inset: 0;
+  }
+}
+
+@keyframes text-rotate-fade {
+  0%,
+  5% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  10%,
+  30% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  35%,
+  100% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+/* ── Text scramble — CSS shell; randomisation lands via Lit ───────────────── */
+.text-scramble {
+  display: inline-block;
+  font-family: var(--font-mono, monospace);
+
+  .text-scramble__char {
+    display: inline-block;
+    transition: opacity 0.1s ease;
+  }
+
+  .text-scramble__char--scrambled {
+    opacity: 0.3;
+  }
+}
+
+/* ── Animated gradient text ───────────────────────────────────────────────── */
+.text-gradient-animate {
+  --_gradient-speed: var(--text-gradient-speed, 3s);
+  --_gradient-colors: var(
+    --text-gradient-colors,
+    oklch(0.7 0.25 0),
+    oklch(0.7 0.25 60),
+    oklch(0.7 0.25 120),
+    oklch(0.7 0.25 180),
+    oklch(0.7 0.25 240),
+    oklch(0.7 0.25 300),
+    oklch(0.7 0.25 360)
+  );
+
+  background: linear-gradient(90deg, var(--_gradient-colors));
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-gradient-shift var(--_gradient-speed) linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes text-gradient-shift {
+  to {
+    background-position: 200% center;
+  }
+}
+
+/* ── Highlight sweep ──────────────────────────────────────────────────────── */
+.text-highlight {
+  --_highlight-color: var(--text-highlight-color, var(--color-warning-l));
+  --_highlight-duration: var(--text-highlight-duration, 0.5s);
+  --_highlight-pad-block: var(--text-highlight-pad-block, 0.1em);
+  --_highlight-pad-inline: var(--text-highlight-pad-inline, 0);
+  --_highlight-radius: var(--text-highlight-radius, 0);
+  --_highlight-skew: var(--text-highlight-skew, 0deg);
+
+  background: linear-gradient(to right, var(--_highlight-color) 50%, transparent 50%);
+  background-size: 200% 100%;
+  background-position: 100% 0;
+  border-radius: var(--_highlight-radius);
+  /* Extend the sweep slightly past the glyphs so the band doesn't sit flush to
+     the characters; keep line layout intact by clawing the padding back. */
+  padding-block: var(--_highlight-pad-block);
+  padding-inline: var(--_highlight-pad-inline);
+  margin-block: calc(-1 * var(--_highlight-pad-block));
+  margin-inline: calc(-1 * var(--_highlight-pad-inline));
+  box-decoration-break: clone;
+  /* skew is a no-op on pure inline boxes; opt in with inline-block when the
+     phrase stays on one line and a slanted marker look is wanted. */
+  transform: skewX(var(--_highlight-skew));
+  transition: background-position var(--_highlight-duration) ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    background-position: 0 0;
+  }
+
+  &.text-highlight--active,
+  &:hover {
+    background-position: 0 0;
+  }
+}
+
+/* ── Character stagger pop-in ─────────────────────────────────────────────── */
+.text-stagger {
+  display: inline-flex;
+
+  .text-stagger__char {
+    display: inline-block;
+    animation: text-stagger-pop 0.5s ease backwards;
+  }
+
+  .text-stagger__char:nth-child(1) {
+    animation-delay: 0s;
+  }
+  .text-stagger__char:nth-child(2) {
+    animation-delay: 0.05s;
+  }
+  .text-stagger__char:nth-child(3) {
+    animation-delay: 0.1s;
+  }
+  .text-stagger__char:nth-child(4) {
+    animation-delay: 0.15s;
+  }
+  .text-stagger__char:nth-child(5) {
+    animation-delay: 0.2s;
+  }
+  .text-stagger__char:nth-child(6) {
+    animation-delay: 0.25s;
+  }
+  .text-stagger__char:nth-child(7) {
+    animation-delay: 0.3s;
+  }
+  .text-stagger__char:nth-child(8) {
+    animation-delay: 0.35s;
+  }
+  .text-stagger__char:nth-child(9) {
+    animation-delay: 0.4s;
+  }
+  .text-stagger__char:nth-child(10) {
+    animation-delay: 0.45s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .text-stagger__char {
+      animation: none;
+    }
+  }
+}
+
+@keyframes text-stagger-pop {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

@@ -1,0 +1,28 @@
+/**
+ * Overlay — decorative tint/filter layer that sits behind sibling content.
+ * Not one of the interactive overlay-family patterns (dialog/drawer/popover/
+ * tooltip/dropdown/notification/lightbox); this is a z-index:-1 backdrop tint.
+ * Ported from old-css-lib. Colour via --overlay, filter via --overlay-filter.
+ */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+  z-index: -1;
+  inline-size: 100%;
+
+  > * {
+    inline-size: 100%;
+    block-size: 100%;
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--overlay, transparent);
+    filter: var(--overlay-filter, none);
+    pointer-events: none;
+  }
+}

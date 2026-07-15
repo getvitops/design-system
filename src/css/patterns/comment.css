@@ -1,0 +1,88 @@
+/**
+ * Comment — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Comment — threaded avatar/header/body/footer grid ────────────────────── */
+.comment {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'avatar header'
+    'avatar body'
+    'avatar footer';
+  gap: 1rem;
+  column-gap: 0.75rem;
+
+  .comment__avatar {
+    grid-area: avatar;
+    align-self: start;
+  }
+
+  .comment__header {
+    grid-area: header;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+
+  .comment__author {
+    font-weight: 600;
+  }
+
+  .comment__date {
+    font-size: 0.875em;
+    opacity: 0.7;
+  }
+
+  .comment__body {
+    grid-area: body;
+  }
+
+  .comment__footer {
+    grid-area: footer;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .comment__action {
+    font-size: 0.875em;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+
+    &:hover,
+    &:focus-visible {
+      opacity: 1;
+    }
+  }
+
+  .comment__replies {
+    grid-column: 1 / -1;
+    margin-inline-start: var(--comment-indent, 2rem);
+    padding-inline-start: var(--comment-indent, 2rem);
+    border-inline-start: 2px solid var(--color-surface-l);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  &.comment--compact {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'header'
+      'body'
+      'footer';
+
+    .comment__avatar {
+      display: none;
+    }
+  }
+}
+
+.comment-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}

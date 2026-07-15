@@ -1,0 +1,124 @@
+/**
+ * Scroll Target — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Scroll-target group — :target-current scroll-spy + TOC layout ────────── */
+.scroll-target-group {
+  scroll-target-group: auto;
+}
+
+.scroll-target-group a {
+  transition: var(--scroll-target-transition, color 0.3s ease, background-color 0.3s ease);
+  text-decoration: none;
+  color: var(--scroll-target-inactive-color, currentColor);
+}
+
+/* `.is-current` mirrors `:target-current` for the JS scroll-spy fallback
+   (deferred.ts) on engines without `scroll-target-group` support. */
+.scroll-target-group a:target-current,
+.scroll-target-group a.is-current {
+  color: var(--scroll-target-active-color, var(--color-brand-primary));
+}
+
+.scroll-target-group--indicator a {
+  position: relative;
+  padding-inline-start: calc(var(--scroll-target-indicator-size, 3px) * 3);
+}
+
+.scroll-target-group--indicator a::before,
+.scroll-target-group--bar a::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  background-color: transparent;
+  transition: var(--scroll-target-transition, color 0.3s ease, background-color 0.3s ease);
+}
+
+.scroll-target-group--indicator a::before {
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--scroll-target-indicator-size, 3px);
+  height: var(--scroll-target-indicator-size, 3px);
+  border-radius: 50%;
+}
+
+.scroll-target-group--indicator a:target-current::before,
+.scroll-target-group--bar a:target-current::before,
+.scroll-target-group--indicator a.is-current::before,
+.scroll-target-group--bar a.is-current::before {
+  background-color: var(--scroll-target-active-color, var(--color-brand-primary));
+}
+
+.scroll-target-group--bar a {
+  position: relative;
+  padding-inline-start: calc(var(--scroll-target-indicator-size, 3px) + 0.75rem);
+}
+
+.scroll-target-group--bar a::before {
+  top: 0;
+  bottom: 0;
+  width: var(--scroll-target-indicator-size, 3px);
+}
+
+@supports not (scroll-target-group: auto) {
+  .scroll-target-group--hide-unsupported {
+    display: none;
+  }
+}
+
+.toc-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+
+  @container body (inline-size >= 64rem) {
+    grid-template-columns: 16rem 1fr;
+    gap: var(--gutter, 2rem);
+  }
+}
+
+.toc-sidebar {
+  display: none;
+
+  @container body (inline-size >= 64rem) {
+    display: block;
+    position: sticky;
+    top: calc(var(--top-offset, 0px) + var(--sticky-offset, 1rem));
+    height: fit-content;
+    max-height: calc(100svh - calc(var(--top-offset, 0px) + var(--sticky-offset, 1rem)) * 2);
+    overflow-y: auto;
+    padding-block: 1rem;
+  }
+}
+
+.toc-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.toc-sidebar a {
+  display: block;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  transition: var(--scroll-target-transition, color 0.3s ease, background-color 0.3s ease);
+}
+
+.toc-sidebar a:target-current,
+.toc-sidebar a.is-current {
+  color: var(--scroll-target-active-color, var(--color-brand-primary));
+  font-weight: 500;
+}
+
+.toc-inline {
+  position: sticky;
+  top: var(--top-offset, 0);
+  z-index: var(--z-tier-sticky);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+
+  @container body (inline-size >= 64rem) {
+    display: none;
+  }
+}

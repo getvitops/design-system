@@ -1,0 +1,99 @@
+/**
+ * Dialog — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Dialog — native <dialog> ──────────────────────────────────────────────── */
+/* Keep the `:not(:popover-open)` guard so a <dialog popover> opened via the
+   Popover API (which sets :popover-open, NOT the [open] attribute) still shows. */
+dialog:not([open]):not(:popover-open) {
+  display: none;
+}
+
+dialog.dialog {
+  --_p: var(--p-dialog, var(--p-dialog-group, var(--p-default)));
+  --_b: var(--b-dialog, var(--b-dialog-group, var(--b-default)));
+  --_br: var(--br-dialog, var(--br-dialog-group, var(--br-default)));
+  --_ds: var(--ds-dialog, var(--ds-dialog-group, var(--ds-default)));
+
+  /* inset:0 + margin:auto centres the dialog in the top layer. Needed because the
+     generic [popover] rule resets inset to auto (for anchored popovers), which
+     would otherwise leave a popover-opened <dialog> pinned to the top-left. */
+  inset: 0;
+  margin: auto;
+  padding: var(--_p);
+  border: var(--_b);
+  border-radius: var(--_br);
+  box-shadow: var(--_ds);
+  background: var(--color-surface-xxl);
+  color: var(--color-surface-xxd);
+  max-block-size: calc(100vh - 2rem);
+
+  &::backdrop {
+    backdrop-filter: blur(4px);
+  }
+
+  &[open] {
+    animation: dialog-enter 0.3s ease;
+  }
+  &[open]::backdrop {
+    animation: dialog-backdrop-enter 0.3s ease;
+  }
+
+  .dialog__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-block-end: 1rem;
+  }
+
+  .dialog__title {
+    margin: 0;
+  }
+
+  .dialog__close {
+    padding: 0.5rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.15s ease;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  .dialog__body {
+    overflow-y: auto;
+  }
+
+  .dialog__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-block-start: 1.5rem;
+  }
+}
+
+@keyframes dialog-enter {
+  from {
+    opacity: 0;
+    scale: 0.95;
+    translate: 0 -1rem;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes dialog-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

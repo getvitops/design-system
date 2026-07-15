@@ -1,0 +1,17 @@
+/**
+ * Code — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Inline code chip — prose <code> that isn't inside a <pre>. Element-level at
+   zero specificity (like the schema-generated button/link patterns) so bare
+   <code> needs no class and any explicit class overrides it. .font-code styles
+   type only; this adds the chip. ── */
+:where(:not(pre) > code) {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--color-neutral-xl);
+  color: var(--color-neutral-xxd);
+  padding: 0.1em 0.4em;
+  border-radius: var(--br-default);
+}

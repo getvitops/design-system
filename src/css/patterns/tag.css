@@ -1,0 +1,75 @@
+/**
+ * Tag — pattern partial migrated from old-css-lib.
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ */
+
+/* ── Tag sub-parts — pair with generated .tag / .tag-<role> ───────────────── */
+.tag__icon {
+  flex-shrink: 0;
+  inline-size: 1em;
+  block-size: 1em;
+}
+
+.tag__remove {
+  flex-shrink: 0;
+  margin-inline-start: 0.25em;
+  padding: 0.125em;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0.6;
+  line-height: 1;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+/* ── Badge indicator — numeric notification bubble (distinct from .badge) ──── */
+.badge-indicator {
+  --_size: var(--badge-size, 1.25rem);
+  --_br: var(--br-badge, var(--br-badge-group, var(--br-default)));
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: var(--_size);
+  block-size: var(--_size);
+  padding-inline: 0.25em;
+  font-size: var(--fs-badge, var(--fs-badge-group, var(--fs-default)));
+  font-weight: 600;
+  line-height: 1;
+  border-radius: var(--br-badge-indicator, var(--br-pill, 999px));
+  background: var(--color-danger-d);
+  color: #fff;
+
+  &.badge-indicator--dot {
+    --_size: 0.5rem;
+    padding: 0;
+  }
+
+  &.badge-indicator--positioned {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+    translate: 50% -50%;
+  }
+}
+
+/* ── Status dot pulse — modifier + keyframe over the generated .status-dot ─── */
+.status-dot--pulse {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 4px currentColor;
+    opacity: 0.5;
+  }
+}
