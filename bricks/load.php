@@ -49,18 +49,28 @@ add_action(
 add_action(
 	'wp_enqueue_scripts',
 	function () {
-		$dir = get_stylesheet_directory_uri() . '/dist';
+		$dir  = get_stylesheet_directory_uri() . '/dist';
+		$path = get_stylesheet_directory() . '/dist';
 
-		wp_enqueue_style( 'vitops-styles', $dir . '/styles.min.css', array(), null );
+		// Version each asset by its file mtime so a deploy (which rewrites the file,
+		// preserving a fresh mtime through rsync) busts any browser/CDN cache. A `null`
+		// version leaves the URL query-less and highly cacheable, so post-deploy edits
+		// never reach returning visitors. Missing file → null (WP's default behaviour).
+		$ver = function ( $file ) use ( $path ) {
+			$p = $path . '/' . $file;
+			return file_exists( $p ) ? filemtime( $p ) : null;
+		};
+
+		wp_enqueue_style( 'vitops-styles', $dir . '/styles.min.css', array(), $ver( 'styles.min.css' ) );
 
 		// Feature-detected polyfill loader — first, high, as a module.
-		wp_enqueue_script( 'vitops-polyfills', $dir . '/polyfills.js', array(), null, false );
+		wp_enqueue_script( 'vitops-polyfills', $dir . '/polyfills.js', array(), $ver( 'polyfills.js' ), false );
 
 		// Custom-element registrations — module; self-registers on load.
-		wp_enqueue_script( 'vitops-elements', $dir . '/elements.js', array(), null, true );
+		wp_enqueue_script( 'vitops-elements', $dir . '/elements.js', array(), $ver( 'elements.js' ), true );
 
 		// Non-critical progressive enhancement — plain deferred script.
-		wp_enqueue_script( 'vitops-deferred', $dir . '/deferred.js', array(), null, true );
+		wp_enqueue_script( 'vitops-deferred', $dir . '/deferred.js', array(), $ver( 'deferred.js' ), true );
 	}
 );
 

@@ -2143,47 +2143,111 @@
                 </ul>
               </details>
             </div>
-            <!-- Menu: WP-menu-driven responsive nav. Accordion below md, pop-out
-                 dropdowns at/above it. The "Company" branch is depth-capped
-                 (--desktop-branch) so its 3rd tier only appears on desktop. -->
+            <!-- Site Nav: WP-menu-driven responsive nav. Hamburger → drawer with
+                 accordions below md; inline navbar with pop-out dropdowns at/above
+                 it. Branch items are accessible split-links — a parent link plus a
+                 sibling <details> caret (no interactive control nested in <summary>);
+                 the submenu <ul> is a sibling toggled via :has(> details[open]). The
+                 "Products → Integrations" branch is depth-capped (--desktop-branch)
+                 so its 3rd tier only appears on desktop. -->
             <div class="demo demo-frame">
-              <nav class="menu menu--bp-md" aria-label="Demo">
-                <ul class="menu__list">
-                  <li class="menu__item"><a class="menu__link" href="#nav">Home</a></li>
-                  <li class="menu__item menu__item--branch">
-                    <details class="menu__disclosure">
-                      <summary class="menu__summary split-link">
-                        <a class="menu__link split-link__link" href="#nav">Products</a>
-                        <span class="menu__toggle split-link__toggle" aria-hidden="true"
-                          ><span class="split-link__caret">▾</span></span
+              <nav class="sitenav sitenav--bp-md sitenav--drawer-end" aria-label="Demo">
+                <button
+                  type="button"
+                  class="sitenav__toggle"
+                  popovertarget="demo-sitenav"
+                  aria-label="Menu"
+                >
+                  <svg
+                    class="sitenav__toggle-icon"
+                    viewBox="0 0 24 24"
+                    width="24"
+                    height="24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                  </svg>
+                </button>
+                <div id="demo-sitenav" popover class="sitenav__panel">
+                  <button
+                    type="button"
+                    class="sitenav__close"
+                    popovertarget="demo-sitenav"
+                    popovertargetaction="hide"
+                    aria-label="Close menu"
+                  >
+                    <svg
+                      class="sitenav__close-icon"
+                      viewBox="0 0 24 24"
+                      width="24"
+                      height="24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                    </svg>
+                  </button>
+                  <ul class="sitenav__list">
+                    <li class="sitenav__item">
+                      <a class="sitenav__link split-link__link" href="#nav">Home</a>
+                    </li>
+                    <li class="sitenav__item sitenav__item--branch">
+                      <a class="sitenav__link split-link__link" href="#nav">Products</a>
+                      <details class="sitenav__disclosure">
+                        <summary
+                          class="sitenav__subtoggle split-link__toggle"
+                          aria-label="Show Products submenu"
                         >
-                      </summary>
-                      <ul class="menu__submenu">
-                        <li class="menu__item"><a class="menu__link" href="#nav">Overview</a></li>
-                        <li class="menu__item"><a class="menu__link" href="#nav">Pricing</a></li>
-                        <li class="menu__item menu__item--desktop-branch">
-                          <details class="menu__disclosure">
-                            <summary class="menu__summary split-link">
-                              <a class="menu__link split-link__link" href="#nav">Integrations</a>
-                              <span class="menu__toggle split-link__toggle" aria-hidden="true"
-                                ><span class="split-link__caret">▾</span></span
-                              >
+                          <span class="split-link__caret" aria-hidden="true">▾</span>
+                        </summary>
+                      </details>
+                      <ul class="sitenav__submenu">
+                        <li class="sitenav__item">
+                          <a class="sitenav__link split-link__link" href="#nav">Overview</a>
+                        </li>
+                        <li class="sitenav__item">
+                          <a class="sitenav__link split-link__link" href="#nav">Pricing</a>
+                        </li>
+                        <li
+                          class="sitenav__item sitenav__item--branch sitenav__item--desktop-branch"
+                        >
+                          <a class="sitenav__link split-link__link" href="#nav">Integrations</a>
+                          <details class="sitenav__disclosure">
+                            <summary
+                              class="sitenav__subtoggle split-link__toggle"
+                              aria-label="Show Integrations submenu"
+                            >
+                              <span class="split-link__caret" aria-hidden="true">▾</span>
                             </summary>
-                            <ul class="menu__submenu">
-                              <li class="menu__item">
-                                <a class="menu__link" href="#nav">Slack</a>
-                              </li>
-                              <li class="menu__item">
-                                <a class="menu__link" href="#nav">GitHub</a>
-                              </li>
-                            </ul>
                           </details>
+                          <ul class="sitenav__submenu">
+                            <li class="sitenav__item">
+                              <a class="sitenav__link split-link__link" href="#nav">Slack</a>
+                            </li>
+                            <li class="sitenav__item">
+                              <a class="sitenav__link split-link__link" href="#nav">GitHub</a>
+                            </li>
+                          </ul>
                         </li>
                       </ul>
-                    </details>
-                  </li>
-                  <li class="menu__item"><a class="menu__link" href="#nav">Docs</a></li>
-                </ul>
+                    </li>
+                    <li class="sitenav__item">
+                      <a class="sitenav__link split-link__link" href="#nav">Docs</a>
+                    </li>
+                  </ul>
+                </div>
               </nav>
             </div>
             <dl class="api-list">
@@ -2255,19 +2319,23 @@
                 <div class="api-desc">Inline row of padded social link anchors.</div>
               </div>
               <div class="api-row">
-                <div class="api-sig"><code>.menu</code><span class="t t-state">state</span></div>
+                <div class="api-sig"><code>.sitenav</code><span class="t t-state">state</span></div>
                 <div class="api-desc">
-                  Responsive nav (Bricks <code>vitops-menu</code>, WP-menu-driven). Branch items are
-                  split-links: a parent <code>&lt;a&gt;</code> + a
-                  <code>&lt;details&gt;</code> disclosure. Accordion below the breakpoint; pop-out
-                  dropdowns at/above it (open on hover, focus, or click). No JS.<span class="sub"
-                    ><strong>Parts:</strong> <code>__list</code>,
+                  Site nav (Bricks <code>vitops-sitenav</code>, WP-menu-driven). Hamburger → drawer
+                  with accordions below the breakpoint; inline navbar with pop-out dropdowns
+                  at/above it (open on hover, focus, or click). Drawer + dropdowns are native
+                  Popover / <code>&lt;details&gt;</code>. Branch items are accessible split-links: a
+                  parent <code>&lt;a&gt;</code> beside a <code>&lt;details&gt;</code> caret, with
+                  the submenu a sibling <code>&lt;ul&gt;</code>. No JS.<span class="sub"
+                    ><strong>Parts:</strong> <code>__toggle</code>, <code>__panel</code>,
+                    <code>__close</code>, <code>__list</code>,
                     <code>__item</code> (<code>--branch</code>), <code>__disclosure</code>,
-                    <code>__summary</code>, <code>__link</code>, <code>__toggle</code>,
-                    <code>__submenu</code>. <strong>Breakpoint:</strong>
-                    <code>.menu--bp-{sm,md,lg,xl}</code>. <strong>Depth caps:</strong>
-                    <code>.menu__item--desktop-branch</code> / <code>--mobile-branch</code> hide a
-                    level's caret+submenu at one breakpoint.</span
+                    <code>__subtoggle</code>, <code>__link</code>, <code>__submenu</code>.
+                    <strong>Breakpoint:</strong> <code>.sitenav--bp-{sm,md,lg,xl}</code>.
+                    <strong>Drawer side:</strong> <code>.sitenav--drawer-{start,end}</code>.
+                    <strong>Depth caps:</strong> <code>.sitenav__item--desktop-branch</code> /
+                    <code>--mobile-branch</code> hide a level's caret+submenu at one
+                    breakpoint.</span
                   >
                 </div>
               </div>

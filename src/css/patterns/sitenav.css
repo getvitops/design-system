@@ -1,0 +1,582 @@
+/**
+ * Site Nav — the site's primary navigation, generated from a WordPress menu
+ * (Bricks `vitops-sitenav`). One markup tree, two presentations switched purely by
+ * container width — native platform only, no JS beyond the Popover API.
+ *
+ * Mobile-first (below `.sitenav--bp-{sm,md,lg,xl}`): a hamburger button (a Popover
+ * API invoker) opens a slide-in DRAWER — its sibling `[popover]`. Inside, branch
+ * items are ACCORDIONS: each is a real parent link flush with a `<details>`
+ * disclosure whose `<summary>` is *only* the caret (the link sits OUTSIDE the
+ * summary, so nothing interactive nests inside the summary's button role). The
+ * submenu opens in-flow via a grid-row height transition.
+ *
+ * Desktop (≥ the breakpoint, gated against the nearest container — `body` per
+ * layout.css): the hamburger + drawer chrome fall away, the `[popover]` panel is
+ * forced back inline as a NAVBAR, the list turns horizontal, and each branch's
+ * submenu promotes to a pop-out DROPDOWN revealed on hover, keyboard `:focus-within`,
+ * OR click (native `[open]` pins it). Top-level submenus drop below their item;
+ * deeper (megamenu) submenus fly out to the inline-end side.
+ *
+ * `.sitenav__disclosure` is `display: contents` so the `<summary>` (caret) and the
+ * submenu `<ul>` participate directly in the branch item's grid — that is what lets
+ * the caret sit inline with the link while the submenu spans full width on its own
+ * row. Native `[open]` toggling is unaffected by `display: contents`.
+ *
+ * Per-breakpoint depth caps come pre-resolved from PHP as item classes:
+ *   `.sitenav__item--desktop-branch` — caret + submenu shown only ≥ breakpoint;
+ *   `.sitenav__item--mobile-branch`  — caret + submenu shown only below breakpoint.
+ * The parent link always stays, so a capped branch degrades to a plain link.
+ */
+
+/* ── Container + mobile chrome ─────────────────────────────────────────────── */
+.sitenav {
+  display: flex;
+  align-items: center;
+}
+
+.sitenav__toggle,
+.sitenav__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--br-control, 0.375rem);
+
+  &:hover {
+    background: var(--color-surface-l);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sitenav-focus-color, var(--color-brand-primary-l));
+    outline-offset: 2px;
+  }
+}
+
+.sitenav__close {
+  position: absolute;
+  inset-block-start: 0.75rem;
+  inset-inline-end: 0.75rem;
+}
+
+/* ── Drawer (mobile) — the [popover] sibling the hamburger controls ─────────── */
+.sitenav__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  position: fixed;
+  inset-block: 0;
+  inline-size: min(100dvw, var(--sitenav-drawer-size, 20rem));
+  max-inline-size: 100dvw;
+  padding: 1.5rem;
+  padding-block-start: 3.5rem; /* clearance for the close button */
+  background: var(--color-surface-xxl);
+  color: var(--color-surface-xxd);
+  border: none;
+  box-shadow: var(--ds-panel);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  z-index: var(--z-tier-overlay);
+
+  /* Popover API toggles display; fade + slide across the top-layer transition. */
+  opacity: 0;
+  transition:
+    opacity 0.3s ease,
+    translate 0.3s ease,
+    overlay 0.3s allow-discrete,
+    display 0.3s allow-discrete;
+
+  &::backdrop {
+    background: transparent;
+    transition:
+      background-color 0.3s,
+      overlay 0.3s allow-discrete,
+      display 0.3s allow-discrete;
+  }
+
+  &:popover-open::backdrop {
+    background: rgb(0 0 0 / 25%);
+  }
+}
+
+/* Slide from the chosen edge (default inline-end). */
+.sitenav--drawer-end .sitenav__panel {
+  inset-inline-end: 0;
+  inset-inline-start: auto;
+  translate: 100% 0;
+}
+.sitenav--drawer-start .sitenav__panel {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  translate: -100% 0;
+}
+.sitenav__panel:popover-open {
+  opacity: 1;
+  translate: 0 0;
+}
+@starting-style {
+  .sitenav--drawer-end .sitenav__panel:popover-open {
+    opacity: 0;
+    translate: 100% 0;
+  }
+  .sitenav--drawer-start .sitenav__panel:popover-open {
+    opacity: 0;
+    translate: -100% 0;
+  }
+}
+
+/* ── Lists + links ─────────────────────────────────────────────────────────── */
+.sitenav__list,
+.sitenav__submenu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sitenav__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--br-control, 0.375rem);
+
+  &:hover {
+    background: var(--color-surface-l);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sitenav-focus-color, var(--color-brand-primary-l));
+    outline-offset: 2px;
+  }
+}
+
+.sitenav__empty {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* ── Branch item — mobile accordion ────────────────────────────────────────
+   The item is a grid: [link | caret] on row 1, the submenu spanning row 2. The
+   <details> holds only the caret <summary>; the submenu <ul> is its sibling and a
+   real grid child of the item. The row-2 track animates 0fr→1fr when the details is
+   open (the classic no-JS accordion, driven by `:has`), so the submenu pushes the
+   content below rather than overlaying it. */
+.sitenav__item--branch {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 0fr;
+  align-items: center;
+  column-gap: 0.5rem;
+  transition: grid-template-rows 0.25s ease;
+}
+
+.sitenav__item--branch > .split-link__link {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+/* <details> is only the caret; keep its box out of the flow's height. */
+.sitenav__disclosure {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+/* The <summary>. `.split-link__toggle` supplies the flush look, hover + focus, and
+   the caret transition; only the disclosure-marker reset is added here. */
+.sitenav__subtoggle {
+  list-style: none;
+  cursor: pointer;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+}
+
+.sitenav__item--branch > .sitenav__submenu {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  /* Stretch to the row-2 track (not content-sized) so the 0fr collapsed state
+     actually clips to 0 — the item's own align-self must beat the grid's
+     `align-items: center`, or overflow:hidden has nothing to clip against. */
+  align-self: stretch;
+  min-block-size: 0;
+  overflow: hidden;
+  padding-inline-start: 1rem;
+}
+
+.sitenav__item--branch:has(> .sitenav__disclosure[open]) {
+  grid-template-rows: auto 1fr;
+}
+
+/* Caret flips while the disclosure is open (summary carries no aria-expanded). */
+.sitenav__disclosure[open] > .sitenav__subtoggle .split-link__caret {
+  rotate: 180deg;
+}
+
+/* Depth cap (mobile side): a desktop-only branch shows just its parent link. */
+.sitenav__item--desktop-branch > .sitenav__disclosure,
+.sitenav__item--desktop-branch > .sitenav__submenu {
+  display: none;
+}
+
+/* ── Desktop promotion — one block per framework breakpoint ─────────────────
+   Only the min-width threshold + `.sitenav--bp-*` scope differ; the nested ruleset
+   is identical. CSS has no mixins, so the four blocks are intentionally parallel —
+   edit them together. Each: hide the mobile chrome, force the [popover] panel back
+   inline as a navbar, turn the list horizontal, and promote submenus to dropdowns. */
+@container (min-width: 30rem) {
+  .sitenav--bp-sm {
+    & > .sitenav__toggle,
+    & .sitenav__close {
+      display: none;
+    }
+    /* [popover] is UA/polyfill display:none while closed; !important forces the
+       navbar body back inline (the hamburger is gone, so it never re-hides). */
+    & .sitenav__panel {
+      display: flex !important;
+      flex-direction: row;
+      align-items: center;
+      position: static;
+      inset: auto;
+      inline-size: auto;
+      max-inline-size: none;
+      block-size: auto;
+      padding: 0;
+      translate: none;
+      opacity: 1;
+      overflow: visible;
+      background: none;
+      color: inherit;
+      box-shadow: none;
+      z-index: auto;
+    }
+    & .sitenav__panel::backdrop {
+      display: none;
+    }
+    & .sitenav__list {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    & .sitenav__item--branch {
+      position: relative;
+      display: flex;
+      align-items: center;
+      grid-template-columns: none;
+      grid-template-rows: none;
+    }
+    & .sitenav__submenu {
+      position: absolute;
+      inset-block-start: 100%;
+      inset-inline-start: 0;
+      min-inline-size: 13rem;
+      padding: 0.5rem;
+      overflow: visible;
+      background: var(--color-surface-xxl);
+      color: var(--color-surface-xxd);
+      border: var(--b-panel);
+      border-radius: var(--br-panel);
+      box-shadow: var(--ds-panel);
+      z-index: var(--z-tier-overlay);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      translate: 0 0.25rem;
+      transition:
+        opacity 0.15s ease,
+        translate 0.15s ease,
+        visibility 0.15s allow-discrete;
+    }
+    /* deeper submenus (inside a panel) fly out to the side, not downward */
+    & .sitenav__submenu .sitenav__item--branch > .sitenav__disclosure > .sitenav__submenu {
+      inset-block-start: 0;
+      inset-inline-start: 100%;
+      translate: 0.25rem 0;
+    }
+    & .sitenav__item--branch:hover > .sitenav__disclosure > .sitenav__submenu,
+    & .sitenav__item--branch:focus-within > .sitenav__disclosure > .sitenav__submenu,
+    & .sitenav__item--branch > .sitenav__disclosure[open] > .sitenav__submenu {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      translate: 0 0;
+    }
+    /* depth caps flip at the breakpoint */
+    & .sitenav__item--desktop-branch > .sitenav__disclosure > .sitenav__subtoggle {
+      display: inline-flex;
+    }
+    & .sitenav__item--mobile-branch > .sitenav__disclosure > .sitenav__subtoggle,
+    & .sitenav__item--mobile-branch > .sitenav__disclosure > .sitenav__submenu {
+      display: none;
+    }
+  }
+}
+
+@container (min-width: 48rem) {
+  .sitenav--bp-md {
+    & > .sitenav__toggle,
+    & .sitenav__close {
+      display: none;
+    }
+    & .sitenav__panel {
+      display: flex !important;
+      flex-direction: row;
+      align-items: center;
+      position: static;
+      inset: auto;
+      inline-size: auto;
+      max-inline-size: none;
+      block-size: auto;
+      padding: 0;
+      translate: none;
+      opacity: 1;
+      overflow: visible;
+      background: none;
+      color: inherit;
+      box-shadow: none;
+      z-index: auto;
+    }
+    & .sitenav__panel::backdrop {
+      display: none;
+    }
+    & .sitenav__list {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    & .sitenav__item--branch {
+      position: relative;
+      display: flex;
+      align-items: center;
+      grid-template-columns: none;
+      grid-template-rows: none;
+    }
+    & .sitenav__submenu {
+      position: absolute;
+      inset-block-start: 100%;
+      inset-inline-start: 0;
+      min-inline-size: 13rem;
+      padding: 0.5rem;
+      overflow: visible;
+      background: var(--color-surface-xxl);
+      color: var(--color-surface-xxd);
+      border: var(--b-panel);
+      border-radius: var(--br-panel);
+      box-shadow: var(--ds-panel);
+      z-index: var(--z-tier-overlay);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      translate: 0 0.25rem;
+      transition:
+        opacity 0.15s ease,
+        translate 0.15s ease,
+        visibility 0.15s allow-discrete;
+    }
+    & .sitenav__submenu .sitenav__item--branch > .sitenav__submenu {
+      inset-block-start: 0;
+      inset-inline-start: 100%;
+      translate: 0.25rem 0;
+    }
+    & .sitenav__item--branch:hover > .sitenav__submenu,
+    & .sitenav__item--branch:focus-within > .sitenav__submenu,
+    & .sitenav__item--branch:has(> .sitenav__disclosure[open]) > .sitenav__submenu {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      translate: 0 0;
+    }
+    /* depth caps flip at the breakpoint: desktop-only branches reveal their caret +
+       dropdown; mobile-only branches collapse to a plain link. */
+    & .sitenav__item--desktop-branch > .sitenav__disclosure,
+    & .sitenav__item--desktop-branch > .sitenav__submenu {
+      display: block;
+    }
+    & .sitenav__item--mobile-branch > .sitenav__disclosure,
+    & .sitenav__item--mobile-branch > .sitenav__submenu {
+      display: none;
+    }
+  }
+}
+
+@container (min-width: 64rem) {
+  .sitenav--bp-lg {
+    & > .sitenav__toggle,
+    & .sitenav__close {
+      display: none;
+    }
+    & .sitenav__panel {
+      display: flex !important;
+      flex-direction: row;
+      align-items: center;
+      position: static;
+      inset: auto;
+      inline-size: auto;
+      max-inline-size: none;
+      block-size: auto;
+      padding: 0;
+      translate: none;
+      opacity: 1;
+      overflow: visible;
+      background: none;
+      color: inherit;
+      box-shadow: none;
+      z-index: auto;
+    }
+    & .sitenav__panel::backdrop {
+      display: none;
+    }
+    & .sitenav__list {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    & .sitenav__item--branch {
+      position: relative;
+      display: flex;
+      align-items: center;
+      grid-template-columns: none;
+      grid-template-rows: none;
+    }
+    & .sitenav__submenu {
+      position: absolute;
+      inset-block-start: 100%;
+      inset-inline-start: 0;
+      min-inline-size: 13rem;
+      padding: 0.5rem;
+      overflow: visible;
+      background: var(--color-surface-xxl);
+      color: var(--color-surface-xxd);
+      border: var(--b-panel);
+      border-radius: var(--br-panel);
+      box-shadow: var(--ds-panel);
+      z-index: var(--z-tier-overlay);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      translate: 0 0.25rem;
+      transition:
+        opacity 0.15s ease,
+        translate 0.15s ease,
+        visibility 0.15s allow-discrete;
+    }
+    & .sitenav__submenu .sitenav__item--branch > .sitenav__submenu {
+      inset-block-start: 0;
+      inset-inline-start: 100%;
+      translate: 0.25rem 0;
+    }
+    & .sitenav__item--branch:hover > .sitenav__submenu,
+    & .sitenav__item--branch:focus-within > .sitenav__submenu,
+    & .sitenav__item--branch:has(> .sitenav__disclosure[open]) > .sitenav__submenu {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      translate: 0 0;
+    }
+    /* depth caps flip at the breakpoint: desktop-only branches reveal their caret +
+       dropdown; mobile-only branches collapse to a plain link. */
+    & .sitenav__item--desktop-branch > .sitenav__disclosure,
+    & .sitenav__item--desktop-branch > .sitenav__submenu {
+      display: block;
+    }
+    & .sitenav__item--mobile-branch > .sitenav__disclosure,
+    & .sitenav__item--mobile-branch > .sitenav__submenu {
+      display: none;
+    }
+  }
+}
+
+@container (min-width: 80rem) {
+  .sitenav--bp-xl {
+    & > .sitenav__toggle,
+    & .sitenav__close {
+      display: none;
+    }
+    & .sitenav__panel {
+      display: flex !important;
+      flex-direction: row;
+      align-items: center;
+      position: static;
+      inset: auto;
+      inline-size: auto;
+      max-inline-size: none;
+      block-size: auto;
+      padding: 0;
+      translate: none;
+      opacity: 1;
+      overflow: visible;
+      background: none;
+      color: inherit;
+      box-shadow: none;
+      z-index: auto;
+    }
+    & .sitenav__panel::backdrop {
+      display: none;
+    }
+    & .sitenav__list {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    & .sitenav__item--branch {
+      position: relative;
+      display: flex;
+      align-items: center;
+      grid-template-columns: none;
+      grid-template-rows: none;
+    }
+    & .sitenav__submenu {
+      position: absolute;
+      inset-block-start: 100%;
+      inset-inline-start: 0;
+      min-inline-size: 13rem;
+      padding: 0.5rem;
+      overflow: visible;
+      background: var(--color-surface-xxl);
+      color: var(--color-surface-xxd);
+      border: var(--b-panel);
+      border-radius: var(--br-panel);
+      box-shadow: var(--ds-panel);
+      z-index: var(--z-tier-overlay);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      translate: 0 0.25rem;
+      transition:
+        opacity 0.15s ease,
+        translate 0.15s ease,
+        visibility 0.15s allow-discrete;
+    }
+    & .sitenav__submenu .sitenav__item--branch > .sitenav__submenu {
+      inset-block-start: 0;
+      inset-inline-start: 100%;
+      translate: 0.25rem 0;
+    }
+    & .sitenav__item--branch:hover > .sitenav__submenu,
+    & .sitenav__item--branch:focus-within > .sitenav__submenu,
+    & .sitenav__item--branch:has(> .sitenav__disclosure[open]) > .sitenav__submenu {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      translate: 0 0;
+    }
+    /* depth caps flip at the breakpoint: desktop-only branches reveal their caret +
+       dropdown; mobile-only branches collapse to a plain link. */
+    & .sitenav__item--desktop-branch > .sitenav__disclosure,
+    & .sitenav__item--desktop-branch > .sitenav__submenu {
+      display: block;
+    }
+    & .sitenav__item--mobile-branch > .sitenav__disclosure,
+    & .sitenav__item--mobile-branch > .sitenav__submenu {
+      display: none;
+    }
+  }
+}
