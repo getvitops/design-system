@@ -4,3 +4,9 @@ node_modules/
 # Generated / build output (emitted by the codegen + build; rebuilt via `vp run build`)
 dist/
 src/css/generated/
+
+# Workspace package build output + snapshotted framework assets (rebuilt from source)
+packages/*/dist/
+packages/core/assets/
+packages/core/schema.json
+packages/core/site.schema.json

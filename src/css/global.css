@@ -1,3 +1,13 @@
+/* Assert a 16px root. The framework's rem-based tokens (type + space scales) are
+   generated on a 16px basis, so a host that resets the root — WordPress themes and
+   resets often ship `:root { font-size: 62.5% }` (1rem = 10px) — would silently
+   shrink the entire system to ~62.5%. `!important` keeps the design system portable
+   and predictable across hosts (Bricks, Astro/Tailwind); browser zoom still scales
+   the page. */
+:root {
+  font-size: 100% !important;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html {
     scrollbar-gutter: stable;

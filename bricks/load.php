@@ -109,3 +109,21 @@ add_filter(
 	},
 	5
 );
+
+/**
+ * 4. Default the design system to dark mode: stamp data-brx-theme="dark" on <html>.
+ *    The generated semantic colour roles (surface/brand-primary/success/…) remap under
+ *    `:root[data-brx-theme="dark"]`, and the site's pages are dark-themed, so this keeps
+ *    the framework's cards/badges/patterns consistent with the page. Server-side via
+ *    language_attributes so there is no light-mode flash on load.
+ */
+add_filter(
+	'language_attributes',
+	function ( $output ) {
+		// Bricks sets data-brx-theme from its default colour scheme (light); strip any
+		// existing value and force dark. High priority so this runs after Bricks.
+		$output = preg_replace( '/\s*data-brx-theme=(["\'][^"\']*["\']|\S+)/', '', (string) $output );
+		return rtrim( $output ) . ' data-brx-theme="dark"';
+	},
+	99
+);

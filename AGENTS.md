@@ -8,6 +8,41 @@ It is composed of:
 
 Prefer using modern CSS/HTML features (e.g. CSS Anchor Positioning API, Dialog, Invoker Commands API, Scroll Timelines, etc.) over JavaScript.
 
+## Published toolchain: `@getvitops/*`
+
+The generator is published as a **reusable tool** (like Tailwind/shadcn) that any client runs
+against their own consumer-editable `design-system.json` — there is no shared/canonical token
+set to ship. Three workspace packages under `packages/` (a pnpm workspace):
+
+- **`@getvitops/core`** — the generator as a library plus the framework-static assets (CSS
+  partials, Bricks PHP + `load.php`, pre-built JS bundles) and the JSON Schema. Public API:
+  `generate({ input, format, outDir })`, `validate()`, `defaultConfig()`, `DesignSystemSchema`,
+  `jsonSchema`. The `zod/mini` schema in `packages/core/src/schema.ts` is the **single source of
+  truth**: the `DesignSystem` type (`z.infer`), the published JSON Schema (`toJSONSchema` →
+  `schema.json`), and runtime validation all derive from it.
+- **`@getvitops/cli`** — `vitops generate|init|validate` (bin `vitops`), a thin wrapper over core.
+- **`@getvitops/vite`** — a Vite plugin (Astro/EmDash) that runs core on build/dev and
+  hot-regenerates when the config changes.
+
+Per-format output (into `outDir`): `tailwind` → self-contained `tailwind.css` + `tokens.json`;
+`css` → bundled standalone `styles.css` + `tokens.json` + `design-manifest.json`; `bricks` → the
+full deployable payload (`styles.min.css`, `bricks-colors-*.json`, `bricks-variables.json`,
+`tokens.json`, JS bundles, `bricks/` PHP, `docs/`). The library is **pure** — it mutates no shared
+state (no `src/css/generated/**` writes); the css/bricks bundle is assembled in memory and minified
+with lightningcss.
+
+**This repo dogfoods the tool:** `src/design-system.json` is the example/dev config, and the
+framework sources (`src/css`, `src/js`, `src/web-components`, `bricks/`) are the product core
+ships. `packages/core/scripts/prepare.mjs` snapshots those (+ the built JS bundles) into
+`packages/core/assets/` and emits `schema.json` — both are gitignored build inputs, like `dist/`.
+
+Build/publish tasks: `npx vp run build:packages` (builds core → cli → vite; `build:core`
+`dependsOn build:js` because it copies the JS bundles) and `npx vp run release`
+(`build:packages && changeset publish`). Versioning is via Changesets (`.changeset/config.json`,
+the three packages `fixed` together); the root package stays `private`. The legacy root
+`build`/`deploy` (Bricks theme) pipeline is unchanged and produces byte-equivalent output to
+`vitops generate --format bricks`.
+
 ## Development
 
 The build system uses `vite-plus` (`vp`), which is a wrapper for common tools for SDLC tasks:
@@ -53,7 +88,7 @@ Other tools used:
 
 `src/design-system.json` is the source of truth. `lib/generate-design-system.ts` reads it and emits four kinds of output:
 
-- `src/css/generated/color.css` — `:root` tokens (named ramps + semantic roles), dark-mode overrides under `:root[data-brx-theme="dark"]`, and colour utility classes (`bg-`, `text-`, `border-`, …) for both named and semantic.
+- `src/css/generated/color.css` — `:root` tokens (`colors.palette` ramps + the `colors.schemes.default` semantic roles) with `color-scheme: <appearance>`, per-scheme overrides under `:root[data-brx-theme="<appearance>"]`, and colour utility classes (`bg-`, `text-`, `border-`, …) for both ramps and roles. A role resolves via `RoleSpec` (`<ramp>` string, or `{ ramp?, invert?, shift?, steps?, value? }`); non-`default` schemes emit only the slots whose source differs from `default`.
 - `src/css/generated/shadows.css` — `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Always emitted for the `css`/`bricks` formats.
 - `src/css/generated/patterns.css` — component CSS for entries under `patterns` in the JSON (button, link, badge, card). Each pattern has `base` declarations, `states` (hover/active/focus-visible) with shortcuts (`step`, `scale`, `lift`, `shadow`, `ring`, `css`), and `roles` (semantic colour variants). Always emitted.
 - `src/css/generated/animation-effects.css` — the effect + journey classes from `animations` in the JSON (`.fade-in`, `.reveal-left`, `.<parts>-journey`, …), each a pure value layer (`--_anim` + `--<prop>-from/-to`). Journeys are composed from `animations.journeys.base` + `compose`. Always emitted. The animation **engine** (keyframes, drivers, floats, utilities) stays hand-written in `src/css/animation.css`.
@@ -84,6 +119,16 @@ Container breakpoints are bare prefixes (`sm-`/`md-`/`lg-`/`xl-` = 30/48/64/80re
 ## Build system
 
 All tasks go through `npx vp run <name>` (see [vite.config.ts](vite.config.ts)). `build` delegates to `build:bricks` (the default target); format-specific full builds are separate `build:<type>` tasks rather than a `--format` flag on `build` (vp appends forwarded args to the command tail, which would corrupt the last sub-task, and it only resolves `vp run <task>` in-process when that appears literally in the command). `build:bricks` runs `build:css && build:js && build:elements`; `build:css` has `dependsOn: generate:theme`.
+
+`build:elements` copies the repo-owned Bricks sources (`bricks/elements/*.php`, `bricks/load.php`) into `dist/bricks/`, and the generated `docs/` tree into `dist/docs/` — an LLM-oriented context bundle in **Open Knowledge Format** (OKF; served at `<theme>/dist/docs/`) so an AI has documentation matching what deploys. Emitted by `lib/generate-docs.ts` (via the `generate:docs` task, which `build:elements` `dependsOn`). OKF rules the generator follows: reserved `index.md` files carry **no frontmatter** and are directory listings (`* [Title](path) - desc`); every other `.md` is a "concept" doc that **must** begin with a YAML frontmatter block with a non-empty `type` (plus `title`/`description`/`resource`/`tags`/`generator`). The tree:
+
+- `docs/index.md` — bundle index → `css/`, `bricks/`.
+- `docs/css/index.md` — listing → `classes.md`.
+- `docs/css/classes.md` — concept: the CSS framework class vocabulary **summarized by naming rule** (not enumerated), pulled live from `src/design-system.json` (colours, type roles, space/type scales, shadows, animation effects, component patterns) plus static structural utilities and the responsive/state variant grammar.
+- `docs/bricks/index.md` — listing + the "prefer framework CSS classes over hand-tuning Bricks UI properties" guidance; links `elements.md` + `../css/classes.md`.
+- `docs/bricks/elements.md` — concept: per-element control reference, parsed from each element's docblock, class metadata, `get_label`/`get_keywords`/`get_nestable_children`, and a small PHP-array-literal parse of `set_controls()`.
+
+`docs/**` are generated artifacts — don't hand-edit them (they're in `fmt.ignorePatterns` to avoid churn); change the PHP / `design-system.json` / the generator's static strings and regenerate. Frontmatter deliberately omits `timestamp` (an OKF-recommended field) to keep output deterministic and diffs clean. If the generator gains a new input, extend `generate:docs`'s `input` list. `index.html` stays a human/local-dev docsite (dogfoods the build); it is **not** the AI context vehicle — the `docs/` bundle is.
 
 Two non-obvious caching/ordering gotchas:
 

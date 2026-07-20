@@ -2,17 +2,20 @@
  * Codegen: src/colors.json -> src/css/color.css + dist/bricks-colors-*.json
  * Not bundling — pure generation. Run via the `generate:colors` task.
  *
- * Schema (src/colors.json):
- *   named:    { <ramp>: { xxd, xd, d, base, l, xl, xxl } }   raw hex values
- *   semantic: { <role>: <name> | { name, invert?, dark? } }
- *     - string form  → light maps 1:1 to that named ramp; dark same as light
- *     - object form  → name (required, the named ramp); invert? (mirror steps in dark);
- *                      dark? (per-step overrides: { <lightStep>: <darkStep> })
+ * Schema (src/design-system.json → colors):
+ *   palette:  { <ramp>: { xxd, xd, d, base, l, xl, xxl } }   raw hex values
+ *   schemes:  { default: Scheme, [alt]: Scheme }             `default` is the base
+ *     Scheme  = { appearance: 'light'|'dark', semantic: { <role>: RoleSpec } }
+ *     RoleSpec = <ramp> | { ramp?, invert?, shift?, steps?, value? }
+ *       - string  → that ramp, identity step mapping
+ *       - default scheme roles must fully resolve; alternate schemes are deltas
  *
- * Dark step resolution per role/step, in priority order:
- *   1. explicit override in `dark`
- *   2. mirrored step if `invert: true`  (xxd↔xxl, xd↔xl, d↔l, base→base)
- *   3. identity (same step as light)
+ * Per-slot resolution, in priority order:
+ *   1. explicit literal in `value`
+ *   2. explicit step in `steps`
+ *   3. shiftStep(invert ? MIRROR[slot] : slot, shift)   (invert/shift/ramp compose)
+ * Alternate schemes emit only the slots whose source differs from `default`,
+ * under `:root[data-brx-theme="<appearance>"]`.
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -33,8 +36,45 @@ const MIRROR: Record<Step, Step> = {
   xxl: 'xxd',
 };
 
+const STEP_INDEX: Record<string, number> = Object.fromEntries(STEP_ORDER.map((s, i) => [s, i]));
+// Shift a step along the ramp order by n (clamped). Positive = darker.
+const shiftStep = (step: string, by: number): string => {
+  const i = STEP_INDEX[step] ?? STEP_ORDER.indexOf('base');
+  const j = Math.max(0, Math.min(STEP_ORDER.length - 1, i - by)); // darker = lower index
+  return STEP_ORDER[j] as string;
+};
+
 type Ramp = Record<string, string>;
-type SemanticConfig = string | { name: string; invert?: boolean; dark?: Record<string, string> };
+type RoleSpec =
+  | string
+  | {
+      ramp?: string;
+      invert?: boolean;
+      shift?: number;
+      steps?: Record<string, string>;
+      value?: Record<string, string>;
+    };
+type Scheme = { appearance: 'light' | 'dark'; semantic: Record<string, RoleSpec> };
+// The resolved source for one role slot: a ramp step, or a literal value.
+type Src = { ramp: string; step: string } | { value: string };
+
+// The ramp a role draws from (falls back to the inherited base-scheme ramp).
+const roleRamp = (spec: RoleSpec, inherited = ''): string =>
+  typeof spec === 'string' ? spec : (spec.ramp ?? inherited);
+// Resolve one slot: value > explicit step > shiftStep(invert ? mirror : slot, shift).
+const resolveSlot = (spec: RoleSpec, step: Step, inherited: string): Src => {
+  if (typeof spec === 'string') return { ramp: spec, step };
+  if (spec.value?.[step] != null) return { value: spec.value[step] as string };
+  const ramp = spec.ramp ?? inherited;
+  const s = spec.steps?.[step] ?? shiftStep(spec.invert ? MIRROR[step] : step, spec.shift ?? 0);
+  return { ramp, step: s };
+};
+const srcVar = (s: Src): string =>
+  'value' in s ? s.value : `var(--color-${s.ramp}${suffix(s.step)})`;
+const srcEq = (a: Src, b: Src): boolean =>
+  'value' in a || 'value' in b
+    ? 'value' in a && 'value' in b && a.value === b.value
+    : a.ramp === b.ramp && a.step === b.step;
 interface Pattern {
   group?: string; // token-cascade group (tag/control/panel/area/content/pull)
   overrides?: Record<string, string>; // per-pattern token overrides (prop -> value)
@@ -64,8 +104,8 @@ interface TypographyConfig {
   headings?: Record<string, string>; // optional: style bare h1..h6
 }
 interface ColorConfig {
-  named: Record<string, Ramp>;
-  semantic: Record<string, SemanticConfig>;
+  palette: Record<string, Ramp>;
+  schemes: Record<string, Scheme>;
   utilities?: string[];
 }
 // Fluid modular scale config (type + spacing). Tokens are named by `names`
@@ -144,8 +184,6 @@ const write = (path: string, content: string, note = '') => {
 };
 
 // Bricks toggles dark mode with this selector (confirmed).
-const DARK_SELECTOR = ':root[data-brx-theme="dark"]';
-
 // All known utility types (name -> CSS property). The design-system.json
 // `utilities` array selects which of these to generate.
 const UTILITY_PROPS: Record<string, string> = {
@@ -158,25 +196,18 @@ const UTILITY_PROPS: Record<string, string> = {
 };
 
 const ds: DesignSystem = JSON.parse(readFileSync(entryPath, 'utf8'));
-const { named, semantic, utilities } = ds.colors;
+const { palette, schemes, utilities } = ds.colors;
 const { patterns, shadows, typography } = ds;
+const baseScheme = schemes.default;
+if (baseScheme == null) throw new Error('colors.schemes must include a "default" scheme');
+const defaultSemantic = baseScheme.semantic;
+const altSchemes = Object.entries(schemes).filter(([k]) => k !== 'default');
+// Bricks' Color Manager models a single light+dark pair: use the first dark scheme.
+const darkScheme = altSchemes.map(([, s]) => s).find((s) => s.appearance === 'dark');
 
 // Which utility types to generate (CSS) and request of Bricks (utilityClasses).
 // Configured in design-system.json; falls back to bg/text/border.
 const UTILITIES = (utilities ?? ['bg', 'text', 'border']).filter((u) => u in UTILITY_PROPS);
-
-// Normalize a semantic entry to { name, invert, dark }.
-const normalize = (cfg: SemanticConfig) =>
-  typeof cfg === 'string'
-    ? { name: cfg, invert: false, dark: {} as Record<string, string> }
-    : { name: cfg.name, invert: !!cfg.invert, dark: cfg.dark ?? {} };
-
-// Resolve which ramp step a role/step uses in dark mode.
-const darkStep = (cfg: ReturnType<typeof normalize>, step: Step): Step => {
-  if (cfg.dark[step]) return cfg.dark[step] as Step; // 1. explicit
-  if (cfg.invert) return MIRROR[step]; // 2. invert
-  return step; // 3. identity
-};
 
 // ── color.css (standalone mode only) ────────────────────────────────────────
 // In --bricks mode we skip this entirely; Bricks generates tokens + utilities.
@@ -191,40 +222,46 @@ if (BRICKS) {
     '(bricks mode — colours owned by Bricks)',
   );
 } else {
+  const base = baseScheme;
   let css = `/* GENERATED from design-system.json — do not edit by hand. */\n:root {\n`;
+  css += `  color-scheme: ${base.appearance};\n`;
 
-  css += `  /* Named ramps */\n`;
-  for (const [name, steps] of Object.entries(named)) {
+  css += `  /* Palette ramps */\n`;
+  for (const [name, steps] of Object.entries(palette)) {
     for (const step of STEP_ORDER) {
       if (steps[step] == null) continue;
       css += `  --color-${name}${suffix(step)}: ${steps[step]};\n`;
     }
   }
 
-  css += `\n  /* Semantic roles → named ramps (light) */\n`;
-  for (const [role, cfg] of Object.entries(semantic)) {
-    const { name } = normalize(cfg);
+  css += `\n  /* Semantic roles → ramps (default: ${base.appearance}) */\n`;
+  for (const [role, spec] of Object.entries(defaultSemantic)) {
+    const ramp = roleRamp(spec);
     for (const step of STEP_ORDER) {
-      if (named[name]?.[step] == null) continue;
-      css += `  --color-${role}${suffix(step)}: var(--color-${name}${suffix(step)});\n`;
+      if (palette[ramp]?.[step] == null) continue;
+      css += `  --color-${role}${suffix(step)}: ${srcVar(resolveSlot(spec, step, ramp))};\n`;
     }
   }
   css += `}\n\n`;
 
-  // Dark block: only roles whose dark mapping differs from light need overrides.
-  let darkBlock = '';
-  for (const [role, cfg] of Object.entries(semantic)) {
-    const n = normalize(cfg);
-    for (const step of STEP_ORDER) {
-      if (named[n.name]?.[step] == null) continue;
-      const ds = darkStep(n, step);
-      if (ds === step) continue;
-      darkBlock += `  --color-${role}${suffix(step)}: var(--color-${n.name}${suffix(ds)});\n`;
+  // Alternate schemes: emit only the slots whose source differs from `default`.
+  for (const [key, scheme] of altSchemes) {
+    let block = '';
+    for (const [role, spec] of Object.entries(scheme.semantic)) {
+      const baseSpec = defaultSemantic[role];
+      if (baseSpec == null) continue;
+      const ramp = roleRamp(baseSpec);
+      for (const step of STEP_ORDER) {
+        if (palette[ramp]?.[step] == null) continue;
+        const alt = resolveSlot(spec, step, ramp);
+        if (srcEq(alt, resolveSlot(baseSpec, step, ramp))) continue;
+        block += `  --color-${role}${suffix(step)}: ${srcVar(alt)};\n`;
+      }
     }
-  }
-  if (darkBlock) {
-    css += `/* Semantic roles → named ramps (dark overrides) */\n`;
-    css += `${DARK_SELECTOR} {\n${darkBlock}}\n\n`;
+    if (block) {
+      css += `/* Semantic roles → ramps (${key}: ${scheme.appearance}) */\n`;
+      css += `:root[data-brx-theme="${scheme.appearance}"] {\n  color-scheme: ${scheme.appearance};\n${block}}\n\n`;
+    }
   }
 
   // Utility classes: bg-/text-/border-/outline-/fill-/stroke- per token.
@@ -234,13 +271,13 @@ if (BRICKS) {
     ).join('\n') + '\n';
 
   const allTokens: string[] = [];
-  for (const [name, steps] of Object.entries(named))
+  for (const [name, steps] of Object.entries(palette))
     for (const step of STEP_ORDER)
       if (steps[step] != null) allTokens.push(`${name}${suffix(step)}`);
-  for (const [role, cfg] of Object.entries(semantic)) {
-    const { name } = normalize(cfg);
+  for (const [role, spec] of Object.entries(defaultSemantic)) {
+    const ramp = roleRamp(spec);
     for (const step of STEP_ORDER)
-      if (named[name]?.[step] != null) allTokens.push(`${role}${suffix(step)}`);
+      if (palette[ramp]?.[step] != null) allTokens.push(`${role}${suffix(step)}`);
   }
   css += `/* Colour utilities — ${UTILITIES.join(', ')} */\n`;
   for (const token of allTokens) css += utilityFor(token);
@@ -266,14 +303,6 @@ const shadowOutputPath = join(cssPath, 'shadows.css');
 }
 
 // ── patterns.css (component interaction patterns) ───────────────────────────
-// Shift a step along the ramp order by n (clamped). Positive = darker.
-const STEP_INDEX: Record<string, number> = Object.fromEntries(STEP_ORDER.map((s, i) => [s, i]));
-const shiftStep = (step: string, by: number): string => {
-  const i = STEP_INDEX[step] ?? STEP_ORDER.indexOf('base');
-  const j = Math.max(0, Math.min(STEP_ORDER.length - 1, i - by)); // darker = lower index
-  return STEP_ORDER[j] as string;
-};
-
 // Resolve a role's base step. Patterns sit at "d" (the role's main usable shade).
 const BASE_STEP = 'd';
 
@@ -577,7 +606,7 @@ for (const [pname, p] of Object.entries(patterns?.items ?? {})) {
   // default selector: :where(element) for zero-specificity, or .class
   const defaultSel = isElement ? `:where(${p.element})` : `.${p.class ?? pname}`;
   const defaultRole = p.default_role
-    ? semantic[p.default_role.replace(/^.*$/, p.default_role)]
+    ? defaultSemantic[p.default_role.replace(/^.*$/, p.default_role)]
       ? p.default_role
       : p.default_role
     : null;
@@ -708,7 +737,7 @@ const id = (key: string) => createHash('sha256').update(key).digest('hex').slice
 
 // Named: each colour defines its own --color-<name> var; light is the hex.
 const namedColors = [];
-for (const [name, steps] of Object.entries(named)) {
+for (const [name, steps] of Object.entries(palette)) {
   for (const step of STEP_ORDER) {
     const hex = steps[step];
     if (hex == null) continue;
@@ -723,21 +752,22 @@ for (const [name, steps] of Object.entries(named)) {
 }
 
 // Semantic: each role defines its own --color-<role> var; light references the
-// mapped named var; dark references the dark-resolved named var. True
-// indirection in both modes (remap in colors.json, rebuild, re-import).
+// default-scheme source; dark references the dark alternate scheme's source.
+// True indirection in both modes (remap in design-system.json, rebuild, re-import).
 const semanticColors = [];
-for (const [role, cfg] of Object.entries(semantic)) {
-  const n = normalize(cfg);
+for (const [role, spec] of Object.entries(defaultSemantic)) {
+  const ramp = roleRamp(spec);
+  const altSpec = darkScheme?.semantic[role];
   for (const step of STEP_ORDER) {
-    if (named[n.name]?.[step] == null) continue;
-    const lightRef = `var(--color-${n.name}${suffix(step)})`;
-    const darkRef = `var(--color-${n.name}${suffix(darkStep(n, step))})`;
-    const hasDark = darkStep(n, step) !== step;
+    if (palette[ramp]?.[step] == null) continue;
+    const lightSrc = resolveSlot(spec, step, ramp);
+    const darkSrc = altSpec != null ? resolveSlot(altSpec, step, ramp) : lightSrc;
+    const hasDark = !srcEq(darkSrc, lightSrc);
     semanticColors.push({
       raw: `var(--color-${role}${suffix(step)})`,
-      light: lightRef,
+      light: srcVar(lightSrc),
       darkModeEnabled: hasDark,
-      dark: darkRef,
+      dark: srcVar(darkSrc),
       id: id(`semantic:${role}${suffix(step)}`),
       utilityClasses: UTILITIES,
     });
@@ -844,13 +874,13 @@ if (FORMAT === 'css') {
 
   // Colours — named ramps carry the editable hex; roles are var() indirections,
   // so editing a ramp propagates to every role that maps to it.
-  for (const [name, steps] of Object.entries(named))
+  for (const [name, steps] of Object.entries(palette))
     for (const step of STEP_ORDER)
       if (steps[step] != null)
-        reverseIndex[`--color-${name}${suffix(step)}`] = `colors.named.${name}.${step}`;
-  const colorRoles = Object.entries(semantic).map(([name, cfg]) => ({
+        reverseIndex[`--color-${name}${suffix(step)}`] = `colors.palette.${name}.${step}`;
+  const colorRoles = Object.entries(defaultSemantic).map(([name, spec]) => ({
     name,
-    ramp: normalize(cfg).name,
+    ramp: roleRamp(spec),
   }));
 
   // Typography — each per-role hook maps to its schema key (inverse TYPO_KEYMAP).
@@ -883,7 +913,7 @@ if (FORMAT === 'css') {
   });
 
   const manifest = {
-    colors: { ramps: Object.keys(named), steps: STEP_ORDER, named, roles: colorRoles },
+    colors: { ramps: Object.keys(palette), steps: STEP_ORDER, palette, roles: colorRoles },
     typography: {
       roles: Object.keys(typoRoles),
       hooks,
@@ -926,15 +956,15 @@ function emitTailwind() {
   // ── @theme: design tokens Tailwind turns into utilities + variants ──────────
   const theme: string[] = [];
   theme.push(`  /* Colour ramps → bg-* text-* border-* */`);
-  for (const [name, steps] of Object.entries(named))
+  for (const [name, steps] of Object.entries(palette))
     for (const step of STEP_ORDER)
       if (steps[step] != null) theme.push(`  --color-${name}${suffix(step)}: ${steps[step]};`);
-  theme.push(`\n  /* Semantic roles → named ramps (light) */`);
-  for (const [role, cfg] of Object.entries(semantic)) {
-    const { name } = normalize(cfg);
+  theme.push(`\n  /* Semantic roles → ramps (default scheme) */`);
+  for (const [role, spec] of Object.entries(defaultSemantic)) {
+    const ramp = roleRamp(spec);
     for (const step of STEP_ORDER)
-      if (named[name]?.[step] != null)
-        theme.push(`  --color-${role}${suffix(step)}: var(--color-${name}${suffix(step)});`);
+      if (palette[ramp]?.[step] != null)
+        theme.push(`  --color-${role}${suffix(step)}: ${srcVar(resolveSlot(spec, step, ramp))};`);
   }
   theme.push(`\n  /* Fonts → font-* */`);
   for (const [name, stack] of Object.entries(ds.fonts ?? {}))
@@ -967,19 +997,25 @@ function emitTailwind() {
       `${twTypeTokensCss}\n${twPatternTokensCss}`,
   );
 
-  // ── Dark block: only roles whose dark mapping differs from light ─────────────
+  // ── Dark block: only roles whose source differs from the default scheme ──────
   let darkBlock = '';
-  for (const [role, cfg] of Object.entries(semantic)) {
-    const n = normalize(cfg);
-    for (const step of STEP_ORDER) {
-      if (named[n.name]?.[step] == null) continue;
-      const dstep = darkStep(n, step);
-      if (dstep === step) continue;
-      darkBlock += `  --color-${role}${suffix(step)}: var(--color-${n.name}${suffix(dstep)});\n`;
+  if (darkScheme) {
+    for (const [role, spec] of Object.entries(darkScheme.semantic)) {
+      const baseSpec = defaultSemantic[role];
+      if (baseSpec == null) continue;
+      const ramp = roleRamp(baseSpec);
+      for (const step of STEP_ORDER) {
+        if (palette[ramp]?.[step] == null) continue;
+        const alt = resolveSlot(spec, step, ramp);
+        if (srcEq(alt, resolveSlot(baseSpec, step, ramp))) continue;
+        darkBlock += `  --color-${role}${suffix(step)}: ${srcVar(alt)};\n`;
+      }
     }
   }
-  if (darkBlock)
-    parts.push(`/* Dark-mode semantic overrides */\n${DARK_SELECTOR} {\n${darkBlock}}\n`);
+  if (darkBlock && darkScheme)
+    parts.push(
+      `/* Dark-mode semantic overrides */\n:root[data-brx-theme="${darkScheme.appearance}"] {\n${darkBlock}}\n`,
+    );
 
   // ── Variants: hover/focus-visible are built in; add the active state ─────────
   parts.push(

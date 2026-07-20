@@ -1,0 +1,30 @@
+{
+  "name": "@getvitops/core",
+  "version": "0.1.0",
+  "description": "Generate design-system outputs (Bricks, standalone CSS, Tailwind v4) from a design-system.json.",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "assets",
+    "schema.json",
+    "site.schema.json"
+  ],
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./schema.json": "./schema.json",
+    "./site.schema.json": "./site.schema.json",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "lightningcss": "^1.32.0",
+    "zod": "^4.1.13"
+  }
+}

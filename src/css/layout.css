@@ -251,6 +251,11 @@ body {
 /* ── Flex direction (display + direction; tiered classes set both) ── */
 .flex {
   display: flex;
+  /* Set direction explicitly (not just `display:flex`): hosts like Bricks' block
+     element default `flex-direction: column`, which would otherwise win. `.flex-col`
+     still overrides. */
+  flex-direction: row;
+  --_flex-direction: row;
 }
 /* Each direction class also publishes --_flex-direction so descendants (e.g. .group)
    can read the container's axis via a style query and adapt when it flips responsively. */

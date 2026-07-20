@@ -1,6 +1,6 @@
 {
   "colors": {
-    "named": {
+    "palette": {
       "pine": {
         "xxd": "#00120A",
         "xd": "#073929",
@@ -56,34 +56,36 @@
         "xxl": "#CBD2DD"
       }
     },
-    "semantic": {
-      "brand-primary": "pine",
-      "surface": {
-        "name": "navy",
-        "invert": true
-      },
-      "success": {
-        "name": "pine",
-        "invert": true,
-        "dark": {
-          "base": "l"
+    "utilities": ["bg", "text", "border"],
+    "schemes": {
+      "default": {
+        "appearance": "light",
+        "semantic": {
+          "brand-primary": "pine",
+          "surface": "navy",
+          "success": "pine",
+          "info": "cobalt",
+          "danger": "rust",
+          "warning": "amber",
+          "neutral": "grey"
         }
       },
-      "info": "cobalt",
-      "danger": "rust",
-      "warning": "amber",
-      "neutral": {
-        "name": "grey",
-        "invert": true
+      "alternate": {
+        "appearance": "dark",
+        "semantic": {
+          "surface": { "invert": true },
+          "success": { "invert": true, "steps": { "base": "l" } },
+          "neutral": { "invert": true }
+        }
       }
-    },
-    "utilities": ["bg", "text", "border"]
+    }
   },
   "shadows": {
     "sm": "0 1px 2px rgb(0 0 0 / 0.08)",
     "md": "0 4px 6px rgb(0 0 0 / 0.12)",
     "lg": "0 10px 15px rgb(0 0 0 / 0.18)",
-    "xl": "0 20px 25px rgb(0 0 0 / 0.22)"
+    "xl": "0 20px 25px rgb(0 0 0 / 0.22)",
+    "2xl": "0 40px 80px -20px rgb(0 0 0 / 0.5)"
   },
   "fonts": {
     "display": "'Mulish', system-ui, -apple-system, 'Segoe UI', sans-serif",
@@ -92,7 +94,7 @@
   },
   "typeScale": {
     "base": "1rem",
-    "names": ["2xs", "xs", "s", "m", "l", "xl", "2xl", "3xl"],
+    "names": ["2xs", "xs", "s", "m", "l", "xl", "2xl", "3xl", "4xl", "5xl", "6xl", "7xl"],
     "baseStep": 4,
     "baseline": "m",
     "ratio": 1.2,
@@ -100,7 +102,7 @@
   },
   "spaceScale": {
     "base": "1rem",
-    "names": ["2xs", "xs", "s", "m", "l", "xl", "2xl"],
+    "names": ["2xs", "xs", "s", "m", "l", "xl", "2xl", "3xl", "4xl", "5xl", "6xl", "7xl"],
     "baseStep": 4,
     "baseline": "m",
     "ratio": 1.25,
@@ -117,7 +119,8 @@
     "radii": {
       "pill": "999px",
       "circle": "50%",
-      "chip": "var(--br-tag, 0.25rem)"
+      "chip": "var(--br-tag, 0.25rem)",
+      "card": "0.5rem"
     },
     "groups": {
       "tag": {
@@ -176,13 +179,14 @@
         "default_role": "brand-primary",
         "base": {
           "padding": "0.6em 1.2em",
-          "border-radius": "0.4rem",
+          "border-radius": "var(--br-control, 0.25rem)",
           "border": "none",
           "font-weight": "600",
           "font-family": "inherit",
           "font-size": "inherit",
           "cursor": "pointer",
-          "color": "#fff"
+          "color": "#fff",
+          "box-shadow": "var(--shadow-sm)"
         },
         "states": {
           "hover": {
@@ -235,8 +239,8 @@
         "group": "panel",
         "class": "card",
         "base": {
-          "border-radius": "0.75rem",
-          "padding": "1.5rem",
+          "border-radius": "var(--br-card-group)",
+          "padding": "1.75rem",
           "background": "var(--color-surface-xxl)",
           "border": "var(--b-card-group)",
           "box-shadow": "var(--ds-card-group)"
@@ -307,7 +311,7 @@
     "roles": {
       "display": {
         "family": "display",
-        "size": "var(--text-3xl)",
+        "size": "var(--text-6xl)",
         "weight": 700,
         "line-height": "1.0",
         "tracking": "-0.035em",
@@ -315,7 +319,7 @@
       },
       "title": {
         "family": "display",
-        "size": "var(--text-2xl)",
+        "size": "var(--text-5xl)",
         "weight": 600,
         "line-height": "1.12",
         "tracking": "-0.025em",

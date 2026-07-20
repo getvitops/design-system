@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Monad Media — design systems &amp; fast websites</title>
+    <meta
+      name="description"
+      content="Monad Media builds one design system that ships to WordPress (Bricks) and Astro — editor-friendly, native-platform fast."
+    />
+
+    <!-- Prototype of the deliverables applied to our own marketing site. Renders on
+         the standalone (non-Bricks) build so it works when opened directly: the CSS
+         framework (dist/styles.docs.css) + the web components (dist/elements.js) +
+         polyfills. Tokens come straight from src/design-system.json — no re-theming. -->
+    <link rel="stylesheet" href="./dist/styles.docs.css" />
+    <script>
+      document.documentElement.classList.remove('no-js');
+    </script>
+    <script type="module" src="./dist/polyfills.js"></script>
+    <script defer src="./dist/deferred.js"></script>
+    <script type="module" src="./dist/elements.js"></script>
+
+    <style>
+      /* Page-specific scaffolding only — things with no framework equivalent. */
+      .band {
+        padding-block: clamp(3rem, 8cqi, 6rem);
+      }
+      .hero {
+        padding-block: clamp(2rem, 7cqi, 5rem);
+      }
+      .logo-strip img {
+        block-size: 1.5rem;
+        opacity: 0.6;
+      }
+      .frame {
+        border-radius: var(--br-default, 0.75rem);
+        overflow: clip;
+        box-shadow: var(--shadow-lg);
+      }
+      .frame img {
+        display: block;
+        inline-size: 100%;
+      }
+      .kicker {
+        letter-spacing: 0.02em;
+      }
+      .brand__mark {
+        block-size: 1.6rem;
+        vertical-align: -0.35rem;
+      }
+      /* Inverse CTA button for use on dark brand bands (a deliberately bespoke case). */
+      .button-inverse {
+        background: var(--color-grey-xxl, #fff);
+        color: var(--color-brand-primary, #2f6f57);
+        border: 0;
+        padding: 0.7em 1.4em;
+        border-radius: var(--br-default, 0.6rem);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+
+  <body>
+    <main class="centered">
+      <!-- ── Announcement banner (dismissible, JS-enhanced) ─────────────────── -->
+      <section class="fullbleed">
+        <wc-dismissable>
+          <div class="banner banner--dismissible bg-brand-primary-xxd text-grey-xxl">
+            <div class="banner__content">
+              ◆ New: our Bricks element pack now ships an LLM docs bundle. &nbsp;<a
+                class="link"
+                href="#pricing"
+                style="color: inherit"
+                >See what's included →</a
+              >
+            </div>
+            <button class="banner__close" data-dismiss aria-label="Dismiss">✕</button>
+          </div>
+        </wc-dismissable>
+      </section>
+
+      <!-- ── Header ─────────────────────────────────────────────────────────── -->
+      <header class="navbar breakout">
+        <span class="brand font-title">
+          <img class="brand__mark" src="./vitops-mark-pine.svg" alt="" />
+          Monad&nbsp;Media
+        </span>
+        <nav aria-label="Primary">
+          <ul class="nav-items">
+            <li><a class="nav-link" href="#work">Work</a></li>
+            <li><a class="nav-link" href="#platform">Platform</a></li>
+            <li><a class="nav-link" href="#pricing">Pricing</a></li>
+            <li><a class="nav-link" href="#faq">FAQ</a></li>
+          </ul>
+        </nav>
+        <span class="nav-split"></span>
+        <div class="cluster cluster-end" style="gap: 0.75rem; align-items: center">
+          <color-scheme-toggle scheme="system"></color-scheme-toggle>
+          <button>Book a call</button>
+        </div>
+      </header>
+
+      <!-- ── Hero ───────────────────────────────────────────────────────────── -->
+      <section class="hero rhythm">
+        <p class="font-eyebrow kicker text-brand-primary">Design systems · Bricks · Astro</p>
+        <h1>One design system. Every platform. Shipped fast.</h1>
+        <p class="font-lead">
+          We build a single source-of-truth design system and deliver it as production sites on
+          WordPress with Bricks Builder and on Astro — editor-friendly for your team, and fast on
+          the platform your users actually load.
+        </p>
+        <p class="cluster cluster-start" style="gap: 0.75rem; align-items: center">
+          <button>Start a project</button>
+          <a class="link link--icon" href="#work">See recent work →</a>
+        </p>
+        <p
+          class="font-caption logo-strip cluster cluster-start"
+          style="gap: 1.5rem; margin-top: 1rem"
+        >
+          <span>Trusted by teams shipping on</span>
+          <span class="badge">WordPress</span>
+          <span class="badge">Bricks</span>
+          <span class="badge">Astro</span>
+          <span class="badge">Tailwind</span>
+        </p>
+      </section>
+
+      <hr class="measure" />
+
+      <!-- ── Value props ────────────────────────────────────────────────────── -->
+      <section class="rhythm breakout" id="platform">
+        <p class="font-eyebrow text-brand-primary">Why one system</p>
+        <h2>Design once, deploy to the platform each project needs.</h2>
+        <div class="grid-auto" style="--grid-min: 15rem; margin-top: 1.5rem">
+          <article class="card rhythm">
+            <h3 class="font-heading">Portable tokens</h3>
+            <p class="font-caption">
+              Colour, type, space, shadow and motion live in one JSON. It generates a CSS framework,
+              Bricks managers, and a Tailwind theme — the same vocabulary everywhere.
+            </p>
+          </article>
+          <article class="card rhythm">
+            <h3 class="font-heading">Editor-friendly</h3>
+            <p class="font-caption">
+              Custom Bricks elements and utility classes mean your team styles in the builder with
+              on-brand presets — not one-off values that drift from the system.
+            </p>
+          </article>
+          <article class="card rhythm">
+            <h3 class="font-heading">Native-platform fast</h3>
+            <p class="font-caption">
+              Modern CSS (anchor positioning, popovers, scroll timelines) with progressive
+              enhancement, so pages are quick and resilient without heavy JavaScript.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <hr class="measure" />
+
+      <!-- ── Feature: redesign (image-compare) ──────────────────────────────── -->
+      <section class="rhythm breakout" id="work">
+        <div class="flex flex-col md-flex-row items-center" style="gap: 2rem">
+          <div class="rhythm" style="flex: 1">
+            <p class="font-eyebrow text-brand-primary">Redesigns that keep what works</p>
+            <h2>From dated to distinctive — without a rebuild from scratch.</h2>
+            <p>
+              We migrate your content into the design system and modernise the surface: clearer
+              type, a real colour system, consistent spacing and motion. Drag the handle to compare.
+            </p>
+            <p class="cluster cluster-start" style="gap: 0.5rem">
+              <span class="badge badge-success">Faster</span>
+              <span class="badge badge-info">Accessible</span>
+              <span class="badge">On-brand</span>
+            </p>
+          </div>
+          <div class="frame" style="flex: 1; inline-size: 100%">
+            <wc-image-compare position="50" before-label="Before" after-label="After">
+              <img
+                slot="before"
+                alt="Previous site"
+                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='360'%3E%3Crect width='560' height='360' fill='%23cfcabb'/%3E%3Crect x='40' y='40' width='300' height='26' fill='%23a89f88'/%3E%3Crect x='40' y='90' width='480' height='12' fill='%23b9b09a'/%3E%3Crect x='40' y='112' width='480' height='12' fill='%23b9b09a'/%3E%3Crect x='40' y='134' width='360' height='12' fill='%23b9b09a'/%3E%3Crect x='40' y='260' width='150' height='40' fill='%23888172'/%3E%3C/svg%3E"
+              />
+              <img
+                slot="after"
+                alt="Redesigned site"
+                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='360'%3E%3Crect width='560' height='360' fill='%232f6f57'/%3E%3Crect x='40' y='44' width='260' height='30' rx='6' fill='%23ffffff'/%3E%3Crect x='40' y='98' width='470' height='12' rx='6' fill='%23bfe3d2'/%3E%3Crect x='40' y='120' width='470' height='12' rx='6' fill='%23bfe3d2'/%3E%3Crect x='40' y='142' width='340' height='12' rx='6' fill='%23bfe3d2'/%3E%3Crect x='40' y='250' width='170' height='44' rx='10' fill='%23f2b544'/%3E%3C/svg%3E"
+              />
+            </wc-image-compare>
+          </div>
+        </div>
+      </section>
+
+      <hr class="measure" />
+
+      <!-- ── Feature: spec table (entries) ──────────────────────────────────── -->
+      <section class="rhythm breakout">
+        <div class="flex flex-col md-flex-row items-center" style="gap: 2rem">
+          <div
+            class="frame"
+            style="flex: 1; inline-size: 100%; padding: 1.25rem; box-shadow: var(--shadow-md)"
+          >
+            <wc-entries breakpoint="34rem" projection>
+              <h3 class="font-heading">What ships with every engagement</h3>
+              <dl>
+                <dt>Design system</dt>
+                <dd>Tokens, utilities, patterns</dd>
+                <dt>Bricks pack</dt>
+                <dd>Custom elements + managers</dd>
+                <dt>Docs</dt>
+                <dd>OKF bundle for humans + AI</dd>
+                <dt>Handover</dt>
+                <dd>Team walkthrough + support</dd>
+              </dl>
+            </wc-entries>
+          </div>
+          <div class="rhythm" style="flex: 1">
+            <p class="font-eyebrow text-brand-primary">A system, not a template</p>
+            <h2>Everything is generated from one file — and documented.</h2>
+            <p>
+              Change a token, rebuild, and the CSS, the Bricks colour/type managers, and the docs
+              all update together. Your team (and ours) can always answer “what classes exist?”
+              because the reference is generated from the same source that ships.
+            </p>
+            <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
+              <copy-button value="hello@monad.media" label="Copy our email"></copy-button>
+              <span class="font-caption">and we'll send a sample bundle</span>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <hr class="measure" />
+
+      <!-- ── Social proof (carousel) ────────────────────────────────────────── -->
+      <section class="rhythm breakout">
+        <p class="font-eyebrow text-brand-primary">What clients say</p>
+        <h2>Teams keep shipping after we hand over.</h2>
+        <wc-carousel
+          class="carousel carousel--scroll-markers"
+          aria-label="Testimonials"
+          style="margin-top: 1.5rem"
+        >
+          <blockquote class="card rhythm">
+            <p class="font-quote">
+              “The Bricks presets mean our marketers build on-brand pages without pinging design.
+              That alone paid for the project.”
+            </p>
+            <footer class="font-caption">— Head of Growth, SaaS company</footer>
+          </blockquote>
+          <blockquote class="card rhythm">
+            <p class="font-quote">
+              “We moved off a page-builder mess to one system across WordPress and Astro. Lighthouse
+              went green and stayed there.”
+            </p>
+            <footer class="font-caption">— CTO, media startup</footer>
+          </blockquote>
+          <blockquote class="card rhythm">
+            <p class="font-quote">
+              “The generated docs are the first design system our engineers actually read — because
+              they match what's deployed.”
+            </p>
+            <footer class="font-caption">— Eng Lead, agency</footer>
+          </blockquote>
+        </wc-carousel>
+      </section>
+
+      <hr class="measure" />
+
+      <!-- ── Pricing ────────────────────────────────────────────────────────── -->
+      <section class="rhythm breakout" id="pricing">
+        <p class="font-eyebrow text-brand-primary">Engagements</p>
+        <h2>Pick where to start.</h2>
+        <div class="grid-auto" style="--grid-min: 16rem; margin-top: 1.5rem; align-items: stretch">
+          <div class="card rhythm">
+            <h3 class="font-heading">System</h3>
+            <p class="font-display">$6k</p>
+            <ul class="font-caption rhythm">
+              <li>Design-system.json + CSS framework</li>
+              <li>Tailwind theme for Astro</li>
+              <li>OKF docs bundle</li>
+            </ul>
+            <p><button>Choose System</button></p>
+          </div>
+          <div
+            class="card rhythm"
+            style="outline: 2px solid var(--color-brand-primary); outline-offset: 2px"
+          >
+            <p class="cluster cluster-between" style="align-items: center">
+              <span class="font-heading">Studio</span>
+              <span class="badge badge-success">Popular</span>
+            </p>
+            <p class="font-display">$14k</p>
+            <ul class="font-caption rhythm">
+              <li>Everything in System</li>
+              <li>Bricks element pack + managers</li>
+              <li>Two production templates</li>
+            </ul>
+            <p><button>Choose Studio</button></p>
+          </div>
+          <div class="card rhythm">
+            <h3 class="font-heading">Partner</h3>
+            <p class="font-display">Retainer</p>
+            <ul class="font-caption rhythm">
+              <li>Everything in Studio</li>
+              <li>Ongoing pages + components</li>
+              <li>Priority support &amp; reviews</li>
+            </ul>
+            <p><button>Talk to us</button></p>
+          </div>
+        </div>
+      </section>
+
+      <hr class="measure" />
+
+      <!-- ── FAQ (native details) ───────────────────────────────────────────── -->
+      <section class="rhythm" id="faq">
+        <p class="font-eyebrow text-brand-primary">Questions</p>
+        <h2>The usual first questions.</h2>
+        <details class="details">
+          <summary>Do we have to use Bricks?</summary>
+          <p>
+            No. The same system ships as a Tailwind v4 theme for Astro, or as a standalone CSS
+            bundle. Bricks just gets first-class editor support.
+          </p>
+        </details>
+        <details class="details">
+          <summary>Can our team edit pages after handover?</summary>
+          <p>
+            Yes — that's the point. Utility classes and custom Bricks elements let non-developers
+            build on-brand pages without touching CSS.
+          </p>
+        </details>
+        <details class="details">
+          <summary>How do you keep docs from going stale?</summary>
+          <p>
+            They're generated from the same source that builds the site, on every deploy — so the
+            reference always matches what's live.
+          </p>
+        </details>
+      </section>
+
+      <!-- ── CTA band ───────────────────────────────────────────────────────── -->
+      <section class="fullbleed bg-brand-primary-xxd band">
+        <div class="centered">
+          <div class="rhythm text-center text-grey-xxl" style="--width-measure: 55ch">
+            <h2>Ready to design once and ship everywhere?</h2>
+            <p class="font-lead">
+              Tell us about your project — we'll reply with a plan and a fixed quote.
+            </p>
+            <p class="cluster cluster-center" style="gap: 0.75rem; margin-top: 0.5rem">
+              <button class="button-inverse">Start a project</button>
+              <copy-button value="hello@monad.media" label="hello@monad.media"></copy-button>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Footer ─────────────────────────────────────────────────────────── -->
+      <footer class="fullbleed bg-navy-xxd text-grey-xxl band">
+        <div class="centered">
+          <div class="breakout">
+            <div class="grid-auto" style="--grid-min: 12rem; gap: 2rem">
+              <div class="rhythm">
+                <span class="brand font-title">
+                  <img class="brand__mark" src="./vitops-mark-pine.svg" alt="" />
+                  Monad&nbsp;Media
+                </span>
+                <p class="font-caption">
+                  Design systems and fast websites for WordPress &amp; Astro.
+                </p>
+              </div>
+              <nav class="rhythm" aria-label="Company">
+                <p class="font-eyebrow">Company</p>
+                <ul class="nav-items" style="flex-direction: column; gap: 0.25rem">
+                  <li><a class="nav-link" href="#work">Work</a></li>
+                  <li><a class="nav-link" href="#platform">Platform</a></li>
+                  <li><a class="nav-link" href="#pricing">Pricing</a></li>
+                </ul>
+              </nav>
+              <div class="rhythm">
+                <p class="font-eyebrow">Get in touch</p>
+                <copy-button value="hello@monad.media" label="hello@monad.media"></copy-button>
+                <p class="social-links">
+                  <a href="#" aria-label="X">✕</a><a href="#" aria-label="GitHub">⌂</a>
+                </p>
+              </div>
+            </div>
+            <p class="font-footnote" style="margin-top: 2rem; opacity: 0.7">
+              © Monad Media. Prototyped with our own design system.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </main>
+  </body>
+</html>

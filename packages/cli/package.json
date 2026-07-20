@@ -1,0 +1,25 @@
+{
+  "name": "@getvitops/cli",
+  "version": "0.1.0",
+  "description": "CLI for the Vitops design-system generator: generate, init, and validate a design-system.json.",
+  "license": "MIT",
+  "bin": {
+    "vitops": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/cli.d.mts",
+      "import": "./dist/cli.mjs"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@getvitops/core": "workspace:*"
+  }
+}
