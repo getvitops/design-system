@@ -18,3 +18,5 @@ apps/*/.astro/
 apps/*/.pglite/
 apps/portal/src/styles/tailwind.css
 apps/portal/src/styles/tokens.json
+
+.npmrc
