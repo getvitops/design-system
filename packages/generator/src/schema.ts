@@ -163,11 +163,11 @@ export const DesignSystemPatchSchema = z.extend(z.partial(DesignSystemSchema), {
 export type DesignSystemPatch = z.infer<typeof DesignSystemPatchSchema>;
 
 /**
- * Stable URL of the published JSON Schema. Resolves once `@getvitops/core` is on
+ * Stable URL of the published JSON Schema. Resolves once `@getvitops/generator` is on
  * npm (unpkg serves the packaged `schema.json`); `vitops init` stamps this into a
  * scaffolded config's `$schema` so editors light up autocomplete + validation.
  */
-export const SCHEMA_URL = 'https://unpkg.com/@getvitops/core/schema.json';
+export const SCHEMA_URL = 'https://unpkg.com/@getvitops/generator/schema.json';
 
 /** The published JSON Schema (draft-2020-12), derived from the zod schema. */
 export const jsonSchema = {

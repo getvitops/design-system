@@ -7,6 +7,14 @@ src/css/generated/
 
 # Workspace package build output + snapshotted framework assets (rebuilt from source)
 packages/*/dist/
-packages/core/assets/
-packages/core/schema.json
-packages/core/site.schema.json
+packages/generator/assets/
+packages/generator/schema.json
+packages/generator/site.schema.json
+
+# apps/portal (extraction-bound playground)
+apps/*/.dev.vars
+apps/*/.wrangler/
+apps/*/.astro/
+apps/*/.pglite/
+apps/portal/src/styles/tailwind.css
+apps/portal/src/styles/tokens.json

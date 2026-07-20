@@ -12,17 +12,24 @@ Prefer using modern CSS/HTML features (e.g. CSS Anchor Positioning API, Dialog, 
 
 The generator is published as a **reusable tool** (like Tailwind/shadcn) that any client runs
 against their own consumer-editable `design-system.json` — there is no shared/canonical token
-set to ship. Three workspace packages under `packages/` (a pnpm workspace):
+set to ship. Workspace packages under `packages/` (a pnpm workspace):
 
-- **`@getvitops/core`** — the generator as a library plus the framework-static assets (CSS
+- **`@getvitops/generator`** — the generator as a library plus the framework-static assets (CSS
   partials, Bricks PHP + `load.php`, pre-built JS bundles) and the JSON Schema. Public API:
   `generate({ input, format, outDir })`, `validate()`, `defaultConfig()`, `DesignSystemSchema`,
-  `jsonSchema`. The `zod/mini` schema in `packages/core/src/schema.ts` is the **single source of
+  `jsonSchema`. The `zod/mini` schema in `packages/generator/src/schema.ts` is the **single source of
   truth**: the `DesignSystem` type (`z.infer`), the published JSON Schema (`toJSONSchema` →
   `schema.json`), and runtime validation all derive from it.
-- **`@getvitops/cli`** — `vitops generate|init|validate` (bin `vitops`), a thin wrapper over core.
-- **`@getvitops/vite`** — a Vite plugin (Astro/EmDash) that runs core on build/dev and
-  hot-regenerates when the config changes.
+- **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
+  `png-to-ico`, loaded lazily; `oxipng` crush is optional). Consumed by the CLI and Vite plugin.
+- **`@getvitops/cli`** — `vitops generate|init|validate|favicon` (bin `vitops`), a thin wrapper
+  over core + utils.
+- **`@getvitops/vite`** — a Vite plugin (Astro/EmDash) that runs core on build/dev (and optional
+  favicon generation) and hot-regenerates when the config changes.
+
+Dependency versions are centralized in `pnpm-workspace.yaml`'s `catalog:` (referenced via the
+`catalog:` protocol); internal deps use `workspace:*`. Both are rewritten to concrete versions on
+publish.
 
 Per-format output (into `outDir`): `tailwind` → self-contained `tailwind.css` + `tokens.json`;
 `css` → bundled standalone `styles.css` + `tokens.json` + `design-manifest.json`; `bricks` → the
@@ -33,10 +40,10 @@ with lightningcss.
 
 **This repo dogfoods the tool:** `src/design-system.json` is the example/dev config, and the
 framework sources (`src/css`, `src/js`, `src/web-components`, `bricks/`) are the product core
-ships. `packages/core/scripts/prepare.mjs` snapshots those (+ the built JS bundles) into
-`packages/core/assets/` and emits `schema.json` — both are gitignored build inputs, like `dist/`.
+ships. `packages/generator/scripts/prepare.mjs` snapshots those (+ the built JS bundles) into
+`packages/generator/assets/` and emits `schema.json` — both are gitignored build inputs, like `dist/`.
 
-Build/publish tasks: `npx vp run build:packages` (builds core → cli → vite; `build:core`
+Build/publish tasks: `npx vp run build:packages` (builds core → cli → vite; `build:generator`
 `dependsOn build:js` because it copies the JS bundles) and `npx vp run release`
 (`build:packages && changeset publish`). Versioning is via Changesets (`.changeset/config.json`,
 the three packages `fixed` together); the root package stays `private`. The legacy root
@@ -118,9 +125,11 @@ Container breakpoints are bare prefixes (`sm-`/`md-`/`lg-`/`xl-` = 30/48/64/80re
 
 ## Build system
 
-All tasks go through `npx vp run <name>` (see [vite.config.ts](vite.config.ts)). `build` delegates to `build:bricks` (the default target); format-specific full builds are separate `build:<type>` tasks rather than a `--format` flag on `build` (vp appends forwarded args to the command tail, which would corrupt the last sub-task, and it only resolves `vp run <task>` in-process when that appears literally in the command). `build:bricks` runs `build:css && build:js && build:elements`; `build:css` has `dependsOn: generate:theme`.
+All tasks go through `npx vp run <name>` (see [vite.config.ts](vite.config.ts)). `build` delegates to `build:bricks` (the default target); format-specific full builds are separate `build:<type>` tasks rather than a `--format` flag on `build` (vp appends forwarded args to the command tail, which would corrupt the last sub-task, and it only resolves `vp run <task>` in-process when that appears literally in the command).
 
-`build:elements` copies the repo-owned Bricks sources (`bricks/elements/*.php`, `bricks/load.php`) into `dist/bricks/`, and the generated `docs/` tree into `dist/docs/` — an LLM-oriented context bundle in **Open Knowledge Format** (OKF; served at `<theme>/dist/docs/`) so an AI has documentation matching what deploys. Emitted by `lib/generate-docs.ts` (via the `generate:docs` task, which `build:elements` `dependsOn`). OKF rules the generator follows: reserved `index.md` files carry **no frontmatter** and are directory listings (`* [Title](path) - desc`); every other `.md` is a "concept" doc that **must** begin with a YAML frontmatter block with a non-empty `type` (plus `title`/`description`/`resource`/`tags`/`generator`). The tree:
+**The root build dogfoods `@getvitops/generator`.** `build:bricks` runs `build:theme`, which invokes `lib/build-theme.ts` → `core.generate({ format: 'bricks', outDir: 'dist' })`. Core owns the lightningcss _library_ and does the CSS bundling in-process, so the root no longer shells out to the lightningcss CLI (removed from deps). `build:theme` `dependsOn build:generator` (which `dependsOn build:js`), so the framework JS bundles are built and snapshotted into the package assets before `generate` copies them (plus the Bricks PHP + `docs/`) into `dist/`. `build:docs` and `build:tailwind` likewise call `lib/build-theme.ts --format css|tailwind`. The single-file emit contract per format is unchanged.
+
+`build:theme` emits the deployable Bricks payload into `dist/`: `styles.min.css`, the Bricks import JSON, `tokens.json`, the JS bundles, the repo-owned Bricks sources (`bricks/elements/*.php`, `bricks/load.php`) under `dist/bricks/`, and the generated `docs/` tree under `dist/docs/` — an LLM-oriented context bundle in **Open Knowledge Format** (OKF; served at `<theme>/dist/docs/`) so an AI has documentation matching what deploys. (Generated by core's `docs.ts`; the older `lib/generate-design-system.ts` / `lib/generate-docs.ts` remain in the tree but are no longer wired into the build.) OKF rules the generator follows: reserved `index.md` files carry **no frontmatter** and are directory listings (`* [Title](path) - desc`); every other `.md` is a "concept" doc that **must** begin with a YAML frontmatter block with a non-empty `type` (plus `title`/`description`/`resource`/`tags`/`generator`). The tree:
 
 - `docs/index.md` — bundle index → `css/`, `bricks/`.
 - `docs/css/index.md` — listing → `classes.md`.

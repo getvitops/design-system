@@ -1,35 +1,29 @@
 # @getvitops/core
 
-Generate design-system outputs — **Bricks** (WordPress), standalone **CSS**, and **Tailwind
-v4** (Astro/EmDash) — from a single `design-system.json`. This is the library that powers
-[`@getvitops/cli`](https://www.npmjs.com/package/@getvitops/cli) and
-[`@getvitops/vite`](https://www.npmjs.com/package/@getvitops/vite).
+The Vitops design-system **framework** — the platform-agnostic primitives that the generator
+turns into platform output and that `@getvitops/bricks` / `@getvitops/astro` build on:
+
+- **CSS partials** — the variable-driven framework (layout, utilities, component patterns).
+  Inert on their own; they resolve against the token layer emitted by
+  [`@getvitops/generator`](https://www.npmjs.com/package/@getvitops/generator).
+- **Lit web components** — progressively-enhanced custom elements (`<wc-*>`), self-registering.
+- **Browser polyfills** — a feature-detected loader (Anchor Positioning, Popover, Scroll
+  Timeline, …) used by both the CSS patterns and the web components.
+
+## Subpath exports
 
 ```ts
-import { generate, validate, defaultConfig } from '@getvitops/core';
-
-await generate({
-  input: './design-system.json', // path or a config object
-  format: 'tailwind', // 'bricks' | 'css' | 'tailwind'
-  outDir: './src/styles',
-});
+import '@getvitops/core/polyfills'; // feature-detected polyfill loader (load high in <head>)
+import '@getvitops/core/elements'; // register the Lit web components
+import '@getvitops/core/deferred'; // late progressive-enhancement behaviour
 ```
 
-## API
+```css
+@import '@getvitops/core/css/index.css'; /* framework partials (needs generated tokens) */
+```
 
-- `generate({ input, format, outDir })` → writes the chosen format into `outDir`.
-- `validate(configOrObject)` → `{ ok, errors }` against the schema.
-- `defaultConfig()` → a complete starter `DesignSystem`.
-- `DesignSystemSchema` / `jsonSchema` / `SCHEMA_URL` — the `zod/mini` schema, its JSON Schema,
-  and the published schema URL. The schema is the single source of truth (types + validation +
-  JSON Schema all derive from it). The JSON Schema ships as `@getvitops/core/schema.json`.
-
-## Output per format
-
-| format     | writes                                                                                                   |
-| ---------- | -------------------------------------------------------------------------------------------------------- |
-| `tailwind` | `tailwind.css` (self-contained, `@import "tailwindcss"`) + `tokens.json`                                 |
-| `css`      | `styles.css` (bundled, standalone) + `tokens.json` + `design-manifest.json`                              |
-| `bricks`   | `styles.min.css`, `bricks-colors-*.json`, `bricks-variables.json`, `tokens.json`, JS, `bricks/`, `docs/` |
-
-See the [`design-system.json` schema](./schema.json) for the config shape.
+Most consumers don't import the CSS directly — they run
+[`@getvitops/generator`](https://www.npmjs.com/package/@getvitops/generator) (via the
+[CLI](https://www.npmjs.com/package/@getvitops/cli) or
+[Vite plugin](https://www.npmjs.com/package/@getvitops/vite)) to emit a bundled stylesheet
+from their `design-system.json`, and load these JS bundles for interactivity.

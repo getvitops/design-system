@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite-plus';
 
-// Node library build for @getvitops/vite. Externalises vite + @getvitops/core.
+// Node library build for @getvitops/vite. Externalises vite + @getvitops/generator.
 export default defineConfig({
   pack: {
     entry: ['src/index.ts'],

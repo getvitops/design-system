@@ -1,0 +1,75 @@
+---
+import { actions } from 'astro:actions';
+import Base from '../layouts/Base.astro';
+import { listProvisioning, listRequests } from '../lib/queries.ts';
+
+const scoped = Astro.locals.scoped!;
+const submitted = await listRequests(scoped, ['jml', 'pto']);
+const ops = await listProvisioning(scoped);
+const result = Astro.getActionResult(actions.submitProvisioning);
+
+const opTone = (op: string) =>
+  op === 'join' ? 'text-success-d' : op === 'leave' ? 'text-danger-d' : 'text-info-d';
+const reqTone = (s: string) =>
+  s === 'sent' ? 'text-success-d' : s === 'failed' ? 'text-danger-d' : 'text-warning-d';
+---
+
+<Base title="Provisioning">
+  <h1 class="font-title text-2xl">Provisioning (JML / HRIS)</h1>
+  <p class="font-caption text-neutral">Signal a Joiner-Mover-Leaver op or a PTO request — ingested here and forwarded to the identity/HRIS system.</p>
+
+  <section class="card rhythm">
+    <h2 class="font-heading text-lg">New request</h2>
+    {result?.data?.ok && <p class="font-caption text-success-d">Submitted — it will forward shortly.</p>}
+    {result?.error && <p class="font-caption text-danger-d">{result.error.message}</p>}
+    <form method="POST" action={actions.submitProvisioning} class="rhythm">
+      <select name="op" class="rounded border border-neutral-xl bg-surface px-3 py-2 font-body">
+        <option value="jml">JML (joiner / mover / leaver)</option>
+        <option value="pto">PTO (sick / vacation)</option>
+      </select>
+      <input name="subject" required placeholder="User (email or name)" class="w-full rounded border border-neutral-xl bg-surface px-3 py-2 font-body" />
+      <textarea name="detail" placeholder="Details (dates, role, systems…)" class="w-full rounded border border-neutral-xl bg-surface px-3 py-2 font-body"></textarea>
+      <button type="submit" class="rounded bg-brand-primary px-4 py-2 font-body text-surface-xxl">Submit request</button>
+    </form>
+  </section>
+
+  <section class="card overflow-x-auto">
+    <h2 class="font-heading text-lg">My submitted requests</h2>
+    <table class="mt-3 w-full font-body">
+      <thead class="font-caption text-neutral text-left">
+        <tr class="border-b border-neutral-xl"><th class="py-2 pr-4">Type</th><th class="pr-4">Subject</th><th class="pr-4">Status</th><th class="pr-4">Ref</th><th>Submitted</th></tr>
+      </thead>
+      <tbody>
+        {submitted.map((r) => (
+          <tr class="border-b border-neutral-xl">
+            <td class="py-2 pr-4 font-caption uppercase">{r.type}</td>
+            <td class="pr-4">{(r.payload as { subject?: string }).subject}</td>
+            <td class:list={['pr-4 font-caption', reqTone(r.status)]}>{r.status}</td>
+            <td class="pr-4 font-code">{r.externalRef ?? '—'}</td>
+            <td class="font-caption text-neutral">{new Date(r.createdAt).toISOString().slice(0, 16).replace('T', ' ')}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    {submitted.length === 0 && <p class="font-body text-neutral mt-2">No requests yet.</p>}
+  </section>
+
+  <section class="card overflow-x-auto">
+    <h2 class="font-heading text-lg">Provisioning history (synced)</h2>
+    <table class="mt-3 w-full font-body">
+      <thead class="font-caption text-neutral text-left">
+        <tr class="border-b border-neutral-xl"><th class="py-2 pr-4">Op</th><th class="pr-4">Subject</th><th class="pr-4">System</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {ops.map((o) => (
+          <tr class="border-b border-neutral-xl">
+            <td class:list={['py-2 pr-4 font-caption uppercase', opTone(o.op)]}>{o.op}</td>
+            <td class="pr-4">{o.subject}</td>
+            <td class="pr-4">{o.system}</td>
+            <td class:list={['font-caption', o.status === 'completed' ? 'text-success-d' : 'text-warning-d']}>{o.status}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+</Base>

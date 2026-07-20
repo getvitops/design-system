@@ -1,5 +1,5 @@
 /**
- * @getvitops/core — public API.
+ * @getvitops/generator — public API.
  *
  * Turn a `design-system.json` into platform outputs (Bricks, standalone CSS,
  * Tailwind v4). The `zod/mini` schema is the single source of truth: types,

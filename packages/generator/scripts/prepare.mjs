@@ -1,17 +1,17 @@
 /**
- * Populate @getvitops/core's shipped assets + JSON Schema from the repo sources.
+ * Populate @getvitops/generator's shipped assets + JSON Schema from the repo sources.
  *
  * `assets/` and `schema.json` are gitignored build inputs (like `dist/`): this
  * script snapshots the framework-static sources into the package so it is
- * self-contained when published. Run before `vp pack` (see the `build:core` task).
+ * self-contained when published. Run before `vp pack` (see the `build:generator` task).
  *
- *   assets/css      ← ../../src/css/*.css (+ patterns/), excluding generated/
- *   assets/bricks   ← ../../bricks/{elements,load.php}
- *   assets/js       ← ../../dist/{polyfills,elements,deferred,editor}.js (+ polyfills/)
+ *   assets/css      ← @getvitops/core/css/*.css (+ patterns/), excluding generated/
+ *   assets/bricks   ← ../../bricks/{elements,load.php}  (interim; → @getvitops/bricks later)
+ *   assets/js       ← @getvitops/core/dist/{polyfills,elements,deferred}.js (+ polyfills/)
  *   schema.json     ← toJSONSchema(DesignSystemSchema)
  *
- * The JS bundles are framework-static (config-independent); they come from the
- * repo's `build:js` output, so that must run first (the task declares the dep).
+ * The framework CSS + JS bundles are owned by @getvitops/core (sibling package);
+ * `build:core` must build its JS bundles first (the task declares the dep).
  */
 import { cpSync, mkdirSync, rmSync, existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -22,13 +22,14 @@ import { siteJsonSchema } from '../src/site.ts';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PKG = join(HERE, '..');
 const REPO = join(PKG, '..', '..');
+const CORE = join(PKG, '..', 'core'); // @getvitops/core (framework: CSS + JS bundles)
 const assets = join(PKG, 'assets');
 
 rmSync(assets, { recursive: true, force: true });
 mkdirSync(join(assets, 'css', 'patterns'), { recursive: true });
 
-// CSS partials (exclude the generated token layer — generate() rebuilds it).
-const cssSrc = join(REPO, 'src', 'css');
+// CSS partials from @getvitops/core (exclude the generated token layer — generate() rebuilds it).
+const cssSrc = join(CORE, 'css');
 for (const f of readdirSync(cssSrc))
   if (f.endsWith('.css')) cpSync(join(cssSrc, f), join(assets, 'css', f));
 const patternsSrc = join(cssSrc, 'patterns');
@@ -36,23 +37,24 @@ if (existsSync(patternsSrc))
   for (const f of readdirSync(patternsSrc))
     if (f.endsWith('.css')) cpSync(join(patternsSrc, f), join(assets, 'css', 'patterns', f));
 
-// Bricks PHP elements + loader.
+// Bricks PHP elements + loader (interim: repo-owned until @getvitops/bricks exists).
 mkdirSync(join(assets, 'bricks'), { recursive: true });
 cpSync(join(REPO, 'bricks', 'elements'), join(assets, 'bricks', 'elements'), { recursive: true });
 cpSync(join(REPO, 'bricks', 'load.php'), join(assets, 'bricks', 'load.php'));
 
-// Pre-built framework JS bundles (from the repo's build:js output).
+// Pre-built framework JS bundles from @getvitops/core's build. editor.js is docs-only
+// (root-built) and NOT part of the theme, so it's excluded here.
 mkdirSync(join(assets, 'js'), { recursive: true });
-const dist = join(REPO, 'dist');
+const coreDist = join(CORE, 'dist');
 let jsCount = 0;
-for (const f of ['polyfills.js', 'elements.js', 'deferred.js', 'editor.js']) {
-  if (existsSync(join(dist, f))) {
-    cpSync(join(dist, f), join(assets, 'js', f));
+for (const f of ['polyfills.js', 'elements.js', 'deferred.js']) {
+  if (existsSync(join(coreDist, f))) {
+    cpSync(join(coreDist, f), join(assets, 'js', f));
     jsCount++;
   }
 }
-if (existsSync(join(dist, 'polyfills')))
-  cpSync(join(dist, 'polyfills'), join(assets, 'js', 'polyfills'), { recursive: true });
+if (existsSync(join(coreDist, 'polyfills')))
+  cpSync(join(coreDist, 'polyfills'), join(assets, 'js', 'polyfills'), { recursive: true });
 
 // Published JSON Schemas (design-system + site config).
 writeFileSync(join(PKG, 'schema.json'), JSON.stringify(jsonSchema, null, 2) + '\n');
@@ -65,5 +67,5 @@ console.log(
 );
 if (jsCount === 0)
   console.warn(
-    'prepare: no JS bundles found in dist/ — run `vp run build:js` first for the Bricks target.',
+    'prepare: no JS bundles found in @getvitops/core/dist — run `vp run build:core` first.',
   );

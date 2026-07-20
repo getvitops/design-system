@@ -556,7 +556,7 @@ export type SiteConfig = z.infer<typeof SiteConfigSchema>;
 
 // ── JSON Schema + validation ────────────────────────────────────────────────────
 
-export const SITE_SCHEMA_URL = 'https://unpkg.com/@getvitops/core/site.schema.json';
+export const SITE_SCHEMA_URL = 'https://unpkg.com/@getvitops/generator/site.schema.json';
 
 /** The published JSON Schema (draft-2020-12), derived from the zod schema. */
 export const siteJsonSchema = {

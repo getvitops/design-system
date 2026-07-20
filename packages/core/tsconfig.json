@@ -5,7 +5,23 @@
     "outDir": "dist",
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "rewriteRelativeImportExtensions": true
+    "rewriteRelativeImportExtensions": true,
+    "types": [
+      "node"
+    ],
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false
   },
-  "include": ["src/**/*.ts"]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/web-components/WCColorWheel.ts",
+    "src/web-components/WCOklchColorPicker.ts",
+    "src/web-components/WCIconPicker.ts",
+    "src/web-components/WCTypography.ts",
+    "src/utils/colors.ts",
+    "src/utils/color-harmony.ts",
+    "src/utils/icons.ts"
+  ]
 }

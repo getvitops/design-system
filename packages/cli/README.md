@@ -77,4 +77,4 @@ The CLI only writes files — how they reach WordPress is up to you:
 - **CI:** run `vitops generate --format bricks` in your pipeline and deploy the artifact the
   same way you deploy the rest of the theme.
 
-Powered by [`@getvitops/core`](https://www.npmjs.com/package/@getvitops/core).
+Powered by [`@getvitops/generator`](https://www.npmjs.com/package/@getvitops/generator).

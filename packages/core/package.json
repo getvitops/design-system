@@ -1,30 +1,33 @@
 {
   "name": "@getvitops/core",
   "version": "0.1.0",
-  "description": "Generate design-system outputs (Bricks, standalone CSS, Tailwind v4) from a design-system.json.",
+  "description": "The Vitops design-system framework — CSS partials, Lit web components, and browser polyfills.",
   "license": "MIT",
   "files": [
     "dist",
-    "assets",
-    "schema.json",
-    "site.schema.json"
+    "css"
   ],
   "type": "module",
-  "types": "./dist/index.d.mts",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs"
-    },
-    "./schema.json": "./schema.json",
-    "./site.schema.json": "./site.schema.json",
+    "./elements": "./dist/elements.js",
+    "./polyfills": "./dist/polyfills.js",
+    "./deferred": "./dist/deferred.js",
+    "./css/*": "./css/*",
     "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
-    "lightningcss": "^1.32.0",
-    "zod": "^4.1.13"
+    "@lit-labs/signals": "catalog:",
+    "@oddbird/css-anchor-positioning": "catalog:",
+    "@oddbird/popover-polyfill": "catalog:",
+    "@webcomponents/template-shadowroot": "catalog:",
+    "@webcomponents/webcomponentsjs": "catalog:",
+    "colorjs.io": "catalog:",
+    "construct-style-sheets-polyfill": "catalog:",
+    "lit": "catalog:",
+    "scroll-timeline-polyfill": "catalog:",
+    "temporal-polyfill": "catalog:"
   }
 }

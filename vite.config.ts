@@ -5,41 +5,31 @@ export default defineConfig({
     '*': 'vp check --fix',
   },
   // ── JS packaging (tsdown, via `vp pack`) ──
-  // Two independent ES-module entries (loaded via <script type="module">, which
-  // defers by default):
-  //   • polyfills.js — CRITICAL. Feature-detects + loads polyfills; belongs high
-  //     in <head> so it runs as early as possible (it gates initial interaction).
-  //   • deferred.js  — non-critical progressive-enhancement behaviour; can load
-  //     late. Kept separate so it never delays the polyfills.
-  // ESM output lets the bundler code-split each polyfill in polyfills.ts into its
-  // own async chunk, so a browser downloads a polyfill ONLY when it fails that
-  // feature's support test. (IIFE can't code-split — it would inline every
-  // polyfill into the one file — which is why this is `es`, not `iife`.)
+  // The framework runtime bundles (polyfills/deferred/elements) now live in
+  // @getvitops/core (packages/core/vite.config.ts). The root only builds the
+  // docs-only live editor (editor.js), loaded by index.html. clean:false keeps
+  // the rest of dist/ (produced by build:theme) intact.
   pack: {
-    entry: ['src/js/deferred.ts', 'src/js/polyfills.ts', 'src/js/editor.ts', 'src/js/elements.ts'],
+    entry: ['src/js/editor.ts'],
     outDir: 'dist',
     clean: false,
     format: ['es'],
     minify: true,
     dts: false,
     platform: 'browser',
-    // tsdown is a library bundler: it externalises node_modules deps by default,
-    // which would leave the polyfills as bare `import()` specifiers no browser
-    // can resolve. Bundle them so they ship (code-split into per-polyfill chunks)
-    // from dist/. Patterns cover every polyfill package in polyfills.ts.
-    deps: {
-      alwaysBundle: [/polyfill/, /^@webcomponents\//, /^@oddbird\//, /^lit/, /^@lit-labs\//],
-    },
-    // Stable (unhashed) chunk names in a dedicated subdir. `clean: false` is
-    // required (pack shares dist/ with the CSS/JSON codegen), so hashed names
-    // would pile up orphaned chunks across rebuilds and ship them on deploy;
-    // stable names overwrite in place. Cache-bust via the theme's enqueue version.
-    outputOptions: { chunkFileNames: 'polyfills/[name].js' },
   },
 
   // ── Lint / format (Oxlint / Oxfmt, via `vp check` / `vp fmt`) ──
   lint: {
-    ignorePatterns: ['dist/**', 'node_modules/**', 'packages/*/dist/**', 'packages/core/assets/**'],
+    // apps/** is a self-contained playground with its own Astro toolchain — not
+    // linted by the root oxlint (Astro/JSX/framework imports aren't in scope here).
+    ignorePatterns: [
+      'dist/**',
+      'node_modules/**',
+      'packages/*/dist/**',
+      'packages/generator/assets/**',
+      'apps/**',
+    ],
     options: {
       typeAware: true,
       typeCheck: true,
@@ -57,15 +47,16 @@ export default defineConfig({
       'docs/**',
       'node_modules/**',
       'packages/*/dist/**',
-      'packages/core/assets/**',
-      'packages/core/schema.json',
+      'packages/generator/assets/**',
+      'packages/generator/schema.json',
+      'apps/**',
     ],
   },
 
   // ── Tasks (Vite Task, via `vp run <name>`) ──
   run: {
     tasks: {
-      dev: { command: 'vp dev', dependsOn: ['build'] },
+      dev: { command: 'vp dev', dependsOn: ['build', 'build:docs', 'build:editor'] },
 
       // Default full build → the Bricks target. Format-specific full builds are
       // separate `build:<type>` tasks (not a `--format` flag: vp appends
@@ -74,129 +65,121 @@ export default defineConfig({
       // literally in the command — a wrapper that could parse the flag breaks it).
       build: { command: 'vp run build:bricks' },
 
-      // Bricks full build: colours → CSS, then JS, then the Bricks PHP elements.
-      // Sequential (&&) so a failure aborts before a stale deploy ships. Elements
-      // copy runs last (dist/ already populated; pack.clean:false keeps it intact).
-      // css/tailwind targets: use build:docs (standalone CSS) / build:tailwind.
+      // Bricks full build: dogfood @getvitops/generator to emit the whole theme dist.
       'build:bricks': {
-        command: 'vp run build:css && vp run build:js && vp run build:elements',
+        command: 'vp run build:theme',
       },
 
-      // JS: bundle deferred.ts via tsdown.
-      'build:js': { command: 'vp pack', output: ['dist/*.js*', 'dist/polyfills/*.js*'] },
-
-      // Bricks custom PHP elements + theme bootstrap: copy the repo-owned sources into
-      // dist/bricks/ so they ship through the same dist/ symlink/rsync the theme already
-      // uses. The theme includes dist/bricks/load.php once (require_once), which registers
-      // every element under dist/bricks/elements and enqueues the CSS/JS bundles.
-      // The generated docs/ tree ships alongside as web-published LLM context (served at
-      // <theme>/dist/docs/); dependsOn regenerates it first so it matches what deploys.
-      'build:elements': {
-        command:
-          'mkdir -p dist/bricks && cp -R bricks/elements dist/bricks/ && cp bricks/load.php dist/bricks/load.php && rm -rf dist/docs && cp -R docs dist/docs',
-        dependsOn: ['generate:docs'],
-        input: ['bricks/**/*.php', 'docs/**/*.md'],
-        output: ['dist/bricks/**', 'dist/docs/**'],
-      },
-
-      // LLM context tree: parse bricks/elements/*.php + src/design-system.json → docs/.
-      // `input` is declared explicitly (vp's auto-tracker can't see files the spawned
-      // node process reads); extend it if the generator gains new sources.
-      'generate:docs': {
-        command: 'node lib/generate-docs.ts',
-        input: ['lib/generate-docs.ts', 'bricks/elements/*.php', 'src/design-system.json'],
-        output: ['docs/**/*.md'],
-      },
-
-      // CSS: bundle @imports + minify with lightningcss. Depends on colour
-      // codegen so src/color.css exists before bundling.
-      'build:css': {
-        command:
-          'lightningcss --minify --bundle --sourcemap -o dist/styles.min.css ./src/css/index.css',
-        dependsOn: ['generate:theme'],
-        // Static partials (layout.css, future patterns/*.css) are inlined by
-        // lightningcss --bundle; declare them so edits bust this task's cache.
-        input: ['src/css/**/*.css'],
-        output: ['dist/*.css*'],
-      },
-
-      // Docs bundle: a standalone (non-Bricks) build the docsite links, so the
-      // page renders self-sufficiently (colours, fonts, type scale all emitted).
-      // Generates non-bricks → bundles to dist/styles.docs.css → regenerates
-      // bricks so the working tree's src/css/generated/* ends in canonical
-      // (committed) bricks state. Kept a plain command (not the cached
-      // generate:theme) so the two generator runs stay strictly ordered.
-      //
-      // `input` tracks only the *true* sources: the generator, the JSON, and the
-      // static partials (`src/css/*.css` does NOT recurse into `generated/`). The
-      // generated CSS is fully derived from those AND is mutated by this command
-      // itself (non-bricks → bricks), so tracking it would key the cache on a
-      // state inconsistent with the emitted bundle and serve a stale docs build.
-      'build:docs': {
-        command:
-          'node lib/generate-design-system.ts --format=css && lightningcss --minify --bundle -o dist/styles.docs.css ./src/css/index.css && node lib/generate-design-system.ts --format=bricks',
-        input: ['lib/generate-design-system.ts', 'src/design-system.json', 'src/css/*.css'],
-        output: ['dist/styles.docs.css*', 'dist/design-manifest.json'],
-      },
-
-      // Tailwind v4 bundle for Astro consumers: one self-contained dist/tailwind.css
-      // (@theme + @custom-variant + @utility + inlined engine/structure/components).
-      // Standalone (not in the default `build` chain). NOT piped through lightningcss —
-      // the @theme/@utility/@custom-variant at-rules are Tailwind source directives that
-      // must ship raw for Tailwind's own compiler. emitTailwind reads animation.css,
-      // mirrors layout.css structure, and inlines every root static partial (component +
-      // extended-structural CSS), so all of `src/css/*.css` are declared inputs. The glob
-      // is non-recursive — it excludes `generated/`, which emitTailwind does not read.
-      'build:tailwind': {
-        command: 'node lib/generate-design-system.ts --format=tailwind',
-        input: ['lib/generate-design-system.ts', 'src/design-system.json', 'src/css/*.css'],
-        output: ['dist/tailwind.css'],
-      },
-
-      // Codegen: colors.json → src/color.css + dist/bricks-colors.json.
-      // `input` is declared explicitly because vp's auto-tracker misses files
-      // passed to `node` as argv (it only sees what the *task* reads, not what
-      // the spawned process reads), so source edits would otherwise hit the cache.
-      'generate:theme': {
-        command: 'node lib/generate-design-system.ts --format=bricks',
-        input: ['lib/generate-design-system.ts', 'src/design-system.json'],
-        output: ['dist/bricks*', 'src/css/generated/**'],
-      },
-
-      // ── Publishable packages (@getvitops/{core,cli,vite}) ──────────────────
-      // The generator-as-a-tool. `build:core` snapshots the framework-static
-      // assets + emits the JSON Schema (prepare.mjs), then bundles the library;
-      // it dependsOn build:js because the pre-built JS bundles are copied from
-      // dist/ into the package. cli/vite build after core (they import it).
-      // Each package's `vp pack` reads its own packages/*/vite.config.ts.
+      // Framework runtime bundles (polyfills/deferred/elements) — built by @getvitops/core.
+      // build:generator snapshots these into its package assets; build:theme copies them
+      // into dist/. Runs first (build:generator dependsOn it).
       'build:core': {
-        command: 'node packages/core/scripts/prepare.mjs && cd packages/core && vp pack',
-        dependsOn: ['build:js'],
+        command: 'cd packages/core && vp pack',
+        input: ['packages/core/src/**/*.ts', 'packages/core/vite.config.ts'],
+        output: ['packages/core/dist/**'],
+      },
+
+      // Docs-only live editor (editor.js), loaded by index.html. Root-built (not shipped
+      // in the theme). Separate from the framework runtime, which lives in @getvitops/core.
+      'build:editor': { command: 'vp pack', output: ['dist/editor.js*'] },
+
+      // Theme dist via @getvitops/generator (dogfood). Emits styles.min.css (bundled by
+      // core's lightningcss *library* — no CLI), the Bricks import JSON, tokens.json,
+      // the JS bundles + bricks/ PHP + docs/ (copied from the package assets). Replaces
+      // the old generate:theme + build:css + build:elements. dependsOn build:generator so the
+      // library is built and its assets are synced from the fresh JS bundles first.
+      'build:theme': {
+        command: 'node lib/build-theme.ts',
+        dependsOn: ['build:generator'],
         input: [
-          'packages/core/src/**/*.ts',
-          'packages/core/scripts/prepare.mjs',
-          'packages/core/vite.config.ts',
-          'src/css/**/*.css',
+          'lib/build-theme.ts',
+          'src/design-system.json',
+          'packages/generator/dist/index.mjs',
+          'packages/generator/assets/**',
+        ],
+        output: [
+          'dist/styles.min.css*',
+          'dist/bricks*.json',
+          'dist/tokens.json',
+          'dist/bricks/**',
+          'dist/docs/**',
+        ],
+      },
+
+      // Standalone CSS bundle for the docsite (index.html) via core's css format:
+      // dist/styles.css + design-manifest.json (self-contained — tokens/fonts/scales).
+      'build:docs': {
+        command: 'node lib/build-theme.ts --format css',
+        dependsOn: ['build:generator'],
+        input: [
+          'lib/build-theme.ts',
+          'src/design-system.json',
+          'packages/generator/dist/index.mjs',
+          'packages/generator/assets/**',
+        ],
+        output: ['dist/styles.css', 'dist/design-manifest.json', 'dist/tokens.json'],
+      },
+
+      // Tailwind v4 bundle for Astro/EmDash consumers via core's tailwind format:
+      // one self-contained dist/tailwind.css + tokens.json.
+      'build:tailwind': {
+        command: 'node lib/build-theme.ts --format tailwind',
+        dependsOn: ['build:generator'],
+        input: [
+          'lib/build-theme.ts',
+          'src/design-system.json',
+          'packages/generator/dist/index.mjs',
+          'packages/generator/assets/**',
+        ],
+        output: ['dist/tailwind.css', 'dist/tokens.json'],
+      },
+
+      // ── Publishable packages (@getvitops/{core,generator,utils,cli,vite}) ──
+      // `build:generator` snapshots the framework-static assets (CSS + JS bundles
+      // from @getvitops/core) + emits the JSON Schema (prepare.mjs), then bundles
+      // the library; it dependsOn build:core so core's JS bundles exist first.
+      // cli/vite build after generator + utils (they import them).
+      // Each package's `vp pack` reads its own packages/*/vite.config.ts.
+      'build:generator': {
+        command: 'node packages/generator/scripts/prepare.mjs && cd packages/generator && vp pack',
+        dependsOn: ['build:core'],
+        input: [
+          'packages/generator/src/**/*.ts',
+          'packages/generator/scripts/prepare.mjs',
+          'packages/generator/vite.config.ts',
+          'packages/core/css/**',
+          'packages/core/dist/**',
           'bricks/**/*.php',
           'src/design-system.json',
         ],
-        output: ['packages/core/dist/**', 'packages/core/assets/**', 'packages/core/schema.json'],
+        output: [
+          'packages/generator/dist/**',
+          'packages/generator/assets/**',
+          'packages/generator/schema.json',
+        ],
+      },
+      // Shared build-time utilities (favicon generation, …). No workspace deps.
+      'build:utils': {
+        command: 'cd packages/utils && vp pack',
+        input: ['packages/utils/src/**/*.ts', 'packages/utils/vite.config.ts'],
+        output: ['packages/utils/dist/**'],
       },
       'build:cli': {
         command: 'cd packages/cli && vp pack',
-        dependsOn: ['build:core'],
+        dependsOn: ['build:generator', 'build:utils'],
         input: ['packages/cli/src/**/*.ts', 'packages/cli/vite.config.ts'],
         output: ['packages/cli/dist/**'],
       },
       'build:vite-plugin': {
         command: 'cd packages/vite && vp pack',
-        dependsOn: ['build:core'],
+        dependsOn: ['build:generator', 'build:utils'],
         input: ['packages/vite/src/**/*.ts', 'packages/vite/vite.config.ts'],
         output: ['packages/vite/dist/**'],
       },
-      // Build all three publishable packages (sequential; cli/vite need core).
+      // Build all publishable packages (cli/vite need core + utils).
       'build:packages': {
-        command: 'vp run build:core && vp run build:cli && vp run build:vite-plugin',
+        command:
+          'vp run build:generator && vp run build:utils && vp run build:cli && vp run build:vite-plugin',
       },
       // Version + publish the scoped packages via Changesets. Root stays private.
       release: {
@@ -208,6 +191,33 @@ export default defineConfig({
       deploy: {
         command: 'node --env-file=.env lib/deploy.ts',
         dependsOn: ['build'],
+      },
+
+      // ── apps/portal (extraction-bound playground) ──────────────────────────
+      // Fully isolated from the Bricks/design-system release DAG: NOT wired into
+      // `build`, `build:packages`, or `deploy`, and NOT dependent on any
+      // @getvitops package (the design-system CSS dogfooding is deferred while
+      // that framework is in flux — the app uses its own wireframe stylesheet).
+      // Migrations are plain SQL run by drizzle-orm's migrator; tests run under
+      // the root vitest (vite-plus).
+      'portal:dev': {
+        command: 'cd apps/portal && astro dev',
+      },
+      'portal:build': {
+        command: 'cd apps/portal && astro build',
+      },
+      'portal:migrate': {
+        command: 'cd apps/portal && node --env-file-if-exists=.env ./scripts/migrate.ts',
+      },
+      'portal:seed': {
+        command: 'cd apps/portal && node --env-file-if-exists=.env ./scripts/seed.ts',
+      },
+      // Long-lived background worker: node-cron sync + outbox dispatch.
+      'portal:worker': {
+        command: 'cd apps/portal && node --env-file-if-exists=.env ./src/workers/cron.ts',
+      },
+      'portal:test': {
+        command: 'vp test run apps/portal',
       },
     },
   },

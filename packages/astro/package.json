@@ -1,0 +1,27 @@
+{
+  "name": "@getvitops/astro",
+  "version": "0.1.0",
+  "description": "Astro integration for the Vitops design system — HTML/type helpers, and (future) Astro components wrapping @getvitops/core.",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "dependencies": {
+    "parse5": "catalog:"
+  },
+  "devDependencies": {
+    "astro": "catalog:"
+  },
+  "peerDependencies": {
+    "astro": ">=6"
+  },
+  "private": true
+}

@@ -1,0 +1,27 @@
+{
+  "name": "portal",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vitops Client Portal — multi-tenant dashboard spike (extraction-bound playground).",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "start": "node ./dist/server/entry.mjs",
+    "worker": "node ./src/workers/cron.ts",
+    "migrate": "node ./scripts/migrate.ts"
+  },
+  "dependencies": {
+    "@astrojs/node": "^11.0.2",
+    "@electric-sql/pglite": "^0.5.4",
+    "astro": "^7.1.2",
+    "better-auth": "^1.6.23",
+    "drizzle-orm": "^0.45.2",
+    "node-cron": "^4.6.0",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node-cron": "^3.0.11"
+  }
+}

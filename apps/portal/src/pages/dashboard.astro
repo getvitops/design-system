@@ -1,0 +1,66 @@
+---
+import Base from '../layouts/Base.astro';
+import StatTile from '../components/StatTile.astro';
+import { analyticsSeries, dashboardSummary } from '../lib/queries.ts';
+
+const scoped = Astro.locals.scoped!;
+const summary = await dashboardSummary(scoped);
+const analytics = await analyticsSeries(scoped);
+const denied = Astro.url.searchParams.get('denied');
+
+const fmt = (n: number) => n.toLocaleString('en-US');
+const totalVisitors = summary.visitors.human + summary.visitors.ai + summary.visitors.bot || 1;
+const mix = [
+  { label: 'Human', v: summary.visitors.human, cls: 'bg-brand-primary' },
+  { label: 'AI', v: summary.visitors.ai, cls: 'bg-info' },
+  { label: 'Bot', v: summary.visitors.bot, cls: 'bg-neutral' },
+];
+
+// Per-day visits, summed across providers/sites, for a small bar chart.
+const byDate = new Map<string, number>();
+for (const a of analytics) byDate.set(a.date, (byDate.get(a.date) ?? 0) + Number(a.visits));
+const days = [...byDate.entries()].sort((x, y) => x[0].localeCompare(y[0])).slice(-14);
+const maxVisits = Math.max(1, ...days.map(([, v]) => v));
+---
+
+<Base title="Overview">
+  {denied && (
+    <div class="card border-warning bg-warning-xl text-neutral-xxd">
+      Your current plan doesn’t include <strong>{denied}</strong>. <a href="/settings" class="text-brand-primary-d underline">See plans</a>.
+    </div>
+  )}
+
+  <h1 class="font-title text-2xl">Overview</h1>
+
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <StatTile label="Human visitors" value={fmt(summary.visitors.human)} tone="brand" />
+    <StatTile label="AI visitors" value={fmt(summary.visitors.ai)} sub="LLM crawlers" tone="info" />
+    <StatTile label="Bot traffic" value={fmt(summary.visitors.bot)} tone="neutral" />
+    <StatTile label="Conversions" value={fmt(summary.conversions)} tone="success" />
+    <StatTile label="Form submissions" value={fmt(summary.formSubmissions)} />
+    <StatTile label="Failures" value={fmt(summary.failures)} tone={summary.failures > 0 ? 'danger' : 'success'} />
+    <StatTile label="Avg p95 latency" value={summary.avgLatencyP95 != null ? `${summary.avgLatencyP95}ms` : '—'} tone="warning" />
+    <StatTile label="Open tickets" value={summary.openTickets} tone="info" />
+  </div>
+
+  <section class="card">
+    <h2 class="font-heading text-lg">Visitor mix</h2>
+    <div class="mt-3 flex h-4 overflow-hidden rounded">
+      {mix.map((m) => (
+        <div class={m.cls} style={`width:${(m.v / totalVisitors) * 100}%`} title={`${m.label}: ${fmt(m.v)}`}></div>
+      ))}
+    </div>
+    <div class="mt-2 flex gap-4 font-caption text-neutral">
+      {mix.map((m) => <span>{m.label}: {fmt(m.v)} ({Math.round((m.v / totalVisitors) * 100)}%)</span>)}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 class="font-heading text-lg">Visits — last {days.length} days</h2>
+    <div class="mt-3 flex h-32 items-end gap-1">
+      {days.map(([date, v]) => (
+        <div class="group flex-1 rounded-t bg-brand-primary-l hover:bg-brand-primary" style={`height:${(v / maxVisits) * 100}%`} title={`${date}: ${fmt(v)} visits`}></div>
+      ))}
+    </div>
+  </section>
+</Base>

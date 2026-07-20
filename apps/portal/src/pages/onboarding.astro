@@ -1,0 +1,39 @@
+---
+import Base from '../layouts/Base.astro';
+// Reached when a signed-in user has no active org yet.
+---
+
+<Base title="Set up your workspace">
+  <section class="card rhythm max-w-md">
+    <h1 class="font-title text-2xl">Create your workspace</h1>
+    <p class="font-caption text-neutral">Spin up an organization to start monitoring your sites.</p>
+    <form id="create" class="rhythm">
+      <input id="name" type="text" placeholder="Company name" required class="w-full rounded border border-neutral-xl bg-surface px-3 py-2 font-body" />
+      <button type="submit" class="rounded bg-brand-primary px-4 py-2 font-body text-surface-xxl">Create workspace</button>
+      <p id="err" class="font-caption text-danger-d"></p>
+    </form>
+  </section>
+
+  <script>
+    import { authClient } from '../lib/auth-client.ts';
+    const form = document.getElementById('create');
+    const err = document.getElementById('err');
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.textContent = '';
+      const name = document.getElementById('name').value;
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Math.random().toString(36).slice(2, 6);
+      const created = await authClient.organization.create({ name, slug });
+      if (created.error) { err.textContent = created.error.message ?? 'Failed'; return; }
+      const orgId = created.data?.id;
+      await authClient.organization.setActive({ organizationId: orgId });
+      // Provision plan + default provider connections (server-side, owner client).
+      await fetch('/api/org/provision', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ organizationId: orgId }),
+      });
+      location.href = '/dashboard';
+    });
+  </script>
+</Base>

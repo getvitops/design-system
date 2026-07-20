@@ -14,7 +14,7 @@ JSON and the hand-written CSS/PHP as source, and the rest as output.
 Read `AGENTS.md` at the repo root for the full build/codegen contract; this skill is the
 task-oriented map for the design system and its Bricks surface.
 
-The generator is also published as a reusable toolchain under `packages/` — **`@getvitops/core`**
+The generator is also published as a reusable toolchain under `packages/` — **`@getvitops/generator`**
 (library + JSON Schema), **`@getvitops/cli`** (`vitops generate|init|validate`), and
 **`@getvitops/vite`** (Astro/EmDash plugin) — and this repo dogfoods it. Any consumer runs the
 tool against their own `design-system.json`; `packages/cli/README.md` documents the output and
@@ -99,7 +99,7 @@ property values are one-off and drift; reserve them for genuinely bespoke cases.
   outputs are available via the toolchain: `vitops generate --format <bricks|css|tailwind>`.
 - **Build/publish the toolchain** → `npx vp run build:packages` (builds `@getvitops/{core,cli,vite}`);
   `npx vp run release` versions + publishes via Changesets. The schema lives in
-  `packages/core/src/schema.ts` (single source of truth) → emits `packages/core/schema.json`.
+  `packages/generator/src/schema.ts` (single source of truth) → emits `packages/generator/schema.json`.
 
 Lint/format/typecheck run automatically on save and via a PostToolUse hook — don't invoke
 `vp check`/`fmt`/`lint` as a manual verification step.

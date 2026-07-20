@@ -1,0 +1,28 @@
+{
+  "name": "@getvitops/utils",
+  "version": "0.1.0",
+  "description": "Shared build-time utilities for the Vitops toolchain — favicon generation and friends.",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./favicon": {
+      "types": "./dist/favicon.d.mts",
+      "import": "./dist/favicon.mjs"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "png-to-ico": "catalog:",
+    "sharp": "catalog:"
+  }
+}

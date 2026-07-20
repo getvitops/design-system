@@ -24,4 +24,4 @@ Then import the generated stylesheet (Tailwind v4):
 @import './styles/tailwind.css';
 ```
 
-Powered by [`@getvitops/core`](https://www.npmjs.com/package/@getvitops/core).
+Powered by [`@getvitops/generator`](https://www.npmjs.com/package/@getvitops/generator).
