@@ -154,12 +154,13 @@ export class WCEntries extends BaseElement {
         const dts = child.querySelectorAll('dt');
         const dds = child.querySelectorAll('dd');
         for (let i = 0; i < dts.length; i++) {
-          const key = dts[i].textContent?.trim() ?? '';
+          const dt = dts[i] as Element;
+          const key = dt.textContent?.trim() ?? '';
           const value = dds[i]?.innerHTML ?? '';
           if (key) {
             properties.set(key, value);
             columnSet.add(key);
-            const label = dts[i].getAttribute('data-label');
+            const label = dt.getAttribute('data-label');
             if (label && !labelMap.has(key)) labelMap.set(key, label);
           }
         }
@@ -270,7 +271,7 @@ export class WCEntries extends BaseElement {
 
     /* Update button states */
     for (let i = 0; i < this.#navButtons.length; i++) {
-      this.#navButtons[i].setAttribute('aria-pressed', String(i === index));
+      this.#navButtons[i]?.setAttribute('aria-pressed', String(i === index));
     }
 
     if (this.singular) {
@@ -299,7 +300,8 @@ export class WCEntries extends BaseElement {
     const colIndex = index + 1; /* offset for title column */
     for (const row of this.#table.rows) {
       for (let c = 1; c < row.cells.length; c++) {
-        row.cells[c].hidden = c !== colIndex;
+        const cell = row.cells[c];
+        if (cell) cell.hidden = c !== colIndex;
       }
     }
   }
@@ -308,7 +310,8 @@ export class WCEntries extends BaseElement {
     if (!this.#table) return;
     for (const row of this.#table.rows) {
       for (let c = 1; c < row.cells.length; c++) {
-        row.cells[c].hidden = false;
+        const cell = row.cells[c];
+        if (cell) cell.hidden = false;
       }
     }
   }

@@ -12,7 +12,8 @@ export type {
   GetvitopsFaviconOptions,
   GetvitopsOptions,
 } from './integration.ts';
-
-// NOTE: ./html.ts + ./types.ts helpers are intentionally not re-exported yet —
-// they import a package-root `../types.ts` that doesn't exist post-refactor
-// (pre-existing breakage, unrelated to the integration). Re-add once fixed.
+export * from '../types.ts';
+export * from './html.ts';
+export * from './types.ts';
+export * from './parts.ts';
+export * from './i18n.ts';

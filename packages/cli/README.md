@@ -22,6 +22,8 @@ npx vitops generate --format bricks,css --out dist
 | `vitops init [--out design-system.json] [--force]` | write a starter config with `$schema`         |
 | `vitops validate <file>`                           | schema-check (non-zero exit on error)         |
 | `vitops generate -i <file> -f <formats> -o <dir>`  | generate `bricks` / `css` / `tailwind` output |
+| `vitops favicon -i <svg\|png> -o <dir>`            | generate a favicon set from a source image    |
+| `vitops agents [-o AGENTS.md] [--docs-dir <dir>]`  | teach AI agents about the design system       |
 
 ## Using the output
 
@@ -76,5 +78,23 @@ The CLI only writes files — how they reach WordPress is up to you:
 
 - **CI:** run `vitops generate --format bricks` in your pipeline and deploy the artifact the
   same way you deploy the rest of the theme.
+
+## Teaching AI agents (`vitops agents`)
+
+So an AI coding agent in a consumer project can discover the design system, `vitops agents`
+writes a small, marker-delimited **managed block** into your `AGENTS.md` (idempotent — re-run to
+update) and emits the reference docs bundle it points at:
+
+```sh
+vitops agents                                   # updates ./AGENTS.md, docs → ./.vitops/docs
+vitops agents --out CLAUDE.md --docs-dir docs/vitops --input design-system.json
+```
+
+The block lists the CLI commands and points at the generated class vocabulary
+(`<docs-dir>/css/classes.md`) and Bricks element reference (`<docs-dir>/bricks/elements.md`), both
+derived from your `design-system.json`. Re-running only replaces the content between the
+`<!-- vitops:start -->` / `<!-- vitops:end -->` markers, leaving the rest of the file untouched. If
+you'd rather not commit the generated docs, add your `--docs-dir` (e.g. `.vitops/`) to
+`.gitignore` and run `vitops agents` in a postinstall/CI step.
 
 Powered by [`@getvitops/generator`](https://www.npmjs.com/package/@getvitops/generator).

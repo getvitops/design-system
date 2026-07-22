@@ -1,4 +1,4 @@
-import {parseFragment, serialize as s, type DefaultTreeAdapterTypes} from 'parse5';
+import { parseFragment, serialize as s, type DefaultTreeAdapterTypes } from 'parse5';
 import type { HTMLTag, HTMLAttributes } from 'astro/types';
 import type { Localizable, ContentNode } from '../types.js';
 
@@ -11,20 +11,24 @@ export function parseRenderedSlots(html: string): ChildNode[] {
 
 export function getAttribute(node: ChildNode, attrName: string): string | null {
   if ('attrs' in node) {
-    const attr = node.attrs.find(a => a.name === attrName);
+    const attr = node.attrs.find((a) => a.name === attrName);
     return attr ? attr.value : null;
   }
   return null;
 }
 
 export function serialize(nodes: ChildNode | ChildNode[]): string[] {
-  return (Array.isArray(nodes) ? nodes : [nodes]).map(node => s(node as DefaultTreeAdapterTypes.ParentNode));
+  return (Array.isArray(nodes) ? nodes : [nodes]).map((node) =>
+    s(node as DefaultTreeAdapterTypes.ParentNode),
+  );
 }
 
 /**
- * Style value types that can be combined
+ * Style value types that can be combined. StyleObject is structurally
+ * compatible with astroHTML.JSX.CSSProperties (camelCase or --custom-prop keys).
  */
-export type StyleValue = string | astroHTML.JSX.CSSProperties | null | undefined;
+type StyleObject = Record<string, string | number | null | undefined>;
+export type StyleValue = string | StyleObject | null | undefined;
 export type StyleList = StyleValue | StyleValue[];
 
 /**
@@ -34,11 +38,6 @@ function toKebabCase(str: string): string {
   if (str.startsWith('--')) return str;
   return str.replace(/([A-Z])/g, '-$1').toLowerCase();
 }
-
-/**
- * Convert a style object to a CSS string
- */
-type StyleObject = Record<string, string | number | null | undefined>;
 function styleObjectToString(obj: StyleObject): string {
   return Object.entries(obj)
     .filter(([, value]) => value != null)
@@ -99,8 +98,14 @@ function attributesToString(attrs: Record<string, unknown>): string {
     } else if (key === 'style' && typeof value === 'object') {
       parts.push(`style="${styleList(value as StyleValue)}"`);
     } else {
-      // Escape double quotes in attribute values
-      const escaped = String(value).replace(/"/g, '&quot;');
+      // Class:list arrays join like Astro; other objects stringify as JSON
+      // (never "[object Object]"). Escape double quotes for the attribute.
+      const text = Array.isArray(value)
+        ? value.filter((v): v is string => typeof v === 'string' && v !== '').join(' ')
+        : typeof value === 'object'
+          ? JSON.stringify(value)
+          : String(value as string | number | boolean);
+      const escaped = text.replace(/"/g, '&quot;');
       parts.push(`${key}="${escaped}"`);
     }
   }
@@ -118,10 +123,10 @@ export function toHtml<Tag extends HTMLTag>(content: string | El<Tag>): string {
 
   const { tag, text, attributes } = content;
   const attrStr = attributes ? attributesToString(attributes) : '';
+  // HTMLTag is a key type (string | number | symbol to tsc) — stringify for templates.
+  const t = String(tag);
 
-  return attrStr
-    ? `<${tag} ${attrStr}>${text}</${tag}>`
-    : `<${tag}>${text}</${tag}>`;
+  return attrStr ? `<${t} ${attrStr}>${text}</${t}>` : `<${t}>${text}</${t}>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -130,8 +135,20 @@ export function toHtml<Tag extends HTMLTag>(content: string | El<Tag>): string {
 
 /** Void elements that must not have a closing tag */
 const VOID_ELEMENTS = new Set([
-  'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
-  'link', 'meta', 'param', 'source', 'track', 'wbr',
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
 ]);
 
 /** Default text resolver — strings pass through, locale maps return first value */
@@ -143,19 +160,13 @@ function defaultResolveText(value: Localizable): string {
 
 /** Escape text content for safe HTML output */
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /**
  * Render a single ContentNode to an HTML string.
  */
-function nodeToHtml(
-  node: ContentNode,
-  resolveText: (value: Localizable) => string,
-): string {
+function nodeToHtml(node: ContentNode, resolveText: (value: Localizable) => string): string {
   // String child → text node
   if (typeof node === 'string') {
     return escapeHtml(resolveText(node));
@@ -174,7 +185,7 @@ function nodeToHtml(
   if (text != null) {
     inner = escapeHtml(resolveText(text));
   } else if (children?.length) {
-    inner = children.map(child => nodeToHtml(child, resolveText)).join('');
+    inner = children.map((child) => nodeToHtml(child, resolveText)).join('');
   }
 
   return `${open}${inner}</${tag}>`;
@@ -191,5 +202,5 @@ export function nodesToHtml(
   nodes: ContentNode[],
   resolveText: (value: Localizable) => string = defaultResolveText,
 ): string {
-  return nodes.map(node => nodeToHtml(node, resolveText)).join('');
+  return nodes.map((node) => nodeToHtml(node, resolveText)).join('');
 }

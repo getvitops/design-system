@@ -129,7 +129,9 @@ export class WCColorWheel extends BaseElement {
           inset 0 0 0 1px oklch(0 0 0 / 0.1);
         pointer-events: auto;
         transform: translate(var(--_x, 0), var(--_y, 0));
-        transition: scale 0.15s ease, box-shadow 0.15s ease;
+        transition:
+          scale 0.15s ease,
+          box-shadow 0.15s ease;
       }
 
       .marker--primary {
@@ -265,7 +267,7 @@ export class WCColorWheel extends BaseElement {
         display: block;
       }
 
-      .picker-popover input[type="color"] {
+      .picker-popover input[type='color'] {
         inline-size: 100%;
         block-size: 48px;
         border: none;
@@ -274,11 +276,11 @@ export class WCColorWheel extends BaseElement {
         padding: 0;
       }
 
-      .picker-popover input[type="color"]::-webkit-color-swatch-wrapper {
+      .picker-popover input[type='color']::-webkit-color-swatch-wrapper {
         padding: 0;
       }
 
-      .picker-popover input[type="color"]::-webkit-color-swatch {
+      .picker-popover input[type='color']::-webkit-color-swatch {
         border: none;
         border-radius: 0.25rem;
       }
@@ -316,7 +318,9 @@ export class WCColorWheel extends BaseElement {
           try {
             const parsed = JSON.parse(value);
             if (Array.isArray(parsed)) return parsed;
-          } catch { /* not JSON, ignore */ }
+          } catch {
+            /* not JSON, ignore */
+          }
           return undefined;
         },
         toAttribute(value: HarmonyType[] | undefined) {
@@ -441,7 +445,8 @@ export class WCColorWheel extends BaseElement {
   #getPrimaryColor(): ColorOutput {
     const colors = this.#getHarmonyColors();
     const primaryIndex = this.#getPrimaryIndex();
-    return colors[primaryIndex];
+    // Harmony always yields at least one colour; primaryIndex is in range.
+    return colors[primaryIndex] as ColorOutput;
   }
 
   #getComputedColors(): ColorOutput[] {
@@ -572,7 +577,7 @@ export class WCColorWheel extends BaseElement {
         },
         bubbles: true,
         composed: true,
-      })
+      }),
     );
   }
 
@@ -606,13 +611,16 @@ export class WCColorWheel extends BaseElement {
     for (let i = 0; i < positions.length; i++) {
       const nextIndex = (i + 1) % positions.length;
       if (i === positions.length - 1 && positions.length <= 2) continue;
+      const from = positions[i];
+      const to = positions[nextIndex];
+      if (!from || !to) continue;
 
       lines.push(svg`
         <line
-          x1="${positions[i].x}"
-          y1="${positions[i].y}"
-          x2="${positions[nextIndex].x}"
-          y2="${positions[nextIndex].y}"
+          x1="${from.x}"
+          y1="${from.y}"
+          x2="${to.x}"
+          y2="${to.y}"
           stroke="var(--_line-color)"
           stroke-width="var(--_line-width)"
         />
@@ -669,8 +677,10 @@ export class WCColorWheel extends BaseElement {
                   >
                     ${this.harmonies.map(
                       (key) => html`
-                        <option value=${key} ?selected=${this.harmony === key}>${HARMONY_DEFINITIONS[key].label}</option>
-                      `
+                        <option value=${key} ?selected=${this.harmony === key}>
+                          ${HARMONY_DEFINITIONS[key].label}
+                        </option>
+                      `,
                     )}
                   </select>
                 </div>
@@ -689,7 +699,7 @@ export class WCColorWheel extends BaseElement {
 
           <div class="markers" part="markers">
             ${harmonyHues.map((hue, index) =>
-              this.#renderMarker(hue, index, colors[index], primaryIndex)
+              this.#renderMarker(hue, index, colors[index] as ColorOutput, primaryIndex),
             )}
           </div>
         </div>
@@ -703,7 +713,9 @@ export class WCColorWheel extends BaseElement {
                       class="swatch swatch--primary"
                       part="swatch swatch-primary"
                       style="background: ${primaryColor.oklch}"
-                      @click=${this.showPicker ? this.#togglePicker : () => this.#onSwatchClick(primaryColor)}
+                      @click=${this.showPicker
+                        ? this.#togglePicker
+                        : () => this.#onSwatchClick(primaryColor)}
                       title="${this.showPicker ? 'Click to edit' : 'Click to copy'}"
                       role="button"
                       tabindex="0"
@@ -743,7 +755,7 @@ export class WCColorWheel extends BaseElement {
                               ></div>
                               <span class="swatch__hex">${color.hex}</span>
                             </div>
-                          `
+                          `,
                         )}
                       </div>
                     `

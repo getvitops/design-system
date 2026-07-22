@@ -85,6 +85,12 @@ export class WCCopy extends BaseElement {
     _copied: { type: Boolean, state: true },
   };
 
+  // Reactive props are created by Lit from `static properties`; declare the
+  // fields so TypeScript knows them without emitting shadowing class fields.
+  declare value: string | undefined;
+  declare label: string;
+  declare _copied: boolean;
+
   constructor() {
     super();
     this.init();

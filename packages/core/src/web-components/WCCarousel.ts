@@ -132,13 +132,14 @@ export class WCCarousel extends BaseElement {
     const after: Element[] = [];
 
     for (let i = 0; i < this.#realSlides.length; i++) {
-      before.push(this.#prepareClone(this.#realSlides[i], i));
-      after.push(this.#prepareClone(this.#realSlides[i], i));
+      const slide = this.#realSlides[i] as Element;
+      before.push(this.#prepareClone(slide, i));
+      after.push(this.#prepareClone(slide, i));
     }
 
     /* Prepend in reverse so slide order is preserved. */
     for (let i = before.length - 1; i >= 0; i--) {
-      this.prepend(before[i]);
+      this.prepend(before[i] as Element);
     }
     for (const clone of after) {
       this.append(clone);

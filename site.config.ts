@@ -23,8 +23,8 @@ export {
   resolveTheme,
   stripNulls,
   deepMerge,
-} from './packages/generator/src/site.ts';
-export type { SiteConfig, SiteValidationResult } from './packages/generator/src/site.ts';
+} from '@getvitops/generator';
+export type { SiteConfig, SiteValidationResult } from '@getvitops/generator';
 
 // ── Pattern Group Mappings ────────────────────────────────────────────────────
 // Retained for downstream pattern-group tooling.

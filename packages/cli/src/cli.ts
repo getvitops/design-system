@@ -6,14 +6,24 @@
  *   vitops init      [--out design-system.json] [--force]
  *   vitops validate  <design-system.json>
  *   vitops favicon   --input <svg|png> --out <dir> [--low-res <svg|png>]
+ *   vitops agents    [--input <json>] [--out AGENTS.md] [--docs-dir <dir>]
  *
  * Thin wrapper over @getvitops/generator (generation) and @getvitops/utils (favicons).
  * Every client brings their own consumer-editable design-system.json.
  */
 import { parseArgs } from 'node:util';
-import { writeFileSync, existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { generate, validate, defaultConfig, SCHEMA_URL, type Format } from '@getvitops/generator';
+import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
+import { resolve, join, dirname } from 'node:path';
+import { createRequire } from 'node:module';
+import {
+  generate,
+  validate,
+  defaultConfig,
+  generateDocs,
+  SCHEMA_URL,
+  type Format,
+  type DesignSystem,
+} from '@getvitops/generator';
 import { generateFavicons } from '@getvitops/utils';
 
 const FORMATS = new Set<Format>(['bricks', 'css', 'tailwind']);
@@ -25,6 +35,7 @@ Usage:
   vitops init [options]         Scaffold a starter design-system.json
   vitops validate <file>        Validate a config against the schema
   vitops favicon [options]      Generate a favicon set from a source image
+  vitops agents [options]       Write design-system docs into AGENTS.md (for AI agents)
 
 Generate options:
   -i, --input <path>    Config file (default: ./design-system.json)
@@ -39,6 +50,11 @@ Favicon options:
   -i, --input <path>    Source SVG or PNG (required)
   -o, --out <dir>       Output directory (default: ./public)
       --low-res <path>  Optional simplified source for the 16px icon
+
+Agents options:
+  -i, --input <path>    Config file (default: ./design-system.json)
+  -o, --out <path>      Doc file to update, idempotently (default: ./AGENTS.md)
+      --docs-dir <dir>  Where to write the reference docs bundle (default: ./.vitops/docs)
 
 Common:
   -h, --help            Show this help
@@ -147,6 +163,118 @@ async function cmdFavicon(argv: string[]) {
   }
 }
 
+// Read + parse + validate a design-system.json, or exit with a message.
+function loadConfig(path: string): DesignSystem {
+  if (!existsSync(path)) fail(`config not found: ${path}`);
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (err) {
+    fail(`could not parse JSON: ${(err as Error).message}`);
+  }
+  const result = validate(raw);
+  if (!result.ok) {
+    console.error(`✖ ${path} is invalid:`);
+    for (const e of result.errors)
+      console.error(`  • ${e.path.join('.') || '(root)'}: ${e.message}`);
+    process.exit(1);
+  }
+  return result.data;
+}
+
+// This CLI's own version (dist/cli.mjs → package-root package.json).
+function cliVersion(): string {
+  try {
+    return (
+      JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version ??
+      '0.0.0'
+    );
+  } catch {
+    return '0.0.0';
+  }
+}
+
+// The framework asset root shipped inside @getvitops/generator (holds the Bricks
+// PHP that generateDocs reads for the element reference).
+function generatorAssetsDir(): string {
+  const pkg = createRequire(import.meta.url).resolve('@getvitops/generator/package.json');
+  return join(dirname(pkg), 'assets');
+}
+
+const AGENTS_START = '<!-- vitops:start -->';
+const AGENTS_END = '<!-- vitops:end -->';
+
+function cmdAgents(argv: string[]) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      input: { type: 'string', short: 'i', default: 'design-system.json' },
+      out: { type: 'string', short: 'o', default: 'AGENTS.md' },
+      'docs-dir': { type: 'string', default: '.vitops/docs' },
+    },
+    allowPositionals: false,
+  });
+  const inputRel = values.input as string;
+  const ds = loadConfig(resolve(inputRel));
+  const docsDir = values['docs-dir'] as string;
+
+  // Emit the OKF docs bundle so the AGENTS.md pointer resolves for every consumer
+  // (only the `bricks` generate format writes docs/ otherwise).
+  let docs: Record<string, string> = {};
+  try {
+    docs = generateDocs(ds, generatorAssetsDir());
+  } catch (err) {
+    fail(`could not generate docs: ${(err as Error).message}`);
+  }
+  for (const [rel, content] of Object.entries(docs)) {
+    const p = resolve(docsDir, rel);
+    mkdirSync(dirname(p), { recursive: true });
+    writeFileSync(p, content);
+  }
+
+  const block = [
+    AGENTS_START,
+    '## Vitops design system',
+    '',
+    `Styled with the Vitops design system (\`@getvitops/*\`); tokens live in \`${inputRel}\`.`,
+    'Generate output with the CLI:',
+    '',
+    '- `vitops generate --format tailwind --out src/styles` — Tailwind v4 / Astro',
+    '- `vitops generate --format css --out dist` — standalone CSS',
+    '- `vitops generate --format bricks --out <theme>/dist` — WordPress / Bricks',
+    '- `vitops init` · `vitops validate` · `vitops favicon`',
+    '',
+    'Prefer the framework’s utility + component classes over hand-written CSS.',
+    `Full class vocabulary + Bricks element reference: \`${docsDir}/css/classes.md\`,`,
+    `\`${docsDir}/bricks/elements.md\` (regenerate both with \`vitops agents\`).`,
+    '',
+    `<!-- regenerate: vitops agents · @getvitops/cli@${cliVersion()} -->`,
+    AGENTS_END,
+  ].join('\n');
+
+  const outPath = resolve(values.out as string);
+  let next: string;
+  let action: string;
+  if (existsSync(outPath)) {
+    const cur = readFileSync(outPath, 'utf8');
+    const s = cur.indexOf(AGENTS_START);
+    const e = cur.indexOf(AGENTS_END);
+    if (s !== -1 && e !== -1 && e > s) {
+      next = cur.slice(0, s) + block + cur.slice(e + AGENTS_END.length);
+      action = 'updated block in';
+    } else {
+      next = cur.replace(/\s*$/, '') + '\n\n' + block + '\n';
+      action = 'appended block to';
+    }
+  } else {
+    mkdirSync(dirname(outPath), { recursive: true });
+    next = block + '\n';
+    action = 'created';
+  }
+  writeFileSync(outPath, next);
+  console.log(`✓ ${action} ${values.out} + wrote ${Object.keys(docs).length} docs to ${docsDir}/`);
+}
+
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
   if (!command || command === '-h' || command === '--help' || command === 'help') {
@@ -162,9 +290,11 @@ async function main() {
       return cmdValidate(rest);
     case 'favicon':
       return cmdFavicon(rest);
+    case 'agents':
+      return cmdAgents(rest);
     default:
       fail(
-        `unknown command "${command}" (expected: generate | init | validate). Try: vitops --help`,
+        `unknown command "${command}" (expected: generate | init | validate | favicon | agents). Try: vitops --help`,
       );
   }
 }

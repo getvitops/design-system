@@ -15,7 +15,8 @@ Read `AGENTS.md` at the repo root for the full build/codegen contract; this skil
 task-oriented map for the design system and its Bricks surface.
 
 The generator is also published as a reusable toolchain under `packages/` — **`@getvitops/generator`**
-(library + JSON Schema), **`@getvitops/cli`** (`vitops generate|init|validate`), and
+(library + JSON Schema), **`@getvitops/cli`** (`vitops generate|init|validate|favicon|agents` —
+`agents` writes a design-system block into a consumer's `AGENTS.md`), and
 **`@getvitops/vite`** (Astro/EmDash plugin) — and this repo dogfoods it. Any consumer runs the
 tool against their own `design-system.json`; `packages/cli/README.md` documents the output and
 the WordPress/Bricks setup (the `functions.php` loader snippet + deploy recipes). See the

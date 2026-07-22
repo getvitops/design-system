@@ -176,7 +176,9 @@ class Parser {
       if (this.peek()?.t === 'arrow') {
         this.next();
         const val = this.parseValue();
-        map[String(first)] = val;
+        // PHP array keys are scalars; stringify objects defensively.
+        map[typeof first === 'object' && first !== null ? JSON.stringify(first) : String(first)] =
+          val;
         keyed = true;
       } else {
         list.push(first);
@@ -347,9 +349,13 @@ function parseElement(src: string): Element | null {
 }
 
 // ── Markdown rendering ───────────────────────────────────────────────────────
+/** Stringify a parsed-PHP Json value for prose (objects → JSON, not [object Object]). */
+const asText = (v: Json | undefined): string =>
+  v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v);
+
 function controlLine(c: Control): string {
   const def = c.def;
-  if (def.type === 'info') return `- _Note:_ ${def.content ?? ''}`;
+  if (def.type === 'info') return `- _Note:_ ${asText(def.content)}`;
   const label = (def.label as string) || c.key;
   const options =
     def.options && typeof def.options === 'object' && !Array.isArray(def.options)
@@ -360,16 +366,18 @@ function controlLine(c: Control): string {
   if (def.units === true) type += '+units';
   meta.push(type);
   if (def.default !== undefined) {
-    const raw = String(def.default);
+    const raw = asText(def.default);
     const shown = options && options[raw] ? options[raw] : raw;
     meta.push(`default \`${shown}\``);
   }
   if (def.placeholder !== undefined && def.placeholder !== '')
-    meta.push(`placeholder \`${def.placeholder}\``);
+    meta.push(`placeholder \`${asText(def.placeholder)}\``);
   if (def.min !== undefined || def.max !== undefined)
-    meta.push(`range ${def.min ?? '–'}–${def.max ?? '∞'}`);
+    meta.push(
+      `range ${def.min != null ? asText(def.min) : '–'}–${def.max != null ? asText(def.max) : '∞'}`,
+    );
   const tail: string[] = [];
-  if (def.description) tail.push(String(def.description));
+  if (def.description) tail.push(asText(def.description));
   if (options)
     tail.push(
       `Options: ${Object.values(options)
@@ -379,12 +387,14 @@ function controlLine(c: Control): string {
   if (Array.isArray(def.css) && def.css.length) {
     const first = def.css[0];
     if (first && typeof first === 'object' && !Array.isArray(first) && 'property' in first)
-      tail.push(`Bound to \`${(first as Record<string, Json>).property}\`.`);
+      tail.push(`Bound to \`${asText((first as Record<string, Json>).property)}\`.`);
   }
   if (def.type === 'repeater' && def.fields && typeof def.fields === 'object') {
     const fields = Object.values(def.fields as Record<string, Json>)
       .map((f) =>
-        f && typeof f === 'object' && !Array.isArray(f) ? (f as Record<string, Json>).label : null,
+        f && typeof f === 'object' && !Array.isArray(f)
+          ? asText((f as Record<string, Json>).label)
+          : null,
       )
       .filter(Boolean);
     if (fields.length) tail.push(`Fields: ${fields.join(', ')}.`);

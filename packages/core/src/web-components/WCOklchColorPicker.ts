@@ -52,7 +52,7 @@ export class WCOklchColorPicker extends BaseElement {
         border-radius: var(--_radius);
       }
 
-      :host([mode="wheel"]) .canvas-area {
+      :host([mode='wheel']) .canvas-area {
         border-radius: 50%;
       }
 
@@ -64,7 +64,7 @@ export class WCOklchColorPicker extends BaseElement {
         cursor: crosshair;
       }
 
-      :host([mode="wheel"]) canvas {
+      :host([mode='wheel']) canvas {
         border-radius: 50%;
       }
 
@@ -90,7 +90,7 @@ export class WCOklchColorPicker extends BaseElement {
         text-align: center;
       }
 
-      :host([mode="wheel"]) .axis-label {
+      :host([mode='wheel']) .axis-label {
         display: none;
       }
 
@@ -108,7 +108,8 @@ export class WCOklchColorPicker extends BaseElement {
           0 0 0 1px oklch(0 0 0 / 0.3),
           0 2px 4px oklch(0 0 0 / 0.3);
         pointer-events: none;
-        translate: calc(var(--_mx, 0) / 100 * var(--_picker-size)) calc(var(--_my, 0) / 100 * var(--_picker-size));
+        translate: calc(var(--_mx, 0) / 100 * var(--_picker-size))
+          calc(var(--_my, 0) / 100 * var(--_picker-size));
         transition: scale 0.1s ease;
       }
 
@@ -136,7 +137,7 @@ export class WCOklchColorPicker extends BaseElement {
         white-space: nowrap;
       }
 
-      input[type="range"] {
+      input[type='range'] {
         -webkit-appearance: none;
         appearance: none;
         flex: 1;
@@ -146,7 +147,7 @@ export class WCOklchColorPicker extends BaseElement {
         cursor: pointer;
       }
 
-      input[type="range"].dragging {
+      input[type='range'].dragging {
         background: repeating-linear-gradient(
           -45deg,
           oklch(0.9 0 0),
@@ -156,7 +157,7 @@ export class WCOklchColorPicker extends BaseElement {
         ) !important;
       }
 
-      input[type="range"]::-webkit-slider-thumb {
+      input[type='range']::-webkit-slider-thumb {
         -webkit-appearance: none;
         appearance: none;
         inline-size: calc(var(--_slider-height) + 4px);
@@ -167,7 +168,7 @@ export class WCOklchColorPicker extends BaseElement {
         box-shadow: 0 1px 3px oklch(0 0 0 / 0.3);
       }
 
-      input[type="range"]::-moz-range-thumb {
+      input[type='range']::-moz-range-thumb {
         inline-size: calc(var(--_slider-height) + 4px);
         block-size: calc(var(--_slider-height) + 4px);
         border-radius: 50%;
@@ -176,7 +177,7 @@ export class WCOklchColorPicker extends BaseElement {
         box-shadow: 0 1px 3px oklch(0 0 0 / 0.3);
       }
 
-      input[type="range"]:focus-visible {
+      input[type='range']:focus-visible {
         outline: 2px solid var(--_focus-color);
         outline-offset: 2px;
       }
@@ -300,7 +301,6 @@ export class WCOklchColorPicker extends BaseElement {
   private _useP3: boolean = false;
   private _convertFn: (l: number, c: number, h: number) => RgbResult = oklchToSrgb;
 
-
   constructor() {
     super();
     this._internals = this.attachInternals();
@@ -353,7 +353,9 @@ export class WCOklchColorPicker extends BaseElement {
     canvas.height = this._canvasH;
 
     // Try P3 canvas context
-    let ctx = canvas.getContext('2d', { colorSpace: 'display-p3' } as any) as CanvasRenderingContext2D | null;
+    let ctx = canvas.getContext('2d', {
+      colorSpace: 'display-p3',
+    } as any) as CanvasRenderingContext2D | null;
     if (ctx) {
       this._useP3 = true;
       this._convertFn = oklchToP3;
@@ -449,9 +451,9 @@ export class WCOklchColorPicker extends BaseElement {
     }
 
     for (const idx of borderPixels) {
-      data[idx] = Math.round(data[idx] * 0.35);
-      data[idx + 1] = Math.round(data[idx + 1] * 0.35);
-      data[idx + 2] = Math.round(data[idx + 2] * 0.35);
+      data[idx] = Math.round((data[idx] ?? 0) * 0.35);
+      data[idx + 1] = Math.round((data[idx + 1] ?? 0) * 0.35);
+      data[idx + 2] = Math.round((data[idx + 2] ?? 0) * 0.35);
     }
   }
 
@@ -692,7 +694,7 @@ export class WCOklchColorPicker extends BaseElement {
 
     switch (e.key) {
       case 'ArrowLeft':
-        this.hue = ((this.hue - hueStep) % 360 + 360) % 360;
+        this.hue = (((this.hue - hueStep) % 360) + 360) % 360;
         handled = true;
         break;
       case 'ArrowRight':
@@ -745,9 +747,7 @@ export class WCOklchColorPicker extends BaseElement {
   // -- Events --
 
   private _dispatchInputEvent() {
-    this.dispatchEvent(
-      new InputEvent('input', { bubbles: true, composed: true }),
-    );
+    this.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true }));
   }
 
   private _dispatchChangeEvent() {
@@ -775,10 +775,7 @@ export class WCOklchColorPicker extends BaseElement {
 
     return html`
       <div class="canvas-area" part="canvas-area">
-        <canvas
-          part="canvas"
-          @pointerdown=${this._onCanvasPointerDown}
-        ></canvas>
+        <canvas part="canvas" @pointerdown=${this._onCanvasPointerDown}></canvas>
         <div
           class="marker ${this._isDragging ? 'marker--dragging' : ''}"
           part="marker"
@@ -805,7 +802,9 @@ export class WCOklchColorPicker extends BaseElement {
           step="0.01"
           class="${this._isDragging ? 'dragging' : ''}"
           .value=${String(this.lightness)}
-          style="${this._isDragging ? '' : `background: linear-gradient(to right, oklch(0 ${this.chroma} ${this.hue}), oklch(0.5 ${this.chroma} ${this.hue}), oklch(1 ${this.chroma} ${this.hue}))`}"
+          style="${this._isDragging
+            ? ''
+            : `background: linear-gradient(to right, oklch(0 ${this.chroma} ${this.hue}), oklch(0.5 ${this.chroma} ${this.hue}), oklch(1 ${this.chroma} ${this.hue}))`}"
           @input=${this._onLightnessInput}
           @change=${this._onLightnessChange}
           ?disabled=${this.disabled}
@@ -823,8 +822,24 @@ export class WCOklchColorPicker extends BaseElement {
           ?disabled=${this.disabled}
         >
           ${this.mode === 'rectangle'
-            ? html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/></svg>`
-            : html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1"/></svg>`}
+            ? html`<svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="9" />
+              </svg>`
+            : html`<svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="1" />
+              </svg>`}
         </button>
 
         <div

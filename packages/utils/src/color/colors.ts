@@ -5,7 +5,6 @@ import {
   P3 as P3_Space,
   ColorSpace,
   to,
-  inGamut as checkInGamut,
   toGamutCSS,
   clone,
   serialize,

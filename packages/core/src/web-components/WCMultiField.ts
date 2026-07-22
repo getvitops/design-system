@@ -10,7 +10,7 @@ interface FieldEntry {
 
 // Declaration merging for TypeScript - properties initialized in init()
 export interface WCMultiField {
-  name?: string;
+  name?: string | undefined;
   type: string;
   placeholder: string;
   protectDefaults: boolean;

@@ -19,11 +19,7 @@ function buildSvg(body: string, width = 24, height = 24): string {
 }
 
 /** Fetch SVGs for a batch of icons (max ~50 per call). */
-async function fetchSvgBatch(
-  prefix: string,
-  names: string[],
-  signal?: AbortSignal,
-): Promise<void> {
+async function fetchSvgBatch(prefix: string, names: string[], signal?: AbortSignal): Promise<void> {
   // Filter out already-cached icons
   const needed = names.filter((n) => !svgCache.has(`${prefix}:${n}`));
   if (needed.length === 0) return;
@@ -32,7 +28,7 @@ async function fetchSvgBatch(
   for (let i = 0; i < needed.length; i += 50) {
     const batch = needed.slice(i, i + 50);
     const url = `${API_BASE}/${prefix}.json?icons=${batch.join(',')}`;
-    const res = await fetch(url, { signal });
+    const res = await fetch(url, { signal: signal ?? null });
     if (!res.ok) continue;
     const data = await res.json();
     const defaultWidth = data.width ?? 24;
@@ -55,11 +51,11 @@ async function searchIconify(
 ): Promise<Array<{ prefix: string; name: string }>> {
   const params = new URLSearchParams({ query, limit: String(limit) });
   if (prefixes.length === 1) {
-    params.set('prefix', prefixes[0]);
+    params.set('prefix', prefixes[0] as string);
   } else if (prefixes.length > 1) {
     params.set('prefixes', prefixes.join(','));
   }
-  const res = await fetch(`${API_BASE}/search?${params}`, { signal });
+  const res = await fetch(`${API_BASE}/search?${params}`, { signal: signal ?? null });
   if (!res.ok) return [];
   const data = await res.json();
   return (data.icons ?? []).map((fq: string) => {
@@ -162,7 +158,9 @@ export class WCIconPicker extends BaseElement {
         font: inherit;
         font-size: 0.75rem;
         cursor: pointer;
-        transition: background-color 0.15s ease, color 0.15s ease;
+        transition:
+          background-color 0.15s ease,
+          color 0.15s ease;
       }
 
       .picker__mode-btn:not(:last-child) {
@@ -173,7 +171,7 @@ export class WCIconPicker extends BaseElement {
         background: oklch(0.5 0 0 / 0.08);
       }
 
-      .picker__mode-btn[aria-pressed="true"] {
+      .picker__mode-btn[aria-pressed='true'] {
         background: oklch(0.25 0.02 260);
         color: oklch(0.95 0 0);
       }
@@ -208,7 +206,7 @@ export class WCIconPicker extends BaseElement {
         background: oklch(0.5 0 0 / 0.08);
       }
 
-      .picker__set-tab[aria-selected="true"] {
+      .picker__set-tab[aria-selected='true'] {
         background: oklch(0.25 0.02 260);
         color: oklch(0.95 0 0);
         border-color: oklch(0.25 0.02 260);
@@ -240,7 +238,9 @@ export class WCIconPicker extends BaseElement {
         border: 1px solid transparent;
         border-radius: var(--_radius);
         cursor: pointer;
-        transition: border-color 0.1s ease, background-color 0.1s ease;
+        transition:
+          border-color 0.1s ease,
+          background-color 0.1s ease;
         inline-size: var(--_cell-size);
         block-size: var(--_cell-size);
         contain: layout style;
@@ -256,7 +256,7 @@ export class WCIconPicker extends BaseElement {
         outline-offset: -1px;
       }
 
-      .picker__cell[aria-selected="true"] {
+      .picker__cell[aria-selected='true'] {
         border-color: var(--_focus-color);
         background: oklch(0.6 0.2 250 / 0.1);
       }
@@ -473,8 +473,7 @@ export class WCIconPicker extends BaseElement {
     const entries = Object.entries(map);
     const filtered = lowerQuery
       ? entries.filter(
-          ([semantic, actual]) =>
-            semantic.includes(lowerQuery) || actual.includes(lowerQuery),
+          ([semantic, actual]) => semantic.includes(lowerQuery) || actual.includes(lowerQuery),
         )
       : entries;
 
@@ -646,8 +645,9 @@ export class WCIconPicker extends BaseElement {
     this.#focusIndex = idx;
     cells[idx]?.focus();
     // Dispatch input event for preview during navigation
-    if (idx >= 0 && idx < this._results.length) {
-      this.value = this._results[idx].fqn;
+    const result = this._results[idx];
+    if (result) {
+      this.value = result.fqn;
       this.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
     }
   }
@@ -660,10 +660,7 @@ export class WCIconPicker extends BaseElement {
 
     return html`
       <!-- Preview -->
-      <div
-        class="picker__preview ${this.value ? '' : 'picker__preview--empty'}"
-        part="preview"
-      >
+      <div class="picker__preview ${this.value ? '' : 'picker__preview--empty'}" part="preview">
         ${this.value
           ? html`
               <span class="picker__preview-icon" part="preview-icon"
@@ -682,18 +679,11 @@ export class WCIconPicker extends BaseElement {
           type="search"
           role="searchbox"
           aria-label="Search icons"
-          placeholder=${this.mode === 'semantic'
-            ? 'Filter semantic names...'
-            : 'Search icons...'}
+          placeholder=${this.mode === 'semantic' ? 'Filter semantic names...' : 'Search icons...'}
           .value=${this._query}
           @input=${this.#onSearchInput}
         />
-        <div
-          class="picker__mode-toggle"
-          part="mode-toggle"
-          role="group"
-          aria-label="Display mode"
-        >
+        <div class="picker__mode-toggle" part="mode-toggle" role="group" aria-label="Display mode">
           <button
             class="picker__mode-btn"
             type="button"
@@ -716,12 +706,7 @@ export class WCIconPicker extends BaseElement {
       <!-- Set tabs -->
       ${showSetTabs
         ? html`
-            <div
-              class="picker__set-tabs"
-              part="set-tabs"
-              role="tablist"
-              aria-label="Icon sets"
-            >
+            <div class="picker__set-tabs" part="set-tabs" role="tablist" aria-label="Icon sets">
               <button
                 class="picker__set-tab"
                 role="tab"
@@ -781,12 +766,8 @@ export class WCIconPicker extends BaseElement {
                       this.#focusIndex = i;
                     }}
                   >
-                    <span class="picker__cell-icon" part="cell-icon"
-                      >${this.#renderSvg(svg)}</span
-                    >
-                    <span class="picker__cell-label" part="cell-label"
-                      >${result.label}</span
-                    >
+                    <span class="picker__cell-icon" part="cell-icon">${this.#renderSvg(svg)}</span>
+                    <span class="picker__cell-label" part="cell-label">${result.label}</span>
                   </div>
                 `;
               })}

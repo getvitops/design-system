@@ -14,8 +14,10 @@ export function partAttrs(
     if (!legacy && !fromParts) return {};
     const { class: lc, ...lr } = legacy ?? {};
     const { class: pc, ...pr } = fromParts ?? {};
+    // Flatten class:list-style values and keep only real class strings.
+    const classes = [lc, pc].flat().filter((c): c is string => typeof c === 'string' && c !== '');
     return {
-      ...(lc || pc ? { class: [lc, pc].filter(Boolean) } : {}),
+      ...(classes.length ? { class: classes } : {}),
       ...lr,
       ...pr,
     };
