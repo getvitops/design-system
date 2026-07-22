@@ -9,6 +9,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DesignSystem } from './schema.ts';
+import { expandPalette } from './tokens.ts';
 
 const DS_PATH = 'design-system.json';
 
@@ -531,12 +532,9 @@ function renderElementsDoc(elementsDir: string): string {
 const code = (xs: string[]) => xs.map((x) => `\`${x}\``).join(', ');
 
 function renderCssClasses(ds: DesignSystem): string {
-  const palette = ds.colors.palette as Record<string, Record<string, string>>;
-  const ramps = Object.keys(palette);
-  const firstRamp = ramps[0];
-  const steps = firstRamp ? Object.keys(palette[firstRamp] ?? {}) : [];
-  const nonBase = steps.filter((s) => s !== 'base');
-  const roles = Object.keys(ds.colors.schemes.default?.semantic ?? {});
+  const expanded = expandPalette(ds.colors.palette as Record<string, unknown>);
+  const ramps = Object.keys(expanded);
+  const roles = Object.keys(ds.colors.roles ?? {});
   const utils = ds.colors.utilities ?? ['bg', 'text', 'border'];
   const typeRoles = Object.keys(ds.typography?.roles ?? {});
   const shadows = Object.keys(ds.shadows ?? {});
@@ -625,13 +623,32 @@ Families: ${code(families)} (\`--font-*\`).
 
 ## Colour
 
-Rule: **\`<util>-<color>\`** — util ∈ ${code(utils)}; \`<color>\` is either a **named ramp**
-step or a **semantic role**.
+**Functional tokens are the primary vocabulary** — classes name the *job*, not the tone, and
+every one remaps automatically under \`:root[data-brx-theme="dark"]\` (background/text ends
+swap; \`solid\` fills stay mode-stable with a computed \`on-\` foreground). Prefer these over
+raw steps. Rules (role ∈ ${code(roles)}):
 
-- Named ramps: ${code(ramps)}. Steps: base (no suffix) + ${code(nonBase)} — e.g. \`bg-pine\`
-  (base), \`text-navy-xl\`, \`border-grey-d\`.
-- Semantic roles: ${code(roles)} — e.g. \`bg-brand-primary\`, \`text-danger\`. Roles remap
-  automatically under \`:root[data-brx-theme="dark"]\`.
+- **Surfaces** — \`bg-<role>\` (the role's background wash; for \`surface\` this is the
+  card/panel plane), \`bg-<role>-muted\` (subtle / sunken), \`bg-surface-bold\` (raised plane).
+- **Solid fills** — \`bg-<role>-solid\`, \`bg-<role>-solid-bold\` (hover / emphasis), paired
+  with \`text-on-<role>\` for guaranteed-contrast foreground.
+- **Content** — \`text-<role>\` (primary, contrast-guaranteed in both appearances),
+  \`text-<role>-muted\` (secondary), \`text-<role>-x-muted\` (tertiary / disabled).
+- **Borders** — \`border-<role>\`, \`border-<role>-bold\`.
+- **Translucency** — \`glass\` (translucent surface + backdrop blur); \`--overlay\` scrim var.
+- **Emphasis stops** (appearance-relative vars for power use):
+  \`--color-<role>-{x-muted,muted,bold,x-bold}\` — \`muted\` recedes toward the background
+  extreme, \`bold\` advances toward the foreground, in *either* appearance.
+
+Everyday pairings: page \`bg-neutral\` + \`text-neutral\`; cards \`bg-surface\`; captions
+\`text-neutral-muted\`; buttons \`bg-ui-primary-solid text-on-ui-primary\`; status text
+\`text-danger\` / \`text-success\` / \`text-warning\` / \`text-info\`.
+
+**Raw scale** (secondary / fine control) — rule \`<util>-<hue>-<step>\` with util ∈
+${code(utils)}: every hue is an 11-step OKLCH scale generated from its seed (or fixed brand
+tones), numeric steps \`50\` … \`950\` (tinted near-white → tinted near-black) — e.g.
+\`bg-${ramps[0] ?? 'brand'}-100\`, \`text-${ramps[0] ?? 'brand'}-800\`. Hues: ${code(ramps)}.
+The **bare** role name (\`bg-<role>\`, \`text-<role>\`) is always the functional token.
 
 ## Shadows
 

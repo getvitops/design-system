@@ -11,9 +11,9 @@ const denied = Astro.url.searchParams.get('denied');
 const fmt = (n: number) => n.toLocaleString('en-US');
 const totalVisitors = summary.visitors.human + summary.visitors.ai + summary.visitors.bot || 1;
 const mix = [
-  { label: 'Human', v: summary.visitors.human, cls: 'bg-brand-primary' },
-  { label: 'AI', v: summary.visitors.ai, cls: 'bg-info' },
-  { label: 'Bot', v: summary.visitors.bot, cls: 'bg-neutral' },
+  { label: 'Human', v: summary.visitors.human, cls: 'bg-ui-primary-solid' },
+  { label: 'AI', v: summary.visitors.ai, cls: 'bg-info-solid' },
+  { label: 'Bot', v: summary.visitors.bot, cls: 'bg-neutral-solid' },
 ];
 
 // Per-day visits, summed across providers/sites, for a small bar chart.
@@ -25,8 +25,8 @@ const maxVisits = Math.max(1, ...days.map(([, v]) => v));
 
 <Base title="Overview">
   {denied && (
-    <div class="card border-warning bg-warning-xl text-neutral-xxd">
-      Your current plan doesn’t include <strong>{denied}</strong>. <a href="/settings" class="text-brand-primary-d underline">See plans</a>.
+    <div class="card border-warning bg-warning text-neutral">
+      Your current plan doesn’t include <strong>{denied}</strong>. <a href="/settings" class="text-brand-primary underline">See plans</a>.
     </div>
   )}
 
@@ -50,7 +50,7 @@ const maxVisits = Math.max(1, ...days.map(([, v]) => v));
         <div class={m.cls} style={`width:${(m.v / totalVisitors) * 100}%`} title={`${m.label}: ${fmt(m.v)}`}></div>
       ))}
     </div>
-    <div class="mt-2 flex gap-4 font-caption text-neutral">
+    <div class="mt-2 flex gap-4 font-caption text-neutral-muted">
       {mix.map((m) => <span>{m.label}: {fmt(m.v)} ({Math.round((m.v / totalVisitors) * 100)}%)</span>)}
     </div>
   </section>
@@ -59,7 +59,7 @@ const maxVisits = Math.max(1, ...days.map(([, v]) => v));
     <h2 class="font-heading text-lg">Visits — last {days.length} days</h2>
     <div class="mt-3 flex h-32 items-end gap-1">
       {days.map(([date, v]) => (
-        <div class="group flex-1 rounded-t bg-brand-primary-l hover:bg-brand-primary" style={`height:${(v / maxVisits) * 100}%`} title={`${date}: ${fmt(v)} visits`}></div>
+        <div class="group flex-1 rounded-t bg-ui-primary-solid hover:bg-ui-primary-solid-bold" style={`height:${(v / maxVisits) * 100}%`} title={`${date}: ${fmt(v)} visits`}></div>
       ))}
     </div>
   </section>

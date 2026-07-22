@@ -35,44 +35,27 @@ export function defaultConfig(): DesignSystem {
   return {
     $schema: SCHEMA_URL,
     colors: {
+      // Each hue is generated as an 11-step OKLCH scale from its seed.
       palette: {
-        brand: {
-          xxd: '#0a1f17',
-          xd: '#123a2b',
-          d: '#1f6b4f',
-          base: '#2e9b73',
-          l: '#5cbf9a',
-          xl: '#93dcc0',
-          xxl: '#c8f0e2',
-        },
-        ink: {
-          xxd: '#0b0e13',
-          xd: '#151a22',
-          d: '#2a323f',
-          base: '#3f4a5c',
-          l: '#6b7688',
-          xl: '#a3abb8',
-          xxl: '#d7dbe2',
-        },
+        brand: { seed: '#2e9b73' },
+        ink: { seed: '#3f4a5c' },
+        sky: { seed: '#2f7bc0' },
+        sun: { seed: '#d08a1f' },
+        rose: { seed: '#c74a42' },
+      },
+      // role → hue. Functional tokens (bg/text/solid/on-solid/…) derive from
+      // the hue's scale; dark mode flips automatically.
+      roles: {
+        neutral: 'ink',
+        surface: 'ink',
+        'ui-primary': 'brand',
+        'brand-primary': 'brand',
+        info: 'sky',
+        success: 'brand',
+        warning: 'sun',
+        danger: 'rose',
       },
       utilities: ['bg', 'text', 'border'],
-      schemes: {
-        default: {
-          appearance: 'light',
-          semantic: {
-            'brand-primary': 'brand',
-            surface: 'ink',
-            neutral: 'ink',
-          },
-        },
-        alternate: {
-          appearance: 'dark',
-          semantic: {
-            surface: { invert: true },
-            neutral: { invert: true },
-          },
-        },
-      },
     },
     shadows: {
       sm: '0 1px 2px rgb(0 0 0 / 0.08)',

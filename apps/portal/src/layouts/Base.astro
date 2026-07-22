@@ -1,5 +1,5 @@
 ---
-import '../styles/app.css';
+import Head from '@getvitops/astro/Head.astro';
 import { hasCapability, type Capability } from '../lib/capabilities.ts';
 
 interface Props {
@@ -20,29 +20,30 @@ const NAV: { href: string; label: string; cap?: Capability }[] = [
 const nav = NAV.filter((i) => !i.cap || hasCapability(plan, i.cap));
 ---
 
-<html lang="en" data-theme="light">
+<html lang="en" data-brx-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
-    {/* Pre-paint theme (no FOUC). Design-system dark mode keys on data-theme. */}
+    <Head />
+    {/* Pre-paint theme (no FOUC). Design-system dark mode keys on data-brx-theme. */}
     <script is:inline>
       (() => {
         const t = localStorage.getItem('theme');
         const dark = t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-brx-theme', dark ? 'dark' : 'light');
       })();
     </script>
   </head>
-  <body class="bg-surface-xl text-neutral-xxd min-h-screen">
-    <header class="bg-surface border-b border-neutral-xl">
+  <body class="bg-neutral text-neutral min-h-screen">
+    <header class="bg-surface border-b border-neutral">
       <div class="flex items-center justify-between gap-4 px-6 py-3">
-        <a href="/dashboard" class="font-display text-brand-primary-d text-xl">Vitops<span class="text-neutral">·</span>Portal</a>
+        <a href="/dashboard" class="font-display text-brand-primary text-xl">Vitops<span class="text-neutral-muted">·</span>Portal</a>
         <div class="flex items-center gap-4">
-          <span class="font-caption text-neutral rounded-full border border-neutral-xl px-3 py-1 uppercase">{plan}</span>
-          <button id="theme-toggle" class="rounded border border-neutral-xl px-3 py-1 font-caption" aria-label="Toggle theme">◐</button>
-          {user && <span class="font-caption text-neutral hidden sm:inline">{user.email}</span>}
-          <button id="signout" class="font-caption text-danger-d">Sign out</button>
+          <span class="font-caption text-neutral-muted rounded-full border border-neutral px-3 py-1 uppercase">{plan}</span>
+          <button id="theme-toggle" class="rounded border border-neutral px-3 py-1 font-caption" aria-label="Toggle theme">◐</button>
+          {user && <span class="font-caption text-neutral-muted hidden sm:inline">{user.email}</span>}
+          <button id="signout" class="font-caption text-danger">Sign out</button>
         </div>
       </div>
     </header>
@@ -56,8 +57,8 @@ const nav = NAV.filter((i) => !i.cap || hasCapability(plan, i.cap));
               class:list={[
                 'block rounded px-3 py-2 font-body',
                 path === i.href || path.startsWith(i.href + '/')
-                  ? 'bg-brand-primary text-surface-xxl'
-                  : 'text-neutral-xxd hover:bg-surface-l',
+                  ? 'bg-ui-primary-solid text-on-ui-primary'
+                  : 'text-neutral hover:bg-surface-muted',
               ]}
             >
               {i.label}
@@ -75,8 +76,8 @@ const nav = NAV.filter((i) => !i.cap || hasCapability(plan, i.cap));
       import { authClient } from '../lib/auth-client.ts';
       document.getElementById('theme-toggle')?.addEventListener('click', () => {
         const el = document.documentElement;
-        const next = el.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        el.setAttribute('data-theme', next);
+        const next = el.getAttribute('data-brx-theme') === 'dark' ? 'light' : 'dark';
+        el.setAttribute('data-brx-theme', next);
         localStorage.setItem('theme', next);
       });
       document.getElementById('signout')?.addEventListener('click', async () => {

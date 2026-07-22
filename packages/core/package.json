@@ -19,6 +19,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@getvitops/utils": "workspace:*",
     "@lit-labs/signals": "catalog:",
     "@oddbird/css-anchor-positioning": "catalog:",
     "@oddbird/popover-polyfill": "catalog:",

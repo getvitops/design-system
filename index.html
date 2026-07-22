@@ -34,8 +34,8 @@
         font-family: var(--font-sans);
         font-size: var(--text-m);
         line-height: 1.55;
-        background: var(--color-surface-xxl);
-        color: var(--color-surface-xxd);
+        background: var(--surface-bg);
+        color: var(--surface-text);
         -webkit-font-smoothing: antialiased;
         transition:
           background-color 0.3s ease,
@@ -55,30 +55,30 @@
       :not(pre) > code {
         font-family: var(--font-mono);
         font-size: 0.85em;
-        background: var(--color-neutral-xl);
-        color: var(--color-neutral-xxd);
+        background: var(--neutral-border);
+        color: var(--neutral-text);
         padding: 0.1em 0.4em;
         border-radius: var(--br-default);
         white-space: nowrap;
       }
       hr {
         border: 0;
-        border-top: 1px solid var(--color-surface-l);
+        border-top: 1px solid var(--color-surface-muted);
         opacity: 0.5;
         margin-block: 2rem;
       }
       .section-no {
-        color: var(--color-brand-primary);
+        color: var(--brand-primary-solid);
         margin-inline-end: 0.5em;
       }
       .card {
-        border: 1px solid var(--color-surface-l);
+        border: 1px solid var(--color-surface-muted);
         box-shadow: var(--shadow-md);
       }
       .callout {
-        border-inline-start: 3px solid var(--color-brand-primary);
+        border-inline-start: 3px solid var(--brand-primary-solid);
         padding: 0.75rem 1rem;
-        background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+        background: color-mix(in srgb, var(--brand-primary-solid) 8%, transparent);
         border-radius: var(--br-default);
       }
 
@@ -93,9 +93,9 @@
         gap: 1rem;
         justify-content: space-between;
         padding: 0.85rem clamp(1rem, 4cqi, 2rem);
-        background: color-mix(in srgb, var(--color-surface-xxl) 88%, transparent);
+        background: color-mix(in srgb, var(--surface-bg) 88%, transparent);
         backdrop-filter: blur(8px);
-        border-bottom: 1px solid var(--color-surface-l);
+        border-bottom: 1px solid var(--color-surface-muted);
       }
       .topbar .brand {
         font-weight: 700;
@@ -115,7 +115,7 @@
         padding: 2rem clamp(1rem, 4cqi, 2rem) 5rem;
       }
       .toc-sidebar nav a .n {
-        color: var(--color-brand-primary);
+        color: var(--brand-primary-solid);
         display: inline-block;
         width: 1.9ch;
         font-variant-numeric: tabular-nums;
@@ -128,13 +128,13 @@
       }
       .drawer-menu .drawer-nav a {
         text-decoration: none;
-        color: var(--color-surface-xxd);
+        color: var(--surface-text);
         padding: 0.4rem 0.6rem;
         border-radius: var(--br-default);
         font-size: var(--text-s);
       }
       .drawer-menu .drawer-nav a .n {
-        color: var(--color-brand-primary);
+        color: var(--brand-primary-solid);
         margin-inline-end: 0.5ch;
       }
 
@@ -147,7 +147,7 @@
         grid-template-columns: minmax(11rem, 18rem) 1fr;
         gap: 0.4rem 2rem;
         padding-block: 0.7rem;
-        border-top: 1px solid var(--color-surface-l);
+        border-top: 1px solid var(--color-surface-muted);
         align-items: baseline;
       }
       @media (max-width: 44rem) {
@@ -164,11 +164,11 @@
       }
       .api-sig code {
         font-size: 0.9em;
-        background: var(--color-surface-l);
+        background: var(--color-surface-muted);
         white-space: normal;
       }
       .api-desc {
-        color: var(--color-surface-xd);
+        color: var(--color-surface-bold);
       }
       .api-desc code {
         white-space: normal;
@@ -180,7 +180,7 @@
         opacity: 0.9;
       }
       .api-desc .sub strong {
-        color: var(--color-surface-xxd);
+        color: var(--surface-text);
         font-weight: 600;
       }
 
@@ -198,24 +198,24 @@
       }
       .t-resp {
         background: color-mix(in srgb, var(--color-info) 18%, transparent);
-        color: var(--color-info-d);
+        color: var(--color-info-bold);
       }
       .t-state {
         background: color-mix(in srgb, var(--color-warning) 22%, transparent);
-        color: var(--color-warning-d);
+        color: var(--color-warning-bold);
       }
       .t-tw {
         background: color-mix(in srgb, var(--color-cobalt) 20%, transparent);
-        color: var(--color-cobalt-xxd);
+        color: var(--color-cobalt-950);
       }
       [data-brx-theme='dark'] .t-resp {
-        color: var(--color-info-l);
+        color: var(--color-info-muted);
       }
       [data-brx-theme='dark'] .t-state {
-        color: var(--color-warning-l);
+        color: var(--color-warning-muted);
       }
       [data-brx-theme='dark'] .t-tw {
-        color: var(--color-cobalt-l);
+        color: var(--color-cobalt-400);
       }
 
       /* ── Demo helpers (compact, gridded) ── */
@@ -228,25 +228,25 @@
         gap: 0.6rem;
       }
       .demo-cell {
-        border: 1px solid var(--color-surface-l);
+        border: 1px solid var(--color-surface-muted);
         border-radius: var(--br-default);
         padding: 0.6rem;
         display: grid;
         gap: 0.45rem;
         align-content: start;
-        background: var(--color-surface-xxl);
+        background: var(--surface-bg);
       }
       .demo-cell > code {
         font-size: 0.72rem;
         justify-self: start;
       }
       .demo-frame {
-        border: 1px dashed var(--color-surface-l);
+        border: 1px dashed var(--color-surface-muted);
         border-radius: var(--br-default);
         padding: 0.75rem;
       }
       .box {
-        background: var(--color-brand-primary);
+        background: var(--brand-primary-solid);
         color: #fff;
         border-radius: calc(var(--br-default) / 1.5);
         min-height: 1.6rem;
@@ -261,7 +261,7 @@
       /* Like .box, but sets NO `display` — so responsive display utilities
          (.hidden / .md-hidden / .md-inline-block) can win the cascade. */
       .viz-chip {
-        background: var(--color-brand-primary);
+        background: var(--brand-primary-solid);
         color: #fff;
         border-radius: calc(var(--br-default) / 1.5);
         text-align: center;
@@ -273,13 +273,13 @@
       }
       .box.b3 {
         background: var(--color-amber);
-        color: var(--color-surface-xxd);
+        color: var(--surface-text);
       }
       .mini-flex {
         display: flex;
         gap: 0.3rem;
         min-height: 4rem;
-        background: var(--color-surface-l);
+        background: var(--color-surface-muted);
         border-radius: calc(var(--br-default) / 1.5);
         padding: 0.3rem;
       }
@@ -323,12 +323,12 @@
         gap: 0.5rem;
         padding: 1rem;
         border-radius: var(--br-default);
-        background: var(--color-surface-l);
+        background: var(--color-surface-muted);
       }
       .gutter-label {
         text-align: center;
         font-size: var(--text-xs);
-        color: var(--color-surface-xxl);
+        color: var(--surface-bg);
         opacity: 0.8;
       }
       .band {
@@ -355,19 +355,19 @@
          utilities, which would set grid-column and knock them out of the grid. */
       .band-fullbleed {
         width: 100%;
-        background: var(--color-grey-d);
+        background: var(--color-grey-600);
       }
       .band-spotlight {
         width: 84%;
-        background: var(--color-cobalt-d);
+        background: var(--color-cobalt-600);
       }
       .band-breakout {
         width: 64%;
-        background: var(--color-pine-d);
+        background: var(--color-pine-600);
       }
       .band-measure {
         width: 46%;
-        background: var(--color-brand-primary);
+        background: var(--brand-primary-solid);
       }
 
       /* ── Colour ramps + semantic roles ── */
@@ -412,7 +412,7 @@
         gap: 1.5rem;
         align-items: baseline;
         padding-block: 0.7rem;
-        border-top: 1px solid var(--color-surface-l);
+        border-top: 1px solid var(--color-surface-muted);
       }
       .type-row .label {
         font-family: var(--font-mono);
@@ -433,7 +433,7 @@
         padding: 1rem;
         border: 0;
         border-radius: var(--br-default);
-        background: var(--color-brand-primary);
+        background: var(--brand-primary-solid);
         color: #fff;
         text-align: center;
         cursor: default;
@@ -451,8 +451,8 @@
       .float-cell {
         padding: 1rem;
         border-radius: var(--br-default);
-        background: var(--color-surface-l);
-        color: var(--color-surface-xxl);
+        background: var(--color-surface-muted);
+        color: var(--surface-bg);
         display: grid;
         gap: 0.5rem;
       }
@@ -468,14 +468,14 @@
         width: 2.5rem;
         height: 2.5rem;
         border-radius: 0.5rem;
-        background: var(--color-brand-primary);
+        background: var(--brand-primary-solid);
       }
       .anim-cell .stage-tag {
         justify-self: start;
         font-size: var(--text-xs);
         padding: 0.1em 0.6em;
         border-radius: 999px;
-        background: var(--color-cobalt-d);
+        background: var(--color-cobalt-600);
         color: #fff;
       }
       .anim-cell .hint {
@@ -840,41 +840,59 @@
           <section class="rhythm measure" id="color">
             <h2><span class="section-no">02</span>Color &amp; shadow</h2>
             <p>
-              Colour utilities exist for both <b>named ramps</b> and <b>semantic roles</b>. Every
-              ramp and role carries a 7-step scale; the base step has no suffix. Only
-              <code>bg</code>, <code>text</code>, and <code>border</code> families are emitted (per
-              <code>design-system.json</code>).
+              Colour is consumed through <b>functional tokens</b> — classes that name the
+              <em>job</em> (<code>bg-neutral</code>, <code>text-neutral-muted</code>,
+              <code>bg-ui-primary-solid</code> + <code>text-on-ui-primary</code>) and flip
+              automatically with dark mode. Underneath, each hue is an 11-step OKLCH scale generated
+              from a <b>seed</b> (tinted near-white → tinted near-black), with raw steps available
+              for fine control. Only <code>bg</code>, <code>text</code>, and
+              <code>border</code> families are emitted (per <code>design-system.json</code>).
             </p>
 
             <div class="card rhythm">
               <p class="font-caption">
-                <strong>Steps</strong> (suffix): <code>-xxd</code> <code>-xd</code> <code>-d</code>
-                <b>(base — no suffix)</b> <code>-l</code> <code>-xl</code> <code>-xxl</code> —
-                darkest → lightest.
+                <strong>Functional tokens</strong> (per role): <code>bg</code> <code>bg-muted</code>
+                <code>solid</code> <code>solid-bold</code> <code>on-solid</code> <code>text</code>
+                <code>text-muted</code> <code>text-x-muted</code> <code>border</code>
+                <code>border-bold</code> — plus <code>glass</code> / <code>--overlay</code> on
+                <code>surface</code>. Contrast is verified at build (text ≥ Lc 75, muted ≥ Lc 60,
+                both appearances).
               </p>
               <p class="font-caption">
-                <strong>Named ramps:</strong> <code>pine</code> <code>navy</code> <code>amber</code>
-                <code>rust</code> <code>cobalt</code> <code>grey</code>
+                <strong>Roles:</strong> <code>neutral</code> (page bg / text / borders)
+                <code>surface</code> (cards / panels / elevation) <code>ui-primary</code>
+                <code>ui-secondary</code> <code>ui-accent</code> <code>brand-primary</code>
+                <code>brand-secondary</code> <code>info</code> <code>success</code>
+                <code>warning</code> <code>danger</code>
               </p>
               <p class="font-caption">
-                <strong>Semantic roles:</strong> <code>brand-primary</code> <code>surface</code>
-                <code>neutral</code> <code>success</code> <code>info</code> <code>warning</code>
-                <code>danger</code>
+                <strong>Seeded hues:</strong> <code>pine</code> <code>navy</code> <code>amber</code>
+                <code>rust</code> <code>cobalt</code> <code>grey</code> — numeric steps
+                <code>50…950</code> (e.g. <code>bg-pine-100</code>). Emphasis stops
+                <code>--color-&lt;role&gt;-{x-muted,muted,bold,x-bold}</code> are
+                appearance-relative (muted recedes, bold advances — in either mode).
               </p>
             </div>
 
             <div class="demo">
               <p class="swatch-note">
-                Named ramps — each swatch is a real <code>.bg-*</code> class:
+                Seeded hues — each swatch is a real numeric-step <code>.bg-*</code> class (<code
+                  >50</code
+                >
+                tinted near-white → <code>950</code> tinted near-black):
               </p>
               <div id="ramps"></div>
               <p class="swatch-note" style="margin-top: 1rem">
-                Semantic roles (flip with dark mode):
+                Roles as <b>solid + on-solid</b> pairs — <code>bg-&lt;role&gt;-solid</code> with
+                <code>text-on-&lt;role&gt;</code> (contrast computed at build; flips with dark
+                mode):
               </p>
               <div class="sem-grid" id="semantic"></div>
               <p class="cluster cluster-start" style="gap: 0.75rem; margin-top: 1rem">
+                <span class="text-neutral">.text-neutral</span>
+                <span class="text-neutral-muted">.text-neutral-muted</span>
+                <span class="text-neutral-x-muted">.text-neutral-x-muted</span>
                 <span class="text-danger">.text-danger</span>
-                <span class="text-info">.text-info</span>
                 <span class="text-success">.text-success</span>
                 <span
                   class="bordered border-warning"
@@ -887,29 +905,47 @@
             <dl class="api-list">
               <div class="api-row">
                 <div class="api-sig">
-                  <code>.bg-{ramp|role}[-step]</code><span class="t t-tw">Tailwind</span>
+                  <code>.bg-{role}[-muted|-solid|-solid-bold]</code
+                  ><span class="t t-tw">Tailwind</span>
                 </div>
                 <div class="api-desc">
-                  Background colour. e.g. <code>.bg-surface</code>,
-                  <code>.bg-brand-primary-d</code>, <code>.bg-pine</code>,
-                  <code>.bg-amber-xxl</code>.
+                  Functional backgrounds. <code>.bg-neutral</code> (page),
+                  <code>.bg-surface</code> (card/panel plane),
+                  <code>.bg-surface-muted</code> (sunken), <code>.bg-ui-primary-solid</code> (fill),
+                  <code>.bg-warning</code> (status wash).
                 </div>
               </div>
               <div class="api-row">
                 <div class="api-sig">
-                  <code>.text-{ramp|role}[-step]</code><span class="t t-tw">Tailwind</span>
+                  <code>.text-{role}[-muted|-x-muted]</code> / <code>.text-on-{role}</code
+                  ><span class="t t-tw">Tailwind</span>
                 </div>
                 <div class="api-desc">
-                  Text colour. e.g. <code>.text-neutral-xd</code>, <code>.text-danger</code>,
-                  <code>.text-cobalt-l</code>.
+                  Functional text. <code>.text-neutral</code> (primary),
+                  <code>.text-neutral-muted</code> (secondary),
+                  <code>.text-neutral-x-muted</code> (disabled);
+                  <code>.text-on-ui-primary</code> pairs with the role's solid fill.
                 </div>
               </div>
               <div class="api-row">
                 <div class="api-sig">
-                  <code>.border-{ramp|role}[-step]</code><span class="t t-tw">Tailwind</span>
+                  <code>.border-{role}[-bold]</code> · <code>.glass</code
+                  ><span class="t t-tw">Tailwind</span>
                 </div>
                 <div class="api-desc">
-                  Border colour. e.g. <code>.border-surface-l</code>, <code>.border-warning</code>.
+                  Functional borders (<code>.border-neutral</code> dividers,
+                  <code>.border-neutral-bold</code> emphasis); <code>.glass</code> = translucent
+                  surface + backdrop blur.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.{bg|text|border}-{hue}-{50…950}</code><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">
+                  Raw scale (fine control). e.g. <code>.bg-pine-100</code>,
+                  <code>.text-grey-800</code>, <code>.bg-amber-300</code>. The bare role name is
+                  always the functional token.
                 </div>
               </div>
             </dl>
@@ -921,8 +957,8 @@
                   class="box drop-shadow-sm"
                   style="
                     min-height: 3rem;
-                    background: var(--color-surface-xxl);
-                    color: var(--color-surface-xxd);
+                    background: var(--surface-bg);
+                    color: var(--surface-text);
                   "
                 >
                   sm
@@ -934,8 +970,8 @@
                   class="box drop-shadow-md"
                   style="
                     min-height: 3rem;
-                    background: var(--color-surface-xxl);
-                    color: var(--color-surface-xxd);
+                    background: var(--surface-bg);
+                    color: var(--surface-text);
                   "
                 >
                   md
@@ -947,8 +983,8 @@
                   class="box drop-shadow-lg"
                   style="
                     min-height: 3rem;
-                    background: var(--color-surface-xxl);
-                    color: var(--color-surface-xxd);
+                    background: var(--surface-bg);
+                    color: var(--surface-text);
                   "
                 >
                   lg
@@ -960,8 +996,8 @@
                   class="box drop-shadow-xl"
                   style="
                     min-height: 3rem;
-                    background: var(--color-surface-xxl);
-                    color: var(--color-surface-xxd);
+                    background: var(--surface-bg);
+                    color: var(--surface-text);
                   "
                 >
                   xl
@@ -1749,7 +1785,7 @@
             </dl>
 
             <h3>Separator</h3>
-            <div class="demo rhythm" style="color: var(--color-surface-xd)">
+            <div class="demo rhythm" style="color: var(--color-surface-bold)">
               <div class="separator"></div>
               <div class="separator separator--dashed"></div>
               <div class="separator separator--dotted"></div>
@@ -3051,7 +3087,7 @@
               </p>
               <p
                 class="font-title text-reveal"
-                style="--text-reveal-color-to: var(--color-brand-primary)"
+                style="--text-reveal-color-to: var(--brand-primary-solid)"
               >
                 Scroll-driven two-tone fill
               </p>
@@ -3254,7 +3290,7 @@
               <div class="demo-cell">
                 <span
                   class="svg-container"
-                  style="--svg-size: 2rem; color: var(--color-brand-primary)"
+                  style="--svg-size: 2rem; color: var(--brand-primary-solid)"
                 >
                   <svg viewBox="0 0 24 24" fill="currentColor">
                     <circle cx="12" cy="12" r="9" />
@@ -3381,9 +3417,10 @@
       // Centered-grid track widths are global structural knobs — tune them live in
       // the Theme editor (dist/editor.js) → Layout, not with per-demo sliders.
 
-      // ---- Colour ramps + semantic roles (each swatch IS a .bg-* utility) ----
+      // ---- Colour scales + functional roles (each swatch IS a real utility) ----
+      // Seeded hues expose the generated numeric scale 50…950 (light → dark).
       const ramps = ['pine', 'navy', 'amber', 'rust', 'cobalt', 'grey'];
-      const steps = ['xxd', 'xd', 'd', '', 'l', 'xl', 'xxl'];
+      const steps = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
       const rampWrap = $('ramps');
       if (rampWrap) {
         ramps.forEach((name) => {
@@ -3394,32 +3431,36 @@
           const r = document.createElement('div');
           r.className = 'ramp';
           steps.forEach((s, i) => {
-            const token = name + (s ? '-' + s : '');
             const sw = document.createElement('span');
-            sw.className = 'bg-' + token;
-            sw.style.color = i < 3 ? '#fff' : 'rgba(0,0,0,.55)';
-            sw.textContent = s || '·';
+            sw.className = 'bg-' + name + '-' + s;
+            sw.style.color = i >= 5 ? '#fff' : 'rgba(0,0,0,.55)';
+            sw.textContent = s;
             r.appendChild(sw);
           });
           row.append(b, r);
           rampWrap.appendChild(row);
         });
       }
+      // Roles as solid + on-solid pairs — on-solid is computed at build, so no
+      // per-role text-colour hacks needed.
       const roles = [
-        ['brand-primary', 'pine'],
-        ['surface', 'navy'],
-        ['success', 'pine'],
-        ['info', 'cobalt'],
-        ['danger', 'rust'],
-        ['warning', 'amber'],
         ['neutral', 'grey'],
+        ['surface', 'navy'],
+        ['ui-primary', 'pine'],
+        ['ui-secondary', 'cobalt'],
+        ['ui-accent', 'amber'],
+        ['brand-primary', 'pine'],
+        ['brand-secondary', 'navy'],
+        ['info', 'cobalt'],
+        ['success', 'pine'],
+        ['warning', 'amber'],
+        ['danger', 'rust'],
       ];
       const sg = $('semantic');
       if (sg) {
         roles.forEach(([role, ramp]) => {
           const d = document.createElement('div');
-          d.className = 'sem bg-' + role;
-          if (role === 'warning') d.style.color = 'var(--color-surface-xxd)';
+          d.className = 'sem bg-' + role + '-solid text-on-' + role;
           d.textContent = role + ' → ' + ramp;
           sg.appendChild(d);
         });

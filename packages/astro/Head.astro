@@ -1,0 +1,34 @@
+---
+/**
+ * <Head /> — the Vitops design system's <head> contributions. Place inside your
+ * layout's <head>. Requires the getvitops() integration (it provides the
+ * `virtual:getvitops/head` config + copies the assets into public/).
+ *
+ * Renders: favicon + PWA manifest tags, and the web-component runtime scripts in
+ * canonical order/priority. It does NOT emit a stylesheet <link> — the CSS is
+ * imported into Astro's graph by the integration and Astro emits that link.
+ */
+// @ts-ignore — virtual module provided by the getvitops() integration at build time
+import head from 'virtual:getvitops/head';
+
+interface Props {
+  favicons?: boolean;
+  webComponents?: boolean;
+}
+const { favicons = head.favicons, webComponents = head.webComponents } = Astro.props;
+const wc = head.wcBase;
+---
+
+{favicons && head.faviconLinks.map((l: { rel: string; href: string; type?: string; sizes?: string }) => (
+  <link rel={l.rel} href={l.href} type={l.type} sizes={l.sizes} />
+))}
+{favicons && head.themeColor && <meta name="theme-color" content={head.themeColor} />}
+
+{webComponents && (
+  <>
+    <link rel="modulepreload" href={`${wc}/polyfills.js`} />
+    <script is:inline type="module" src={`${wc}/polyfills.js`}></script>
+    <script is:inline defer src={`${wc}/deferred.js`}></script>
+    <script is:inline type="module" src={`${wc}/elements.js`}></script>
+  </>
+)}

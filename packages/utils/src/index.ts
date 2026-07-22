@@ -1,5 +1,15 @@
 /**
  * @getvitops/utils — shared build-time utilities for the Vitops toolchain.
  */
-export { generateFavicons } from './favicon.ts';
-export type { FaviconOptions } from './favicon.ts';
+export {
+  faviconLinks,
+  faviconManifest,
+  generateFavicons,
+  writeFaviconManifest,
+} from './favicon.ts';
+export type {
+  FaviconLink,
+  FaviconOptions,
+  FaviconTagOptions,
+  WebManifestOptions,
+} from './favicon.ts';

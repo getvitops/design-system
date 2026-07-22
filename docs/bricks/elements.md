@@ -4,7 +4,7 @@ title: "Vitops — Bricks Builder elements reference"
 description: "Every repo-owned Bricks element, its controls, defaults, seeded children and keywords, for driving the Bricks Builder UI."
 resource: "bricks/elements"
 tags: [bricks, wordpress, elements, design-system]
-generator: lib/generate-docs.ts
+generator: "@getvitops/generator"
 ---
 
 # Vitops — Bricks Builder elements reference

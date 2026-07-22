@@ -164,9 +164,13 @@ function serializeJSONPatch(manifest: Manifest): { patch: object; skipped: strin
   for (const [varName, value] of store.light) {
     // Role remaps (--color-<role>[-step]: var(--color-<ramp>…)) collapse to a
     // single semantic mapping (colors.semantic.<role> = <ramp>) rather than 7 vars.
-    const roleMatch = /^--color-([a-z0-9-]+?)(?:-(?:xxd|xd|d|l|xl|xxl))?$/.exec(varName);
+    const roleMatch = /^--color-([a-z0-9-]+?)(?:-(?:\d+|x-muted|muted|bold|x-bold))?$/.exec(
+      varName,
+    );
     if (roleMatch && roleNames.has(roleMatch[1] as string)) {
-      const ramp = /var\(\s*--color-([a-z0-9-]+?)(?:-(?:xxd|xd|d|l|xl|xxl))?\s*\)/.exec(value);
+      const ramp = /var\(\s*--color-([a-z0-9-]+?)(?:-(?:\d+|x-muted|muted|bold|x-bold))?\s*\)/.exec(
+        value,
+      );
       if (ramp) {
         deepSet(patch, `colors.semantic.${roleMatch[1]}`, ramp[1] as string);
         continue;
@@ -372,7 +376,7 @@ function buildPalette(m: Manifest): HTMLElement {
       row(`--color-${role}`, select, () => {
         const v = store[scheme].get(baseVar);
         const parsed = v
-          ? /var\(\s*--color-([a-z0-9-]+?)(?:-(?:xxd|xd|d|l|xl|xxl))?\s*\)/.exec(v)
+          ? /var\(\s*--color-([a-z0-9-]+?)(?:-(?:\d+|x-muted|muted|bold|x-bold))?\s*\)/.exec(v)
           : null;
         select.value = parsed ? (parsed[1] as string) : ramp;
       }),
@@ -643,14 +647,14 @@ const STYLES = `
 .ds-ed-launch {
   position: fixed; inset-block-end: 1rem; inset-inline-end: 1rem; z-index: 9999;
   padding: 0.6em 1em; border: none; border-radius: 999px; cursor: pointer;
-  background: var(--color-brand-primary-d); color: #fff; font: inherit; font-weight: 600;
+  background: var(--color-brand-primary-bold); color: #fff; font: inherit; font-weight: 600;
   box-shadow: var(--shadow-lg, 0 8px 24px -8px rgb(0 0 0 / 0.4));
 }
 .ds-editor {
   position: fixed; inset-block: 0; inset-inline-end: 0; z-index: 9999;
   inline-size: min(24rem, 100vw); overflow-y: auto;
-  background: var(--color-surface-xxl); color: var(--color-surface-xxd);
-  border-inline-start: 1px solid var(--color-surface-l);
+  background: var(--surface-bg); color: var(--surface-text);
+  border-inline-start: 1px solid var(--color-surface-muted);
   box-shadow: var(--shadow-xl, -8px 0 32px -12px rgb(0 0 0 / 0.35));
   font-size: 0.85rem;
 }
@@ -658,26 +662,26 @@ const STYLES = `
 .ds-ed-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0.75rem 1rem; position: sticky; inset-block-start: 0;
-  background: var(--color-surface-xxl); border-block-end: 1px solid var(--color-surface-l);
+  background: var(--surface-bg); border-block-end: 1px solid var(--color-surface-muted);
 }
 .ds-ed-close { background: none; border: none; font-size: 1.4rem; line-height: 1; cursor: pointer; color: inherit; }
-.ds-ed-toolbar { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.75rem 1rem; border-block-end: 1px solid var(--color-surface-l); }
-.ds-ed-segwrap { display: inline-flex; border: 1px solid var(--color-surface-l); border-radius: 0.4rem; overflow: hidden; }
+.ds-ed-toolbar { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.75rem 1rem; border-block-end: 1px solid var(--color-surface-muted); }
+.ds-ed-segwrap { display: inline-flex; border: 1px solid var(--color-surface-muted); border-radius: 0.4rem; overflow: hidden; }
 .ds-ed-seg { padding: 0.35em 0.8em; border: none; background: transparent; cursor: pointer; font: inherit; color: inherit; }
-.ds-ed-seg.is-active { background: var(--color-brand-primary); color: #fff; }
-.ds-ed-btn { padding: 0.35em 0.7em; border: 1px solid var(--color-surface-l); border-radius: 0.4rem; background: var(--color-surface-xl); cursor: pointer; font: inherit; color: inherit; }
-.ds-ed-btn--danger { color: var(--color-danger-d); }
-.ds-ed-section { border-block-end: 1px solid var(--color-surface-l); }
+.ds-ed-seg.is-active { background: var(--brand-primary-solid); color: #fff; }
+.ds-ed-btn { padding: 0.35em 0.7em; border: 1px solid var(--color-surface-muted); border-radius: 0.4rem; background: var(--surface-bg-muted); cursor: pointer; font: inherit; color: inherit; }
+.ds-ed-btn--danger { color: var(--color-danger-bold); }
+.ds-ed-section { border-block-end: 1px solid var(--color-surface-muted); }
 .ds-ed-section > summary { padding: 0.6rem 1rem; cursor: pointer; font-weight: 600; user-select: none; }
 .ds-ed-body { padding: 0.5rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
-.ds-ed-subsection { border: 1px solid var(--color-surface-l); border-radius: 0.4rem; }
+.ds-ed-subsection { border: 1px solid var(--color-surface-muted); border-radius: 0.4rem; }
 .ds-ed-subsection > summary { padding: 0.4rem 0.6rem; cursor: pointer; font-weight: 600; }
 .ds-ed-subsection .ds-ed-body { padding: 0.4rem 0.6rem 0.6rem; }
 .ds-ed-row { display: flex; align-items: center; gap: 0.5rem; }
 .ds-ed-label { flex: 0 0 8.5rem; font-family: var(--font-mono, monospace); font-size: 0.72rem; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ds-ed-input { flex: 1; min-inline-size: 0; padding: 0.3em 0.5em; border: 1px solid var(--color-surface-l); border-radius: 0.3rem; background: var(--color-surface-xl); color: inherit; font: inherit; font-size: 0.78rem; }
+.ds-ed-input { flex: 1; min-inline-size: 0; padding: 0.3em 0.5em; border: 1px solid var(--color-surface-muted); border-radius: 0.3rem; background: var(--surface-bg-muted); color: inherit; font: inherit; font-size: 0.78rem; }
 .ds-ed-colorwrap, .ds-ed-rangewrap { flex: 1; display: flex; align-items: center; gap: 0.4rem; min-inline-size: 0; }
-.ds-ed-color { flex: 0 0 1.8rem; block-size: 1.8rem; padding: 0; border: 1px solid var(--color-surface-l); border-radius: 0.3rem; background: none; cursor: pointer; }
+.ds-ed-color { flex: 0 0 1.8rem; block-size: 1.8rem; padding: 0; border: 1px solid var(--color-surface-muted); border-radius: 0.3rem; background: none; cursor: pointer; }
 .ds-ed-hex { font-family: var(--font-mono, monospace); }
 .ds-ed-range { flex: 1; min-inline-size: 0; }
 .ds-ed-out { flex: 0 0 4rem; font-family: var(--font-mono, monospace); font-size: 0.72rem; text-align: end; }

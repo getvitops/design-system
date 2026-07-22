@@ -11,7 +11,7 @@
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { generate, type Format } from '@getvitops/generator';
-import { generateFavicons } from '@getvitops/utils';
+import { generateFavicons, writeFaviconManifest } from '@getvitops/utils';
 
 export interface VitopsFaviconOptions {
   /** Source SVG or PNG. */
@@ -20,6 +20,12 @@ export interface VitopsFaviconOptions {
   lowResSource?: string;
   /** Directory to write the favicon set into. Default: 'public'. */
   out?: string;
+  /** App name — when set (with `themeColor`), also emit `site.webmanifest`. */
+  name?: string;
+  /** PWA theme color (also drives `<meta name="theme-color">`). */
+  themeColor?: string;
+  /** PWA background color. */
+  backgroundColor?: string;
 }
 
 export interface VitopsPluginOptions {
@@ -42,13 +48,23 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
   const run = async () => {
     await generate({ input, format, outDir });
     if (options.favicon) {
+      const faviconOut = resolve(root, options.favicon.out ?? 'public');
       await generateFavicons({
         source: resolve(root, options.favicon.source),
-        outputDir: resolve(root, options.favicon.out ?? 'public'),
+        outputDir: faviconOut,
         ...(options.favicon.lowResSource
           ? { lowResSource: resolve(root, options.favicon.lowResSource) }
           : {}),
       });
+      if (options.favicon.name && options.favicon.themeColor) {
+        await writeFaviconManifest(faviconOut, {
+          name: options.favicon.name,
+          themeColor: options.favicon.themeColor,
+          ...(options.favicon.backgroundColor
+            ? { backgroundColor: options.favicon.backgroundColor }
+            : {}),
+        });
+      }
     }
   };
 

@@ -18,6 +18,13 @@ import { createHash } from 'node:crypto';
 import { transform } from 'lightningcss';
 import { validate, type DesignSystem } from './schema.ts';
 import { generateDocs } from './docs.ts';
+import {
+  expandPalette,
+  functionalRole,
+  NUMERIC_STEPS,
+  type ExpandedHue,
+  type FunctionalRole,
+} from './tokens.ts';
 
 export type Format = 'bricks' | 'css' | 'tailwind';
 
@@ -41,27 +48,10 @@ export interface GenerateResult {
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ASSETS = join(HERE, '..', 'assets');
 
-// ── tonal ramp machinery ─────────────────────────────────────────────────────
-const STEP_ORDER = ['xxd', 'xd', 'd', 'base', 'l', 'xl', 'xxl'] as const;
-type Step = (typeof STEP_ORDER)[number];
-const suffix = (step: string) => (step === 'base' ? '' : `-${step}`);
-const MIRROR: Record<Step, Step> = {
-  xxd: 'xxl',
-  xd: 'xl',
-  d: 'l',
-  base: 'base',
-  l: 'd',
-  xl: 'xd',
-  xxl: 'xxd',
-};
-const STEP_INDEX: Record<string, number> = Object.fromEntries(STEP_ORDER.map((s, i) => [s, i]));
-const shiftStep = (step: string, by: number): string => {
-  const i = STEP_INDEX[step] ?? STEP_ORDER.indexOf('base');
-  const j = Math.max(0, Math.min(STEP_ORDER.length - 1, i - by));
-  return STEP_ORDER[j] as string;
-};
-const BASE_STEP = 'd';
-
+// ── colour machinery ─────────────────────────────────────────────────────────
+// Every hue is an 11-step numeric OKLCH scale (see tokens.ts); every role is a
+// hue reference that resolves to FUNCTIONAL tokens. No named steps, no scheme
+// grammar — dark mode is the automatic functional flip.
 const UTILITY_PROPS: Record<string, string> = {
   bg: 'background-color',
   text: 'color',
@@ -71,37 +61,33 @@ const UTILITY_PROPS: Record<string, string> = {
   stroke: 'stroke',
 };
 
-type Ramp = Record<string, string>;
-type RoleSpec =
-  | string
-  | {
-      ramp?: string;
-      invert?: boolean;
-      shift?: number;
-      steps?: Record<string, string>;
-      value?: Record<string, string>;
-    };
-type Scheme = { appearance: 'light' | 'dark'; semantic: Record<string, RoleSpec> };
-// The resolved source for one role slot: a ramp step, or a literal value.
-type Src = { ramp: string; step: string } | { value: string };
-
-// The ramp a role draws from (falls back to the inherited base-scheme ramp).
-const roleRamp = (spec: RoleSpec, inherited = ''): string =>
-  typeof spec === 'string' ? spec : (spec.ramp ?? inherited);
-// Resolve one slot: value > explicit step > shiftStep(invert ? mirror : slot, shift).
-const resolveSlot = (spec: RoleSpec, step: Step, inherited: string): Src => {
-  if (typeof spec === 'string') return { ramp: spec, step };
-  if (spec.value?.[step] != null) return { value: spec.value[step] as string };
-  const ramp = spec.ramp ?? inherited;
-  const s = spec.steps?.[step] ?? shiftStep(spec.invert ? MIRROR[step] : step, spec.shift ?? 0);
-  return { ramp, step: s };
+// Functional-token var name: emphasis stops live in the --color-* namespace
+// (`stop-x-muted` → --color-<role>-x-muted); everything else is --<role>-<token>.
+const fnVar = (role: string, token: string): string =>
+  token.startsWith('stop-') ? `--color-${role}-${token.slice(5)}` : `--${role}-${token}`;
+// The functional utility classes for one role (bare name = functional default).
+const fnUtilities = (role: string, utilities: string[], isSurface: boolean): string => {
+  const rows: string[] = [];
+  if (utilities.includes('bg')) {
+    rows.push(`.bg-${role} { background-color: var(--${role}-bg); }`);
+    rows.push(`.bg-${role}-muted { background-color: var(--${role}-bg-muted); }`);
+    rows.push(`.bg-${role}-solid { background-color: var(--${role}-solid); }`);
+    rows.push(`.bg-${role}-solid-bold { background-color: var(--${role}-solid-bold); }`);
+    if (isSurface) rows.push(`.bg-${role}-bold { background-color: var(--${role}-bg-bold); }`);
+  }
+  if (utilities.includes('text')) {
+    rows.push(`.text-${role} { color: var(--${role}-text); }`);
+    rows.push(`.text-${role}-muted { color: var(--${role}-text-muted); }`);
+    rows.push(`.text-${role}-x-muted { color: var(--${role}-text-x-muted); }`);
+    rows.push(`.text-on-${role} { color: var(--${role}-on-solid); }`);
+  }
+  if (utilities.includes('border'))
+    rows.push(
+      `.border-${role} { border-color: var(--${role}-border); }`,
+      `.border-${role}-bold { border-color: var(--${role}-border-bold); }`,
+    );
+  return rows.join('\n');
 };
-const srcVar = (s: Src): string =>
-  'value' in s ? s.value : `var(--color-${s.ramp}${suffix(s.step)})`;
-const srcEq = (a: Src, b: Src): boolean =>
-  'value' in a || 'value' in b
-    ? 'value' in a && 'value' in b && a.value === b.value
-    : a.ramp === b.ramp && a.step === b.step;
 
 const decls = (obj: Record<string, string>, indent = '  ') =>
   Object.entries(obj)
@@ -239,14 +225,17 @@ interface Built {
 
 function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
   const BRICKS = format === 'bricks';
-  const palette = ds.colors.palette as Record<string, Ramp>;
-  const schemes = ds.colors.schemes as Record<string, Scheme>;
-  const base = schemes.default;
-  if (base == null) throw new Error('colors.schemes must include a "default" scheme');
-  const defaultSemantic = base.semantic;
-  const altSchemes = Object.entries(schemes).filter(([k]) => k !== 'default');
-  // Bricks' Color Manager models a single light+dark pair: use the first dark scheme.
-  const darkScheme = altSchemes.map(([, s]) => s).find((s) => s.appearance === 'dark');
+  // Every hue expands to its 11-step numeric OKLCH scale; every role resolves
+  // to functional tokens over its hue. Dark mode is the automatic flip.
+  const expandedPalette = expandPalette(ds.colors.palette as Record<string, unknown>);
+  const roleMap = ds.colors.roles as Record<string, string>;
+  const scaleRoles: FunctionalRole[] = [];
+  for (const [role, hueName] of Object.entries(roleMap)) {
+    const hue = expandedPalette[hueName];
+    if (hue == null) throw new Error(`role "${role}" references unknown palette hue "${hueName}"`);
+    scaleRoles.push(functionalRole(role, hueName, hue));
+  }
+  const surfaceRole = scaleRoles.find((r) => r.role === 'surface');
   const patterns = ds.patterns;
   const shadows = ds.shadows;
   const typography = ds.typography;
@@ -262,53 +251,52 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
       '/* Colours provided by Bricks (palette import generates tokens + utilities). */\n';
   } else {
     let css = `/* GENERATED from design-system.json — do not edit by hand. */\n:root {\n`;
-    css += `  color-scheme: ${base.appearance};\n`;
-    css += `  /* Palette ramps */\n`;
-    for (const [name, steps] of Object.entries(palette))
-      for (const step of STEP_ORDER)
-        if (steps[step] != null) css += `  --color-${name}${suffix(step)}: ${steps[step]};\n`;
-    css += `\n  /* Semantic roles → ramps (default: ${base.appearance}) */\n`;
-    for (const [role, spec] of Object.entries(defaultSemantic)) {
-      const ramp = roleRamp(spec);
-      for (const step of STEP_ORDER)
-        if (palette[ramp]?.[step] != null)
-          css += `  --color-${role}${suffix(step)}: ${srcVar(resolveSlot(spec, step, ramp))};\n`;
+    css += `  color-scheme: light;\n`;
+    css += `  /* Hue scales (numeric steps, 50 = tinted near-white … 950 = tinted near-black) */\n`;
+    for (const [name, hue] of Object.entries(expandedPalette))
+      for (const [n, hex] of Object.entries(hue.numeric))
+        css += `  --color-${name}-${n}: ${hex};\n`;
+    css += `\n  /* Functional role tokens (the public API) */\n`;
+    for (const fr of scaleRoles)
+      for (const [t, val] of Object.entries(fr.light)) css += `  ${fnVar(fr.role, t)}: ${val};\n`;
+    if (surfaceRole) {
+      css += `\n  /* Translucent surface + scrim */\n`;
+      css += `  --surface-glass: color-mix(in oklch, var(--surface-bg) 72%, transparent);\n`;
+      css += `  --overlay: color-mix(in oklch, var(--color-${surfaceRole.hue}-950) 45%, transparent);\n`;
     }
     css += `}\n\n`;
-    // Alternate schemes: emit only the slots whose source differs from `default`.
-    for (const [key, scheme] of altSchemes) {
-      let block = '';
-      for (const [role, spec] of Object.entries(scheme.semantic)) {
-        const baseSpec = defaultSemantic[role];
-        if (baseSpec == null) continue;
-        const ramp = roleRamp(baseSpec);
-        for (const step of STEP_ORDER) {
-          if (palette[ramp]?.[step] == null) continue;
-          const alt = resolveSlot(spec, step, ramp);
-          if (srcEq(alt, resolveSlot(baseSpec, step, ramp))) continue;
-          block += `  --color-${role}${suffix(step)}: ${srcVar(alt)};\n`;
-        }
-      }
-      if (block) {
-        css += `/* Semantic roles → ramps (${key}: ${scheme.appearance}) */\n`;
-        css += `:root[data-brx-theme="${scheme.appearance}"] {\n  color-scheme: ${scheme.appearance};\n${block}}\n\n`;
+    // Dark appearance: the automatic functional flip (solid stays mode-stable).
+    {
+      let fb = '';
+      for (const fr of scaleRoles)
+        for (const [t, val] of Object.entries(fr.dark))
+          if (fr.light[t] !== val) fb += `  ${fnVar(fr.role, t)}: ${val};\n`;
+      if (surfaceRole)
+        fb += `  --overlay: color-mix(in oklch, var(--color-${surfaceRole.hue}-950) 60%, transparent);\n`;
+      if (fb) {
+        css += `/* Functional role tokens (dark) */\n`;
+        css += `:root[data-brx-theme="dark"] {\n  color-scheme: dark;\n${fb}}\n\n`;
       }
     }
+    // Utilities: hue numeric steps + role emphasis stops, then the functional
+    // set (emitted last so it wins ties, e.g. bg-<role>-muted).
     const allTokens: string[] = [];
-    for (const [name, steps] of Object.entries(palette))
-      for (const step of STEP_ORDER)
-        if (steps[step] != null) allTokens.push(`${name}${suffix(step)}`);
-    for (const [role, spec] of Object.entries(defaultSemantic)) {
-      const ramp = roleRamp(spec);
-      for (const step of STEP_ORDER)
-        if (palette[ramp]?.[step] != null) allTokens.push(`${role}${suffix(step)}`);
-    }
+    for (const [name, hue] of Object.entries(expandedPalette))
+      for (const n of Object.keys(hue.numeric)) allTokens.push(`${name}-${n}`);
+    for (const fr of scaleRoles)
+      for (const stop of ['x-muted', 'muted', 'bold', 'x-bold'])
+        allTokens.push(`${fr.role}-${stop}`);
     css += `/* Colour utilities — ${UTILITIES.join(', ')} */\n`;
     for (const token of allTokens)
       css +=
         UTILITIES.map(
           (cls) => `.${cls}-${token} { ${UTILITY_PROPS[cls]}: var(--color-${token}); }`,
         ).join('\n') + '\n';
+    css += `\n/* Functional utilities (the public API) */\n`;
+    for (const fr of scaleRoles)
+      css += `${fnUtilities(fr.role, UTILITIES, fr.role === 'surface')}\n`;
+    if (surfaceRole)
+      css += `.glass { background-color: var(--surface-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }\n`;
     generated['color.css'] = css;
   }
 
@@ -421,11 +409,17 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
     colorProp: 'background-color' | 'color' = 'background-color',
   ) => {
     let out = '';
-    const roleVar = (step: string) => (role ? `var(--color-${role}-${step})` : '');
     for (const [state, spec] of Object.entries(states)) {
       const body: string[] = [];
-      if (typeof spec.step === 'number' && role)
-        body.push(`${colorProp}: ${roleVar(shiftStep(BASE_STEP, spec.step))};`);
+      // `step` intensifies the pattern's colour: fills swap solid → solid-bold;
+      // text swaps the bold emphasis stop → x-bold.
+      if (typeof spec.step === 'number' && role) {
+        const stateVar =
+          colorProp === 'background-color'
+            ? `var(--${role}-${spec.step >= 1 ? 'solid-bold' : 'solid'})`
+            : `var(--color-${role}-${spec.step >= 1 ? 'x-bold' : 'bold'})`;
+        body.push(`${colorProp}: ${stateVar};`);
+      }
       if (typeof spec.scale === 'number') body.push(`scale: ${spec.scale};`);
       if (typeof spec.lift === 'string') body.push(`translate: 0 calc(-1 * ${spec.lift});`);
       if (typeof spec.shadow === 'string' && shadows?.[spec.shadow])
@@ -433,7 +427,7 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
       else if (spec.shadow === true)
         body.push(`box-shadow: var(--lift-shadow, 0 8px 20px -6px rgb(0 0 0 / 0.25));`);
       if (spec.ring === true) {
-        const ringColor = role ? `var(--color-${role}-l)` : `var(--color-brand-primary-l)`;
+        const ringColor = role ? `var(--color-${role}-muted)` : `var(--color-ui-primary-muted)`;
         body.push(`outline: none;`, `box-shadow: 0 0 0 3px ${ringColor};`);
       }
       if (spec.css && typeof spec.css === 'object')
@@ -478,7 +472,7 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
       pat += `  translate: 0 0; scale: 1; rotate: 0deg;\n`;
     }
     if (defaultRole && fills && base['background-color'] == null && base['background'] == null)
-      base['background-color'] = `var(--color-${defaultRole}-${BASE_STEP})`;
+      base['background-color'] = `var(--${defaultRole}-solid)`;
     const wrappedBase: Record<string, string> = {};
     for (const [prop, val] of Object.entries(base)) {
       const sfx = BASE_HOOK[prop];
@@ -488,9 +482,11 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
     pat += stateRules(defaultSel, defaultRole, states, colorProp);
     for (const role of p.roles ?? []) {
       const variantSel = isElement ? `${p.element}.${role}` : `.${p.class ?? pname}-${role}`;
+      // Fills sit on the role's solid + pair with on-solid; text variants use
+      // the bold emphasis stop (readable accent in both appearances).
       const variantColorDecl = fills
-        ? `background-color: var(--color-${role}-${BASE_STEP})`
-        : `color: var(--color-${role}-${BASE_STEP})`;
+        ? `background-color: var(--${role}-solid); color: var(--${role}-on-solid)`
+        : `color: var(--color-${role}-bold)`;
       pat += `${variantSel} { ${variantColorDecl}; }\n`;
       pat += stateRules(variantSel, role, states, colorProp);
     }
@@ -549,12 +545,12 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
   }
 
   // ── Bricks palettes ──────────────────────────────────────────────────────────
+  // Named = the hue scales (numeric steps); Semantic = the functional role
+  // tokens with their automatic light/dark pairing.
   const namedColors: unknown[] = [];
-  for (const [name, steps] of Object.entries(palette))
-    for (const step of STEP_ORDER) {
-      const hex = steps[step];
-      if (hex == null) continue;
-      const token = `${name}${suffix(step)}`;
+  for (const [name, hue] of Object.entries(expandedPalette))
+    for (const [n, hex] of Object.entries(hue.numeric)) {
+      const token = `${name}-${n}`;
       namedColors.push({
         raw: `var(--color-${token})`,
         light: hex,
@@ -563,24 +559,18 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
       });
     }
   const semanticColors: unknown[] = [];
-  for (const [role, spec] of Object.entries(defaultSemantic)) {
-    const ramp = roleRamp(spec);
-    const altSpec = darkScheme?.semantic[role];
-    for (const step of STEP_ORDER) {
-      if (palette[ramp]?.[step] == null) continue;
-      const lightSrc = resolveSlot(spec, step, ramp);
-      const darkSrc = altSpec != null ? resolveSlot(altSpec, step, ramp) : lightSrc;
-      const hasDark = !srcEq(darkSrc, lightSrc);
+  for (const fr of scaleRoles)
+    for (const [t, light] of Object.entries(fr.light)) {
+      const dark = fr.dark[t] as string;
       semanticColors.push({
-        raw: `var(--color-${role}${suffix(step)})`,
-        light: srcVar(lightSrc),
-        darkModeEnabled: hasDark,
-        dark: srcVar(darkSrc),
-        id: id(`semantic:${role}${suffix(step)}`),
+        raw: `var(${fnVar(fr.role, t)})`,
+        light,
+        darkModeEnabled: light !== dark,
+        dark,
+        id: id(`semantic:${fr.role}-${t}`),
         utilityClasses: UTILITIES,
       });
     }
-  }
   const bricksColorsNamed = JSON.stringify(
     { id: id('palette:named'), name: 'Named', colors: namedColors },
     null,
@@ -651,12 +641,16 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
   })();
 
   // ── tokens.json (trimmed token export for programmatic consumers) ────────────
+  const numericPalette = Object.fromEntries(
+    Object.entries(expandedPalette).map(([k, v]) => [k, v.numeric]),
+  );
   const tokensJson = JSON.stringify(
     {
       colors: {
-        palette,
-        semantic: Object.fromEntries(
-          Object.entries(defaultSemantic).map(([role, spec]) => [role, roleRamp(spec)]),
+        palette: numericPalette,
+        roles: roleMap,
+        functional: Object.fromEntries(
+          scaleRoles.map((fr) => [fr.role, { light: fr.light, dark: fr.dark }]),
         ),
       },
       fonts: ds.fonts ?? {},
@@ -672,14 +666,11 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
   // ── design-manifest.json (live-editor manifest; css format) ──────────────────
   const designManifest = (() => {
     const reverseIndex: Record<string, string> = {};
-    for (const [name, steps] of Object.entries(palette))
-      for (const step of STEP_ORDER)
-        if (steps[step] != null)
-          reverseIndex[`--color-${name}${suffix(step)}`] = `colors.palette.${name}.${step}`;
-    const colorRoles = Object.entries(defaultSemantic).map(([name, spec]) => ({
-      name,
-      ramp: roleRamp(spec),
-    }));
+    // Numeric steps are generated from the hue's seed — edits map back to it.
+    for (const [name, hue] of Object.entries(expandedPalette))
+      for (const n of Object.keys(hue.numeric))
+        reverseIndex[`--color-${name}-${n}`] = `colors.palette.${name}.seed`;
+    const colorRoles = Object.entries(roleMap).map(([name, ramp]) => ({ name, ramp }));
     const typoRoles = (typography?.roles ?? {}) as Record<string, TypographyRole>;
     const hooks: Record<string, { prop: string; key: string }> = {};
     for (const [key, [prop, sfx]] of Object.entries(TYPO_KEYMAP)) hooks[sfx] = { prop, key };
@@ -707,7 +698,12 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
     });
     return JSON.stringify(
       {
-        colors: { ramps: Object.keys(palette), steps: STEP_ORDER, palette, roles: colorRoles },
+        colors: {
+          ramps: Object.keys(expandedPalette),
+          steps: NUMERIC_STEPS,
+          palette: numericPalette,
+          roles: colorRoles,
+        },
         typography: {
           roles: Object.keys(typoRoles),
           hooks,
@@ -732,9 +728,8 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
   // ── Tailwind bundle ──────────────────────────────────────────────────────────
   const tailwind = emitTailwind({
     ds,
-    palette,
-    defaultSemantic,
-    darkScheme,
+    expandedPalette,
+    scaleRoles,
     shadows,
     typeSteps,
     spaceSteps,
@@ -763,9 +758,8 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
 // ── Tailwind emitter ──────────────────────────────────────────────────────────
 interface TwCtx {
   ds: DesignSystem;
-  palette: Record<string, Ramp>;
-  defaultSemantic: Record<string, RoleSpec>;
-  darkScheme: Scheme | undefined;
+  expandedPalette: Record<string, ExpandedHue>;
+  scaleRoles: FunctionalRole[];
   shadows: Record<string, string> | undefined;
   typeSteps: ScaleStep[];
   spaceSteps: ScaleStep[];
@@ -780,9 +774,8 @@ interface TwCtx {
 function emitTailwind(ctx: TwCtx): string {
   const {
     ds,
-    palette,
-    defaultSemantic,
-    darkScheme,
+    expandedPalette,
+    scaleRoles,
     shadows,
     typeSteps,
     spaceSteps,
@@ -799,24 +792,21 @@ function emitTailwind(ctx: TwCtx): string {
   parts.push(`@import "tailwindcss";\n`);
 
   const theme: string[] = [];
-  theme.push(`  /* Colour ramps → bg-* text-* border-* */`);
-  for (const [name, steps] of Object.entries(palette))
-    for (const step of STEP_ORDER)
-      if (steps[step] != null) theme.push(`  --color-${name}${suffix(step)}: ${steps[step]};`);
-  theme.push(`\n  /* Semantic roles → ramps (default scheme) */`);
-  for (const [role, spec] of Object.entries(defaultSemantic)) {
-    const ramp = roleRamp(spec);
-    for (const step of STEP_ORDER)
-      if (palette[ramp]?.[step] != null)
-        theme.push(`  --color-${role}${suffix(step)}: ${srcVar(resolveSlot(spec, step, ramp))};`);
-  }
+  theme.push(`  /* Hue scales → bg-<hue>-<step> text-* border-* (numeric, 50…950) */`);
+  for (const [name, hue] of Object.entries(expandedPalette))
+    for (const [n, hex] of Object.entries(hue.numeric))
+      theme.push(`  --color-${name}-${n}: ${hex};`);
   theme.push(`\n  /* Fonts → font-* */`);
   for (const [name, stack] of Object.entries(ds.fonts ?? {}))
     theme.push(`  --font-${name}: ${stack};`);
   theme.push(`\n  /* Fluid type scale → text-* */`);
   for (const s of typeSteps) theme.push(`  --text-${s.name}: ${s.value};`);
-  theme.push(`\n  /* Fluid spacing scale → p-* m-* gap-* */`);
-  for (const s of spaceSteps) theme.push(`  --spacing-${s.name}: ${s.value};`);
+  // Fluid space steps are NOT put in Tailwind's --spacing-* namespace: named
+  // spacing keys shadow the size scales (e.g. `max-w-7xl` would resolve to
+  // var(--spacing-7xl) ≈ 6rem and collapse layouts). They ship as --space-*
+  // (matching the css format) in a plain :root below; use var(--space-<name>)
+  // or the TW4 arbitrary form p-(--space-md). Numeric spacing (p-4 …) keeps
+  // Tailwind's default --spacing multiplier.
   theme.push(`\n  /* Drop-shadows → shadow-* */`);
   for (const [name, value] of Object.entries(shadows ?? {}))
     theme.push(`  --shadow-${name}: ${value};`);
@@ -830,28 +820,46 @@ function emitTailwind(ctx: TwCtx): string {
     theme.push(`  --container-${name}: ${val};`);
   parts.push(`@theme {\n${theme.join('\n')}\n}\n`);
 
+  if (spaceSteps.length)
+    parts.push(
+      `/* Fluid space scale — var(--space-<name>) or p-(--space-<name>) */\n:root {\n` +
+        spaceSteps.map((s) => `  --space-${s.name}: ${s.value};`).join('\n') +
+        `\n}\n`,
+    );
+
+  // Functional role tokens (not --color-*, so a plain :root block — Tailwind
+  // must not derive single-purpose utilities from them; the @utility set below
+  // is the public API).
+  if (scaleRoles.length) {
+    let fn = '';
+    for (const fr of scaleRoles)
+      for (const [t, val] of Object.entries(fr.light)) fn += `  ${fnVar(fr.role, t)}: ${val};\n`;
+    const surface = scaleRoles.find((r) => r.role === 'surface');
+    if (surface) {
+      fn += `  --surface-glass: color-mix(in oklch, var(--surface-bg) 72%, transparent);\n`;
+      fn += `  --overlay: color-mix(in oklch, var(--color-${surface.hue}-950) 45%, transparent);\n`;
+    }
+    parts.push(`/* Functional role tokens (the public API) */\n:root {\n${fn}}\n`);
+  }
+
   parts.push(
     `/* ── Framework tokens (consumed by the inlined components) ── */\n` +
       `${twTypeTokensCss}\n${twPatternTokensCss}`,
   );
 
+  // Dark appearance: the automatic functional flip (solid stays mode-stable).
   let darkBlock = '';
-  if (darkScheme) {
-    for (const [role, spec] of Object.entries(darkScheme.semantic)) {
-      const baseSpec = defaultSemantic[role];
-      if (baseSpec == null) continue;
-      const ramp = roleRamp(baseSpec);
-      for (const step of STEP_ORDER) {
-        if (palette[ramp]?.[step] == null) continue;
-        const alt = resolveSlot(spec, step, ramp);
-        if (srcEq(alt, resolveSlot(baseSpec, step, ramp))) continue;
-        darkBlock += `  --color-${role}${suffix(step)}: ${srcVar(alt)};\n`;
-      }
-    }
+  for (const fr of scaleRoles)
+    for (const [t, val] of Object.entries(fr.dark))
+      if (fr.light[t] !== val) darkBlock += `  ${fnVar(fr.role, t)}: ${val};\n`;
+  {
+    const surface = scaleRoles.find((r) => r.role === 'surface');
+    if (surface)
+      darkBlock += `  --overlay: color-mix(in oklch, var(--color-${surface.hue}-950) 60%, transparent);\n`;
   }
-  if (darkBlock && darkScheme)
+  if (darkBlock)
     parts.push(
-      `/* Dark-mode semantic overrides */\n:root[data-brx-theme="${darkScheme.appearance}"] {\n${darkBlock}}\n`,
+      `/* Functional role tokens (dark) */\n:root[data-brx-theme="dark"] {\n  color-scheme: dark;\n${darkBlock}}\n`,
     );
 
   parts.push(
@@ -860,6 +868,20 @@ function emitTailwind(ctx: TwCtx): string {
   );
 
   const util: string[] = [];
+  if (scaleRoles.length) {
+    util.push(`/* Functional colour utilities (the public API) */`);
+    for (const fr of scaleRoles)
+      for (const row of fnUtilities(fr.role, ['bg', 'text', 'border'], fr.role === 'surface').split(
+        '\n',
+      )) {
+        const m = /^\.([^ ]+) \{ (.*) \}$/.exec(row);
+        if (m) util.push(`@utility ${m[1]} {\n  ${m[2]}\n}`);
+      }
+    if (scaleRoles.some((r) => r.role === 'surface'))
+      util.push(
+        `@utility glass {\n  background-color: var(--surface-glass);\n  backdrop-filter: blur(12px);\n  -webkit-backdrop-filter: blur(12px);\n}`,
+      );
+  }
   util.push(`/* Typography roles */`);
   for (const [role, spec] of Object.entries(
     (typography?.roles ?? {}) as Record<string, TypographyRole>,
@@ -992,7 +1014,11 @@ body {
 
   const animEngine = readFileSync(join(cssDir, 'animation.css'), 'utf8');
   parts.push(`/* ── Animation engine (animation.css) ── */\n${animEngine}`);
-  parts.push(`/* ── Component patterns ── */\n${patternsCss}`);
+  // Patterns live in Tailwind's `components` layer so single-purpose utilities
+  // (@layer utilities — declared later in the layer order) override them, e.g.
+  // `.text-on-ui-primary` beating the link pattern's element-level `a { color }`.
+  // Unlayered CSS would win over ALL layered utilities regardless of specificity.
+  parts.push(`/* ── Component patterns ── */\n@layer components {\n${patternsCss}\n}`);
 
   // Component + structural partials: the full framework library, minus the
   // Tailwind-owned utility layer. Sourced live from the CSS partials (in index.css
@@ -1104,8 +1130,9 @@ body {
       return `/* ── ${rel} ── */\n${stripForTailwind(css)}`;
     })
     .join('\n\n');
+  // Same layering rationale as the patterns block above.
   parts.push(
-    `/* ── Component + structural partials (Tailwind-clashing utilities dropped) ── */\n${componentCss}`,
+    `/* ── Component + structural partials (Tailwind-clashing utilities dropped) ── */\n@layer components {\n${componentCss}\n}`,
   );
 
   return nl(parts) + '\n';

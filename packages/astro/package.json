@@ -1,10 +1,13 @@
 {
   "name": "@getvitops/astro",
   "version": "0.1.0",
-  "description": "Astro integration for the Vitops design system — HTML/type helpers, and (future) Astro components wrapping @getvitops/core.",
+  "private": true,
+  "description": "Astro integration for the Vitops design system — favicons/PWA, web-component scripts, and CSS, via a getvitops() integration + <Head /> component.",
   "license": "MIT",
   "files": [
-    "dist"
+    "dist",
+    "Head.astro",
+    "virtual.d.ts"
   ],
   "type": "module",
   "types": "./dist/index.d.mts",
@@ -12,16 +15,23 @@
     ".": {
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
-    }
+    },
+    "./Head.astro": "./Head.astro",
+    "./package.json": "./package.json"
   },
   "dependencies": {
-    "parse5": "catalog:"
+    "@getvitops/core": "workspace:*",
+    "@getvitops/generator": "workspace:*",
+    "@getvitops/utils": "workspace:*",
+    "@getvitops/vite": "workspace:*",
+    "@tailwindcss/vite": "^4.3.3",
+    "parse5": "catalog:",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "astro": "catalog:"
   },
   "peerDependencies": {
-    "astro": ">=6"
-  },
-  "private": true
+    "astro": ">=7"
+  }
 }

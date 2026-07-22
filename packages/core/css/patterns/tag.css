@@ -41,7 +41,7 @@
   font-weight: 600;
   line-height: 1;
   border-radius: var(--br-badge-indicator, var(--br-pill, 999px));
-  background: var(--color-danger-d);
+  background: var(--color-danger-bold);
   color: #fff;
 
   &.badge-indicator--dot {

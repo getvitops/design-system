@@ -24,10 +24,12 @@
     "access": "public"
   },
   "dependencies": {
+    "@getvitops/utils": "workspace:*",
     "lightningcss": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@getvitops/core": "workspace:*"
+    "@getvitops/core": "workspace:*",
+    "vitest": "^4.1.9"
   }
 }

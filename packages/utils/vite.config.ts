@@ -4,7 +4,7 @@ import { defineConfig } from 'vite-plus';
 // (native/heavy — loaded lazily at runtime). Two entries: index + favicon subpath.
 export default defineConfig({
   pack: {
-    entry: ['src/index.ts', 'src/favicon.ts'],
+    entry: ['src/index.ts', 'src/favicon.ts', 'src/color/index.ts'],
     outDir: 'dist',
     format: ['es'],
     platform: 'node',

@@ -2,9 +2,9 @@
 type: "CSS Framework Reference"
 title: "Vitops CSS framework — class vocabulary"
 description: "Every utility and component class in the Vitops CSS framework, stated as a naming rule over the design tokens it expands."
-resource: "src/design-system.json"
+resource: "design-system.json"
 tags: [css, utilities, patterns, design-system]
-generator: lib/generate-docs.ts
+generator: "@getvitops/generator"
 ---
 
 # Vitops CSS framework — class vocabulary (LLM reference)
@@ -65,13 +65,32 @@ Families: `display`, `sans`, `code` (`--font-*`).
 
 ## Colour
 
-Rule: **`<util>-<color>`** — util ∈ `bg`, `text`, `border`; `<color>` is either a **named ramp**
-step or a **semantic role**.
+**Functional tokens are the primary vocabulary** — classes name the *job*, not the tone, and
+every one remaps automatically under `:root[data-brx-theme="dark"]` (background/text ends
+swap; `solid` fills stay mode-stable with a computed `on-` foreground). Prefer these over
+raw steps. Rules (role ∈ `neutral`, `surface`, `ui-primary`, `ui-secondary`, `ui-accent`, `brand-primary`, `brand-secondary`, `info`, `success`, `warning`, `danger`):
 
-- Named ramps: `pine`, `navy`, `amber`, `rust`, `cobalt`, `grey`. Steps: base (no suffix) + `xxd`, `xd`, `d`, `l`, `xl`, `xxl` — e.g. `bg-pine`
-  (base), `text-navy-xl`, `border-grey-d`.
-- Semantic roles: `brand-primary`, `surface`, `success`, `info`, `danger`, `warning`, `neutral` — e.g. `bg-brand-primary`, `text-danger`. Roles remap
-  automatically under `:root[data-brx-theme="dark"]`.
+- **Surfaces** — `bg-<role>` (the role's background wash; for `surface` this is the
+  card/panel plane), `bg-<role>-muted` (subtle / sunken), `bg-surface-bold` (raised plane).
+- **Solid fills** — `bg-<role>-solid`, `bg-<role>-solid-bold` (hover / emphasis), paired
+  with `text-on-<role>` for guaranteed-contrast foreground.
+- **Content** — `text-<role>` (primary, contrast-guaranteed in both appearances),
+  `text-<role>-muted` (secondary), `text-<role>-x-muted` (tertiary / disabled).
+- **Borders** — `border-<role>`, `border-<role>-bold`.
+- **Translucency** — `glass` (translucent surface + backdrop blur); `--overlay` scrim var.
+- **Emphasis stops** (appearance-relative vars for power use):
+  `--color-<role>-{x-muted,muted,bold,x-bold}` — `muted` recedes toward the background
+  extreme, `bold` advances toward the foreground, in *either* appearance.
+
+Everyday pairings: page `bg-neutral` + `text-neutral`; cards `bg-surface`; captions
+`text-neutral-muted`; buttons `bg-ui-primary-solid text-on-ui-primary`; status text
+`text-danger` / `text-success` / `text-warning` / `text-info`.
+
+**Raw scale** (secondary / fine control) — rule `<util>-<hue>-<step>` with util ∈
+`bg`, `text`, `border`: every hue is an 11-step OKLCH scale generated from its seed (or fixed brand
+tones), numeric steps `50` … `950` (tinted near-white → tinted near-black) — e.g.
+`bg-pine-100`, `text-pine-800`. Hues: `pine`, `navy`, `amber`, `rust`, `cobalt`, `grey`.
+The **bare** role name (`bg-<role>`, `text-<role>`) is always the functional token.
 
 ## Shadows
 

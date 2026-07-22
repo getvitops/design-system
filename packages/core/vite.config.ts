@@ -24,6 +24,7 @@ export default defineConfig({
         /^lit/,
         /^@lit-labs\//,
         /colorjs/,
+        /^@getvitops\/utils/,
       ],
     },
     // Stable (unhashed) chunk names in a dedicated subdir; cache-bust via the

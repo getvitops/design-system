@@ -22,7 +22,8 @@ set to ship. Workspace packages under `packages/` (a pnpm workspace):
   `schema.json`), and runtime validation all derive from it.
 - **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
   `png-to-ico`, loaded lazily; `oxipng` crush is optional). Consumed by the CLI and Vite plugin.
-- **`@getvitops/cli`** — `vitops generate|init|validate|favicon` (bin `vitops`), a thin wrapper
+- **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents` (bin `vitops`; `agents`
+  writes a managed design-system block into a consumer's `AGENTS.md`), a thin wrapper
   over core + utils.
 - **`@getvitops/vite`** — a Vite plugin (Astro/EmDash) that runs core on build/dev (and optional
   favicon generation) and hot-regenerates when the config changes.
@@ -95,7 +96,7 @@ Other tools used:
 
 `src/design-system.json` is the source of truth. `lib/generate-design-system.ts` reads it and emits four kinds of output:
 
-- `src/css/generated/color.css` — `:root` tokens (`colors.palette` ramps + the `colors.schemes.default` semantic roles) with `color-scheme: <appearance>`, per-scheme overrides under `:root[data-brx-theme="<appearance>"]`, and colour utility classes (`bg-`, `text-`, `border-`, …) for both ramps and roles. A role resolves via `RoleSpec` (`<ramp>` string, or `{ ramp?, invert?, shift?, steps?, value? }`); non-`default` schemes emit only the slots whose source differs from `default`.
+- `src/css/generated/color.css` — the colour layer. Each `colors.palette` hue is an **11-step numeric OKLCH scale** (`--color-<hue>-50…950`, tinted near-white → tinted near-black) generated from a `seed` (+ optional `anchors`) or a fixed `tones` brand kit. `colors.roles` maps each semantic role (neutral, surface, ui-primary/secondary/accent, brand-primary/secondary, info/success/warning/danger) to a hue; the generator derives **functional tokens** — `--<role>-{bg,bg-muted,border,border-bold,solid,solid-bold,on-solid,text,text-muted,text-x-muted}` plus appearance-relative emphasis stops `--color-<role>-{x-muted,muted,bold,x-bold}` and `--surface-glass`/`--overlay` — with matching utility classes (`bg-<role>`, `text-<role>-muted`, `text-on-<role>`, `.glass`, …). Dark mode is the **automatic functional flip** under `:root[data-brx-theme="dark"]` (bg/text ends swap; `solid` stays mode-stable with a computed `on-solid`). Contrast targets (text ≥ APCA Lc 75, muted ≥ 60, both appearances) are enforced by unit tests. There is no per-appearance scheme grammar and no named steps.
 - `src/css/generated/shadows.css` — `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Always emitted for the `css`/`bricks` formats.
 - `src/css/generated/patterns.css` — component CSS for entries under `patterns` in the JSON (button, link, badge, card). Each pattern has `base` declarations, `states` (hover/active/focus-visible) with shortcuts (`step`, `scale`, `lift`, `shadow`, `ring`, `css`), and `roles` (semantic colour variants). Always emitted.
 - `src/css/generated/animation-effects.css` — the effect + journey classes from `animations` in the JSON (`.fade-in`, `.reveal-left`, `.<parts>-journey`, …), each a pure value layer (`--_anim` + `--<prop>-from/-to`). Journeys are composed from `animations.journeys.base` + `compose`. Always emitted. The animation **engine** (keyframes, drivers, floats, utilities) stays hand-written in `src/css/animation.css`.

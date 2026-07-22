@@ -8,7 +8,7 @@
  * crush) is used when present on PATH and skipped otherwise — it is optional.
  */
 import { mkdirSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
+import { copyFile, writeFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import cp from 'node:child_process';
 import { join } from 'node:path';
@@ -56,13 +56,20 @@ export async function generateFavicons(opts: FaviconOptions): Promise<string[]> 
   mkdirSync(dir, { recursive: true });
   const out = (name: string) => join(dir, name);
 
+  const written: string[] = [];
+
+  // Modern browsers prefer a scalable SVG favicon (and it supports dark-mode via
+  // CSS media queries) — ship the source verbatim as favicon.svg when it is one.
+  if (source.endsWith('.svg')) {
+    await copyFile(source, out('favicon.svg'));
+    written.push(out('favicon.svg'));
+  }
+
   // Lazy-load the native/heavy deps only when actually generating.
   const [{ default: sharp }, { default: pngToIco }] = await Promise.all([
     import('sharp'),
     import('png-to-ico'),
   ]);
-
-  const written: string[] = [];
 
   // Rasterize the main source at each size. sharp reads SVG natively via libvips;
   // rendering at high density first keeps small-size edges crisp (ignored for PNG).
@@ -128,4 +135,72 @@ export async function generateFavicons(opts: FaviconOptions): Promise<string[]> 
   );
 
   return written;
+}
+
+// ── Head tags + web manifest (the "tag layer" over the generated image files) ──
+
+export interface FaviconLink {
+  rel: string;
+  href: string;
+  type?: string;
+  sizes?: string;
+}
+
+export interface FaviconTagOptions {
+  /** Whether a favicon.svg was emitted (source was an SVG). */
+  hasSvg?: boolean;
+  /** Include the `<link rel="manifest">` (default true). */
+  manifest?: boolean;
+  /** URL base the favicon files are served from (default '' → site root). */
+  base?: string;
+}
+
+/**
+ * The ordered `<link>` data matching what `generateFavicons` writes. Pure — no
+ * I/O — so it can drive an Astro `<Head />`, the CLI, or plain HTML.
+ */
+export function faviconLinks(opts: FaviconTagOptions = {}): FaviconLink[] {
+  const base = (opts.base ?? '').replace(/\/+$/, '');
+  const href = (f: string) => `${base}/${f}`;
+  const links: FaviconLink[] = [{ rel: 'icon', href: href('favicon.ico'), sizes: '32x32' }];
+  if (opts.hasSvg) links.push({ rel: 'icon', type: 'image/svg+xml', href: href('favicon.svg') });
+  links.push({ rel: 'icon', type: 'image/png', sizes: '32x32', href: href('icon-32.png') });
+  links.push({ rel: 'apple-touch-icon', href: href('apple-touch-icon.png') });
+  if (opts.manifest !== false) links.push({ rel: 'manifest', href: href('site.webmanifest') });
+  return links;
+}
+
+export interface WebManifestOptions {
+  name: string;
+  shortName?: string;
+  themeColor?: string;
+  backgroundColor?: string;
+  /** URL base the icon files are served from (default '' → site root). */
+  base?: string;
+}
+
+/** Build the web-app-manifest object (icons match `generateFavicons` output). */
+export function faviconManifest(opts: WebManifestOptions): Record<string, unknown> {
+  const base = (opts.base ?? '').replace(/\/+$/, '');
+  const src = (f: string) => `${base}/${f}`;
+  return {
+    name: opts.name,
+    short_name: opts.shortName ?? opts.name,
+    icons: [
+      { src: src('icon-192.png'), sizes: '192x192', type: 'image/png' },
+      { src: src('icon-512.png'), sizes: '512x512', type: 'image/png' },
+      { src: src('icon-mask.png'), sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    ],
+    theme_color: opts.themeColor ?? '#ffffff',
+    background_color: opts.backgroundColor ?? '#ffffff',
+    display: 'standalone',
+    start_url: '/',
+  };
+}
+
+/** Write `site.webmanifest` into `dir`. Returns the written path. */
+export async function writeFaviconManifest(dir: string, opts: WebManifestOptions): Promise<string> {
+  const path = join(dir.replace(/\/+$/, ''), 'site.webmanifest');
+  await writeFile(path, `${JSON.stringify(faviconManifest(opts), null, 2)}\n`);
+  return path;
 }

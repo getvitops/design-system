@@ -18,7 +18,7 @@
    (deferred.ts) on engines without `scroll-target-group` support. */
 .scroll-target-group a:target-current,
 .scroll-target-group a.is-current {
-  color: var(--scroll-target-active-color, var(--color-brand-primary));
+  color: var(--scroll-target-active-color, var(--brand-primary-solid));
 }
 
 .scroll-target-group--indicator a {
@@ -47,7 +47,7 @@
 .scroll-target-group--bar a:target-current::before,
 .scroll-target-group--indicator a.is-current::before,
 .scroll-target-group--bar a.is-current::before {
-  background-color: var(--scroll-target-active-color, var(--color-brand-primary));
+  background-color: var(--scroll-target-active-color, var(--brand-primary-solid));
 }
 
 .scroll-target-group--bar a {
@@ -107,7 +107,7 @@
 
 .toc-sidebar a:target-current,
 .toc-sidebar a.is-current {
-  color: var(--scroll-target-active-color, var(--color-brand-primary));
+  color: var(--scroll-target-active-color, var(--brand-primary-solid));
   font-weight: 500;
 }
 

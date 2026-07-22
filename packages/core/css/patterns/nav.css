@@ -13,7 +13,7 @@ nav:has(> .nav-items) {
 
 .nav-header {
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--nav-border-color, var(--color-surface-l));
+  border-bottom: 1px solid var(--nav-border-color, var(--color-surface-muted));
 }
 
 .nav-items {
@@ -49,7 +49,7 @@ nav:has(> .nav-items) {
   flex-direction: column;
   gap: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--nav-border-color, var(--color-surface-l));
+  border-top: 1px solid var(--nav-border-color, var(--color-surface-muted));
 }
 
 /* ── Dropdown submenu ─────────────────────────────────────────────────────── */
@@ -106,7 +106,7 @@ nav:has(> .nav-items) {
     border-radius: 0.375rem;
 
     &:hover {
-      background-color: var(--color-surface-l);
+      background-color: var(--color-surface-muted);
     }
   }
 }
@@ -131,8 +131,8 @@ nav:has(> .nav-items) {
   inset: 0;
   height: 100dvh;
   width: 100%;
-  background: var(--color-surface-xxl);
-  color: var(--color-surface-xxd);
+  background: var(--surface-bg);
+  color: var(--surface-text);
   opacity: 0;
   translate: -100%;
   transition-timing-function: var(--interact-easing, ease);

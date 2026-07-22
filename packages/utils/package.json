@@ -16,13 +16,21 @@
     "./favicon": {
       "types": "./dist/favicon.d.mts",
       "import": "./dist/favicon.mjs"
+    },
+    "./color": {
+      "types": "./dist/color/index.d.mts",
+      "import": "./dist/color/index.mjs"
     }
   },
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
+    "colorjs.io": "catalog:",
     "png-to-ico": "catalog:",
     "sharp": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.9"
   }
 }

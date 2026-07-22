@@ -75,6 +75,7 @@ export default defineConfig({
       // into dist/. Runs first (build:generator dependsOn it).
       'build:core': {
         command: 'cd packages/core && vp pack',
+        dependsOn: ['build:utils'],
         input: ['packages/core/src/**/*.ts', 'packages/core/vite.config.ts'],
         output: ['packages/core/dist/**'],
       },
@@ -176,10 +177,18 @@ export default defineConfig({
         input: ['packages/vite/src/**/*.ts', 'packages/vite/vite.config.ts'],
         output: ['packages/vite/dist/**'],
       },
-      // Build all publishable packages (cli/vite need core + utils).
+      // Astro integration: composes vite-plugin + utils (favicons) + core (the JS
+      // bundles it copies into a consumer's public/). build:core provides those.
+      'build:astro': {
+        command: 'cd packages/astro && vp pack',
+        dependsOn: ['build:core', 'build:generator', 'build:utils', 'build:vite-plugin'],
+        input: ['packages/astro/src/**/*.ts', 'packages/astro/vite.config.ts'],
+        output: ['packages/astro/dist/**'],
+      },
+      // Build all publishable packages (cli/vite need core + utils; astro needs all).
       'build:packages': {
         command:
-          'vp run build:generator && vp run build:utils && vp run build:cli && vp run build:vite-plugin',
+          'vp run build:generator && vp run build:utils && vp run build:cli && vp run build:vite-plugin && vp run build:astro',
       },
       // Version + publish the scoped packages via Changesets. Root stays private.
       release: {

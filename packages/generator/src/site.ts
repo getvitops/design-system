@@ -439,8 +439,8 @@ export const SiteConfigSchema = z.object({
   ),
 
   // Design system: named-theme map. `default` is the base; other entries may
-  // `extends` another and supply a partial patch. Light/dark lives *inside* an
-  // entry (design-system `colors.schemes`), not as separate entries.
+  // `extends` another and supply a partial patch. Light/dark is automatic
+  // (functional tokens flip per appearance), not a separate theme entry.
   designSystem: z.record(z.string(), DesignSystemEntry),
   defaultTheme: z.optional(z.string()), // convention: "default"
   defaultColorScheme: z.optional(z.enum(['light', 'dark'])), // initial appearance to render
@@ -539,6 +539,12 @@ export const SiteConfigSchema = z.object({
     z.object({
       source: z.string(),
       lowResSource: z.optional(z.string()),
+      /** App name for the generated web manifest / PWA. */
+      name: z.optional(z.string()),
+      /** PWA theme color (also `<meta name="theme-color">`). */
+      themeColor: z.optional(z.string()),
+      /** PWA background color. */
+      backgroundColor: z.optional(z.string()),
     }),
   ),
   deployment: z.optional(

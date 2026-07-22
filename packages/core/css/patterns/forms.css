@@ -32,7 +32,7 @@
 
   .form-group__error {
     font-size: var(--form-error-size, 0.75rem);
-    color: var(--color-danger-d);
+    color: var(--color-danger-bold);
     display: flex;
     align-items: center;
     gap: 0.25rem;
@@ -87,7 +87,7 @@ fieldset.fieldset,
   border: var(--_b);
   border-radius: var(--_br);
   padding: var(--_p);
-  background: var(--color-surface-xxl);
+  background: var(--surface-bg);
 }
 
 /* ── Input group — input flanked by icons/addons ───────────────────────────── */
@@ -171,7 +171,7 @@ fieldset.fieldset,
     block-size: var(--_check-size);
     border: var(--_b);
     border-radius: var(--_br);
-    background: var(--color-surface-xxl);
+    background: var(--surface-bg);
     color: #fff;
     display: flex;
     align-items: center;
@@ -194,8 +194,8 @@ fieldset.fieldset,
   }
 
   input:checked + .custom-check__box {
-    background: var(--color-brand-primary);
-    border-color: var(--color-brand-primary);
+    background: var(--brand-primary-solid);
+    border-color: var(--brand-primary-solid);
 
     .custom-check__indicator {
       opacity: 1;
@@ -204,7 +204,7 @@ fieldset.fieldset,
   }
 
   input:focus-visible + .custom-check__box {
-    outline: 2px solid var(--check-focus-color, var(--color-brand-primary-l));
+    outline: 2px solid var(--check-focus-color, var(--color-brand-primary-muted));
     outline-offset: 2px;
   }
 
@@ -257,7 +257,7 @@ fieldset.fieldset,
     inline-size: var(--_switch-width);
     block-size: var(--_switch-height);
     border-radius: var(--br-switch-track, var(--br-pill, 999px));
-    background: var(--color-surface-l);
+    background: var(--color-surface-muted);
     transition: background-color 0.2s ease;
   }
 
@@ -275,7 +275,7 @@ fieldset.fieldset,
   }
 
   input:checked + .switch__track {
-    background: var(--color-brand-primary);
+    background: var(--brand-primary-solid);
 
     .switch__thumb {
       inset-inline-start: calc(100% - var(--_switch-thumb-size) - 2px);
@@ -283,7 +283,7 @@ fieldset.fieldset,
   }
 
   input:focus-visible + .switch__track {
-    outline: 2px solid var(--switch-focus-color, var(--color-brand-primary-l));
+    outline: 2px solid var(--switch-focus-color, var(--color-brand-primary-muted));
     outline-offset: 2px;
   }
 
@@ -329,7 +329,7 @@ select.custom-select {
   cursor: pointer;
 
   &:focus-visible {
-    outline: 2px solid var(--select-focus-color, var(--color-brand-primary-l));
+    outline: 2px solid var(--select-focus-color, var(--color-brand-primary-muted));
     outline-offset: 2px;
   }
 }

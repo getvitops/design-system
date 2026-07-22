@@ -1,29 +1,30 @@
 ---
-import '../styles/app.css';
+import Head from '@getvitops/astro/Head.astro';
 ---
 
-<html lang="en" data-theme="light">
+<html lang="en" data-brx-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Sign in · Vitops Portal</title>
+    <Head />
     <script is:inline>
       const t = localStorage.getItem('theme');
       const dark = t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-brx-theme', dark ? 'dark' : 'light');
     </script>
   </head>
-  <body class="bg-surface-xl text-neutral-xxd grid min-h-screen place-items-center">
+  <body class="bg-neutral text-neutral grid min-h-screen place-items-center">
     <main class="card w-full max-w-sm rhythm">
-      <h1 class="font-display text-brand-primary-d text-2xl">Vitops Portal</h1>
-      <p class="font-caption text-neutral">Sign in to your client dashboard.</p>
+      <h1 class="font-display text-brand-primary text-2xl">Vitops Portal</h1>
+      <p class="font-caption text-neutral-muted">Sign in to your client dashboard.</p>
       <form id="login" class="rhythm">
-        <input id="email" type="email" placeholder="Email" required class="w-full rounded border border-neutral-xl bg-surface px-3 py-2 font-body" />
-        <input id="password" type="password" placeholder="Password" required class="w-full rounded border border-neutral-xl bg-surface px-3 py-2 font-body" />
-        <button type="submit" class="w-full rounded bg-brand-primary px-3 py-2 font-body text-surface-xxl">Sign in</button>
-        <p id="err" class="font-caption text-danger-d"></p>
+        <input id="email" type="email" placeholder="Email" required class="w-full rounded border border-neutral bg-surface px-3 py-2 font-body" />
+        <input id="password" type="password" placeholder="Password" required class="w-full rounded border border-neutral bg-surface px-3 py-2 font-body" />
+        <button type="submit" class="w-full rounded bg-ui-primary-solid px-3 py-2 font-body text-on-ui-primary">Sign in</button>
+        <p id="err" class="font-caption text-danger"></p>
       </form>
-      <p class="font-caption text-neutral">No account? <a href="/signup" class="text-brand-primary-d underline">Create one</a></p>
+      <p class="font-caption text-neutral-muted">No account? <a href="/signup" class="text-brand-primary underline">Create one</a></p>
     </main>
 
     <script>

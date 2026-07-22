@@ -7,17 +7,17 @@ interface Props {
 }
 const { label, value, sub, tone = 'neutral' } = Astro.props;
 const toneClass = {
-  brand: 'text-brand-primary-d',
-  success: 'text-success-d',
-  danger: 'text-danger-d',
-  warning: 'text-warning-d',
-  info: 'text-info-d',
-  neutral: 'text-neutral-xxd',
+  brand: 'text-brand-primary',
+  success: 'text-success',
+  danger: 'text-danger',
+  warning: 'text-warning',
+  info: 'text-info',
+  neutral: 'text-neutral',
 }[tone];
 ---
 
 <div class="card">
-  <div class="font-eyebrow text-neutral">{label}</div>
+  <div class="font-eyebrow text-neutral-muted">{label}</div>
   <div class:list={['font-display text-3xl', toneClass]}>{value}</div>
-  {sub && <div class="font-caption text-neutral mt-1">{sub}</div>}
+  {sub && <div class="font-caption text-neutral-muted mt-1">{sub}</div>}
 </div>

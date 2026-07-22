@@ -16,49 +16,30 @@ const Scalar = z.union([z.string(), z.number()]);
 const VarMap = z.record(z.string(), Scalar);
 
 // ── colors ──────────────────────────────────────────────────────────────────
-// A ramp: any subset of the 7 tonal steps (dark → light). Values are hex.
-const Ramp = z.object({
-  xxd: z.optional(z.string()),
-  xd: z.optional(z.string()),
-  d: z.optional(z.string()),
-  base: z.optional(z.string()),
-  l: z.optional(z.string()),
-  xl: z.optional(z.string()),
-  xxl: z.optional(z.string()),
+// A palette hue, authored one of two ways:
+//   • `{ seed, anchors? }` — an 11-step numeric scale (50…950) is GENERATED in
+//     OKLCH from the seed (anchors pin specific steps; hex or oklch() values).
+//   • `{ tones }` — a fixed brand kit: authored tones used verbatim at their
+//     nearest steps + tinted off-white/off-black endpoints; no interpolation.
+const SeededRamp = z.object({
+  seed: z.string(),
+  anchors: z.optional(z.record(z.string(), z.string())),
 });
-
-// A semantic role → a ramp, plus optional per-slot transforms. One grammar,
-// three placements: the `default` scheme (must fully resolve), a delta scheme
-// (partial patch over `default`), and cross-theme `extends` (partial patch).
-// String form is shorthand for `{ ramp: <name> }` (identity step mapping).
-// Resolution per slot: `value` > `steps` > shiftStep(invert ? MIRROR : slot, shift);
-// `ramp` defaults to the inherited base ramp.
-const RoleSpec = z.union([
-  z.string(),
-  z.object({
-    ramp: z.optional(z.string()), // swap to a different ramp
-    invert: z.optional(z.boolean()), // mirror steps (xxd↔xxl … base→base)
-    shift: z.optional(z.number()), // shift every slot N steps darker(+)/lighter(−)
-    steps: z.optional(z.record(z.string(), z.string())), // explicit slot → ramp step
-    value: z.optional(z.record(z.string(), z.string())), // explicit hex/var per slot
-  }),
-]);
-
-// An appearance scheme. `appearance` drives `color-scheme` + the toggle selector.
-const Scheme = z.object({
-  appearance: z.enum(['light', 'dark']),
-  semantic: z.record(z.string(), RoleSpec),
+const FixedRamp = z.object({
+  tones: z.union([z.array(z.string()), z.record(z.string(), z.string())]),
 });
+const Ramp = z.union([SeededRamp, FixedRamp]);
 
 const UtilityName = z.enum(['bg', 'text', 'border', 'outline', 'fill', 'stroke']);
 
-// `schemes` is an open map: the `default` key is the fully-authored base; any
-// other key (e.g. `alternate`) is a delta patch over `default`. `default`
-// presence is enforced at runtime (validate), not expressible in JSON Schema.
+// `roles` maps each semantic role (neutral, surface, ui-primary, …) to the
+// palette hue backing it. The generator derives every role's FUNCTIONAL tokens
+// (bg / text / solid / on-solid / borders / muted stops) from the hue's scale,
+// and dark mode flips automatically — there is no per-appearance scheme grammar.
 const Colors = z.object({
   palette: z.record(z.string(), Ramp),
+  roles: z.record(z.string(), z.string()),
   utilities: z.optional(z.array(UtilityName)),
-  schemes: z.record(z.string(), Scheme),
 });
 
 // ── fluid modular scale (type + space) ──────────────────────────────────────
@@ -146,16 +127,8 @@ export type DesignSystem = z.infer<typeof DesignSystemSchema>;
 // (validate the resolved theme against `DesignSystemSchema`).
 const ColorsPatch = z.object({
   palette: z.optional(z.record(z.string(), Ramp)),
+  roles: z.optional(z.record(z.string(), z.string())),
   utilities: z.optional(z.array(UtilityName)),
-  schemes: z.optional(
-    z.record(
-      z.string(),
-      z.object({
-        appearance: z.optional(z.enum(['light', 'dark'])),
-        semantic: z.optional(z.record(z.string(), RoleSpec)),
-      }),
-    ),
-  ),
 });
 export const DesignSystemPatchSchema = z.extend(z.partial(DesignSystemSchema), {
   colors: z.optional(ColorsPatch),
@@ -183,19 +156,22 @@ export type ValidationResult =
 export function validate(input: unknown): ValidationResult {
   const result = z.safeParse(DesignSystemSchema, input);
   if (!result.success) return { ok: false, data: undefined, errors: result.error.issues };
-  // JSON Schema can't require a specific map key; enforce the base scheme here.
-  if (result.data.colors.schemes.default == null) {
-    return {
-      ok: false,
-      data: undefined,
-      errors: [
-        {
-          code: 'custom',
-          path: ['colors', 'schemes', 'default'],
-          message: 'colors.schemes must include a "default" (base) scheme',
-        } as z.core.$ZodIssue,
-      ],
-    };
+  // Every role must point at a palette hue that exists.
+  const { palette, roles } = result.data.colors;
+  for (const [role, hue] of Object.entries(roles)) {
+    if (palette[hue] == null) {
+      return {
+        ok: false,
+        data: undefined,
+        errors: [
+          {
+            code: 'custom',
+            path: ['colors', 'roles', role],
+            message: `role "${role}" references unknown palette hue "${hue}"`,
+          } as z.core.$ZodIssue,
+        ],
+      };
+    }
   }
   return { ok: true, data: result.data, errors: [] };
 }
