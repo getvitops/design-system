@@ -34,22 +34,28 @@ platform features — Popover API, CSS Anchor Positioning, Invoker Commands (`co
 `<dialog>`, `<details>`, subgrid. **If a pattern needs JS, it belongs in `@getvitops/core` as a
 `<wc-*>` web component**, and a wrapper here just emits its tag with the accessible fallback inside.
 
-| component                      | what it wraps                                                                          |
-| ------------------------------ | -------------------------------------------------------------------------------------- |
-| `Subgrid`                      | emits `<ul class="grid"><li class="grid-rows-subgrid …">` from slotted children        |
-| `Popover`                      | native Popover API + CSS Anchor Positioning                                            |
-| `Details`                      | native `<details>`/`<summary>` disclosure                                              |
-| `Drawer`                       | native `<dialog>` + Invoker Commands (`command="show-modal"`, `closedby="any"`)        |
-| `Nav`, `Submenu`               | navigation (drawer / navbar / vertical), composing `Details` + `Drawer`                |
-| `NodeRenderer`, `FormRenderer` | render a `ContentNode` / form data model into markup at SSR time                       |
-| `Template`                     | dispatches a named `siteConfig.templates[id]` to `Nav`/`FormRenderer`/`NodeRenderer`   |
-| `Cards`, `ContentInfo`, `SEO`  | content-layout + `<head>`/SEO wrappers                                                 |
-| `WebComponentLoader`           | client-side lazy-register a specific `<wc-*>` (the JS path for a tier-2 web component) |
+**Published generic tier** — exported as `@getvitops/astro/components/<Name>.astro`, depend only on
+Astro + `@getvitops/utils` (the icon ones also on the optional `astro-icon` peer):
+
+| component            | what it wraps                                                                                  |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| `Subgrid`            | emits `<ul class="grid"><li class="grid-rows-subgrid …">` from slotted children                |
+| `Cards`              | content-layout wrapper (composes `Subgrid`)                                                    |
+| `NodeRenderer`       | renders a `ContentNode` tree into markup at SSR time                                           |
+| `Popover`            | native Popover API + CSS Anchor Positioning (`astro-icon`)                                     |
+| `Details`            | native `<details>`/`<summary>` disclosure (`astro-icon`)                                       |
+| `Drawer`             | native `<dialog>` + Invoker Commands (`command="show-modal"`, `closedby="any"`) (`astro-icon`) |
+| `WebComponentLoader` | client-side lazy-register a specific `<wc-*>` (the JS path for a tier-2 web component)         |
 
 `WebComponentLoader` is the one exception that ships a `<script>` — but it only **loads** a web
 component (tier 2), it doesn't implement a pattern. Prefer letting `<Head />` load `elements.js`.
 
-All of the above live in `src/components/` (alongside `Head.astro`).
+**Internal / config-bound (not exported yet)** — `Nav`, `Submenu`, `Template`, `FormRenderer`,
+`ContentInfo`, `SEO`. These bind to the consumer's `#site-config` (and the image/icon-resolver
+pipeline) and are gated behind the EmDash integration for menus/widgets; they stay in
+`src/components/` but out of the `exports` map until that lands.
+
+All components live in `src/components/` (alongside `Head.astro`).
 
 ## Structured data — Schema.org / JSON-LD (`src/schemas/`)
 
@@ -63,9 +69,12 @@ alongside `SEO.astro`, which covers the `<meta>`/Open Graph tags.
 
 ## Authoring helpers
 
-`html.ts` (parse rendered slots, build markup, `styleList`), `parts.ts` (`partAttrs`), `i18n.ts`
-(`t()`), and the shared `types.ts` — used when authoring the components (e.g. `Subgrid` parses its
-rendered slots to re-emit per-child attrs on the `<li>` wrappers). Re-exported from the package root.
+The framework-agnostic content model + HTML helpers now live in **`@getvitops/utils`** (no Astro
+dependency): the content-model types/guards (`Elmnt`/`Link`/`ContentNode`, `isElmnt`, …), i18n `t()`,
+`partAttrs`, and the parse5 helpers (`parseRenderedSlots`, `toHtml`, `nodesToHtml`, `styleList`) —
+used when authoring the components (e.g. `Subgrid` parses its rendered slots to re-emit per-child
+attrs on the `<li>` wrappers). They're re-exported from this package's root (`@getvitops/astro`) for
+back-compat, but new code should import them from `@getvitops/utils`.
 
 ## Conventions
 
@@ -75,5 +84,6 @@ rendered slots to re-emit per-child attrs on the `<li>` wrappers). Re-exported f
   parses + augments it (see `WCEntries` in `@getvitops/core`).
 - Icons resolve through an injectable `iconResolver` (pass-through by default; the integration wires
   the site's icon set). Text is `Localizable`; resolve with `t(value, locale, defaultLocale)`.
-- Deps use the workspace `catalog:`; `astro` is a peer (`>=7`). Versions independently of the
-  `fixed` `core`/`generator`/`utils`/`cli`/`vite` group.
+- Deps use the workspace `catalog:`; `astro` is a peer (`>=7`) and `astro-icon` an **optional** peer
+  (`>=1`, only for `Popover`/`Details`/`Drawer`). Versions independently of the `fixed`
+  `core`/`generator`/`utils`/`cli`/`vite` group.

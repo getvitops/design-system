@@ -35,13 +35,15 @@ the Tailwind (`--format=tailwind`) output.
   (semantic name like `expand-more`/`close` → a fully-qualified `astro-icon` name like
   `fa7-solid:chevron-down`), defaulting to pass-through. Move this mapping into the `getvitops()`
   integration so it's provided centrally (per-site) rather than threaded through every component.
-- **Ship the generic component tier** (blocked on a path fix). The prop-driven primitives
-  (`Subgrid`/`Popover`/`Details`/`Drawer`/`Cards`/`NodeRenderer`, + `Nav`/`Submenu` once their
-  `#site-config` `defaultLocale` default becomes a plain prop) should export at `./components/*`.
-  Blocker: they import helpers via `../../utils/*` (resolves to a top-level `packages/astro/utils/`)
-  but the helpers live at `packages/astro/src/*` — the imports don't resolve. Align the helper
-  location first, then export. Config-bound chrome (`Template`/`Layout`/`SEO`/`ContentInfo`/
-  `FormRenderer`) stays **out** of the generic library — headed for EmDash (menus/widgets).
+- ~~**Ship the generic component tier.**~~ Done — the framework-agnostic content/HTML helpers moved
+  to `@getvitops/utils`, and the generic primitives export at `@getvitops/astro/components/*`:
+  `Subgrid`, `Cards`, `NodeRenderer`, `WebComponentLoader`, plus `Popover`/`Details`/`Drawer`
+  (optional `astro-icon` peer). Config-bound chrome (`Template`/`SEO`/`ContentInfo`/`FormRenderer`)
+  stays out of the generic library.
+- **Decouple `Nav`/`Submenu` and ship them too.** They're still internal — coupled to `#site-config`
+  plus the `../utils/images` + `../utils/icon-resolver` pipeline (the latter is the semantic-icon
+  mapping above). Route them through the EmDash menus/widgets integration rather than a one-line
+  `defaultLocale` prop default; export once that resolves.
 
 ---
 
