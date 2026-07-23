@@ -1,0 +1,48 @@
+---
+/**
+ * Generic loader for web components.
+ * Uses import.meta.glob to include all WC*.ts files in the dependency graph,
+ * then dynamically loads the requested one on the client.
+ *
+ * @example
+ * <WebComponentLoader src="WCColorSchemeToggle" />
+ * <color-scheme-toggle></color-scheme-toggle>
+ */
+interface Props {
+  src: string;
+}
+
+const { src } = Astro.props;
+---
+
+<wc-loader data-src={src}></wc-loader>
+
+<script>
+  // All web components matching this pattern are included in the build
+  const modules = import.meta.glob<{ default?: unknown }>(
+    '/src/components/web-components/WC*.ts'
+  );
+
+  // Load requested modules
+  document.querySelectorAll<HTMLElement>('wc-loader[data-src]').forEach(async (el) => {
+    const name = el.dataset.src;
+    if (!name) return;
+
+    // Build the full path from the component name
+    const path = `/src/components/web-components/${name}.ts`;
+    const loader = modules[path];
+
+    if (loader) {
+      await loader();
+      el.remove(); // Clean up the loader element
+    } else {
+      console.warn(`[WebComponentLoader] Module not found: ${path}`);
+    }
+  });
+</script>
+
+<style>
+  wc-loader {
+    display: none;
+  }
+</style>

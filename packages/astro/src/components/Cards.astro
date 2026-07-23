@@ -1,0 +1,32 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+import Subgrid from './Subgrid.astro';
+import { parseRenderedSlots, serialize } from '../../utils/html.js';
+
+export interface Props extends HTMLAttributes<'ul'> {}
+
+const { class: className, ...rest } = Astro.props;
+
+const nodes = parseRenderedSlots(await Astro.slots.render('default'));
+const slots = nodes.filter(node => 'tagName' in node).map(node => {
+  const cls = node.attrs?.find(attr => attr.name === 'class');
+  const value = `card${cls ? ' ' + cls.value : ''}`;
+  if (cls) {
+    cls.value = value;
+  } else {
+    node.attrs.push({ name: 'class', value });
+  }
+  
+  return { html: serialize(node), attrs: node.attrs };
+});
+---
+
+<Subgrid
+  role="list"
+  class:list={["no-list-markers", className]}
+  {...rest}
+>
+  {slots.map((slot) => (
+    <li class="card-wrapper" style={slot.attrs?.find(attr => attr.name === 'style')?.value} set:html={slot.html}></li>
+  ))}
+</Subgrid>

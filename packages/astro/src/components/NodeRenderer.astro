@@ -1,0 +1,27 @@
+---
+import { nodesToHtml } from '../../utils/html.js';
+import { t } from '../../utils/i18n.js';
+import type { ContentNode, Localizable, Attrs } from '../../types.js';
+
+interface Props {
+  nodes: ContentNode[];
+  attrs?: Attrs;
+  locale?: string;
+  defaultLocale?: string;
+}
+
+const {
+  nodes,
+  attrs,
+  locale = 'en',
+  defaultLocale = 'en',
+} = Astro.props;
+
+const resolveText = (value: Localizable) => t(value, locale, defaultLocale);
+const htmlString = nodesToHtml(nodes, resolveText);
+---
+
+{attrs
+  ? <div {...attrs} set:html={htmlString} />
+  : <Fragment set:html={htmlString} />
+}

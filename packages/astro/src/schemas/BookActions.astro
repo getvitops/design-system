@@ -1,0 +1,81 @@
+---
+export interface Props {
+  name: string;
+  author: string | string[];
+  url: string;
+  workExample?: {
+    isbn?: string;
+    bookEdition?: string;
+    bookFormat?: 'AudiobookFormat' | 'EBook' | 'GraphicNovel' | 'Hardcover' | 'Paperback';
+    potentialAction?: {
+      type: 'ReadAction' | 'BorrowAction' | 'BuyAction';
+      target: string;
+      expectsAcceptanceOf?: {
+        availabilityStarts?: string;
+        availabilityEnds?: string;
+        category?: 'free' | 'subscription' | 'purchase' | 'rental';
+      };
+    };
+  }[];
+  sameAs?: string[];
+  image?: string;
+  description?: string;
+}
+
+const {
+  name,
+  author,
+  url,
+  workExample,
+  sameAs,
+  image,
+  description,
+} = Astro.props;
+
+const authors = Array.isArray(author) ? author : [author];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Book',
+  name,
+  author: authors.map(a => ({
+    '@type': 'Person',
+    name: a,
+  })),
+  url,
+  ...(sameAs && { sameAs }),
+  ...(image && { image }),
+  ...(description && { description }),
+  ...(workExample && {
+    workExample: workExample.map(we => ({
+      '@type': 'Book',
+      ...(we.isbn && { isbn: we.isbn }),
+      ...(we.bookEdition && { bookEdition: we.bookEdition }),
+      ...(we.bookFormat && { bookFormat: `https://schema.org/${we.bookFormat}` }),
+      ...(we.potentialAction && {
+        potentialAction: {
+          '@type': we.potentialAction.type,
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: we.potentialAction.target,
+            actionPlatform: [
+              'https://schema.org/DesktopWebPlatform',
+              'https://schema.org/AndroidPlatform',
+              'https://schema.org/IOSPlatform',
+            ],
+          },
+          ...(we.potentialAction.expectsAcceptanceOf && {
+            expectsAcceptanceOf: {
+              '@type': 'Offer',
+              ...we.potentialAction.expectsAcceptanceOf,
+            },
+          }),
+        },
+      }),
+    })),
+  }),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

@@ -1,0 +1,138 @@
+---
+export interface Props {
+  title: string;
+  description: string;
+  datePosted: string;
+  validThrough?: string;
+  employmentType?: ('FULL_TIME' | 'PART_TIME' | 'CONTRACTOR' | 'TEMPORARY' | 'INTERN' | 'VOLUNTEER' | 'PER_DIEM' | 'OTHER')[];
+  hiringOrganization: {
+    name: string;
+    sameAs?: string;
+    logo?: string;
+  };
+  jobLocation?: {
+    streetAddress?: string;
+    addressLocality: string;
+    addressRegion?: string;
+    postalCode?: string;
+    addressCountry: string;
+  };
+  jobLocationType?: 'TELECOMMUTE';
+  applicantLocationRequirements?: {
+    type: 'Country' | 'State' | 'City';
+    name: string;
+  }[];
+  baseSalary?: {
+    currency: string;
+    value: number | { minValue: number; maxValue: number };
+    unitText: 'HOUR' | 'DAY' | 'WEEK' | 'MONTH' | 'YEAR';
+  };
+  identifier?: {
+    name: string;
+    value: string;
+  };
+  directApply?: boolean;
+  experienceRequirements?: string;
+  educationRequirements?: string;
+  skills?: string[];
+  qualifications?: string[];
+  responsibilities?: string[];
+  industry?: string;
+  occupationalCategory?: string;
+}
+
+const {
+  title,
+  description,
+  datePosted,
+  validThrough,
+  employmentType,
+  hiringOrganization,
+  jobLocation,
+  jobLocationType,
+  applicantLocationRequirements,
+  baseSalary,
+  identifier,
+  directApply,
+  experienceRequirements,
+  educationRequirements,
+  skills,
+  qualifications,
+  responsibilities,
+  industry,
+  occupationalCategory,
+} = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'JobPosting',
+  title,
+  description,
+  datePosted,
+  ...(validThrough && { validThrough }),
+  ...(employmentType && { employmentType }),
+  hiringOrganization: {
+    '@type': 'Organization',
+    name: hiringOrganization.name,
+    ...(hiringOrganization.sameAs && { sameAs: hiringOrganization.sameAs }),
+    ...(hiringOrganization.logo && { logo: hiringOrganization.logo }),
+  },
+  ...(jobLocation && {
+    jobLocation: {
+      '@type': 'Place',
+      address: {
+        '@type': 'PostalAddress',
+        ...(jobLocation.streetAddress && { streetAddress: jobLocation.streetAddress }),
+        addressLocality: jobLocation.addressLocality,
+        ...(jobLocation.addressRegion && { addressRegion: jobLocation.addressRegion }),
+        ...(jobLocation.postalCode && { postalCode: jobLocation.postalCode }),
+        addressCountry: jobLocation.addressCountry,
+      },
+    },
+  }),
+  ...(jobLocationType && { jobLocationType }),
+  ...(applicantLocationRequirements && {
+    applicantLocationRequirements: applicantLocationRequirements.map(req => ({
+      '@type': req.type,
+      name: req.name,
+    })),
+  }),
+  ...(baseSalary && {
+    baseSalary: {
+      '@type': 'MonetaryAmount',
+      currency: baseSalary.currency,
+      value: typeof baseSalary.value === 'number'
+        ? { '@type': 'QuantitativeValue', value: baseSalary.value, unitText: baseSalary.unitText }
+        : {
+            '@type': 'QuantitativeValue',
+            minValue: baseSalary.value.minValue,
+            maxValue: baseSalary.value.maxValue,
+            unitText: baseSalary.unitText,
+          },
+    },
+  }),
+  ...(identifier && {
+    identifier: {
+      '@type': 'PropertyValue',
+      name: identifier.name,
+      value: identifier.value,
+    },
+  }),
+  ...(directApply !== undefined && { directApply }),
+  ...(experienceRequirements && { experienceRequirements }),
+  ...(educationRequirements && {
+    educationRequirements: {
+      '@type': 'EducationalOccupationalCredential',
+      credentialCategory: educationRequirements,
+    },
+  }),
+  ...(skills && { skills }),
+  ...(qualifications && { qualifications }),
+  ...(responsibilities && { responsibilities }),
+  ...(industry && { industry }),
+  ...(occupationalCategory && { occupationalCategory }),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

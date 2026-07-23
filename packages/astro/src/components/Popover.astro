@@ -1,0 +1,90 @@
+---
+import { Icon } from 'astro-icon/components';
+
+interface Props {
+  id: string;
+  trigger?: {
+    label: string;
+    icon?: string;
+    class?: string;
+    attrs?: Record<string, string | number | boolean>;
+  };
+  type?: 'auto' | 'manual';
+  as?: 'div' | 'dialog';
+  class?: string;
+  anchorName?: string;
+  positionArea?: string;
+  /** Resolve semantic icon names to fully-qualified astro-icon names.
+   *  Defaults to pass-through (expects already-qualified names like 'fa7-solid:bars'). */
+  iconResolver?: (name: string) => string;
+}
+
+const {
+  id,
+  trigger,
+  type = 'auto',
+  as: Element = 'div',
+  class: className,
+  anchorName,
+  positionArea = 'block-end center',
+  iconResolver = (name: string) => name,
+} = Astro.props;
+
+const styles = anchorName
+  ? `position-anchor: --${anchorName}; position-area: ${positionArea}`
+  : undefined;
+
+const anchorStyles = anchorName ? `anchor-name: --${anchorName}` : undefined;
+
+const { class: triggerAttrClass, ...triggerRestAttrs } = trigger?.attrs ?? {};
+---
+
+{/* Trigger button - slot with default fallback */}
+<slot name="trigger">
+  <button
+    popovertarget={id}
+    class:list={['popover-trigger', trigger?.class, triggerAttrClass]}
+    style={anchorStyles}
+    aria-label={trigger?.label || 'Open'}
+    {...triggerRestAttrs}
+  >
+  <span class={trigger?.icon ? 'sr-only' : ''}>{trigger?.label || 'Open'}</span>
+    {trigger?.icon && <Icon name={iconResolver(trigger.icon)} class="not-sr-only" />}
+  </button>
+</slot>
+
+
+<Element
+  id={id}
+  popover={type}
+  class:list={["popover", className]}
+  style={styles}
+>
+  <slot />
+</Element>
+
+<style>
+  .popover {
+    margin: 0;
+    inset: auto;
+    border: none;
+    padding: 0;
+  }
+
+  .popover[popover]::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  .popover-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+    font-family: inherit;
+    color: inherit;
+  }
+</style>

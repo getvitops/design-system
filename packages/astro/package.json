@@ -6,6 +6,7 @@
   "files": [
     "dist",
     "src/components/Head.astro",
+    "src/schemas",
     "virtual.d.ts"
   ],
   "type": "module",
@@ -16,6 +17,7 @@
       "import": "./dist/index.mjs"
     },
     "./Head.astro": "./src/components/Head.astro",
+    "./schemas/*": "./src/schemas/*",
     "./package.json": "./package.json"
   },
   "publishConfig": {

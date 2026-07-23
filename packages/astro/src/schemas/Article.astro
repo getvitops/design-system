@@ -1,0 +1,69 @@
+---
+export interface Props {
+  headline: string;
+  description?: string;
+  image?: string | string[];
+  datePublished: string;
+  dateModified?: string;
+  author: {
+    name: string;
+    url?: string;
+  } | {
+    name: string;
+    url?: string;
+  }[];
+  publisher?: {
+    name: string;
+    logo?: string;
+  };
+  mainEntityOfPage?: string;
+  articleSection?: string;
+  wordCount?: number;
+  keywords?: string[];
+}
+
+const {
+  headline,
+  description,
+  image,
+  datePublished,
+  dateModified,
+  author,
+  publisher,
+  mainEntityOfPage,
+  articleSection,
+  wordCount,
+  keywords,
+} = Astro.props;
+
+const authors = Array.isArray(author) ? author : [author];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline,
+  ...(description && { description }),
+  ...(image && { image: Array.isArray(image) ? image : [image] }),
+  datePublished,
+  ...(dateModified && { dateModified }),
+  author: authors.map(a => ({
+    '@type': 'Person',
+    name: a.name,
+    ...(a.url && { url: a.url }),
+  })),
+  ...(publisher && {
+    publisher: {
+      '@type': 'Organization',
+      name: publisher.name,
+      ...(publisher.logo && { logo: { '@type': 'ImageObject', url: publisher.logo } }),
+    },
+  }),
+  ...(mainEntityOfPage && { mainEntityOfPage: { '@type': 'WebPage', '@id': mainEntityOfPage } }),
+  ...(articleSection && { articleSection }),
+  ...(wordCount && { wordCount }),
+  ...(keywords && { keywords: keywords.join(', ') }),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

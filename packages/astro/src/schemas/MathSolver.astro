@@ -1,0 +1,54 @@
+---
+export interface Props {
+  name: string;
+  url: string;
+  description?: string;
+  potentialAction: {
+    target: string;
+    mathExpression?: string;
+    eduQuestionType?: ('Polynomial' | 'Arithmetic' | 'Calculus' | 'Geometry' | 'Statistics' | 'Algebra' | 'Trigonometry')[];
+  };
+  applicationCategory?: string;
+  operatingSystem?: string;
+  offers?: {
+    price: number | string;
+    priceCurrency: string;
+  };
+}
+
+const {
+  name,
+  url,
+  description,
+  potentialAction,
+  applicationCategory,
+  operatingSystem,
+  offers,
+} = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name,
+  url,
+  ...(description && { description }),
+  ...(applicationCategory && { applicationCategory }),
+  ...(operatingSystem && { operatingSystem }),
+  ...(offers && {
+    offers: {
+      '@type': 'Offer',
+      price: offers.price,
+      priceCurrency: offers.priceCurrency,
+    },
+  }),
+  potentialAction: {
+    '@type': 'SolveMathAction',
+    target: potentialAction.target,
+    ...(potentialAction.mathExpression && { 'mathExpression-input': `required name=${potentialAction.mathExpression}` }),
+    ...(potentialAction.eduQuestionType && { eduQuestionType: potentialAction.eduQuestionType }),
+  },
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

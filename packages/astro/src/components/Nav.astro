@@ -1,0 +1,226 @@
+---
+import { Image } from 'astro:assets';
+import { Icon } from 'astro-icon/components';
+import Details from './Details.astro';
+import Drawer from './Drawer.astro';
+import Submenu from './Submenu.astro';
+import { isElmnt } from '../../utils/types.js';
+import { resolveImage, normalizeImageRef } from '../utils/images';
+import { t } from '../../utils/i18n.js';
+import { icon } from '../utils/icon-resolver';
+import { partAttrs } from '../../utils/parts.js';
+import siteConfig from '#site-config';
+import type { Elmnt, Link } from '../../types.js';
+import type { HTMLTag } from 'astro/types';
+
+type NavItem = Link | Elmnt<Link>;
+
+interface Props {
+  items: NavItem[];
+  present?: DrawerPresentationType | NavbarPresentationType;
+  attrs?: Attrs;
+  id?: string;
+  class?: string;
+  locale?: string;
+  defaultLocale?: string;
+}
+
+const {
+  items,
+  present,
+  attrs,
+  id = 'nav',
+  class: className,
+  locale = siteConfig.defaultLocale,
+  defaultLocale = siteConfig.defaultLocale,
+} = Astro.props;
+
+const resolve = (value: Localizable | undefined) => t(value, locale, defaultLocale);
+const drawerId = `${id}-drawer`;
+
+const { class: rootCls, ...rootRest } = partAttrs(present, 'root');
+const { class: navCls, ...navRest } = partAttrs(present, 'nav');
+const { class: menuCls, ...menuRest } = partAttrs(present, 'menu');
+const { class: itemsCls, ...itemsRest } = partAttrs(present, 'items');
+
+/** Merge link.class shorthand with link.attrs.class */
+function linkClass(link: Link, fallback = 'nav-link'): string | undefined {
+  const cls = link.attrs?.class ?? link.class;
+  return cls != null ? String(cls) : fallback;
+}
+
+/** Get the accessible label for a link (text label or image alt) */
+function linkLabel(link: Link): string {
+  if ('label' in link) return resolve(link.label);
+  const { alt } = normalizeImageRef(link.image);
+  return alt;
+}
+
+/** Pre-resolve all image links for template rendering */
+type ResolvedImageData = { resolved: import('../utils/images').ResolvedImage; alt: string; width?: number; height?: number };
+const imageCache = new Map<Link, ResolvedImageData>();
+
+function getImageData(link: Link): ResolvedImageData | undefined {
+  if (!('image' in link)) return undefined;
+  if (!imageCache.has(link)) {
+    const img = normalizeImageRef(link.image);
+    imageCache.set(link, { resolved: resolveImage(img.src), alt: img.alt, width: img.width, height: img.height });
+  }
+  return imageCache.get(link);
+}
+---
+
+{/* --- Drawer presentation --- */}
+{present?.as === 'drawer' ? (
+  <Drawer
+    id={drawerId}
+    position={present.placement || 'left'}
+    maxWidth={present.maxWidth}
+    maxHeight={present.maxHeight}
+    attrs={{...rootRest, class: rootCls}}
+    trigger={{ label: resolve(present.trigger.label), icon: present.trigger.icon, class: 'drawer-trigger', attrs: present.trigger.attrs }}
+    iconResolver={icon}
+  >
+    <button commandfor={drawerId} command="close" class="drawer-close" aria-label="Close menu">
+      <Icon name={icon('close')} />
+    </button>
+    <nav class:list={["drawer-nav", className, navCls]} {...navRest}>
+      <ul class:list={["nav-items", menuCls]} {...menuRest}>
+        {items.map((item) => {
+          if (isElmnt(item)) {
+            const Tag = item.as as HTMLTag;
+            return (
+              <li class:list={[itemsCls]} {...itemsRest}>
+                <Tag>
+                  {item.children?.map((link: Link) => (
+                    <a href={link.href} class={linkClass(link)}>
+                      {link.icon && <Icon name={icon(link.icon)} />}
+                      {linkLabel(link)}
+                    </a>
+                  ))}
+                </Tag>
+              </li>
+            );
+          }
+          const link = item as Link;
+          const imgData = getImageData(link);
+          const ImgComponent = imgData?.resolved.type === 'svg' ? (imgData.resolved as any).Component : null;
+          const imgMeta = imgData?.resolved.type === 'raster' ? (imgData.resolved as any).metadata : null;
+          const imgSrc = imgData?.resolved.type === 'external' ? (imgData.resolved as any).src : null;
+          return (
+            <li class:list={[itemsCls, link.itemAttrs?.class]} {...itemsRest} {...link.itemAttrs}>
+              {link.children ? (
+                <Details label={linkLabel(link)} icon={link.icon} items={link.children as any} iconResolver={icon} />
+              ) : link.submenu ? (
+                <Submenu link={link} navId={id} locale={locale} defaultLocale={defaultLocale} />
+              ) : imgData ? (
+                <a href={link.href} class={linkClass(link)}>
+                  {ImgComponent && <ImgComponent role="img" aria-label={imgData.alt} width={imgData.width} height={imgData.height} />}
+                  {imgMeta && <Image src={imgMeta} alt={imgData.alt} width={imgData.width} height={imgData.height} />}
+                  {imgSrc && <img src={imgSrc} alt={imgData.alt} width={imgData.width} height={imgData.height} />}
+                  {link.icon && <Icon name={icon(link.icon)} />}
+                </a>
+              ) : (
+                <a href={link.href} class={linkClass(link)}>
+                  {link.icon && <Icon name={icon(link.icon)} />}
+                  {'label' in link && resolve(link.label)}
+                </a>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  </Drawer>
+
+) : present?.as === 'navbar' ? (
+  /* --- Navbar presentation --- */
+  <div class:list={["navbar", present.sticky && "navbar-sticky", rootCls]} {...rootRest}>
+    <nav class:list={[className, navCls]} id={id} {...navRest}>
+      <ul class:list={["nav-items", menuCls]} {...menuRest}>
+        {items.map((item) => {
+          if (isElmnt(item)) {
+            const Tag = item.as as HTMLTag;
+            return (
+              <li class:list={[itemsCls]} {...itemsRest}>
+                <Tag>
+                  {item.children?.map((link: Link) => (
+                    <a href={link.href} class={linkClass(link)}>
+                      {link.icon && <Icon name={icon(link.icon)} />}
+                      {linkLabel(link)}
+                    </a>
+                  ))}
+                </Tag>
+              </li>
+            );
+          }
+          const link = item as Link;
+          const imgData = getImageData(link);
+          const ImgComponent = imgData?.resolved.type === 'svg' ? (imgData.resolved as any).Component : null;
+          const imgMeta = imgData?.resolved.type === 'raster' ? (imgData.resolved as any).metadata : null;
+          const imgSrc = imgData?.resolved.type === 'external' ? (imgData.resolved as any).src : null;
+          return (
+            <li class:list={[itemsCls, link.itemAttrs?.class]} {...itemsRest} {...link.itemAttrs}>
+              {link.children ? (
+                <Details label={linkLabel(link)} icon={link.icon} items={link.children as any} iconResolver={icon} />
+              ) : link.submenu ? (
+                <Submenu link={link} navId={id} locale={locale} defaultLocale={defaultLocale} />
+              ) : imgData ? (
+                <a href={link.href} class={linkClass(link)}>
+                  {ImgComponent && <ImgComponent role="img" aria-label={imgData.alt} width={imgData.width} height={imgData.height} />}
+                  {imgMeta && <Image src={imgMeta} alt={imgData.alt} width={imgData.width} height={imgData.height} />}
+                  {imgSrc && <img src={imgSrc} alt={imgData.alt} width={imgData.width} height={imgData.height} />}
+                  {link.icon && <Icon name={icon(link.icon)} />}
+                </a>
+              ) : (
+                <a href={link.href} class={linkClass(link)}>
+                  {link.icon && <Icon name={icon(link.icon)} />}
+                  {'label' in link && resolve(link.label)}
+                </a>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  </div>
+
+) : (
+  /* --- Default presentation (vertical nav) --- */
+  <nav class:list={[className, rootCls]} id={id} {...(attrs ?? {})} {...rootRest}>
+    <ul class:list={["nav-items", menuCls]} {...menuRest}>
+      {items.map((item) => {
+        if (isElmnt(item)) {
+          const Tag = item.as as HTMLTag;
+          return (
+            <li class:list={[itemsCls]} {...itemsRest}>
+              <Tag>
+                {item.children?.map((link: Link) => (
+                  <a href={link.href} class={linkClass(link)}>
+                    {link.icon && <Icon name={icon(link.icon)} />}
+                    {resolve(link.label)}
+                  </a>
+                ))}
+              </Tag>
+            </li>
+          );
+        }
+        const link = item as Link;
+        return (
+          <li class:list={[itemsCls, link.itemAttrs?.class]} {...itemsRest} {...link.itemAttrs}>
+            {link.children ? (
+              <Details label={resolve(link.label)} icon={link.icon} items={link.children as any} iconResolver={icon} />
+            ) : link.submenu ? (
+              <Submenu link={link} navId={id} locale={locale} defaultLocale={defaultLocale} />
+            ) : (
+              <a href={link.href} class={linkClass(link)}>
+                {link.icon && <Icon name={icon(link.icon)} />}
+                {resolve(link.label)}
+              </a>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  </nav>
+)}

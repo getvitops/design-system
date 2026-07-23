@@ -1,0 +1,82 @@
+---
+export interface ForumPost {
+  headline: string;
+  text: string;
+  url: string;
+  datePublished: string;
+  author: {
+    name: string;
+    url?: string;
+  };
+  interactionStatistic?: {
+    type: 'ReplyAction' | 'LikeAction' | 'ViewAction';
+    count: number;
+  }[];
+  comment?: {
+    text: string;
+    datePublished: string;
+    author: {
+      name: string;
+      url?: string;
+    };
+  }[];
+}
+
+export interface Props {
+  name: string;
+  url: string;
+  description?: string;
+  mainEntity?: ForumPost[];
+}
+
+const { name, url, description, mainEntity } = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'DiscussionForumPosting',
+  ...(mainEntity && mainEntity.length > 0
+    ? {
+        mainEntity: mainEntity.map(post => ({
+          '@type': 'DiscussionForumPosting',
+          headline: post.headline,
+          text: post.text,
+          url: post.url,
+          datePublished: post.datePublished,
+          author: {
+            '@type': 'Person',
+            name: post.author.name,
+            ...(post.author.url && { url: post.author.url }),
+          },
+          ...(post.interactionStatistic && {
+            interactionStatistic: post.interactionStatistic.map(stat => ({
+              '@type': 'InteractionCounter',
+              interactionType: { '@type': stat.type },
+              userInteractionCount: stat.count,
+            })),
+          }),
+          ...(post.comment && {
+            comment: post.comment.map(c => ({
+              '@type': 'Comment',
+              text: c.text,
+              datePublished: c.datePublished,
+              author: {
+                '@type': 'Person',
+                name: c.author.name,
+                ...(c.author.url && { url: c.author.url }),
+              },
+            })),
+          }),
+        })),
+      }
+    : {}),
+  isPartOf: {
+    '@type': 'WebPage',
+    '@id': url,
+    name,
+    ...(description && { description }),
+  },
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

@@ -1,0 +1,115 @@
+---
+export interface Props {
+  name: string;
+  description?: string;
+  startDate: string;
+  endDate?: string;
+  eventStatus?: 'EventScheduled' | 'EventCancelled' | 'EventMovedOnline' | 'EventPostponed' | 'EventRescheduled';
+  eventAttendanceMode?: 'OfflineEventAttendanceMode' | 'OnlineEventAttendanceMode' | 'MixedEventAttendanceMode';
+  location?: {
+    type: 'Place' | 'VirtualLocation';
+    name?: string;
+    address?: {
+      streetAddress?: string;
+      addressLocality?: string;
+      addressRegion?: string;
+      postalCode?: string;
+      addressCountry?: string;
+    };
+    url?: string;
+  };
+  image?: string | string[];
+  performer?: {
+    type: 'Person' | 'PerformingGroup' | 'Organization';
+    name: string;
+  }[];
+  organizer?: {
+    type: 'Person' | 'Organization';
+    name: string;
+    url?: string;
+  };
+  offers?: {
+    url?: string;
+    price?: number | string;
+    priceCurrency?: string;
+    availability?: 'InStock' | 'SoldOut' | 'PreOrder';
+    validFrom?: string;
+  }[];
+  previousStartDate?: string;
+}
+
+const {
+  name,
+  description,
+  startDate,
+  endDate,
+  eventStatus = 'EventScheduled',
+  eventAttendanceMode = 'OfflineEventAttendanceMode',
+  location,
+  image,
+  performer,
+  organizer,
+  offers,
+  previousStartDate,
+} = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Event',
+  name,
+  ...(description && { description }),
+  startDate,
+  ...(endDate && { endDate }),
+  eventStatus: `https://schema.org/${eventStatus}`,
+  eventAttendanceMode: `https://schema.org/${eventAttendanceMode}`,
+  ...(location && {
+    location: location.type === 'VirtualLocation'
+      ? {
+          '@type': 'VirtualLocation',
+          url: location.url,
+        }
+      : {
+          '@type': 'Place',
+          ...(location.name && { name: location.name }),
+          ...(location.address && {
+            address: {
+              '@type': 'PostalAddress',
+              ...(location.address.streetAddress && { streetAddress: location.address.streetAddress }),
+              ...(location.address.addressLocality && { addressLocality: location.address.addressLocality }),
+              ...(location.address.addressRegion && { addressRegion: location.address.addressRegion }),
+              ...(location.address.postalCode && { postalCode: location.address.postalCode }),
+              ...(location.address.addressCountry && { addressCountry: location.address.addressCountry }),
+            },
+          }),
+        },
+  }),
+  ...(image && { image: Array.isArray(image) ? image : [image] }),
+  ...(performer && {
+    performer: performer.map(p => ({
+      '@type': p.type,
+      name: p.name,
+    })),
+  }),
+  ...(organizer && {
+    organizer: {
+      '@type': organizer.type,
+      name: organizer.name,
+      ...(organizer.url && { url: organizer.url }),
+    },
+  }),
+  ...(offers && {
+    offers: offers.map(offer => ({
+      '@type': 'Offer',
+      ...(offer.url && { url: offer.url }),
+      ...(offer.price !== undefined && { price: offer.price }),
+      ...(offer.priceCurrency && { priceCurrency: offer.priceCurrency }),
+      ...(offer.availability && { availability: `https://schema.org/${offer.availability}` }),
+      ...(offer.validFrom && { validFrom: offer.validFrom }),
+    })),
+  }),
+  ...(previousStartDate && { previousStartDate }),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

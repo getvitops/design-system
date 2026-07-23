@@ -1,0 +1,71 @@
+---
+export interface Answer {
+  text: string;
+  dateCreated: string;
+  author: {
+    name: string;
+    type?: 'Person' | 'Organization';
+  };
+  upvoteCount?: number;
+  url?: string;
+}
+
+export interface Props {
+  question: string;
+  questionDetail?: string;
+  dateCreated: string;
+  author: {
+    name: string;
+    type?: 'Person' | 'Organization';
+  };
+  answerCount?: number;
+  upvoteCount?: number;
+  acceptedAnswer?: Answer;
+  suggestedAnswer?: Answer[];
+}
+
+const {
+  question,
+  questionDetail,
+  dateCreated,
+  author,
+  answerCount,
+  upvoteCount,
+  acceptedAnswer,
+  suggestedAnswer,
+} = Astro.props;
+
+const formatAnswer = (answer: Answer) => ({
+  '@type': 'Answer',
+  text: answer.text,
+  dateCreated: answer.dateCreated,
+  author: {
+    '@type': answer.author.type || 'Person',
+    name: answer.author.name,
+  },
+  ...(answer.upvoteCount !== undefined && { upvoteCount: answer.upvoteCount }),
+  ...(answer.url && { url: answer.url }),
+});
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'QAPage',
+  mainEntity: {
+    '@type': 'Question',
+    name: question,
+    ...(questionDetail && { text: questionDetail }),
+    dateCreated,
+    author: {
+      '@type': author.type || 'Person',
+      name: author.name,
+    },
+    ...(answerCount !== undefined && { answerCount }),
+    ...(upvoteCount !== undefined && { upvoteCount }),
+    ...(acceptedAnswer && { acceptedAnswer: formatAnswer(acceptedAnswer) }),
+    ...(suggestedAnswer && { suggestedAnswer: suggestedAnswer.map(formatAnswer) }),
+  },
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

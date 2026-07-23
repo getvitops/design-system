@@ -1,0 +1,172 @@
+---
+export interface Props {
+  name: string;
+  description?: string;
+  applicationCategory?: 'GameApplication' | 'SocialNetworkingApplication' | 'TravelApplication' | 'ShoppingApplication' | 'SportsApplication' | 'LifestyleApplication' | 'BusinessApplication' | 'DesignApplication' | 'DeveloperApplication' | 'DriverApplication' | 'EducationalApplication' | 'HealthApplication' | 'FinanceApplication' | 'SecurityApplication' | 'BrowserApplication' | 'CommunicationApplication' | 'DesktopEnhancementApplication' | 'EntertainmentApplication' | 'MultimediaApplication' | 'HomeApplication' | 'UtilitiesApplication' | 'ReferenceApplication';
+  operatingSystem?: string;
+  url?: string;
+  image?: string;
+  screenshot?: string | string[];
+  offers?: {
+    price: number | string;
+    priceCurrency: string;
+    availability?: 'InStock' | 'OutOfStock' | 'PreOrder';
+  };
+  aggregateRating?: {
+    ratingValue: number;
+    ratingCount?: number;
+    reviewCount?: number;
+    bestRating?: number;
+    worstRating?: number;
+  };
+  review?: {
+    author: string;
+    datePublished: string;
+    reviewBody?: string;
+    reviewRating?: {
+      ratingValue: number;
+      bestRating?: number;
+      worstRating?: number;
+    };
+  }[];
+  softwareVersion?: string;
+  releaseNotes?: string;
+  datePublished?: string;
+  downloadUrl?: string;
+  installUrl?: string;
+  featureList?: string | string[];
+  requirements?: string;
+  memoryRequirements?: string;
+  storageRequirements?: string;
+  permissions?: string;
+  author?: {
+    name: string;
+    type?: 'Person' | 'Organization';
+    url?: string;
+  };
+  publisher?: {
+    name: string;
+    type?: 'Person' | 'Organization';
+    url?: string;
+  };
+  inLanguage?: string | string[];
+  isAccessibleForFree?: boolean;
+  countriesSupported?: string[];
+  supportingData?: {
+    name: string;
+    url: string;
+  };
+}
+
+const {
+  name,
+  description,
+  applicationCategory,
+  operatingSystem,
+  url,
+  image,
+  screenshot,
+  offers,
+  aggregateRating,
+  review,
+  softwareVersion,
+  releaseNotes,
+  datePublished,
+  downloadUrl,
+  installUrl,
+  featureList,
+  requirements,
+  memoryRequirements,
+  storageRequirements,
+  permissions,
+  author,
+  publisher,
+  inLanguage,
+  isAccessibleForFree,
+  countriesSupported,
+  supportingData,
+} = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name,
+  ...(description && { description }),
+  ...(applicationCategory && { applicationCategory }),
+  ...(operatingSystem && { operatingSystem }),
+  ...(url && { url }),
+  ...(image && { image }),
+  ...(screenshot && { screenshot: Array.isArray(screenshot) ? screenshot : [screenshot] }),
+  ...(offers && {
+    offers: {
+      '@type': 'Offer',
+      price: offers.price,
+      priceCurrency: offers.priceCurrency,
+      ...(offers.availability && { availability: `https://schema.org/${offers.availability}` }),
+    },
+  }),
+  ...(aggregateRating && {
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: aggregateRating.ratingValue,
+      ...(aggregateRating.ratingCount && { ratingCount: aggregateRating.ratingCount }),
+      ...(aggregateRating.reviewCount && { reviewCount: aggregateRating.reviewCount }),
+      bestRating: aggregateRating.bestRating ?? 5,
+      worstRating: aggregateRating.worstRating ?? 1,
+    },
+  }),
+  ...(review && {
+    review: review.map(r => ({
+      '@type': 'Review',
+      author: { '@type': 'Person', name: r.author },
+      datePublished: r.datePublished,
+      ...(r.reviewBody && { reviewBody: r.reviewBody }),
+      ...(r.reviewRating && {
+        reviewRating: {
+          '@type': 'Rating',
+          ratingValue: r.reviewRating.ratingValue,
+          bestRating: r.reviewRating.bestRating ?? 5,
+          worstRating: r.reviewRating.worstRating ?? 1,
+        },
+      }),
+    })),
+  }),
+  ...(softwareVersion && { softwareVersion }),
+  ...(releaseNotes && { releaseNotes }),
+  ...(datePublished && { datePublished }),
+  ...(downloadUrl && { downloadUrl }),
+  ...(installUrl && { installUrl }),
+  ...(featureList && { featureList: Array.isArray(featureList) ? featureList.join(', ') : featureList }),
+  ...(requirements && { requirements }),
+  ...(memoryRequirements && { memoryRequirements }),
+  ...(storageRequirements && { storageRequirements }),
+  ...(permissions && { permissions }),
+  ...(author && {
+    author: {
+      '@type': author.type || 'Person',
+      name: author.name,
+      ...(author.url && { url: author.url }),
+    },
+  }),
+  ...(publisher && {
+    publisher: {
+      '@type': publisher.type || 'Organization',
+      name: publisher.name,
+      ...(publisher.url && { url: publisher.url }),
+    },
+  }),
+  ...(inLanguage && { inLanguage }),
+  ...(isAccessibleForFree !== undefined && { isAccessibleForFree }),
+  ...(countriesSupported && { countriesSupported }),
+  ...(supportingData && {
+    supportingData: {
+      '@type': 'DataFeed',
+      name: supportingData.name,
+      url: supportingData.url,
+    },
+  }),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

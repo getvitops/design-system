@@ -1,0 +1,92 @@
+---
+export interface Movie {
+  name: string;
+  url: string;
+  image?: string;
+  dateCreated?: string;
+  director?: string | string[];
+  actor?: string[];
+  description?: string;
+  duration?: string;
+  aggregateRating?: {
+    ratingValue: number;
+    ratingCount?: number;
+    bestRating?: number;
+    worstRating?: number;
+  };
+  review?: {
+    author: string;
+    datePublished: string;
+    reviewBody: string;
+    reviewRating?: {
+      ratingValue: number;
+      bestRating?: number;
+      worstRating?: number;
+    };
+  }[];
+}
+
+export interface Props {
+  movies: Movie[];
+}
+
+const { movies } = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  itemListElement: movies.map((movie, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    item: {
+      '@type': 'Movie',
+      name: movie.name,
+      url: movie.url,
+      ...(movie.image && { image: movie.image }),
+      ...(movie.dateCreated && { dateCreated: movie.dateCreated }),
+      ...(movie.director && {
+        director: (Array.isArray(movie.director) ? movie.director : [movie.director]).map(d => ({
+          '@type': 'Person',
+          name: d,
+        })),
+      }),
+      ...(movie.actor && {
+        actor: movie.actor.map(a => ({
+          '@type': 'Person',
+          name: a,
+        })),
+      }),
+      ...(movie.description && { description: movie.description }),
+      ...(movie.duration && { duration: movie.duration }),
+      ...(movie.aggregateRating && {
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: movie.aggregateRating.ratingValue,
+          ...(movie.aggregateRating.ratingCount && { ratingCount: movie.aggregateRating.ratingCount }),
+          bestRating: movie.aggregateRating.bestRating ?? 10,
+          worstRating: movie.aggregateRating.worstRating ?? 1,
+        },
+      }),
+      ...(movie.review && {
+        review: movie.review.map(r => ({
+          '@type': 'Review',
+          author: { '@type': 'Person', name: r.author },
+          datePublished: r.datePublished,
+          reviewBody: r.reviewBody,
+          ...(r.reviewRating && {
+            reviewRating: {
+              '@type': 'Rating',
+              ratingValue: r.reviewRating.ratingValue,
+              bestRating: r.reviewRating.bestRating ?? 10,
+              worstRating: r.reviewRating.worstRating ?? 1,
+            },
+          }),
+        })),
+      }),
+    },
+  })),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

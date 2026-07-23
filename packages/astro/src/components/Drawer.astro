@@ -1,0 +1,65 @@
+---
+import { Icon } from 'astro-icon/components';
+
+type Attrs = Record<string, string | number | boolean>;
+
+interface Props {
+  id: string;
+  position?: 'left' | 'right' | 'top' | 'bottom';
+  trigger?: {
+    label: string;
+    icon?: string;
+    class?: string;
+    attrs?: Attrs;
+  };
+  attrs?: Attrs;
+  class?: string;
+  maxWidth?: string;
+  maxHeight?: string;
+  /** Resolve semantic icon names to fully-qualified astro-icon names.
+   *  Defaults to pass-through (expects already-qualified names like 'fa7-solid:bars'). */
+  iconResolver?: (name: string) => string;
+}
+
+const {
+  id,
+  position = 'left',
+  trigger,
+  attrs,
+  class: className,
+  maxWidth,
+  maxHeight,
+  iconResolver = (name: string) => name,
+} = Astro.props;
+
+const styleVars = [
+  maxWidth && `--drawer-max-inline-size: ${maxWidth}`,
+  maxHeight && `--drawer-max-block-size: ${maxHeight}`,
+].filter(Boolean).join('; ') || undefined;
+
+const { class: triggerAttrClass, ...triggerRestAttrs } = trigger?.attrs ?? {};
+const { class: dialogAttrClass, style: dialogAttrStyle, ...dialogRestAttrs } = attrs ?? {};
+---
+
+<slot name="trigger">
+  <button
+    commandfor={id}
+    command="show-modal"
+    class:list={[trigger?.class || 'btn', triggerAttrClass]}
+    aria-label={trigger?.label || 'Open drawer'}
+    {...triggerRestAttrs}
+  >
+    <span class={trigger?.icon ? 'sr-only' : ''}>{trigger?.label || 'Open'}</span>
+    {trigger?.icon && <Icon name={iconResolver(trigger.icon)} class="not-sr-only" />}
+  </button>
+</slot>
+
+<dialog
+  id={id}
+  closedby="any"
+  class:list={['drawer', `drawer--${position}`, className, dialogAttrClass]}
+  style={[styleVars, dialogAttrStyle].filter(Boolean).join('; ') || undefined}
+  {...dialogRestAttrs}
+>
+  <slot />
+</dialog>

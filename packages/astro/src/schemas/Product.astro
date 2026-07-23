@@ -1,0 +1,250 @@
+---
+export interface Props {
+  name: string;
+  description?: string;
+  image?: string | string[];
+  sku?: string;
+  mpn?: string;
+  gtin?: string;
+  gtin8?: string;
+  gtin13?: string;
+  gtin14?: string;
+  brand?: {
+    name: string;
+  };
+  offers?: {
+    url?: string;
+    price: number | string;
+    priceCurrency: string;
+    priceValidUntil?: string;
+    availability?: 'InStock' | 'OutOfStock' | 'PreOrder' | 'SoldOut' | 'BackOrder' | 'Discontinued' | 'OnlineOnly' | 'InStoreOnly' | 'LimitedAvailability';
+    itemCondition?: 'NewCondition' | 'UsedCondition' | 'RefurbishedCondition' | 'DamagedCondition';
+    seller?: {
+      name: string;
+    };
+    shippingDetails?: {
+      shippingRate?: {
+        value: number;
+        currency: string;
+      };
+      shippingDestination?: {
+        addressCountry: string;
+      };
+      deliveryTime?: {
+        handlingTime?: { minValue: number; maxValue: number };
+        transitTime?: { minValue: number; maxValue: number };
+      };
+    };
+    hasMerchantReturnPolicy?: {
+      applicableCountry: string;
+      returnPolicyCategory: 'MerchantReturnFiniteReturnWindow' | 'MerchantReturnNotPermitted' | 'MerchantReturnUnlimitedWindow';
+      merchantReturnDays?: number;
+      returnMethod?: 'ReturnByMail' | 'ReturnInStore';
+      returnFees?: 'FreeReturn' | 'ReturnFeesCustomerResponsibility';
+    };
+  } | {
+    url?: string;
+    price: number | string;
+    priceCurrency: string;
+    priceValidUntil?: string;
+    availability?: 'InStock' | 'OutOfStock' | 'PreOrder' | 'SoldOut' | 'BackOrder' | 'Discontinued' | 'OnlineOnly' | 'InStoreOnly' | 'LimitedAvailability';
+    itemCondition?: 'NewCondition' | 'UsedCondition' | 'RefurbishedCondition' | 'DamagedCondition';
+    seller?: {
+      name: string;
+    };
+  }[];
+  aggregateRating?: {
+    ratingValue: number;
+    reviewCount?: number;
+    ratingCount?: number;
+    bestRating?: number;
+    worstRating?: number;
+  };
+  review?: {
+    author: {
+      name: string;
+    };
+    datePublished: string;
+    reviewBody?: string;
+    reviewRating?: {
+      ratingValue: number;
+      bestRating?: number;
+      worstRating?: number;
+    };
+  }[];
+  color?: string;
+  material?: string;
+  size?: string;
+  weight?: {
+    value: number;
+    unitCode: string;
+  };
+  category?: string;
+  productID?: string;
+  model?: string;
+  manufacturer?: {
+    name: string;
+  };
+}
+
+const {
+  name,
+  description,
+  image,
+  sku,
+  mpn,
+  gtin,
+  gtin8,
+  gtin13,
+  gtin14,
+  brand,
+  offers,
+  aggregateRating,
+  review,
+  color,
+  material,
+  size,
+  weight,
+  category,
+  productID,
+  model,
+  manufacturer,
+} = Astro.props;
+
+const formatOffer = (offer: any) => ({
+  '@type': 'Offer',
+  ...(offer.url && { url: offer.url }),
+  price: offer.price,
+  priceCurrency: offer.priceCurrency,
+  ...(offer.priceValidUntil && { priceValidUntil: offer.priceValidUntil }),
+  ...(offer.availability && { availability: `https://schema.org/${offer.availability}` }),
+  ...(offer.itemCondition && { itemCondition: `https://schema.org/${offer.itemCondition}` }),
+  ...(offer.seller && {
+    seller: {
+      '@type': 'Organization',
+      name: offer.seller.name,
+    },
+  }),
+  ...(offer.shippingDetails && {
+    shippingDetails: {
+      '@type': 'OfferShippingDetails',
+      ...(offer.shippingDetails.shippingRate && {
+        shippingRate: {
+          '@type': 'MonetaryAmount',
+          value: offer.shippingDetails.shippingRate.value,
+          currency: offer.shippingDetails.shippingRate.currency,
+        },
+      }),
+      ...(offer.shippingDetails.shippingDestination && {
+        shippingDestination: {
+          '@type': 'DefinedRegion',
+          addressCountry: offer.shippingDetails.shippingDestination.addressCountry,
+        },
+      }),
+      ...(offer.shippingDetails.deliveryTime && {
+        deliveryTime: {
+          '@type': 'ShippingDeliveryTime',
+          ...(offer.shippingDetails.deliveryTime.handlingTime && {
+            handlingTime: {
+              '@type': 'QuantitativeValue',
+              minValue: offer.shippingDetails.deliveryTime.handlingTime.minValue,
+              maxValue: offer.shippingDetails.deliveryTime.handlingTime.maxValue,
+              unitCode: 'DAY',
+            },
+          }),
+          ...(offer.shippingDetails.deliveryTime.transitTime && {
+            transitTime: {
+              '@type': 'QuantitativeValue',
+              minValue: offer.shippingDetails.deliveryTime.transitTime.minValue,
+              maxValue: offer.shippingDetails.deliveryTime.transitTime.maxValue,
+              unitCode: 'DAY',
+            },
+          }),
+        },
+      }),
+    },
+  }),
+  ...(offer.hasMerchantReturnPolicy && {
+    hasMerchantReturnPolicy: {
+      '@type': 'MerchantReturnPolicy',
+      applicableCountry: offer.hasMerchantReturnPolicy.applicableCountry,
+      returnPolicyCategory: `https://schema.org/${offer.hasMerchantReturnPolicy.returnPolicyCategory}`,
+      ...(offer.hasMerchantReturnPolicy.merchantReturnDays && {
+        merchantReturnDays: offer.hasMerchantReturnPolicy.merchantReturnDays,
+      }),
+      ...(offer.hasMerchantReturnPolicy.returnMethod && {
+        returnMethod: `https://schema.org/${offer.hasMerchantReturnPolicy.returnMethod}`,
+      }),
+      ...(offer.hasMerchantReturnPolicy.returnFees && {
+        returnFees: `https://schema.org/${offer.hasMerchantReturnPolicy.returnFees}`,
+      }),
+    },
+  }),
+});
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name,
+  ...(description && { description }),
+  ...(image && { image: Array.isArray(image) ? image : [image] }),
+  ...(sku && { sku }),
+  ...(mpn && { mpn }),
+  ...(gtin && { gtin }),
+  ...(gtin8 && { gtin8 }),
+  ...(gtin13 && { gtin13 }),
+  ...(gtin14 && { gtin14 }),
+  ...(brand && { brand: { '@type': 'Brand', name: brand.name } }),
+  ...(offers && {
+    offers: Array.isArray(offers) ? offers.map(formatOffer) : formatOffer(offers),
+  }),
+  ...(aggregateRating && {
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: aggregateRating.ratingValue,
+      ...(aggregateRating.reviewCount && { reviewCount: aggregateRating.reviewCount }),
+      ...(aggregateRating.ratingCount && { ratingCount: aggregateRating.ratingCount }),
+      bestRating: aggregateRating.bestRating ?? 5,
+      worstRating: aggregateRating.worstRating ?? 1,
+    },
+  }),
+  ...(review && {
+    review: review.map(r => ({
+      '@type': 'Review',
+      author: { '@type': 'Person', name: r.author.name },
+      datePublished: r.datePublished,
+      ...(r.reviewBody && { reviewBody: r.reviewBody }),
+      ...(r.reviewRating && {
+        reviewRating: {
+          '@type': 'Rating',
+          ratingValue: r.reviewRating.ratingValue,
+          bestRating: r.reviewRating.bestRating ?? 5,
+          worstRating: r.reviewRating.worstRating ?? 1,
+        },
+      }),
+    })),
+  }),
+  ...(color && { color }),
+  ...(material && { material }),
+  ...(size && { size }),
+  ...(weight && {
+    weight: {
+      '@type': 'QuantitativeValue',
+      value: weight.value,
+      unitCode: weight.unitCode,
+    },
+  }),
+  ...(category && { category }),
+  ...(productID && { productID }),
+  ...(model && { model }),
+  ...(manufacturer && {
+    manufacturer: {
+      '@type': 'Organization',
+      name: manufacturer.name,
+    },
+  }),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

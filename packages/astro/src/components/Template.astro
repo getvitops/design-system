@@ -1,0 +1,47 @@
+---
+import siteConfig from '#site-config';
+import Nav from './Nav.astro';
+import NodeRenderer from './NodeRenderer.astro';
+import FormRenderer from './FormRenderer.astro';
+
+export interface Props {
+  id: string;
+  locale?: string;
+}
+
+const { id, locale = siteConfig.defaultLocale } = Astro.props;
+
+const template = (siteConfig.templates as Record<string, any>)?.[id];
+if (!template) {
+  throw new Error(`Template "${id}" not found in site.config.yaml`);
+}
+
+const defaultLocale = siteConfig.defaultLocale;
+---
+
+{template.type === 'nav' && (
+  <Nav
+    items={template.items}
+    present={template.present}
+    attrs={template.attrs}
+    locale={locale}
+    defaultLocale={defaultLocale}
+  />
+)}
+
+{template.type === 'form' && (
+  <FormRenderer
+    {...template}
+    locale={locale}
+    defaultLocale={defaultLocale}
+  />
+)}
+
+{template.type === 'nodes' && (
+  <NodeRenderer
+    nodes={template.nodes}
+    attrs={template.attrs}
+    locale={locale}
+    defaultLocale={defaultLocale}
+  />
+)}

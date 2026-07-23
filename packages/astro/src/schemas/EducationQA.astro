@@ -1,0 +1,63 @@
+---
+export interface Props {
+  mainEntity: {
+    question: string;
+    answer: {
+      text: string;
+      author?: {
+        name: string;
+        type?: 'Person' | 'Organization';
+      };
+      dateCreated?: string;
+      upvoteCount?: number;
+      url?: string;
+    };
+    eduQuestionType?: 'Practice' | 'Test' | 'Homework' | 'Quiz' | 'Exam';
+    learningResourceType?: string;
+    assesses?: string;
+    educationalLevel?: string;
+  }[];
+  about?: {
+    name: string;
+    url?: string;
+  };
+}
+
+const { mainEntity, about } = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Quiz',
+  ...(about && {
+    about: {
+      '@type': 'Thing',
+      name: about.name,
+      ...(about.url && { url: about.url }),
+    },
+  }),
+  hasPart: mainEntity.map(qa => ({
+    '@type': 'Question',
+    eduQuestionType: qa.eduQuestionType || 'Practice',
+    ...(qa.learningResourceType && { learningResourceType: qa.learningResourceType }),
+    ...(qa.assesses && { assesses: qa.assesses }),
+    ...(qa.educationalLevel && { educationalLevel: qa.educationalLevel }),
+    text: qa.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: qa.answer.text,
+      ...(qa.answer.author && {
+        author: {
+          '@type': qa.answer.author.type || 'Person',
+          name: qa.answer.author.name,
+        },
+      }),
+      ...(qa.answer.dateCreated && { dateCreated: qa.answer.dateCreated }),
+      ...(qa.answer.upvoteCount !== undefined && { upvoteCount: qa.answer.upvoteCount }),
+      ...(qa.answer.url && { url: qa.answer.url }),
+    },
+  })),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

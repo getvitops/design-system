@@ -1,0 +1,56 @@
+---
+export interface Props {
+  contentUrl: string;
+  creditText?: string;
+  creator?: {
+    name: string;
+    type?: 'Person' | 'Organization';
+  };
+  copyrightNotice?: string;
+  license?: string;
+  acquireLicensePage?: string;
+  caption?: string;
+  representativeOfPage?: boolean;
+  datePublished?: string;
+  description?: string;
+  name?: string;
+}
+
+const {
+  contentUrl,
+  creditText,
+  creator,
+  copyrightNotice,
+  license,
+  acquireLicensePage,
+  caption,
+  representativeOfPage,
+  datePublished,
+  description,
+  name,
+} = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ImageObject',
+  contentUrl,
+  ...(creditText && { creditText }),
+  ...(creator && {
+    creator: {
+      '@type': creator.type || 'Person',
+      name: creator.name,
+    },
+  }),
+  ...(copyrightNotice && { copyrightNotice }),
+  ...(license && { license }),
+  ...(acquireLicensePage && { acquireLicensePage }),
+  ...(caption && { caption }),
+  ...(representativeOfPage !== undefined && { representativeOfPage }),
+  ...(datePublished && { datePublished }),
+  ...(description && { description }),
+  ...(name && { name }),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

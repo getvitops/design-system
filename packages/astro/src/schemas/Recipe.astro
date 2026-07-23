@@ -1,0 +1,178 @@
+---
+export interface Props {
+  name: string;
+  description?: string;
+  image?: string | string[];
+  author?: {
+    name: string;
+    url?: string;
+  };
+  datePublished?: string;
+  prepTime?: string;
+  cookTime?: string;
+  totalTime?: string;
+  recipeYield?: string | number;
+  recipeCategory?: string;
+  recipeCuisine?: string;
+  keywords?: string[];
+  nutrition?: {
+    calories?: string;
+    fatContent?: string;
+    saturatedFatContent?: string;
+    cholesterolContent?: string;
+    sodiumContent?: string;
+    carbohydrateContent?: string;
+    fiberContent?: string;
+    sugarContent?: string;
+    proteinContent?: string;
+    servingSize?: string;
+  };
+  recipeIngredient: string[];
+  recipeInstructions: (string | { name?: string; text: string; image?: string; url?: string })[];
+  video?: {
+    name: string;
+    description: string;
+    thumbnailUrl: string | string[];
+    contentUrl?: string;
+    embedUrl?: string;
+    uploadDate: string;
+    duration?: string;
+    expires?: string;
+  };
+  aggregateRating?: {
+    ratingValue: number;
+    ratingCount?: number;
+    reviewCount?: number;
+    bestRating?: number;
+    worstRating?: number;
+  };
+  review?: {
+    author: string;
+    datePublished: string;
+    reviewBody?: string;
+    reviewRating?: {
+      ratingValue: number;
+      bestRating?: number;
+      worstRating?: number;
+    };
+  }[];
+  suitableForDiet?: ('DiabeticDiet' | 'GlutenFreeDiet' | 'HalalDiet' | 'HinduDiet' | 'KosherDiet' | 'LowCalorieDiet' | 'LowFatDiet' | 'LowLactoseDiet' | 'LowSaltDiet' | 'VeganDiet' | 'VegetarianDiet')[];
+}
+
+const {
+  name,
+  description,
+  image,
+  author,
+  datePublished,
+  prepTime,
+  cookTime,
+  totalTime,
+  recipeYield,
+  recipeCategory,
+  recipeCuisine,
+  keywords,
+  nutrition,
+  recipeIngredient,
+  recipeInstructions,
+  video,
+  aggregateRating,
+  review,
+  suitableForDiet,
+} = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Recipe',
+  name,
+  ...(description && { description }),
+  ...(image && { image: Array.isArray(image) ? image : [image] }),
+  ...(author && {
+    author: {
+      '@type': 'Person',
+      name: author.name,
+      ...(author.url && { url: author.url }),
+    },
+  }),
+  ...(datePublished && { datePublished }),
+  ...(prepTime && { prepTime }),
+  ...(cookTime && { cookTime }),
+  ...(totalTime && { totalTime }),
+  ...(recipeYield && { recipeYield: String(recipeYield) }),
+  ...(recipeCategory && { recipeCategory }),
+  ...(recipeCuisine && { recipeCuisine }),
+  ...(keywords && { keywords: keywords.join(', ') }),
+  ...(nutrition && {
+    nutrition: {
+      '@type': 'NutritionInformation',
+      ...(nutrition.calories && { calories: nutrition.calories }),
+      ...(nutrition.fatContent && { fatContent: nutrition.fatContent }),
+      ...(nutrition.saturatedFatContent && { saturatedFatContent: nutrition.saturatedFatContent }),
+      ...(nutrition.cholesterolContent && { cholesterolContent: nutrition.cholesterolContent }),
+      ...(nutrition.sodiumContent && { sodiumContent: nutrition.sodiumContent }),
+      ...(nutrition.carbohydrateContent && { carbohydrateContent: nutrition.carbohydrateContent }),
+      ...(nutrition.fiberContent && { fiberContent: nutrition.fiberContent }),
+      ...(nutrition.sugarContent && { sugarContent: nutrition.sugarContent }),
+      ...(nutrition.proteinContent && { proteinContent: nutrition.proteinContent }),
+      ...(nutrition.servingSize && { servingSize: nutrition.servingSize }),
+    },
+  }),
+  recipeIngredient,
+  recipeInstructions: recipeInstructions.map((step, index) =>
+    typeof step === 'string'
+      ? { '@type': 'HowToStep', text: step }
+      : {
+          '@type': 'HowToStep',
+          ...(step.name && { name: step.name }),
+          text: step.text,
+          ...(step.image && { image: step.image }),
+          ...(step.url && { url: step.url }),
+        }
+  ),
+  ...(video && {
+    video: {
+      '@type': 'VideoObject',
+      name: video.name,
+      description: video.description,
+      thumbnailUrl: video.thumbnailUrl,
+      ...(video.contentUrl && { contentUrl: video.contentUrl }),
+      ...(video.embedUrl && { embedUrl: video.embedUrl }),
+      uploadDate: video.uploadDate,
+      ...(video.duration && { duration: video.duration }),
+      ...(video.expires && { expires: video.expires }),
+    },
+  }),
+  ...(aggregateRating && {
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: aggregateRating.ratingValue,
+      ...(aggregateRating.ratingCount && { ratingCount: aggregateRating.ratingCount }),
+      ...(aggregateRating.reviewCount && { reviewCount: aggregateRating.reviewCount }),
+      bestRating: aggregateRating.bestRating ?? 5,
+      worstRating: aggregateRating.worstRating ?? 1,
+    },
+  }),
+  ...(review && {
+    review: review.map(r => ({
+      '@type': 'Review',
+      author: { '@type': 'Person', name: r.author },
+      datePublished: r.datePublished,
+      ...(r.reviewBody && { reviewBody: r.reviewBody }),
+      ...(r.reviewRating && {
+        reviewRating: {
+          '@type': 'Rating',
+          ratingValue: r.reviewRating.ratingValue,
+          bestRating: r.reviewRating.bestRating ?? 5,
+          worstRating: r.reviewRating.worstRating ?? 1,
+        },
+      }),
+    })),
+  }),
+  ...(suitableForDiet && {
+    suitableForDiet: suitableForDiet.map(diet => `https://schema.org/${diet}`),
+  }),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

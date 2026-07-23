@@ -1,0 +1,127 @@
+---
+export interface Props {
+  name: string;
+  description: string;
+  url?: string;
+  sameAs?: string;
+  identifier?: string | string[];
+  keywords?: string[];
+  license?: string;
+  isAccessibleForFree?: boolean;
+  creator?: {
+    type: 'Person' | 'Organization';
+    name: string;
+    url?: string;
+  };
+  funder?: {
+    type: 'Person' | 'Organization';
+    name: string;
+  };
+  includedInDataCatalog?: {
+    name: string;
+    url?: string;
+  };
+  distribution?: {
+    contentUrl: string;
+    encodingFormat: string;
+    contentSize?: string;
+  }[];
+  temporalCoverage?: string;
+  spatialCoverage?: {
+    type: 'Place';
+    geo?: {
+      latitude: number;
+      longitude: number;
+      box?: string;
+    };
+  };
+  variableMeasured?: string | string[];
+  measurementTechnique?: string;
+  datePublished?: string;
+  dateModified?: string;
+}
+
+const {
+  name,
+  description,
+  url,
+  sameAs,
+  identifier,
+  keywords,
+  license,
+  isAccessibleForFree,
+  creator,
+  funder,
+  includedInDataCatalog,
+  distribution,
+  temporalCoverage,
+  spatialCoverage,
+  variableMeasured,
+  measurementTechnique,
+  datePublished,
+  dateModified,
+} = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Dataset',
+  name,
+  description,
+  ...(url && { url }),
+  ...(sameAs && { sameAs }),
+  ...(identifier && { identifier }),
+  ...(keywords && { keywords }),
+  ...(license && { license }),
+  ...(isAccessibleForFree !== undefined && { isAccessibleForFree }),
+  ...(creator && {
+    creator: {
+      '@type': creator.type,
+      name: creator.name,
+      ...(creator.url && { url: creator.url }),
+    },
+  }),
+  ...(funder && {
+    funder: {
+      '@type': funder.type,
+      name: funder.name,
+    },
+  }),
+  ...(includedInDataCatalog && {
+    includedInDataCatalog: {
+      '@type': 'DataCatalog',
+      name: includedInDataCatalog.name,
+      ...(includedInDataCatalog.url && { url: includedInDataCatalog.url }),
+    },
+  }),
+  ...(distribution && {
+    distribution: distribution.map(d => ({
+      '@type': 'DataDownload',
+      contentUrl: d.contentUrl,
+      encodingFormat: d.encodingFormat,
+      ...(d.contentSize && { contentSize: d.contentSize }),
+    })),
+  }),
+  ...(temporalCoverage && { temporalCoverage }),
+  ...(spatialCoverage && {
+    spatialCoverage: {
+      '@type': 'Place',
+      ...(spatialCoverage.geo && {
+        geo: spatialCoverage.geo.box
+          ? { '@type': 'GeoShape', box: spatialCoverage.geo.box }
+          : {
+              '@type': 'GeoCoordinates',
+              latitude: spatialCoverage.geo.latitude,
+              longitude: spatialCoverage.geo.longitude,
+            },
+      }),
+    },
+  }),
+  ...(variableMeasured && { variableMeasured }),
+  ...(measurementTechnique && { measurementTechnique }),
+  ...(datePublished && { datePublished }),
+  ...(dateModified && { dateModified }),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

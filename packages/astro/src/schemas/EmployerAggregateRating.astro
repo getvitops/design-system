@@ -1,0 +1,54 @@
+---
+export interface Props {
+  name: string;
+  url?: string;
+  logo?: string;
+  sameAs?: string[];
+  aggregateRating: {
+    ratingValue: number;
+    bestRating?: number;
+    worstRating?: number;
+    ratingCount?: number;
+    reviewCount?: number;
+  };
+  address?: {
+    streetAddress?: string;
+    addressLocality?: string;
+    addressRegion?: string;
+    postalCode?: string;
+    addressCountry?: string;
+  };
+}
+
+const { name, url, logo, sameAs, aggregateRating, address } = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'EmployerAggregateRating',
+  itemReviewed: {
+    '@type': 'Organization',
+    name,
+    ...(url && { url }),
+    ...(logo && { logo }),
+    ...(sameAs && { sameAs }),
+    ...(address && {
+      address: {
+        '@type': 'PostalAddress',
+        ...(address.streetAddress && { streetAddress: address.streetAddress }),
+        ...(address.addressLocality && { addressLocality: address.addressLocality }),
+        ...(address.addressRegion && { addressRegion: address.addressRegion }),
+        ...(address.postalCode && { postalCode: address.postalCode }),
+        ...(address.addressCountry && { addressCountry: address.addressCountry }),
+      },
+    }),
+  },
+  ratingValue: aggregateRating.ratingValue,
+  bestRating: aggregateRating.bestRating ?? 5,
+  worstRating: aggregateRating.worstRating ?? 1,
+  ...(aggregateRating.ratingCount && { ratingCount: aggregateRating.ratingCount }),
+  ...(aggregateRating.reviewCount && { reviewCount: aggregateRating.reviewCount }),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

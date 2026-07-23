@@ -1,0 +1,147 @@
+---
+export interface Props {
+  name: string;
+  alternateName?: string;
+  description?: string;
+  image?: string;
+  url?: string;
+  sameAs?: string[];
+  mainEntity: {
+    type: 'Person' | 'Organization';
+    name: string;
+    alternateName?: string;
+    description?: string;
+    image?: string;
+    url?: string;
+    sameAs?: string[];
+    jobTitle?: string;
+    worksFor?: {
+      name: string;
+      url?: string;
+    };
+    knowsAbout?: string[];
+    knowsLanguage?: string[];
+    nationality?: string;
+    birthDate?: string;
+    email?: string;
+    telephone?: string;
+    address?: {
+      addressLocality?: string;
+      addressRegion?: string;
+      addressCountry?: string;
+    };
+    alumniOf?: {
+      name: string;
+      url?: string;
+    }[];
+    award?: string[];
+    memberOf?: {
+      name: string;
+      url?: string;
+    }[];
+    interactionStatistic?: {
+      type: 'FollowAction' | 'LikeAction' | 'ShareAction' | 'WriteAction';
+      count: number;
+    }[];
+    agentInteractionStatistic?: {
+      type: 'FollowAction' | 'LikeAction' | 'ShareAction' | 'WriteAction';
+      count: number;
+    }[];
+  };
+  dateCreated?: string;
+  dateModified?: string;
+}
+
+const {
+  name,
+  alternateName,
+  description,
+  image,
+  url,
+  sameAs,
+  mainEntity,
+  dateCreated,
+  dateModified,
+} = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ProfilePage',
+  name,
+  ...(alternateName && { alternateName }),
+  ...(description && { description }),
+  ...(image && { image }),
+  ...(url && { url }),
+  ...(sameAs && { sameAs }),
+  ...(dateCreated && { dateCreated }),
+  ...(dateModified && { dateModified }),
+  mainEntity: {
+    '@type': mainEntity.type,
+    name: mainEntity.name,
+    ...(mainEntity.alternateName && { alternateName: mainEntity.alternateName }),
+    ...(mainEntity.description && { description: mainEntity.description }),
+    ...(mainEntity.image && { image: mainEntity.image }),
+    ...(mainEntity.url && { url: mainEntity.url }),
+    ...(mainEntity.sameAs && { sameAs: mainEntity.sameAs }),
+    ...(mainEntity.jobTitle && { jobTitle: mainEntity.jobTitle }),
+    ...(mainEntity.worksFor && {
+      worksFor: {
+        '@type': 'Organization',
+        name: mainEntity.worksFor.name,
+        ...(mainEntity.worksFor.url && { url: mainEntity.worksFor.url }),
+      },
+    }),
+    ...(mainEntity.knowsAbout && { knowsAbout: mainEntity.knowsAbout }),
+    ...(mainEntity.knowsLanguage && { knowsLanguage: mainEntity.knowsLanguage }),
+    ...(mainEntity.nationality && {
+      nationality: {
+        '@type': 'Country',
+        name: mainEntity.nationality,
+      },
+    }),
+    ...(mainEntity.birthDate && { birthDate: mainEntity.birthDate }),
+    ...(mainEntity.email && { email: mainEntity.email }),
+    ...(mainEntity.telephone && { telephone: mainEntity.telephone }),
+    ...(mainEntity.address && {
+      address: {
+        '@type': 'PostalAddress',
+        ...(mainEntity.address.addressLocality && { addressLocality: mainEntity.address.addressLocality }),
+        ...(mainEntity.address.addressRegion && { addressRegion: mainEntity.address.addressRegion }),
+        ...(mainEntity.address.addressCountry && { addressCountry: mainEntity.address.addressCountry }),
+      },
+    }),
+    ...(mainEntity.alumniOf && {
+      alumniOf: mainEntity.alumniOf.map(a => ({
+        '@type': 'EducationalOrganization',
+        name: a.name,
+        ...(a.url && { url: a.url }),
+      })),
+    }),
+    ...(mainEntity.award && { award: mainEntity.award }),
+    ...(mainEntity.memberOf && {
+      memberOf: mainEntity.memberOf.map(m => ({
+        '@type': 'Organization',
+        name: m.name,
+        ...(m.url && { url: m.url }),
+      })),
+    }),
+    ...(mainEntity.interactionStatistic && {
+      interactionStatistic: mainEntity.interactionStatistic.map(stat => ({
+        '@type': 'InteractionCounter',
+        interactionType: { '@type': stat.type },
+        userInteractionCount: stat.count,
+      })),
+    }),
+    ...(mainEntity.agentInteractionStatistic && {
+      agentInteractionStatistic: mainEntity.agentInteractionStatistic.map(stat => ({
+        '@type': 'InteractionCounter',
+        interactionType: { '@type': stat.type },
+        userInteractionCount: stat.count,
+      })),
+    }),
+  },
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

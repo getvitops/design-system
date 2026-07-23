@@ -1,0 +1,138 @@
+---
+export interface Props {
+  itemReviewed: {
+    type: 'Product' | 'LocalBusiness' | 'Organization' | 'Book' | 'Movie' | 'Restaurant' | 'Event' | 'CreativeWork' | 'SoftwareApplication' | 'MusicRecording' | 'Recipe';
+    name: string;
+    image?: string;
+    url?: string;
+    sameAs?: string;
+    author?: string;
+    isbn?: string;
+    director?: string;
+    datePublished?: string;
+    address?: {
+      streetAddress?: string;
+      addressLocality?: string;
+      addressRegion?: string;
+      postalCode?: string;
+      addressCountry?: string;
+    };
+    priceRange?: string;
+    telephone?: string;
+  };
+  reviewRating: {
+    ratingValue: number;
+    bestRating?: number;
+    worstRating?: number;
+  };
+  author: {
+    name: string;
+    type?: 'Person' | 'Organization';
+  };
+  datePublished?: string;
+  reviewBody?: string;
+  publisher?: {
+    name: string;
+    type?: 'Person' | 'Organization';
+  };
+  positiveNotes?: string | string[];
+  negativeNotes?: string | string[];
+}
+
+const {
+  itemReviewed,
+  reviewRating,
+  author,
+  datePublished,
+  reviewBody,
+  publisher,
+  positiveNotes,
+  negativeNotes,
+} = Astro.props;
+
+const buildItemReviewed = () => {
+  const base = {
+    '@type': itemReviewed.type,
+    name: itemReviewed.name,
+    ...(itemReviewed.image && { image: itemReviewed.image }),
+    ...(itemReviewed.url && { url: itemReviewed.url }),
+    ...(itemReviewed.sameAs && { sameAs: itemReviewed.sameAs }),
+  };
+
+  switch (itemReviewed.type) {
+    case 'Book':
+      return {
+        ...base,
+        ...(itemReviewed.author && { author: { '@type': 'Person', name: itemReviewed.author } }),
+        ...(itemReviewed.isbn && { isbn: itemReviewed.isbn }),
+      };
+    case 'Movie':
+      return {
+        ...base,
+        ...(itemReviewed.director && { director: { '@type': 'Person', name: itemReviewed.director } }),
+        ...(itemReviewed.datePublished && { datePublished: itemReviewed.datePublished }),
+      };
+    case 'LocalBusiness':
+    case 'Restaurant':
+      return {
+        ...base,
+        ...(itemReviewed.address && {
+          address: {
+            '@type': 'PostalAddress',
+            ...(itemReviewed.address.streetAddress && { streetAddress: itemReviewed.address.streetAddress }),
+            ...(itemReviewed.address.addressLocality && { addressLocality: itemReviewed.address.addressLocality }),
+            ...(itemReviewed.address.addressRegion && { addressRegion: itemReviewed.address.addressRegion }),
+            ...(itemReviewed.address.postalCode && { postalCode: itemReviewed.address.postalCode }),
+            ...(itemReviewed.address.addressCountry && { addressCountry: itemReviewed.address.addressCountry }),
+          },
+        }),
+        ...(itemReviewed.priceRange && { priceRange: itemReviewed.priceRange }),
+        ...(itemReviewed.telephone && { telephone: itemReviewed.telephone }),
+      };
+    default:
+      return base;
+  }
+};
+
+const formatNotes = (notes: string | string[] | undefined, type: 'Positive' | 'Negative') => {
+  if (!notes) return undefined;
+  const noteArray = Array.isArray(notes) ? notes : [notes];
+  return {
+    '@type': 'ItemList',
+    itemListElement: noteArray.map((note, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: note,
+    })),
+  };
+};
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Review',
+  itemReviewed: buildItemReviewed(),
+  reviewRating: {
+    '@type': 'Rating',
+    ratingValue: reviewRating.ratingValue,
+    bestRating: reviewRating.bestRating ?? 5,
+    worstRating: reviewRating.worstRating ?? 1,
+  },
+  author: {
+    '@type': author.type || 'Person',
+    name: author.name,
+  },
+  ...(datePublished && { datePublished }),
+  ...(reviewBody && { reviewBody }),
+  ...(publisher && {
+    publisher: {
+      '@type': publisher.type || 'Organization',
+      name: publisher.name,
+    },
+  }),
+  ...(positiveNotes && { positiveNotes: formatNotes(positiveNotes, 'Positive') }),
+  ...(negativeNotes && { negativeNotes: formatNotes(negativeNotes, 'Negative') }),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

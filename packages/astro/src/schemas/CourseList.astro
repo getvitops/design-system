@@ -1,0 +1,122 @@
+---
+export interface CourseInstance {
+  courseMode: 'online' | 'onsite' | 'blended';
+  startDate?: string;
+  endDate?: string;
+  location?: {
+    name: string;
+    address?: string;
+  };
+  instructor?: {
+    name: string;
+    url?: string;
+  };
+  courseSchedule?: {
+    repeatFrequency: string;
+    repeatCount?: number;
+  };
+}
+
+export interface Course {
+  name: string;
+  description: string;
+  provider: {
+    name: string;
+    url?: string;
+  };
+  url?: string;
+  image?: string;
+  offers?: {
+    price: number | string;
+    priceCurrency: string;
+    availability?: 'InStock' | 'SoldOut' | 'PreOrder';
+    validFrom?: string;
+  };
+  hasCourseInstance?: CourseInstance[];
+  educationalLevel?: string;
+  about?: string[];
+  teaches?: string[];
+  financialAidEligible?: boolean;
+  inLanguage?: string;
+  duration?: string;
+}
+
+export interface Props {
+  courses: Course[];
+}
+
+const { courses } = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  itemListElement: courses.map((course, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    item: {
+      '@type': 'Course',
+      name: course.name,
+      description: course.description,
+      provider: {
+        '@type': 'Organization',
+        name: course.provider.name,
+        ...(course.provider.url && { sameAs: course.provider.url }),
+      },
+      ...(course.url && { url: course.url }),
+      ...(course.image && { image: course.image }),
+      ...(course.offers && {
+        offers: {
+          '@type': 'Offer',
+          price: course.offers.price,
+          priceCurrency: course.offers.priceCurrency,
+          ...(course.offers.availability && { availability: `https://schema.org/${course.offers.availability}` }),
+          ...(course.offers.validFrom && { validFrom: course.offers.validFrom }),
+        },
+      }),
+      ...(course.hasCourseInstance && {
+        hasCourseInstance: course.hasCourseInstance.map(instance => ({
+          '@type': 'CourseInstance',
+          courseMode: instance.courseMode,
+          ...(instance.startDate && { startDate: instance.startDate }),
+          ...(instance.endDate && { endDate: instance.endDate }),
+          ...(instance.location && {
+            location: {
+              '@type': 'Place',
+              name: instance.location.name,
+              ...(instance.location.address && {
+                address: {
+                  '@type': 'PostalAddress',
+                  streetAddress: instance.location.address,
+                },
+              }),
+            },
+          }),
+          ...(instance.instructor && {
+            instructor: {
+              '@type': 'Person',
+              name: instance.instructor.name,
+              ...(instance.instructor.url && { url: instance.instructor.url }),
+            },
+          }),
+          ...(instance.courseSchedule && {
+            courseSchedule: {
+              '@type': 'Schedule',
+              repeatFrequency: instance.courseSchedule.repeatFrequency,
+              ...(instance.courseSchedule.repeatCount && { repeatCount: instance.courseSchedule.repeatCount }),
+            },
+          }),
+        })),
+      }),
+      ...(course.educationalLevel && { educationalLevel: course.educationalLevel }),
+      ...(course.about && { about: course.about }),
+      ...(course.teaches && { teaches: course.teaches }),
+      ...(course.financialAidEligible && { financialAidEligible: 'true' }),
+      ...(course.inLanguage && { inLanguage: course.inLanguage }),
+      ...(course.duration && { timeRequired: course.duration }),
+    },
+  })),
+};
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<slot />

@@ -1,0 +1,32 @@
+---
+import type { HTMLAttributes } from 'astro/types';
+import { parseRenderedSlots, getAttribute, serialize, styleList } from '../../utils/html.js';
+
+export interface Props extends HTMLAttributes<'ul'> {};
+
+const { class: className, style } = Astro.props;
+
+const nodes = parseRenderedSlots(await Astro.slots.render('default'));
+const slots = nodes.filter(node => 'tagName' in node).map(node  => ({ html: serialize(node), attrs: node.attrs }));
+---
+
+<style>
+  ul {
+    grid-template-columns: repeat(var(--cols, var(--_cols, 1)), minmax(0, 1fr));
+  }
+
+  li {
+    --current-row: round(down, calc((sibling-index() - 1) / var(--cols)), 1);
+      
+      /* Apply the extra gap ONLY if the row index is > 0.
+         We use clamp to ensure the multiplier is either 0 or 1.
+      */
+      --row-gap-multiplier: clamp(0, var(--current-row), 1);
+      margin-block-start: calc(var(--row-gap-multiplier) * var(--row-margin));
+  }
+</style>
+<ul class:list={["grid", className]} style={styleList({'--num-items': slots.length}, style)}>
+  {slots.map((slot) => (
+    <li class:list={["grid grid-rows-subgrid row-span-(--row-span)", getAttribute(slot, 'class')]} style={styleList(getAttribute(slot, 'style'))} set:html={slot.html}></li>
+  ))}
+</ul>
