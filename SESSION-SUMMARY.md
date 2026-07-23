@@ -1,103 +1,81 @@
-# Session summary — Vitops design system & Home page migration
+# Session summary — @getvitops/emdash: design system → EmDash editing portal
 
-Handoff notes so a fresh session (any model) can continue.
+Handoff notes so a fresh session (any model) can continue. Supersedes the previous
+Bricks/Home-migration summary (that work shipped; see git history around `2c7c050`).
 
-## Context
+## What was built (all working, all UNCOMMITTED)
 
-- **Repo:** `/home/alex/dev/vitops` — generates a cross-platform design system
-  (`src/design-system.json` → CSS framework + Lit web components + Bricks PHP elements; also a
-  Tailwind/Astro output). Used by a **design agency** for all sites via **WordPress/Bricks**
-  _and_ **Cloudflare EmDash (Astro/Tailwind)** — the schema must stay platform-agnostic.
-- **Live site (staging clone):** `vitops-ht6gp9ukdn.live-website.com`, driven via the Bricks
-  MCP (`mcp__vitops-ht6gp9ukdn-live-website-com__*`). Auth = Umair Aftab (admin).
-- **Deploy:** `npx vp run deploy` (rsync `dist/` over SSH; `.env` has `DEPLOY_*`, now
-  key-based). Theme includes `dist/bricks/load.php`.
+The repo TODO "map Astro components + web components into EmDash's editing portal" is done at
+v1 as **`packages/emdash` → `@getvitops/emdash`**, an EmDash **native plugin**:
 
-## Work completed
+- `src/index.ts` — descriptor factory `vitopsEmdash()` + `createPlugin` (`definePlugin`).
+  Options: `scripts: 'integration' (default) | 'fragments'` (page:fragments script injection for
+  `<EmDashHead/>` layouts), `wcBase` (default `/vitops`). Composes with — does not replace —
+  the `getvitops()` Astro integration (CSS + WC bundles to `public/vitops/`); a plugin cannot
+  run integration build-time work (no `astro:config:setup` surface).
+- `src/blocks.ts` — 5 flat-field Portable Text blocks: `vitops.imageCompare`, `vitops.copyButton`,
+  `vitops.banner`, `vitops.details`, `vitops.carousel`. Repeating-data patterns (Cards, wc-entries,
+  FAQ, forms) deliberately excluded — EmDash Block Kit PT fields are flat; use Sections / Field Kit
+  `list` on json collection fields instead (recipes in package README, backlog in TODO.md).
+- `src/astro/index.ts` — `blockComponents` map (export name required by EmDash), thin `.astro`
+  blocks emitting `wc-*` tags + accessible no-JS fallbacks with framework classes.
+  **Key fact:** EmDash's `<PortableText>` → astro-portabletext passes the block as **`props.node`**
+  (fields flat beside `_type`); `src/astro/blocks/value.ts#resolveBlockValue` normalizes.
+- Tests: `src/blocks.test.ts` (12 pass) — descriptor/version/capability shape, fragments hook
+  output, and field `action_id` ↔ component-prop agreement. Note `definePlugin` normalizes hooks
+  to `{handler, pluginId}`.
+- Wiring: `build:emdash` task in root `vite.config.ts` (+ `build:packages` chain), `emdash: ^0.31.0`
+  in the pnpm catalog, changesets **independent** versioning (not in the fixed group),
+  `.changeset/emdash-plugin-tier.md` covers utils minor + astro patch.
 
-### 1. Element rename (committed: `2c7c050` on branch `sitenav-rename-and-asset-versioning`)
+Groundwork in existing packages:
 
-- `bricks/elements/menu.php` → **`sitenav.php`** (`vitops-menu` → `vitops-sitenav`, "Site
-  Nav"). Mobile hamburger→drawer (Popover + sibling `[popover]`), desktop navbar; branch items
-  are accessible `<details>` split-links (parent `<a>` sibling of `<details>`, caret-only
-  `<summary>` — no nested-interactive). Depth caps preserved.
-- `src/css/patterns/menu.css` → **`sitenav.css`** (`.menu*`→`.sitenav*`,
-  `:has(> details[open])` accordion↔dropdown). `index.css` import, `generate-docs.ts` ORDER,
-  `index.html` demo updated. Verified in-browser (desktop navbar, mobile drawer/accordion, a11y).
-- **`bricks/load.php`:** versions enqueued CSS/JS by `filemtime` (was `null` → stale caches).
-  Also forces `data-brx-theme="dark"` server-side, but **Bricks' client JS overrides it back to
-  `light`** (unresolved; it's a Bricks color-scheme setting, not in `get-global-settings`).
+- `packages/utils/src/schema/` — pure JSON-LD builders extracted (`articleGraph`,
+  `organizationGraph`, `breadcrumbGraph`, `faqGraph`), re-exported from utils index; the four
+  `packages/astro/src/schemas/*.astro` are now thin wrappers. Seam for the v2 `page:metadata` hook.
+  (~20 more schemas can be extracted the same way as needed.)
+- `packages/astro/src/layouts/Layout.astro` — removed broken import of deleted `Polyfills.astro`.
 
-### 2. Banner header template (live)
+Dogfood in `apps/portal` (per user decision):
 
-- Bricks **Header template "Banner" (post id 196)**, published, condition `any` (site-wide):
-  SVG logo (media **id 174**, `vitops-mark-pine.svg`) linked to home + `vitops-sitenav` bound to
-  **"Banner" WP menu (term id 13)**. Block wrapper `flex flex-row items-center justify-between`.
-  Verified working (navbar + Services dropdown).
+- `astro.config.mjs`: added `react()` + `emdash({ database: sqlite('file:./emdash.db'),
+storage: local('./uploads'), plugins: [vitopsEmdash()] })` alongside existing `getvitops()`.
+- `src/live.config.ts` (emdashLoader), `src/pages/cms/[slug].astro` (renders `pages` entries via
+  `<PortableText>`), middleware bypasses `/_emdash/*` (EmDash owns its auth) and makes `/cms/*`
+  public (**policy call the user may want to revisit**), `.gitignore` for emdash.db/uploads/
+  emdash-env.d.ts, portal deps: emdash/react/react-dom/@astrojs/react/better-sqlite3.
 
-### 3. Home page migration (live, in progress)
+## Verified (browser + API)
 
-- **Home = post id 11** (slug `home`), was a single Bricks **Code element** (`dbpkxj`,
-  `executeCode:true`, ~65KB self-contained HTML/CSS, ~13 sections). Original extracted to
-  `scratchpad/home.html`.
-- **Backup:** duplicated to **post 200** (draft, "Home (Copy)").
-- **First pass:** added Bricks blocks (root `l0lkzk`) for **hero → trust → problems →
-  services** at top (design-system classes: `centered rhythm`, `split md-flex-row md-split-3-2
-spotlight`, `card`, `cluster`, `font-*` roles, `button`, `badge`). Used `block`+classes
-  because `vitops-centered`/`vitops-split` **can't take children via MCP add-element**. Code
-  element retained for the bottom (process→footer); its top hidden via `_cssCustom` on `dbpkxj`
-  (`#brxe-dbpkxj .hdr/.hero/.trust/.problems/.services { display:none }`). Confirmed the MCP
-  **re-signs code elements** on save.
-- Direction: **match the original exactly using the design system**, direct-CSS for gaps, mark
-  `design-system.json` gaps for the user. (Site is a staging clone; iterating on live is OK.)
+- `/_emdash/api/manifest` → `data.plugins.vitops.portableTextBlocks` lists all 5 (feeds slash menu).
+- Demo page "Vitops blocks demo" (id `01KY7V7PG8AQZZXZ063ZRRH6CS`, slug `vitops-demo`, published)
+  contains all 5 blocks; `/cms/vitops-demo` renders correct enhanced markup + fallbacks + the 3
+  `/vitops/*.js` tags from `<Head/>`.
+- In-browser: editor shows the blocks, `/banner` slash command filters to Banner, Insert form shows
+  Message/Tone/Dismissible. Test edits undone, page unchanged.
+- Content API gotchas: create with `status:"draft"` + `slug` TOP-LEVEL; publish via
+  `POST /_emdash/api/content/<coll>/<id>/publish`; non-GET needs `X-EmDash-Request: 1` + cookie.
 
-### 4. Design-system fixes (dogfooding — deployed)
+## Two EmDash instances — do not confuse
 
-- **`src/design-system.json`:** `shadows.2xl` (big soft), `spaceScale.names` +`3xl…7xl`,
-  `typeScale.names` +`4xl…7xl`, `patterns.radii.card`=0.5rem (removed colliding `control`),
-  `button.base` control-radius + `box-shadow`, `typography.roles` `display`→`text-6xl` /
-  `title`→`text-5xl`.
-- **Bricks variable import done via `bricks/generate-scale-variables`** (categoryId `fb07d6`
-  typography, `38aa13` spacing, `scaleRange {from:-3, to:8}`, `save:true`) — new steps resolve live.
-- **"Semantic" color palette** (49 roles) — user imported manually earlier (fixed all pattern
-  colours site-wide; the named palette was already imported, the semantic one was missing).
-- **`src/css/layout.css` `.flex`** now sets `flex-direction: row` explicitly (Bricks blocks
-  default to `column`).
-- **`src/css/global.css`** `:root { font-size: 100% !important }` — **the big fix**: the
-  WordPress theme shipped a `62.5%` root reset shrinking all rem tokens to ⅝. Now the
-  hero/type/spacing render at full intended scale.
+- **:4322** = this repo, `apps/portal` dogfood (Astro daemon: `npx astro dev` in apps/portal;
+  `astro dev logs|stop`). Login: `http://localhost:4322/_emdash/api/setup/dev-bypass?redirect=/_emdash/admin`.
+  No email provider → magic links silently don't send; only user is the dev admin.
+  Daemon does NOT pick up installs done after a config-change restart — restart manually.
+- **:4321** = `/home/alex/dev/vitops-website` — the REAL site (EmDash 0.28.1, GitHub
+  `authProviders`, D1/R2, Home/Pricing/Contact, consumes published `@getvitops/astro@0.1.1`).
+  The plugin is NOT there yet — see the "Adopt in vitops-website" TODO in TODO.md (needs emdash
+  0.31 upgrade + publishing `@getvitops/emdash`).
 
-## Current visual state
+## Next steps
 
-Home matches the original's **layout, type scale, spacing, components** well. **Main remaining
-gap = dark mode** (cards render light on the dark page; the original cards are dark `#141a23`)
-— parked per user; it's a Bricks color-scheme = Dark setting.
+1. **Commit** — everything above is uncommitted (git status: modified TODO.md, portal files,
+   Layout/schemas/utils, vite.config.ts, pnpm-workspace.yaml, lockfile; new packages/emdash/,
+   packages/utils/src/schema/, portal cms page/live.config/.gitignore, changeset).
+2. Optionally release (`npx vp run release`) so vitops-website can consume published packages.
+3. **Adopt in vitops-website** (TODO.md entry with exact steps).
+4. v2 backlog in TODO.md: page:metadata JSON-LD hook, Sections/Field-Kit recipes, widget
+   components, getMenu()→Nav adapter, carousel field UX, pin emdash peer.
 
-## Key files
-
-- **`DESIGN-SYSTEM-GAPS.md`** — token gaps to reproduce the original + status +
-  semantic-roles recommendation (add a generic `border`/`hairline` token; reuse
-  `surface`/`neutral`; don't hard-code exact hexes).
-- **`TODO.md`** — (a) consolidate patterns to `badge`+`chip`, remove `tag`/`pill`; (b)
-  Utopia-style fluid typography; cross-platform (Bricks + Astro/Tailwind) framing.
-
-## Outstanding (uncommitted)
-
-- Uncommitted repo changes: `design-system.json`, `layout.css`, `global.css`, `load.php`,
-  `TODO.md`, `DESIGN-SYSTEM-GAPS.md`, `SESSION-SUMMARY.md` (+ pre-existing docs-codegen WIP:
-  `lib/generate-docs.ts` has **25 TS strict errors blocking the pre-commit hook**; plus
-  `AGENTS.md`, `vite.config.ts`, `docs/`, `.claude/skills/`, `site.html`).
-- Page tuning left: **dark mode** only. Done since: card padding (`1.75rem` in JSON,
-  deployed), hero-card rebuilt as full event log (mono timestamps via `font-code`, detail
-  spans, 6 rows incl. restored `copilot.enabled`/`license.reclaimed`, `hc-row` grid +
-  hairline dividers + `hc-row--hl` tint via `_cssCustom` on card `orhm3q`; revisions
-  214–220), `br-card` imported (0.5rem, id `318e59`), Banner strays removed (revisions
-  211–212) + logo hard-sized `2.5rem` at all breakpoints (revision 221; Bricks bug: Logo/SVG
-  element upload buttons broken, so the `image` element is the logo).
-- Original's fonts (**Geist / Geist Mono**) intentionally skipped (user self-hosts via Bricks).
-
-## Handles
-
-- **Browser tab:** `492055536`, on `…/home/`.
-- Discovery / large tool-result dumps are cached under the session's `tool-results/` dir; the
-  original page HTML is at `scratchpad/home.html`.
+Plan file for the original implementation: `~/.claude/plans/on-our-todo-is-zany-cerf.md`.
+Memory: `emdash-plugin-dogfood` in the project memory dir has the operational gotchas.

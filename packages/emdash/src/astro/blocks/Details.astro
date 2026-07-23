@@ -1,0 +1,19 @@
+---
+import { resolveBlockValue } from './value.ts';
+
+interface Value {
+  summary?: string;
+  body?: string;
+  open?: boolean;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const { summary, body, open = false } = value;
+---
+
+{summary && (
+  <details open={open}>
+    <summary>{summary}</summary>
+    <p>{body}</p>
+  </details>
+)}

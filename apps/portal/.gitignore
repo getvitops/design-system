@@ -1,0 +1,5 @@
+# EmDash runtime artifacts (dev CMS store, media uploads, generated types)
+emdash.db
+emdash.db-*
+uploads/
+emdash-env.d.ts

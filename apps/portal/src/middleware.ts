@@ -10,10 +10,16 @@ import { getEnv } from './lib/env.ts';
 import { getServer } from './lib/runtime.ts';
 
 const PUBLIC_PATHS = new Set(['/login', '/signup']);
+// EmDash-managed content pages are public site content.
+const isCmsPage = (p: string) => p.startsWith('/cms/');
 const isAuthApi = (p: string) => p.startsWith('/api/auth');
+// EmDash (CMS admin + API + media) owns its own auth — the portal session
+// must not gate or redirect it.
+const isEmdash = (p: string) => p.startsWith('/_emdash');
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const { locals, request, url } = ctx;
+  if (isEmdash(url.pathname)) return next();
   const env = getEnv();
   const { bundle, auth } = getServer(env);
   locals.env = env;
@@ -54,7 +60,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   }
 
   const path = url.pathname;
-  if (PUBLIC_PATHS.has(path)) return next();
+  if (PUBLIC_PATHS.has(path) || isCmsPage(path)) return next();
 
   // Everything below requires an authenticated user with an active org.
   if (!session?.user) {

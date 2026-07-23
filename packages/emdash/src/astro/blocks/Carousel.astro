@@ -1,0 +1,30 @@
+---
+import { resolveBlockValue, splitLines } from './value.ts';
+
+interface Value {
+  images?: string;
+  alts?: string;
+  label?: string;
+  autoplay?: number;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const images = splitLines(value.images);
+const alts = splitLines(value.alts);
+const label = value.label || 'Carousel';
+const autoplay = Number(value.autoplay) || 0;
+---
+
+{images.length > 0 && (
+  <wc-carousel
+    class="carousel carousel--scroll-buttons carousel--scroll-markers"
+    role="region"
+    aria-roledescription="carousel"
+    aria-label={label}
+    autoplay={autoplay > 0 ? autoplay : undefined}
+  >
+    {images.map((src, i) => (
+      <div><img src={src} alt={alts[i] ?? ''} loading="lazy" /></div>
+    ))}
+  </wc-carousel>
+)}

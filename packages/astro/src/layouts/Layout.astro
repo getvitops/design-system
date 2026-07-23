@@ -1,7 +1,6 @@
 ---
 import '/src/styles/global.css';
 import { Font } from 'astro:assets';
-import Polyfills from '../components/Polyfills.astro';
 import Template from '../components/Template.astro';
 import siteConfig from '#site-config';
 import { analyticsEnabled } from '../utils/env';
@@ -72,6 +71,5 @@ const expandedTemplateName = nav?.activeTemplate?.breakpoints?.lg;
         <ContentInfo locale={locale} />
       </slot>
     </footer>
-    {import.meta.env.PRODUCTION && <Polyfills />}
   </body>
 </html>

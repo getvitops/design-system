@@ -1,68 +1,10 @@
 ---
-export interface Props {
-  headline: string;
-  description?: string;
-  image?: string | string[];
-  datePublished: string;
-  dateModified?: string;
-  author: {
-    name: string;
-    url?: string;
-  } | {
-    name: string;
-    url?: string;
-  }[];
-  publisher?: {
-    name: string;
-    logo?: string;
-  };
-  mainEntityOfPage?: string;
-  articleSection?: string;
-  wordCount?: number;
-  keywords?: string[];
-}
+import { articleGraph } from '@getvitops/utils';
+import type { ArticleGraphOptions } from '@getvitops/utils';
 
-const {
-  headline,
-  description,
-  image,
-  datePublished,
-  dateModified,
-  author,
-  publisher,
-  mainEntityOfPage,
-  articleSection,
-  wordCount,
-  keywords,
-} = Astro.props;
+export type Props = ArticleGraphOptions;
 
-const authors = Array.isArray(author) ? author : [author];
-
-const jsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'Article',
-  headline,
-  ...(description && { description }),
-  ...(image && { image: Array.isArray(image) ? image : [image] }),
-  datePublished,
-  ...(dateModified && { dateModified }),
-  author: authors.map(a => ({
-    '@type': 'Person',
-    name: a.name,
-    ...(a.url && { url: a.url }),
-  })),
-  ...(publisher && {
-    publisher: {
-      '@type': 'Organization',
-      name: publisher.name,
-      ...(publisher.logo && { logo: { '@type': 'ImageObject', url: publisher.logo } }),
-    },
-  }),
-  ...(mainEntityOfPage && { mainEntityOfPage: { '@type': 'WebPage', '@id': mainEntityOfPage } }),
-  ...(articleSection && { articleSection }),
-  ...(wordCount && { wordCount }),
-  ...(keywords && { keywords: keywords.join(', ') }),
-};
+const jsonLd = articleGraph(Astro.props);
 ---
 
 <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />

@@ -1,0 +1,22 @@
+---
+import { resolveBlockValue } from './value.ts';
+
+interface Value {
+  text?: string;
+  label?: string;
+  display?: 'inline' | 'code-block';
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const { text, label = 'Copy', display = 'code-block' } = value;
+---
+
+{text && display === 'code-block' && (
+  <div class="copy">
+    <pre><code>{text}</code></pre>
+    <copy-button value={text} label={label}>{label}</copy-button>
+  </div>
+)}
+{text && display === 'inline' && (
+  <copy-button value={text} label={label}><code>{text}</code></copy-button>
+)}

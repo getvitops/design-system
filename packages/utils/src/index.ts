@@ -35,3 +35,16 @@ export {
   toHtml,
 } from './html.ts';
 export type { ChildNode, El, StyleList, StyleValue } from './html.ts';
+
+// schema.org JSON-LD graph builders (shared by @getvitops/astro schema
+// components and platform metadata hooks).
+export { articleGraph, breadcrumbGraph, faqGraph, organizationGraph } from './schema/index.ts';
+export type {
+  ArticleAuthor,
+  ArticleGraphOptions,
+  BreadcrumbGraphOptions,
+  BreadcrumbItem,
+  FAQGraphOptions,
+  FAQItem,
+  OrganizationGraphOptions,
+} from './schema/index.ts';

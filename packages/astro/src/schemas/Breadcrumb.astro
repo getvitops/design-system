@@ -1,25 +1,11 @@
 ---
-export interface BreadcrumbItem {
-  name: string;
-  url: string;
-}
+import { breadcrumbGraph } from '@getvitops/utils';
+import type { BreadcrumbGraphOptions, BreadcrumbItem } from '@getvitops/utils';
 
-export interface Props {
-  items: BreadcrumbItem[];
-}
+export type { BreadcrumbItem };
+export type Props = BreadcrumbGraphOptions;
 
-const { items } = Astro.props;
-
-const jsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: items.map((item, index) => ({
-    '@type': 'ListItem',
-    position: index + 1,
-    name: item.name,
-    item: item.url,
-  })),
-};
+const jsonLd = breadcrumbGraph(Astro.props);
 ---
 
 <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />

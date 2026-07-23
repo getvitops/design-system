@@ -45,6 +45,33 @@ the Tailwind (`--format=tailwind`) output.
   mapping above). Route them through the EmDash menus/widgets integration rather than a one-line
   `defaultLocale` prop default; export once that resolves.
 
+## EmDash editing portal (`@getvitops/emdash`)
+
+- ~~**Map the component tiers into EmDash's editor.**~~ v1 done — `@getvitops/emdash` is an EmDash
+  **native plugin**: `admin.portableTextBlocks` puts 5 flat-field patterns in the editor's slash
+  menu (`vitops.imageCompare`/`copyButton`/`banner`/`details`/`carousel`), and the
+  `componentsEntry` (`@getvitops/emdash/astro` → `blockComponents`) renders them via `<PortableText>`
+  with the `wc-*` tags + accessible fallbacks. Composes with `getvitops()` (CSS + WC bundles);
+  dogfooded in `apps/portal` (`/_emdash/admin`, rendered at `/cms/[slug]`).
+- **Adopt in vitops-website.** `/home/alex/dev/vitops-website` (the real site: EmDash on :4321,
+  GitHub `authProviders`, Cloudflare D1/R2) is on `emdash@^0.28.1` + published
+  `@getvitops/astro@0.1.1` — too old for the plugin (peer `>=0.31.0`, descriptor format changed).
+  Steps: upgrade its `emdash` → 0.31.x, bump `@getvitops/astro` → 0.3.x, publish
+  `@getvitops/emdash` (or `file:` link for a trial), register `vitopsEmdash()` in its `emdash()`
+  plugins array.
+- **v2 backlog:**
+  - `page:metadata` hook emitting JSON-LD from the shared builders now in
+    `packages/utils/src/schema/` (`articleGraph`/`organizationGraph`/`breadcrumbGraph`/`faqGraph`;
+    the remaining ~20 `schemas/*.astro` can be extracted the same way as needed).
+  - Repeating-data patterns (Cards/Subgrid, `wc-entries`, FAQ, forms): seeded **Sections** in a
+    starter theme + documented Field Kit `list`-widget recipes rendered via
+    `Cards.astro`/`NodeRenderer.astro` — flat Block Kit PT fields can't express them.
+  - `widgetComponents` map + documented `WidgetRenderer` pattern for widget areas.
+  - EmDash `getMenu()` → `Nav` adapter (blocked on the Nav decoupling above).
+  - Carousel field UX: replace the newline-separated-URLs workaround if EmDash grows
+    media-picker/repeater PT block fields.
+  - Pin the `emdash` peer range per tested version (currently `>=0.31.0`, verified on 0.31.0).
+
 ---
 
 See **`DESIGN-SYSTEM-GAPS.md`** for the token-level gaps found while reproducing the Home

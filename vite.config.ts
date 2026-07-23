@@ -185,10 +185,16 @@ export default defineConfig({
         input: ['packages/astro/src/**/*.ts', 'packages/astro/vite.config.ts'],
         output: ['packages/astro/dist/**'],
       },
+      // EmDash CMS plugin: descriptor/runtime only (the ./astro entry ships as source).
+      'build:emdash': {
+        command: 'cd packages/emdash && vp pack',
+        input: ['packages/emdash/src/**/*.ts', 'packages/emdash/vite.config.ts'],
+        output: ['packages/emdash/dist/**'],
+      },
       // Build all publishable packages (cli/vite need core + utils; astro needs all).
       'build:packages': {
         command:
-          'vp run build:generator && vp run build:utils && vp run build:cli && vp run build:vite-plugin && vp run build:astro',
+          'vp run build:generator && vp run build:utils && vp run build:cli && vp run build:vite-plugin && vp run build:astro && vp run build:emdash',
       },
       // Version + publish the scoped packages via Changesets. Root stays private.
       release: {

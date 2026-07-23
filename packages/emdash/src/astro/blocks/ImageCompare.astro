@@ -1,0 +1,22 @@
+---
+import { resolveBlockValue } from './value.ts';
+
+interface Value {
+  before?: string;
+  beforeAlt?: string;
+  beforeLabel?: string;
+  after?: string;
+  afterAlt?: string;
+  afterLabel?: string;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const { before, beforeAlt = '', beforeLabel = 'Before', after, afterAlt = '', afterLabel = 'After' } = value;
+---
+
+{before && after && (
+  <wc-image-compare before-label={beforeLabel} after-label={afterLabel}>
+    <img slot="before" src={before} alt={beforeAlt} loading="lazy" />
+    <img slot="after" src={after} alt={afterAlt} loading="lazy" />
+  </wc-image-compare>
+)}

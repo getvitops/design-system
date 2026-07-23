@@ -1,8 +1,12 @@
 // @ts-check
 import { existsSync } from 'node:fs';
 import node from '@astrojs/node';
+import react from '@astrojs/react';
 import getvitops from '@getvitops/astro';
+import { vitopsEmdash } from '@getvitops/emdash';
 import { defineConfig, passthroughImageService } from 'astro/config';
+import emdash, { local } from 'emdash/astro';
+import { sqlite } from 'emdash/db';
 
 // Load .env into process.env for the whole dev/build process (server code reads
 // process.env directly; Vite only exposes import.meta.env). Node 20.12+ API.
@@ -29,6 +33,16 @@ export default defineConfig({
         backgroundColor: '#0c1116',
       },
       css: { input: 'design-system.json', format: 'tailwind', out: 'src/styles' },
+    }),
+    // EmDash CMS (dogfoods @getvitops/emdash): admin at /_emdash/admin, its own
+    // auth + SQLite store (portal Postgres stays untouched). react() is required
+    // for the admin UI to hydrate. The vitops plugin adds the design-system
+    // Portable Text blocks to the editor.
+    react(),
+    emdash({
+      database: sqlite({ url: 'file:./emdash.db' }),
+      storage: local({ directory: './uploads', baseUrl: '/_emdash/api/media/file' }),
+      plugins: [vitopsEmdash()],
     }),
   ],
 });

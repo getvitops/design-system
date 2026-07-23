@@ -5,29 +5,13 @@
  * NOTE: Google recommends FAQ markup only for authoritative government
  * and health sites. For other sites, consider using QAPage schema instead.
  */
-export interface FAQItem {
-  question: string;
-  answer: string;
-}
+import { faqGraph } from '@getvitops/utils';
+import type { FAQGraphOptions, FAQItem } from '@getvitops/utils';
 
-export interface Props {
-  items: FAQItem[];
-}
+export type { FAQItem };
+export type Props = FAQGraphOptions;
 
-const { items } = Astro.props;
-
-const jsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: items.map(item => ({
-    '@type': 'Question',
-    name: item.question,
-    acceptedAnswer: {
-      '@type': 'Answer',
-      text: item.answer,
-    },
-  })),
-};
+const jsonLd = faqGraph(Astro.props);
 ---
 
 <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />

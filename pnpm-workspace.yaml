@@ -15,6 +15,7 @@ catalog:
   astro: ^7.1.2
   colorjs.io: ^0.5.2
   construct-style-sheets-polyfill: ^3.1.0
+  emdash: ^0.31.0
   parse5: ^7.3.0
   lightningcss: ^1.32.0
   lit: ^3.3.3
@@ -29,6 +30,7 @@ catalog:
   zod: ^4.1.13
 allowBuilds:
   '@parcel/watcher': false
+  better-sqlite3: true
   esbuild: false
   lightningcss: true
   sharp: false
