@@ -5,7 +5,7 @@
   "license": "MIT",
   "files": [
     "dist",
-    "Head.astro",
+    "src/components/Head.astro",
     "virtual.d.ts"
   ],
   "type": "module",
@@ -15,7 +15,7 @@
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
     },
-    "./Head.astro": "./Head.astro",
+    "./Head.astro": "./src/components/Head.astro",
     "./package.json": "./package.json"
   },
   "publishConfig": {

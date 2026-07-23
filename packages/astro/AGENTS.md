@@ -16,9 +16,10 @@ via the `astro:config:setup` hook:
 - **CSS (opt-in `css:`)** → generates the design-system CSS from `design-system.json` (via
   `@getvitops/vite` + the generator) and auto-injects it — no manual stylesheet import.
 
-Resolved config is exposed through the `virtual:getvitops/head` module. `<Head />` (`Head.astro`,
-placed in the layout `<head>`) renders the favicon/PWA tags and the runtime scripts in canonical
-order — `polyfills.js` (module + `modulepreload`) → `deferred.js` → `elements.js`.
+Resolved config is exposed through the `virtual:getvitops/head` module. `<Head />`
+(`src/components/Head.astro`, imported by consumers as `@getvitops/astro/Head.astro`, placed in the
+layout `<head>`) renders the favicon/PWA tags and the runtime scripts in canonical order —
+`polyfills.js` (module + `modulepreload`) → `deferred.js` → `elements.js`.
 
 **Polyfills come from `@getvitops/core`'s feature-detected loader** (`src/js/polyfills.ts`, shipped
 as `polyfills.js` and loaded by `<Head />`) — it imports only the polyfills whose native feature is
@@ -47,6 +48,18 @@ platform features — Popover API, CSS Anchor Positioning, Invoker Commands (`co
 
 `WebComponentLoader` is the one exception that ships a `<script>` — but it only **loads** a web
 component (tier 2), it doesn't implement a pattern. Prefer letting `<Head />` load `elements.js`.
+
+All of the above live in `src/components/` (alongside `Head.astro`).
+
+## Structured data — Schema.org / JSON-LD (`src/schemas/`)
+
+The Schema.org / JSON-LD **structured-data markup** components live in `src/schemas/`. Each takes
+typed props and emits a single `<script type="application/ld+json">` block at SSR time — inert
+markup (no runtime JS), so it fits the tier-3 rule. One component per Schema.org type, e.g.
+`Article`, `Organization`, `LocalBusiness`, `Product`, `Review`, `Event`, `FAQ`, `Recipe`,
+`Breadcrumb`, `JobPosting`, `Course`, `Dataset`, `ProfilePage`, `QAPage`, `SoftwareApp`,
+`Carousel`, … Drop one into a page's `<head>` (or via `<Head />`) with the entity's data; use them
+alongside `SEO.astro`, which covers the `<meta>`/Open Graph tags.
 
 ## Authoring helpers
 
