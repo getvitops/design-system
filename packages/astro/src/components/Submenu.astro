@@ -1,12 +1,12 @@
 ---
 import { Icon } from 'astro-icon/components';
 import Popover from './Popover.astro';
-import { t } from '../../utils/i18n.js';
+import { t } from '@getvitops/utils';
 import { normalizeImageRef } from '../utils/images';
 import { icon } from '../utils/icon-resolver';
-import { partAttrs } from '../../utils/parts.js';
+import { partAttrs } from '@getvitops/utils';
 import siteConfig from '#site-config';
-import type { Link } from '../../types.js';
+import type { Link } from '@getvitops/utils';
 
 interface Props {
   link: Link;

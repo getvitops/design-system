@@ -147,9 +147,6 @@ importers:
       '@tailwindcss/vite':
         specifier: 'catalog:'
         version: 4.3.3(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0))
-      parse5:
-        specifier: 'catalog:'
-        version: 7.3.0
       tailwindcss:
         specifier: 'catalog:'
         version: 4.3.3
@@ -227,6 +224,9 @@ importers:
       colorjs.io:
         specifier: 'catalog:'
         version: 0.5.2
+      parse5:
+        specifier: 'catalog:'
+        version: 7.3.0
       png-to-ico:
         specifier: 'catalog:'
         version: 3.0.2

@@ -4,13 +4,13 @@ import { Icon } from 'astro-icon/components';
 import Details from './Details.astro';
 import Drawer from './Drawer.astro';
 import Submenu from './Submenu.astro';
-import { isElmnt } from '../../utils/types.js';
+import { isElmnt } from '@getvitops/utils';
 import { resolveImage, normalizeImageRef } from '../utils/images';
-import { t } from '../../utils/i18n.js';
+import { t } from '@getvitops/utils';
 import { icon } from '../utils/icon-resolver';
-import { partAttrs } from '../../utils/parts.js';
+import { partAttrs } from '@getvitops/utils';
 import siteConfig from '#site-config';
-import type { Elmnt, Link } from '../../types.js';
+import type { Elmnt, Link } from '@getvitops/utils';
 import type { HTMLTag } from 'astro/types';
 
 type NavItem = Link | Elmnt<Link>;

@@ -3,8 +3,8 @@
  *
  * Default export is the `getvitops()` integration (favicons + PWA + web-component
  * scripts + optional CSS auto-inject). The `<Head />` component ships alongside at
- * `@getvitops/astro/Head.astro`. HTML/type helpers for authoring components are
- * also re-exported.
+ * `@getvitops/astro/Head.astro`. The framework-agnostic content-model + HTML helpers
+ * now live in `@getvitops/utils` and are re-exported here for convenience.
  */
 export { default } from './integration.ts';
 export type {
@@ -12,8 +12,4 @@ export type {
   GetvitopsFaviconOptions,
   GetvitopsOptions,
 } from './integration.ts';
-export * from '../types.ts';
-export * from './html.ts';
-export * from './types.ts';
-export * from './parts.ts';
-export * from './i18n.ts';
+export * from '@getvitops/utils';

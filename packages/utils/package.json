@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "colorjs.io": "catalog:",
+    "parse5": "catalog:",
     "png-to-ico": "catalog:",
     "sharp": "catalog:"
   },

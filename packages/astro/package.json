@@ -29,7 +29,6 @@
     "@getvitops/utils": "workspace:*",
     "@getvitops/vite": "workspace:*",
     "@tailwindcss/vite": "catalog:",
-    "parse5": "catalog:",
     "tailwindcss": "catalog:"
   },
   "devDependencies": {
