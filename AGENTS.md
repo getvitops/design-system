@@ -8,6 +8,40 @@ It is composed of:
 
 Prefer using modern CSS/HTML features (e.g. CSS Anchor Positioning API, Dialog, Invoker Commands API, Scroll Timelines, etc.) over JavaScript.
 
+## Component architecture
+
+Three tiers, chosen by **whether a pattern actually needs JavaScript**:
+
+1. **CSS framework** (`@getvitops/core` `css/`) — every pattern expressible in pure HTML/CSS.
+   Variable-driven utility + component classes, built on modern platform features (Anchor
+   Positioning, Popover, Invoker Commands, `<details>`, subgrid, container queries, scroll-driven
+   animations). Reach for these before anything else.
+
+2. **Web components** (`@getvitops/core` `src/web-components/`, `<wc-*>`, Lit) — **only** for patterns
+   that genuinely benefit from **progressive enhancement**, and they must **SSR**:
+   - The slotted/light-DOM markup is the **fallback**, and it must be **accessible and usable on its
+     own with no JS** (semantic HTML). The component never renders from empty.
+   - On registration it **parses that fallback and augments it** in place. Use light DOM
+     (`createRenderRoot() → this`) so the framework CSS applies to both the fallback and the enhanced
+     result.
+   - Exemplar: **`WCEntries`** — with no JS it renders semantic `<h3>` + `<dl>` pairs; with JS on a
+     wide container it parses them into a table. (Others: carousel, image-compare, multi-field, …)
+   - Shipped as feature-detected, deferred ES-module bundles
+     (`@getvitops/core/{polyfills,elements,deferred}`); polyfills load **only** when a native feature
+     is missing (see `Polyfills.astro`).
+
+3. **Platform wrappers** (`@getvitops/astro` components; future `@getvitops/bricks`) — thin
+   **authoring conveniences (DX)** for the pure-HTML/CSS patterns: they render the correct
+   markup/classes so authors don't hand-write boilerplate, and they **must not require runtime JS**.
+   - e.g. `Subgrid.astro` just emits `<ul class="grid"><li class="grid-rows-subgrid">…</li></ul>` from
+     slotted children; `Popover.astro` uses the native Popover API + Anchor Positioning;
+     `Nav`/`Details`/`Drawer` compose `<details>` + Invoker Commands (`command`/`commandfor`) — all
+     no-JS. Renderers like `NodeRenderer`/`FormRenderer` turn a data model into that markup at
+     SSR time.
+   - **The rule:** if a wrapper would need runtime JS, it's the wrong tier — build a **web component**
+     (tier 2) instead, and have the wrapper emit its `<wc-*>` tag with the accessible fallback inside.
+     A feature-detected polyfill for a native CSS/HTML feature is fine; application/behaviour JS is not.
+
 ## Published toolchain: `@getvitops/*`
 
 Published as a **reusable toolchain** (like Tailwind/shadcn): every client runs it against their own
