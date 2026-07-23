@@ -29,6 +29,20 @@ the Tailwind (`--format=tailwind`) output.
   The Utopia model must express cleanly in both — verify the clamp math matches what Bricks'
   Scale Generator produces so imports round-trip.
 
+## Astro integration (`@getvitops/astro`)
+
+- **Semantic icon mapping → the integration.** Components currently take an `iconResolver` prop
+  (semantic name like `expand-more`/`close` → a fully-qualified `astro-icon` name like
+  `fa7-solid:chevron-down`), defaulting to pass-through. Move this mapping into the `getvitops()`
+  integration so it's provided centrally (per-site) rather than threaded through every component.
+- **Ship the generic component tier** (blocked on a path fix). The prop-driven primitives
+  (`Subgrid`/`Popover`/`Details`/`Drawer`/`Cards`/`NodeRenderer`, + `Nav`/`Submenu` once their
+  `#site-config` `defaultLocale` default becomes a plain prop) should export at `./components/*`.
+  Blocker: they import helpers via `../../utils/*` (resolves to a top-level `packages/astro/utils/`)
+  but the helpers live at `packages/astro/src/*` — the imports don't resolve. Align the helper
+  location first, then export. Config-bound chrome (`Template`/`Layout`/`SEO`/`ContentInfo`/
+  `FormRenderer`) stays **out** of the generic library — headed for EmDash (menus/widgets).
+
 ---
 
 See **`DESIGN-SYSTEM-GAPS.md`** for the token-level gaps found while reproducing the Home
