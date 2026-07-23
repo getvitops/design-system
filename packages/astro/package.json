@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/astro",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Astro integration for the Vitops design system — favicons/PWA, web-component scripts, and CSS, via a getvitops() integration + <Head /> component.",
   "license": "MIT",
   "files": [
