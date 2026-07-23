@@ -1,5 +1,13 @@
 # @getvitops/cli
 
+## 0.4.0
+
+### Patch Changes
+
+- Updated dependencies [d7e6491]
+  - @getvitops/utils@0.4.0
+  - @getvitops/generator@0.4.0
+
 ## 0.3.0
 
 ### Patch Changes

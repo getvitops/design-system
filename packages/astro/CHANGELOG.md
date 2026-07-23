@@ -1,5 +1,16 @@
 # @getvitops/astro
 
+## 0.3.1
+
+### Patch Changes
+
+- d7e6491: Extract schema.org JSON-LD graph builders (articleGraph/organizationGraph/breadcrumbGraph/faqGraph) into @getvitops/utils so platform hooks (e.g. the new @getvitops/emdash plugin's future page:metadata contributions) can share them; the corresponding schemas/\*.astro become thin wrappers. Also removes Layout.astro's import of the deleted Polyfills.astro.
+- Updated dependencies [d7e6491]
+  - @getvitops/utils@0.4.0
+  - @getvitops/core@0.4.0
+  - @getvitops/generator@0.4.0
+  - @getvitops/vite@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes
