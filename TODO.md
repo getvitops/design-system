@@ -56,8 +56,8 @@ the Tailwind (`--format=tailwind`) output.
 - **Adopt in vitops-website.** `/home/alex/dev/vitops-website` (the real site: EmDash on :4321,
   GitHub `authProviders`, Cloudflare D1/R2) is on `emdash@^0.28.1` + published
   `@getvitops/astro@0.1.1` — too old for the plugin (peer `>=0.31.0`, descriptor format changed).
-  Steps: upgrade its `emdash` → 0.31.x, bump `@getvitops/astro` → 0.3.x, publish
-  `@getvitops/emdash` (or `file:` link for a trial), register `vitopsEmdash()` in its `emdash()`
+  Steps: upgrade its `emdash` → 0.31.x, bump `@getvitops/astro` → 0.3.1, add
+  `@getvitops/emdash@0.1.0` (published 2026-07-23), register `vitopsEmdash()` in its `emdash()`
   plugins array.
 - **v2 backlog:**
   - `page:metadata` hook emitting JSON-LD from the shared builders now in
