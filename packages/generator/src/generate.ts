@@ -953,6 +953,11 @@ body {
   container-type: inline-size;
 }
 
+/* Class-level structure rules live in \`components\` so track/spacing utilities
+   (@layer utilities — later in the layer order) can override them; unlayered
+   CSS would beat ALL layered utilities regardless of specificity (e.g.
+   \`.centered > *\` pinning children to \`measure\` over \`.spotlight\`). */
+@layer components {
 .rhythm {
   display: flow-root;
 }
@@ -1010,10 +1015,12 @@ body {
     var(--region-space-max, 8rem)
   );
 }
+}
 `);
 
+  // Same layering rationale as the structure block above.
   const animEngine = readFileSync(join(cssDir, 'animation.css'), 'utf8');
-  parts.push(`/* ── Animation engine (animation.css) ── */\n${animEngine}`);
+  parts.push(`/* ── Animation engine (animation.css) ── */\n@layer components {\n${animEngine}\n}`);
   // Patterns live in Tailwind's `components` layer so single-purpose utilities
   // (@layer utilities — declared later in the layer order) override them, e.g.
   // `.text-on-ui-primary` beating the link pattern's element-level `a { color }`.
