@@ -1,5 +1,11 @@
 # @getvitops/astro
 
+## 0.4.0
+
+### Minor Changes
+
+- 54a06e9: Add `css.inject` option to `getvitops()` (default `true`). Set `inject: false` to stop the global `page-ssr` stylesheet injection and import the generated CSS from your site layout instead — needed when other integrations add routes that must not inherit the design system (e.g. EmDash's `/_emdash/admin`, which the auto-injected CSS was bleeding into).
+
 ## 0.3.1
 
 ### Patch Changes
