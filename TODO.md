@@ -53,12 +53,14 @@ the Tailwind (`--format=tailwind`) output.
   `componentsEntry` (`@getvitops/emdash/astro` → `blockComponents`) renders them via `<PortableText>`
   with the `wc-*` tags + accessible fallbacks. Composes with `getvitops()` (CSS + WC bundles);
   dogfooded in `apps/portal` (`/_emdash/admin`, rendered at `/cms/[slug]`).
-- **Adopt in vitops-website.** `/home/alex/dev/vitops-website` (the real site: EmDash on :4321,
-  GitHub `authProviders`, Cloudflare D1/R2) is on `emdash@^0.28.1` + published
-  `@getvitops/astro@0.1.1` — too old for the plugin (peer `>=0.31.0`, descriptor format changed).
-  Steps: upgrade its `emdash` → 0.31.x, bump `@getvitops/astro` → 0.3.1, add
-  `@getvitops/emdash@0.1.0` (published 2026-07-23), register `vitopsEmdash()` in its `emdash()`
-  plugins array.
+- ~~**Adopt in vitops-website.**~~ Done 2026-07-24: `/home/alex/dev/vitops-website` on
+  `emdash@^0.31.0` + `@getvitops/astro@^0.4.0` (`css.inject: false`; PineLayout imports the
+  stylesheet so `/_emdash/admin` stays unstyled) + `@getvitops/emdash@^0.1.0` registered in the
+  `emdash()` plugins array; deployed to dev.vitops.ca (push to `dev` → deploy-dev workflow) and
+  verified: editor loads, slash menu shows the 5 vitops blocks. Note: the deployed D1s (`vitops`,
+  `vitops-dev`) had a `pages` collection with **zero field rows** — fields were added on dev via
+  the admin Content Types UI (`title` string required, `content` portableText, matching
+  `seed/seed.json`); prod's `vitops` D1 still lacks them (fix the same way when promoting).
 - **v2 backlog:**
   - `page:metadata` hook emitting JSON-LD from the shared builders now in
     `packages/utils/src/schema/` (`articleGraph`/`organizationGraph`/`breadcrumbGraph`/`faqGraph`;
