@@ -1,6 +1,9 @@
 ---
 import Head from '@getvitops/astro/Head.astro';
 import { hasCapability, type Capability } from '../lib/capabilities.ts';
+// Design-system CSS, layout-scoped (getvitops css.inject: false): only pages
+// rendered through Base get it — keeps it out of /_emdash/admin.
+import '../styles/tailwind.css';
 
 interface Props {
   title?: string;

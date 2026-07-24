@@ -39,6 +39,14 @@ export interface GetvitopsCssOptions {
   format?: Format;
   /** Directory the generated CSS is written to (default 'src/styles'). */
   out?: string;
+  /**
+   * Auto-inject the generated stylesheet into every SSR page (default true).
+   * Set false when other integrations add routes that must not inherit the
+   * design system (e.g. EmDash's `/_emdash/admin`) — then import the generated
+   * file (`<out>/tailwind.css` or `<out>/styles.css`) from your site layout so
+   * only your own pages (and previews rendered through them) are styled.
+   */
+  inject?: boolean;
 }
 
 export interface GetvitopsOptions {
@@ -150,9 +158,15 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
           if (format === 'tailwind') plugins.push(...(tailwindcss() as unknown as typeof plugins));
           updateConfig({ vite: { plugins } });
           const cssFile = format === 'tailwind' ? 'tailwind.css' : 'styles.css';
-          const cssPath = resolve(root, out, cssFile);
-          injectScript('page-ssr', `import ${JSON.stringify(cssPath)};`);
-          logger.info(`design-system CSS (${format}) auto-injected from ${out}/${cssFile}`);
+          if (opts.css.inject !== false) {
+            const cssPath = resolve(root, out, cssFile);
+            injectScript('page-ssr', `import ${JSON.stringify(cssPath)};`);
+            logger.info(`design-system CSS (${format}) auto-injected from ${out}/${cssFile}`);
+          } else {
+            logger.info(
+              `design-system CSS (${format}) generated at ${out}/${cssFile} (inject: false — import it from your layout)`,
+            );
+          }
         }
       },
     },

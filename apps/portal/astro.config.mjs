@@ -32,7 +32,9 @@ export default defineConfig({
         themeColor: '#2f6f5e',
         backgroundColor: '#0c1116',
       },
-      css: { input: 'design-system.json', format: 'tailwind', out: 'src/styles' },
+      // inject: false — Base.astro imports the stylesheet, so EmDash's
+      // /_emdash/admin routes don't inherit the design system.
+      css: { input: 'design-system.json', format: 'tailwind', out: 'src/styles', inject: false },
     }),
     // EmDash CMS (dogfoods @getvitops/emdash): admin at /_emdash/admin, its own
     // auth + SQLite store (portal Postgres stays untouched). react() is required
