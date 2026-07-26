@@ -1,0 +1,27 @@
+---
+import { getEmDashEntry } from 'emdash';
+import { PortableText } from 'emdash/ui';
+import Layout from '../layouts/Layout.astro';
+
+// The seeded home page (seed/seed.json → pages/home). Edit it in the admin;
+// the Vitops blocks from @getvitops/emdash render automatically — EmDash
+// merges the plugin's block components into <PortableText>.
+const { entry: page } = await getEmDashEntry('pages', 'home');
+---
+
+<Layout description={page?.data.title}>
+  <section class="rhythm">
+    <h1>{page?.data.title ?? 'Welcome'}</h1>
+    {
+      page?.data.content ? (
+        <PortableText value={page.data.content} />
+      ) : (
+        <p>
+          No home page yet. Complete the setup wizard at <a href="/_emdash/admin">/_emdash/admin</a>{' '}
+          and choose to include the sample content, or create a page with the slug{' '}
+          <code>home</code> in the admin.
+        </p>
+      )
+    }
+  </section>
+</Layout>

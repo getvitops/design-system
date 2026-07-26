@@ -12,6 +12,6 @@ export default defineConfig({
     dts: true,
     clean: true,
     minify: false,
-    deps: { neverBundle: ['emdash'] },
+    deps: { neverBundle: ['emdash', 'astro'] },
   },
 });

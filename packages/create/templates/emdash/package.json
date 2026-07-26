@@ -1,0 +1,49 @@
+{
+  "name": "my-emdash-site",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "deploy": "astro build && wrangler deploy",
+    "deploy:dev": "astro build && node scripts/build-dev-wrangler.mjs && wrangler deploy --config dist/server/wrangler.dev.json",
+    "init:github": "node scripts/init-github.mjs",
+    "init:hosting": "node scripts/init-hosting.mjs",
+    "typecheck": "astro check",
+    "build:css": "vitops generate -i design-system.json -f tailwind -o src/styles",
+    "prepare": "vp config"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^14.0.0",
+    "@astrojs/react": "^6.0.0",
+    "@emdash-cms/cloudflare": "^0.31.0",
+    "@getvitops/astro": "^0.4.0",
+    "@getvitops/emdash": "^0.2.0",
+    "astro": "^7.1.2",
+    "emdash": "^0.31.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.7",
+    "@cloudflare/workers-types": "^4.20260305.1",
+    "@getvitops/cli": "^0.4.0",
+    "typescript": "^6.0.3",
+    "vite": "catalog:",
+    "vite-plus": "catalog:",
+    "wrangler": "^4.111.0"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24.18.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@11.17.0",
+  "emdash": {
+    "seed": "seed/seed.json"
+  }
+}

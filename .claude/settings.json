@@ -1,4 +1,11 @@
 {
+  "permissions": {
+    "allow": [
+      "mcp__astro-docs__search_astro_docs",
+      "mcp__emdash-docs__search_docs",
+      "mcp__emdash__search_docs"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {

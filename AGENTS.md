@@ -72,9 +72,17 @@ packages under `packages/` (a pnpm workspace), by layer:
   (favicons/PWA + web-component bundles copied to `public/` + the design-system CSS generated and
   auto-injected) plus a `<Head />` component and HTML/type authoring helpers. Wraps generator + utils
   - vite + core.
-    Dependency versions are centralized in `pnpm-workspace.yaml`'s `catalog:` (referenced via the
-    `catalog:` protocol); internal deps use `workspace:*`. Both are rewritten to concrete versions on
-    publish.
+- **`@getvitops/create`** — **`vp create` org templates** (no build step; published as-is). Its
+  `package.json` carries a `createConfig.templates` manifest over bundled `templates/*` directories,
+  so `vp create @getvitops` opens a picker and `vp create @getvitops:emdash` scaffolds an EmDash CMS
+  website on Cloudflare Workers (D1 + R2) with `@getvitops/{astro,emdash,cli}` pre-wired. Template
+  deps must use concrete npm ranges (never `workspace:*`/`catalog:` — scaffolded projects live
+  outside this monorepo), and `templates/**` is excluded from the root lint (imports resolve only in
+  a scaffolded project). Ship `_gitignore` (renamed to `.gitignore` on scaffold).
+
+Dependency versions are centralized in `pnpm-workspace.yaml`'s `catalog:` (referenced via the
+`catalog:` protocol); internal deps use `workspace:*`. Both are rewritten to concrete versions on
+publish.
 
 Per-format output (into `outDir`): `tailwind` → self-contained `tailwind.css` + `tokens.json`;
 `css` → bundled standalone `styles.css` + `tokens.json` + `design-manifest.json`; `bricks` → the

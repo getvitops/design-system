@@ -1,0 +1,343 @@
+{
+  "$schema": "https://emdashcms.com/seed.schema.json",
+  "version": "1",
+  "meta": {
+    "name": "Vitops Starter",
+    "description": "An EmDash website wired to the Vitops design system",
+    "author": "Vitops"
+  },
+  "settings": {
+    "title": "My EmDash Site",
+    "tagline": "An EmDash website with the Vitops design system"
+  },
+  "collections": [
+    {
+      "slug": "pages",
+      "label": "Pages",
+      "labelSingular": "Page",
+      "supports": ["drafts", "revisions", "seo"],
+      "fields": [
+        {
+          "slug": "title",
+          "label": "Title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "slug": "content",
+          "label": "Content",
+          "type": "portableText"
+        }
+      ]
+    }
+  ],
+  "menus": [
+    {
+      "name": "primary",
+      "label": "Primary Navigation",
+      "items": [
+        { "type": "custom", "label": "Home", "url": "/" },
+        { "type": "custom", "label": "About", "url": "/about" }
+      ]
+    },
+    {
+      "name": "footer",
+      "label": "Footer",
+      "items": [
+        { "type": "custom", "label": "Terms & Conditions", "url": "/terms" },
+        { "type": "custom", "label": "Privacy Policy", "url": "/privacy" }
+      ]
+    }
+  ],
+  "content": {
+    "pages": [
+      {
+        "id": "home",
+        "slug": "home",
+        "status": "published",
+        "data": {
+          "title": "Home",
+          "content": [
+            {
+              "_type": "block",
+              "_key": "intro-heading",
+              "style": "h2",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "intro-heading-1",
+                  "text": "Your site is running",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "intro-body",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "intro-body-1",
+                  "text": "This page is served from the EmDash database. Edit it in the admin at /_emdash/admin — the Vitops design-system blocks are available from the editor's slash menu.",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "vitops.banner",
+              "_key": "welcome-banner",
+              "message": "This banner is a Vitops block — dismiss it, then edit this page in the EmDash admin.",
+              "tone": "info",
+              "dismissible": true
+            },
+            {
+              "_type": "vitops.details",
+              "_key": "next-steps",
+              "summary": "Next steps",
+              "body": "Adjust design-system.json to your brand (colors, type, patterns), replace src/assets/logo.svg, then deploy with `pnpm deploy`.",
+              "open": false
+            }
+          ]
+        }
+      },
+      {
+        "id": "about",
+        "slug": "about",
+        "status": "published",
+        "data": {
+          "title": "About",
+          "content": [
+            {
+              "_type": "block",
+              "_key": "about-body",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "about-body-1",
+                  "text": "This page is rendered by the catch-all route (src/pages/[...slug].astro). Any page you create in the pages collection appears at its slug automatically.",
+                  "marks": []
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "terms",
+        "slug": "terms",
+        "status": "published",
+        "data": {
+          "title": "Terms & Conditions",
+          "content": [
+            {
+              "_type": "vitops.banner",
+              "_key": "terms-placeholder",
+              "message": "Placeholder text — replace with your own terms before launch. This is not legal advice.",
+              "tone": "warning",
+              "dismissible": false
+            },
+            {
+              "_type": "block",
+              "_key": "terms-intro",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "terms-intro-1",
+                  "text": "These terms and conditions govern your use of this website. By accessing or using the site, you agree to be bound by them. If you disagree with any part of these terms, please do not use the site.",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "terms-use-h",
+              "style": "h2",
+              "markDefs": [],
+              "children": [
+                { "_type": "span", "_key": "terms-use-h-1", "text": "Use of the site", "marks": [] }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "terms-use",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "terms-use-1",
+                  "text": "Content on this site is provided for general information only and may change without notice. You may not use the site in any way that causes, or may cause, damage to the site or impairment of its availability.",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "terms-liability-h",
+              "style": "h2",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "terms-liability-h-1",
+                  "text": "Limitation of liability",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "terms-liability",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "terms-liability-1",
+                  "text": "The site is provided \"as is\" without warranties of any kind. To the fullest extent permitted by law, we exclude all liability for any loss or damage arising from use of the site.",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "terms-contact",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "terms-contact-1",
+                  "text": "Questions about these terms? Contact the site owner. Edit this page in the EmDash admin.",
+                  "marks": []
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "privacy",
+        "slug": "privacy",
+        "status": "published",
+        "data": {
+          "title": "Privacy Policy",
+          "content": [
+            {
+              "_type": "vitops.banner",
+              "_key": "privacy-placeholder",
+              "message": "Placeholder text — replace with your own privacy policy before launch. This is not legal advice.",
+              "tone": "warning",
+              "dismissible": false
+            },
+            {
+              "_type": "block",
+              "_key": "privacy-intro",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "privacy-intro-1",
+                  "text": "This policy describes what information this website collects, how it is used, and the choices you have. We collect only what we need to operate the site.",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "privacy-collect-h",
+              "style": "h2",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "privacy-collect-h-1",
+                  "text": "What we collect",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "privacy-collect",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "privacy-collect-1",
+                  "text": "Standard server logs (IP address, browser type, pages visited) used for security and troubleshooting, and any information you submit through forms on the site.",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "privacy-use-h",
+              "style": "h2",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "privacy-use-h-1",
+                  "text": "How we use it",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "privacy-use",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "privacy-use-1",
+                  "text": "To operate and secure the site and to respond to your enquiries. We do not sell personal information. Third-party services used to host this site (e.g. Cloudflare) process data under their own policies.",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "privacy-rights-h",
+              "style": "h2",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "privacy-rights-h-1",
+                  "text": "Your rights",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "privacy-rights",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "privacy-rights-1",
+                  "text": "You may request access to, correction of, or deletion of your personal information by contacting the site owner. Edit this page in the EmDash admin.",
+                  "marks": []
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

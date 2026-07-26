@@ -1,0 +1,20 @@
+---
+import { getEmDashEntry } from 'emdash';
+import { PortableText } from 'emdash/ui';
+import Layout from '../layouts/Layout.astro';
+
+// Catch-all: any entry in the `pages` collection renders at its slug.
+const { slug } = Astro.params;
+const { entry: page } = slug ? await getEmDashEntry('pages', slug) : { entry: null };
+
+if (!page) {
+  return Astro.rewrite('/404');
+}
+---
+
+<Layout title={page.data.title}>
+  <article class="rhythm">
+    <h1>{page.data.title}</h1>
+    {page.data.content && <PortableText value={page.data.content} />}
+  </article>
+</Layout>

@@ -28,6 +28,9 @@ export default defineConfig({
       'node_modules/**',
       'packages/*/dist/**',
       'packages/generator/assets/**',
+      // Scaffold sources for `vp create @getvitops:*` — they import deps that
+      // only exist in a scaffolded project, so type-aware lint can't see them.
+      'packages/create/templates/**',
       'apps/**',
     ],
     options: {

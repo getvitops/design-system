@@ -1,0 +1,22 @@
+{
+  "name": "@getvitops/create",
+  "version": "0.3.0",
+  "description": "Project templates for the Vitops design system — scaffold wired-up sites with `vp create @getvitops`.",
+  "license": "MIT",
+  "files": [
+    "templates"
+  ],
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "createConfig": {
+    "templates": [
+      {
+        "name": "emdash",
+        "description": "EmDash CMS website on Cloudflare Workers (D1 + R2) with the Vitops design system pre-wired",
+        "template": "./templates/emdash"
+      }
+    ]
+  }
+}

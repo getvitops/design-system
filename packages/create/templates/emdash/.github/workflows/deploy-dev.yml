@@ -1,0 +1,41 @@
+# Deploys the `dev` branch to the isolated dev worker (<name>-dev, and
+# dev.<domain> if a custom domain is configured in wrangler.jsonc).
+# `dev` is the integration branch — every push here refreshes the review site.
+# Promote to production with the "Promote dev → main" workflow (promote.yml).
+#
+# Required repo secrets:
+#   CLOUDFLARE_API_TOKEN   — token with Workers + D1 + R2 edit on this account
+#   CLOUDFLARE_ACCOUNT_ID  — the Cloudflare account id
+#   DEV_D1_ID              — id from `wrangler d1 create <name>-dev`
+#                            (without it the build script hard-fails, on purpose)
+name: Deploy dev
+
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build + deploy dev worker
+        run: pnpm run deploy:dev
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEV_D1_ID: ${{ secrets.DEV_D1_ID }}

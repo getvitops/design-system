@@ -25,9 +25,11 @@ import { BLOCKS } from './blocks.ts';
 
 export { BLOCKS } from './blocks.ts';
 export type { BlockKitFieldDef, PortableTextBlockDef } from './blocks.ts';
+export { vitopsHosting } from './hosting.ts';
+export type { HostingTarget, VitopsHosting, VitopsHostingOptions } from './hosting.ts';
 
 /** Keep in sync with package.json (asserted by index.test.ts). */
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
 const PLUGIN_ID = 'vitops';
 const FRAGMENTS_CAPABILITY = 'hooks.page-fragments:register';
 

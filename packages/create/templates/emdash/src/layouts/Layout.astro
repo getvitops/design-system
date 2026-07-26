@@ -1,0 +1,133 @@
+---
+import VitopsHead from '@getvitops/astro/Head.astro';
+import { getMenu, getSiteSettings } from 'emdash';
+import { createPublicPageContext } from 'emdash/page';
+import { EmDashHead } from 'emdash/ui';
+// Design-system CSS, layout-scoped (getvitops css.inject: false): only pages
+// rendered through this layout get it — keeps it out of /_emdash/admin, while
+// EmDash previews (rendered through this layout) keep it.
+import '../styles/tailwind.css';
+// Single source of truth for the brand mark — the same file the favicon set
+// is generated from. `?raw` inlines it at build time (no extra request).
+import logo from '../assets/logo.svg?raw';
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+}
+
+const { title, description, image } = Astro.props;
+const settings = await getSiteSettings();
+const siteTitle = settings?.title || 'My EmDash Site';
+const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
+const siteDescription = settings?.tagline || 'An EmDash website with the Vitops design system';
+
+const pageCtx = createPublicPageContext({
+  Astro,
+  kind: 'custom',
+  pageType: 'website',
+  title: fullTitle,
+  pageTitle: title ?? siteTitle,
+  description: description || siteDescription,
+  canonical: new URL(Astro.url.pathname, Astro.url).href,
+  image,
+  seo: { ogImage: image },
+  siteName: siteTitle,
+});
+
+// Editor-managed navigation (seeded as "primary" and "footer"; edit under
+// Menus in the admin). Falls back to a bare home link if the menu is deleted.
+const menu = await getMenu('primary');
+const navLinks = menu?.items?.length
+  ? menu.items.map((item) => ({ label: item.label, href: item.url ?? '/' }))
+  : [{ label: 'Home', href: '/' }];
+const footerMenu = await getMenu('footer');
+const footerLinks = (footerMenu?.items ?? []).map((item) => ({
+  label: item.label,
+  href: item.url ?? '/',
+}));
+const year = new Date().getFullYear();
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{fullTitle}</title>
+    <EmDashHead page={pageCtx} />
+    <!-- Favicon/PWA links + the vitops web-component runtime. The runtime
+         progressively enhances the @getvitops/emdash editor blocks
+         (wc-carousel, wc-image-compare, ...) wherever Portable Text renders. -->
+    <VitopsHead />
+  </head>
+  <body>
+    <header class="navbar-sticky centered">
+      <div class="navbar">
+        <a class="brand flex items-center" href="/" aria-label={`${siteTitle} home`}>
+          <span class="brand-mark" set:html={logo} aria-hidden="true" />
+          <span class="font-heading">{siteTitle}</span>
+        </a>
+        <nav aria-label="Primary">
+          <ul class="nav-items justify-center">
+            {
+              navLinks.map((link) => (
+                <li>
+                  <a href={link.href}>{link.label}</a>
+                </li>
+              ))
+            }
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main class="centered rhythm">
+      <slot />
+    </main>
+
+    <footer class="centered">
+      {
+        footerLinks.length > 0 && (
+          <nav aria-label="Footer">
+            <ul class="nav-items justify-center">
+              {footerLinks.map((link) => (
+                <li>
+                  <a class="font-caption" href={link.href}>
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )
+      }
+      <p class="font-caption text-neutral-muted">© {year} {siteTitle}</p>
+    </footer>
+
+    <style>
+      .brand {
+        gap: 0.55rem;
+        text-decoration: none;
+        color: inherit;
+      }
+
+      .brand-mark :global(svg) {
+        display: block;
+        inline-size: 1.75rem;
+        block-size: 1.75rem;
+      }
+
+      .navbar {
+        block-size: 64px;
+      }
+
+      footer {
+        margin-block-start: var(--space-2xl);
+        padding-block: var(--space-l);
+        border-block-start: 1px solid var(--neutral-border);
+      }
+    </style>
+  </body>
+</html>

@@ -38,6 +38,43 @@ export default defineConfig({
 
 Tested against `emdash@0.31.x`.
 
+## Hosting seam: `vitopsHosting()`
+
+One call resolves the Astro adapter + EmDash database/storage for a hosting
+target, so a site can start on Cloudflare and later move to a Node host
+(VPS / docker-compose / k8s) — or back — by flipping one value:
+
+```js
+// astro.config.mjs
+import { vitopsEmdash, vitopsHosting } from '@getvitops/emdash';
+
+const { adapter, database, storage } = await vitopsHosting();
+
+export default defineConfig({
+  output: 'server',
+  adapter,
+  integrations: [react(), emdash({ database, storage, plugins: [vitopsEmdash()] })],
+});
+```
+
+| Target                 | Adapter                      | Database                                | Storage                  | Install                                               |
+| ---------------------- | ---------------------------- | --------------------------------------- | ------------------------ | ----------------------------------------------------- |
+| `cloudflare` (default) | `@astrojs/cloudflare`        | D1 (`binding: 'DB'`, `session: 'auto'`) | R2 (`binding: 'MEDIA'`)  | `pnpm add @astrojs/cloudflare @emdash-cms/cloudflare` |
+| `node`                 | `@astrojs/node` (standalone) | SQLite (`file:./data/emdash.db`)        | local (`./data/uploads`) | `pnpm add @astrojs/node better-sqlite3`               |
+
+- Target precedence: `HOSTING` env var > `options.target` > `'cloudflare'`.
+- Adapter packages are resolved lazily — install only the stack you use; a
+  missing one fails with install instructions.
+- Overrides: `vitopsHosting({ cloudflare: { dbBinding, mediaBinding, session } })`
+  or `vitopsHosting({ node: { databaseUrl, uploadsDir, database, storage } })` —
+  the `database`/`storage` escape hatches take full descriptors, e.g.
+  `postgres()` from `emdash/db` or `s3()` from `emdash/astro` for production
+  Node hosts.
+- On Node, scheduled publishing runs in-process — no worker/cron trigger.
+- Switching an existing site is a data migration, not a rewrite: content lives
+  in the database (D1 export / EmDash seed round-trip), media in the storage
+  backend (bucket/directory copy). Both directions work.
+
 ## Editor blocks (v1)
 
 | Slash-menu entry | `_type`               | Renders                                     |

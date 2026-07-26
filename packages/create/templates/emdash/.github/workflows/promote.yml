@@ -1,0 +1,49 @@
+# Promote dev → main (code). Run manually after reviewing the dev site.
+# Opens a PR from dev into the protected `main` branch and enables auto-merge;
+# the merge triggers Deploy prod.
+#
+# Branch protection on `main` means the merge only completes when its rules are
+# satisfied. Choose ONE:
+#   (a) let a human approve the PR (required reviews) — safest, full audit trail;
+#   (b) set repo secret PROMOTE_TOKEN to a PAT / GitHub App token allowed to
+#       bypass protection, for hands-off promotion.
+# The default GITHUB_TOKEN cannot approve its own PR, so with required reviews
+# the PR waits for a human — which is usually what you want for a prod promotion.
+#
+# Schema/content promotion is deliberately NOT here — the content model lives in
+# the EmDash database, not git. Apply schema changes to prod via the admin or
+# the site's MCP server, additive changes before the code deploy that uses
+# them, removals after the code that stops using them.
+name: Promote dev → main
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Open promotion PR and enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.PROMOTE_TOKEN || github.token }}
+        run: |
+          set -euo pipefail
+          if gh pr view dev --base main --json number >/dev/null 2>&1; then
+            echo "Promotion PR already open; ensuring auto-merge is enabled."
+          else
+            # printf, not a multi-line string: an unindented continuation line
+            # would end this YAML block and break the whole workflow file.
+            gh pr create --base main --head dev \
+              --title "Promote dev → main" \
+              --body "$(printf '%s\n\n%s' \
+                "Automated code promotion from \`dev\`. Merging deploys to production." \
+                "Remember: schema/content changes live in the EmDash database, not git — promote them separately if this release changes the content model.")"
+          fi
+          gh pr merge dev --auto --merge
