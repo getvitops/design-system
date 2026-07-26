@@ -4,115 +4,254 @@
  * Authored with `zod/mini` (tree-shakeable Zod v4). Everything else derives from it:
  *   • the `DesignSystem` TS type (`z.infer`), used throughout the generator,
  *   • the published JSON Schema (`toJSONSchema`), emitted to `schema.json` for `$schema` refs,
- *   • runtime validation (`validate`) for the CLI and to gate `generate`.
+ *   • runtime validation (`validate`) for the CLI and to gate `generate`,
+ *   • the generated `authoring.md` reference doc (walks `jsonSchema`'s descriptions).
  */
 import * as z from 'zod/mini';
 
-// A CSS declaration block: prop -> value. Values stay strings (they can be hex,
-// var(), clamp(), keywords, …); the generator, not the schema, interprets them.
-const CssDecls = z.record(z.string(), z.string());
-// Animation/effect vars + typography role values are string | number.
+/**
+ * Attach a JSON-Schema `description`. zod/mini has no `.describe()` method; the
+ * mini-API equivalent is `.check(z.describe(…))`, and `.check()` clones — so a
+ * shared sub-schema (`Scale`, `CssDecls`, …) can carry a different description
+ * per use-site without mutating the original.
+ */
+export const desc = <T extends { check(...checks: never[]): T }>(schema: T, text: string): T =>
+  schema.check(z.describe(text) as never);
+
+const CssDecls = desc(
+  z.record(z.string(), z.string()),
+  'A CSS declaration block: property → value. Values stay strings (they can be hex, var(), clamp(), keywords, …); the generator, not the schema, interprets them.',
+);
 const Scalar = z.union([z.string(), z.number()]);
 const VarMap = z.record(z.string(), Scalar);
 
 // ── colors ──────────────────────────────────────────────────────────────────
-// A palette hue, authored one of two ways:
-//   • `{ seed, anchors? }` — an 11-step numeric scale (50…950) is GENERATED in
-//     OKLCH from the seed (anchors pin specific steps; hex or oklch() values).
-//   • `{ tones }` — a fixed brand kit: authored tones used verbatim at their
-//     nearest steps + tinted off-white/off-black endpoints; no interpolation.
-const SeededRamp = z.object({
-  seed: z.string(),
-  anchors: z.optional(z.record(z.string(), z.string())),
-});
-const FixedRamp = z.object({
-  tones: z.union([z.array(z.string()), z.record(z.string(), z.string())]),
-});
-const Ramp = z.union([SeededRamp, FixedRamp]);
+const SeededRamp = desc(
+  z.object({
+    seed: desc(
+      z.string(),
+      'Seed colour (hex or oklch()). An 11-step numeric scale (50…950, tinted near-white → tinted near-black) is generated in OKLCH from it; the seed is preserved at its natural step.',
+    ),
+    anchors: z.optional(
+      desc(
+        z.record(z.string(), z.string()),
+        'Step → colour overrides (hex or oklch()) that pin specific steps of the generated scale; the remaining steps interpolate around them.',
+      ),
+    ),
+  }),
+  'Seeded hue: the 11-step scale is GENERATED in OKLCH from `seed` (anchors pin specific steps).',
+);
+const FixedRamp = desc(
+  z.object({
+    tones: desc(
+      z.union([z.array(z.string()), z.record(z.string(), z.string())]),
+      'Fixed brand kit: authored tones placed verbatim at their nearest steps plus tinted off-white/off-black endpoints; no interpolation. Either an ordered light → dark array or a step → colour map.',
+    ),
+  }),
+  'Fixed hue: authored brand tones used verbatim; no generation.',
+);
+const Ramp = desc(
+  z.union([SeededRamp, FixedRamp]),
+  'A palette hue, authored one of two ways: `{ seed, anchors? }` generates an 11-step numeric OKLCH scale (50…950) from the seed, or `{ tones }` supplies a fixed brand kit used verbatim.',
+);
 
 const UtilityName = z.enum(['bg', 'text', 'border', 'outline', 'fill', 'stroke']);
 
-// `roles` maps each semantic role (neutral, surface, ui-primary, …) to the
-// palette hue backing it. The generator derives every role's FUNCTIONAL tokens
-// (bg / text / solid / on-solid / borders / muted stops) from the hue's scale,
-// and dark mode flips automatically — there is no per-appearance scheme grammar.
-const Colors = z.object({
-  palette: z.record(z.string(), Ramp),
-  roles: z.record(z.string(), z.string()),
-  utilities: z.optional(z.array(UtilityName)),
-});
+const Colors = desc(
+  z.object({
+    palette: desc(
+      z.record(z.string(), Ramp),
+      'Palette hues by name. Each becomes an 11-step numeric OKLCH scale (`--color-<hue>-50…950`).',
+    ),
+    roles: desc(
+      z.record(z.string(), z.string()),
+      "Maps each semantic role (neutral, surface, ui-primary/secondary/accent, brand-primary/secondary, info, success, warning, danger) to the palette hue backing it. The generator derives every role's FUNCTIONAL tokens (`--<role>-{bg,bg-muted,border,border-bold,solid,solid-bold,on-solid,text,text-muted,text-x-muted}`) plus emphasis stops from the hue's scale, and dark mode flips automatically — there is no per-appearance scheme grammar.",
+    ),
+    utilities: z.optional(
+      desc(
+        z.array(UtilityName),
+        'Which colour utility-class families to emit (`bg-*`, `text-*`, `border-*`, `outline-*`, `fill-*`, `stroke-*`). Defaults to bg, text, border.',
+      ),
+    ),
+  }),
+  'The colour system (the only required section): `palette` hues become generated OKLCH scales; `roles` map semantic roles onto those hues, from which all functional tokens and dark mode derive.',
+);
 
 // ── fluid modular scale (type + space) ──────────────────────────────────────
 const Scale = z.object({
-  base: z.string(), // anchor size, e.g. "1rem"
-  ratio: z.number(), // modular ratio at large viewports
-  steps: z.optional(z.number()), // token count when `names` is absent
-  names: z.optional(z.array(z.string())), // t-shirt names (else 1..steps)
-  baseStep: z.optional(z.number()), // 1-based index of the value anchor
-  baseline: z.optional(z.string()), // GUI scale centre (metadata)
-  fluid: z.optional(
-    z.object({
-      minVw: z.string(),
-      maxVw: z.string(),
-      minRatio: z.number(),
-    }),
+  base: desc(z.string(), 'Anchor size (a CSS length, e.g. "1rem") — the value at `baseStep`.'),
+  ratio: desc(z.number(), 'Modular ratio between adjacent steps at large viewports.'),
+  steps: desc(
+    z.optional(z.number()),
+    'Token count when `names` is absent (steps are then named 1..steps).',
+  ),
+  names: desc(
+    z.optional(z.array(z.string())),
+    'Step names, smallest → largest (e.g. ["xs","sm","md",…]); each becomes a token suffix.',
+  ),
+  baseStep: desc(z.optional(z.number()), '1-based index of the step whose value is `base`.'),
+  baseline: desc(
+    z.optional(z.string()),
+    'Named step used as the fluid pivot / GUI scale centre (defaults to `baseStep`).',
+  ),
+  fluid: desc(
+    z.optional(
+      z.object({
+        minVw: desc(z.string(), 'Viewport width (CSS length) where fluid scaling bottoms out.'),
+        maxVw: desc(z.string(), 'Viewport width (CSS length) where fluid scaling tops out.'),
+        minRatio: desc(z.number(), 'Modular ratio at/below `minVw` (usually < `ratio`).'),
+      }),
+    ),
+    'Makes the scale fluid: each step compiles to a clamp() that interpolates from `minRatio` at `minVw` to `ratio` at `maxVw`.',
   ),
 });
 
 // ── patterns ────────────────────────────────────────────────────────────────
-const Pattern = z.object({
-  group: z.optional(z.string()), // token-cascade group (tag/control/panel/…)
-  overrides: z.optional(CssDecls), // per-pattern token overrides
-  element: z.optional(z.string()), // styled at element level via :where()
-  class: z.optional(z.string()), // or as a class
-  default_role: z.optional(z.string()), // role for the bare/default variant
-  base: z.optional(CssDecls),
-  states: z.optional(z.record(z.string(), z.record(z.string(), z.unknown()))),
-  roles: z.optional(z.array(z.string())), // semantic role variants to emit
-});
+const Pattern = desc(
+  z.object({
+    group: desc(
+      z.optional(z.string()),
+      'Token-cascade group this pattern belongs to (e.g. tag / control / panel); base declarations resolve through `--<prop>-<group>` before `--<prop>-default`.',
+    ),
+    overrides: z.optional(
+      desc(CssDecls, 'Per-pattern token overrides, emitted as `--<prop>-<name>-group` values.'),
+    ),
+    element: desc(
+      z.optional(z.string()),
+      'Style at element level via zero-specificity `:where(<element>)` (instead of, or alongside, a class).',
+    ),
+    class: desc(z.optional(z.string()), "Class name to emit (defaults to the pattern's key)."),
+    default_role: desc(
+      z.optional(z.string()),
+      'Semantic colour role applied to the bare/default variant.',
+    ),
+    base: z.optional(
+      desc(
+        CssDecls,
+        'Base CSS declarations. Geometry properties (padding, border-radius, border, box-shadow, font-size) are wrapped in per-pattern override hooks (`--p-<name>`, `--br-<name>`, `--b-<name>`, `--ds-<name>`, `--fs-<name>`) so consumers can restyle one pattern by setting one variable.',
+      ),
+    ),
+    states: desc(
+      z.optional(z.record(z.string(), z.record(z.string(), z.unknown()))),
+      'Interaction states (hover / active / focus-visible), each a map of shortcuts: `step` (intensify fills/text by n emphasis stops), `scale` (transform scale), `lift` (translateY + shadow), `shadow` (a shadow name → drop-shadow(var(--shadow-<name>)), or true → lift shadow), `ring` (focus ring), or raw `css` declarations. Hover rules are wrapped in `@media (hover: hover)`.',
+    ),
+    roles: desc(
+      z.optional(z.array(z.string())),
+      'Semantic colour role variants to emit as `<pattern>-<role>` classes (fills use the role solid / on-solid tokens).',
+    ),
+  }),
+  'One component pattern (button, link, badge, card, …): base declarations + interaction states + semantic role variants, resolved through the pattern token cascade.',
+);
 
-const Patterns = z.object({
-  defaults: z.optional(CssDecls), // --<prop>-default
-  radii: z.optional(CssDecls), // --br-<name> shape primitives
-  groups: z.optional(z.record(z.string(), CssDecls)), // --<prop>-<group>
-  z: z.optional(z.record(z.string(), z.number())), // --z-tier-<name>
-  items: z.optional(z.record(z.string(), Pattern)),
-});
+const Patterns = desc(
+  z.object({
+    defaults: z.optional(
+      desc(CssDecls, 'Cascade-wide fallback tokens, emitted as `--<prop>-default`.'),
+    ),
+    radii: z.optional(
+      desc(CssDecls, 'Shape primitives, emitted as `--br-<name>` (referenced by pattern bases).'),
+    ),
+    groups: desc(
+      z.optional(z.record(z.string(), CssDecls)),
+      'Group-level tokens, emitted as `--<prop>-<group>`; patterns opt in via their `group` key.',
+    ),
+    z: desc(z.optional(z.record(z.string(), z.number())), 'Z-index tiers → `--z-tier-<name>`.'),
+    items: desc(
+      z.optional(z.record(z.string(), Pattern)),
+      'The component patterns to emit, keyed by name.',
+    ),
+  }),
+  'Component patterns and their token cascade: `defaults` → `groups` → per-pattern `overrides`, plus shape (`radii`) and z-index primitives.',
+);
 
 // ── typography ──────────────────────────────────────────────────────────────
-// A role is an open bag of CSS-ish keys (family/size/weight/tracking/…); values
-// are string | number. The generator maps known keys and ignores the rest.
-const TypographyRole = z.record(z.string(), Scalar);
-const Typography = z.object({
-  families: z.optional(z.record(z.string(), z.string())),
-  roles: z.optional(z.record(z.string(), TypographyRole)),
-  headings: z.optional(z.record(z.string(), z.string())),
-});
+const TypographyRole = desc(
+  z.record(z.string(), Scalar),
+  'An open bag of CSS-ish keys (family / size / weight / line-height / tracking / transform / decoration / text-wrap / …); the generator maps known keys and passes the rest through.',
+);
+const Typography = desc(
+  z.object({
+    families: desc(
+      z.optional(z.record(z.string(), z.string())),
+      'Role-facing family aliases → CSS font values, usually referencing the top-level `fonts` tokens (e.g. "var(--font-display)").',
+    ),
+    roles: desc(
+      z.optional(z.record(z.string(), TypographyRole)),
+      'Semantic type roles (display, title, heading, body, quote, caption, eyebrow, code, lead, footnote, tag, …), each emitted as a `font-<role>` class.',
+    ),
+    headings: desc(
+      z.optional(z.record(z.string(), z.string())),
+      'Maps heading elements (h1…h6) to type roles so bare headings pick up role styling.',
+    ),
+  }),
+  'Typography: family aliases, semantic type roles (→ `font-<role>` classes), and the heading-element → role mapping.',
+);
 
 // ── animations ──────────────────────────────────────────────────────────────
-const AnimEffect = z.object({
-  kf: z.string(), // keyframe family: composite | paint | layout
-  css: z.optional(VarMap), // extra literal declarations
-  vars: z.optional(VarMap), // --<key>: <value> (non-default endpoints)
-});
-const Animations = z.object({
-  effects: z.optional(z.record(z.string(), AnimEffect)),
-  journeys: z.optional(
-    z.object({
-      base: z.optional(z.record(z.string(), VarMap)),
-      compose: z.optional(z.array(z.array(z.string()))),
-    }),
-  ),
-});
+const AnimEffect = desc(
+  z.object({
+    kf: desc(
+      z.string(),
+      'Keyframe family driving the effect: composite (transform/opacity), paint, or layout.',
+    ),
+    css: z.optional(desc(VarMap, 'Extra literal declarations merged into the effect class as-is.')),
+    vars: z.optional(
+      desc(
+        VarMap,
+        'Effect endpoint variables (`--<key>: <value>`, e.g. opacity-from, translate-y-to) that override the keyframe defaults.',
+      ),
+    ),
+  }),
+  'A named animation effect class — a pure value layer (`--_anim` + `--<prop>-from/-to`) over the static keyframe engine.',
+);
+const Animations = desc(
+  z.object({
+    effects: desc(
+      z.optional(z.record(z.string(), AnimEffect)),
+      'Effect classes to emit (`.fade-in`, `.reveal-left`, …), keyed by class name.',
+    ),
+    journeys: desc(
+      z.optional(
+        z.object({
+          base: desc(
+            z.optional(z.record(z.string(), VarMap)),
+            'Named journey building blocks: part name → var map.',
+          ),
+          compose: desc(
+            z.optional(z.array(z.array(z.string()))),
+            'Combinations of base parts, each emitted as a `.<parts>-journey` class.',
+          ),
+        }),
+      ),
+      'Multi-part journey classes composed from `base` building blocks.',
+    ),
+  }),
+  'Animation effect + journey classes (pure value layers). The animation engine itself — keyframes, drivers, floats, utilities — is static framework CSS, not configured here.',
+);
 
 // ── the design system ───────────────────────────────────────────────────────
 export const DesignSystemSchema = z.object({
-  $schema: z.optional(z.string()),
+  $schema: desc(
+    z.optional(z.string()),
+    'URL of the published JSON Schema (stamped by `vitops init`) so editors provide autocomplete + validation.',
+  ),
   colors: Colors,
-  shadows: z.optional(z.record(z.string(), z.string())),
-  fonts: z.optional(z.record(z.string(), z.string())),
-  typeScale: z.optional(Scale),
-  spaceScale: z.optional(Scale),
+  shadows: desc(
+    z.optional(z.record(z.string(), z.string())),
+    'Named shadows → `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Values are shadow parameter lists (offset/blur/colour), applied via `filter: drop-shadow(…)`.',
+  ),
+  fonts: desc(
+    z.optional(z.record(z.string(), z.string())),
+    'Raw font stacks by name, emitted as `--font-<name>` tokens (referenced by `typography.families`).',
+  ),
+  typeScale: desc(
+    z.optional(Scale),
+    'Fluid modular TYPE scale → `--text-<name>` tokens, consumed by typography roles and text-size utilities.',
+  ),
+  spaceScale: desc(
+    z.optional(Scale),
+    'Fluid modular SPACE scale → `--space-<name>` tokens, consumed by spacing/gap utilities and vertical rhythm.',
+  ),
   patterns: z.optional(Patterns),
   typography: z.optional(Typography),
   animations: z.optional(Animations),

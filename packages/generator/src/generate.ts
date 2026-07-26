@@ -18,6 +18,7 @@ import { createHash } from 'node:crypto';
 import { transform } from 'lightningcss';
 import { validate, type DesignSystem } from './schema.ts';
 import { generateDocs } from './docs.ts';
+import { BASE_HOOK, TW_CLASH } from './shared.ts';
 import {
   expandPalette,
   functionalRole,
@@ -181,15 +182,6 @@ const STATE_DEFAULT: Record<string, string> = {
   sepia: '0',
   'hue-rotate': '0deg',
   clip: 'none',
-};
-
-// Pattern base geometry props → override-hook shorthand.
-const BASE_HOOK: Record<string, string> = {
-  padding: 'p',
-  'border-radius': 'br',
-  border: 'b',
-  'box-shadow': 'ds',
-  'font-size': 'fs',
 };
 
 interface Pattern {
@@ -1029,65 +1021,8 @@ body {
 
   // Component + structural partials: the full framework library, minus the
   // Tailwind-owned utility layer. Sourced live from the CSS partials (in index.css
-  // cascade order) so this never goes stale, then run through stripForTailwind.
-  const TW_CLASH = new Set<string>([
-    'block',
-    'inline',
-    'inline-block',
-    'flow-root',
-    'flex',
-    'inline-flex',
-    'grid',
-    'inline-grid',
-    'table',
-    'inline-table',
-    'table-caption',
-    'table-cell',
-    'table-row',
-    'contents',
-    'hidden',
-    'list-item',
-    'static',
-    'fixed',
-    'absolute',
-    'relative',
-    'sticky',
-    'isolate',
-    'visible',
-    'invisible',
-    'collapse',
-    'sr-only',
-    'not-sr-only',
-    'flex-row',
-    'flex-row-reverse',
-    'flex-col',
-    'flex-col-reverse',
-    'flex-wrap',
-    'flex-nowrap',
-    'items-start',
-    'items-end',
-    'items-center',
-    'items-baseline',
-    'items-stretch',
-    'justify-start',
-    'justify-end',
-    'justify-center',
-    'justify-between',
-    'justify-around',
-    'justify-evenly',
-    'content-start',
-    'content-end',
-    'content-center',
-    'content-between',
-    'content-around',
-    'content-evenly',
-    'text-left',
-    'text-center',
-    'text-right',
-    'text-justify',
-    'text-start',
-    'text-end',
-  ]);
+  // cascade order) so this never goes stale, then run through stripForTailwind
+  // (dropping the TW_CLASH names Tailwind provides itself).
   const droppedClashes = new Set<string>();
   let droppedVariantBlocks = 0;
   const stripForTailwind = (css: string): string => {

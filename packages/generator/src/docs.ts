@@ -8,7 +8,8 @@
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { DesignSystem } from './schema.ts';
+import { jsonSchema, SCHEMA_URL, type DesignSystem } from './schema.ts';
+import { BASE_HOOK, TW_CLASH } from './shared.ts';
 import { expandPalette } from './tokens.ts';
 
 const DS_PATH = 'design-system.json';
@@ -586,6 +587,11 @@ This is a **rule reference**, not an exhaustive list: each family below is a nam
 plus the set of tokens it expands over. Applying a rule to any listed token yields a valid
 class (e.g. rule \`bg-<color>\` + colour \`pine-xl\` → \`bg-pine-xl\`).
 
+The tokens themselves are authored in \`design-system.json\` — see
+[/authoring.md](../authoring.md); the systems behind them are explained in
+[/concepts/](../concepts/index.md); per-format output differences (including which of
+these utilities Tailwind provides natively) in [/formats.md](../formats.md).
+
 ## Responsive & state variant grammar
 
 Every utility accepts a **container-breakpoint prefix**; animation utilities also accept a
@@ -675,13 +681,390 @@ element; scroll-linked entrances resolve within the first portion of the element
 ## Component patterns
 
 Each pattern is a base class \`<pattern>\` with interaction states (hover/active/focus-visible)
-baked in; coloured patterns add role variants via rule **\`<pattern>-<role>\`**.
+baked in; coloured patterns add role variants via rule **\`<pattern>-<role>\`**. (How the
+pattern CSS is assembled — token cascade, \`--p-<pattern>\`-style override hooks, state
+shortcuts — is explained in [/concepts/patterns.md](../concepts/patterns.md).)
 
 - Patterns: ${code(patterns)}.
 - Roles (for coloured patterns like \`badge\`, \`tag\`, \`status\`, \`button\`):
   ${code(patternRoles)} — e.g. \`badge-success\`, \`button-danger\`. The default (unsuffixed)
   variant uses the brand-primary role.
 - Shape primitives: \`--br-<name>\` radii — ${code(radii)}.
+`;
+}
+
+// ── design-system.json authoring reference (walked from the JSON Schema) ─────
+// Field docs are rendered from `jsonSchema`'s `description` metadata (authored
+// once in schema.ts via `desc()`), so this reference cannot drift from validation.
+
+interface JsonSchemaNode {
+  type?: string;
+  description?: string;
+  properties?: Record<string, JsonSchemaNode>;
+  required?: string[];
+  additionalProperties?: JsonSchemaNode | boolean;
+  anyOf?: JsonSchemaNode[];
+  items?: JsonSchemaNode;
+  enum?: unknown[];
+}
+
+const isPrimitive = (n: JsonSchemaNode): boolean =>
+  !n.properties && !n.anyOf && n.type != null && n.type !== 'object' && n.type !== 'array';
+
+function typeLabel(node: JsonSchemaNode): string {
+  if (node.enum) return node.enum.map(String).join(' | ');
+  if (node.anyOf)
+    return node.anyOf.every(isPrimitive) ? node.anyOf.map((v) => v.type).join(' | ') : 'one of';
+  if (node.type === 'array') {
+    const it = node.items;
+    if (it?.enum) return `array of ${it.enum.map(String).join(' | ')}`;
+    return it?.type && it.type !== 'object' ? `array of ${it.type}` : 'array';
+  }
+  if (node.type === 'object') {
+    const ap = node.additionalProperties;
+    return ap && typeof ap === 'object' ? 'map' : 'object';
+  }
+  return node.type ?? 'value';
+}
+
+/** A node's documentable children: object properties, map values, or array items. */
+function childEntries(
+  node: JsonSchemaNode,
+): Array<{ label: string; node: JsonSchemaNode; required: boolean }> {
+  if (node.properties) {
+    const req = node.required ?? [];
+    return Object.entries(node.properties).map(([k, v]) => ({
+      label: k,
+      node: v,
+      required: req.includes(k),
+    }));
+  }
+  const ap = node.additionalProperties;
+  if (ap && typeof ap === 'object' && (ap.description || ap.properties || ap.anyOf))
+    return [{ label: '<name>', node: ap, required: false }];
+  if (node.items && (node.items.description || node.items.properties || node.items.anyOf))
+    return [{ label: '[items]', node: node.items, required: false }];
+  return [];
+}
+
+function renderSchemaNode(
+  label: string,
+  node: JsonSchemaNode,
+  required: boolean,
+  depth: number,
+  out: string[],
+): void {
+  const indent = '  '.repeat(depth);
+  const meta = `(${typeLabel(node)}${required ? ', required' : ''})`;
+  out.push(`${indent}- \`${label}\` ${meta}${node.description ? ` — ${node.description}` : ''}`);
+  if (depth >= 3) return;
+  if (node.anyOf && !node.anyOf.every(isPrimitive)) {
+    for (const variant of node.anyOf) {
+      out.push(`${indent}  - *one of*${variant.description ? ` — ${variant.description}` : ''}`);
+      for (const c of childEntries(variant))
+        renderSchemaNode(c.label, c.node, c.required, depth + 2, out);
+    }
+    return;
+  }
+  for (const c of childEntries(node)) renderSchemaNode(c.label, c.node, c.required, depth + 1, out);
+}
+
+function renderAuthoring(): string {
+  const schema = jsonSchema as unknown as JsonSchemaNode;
+  const required = schema.required ?? [];
+  const sections: string[] = [];
+  for (const [key, node] of Object.entries(schema.properties ?? {})) {
+    if (key === '$schema') continue;
+    const parts: string[] = [`## \`${key}\`${required.includes(key) ? '' : ' *(optional)*'}`];
+    if (node.description) parts.push('', node.description);
+    const bullets: string[] = [];
+    for (const c of childEntries(node)) renderSchemaNode(c.label, c.node, c.required, 0, bullets);
+    if (bullets.length) parts.push('', ...bullets);
+    sections.push(parts.join('\n'));
+  }
+  return `${frontmatter({
+    type: 'Config Reference',
+    title: 'Vitops — design-system.json authoring reference',
+    description:
+      'Every field of the design-system.json config, generated from the published JSON Schema so it always matches validation.',
+    resource: DS_PATH,
+    tags: ['config', 'schema', 'authoring', 'design-system'],
+  })}
+
+# \`design-system.json\` authoring reference
+
+The single source of truth every output format is generated from. Each consumer authors
+their own config — there is no shared canonical token set. The field docs below are
+rendered from the published JSON Schema, so they always match what \`vitops validate\`
+enforces.
+
+- Set \`"$schema": "${SCHEMA_URL}"\` in the config for editor autocomplete + validation.
+- Scaffold a starter config with \`vitops init\`; check one with \`vitops validate\`.
+- The *why* behind each section: [colour system](concepts/color.md),
+  [type & space scales](concepts/scales.md), [component patterns](concepts/patterns.md).
+- What each output format does with these tokens: [formats.md](formats.md).
+
+${sections.join('\n\n')}
+`;
+}
+
+// ── Output formats reference ──────────────────────────────────────────────────
+function renderFormats(ds: DesignSystem): string {
+  const clashList = Array.from(TW_CLASH).sort();
+  const spaceName = ds.spaceScale?.baseline ?? ds.spaceScale?.names?.[0] ?? 'm';
+  return `${frontmatter({
+    type: 'Formats Reference',
+    title: 'Vitops — output formats (tailwind vs css vs bricks)',
+    description:
+      'What each vitops generate format emits, what the target platform provides instead, and the Tailwind-specific rules (which framework utilities are stripped in favour of Tailwind defaults).',
+    resource: DS_PATH,
+    tags: ['formats', 'tailwind', 'bricks', 'css', 'design-system'],
+  })}
+
+# Output formats — \`tailwind\` vs \`css\` vs \`bricks\`
+
+One config, three targets: \`vitops generate --format <tailwind|css|bricks>\`. The **class
+vocabulary is the same** everywhere (see [css/classes.md](css/classes.md)); what differs is
+which layers the generator emits versus which the platform provides, and the variant
+separator (\`-\` in CSS/Bricks, \`:\` / \`@\` in Tailwind).
+
+## \`tailwind\` — single-file Tailwind v4 layer
+
+Emits one self-contained \`tailwind.css\` (plus \`tokens.json\`): \`@import "tailwindcss"\`,
+\`@theme\` tokens, the framework's structural CSS + component patterns inlined, and
+\`@utility\` definitions for the bespoke families (type roles, animation effects,
+split ratios, track placement).
+
+**Use Tailwind's own utilities for these class names.** The framework's rules for them are
+deliberately stripped from the bundle because Tailwind provides them natively — writing
+them still works, but they are Tailwind's, not the framework's:
+
+${clashList.map((c) => `\`${c}\``).join(', ')}
+
+Other Tailwind-specific behaviour:
+
+- **Variants are Tailwind's job.** No pre-expanded breakpoint/state classes are emitted
+  (the framework's \`@container (min-width: …)\` variant blocks are dropped); use Tailwind
+  syntax — \`@md:split-1-2\`, \`hover:flip-fade-in\`. Container breakpoints are registered as
+  \`--container-{sm,md,lg,xl}\` = 30/48/64/80rem, backing the \`@sm:\`…\`@xl:\` variants.
+- **The space scale is NOT mapped into Tailwind's \`--spacing-*\` namespace** (that would
+  corrupt Tailwind's numeric multipliers and \`max-w-*\` sizes). Numeric utilities like
+  \`p-4\` keep Tailwind's 0.25rem meaning; use the design-system scale via arbitrary
+  values — \`p-(--space-${spaceName})\`, \`gap-(--space-${spaceName})\`.
+- **Functional colour roles are plain \`:root\` variables, not \`@theme\` colours**, so
+  Tailwind doesn't auto-derive utilities from them; the emitted \`@utility\` set
+  (\`bg-<role>\`, \`text-<role>-muted\`, …) is the public API. The raw hue scales ARE
+  \`@theme\` colours, so native \`bg-<hue>-500\`-style utilities work.
+
+## \`css\` — standalone bundle
+
+Emits a bundled, self-contained \`styles.css\` + \`tokens.json\` + \`design-manifest.json\`.
+The colour and font/scale layers are fully included, and every utility family is
+pre-expanded — including breakpoint/state variants with \`-\` separators
+(\`md-split-1-2\`, \`hover-fade-in\`). For non-Bricks, non-Tailwind consumers and the
+docs build.
+
+## \`bricks\` — WordPress / Bricks Builder payload
+
+Emits the full deployable theme payload: \`styles.min.css\`, the Bricks import JSONs
+(\`bricks-colors-{named,semantic}.json\`, \`bricks-variables.json\`), \`tokens.json\`, the JS
+bundles (polyfills / elements / deferred), the Bricks element PHP under \`bricks/\`, and
+this docs bundle under \`docs/\`.
+
+- **Bricks provides the token layer.** \`color.css\` and \`type-tokens.css\` are one-line
+  stubs: the colour \`:root\` tokens, dark-mode overrides, colour utility classes, fonts,
+  and type/space scales are generated live by Bricks' Color / Font / Variables Managers
+  from the imported JSONs. Semantic palette entries carry \`darkEnabled\` + a \`dark\` ref so
+  Bricks emits the dark-mode overrides on import.
+- Everything else (patterns, shadows, typography roles, animation effects, structural
+  framework CSS) ships in \`styles.min.css\` as in the other formats.
+- Pattern states reference shadows by name, compiled to
+  \`filter: drop-shadow(var(--shadow-<name>))\`.
+`;
+}
+
+// ── Concept docs (colour / scales / patterns) ─────────────────────────────────
+function renderColorConcept(ds: DesignSystem): string {
+  const hues = Object.keys(ds.colors.palette ?? {});
+  const roles = Object.keys(ds.colors.roles ?? {});
+  return `${frontmatter({
+    type: 'Design Concept',
+    title: 'Vitops colour system — seeded scales, functional tokens, automatic dark mode',
+    description:
+      'How palette hues become 11-step OKLCH scales, how semantic roles derive functional tokens from them, and how dark mode flips automatically.',
+    resource: DS_PATH,
+    tags: ['color', 'oklch', 'dark-mode', 'design-system'],
+  })}
+
+# Colour system
+
+Authoring is two maps in \`design-system.json\` (see [authoring.md](../authoring.md)):
+\`colors.palette\` (hues) and \`colors.roles\` (semantic role → hue). Everything else —
+scales, functional tokens, utilities, dark mode — is derived.
+
+## From seed to scale
+
+Each palette hue becomes an **11-step numeric OKLCH scale**, \`--color-<hue>-50…950\`,
+running tinted near-white → tinted near-black. Two authoring modes:
+
+- **Seeded** (\`{ seed, anchors? }\`): the scale is generated from one colour. The seed is
+  preserved at its natural lightness step; \`anchors\` pin specific steps and the rest
+  interpolate around them.
+- **Fixed** (\`{ tones }\`): a brand kit used verbatim — each authored tone lands at its
+  nearest step, endpoints are tinted off-white/off-black, no interpolation.
+
+Current hues: ${code(hues)}.
+
+## Functional tokens (the public vocabulary)
+
+Each role in \`colors.roles\` (currently ${code(roles)}) derives a family of
+**job-named** tokens from its hue's scale:
+
+- \`--<role>-bg\`, \`--<role>-bg-muted\` — background washes.
+- \`--<role>-border\`, \`--<role>-border-bold\` — borders.
+- \`--<role>-solid\`, \`--<role>-solid-bold\` — opaque fills (buttons, badges), paired with
+  \`--<role>-on-solid\` for a guaranteed-contrast foreground.
+- \`--<role>-text\`, \`--<role>-text-muted\`, \`--<role>-text-x-muted\` — content colours.
+- **Emphasis stops** \`--color-<role>-{x-muted,muted,bold,x-bold}\` — appearance-relative:
+  \`muted\` recedes toward the background extreme and \`bold\` advances toward the
+  foreground, in *either* light or dark.
+- Plus \`--surface-glass\` (translucent surface) and \`--overlay\` (scrim).
+
+Classes name the token, not the tone: \`bg-<role>\`, \`text-<role>-muted\`, \`text-on-<role>\`,
+\`border-<role>\` (see [css/classes.md](../css/classes.md)).
+
+## Automatic dark mode
+
+Dark mode is a **functional flip** under \`:root[data-brx-theme="dark"]\`: background and
+text ends of each scale swap, while \`solid\` fills stay mode-stable with a recomputed
+\`on-solid\` foreground. There is no per-appearance scheme grammar to author and no named
+steps — a role token means the same *job* in both appearances.
+
+## Contrast guarantees
+
+Text tokens target APCA Lc ≥ 75 and muted text Lc ≥ 60, in **both** appearances —
+enforced by the generator's unit tests, not left to the author.
+`;
+}
+
+function renderScalesConcept(ds: DesignSystem): string {
+  const t = ds.typeScale;
+  const s = ds.spaceScale;
+  const scaleLine = (label: string, sc: typeof t): string =>
+    sc
+      ? `- **${label}**: base \`${sc.base}\` at step \`${sc.names?.[(sc.baseStep ?? 1) - 1] ?? sc.baseStep}\`, ratio ${sc.ratio}${sc.fluid ? ` (${sc.fluid.minRatio} below ${sc.fluid.minVw})` : ''}; steps ${code(sc.names ?? [])}.`
+      : `- **${label}**: not configured.`;
+  return `${frontmatter({
+    type: 'Design Concept',
+    title: 'Vitops type & space scales — fluid modular scales',
+    description:
+      'How typeScale and spaceScale compile to clamp()-based fluid modular scales, and which utilities consume the resulting tokens.',
+    resource: DS_PATH,
+    tags: ['typography', 'spacing', 'fluid', 'modular-scale', 'design-system'],
+  })}
+
+# Type & space scales
+
+Both scales share one model (authored in \`design-system.json\` as \`typeScale\` /
+\`spaceScale\` — see [authoring.md](../authoring.md)): a **fluid modular scale**.
+
+## The model
+
+- \`base\` anchors the value at \`baseStep\`; every other step is a power of the \`ratio\`
+  away (step n = base × ratio^(n − baseStep)).
+- With \`fluid\`, each step compiles to a **\`clamp()\`**: the scale uses \`fluid.minRatio\`
+  at/below \`fluid.minVw\` and grows to \`ratio\` at \`fluid.maxVw\`, interpolating between —
+  so large steps spread apart on wide viewports and compress on phones, with no
+  breakpoint jumps. \`baseline\` names the pivot step that stays closest to \`base\`.
+- \`names\` become the token suffixes.
+
+${scaleLine('Type', t)}
+${scaleLine('Space', s)}
+
+## What consumes them
+
+- **Type**: \`--text-<name>\` tokens → typography role sizes (\`font-<role>\` classes,
+  heading defaults) and text-size utilities.
+- **Space**: \`--space-<name>\` tokens → gap (\`g\`), spacing utilities, and \`rhythm\`
+  (relationship-based vertical margins between headings, paragraphs, lists, media).
+  Prefer \`rhythm\` for vertical flow over per-element margins.
+- In the \`tailwind\` format these stay in their own namespaces (\`--text-*\` via \`@theme\`,
+  \`--space-*\` as plain vars) — see [formats.md](../formats.md) for why \`--spacing-*\` is
+  deliberately not used.
+`;
+}
+
+function renderPatternsConcept(ds: DesignSystem): string {
+  const items = (ds.patterns?.items ?? {}) as Record<string, { group?: string }>;
+  const groups = Object.keys(ds.patterns?.groups ?? {});
+  const patternNames = Object.keys(items);
+  const hookTable = Object.entries(BASE_HOOK)
+    .map(([prop, sfx]) => `| \`${prop}\` | \`--${sfx}-<pattern>\` |`)
+    .join('\n');
+  return `${frontmatter({
+    type: 'Design Concept',
+    title: 'Vitops component patterns — token cascade, override hooks, states',
+    description:
+      'How pattern CSS is assembled: the token cascade (defaults → groups → per-pattern overrides), per-pattern override-hook variables, state shortcuts, and role variants.',
+    resource: DS_PATH,
+    tags: ['patterns', 'components', 'cascade', 'css', 'design-system'],
+  })}
+
+# Component patterns — the CSS chain
+
+Patterns (currently ${code(patternNames)}) are authored declaratively under \`patterns\` in
+\`design-system.json\` (see [authoring.md](../authoring.md)) and compiled to CSS in the
+**\`components\` cascade layer** — so utility classes (declared in a later layer) always win
+over pattern styling without specificity fights.
+
+## 1 — Token cascade
+
+Shared geometry resolves through a variable chain, most-specific first:
+
+- \`patterns.defaults\` → \`--<prop>-default\` (cascade-wide fallbacks).
+- \`patterns.groups.<group>\` → \`--<prop>-<group>\` (e.g. groups ${code(groups)}); a pattern
+  opts in via its \`group\` key.
+- Per-pattern: each grouped pattern gets aliases \`--<prop>-<name>-group\` →
+  \`var(--<prop>-<group>)\`, and \`overrides\` replace individual aliases with literal values.
+- \`patterns.radii\` → \`--br-<name>\` shape primitives; \`patterns.z\` → \`--z-tier-<name>\`.
+
+## 2 — Base declarations & override hooks
+
+Each pattern's \`base\` block is emitted on its selector — a class (\`.<class ?? name>\`) or,
+with \`element\`, a **zero-specificity** \`:where(<element>)\` rule so author CSS can always
+override it. Geometry properties are wrapped in a **per-pattern override hook**:
+
+| base property | hook variable |
+| --- | --- |
+${hookTable}
+
+e.g. \`padding: var(--p-button, 0.6em 1.2em)\` — a consumer restyles every button by setting
+\`--p-button\` on \`:root\`, without touching the pattern.
+
+## 3 — States
+
+\`states\` (hover / active / focus-visible) compile from shortcuts:
+
+- \`step: n\` — intensify the pattern's colour one emphasis stop: fills swap
+  \`--<role>-solid\` → \`--<role>-solid-bold\`; text patterns swap the \`bold\` emphasis stop →
+  \`x-bold\`.
+- \`scale: 0.97\` — transform scale; \`lift: "<length>"\` — \`translate: 0 calc(-1 * <length>)\`.
+- \`shadow: "<name>"\` — \`filter: drop-shadow(var(--shadow-<name>))\`; \`shadow: true\` — the
+  generic lift box-shadow.
+- \`ring: true\` — focus ring (\`box-shadow\` in the role's \`muted\` stop, outline removed).
+- \`css: { … }\` — raw declarations escape hatch.
+
+Any pattern with states also gets a composed transition block (translate / scale / filter /
+box-shadow / colours, \`--interact-duration\` / \`--interact-easing\` overridable). Hover
+rules are wrapped in \`@media (hover: hover)\` so touch devices never stick.
+
+## 4 — Role variants
+
+\`roles\` lists semantic colour variants: class patterns emit \`.<pattern>-<role>\`
+(\`.badge-success\`), element patterns emit \`<element>.<role>\` (\`button.danger\`). Fill
+patterns set \`background-color: var(--<role>-solid)\` + \`color: var(--<role>-on-solid)\`;
+text patterns use the role's \`bold\` emphasis stop. \`default_role\` colours the bare,
+unsuffixed pattern. States re-apply per variant with the variant's role.
 `;
 }
 
@@ -697,8 +1080,24 @@ variable-driven CSS framework plus progressively-enhanced web components, genera
 
 # Contents
 
+* [Authoring reference](authoring.md) - every design-system.json field, generated from the JSON Schema
+* [Output formats](formats.md) - tailwind vs css vs bricks: what's emitted, what the platform provides, which utilities Tailwind owns
+* [Concepts](concepts/) - the colour system, type/space scales, and pattern CSS architecture
 * [CSS framework](css/) - the class vocabulary (colour, type, space, layout, animation, component patterns), stated as naming rules
 * [Bricks Builder](bricks/) - custom elements and how to style them
+`;
+}
+
+function renderConceptsIndex(): string {
+  return `${INDEX_NOTE}
+
+# Design-system concepts
+
+# Contents
+
+* [Colour system](color.md) - seeded OKLCH scales, functional tokens, automatic dark mode
+* [Type & space scales](scales.md) - fluid modular scales and the tokens they emit
+* [Component patterns](patterns.md) - token cascade, override hooks, states, role variants
 `;
 }
 
@@ -743,9 +1142,65 @@ export function generateDocs(ds: DesignSystem, assetsDir: string): Record<string
   const elementsDir = join(assetsDir, 'bricks', 'elements');
   return {
     'index.md': renderTopIndex(),
+    'authoring.md': renderAuthoring(),
+    'formats.md': renderFormats(ds),
+    'concepts/index.md': renderConceptsIndex(),
+    'concepts/color.md': renderColorConcept(ds),
+    'concepts/scales.md': renderScalesConcept(ds),
+    'concepts/patterns.md': renderPatternsConcept(ds),
     'css/index.md': renderCssIndex(),
     'css/classes.md': renderCssClasses(ds),
     'bricks/index.md': renderBricksIndex(),
     'bricks/elements.md': renderElementsDoc(elementsDir),
   };
+}
+
+/**
+ * Render the generated agent skill (`SKILL.md`) that fronts the docs bundle.
+ * The bundle is expected to live beside it under `references/` (the layout
+ * `vitops agents` writes); paths in the body are relative to the skill dir.
+ */
+export function renderSkill(ds: DesignSystem): string {
+  const patternNames = Object.keys(ds.patterns?.items ?? {});
+  const roles = Object.keys(ds.colors.roles ?? {});
+  return `---
+name: vitops-design-system
+description: >-
+  Work with this project's Vitops design system. Use when styling or authoring
+  pages or components (choosing utility/pattern classes, colours, spacing,
+  typography), when editing design-system.json (tokens, palette, patterns,
+  scales, animations), when generating output (vitops generate --format
+  tailwind|css|bricks), or when asking what the design system provides on a
+  given platform (Tailwind vs Bricks vs standalone CSS).
+---
+
+<!-- GENERATED by @getvitops/cli — do not hand-edit; regenerate with \`vitops agents\`. -->
+
+# Vitops design system
+
+This project is styled with the Vitops design system (\`@getvitops/*\`): a variable-driven
+CSS framework generated from \`design-system.json\` (single source of truth — semantic
+colour roles ${code(roles)}, fluid type/space scales, component patterns
+${code(patternNames)}, animation effects).
+
+**Core rule:** prefer the framework's utility + component classes over hand-written CSS or
+ad-hoc values — they encode the tokens, respond to dark mode, and update with the system.
+
+## Which reference to read when
+
+- Choosing classes (layout, colour, type, spacing, animation, patterns) →
+  [references/css/classes.md](references/css/classes.md)
+- Editing \`design-system.json\` (what a field means / what's valid) →
+  [references/authoring.md](references/authoring.md)
+- Output questions per platform — what Tailwind provides natively (and which framework
+  utilities are deliberately NOT emitted for it), what Bricks' managers own, what the
+  standalone CSS bundle contains → [references/formats.md](references/formats.md)
+- Understanding the systems (seeded OKLCH colour + automatic dark mode, fluid modular
+  scales, pattern CSS cascade/override hooks) → [references/concepts/](references/concepts/index.md)
+- Building in Bricks Builder (custom elements + controls) →
+  [references/bricks/elements.md](references/bricks/elements.md)
+
+Regenerate this skill and its references after changing \`design-system.json\`:
+\`vitops agents\`.
+`;
 }

@@ -12,12 +12,14 @@
  * thin loader (reading YAML, injecting `SITE_ENV`) lives outside this module.
  */
 import * as z from 'zod/mini';
-import { DesignSystemPatchSchema, type DesignSystem } from './schema.ts';
+import { desc, DesignSystemPatchSchema, type DesignSystem } from './schema.ts';
 
 // ── Primitives ────────────────────────────────────────────────────────────────
 
-/** A string, or a per-locale map of strings (`{ en: "…", fr: "…" }`). */
-const LocalizableSchema = z.union([z.string(), z.record(z.string(), z.string())]);
+const LocalizableSchema = desc(
+  z.union([z.string(), z.record(z.string(), z.string())]),
+  'A string, or a per-locale map of strings (`{ en: "…", fr: "…" }`).',
+);
 
 const ImageRefSchema = z.union([
   z.string(),
@@ -53,16 +55,19 @@ const DayOfWeek = z.enum([
 // theme is validated against the full `DesignSystemSchema` by `resolveTheme`.
 
 const DesignSystemEntry = z.extend(DesignSystemPatchSchema, {
-  displayName: z.optional(LocalizableSchema),
-  extends: z.optional(z.string()),
+  displayName: desc(z.optional(LocalizableSchema), 'Human-readable theme name (localisable).'),
+  extends: desc(
+    z.optional(z.string()),
+    'Another `designSystem` key to inherit from; this entry then only supplies what it overrides.',
+  ),
 });
 
 // ── Locales ─────────────────────────────────────────────────────────────────────
 
 const LocaleSchema = z.object({
-  name: z.string(),
-  tagline: z.optional(z.string()),
-  basePath: z.optional(z.string()),
+  name: desc(z.string(), 'Display name of the locale (e.g. "English").'),
+  tagline: desc(z.optional(z.string()), 'Site tagline in this locale.'),
+  basePath: desc(z.optional(z.string()), 'URL prefix for this locale (e.g. "/fr").'),
 });
 
 // ── Domains ─────────────────────────────────────────────────────────────────────
@@ -78,14 +83,16 @@ const DomainAliasSchema = z.object({
 
 // ── Contact / address (schema.org-aligned) ──────────────────────────────────────
 
-/** schema.org `PostalAddress` field names, so JSON-LD generation is lossless. */
-const PostalAddressSchema = z.object({
-  streetAddress: z.string(),
-  addressLocality: z.string(), // city
-  addressRegion: z.optional(z.string()), // state/province
-  postalCode: z.optional(z.string()),
-  addressCountry: z.string(), // ISO 3166-1 alpha-2 preferred
-});
+const PostalAddressSchema = desc(
+  z.object({
+    streetAddress: z.string(),
+    addressLocality: desc(z.string(), 'City.'),
+    addressRegion: desc(z.optional(z.string()), 'State / province.'),
+    postalCode: z.optional(z.string()),
+    addressCountry: desc(z.string(), 'Country (ISO 3166-1 alpha-2 preferred).'),
+  }),
+  'schema.org `PostalAddress` field names, so JSON-LD generation is lossless.',
+);
 
 const ContactObjectSchema = z.object({
   name: z.optional(z.string()),
@@ -157,8 +164,7 @@ const OrganizationSchema = z.object({
   address: z.optional(PostalAddressSchema),
   taxID: z.optional(z.string()),
   vatID: z.optional(z.string()),
-  /** Profile URLs → JSON-LD `sameAs` (mirrors `links`). */
-  sameAs: z.optional(z.array(z.url())),
+  sameAs: desc(z.optional(z.array(z.url())), 'Profile URLs → JSON-LD `sameAs` (mirrors `links`).'),
 });
 
 // ── DNS ──────────────────────────────────────────────────────────────────────
@@ -184,11 +190,11 @@ const DnsDomainSchema = z.object({
 const RobotsSchema = z.string(); // e.g. "index,follow" / "noindex,nofollow"
 
 const EnvironmentSchema = z.object({
-  url: z.url(),
-  api: z.optional(z.url()),
-  analytics: z.optional(z.boolean()),
-  robots: z.optional(RobotsSchema),
-  variant: z.optional(z.string()),
+  url: desc(z.url(), 'Public origin of this environment.'),
+  api: desc(z.optional(z.url()), 'API origin, when different from `url`.'),
+  analytics: desc(z.optional(z.boolean()), 'Whether analytics fire in this environment.'),
+  robots: desc(z.optional(RobotsSchema), 'Robots policy (e.g. "noindex,nofollow" for dev).'),
+  variant: desc(z.optional(z.string()), 'Active `abTesting.variants` key for this environment.'),
 });
 
 // ── A/B testing ─────────────────────────────────────────────────────────────────
@@ -243,9 +249,14 @@ const FontSchema = z.object({
   formats: z.optional(z.array(z.string())),
   unicodeRange: z.optional(z.array(z.string())),
   variants: z.optional(z.array(FontVariantSchema)), // local provider
-  /** Emit `<Font preload />` for this family. */
-  preload: z.optional(
-    z.union([z.boolean(), z.array(z.object({ weight: FontWeight, style: z.optional(FontStyle) }))]),
+  preload: desc(
+    z.optional(
+      z.union([
+        z.boolean(),
+        z.array(z.object({ weight: FontWeight, style: z.optional(FontStyle) })),
+      ]),
+    ),
+    'Emit `<Font preload />` for this family (true, or a list of weight/style faces).',
   ),
 });
 
@@ -400,161 +411,277 @@ const TwitterSchema = z.object({
 // ── Top-level schema ────────────────────────────────────────────────────────────
 
 export const SiteConfigSchema = z.object({
-  defaultLocale: z.string(),
-  locales: z.record(z.string(), LocaleSchema),
-  organization: z.optional(OrganizationSchema),
-  contact: z.optional(ContactConfigSchema),
-  domains: z.optional(
-    z.object({
-      canonical: z.url(),
-      aliases: z.optional(z.array(DomainAliasSchema)),
-    }),
+  defaultLocale: desc(
+    z.string(),
+    'The locale used when none is specified; must be a `locales` key.',
   ),
-  primaryLocation: z.optional(z.string()),
-  locations: z.optional(z.record(z.string(), LocationSchema)),
-  services: z.optional(z.record(z.string(), ServiceSchema)),
-  links: z.optional(
-    z.object({
-      googleMaps: z.optional(z.url()),
-      instagram: z.optional(z.url()),
-      facebook: z.optional(z.url()),
-      x: z.optional(z.url()),
-      linkedin: z.optional(z.url()),
-      youtube: z.optional(z.url()),
-      github: z.optional(z.url()),
-    }),
+  locales: desc(
+    z.record(z.string(), LocaleSchema),
+    'Locales the site is published in, keyed by BCP 47 tag (e.g. "en", "fr").',
   ),
-  dns: z.optional(z.record(z.string(), DnsDomainSchema)),
-  // Deliberate escape hatch — provider-specific, out of scope to model here.
-  cloudflare: z.optional(z.record(z.string(), z.unknown())),
-  environments: z.record(z.string(), EnvironmentSchema),
-  abTesting: z.optional(
-    z.object({
-      enabled: z.boolean(),
-      cookieName: z.optional(z.string()),
-      cookieMaxAge: z.optional(z.number().check(z.int(), z.positive())),
-      splitRatio: z.optional(z.number().check(z.gte(0), z.lte(1))),
-      variants: z.optional(z.record(z.string(), AbVariantSchema)),
-    }),
+  organization: desc(
+    z.optional(OrganizationSchema),
+    'schema.org Organization details for JSON-LD (name, legalName, logo, tax IDs, sameAs profiles).',
+  ),
+  contact: desc(
+    z.optional(ContactConfigSchema),
+    'Primary contact: either a `locations` key (string reference) or an inline name/email/phone/address object.',
+  ),
+  domains: desc(
+    z.optional(
+      z.object({
+        canonical: desc(z.url(), 'The canonical origin used for absolute URLs and SEO.'),
+        aliases: desc(
+          z.optional(z.array(DomainAliasSchema)),
+          'Alias domains and how they redirect to the canonical one.',
+        ),
+      }),
+    ),
+    'Canonical domain + redirecting aliases.',
+  ),
+  primaryLocation: desc(
+    z.optional(z.string()),
+    'The main `locations` key (for JSON-LD and defaults).',
+  ),
+  locations: desc(
+    z.optional(z.record(z.string(), LocationSchema)),
+    'Physical locations (schema.org LocalBusiness): address, geo, opening hours, service area.',
+  ),
+  services: desc(
+    z.optional(z.record(z.string(), ServiceSchema)),
+    'Services offered (schema.org Service/Offer): name, description, slug, price offers.',
+  ),
+  links: desc(
+    z.optional(
+      z.object({
+        googleMaps: z.optional(z.url()),
+        instagram: z.optional(z.url()),
+        facebook: z.optional(z.url()),
+        x: z.optional(z.url()),
+        linkedin: z.optional(z.url()),
+        youtube: z.optional(z.url()),
+        github: z.optional(z.url()),
+      }),
+    ),
+    'Public profile URLs (also feed JSON-LD `sameAs` via `organization.sameAs`).',
+  ),
+  dns: desc(
+    z.optional(z.record(z.string(), DnsDomainSchema)),
+    'Desired DNS state per domain (provider, nameservers, records) — declarative reference, not applied automatically.',
+  ),
+  cloudflare: desc(
+    z.optional(z.record(z.string(), z.unknown())),
+    'Deliberate escape hatch for provider-specific Cloudflare settings — out of scope to model here.',
+  ),
+  environments: desc(
+    z.record(z.string(), EnvironmentSchema),
+    'Deploy environments (production, dev, …): URL, API origin, analytics toggle, robots policy, active A/B variant.',
+  ),
+  abTesting: desc(
+    z.optional(
+      z.object({
+        enabled: z.boolean(),
+        cookieName: z.optional(z.string()),
+        cookieMaxAge: desc(z.optional(z.number().check(z.int(), z.positive())), 'Seconds.'),
+        splitRatio: desc(
+          z.optional(z.number().check(z.gte(0), z.lte(1))),
+          'Fraction of traffic sent to the variant (0–1).',
+        ),
+        variants: desc(
+          z.optional(z.record(z.string(), AbVariantSchema)),
+          'Named variants; each targets an environment and may deep-merge config `overrides`.',
+        ),
+      }),
+    ),
+    'A/B testing: cookie-based split plus named variants whose `overrides` patch the config per environment.',
   ),
 
-  // Design system: named-theme map. `default` is the base; other entries may
-  // `extends` another and supply a partial patch. Light/dark is automatic
-  // (functional tokens flip per appearance), not a separate theme entry.
-  designSystem: z.record(z.string(), DesignSystemEntry),
-  defaultTheme: z.optional(z.string()), // convention: "default"
-  defaultColorScheme: z.optional(z.enum(['light', 'dark'])), // initial appearance to render
-  respectSystemPreference: z.optional(z.boolean()),
+  designSystem: desc(
+    z.record(z.string(), DesignSystemEntry),
+    'Named-theme map of design systems. `default` is the base; other entries may `extends` another and supply a partial patch. Light/dark is automatic (functional tokens flip per appearance), not a separate theme entry. A bare design system (with `colors`) is shorthand for `{ default: … }`.',
+  ),
+  defaultTheme: desc(
+    z.optional(z.string()),
+    'Which `designSystem` entry to use by default (convention: "default").',
+  ),
+  defaultColorScheme: desc(
+    z.optional(z.enum(['light', 'dark'])),
+    'Initial appearance to render before any user/system preference applies.',
+  ),
+  respectSystemPreference: desc(
+    z.optional(z.boolean()),
+    "Follow the user's OS light/dark preference.",
+  ),
 
-  // Font *loading* (Astro Fonts API). Font *tokens* live in `designSystem`.
-  fonts: z.optional(z.array(FontSchema)),
+  fonts: desc(
+    z.optional(z.array(FontSchema)),
+    'Font LOADING (a serialisable projection of the Astro Fonts API: provider, weights, subsets, preload). Font TOKENS live in `designSystem.<theme>.fonts` and reference the same `cssVariable`.',
+  ),
 
-  tags: z.optional(z.record(z.string(), z.unknown())),
-  postTypes: z.optional(z.record(z.string(), z.unknown())),
-  galleries: z.optional(z.record(z.string(), GallerySchema)),
-  testimonials: z.optional(z.record(z.string(), TestimonialGroupSchema)),
-  templates: z.optional(z.record(z.string(), TemplateSchema)),
-  navigation: z.optional(
-    z.object({
-      activeTemplate: z.optional(
-        z.object({
-          default: z.optional(z.string()),
-          breakpoints: z.optional(z.record(z.string(), z.string())),
-        }),
-      ),
-    }),
+  tags: desc(
+    z.optional(z.record(z.string(), z.unknown())),
+    'Free-form content-tag taxonomy (site-specific; not interpreted by the generator).',
   ),
-  seo: z.optional(
-    z.object({
-      titleTemplate: z.optional(z.string()),
-      descriptionTemplate: z.optional(z.string()),
-      robots: z.optional(RobotsSchema),
-      googleSiteVerification: z.optional(z.string()),
-      bingSiteVerification: z.optional(z.string()),
-      openGraph: z.optional(OpenGraphSchema),
-      twitter: z.optional(TwitterSchema),
-    }),
+  postTypes: desc(
+    z.optional(z.record(z.string(), z.unknown())),
+    'Free-form content-type definitions (site-specific; not interpreted by the generator).',
   ),
-  analytics: z.optional(
-    z.object({
-      googleAnalyticsId: z.optional(z.string()),
-      plausibleDomain: z.optional(z.string()),
-      googleTagManagerId: z.optional(z.string()),
-    }),
+  galleries: desc(
+    z.optional(z.record(z.string(), GallerySchema)),
+    'Named image galleries (title, tags, images with localisable alt/caption).',
   ),
-  notifications: z.optional(z.object({ email: z.optional(z.email()) })),
-  tracking: z.optional(
-    z.object({
-      enabled: z.optional(z.boolean()),
-      platforms: z.optional(z.array(z.string())),
-    }),
+  testimonials: desc(
+    z.optional(z.record(z.string(), TestimonialGroupSchema)),
+    'Named testimonial groups (quote, name, role, rating, date).',
   ),
-  security: z.optional(
-    z.object({
-      turnstile: z.optional(z.object({ siteKey: z.optional(z.string()) })),
-    }),
+  templates: desc(
+    z.optional(z.record(z.string(), TemplateSchema)),
+    'Named content templates rendered at SSR time: `nav` (menu trees), `form` (field lists + submit), or `nodes` (raw element trees).',
   ),
-  legal: z.optional(
-    z.object({
-      privacyPolicy: z.optional(
-        z.object({
-          enabled: z.boolean(),
-          url: z.optional(z.url()),
-          lastUpdated: z.optional(IsoDate),
-        }),
-      ),
-      termsOfService: z.optional(
-        z.object({
-          enabled: z.boolean(),
-          url: z.optional(z.url()),
-          lastUpdated: z.optional(z.nullable(IsoDate)),
-        }),
-      ),
-      cookieConsent: z.optional(
-        z.object({
-          enabled: z.boolean(),
-          type: z.optional(z.enum(['opt-in', 'opt-out'])),
-          position: z.optional(z.enum(['top', 'bottom', 'center'])),
-          categories: z.optional(z.array(z.string())),
-        }),
-      ),
-    }),
+  navigation: desc(
+    z.optional(
+      z.object({
+        activeTemplate: desc(
+          z.optional(
+            z.object({
+              default: desc(z.optional(z.string()), 'A `templates` key.'),
+              breakpoints: desc(
+                z.optional(z.record(z.string(), z.string())),
+                'Breakpoint name → `templates` key overrides.',
+              ),
+            }),
+          ),
+          'Which nav template is active, optionally per breakpoint.',
+        ),
+      }),
+    ),
+    'Site navigation settings (which nav template renders where).',
   ),
-  icons: z.optional(
-    z.object({
-      ui: z.optional(z.string()),
-      brand: z.optional(z.string()),
-      semantic: z.optional(z.array(z.string())),
-      'fa7-solid': z.optional(z.array(z.string())),
-      'fa7-regular': z.optional(z.array(z.string())),
-      'fa7-light': z.optional(z.array(z.string())),
-      'fa7-thin': z.optional(z.array(z.string())),
-      'fa7-brands': z.optional(z.array(z.string())),
-      'simple-icons': z.optional(z.array(z.string())),
-      'material-symbols': z.optional(z.array(z.string())),
-      lucide: z.optional(z.array(z.string())),
-    }),
+  seo: desc(
+    z.optional(
+      z.object({
+        titleTemplate: desc(z.optional(z.string()), 'Page-title pattern (e.g. "%s · Acme").'),
+        descriptionTemplate: z.optional(z.string()),
+        robots: desc(z.optional(RobotsSchema), 'e.g. "index,follow" / "noindex,nofollow".'),
+        googleSiteVerification: z.optional(z.string()),
+        bingSiteVerification: z.optional(z.string()),
+        openGraph: z.optional(OpenGraphSchema),
+        twitter: z.optional(TwitterSchema),
+      }),
+    ),
+    'SEO defaults: title/description templates, robots policy, verification tokens, Open Graph + Twitter cards.',
   ),
-  favicon: z.optional(
-    z.object({
-      source: z.string(),
-      lowResSource: z.optional(z.string()),
-      /** App name for the generated web manifest / PWA. */
-      name: z.optional(z.string()),
-      /** PWA theme color (also `<meta name="theme-color">`). */
-      themeColor: z.optional(z.string()),
-      /** PWA background color. */
-      backgroundColor: z.optional(z.string()),
-    }),
+  analytics: desc(
+    z.optional(
+      z.object({
+        googleAnalyticsId: z.optional(z.string()),
+        plausibleDomain: z.optional(z.string()),
+        googleTagManagerId: z.optional(z.string()),
+      }),
+    ),
+    'Analytics provider IDs (gated per environment via `environments.<env>.analytics`).',
   ),
-  deployment: z.optional(
-    z.object({
-      platform: z.optional(z.string()),
-      buildCommand: z.optional(z.string()),
-      deployCommand: z.optional(z.string()),
-      outputDirectory: z.optional(z.string()),
-      type: z.optional(z.string()),
-    }),
+  notifications: desc(
+    z.optional(z.object({ email: z.optional(z.email()) })),
+    'Where site notifications (e.g. form submissions) are sent.',
+  ),
+  tracking: desc(
+    z.optional(
+      z.object({
+        enabled: z.optional(z.boolean()),
+        platforms: z.optional(z.array(z.string())),
+      }),
+    ),
+    'Marketing/conversion tracking toggles per platform.',
+  ),
+  security: desc(
+    z.optional(
+      z.object({
+        turnstile: z.optional(
+          z.object({
+            siteKey: desc(z.optional(z.string()), 'Cloudflare Turnstile site key (public).'),
+          }),
+        ),
+      }),
+    ),
+    'Security integrations (bot protection).',
+  ),
+  legal: desc(
+    z.optional(
+      z.object({
+        privacyPolicy: z.optional(
+          z.object({
+            enabled: z.boolean(),
+            url: z.optional(z.url()),
+            lastUpdated: z.optional(IsoDate),
+          }),
+        ),
+        termsOfService: z.optional(
+          z.object({
+            enabled: z.boolean(),
+            url: z.optional(z.url()),
+            lastUpdated: z.optional(z.nullable(IsoDate)),
+          }),
+        ),
+        cookieConsent: z.optional(
+          z.object({
+            enabled: z.boolean(),
+            type: desc(z.optional(z.enum(['opt-in', 'opt-out'])), 'Consent model.'),
+            position: z.optional(z.enum(['top', 'bottom', 'center'])),
+            categories: z.optional(z.array(z.string())),
+          }),
+        ),
+      }),
+    ),
+    'Legal pages + cookie-consent configuration.',
+  ),
+  icons: desc(
+    z.optional(
+      z.object({
+        ui: desc(z.optional(z.string()), 'Icon set used for UI chrome (e.g. "lucide").'),
+        brand: desc(z.optional(z.string()), 'Icon set used for brand marks.'),
+        semantic: desc(z.optional(z.array(z.string())), 'Named semantic icons to include.'),
+        'fa7-solid': z.optional(z.array(z.string())),
+        'fa7-regular': z.optional(z.array(z.string())),
+        'fa7-light': z.optional(z.array(z.string())),
+        'fa7-thin': z.optional(z.array(z.string())),
+        'fa7-brands': z.optional(z.array(z.string())),
+        'simple-icons': z.optional(z.array(z.string())),
+        'material-symbols': z.optional(z.array(z.string())),
+        lucide: z.optional(z.array(z.string())),
+      }),
+    ),
+    'Icon sets and the specific icons to bundle from each (keys are iconify collection names).',
+  ),
+  favicon: desc(
+    z.optional(
+      z.object({
+        source: desc(z.string(), 'Source image (SVG/PNG) the favicon set is generated from.'),
+        lowResSource: desc(
+          z.optional(z.string()),
+          'Alternate source for small raster sizes (16/32px) when the main source scales down poorly.',
+        ),
+        name: desc(z.optional(z.string()), 'App name for the generated web manifest / PWA.'),
+        themeColor: desc(
+          z.optional(z.string()),
+          'PWA theme color (also `<meta name="theme-color">`).',
+        ),
+        backgroundColor: desc(z.optional(z.string()), 'PWA background color.'),
+      }),
+    ),
+    'Favicon/PWA asset generation (consumed by `@getvitops/utils` favicon tooling).',
+  ),
+  deployment: desc(
+    z.optional(
+      z.object({
+        platform: z.optional(z.string()),
+        buildCommand: z.optional(z.string()),
+        deployCommand: z.optional(z.string()),
+        outputDirectory: z.optional(z.string()),
+        type: z.optional(z.string()),
+      }),
+    ),
+    'How the site is built and deployed (platform, commands, output directory) — informational for tooling.',
   ),
 });
 

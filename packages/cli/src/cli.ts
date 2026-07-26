@@ -6,20 +6,30 @@
  *   vitops init      [--out design-system.json] [--force]
  *   vitops validate  <design-system.json>
  *   vitops favicon   --input <svg|png> --out <dir> [--low-res <svg|png>]
- *   vitops agents    [--input <json>] [--out AGENTS.md] [--docs-dir <dir>]
+ *   vitops agents    [--input <json>] [--out AGENTS.md] [--skill-dir <dir>] [--docs-dir <dir>]
  *
  * Thin wrapper over @getvitops/generator (generation) and @getvitops/utils (favicons).
  * Every client brings their own consumer-editable design-system.json.
  */
 import { parseArgs } from 'node:util';
-import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
-import { resolve, join, dirname } from 'node:path';
+import {
+  writeFileSync,
+  existsSync,
+  readFileSync,
+  mkdirSync,
+  lstatSync,
+  readlinkSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
+import { resolve, join, dirname, relative } from 'node:path';
 import { createRequire } from 'node:module';
 import {
   generate,
   validate,
   defaultConfig,
   generateDocs,
+  renderSkill,
   SCHEMA_URL,
   type Format,
   type DesignSystem,
@@ -35,7 +45,7 @@ Usage:
   vitops init [options]         Scaffold a starter design-system.json
   vitops validate <file>        Validate a config against the schema
   vitops favicon [options]      Generate a favicon set from a source image
-  vitops agents [options]       Write design-system docs into AGENTS.md (for AI agents)
+  vitops agents [options]       Emit the design-system agent skill + AGENTS.md pointer
 
 Generate options:
   -i, --input <path>    Config file (default: ./design-system.json)
@@ -54,7 +64,10 @@ Favicon options:
 Agents options:
   -i, --input <path>    Config file (default: ./design-system.json)
   -o, --out <path>      Doc file to update, idempotently (default: ./AGENTS.md)
-      --docs-dir <dir>  Where to write the reference docs bundle (default: ./.vitops/docs)
+      --skill-dir <dir> Where the generated skill lands (default:
+                        ./.agents/skills/vitops-design-system; also symlinked from
+                        ./.claude/skills/vitops-design-system)
+      --docs-dir <dir>  Legacy layout: write only the docs bundle to this dir (no skill)
 
 Common:
   -h, --help            Show this help
@@ -203,6 +216,34 @@ function generatorAssetsDir(): string {
 
 const AGENTS_START = '<!-- vitops:start -->';
 const AGENTS_END = '<!-- vitops:end -->';
+const SKILL_NAME = 'vitops-design-system';
+
+/**
+ * Idempotently symlink `.claude/skills/vitops-design-system` → the skill dir so
+ * Claude Code discovers the agent-agnostic `.agents/` skill. Replaces a stale
+ * symlink; refuses to clobber a real file/dir. Returns a warning, or null on
+ * success / nothing-to-do.
+ */
+function linkClaudeSkill(skillDir: string): string | null {
+  const linkPath = resolve('.claude', 'skills', SKILL_NAME);
+  const target = relative(dirname(linkPath), resolve(skillDir));
+  if (target === '') return null; // skill dir IS the .claude path
+  try {
+    const st = lstatSync(linkPath, { throwIfNoEntry: false });
+    if (st && !st.isSymbolicLink())
+      return `left ${linkPath} alone (exists and is not a symlink) — link it to ${skillDir} yourself if wanted`;
+    if (st) {
+      if (readlinkSync(linkPath) === target) return null;
+      rmSync(linkPath);
+    } else {
+      mkdirSync(dirname(linkPath), { recursive: true });
+    }
+    symlinkSync(target, linkPath);
+    return null;
+  } catch (err) {
+    return `could not symlink ${linkPath}: ${(err as Error).message}`;
+  }
+}
 
 function cmdAgents(argv: string[]) {
   const { values } = parseArgs({
@@ -210,13 +251,17 @@ function cmdAgents(argv: string[]) {
     options: {
       input: { type: 'string', short: 'i', default: 'design-system.json' },
       out: { type: 'string', short: 'o', default: 'AGENTS.md' },
-      'docs-dir': { type: 'string', default: '.vitops/docs' },
+      'skill-dir': { type: 'string', default: join('.agents', 'skills', SKILL_NAME) },
+      'docs-dir': { type: 'string' },
     },
     allowPositionals: false,
   });
   const inputRel = values.input as string;
   const ds = loadConfig(resolve(inputRel));
-  const docsDir = values['docs-dir'] as string;
+  const skillDir = values['skill-dir'] as string;
+  // Explicit --docs-dir = legacy layout: just the docs bundle, no skill.
+  const legacyDocsDir = values['docs-dir'] as string | undefined;
+  const docsDir = legacyDocsDir ?? join(skillDir, 'references');
 
   // Emit the OKF docs bundle so the AGENTS.md pointer resolves for every consumer
   // (only the `bricks` generate format writes docs/ otherwise).
@@ -232,6 +277,28 @@ function cmdAgents(argv: string[]) {
     writeFileSync(p, content);
   }
 
+  let skillNote = '';
+  if (!legacyDocsDir) {
+    writeFileSync(resolve(skillDir, 'SKILL.md'), renderSkill(ds));
+    const warn = linkClaudeSkill(skillDir);
+    if (warn) console.warn(`  ⚠ ${warn}`);
+    skillNote = ` + skill at ${skillDir}/`;
+  }
+
+  const pointer = legacyDocsDir
+    ? [
+        'Prefer the framework’s utility + component classes over hand-written CSS.',
+        `Reference docs (regenerate with \`vitops agents\`): \`${docsDir}/css/classes.md\`,`,
+        `\`${docsDir}/authoring.md\`, \`${docsDir}/formats.md\`, \`${docsDir}/bricks/elements.md\`.`,
+      ]
+    : [
+        'Prefer the framework’s utility + component classes over hand-written CSS.',
+        `Full design-system context lives in the \`${SKILL_NAME}\` skill at \`${skillDir}/\`:`,
+        'class vocabulary, `design-system.json` field reference, per-format output',
+        'differences (Tailwind vs Bricks vs CSS), colour/scale/pattern concepts, and the',
+        'Bricks element reference (under its `references/`). Regenerate with `vitops agents`.',
+      ];
+
   const block = [
     AGENTS_START,
     '## Vitops design system',
@@ -244,9 +311,7 @@ function cmdAgents(argv: string[]) {
     '- `vitops generate --format bricks --out <theme>/dist` — WordPress / Bricks',
     '- `vitops init` · `vitops validate` · `vitops favicon`',
     '',
-    'Prefer the framework’s utility + component classes over hand-written CSS.',
-    `Full class vocabulary + Bricks element reference: \`${docsDir}/css/classes.md\`,`,
-    `\`${docsDir}/bricks/elements.md\` (regenerate both with \`vitops agents\`).`,
+    ...pointer,
     '',
     `<!-- regenerate: vitops agents · @getvitops/cli@${cliVersion()} -->`,
     AGENTS_END,
@@ -272,7 +337,9 @@ function cmdAgents(argv: string[]) {
     action = 'created';
   }
   writeFileSync(outPath, next);
-  console.log(`✓ ${action} ${values.out} + wrote ${Object.keys(docs).length} docs to ${docsDir}/`);
+  console.log(
+    `✓ ${action} ${values.out} + wrote ${Object.keys(docs).length} docs to ${docsDir}/${skillNote}`,
+  );
 }
 
 async function main() {

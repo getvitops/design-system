@@ -16,7 +16,8 @@ task-oriented map for the design system and its Bricks surface.
 
 The generator is also published as a reusable toolchain under `packages/` — **`@getvitops/generator`**
 (library + JSON Schema), **`@getvitops/cli`** (`vitops generate|init|validate|favicon|agents` —
-`agents` writes a design-system block into a consumer's `AGENTS.md`), and
+`agents` emits a generated `vitops-design-system` agent skill + docs bundle into a consumer's
+`.agents/skills/` and a pointer block into their `AGENTS.md`), and
 **`@getvitops/vite`** (Astro/EmDash plugin) — and this repo dogfoods it. Any consumer runs the
 tool against their own `design-system.json`; `packages/cli/README.md` documents the output and
 the WordPress/Bricks setup (the `functions.php` loader snippet + deploy recipes). See the
@@ -25,19 +26,20 @@ unchanged and produces output equivalent to `vitops generate --format bricks`.
 
 ## Source of truth: `src/design-system.json`
 
-Top-level keys and what each controls (the generator, `lib/generate-design-system.ts`,
-expands these into CSS tokens, utility classes, and Bricks import JSON):
+Top-level keys and what each controls (the generator, `packages/generator/src/generate.ts`,
+expands these into CSS tokens, utility classes, and Bricks import JSON; field-level docs are
+in the schema, `packages/generator/src/schema.ts`, and the generated `docs/authoring.md`):
 
-| Key          | Controls                                                                                                                                                                                                                                                  |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `colors`     | `named` ramps (e.g. `pine`, `navy` … × steps `xxd…xxl`), `semantic` roles (`brand-primary`, `surface`, `success`, `danger`, …), and which `utilities` emit (`bg`/`text`/`border`). Drives colour tokens, dark-mode overrides, and colour utility classes. |
-| `shadows`    | `--shadow-<name>` tokens (`sm`/`md`/`lg`/`xl`) → `drop-shadow-<name>` utilities.                                                                                                                                                                          |
-| `fonts`      | Font stacks (`display`/`sans`/`mono`) → `--font-*`.                                                                                                                                                                                                       |
-| `typeScale`  | Fluid modular type scale (`names`, `ratio`, `fluid`) used by type-role sizes.                                                                                                                                                                             |
-| `spaceScale` | Fluid space scale → `--space-<name>` tokens consumed by gap/rhythm.                                                                                                                                                                                       |
-| `typography` | `families`, semantic type `roles` (display/title/heading/body/quote/caption/eyebrow/code/lead/footnote/tag) → `font-<role>` utilities, and `headings`.                                                                                                    |
-| `patterns`   | Component patterns (`items`: button/link/badge/card/… with `base`, `states`, `roles`), plus `defaults`, `radii`, `groups`, `z`. Drives `patterns.css`.                                                                                                    |
-| `animations` | `effects` (fade/slide/scale/blur/…) and composed `journeys` → `animation-effects.css`.                                                                                                                                                                    |
+| Key          | Controls                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `colors`     | `palette` hues (seeded or fixed-`tones` ramps → 11-step OKLCH scales `50…950`), `roles` mapping semantic roles (`neutral`, `surface`, `ui-primary`, `brand-primary`, `success`, `danger`, …) onto hues, and which `utilities` emit (`bg`/`text`/`border`). Functional tokens (`bg`/`text`/`solid`/`on-solid`/muted stops) and the automatic dark-mode flip all derive from this. |
+| `shadows`    | `--shadow-<name>` tokens (`sm`/`md`/`lg`/`xl`) → `drop-shadow-<name>` utilities.                                                                                                                                                                                                                                                                                                 |
+| `fonts`      | Font stacks (`display`/`sans`/`mono`) → `--font-*`.                                                                                                                                                                                                                                                                                                                              |
+| `typeScale`  | Fluid modular type scale (`names`, `ratio`, `fluid`) used by type-role sizes.                                                                                                                                                                                                                                                                                                    |
+| `spaceScale` | Fluid space scale → `--space-<name>` tokens consumed by gap/rhythm.                                                                                                                                                                                                                                                                                                              |
+| `typography` | `families`, semantic type `roles` (display/title/heading/body/quote/caption/eyebrow/code/lead/footnote/tag) → `font-<role>` utilities, and `headings`.                                                                                                                                                                                                                           |
+| `patterns`   | Component patterns (`items`: button/link/badge/card/… with `base`, `states`, `roles`), plus `defaults`, `radii`, `groups`, `z`. Drives `patterns.css`.                                                                                                                                                                                                                           |
+| `animations` | `effects` (fade/slide/scale/blur/…) and composed `journeys` → `animation-effects.css`.                                                                                                                                                                                                                                                                                           |
 
 To change the system, **edit `design-system.json` (or the hand-written CSS/PHP), then
 regenerate** — never hand-edit generated files.
@@ -53,11 +55,17 @@ it over guessing class or element names:
   rules** (colour, typography, spacing, layout, animation, component patterns) plus the
   responsive/state variant grammar (`md-`, `hover-`, `flip-…`, breakpoint sizes). Start here
   to pick a class.
+- **`docs/authoring.md`** — every `design-system.json` field, rendered from the JSON
+  Schema's descriptions. Start here to change a token.
+- **`docs/formats.md`** — tailwind vs css vs bricks output differences, including which
+  framework utilities the Tailwind format strips in favour of Tailwind's own.
+- `docs/concepts/` — the colour system (seeded OKLCH + dark flip), fluid scales, and the
+  pattern CSS chain (token cascade, `--p-<pattern>` override hooks, states).
 - **`docs/bricks/elements.md`** — per-element reference for every custom Bricks element:
   label, controls (types/defaults/options/bound CSS vars), seeded children, keywords.
 - `docs/bricks/index.md` — Bricks integration + the styling rule below.
 
-These are generated by `lib/generate-docs.ts`; don't hand-edit them.
+These are generated by `packages/generator/src/docs.ts`; don't hand-edit them.
 
 ## What the build emits for Bricks
 
@@ -87,8 +95,8 @@ property values are one-off and drift; reserve them for genuinely bespoke cases.
 ## Common tasks
 
 - **Which class does X?** → search `docs/css/classes.md` (rules + token lists). Apply the
-  rule to a listed token (e.g. `bg-<color>` + `navy-xl` → `bg-navy-xl`; `split-<a>-<b>`,
-  breakpoint-prefixable as `md-split-1-2`).
+  rule to a listed token (e.g. functional `bg-<role>` → `bg-surface`, raw `bg-<hue>-<step>` →
+  `bg-navy-100`; `split-<a>-<b>`, breakpoint-prefixable as `md-split-1-2`).
 - **What does a Bricks element do / what are its controls?** → `docs/bricks/elements.md`.
 - **Add/adjust a token** (colour, shadow, font, scale, pattern, animation) → edit
   `src/design-system.json`, then `npx vp run build`. The docs + CSS + Bricks JSON regenerate.
