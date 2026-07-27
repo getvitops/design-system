@@ -138,7 +138,38 @@ export class WCColorSchemeToggle extends BaseElement {
   }
 
   init() {
-    this.scheme = 'system';
+    this.scheme = WCColorSchemeToggle.readStored() ?? 'system';
+  }
+
+  /**
+   * Where the explicit choice is remembered across navigations.
+   *
+   * MUST match the key used by the pre-paint script in `@getvitops/astro`'s
+   * `<Head />` — that script applies the stored value before first paint, so the
+   * page doesn't render light and then flip once this component upgrades.
+   * `color-scheme-toggle.test.ts` asserts the two stay in step.
+   */
+  static readonly STORAGE_KEY = 'vitops-color-scheme';
+
+  /** Read the persisted choice; storage can throw in private/partitioned modes. */
+  static readStored(): ColorScheme | null {
+    try {
+      const v = localStorage.getItem(WCColorSchemeToggle.STORAGE_KEY);
+      return v === 'light' || v === 'dark' || v === 'system' ? v : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private _persist(): void {
+    try {
+      // 'system' is the absence of a choice, so clear rather than store it —
+      // that way a visitor who returns to System follows the OS again.
+      if (this.scheme === 'system') localStorage.removeItem(WCColorSchemeToggle.STORAGE_KEY);
+      else localStorage.setItem(WCColorSchemeToggle.STORAGE_KEY, this.scheme);
+    } catch {
+      /* storage unavailable — the toggle still works for this page */
+    }
   }
 
   connectedCallback(): void {
@@ -160,9 +191,11 @@ export class WCColorSchemeToggle extends BaseElement {
       this._mediaQuery.removeEventListener('change', this._boundMediaHandler);
     }
 
-    // Clean up: remove any overrides we set
-    document.documentElement.style.removeProperty('color-scheme');
-    delete document.documentElement.dataset.theme;
+    // Deliberately does NOT clear `color-scheme` / `data-theme`: the colour
+    // scheme is a document-level user preference, not this element's state.
+    // Tearing it down on disconnect meant unmounting the toggle (a view
+    // transition, or a second toggle replacing this one) silently reverted the
+    // page to light.
   }
 
   private _handleMediaChange(_e: MediaQueryListEvent): void {
@@ -177,11 +210,12 @@ export class WCColorSchemeToggle extends BaseElement {
 
     if (this.scheme === 'system') {
       root.style.removeProperty('color-scheme');
-      // Remove data-theme to let DaisyUI use prefers-color-scheme
+      // No attribute = no explicit choice. The generated dark block keys off
+      // [data-theme="dark"] (and Bricks' [data-brx-theme="dark"]), so removing it
+      // falls back to the light token set.
       delete root.dataset.theme;
     } else {
       root.style.colorScheme = `${this.scheme} only`;
-      // Set data-theme for DaisyUI
       root.dataset.theme = this.scheme;
     }
   }
@@ -191,6 +225,7 @@ export class WCColorSchemeToggle extends BaseElement {
 
     this.scheme = newScheme;
     this._applyColorScheme();
+    this._persist();
 
     this.dispatchEvent(
       new CustomEvent('scheme-change', {
@@ -207,16 +242,7 @@ export class WCColorSchemeToggle extends BaseElement {
     }
   }
 
-  private _getEffectiveScheme(): 'light' | 'dark' {
-    if (this.scheme !== 'system') {
-      return this.scheme;
-    }
-    return this._mediaQuery?.matches ? 'dark' : 'light';
-  }
-
   render() {
-    const effectiveScheme = this._getEffectiveScheme();
-
     return html`
       <div class="toggle__group" role="group" aria-label="Color scheme" part="group">
         <button

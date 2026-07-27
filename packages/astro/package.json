@@ -47,7 +47,8 @@
     "tailwindcss": "catalog:"
   },
   "devDependencies": {
-    "astro": "catalog:"
+    "astro": "catalog:",
+    "vitest": "^4.1.9"
   },
   "peerDependencies": {
     "astro": ">=7",

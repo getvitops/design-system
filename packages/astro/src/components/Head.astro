@@ -17,6 +17,18 @@ interface Props {
 }
 const { favicons = head.favicons, webComponents = head.webComponents } = Astro.props;
 const wc = head.wcBase;
+
+/**
+ * Applies the remembered colour scheme before first paint.
+ *
+ * The key MUST match `WCColorSchemeToggle.STORAGE_KEY` in @getvitops/core;
+ * `head.test.ts` asserts they stay in step. try/catch because localStorage
+ * throws in private/partitioned contexts.
+ */
+const THEME_SCRIPT =
+  `try{var s=localStorage.getItem('vitops-color-scheme');` +
+  `if(s==='light'||s==='dark'){document.documentElement.dataset.theme=s;` +
+  `document.documentElement.style.colorScheme=s+' only'}}catch(e){}`;
 ---
 
 {favicons && head.faviconLinks.map((l: { rel: string; href: string; type?: string; sizes?: string }) => (
@@ -26,6 +38,19 @@ const wc = head.wcBase;
 
 {webComponents && (
   <>
+    {/*
+      Apply the remembered colour scheme before first paint.
+
+      `<color-scheme-toggle>` persists the choice to localStorage, but it loads
+      as a deferred module — so without this every navigation would paint the
+      light token set and flip to dark once the element upgraded. Synchronous and
+      inline on purpose: it has to run before the body renders.
+
+      The key MUST match `WCColorSchemeToggle.STORAGE_KEY` in @getvitops/core;
+      `head.test.ts` asserts they stay in step. Wrapped in try/catch because
+      localStorage throws in private/partitioned contexts.
+    */}
+    <script is:inline set:html={THEME_SCRIPT} />
     <link rel="modulepreload" href={`${wc}/polyfills.js`} />
     <script is:inline type="module" src={`${wc}/polyfills.js`}></script>
     <script is:inline defer src={`${wc}/deferred.js`}></script>

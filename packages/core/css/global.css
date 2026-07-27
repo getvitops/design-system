@@ -8,6 +8,16 @@
   font-size: 100% !important;
 }
 
+/* Drop the UA's 8px body margin. The framework owns page gutters via `.centered`
+   (--gutter), so the UA default just offsets every full-bleed surface — sticky
+   headers and `bg-*` bands end up inset by 8px with a sliver of canvas showing
+   around them. This is the only UA reset the framework makes: it deliberately
+   does NOT ship a general reset (no global box-sizing change), because that
+   would silently reflow existing consumer layouts. */
+body {
+  margin: 0;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html {
     scrollbar-gutter: stable;
