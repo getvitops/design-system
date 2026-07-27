@@ -1,5 +1,11 @@
 # @getvitops/core
 
+## 0.7.0
+
+### Patch Changes
+
+- @getvitops/utils@0.7.0
+
 ## 0.6.0
 
 ### Patch Changes

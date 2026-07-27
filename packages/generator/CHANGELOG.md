@@ -1,11 +1,16 @@
 # @getvitops/generator
 
+## 0.7.0
+
+### Patch Changes
+
+- @getvitops/utils@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes
 
 - 2cc847d: Package-resident agent skill + `vitops docs`:
-
   - `@getvitops/cli` now ships the `vitops-design-system` agent skill inside the package
     (`skill/SKILL.md`). `vitops agents` no longer emits a generated skill into the repo — it
     symlinks `.agents/skills/` and `.claude/skills/` entries to the installed package (logical

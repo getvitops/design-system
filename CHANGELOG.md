@@ -11,7 +11,7 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
-## 0.7.0 — unreleased
+## 0.7.0 — 2026-07-27
 
 ### Breaking
 
