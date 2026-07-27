@@ -110,8 +110,17 @@ describe('pattern fill mode', () => {
   });
 
   it('resolves a fill pattern default background from its default_role', () => {
-    const css = patternsOf();
-    expect(css).toMatch(/\.cta \{[^}]*background-color: var\(--brand-primary-solid\)/s);
+    // Assert the mechanism, not a particular role — the config is free to point
+    // `cta` at whichever role it likes without this needing an edit.
+    const ds = defaultConfig();
+    const role = ds.patterns!.items!.cta!.default_role!;
+    const css = patternsOf(ds);
+    expect(css).toMatch(
+      new RegExp(`\\.cta \\{[^}]*background-color: var\\(--${role}-solid\\)`, 's'),
+    );
+    // …and the paired text colour comes from the same role, or the default
+    // variant can end up unreadable on its own fill.
+    expect(css).toMatch(new RegExp(`\\.cta \\{[^}]*color: var\\(--${role}-on-solid\\)`, 's'));
   });
 
   it('keeps inferring fill for configs that predate the fill key', () => {

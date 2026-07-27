@@ -150,7 +150,13 @@ export function defaultConfig(): DesignSystem {
           group: 'control',
           class: 'cta',
           fill: true,
-          default_role: 'brand-primary',
+          // `ui-primary`, not `brand-primary`: a CTA is a prominent *interface*
+          // affordance, and its prominence already comes from fill/weight/padding.
+          // Keeping it on the ui role means the whole interaction family (btn,
+          // link, cta) shares one hue lineage — otherwise focus rings change
+          // colour depending on which tier you tabbed onto. Brand stays reachable
+          // as an explicit `.cta-brand-primary` variant.
+          default_role: 'ui-primary',
           overrides: { p: '0.75em 1.5em', b: 'none', ds: 'var(--shadow-sm)', fs: 'inherit' },
           base: {
             display: 'inline-flex',
@@ -165,7 +171,7 @@ export function defaultConfig(): DesignSystem {
             'font-weight': '600',
             'text-decoration': 'none',
             cursor: 'pointer',
-            color: 'var(--brand-primary-on-solid)',
+            color: 'var(--ui-primary-on-solid)',
             'box-shadow': 'var(--ds-cta-group)',
           },
           states: {

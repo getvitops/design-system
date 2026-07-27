@@ -60,7 +60,7 @@ A pattern is `base` declarations, interaction `states`, and semantic role varian
     "group": "control",
     "class": "cta",
     "fill": true,
-    "default_role": "brand-primary",
+    "default_role": "ui-primary",
     "overrides": { "p": "0.75em 1.5em" },
     "base": { "padding": "var(--p-cta-group)", "font-weight": "600" },
     "states": { "hover": { "step": 1, "lift": "1px" }, "active": { "scale": 0.97 } },

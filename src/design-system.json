@@ -179,7 +179,7 @@
         "group": "control",
         "class": "cta",
         "fill": true,
-        "default_role": "brand-primary",
+        "default_role": "ui-primary",
         "overrides": {
           "p": "0.75em 1.5em",
           "b": "none",
@@ -200,7 +200,7 @@
           "line-height": "inherit",
           "text-decoration": "none",
           "cursor": "pointer",
-          "color": "var(--brand-primary-on-solid)",
+          "color": "var(--ui-primary-on-solid)",
           "box-shadow": "var(--ds-cta-group)"
         },
         "states": {
@@ -215,7 +215,7 @@
             "ring": true
           }
         },
-        "roles": ["success", "danger", "warning", "info"]
+        "roles": ["brand-primary", "success", "danger", "warning", "info"]
       },
       "link": {
         "group": "control",
