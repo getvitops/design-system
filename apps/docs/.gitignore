@@ -1,0 +1,8 @@
+# Build output
+dist/
+.astro/
+
+# Synced from @getvitops/generator by scripts/sync-reference.mjs — never edit by
+# hand, and never commit: regenerate with `vp run docs:sync`.
+src/content/docs/reference/
+src/content/docs/changelog.md

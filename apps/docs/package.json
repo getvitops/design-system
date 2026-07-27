@@ -1,0 +1,21 @@
+{
+  "name": "docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vitops documentation site (Astro + Starlight) for the @getvitops/* packages.",
+  "type": "module",
+  "scripts": {
+    "sync": "node ./scripts/sync-reference.mjs",
+    "dev": "node ./scripts/sync-reference.mjs && astro dev",
+    "build": "node ./scripts/sync-reference.mjs && astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.41.4",
+    "astro": "catalog:",
+    "sharp": "catalog:"
+  },
+  "devDependencies": {
+    "@getvitops/generator": "workspace:*"
+  }
+}

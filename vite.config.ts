@@ -221,6 +221,40 @@ export default defineConfig({
         dependsOn: ['build'],
       },
 
+      // ── apps/docs (Astro + Starlight documentation site) ───────────────────
+      // Private, and isolated from the release DAG like apps/portal: NOT wired
+      // into `build`, `build:packages`, or `deploy`. Its Reference section is
+      // synced from @getvitops/generator's generateDocs() — the same bundle
+      // `vitops docs` prints — so it can't drift from what the toolchain emits.
+      // `docs:sync` therefore dependsOn build:generator.
+      'docs:sync': {
+        command: 'node apps/docs/scripts/sync-reference.mjs',
+        dependsOn: ['build:generator'],
+        input: [
+          'apps/docs/scripts/sync-reference.mjs',
+          'src/design-system.json',
+          'CHANGELOG.md',
+          'packages/generator/dist/index.mjs',
+          'packages/generator/assets/**',
+        ],
+        output: [
+          'apps/docs/src/content/docs/reference/**',
+          'apps/docs/src/content/docs/changelog.md',
+        ],
+      },
+      'docs:dev': {
+        command: 'pnpm --filter docs exec astro dev',
+        dependsOn: ['docs:sync'],
+      },
+      'docs:build': {
+        command: 'pnpm --filter docs exec astro build',
+        dependsOn: ['docs:sync'],
+        output: ['apps/docs/dist/**'],
+      },
+      'docs:preview': {
+        command: 'pnpm --filter docs exec astro preview',
+      },
+
       // ── apps/portal (extraction-bound playground) ──────────────────────────
       // Fully isolated from the Bricks/design-system release DAG: NOT wired into
       // `build`, `build:packages`, or `deploy`, and NOT dependent on any

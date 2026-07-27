@@ -1,0 +1,50 @@
+---
+title: Vitops
+description: A design-system toolchain — generate Bricks, standalone CSS, or Tailwind v4 output from one design-system.json.
+template: splash
+hero:
+  tagline: One <code>design-system.json</code>. Bricks, standalone CSS, or Tailwind v4 — generated, not hand-maintained.
+  actions:
+    - text: Get started
+      link: /guides/installation/
+      icon: right-arrow
+    - text: Browse the packages
+      link: /packages/cli/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+Vitops is a **reusable toolchain**, not a shipped theme. There is no canonical token set to
+adopt — every project brings its own consumer-editable `design-system.json`, and the generator
+turns it into whatever the target platform needs.
+
+<CardGrid stagger>
+  <Card title="One config, three targets" icon="setting">
+    The same file emits a WordPress/Bricks payload, a standalone bundled stylesheet, or a
+    self-contained Tailwind v4 theme. Pick with `--format`.
+  </Card>
+  <Card title="Modern CSS first" icon="star">
+    Anchor Positioning, Popover, Invoker Commands, `<details>`, subgrid, container queries and
+    scroll-driven animations do the work. JavaScript is the exception, not the baseline.
+  </Card>
+  <Card title="Progressive enhancement" icon="rocket">
+    Web components exist only where they earn it. The slotted markup is accessible and usable
+    with no JS; the component parses and augments it in place.
+  </Card>
+  <Card title="Docs that can't drift" icon="open-book">
+    The reference section is generated from the same source the toolchain ships to consumers
+    via `vitops docs`, so it can't describe output the generator doesn't produce.
+  </Card>
+</CardGrid>
+
+## The shape of it
+
+```sh
+npm i -D @getvitops/cli
+npx vitops init                                    # scaffold a design-system.json
+npx vitops generate --format tailwind -o src/styles
+```
+
+That's the whole loop: edit the config, regenerate. Nothing in your project is hand-maintained
+CSS that has to be kept in sync with a token file.
