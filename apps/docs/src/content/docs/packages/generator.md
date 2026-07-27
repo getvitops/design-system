@@ -1,8 +1,8 @@
 ---
 title: "@getvitops/generator"
 description: "The generator as a library, plus the published JSON Schema."
-sidebar:
-  order: 40
+section: "Packages"
+order: 40
 ---
 
 ```sh

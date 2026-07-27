@@ -1,0 +1,225 @@
+---
+/**
+ * Docs shell — built from the design system's own vocabulary.
+ *
+ * Every class here comes from the generated framework: `.centered` + `.split-*`
+ * for the track/sidebar layout, `.rhythm` for vertical spacing, `.font-<role>`
+ * for type, `.bg-*` / `.text-*` for colour, `.link` / `.btn` / `.badge` for
+ * controls, `.sitenav` for the mobile drawer. The only hand-written CSS is the
+ * handful of rules at the bottom that no framework pattern covers (sticky
+ * sidebar offset, active-link marker) — if that list grows, it's a signal the
+ * framework is missing a pattern, which is the point of dogfooding.
+ *
+ * Mobile nav uses <details> + the native Popover/Invoker pairing the framework
+ * prefers, so it works with no JavaScript.
+ */
+import Head from '@getvitops/astro/Head.astro';
+import { getCollection } from 'astro:content';
+import '../styles/styles.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  generated?: boolean;
+  headings?: { depth: number; slug: string; text: string }[];
+}
+const { title, description, generated = false, headings = [] } = Astro.props;
+
+const SECTIONS = ['Start here', 'Packages', 'Reference', 'Releases'] as const;
+const all = await getCollection('docs');
+const nav = SECTIONS.map((section) => ({
+  section,
+  items: all
+    .filter((e) => e.data.section === section)
+    .sort((a, b) => a.data.order - b.data.order || a.data.title.localeCompare(b.data.title)),
+})).filter((g) => g.items.length);
+
+const here = Astro.url.pathname.replace(/\/$/, '');
+const href = (id: string) => `${import.meta.env.BASE_URL}${id === 'index' ? '' : id}`.replace(/\/$/, '') || '/';
+// Only h2/h3 make a useful on-page TOC; deeper headings are detail.
+const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} · Vitops</title>
+    {description && <meta name="description" content={description} />}
+    <Head />
+  </head>
+
+  <body class="bg-surface text-surface">
+    <a class="link skip-link" href="#content">Skip to content</a>
+
+    <header class="docs-header bg-surface-muted">
+      <div class="centered cluster-between" style="align-items: center; gap: 1rem">
+        <a class="font-title docs-brand" href={href('index')}>Vitops</a>
+
+        <nav class="cluster-start docs-header__links" style="gap: 1rem; align-items: center">
+          <a class="link" href={href('guides/installation')}>Guides</a>
+          <a class="link" href={href('packages/cli')}>Packages</a>
+          <a class="link" href={href('reference/authoring')}>Reference</a>
+          <a class="link" href={href('changelog')}>Changelog</a>
+          <!-- Self-contained (shadow DOM, renders its own segmented control) and
+               `display: none` until `:defined`, so with no JS it simply isn't
+               there — colour scheme then follows the OS via prefers-color-scheme. -->
+          <color-scheme-toggle></color-scheme-toggle>
+        </nav>
+
+        <!-- No-JS mobile nav: native <details> disclosure, styled by the framework. -->
+        <details class="details docs-header__mobile">
+          <summary class="btn" aria-label="Menu">☰</summary>
+          <div class="docs-mobile-menu bg-surface rhythm">
+            {nav.map((group) => (
+              <div>
+                <p class="font-eyebrow text-surface-muted">{group.section}</p>
+                <ul class="list">
+                  {group.items.map((item) => (
+                    <li><a class="link" href={href(item.id)}>{item.data.title}</a></li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </details>
+      </div>
+    </header>
+
+    <div class="centered docs-shell md-split-1-4">
+      <aside class="docs-sidebar rhythm" aria-label="Documentation">
+        {nav.map((group) => (
+          <nav class="rhythm">
+            <p class="font-eyebrow text-surface-muted">{group.section}</p>
+            <ul class="list">
+              {group.items.map((item) => (
+                <li>
+                  <a
+                    class:list={['link', 'docs-sidebar__link', here === href(item.id) && 'is-active']}
+                    aria-current={here === href(item.id) ? 'page' : undefined}
+                    href={href(item.id)}
+                  >{item.data.title}</a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+      </aside>
+
+      <main id="content" class="docs-main rhythm">
+        <h1 class="font-display">{title}</h1>
+        {description && <p class="font-lead text-surface-muted">{description}</p>}
+
+        {generated && (
+          <aside class="card bg-info-muted">
+            <p class="font-caption">
+              <strong>Generated page.</strong> Rendered from this project’s
+              <code>design-system.json</code> by <code>@getvitops/generator</code> — the same bundle
+              <code>vitops docs</code> prints against your own config. Don’t edit it by hand.
+            </p>
+          </aside>
+        )}
+
+        {toc.length > 1 && (
+          <details class="details docs-toc">
+            <summary class="font-eyebrow">On this page</summary>
+            <ul class="list">
+              {toc.map((h) => (
+                <li style={`padding-inline-start: ${(h.depth - 2) * 1}rem`}>
+                  <a class="link" href={`#${h.slug}`}>{h.text}</a>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+
+        <div class="rhythm docs-prose"><slot /></div>
+      </main>
+    </div>
+
+    <footer class="docs-footer bg-surface-muted">
+      <div class="centered cluster-between font-footnote text-surface-muted">
+        <p>Built with the design system it documents.</p>
+        <p><a class="link" href="https://www.npmjs.com/org/getvitops">@getvitops on npm</a></p>
+      </div>
+    </footer>
+
+    <style>
+      /* Everything below is what the framework does NOT yet cover. Keep it short:
+         a rule that belongs to a reusable pattern should move into
+         @getvitops/core rather than live here. */
+      .skip-link {
+        position: absolute;
+        inset-inline-start: -100vw;
+      }
+      .skip-link:focus-visible {
+        inset-inline-start: 0.5rem;
+        inset-block-start: 0.5rem;
+        z-index: var(--z-tier-top);
+      }
+      .docs-header {
+        position: sticky;
+        inset-block-start: 0;
+        z-index: var(--z-tier-sticky);
+        padding-block: 0.75rem;
+        border-block-end: var(--b-default);
+      }
+      .docs-brand {
+        text-decoration: none;
+      }
+      .docs-shell {
+        align-items: start;
+        gap: 3rem;
+        padding-block: 2.5rem;
+      }
+      .docs-sidebar {
+        position: sticky;
+        inset-block-start: 5rem;
+        max-block-size: calc(100vh - 7rem);
+        overflow-y: auto;
+      }
+      .docs-sidebar__link.is-active {
+        font-weight: 600;
+        text-decoration-thickness: 2px;
+      }
+      .docs-main {
+        min-inline-size: 0; /* let long code blocks scroll instead of stretching the grid */
+      }
+      .docs-prose :global(pre) {
+        overflow-x: auto;
+        padding: 1rem;
+        border-radius: var(--br-default);
+      }
+      .docs-prose :global(table) {
+        display: block;
+        overflow-x: auto;
+      }
+      .docs-footer {
+        margin-block-start: 4rem;
+        padding-block: 2rem;
+        border-block-start: var(--b-default);
+      }
+      /* Sidebar is a drawer on small screens; the header links collapse with it. */
+      .docs-header__mobile,
+      .docs-mobile-menu {
+        display: none;
+      }
+      @media (width < 48rem) {
+        .docs-sidebar,
+        .docs-header__links {
+          display: none;
+        }
+        .docs-header__mobile {
+          display: block;
+        }
+        .docs-header__mobile[open] .docs-mobile-menu {
+          display: block;
+          position: absolute;
+          inset-inline: 0;
+          padding: 1rem;
+          border-block-end: var(--b-default);
+        }
+      }
+    </style>
+  </body>
+</html>

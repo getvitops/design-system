@@ -1,8 +1,8 @@
 ---
 title: "@getvitops/create"
 description: "Project templates — scaffold a wired-up site with `vp create @getvitops`."
-sidebar:
-  order: 80
+section: "Packages"
+order: 80
 ---
 
 ```sh

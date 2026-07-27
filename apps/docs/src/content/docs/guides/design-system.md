@@ -1,8 +1,8 @@
 ---
 title: Your design system
 description: How design-system.json is structured — colours, scales, patterns and animations — and what each section generates.
-sidebar:
-  order: 20
+section: "Start here"
+order: 20
 ---
 
 `design-system.json` is the only file you edit. Everything the toolchain emits is derived from it,

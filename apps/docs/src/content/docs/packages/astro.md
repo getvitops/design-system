@@ -1,8 +1,8 @@
 ---
 title: "@getvitops/astro"
 description: "Astro integration — CSS generation, favicons/PWA, web-component bundles, <Head />."
-sidebar:
-  order: 20
+section: "Packages"
+order: 20
 ---
 
 ```sh

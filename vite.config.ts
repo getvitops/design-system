@@ -211,7 +211,10 @@ export default defineConfig({
       // Publish the scoped packages via Changesets. Root stays private.
       // Assumes `release:version` already ran and the root CHANGELOG.md is current.
       release: {
-        command: 'vp run build:packages && changeset publish',
+        // Tests gate the publish. Without this, `@getvitops/emdash@0.2.1` shipped
+        // a descriptor hardcoded to 0.2.0: `changeset version` bumps package.json
+        // but not the literal, and the test that asserts they match never ran.
+        command: 'vp test run && vp run build:packages && changeset publish',
       },
 
       // Deploy: rsync dist/ to the remote theme over SSH. Depends on build so
@@ -221,7 +224,7 @@ export default defineConfig({
         dependsOn: ['build'],
       },
 
-      // ── apps/docs (Astro + Starlight documentation site) ───────────────────
+      // ── apps/docs (plain Astro documentation site) ─────────────────────────
       // Private, and isolated from the release DAG like apps/portal: NOT wired
       // into `build`, `build:packages`, or `deploy`. Its Reference section is
       // synced from @getvitops/generator's generateDocs() — the same bundle

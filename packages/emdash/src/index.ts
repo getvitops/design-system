@@ -28,8 +28,18 @@ export type { BlockKitFieldDef, PortableTextBlockDef } from './blocks.ts';
 export { vitopsHosting } from './hosting.ts';
 export type { HostingTarget, VitopsHosting, VitopsHostingOptions } from './hosting.ts';
 
-/** Keep in sync with package.json (asserted by index.test.ts). */
-const VERSION = '0.2.0';
+/**
+ * Read from package.json rather than hand-maintained.
+ *
+ * This was a literal with a "keep in sync" comment, which drifted on every
+ * release: `changeset version` bumps package.json and leaves the literal alone.
+ * `blocks.test.ts` asserts they match, but the release chain didn't run tests,
+ * so `@getvitops/emdash@0.2.1` shipped a descriptor reporting `0.2.0`. Deriving
+ * it removes the failure mode instead of relying on remembering.
+ */
+import pkg from '../package.json' with { type: 'json' };
+
+const VERSION = pkg.version;
 const PLUGIN_ID = 'vitops';
 const FRAGMENTS_CAPABILITY = 'hooks.page-fragments:register';
 

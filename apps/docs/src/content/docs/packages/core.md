@@ -1,8 +1,8 @@
 ---
 title: "@getvitops/core"
 description: "The framework runtime: CSS partials, Lit web components, feature-detected polyfills."
-sidebar:
-  order: 50
+section: "Packages"
+order: 50
 ---
 
 ```sh

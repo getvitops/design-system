@@ -1,8 +1,8 @@
 ---
 title: "@getvitops/utils"
 description: "Shared build-time utilities — favicon generation and friends."
-sidebar:
-  order: 60
+section: "Packages"
+order: 60
 ---
 
 ```sh

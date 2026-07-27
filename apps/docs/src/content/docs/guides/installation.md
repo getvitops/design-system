@@ -1,8 +1,8 @@
 ---
 title: Installation
 description: Install the Vitops toolchain and generate your first output — for Astro, Tailwind, WordPress/Bricks, or plain CSS.
-sidebar:
-  order: 10
+section: "Start here"
+order: 10
 ---
 
 Every package in the toolchain shares one version. Install `@getvitops/cli` and let it pull the

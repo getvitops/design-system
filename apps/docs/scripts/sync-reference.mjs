@@ -1,5 +1,5 @@
 /**
- * Sync the generated OKF docs bundle into Starlight's content collection.
+ * Sync the generated OKF docs bundle into the site's `docs` content collection.
  *
  * Source of truth is `generateDocs()` in @getvitops/generator — the same bundle
  * that `vitops docs <topic>` prints and that ships to WordPress consumers under
@@ -7,12 +7,13 @@
  * something the toolchain does not emit.
  *
  * Two shape differences to reconcile:
- *   • OKF reserves `index.md` for frontmatter-less directory listings. Starlight
- *     builds its own nav from the sidebar config, so those are dropped.
- *   • OKF concept docs carry extra frontmatter (`type`, `resource`, `tags`,
- *     `generator`) that Starlight has no use for. Its schema ignores unknown
- *     keys, but they're stripped anyway so the emitted pages stay legible, and a
- *     Starlight-native banner + sidebar order are added.
+ *   • OKF reserves `index.md` for frontmatter-less directory listings. The site
+ *     builds its nav from the collection itself, so those are dropped.
+ *   • OKF concept docs carry frontmatter the site has no use for (`type`,
+ *     `resource`, `tags`, `generator`); it's replaced with the flat
+ *     `section` / `order` / `generated` shape the docs collection expects.
+ *     `generated: true` is what makes the layout render the "don't edit this"
+ *     banner, so it must be set here rather than written into the body.
  *
  * Output is gitignored: regenerate with `vp run docs:sync` (or any docs task).
  */
@@ -67,10 +68,10 @@ const yaml = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
 const SLUG = new Map(PAGES.map(([path]) => [path, `/reference/${path.replace(/\//g, '-').replace(/\.md$/, '')}/`]));
 
 /**
- * Rewrite the bundle's internal cross-links to Starlight URLs.
+ * Rewrite the bundle's internal cross-links to site URLs.
  *
  * The OKF bundle links by relative file path (`../authoring.md`) against a nested
- * tree; Starlight serves these pages flattened under /reference/. Links to the
+ * tree; the site serves these pages flattened under /reference/. Links to the
  * reserved `index.md` listings are unwrapped to plain text — those pages aren't
  * carried over, because the sidebar already does that job.
  */
@@ -99,7 +100,7 @@ for (const [path, title, order] of PAGES) {
     continue;
   }
   const [meta, body] = splitFrontmatter(src);
-  // Drop the body's leading H1: Starlight renders the frontmatter title as the
+  // Drop the body's leading H1: the layout renders the frontmatter title as the
   // page heading, so keeping it would show the title twice.
   const withoutH1 = rewriteLinks(body.replace(/^#\s+.*\n+/, ''), path);
 
@@ -107,14 +108,10 @@ for (const [path, title, order] of PAGES) {
     '---',
     `title: ${yaml(title)}`,
     `description: ${yaml(meta.description ?? '')}`,
-    'sidebar:',
-    `  order: ${order}`,
+    'section: "Reference"',
+    `order: ${order}`,
+    'generated: true',
     '---',
-    '',
-    ':::note[Generated page]',
-    'Rendered from this project’s `design-system.json` by `@getvitops/generator`.',
-    'Run `vitops docs` to print the same reference against **your** config.',
-    ':::',
     '',
     withoutH1,
   ].join('\n');
@@ -135,6 +132,8 @@ if (existsSync(changelogSrc)) {
       '---',
       'title: "Changelog"',
       'description: "Release notes for the @getvitops/* packages — what changed, what broke, and how to migrate."',
+      'section: "Releases"',
+      'order: 10',
       '---',
       '',
       body,

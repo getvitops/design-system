@@ -1,8 +1,8 @@
 ---
 title: "@getvitops/vite"
 description: "Vite plugin that regenerates design-system output on build and dev."
-sidebar:
-  order: 30
+section: "Packages"
+order: 30
 ---
 
 ```sh

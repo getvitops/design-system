@@ -1,8 +1,8 @@
 ---
 title: "@getvitops/emdash"
 description: "EmDash CMS plugin: Portable Text block types editors can insert."
-sidebar:
-  order: 70
+section: "Packages"
+order: 70
 ---
 
 ```sh

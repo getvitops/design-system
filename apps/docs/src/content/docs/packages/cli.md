@@ -1,8 +1,8 @@
 ---
 title: "@getvitops/cli"
 description: "The command line: generate, validate, scaffold, and wire up coding agents."
-sidebar:
-  order: 10
+section: "Packages"
+order: 10
 ---
 
 ```sh
