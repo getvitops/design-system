@@ -8,7 +8,7 @@
 export { generate } from './generate.ts';
 export type { GenerateOptions, GenerateResult, Format } from './generate.ts';
 
-export { generateDocs, renderSkill } from './docs.ts';
+export { generateDocs } from './docs.ts';
 export { TW_CLASH, BASE_HOOK } from './shared.ts';
 
 export { DesignSystemSchema, jsonSchema, SCHEMA_URL, validate } from './schema.ts';

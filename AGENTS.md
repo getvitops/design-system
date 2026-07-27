@@ -61,11 +61,13 @@ packages under `packages/` (a pnpm workspace), by layer:
   also carries the site-config schema (`site.ts` → `site.schema.json`).
 - **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
   `png-to-ico`, loaded lazily; `oxipng` crush optional). Consumed by cli/vite/astro.
-- **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents` (bin `vitops`), a thin
-  wrapper over the generator + utils. `agents` emits a generated **`vitops-design-system` agent
-  skill** into a consumer's `.agents/skills/vitops-design-system/` (SKILL.md + the docs bundle as
-  `references/`, with an idempotent `.claude/skills/` symlink) and writes a managed pointer block
-  into their `AGENTS.md`; `--docs-dir` keeps the legacy docs-only layout.
+- **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs` (bin `vitops`), a thin
+  wrapper over the generator + utils. The package **ships a static `vitops-design-system` agent
+  skill** (`skill/SKILL.md`, in `files`); `agents` symlinks it into a consumer's
+  `.agents/skills/` + `.claude/skills/` (logical `node_modules/@getvitops/cli/skill` target — never
+  a pnpm realpath — so links survive version bumps) and writes a managed pointer block into their
+  `AGENTS.md`. `docs <topic>` prints a reference doc to stdout, rendered live from the consumer's
+  config (`--docs-dir` on `agents` keeps the legacy emit-files layout).
 - **`@getvitops/vite`** — a Vite plugin (Astro/EmDash) that runs the generator on build/dev (+
   optional favicon generation) and hot-regenerates when the config changes.
 - **`@getvitops/astro`** — the **Astro integration**: a default `getvitops()` integration
@@ -194,7 +196,7 @@ All tasks go through `npx vp run <name>` (see [vite.config.ts](vite.config.ts)).
 - `docs/bricks/index.md` — listing + the "prefer framework CSS classes over hand-tuning Bricks UI properties" guidance; links `elements.md` + `../css/classes.md`.
 - `docs/bricks/elements.md` — concept: per-element control reference, parsed from each element's docblock, class metadata, `get_label`/`get_keywords`/`get_nestable_children`, and a small PHP-array-literal parse of `set_controls()`.
 
-`generateDocs()` also has a sibling `renderSkill()` (exported from the generator): the generated `SKILL.md` that `vitops agents` writes in front of the bundle (bundle as `references/`). Drift-prone data (`TW_CLASH`, `BASE_HOOK`) lives in `packages/generator/src/shared.ts` — shared by `generate.ts` and `docs.ts` (a direct import between them would be a cycle) and re-exported from the package index.
+The agent-facing skill is **not** generated: it's the static `packages/cli/skill/SKILL.md` shipped inside `@getvitops/cli`, which teaches agents to fetch these docs live via `vitops docs <topic>` (topic → bundle-path map in `packages/cli/src/agents.ts`, drift-guarded by `agents.test.ts`). Drift-prone data (`TW_CLASH`, `BASE_HOOK`) lives in `packages/generator/src/shared.ts` — shared by `generate.ts` and `docs.ts` (a direct import between them would be a cycle) and re-exported from the package index.
 
 `docs/**` are generated artifacts — don't hand-edit them (they're in `fmt.ignorePatterns` to avoid churn); change the PHP / `design-system.json` / the generator's static strings and regenerate. Frontmatter deliberately omits `timestamp` (an OKF-recommended field) to keep output deterministic and diffs clean. If the generator gains a new source, extend the relevant `build:*` task's `input` list (e.g. `build:generator`). `index.html` stays a human/local-dev docsite (dogfoods the build); it is **not** the AI context vehicle — the `docs/` bundle is.
 

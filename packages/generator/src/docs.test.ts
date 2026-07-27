@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateDocs, renderSkill } from './docs.ts';
+import { generateDocs } from './docs.ts';
 import { defaultConfig } from './index.ts';
 import { BASE_HOOK, TW_CLASH } from './shared.ts';
 
@@ -71,26 +71,5 @@ describe('generateDocs bundle', () => {
       expect(patterns).toContain(`\`${prop}\``);
       expect(patterns).toContain(`\`--${sfx}-<pattern>\``);
     }
-  });
-});
-
-describe('renderSkill', () => {
-  it('emits a valid skill fronting the references bundle', () => {
-    const skill = renderSkill(defaultConfig());
-    expect(skill.startsWith('---\nname: vitops-design-system\n')).toBe(true);
-    expect(skill).toMatch(/^description: >-$/m);
-    for (const ref of [
-      'references/css/classes.md',
-      'references/authoring.md',
-      'references/formats.md',
-      'references/concepts/index.md',
-      'references/bricks/elements.md',
-    ])
-      expect(skill).toContain(ref);
-    expect(skill).toContain('vitops agents');
-  });
-
-  it('is deterministic', () => {
-    expect(renderSkill(defaultConfig())).toEqual(renderSkill(defaultConfig()));
   });
 });

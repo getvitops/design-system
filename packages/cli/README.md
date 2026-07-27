@@ -23,7 +23,8 @@ npx vitops generate --format bricks,css --out dist
 | `vitops validate <file>`                           | schema-check (non-zero exit on error)         |
 | `vitops generate -i <file> -f <formats> -o <dir>`  | generate `bricks` / `css` / `tailwind` output |
 | `vitops favicon -i <svg\|png> -o <dir>`            | generate a favicon set from a source image    |
-| `vitops agents [-o AGENTS.md] [--docs-dir <dir>]`  | teach AI agents about the design system       |
+| `vitops agents [-o AGENTS.md] [--docs-dir <dir>]`  | link the agent skill + AGENTS.md pointer      |
+| `vitops docs [topic] [--all]`                      | print live reference docs to stdout           |
 
 ## Using the output
 
@@ -79,22 +80,36 @@ The CLI only writes files — how they reach WordPress is up to you:
 - **CI:** run `vitops generate --format bricks` in your pipeline and deploy the artifact the
   same way you deploy the rest of the theme.
 
-## Teaching AI agents (`vitops agents`)
+## Teaching AI agents (`vitops agents` + `vitops docs`)
 
-So an AI coding agent in a consumer project can discover the design system, `vitops agents`
-writes a small, marker-delimited **managed block** into your `AGENTS.md` (idempotent — re-run to
-update) and emits the reference docs bundle it points at:
+This package **ships an agent skill** (`skill/SKILL.md`, the [Agent Skills](https://code.claude.com/docs/en/skills)
+format) that teaches AI coding agents to fetch design-system context on demand. Nothing is
+generated into your repo — reference docs print live via `vitops docs`:
 
 ```sh
-vitops agents                                   # updates ./AGENTS.md, docs → ./.vitops/docs
-vitops agents --out CLAUDE.md --docs-dir docs/vitops --input design-system.json
+vitops docs                # list topics
+vitops docs classes        # the class vocabulary, rendered from YOUR design-system.json
+vitops docs authoring      # every config field, from the JSON Schema
+vitops docs formats        # tailwind vs css vs bricks (incl. which utilities Tailwind owns)
 ```
 
-The block lists the CLI commands and points at the generated class vocabulary
-(`<docs-dir>/css/classes.md`) and Bricks element reference (`<docs-dir>/bricks/elements.md`), both
-derived from your `design-system.json`. Re-running only replaces the content between the
-`<!-- vitops:start -->` / `<!-- vitops:end -->` markers, leaving the rest of the file untouched. If
-you'd rather not commit the generated docs, add your `--docs-dir` (e.g. `.vitops/`) to
-`.gitignore` and run `vitops agents` in a postinstall/CI step.
+Because output is rendered at call time from your config + the installed package version, it is
+never stale. `vitops agents` wires up discovery:
+
+```sh
+vitops agents                                   # links the skill + updates ./AGENTS.md
+vitops agents --out CLAUDE.md                   # different pointer file
+```
+
+It symlinks `.agents/skills/vitops-design-system` and `.claude/skills/vitops-design-system` to the
+skill inside the installed package (the links target the logical `node_modules/@getvitops/cli/skill`
+path, so they survive version bumps and reinstalls — re-run only if you delete them), and writes a
+marker-delimited **managed block** into your `AGENTS.md` listing the CLI commands and `vitops docs`
+topics. Re-running only replaces the content between the `<!-- vitops:start -->` /
+`<!-- vitops:end -->` markers.
+
+Prefer materialized files (offline/CI contexts, or agents that can't run commands)? The legacy
+layout still works: `vitops agents --docs-dir .vitops/docs` writes the full docs bundle as files
+and points the AGENTS.md block at them (no skill link).
 
 Powered by [`@getvitops/generator`](https://www.npmjs.com/package/@getvitops/generator).
