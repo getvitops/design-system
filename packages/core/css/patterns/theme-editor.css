@@ -1,0 +1,114 @@
+/**
+ * Theme editor — chrome for `<wc-theme-editor>` (@getvitops/core/editor).
+ *
+ * Deliberately thin: the panel is a `.drawer.drawer--right` popover, its sections
+ * are `.details`, its controls come from `forms.css` and its buttons from the
+ * generated `btn`/`cta` patterns. What's left here is only what those don't cover
+ * — the launcher's fixed position, the label/control row, and the density the
+ * panel needs to fit a whole design system in a sidebar.
+ *
+ * This partial is imported by the bundle like any other, so a consumer who never
+ * loads the editor bundle still pays for it (~1KB) but sees nothing: every rule is
+ * scoped under `wc-theme-editor`, which only exists once the element is defined.
+ */
+
+wc-theme-editor {
+  /* Density: the panel packs ~200 controls, so it runs a step down from body. */
+  --_fs: var(--text-xs, 0.78rem);
+
+  .ed-launch {
+    position: fixed;
+    inset-block-end: 1rem;
+    inset-inline-end: 1rem;
+    z-index: var(--z-tier-top, 100);
+  }
+
+  .ed-panel {
+    --drawer-max-inline-size: min(28rem, 100vw);
+
+    overflow-y: auto;
+    padding: 1rem;
+    font-size: var(--_fs);
+  }
+
+  /* Sections: the drawer supplies the surface, so these only need separation. */
+  .ed-section {
+    border-block-start: var(--b-default);
+    padding-block-start: 0.5rem;
+  }
+  .ed-section > summary {
+    padding-block: 0.35rem;
+  }
+  .ed-sub {
+    border: var(--b-default);
+    border-radius: var(--br-default);
+    padding: 0.4rem 0.6rem;
+  }
+
+  /* A control row: fixed-width var name, control takes the rest. */
+  .ed-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .ed-label {
+    flex: 0 0 8.5rem;
+    overflow: hidden;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.9em;
+    color: var(--surface-text-x-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ed-input {
+    flex: 1;
+    min-inline-size: 0;
+    padding: 0.3em 0.5em;
+    border: var(--b-default);
+    border-radius: var(--br-default);
+    background: var(--surface-bg);
+    color: inherit;
+    font: inherit;
+  }
+  .ed-mono {
+    font-family: var(--font-mono, monospace);
+  }
+  .ed-pair {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-inline-size: 0;
+  }
+  .ed-color {
+    flex: 0 0 auto;
+    --color-swatch-size: 1.8rem;
+  }
+  .ed-out {
+    flex: 0 0 4.5rem;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.9em;
+    text-align: end;
+  }
+
+  /* Toolbar: a segmented light/dark pair plus actions. */
+  .ed-toolbar {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 1;
+    padding-block: 0.5rem;
+    background: var(--surface-bg);
+  }
+  .ed-segwrap {
+    display: inline-flex;
+  }
+  .ed-seg.is-active {
+    background: var(--ui-primary-solid);
+    color: var(--ui-primary-on-solid);
+  }
+  .ed-danger {
+    color: var(--danger-text);
+  }
+}

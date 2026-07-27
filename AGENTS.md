@@ -42,6 +42,39 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      (tier 2) instead, and have the wrapper emit its `<wc-*>` tag with the accessible fallback inside.
      A feature-detected polyfill for a native CSS/HTML feature is fine; application/behaviour JS is not.
 
+**The one deliberate exception: `<wc-theme-editor>`** (`@getvitops/core/editor`). It is _tooling_, not
+a page pattern — a live editor has no accessible no-JS fallback to enhance, so it fails the tier-2 bar
+on purpose. It is quarantined instead of excused: its own bundle entry (`src/js/editor.ts` →
+`dist/editor.js`), never registered in `elements.js`, opt-in per consumer
+(`getvitops({ editor: true })`), and carrying no Lit, so a production page that doesn't ask for it
+pays nothing. Don't use it as precedent for putting behaviour JS in a `<wc-*>` element.
+
+## The live theme editor
+
+`<wc-theme-editor>` layers runtime `:root` overrides over the generated token layer via one injected
+`<style id="ds-overrides">`, so the whole design system is tunable in the browser with no rebuild. It
+reads its editable surface from `design-manifest.json` (a `css`-format output) and exports edits back
+as CSS or as a `design-system.json` patch; on a dev server running `@getvitops/vite`, **Save to
+source** POSTs that patch to `/__vitops/design-system` and the plugin merges → validates → writes →
+regenerates. On any static build the probe fails and the button isn't rendered.
+
+Three things here are load-bearing and easy to break:
+
+- **A role is not a ramp alias.** `--color-<role>-<step>` is never emitted — a role resolves to
+  _functional_ tokens (`--<role>-bg`, `--<role>-solid`, `--color-<role>-bold`, …). Two of them can't
+  be derived in the browser (`solid` scans the hue for its natural 500 and clamps; `on-solid` is a
+  computed contrast literal), which is why the manifest ships **`colors.roleTokens`** precomputed per
+  hue, in `default` and `surface` variants × light/dark. A remap copies that set; it does not rewrite
+  a ramp reference. The previous editor got this wrong and wrote 11 dead declarations per role.
+- **Palette hexes are scheme-global.** The dark block re-points which step each functional token
+  reads; it never redefines `--color-<hue>-<step>`. Hue edits therefore belong in `:root` only.
+- **A step maps to `colors.palette.<hue>.anchors.<n>`, not `.seed`.** The seed regenerates the whole
+  ramp, and mapping all 11 steps to one path silently loses every edit but the last.
+
+Consumers point the element at its manifest with the `manifest` attribute; the Astro integration's
+`editor: true` mirrors the file to `/vitops/design-manifest.json` (the default) _inside the generate
+pass_, so it can't race a cold start or go stale after a config edit.
+
 ## Published toolchain: `@getvitops/*`
 
 Published as a **reusable toolchain** (like Tailwind/shadcn): every client runs it against their own
@@ -50,8 +83,8 @@ packages under `packages/` (a pnpm workspace), by layer:
 
 - **`@getvitops/core`** — the design-system **framework** (the runtime everything builds on): the
   variable-driven **CSS partials** (`css/`), the Lit **web components**, and the feature-detected
-  browser **polyfills**. Subpath exports: `./css/*`, `./elements`, `./polyfills`, `./deferred`. Inert
-  on its own — the CSS resolves against the token layer the generator emits.
+  browser **polyfills**. Subpath exports: `./css/*`, `./elements`, `./polyfills`, `./deferred`,
+  `./editor`. Inert on its own — the CSS resolves against the token layer the generator emits.
 - **`@getvitops/generator`** — the **generator** as a library + the JSON Schema. Public API:
   `generate({ input, format, outDir })`, `generateDocs()`, `validate()`, `defaultConfig()`,
   `DesignSystemSchema`, `jsonSchema`. The `zod/mini` schema in `packages/generator/src/schema.ts` is
@@ -93,8 +126,9 @@ full deployable payload (`styles.min.css`, `bricks-colors-*.json`, `bricks-varia
 state; the css/bricks bundle is assembled in memory and minified with lightningcss.
 
 **This repo dogfoods the tool:** the framework source lives in `@getvitops/core`
-(`packages/core/{css,src}`); root `src/` holds only the example `design-system.json` (+ the docs-only
-`editor.ts`). `packages/generator/scripts/prepare.mjs` snapshots core's CSS + built JS bundles (and
+(`packages/core/{css,src}`); root `src/` holds only the example `design-system.json` — the live theme
+editor that used to sit beside it is now `@getvitops/core/editor` (see below).
+`packages/generator/scripts/prepare.mjs` snapshots core's CSS + built JS bundles (and
 the repo's `bricks/` PHP) into `packages/generator/assets/` and emits `schema.json` /
 `site.schema.json` — all gitignored build inputs, like `dist/`. The root `build` runs the toolchain
 (`build:bricks` → `build:theme` → `lib/build-theme.ts` → the generator; no lightningcss CLI) — see
@@ -257,9 +291,8 @@ Its _Reference_ section is not written by hand: `apps/docs/scripts/sync-referenc
 
 Note the app tasks shell out via `pnpm --filter <app> exec …`: vp resolves binaries itself and doesn't put `apps/*/node_modules/.bin` on `PATH`, so a bare `cd apps/docs && astro build` fails with "cannot find binary path".
 
-Two non-obvious caching/ordering gotchas:
+One non-obvious caching/ordering gotcha:
 
-- **`pack.clean: false` is required.** tsdown clears its `outDir` by default; the root `pack` (which now builds only the docs `editor.js`) shares `dist/` with `build:theme`'s codegen output, so leaving clean on would wipe `styles.min.css` and `bricks-colors-*.json` whenever `build:editor` runs.
 - **`build:theme`'s `input` is declared explicitly.** vp's auto file-tracker only sees files the task itself reads. `node lib/build-theme.ts` reads its script + `design-system.json` and imports the built generator _inside_ the spawned Node process, so without an explicit `input` list (covering `packages/generator/dist/**` + `packages/generator/assets/**` + the config), source edits hit the cache and the dist files appear "stuck" on stale content.
 
 Lint, format and typecheck run automatically on save and via a `PostToolUse` hook on `Edit|Write` (`.claude/settings.json`) — don't invoke `vp check` / `vp fmt` / `vp lint` manually as a verification step. The `staged` key wires `vp check --fix` into the pre-commit hook.

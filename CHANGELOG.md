@@ -11,6 +11,74 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 0.8.0 — 2026-07-27
+
+One new feature — a live theme editor — plus repairs to things shipped in 0.7.0 that didn't work
+outside this repo.
+
+### Added
+
+- **`<wc-theme-editor>` — tune the whole design system in the browser, with no rebuild.** Palette,
+  semantic roles, type roles, spacing, layout, pattern geometry, radii and shadows, layered as
+  `:root` custom-property overrides and exportable as CSS or as a `design-system.json` patch. On a
+  dev server running `@getvitops/vite`, **Save to source** writes the patch back through
+  validate → write → regenerate; on a static build the probe fails and the button isn't rendered.
+
+  It ships as a **separate, opt-in bundle** — `@getvitops/core/editor`, ~13 kB, no Lit — and is
+  never registered in `elements.js`, so a page that doesn't ask for it pays nothing. Enable with
+  `getvitops({ editor: true })`.
+
+  This is a deliberate exception to the framework's rule that web components must progressively
+  enhance accessible no-JS markup: it's _tooling_, not a page pattern, and a live editor has no
+  no-JS fallback to enhance. It's quarantined rather than excused — don't read it as precedent for
+  behaviour JS in a `<wc-*>` element.
+
+- **`validate()` returns `warnings: string[]`** for configs that parse and generate but won't behave
+  as authored, and `vitops validate` prints them. First case: a `patterns.radii` key named after a
+  pattern collides on `--br-<name>` (the example config hits this with `radii.card`).
+
+### Breaking
+
+- **`body { margin: 0 }` is now part of the framework.** The UA's 8px margin offset every
+  full-bleed surface — sticky headers and `bg-*` bands rendered inset, with a sliver of canvas
+  around them, because the framework owns page gutters through `.centered`'s `--gutter`. This is
+  the _only_ UA reset the framework makes; it still deliberately ships no general reset (no global
+  `box-sizing` change), which would silently reflow existing layouts. **Migration:** drop any
+  `body { margin: 0 }` you added to compensate; add your own padding if you relied on the inset.
+
+- **`.cta` defaults to the `ui-primary` role instead of `brand-primary`.** The three tiers of one
+  interaction family had split colour lineage — `:where(button, .btn)` and `:where(a, .link)`
+  resolved to `ui-primary` while `.cta` alone used `brand-primary`, so the focus ring changed
+  colour depending on which tier you tabbed onto. **Migration:** none if the two roles share a hue
+  (true of the example config). If they differ and you want the old colour, use the new
+  `.cta-brand-primary` variant — `brand-primary` was added to `cta.roles`, so a brand-coloured CTA
+  is reachable rather than unavailable.
+
+### Fixed
+
+- **Dark mode worked only under Bricks.** The dark block was emitted under
+  `:root[data-brx-theme="dark"]` alone — Bricks' own attribute, which nothing else sets — while the
+  shipped `<color-scheme-toggle>` writes `data-theme`. Clicking "Dark" changed an attribute no rule
+  matched. Both are now matched. ("System" still resolves to light; there is deliberately no
+  `prefers-color-scheme` block, since adding one would flip every existing site dark for dark-OS
+  users.)
+- **The colour scheme now persists across navigations**, via `localStorage`, and `<Head />` applies
+  it before first paint so pages don't render light and flip. Previously the choice was per-page
+  state and the toggle even cleared it on unmount.
+- **`@getvitops/emdash@0.2.1` reported version `0.2.0`** from its plugin descriptor — a
+  hand-maintained literal that `changeset version` doesn't touch. It's now derived from
+  package.json, and `vp run release` runs the test suite that catches this before publishing.
+- **`generateIconInclude()` is reachable.** The semantic icon mapping (declare names + sets, get
+  the build-time `include` map) lived in a package path that was never exported, so nothing could
+  call it. It moved to `@getvitops/utils`, which `@getvitops/astro` re-exports. Unresolvable
+  semantic names now throw at build time naming every offender, where they were skipped silently.
+- **`design-manifest.json` reverse-index paths.** Numeric colour steps mapped to the hue's `seed`
+  (which regenerates the whole ramp, collapsing every step onto one path); they now map to
+  `anchors.<n>`. `--br-<name>` resolved to `patterns.radii.<name>` even when a pattern owned the
+  variable.
+- **`@getvitops/create`'s emdash template** pinned `@getvitops/astro: ^0.4.0`, a range that stopped
+  resolving when astro joined the fixed group at 0.7.0.
+
 ## 0.7.0 — 2026-07-27
 
 ### Breaking

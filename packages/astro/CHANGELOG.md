@@ -1,5 +1,132 @@
 # @getvitops/astro
 
+## 0.8.0
+
+### Minor Changes
+
+- a334049: Make the semantic icon mapping reachable, and fail the build on unresolvable names.
+
+  `generateIconInclude()` — declare the semantic icon names a site needs plus which sets to draw
+  them from, get back the `include` map that keeps the bundle to just those glyphs — already existed
+  but was unreachable: it lived in `@getvitops/core/src/utils/`, which the package doesn't export.
+  It has moved to `@getvitops/utils` (a build-time concern, in the build-time utilities package),
+  which `@getvitops/astro` re-exports wholesale. So from `astro.config.mjs`:
+
+  ```js
+  import { generateIconInclude } from '@getvitops/astro';
+  import icon from 'astro-icon';
+
+  integrations: [
+    icon({
+      include: generateIconInclude({
+        ui: 'fa7-solid',
+        brand: 'simple-icons',
+        semantic: ['menu', 'close', 'search', 'github'],
+      }),
+    }),
+  ];
+  // → { "fa7-solid": ["bars","xmark","magnifying-glass"], "simple-icons": ["github"] }
+  ```
+
+  Swapping `ui` to `'lucide'` yields `{ lucide: ["menu","x","search"] }` from the same declaration —
+  which is the point: the semantic names are what your markup commits to, and the set is a config
+  choice. The output shape is the `include` both `astro-icon` and `astro-iconset` accept, so the
+  mapping doesn't tie you to either.
+
+  **Unresolvable names are now a build error.** Previously they were skipped silently, so swapping
+  sets appeared to succeed and the gaps surfaced as missing glyphs in production. The error names
+  every offender; an unknown set name throws too, listing the known sets.
+
+  Also fixes `@getvitops/create`'s emdash template, which pinned `@getvitops/astro: ^0.4.0` — a range
+  that stopped resolving when astro joined the fixed group at 0.7.0, so scaffolded projects were
+  stuck on the old line.
+
+- **New: `<wc-theme-editor>`, a live theme editor you can ship with your site.**
+
+  Tune the whole design system in the browser — palette, semantic roles, type roles, spacing, layout,
+  pattern geometry, radii, shadows — with no rebuild. Edits are layered as `:root` custom-property
+  overrides, persist to localStorage, and export as CSS or as a `design-system.json` patch. It follows
+  your site's colour scheme and drives the same `data-theme` + storage key as `<color-scheme-toggle>`,
+  so the two no longer fight.
+
+  It ships as a **separate, opt-in bundle** (`@getvitops/core/editor`, ~13 kB, no Lit) and is never
+  registered in `elements.js`: a page that doesn't ask for it pays nothing.
+
+  ```js
+  // astro.config.mjs
+  getvitops({
+    css: { input: 'design-system.json', format: 'css', out: 'src/styles' },
+    editor: true,
+  });
+  ```
+
+  ```html
+  <!-- anywhere in your layout -->
+  <wc-theme-editor></wc-theme-editor>
+  ```
+
+  `editor: true` copies `editor.js` into `public/vitops/`, loads it from `<Head />`, and mirrors
+  `design-manifest.json` to `/vitops/design-manifest.json` (override with the `manifest` attribute).
+  Outside Astro, load the bundle yourself and point `manifest` at the file.
+
+  **Save straight back to your config, in dev.** `@getvitops/vite` now serves a dev-only
+  `/__vitops/design-system` endpoint: the editor POSTs its patch, the plugin deep-merges it into your
+  `design-system.json`, validates the _merged_ result, writes it back preserving the file's formatting,
+  then regenerates and reloads. The endpoint exists only under `vite dev` — on a static deploy the
+  editor detects its absence and hides the button, while everything else still works.
+
+  **Added:** `colors.roleTokens` in `design-manifest.json` — the functional token set (bg / border /
+  solid / on-solid / text / emphasis stops) precomputed per hue, in `default` and `surface` variants for
+  both appearances. Re-pointing a role at another hue needs these: `solid` is chosen by scanning the hue
+  and `on-solid` is a computed contrast value, so neither is derivable by a browser client.
+
+  **Removed:** the dead `interaction` block from `design-manifest.json` — a hardcoded
+  `{duration, easing}` literal with no schema key, no reverse-index entry, and no corresponding CSS
+  variable. Nothing could have consumed it meaningfully. The real animation knobs are
+  `--animation-duration-*` / `--custom-ease-*`.
+
+  **Fixed:** a `[popover]` reset in `popover.css` was stripping the background, padding and border from
+  any pattern used as a popover. It is imported after `drawer.css`, so at equal specificity it beat
+  `.drawer` — and `dialog` (0-0-1) too — leaving a `.drawer[popover]` transparent and unpadded despite
+  drawer.css documenting popover as supported. The reset now sits in `:where()` at zero specificity, so
+  it still overrides the UA stylesheet but any pattern class takes its surface back. Open/closed
+  behaviour is unchanged.
+
+  **Added:** `input[type="range"]` and `input[type="color"]` now have baseline styling in `forms.css`
+  (accent colour from `--ui-primary-solid`; the colour swatch picks up the control border and radius).
+
+### Patch Changes
+
+- aa2863d: Persist the colour scheme across navigations, and drop the UA body margin.
+
+  **The colour scheme now sticks.** `<color-scheme-toggle>` records the explicit choice in
+  `localStorage` (`vitops-color-scheme`) and restores it on load. Previously every navigation reset
+  to System — the component defaulted to `system` on each page and its `disconnectedCallback` even
+  deleted the attribute on unmount, so the scheme was per-page state rather than a user preference.
+  Choosing System clears the key, so a visitor can go back to following their OS.
+
+  `<Head />` from `@getvitops/astro` now also emits a tiny synchronous script that applies the stored
+  value **before first paint**. Without it the persisted choice would still work, but every page
+  would render light and flip once the deferred element bundle upgraded. A test asserts the storage
+  key stays in step between the two (they can't share an import: core exports only prebuilt bundles,
+  and the Head script must be a literal in the emitted HTML).
+
+  **`body { margin: 0 }`** is now part of the framework. The UA's 8px margin offset every full-bleed
+  surface — sticky headers and `bg-*` bands rendered inset with a sliver of canvas around them, since
+  the framework owns page gutters through `.centered`'s `--gutter`. This is the only UA reset the
+  framework makes; it deliberately still ships no general reset (no global `box-sizing` change),
+  which would silently reflow existing layouts.
+
+  **Migration:** if you were compensating for the body margin with a negative offset or your own
+  `body { margin: 0 }`, you can drop it. Sites relying on the 8px inset will need to add their own
+  padding.
+
+- Updated dependencies
+  - @getvitops/core@0.8.0
+  - @getvitops/generator@0.8.0
+  - @getvitops/vite@0.8.0
+  - @getvitops/utils@0.8.0
+
 ## 0.7.0
 
 ### Minor Changes

@@ -90,6 +90,37 @@ fieldset.fieldset,
   background: var(--surface-bg);
 }
 
+/* ── Range + colour controls ───────────────────────────────────────────────── */
+/* `accent-color` is the whole job for range: it themes the track fill and thumb
+ * natively, in both appearances, with no pseudo-element rewriting. The colour
+ * swatch only needs its chrome removed so the well fills the control box. */
+input[type='range'] {
+  accent-color: var(--range-accent, var(--ui-primary-solid));
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+input[type='color'] {
+  --_br: var(--br-input, var(--br-control, var(--br-default)));
+
+  inline-size: var(--color-swatch-size, 2rem);
+  block-size: var(--color-swatch-size, 2rem);
+  padding: 0;
+  border: var(--b-input, var(--b-control, var(--b-default)));
+  border-radius: var(--_br);
+  background: none;
+  cursor: pointer;
+
+  &::-webkit-color-swatch-wrapper {
+    padding: 2px;
+  }
+  &::-webkit-color-swatch,
+  &::-moz-color-swatch {
+    border: none;
+    border-radius: calc(var(--_br) - 2px);
+  }
+}
+
 /* ── Input group — input flanked by icons/addons ───────────────────────────── */
 .input-group {
   --_br: var(--br-input-group, var(--br-control, var(--br-default)));

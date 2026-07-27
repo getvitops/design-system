@@ -154,6 +154,12 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
       </div>
     </div>
 
+    <!-- Live theme editor (getvitops({ editor: true }) loads its bundle). Pure
+         tooling: it renders nothing until the element upgrades, so a no-JS page
+         is unaffected and it needs no fallback markup. On `vp run docs:dev` its
+         "Save to source" button writes back into src/design-system.json. -->
+    <wc-theme-editor></wc-theme-editor>
+
     <footer class="docs-footer bg-surface-muted">
       <div class="centered"><div class="spotlight cluster-between font-footnote text-surface-muted">
         <p>Built with the design system it documents.</p>

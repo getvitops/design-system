@@ -14,8 +14,13 @@ import head from 'virtual:getvitops/head';
 interface Props {
   favicons?: boolean;
   webComponents?: boolean;
+  editor?: boolean;
 }
-const { favicons = head.favicons, webComponents = head.webComponents } = Astro.props;
+const {
+  favicons = head.favicons,
+  webComponents = head.webComponents,
+  editor = head.editor,
+} = Astro.props;
 const wc = head.wcBase;
 
 /**
@@ -57,3 +62,11 @@ const THEME_SCRIPT =
     <script is:inline type="module" src={`${wc}/elements.js`}></script>
   </>
 )}
+
+{/*
+  The live theme editor — a separate, opt-in bundle (getvitops({ editor: true })).
+  It is tooling, not part of the runtime, so it stays out of elements.js and off
+  every page that doesn't ask for it. Loads independently of `webComponents`:
+  <wc-theme-editor> registers itself and pulls in no framework element.
+*/}
+{editor && <script is:inline type="module" src={`${wc}/editor.js`}></script>}

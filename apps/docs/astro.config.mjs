@@ -29,6 +29,10 @@ export default defineConfig({
       // The framework's Lit components are copied into public/ and loaded by
       // <Head />: the colour-scheme toggle in the header is a real one.
       webComponents: true,
+      // The live theme editor. Editing works on the deployed site too; only
+      // "Save to source" needs the dev server (`vp run docs:dev`), where it
+      // writes back into ../../src/design-system.json and regenerates.
+      editor: true,
     }),
   ],
 });

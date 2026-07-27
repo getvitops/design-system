@@ -4,20 +4,12 @@ export default defineConfig({
   staged: {
     '*': 'vp check --fix',
   },
-  // ── JS packaging (tsdown, via `vp pack`) ──
-  // The framework runtime bundles (polyfills/deferred/elements) now live in
-  // @getvitops/core (packages/core/vite.config.ts). The root only builds the
-  // docs-only live editor (editor.js), loaded by index.html. clean:false keeps
-  // the rest of dist/ (produced by build:theme) intact.
-  pack: {
-    entry: ['src/js/editor.ts'],
-    outDir: 'dist',
-    clean: false,
-    format: ['es'],
-    minify: true,
-    dts: false,
-    platform: 'browser',
-  },
+  // ── No JS packaging at the root ──
+  // Every browser bundle now lives in @getvitops/core (packages/core/vite.config.ts),
+  // including the live theme editor — `editor.js` used to be a root-only docs script
+  // and is now `@getvitops/core/editor`. It reaches dist/ through the generator's
+  // asset copy like the other bundles, so there's no root `pack` (and no need for
+  // the `clean: false` that kept it from wiping build:theme's output).
 
   // ── Lint / format (Oxlint / Oxfmt, via `vp check` / `vp fmt`) ──
   lint: {
@@ -59,7 +51,7 @@ export default defineConfig({
   // ── Tasks (Vite Task, via `vp run <name>`) ──
   run: {
     tasks: {
-      dev: { command: 'vp dev', dependsOn: ['build', 'build:docs', 'build:editor'] },
+      dev: { command: 'vp dev', dependsOn: ['build', 'build:docs'] },
 
       // Default full build → the Bricks target. Format-specific full builds are
       // separate `build:<type>` tasks (not a `--format` flag: vp appends
@@ -82,10 +74,6 @@ export default defineConfig({
         input: ['packages/core/src/**/*.ts', 'packages/core/vite.config.ts'],
         output: ['packages/core/dist/**'],
       },
-
-      // Docs-only live editor (editor.js), loaded by index.html. Root-built (not shipped
-      // in the theme). Separate from the framework runtime, which lives in @getvitops/core.
-      'build:editor': { command: 'vp pack', output: ['dist/editor.js*'] },
 
       // Theme dist via @getvitops/generator (dogfood). Emits styles.min.css (bundled by
       // core's lightningcss *library* — no CLI), the Bricks import JSON, tokens.json,
@@ -193,7 +181,16 @@ export default defineConfig({
       // EmDash CMS plugin: descriptor/runtime only (the ./astro entry ships as source).
       'build:emdash': {
         command: 'cd packages/emdash && vp pack',
-        input: ['packages/emdash/src/**/*.ts', 'packages/emdash/vite.config.ts'],
+        input: [
+          'packages/emdash/src/**/*.ts',
+          'packages/emdash/vite.config.ts',
+          // The descriptor's `version` is imported from package.json and inlined
+          // at build time, so a version-only bump MUST invalidate this task —
+          // otherwise `changeset version` bumps the manifest, the cached dist
+          // keeps the old number, and the descriptor ships stale. That is exactly
+          // how 0.2.1 published a descriptor reading 0.2.0.
+          'packages/emdash/package.json',
+        ],
         output: ['packages/emdash/dist/**'],
       },
       // Build all publishable packages (cli/vite need core + utils; astro needs all).

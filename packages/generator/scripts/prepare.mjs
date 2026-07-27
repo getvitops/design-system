@@ -42,12 +42,13 @@ mkdirSync(join(assets, 'bricks'), { recursive: true });
 cpSync(join(REPO, 'bricks', 'elements'), join(assets, 'bricks', 'elements'), { recursive: true });
 cpSync(join(REPO, 'bricks', 'load.php'), join(assets, 'bricks', 'load.php'));
 
-// Pre-built framework JS bundles from @getvitops/core's build. editor.js is docs-only
-// (root-built) and NOT part of the theme, so it's excluded here.
+// Pre-built framework JS bundles from @getvitops/core's build. editor.js (the live
+// theme editor) rides along so a generated dist/ can host it, but nothing enqueues
+// it — a page opts in by placing a <wc-theme-editor> tag and loading the bundle.
 mkdirSync(join(assets, 'js'), { recursive: true });
 const coreDist = join(CORE, 'dist');
 let jsCount = 0;
-for (const f of ['polyfills.js', 'elements.js', 'deferred.js']) {
+for (const f of ['polyfills.js', 'elements.js', 'deferred.js', 'editor.js']) {
   if (existsSync(join(coreDist, f))) {
     cpSync(join(coreDist, f), join(assets, 'js', f));
     jsCount++;

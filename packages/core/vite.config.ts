@@ -1,16 +1,17 @@
 import { defineConfig } from 'vite-plus';
 
 // Browser bundle build for @getvitops/core (the framework runtime), moved from the
-// repo root. Three independent ES-module entries (loaded via <script type="module">):
+// repo root. Four independent ES-module entries (loaded via <script type="module">):
 //   • polyfills — feature-detected polyfill loader; belongs high in <head>.
 //   • deferred  — non-critical progressive-enhancement behaviour; loads late.
 //   • elements  — self-registering Lit web components.
+//   • editor    — the opt-in live theme editor; not part of the runtime.
 // ESM lets the bundler code-split each polyfill into its own async chunk, fetched
 // only when its feature test fails. The polyfill/lit/webcomponents deps are bundled
 // (not externalised) so the output resolves standalone in the browser.
 export default defineConfig({
   pack: {
-    entry: ['src/js/polyfills.ts', 'src/js/deferred.ts', 'src/js/elements.ts'],
+    entry: ['src/js/polyfills.ts', 'src/js/deferred.ts', 'src/js/elements.ts', 'src/js/editor.ts'],
     outDir: 'dist',
     format: ['es'],
     minify: true,

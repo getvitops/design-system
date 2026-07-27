@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/utils",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Shared build-time utilities for the Vitops toolchain — favicon generation and friends.",
   "license": "MIT",
   "files": [

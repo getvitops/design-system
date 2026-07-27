@@ -1,5 +1,132 @@
 # @getvitops/cli
 
+## 0.8.0
+
+### Minor Changes
+
+- a334049: Make the semantic icon mapping reachable, and fail the build on unresolvable names.
+
+  `generateIconInclude()` — declare the semantic icon names a site needs plus which sets to draw
+  them from, get back the `include` map that keeps the bundle to just those glyphs — already existed
+  but was unreachable: it lived in `@getvitops/core/src/utils/`, which the package doesn't export.
+  It has moved to `@getvitops/utils` (a build-time concern, in the build-time utilities package),
+  which `@getvitops/astro` re-exports wholesale. So from `astro.config.mjs`:
+
+  ```js
+  import { generateIconInclude } from '@getvitops/astro';
+  import icon from 'astro-icon';
+
+  integrations: [
+    icon({
+      include: generateIconInclude({
+        ui: 'fa7-solid',
+        brand: 'simple-icons',
+        semantic: ['menu', 'close', 'search', 'github'],
+      }),
+    }),
+  ];
+  // → { "fa7-solid": ["bars","xmark","magnifying-glass"], "simple-icons": ["github"] }
+  ```
+
+  Swapping `ui` to `'lucide'` yields `{ lucide: ["menu","x","search"] }` from the same declaration —
+  which is the point: the semantic names are what your markup commits to, and the set is a config
+  choice. The output shape is the `include` both `astro-icon` and `astro-iconset` accept, so the
+  mapping doesn't tie you to either.
+
+  **Unresolvable names are now a build error.** Previously they were skipped silently, so swapping
+  sets appeared to succeed and the gaps surfaced as missing glyphs in production. The error names
+  every offender; an unknown set name throws too, listing the known sets.
+
+  Also fixes `@getvitops/create`'s emdash template, which pinned `@getvitops/astro: ^0.4.0` — a range
+  that stopped resolving when astro joined the fixed group at 0.7.0, so scaffolded projects were
+  stuck on the old line.
+
+- 58cb3d7: Fix two wrong paths in the live-editor manifest, and surface token-namespace collisions.
+
+  **`validate()` now returns `warnings: string[]`** alongside `ok`/`data`/`errors`, for configs that
+  parse and generate but won't behave as authored. `vitops validate` prints them. The field is always
+  present, so existing code reading `ok`/`errors` is unaffected.
+
+  The first warning covers a collision the flat `--<prop>-<name>` grammar allows: a `patterns.radii`
+  key named after a pattern claims the same variable. The example config hits it —
+  `patterns.radii.card` and the `card` pattern both want `--br-card`:
+
+  ```
+  ! patterns.radii.card collides with the "card" pattern on --br-card;
+    the pattern's override hook wins — rename the radius
+  ```
+
+  **`design-manifest.json` reverse-index fixes** (affects the live editor's edit-to-config mapping):
+  - Numeric colour steps mapped to `colors.palette.<hue>.seed`. The seed regenerates the whole ramp,
+    so every step of a hue collapsed onto one path and editing two steps would silently keep one.
+    They now map to `colors.palette.<hue>.anchors.<n>` — the schema's step → colour override.
+  - `--br-<name>` resolved to `patterns.radii.<name>` even when a pattern owned the variable. Radii
+    are now applied last and only where a pattern hasn't claimed it, matching what the CSS actually
+    does.
+
+### Patch Changes
+
+- 611f340: `.cta` now defaults to the `ui-primary` role instead of `brand-primary`.
+
+  The three tiers of one interaction family had split colour lineage: `:where(button, .btn)` and
+  `:where(a, .link)` resolved to `ui-primary` while `.cta` alone used `brand-primary`. For a project
+  whose brand and UI hues differ, that meant the focus ring changed colour depending on which tier
+  you tabbed onto.
+
+  Semantically the ui role is also the better fit — `brand-*` is identity, `ui-*` is the interface
+  responding to you, and a CTA's prominence already comes from its fill, weight and padding rather
+  than from borrowing the brand hue. Keeping brand as an explicit opt-in means a genuine brand moment
+  still carries signal, and a rebrand restyles brand surfaces instead of silently restyling every
+  form's submit button.
+
+  **Migration:** none if `brand-primary` and `ui-primary` map to the same hue (the common case, and
+  true of the example config). If they differ and you want the previous colour, add the new
+  `.cta-brand-primary` variant — `brand-primary` has been added to `cta.roles`, so a brand-coloured
+  CTA is reachable as a class rather than being unavailable.
+
+- 46b129d: Make the dark-mode flip reachable outside Bricks.
+
+  The dark functional-token block was emitted under `:root[data-brx-theme="dark"]` only.
+  `data-brx-theme` is Bricks' own attribute — Bricks sets it, nothing else does — so on every other
+  target the dark flip was unreachable. In particular the shipped `<color-scheme-toggle>` web
+  component writes `documentElement.dataset.theme` (i.e. `data-theme`), so clicking "Dark" set an
+  attribute no rule matched and the page stayed light.
+
+  The block now matches `:root[data-brx-theme="dark"], :root[data-theme="dark"]`, which fixes the
+  component everywhere without changing what Bricks already does. No migration needed.
+
+  Note this covers the _explicit_ choice only. There is still no `prefers-color-scheme` block, so the
+  toggle's "System" position resolves to light. Adding one would flip every existing consumer site
+  dark for dark-OS users, which is a product decision rather than a bug fix.
+
+- aa2863d: Persist the colour scheme across navigations, and drop the UA body margin.
+
+  **The colour scheme now sticks.** `<color-scheme-toggle>` records the explicit choice in
+  `localStorage` (`vitops-color-scheme`) and restores it on load. Previously every navigation reset
+  to System — the component defaulted to `system` on each page and its `disconnectedCallback` even
+  deleted the attribute on unmount, so the scheme was per-page state rather than a user preference.
+  Choosing System clears the key, so a visitor can go back to following their OS.
+
+  `<Head />` from `@getvitops/astro` now also emits a tiny synchronous script that applies the stored
+  value **before first paint**. Without it the persisted choice would still work, but every page
+  would render light and flip once the deferred element bundle upgraded. A test asserts the storage
+  key stays in step between the two (they can't share an import: core exports only prebuilt bundles,
+  and the Head script must be a literal in the emitted HTML).
+
+  **`body { margin: 0 }`** is now part of the framework. The UA's 8px margin offset every full-bleed
+  surface — sticky headers and `bg-*` bands rendered inset with a sliver of canvas around them, since
+  the framework owns page gutters through `.centered`'s `--gutter`. This is the only UA reset the
+  framework makes; it deliberately still ships no general reset (no global `box-sizing` change),
+  which would silently reflow existing layouts.
+
+  **Migration:** if you were compensating for the body margin with a negative offset or your own
+  `body { margin: 0 }`, you can drop it. Sites relying on the 8px inset will need to add their own
+  padding.
+
+- Updated dependencies
+  - @getvitops/generator@0.8.0
+  - @getvitops/utils@0.8.0
+
 ## 0.7.0
 
 ### Minor Changes

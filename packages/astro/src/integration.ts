@@ -55,6 +55,18 @@ export interface GetvitopsOptions {
   webComponents?: boolean;
   /** Generate + auto-inject the design-system CSS. Off unless provided. */
   css?: GetvitopsCssOptions;
+  /**
+   * Ship the live theme editor (default false).
+   *
+   * Copies `editor.js` into `public/vitops/`, loads it from `<Head />`, and mirrors
+   * the generated `design-manifest.json` next to it so `<wc-theme-editor>` resolves
+   * its default `/vitops/design-manifest.json`. Requires `css` (the manifest is a
+   * `css`-format output) — place the `<wc-theme-editor>` tag in your layout yourself.
+   *
+   * Editing is live on any deploy; **saving back** to `design-system.json` needs the
+   * dev server, so on a static build that button simply isn't rendered.
+   */
+  editor?: boolean;
 }
 
 interface HeadData {
@@ -63,6 +75,7 @@ interface HeadData {
   themeColor: string | null;
   webComponents: boolean;
   wcBase: string;
+  editor: boolean;
 }
 
 const VIRTUAL_ID = 'virtual:getvitops/head';
@@ -88,6 +101,9 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
         const root = fileURLToPath(config.root);
         const publicDir = fileURLToPath(config.publicDir);
         const webComponents = opts.webComponents !== false;
+        const editor = opts.editor === true;
+        if (editor && !opts.css)
+          logger.warn('editor: true needs a `css` config — it reads design-manifest.json.');
         const hasManifest = !!(opts.favicon?.name && opts.favicon?.themeColor);
         let hasSvg = false;
 
@@ -120,7 +136,9 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
           const coreDist = join(dirname(corePkg), 'dist');
           const dest = join(publicDir, 'vitops');
           if (existsSync(coreDist)) {
-            for (const f of ['polyfills.js', 'deferred.js', 'elements.js', 'polyfills']) {
+            const bundles = ['polyfills.js', 'deferred.js', 'elements.js', 'polyfills'];
+            if (editor) bundles.push('editor.js');
+            for (const f of bundles) {
               const src = join(coreDist, f);
               if (existsSync(src)) cpSync(src, join(dest, f), { recursive: true });
             }
@@ -142,6 +160,7 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
                 themeColor: opts.favicon?.themeColor ?? null,
                 webComponents,
                 wcBase: '/vitops',
+                editor,
               }),
             ],
           },
@@ -151,7 +170,16 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
         if (opts.css) {
           const format: Format = opts.css.format ?? 'tailwind';
           const out = opts.css.out ?? 'src/styles';
-          const plugins = [vitops({ input: opts.css.input ?? 'design-system.json', format, out })];
+          const plugins = [
+            vitops({
+              input: opts.css.input ?? 'design-system.json',
+              format,
+              out,
+              // Mirrored inside the generate pass so the served copy can never be
+              // missing on a cold start or stale after a config edit.
+              ...(editor ? { editorManifestDir: publicDir } : {}),
+            }),
+          ];
           // tailwindcss() is typed against a newer vite than @getvitops/vite's
           // peer; the Plugin shapes are structurally compatible at runtime
           // (Astro forwards them verbatim), so bridge the two type identities.

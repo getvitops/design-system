@@ -4,14 +4,31 @@
  */
 
 /* ── Popover — native Popover API reset + anchored position variants ───────── */
-[popover] {
+
+/**
+ * The UA gives `[popover]` a padding, border and canvas background; a bare
+ * popover wants none of that. But this partial is imported *after* drawer.css /
+ * dialog.css, so at plain `[popover]` specificity (0-1-0) the reset also beat
+ * `.drawer` (0-1-0, earlier) and `dialog` (0-0-1) — silently stripping the
+ * surface off any pattern used as a popover, which is exactly what drawer.css
+ * documents itself as supporting.
+ *
+ * So the reset sits in `:where()` at zero specificity: it still overrides the UA
+ * stylesheet, and *any* explicit class takes it back. Same mechanism the `btn`
+ * pattern uses with `:where(button, .btn)`. Keep the visual reset here and the
+ * open/closed behaviour below — that must stay at real specificity so a
+ * component's own rules can't accidentally reveal a closed popover.
+ */
+:where([popover]) {
   padding: 0;
   border: none;
   background: transparent;
   color: inherit;
   overflow: visible;
   inset: auto;
+}
 
+[popover] {
   &:popover-open {
     opacity: 1;
   }

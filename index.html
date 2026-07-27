@@ -19,8 +19,10 @@
          entries, color-scheme-toggle, multi-field). Progressive: markup degrades
          without JS; these upgrade it on load. -->
     <script type="module" src="./dist/elements.js"></script>
-    <!-- Live design-system editor (docs-only): reads dist/design-manifest.json and
-         layers runtime :root overrides so the page's tokens can be tuned live. -->
+    <!-- Live theme editor (@getvitops/core/editor — a separate, opt-in bundle, not
+         part of elements.js). Reads dist/design-manifest.json and layers runtime
+         :root overrides so the page's tokens can be tuned live. The <wc-theme-editor>
+         tag itself sits at the end of <body>. -->
     <script type="module" src="./dist/editor.js"></script>
     <style>
       /* ── Docsite scaffolding — only styles with NO framework equivalent ──── */
@@ -3603,5 +3605,10 @@
         themeBtn.textContent = isDark ? 'Switch to dark mode' : 'Switch to light mode';
       });
     </script>
+
+    <!-- Live theme editor. The manifest sits next to this page's stylesheet in
+         dist/ (emitted by `vp run build:docs`), so point at it directly rather
+         than the /vitops/ default an Astro consumer gets. -->
+    <wc-theme-editor manifest="./dist/design-manifest.json"></wc-theme-editor>
   </body>
 </html>
