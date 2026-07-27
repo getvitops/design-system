@@ -139,6 +139,7 @@ function cmdValidate(argv: string[]) {
     fail(`could not parse JSON: ${(err as Error).message}`);
   }
   const result = validate(raw);
+  for (const w of result.warnings) console.warn(`  ! ${w}`);
   if (result.ok) {
     console.log(`✓ ${path} is valid`);
     return;

@@ -295,13 +295,20 @@ export const jsonSchema = {
 };
 
 export type ValidationResult =
-  | { ok: true; data: DesignSystem; errors: [] }
-  | { ok: false; data: undefined; errors: z.core.$ZodIssue[] };
+  | { ok: true; data: DesignSystem; errors: []; warnings: string[] }
+  | { ok: false; data: undefined; errors: z.core.$ZodIssue[]; warnings: string[] };
 
-/** Validate an unknown value against the design-system schema. */
+/**
+ * Validate an unknown value against the design-system schema.
+ *
+ * `warnings` are configurations that parse and generate, but produce output that
+ * won't behave as authored — currently only the token-namespace collisions the
+ * flat `--<prop>-<name>` grammar makes possible.
+ */
 export function validate(input: unknown): ValidationResult {
   const result = z.safeParse(DesignSystemSchema, input);
-  if (!result.success) return { ok: false, data: undefined, errors: result.error.issues };
+  if (!result.success)
+    return { ok: false, data: undefined, errors: result.error.issues, warnings: [] };
   // Every role must point at a palette hue that exists.
   const { palette, roles } = result.data.colors;
   for (const [role, hue] of Object.entries(roles)) {
@@ -316,8 +323,22 @@ export function validate(input: unknown): ValidationResult {
             message: `role "${role}" references unknown palette hue "${hue}"`,
           } as z.core.$ZodIssue,
         ],
+        warnings: [],
       };
     }
   }
-  return { ok: true, data: result.data, errors: [] };
+  const warnings: string[] = [];
+  // A radius named after a pattern collides on `--br-<name>`: the radius token and
+  // the pattern's own override hook are the same var, so whichever the generator
+  // emits last silently wins. Same class of clash as a pattern keyed like its
+  // group (see the `tag`/`label` note in AGENTS.md). The pattern hook takes it.
+  const radii = Object.keys(result.data.patterns?.radii ?? {});
+  const items = new Set(Object.keys(result.data.patterns?.items ?? {}));
+  for (const name of radii)
+    if (items.has(name))
+      warnings.push(
+        `patterns.radii.${name} collides with the "${name}" pattern on --br-${name}; ` +
+          `the pattern's override hook wins — rename the radius`,
+      );
+  return { ok: true, data: result.data, errors: [], warnings };
 }

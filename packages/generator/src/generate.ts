@@ -700,11 +700,33 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
   // ── design-manifest.json (live-editor manifest; css format) ──────────────────
   const designManifest = (() => {
     const reverseIndex: Record<string, string> = {};
-    // Numeric steps are generated from the hue's seed — edits map back to it.
+    // A numeric step maps back to that step's `anchors` entry, NOT to the hue's
+    // `seed`: the seed regenerates the whole ramp (and every step would collapse
+    // to one path, so editing two steps of a hue would silently keep only one),
+    // whereas `anchors.<step>` is precisely the per-step override (see schema.ts).
     for (const [name, hue] of Object.entries(expandedPalette))
       for (const n of Object.keys(hue.numeric))
-        reverseIndex[`--color-${name}-${n}`] = `colors.palette.${name}.seed`;
+        reverseIndex[`--color-${name}-${n}`] = `colors.palette.${name}.anchors.${n}`;
     const colorRoles = Object.entries(roleMap).map(([name, ramp]) => ({ name, ramp }));
+    // Per-hue functional token sets, so a client (the live editor) can re-point a
+    // role at another hue. It can't derive these itself: `solid` scans for the
+    // hue's natural 500 and clamps, and `on-solid` is a computed contrast literal,
+    // not a var() ref. Two variants because `surface` uses its own step table.
+    // Keys are functional tokens (`bg`, `on-solid`, `stop-bold`, …) — the same
+    // ones `fnVar()` turns into --<role>-<token> / --color-<role>-<stop>.
+    const roleTokens = Object.fromEntries(
+      Object.entries(expandedPalette).map(([hueName, hue]) => {
+        const def = functionalRole('_', hueName, hue);
+        const sfc = functionalRole('surface', hueName, hue);
+        return [
+          hueName,
+          {
+            default: { light: def.light, dark: def.dark },
+            surface: { light: sfc.light, dark: sfc.dark },
+          },
+        ];
+      }),
+    );
     const typoRoles = (typography?.roles ?? {}) as Record<string, TypographyRole>;
     const hooks: Record<string, { prop: string; key: string }> = {};
     for (const [key, [prop, sfx]] of Object.entries(TYPO_KEYMAP)) hooks[sfx] = { prop, key };
@@ -717,7 +739,6 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
     const pItems = (patterns?.items ?? {}) as Record<string, Pattern>;
     for (const prop of Object.keys(pDefaults))
       reverseIndex[`--${prop}-default`] = `patterns.defaults.${prop}`;
-    for (const name of Object.keys(pRadii)) reverseIndex[`--br-${name}`] = `patterns.radii.${name}`;
     for (const [group, props] of Object.entries(pGroups))
       for (const prop of Object.keys(props))
         reverseIndex[`--${prop}-${group}`] = `patterns.groups.${group}.${prop}`;
@@ -730,6 +751,14 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
         reverseIndex[`--${sfx}-${name}`] = `patterns.items.${name}.base.${prop}`;
       return { name, group: p.group ?? null, base, wrappable, roles: p.roles ?? [] };
     });
+    // Radii last, and only where a pattern hasn't already claimed the var: a
+    // `patterns.radii` key that equals a pattern name collides on `--br-<name>`
+    // (e.g. radii `card` vs the `card` pattern — a live collision in the example
+    // config). The pattern's BASE_HOOK is the documented override, so it wins,
+    // and `validate()` surfaces the collision as a warning so it isn't silent.
+    for (const name of Object.keys(pRadii))
+      if (!(`--br-${name}` in reverseIndex))
+        reverseIndex[`--br-${name}`] = `patterns.radii.${name}`;
     return JSON.stringify(
       {
         colors: {
@@ -737,6 +766,7 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
           steps: NUMERIC_STEPS,
           palette: numericPalette,
           roles: colorRoles,
+          roleTokens,
         },
         typography: {
           roles: Object.keys(typoRoles),
@@ -751,7 +781,6 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
         fonts: ds.fonts ?? {},
         patterns: { defaults: pDefaults, radii: pRadii, groups: pGroups, items },
         shadows: shadows ?? {},
-        interaction: { duration: '200ms', easing: 'ease' },
         reverseIndex,
       },
       null,
@@ -1209,6 +1238,7 @@ function loadConfig(input: string | DesignSystem): DesignSystem {
       .join('\n');
     throw new Error(`Invalid design-system.json:\n${lines}`);
   }
+  for (const w of result.warnings) console.warn(`[vitops] ${w}`);
   return result.data;
 }
 
