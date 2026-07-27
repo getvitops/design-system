@@ -686,9 +686,10 @@ pattern CSS is assembled — token cascade, \`--p-<pattern>\`-style override hoo
 shortcuts — is explained in [/concepts/patterns.md](../concepts/patterns.md).)
 
 - Patterns: ${code(patterns)}.
-- Roles (for coloured patterns like \`badge\`, \`tag\`, \`status\`, \`button\`):
-  ${code(patternRoles)} — e.g. \`badge-success\`, \`button-danger\`. The default (unsuffixed)
-  variant uses the brand-primary role.
+- Roles (for coloured patterns — \`badge\`, \`tag\`, \`status\`, \`cta\`, \`btn\`, …):
+  ${code(patternRoles)} — e.g. \`badge-success\`, \`cta-danger\`. A pattern that also styles an
+  element accepts the bare role class too (\`<button class="danger">\`). The default
+  (unsuffixed) variant uses the pattern's \`default_role\`.
 - Shape primitives: \`--br-<name>\` radii — ${code(radii)}.
 `;
 }
@@ -1030,16 +1031,25 @@ Shared geometry resolves through a variable chain, most-specific first:
 
 ## 2 — Base declarations & override hooks
 
-Each pattern's \`base\` block is emitted on its selector — a class (\`.<class ?? name>\`) or,
-with \`element\`, a **zero-specificity** \`:where(<element>)\` rule so author CSS can always
-override it. Geometry properties are wrapped in a **per-pattern override hook**:
+Each pattern's \`base\` block is emitted on its selector:
+
+- \`class\` only → \`.<class ?? name>\`, at normal class specificity.
+- \`element\` only → a **zero-specificity** \`:where(<element>)\` rule, so author CSS can always
+  override it.
+- **both** → one \`:where(<element>, .<class>)\` rule (e.g. \`:where(button, .btn)\`). The element
+  gets the styling with no class needed, the class carries it to any other tag, and — because the
+  whole thing sits at zero specificity — any explicit class wins, including a louder pattern
+  (\`.cta\`) or a component's own rule (\`.dialog__close\`).
+
+Geometry properties are wrapped in a **per-pattern override hook**:
 
 | base property | hook variable |
 | --- | --- |
 ${hookTable}
 
-e.g. \`padding: var(--p-button, 0.6em 1.2em)\` — a consumer restyles every button by setting
-\`--p-button\` on \`:root\`, without touching the pattern.
+e.g. \`padding: var(--p-btn, 0.4em 0.8em)\` — a consumer restyles every button by setting
+\`--p-btn\` on \`:root\`, without touching the pattern. The hook is named after the pattern's
+**key**, not its class.
 
 ## 3 — States
 
@@ -1061,7 +1071,10 @@ rules are wrapped in \`@media (hover: hover)\` so touch devices never stick.
 ## 4 — Role variants
 
 \`roles\` lists semantic colour variants: class patterns emit \`.<pattern>-<role>\`
-(\`.badge-success\`), element patterns emit \`<element>.<role>\` (\`button.danger\`). Fill
+(\`.badge-success\`). A pattern with an \`element\` emits both the bare role class on the
+element and the \`-<role>\` form (\`:where(button, .btn).danger, .btn-danger\`), so the same
+variant works on a non-element host — both at class specificity, so neither outranks a
+plain class. Fill
 patterns set \`background-color: var(--<role>-solid)\` + \`color: var(--<role>-on-solid)\`;
 text patterns use the role's \`bold\` emphasis stop. \`default_role\` colours the bare,
 unsuffixed pattern. States re-apply per variant with the variant's role.

@@ -25,3 +25,9 @@ Then import the generated stylesheet (Tailwind v4):
 ```
 
 Powered by [`@getvitops/generator`](https://www.npmjs.com/package/@getvitops/generator).
+
+## Changelog
+
+This package's history: [`CHANGELOG.md`](./CHANGELOG.md) (shipped in the npm tarball, so it
+also reads from `node_modules/@getvitops/vite/CHANGELOG.md`). `@getvitops/core`, `generator`,
+`utils`, `cli`, `vite` and `astro` share one version and are released together.

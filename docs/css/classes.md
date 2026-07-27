@@ -18,6 +18,11 @@ This is a **rule reference**, not an exhaustive list: each family below is a nam
 plus the set of tokens it expands over. Applying a rule to any listed token yields a valid
 class (e.g. rule `bg-<color>` + colour `pine-xl` → `bg-pine-xl`).
 
+The tokens themselves are authored in `design-system.json` — see
+[/authoring.md](../authoring.md); the systems behind them are explained in
+[/concepts/](../concepts/index.md); per-format output differences (including which of
+these utilities Tailwind provides natively) in [/formats.md](../formats.md).
+
 ## Responsive & state variant grammar
 
 Every utility accepts a **container-breakpoint prefix**; animation utilities also accept a
@@ -107,10 +112,13 @@ element; scroll-linked entrances resolve within the first portion of the element
 ## Component patterns
 
 Each pattern is a base class `<pattern>` with interaction states (hover/active/focus-visible)
-baked in; coloured patterns add role variants via rule **`<pattern>-<role>`**.
+baked in; coloured patterns add role variants via rule **`<pattern>-<role>`**. (How the
+pattern CSS is assembled — token cascade, `--p-<pattern>`-style override hooks, state
+shortcuts — is explained in [/concepts/patterns.md](../concepts/patterns.md).)
 
-- Patterns: `button`, `link`, `badge`, `card`, `tag`, `status`, `tooltip`, `dialog`, `popover`, `dropdown`, `notification`, `lightbox`, `comment`, `tabs`, `drawer`, `carousel`, `nav`, `banner`, `details`, `table`, `list`, `tree`, `pull-quote`, `combobox`, `forms`.
-- Roles (for coloured patterns like `badge`, `tag`, `status`, `button`):
-  `brand-primary`, `success`, `danger`, `warning`, `info`, `neutral` — e.g. `badge-success`, `button-danger`. The default (unsuffixed)
-  variant uses the brand-primary role.
-- Shape primitives: `--br-<name>` radii — `pill`, `circle`, `chip`, `card`.
+- Patterns: `btn`, `cta`, `link`, `badge`, `card`, `tag`, `status`, `tooltip`, `dialog`, `popover`, `dropdown`, `notification`, `lightbox`, `comment`, `tabs`, `drawer`, `carousel`, `nav`, `banner`, `details`, `table`, `list`, `tree`, `pull-quote`, `combobox`, `forms`.
+- Roles (for coloured patterns — `badge`, `tag`, `status`, `cta`, `btn`, …):
+  `success`, `danger`, `warning`, `info`, `brand-primary`, `ui-primary`, `neutral` — e.g. `badge-success`, `cta-danger`. A pattern that also styles an
+  element accepts the bare role class too (`<button class="danger">`). The default
+  (unsuffixed) variant uses the pattern's `default_role`.
+- Shape primitives: `--br-<name>` radii — `pill`, `circle`, `card`.

@@ -107,6 +107,8 @@ export default defineConfig({
           'dist/tokens.json',
           'dist/bricks/**',
           'dist/docs/**',
+          // The tracked mirror of the docs bundle (dist/ is gitignored).
+          'docs/**',
         ],
       },
 
@@ -199,7 +201,15 @@ export default defineConfig({
         command:
           'vp run build:generator && vp run build:utils && vp run build:cli && vp run build:vite-plugin && vp run build:astro && vp run build:emdash',
       },
-      // Version + publish the scoped packages via Changesets. Root stays private.
+      // Apply pending changesets: bump every package + write the per-package
+      // CHANGELOG.md files. Run BEFORE `release`, then hand-write the matching
+      // entry in the root CHANGELOG.md (the curated, toolchain-level notes).
+      // See the release runbook in AGENTS.md.
+      'release:version': {
+        command: 'changeset version',
+      },
+      // Publish the scoped packages via Changesets. Root stays private.
+      // Assumes `release:version` already ran and the root CHANGELOG.md is current.
       release: {
         command: 'vp run build:packages && changeset publish',
       },

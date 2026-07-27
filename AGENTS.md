@@ -102,9 +102,29 @@ the Build system section.
 
 Build/publish: `npx vp run build:packages` (core → generator → utils → cli → vite → astro; each task
 `dependsOn` the packages it imports) and `npx vp run release` (`build:packages && changeset publish`).
-Versioning is via Changesets (`.changeset/config.json`): `core`/`generator`/`utils`/`cli`/`vite` are
-**fixed** together; `@getvitops/astro` versions independently; the root and `apps/*` stay
-private/ignored.
+Versioning is via Changesets (`.changeset/config.json`): `core`/`generator`/`utils`/`cli`/`vite`/`astro`
+are **fixed** together — one version for the whole toolchain; `@getvitops/emdash` and
+`@getvitops/create` version independently (they have no `@getvitops/*` dependencies); the root and
+`apps/*` stay private/ignored.
+
+The lockstep is **load-bearing, not cosmetic**: `packages/generator/scripts/prepare.mjs` snapshots
+core's CSS + built JS bundles into `packages/generator/assets/`, so generator@X ships a frozen copy
+of core@X — while `@getvitops/astro` resolves `@getvitops/core/package.json` at _runtime_ and copies
+the _installed_ core's bundles into the consumer's `public/`. A consumer's page thus gets its CSS
+from generator@X and its web components from core@Y; `fixed` is what guarantees X == Y. Don't split
+the group without solving that skew.
+
+**Release runbook:**
+
+1. `npx changeset` — describe the change in consumer-facing terms (this text becomes the published
+   changelog; name breaking changes and their migration explicitly).
+2. `npx vp run release:version` — `changeset version`: bumps every package and writes the
+   per-package `CHANGELOG.md` files.
+3. **Write the matching entry in the root `CHANGELOG.md`** — the curated, toolchain-level notes
+   (Breaking / Added / Fixed + migrations). Summarise what step 2 generated; don't transcribe
+   dependency bumps. Every package ships its own `CHANGELOG.md` in its tarball via `files`, so both
+   layers reach consumers.
+4. `npx vp run release` — `build:packages && changeset publish`.
 
 ## Development
 
@@ -145,7 +165,7 @@ Other tools used:
 - Spacing utilties (.space\*)
 - Typographic utilities (.font-display, .font-title, ...)
 - Animation utilities (see @src/css/animations.css)
-- Patterns (link, button, card, badge, etc.)
+- Patterns (link, cta, btn, card, badge, etc.)
 
 ## Codegen flow
 
@@ -153,7 +173,28 @@ Other tools used:
 
 - **colour** (`color.css`) — Each `colors.palette` hue is an **11-step numeric OKLCH scale** (`--color-<hue>-50…950`, tinted near-white → tinted near-black) generated from a `seed` (+ optional `anchors`) or a fixed `tones` brand kit. `colors.roles` maps each semantic role (neutral, surface, ui-primary/secondary/accent, brand-primary/secondary, info/success/warning/danger) to a hue; the generator derives **functional tokens** — `--<role>-{bg,bg-muted,border,border-bold,solid,solid-bold,on-solid,text,text-muted,text-x-muted}` plus appearance-relative emphasis stops `--color-<role>-{x-muted,muted,bold,x-bold}` and `--surface-glass`/`--overlay` — with matching utility classes (`bg-<role>`, `text-<role>-muted`, `text-on-<role>`, `.glass`, …). Dark mode is the **automatic functional flip** under `:root[data-brx-theme="dark"]` (bg/text ends swap; `solid` stays mode-stable with a computed `on-solid`). Contrast targets (text ≥ APCA Lc 75, muted ≥ 60, both appearances) are enforced by unit tests. There is no per-appearance scheme grammar and no named steps.
 - **shadows** (`shadows.css`) — `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Always emitted for the `css`/`bricks` formats.
-- **patterns** (`patterns.css`) — component CSS for entries under `patterns` in the JSON (button, link, badge, card). Each pattern has `base` declarations, `states` (hover/active/focus-visible) with shortcuts (`step`, `scale`, `lift`, `shadow`, `ring`, `css`), and `roles` (semantic colour variants). Always emitted.
+- **patterns** (`patterns.css`) — component CSS for entries under `patterns` in the JSON (cta, btn, link, badge, card). Each pattern has `base` declarations, `states` (hover/active/focus-visible) with shortcuts (`step`, `scale`, `lift`, `shadow`, `ring`, `css`), and `roles` (semantic colour variants). Always emitted.
+
+  **Geometry must resolve through the group alias layer — never hard-code the group token.** For
+  every grouped pattern the generator emits `--<prop>-<name>-group` aliases (`--br-btn-group:
+var(--br-control)`), and `overrides` replace an alias with a literal. So a pattern's `base` writes
+  `"border-radius": "var(--br-btn-group)"`, **not** `"var(--br-control, 0.25rem)"`. Both render the
+  same, but only the first keeps the pattern → group mapping in CSS, where it is inspectable and
+  editable in devtools; a hard-coded fallback bakes it into the rule and is unreachable. The full
+  chain is `--p-btn` (consumer hook, from `BASE_HOOK`) → `--p-btn-group` (pattern/`overrides`) →
+  `--p-control` (group) → `--p-default`. State the tier's _deviations_ in `overrides` and let
+  everything else inherit. (Watch for a hard-coded fallback that is also dead: `--br-control` is
+  always defined, so the `0.25rem` in `var(--br-control, 0.25rem)` never applied.)
+
+  **Small-label patterns split by behaviour:** `badge` is a **static** label (status, count,
+  category); `tag` is an **editable and/or dismissable** one (`.tag__remove`, `.tag__icon`, and the
+  `.tag-list` field). "chip" is retired as vocabulary. Their shared group is named **`label`** —
+  deliberately _not_ `tag`, because a pattern whose key equals its group name collides in the token
+  namespace (`--br-tag` would be both the group token and the `tag` pattern's override hook, making
+  the pattern's `-group` alias unreachable). Keep group names distinct from pattern names.
+
+  **Two button tiers, by intent.** `.cta` is _persuasion_ — filled, bolder, larger padding, lift on hover; it's a class, so it works on any element (`<a class="cta">` is the common case, since CTAs usually navigate). `btn` is _affordance_ — it only signals "this is interactive", and pairs `element: "button"` with `class: "btn"` so it emits one `:where(button, .btn)` rule: a bare `<button>` gets it with no class, `.btn` carries it to other tags, and because the rule sits at zero specificity **any** explicit class overrides it (`.cta`, or a component's own `.dialog__close`). A pattern that sets both `element` and `class` is the general mechanism here; `link` does the same to emit `:where(a, .link)`. Use `fill: true|false` to state whether states/roles drive `background-color` (+ `on-solid` text) or `color` — `btn` must set `fill: false` because its `background: transparent` would otherwise be inferred as a fill.
+
 - **animation-effects** (`animation-effects.css`) — the effect + journey classes from `animations` in the JSON (`.fade-in`, `.reveal-left`, `.<parts>-journey`, …), each a pure value layer (`--_anim` + `--<prop>-from/-to`). Journeys are composed from `animations.journeys.base` + `compose`. Always emitted. The animation **engine** (keyframes, drivers, floats, utilities) stays hand-written in `@getvitops/core`'s `css/animation.css`.
 - `dist/bricks-colors-{named,semantic}.json` — palettes for Bricks Builder's Color Manager. Each semantic entry carries `darkEnabled` + a `dark` ref so Bricks generates the dark-mode overrides on import.
 

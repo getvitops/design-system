@@ -8,7 +8,8 @@
   },
   "files": [
     "dist",
-    "skill"
+    "skill",
+    "CHANGELOG.md"
   ],
   "type": "module",
   "exports": {

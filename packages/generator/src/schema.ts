@@ -120,7 +120,14 @@ const Pattern = desc(
       z.optional(z.string()),
       'Style at element level via zero-specificity `:where(<element>)` (instead of, or alongside, a class).',
     ),
-    class: desc(z.optional(z.string()), "Class name to emit (defaults to the pattern's key)."),
+    class: desc(
+      z.optional(z.string()),
+      "Class name to emit (defaults to the pattern's key when no `element` is set). Combined with `element`, the pattern emits one zero-specificity `:where(<element>, .<class>)` rule so the class works on any tag and any explicit class overrides it.",
+    ),
+    fill: desc(
+      z.optional(z.boolean()),
+      'Whether this pattern is colour-filled (states/roles drive `background-color` + `on-solid` text) or text-coloured (they drive `color`). Defaults to true when `base` declares a background.',
+    ),
     default_role: desc(
       z.optional(z.string()),
       'Semantic colour role applied to the bare/default variant.',

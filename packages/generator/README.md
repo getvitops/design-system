@@ -33,3 +33,9 @@ await generate({
 | `bricks`   | `styles.min.css`, `bricks-colors-*.json`, `bricks-variables.json`, `tokens.json`, JS, `bricks/`, `docs/` |
 
 See the [`design-system.json` schema](./schema.json) for the config shape.
+
+## Changelog
+
+This package's history: [`CHANGELOG.md`](./CHANGELOG.md) (shipped in the npm tarball, so it
+also reads from `node_modules/@getvitops/generator/CHANGELOG.md`). `@getvitops/core`, `generator`,
+`utils`, `cli`, `vite` and `astro` share one version and are released together.

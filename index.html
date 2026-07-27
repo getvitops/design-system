@@ -260,7 +260,7 @@
       }
       /* Like .box, but sets NO `display` — so responsive display utilities
          (.hidden / .md-hidden / .md-inline-block) can win the cascade. */
-      .viz-chip {
+      .viz-swatch {
         background: var(--brand-primary-solid);
         color: #fff;
         border-radius: calc(var(--br-default) / 1.5);
@@ -268,7 +268,7 @@
         font-size: var(--text-xs);
         padding: 0.25rem 0.4rem;
       }
-      .viz-chip.b2 {
+      .viz-swatch.b2 {
         background: var(--color-cobalt);
       }
       .box.b3 {
@@ -464,7 +464,7 @@
         place-items: center;
         height: 4rem;
       }
-      .anim-cell .chip {
+      .anim-cell .mover {
         width: 2.5rem;
         height: 2.5rem;
         border-radius: 0.5rem;
@@ -1422,10 +1422,10 @@
             </p>
             <div class="demo">
               <div class="demo-frame">
-                <span class="hidden md-inline-block viz-chip" style="padding: 0.3rem 0.7rem"
+                <span class="hidden md-inline-block viz-swatch" style="padding: 0.3rem 0.7rem"
                   >visible ≥48rem</span
                 >
-                <span class="md-hidden viz-chip b2" style="padding: 0.3rem 0.7rem"
+                <span class="md-hidden viz-swatch b2" style="padding: 0.3rem 0.7rem"
                   >hidden ≥48rem</span
                 >
                 <p class="swatch-note">
@@ -1939,12 +1939,17 @@
           <section class="rhythm measure" id="patterns">
             <h2><span class="section-no">05</span>UI patterns</h2>
             <p>
-              Component patterns generated from <code>design-system.json</code>.
-              <b>Buttons and links</b> are styled via zero-specificity element selectors (<code
-                >:where(button)</code
-              >
-              / <code>:where(a)</code>) — no class needed for the base — with class-based colour
-              roles.
+              Component patterns generated from <code>design-system.json</code>. Actions come in two
+              tiers, named for <b>intent</b> rather than prominence: <code>.cta</code> is
+              <b>persuasion</b> — it draws attention to drive an action; bare
+              <code>&lt;button&gt;</code> / <code>.btn</code> is <b>affordance</b> — it says only
+              "this is interactive". Both are classes, so either works on any element: a CTA is
+              usually an <code>&lt;a&gt;</code>, because it navigates.
+            </p>
+            <p>
+              <b>Buttons and links</b> pair an element with a class in one zero-specificity rule
+              (<code>:where(button, .btn)</code> / <code>:where(a, .link)</code>) — no class needed
+              for the base, and any explicit class overrides it.
             </p>
 
             <div class="demo rhythm">
@@ -1953,9 +1958,15 @@
                 <p class="font-caption">A padded, rounded panel on <code>surface-xxl</code>.</p>
               </div>
               <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
-                <button>Button</button><button class="success">success</button
-                ><button class="danger">danger</button><button class="warning">warning</button
-                ><button class="info">info</button>
+                <a class="cta" href="#patterns">Get started</a
+                ><button class="cta">as a button</button
+                ><a class="cta cta-success" href="#patterns">success</a
+                ><a class="cta cta-danger" href="#patterns">danger</a>
+              </p>
+              <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
+                <button>Button</button><a class="btn" href="#patterns">as a link</a
+                ><button class="success">success</button><button class="danger">danger</button
+                ><button class="warning">warning</button><button class="info">info</button>
               </p>
               <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
                 <span class="badge">badge</span><span class="badge badge-success">success</span
@@ -1985,23 +1996,51 @@
               </div>
             </dl>
 
-            <h3>Buttons &amp; links</h3>
+            <h3>Actions &amp; links</h3>
             <dl class="api-list">
               <div class="api-row">
-                <div class="api-sig">
-                  <code>button</code> · <code>a</code><span class="t t-state">state</span>
-                </div>
+                <div class="api-sig"><code>.cta</code><span class="t t-state">state</span></div>
                 <div class="api-desc">
-                  Base button / link styling applied by element selector (hover / active /
-                  focus-visible states).
+                  <b>Persuasion.</b> Filled, bolder, roomier, lifts on hover. Opt-in, and works on
+                  any element — most often an <code>&lt;a&gt;</code>, since a call to action usually
+                  navigates.
                 </div>
               </div>
               <div class="api-row">
                 <div class="api-sig">
-                  <code>button.{success|danger|warning|info}</code
+                  <code>.cta-{success|danger|warning|info}</code
                   ><span class="t t-state">state</span>
                 </div>
-                <div class="api-desc">Filled button colour-role variants.</div>
+                <div class="api-desc">Filled colour-role variants of the CTA.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>button</code> · <code>.btn</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  <b>Affordance.</b> Signals only that something is interactive: geometry, cursor,
+                  subtle hover, focus ring. One zero-specificity
+                  <code>:where(button, .btn)</code> rule, so a bare
+                  <code>&lt;button&gt;</code> needs no class and any explicit class overrides it.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>button.{success|danger|warning|info}</code> · <code>.btn-{…}</code
+                  ><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Text-coloured role variants. Both forms are equivalent — the second carries the
+                  variant to a non-<code>&lt;button&gt;</code> host.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>a</code> · <code>.link</code><span class="t t-state">state</span>
+                </div>
+                <div class="api-desc">
+                  Underlined link styling, applied by <code>:where(a, .link)</code>.
+                </div>
               </div>
             </dl>
 
@@ -2580,14 +2619,10 @@
                   <span class="list__trailing">›</span>
                 </li>
               </ul>
-              <div class="chip-list">
-                <span class="chip-list__chip"
-                  >react <button class="chip-list__chip-remove">✕</button></span
-                >
-                <span class="chip-list__chip"
-                  >css <button class="chip-list__chip-remove">✕</button></span
-                >
-                <input class="chip-list__input" placeholder="Add…" />
+              <div class="tag-list">
+                <span class="tag">react <button class="tag__remove">✕</button></span>
+                <span class="tag">css <button class="tag__remove">✕</button></span>
+                <input class="tag-list__input" placeholder="Add…" />
               </div>
               <div class="comment-thread">
                 <div class="comment">
@@ -2671,7 +2706,7 @@
                 <div class="api-desc">
                   Light-DOM wrapper that fades out + removes itself when a descendant
                   <code>[data-dismiss]</code> is clicked (see the banner above). Reusable by any
-                  dismissable UI — banner, notification, chip, alert.<span class="sub"
+                  dismissable UI — banner, notification, tag, alert.<span class="sub"
                     ><strong>Attributes:</strong> <code>duration</code> (ms, auto-dismiss),
                     <code>exit</code> (ms, fade-out). <strong>Fires:</strong>
                     <code>dismiss</code> (cancelable).</span
@@ -2722,12 +2757,13 @@
               </div>
               <div class="api-row">
                 <div class="api-sig">
-                  <code>.chip-list</code><span class="t t-state">state</span>
+                  <code>.tag-list</code><span class="t t-state">state</span>
                 </div>
                 <div class="api-desc">
-                  Chip / token input container.<span class="sub"
-                    ><strong>Parts:</strong> <code>__chip</code>, <code>__chip-remove</code>,
-                    <code>__input</code>.</span
+                  Field of dismissable tags plus a free-text input. Items are plain
+                  <code>.tag</code> / <code>.tag__remove</code> — a tag is the editable or
+                  dismissable label, a badge is the static one.<span class="sub"
+                    ><strong>Parts:</strong> <code>__input</code>.</span
                   >
                 </div>
               </div>
@@ -3483,7 +3519,7 @@
           const cell = document.createElement('div');
           cell.className = 'anim-cell';
           cell.innerHTML =
-            '<div class="demo-stage"><div class="chip"></div></div>' +
+            '<div class="demo-stage"><div class="mover"></div></div>' +
             '<code class="font-code">.' +
             classes.join('.') +
             '</code>' +
@@ -3491,13 +3527,13 @@
             stage +
             '</div>' +
             '<div class="hint">click to replay</div>';
-          const chip = cell.querySelector('.chip');
+          const mover = cell.querySelector('.mover');
           const on = [...classes, 'animate-trigger'];
           eg.appendChild(cell);
           const play = () => {
-            chip.classList.remove(...on, 'is-active');
-            void chip.offsetWidth;
-            chip.classList.add(...on, 'is-active');
+            mover.classList.remove(...on, 'is-active');
+            void mover.offsetWidth;
+            mover.classList.add(...on, 'is-active');
           };
           cell.addEventListener('click', play);
           setTimeout(play, 200);

@@ -3,7 +3,7 @@ import { BaseElement } from './BaseElement.js';
 
 /**
  * Light-DOM dismissable wrapper — progressive enhancement for any dismissable UI
- * (banner, notification, alert, chip). Wrap the content; a click on any descendant
+ * (banner, notification, alert, tag). Wrap the content; a click on any descendant
  * marked `[data-dismiss]` (e.g. the close button) fades the element out and
  * removes it, dispatching a cancelable `dismiss` event first. An optional
  * `duration` (ms) auto-dismisses; `exit` (ms) sets the fade-out time (skipped

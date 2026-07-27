@@ -3,7 +3,7 @@
  * Consumes the generated token cascade (src/css/generated/tokens.css).
  */
 
-/* ── List family — base list, facets, filtered search, virtual, chips ─────── */
+/* ── List family — base list, facets, filtered search, virtual, tag list ──── */
 .list {
   --_p: var(--p-list, var(--p-list-group, var(--p-default)));
   --_b: var(--b-list, var(--b-list-group, var(--b-default)));
@@ -216,11 +216,15 @@
   }
 }
 
-.chip-list {
-  --_p: var(--p-chip-list, var(--p-control, var(--p-default)));
-  --_b: var(--b-chip-list, var(--b-control, var(--b-default)));
-  --_br: var(--br-chip-list, var(--br-control, var(--br-default)));
-  --_fs: var(--fs-chip-list, var(--fs-control, var(--fs-default)));
+/* ── Tag list — a bordered field of dismissable tags plus a free-text input.
+   Items are the generated `.tag` pattern (+ `.tag__remove` from tag.css): a tag is
+   the editable/dismissable label, a badge is the static one — so this needs no
+   parallel item styling of its own. ── */
+.tag-list {
+  --_p: var(--p-tag-list, var(--p-control, var(--p-default)));
+  --_b: var(--b-tag-list, var(--b-control, var(--b-default)));
+  --_br: var(--br-tag-list, var(--br-control, var(--br-default)));
+  --_fs: var(--fs-tag-list, var(--fs-control, var(--fs-default)));
 
   display: flex;
   flex-wrap: wrap;
@@ -232,31 +236,7 @@
   align-items: center;
   font-size: var(--_fs);
 
-  .chip-list__chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.25rem 0.5rem;
-    border-radius: var(--br-chip, var(--br-tag, 0.25rem));
-    font-size: 0.875rem;
-    background: var(--color-surface-muted);
-  }
-
-  .chip-list__chip-remove {
-    padding: 0;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    opacity: 0.6;
-    line-height: 1;
-    transition: opacity 0.15s ease;
-
-    &:hover {
-      opacity: 1;
-    }
-  }
-
-  .chip-list__input {
+  .tag-list__input {
     flex: 1;
     min-inline-size: 6rem;
     border: none;
@@ -266,7 +246,7 @@
   }
 
   &:focus-within {
-    outline: 2px solid var(--chip-list-focus-color, var(--color-brand-primary-muted));
+    outline: 2px solid var(--tag-list-focus-color, var(--color-brand-primary-muted));
     outline-offset: 2px;
   }
 }

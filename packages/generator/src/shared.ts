@@ -6,8 +6,9 @@
 
 /**
  * Pattern base geometry props → per-pattern override-hook shorthand. Each hook
- * wraps the authored value (`padding: var(--p-button, 0.6em 1.2em)`) so a
- * consumer restyles one pattern by setting one variable.
+ * wraps the authored value (`padding: var(--p-btn, 0.4em 0.8em)`) so a
+ * consumer restyles one pattern by setting one variable. The hook is named after
+ * the pattern's key, not its class.
  */
 export const BASE_HOOK: Record<string, string> = {
   padding: 'p',

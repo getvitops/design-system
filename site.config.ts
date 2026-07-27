@@ -30,13 +30,17 @@ export type { SiteConfig, SiteValidationResult } from '@getvitops/generator';
 // Retained for downstream pattern-group tooling.
 
 export const defaultPatternGroupMappings: Record<string, string> = {
-  // tag group
-  badge: 'tag',
-  label: 'tag',
-  status: 'tag',
-  tooltip: 'tag',
+  // label group — small inline labels. `badge` is the static one, `tag` the
+  // editable/dismissable one. (The group is named `label`, not `tag`, so the
+  // group tokens `--<prop>-label` don't collide with the `tag` pattern's own
+  // override hooks `--<prop>-tag`.)
+  badge: 'label',
+  tag: 'label',
+  status: 'label',
+  tooltip: 'label',
   // control group
-  button: 'control',
+  btn: 'control',
+  cta: 'control',
   link: 'control',
   toggle: 'control',
   switch: 'control',
@@ -45,7 +49,7 @@ export const defaultPatternGroupMappings: Record<string, string> = {
   checkbox: 'control',
   select: 'control',
   'input-group': 'control',
-  'chip-list': 'control',
+  'tag-list': 'control',
   'filtered-list': 'control',
   // panel group
   card: 'panel',
@@ -76,5 +80,5 @@ export const defaultPatternGroupMappings: Record<string, string> = {
   'pull-quote': 'pull',
 };
 
-export const patternGroupNames = ['tag', 'control', 'panel', 'area', 'content', 'pull'] as const;
+export const patternGroupNames = ['label', 'control', 'panel', 'area', 'content', 'pull'] as const;
 export type PatternGroupName = (typeof patternGroupNames)[number];

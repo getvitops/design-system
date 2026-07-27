@@ -72,3 +72,10 @@ provisions the D1/R2 resources on first deploy).
 
 Template dependencies must use concrete npm ranges (no `workspace:*` /
 `catalog:` — the scaffolded project lives outside this monorepo).
+
+## Changelog
+
+This package's history: [`CHANGELOG.md`](./CHANGELOG.md) (shipped in the npm tarball, so it
+also reads from `node_modules/@getvitops/create/CHANGELOG.md`). This package versions
+independently of the `@getvitops` toolchain (`core`/`generator`/`utils`/`cli`/`vite`/`astro`,
+which share one version).

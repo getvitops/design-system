@@ -3,10 +3,10 @@
  * Consumes the generated token cascade (src/css/generated/tokens.css).
  */
 
-/* ── Inline code chip — prose <code> that isn't inside a <pre>. Element-level at
-   zero specificity (like the schema-generated button/link patterns) so bare
+/* ── Inline code — prose <code> that isn't inside a <pre>. Element-level at
+   zero specificity (like the schema-generated btn/link patterns) so bare
    <code> needs no class and any explicit class overrides it. .font-code styles
-   type only; this adds the chip. ── */
+   type only; this adds the boxed treatment. ── */
 :where(:not(pre) > code) {
   font-family: var(--font-mono);
   font-size: 0.85em;

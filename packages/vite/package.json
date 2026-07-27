@@ -4,7 +4,8 @@
   "description": "Vite plugin that generates Vitops design-system outputs from a design-system.json during a Vite/Astro build.",
   "license": "MIT",
   "files": [
-    "dist"
+    "dist",
+    "CHANGELOG.md"
   ],
   "type": "module",
   "exports": {

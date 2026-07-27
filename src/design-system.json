@@ -82,11 +82,10 @@
     "radii": {
       "pill": "999px",
       "circle": "50%",
-      "chip": "var(--br-tag, 0.25rem)",
       "card": "0.5rem"
     },
     "groups": {
-      "tag": {
+      "label": {
         "ds": "var(--ds-default)",
         "b": "none",
         "br": "0.25rem",
@@ -136,24 +135,78 @@
       "top": 1000
     },
     "items": {
-      "button": {
+      "btn": {
         "group": "control",
         "element": "button",
-        "default_role": "brand-primary",
+        "class": "btn",
+        "fill": false,
+        "overrides": {
+          "b": "1px solid transparent",
+          "fs": "inherit"
+        },
         "base": {
-          "padding": "0.6em 1.2em",
-          "border-radius": "var(--br-control, 0.25rem)",
-          "border": "none",
-          "font-weight": "600",
+          "display": "inline-flex",
+          "align-items": "center",
+          "justify-content": "center",
+          "gap": "0.4em",
+          "padding": "var(--p-btn-group)",
+          "border-radius": "var(--br-btn-group)",
+          "border": "var(--b-btn-group)",
+          "box-shadow": "var(--ds-btn-group)",
+          "background": "transparent",
+          "color": "inherit",
           "font-family": "inherit",
-          "font-size": "inherit",
-          "cursor": "pointer",
-          "color": "#fff",
-          "box-shadow": "var(--shadow-sm)"
+          "font-size": "var(--fs-btn-group)",
+          "font-weight": "inherit",
+          "line-height": "inherit",
+          "text-decoration": "none",
+          "cursor": "pointer"
         },
         "states": {
           "hover": {
-            "step": 1
+            "step": 1,
+            "css": {
+              "background-color": "var(--color-surface-muted)"
+            }
+          },
+          "focus-visible": {
+            "ring": true
+          }
+        },
+        "roles": ["success", "danger", "warning", "info"]
+      },
+      "cta": {
+        "group": "control",
+        "class": "cta",
+        "fill": true,
+        "default_role": "brand-primary",
+        "overrides": {
+          "p": "0.75em 1.5em",
+          "b": "none",
+          "ds": "var(--shadow-sm)",
+          "fs": "inherit"
+        },
+        "base": {
+          "display": "inline-flex",
+          "align-items": "center",
+          "justify-content": "center",
+          "gap": "0.5em",
+          "padding": "var(--p-cta-group)",
+          "border-radius": "var(--br-cta-group)",
+          "border": "var(--b-cta-group)",
+          "font-family": "inherit",
+          "font-size": "var(--fs-cta-group)",
+          "font-weight": "600",
+          "line-height": "inherit",
+          "text-decoration": "none",
+          "cursor": "pointer",
+          "color": "var(--brand-primary-on-solid)",
+          "box-shadow": "var(--ds-cta-group)"
+        },
+        "states": {
+          "hover": {
+            "step": 1,
+            "lift": "1px"
           },
           "active": {
             "scale": 0.97
@@ -167,7 +220,8 @@
       "link": {
         "group": "control",
         "element": "a",
-        "default_role": "brand-primary",
+        "class": "link",
+        "default_role": "ui-primary",
         "base": {
           "color": "var(--color-ui-primary-bold)",
           "text-decoration": "underline",
@@ -184,14 +238,19 @@
         "roles": []
       },
       "badge": {
-        "group": "tag",
+        "group": "label",
         "class": "badge",
         "default_role": "neutral",
+        "overrides": {
+          "p": "0.2em 0.6em",
+          "br": "var(--br-pill, 999px)",
+          "fs": "0.85em"
+        },
         "base": {
           "display": "inline-block",
-          "padding": "0.2em 0.6em",
-          "border-radius": "var(--br-pill, 999px)",
-          "font-size": "0.85em",
+          "padding": "var(--p-badge-group)",
+          "border-radius": "var(--br-badge-group)",
+          "font-size": "var(--fs-badge-group)",
           "font-weight": "600",
           "color": "#fff"
         },
@@ -201,9 +260,12 @@
       "card": {
         "group": "panel",
         "class": "card",
+        "overrides": {
+          "p": "1.75rem"
+        },
         "base": {
           "border-radius": "var(--br-card-group)",
-          "padding": "1.75rem",
+          "padding": "var(--p-card-group)",
           "background": "var(--surface-bg)",
           "border": "var(--b-card-group)",
           "box-shadow": "var(--ds-card-group)"
@@ -212,17 +274,22 @@
         "roles": []
       },
       "tag": {
-        "group": "tag",
+        "group": "label",
         "class": "tag",
         "default_role": "neutral",
+        "overrides": {
+          "p": "0.25em 0.6em",
+          "b": "1px solid currentColor",
+          "fs": "0.85em"
+        },
         "base": {
           "display": "inline-flex",
           "align-items": "center",
           "gap": "0.25em",
-          "padding": "0.25em 0.6em",
-          "border": "1px solid currentColor",
-          "border-radius": "0.25rem",
-          "font-size": "0.85em",
+          "padding": "var(--p-tag-group)",
+          "border": "var(--b-tag-group)",
+          "border-radius": "var(--br-tag-group)",
+          "font-size": "var(--fs-tag-group)",
           "font-weight": "500",
           "line-height": "1.2",
           "white-space": "nowrap",
@@ -232,20 +299,23 @@
         "roles": ["success", "danger", "warning", "info"]
       },
       "status": {
-        "group": "tag",
+        "group": "label",
         "class": "status-dot",
+        "overrides": {
+          "br": "var(--br-circle, 50%)"
+        },
         "base": {
           "display": "inline-block",
           "inline-size": "var(--status-size, 0.5rem)",
           "block-size": "var(--status-size, 0.5rem)",
-          "border-radius": "var(--br-circle, 50%)",
+          "border-radius": "var(--br-status-group)",
           "background-color": "var(--color-neutral-bold)"
         },
         "states": {},
         "roles": ["success", "danger", "warning", "info"]
       },
       "tooltip": {
-        "group": "tag"
+        "group": "label"
       },
       "dialog": {
         "group": "panel"

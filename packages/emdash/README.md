@@ -114,3 +114,10 @@ EmDash's Portable Text block fields are flat, so patterns with repeating data
 - **Field Kit `list` widgets** on `json` collection fields: model the repeating
   rows in the collection schema and render them at the template level with
   `Cards.astro` / `NodeRenderer.astro` from `@getvitops/astro`.
+
+## Changelog
+
+This package's history: [`CHANGELOG.md`](./CHANGELOG.md) (shipped in the npm tarball, so it
+also reads from `node_modules/@getvitops/emdash/CHANGELOG.md`). This package versions
+independently of the `@getvitops` toolchain (`core`/`generator`/`utils`/`cli`/`vite`/`astro`,
+which share one version).

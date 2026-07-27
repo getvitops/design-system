@@ -112,11 +112,10 @@
     "radii": {
       "pill": "999px",
       "circle": "50%",
-      "chip": "var(--br-tag, 0.25rem)",
       "card": "0.5rem"
     },
     "groups": {
-      "tag": {
+      "label": {
         "ds": "var(--ds-default)",
         "b": "none",
         "br": "0.25rem",
@@ -219,7 +218,7 @@
         "roles": []
       },
       "badge": {
-        "group": "tag",
+        "group": "label",
         "class": "badge",
         "default_role": "neutral",
         "base": {
@@ -252,7 +251,7 @@
         "roles": []
       },
       "tag": {
-        "group": "tag",
+        "group": "label",
         "class": "tag",
         "default_role": "neutral",
         "base": {
@@ -277,7 +276,7 @@
         ]
       },
       "status": {
-        "group": "tag",
+        "group": "label",
         "class": "status-dot",
         "base": {
           "display": "inline-block",
@@ -295,7 +294,7 @@
         ]
       },
       "tooltip": {
-        "group": "tag"
+        "group": "label"
       },
       "dialog": {
         "group": "panel"

@@ -14,7 +14,8 @@
     "src/components/Details.astro",
     "src/components/Drawer.astro",
     "src/schemas",
-    "virtual.d.ts"
+    "virtual.d.ts",
+    "CHANGELOG.md"
   ],
   "type": "module",
   "types": "./dist/index.d.mts",

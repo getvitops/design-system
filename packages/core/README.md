@@ -27,3 +27,9 @@ Most consumers don't import the CSS directly — they run
 [CLI](https://www.npmjs.com/package/@getvitops/cli) or
 [Vite plugin](https://www.npmjs.com/package/@getvitops/vite)) to emit a bundled stylesheet
 from their `design-system.json`, and load these JS bundles for interactivity.
+
+## Changelog
+
+This package's history: [`CHANGELOG.md`](./CHANGELOG.md) (shipped in the npm tarball, so it
+also reads from `node_modules/@getvitops/core/CHANGELOG.md`). `@getvitops/core`, `generator`,
+`utils`, `cli`, `vite` and `astro` share one version and are released together.

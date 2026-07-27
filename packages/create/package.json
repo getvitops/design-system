@@ -4,7 +4,8 @@
   "description": "Project templates for the Vitops design system — scaffold wired-up sites with `vp create @getvitops`.",
   "license": "MIT",
   "files": [
-    "templates"
+    "templates",
+    "CHANGELOG.md"
   ],
   "type": "module",
   "publishConfig": {

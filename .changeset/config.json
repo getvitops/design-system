@@ -8,7 +8,8 @@
       "@getvitops/generator",
       "@getvitops/utils",
       "@getvitops/cli",
-      "@getvitops/vite"
+      "@getvitops/vite",
+      "@getvitops/astro"
     ]
   ],
   "linked": [],

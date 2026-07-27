@@ -24,3 +24,9 @@ await generateFavicons({
 
 Also available via the CLI (`vitops favicon -i logo.svg -o public`) and the Vite plugin's
 `favicon` option.
+
+## Changelog
+
+This package's history: [`CHANGELOG.md`](./CHANGELOG.md) (shipped in the npm tarball, so it
+also reads from `node_modules/@getvitops/utils/CHANGELOG.md`). `@getvitops/core`, `generator`,
+`utils`, `cli`, `vite` and `astro` share one version and are released together.

@@ -189,6 +189,7 @@ interface Pattern {
   overrides?: Record<string, string>;
   element?: string;
   class?: string;
+  fill?: boolean;
   default_role?: string;
   base?: Record<string, string>;
   states?: Record<string, Record<string, unknown>>;
@@ -215,7 +216,9 @@ interface Built {
   patternsCss: string;
 }
 
-function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
+// Exported for tests only — deliberately NOT re-exported from index.ts, so the
+// package's public API stays `generate` / `generateDocs` / `validate`.
+export function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
   const BRICKS = format === 'bricks';
   // Every hue expands to its 11-step numeric OKLCH scale; every role resolves
   // to functional tokens over its hue. Dark mode is the automatic flip.
@@ -394,12 +397,15 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
   }
 
   // ── patterns.css (component interaction patterns) ────────────────────────────
+  // `sel` may be a selector list (an element pattern emits both `:where(el, .cls).role`
+  // and `.cls-role`); the pseudo must be appended to each one, not just the last.
   const stateRules = (
-    sel: string,
+    sel: string | string[],
     role: string | null,
     states: Record<string, Record<string, unknown>>,
     colorProp: 'background-color' | 'color' = 'background-color',
   ) => {
+    const sels = Array.isArray(sel) ? sel : [sel];
     let out = '';
     for (const [state, spec] of Object.entries(states)) {
       const body: string[] = [];
@@ -434,7 +440,7 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
             : state === 'focus-visible'
               ? ':focus-visible'
               : `:${state}`;
-      const rule = `${sel}${pseudo} {\n  ${body.join('\n  ')}\n}\n`;
+      const rule = `${sels.map((s) => `${s}${pseudo}`).join(',\n')} {\n  ${body.join('\n  ')}\n}\n`;
       out += state === 'hover' ? `@media (hover: hover) {\n${rule}}\n` : rule;
     }
     return out;
@@ -445,15 +451,27 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
   for (const [pname, p] of Object.entries((patterns?.items ?? {}) as Record<string, Pattern>)) {
     if (!p.base) continue;
     const states = p.states ?? {};
-    const isElement = !!p.element;
-    const defaultSel = isElement ? `:where(${p.element})` : `.${p.class ?? pname}`;
+    // `class` defaults to the pattern key only for class-only patterns, so an
+    // `element`-only entry never sprouts a surprise class.
+    const cls = p.class ?? (p.element ? undefined : pname);
+    // Element patterns style at zero specificity (`:where(…)`) so any explicit
+    // class — a louder pattern, or a component's own BEM rule — wins without
+    // !important. Class-only patterns stay unwrapped at 0-1-0, or they'd lose to
+    // every utility. With both, the element and the class share one rule, which
+    // is what lets `.btn` / `.link` be applied to any tag.
+    const elementSel = (extra = '') =>
+      `:where(${[p.element, cls && `.${cls}`].filter(Boolean).join(', ')})${extra}`;
+    const defaultSel = p.element ? elementSel() : `.${cls}`;
     const defaultRole = p.default_role ?? null;
     const base = { ...p.base };
+    // Explicit `fill` wins; otherwise infer, keeping the historical name-based
+    // special cases so existing consumer configs don't shift behaviour.
     const fills =
-      pname === 'button' ||
-      pname === 'badge' ||
-      base['background-color'] != null ||
-      base['background'] != null;
+      p.fill ??
+      (pname === 'button' ||
+        pname === 'badge' ||
+        base['background-color'] != null ||
+        base['background'] != null);
     const colorProp: 'background-color' | 'color' = fills ? 'background-color' : 'color';
     pat += `${defaultSel} {\n`;
     const hasStates = Object.keys(states).length > 0;
@@ -473,14 +491,21 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
     pat += decls(wrappedBase) + '\n}\n';
     pat += stateRules(defaultSel, defaultRole, states, colorProp);
     for (const role of p.roles ?? []) {
-      const variantSel = isElement ? `${p.element}.${role}` : `.${p.class ?? pname}-${role}`;
+      // Element patterns take the role as a bare class (`<button class="danger">`)
+      // AND as the `<pattern>-<role>` form that class patterns use, so the same
+      // variant reaches a non-element host (`<a class="btn btn-danger">`). Both
+      // land at 0-1-0 — the element half stays inside :where() so a role variant
+      // can't outrank a plain class the way `button.danger` (0-1-1) used to.
+      const variantSels = p.element
+        ? [elementSel(`.${role}`), ...(cls ? [`.${cls}-${role}`] : [])]
+        : [`.${cls}-${role}`];
       // Fills sit on the role's solid + pair with on-solid; text variants use
       // the bold emphasis stop (readable accent in both appearances).
       const variantColorDecl = fills
         ? `background-color: var(--${role}-solid); color: var(--${role}-on-solid)`
         : `color: var(--color-${role}-bold)`;
-      pat += `${variantSel} { ${variantColorDecl}; }\n`;
-      pat += stateRules(variantSel, role, states, colorProp);
+      pat += `${variantSels.join(',\n')} { ${variantColorDecl}; }\n`;
+      pat += stateRules(variantSels, role, states, colorProp);
     }
     pat += '\n';
   }
@@ -718,20 +743,25 @@ function build(ds: DesignSystem, format: Format, assetsDir: string): Built {
   })();
 
   // ── Tailwind bundle ──────────────────────────────────────────────────────────
-  const tailwind = emitTailwind({
-    ds,
-    expandedPalette,
-    scaleRoles,
-    shadows,
-    typeSteps,
-    spaceSteps,
-    typography,
-    roleDecls,
-    twTypeTokensCss,
-    twPatternTokensCss,
-    patternsCss: pat,
-    assetsDir,
-  });
+  // Only the tailwind format consumes this (see `generate`), and assembling it
+  // reads every framework partial off disk — so skip the work for css/bricks.
+  const tailwind =
+    format !== 'tailwind'
+      ? ''
+      : emitTailwind({
+          ds,
+          expandedPalette,
+          scaleRoles,
+          shadows,
+          typeSteps,
+          spaceSteps,
+          typography,
+          roleDecls,
+          twTypeTokensCss,
+          twPatternTokensCss,
+          patternsCss: pat,
+          assetsDir,
+        });
 
   return {
     generated,

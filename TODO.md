@@ -5,17 +5,34 @@ build — WordPress/Bricks **and** Cloudflare EmDash (Astro/Tailwind). Keep toke
 names platform-agnostic so the same schema round-trips through both the Bricks generators and
 the Tailwind (`--format=tailwind`) output.
 
-## Patterns: consolidate to `badge` + `chip` only
+## Patterns: `badge` + `tag` only — ✅ done
 
-- Keep **`badge`** (status/label pill) and **`chip`** (compact rounded token) as the two
-  small-label patterns.
-- **Remove `tag`** as a separate pattern — fold its use-cases into `badge`/`chip`.
-- **Remove `pill`-specific tokens** (e.g. `--br-pill`, the `radii.pill` primitive, and any
-  `pill`-named variants). Badge/chip should reference their own radius (`--br-badge` /
-  `--br-chip`), not a standalone `pill`.
-- Audit downstream: `.tag` usages in `src/css/patterns/`, `typography.roles` (there's a `tag`
-  type role), `patterns.groups.tag`, and `--br-chip: var(--br-tag,…)` fallbacks — all should
-  be reconciled to badge/chip after the rename.
+Superseded an earlier plan that kept `badge` + `chip` and dropped `tag`. The split is now by
+**behaviour**, not by size:
+
+- **`badge`** — a **static** label (status, count, category). Not interactive.
+- **`tag`** — an **editable and/or dismissable** label or item (e.g. entries in a filter list),
+  with `.tag__remove` / `.tag__icon` sub-parts.
+- **`chip` is retired** as vocabulary. `.chip-list` became `.tag-list`, and its bespoke
+  `__chip` / `__chip-remove` sub-parts were deleted in favour of the existing `.tag` /
+  `.tag__remove` — a tag list is a list of tags. The redundant `radii.chip` primitive (which
+  was only ever an alias of `--br-tag`) is gone.
+
+Still open:
+
+- **Remove `pill`-specific tokens** (`--br-pill`, the `radii.pill` primitive). Badge should
+  reference its own radius (`--br-badge`) rather than a standalone `pill`. Note `--br-pill` is
+  still referenced by `forms.css` (switch track), `list.css` (count) and `tag.css`
+  (badge-indicator), and the `, 999px` fallbacks are **live in the bricks format**, where
+  `patterns.radii` is not emitted (`generate.ts:367`).
+- `typography.roles` has a `tag` type role, unrelated to the `tag` pattern — worth
+  disambiguating.
+
+Resolved along the way: the `tag` **group** was renamed to **`label`**. Previously the `tag`
+pattern and the `tag` group both compiled to `--{p,br,b,ds,fs}-tag`, so the pattern's override
+hook and the group token were the same variable and the pattern's `-group` alias was
+unreachable. Group tokens are now `--<prop>-label`, leaving `--<prop>-tag` free as the `tag`
+pattern's own hook. Members: `badge`, `tag`, `status`, `tooltip`.
 
 ## Typography: fully fluid, Utopia-style
 

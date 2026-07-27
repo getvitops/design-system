@@ -5,7 +5,8 @@
   "license": "MIT",
   "files": [
     "dist",
-    "css"
+    "css",
+    "CHANGELOG.md"
   ],
   "type": "module",
   "exports": {

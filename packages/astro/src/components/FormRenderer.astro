@@ -121,7 +121,7 @@ function resolveOptions(options: FormField['options']): (string | { label: Local
 
   <button
     type="submit"
-    class:list={[submit?.attrs?.class ?? 'btn btn-primary']}
+    class:list={[submit?.attrs?.class ?? 'cta']}
     {...(submit?.attrs ? Object.fromEntries(Object.entries(submit.attrs).filter(([k]) => k !== 'class')) : {})}
   >
     {resolve(submit?.label) || 'Submit'}

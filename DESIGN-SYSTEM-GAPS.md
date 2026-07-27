@@ -96,6 +96,9 @@ Original dark values (the page is always dark):
   (≈ original's `28px`; was `1.5rem` — the "tight" cards) — **deployed + resolves live** ✓
 - **`br-card` imported into Bricks** (`set-global-variables`, id `318e59`, `0.5rem`,
   uncategorized like `br-pill`/`br-circle`/`br-chip`) — cards render 8px live ✓
+  - Since superseded: `radii.chip` was removed with the chip → tag rename (it was only an
+    alias of `--br-tag`), so `br-chip` is now a stale variable in Bricks — drop it on the next
+    Variable Manager import.
 
 **Needs a Bricks re-import to take effect** (scales are Bricks-managed variables): the new
 `--text-4xl…7xl` / `--space-3xl…7xl` are in `dist/bricks-variables.json` but undefined on the
