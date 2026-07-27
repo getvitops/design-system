@@ -29,6 +29,23 @@ import {
 
 export type Format = 'bricks' | 'css' | 'tailwind';
 
+/**
+ * Selector the dark functional-token flip hangs off.
+ *
+ * `data-brx-theme` is Bricks' own attribute — Bricks sets it, so it's what the
+ * WordPress target needs. Nothing sets it anywhere else, which meant the dark
+ * flip was unreachable outside Bricks: the shipped `<color-scheme-toggle>` web
+ * component writes `documentElement.dataset.theme` (i.e. `data-theme`), so
+ * clicking "Dark" changed an attribute no rule matched. Matching both makes the
+ * component work on every target without changing what Bricks already does.
+ *
+ * Note this covers the explicit choice only — there is deliberately no
+ * `prefers-color-scheme` block, so the toggle's "System" position currently
+ * resolves to light. Adding one would flip every existing consumer site dark for
+ * dark-OS users, which is a product decision, not a bug fix.
+ */
+const DARK_SEL = ':root[data-brx-theme="dark"], :root[data-theme="dark"]';
+
 export interface GenerateOptions {
   /** Path to a design-system.json, OR an already-parsed config object. */
   input: string | DesignSystem;
@@ -270,7 +287,7 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
         fb += `  --overlay: color-mix(in oklch, var(--color-${surfaceRole.hue}-950) 60%, transparent);\n`;
       if (fb) {
         css += `/* Functional role tokens (dark) */\n`;
-        css += `:root[data-brx-theme="dark"] {\n  color-scheme: dark;\n${fb}}\n\n`;
+        css += `${DARK_SEL} {\n  color-scheme: dark;\n${fb}}\n\n`;
       }
     }
     // Utilities: hue numeric steps + role emphasis stops, then the functional
@@ -881,7 +898,7 @@ function emitTailwind(ctx: TwCtx): string {
   }
   if (darkBlock)
     parts.push(
-      `/* Functional role tokens (dark) */\n:root[data-brx-theme="dark"] {\n  color-scheme: dark;\n${darkBlock}}\n`,
+      `/* Functional role tokens (dark) */\n${DARK_SEL} {\n  color-scheme: dark;\n${darkBlock}}\n`,
     );
 
   parts.push(

@@ -2,16 +2,27 @@
 /**
  * Docs shell — built from the design system's own vocabulary.
  *
- * Every class here comes from the generated framework: `.centered` + `.split-*`
- * for the track/sidebar layout, `.rhythm` for vertical spacing, `.font-<role>`
- * for type, `.bg-*` / `.text-*` for colour, `.link` / `.btn` / `.badge` for
- * controls, `.sitenav` for the mobile drawer. The only hand-written CSS is the
- * handful of rules at the bottom that no framework pattern covers (sticky
- * sidebar offset, active-link marker) — if that list grows, it's a signal the
- * framework is missing a pattern, which is the point of dogfooding.
+ * Every class here comes from the generated framework: `.centered` for the
+ * content tracks, `.split` + `.md-split-1-4` for the sidebar/main columns,
+ * `.cluster-between` for the header and footer rows, `.rhythm` for vertical
+ * spacing, `.font-<role>` for type, `.bg-*` / `.text-*` for colour, and
+ * `.link` / `.btn` / `.card` / `.details` / `.list` for controls and content.
  *
- * Mobile nav uses <details> + the native Popover/Invoker pairing the framework
- * prefers, so it works with no JavaScript.
+ * Two composition rules the framework enforces, both of which this got wrong at
+ * first and which fail *silently*:
+ *   • `.centered` is a track grid whose `> *` forces children into the `measure`
+ *     column, so it can't share an element with a layout class — give it a track
+ *     child (`.spotlight`, `.breakout`, `.fullbleed`) and lay out inside that.
+ *     Stacking `.centered .cluster-between` looks fine only because cluster.css
+ *     is imported later and its `display: flex` quietly wins.
+ *   • `.split-*` sets ratio variables only; the flex context is `.split`. Without
+ *     it the ratio is inert. Responsive variants resolve against
+ *     `body { container-type: inline-size }`, so no extra container is needed.
+ *
+ * The hand-written CSS at the bottom is what no framework pattern covers. Keep
+ * it short — a rule that belongs to a reusable pattern should move into
+ * @getvitops/core instead. Mobile nav is a native <details> disclosure, so it
+ * works with no JavaScript.
  */
 import Head from '@getvitops/astro/Head.astro';
 import { getCollection } from 'astro:content';
@@ -53,7 +64,7 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
     <a class="link skip-link" href="#content">Skip to content</a>
 
     <header class="docs-header bg-surface-muted">
-      <div class="centered cluster-between" style="align-items: center; gap: 1rem">
+      <div class="centered"><div class="spotlight cluster-between" style="align-items: center; gap: 1rem">
         <a class="font-title docs-brand" href={href('index')}>Vitops</a>
 
         <nav class="cluster-start docs-header__links" style="gap: 1rem; align-items: center">
@@ -83,10 +94,15 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
             ))}
           </div>
         </details>
-      </div>
+      </div></div>
     </header>
 
-    <div class="centered docs-shell md-split-1-4">
+    <!-- `.centered` is a *track* grid (fullbleed/spotlight/breakout/measure) and
+         forces every direct child into `measure`; `.split-*` only sets the ratio
+         variables — the flex context comes from `.split`. So the two can't sit on
+         one element: place a track child, and split inside it. -->
+    <div class="centered">
+      <div class="spotlight split md-split-1-4 docs-shell">
       <aside class="docs-sidebar rhythm" aria-label="Documentation">
         {nav.map((group) => (
           <nav class="rhythm">
@@ -135,13 +151,14 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
 
         <div class="rhythm docs-prose"><slot /></div>
       </main>
+      </div>
     </div>
 
     <footer class="docs-footer bg-surface-muted">
-      <div class="centered cluster-between font-footnote text-surface-muted">
+      <div class="centered"><div class="spotlight cluster-between font-footnote text-surface-muted">
         <p>Built with the design system it documents.</p>
         <p><a class="link" href="https://www.npmjs.com/org/getvitops">@getvitops on npm</a></p>
-      </div>
+      </div></div>
     </footer>
 
     <style>
