@@ -1,5 +1,13 @@
 # @getvitops/vite
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [2cc847d]
+  - @getvitops/generator@0.6.0
+  - @getvitops/utils@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @getvitops/astro
 
+## 0.4.2
+
+### Patch Changes
+
+- Updated dependencies [2cc847d]
+  - @getvitops/generator@0.6.0
+  - @getvitops/vite@0.6.0
+  - @getvitops/core@0.6.0
+  - @getvitops/utils@0.6.0
+
 ## 0.4.1
 
 ### Patch Changes
