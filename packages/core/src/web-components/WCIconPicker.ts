@@ -2,7 +2,7 @@ import { LitElement, css, type CSSResultGroup, type PropertyValues, nothing } fr
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { html } from '@lit-labs/signals';
 import { BaseElement } from './BaseElement.js';
-import { iconMap, prefixToMapKey, type IconSet } from '../utils/icons.js';
+import { iconMap, prefixToMapKey, type IconSet } from '@getvitops/utils';
 
 /* ------------------------------------------------------------------ */
 /*  Iconify API client (module-level, shared across instances)        */

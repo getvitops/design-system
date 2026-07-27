@@ -48,3 +48,20 @@ export type {
   FAQItem,
   OrganizationGraphOptions,
 } from './schema/index.ts';
+
+/**
+ * Semantic icon names → per-set icon names, plus the build-time `include` map.
+ *
+ * Lives here (rather than in core) because it's a build-time concern and this is
+ * the package @getvitops/astro re-exports wholesale — so a consumer can reach
+ * `generateIconInclude` from their astro.config without a new export path. Core's
+ * icon picker consumes it from here too.
+ */
+export {
+  generateIconInclude,
+  iconMap,
+  prefixToMapKey,
+  resolveBrandIcon,
+  resolveIcon,
+} from './icons.ts';
+export type { BrandIcon, IconSet, SemanticIcon } from './icons.ts';
