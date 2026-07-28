@@ -57,10 +57,12 @@ pattern's own hook. Members: `badge`, `tag`, `status`, `tooltip`.
   `Subgrid`, `Cards`, `NodeRenderer`, `WebComponentLoader`, plus `Popover`/`Details`/`Drawer`
   (optional `astro-icon` peer). Config-bound chrome (`Template`/`SEO`/`ContentInfo`/`FormRenderer`)
   stays out of the generic library.
-- **Decouple `Nav`/`Submenu` and ship them too.** They're still internal — coupled to `#site-config`
-  plus the `../utils/images` + `../utils/icon-resolver` pipeline (the latter is the semantic-icon
-  mapping above). Route them through the EmDash menus/widgets integration rather than a one-line
-  `defaultLocale` prop default; export once that resolves.
+- ~~**Decouple `Nav`/`Submenu` and ship them too.**~~ Resolved by deletion (2026-07-27). The whole
+  `#site-config` subtree — `Nav`, `Submenu`, `SEO`, `Template`, `FormRenderer`, `ContentInfo`,
+  `Layout`, plus `utils/{icon-resolver,env,contact,images}` — was removed: `#site-config` was
+  defined nowhere, none of it was in `files`/`exports`, and it had rotted. Recover from `201bfb9`
+  if a site model is wanted again, but rebuild it taking **config as an argument** (not a global
+  module import) and typed against `SiteConfig` from `@getvitops/generator`.
 
 ## EmDash editing portal (`@getvitops/emdash`)
 

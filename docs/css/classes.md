@@ -121,4 +121,4 @@ shortcuts — is explained in [/concepts/patterns.md](../concepts/patterns.md).)
   `success`, `danger`, `warning`, `info`, `ui-primary`, `brand-primary`, `neutral` — e.g. `badge-success`, `cta-danger`. A pattern that also styles an
   element accepts the bare role class too (`<button class="danger">`). The default
   (unsuffixed) variant uses the pattern's `default_role`.
-- Shape primitives: `--br-<name>` radii — `pill`, `circle`, `card`.
+- Shape primitives: `--br-<name>` radii — `pill`, `circle`.

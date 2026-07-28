@@ -50,10 +50,15 @@ Astro + `@getvitops/utils` (the icon ones also on the optional `astro-icon` peer
 `WebComponentLoader` is the one exception that ships a `<script>` — but it only **loads** a web
 component (tier 2), it doesn't implement a pattern. Prefer letting `<Head />` load `elements.js`.
 
-**Internal / config-bound (not exported yet)** — `Nav`, `Submenu`, `Template`, `FormRenderer`,
-`ContentInfo`, `SEO`. These bind to the consumer's `#site-config` (and the image/icon-resolver
-pipeline) and are gated behind the EmDash integration for menus/widgets; they stay in
-`src/components/` but out of the `exports` map until that lands.
+There is deliberately **no site-model layer** here. A `Nav`/`Submenu`/`Template`/`FormRenderer`/
+`ContentInfo`/`SEO`/`Layout` set once lived in `src/`, bound to a bare `#site-config` specifier;
+it was deleted (2026-07-27) because `#site-config` was defined nowhere, nothing exported it, and it
+had rotted. If that layer is ever wanted again, two rules apply: a generic package must **take
+config as an argument** rather than importing consumer global state (the old module-scope reads
+froze their values at import time — use `Astro.locals` via integration middleware for `.astro` prop
+defaults), and it must type against the **existing** `SiteConfig` from `@getvitops/generator`
+(`src/site.ts`) instead of casting to `any`. Anything rebuilt has to land in `files` **and**
+`exports` or it isn't reachable.
 
 All components live in `src/components/` (alongside `Head.astro`).
 

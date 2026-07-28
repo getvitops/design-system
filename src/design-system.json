@@ -81,8 +81,7 @@
     },
     "radii": {
       "pill": "999px",
-      "circle": "50%",
-      "card": "0.5rem"
+      "circle": "50%"
     },
     "groups": {
       "label": {

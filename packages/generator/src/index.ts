@@ -92,7 +92,11 @@ export function defaultConfig(): DesignSystem {
         p: '1rem',
         fs: '1rem',
       },
-      radii: { pill: '999px', circle: '50%', card: '0.5rem' },
+      // No `card` key here: a radii key named after a pattern collides on `--br-<name>`,
+      // shadowing that pattern's override hook and leaving its `-group` alias unreachable
+      // (validate() warns about exactly this). `card` is in the `panel` group, which already
+      // carries the same 0.5rem, so dropping it is value-preserving.
+      radii: { pill: '999px', circle: '50%' },
       groups: {
         control: {
           ds: 'var(--ds-default)',
