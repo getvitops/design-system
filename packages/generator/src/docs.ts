@@ -1162,6 +1162,24 @@ e.g. \`padding: var(--p-btn, 0.4em 0.8em)\` — a consumer restyles every button
 \`--p-btn\` on \`:root\`, without touching the pattern. The hook is named after the pattern's
 **key**, not its class.
 
+\`background\` and \`background-color\` share the \`bg\` hook, since a pattern may author either.
+That is what makes a pattern's fill **undoable** — a flat, border-only card:
+
+\`\`\`html
+<!-- via the hook: applies wherever you set it, including :root for all cards -->
+<div class="card" style="--bg-card: transparent; --ds-card: none">…</div>
+
+<!-- or compose a utility, which reads better inline and is what most authors want -->
+<div class="card bg-transparent" style="--ds-card: none">…</div>
+\`\`\`
+
+\`bg-transparent\` and \`bg-inherit\` are emitted for \`css\`/\`bricks\`; in \`tailwind\` they
+come from Tailwind itself. There is no utility for the shadow, so \`--ds-card: none\` is the
+way to drop it in every format.
+
+Role variants are emitted as their own rules and are **not** wrapped, so setting \`--bg-card\`
+tunes the default fill without silently defeating \`.card-danger\`.
+
 ## 3 — States
 
 \`states\` (hover / active / focus-visible) compile from shortcuts:

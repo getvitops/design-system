@@ -78,6 +78,11 @@ export const BASE_HOOK: Record<string, string> = {
   border: 'b',
   'box-shadow': 'ds',
   'font-size': 'fs',
+  // Both spellings map to `bg`, because patterns author either (`card` uses the
+  // shorthand, `status` the longhand). A pattern setting both would map the
+  // same var twice — a config error, not something to design around.
+  background: 'bg',
+  'background-color': 'bg',
 };
 
 /**

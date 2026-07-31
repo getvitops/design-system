@@ -102,10 +102,13 @@
         color: var(--brand-primary-solid);
         margin-inline-end: 0.5em;
       }
-      .card {
-        border: 1px solid var(--color-surface-muted);
-        box-shadow: var(--shadow-md);
-      }
+      /* NOTE: no `.card` rule here. The docsite used to redeclare border +
+         box-shadow, duplicating what the `card` pattern already emits via
+         --b-card-group / --ds-card-group. Because this <style> is unlayered it
+         beat the pattern outright, which meant the documented override hooks
+         (--ds-card and friends) silently did nothing ON THE PAGE THAT DEMOS
+         THEM. Redeclaring a pattern you are documenting is the one thing this
+         block must not do. */
       .callout {
         border-inline-start: 3px solid var(--brand-primary-solid);
         padding: 0.75rem 1rem;
@@ -2013,6 +2016,16 @@
                 <div class="card bg-danger-muted" style="padding: 1rem; flex: 1 1 12rem">
                   <p class="font-heading">card + bg-danger-muted</p>
                   <p class="font-caption">Composed — tinted plane, inherits text.</p>
+                </div>
+                <!-- Flat: undo the fill and the shadow through the pattern's own
+                     override hooks. `bg-transparent` does the same as --bg-card
+                     and composes better; --ds-card has no utility equivalent. -->
+                <div
+                  class="card bg-transparent"
+                  style="padding: 1rem; flex: 1 1 12rem; --ds-card: none"
+                >
+                  <p class="font-heading">card bg-transparent</p>
+                  <p class="font-caption">Flat — border only, sits on whatever is behind it.</p>
                 </div>
               </div>
               <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">

@@ -307,10 +307,25 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
 
   const generated: Record<string, string> = {};
 
+  /**
+   * The two background utilities that aren't derived from the palette, so
+   * neither the generated scale nor Bricks' own palette import produces them.
+   *
+   * They exist to undo a pattern's fill — `class="card bg-transparent"` for a
+   * flat, border-only card. Tailwind ships both as built-ins, so the tailwind
+   * format deliberately emits neither and defers, exactly as it does for the
+   * `TW_CLASH` names.
+   */
+  const NON_PALETTE_BG =
+    `/* Undo a pattern's fill (Tailwind provides these natively in that format). */\n` +
+    `.bg-transparent { background-color: transparent; }\n` +
+    `.bg-inherit { background-color: inherit; }\n`;
+
   // ── color.css ──────────────────────────────────────────────────────────────
   if (BRICKS) {
     generated['color.css'] =
-      '/* Colours provided by Bricks (palette import generates tokens + utilities). */\n';
+      '/* Colours provided by Bricks (palette import generates tokens + utilities). */\n' +
+      NON_PALETTE_BG;
   } else {
     let css = `/* GENERATED from design-system.json — do not edit by hand. */\n:root {\n`;
     css += `  color-scheme: light;\n`;
@@ -354,6 +369,7 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
     css += `${colorUtilityRules(roleColorUtilities(scaleRoles, UTILITIES))}\n`;
     if (surfaceRole)
       css += `.glass { background-color: var(--surface-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }\n`;
+    css += NON_PALETTE_BG;
     generated['color.css'] = css;
   }
 

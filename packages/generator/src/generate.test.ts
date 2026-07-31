@@ -119,11 +119,26 @@ describe('pattern fill mode', () => {
     const role = ds.patterns!.items!.cta!.default_role!;
     const css = patternsOf(ds);
     expect(css).toMatch(
-      new RegExp(`\\.cta \\{[^}]*background-color: var\\(--${role}-solid\\)`, 's'),
+      // Wrapped in the `--bg-<pattern>` override hook, like every other base
+      // property — the role still supplies the value, it is just overridable.
+      new RegExp(
+        `\\.cta \\{[^}]*background-color: var\\(--bg-cta, var\\(--${role}-solid\\)\\)`,
+        's',
+      ),
     );
     // …and the paired text colour comes from the same role, or the default
     // variant can end up unreadable on its own fill.
     expect(css).toMatch(new RegExp(`\\.cta \\{[^}]*color: var\\(--${role}-on-solid\\)`, 's'));
+  });
+
+  it('gives every base background an override hook, so a fill can be undone', () => {
+    // `background` was the one base property with no BASE_HOOK, which made a
+    // flat/border-only card inexpressible except by an inline style. Both
+    // spellings map to `bg` because patterns author either.
+    const ds = defaultConfig();
+    const css = patternsOf(ds);
+    expect(css).toContain('background: var(--bg-card, var(--surface-bg))');
+    expect(css).toContain('background: var(--bg-btn, transparent)');
   });
 
   it('keeps inferring fill for configs that predate the fill key', () => {
@@ -138,8 +153,10 @@ describe('pattern fill mode', () => {
     };
     const css = patternsOf(ds);
     // No background in base and no `fill` key — the historical name-based special
-    // case must still treat `badge` as a fill.
-    expect(css).toContain('background-color: var(--neutral-solid)');
+    // case must still treat `badge` as a fill. The injected default goes through
+    // the `--bg-<pattern>` hook; role VARIANTS are emitted separately and stay
+    // unwrapped, so overriding `--bg-badge` doesn't silently defeat `.badge-info`.
+    expect(css).toContain('background-color: var(--bg-badge, var(--neutral-solid))');
     expect(css).toContain('background-color: var(--info-solid); color: var(--info-on-solid)');
   });
 });
