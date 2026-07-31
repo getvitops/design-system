@@ -36,8 +36,22 @@ interface Props {
 }
 const { title, description, generated = false, headings = [] } = Astro.props;
 
-const SECTIONS = ['Start here', 'Packages', 'Reference', 'Releases'] as const;
-const all = await getCollection('docs');
+const SECTIONS = ['Start here', 'Live preview', 'Packages', 'Reference', 'Releases'] as const;
+
+/**
+ * Standalone `.astro` routes, folded into the collection-driven nav.
+ *
+ * The preview pages can't be collection entries: they're built from the design
+ * manifest at build time and render live markup, which Markdown can't express
+ * without becoming a wall of hand-written HTML that drifts from the config. They
+ * are shaped like collection entries here so the nav stays one code path.
+ */
+const PAGES = [
+  { id: 'theme', data: { title: 'Theme preview', section: 'Live preview', order: 10 } },
+  { id: 'animation', data: { title: 'Animation library', section: 'Live preview', order: 20 } },
+];
+
+const all = [...(await getCollection('docs')), ...PAGES];
 const nav = SECTIONS.map((section) => ({
   section,
   items: all
@@ -70,6 +84,7 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
         <nav class="cluster-start docs-header__links" style="gap: 1rem; align-items: center">
           <a class="link" href={href('guides/installation')}>Guides</a>
           <a class="link" href={href('packages/cli')}>Packages</a>
+          <a class="link" href={href('theme')}>Theme</a>
           <a class="link" href={href('reference/authoring')}>Reference</a>
           <a class="link" href={href('changelog')}>Changelog</a>
           <!-- Self-contained (shadow DOM, renders its own segmented control) and

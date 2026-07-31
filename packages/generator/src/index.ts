@@ -5,11 +5,16 @@
  * Tailwind v4). The `zod/mini` schema is the single source of truth: types,
  * validation, and the published JSON Schema all derive from it.
  */
-export { generate } from './generate.ts';
-export type { GenerateOptions, GenerateResult, Format } from './generate.ts';
+export { generate, roleColorUtilities } from './generate.ts';
+export type { GenerateOptions, GenerateResult, Format, ColorUtility } from './generate.ts';
+
+// Exposed so `vitops lint` can ask what the generator emits instead of
+// re-deriving the vocabulary and drifting from it.
+export { expandPalette, functionalRole } from './tokens.ts';
+export type { ExpandedHue, FunctionalRole } from './tokens.ts';
 
 export { generateDocs } from './docs.ts';
-export { TW_CLASH, BASE_HOOK } from './shared.ts';
+export { TW_CLASH, BASE_HOOK, DARK_SEL, REQUIRED_ROLES, ROLE_TOKEN_SUFFIXES } from './shared.ts';
 
 export { DesignSystemSchema, jsonSchema, SCHEMA_URL, validate } from './schema.ts';
 export type { DesignSystem, ValidationResult } from './schema.ts';
@@ -87,7 +92,7 @@ export function defaultConfig(): DesignSystem {
     patterns: {
       defaults: {
         ds: 'none',
-        b: '1px solid var(--color-surface-xl)',
+        b: '1px solid var(--surface-bg-muted)',
         br: '0.375rem',
         p: '1rem',
         fs: '1rem',
@@ -191,7 +196,7 @@ export function defaultConfig(): DesignSystem {
           base: {
             'border-radius': 'var(--br-card-group)',
             padding: '1.5rem',
-            background: 'var(--color-surface-xxl)',
+            background: 'var(--surface-bg)',
             border: 'var(--b-card-group)',
             'box-shadow': 'var(--ds-card-group)',
           },

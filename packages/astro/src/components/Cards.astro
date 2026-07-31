@@ -1,32 +1,34 @@
 ---
+/**
+ * Cards — a `Subgrid` whose items are `card`s. The child's own class and style
+ * ride along, so `<article class="bg-surface">` becomes `<li class="card bg-surface">`.
+ *
+ * The class has to be put on the `<li>` we hand to Subgrid rather than written
+ * into the slotted element: `serialize()` returns a node's *inner* HTML, so the
+ * element carrying the attribute is discarded on the way through.
+ */
 import type { HTMLAttributes } from 'astro/types';
 import Subgrid from './Subgrid.astro';
-import { parseRenderedSlots, serialize } from '@getvitops/utils';
+import { parseRenderedSlots, getAttribute, serialize } from '@getvitops/utils';
 
 export interface Props extends HTMLAttributes<'ul'> {}
 
 const { class: className, ...rest } = Astro.props;
 
 const nodes = parseRenderedSlots(await Astro.slots.render('default'));
-const slots = nodes.filter(node => 'tagName' in node).map(node => {
-  const cls = node.attrs?.find(attr => attr.name === 'class');
-  const value = `card${cls ? ' ' + cls.value : ''}`;
-  if (cls) {
-    cls.value = value;
-  } else {
-    node.attrs.push({ name: 'class', value });
-  }
-  
-  return { html: serialize(node), attrs: node.attrs };
-});
+const slots = nodes.filter(node => 'tagName' in node).map(node => ({
+  html: serialize(node),
+  class: getAttribute(node, 'class'),
+  style: getAttribute(node, 'style'),
+}));
 ---
 
 <Subgrid
   role="list"
-  class:list={["no-list-markers", className]}
+  class={className}
   {...rest}
 >
   {slots.map((slot) => (
-    <li class="card-wrapper" style={slot.attrs?.find(attr => attr.name === 'style')?.value} set:html={slot.html}></li>
+    <li class:list={["card", slot.class]} style={slot.style} set:html={slot.html}></li>
   ))}
 </Subgrid>

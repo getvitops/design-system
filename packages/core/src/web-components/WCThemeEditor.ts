@@ -473,12 +473,28 @@ export class WCThemeEditor extends HTMLElement {
     });
   }
 
+  /**
+   * A collapsible section.
+   *
+   * The `.details` pattern removes the native disclosure marker (`list-style:
+   * none` + `::marker { content: none }`) and expects a `.details-icon` element
+   * in the summary, which it rotates 90° on open. Omitting it leaves rows that
+   * are collapsible but don't look it — a real problem here, where the panel is
+   * ~40 nested sections deep and the only affordance is the pointer cursor.
+   * `--marker-start` puts it before the label, which reads better for a tree.
+   */
   private section(title: string, open = false): { details: HTMLDetailsElement; body: HTMLElement } {
     const body = this.el('div', { class: 'ed-body rhythm' });
     const details = this.el(
       'details',
-      { class: 'details ed-section', ...(open ? { open: true } : {}) },
-      [this.el('summary', { class: 'font-eyebrow' }, [title]), body],
+      { class: 'details details--marker-start ed-section', ...(open ? { open: true } : {}) },
+      [
+        this.el('summary', { class: 'font-eyebrow' }, [
+          this.el('span', { class: 'details-icon', 'aria-hidden': 'true' }, ['▸']),
+          title,
+        ]),
+        body,
+      ],
     ) as HTMLDetailsElement;
     return { details, body };
   }
@@ -734,10 +750,15 @@ export class WCThemeEditor extends HTMLElement {
   // ── panel ─────────────────────────────────────────────────────────────────
   private build(m: Manifest): void {
     const id = 'ds-editor-panel';
+    // `manual`, not `auto`: an auto popover light-dismisses on the first click
+    // outside it, and clicking the page is the entire point of a live editor —
+    // you tune a token, then go poke the thing you just changed. `--modeless`
+    // drops the scrim for the same reason: you can't judge a colour through a
+    // blur. The cost of `manual` is losing built-in Esc, so it's wired below.
     const panel = this.el('div', {
       id,
-      popover: 'auto',
-      class: 'drawer drawer--right ed-panel bg-surface text-surface rhythm',
+      popover: 'manual',
+      class: 'drawer drawer--right drawer--modeless ed-panel bg-surface text-surface rhythm',
       'aria-label': 'Design-system editor',
     });
 
@@ -767,6 +788,13 @@ export class WCThemeEditor extends HTMLElement {
       { type: 'button', class: 'cta ed-launch', popovertarget: id },
       ['🎨 Theme'],
     );
+
+    // Esc, which `popover="manual"` doesn't give us. Bound on the document so it
+    // works while focus is out on the page — the panel is modeless, so that's
+    // where focus usually is.
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && panel.matches(':popover-open')) panel.hidePopover();
+    });
 
     this.append(launcher, panel);
   }

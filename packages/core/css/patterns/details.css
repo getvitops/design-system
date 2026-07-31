@@ -37,15 +37,31 @@ details,
     rotate: var(--_details-icon-rotate, 90deg);
   }
 
+  /**
+   * Collapse without a transition — deliberately.
+   *
+   * This carried the canonical open/close animation (`block-size: 0 → auto` with
+   * `content-visibility` under `allow-discrete`, backed by the
+   * `interpolate-size: allow-keywords` in utilities.css). In Chrome 149 that
+   * deadlocks: `content-visibility` stays `hidden`, so the content has no layout,
+   * so `auto` resolves to `0`, so the transition has nothing to run — and the
+   * disclosure never opens *at all*. Not "opens without animating": every
+   * `<details>` on the page becomes inert, which is a total content-loss bug.
+   *
+   * Verified against a bare `<details>` with only this stylesheet, and bisected:
+   * `transition: none` is the only thing that restores it. Transitioning only
+   * `block-size`, only `content-visibility`, `calc-size(auto, size)`, and the
+   * `grid-template-rows: 0fr → 1fr` technique all fail the same way.
+   *
+   * So: correctness over motion. Re-add the transition only with a live
+   * cross-browser check that a first click actually expands — a passing
+   * `@supports` query is not evidence, since the syntax is valid and supported;
+   * it's the interaction that breaks.
+   */
   &::details-content {
     display: block;
     overflow: hidden;
     block-size: 0;
-    opacity: 0;
-    transition:
-      block-size 0.3s ease,
-      opacity 0.3s ease,
-      content-visibility 0.3s allow-discrete;
   }
 
   > summary + * {
@@ -62,13 +78,16 @@ details,
 
   &[open]::details-content {
     block-size: auto;
-    opacity: 1;
   }
 
+  /* Leading marker. The default (trailing) icon uses `margin-inline-start: auto`
+     to push itself to the end; the mirrored `margin-inline-end: auto` here did
+     the same thing to everything *after* it, so the label got shoved to the
+     opposite edge and the variant read as right-aligned text. A leading marker
+     just wants both auto margins gone — `gap` on the summary does the spacing. */
   &.details--marker-start > summary > .details-icon {
     order: -1;
-    margin-inline-start: 0;
-    margin-inline-end: auto;
+    margin-inline: 0;
   }
 
   /* Plus/minus variant — toggle two sibling icon elements */

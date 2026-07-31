@@ -8,25 +8,30 @@
  *   vitops favicon   --input <svg|png> --out <dir> [--low-res <svg|png>]
  *   vitops agents    [--input <json>] [--out AGENTS.md] [--docs-dir <dir>]
  *   vitops docs      [topic] [--input <json>] [--all]
+ *   vitops lint      [--input <json>] [--format <fmt>] [--src <dir>]
  *
  * Thin wrapper over @getvitops/generator (generation) and @getvitops/utils (favicons).
  * Every client brings their own consumer-editable design-system.json.
  */
 import { parseArgs } from 'node:util';
-import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
-import { resolve, join, dirname } from 'node:path';
+import { writeFileSync, existsSync, readFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { resolve, join, dirname, extname } from 'node:path';
 import { createRequire } from 'node:module';
 import {
   generate,
   validate,
   defaultConfig,
   generateDocs,
+  roleColorUtilities,
+  functionalRole,
+  expandPalette,
   SCHEMA_URL,
   type Format,
   type DesignSystem,
 } from '@getvitops/generator';
 import { generateFavicons } from '@getvitops/utils';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
+import { lintSource, vocabulary } from './lint.ts';
 
 const FORMATS = new Set<Format>(['bricks', 'css', 'tailwind']);
 
@@ -39,6 +44,7 @@ Usage:
   vitops favicon [options]      Generate a favicon set from a source image
   vitops agents [options]       Link the design-system agent skill + AGENTS.md pointer
   vitops docs [topic]           Print live design-system reference docs to stdout
+  vitops lint [options]         Report framework classes in your source that resolve to nothing
 
 Generate options:
   -i, --input <path>    Config file (default: ./design-system.json)
@@ -65,6 +71,12 @@ Docs options:
                         (no topic: list topics with summaries)
   -i, --input <path>    Config file (default: ./design-system.json)
       --all             Print every topic, concatenated
+
+Lint options:
+  -i, --input <path>    Config file (default: ./design-system.json)
+  -f, --format <fmt>    Format you build (bricks | css | tailwind; default: bricks).
+                        Responsive md-* classes are real in css/bricks, inert in tailwind.
+  -s, --src <dir>       Directory to scan (default: ./src)
 
 Common:
   -h, --help            Show this help
@@ -190,6 +202,11 @@ function loadConfig(path: string): DesignSystem {
       console.error(`  • ${e.path.join('.') || '(root)'}: ${e.message}`);
     process.exit(1);
   }
+  // Warnings go to stderr, not stdout: `vitops docs <topic>` is designed to be
+  // piped, so anything here must not land in the piped document. They used to
+  // be dropped entirely on this path, which meant `docs` and `agents` stayed
+  // silent about collisions that `generate` and `validate` both reported.
+  for (const w of result.warnings) console.warn(`  ! ${w}`);
   return result.data;
 }
 
@@ -243,6 +260,84 @@ function cmdDocs(argv: string[]) {
     ? Object.values(TOPICS).map((t) => t.path)
     : [TOPICS[topic as string]!.path];
   process.stdout.write(paths.map((p) => docs[p]).join('\n'));
+}
+
+const SCAN_EXT = new Set([
+  '.astro',
+  '.html',
+  '.htm',
+  '.js',
+  '.jsx',
+  '.ts',
+  '.tsx',
+  '.vue',
+  '.svelte',
+  '.php',
+  '.md',
+  '.mdx',
+]);
+const SCAN_SKIP = new Set(['node_modules', 'dist', '.git', '.astro', 'build', 'coverage']);
+
+function scanFiles(dir: string, acc: { path: string; text: string }[] = []) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.name.startsWith('.') && e.name !== '.') continue;
+    const p = join(dir, e.name);
+    if (e.isDirectory()) {
+      if (!SCAN_SKIP.has(e.name)) scanFiles(p, acc);
+    } else if (SCAN_EXT.has(extname(e.name))) {
+      acc.push({ path: p, text: readFileSync(p, 'utf8') });
+    }
+  }
+  return acc;
+}
+
+function cmdLint(argv: string[]) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      input: { type: 'string', short: 'i', default: 'design-system.json' },
+      format: { type: 'string', short: 'f', default: 'bricks' },
+      src: { type: 'string', short: 's', default: 'src' },
+    },
+    allowPositionals: false,
+  });
+  const format = values.format as Format;
+  if (!FORMATS.has(format)) fail(`unknown format "${format}" (expected: bricks | css | tailwind)`);
+  const ds = loadConfig(resolve(values.input as string));
+  const srcDir = resolve(values.src as string);
+  if (!existsSync(srcDir)) fail(`source directory not found: ${srcDir}`);
+
+  // Ask the generator what it actually emits rather than re-deriving the rules
+  // here — a linter that models the vocabulary separately just drifts into
+  // reporting classes that do exist.
+  const roleClasses = roleColorUtilities(
+    Object.entries(ds.colors.roles).map(([role, hue]) =>
+      functionalRole(role, hue, expandPalette(ds.colors.palette)[hue]!),
+    ),
+    ds.colors.utilities ?? ['bg', 'text', 'border'],
+  ).map((u) => u.cls);
+
+  const files = scanFiles(srcDir);
+  const findings = lintSource(files, vocabulary(ds, roleClasses), format);
+
+  if (!findings.length) {
+    console.log(
+      `✓ no unresolvable framework classes in ${values.src} ` +
+        `(${files.length} file${files.length === 1 ? '' : 's'} scanned)`,
+    );
+    return;
+  }
+  for (const f of findings) {
+    console.error(`${f.file}:${f.line}  ${f.cls}`);
+    console.error(`    ${f.reason}`);
+    if (f.suggestion) console.error(`    try: ${f.suggestion}`);
+  }
+  const n = findings.length;
+  console.error(
+    `\n✖ ${n} unresolvable class${n === 1 ? '' : 'es'} in ` +
+      `${files.length} file${files.length === 1 ? '' : 's'}`,
+  );
+  process.exit(1);
 }
 
 function cmdAgents(argv: string[]) {
@@ -373,9 +468,11 @@ async function main() {
       return cmdAgents(rest);
     case 'docs':
       return cmdDocs(rest);
+    case 'lint':
+      return cmdLint(rest);
     default:
       fail(
-        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs). Try: vitops --help`,
+        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint). Try: vitops --help`,
       );
   }
 }

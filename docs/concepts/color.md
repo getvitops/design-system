@@ -46,10 +46,15 @@ Classes name the token, not the tone: `bg-<role>`, `text-<role>-muted`, `text-on
 
 ## Automatic dark mode
 
-Dark mode is a **functional flip** under `:root[data-brx-theme="dark"]`: background and
+Dark mode is a **functional flip** under `:root[data-brx-theme="dark"], :root[data-theme="dark"]`: background and
 text ends of each scale swap, while `solid` fills stay mode-stable with a recomputed
 `on-solid` foreground. There is no per-appearance scheme grammar to author and no named
 steps — a role token means the same *job* in both appearances.
+
+Two attributes, one flip: `data-brx-theme` is Bricks' own (Bricks sets it on the
+WordPress target), `data-theme` is what the shipped `<color-scheme-toggle>` writes on
+`<html>`, so the toggle works on every other target. Set either. There is deliberately
+no `prefers-color-scheme` block — the flip follows an explicit choice only.
 
 ## Contrast guarantees
 

@@ -30,9 +30,27 @@ them still works, but they are Tailwind's, not the framework's:
 Other Tailwind-specific behaviour:
 
 - **Variants are Tailwind's job.** No pre-expanded breakpoint/state classes are emitted
-  (the framework's `@container (min-width: …)` variant blocks are dropped); use Tailwind
-  syntax — `@md:split-1-2`, `hover:flip-fade-in`. Container breakpoints are registered as
+  (the framework's `@container (min-width: …)` **variant** blocks are dropped; component
+  container queries such as the sitenav's desktop switch are kept); use Tailwind syntax —
+  `@md:split-1-2`, `hover:flip-fade-in`. Container breakpoints are registered as
   `--container-{sm,md,lg,xl}` = 30/48/64/80rem, backing the `@sm:`…`@xl:` variants.
+
+  > **Three spellings, and only two of them work here.**
+  >
+  > | you write | in `tailwind` | note |
+  > | --- | --- | --- |
+  > | `@md:flex-row` | ✅ container query | the framework's breakpoints (48rem) |
+  > | `md:flex-row` | ✅ media query | **Tailwind's** breakpoints, which differ — `sm:` is 40rem where `@sm:` is 30rem |
+  > | `md-flex-row` | ❌ silently nothing | the css/bricks spelling; not emitted in this format |
+  >
+  > `md-*` is the trap: it is a real class in `css`/`bricks` and a no-op here, and
+  > nothing errors — the element simply never changes at the breakpoint. Prefer `@md:`
+  > so one vocabulary of breakpoints applies throughout.
+
+- **Overriding `--container-*` also moves Tailwind's width scale.** Registering the
+  framework breakpoints in `@theme` re-points `max-w-sm`…`max-w-xl` at the same values,
+  so `max-w-md` is 48rem here rather than Tailwind's stock 28rem. Use
+  `max-w-(--container-md)` style arbitrary values if you need to be explicit.
 - **The space scale is NOT mapped into Tailwind's `--spacing-*` namespace** (that would
   corrupt Tailwind's numeric multipliers and `max-w-*` sizes). Numeric utilities like
   `p-4` keep Tailwind's 0.25rem meaning; use the design-system scale via arbitrary
@@ -42,6 +60,18 @@ Other Tailwind-specific behaviour:
   (`bg-<role>`, `text-<role>-muted`, …) is the public API. The raw hue scales ARE
   `@theme` colours, so native `bg-<hue>-500`-style utilities work.
 
+  This split is deliberate and load-bearing. When a token sits in `@theme` *and* an
+  `@utility` of the derived name exists, Tailwind merges both into one rule with the
+  `@theme` declaration last — regardless of source order. Promoting the role tokens
+  would therefore silently replace the functional plane with the emphasis stop on
+  `bg-<role>-muted`, `text-<role>-muted`, `text-<role>-x-muted`, `border-<role>-bold`
+  and `bg-surface-bold`, two of which are the contrast-guaranteed text tokens.
+- **`colors.utilities` is a floor here, not a ceiling.** It controls which families get
+  explicit role `@utility` rules, exactly as in `css`/`bricks`. But the raw hue scales
+  are `@theme` colours, and Tailwind derives *every* colour family from those on demand
+  (`ring-`, `divide-`, `accent-`, `caret-`, …), so hue-step utilities you did not enable
+  still resolve in this format.
+
 ## `css` — standalone bundle
 
 Emits a bundled, self-contained `styles.css` + `tokens.json` + `design-manifest.json`.
@@ -49,6 +79,26 @@ The colour and font/scale layers are fully included, and every utility family is
 pre-expanded — including breakpoint/state variants with `-` separators
 (`md-split-1-2`, `hover-fade-in`). For non-Bricks, non-Tailwind consumers and the
 docs build.
+
+**Cascade layers.** The bundle ships three, in precedence order:
+
+```
+@layer vitops.base, vitops.components, vitops.utilities;
+```
+
+- `vitops.base` — the UA reset and the pure `:root` token blocks.
+- `vitops.components` — the animation engine, structural layout, and every pattern.
+- `vitops.utilities` — `bg-*`, `text-*`, `border-*`, `drop-shadow-*`, `font-*`,
+  animation effects, and the display/`sr-only` families.
+
+So a utility overrides a pattern: `class="card bg-danger-muted"` tints the card. Your own
+unlayered CSS beats all three — see [concepts/patterns.md](concepts/patterns.md) for the
+override story and the one gotcha (a reset must be layered and ordered first).
+
+Known gap: `layout.css` is a single partial mixing structural rules (`.rhythm`,
+`.centered`) with utilities (`.m-*`, `.flex`, `.split-*`), so it sits in
+`vitops.components` whole — its utility half cannot yet override a pattern. Splitting it is
+tracked separately.
 
 ## `bricks` — WordPress / Bricks Builder payload
 

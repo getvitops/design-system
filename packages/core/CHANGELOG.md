@@ -1,5 +1,149 @@
 # @getvitops/core
 
+## 0.9.0
+
+### Minor Changes
+
+- **The theme editor no longer dims the page it's editing.**
+
+  The panel used `.drawer`'s scrim and `popover="auto"`, which fought the whole purpose of a live
+  editor: the page you were tuning sat behind a 4px blur, and the first click on it dismissed the
+  panel. It is now modeless — no scrim, and clicking through to the page keeps it open. Escape still
+  closes it (wired explicitly, since `popover="manual"` doesn't provide it), as does the × button.
+
+  **New: `.drawer--modeless`.** The same treatment is available to any drawer — a side panel you work
+  _alongside_ rather than through (an inspector, a live editor, a filter rail). Pair it with
+  `popover="manual"`:
+
+  ```html
+  <div class="drawer drawer--right drawer--modeless" popover="manual">…</div>
+  ```
+
+  An `auto` popover light-dismisses on the first outside click, which is exactly the interaction a
+  modeless panel exists to permit — so `manual` is part of the pattern, not an afterthought. It also
+  drops Escape, so give the panel a visible close control.
+
+  **Added:** a drift guard tying `<wc-theme-editor>`'s dark-override selector to the generator's
+  `DARK_SEL`. The two must match or the editor's dark-mode edits land on a rule the page never
+  matches — a failure that is invisible in light mode, so nothing would have caught it.
+
+- **Fixed: `Subgrid` and `Cards` rendered as unstyled lists, in every format.**
+
+  `Subgrid.astro` drew its geometry with Tailwind utilities — `grid-rows-subgrid` and
+  `row-span-(--row-span)`, the latter Tailwind v4's arbitrary-CSS-variable syntax. No framework CSS
+  layer defines those, so under `css.format: 'css'` or `'bricks'` the component had no layout at all.
+
+  It failed under `'tailwind'` too, which is the part worth internalising: **Tailwind v4 is JIT and
+  does not scan `node_modules`**, so a class that only a shipped component references is never
+  generated. A consumer had to add the package to Tailwind's `@source` by hand to get a subgrid;
+  without that, cards silently laid out at `grid-row: auto` — visually plausible, quietly wrong. The
+  same trap applied to `grid` in `Subgrid` and `sr-only` / `not-sr-only` in `Popover` / `Drawer`:
+  those are in the generator's `TW_CLASH` list, so the framework strips its own rules for them from
+  the tailwind bundle and defers to Tailwind — meaning they resolved only when the consumer's own
+  templates happened to use the same class.
+
+  The components now emit framework classes only, and the `subgrid` pattern owns the layout:
+  - `Subgrid` renders `<ul class="subgrid"><li>…` and ships no `<style>` block of its own.
+  - `Popover` / `Drawer` use a component-scoped `visually-hidden` instead of `sr-only`. The
+    `not-sr-only` on their icons was a no-op and is gone.
+  - The `subgrid` pattern absorbed the wrapped-row margin the component used to carry, so
+    hand-written `.subgrid` markup gets it too, and resets list markers on `ul`/`ol`.
+
+  **Also fixed: `Cards` discarded the `card` class and every class you put on a child.** It wrote
+  `card` onto the slotted element and then serialised that element's _inner_ HTML, dropping the
+  attribute it had just set. Child `class` and `style` now reach the rendered `<li>`.
+
+  **Breaking — the subgrid custom properties are renamed.** One `--subgrid-*` vocabulary now covers
+  both the pattern and the component; the old names are removed, not aliased:
+
+  | removed                         | use                  |
+  | ------------------------------- | -------------------- |
+  | `--items-per-row`, `--cols`     | `--subgrid-cols`     |
+  | `--rows-per-item`, `--row-span` | `--subgrid-row-span` |
+  | `--row-margin`                  | `--subgrid-row-gap`  |
+
+  `--subgrid-gap` (the grid gap) is unchanged, as are the `.subgrid-cols-*` / `.subgrid-rows-*` /
+  `.subgrid-responsive` modifiers. Anything still setting an old name falls back to the pattern
+  defaults — 3 columns, span 2 — so grep for them when you upgrade.
+
+### Patch Changes
+
+- **Fixed: `vitops init` and `vp create` scaffolded configs referencing tokens that no longer
+  exist.** `defaultConfig()` and the EmDash template still pointed at `--color-surface-xl` and
+  `--color-surface-xxl`, aliases from the named-step colour scale removed in 0.6. A scaffolded
+  project therefore got a `card` with no background and an invalid default border colour, with
+  nothing reporting it. Both now use `--surface-bg` / `--surface-bg-muted`. The EmDash template
+  also dropped its `patterns.radii.card` key, which collided with the `card` pattern on
+  `--br-card` — the collision `validate()` has been warning about (the `panel` group already
+  supplies the same radius, so nothing changes visually).
+
+  **Fixed: `.text-reveal` rendered invisible text.** Its gradient consumed
+  `--text-reveal-color-from`/`-to` with no defaults, so unless a consumer set both, the `var()`
+  substitution failed, `background` became invalid at computed-value time, and the accompanying
+  `color: transparent` left the text with no way to render. Both tones now default to the
+  functional text tokens.
+
+  **Fixed: `.bordered` fell back to `currentColor`** via a reference to `--color-surface-xl`,
+  which the generator never emitted. It now resolves `--surface-border`.
+
+  **New: `validate()` warns when a required role is missing.** `colors.roles` is an open map —
+  any name works and generates a full token set — but the shipped component CSS references
+  `brand-primary`, `danger`, `neutral`, `surface`, `ui-primary` and `warning` with no fallback,
+  so omitting one leaves those components uncoloured. This is a warning, not an error; the
+  required list is re-derived from the CSS partials by a test so it cannot drift.
+
+  `vitops docs` and `vitops agents` now surface config warnings (on stderr, so piping `docs` is
+  unaffected). They previously discarded them, unlike `generate` and `validate`.
+
+  Docs corrections, all in the generated bundle:
+  - **Raw scale classes are frozen and do not remap in dark mode** — stated explicitly for the
+    first time, with a migration table to the role equivalents. The dark-mode guarantee only ever
+    applied to functional role tokens, and nothing said so.
+  - **Roles are extensible over a required core** — the schema description and class reference
+    read as a closed enumeration, which is why a consumer forked their own colour layer rather
+    than adding a role.
+  - **The `md:` / `@md:` / `md-` distinction** in the tailwind format: `@md:` uses the framework's
+    breakpoints, `md:` works but uses Tailwind's (which differ — `sm:` is 40rem, `@sm:` is 30rem),
+    and `md-` is silently inert. Plus a note that registering `--container-*` also re-points
+    Tailwind's `max-w-*` scale.
+  - The css and bricks bundles now carry a `/*!` banner pointing at `npx vitops docs classes`
+    (the previous plain comment was stripped by the minifier, so it never reached the file).
+
+  Contrast checking now covers **every** background plane a role emits (`bg`, `bg-muted`, and
+  `bg-bold`), not just `bg` — body text on a `card` was previously unguaranteed.
+
+- **Fixed: `<details>` disclosures never opened.**
+
+  Every `<details>` on a page using this framework was inert in Chrome 149 — clicking a summary
+  toggled the `open` attribute and nothing else happened. This affected the bare element, not just
+  `.details`, so it hit the docs table-of-contents, the mobile nav, and the theme editor's sections
+  alike.
+
+  The cause was the open/close animation on `::details-content`. It used the canonical recipe
+  (`block-size: 0 → auto` plus `content-visibility` under `allow-discrete`, backed by
+  `interpolate-size: allow-keywords`), and that recipe deadlocks: `content-visibility` stays `hidden`,
+  so the content has no layout, so `auto` resolves to `0`, so the transition has nothing to animate
+  and the state never advances. The failure is total rather than cosmetic — collapsed content simply
+  could not be reached.
+
+  Bisected against a bare `<details>` with only the framework stylesheet. `transition: none` is the
+  only thing that restores it; transitioning `block-size` alone, `content-visibility` alone,
+  `calc-size(auto, size)`, and the `grid-template-rows: 0fr → 1fr` technique all fail identically.
+
+  **So the transition is gone and disclosures now open instantly.** Correctness over motion. If you
+  reinstate it, verify a _first click actually expands_ in a real browser — the syntax is valid and
+  `@supports` reports it as supported, so a feature query proves nothing here; only the interaction
+  does.
+
+  **Also fixed: `.details--marker-start` right-aligned its label.** It mirrored the trailing marker's
+  `margin-inline-start: auto` as `margin-inline-end: auto`, which pushed everything after the icon to
+  the opposite edge instead of just placing the icon first.
+
+  **Also:** `<wc-theme-editor>`'s section headers now carry a disclosure marker. The `.details`
+  pattern removes the native one and expects a `.details-icon`; without it a panel of ~40 nested
+  sections gave no indication anything was collapsible.
+  - @getvitops/utils@0.9.0
+
 ## 0.8.0
 
 ### Minor Changes

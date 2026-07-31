@@ -1,4 +1,19 @@
 ---
+/**
+ * Subgrid — re-emits slotted children as `<li>` items of a `.subgrid` grid, so
+ * the tranches inside each one align on shared row lines. Every declaration
+ * lives in the framework's `subgrid` pattern (patterns/subgrid.css), which is
+ * emitted in all three output formats; this file is markup only.
+ *
+ * Nothing here may reach for a Tailwind utility: Tailwind doesn't scan
+ * node_modules, so a class only it can emit is silently never generated — and
+ * classes in the generator's TW_CLASH list are stripped from the framework's
+ * own tailwind bundle by design.
+ *
+ * Size it from the consumer's own CSS, which keeps media-query overrides
+ * working: `--subgrid-cols`, `--subgrid-row-span`, `--subgrid-gap`,
+ * `--subgrid-row-gap`. `--num-items` is set here for nth-child-style maths.
+ */
 import type { HTMLAttributes } from 'astro/types';
 import { parseRenderedSlots, getAttribute, serialize, styleList } from '@getvitops/utils';
 
@@ -10,23 +25,8 @@ const nodes = parseRenderedSlots(await Astro.slots.render('default'));
 const slots = nodes.filter(node => 'tagName' in node).map(node  => ({ html: serialize(node), attrs: node.attrs }));
 ---
 
-<style>
-  ul {
-    grid-template-columns: repeat(var(--cols, var(--_cols, 1)), minmax(0, 1fr));
-  }
-
-  li {
-    --current-row: round(down, calc((sibling-index() - 1) / var(--cols)), 1);
-      
-      /* Apply the extra gap ONLY if the row index is > 0.
-         We use clamp to ensure the multiplier is either 0 or 1.
-      */
-      --row-gap-multiplier: clamp(0, var(--current-row), 1);
-      margin-block-start: calc(var(--row-gap-multiplier) * var(--row-margin));
-  }
-</style>
-<ul class:list={["grid", className]} style={styleList({'--num-items': slots.length}, style)}>
+<ul class:list={["subgrid", className]} style={styleList({'--num-items': slots.length}, style)}>
   {slots.map((slot) => (
-    <li class:list={["grid grid-rows-subgrid row-span-(--row-span)", getAttribute(slot, 'class')]} style={styleList(getAttribute(slot, 'style'))} set:html={slot.html}></li>
+    <li class:list={[getAttribute(slot, 'class')]} style={styleList(getAttribute(slot, 'style'))} set:html={slot.html}></li>
   ))}
 </ul>

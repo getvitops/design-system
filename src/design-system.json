@@ -270,7 +270,7 @@
           "box-shadow": "var(--ds-card-group)"
         },
         "states": {},
-        "roles": []
+        "roles": ["success", "danger", "warning", "info"]
       },
       "tag": {
         "group": "label",

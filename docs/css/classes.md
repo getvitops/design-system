@@ -71,9 +71,17 @@ Families: `display`, `sans`, `code` (`--font-*`).
 ## Colour
 
 **Functional tokens are the primary vocabulary** — classes name the *job*, not the tone, and
-every one remaps automatically under `:root[data-brx-theme="dark"]` (background/text ends
+every one remaps automatically under `:root[data-brx-theme="dark"], :root[data-theme="dark"]` (background/text ends
 swap; `solid` fills stay mode-stable with a computed `on-` foreground). Prefer these over
-raw steps. Rules (role ∈ `neutral`, `surface`, `ui-primary`, `ui-secondary`, `ui-accent`, `brand-primary`, `brand-secondary`, `info`, `success`, `warning`, `danger`):
+raw steps.
+
+**Role names are yours.** `colors.roles` is an open map: add a key, and the generator emits
+that role's full functional token set, its dark flip and every utility below. Your config
+currently defines `neutral`, `surface`, `ui-primary`, `ui-secondary`, `ui-accent`, `brand-primary`, `brand-secondary`, `info`, `success`, `warning`, `danger`. Six of those are a **required core** — the framework's own
+component CSS references `brand-primary`, `danger`, `neutral`, `surface`, `ui-primary`, `warning` with no fallback, so removing one
+leaves those components uncoloured (`vitops validate` warns). Everything beyond them is free.
+
+Rules (role ∈ `neutral`, `surface`, `ui-primary`, `ui-secondary`, `ui-accent`, `brand-primary`, `brand-secondary`, `info`, `success`, `warning`, `danger`, or whatever you add):
 
 - **Surfaces** — `bg-<role>` (the role's background wash; for `surface` this is the
   card/panel plane), `bg-<role>-muted` (subtle / sunken), `bg-surface-bold` (raised plane).
@@ -87,15 +95,38 @@ raw steps. Rules (role ∈ `neutral`, `surface`, `ui-primary`, `ui-secondary`, `
   `--color-<role>-{x-muted,muted,bold,x-bold}` — `muted` recedes toward the background
   extreme, `bold` advances toward the foreground, in *either* appearance.
 
-Everyday pairings: page `bg-neutral` + `text-neutral`; cards `bg-surface`; captions
-`text-neutral-muted`; buttons `bg-ui-primary-solid text-on-ui-primary`; status text
-`text-danger` / `text-success` / `text-warning` / `text-info`.
+Everyday pairings, using the roles this config defines: page
+`bg-neutral` + `text-neutral`; captions
+`text-neutral-muted`; buttons
+`bg-ui-primary-solid text-on-ui-primary`.
 
 **Raw scale** (secondary / fine control) — rule `<util>-<hue>-<step>` with util ∈
 `bg`, `text`, `border`: every hue is an 11-step OKLCH scale generated from its seed (or fixed brand
 tones), numeric steps `50` … `950` (tinted near-white → tinted near-black) — e.g.
 `bg-pine-100`, `text-pine-800`. Hues: `pine`, `navy`, `amber`, `rust`, `cobalt`, `grey`.
 The **bare** role name (`bg-<role>`, `text-<role>`) is always the functional token.
+
+> **Raw scale classes are frozen — they do NOT remap in dark mode.**
+> `bg-pine-800` is that exact colour in every appearance. The automatic
+> dark flip described above applies **only** to the functional role tokens, because
+> `--color-<hue>-<step>` is emitted once and never re-pointed under `:root[data-brx-theme="dark"], :root[data-theme="dark"]`.
+> A raw step on a page that can switch appearance is a latent bug: it looks correct in
+> whichever mode you built it in and inverts in the other.
+>
+> If you are reaching for a raw step, you usually want a **role** instead — and roles are
+> extensible, so adding one is a two-line config change:
+>
+> | instead of | use | why |
+> | --- | --- | --- |
+> | `bg-<hue>-50` / `-950` | `bg-<role>` | the page/backdrop plane, flips automatically |
+> | `bg-<hue>-100` / `-900` | `bg-<role>-muted` | one plane in from the page |
+> | `bg-<hue>-500`…`-700` | `bg-<role>-solid` | vivid fill, mode-stable, pairs with `text-on-<role>` |
+> | `text-<hue>-950` / `-50` | `text-<role>` | contrast-guaranteed body text |
+> | `text-<hue>-800` / `-200` | `text-<role>-muted` | secondary text |
+> | `border-<hue>-200` / `-800` | `border-<role>` | |
+>
+> Raw steps stay the right tool for genuinely fixed colours — a brand mark, a chart series,
+> an illustration — where the value must not move between appearances.
 
 ## Shadows
 

@@ -1,0 +1,473 @@
+---
+/**
+ * Animation library — every effect, driver and preset, playable.
+ *
+ * The hard part of documenting this system is that an animation is invisible in
+ * a static screenshot, and most demos of this kind fire once on load and then
+ * sit there. So each section picks a driver that can be *replayed by the reader*
+ * with no JavaScript:
+ *   • the effect catalogue uses `.transition hover-<fx>` — hover, un-hover, again;
+ *   • the scroll sections use `.animate-view` — scrolling back up rewinds them;
+ *   • floats are infinite by definition.
+ * That keeps the whole page no-JS, which is also the honest test: this animation
+ * system claims to be CSS-only, so its documentation shouldn't need a script.
+ *
+ * The effect and journey lists come from `design-system.json` (they're generated
+ * into `animation-effects.css`, so hand-listing them would drift). The engine
+ * classes — drivers, floats, stagger, text effects — are hand-written in core's
+ * `animation.css` and listed here as constants, with a build-time guard below.
+ */
+import Docs from '../layouts/Docs.astro';
+import BaselineSupport from '../components/BaselineSupport.astro';
+// Imported, not read from disk: `import.meta.url` in Astro frontmatter resolves
+// against the *bundled chunk* at build time, not this file, so a relative
+// readFileSync silently points somewhere else in `astro build`. A JSON import is
+// resolved by Vite against the source path, in both dev and build.
+// (The design manifest would be the natural source, but it carries no
+// `animations` block — the animation layer is generated straight from the config.)
+import designSystem from '../../../../src/design-system.json';
+
+const ds = designSystem as unknown as {
+  animations: {
+    effects: Record<string, { kf: string; vars?: Record<string, unknown> }>;
+    journeys: { base: Record<string, unknown>; compose: string[][] };
+  };
+};
+
+const effects = Object.entries(ds.animations.effects);
+/** `kf` is the keyframe family an effect drives: composite / paint / layout. */
+const byKind = ['composite', 'paint', 'layout'].map((kind) => ({
+  kind,
+  items: effects.filter(([, e]) => e.kf === kind).map(([name]) => name),
+}));
+
+const journeys = ds.animations.journeys.compose.map((parts) => parts.join('-'));
+
+/** Hand-written in core's animation.css (not generated). */
+const FLOATS = [
+  'float-circular',
+  'float-circular-ccw',
+  'float-figure-8',
+  'float-bounce-y',
+  'float-drift-x',
+  'float-gentle',
+  'float-organic',
+];
+const FLOAT_SPEEDS = ['float-slow', 'float-fast', 'float-linear'];
+const TEXT_EFFECTS = [
+  'text-gradient-animate',
+  'text-highlight',
+  'text-rotate',
+  'text-stagger',
+  'text-flip',
+  'typing',
+];
+
+/** Effects that only read as themselves at a decent size. */
+const BIG = new Set(['size-grow', 'size-shrink']);
+
+/**
+ * What this page depends on, and what happens without it. IDs are web-features
+ * IDs (the ones in webstatus.dev URLs), verified against api.webstatus.dev.
+ */
+const NEEDS = [
+  {
+    id: 'scroll-driven-animations',
+    label: 'animation-timeline: view() / scroll()',
+    note: 'Drives <code>.animate-view</code>, <code>.animate-scroll</code>, every journey, <code>.text-reveal</code> and <code>.scroll-size</code>. Deliberately <strong>not</strong> polyfilled — see below.',
+  },
+  {
+    id: 'sibling-count',
+    label: 'sibling-index()',
+    note: 'Gives <code>.stagger</code> its per-child delay with no JavaScript. Without it the delay stays 0 and staggered items animate together — a degraded effect, not a broken one.',
+  },
+  {
+    id: 'motion-path',
+    label: 'offset-path',
+    note: 'The <code>.float-path-*</code> presets. The waypoint floats (<code>.float-*</code>) are plain keyframes and work everywhere.',
+  },
+  {
+    id: 'linear-easing',
+    label: 'linear() easing',
+    note: 'The multi-stop float easings (<code>--ease-float-sine</code>, <code>--ease-float-bounce</code>). Falls back to the declared timing function.',
+  },
+];
+
+/** The feature-detected polyfills @getvitops/core actually ships. */
+const POLYFILLED = [
+  {
+    id: 'anchor-positioning',
+    label: 'anchor-name / position-anchor',
+    note: 'Polyfilled via <code>@oddbird/css-anchor-positioning</code>, loaded after render.',
+  },
+  {
+    id: 'popover',
+    label: '[popover] / popovertarget',
+    note: 'Polyfilled via <code>@oddbird/popover-polyfill</code>. The theme editor panel is a popover.',
+  },
+  {
+    id: 'declarative-shadow-dom',
+    label: '<template shadowrootmode>',
+    note: 'Hydrated by <code>@webcomponents/template-shadowroot</code> when the parser doesn’t.',
+  },
+  {
+    id: 'constructed-stylesheets',
+    label: 'adoptedStyleSheets',
+    note: 'Polyfilled via <code>construct-style-sheets-polyfill</code>.',
+  },
+  {
+    id: 'temporal',
+    label: 'Temporal',
+    note: 'Polyfilled via <code>temporal-polyfill</code>.',
+  },
+];
+
+const headings = [
+  { depth: 2, slug: 'support', text: 'Browser support' },
+  { depth: 2, slug: 'model', text: 'The model' },
+  { depth: 2, slug: 'effects', text: 'Effects' },
+  { depth: 2, slug: 'scroll', text: 'Scroll-driven' },
+  { depth: 2, slug: 'journeys', text: 'Journeys' },
+  { depth: 2, slug: 'stagger', text: 'Stagger' },
+  { depth: 2, slug: 'floats', text: 'Floats' },
+  { depth: 2, slug: 'text', text: 'Text effects' },
+];
+---
+
+<Docs
+  title="Animation library"
+  description="Every effect, driver and preset — hover or scroll to play them. No JavaScript."
+  headings={headings}
+>
+  <!-- ── Support ─────────────────────────────────────────────────────────── -->
+  <aside class="card bg-warning-muted rhythm">
+    <p class="font-body">
+      <strong>Some of this page won't move in your browser.</strong> The animation layer is built on
+      platform features that aren't all Baseline yet — chiefly scroll-driven animations, which every
+      <code>.animate-view</code> demo below depends on. Where a feature is missing the framework
+      <em>degrades rather than breaks</em>: content renders in its natural, fully-visible state
+      instead of freezing at an effect's <code>from</code> keyframe.
+    </p>
+    <p class="font-footnote text-surface-muted">
+      Statuses below are live from <a class="link" href="https://webstatus.dev">webstatus.dev</a>.
+    </p>
+  </aside>
+
+  <h2 id="support" class="font-title">Browser support</h2>
+
+  <h3 class="font-heading">What this page needs</h3>
+  <BaselineSupport features={NEEDS} />
+
+  <details class="details an-support">
+    <summary class="btn">
+      <span class="details-icon" aria-hidden="true">▸</span>
+      How the framework handles what's missing
+    </summary>
+
+    <h3 class="font-heading">Scroll-driven animations are not polyfilled</h3>
+    <p class="font-body">
+      A deliberate choice, and the one exception to the polyfill strategy. A scroll-timeline
+      polyfill is large and runs on every frame, to buy back an effect that is decorative by
+      definition — so instead an inline <code>&lt;head&gt;</code> snippet flips
+      <code>.no-scroll-timeline</code> on <code>&lt;html&gt;</code> <em>before paint</em>, and
+      <code>animation.css</code> cancels the affected animations outright:
+    </p>
+    <pre><code>{`:root.no-scroll-timeline :where(.animate-view, .animate-scroll) {
+  animation: none;
+}`}</code></pre>
+    <p class="font-body">
+      Without that cancel these elements would sit at their first keyframe forever — and an entrance
+      animation that never runs is <code>opacity: 0</code>, i.e. invisible content. Cancelling costs
+      an animation; not cancelling costs the page.
+    </p>
+
+    <h3 class="font-heading">What is polyfilled</h3>
+    <p class="font-body text-surface-muted">
+      Shipped as feature-detected, self-hosted ES-module chunks
+      (<code>@getvitops/core/polyfills</code>): each is fetched <em>only</em> when its test fails, so
+      a current browser downloads none of them.
+    </p>
+    <BaselineSupport features={POLYFILLED} />
+    <p class="font-footnote text-surface-x-muted">
+      Not polyfilled because they're universal across the framework's targets:
+      <code>&lt;dialog&gt;</code>, <code>:has()</code>, container queries, CSS nesting,
+      <code>IntersectionObserver</code>. Invoker Commands (<code>command</code> /
+      <code>commandfor</code>) is not yet polyfilled or relied on.
+    </p>
+  </details>
+
+  <!-- ── Model ───────────────────────────────────────────────────────────── -->
+  <h2 id="model" class="font-title">The model</h2>
+  <p class="font-body">
+    An <strong>effect</strong> carries no motion of its own — it's a pure value layer, setting
+    <code>--&lt;prop&gt;-from</code> / <code>-to</code> and an <code>--_anim</code> keyframe name. A
+    <strong>driver</strong> supplies the motion. You always compose one of each.
+  </p>
+
+  <div class="split split-1-2 an-gap">
+    <div class="card rhythm">
+      <p class="font-eyebrow">Keyframe drivers</p>
+      <ul class="list">
+        <li><code>.animate-view</code> — plays as the element enters the viewport</li>
+        <li><code>.animate-scroll</code> — scrubs against page scroll</li>
+        <li><code>.animate-trigger</code> — plays once, on demand</li>
+      </ul>
+      <p class="font-footnote text-surface-muted">
+        Scroll-driven, via <code>animation-timeline</code>. Where that's unsupported,
+        <code>deferred.js</code> sets <code>.no-scroll-timeline</code> and the animation is
+        cancelled so content renders in its natural visible state rather than stuck at
+        <code>opacity: 0</code>.
+      </p>
+    </div>
+    <div class="card rhythm">
+      <p class="font-eyebrow">Transition driver</p>
+      <ul class="list">
+        <li><code>.transition</code> + <code>hover-&lt;fx&gt;</code></li>
+        <li><code>.transition</code> + <code>focus-&lt;fx&gt;</code></li>
+        <li><code>.transition</code> + <code>active-&lt;fx&gt;</code></li>
+      </ul>
+      <p class="font-footnote text-surface-muted">
+        Reversible and interruptible. Different effects can bind to different states on one element:
+        <code>.transition.hover-slide-up.active-elevate-up</code>.
+      </p>
+    </div>
+  </div>
+
+  <p class="font-body text-surface-muted">
+    Everything below respects <code>prefers-reduced-motion: reduce</code> — keyframes, transitions
+    and floats are all dropped, and elements settle at their resolved state.
+  </p>
+
+  <!-- ── Effects ─────────────────────────────────────────────────────────── -->
+  <h2 id="effects" class="font-title">Effects</h2>
+  <p class="font-body text-surface-muted">
+    <strong>Hover each tile</strong> to play it. Grouped by the keyframe family they drive —
+    <code>composite</code> (transform/opacity, cheapest), <code>paint</code> (filter/clip) and
+    <code>layout</code> (size, the only one that reflows).
+  </p>
+
+  <p class="font-footnote text-surface-x-muted">
+    The dashed outline is where the element lands; the block inside it is the element. They start
+    apart on purpose — a <code>hover-&lt;fx&gt;</code> variant's <em>resting</em> state is the
+    effect's <code>from</code> endpoint, so <code>hover-fade-in</code> genuinely sits at
+    <code>opacity: 0</code> until you hover it. The label lives on the outline so it stays readable
+    while the block is faded, clipped or displaced.
+  </p>
+
+  {byKind.map(({ kind, items }) => (
+    <section class="rhythm">
+      <h3 class="font-heading">{kind} <span class="badge">{items.length}</span></h3>
+      <div class="an-grid">
+        {items.map((fx) => (
+          <div class={`an-cell ${BIG.has(fx) ? 'an-cell--tall' : ''}`}>
+            <div class={`an-tile transition hover-${fx}`}></div>
+            <code class="font-footnote an-label">{fx}</code>
+          </div>
+        ))}
+      </div>
+    </section>
+  ))}
+
+  <!-- ── Scroll ──────────────────────────────────────────────────────────── -->
+  <h2 id="scroll" class="font-title">Scroll-driven</h2>
+  <p class="font-body text-surface-muted">
+    The same effects under <code>.animate-view</code>. <strong>Scroll up and back down</strong> —
+    they replay, because the timeline is the scroll position, not a one-shot.
+  </p>
+  <div class="an-grid">
+    {['fade-in', 'slide-up', 'slide-left', 'scale-up', 'blur-in', 'reveal-left'].map((fx) => (
+      <div class="an-cell">
+        <div class={`an-tile animate-view ${fx}`}></div>
+        <code class="font-footnote an-label">{fx}</code>
+      </div>
+    ))}
+  </div>
+
+  <!-- ── Journeys ────────────────────────────────────────────────────────── -->
+  <h2 id="journeys" class="font-title">Journeys</h2>
+  <p class="font-body text-surface-muted">
+    Compositions of the base parts (<code>fade</code>, <code>slide</code>, <code>scale</code>,
+    <code>blur</code>) into one keyframe, so multiple properties move on a single timeline rather
+    than fighting over <code>animation-name</code>. They set their own
+    <code>entry exit</code> range — the motion tracks the element across the whole viewport.
+  </p>
+  <div class="an-grid">
+    {journeys.map((j) => (
+      <div class="an-cell an-cell--tall">
+        <div class={`an-tile animate-view ${j}-journey`}></div>
+        <code class="font-footnote an-label">{j}-journey</code>
+      </div>
+    ))}
+  </div>
+
+  <!-- ── Stagger ─────────────────────────────────────────────────────────── -->
+  <h2 id="stagger" class="font-title">Stagger</h2>
+  <p class="font-body text-surface-muted">
+    <code>.stagger</code> on the parent offsets each child's <code>animation-delay</code> by
+    <code>--stagger-amount</code>. Pure CSS via <code>sibling-index()</code> where supported, with a
+    JS fallback that sets the index inline.
+  </p>
+  <div class="an-grid stagger">
+    {[1, 2, 3, 4, 5, 6].map((n) => (
+      <div class="an-tile animate-view slide-up an-tile--solo">
+        <code class="font-footnote">{n}</code>
+      </div>
+    ))}
+  </div>
+
+  <!-- ── Floats ──────────────────────────────────────────────────────────── -->
+  <h2 id="floats" class="font-title">Floats</h2>
+  <p class="font-body text-surface-muted">
+    Ambient, infinite motion — waypoint presets over a shared <code>float</code> keyframe. Tune with
+    <code>--float-radius</code>, <code>--float-distance</code> and <code>--float-duration</code>.
+  </p>
+  <div class="an-grid an-grid--float">
+    {FLOATS.map((f) => (
+      <div class="an-floatcell">
+        <span class={`an-dot float ${f}`}></span>
+        <code class="font-footnote">{f}</code>
+      </div>
+    ))}
+  </div>
+
+  <h3 class="font-heading">Speed modifiers</h3>
+  <div class="an-grid an-grid--float">
+    {FLOAT_SPEEDS.map((f) => (
+      <div class="an-floatcell">
+        <span class={`an-dot float float-bounce-y ${f}`}></span>
+        <code class="font-footnote">{f}</code>
+      </div>
+    ))}
+  </div>
+
+  <h3 class="font-heading">Offset paths</h3>
+  <div class="an-grid an-grid--float">
+    {['float-path-circle', 'float-path-ellipse'].map((f) => (
+      <div class="an-floatcell">
+        <span class={`an-dot float-path ${f}`}></span>
+        <code class="font-footnote">{f}</code>
+      </div>
+    ))}
+  </div>
+
+  <!-- ── Text ────────────────────────────────────────────────────────────── -->
+  <h2 id="text" class="font-title">Text effects</h2>
+  <p class="font-body text-surface-muted">
+    Typographic motion from <code>patterns/text-effects.css</code>, plus the scroll-driven
+    <code>.text-reveal</code> two-tone fill.
+  </p>
+  {TEXT_EFFECTS.map((t) => (
+    <div class="an-textrow">
+      <code class="font-footnote text-surface-x-muted">.{t}</code>
+      <p class={`font-heading ${t}`}>Design systems in motion</p>
+    </div>
+  ))}
+  <div class="an-textrow">
+    <code class="font-footnote text-surface-x-muted">.text-reveal</code>
+    <p class="font-title text-reveal">Scroll to fill this line from one colour to the other</p>
+  </div>
+</Docs>
+
+<style>
+  /* Demo scaffolding: the effects under test only supply motion, so the tiles,
+     dots and rows they move are ours. Kept deliberately plain so what you see
+     moving is the effect, not the decoration. */
+  .an-gap {
+    gap: 1rem;
+  }
+  /* The polyfill detail is reference material, not preamble — collapsed so the
+     nine Baseline cards don't push the actual animations a screenful down. */
+  .an-support {
+    margin-block: 1rem;
+  }
+  .an-support > summary {
+    gap: 0.5rem;
+    inline-size: fit-content;
+  }
+  .an-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: 0.75rem;
+    margin-block: 0.75rem;
+  }
+  .an-grid--float {
+    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  }
+  /* Cell = the landing zone (always visible, holds the label).
+     Tile = the element under test (may be faded, clipped or displaced at rest).
+     Splitting them is what makes an entrance effect documentable: you can see
+     where the thing is *going*, and read its name, while it isn't there yet. */
+  .an-cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-block-size: 5.5rem;
+    padding: 0.4rem;
+    border: 1px dashed var(--surface-border);
+    border-radius: var(--br-default);
+    /* Insurance only. The tile is deliberately smaller than the cell and the
+       slide distance is dialled down below, so nothing should reach this — but
+       without it a displaced tile lands on top of its neighbour's label. */
+    overflow: clip;
+  }
+  .an-cell--tall {
+    min-block-size: 7rem;
+  }
+  .an-tile {
+    /* Smaller than the cell so the effect's travel happens *within* the landing
+       zone. `--slide-distance` is the effect's own knob, turned down to match. */
+    --slide-distance: 0.9rem;
+
+    inline-size: 68%;
+    block-size: 55%;
+    min-block-size: 2rem;
+    margin-block-end: 0.9rem;
+    background: var(--ui-primary-bg-muted);
+    border: 1px solid var(--ui-primary-border);
+    border-radius: var(--br-default);
+  }
+  /* Stagger demo: no landing zone needed — they all arrive, just not at once. */
+  .an-tile--solo {
+    display: grid;
+    place-items: center;
+    min-block-size: 4rem;
+  }
+  .an-label {
+    position: absolute;
+    inset-block-end: 0.25rem;
+    inset-inline: 0;
+    text-align: center;
+    /* Above the animating block, and never a hover target itself — the tile has
+       to stay the thing you're pointing at. */
+    pointer-events: none;
+  }
+  /* Floats orbit around their origin — give each one clearance so neighbouring
+     cells don't collide mid-animation. */
+  .an-floatcell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    min-block-size: 6rem;
+    padding: 1rem 0.5rem;
+    text-align: center;
+  }
+  .an-dot {
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    border-radius: var(--br-circle);
+    background: var(--ui-primary-solid);
+  }
+  .an-textrow {
+    display: grid;
+    grid-template-columns: 11rem 1fr;
+    gap: 1rem;
+    align-items: baseline;
+    padding-block: 0.5rem;
+    border-block-end: 1px solid var(--surface-border);
+  }
+  .an-textrow > p {
+    margin: 0;
+  }
+</style>

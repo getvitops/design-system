@@ -3,51 +3,97 @@
  * Consumes the generated token cascade (src/css/generated/tokens.css).
  */
 
-/* ── Subgrid — content-aligned cards/tables via CSS subgrid ────────────────── */
+/* ── Subgrid — content-aligned cards/tables via CSS subgrid ────────────────────
+ *
+ * Each item spans `--subgrid-row-span` row tracks of the parent and re-declares
+ * them with `grid-template-rows: subgrid`, so the tranches inside every item —
+ * head, body, footer — land on the same row lines no matter how much content
+ * each one holds.
+ *
+ *   <ul class="subgrid" style="--subgrid-cols: 3; --subgrid-row-span: 3">
+ *
+ * Public custom properties:
+ *   --subgrid-cols      columns (default 3)
+ *   --subgrid-row-span  row tracks each item spans, i.e. tranches per item (2)
+ *   --subgrid-gap       the grid gap — between columns, and between tranches (1.5rem)
+ *   --subgrid-row-gap   EXTRA space between wrapped rows of items (0); see below
+ */
 .subgrid {
-  --_items-per-row: var(--items-per-row, 3);
-  --_rows-per-item: var(--rows-per-item, 2);
-  --_subgrid-gap: var(--subgrid-gap, 1.5rem);
+  --_cols: var(--subgrid-cols, 3);
+  --_row-span: var(--subgrid-row-span, 2);
+  --_gap: var(--subgrid-gap, 1.5rem);
+  --_row-gap: var(--subgrid-row-gap, 0px);
 
   display: grid;
-  grid-template-columns: repeat(var(--_items-per-row), 1fr);
-  gap: var(--_subgrid-gap);
+  grid-template-columns: repeat(var(--_cols), 1fr);
+  gap: var(--_gap);
 
   > * {
-    grid-row: span var(--_rows-per-item);
+    grid-row: span var(--_row-span);
     display: grid;
     grid-template-rows: subgrid;
   }
 
+  /* Spacing between items is the grid's job, not the flow's — neutralise the
+     `.rhythm :where(ul, ol) > li + li` margin, which reaches into any list
+     inside a prose container and outweighs `> *` on specificity. */
+  &:is(ul, ol) > li + li {
+    margin-block-start: 0;
+  }
+
+  /* The grid's own row gap is the gap between an item's *tranches*, so it can't
+     also be the gap between *rows of items* — items past the first row take an
+     extra margin instead. Computed in CSS rather than from a server-rendered
+     index because --_cols can change in a media query. Guarded the same way as
+     .stagger (animation.css): sibling-index() lacks only Firefox as of 2026,
+     and where it's missing the margin stays 0 and rows fall back to the grid
+     gap, rather than producing an invalid margin. The second selector repeats
+     the rule at the specificity rhythm forces above. */
+  @supports (--x: sibling-index()) {
+    > *,
+    &:is(ul, ol) > li + li {
+      --_row-index: round(down, calc((sibling-index() - 1) / var(--_cols)), 1);
+      margin-block-start: calc(clamp(0, var(--_row-index), 1) * var(--_row-gap));
+    }
+  }
+
+  /* Markerless when it's a list — a subgrid of cards is a list of things, and
+     the markers would sit in the gutter. */
+  &:is(ul, ol) {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
   &.subgrid-cols-1 {
-    --_items-per-row: 1;
+    --_cols: 1;
   }
   &.subgrid-cols-2 {
-    --_items-per-row: 2;
+    --_cols: 2;
   }
   &.subgrid-cols-3 {
-    --_items-per-row: 3;
+    --_cols: 3;
   }
   &.subgrid-cols-4 {
-    --_items-per-row: 4;
+    --_cols: 4;
   }
 
   &.subgrid-rows-2 {
-    --_rows-per-item: 2;
+    --_row-span: 2;
   }
   &.subgrid-rows-3 {
-    --_rows-per-item: 3;
+    --_row-span: 3;
   }
   &.subgrid-rows-4 {
-    --_rows-per-item: 4;
+    --_row-span: 4;
   }
 
   &.subgrid-responsive {
     @media (width < 60rem) {
-      --_items-per-row: min(var(--items-per-row, 3), 2);
+      --_cols: min(var(--subgrid-cols, 3), 2);
     }
     @media (width < 40rem) {
-      --_items-per-row: 1;
+      --_cols: 1;
     }
   }
 }

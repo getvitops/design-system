@@ -39,8 +39,8 @@ Astro + `@getvitops/utils` (the icon ones also on the optional `astro-icon` peer
 
 | component            | what it wraps                                                                                  |
 | -------------------- | ---------------------------------------------------------------------------------------------- |
-| `Subgrid`            | emits `<ul class="grid"><li class="grid-rows-subgrid …">` from slotted children                |
-| `Cards`              | content-layout wrapper (composes `Subgrid`)                                                    |
+| `Subgrid`            | emits `<ul class="subgrid"><li>` from slotted children — styling is the `subgrid` pattern's    |
+| `Cards`              | the same, with `card` on every item (composes `Subgrid`)                                       |
 | `NodeRenderer`       | renders a `ContentNode` tree into markup at SSR time                                           |
 | `Popover`            | native Popover API + CSS Anchor Positioning (`astro-icon`)                                     |
 | `Details`            | native `<details>`/`<summary>` disclosure (`astro-icon`)                                       |
@@ -49,6 +49,13 @@ Astro + `@getvitops/utils` (the icon ones also on the optional `astro-icon` peer
 
 `WebComponentLoader` is the one exception that ships a `<script>` — but it only **loads** a web
 component (tier 2), it doesn't implement a pattern. Prefer letting `<Head />` load `elements.js`.
+
+**A component may only emit classes every format emits unconditionally** — defined in
+`@getvitops/core`'s CSS and _not_ in the generator's `TW_CLASH` list. Never a Tailwind utility:
+Tailwind doesn't scan `node_modules`, so a class only it can emit is silently never generated —
+even in a `tailwind`-format consumer — and `TW_CLASH` names (`grid`, `flex`, `sr-only`, …) are
+deliberately stripped from the tailwind bundle in favour of Tailwind's own. Anything a pattern
+doesn't cover goes in the component's scoped `<style>` (see `visually-hidden` in `Popover`/`Drawer`).
 
 There is deliberately **no site-model layer** here. A `Nav`/`Submenu`/`Template`/`FormRenderer`/
 `ContentInfo`/`SEO`/`Layout` set once lived in `src/`, bound to a bare `#site-config` specifier;

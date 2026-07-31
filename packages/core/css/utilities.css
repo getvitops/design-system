@@ -311,13 +311,15 @@
    Animate the UA-generated content box directly; interpolate-size (Layer 2)
    lets block-size reach `auto`. Guarded — engines without ::details-content just
    snap open (fully accessible). */
+/* NOTE: the transition that used to live here is gone, for the same reason as in
+   patterns/details.css — in Chrome 149 *any* transition on ::details-content
+   deadlocks (content-visibility stays hidden → `auto` resolves to 0 → nothing
+   runs) and the disclosure never opens. Collapsing still works; only the motion
+   is dropped. Don't reinstate it without checking that a first click expands. */
 @supports selector(::details-content) {
   details::details-content {
     overflow: clip;
     block-size: 0;
-    transition:
-      block-size var(--reveal-duration) var(--interact-easing, ease),
-      content-visibility var(--reveal-duration) allow-discrete;
   }
   details[open]::details-content {
     block-size: auto;

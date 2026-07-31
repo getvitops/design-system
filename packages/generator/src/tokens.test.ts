@@ -1,5 +1,6 @@
 import { contrastLc, hexToOklch } from '@getvitops/utils/color';
 import { describe, expect, it } from 'vitest';
+import { defaultConfig } from './index.ts';
 import { checkContrast, expandPalette, functionalRole, NUMERIC_STEPS } from './tokens.ts';
 
 const SEEDS = { pine: '#4A9075', slate: '#5B6472', rust: '#B23A32', cobalt: '#3B5BB5' };
@@ -52,6 +53,19 @@ describe('functional tokens', () => {
       expect(checkContrast(fr, numericOf)).toEqual([]);
     },
   );
+
+  it('meets those targets for every role in the scaffolded config', () => {
+    // The block above uses synthetic seeds. This one covers what `vitops init`
+    // actually hands a consumer — every role, every background plane, both
+    // appearances — so a palette edit can't quietly ship an unreadable pairing.
+    const ds = defaultConfig();
+    const pal = expandPalette(ds.colors.palette);
+    const numeric = (h: string) => pal[h]!.numeric!;
+    const failures = Object.entries(ds.colors.roles).flatMap(([role, hue]) =>
+      checkContrast(functionalRole(role, hue as string, pal[hue as string]!), numeric),
+    );
+    expect(failures).toEqual([]);
+  });
 
   it('dark mode flips bg/text ends; solid stays mode-stable', () => {
     const fr = functionalRole('neutral', 'slate', expanded.slate!)!;

@@ -9,7 +9,7 @@
   --_bs: var(--bs, solid);
   border-width: var(--_bw);
   border-style: var(--_bs);
-  border-color: var(--bc, var(--color-surface-xl, currentColor));
+  border-color: var(--bc, var(--surface-border, currentColor));
 }
 
 /* ── Group — collapse border-radius (+ shared borders) across direct children ─

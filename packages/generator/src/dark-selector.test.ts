@@ -1,0 +1,36 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
+import { DARK_SEL } from './shared.ts';
+
+/**
+ * The dark-mode selector exists twice by necessity.
+ *
+ * `DARK_SEL` here is what the generator emits the dark functional-token flip
+ * under. `<wc-theme-editor>` has to write its dark overrides under the *same*
+ * selector or they land on a rule the page never matches — and it lives in
+ * @getvitops/core, which cannot import this: the dependency runs the other way
+ * (generator snapshots core's assets), so an import would be a cycle.
+ *
+ * Drift here fails silently and asymmetrically: light-mode edits keep working,
+ * so the editor looks fine, and only dark-mode edits quietly do nothing. Hence
+ * this guard — the same shape as `head.test.ts`'s storage-key check.
+ */
+const HERE = dirname(fileURLToPath(import.meta.url));
+const editor = readFileSync(join(HERE, '../../core/src/web-components/WCThemeEditor.ts'), 'utf8');
+
+describe('dark-mode selector', () => {
+  it('is matched verbatim by <wc-theme-editor>', () => {
+    const declared = /DARK_SELECTOR\s*=\s*'([^']+)'/.exec(editor)?.[1];
+    expect(declared, 'WCThemeEditor must declare DARK_SELECTOR').toBeTruthy();
+    expect(declared).toBe(DARK_SEL);
+  });
+
+  it('covers both the Bricks attribute and the one the toggle writes', () => {
+    // Bricks sets data-brx-theme; <color-scheme-toggle> sets data-theme. Dropping
+    // either makes the flip unreachable on that target.
+    expect(DARK_SEL).toContain('data-brx-theme');
+    expect(DARK_SEL).toContain('data-theme');
+  });
+});

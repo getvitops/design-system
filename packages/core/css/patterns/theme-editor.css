@@ -38,6 +38,14 @@ wc-theme-editor {
   }
   .ed-section > summary {
     padding-block: 0.35rem;
+    gap: 0.4rem;
+  }
+  /* The pattern's icon slot is sized for body text; at panel density it needs to
+     be small enough not to outweigh the label it sits next to. */
+  .details-icon {
+    font-size: 0.75em;
+    line-height: 1;
+    opacity: 0.7;
   }
   .ed-sub {
     border: var(--b-default);

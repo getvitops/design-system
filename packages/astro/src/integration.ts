@@ -18,7 +18,6 @@ import {
   writeFaviconManifest,
 } from '@getvitops/utils';
 import vitops from '@getvitops/vite';
-import tailwindcss from '@tailwindcss/vite';
 import type { AstroIntegration } from 'astro';
 
 export interface GetvitopsFaviconOptions {
@@ -180,10 +179,24 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
               ...(editor ? { editorManifestDir: publicDir } : {}),
             }),
           ];
-          // tailwindcss() is typed against a newer vite than @getvitops/vite's
-          // peer; the Plugin shapes are structurally compatible at runtime
-          // (Astro forwards them verbatim), so bridge the two type identities.
-          if (format === 'tailwind') plugins.push(...(tailwindcss() as unknown as typeof plugins));
+          // Tailwind is an optional peer — only the `tailwind` format needs it,
+          // so it's loaded here rather than imported at module scope. (The
+          // plugin is typed against a newer vite than @getvitops/vite's peer;
+          // the Plugin shapes are structurally compatible at runtime — Astro
+          // forwards them verbatim — so bridge the two type identities.)
+          if (format === 'tailwind') {
+            let tailwindcss: () => unknown[];
+            try {
+              ({ default: tailwindcss } = await import('@tailwindcss/vite'));
+            } catch {
+              throw new Error(
+                "[getvitops] css.format: 'tailwind' requires `tailwindcss` and `@tailwindcss/vite` " +
+                  'in your devDependencies — install them, or switch to css.format: ' +
+                  "'css' for the standalone bundle.",
+              );
+            }
+            plugins.push(...(tailwindcss() as unknown as typeof plugins));
+          }
           updateConfig({ vite: { plugins } });
           const cssFile = format === 'tailwind' ? 'tailwind.css' : 'styles.css';
           if (opts.css.inject !== false) {

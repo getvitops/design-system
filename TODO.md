@@ -97,3 +97,5 @@ pattern's own hook. Members: `badge`, `tag`, `status`, `tooltip`.
 
 See **`DESIGN-SYSTEM-GAPS.md`** for the token-level gaps found while reproducing the Home
 page (border/hairline token, radii→token bricks-gating, button base, `.flex` fix, etc.).
+
+- Output format for Google's DESIGN.md format https://github.com/google-labs-code/design.md

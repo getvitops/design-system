@@ -1,5 +1,73 @@
 # @getvitops/astro
 
+## 0.9.0
+
+### Minor Changes
+
+- **Fixed: `Subgrid` and `Cards` rendered as unstyled lists, in every format.**
+
+  `Subgrid.astro` drew its geometry with Tailwind utilities — `grid-rows-subgrid` and
+  `row-span-(--row-span)`, the latter Tailwind v4's arbitrary-CSS-variable syntax. No framework CSS
+  layer defines those, so under `css.format: 'css'` or `'bricks'` the component had no layout at all.
+
+  It failed under `'tailwind'` too, which is the part worth internalising: **Tailwind v4 is JIT and
+  does not scan `node_modules`**, so a class that only a shipped component references is never
+  generated. A consumer had to add the package to Tailwind's `@source` by hand to get a subgrid;
+  without that, cards silently laid out at `grid-row: auto` — visually plausible, quietly wrong. The
+  same trap applied to `grid` in `Subgrid` and `sr-only` / `not-sr-only` in `Popover` / `Drawer`:
+  those are in the generator's `TW_CLASH` list, so the framework strips its own rules for them from
+  the tailwind bundle and defers to Tailwind — meaning they resolved only when the consumer's own
+  templates happened to use the same class.
+
+  The components now emit framework classes only, and the `subgrid` pattern owns the layout:
+  - `Subgrid` renders `<ul class="subgrid"><li>…` and ships no `<style>` block of its own.
+  - `Popover` / `Drawer` use a component-scoped `visually-hidden` instead of `sr-only`. The
+    `not-sr-only` on their icons was a no-op and is gone.
+  - The `subgrid` pattern absorbed the wrapped-row margin the component used to carry, so
+    hand-written `.subgrid` markup gets it too, and resets list markers on `ul`/`ol`.
+
+  **Also fixed: `Cards` discarded the `card` class and every class you put on a child.** It wrote
+  `card` onto the slotted element and then serialised that element's _inner_ HTML, dropping the
+  attribute it had just set. Child `class` and `style` now reach the rendered `<li>`.
+
+  **Breaking — the subgrid custom properties are renamed.** One `--subgrid-*` vocabulary now covers
+  both the pattern and the component; the old names are removed, not aliased:
+
+  | removed                         | use                  |
+  | ------------------------------- | -------------------- |
+  | `--items-per-row`, `--cols`     | `--subgrid-cols`     |
+  | `--rows-per-item`, `--row-span` | `--subgrid-row-span` |
+  | `--row-margin`                  | `--subgrid-row-gap`  |
+
+  `--subgrid-gap` (the grid gap) is unchanged, as are the `.subgrid-cols-*` / `.subgrid-rows-*` /
+  `.subgrid-responsive` modifiers. Anything still setting an old name falls back to the pattern
+  defaults — 3 columns, span 2 — so grep for them when you upgrade.
+
+- **`tailwindcss` and `@tailwindcss/vite` are now optional peer dependencies, not dependencies.**
+
+  Only `css.format: 'tailwind'` ever used them, but every consumer installed them — including
+  `'css'` and `'bricks'` projects that never touch Tailwind. The integration now loads
+  `@tailwindcss/vite` lazily inside that branch and throws a directive error if it is missing.
+
+  **Migration:** if you use `css.format: 'tailwind'` (the default), add both to your
+  `devDependencies` — `pnpm add -D tailwindcss @tailwindcss/vite`. Most Tailwind projects already
+  have them. Everyone else can drop them.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies [c949cae]
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @getvitops/generator@0.9.0
+  - @getvitops/core@0.9.0
+  - @getvitops/vite@0.9.0
+  - @getvitops/utils@0.9.0
+
 ## 0.8.0
 
 ### Minor Changes

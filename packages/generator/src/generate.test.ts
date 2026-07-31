@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { build } from './generate.ts';
 import { defaultConfig } from './index.ts';
@@ -138,5 +141,35 @@ describe('pattern fill mode', () => {
     // case must still treat `badge` as a fill.
     expect(css).toContain('background-color: var(--neutral-solid)');
     expect(css).toContain('background-color: var(--info-solid); color: var(--info-on-solid)');
+  });
+});
+
+/**
+ * The tailwind format strips the framework's PRE-EXPANDED breakpoint utilities
+ * (`.md-split-1-2`) because Tailwind regenerates them on demand as `@md:`. That
+ * strip used to match every `@container (min-width: …)` block, which swept up
+ * component *behaviour* too — most visibly the sitenav's desktop layout, so the
+ * tailwind format shipped a nav permanently stuck in its mobile state.
+ *
+ * Needs the framework partials, which live in the gitignored `assets/` build
+ * artifact, so skip rather than fail in a clean checkout.
+ */
+describe('tailwind container-block strip', () => {
+  const HERE = dirname(fileURLToPath(import.meta.url));
+  const assets = join(HERE, '..', 'assets');
+  const hasAssets = existsSync(join(assets, 'css', 'patterns', 'sitenav.css'));
+  const tw = () => build(defaultConfig(), 'tailwind', assets).tailwind;
+
+  it.skipIf(!hasAssets)('keeps component container queries', () => {
+    const css = tw();
+    for (const bp of ['sm', 'md', 'lg', 'xl'])
+      expect(css, `.sitenav--bp-${bp} must survive`).toContain(`sitenav--bp-${bp}`);
+  });
+
+  it.skipIf(!hasAssets)('still drops pre-expanded breakpoint utilities', () => {
+    // These are Tailwind's job in this format (`@md:split-1-2`).
+    const css = tw();
+    for (const cls of ['.md-split-1-2', '.lg-flex-row', '.sm-items-center'])
+      expect(css, `${cls} should be Tailwind's to generate`).not.toContain(cls);
   });
 });

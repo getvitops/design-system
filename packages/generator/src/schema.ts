@@ -8,6 +8,7 @@
  *   • the generated `authoring.md` reference doc (walks `jsonSchema`'s descriptions).
  */
 import * as z from 'zod/mini';
+import { REQUIRED_ROLES } from './shared.ts';
 
 /**
  * Attach a JSON-Schema `description`. zod/mini has no `.describe()` method; the
@@ -65,7 +66,7 @@ const Colors = desc(
     ),
     roles: desc(
       z.record(z.string(), z.string()),
-      "Maps each semantic role (neutral, surface, ui-primary/secondary/accent, brand-primary/secondary, info, success, warning, danger) to the palette hue backing it. The generator derives every role's FUNCTIONAL tokens (`--<role>-{bg,bg-muted,border,border-bold,solid,solid-bold,on-solid,text,text-muted,text-x-muted}`) plus emphasis stops from the hue's scale, and dark mode flips automatically — there is no per-appearance scheme grammar.",
+      `Maps semantic role names onto palette hues. Role names are ARBITRARY — add a key and the generator emits that role's full FUNCTIONAL token set (\`--<role>-{bg,bg-muted,border,border-bold,solid,solid-bold,on-solid,text,text-muted,text-x-muted}\`), its emphasis stops, its dark-mode flip and its utility classes. Dark mode flips automatically; there is no per-appearance scheme grammar. Six roles are a required core, because the shipped framework CSS references them with no fallback: ${REQUIRED_ROLES.join(', ')}. Conventional additions are ui-secondary/accent, brand-secondary, info and success.`,
     ),
     utilities: z.optional(
       desc(
@@ -328,6 +329,19 @@ export function validate(input: unknown): ValidationResult {
     }
   }
   const warnings: string[] = [];
+  // Role names are arbitrary — but the shipped component CSS is written against
+  // a core set, and references them with no fallback. Omitting one doesn't fail
+  // validation (the tokens for the roles you DO define are all emitted fine); it
+  // silently strips colour from whichever components depended on it, which is
+  // far harder to diagnose than a warning here.
+  const missing = REQUIRED_ROLES.filter((r) => roles[r] == null);
+  if (missing.length)
+    warnings.push(
+      `colors.roles is missing ${missing.map((r) => `"${r}"`).join(', ')} — ` +
+        `the framework's own component CSS references ${missing.length === 1 ? 'it' : 'them'} ` +
+        `with no fallback, so those components will render uncoloured. ` +
+        `Add any role you like, but keep these defined.`,
+    );
   // A radius named after a pattern collides on `--br-<name>`: the radius token and
   // the pattern's own override hook are the same var, so whichever the generator
   // emits last silently wins. Same class of clash as a pattern keyed like its

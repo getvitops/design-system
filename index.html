@@ -9,6 +9,17 @@
          ONE page: every class, each with a live mini-demo, an aside TOC that is
          a split sidebar on wide screens and a drawer on mobile — all built from
          the framework's own classes (the page dogfoods what it documents). -->
+    <!-- Cascade layer order — MUST come before the stylesheet link.
+         Layer precedence is fixed by FIRST declaration. styles.css declares
+         vitops.base/components/utilities itself, so if this statement came
+         after the <link>, `docsite.reset` would be a brand-new name introduced
+         later and would sort LAST — i.e. highest priority — and the reset would
+         defeat the framework rules it is meant to sit beneath. Declaring the
+         full order up here pins reset below everything.
+         This is the one non-obvious step for any consumer adding a reset. -->
+    <style>
+      @layer docsite.reset, vitops.base, vitops.components, vitops.utilities;
+    </style>
     <link rel="stylesheet" href="./dist/styles.css" />
     <!-- Progressive enhancement: polyfills (Popover, anchor positioning, scroll
          timelines, view transitions, web components) + deferred component behaviour.
@@ -25,12 +36,41 @@
          tag itself sits at the end of <body>. -->
     <script type="module" src="./dist/editor.js"></script>
     <style>
-      /* ── Docsite scaffolding — only styles with NO framework equivalent ──── */
-      *,
-      *::before,
-      *::after {
-        box-sizing: border-box;
+      /* ── Cascade layers ───────────────────────────────────────────────────
+         The framework ships its own stack — vitops.base < vitops.components <
+         vitops.utilities — and unlayered CSS beats ALL of it. That is the
+         point: your styles win without a specificity fight. But it means a
+         RESET must be layered too, and ordered BELOW the framework, or it
+         beats the very component rules it is meant to sit under. Left
+         unlayered, `p { margin: 0 }` below would defeat `.rhythm > * + *`.
+
+         The order itself is pinned in the <style> above the stylesheet link —
+         see the note there for why it cannot live down here.
+
+         This is the migration any consumer with a reset has to make, so the
+         docsite does it in the open rather than dodging it. */
+      @layer docsite.reset {
+        *,
+        *::before,
+        *::after {
+          box-sizing: border-box;
+        }
+        p,
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        ul,
+        figure {
+          margin: 0;
+        }
       }
+
+      /* ── Docsite scaffolding — only styles with NO framework equivalent ────
+         Deliberately UNLAYERED: this is bespoke page chrome that should win
+         over the framework, which is exactly what unlayered CSS now does. */
       body {
         margin: 0;
         font-family: var(--font-sans);
@@ -42,17 +82,6 @@
         transition:
           background-color 0.3s ease,
           color 0.3s ease;
-      }
-      p,
-      h1,
-      h2,
-      h3,
-      h4,
-      h5,
-      h6,
-      ul,
-      figure {
-        margin: 0;
       }
       :not(pre) > code {
         font-family: var(--font-mono);
@@ -105,8 +134,18 @@
       .topbar .spacer {
         flex: 1;
       }
-      #theme-toggle {
-        cursor: pointer;
+      /* Point the toggle's documented theming hooks at framework tokens so it
+         follows the palette in both appearances (its own defaults are
+         standalone hard-coded greys). */
+      color-scheme-toggle {
+        --color-scheme-toggle-bg: var(--surface-bg);
+        --color-scheme-toggle-color: var(--surface-text);
+        --color-scheme-toggle-hover-bg: var(--surface-bg-muted);
+        --color-scheme-toggle-active-bg: var(--brand-primary-solid);
+        --color-scheme-toggle-active-color: var(--brand-primary-on-solid);
+        --color-scheme-toggle-border: 1px solid var(--surface-border);
+        --color-scheme-toggle-focus-color: var(--brand-primary-solid);
+        --color-scheme-toggle-radius: var(--br-control);
       }
 
       /* ── Page shell: split TOC layout ──
@@ -198,26 +237,24 @@
         white-space: nowrap;
         line-height: 1.6;
       }
+      /* Functional role tokens, so the markers flip with the appearance on their
+         own — no hand-written dark block. (These used to color-mix `--color-info`
+         / `--color-warning` / `--color-cobalt`, none of which the generator
+         emits: a role resolves to functional tokens and a hue to numeric steps,
+         so every marker background silently computed to transparent.) */
       .t-resp {
-        background: color-mix(in srgb, var(--color-info) 18%, transparent);
-        color: var(--color-info-bold);
+        background: var(--info-bg-muted);
+        color: var(--info-text);
       }
       .t-state {
-        background: color-mix(in srgb, var(--color-warning) 22%, transparent);
-        color: var(--color-warning-bold);
+        background: var(--warning-bg-muted);
+        color: var(--warning-text);
       }
+      /* `neutral`, not `ui-secondary` — that role shares cobalt with `info`, so
+         the Tailwind marker would be indistinguishable from the responsive one. */
       .t-tw {
-        background: color-mix(in srgb, var(--color-cobalt) 20%, transparent);
-        color: var(--color-cobalt-950);
-      }
-      [data-brx-theme='dark'] .t-resp {
-        color: var(--color-info-muted);
-      }
-      [data-brx-theme='dark'] .t-state {
-        color: var(--color-warning-muted);
-      }
-      [data-brx-theme='dark'] .t-tw {
-        color: var(--color-cobalt-400);
+        background: var(--neutral-bg-muted);
+        color: var(--neutral-text);
       }
 
       /* ── Demo helpers (compact, gridded) ── */
@@ -530,7 +567,10 @@
       <button class="drawer-trigger lg-hidden" popovertarget="toc-drawer" style="position: static">
         ☰ Contents
       </button>
-      <button id="theme-toggle">Switch to dark mode</button>
+      <!-- Dogfoods the shipped web component (dist/elements.js) rather than a
+           bespoke handler: it writes [data-theme] on <html>, one of the two
+           attributes the generated dark block matches. -->
+      <color-scheme-toggle></color-scheme-toggle>
     </div>
 
     <!-- Scroll-progress bar (framework class, pure CSS) -->
@@ -1870,7 +1910,7 @@
                 </div>
                 <div
                   slot="end"
-                  class="bg-cobalt-d"
+                  class="bg-cobalt-600"
                   style="height: 100%; display: grid; place-items: center; color: #fff"
                 >
                   end
@@ -1957,7 +1997,23 @@
             <div class="demo rhythm">
               <div class="card" style="padding: 1rem">
                 <p class="font-heading">Card</p>
-                <p class="font-caption">A padded, rounded panel on <code>surface-xxl</code>.</p>
+                <p class="font-caption">A padded, rounded panel on <code>--surface-bg</code>.</p>
+              </div>
+              <!-- Two ways to recolour a panel, and they are different tools, not
+                   alternatives. A role variant is a mode-stable SOLID fill with a
+                   computed on-solid foreground. Composing the pattern with a bg-*
+                   utility gives a tinted plane that flips with the appearance and
+                   inherits its text colour — that works because utilities sit in
+                   vitops.utilities, a later layer than the patterns. -->
+              <div class="cluster cluster-start" style="gap: 0.75rem; align-items: stretch">
+                <div class="card card-danger" style="padding: 1rem; flex: 1 1 12rem">
+                  <p class="font-heading">card-danger</p>
+                  <p class="font-caption">Role variant — solid fill + <code>on-solid</code>.</p>
+                </div>
+                <div class="card bg-danger-muted" style="padding: 1rem; flex: 1 1 12rem">
+                  <p class="font-heading">card + bg-danger-muted</p>
+                  <p class="font-caption">Composed — tinted plane, inherits text.</p>
+                </div>
               </div>
               <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
                 <a class="cta" href="#patterns">Get started</a
@@ -3597,13 +3653,8 @@
         btn.addEventListener('click', () => target?.classList.toggle('is-open'));
       });
 
-      // ---- Dark mode toggle (flips [data-brx-theme] like Bricks would) ----
-      const themeBtn = $('theme-toggle');
-      themeBtn.addEventListener('click', () => {
-        const isDark = document.documentElement.getAttribute('data-brx-theme') === 'dark';
-        document.documentElement.setAttribute('data-brx-theme', isDark ? 'light' : 'dark');
-        themeBtn.textContent = isDark ? 'Switch to dark mode' : 'Switch to light mode';
-      });
+      // Dark mode has no handler here on purpose: <color-scheme-toggle> in the
+      // topbar owns it (dist/elements.js), same as any consumer gets.
     </script>
 
     <!-- Live theme editor. The manifest sits next to this page's stylesheet in

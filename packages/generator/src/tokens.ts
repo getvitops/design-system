@@ -164,6 +164,11 @@ const SURFACE_DARK: TokenMap = { ...DARK, bg: '900', 'bg-muted': '950', 'bg-bold
 // appearance-relative emphasis stops (base excluded — the bare name is functional).
 const EMPHASIS_LIGHT: TokenMap = { 'x-muted': '100', muted: '300', bold: '700', 'x-bold': '900' };
 const EMPHASIS_DARK: TokenMap = { 'x-muted': '900', muted: '700', bold: '300', 'x-bold': '100' };
+/**
+ * The emphasis-stop names, derived from the table rather than re-listed, so the
+ * utility emitter in `generate.ts` cannot drift from the tokens it emits.
+ */
+export const EMPHASIS_STOPS: readonly string[] = Object.keys(EMPHASIS_LIGHT);
 
 export interface FunctionalRole {
   role: string;
@@ -230,15 +235,35 @@ export function checkContrast(
     ['light', fr.light],
     ['dark', fr.dark],
   ] as const) {
-    const bg = resolve(tokens.bg as string);
-    const checks: Array<[string, string, number]> = [
-      ['text', resolve(tokens.text as string), 75],
-      ['text-muted', resolve(tokens['text-muted'] as string), 60],
-    ];
-    for (const [token, hexV, min] of checks) {
-      const lc = contrastLc(hexV, bg);
-      if (lc < min)
-        failures.push(`${fr.role}/${name}: ${token} Lc ${lc.toFixed(1)} < ${min} on bg ${bg}`);
+    // Check text against EVERY background plane the role emits, not just `bg`.
+    // Body text on a `card` sits on `--surface-bg-muted` / `-bg-bold`, and those
+    // pairings were entirely unguarded before — the point of having planes is
+    // that you can stack them, so each one has to stay legible.
+    //
+    // The bar differs by plane, deliberately. `bg` is the role's primary
+    // surface and holds the full APCA body-text target (Lc 75). The secondary
+    // planes hold APCA's large/bold-text target (Lc 60): `surface`'s sunken
+    // plane in light mode currently measures Lc 69.1 for `text`, which clears
+    // 60 but not 75. Closing that needs a step-table change (surface's bg-muted
+    // is at step 200 with `text` already pinned at the 950 extreme, so there is
+    // no headroom without re-inseting the role), which is a colour-ramp
+    // decision, not a test fix. Recorded here so it stays visible.
+    const PRIMARY_PLANE = 'bg';
+    const planes = (['bg', 'bg-muted', 'bg-bold'] as const).filter((p) => tokens[p] != null);
+    for (const plane of planes) {
+      const bg = resolve(tokens[plane] as string);
+      const textMin = plane === PRIMARY_PLANE ? 75 : 60;
+      const checks: Array<[string, string, number]> = [
+        ['text', resolve(tokens.text as string), textMin],
+        ['text-muted', resolve(tokens['text-muted'] as string), 60],
+      ];
+      for (const [token, hexV, min] of checks) {
+        const lc = contrastLc(hexV, bg);
+        if (lc < min)
+          failures.push(
+            `${fr.role}/${name}: ${token} Lc ${lc.toFixed(1)} < ${min} on ${plane} ${bg}`,
+          );
+      }
     }
     const onLc = contrastLc(tokens['on-solid'] as string, resolve(tokens.solid as string));
     if (onLc < 60)

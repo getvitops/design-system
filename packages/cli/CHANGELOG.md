@@ -1,5 +1,52 @@
 # @getvitops/cli
 
+## 0.9.0
+
+### Minor Changes
+
+- **The `tailwind` format now emits the full role colour vocabulary.** It previously emitted only
+  the functional role utilities, so 87 classes — `bg-<role>-x-muted`, `bg-<role>-bold`,
+  `bg-<role>-x-bold`, `text-<role>-bold`, `text-<role>-x-bold`,
+  `border-<role>-{muted,x-muted,x-bold}`, for every role — existed in the `css` and `bricks`
+  outputs and silently did nothing in `tailwind`. Nothing in the test suite built the tailwind
+  format, so the divergence was invisible; it was found by a consumer who hand-forked four
+  background planes into their own stylesheet to work around the absence.
+
+  All three formats now render from one emitter (`roleColorUtilities()`), which resolves the
+  plane-vs-stop namespace collision explicitly instead of relying on the CSS minifier dropping a
+  shadowed rule. No class changes meaning, and the `css`/`bricks` output is unchanged.
+
+  Also fixed in the tailwind format:
+  - `colors.utilities` is now honoured. It was hardcoded to `bg`/`text`/`border`, so enabling
+    `outline`/`fill`/`stroke` worked in `css`/`bricks` and was ignored here. (For raw hue scales
+    it remains a floor rather than a ceiling — those are `@theme` colours, and Tailwind derives
+    every colour family from them on demand.)
+  - **Component container queries are no longer stripped.** The pass that drops the framework's
+    pre-expanded `md-*` breakpoint utilities (Tailwind regenerates those as `@md:`) matched every
+    `@container (min-width: …)` block, including component behaviour — most visibly the
+    sitenav's, so `.sitenav--bp-{sm,md,lg,xl}` were removed and the nav stayed in its mobile
+    layout at every width.
+
+  New: **`vitops lint`** reports framework classes in your source that resolve to nothing — the
+  failure mode where an unknown utility looks exactly like a working one. It is format-aware
+  (`md-flex-row` is a real class in `css`/`bricks` and inert in `tailwind`) and only judges
+  classes anchored to your own config, so it stays quiet on Tailwind's utilities and your own.
+
+  ```
+  vitops lint --format tailwind --src src
+  ```
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies [c949cae]
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @getvitops/generator@0.9.0
+  - @getvitops/utils@0.9.0
+
 ## 0.8.0
 
 ### Minor Changes

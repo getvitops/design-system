@@ -116,6 +116,9 @@ importers:
       astro-icon:
         specifier: ^1.1.5
         version: 1.1.5
+      baseline-status:
+        specifier: ^1.1.1
+        version: 1.1.1
       sharp:
         specifier: 'catalog:'
         version: 0.35.3(@types/node@25.9.3)
@@ -190,19 +193,19 @@ importers:
       '@getvitops/vite':
         specifier: workspace:*
         version: link:../vite
-      '@tailwindcss/vite':
-        specifier: 'catalog:'
-        version: 4.3.3(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0))
       astro-icon:
         specifier: '>=1'
         version: 1.1.5
-      tailwindcss:
-        specifier: 'catalog:'
-        version: 4.3.3
     devDependencies:
+      '@tailwindcss/vite':
+        specifier: 'catalog:'
+        version: 4.3.3(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0))
       astro:
         specifier: 'catalog:'
         version: 7.1.2(@astrojs/markdown-remark@7.2.1)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.2)(@types/node@25.9.3)(jiti@2.7.0)(rollup@4.62.2)
+      tailwindcss:
+        specifier: 'catalog:'
+        version: 4.3.3
       vitest:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@25.9.3)(@vitest/browser-preview@4.1.9)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0))
@@ -1793,6 +1796,9 @@ packages:
   '@lit/reactive-element@2.1.2':
     resolution: {integrity: sha512-pbCDiVMnne1lYUIaYNN5wrwQXDtHaYtg7YEFPeW+hws6U47WeFvISGUWekPGKWOP1ygrs0ef0o1VJMk1exos5A==}
 
+  '@lit/task@1.0.3':
+    resolution: {integrity: sha512-1gJGJl8WON+2j0y9xfcD+XsS1rvcy3XDgsIhcdUW++yTR8ESjZW6o7dn8M8a4SZM8NnJe6ynS2cKWwsbfLOurg==}
+
   '@manypkg/find-root@1.1.0':
     resolution: {integrity: sha512-mki5uBvhHzO8kYYix/WRy2WX8S3B5wdVSc9D6KcU5lQNglP2yt58/VfLuAK49glRXChosY8ap2oJ1qgma3GUVA==}
 
@@ -3238,6 +3244,9 @@ packages:
     resolution: {integrity: sha512-HYXq73DDpCtNzOmrFsm9eSwCvWCql0RzqjpDzXN9EadiLJ4DNat0nsZ/Bzmy+Ud12mb4/zKDY0cQ805ZzN+i0A==}
     engines: {node: '>=6.0.0'}
     hasBin: true
+
+  baseline-status@1.1.1:
+    resolution: {integrity: sha512-l7L5D3MQA/+082HNaN2vEeodO20wVC6SctPCPmediuxHlGkBxQcbo2fYfTB+4FYg4QbRTTig4xI5Tyy1aRCJ3A==}
 
   better-auth@1.6.23:
     resolution: {integrity: sha512-4vOaRd9UiKGKm9R+ej0jjU1es3MiJIiNc9Qq3VCnYqOZ4/nb5272QqTxWYoDxyUXl5x6A2x2we5KZKQO9teTQQ==}
@@ -7553,6 +7562,10 @@ snapshots:
     dependencies:
       '@lit-labs/ssr-dom-shim': 1.6.0
 
+  '@lit/task@1.0.3':
+    dependencies:
+      '@lit/reactive-element': 2.1.2
+
   '@manypkg/find-root@1.1.0':
     dependencies:
       '@babel/runtime': 7.29.7
@@ -8869,6 +8882,11 @@ snapshots:
   base64-js@1.5.1: {}
 
   baseline-browser-mapping@2.11.1: {}
+
+  baseline-status@1.1.1:
+    dependencies:
+      '@lit/task': 1.0.3
+      lit: 3.3.3
 
   better-auth@1.6.23(@cloudflare/workers-types@5.20260719.1)(better-sqlite3@12.11.1)(drizzle-orm@0.45.2(@cloudflare/workers-types@5.20260719.1)(@electric-sql/pglite@0.5.4)(better-sqlite3@12.11.1)(kysely@0.29.4)(pg@8.22.0)(postgres@3.4.9))(pg@8.22.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.9):
     dependencies:

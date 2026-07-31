@@ -18,8 +18,9 @@ import { createHash } from 'node:crypto';
 import { transform } from 'lightningcss';
 import { validate, type DesignSystem } from './schema.ts';
 import { generateDocs } from './docs.ts';
-import { BASE_HOOK, TW_CLASH } from './shared.ts';
+import { BASE_HOOK, DARK_SEL, TW_CLASH } from './shared.ts';
 import {
+  EMPHASIS_STOPS,
   expandPalette,
   functionalRole,
   NUMERIC_STEPS,
@@ -28,23 +29,6 @@ import {
 } from './tokens.ts';
 
 export type Format = 'bricks' | 'css' | 'tailwind';
-
-/**
- * Selector the dark functional-token flip hangs off.
- *
- * `data-brx-theme` is Bricks' own attribute — Bricks sets it, so it's what the
- * WordPress target needs. Nothing sets it anywhere else, which meant the dark
- * flip was unreachable outside Bricks: the shipped `<color-scheme-toggle>` web
- * component writes `documentElement.dataset.theme` (i.e. `data-theme`), so
- * clicking "Dark" changed an attribute no rule matched. Matching both makes the
- * component work on every target without changing what Bricks already does.
- *
- * Note this covers the explicit choice only — there is deliberately no
- * `prefers-color-scheme` block, so the toggle's "System" position currently
- * resolves to light. Adding one would flip every existing consumer site dark for
- * dark-OS users, which is a product decision, not a bug fix.
- */
-const DARK_SEL = ':root[data-brx-theme="dark"], :root[data-theme="dark"]';
 
 export interface GenerateOptions {
   /** Path to a design-system.json, OR an already-parsed config object. */
@@ -83,29 +67,95 @@ const UTILITY_PROPS: Record<string, string> = {
 // (`stop-x-muted` → --color-<role>-x-muted); everything else is --<role>-<token>.
 const fnVar = (role: string, token: string): string =>
   token.startsWith('stop-') ? `--color-${role}-${token.slice(5)}` : `--${role}-${token}`;
-// The functional utility classes for one role (bare name = functional default).
-const fnUtilities = (role: string, utilities: string[], isSurface: boolean): string => {
-  const rows: string[] = [];
-  if (utilities.includes('bg')) {
-    rows.push(`.bg-${role} { background-color: var(--${role}-bg); }`);
-    rows.push(`.bg-${role}-muted { background-color: var(--${role}-bg-muted); }`);
-    rows.push(`.bg-${role}-solid { background-color: var(--${role}-solid); }`);
-    rows.push(`.bg-${role}-solid-bold { background-color: var(--${role}-solid-bold); }`);
-    if (isSurface) rows.push(`.bg-${role}-bold { background-color: var(--${role}-bg-bold); }`);
+export interface ColorUtility {
+  /** Class name, without the leading dot. */
+  cls: string;
+  /** CSS property the class sets. */
+  prop: string;
+  /** `var(--…)` reference the class resolves to. */
+  value: string;
+  /** Which of the two axes below produced it. */
+  axis: 'plane' | 'stop';
+}
+
+/**
+ * Every role colour utility, each class name emitted EXACTLY once.
+ *
+ * Two axes share the `<family>-<role>-<modifier>` namespace: the functional
+ * background/text/border **planes** (`--<role>-bg-muted`) and the
+ * appearance-relative emphasis **stops** (`--color-<role>-muted`). Where both
+ * would produce the same class the plane wins.
+ *
+ * That precedence used to be implicit — the css path emitted the stop matrix,
+ * then the planes, and relied on the CSS minifier dropping the shadowed
+ * earlier rule. The tailwind path never ran the stop half at all, so the two
+ * formats shipped different vocabularies (87 role classes existed in css and
+ * not in tailwind) with nothing to catch it. Deciding it here, once, is what
+ * keeps all three formats in step; `format-parity.test.ts` holds them there.
+ *
+ * Order is stops-then-planes to match the css bundle's historical rule order.
+ */
+export function roleColorUtilities(
+  roles: readonly FunctionalRole[],
+  utilities: readonly string[],
+): ColorUtility[] {
+  const plane = (cls: string, prop: string, value: string): ColorUtility => ({
+    cls,
+    prop,
+    value,
+    axis: 'plane',
+  });
+  // Planes exist only for bg/text/border, and in this fixed family order —
+  // outline/fill/stroke have no functional equivalent, so enabling them yields
+  // stop utilities only.
+  const planes: ColorUtility[] = [];
+  for (const { role } of roles) {
+    if (utilities.includes('bg')) {
+      planes.push(
+        plane(`bg-${role}`, 'background-color', `var(--${role}-bg)`),
+        plane(`bg-${role}-muted`, 'background-color', `var(--${role}-bg-muted)`),
+        plane(`bg-${role}-solid`, 'background-color', `var(--${role}-solid)`),
+        plane(`bg-${role}-solid-bold`, 'background-color', `var(--${role}-solid-bold)`),
+      );
+      // Only `surface` carries a third background plane (the raised one).
+      if (role === 'surface')
+        planes.push(plane(`bg-${role}-bold`, 'background-color', `var(--${role}-bg-bold)`));
+    }
+    if (utilities.includes('text'))
+      planes.push(
+        plane(`text-${role}`, 'color', `var(--${role}-text)`),
+        plane(`text-${role}-muted`, 'color', `var(--${role}-text-muted)`),
+        plane(`text-${role}-x-muted`, 'color', `var(--${role}-text-x-muted)`),
+        plane(`text-on-${role}`, 'color', `var(--${role}-on-solid)`),
+      );
+    if (utilities.includes('border'))
+      planes.push(
+        plane(`border-${role}`, 'border-color', `var(--${role}-border)`),
+        plane(`border-${role}-bold`, 'border-color', `var(--${role}-border-bold)`),
+      );
   }
-  if (utilities.includes('text')) {
-    rows.push(`.text-${role} { color: var(--${role}-text); }`);
-    rows.push(`.text-${role}-muted { color: var(--${role}-text-muted); }`);
-    rows.push(`.text-${role}-x-muted { color: var(--${role}-text-x-muted); }`);
-    rows.push(`.text-on-${role} { color: var(--${role}-on-solid); }`);
-  }
-  if (utilities.includes('border'))
-    rows.push(
-      `.border-${role} { border-color: var(--${role}-border); }`,
-      `.border-${role}-bold { border-color: var(--${role}-border-bold); }`,
-    );
-  return rows.join('\n');
-};
+
+  const claimed = new Set(planes.map((p) => p.cls));
+  const stops: ColorUtility[] = [];
+  for (const { role } of roles)
+    for (const stop of EMPHASIS_STOPS)
+      for (const fam of utilities) {
+        const cls = `${fam}-${role}-${stop}`;
+        if (claimed.has(cls) || !(fam in UTILITY_PROPS)) continue;
+        stops.push({
+          cls,
+          prop: UTILITY_PROPS[fam] as string,
+          value: `var(--color-${role}-${stop})`,
+          axis: 'stop',
+        });
+      }
+
+  return [...stops, ...planes];
+}
+
+/** Render the shared set as plain rules (css/bricks formats). */
+const colorUtilityRules = (u: ColorUtility[]): string =>
+  u.map(({ cls, prop, value }) => `.${cls} { ${prop}: ${value}; }`).join('\n');
 
 const decls = (obj: Record<string, string>, indent = '  ') =>
   Object.entries(obj)
@@ -290,23 +340,18 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
         css += `${DARK_SEL} {\n  color-scheme: dark;\n${fb}}\n\n`;
       }
     }
-    // Utilities: hue numeric steps + role emphasis stops, then the functional
-    // set (emitted last so it wins ties, e.g. bg-<role>-muted).
-    const allTokens: string[] = [];
-    for (const [name, hue] of Object.entries(expandedPalette))
-      for (const n of Object.keys(hue.numeric)) allTokens.push(`${name}-${n}`);
-    for (const fr of scaleRoles)
-      for (const stop of ['x-muted', 'muted', 'bold', 'x-bold'])
-        allTokens.push(`${fr.role}-${stop}`);
+    // Raw hue steps, then the role set. `roleColorUtilities` has already
+    // resolved plane-vs-stop collisions, so every class here is emitted once —
+    // no reliance on the minifier dropping a shadowed rule.
     css += `/* Colour utilities — ${UTILITIES.join(', ')} */\n`;
-    for (const token of allTokens)
-      css +=
-        UTILITIES.map(
-          (cls) => `.${cls}-${token} { ${UTILITY_PROPS[cls]}: var(--color-${token}); }`,
-        ).join('\n') + '\n';
-    css += `\n/* Functional utilities (the public API) */\n`;
-    for (const fr of scaleRoles)
-      css += `${fnUtilities(fr.role, UTILITIES, fr.role === 'surface')}\n`;
+    for (const [name, hue] of Object.entries(expandedPalette))
+      for (const n of Object.keys(hue.numeric))
+        css +=
+          UTILITIES.map(
+            (cls) => `.${cls}-${name}-${n} { ${UTILITY_PROPS[cls]}: var(--color-${name}-${n}); }`,
+          ).join('\n') + '\n';
+    css += `\n/* Role utilities (the public API) */\n`;
+    css += `${colorUtilityRules(roleColorUtilities(scaleRoles, UTILITIES))}\n`;
     if (surfaceRole)
       css += `.glass { background-color: var(--surface-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }\n`;
     generated['color.css'] = css;
@@ -807,6 +852,7 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
           twPatternTokensCss,
           patternsCss: pat,
           assetsDir,
+          utilities: UTILITIES,
         });
 
   return {
@@ -837,6 +883,12 @@ interface TwCtx {
   twPatternTokensCss: string;
   patternsCss: string;
   assetsDir: string;
+  /**
+   * The configured `colors.utilities`. Was previously hardcoded to
+   * bg/text/border at the emit site, so a consumer who enabled `outline`/
+   * `fill`/`stroke` got them in css/bricks but not tailwind.
+   */
+  utilities: string[];
 }
 
 function emitTailwind(ctx: TwCtx): string {
@@ -853,10 +905,14 @@ function emitTailwind(ctx: TwCtx): string {
     twPatternTokensCss,
     patternsCss,
     assetsDir,
+    utilities,
   } = ctx;
   const cssDir = join(assetsDir, 'css');
   const nl = (arr: string[]) => arr.filter(Boolean).join('\n');
-  const parts: string[] = [`/* GENERATED for Tailwind v4 (Astro) — do not edit by hand. */`];
+  const parts: string[] = [
+    `/* GENERATED for Tailwind v4 (Astro) — do not edit by hand.\n` +
+      `   Class reference: npx vitops docs classes  ·  All topics: npx vitops docs */`,
+  ];
   parts.push(`@import "tailwindcss";\n`);
 
   const theme: string[] = [];
@@ -895,9 +951,19 @@ function emitTailwind(ctx: TwCtx): string {
         `\n}\n`,
     );
 
-  // Functional role tokens (not --color-*, so a plain :root block — Tailwind
-  // must not derive single-purpose utilities from them; the @utility set below
-  // is the public API).
+  // Role tokens go in a plain :root block, NOT @theme — including the emphasis
+  // stops, despite those living in the --color-* namespace. The @utility set
+  // below is the public API.
+  //
+  // This is load-bearing, not stylistic. Measured against tailwindcss@4.3.3:
+  // when a token is in @theme AND an @utility of the derived name exists,
+  // Tailwind merges both into one rule with the @theme declaration LAST, and it
+  // does so regardless of source order. Putting `--color-<role>-<stop>` in
+  // @theme would therefore silently substitute the stop for the plane on the
+  // five colliding classes — including `text-<role>-muted` (step 800 → 300) and
+  // `text-<role>-x-muted` (600 → 100), i.e. exactly the tokens tokens.ts's APCA
+  // test guarantees are readable. Raw hue scales are safe in @theme because no
+  // @utility competes for those names.
   if (scaleRoles.length) {
     let fn = '';
     for (const fr of scaleRoles)
@@ -937,14 +1003,12 @@ function emitTailwind(ctx: TwCtx): string {
 
   const util: string[] = [];
   if (scaleRoles.length) {
-    util.push(`/* Functional colour utilities (the public API) */`);
-    for (const fr of scaleRoles)
-      for (const row of fnUtilities(fr.role, ['bg', 'text', 'border'], fr.role === 'surface').split(
-        '\n',
-      )) {
-        const m = /^\.([^ ]+) \{ (.*) \}$/.exec(row);
-        if (m) util.push(`@utility ${m[1]} {\n  ${m[2]}\n}`);
-      }
+    util.push(`/* Role colour utilities (the public API) */`);
+    // Same source as the css/bricks formats — the two used to diverge because
+    // this path re-parsed the other's generated strings and only ever ran the
+    // functional half. See roleColorUtilities().
+    for (const { cls, prop, value } of roleColorUtilities(scaleRoles, utilities))
+      util.push(`@utility ${cls} {\n  ${prop}: ${value};\n}`);
     if (scaleRoles.some((r) => r.role === 'surface'))
       util.push(
         `@utility glass {\n  background-color: var(--surface-glass);\n  backdrop-filter: blur(12px);\n  -webkit-backdrop-filter: blur(12px);\n}`,
@@ -1086,9 +1150,17 @@ body {
 }
 `);
 
-  // Same layering rationale as the structure block above.
-  const animEngine = readFileSync(join(cssDir, 'animation.css'), 'utf8');
-  parts.push(`/* ── Animation engine (animation.css) ── */\n@layer components {\n${animEngine}\n}`);
+  // Same layering rationale as the structure block above. Guarded on existence
+  // like componentPartialOrder below: `assets/**` is a gitignored build artifact
+  // that `vp test` does not produce, so an unguarded read makes the tailwind
+  // format untestable in a clean checkout — which is how an 87-class vocabulary
+  // gap between css and tailwind went unnoticed. The token layer still emits.
+  const animPath = join(cssDir, 'animation.css');
+  const animEngine = existsSync(animPath) ? readFileSync(animPath, 'utf8') : '';
+  if (animEngine)
+    parts.push(
+      `/* ── Animation engine (animation.css) ── */\n@layer components {\n${animEngine}\n}`,
+    );
   // Patterns live in Tailwind's `components` layer so single-purpose utilities
   // (@layer utilities — declared later in the layer order) override them, e.g.
   // `.text-on-ui-primary` beating the link pattern's element-level `a { color }`.
@@ -1101,6 +1173,39 @@ body {
   // (dropping the TW_CLASH names Tailwind provides itself).
   const droppedClashes = new Set<string>();
   let droppedVariantBlocks = 0;
+  /**
+   * Is this `@container (min-width: …)` block a PRE-EXPANDED VARIANT block —
+   * i.e. only `.sm-*`/`.md-*`/`.lg-*`/`.xl-*` utility classes, which Tailwind
+   * regenerates on demand as `@md:`?
+   *
+   * Anything else in a container query is component *behaviour*, not a variant,
+   * and dropping it breaks the component. `sitenav.css` is the case that caught
+   * this: its `@container (min-width: 48rem) { .sitenav--bp-md { … } }` is what
+   * switches the nav to its desktop layout, and blanket-dropping every
+   * container block meant the tailwind format shipped a nav stuck in mobile.
+   */
+  const isVariantBlock = (raw: string): boolean => {
+    const open = raw.indexOf('{');
+    const body = raw.slice(open + 1, raw.lastIndexOf('}'));
+    const selectors: string[] = [];
+    let depth = 0;
+    let start = 0;
+    for (let i = 0; i < body.length; i++) {
+      const ch = body[i];
+      if (ch === '{') {
+        if (depth === 0) selectors.push(body.slice(start, i));
+        depth++;
+      } else if (ch === '}') {
+        depth--;
+        if (depth === 0) start = i + 1;
+      }
+    }
+    const names = selectors
+      .flatMap((s) => s.split(','))
+      .map((s) => s.replace(/\/\*[\s\S]*?\*\//g, '').trim())
+      .filter(Boolean);
+    return names.length > 0 && names.every((n) => /^\.(sm|md|lg|xl)-/.test(n));
+  };
   const stripForTailwind = (css: string): string => {
     const kept: string[] = [];
     let depth = 0;
@@ -1130,7 +1235,8 @@ body {
             .replace(/\/\*[\s\S]*?\*\//g, '')
             .trim();
           const clash = /^\.([A-Za-z0-9_-]+)/.exec(prelude);
-          if (/^@container\s*\(\s*min-width:/.test(prelude)) droppedVariantBlocks++;
+          if (/^@container\s*\(\s*min-width:/.test(prelude) && isVariantBlock(raw))
+            droppedVariantBlocks++;
           else if (clash && TW_CLASH.has(clash[1] as string))
             droppedClashes.add(clash[1] as string);
           else if (raw) kept.push(raw);
@@ -1148,10 +1254,16 @@ body {
       return `/* ── ${rel} ── */\n${stripForTailwind(css)}`;
     })
     .join('\n\n');
-  // Same layering rationale as the patterns block above.
-  parts.push(
-    `/* ── Component + structural partials (Tailwind-clashing utilities dropped) ── */\n@layer components {\n${componentCss}\n}`,
-  );
+  // Same layering rationale as the patterns block above. `componentPartialOrder`
+  // already returns [] when assets are absent, so this is empty in that case.
+  if (componentCss)
+    parts.push(
+      `/* ── Component + structural partials (Tailwind-clashing utilities dropped) ── */\n` +
+        `/* Dropped ${droppedVariantBlocks} pre-expanded breakpoint block(s) — write @sm:/@md:/@lg:/@xl: instead.\n` +
+        `   Dropped ${droppedClashes.size} clashing utilit(ies) Tailwind provides itself:\n` +
+        `   ${[...droppedClashes].sort().join(' ') || '(none)'} */\n` +
+        `@layer components {\n${componentCss}\n}`,
+    );
 
   return nl(parts) + '\n';
 }
@@ -1188,11 +1300,60 @@ function componentPartialOrder(cssDir: string): string[] {
 }
 
 // ── CSS bundling (css + bricks formats) ───────────────────────────────────────
+
+/** The bundle's cascade layers, in precedence order (last wins). */
+export const CSS_LAYERS = ['vitops.base', 'vitops.components', 'vitops.utilities'] as const;
+
+/**
+ * Which layer each `index.css` chunk belongs to. Anything unmapped defaults to
+ * `vitops.components` — the safe default, since an unrecognised partial is far
+ * more likely to be a component than a utility family.
+ *
+ * The split is by what the file *emits*, not what it's named:
+ *   • base       — the UA reset and the pure `:root` token blocks.
+ *   • components — the animation engine, structural layout, and every pattern.
+ *   • utilities  — the single-purpose classes that must be able to override a
+ *                  pattern (`bg-*`, `drop-shadow-*`, `font-*`, effects, …).
+ *
+ * `color.css` and `shadows.css` each mix a `:root` block with utility classes
+ * and go to `utilities` whole. That is safe because custom-property resolution
+ * is NOT source-order dependent — a `:root` block declared after a rule that
+ * reads it still resolves.
+ *
+ * `layout.css` is genuinely mixed (structural `.rhythm`/`.centered` AND
+ * `.m-*`/`.flex`/`.split-*` utilities) and stays in `components` whole, so its
+ * utility half still can't override a pattern. Splitting it is a separate
+ * change; see the 0.9.0 changelog.
+ */
+const CHUNK_LAYER: Record<string, (typeof CSS_LAYERS)[number]> = {
+  'global.css': 'vitops.base',
+  'generated/type-tokens.css': 'vitops.base',
+  'generated/tokens.css': 'vitops.base',
+  'generated/color.css': 'vitops.utilities',
+  'generated/shadows.css': 'vitops.utilities',
+  'generated/typography.css': 'vitops.utilities',
+  'generated/animation-effects.css': 'vitops.utilities',
+  'utilities.css': 'vitops.utilities',
+};
+
 /**
  * Assemble the full stylesheet by resolving index.css's @import order against the
  * static partials (from assets) and the freshly generated token partials (in
  * memory), then minify with lightningcss. No @import survives, so no disk
  * resolution / shared `generated/` dir is needed.
+ *
+ * Each chunk is wrapped in a cascade layer. This is what lets a single-purpose
+ * utility override a component pattern — `class="card bg-danger-muted"` — which
+ * previously depended on source order and so silently did nothing here while
+ * working in the tailwind format, where Tailwind's own layers already ordered
+ * them correctly.
+ *
+ * Consequence worth knowing: unlayered CSS beats ALL layered CSS regardless of
+ * specificity, so a consumer's own stylesheet now wins over the framework by
+ * default. That is deliberate — it is the override story every layered
+ * framework ships — but it means an unlayered *reset* will beat framework
+ * component rules it used to lose to. Such a reset belongs in a layer declared
+ * before `vitops.base` (see the `<style>` block in this repo's index.html).
  */
 function bundleCss(
   generated: Record<string, string>,
@@ -1207,14 +1368,22 @@ function bundleCss(
     const m = /@import\s+['"]\.\/([^'"]+)['"]/.exec(line);
     if (!m) continue;
     const rel = m[1] as string;
-    if (rel.startsWith('generated/')) {
-      const name = rel.slice('generated/'.length);
-      chunks.push(generated[name] ?? '');
-    } else {
-      chunks.push(readFileSync(join(cssDir, rel), 'utf8'));
-    }
+    const body = rel.startsWith('generated/')
+      ? (generated[rel.slice('generated/'.length)] ?? '')
+      : readFileSync(join(cssDir, rel), 'utf8');
+    if (!body.trim()) continue;
+    chunks.push(`@layer ${CHUNK_LAYER[rel] ?? 'vitops.components'} {\n${body}\n}`);
   }
-  const merged = chunks.join('\n');
+  // `/*!` rather than `/*`: lightningcss strips ordinary comments when
+  // minifying, and both the css and bricks bundles are minified — so a plain
+  // banner would never reach the file anyone actually opens. Whoever opens this
+  // is looking for a class name; point them at the live reference.
+  const banner =
+    `/*! GENERATED by @getvitops/generator — do not edit by hand.\n` +
+    `    Class reference: npx vitops docs classes  ·  All topics: npx vitops docs */\n`;
+  // Declare the order up front so it is explicit rather than an artifact of
+  // which chunk happened to appear first.
+  const merged = banner + `@layer ${CSS_LAYERS.join(', ')};\n` + chunks.join('\n');
   const res = transform({
     filename: 'styles.css',
     code: Buffer.from(merged),

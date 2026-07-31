@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/astro",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Astro integration for the Vitops design system — favicons/PWA, web-component scripts, and CSS, via a getvitops() integration + <Head /> component.",
   "license": "MIT",
   "files": [
@@ -42,20 +42,28 @@
     "@getvitops/core": "workspace:*",
     "@getvitops/generator": "workspace:*",
     "@getvitops/utils": "workspace:*",
-    "@getvitops/vite": "workspace:*",
-    "@tailwindcss/vite": "catalog:",
-    "tailwindcss": "catalog:"
+    "@getvitops/vite": "workspace:*"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "catalog:",
     "astro": "catalog:",
+    "tailwindcss": "catalog:",
     "vitest": "^4.1.9"
   },
   "peerDependencies": {
+    "@tailwindcss/vite": ">=4",
     "astro": ">=7",
-    "astro-icon": ">=1"
+    "astro-icon": ">=1",
+    "tailwindcss": ">=4"
   },
   "peerDependenciesMeta": {
+    "@tailwindcss/vite": {
+      "optional": true
+    },
     "astro-icon": {
+      "optional": true
+    },
+    "tailwindcss": {
       "optional": true
     }
   }

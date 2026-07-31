@@ -1,0 +1,65 @@
+---
+/**
+ * Live browser-support notes, via the Baseline `<baseline-status>` element.
+ *
+ * The widget fetches from `api.webstatus.dev` at runtime, which makes it live
+ * but also makes it *absent* offline, behind a strict CSP, or if the API is
+ * down. So every entry carries its own prose `note` in the light DOM: the
+ * page still tells you what needs the feature and what happens without it,
+ * and the widget adds the current Baseline status on top. Never put load-
+ * bearing information only inside the widget.
+ *
+ * Feature IDs come from web-platform-dx/web-features (the same IDs webstatus.dev
+ * uses in its URLs) — they're validated against the API, not guessed.
+ */
+interface Props {
+  features: { id: string; label: string; note: string }[];
+}
+const { features } = Astro.props;
+---
+
+<ul class="list bl-list">
+  {features.map((f) => (
+    <li class="bl-item">
+      <div class="bl-head">
+        <code class="font-footnote">{f.label}</code>
+        <baseline-status featureId={f.id}></baseline-status>
+      </div>
+      <p class="font-footnote text-surface-muted bl-note" set:html={f.note} />
+    </li>
+  ))}
+</ul>
+
+<script>
+  // Registers <baseline-status>. Bundled by Vite from the installed package
+  // rather than pulled from a CDN, so the docs build stays self-contained.
+  import 'baseline-status';
+</script>
+
+<style>
+  .bl-list {
+    display: grid;
+    gap: 0.85rem;
+    list-style: none;
+    padding-inline-start: 0;
+  }
+  .bl-item {
+    display: grid;
+    gap: 0.35rem;
+  }
+  .bl-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .bl-note {
+    margin: 0;
+  }
+  /* The widget is a shadow-DOM element with its own type scale; nudge it to sit
+     with the surrounding footnotes rather than shouting over them. */
+  baseline-status {
+    font-size: var(--text-xs);
+    --color-text: var(--surface-text-muted);
+  }
+</style>

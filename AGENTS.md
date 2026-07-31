@@ -94,13 +94,22 @@ packages under `packages/` (a pnpm workspace), by layer:
   also carries the site-config schema (`site.ts` → `site.schema.json`).
 - **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
   `png-to-ico`, loaded lazily; `oxipng` crush optional). Consumed by cli/vite/astro.
-- **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs` (bin `vitops`), a thin
-  wrapper over the generator + utils. The package **ships a static `vitops-design-system` agent
+- **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint` (bin `vitops`), a
+  thin wrapper over the generator + utils. The package **ships a static `vitops-design-system` agent
   skill** (`skill/SKILL.md`, in `files`); `agents` symlinks it into a consumer's
   `.agents/skills/` + `.claude/skills/` (logical `node_modules/@getvitops/cli/skill` target — never
   a pnpm realpath — so links survive version bumps) and writes a managed pointer block into their
   `AGENTS.md`. `docs <topic>` prints a reference doc to stdout, rendered live from the consumer's
   config (`--docs-dir` on `agents` keeps the legacy emit-files layout).
+
+  `lint` (`src/lint.ts`) scans consumer source for framework classes that resolve to nothing —
+  the failure mode where an unknown utility is indistinguishable from a working one. It is
+  **format-aware** (`md-flex-row` is real in css/bricks and inert in tailwind) and deliberately
+  judges **only classes anchored to the consumer's own config** — a palette hue, a role, a type
+  role, a shadow. It never tries to enumerate "all valid classes", because under the tailwind
+  format that would mean knowing Tailwind's whole vocabulary and every unknown would be a false
+  positive. It asks `roleColorUtilities()` what the generator emits rather than re-deriving it.
+
 - **`@getvitops/vite`** — a Vite plugin (Astro/EmDash) that runs the generator on build/dev (+
   optional favicon generation) and hot-regenerates when the config changes.
 - **`@getvitops/astro`** — the **Astro integration**: a default `getvitops()` integration
@@ -205,7 +214,7 @@ Other tools used:
 
 `src/design-system.json` is this repo's dev/example config (each consumer brings their own). The generator (`packages/generator/src/generate.ts`) reads it and emits these output layers — assembled **in memory** and bundled by the css/bricks formats (no longer written as standalone `src/css/generated/**` files); the labels below name the layers:
 
-- **colour** (`color.css`) — Each `colors.palette` hue is an **11-step numeric OKLCH scale** (`--color-<hue>-50…950`, tinted near-white → tinted near-black) generated from a `seed` (+ optional `anchors`) or a fixed `tones` brand kit. `colors.roles` maps each semantic role (neutral, surface, ui-primary/secondary/accent, brand-primary/secondary, info/success/warning/danger) to a hue; the generator derives **functional tokens** — `--<role>-{bg,bg-muted,border,border-bold,solid,solid-bold,on-solid,text,text-muted,text-x-muted}` plus appearance-relative emphasis stops `--color-<role>-{x-muted,muted,bold,x-bold}` and `--surface-glass`/`--overlay` — with matching utility classes (`bg-<role>`, `text-<role>-muted`, `text-on-<role>`, `.glass`, …). Dark mode is the **automatic functional flip** under `:root[data-brx-theme="dark"]` (bg/text ends swap; `solid` stays mode-stable with a computed `on-solid`). Contrast targets (text ≥ APCA Lc 75, muted ≥ 60, both appearances) are enforced by unit tests. There is no per-appearance scheme grammar and no named steps.
+- **colour** (`color.css`) — Each `colors.palette` hue is an **11-step numeric OKLCH scale** (`--color-<hue>-50…950`, tinted near-white → tinted near-black) generated from a `seed` (+ optional `anchors`) or a fixed `tones` brand kit. `colors.roles` maps each semantic role (neutral, surface, ui-primary/secondary/accent, brand-primary/secondary, info/success/warning/danger) to a hue; the generator derives **functional tokens** — `--<role>-{bg,bg-muted,border,border-bold,solid,solid-bold,on-solid,text,text-muted,text-x-muted}` plus appearance-relative emphasis stops `--color-<role>-{x-muted,muted,bold,x-bold}` and `--surface-glass`/`--overlay` — with matching utility classes (`bg-<role>`, `text-<role>-muted`, `text-on-<role>`, `.glass`, …). Dark mode is the **automatic functional flip** under `DARK_SEL` (`shared.ts`) — `:root[data-brx-theme="dark"], :root[data-theme="dark"]`, Bricks' attribute plus the one `<color-scheme-toggle>` writes (bg/text ends swap; `solid` stays mode-stable with a computed `on-solid`). Contrast targets (text ≥ APCA Lc 75, muted ≥ 60, both appearances) are enforced by unit tests. There is no per-appearance scheme grammar and no named steps.
 - **shadows** (`shadows.css`) — `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Always emitted for the `css`/`bricks` formats.
 - **patterns** (`patterns.css`) — component CSS for entries under `patterns` in the JSON (cta, btn, link, badge, card). Each pattern has `base` declarations, `states` (hover/active/focus-visible) with shortcuts (`step`, `scale`, `lift`, `shadow`, `ring`, `css`), and `roles` (semantic colour variants). Always emitted.
 
@@ -232,7 +241,34 @@ var(--br-control)`), and `overrides` replace an alias with a literal. So a patte
 - **animation-effects** (`animation-effects.css`) — the effect + journey classes from `animations` in the JSON (`.fade-in`, `.reveal-left`, `.<parts>-journey`, …), each a pure value layer (`--_anim` + `--<prop>-from/-to`). Journeys are composed from `animations.journeys.base` + `compose`. Always emitted. The animation **engine** (keyframes, drivers, floats, utilities) stays hand-written in `@getvitops/core`'s `css/animation.css`.
 - `dist/bricks-colors-{named,semantic}.json` — palettes for Bricks Builder's Color Manager. Each semantic entry carries `darkEnabled` + a `dark` ref so Bricks generates the dark-mode overrides on import.
 
-The framework CSS lives in **`@getvitops/core`**: `packages/core/css/index.css` is the bundle entry; core primitives (`global.css`, `animation.css`, `layout.css`, `utilities.css`) at `packages/core/css/` root; each UI pattern its own partial under `packages/core/css/patterns/` (one file per pattern — `dialog.css`, `table.css`, `cluster.css`, `overlay.css`, …). The generator produces the token layers above and bundles them with these partials (via lightningcss, in memory). Keep that split when adding files, and wire any new partial into `index.css` (order matters for the cascade).
+The framework CSS lives in **`@getvitops/core`**: `packages/core/css/index.css` is the bundle entry; core primitives (`global.css`, `animation.css`, `layout.css`, `utilities.css`) at `packages/core/css/` root; each UI pattern its own partial under `packages/core/css/patterns/` (one file per pattern — `dialog.css`, `table.css`, `cluster.css`, `overlay.css`, …). The generator produces the token layers above and bundles them with these partials (via lightningcss, in memory). Keep that split when adding files, and wire any new partial into `index.css`.
+
+**The bundle is layered.** `bundleCss()` wraps every chunk via the `CHUNK_LAYER` map and emits
+`@layer vitops.base, vitops.components, vitops.utilities;`. That is what lets a utility override
+a pattern (`class="card bg-danger-muted"`) — it previously depended on source order and so
+silently did nothing here while working in tailwind. **A new partial defaults to
+`vitops.components`**; add it to `CHUNK_LAYER` only if it emits single-purpose utilities. Order
+within a layer still matters, layer membership matters more.
+
+Three consequences worth holding:
+
+- **Unlayered CSS beats every layer**, so a consumer's stylesheet, an Astro scoped `<style>` or
+  a Bricks-authored class wins over the framework with no `!important`. Deliberate. But a
+  _reset_ must be layered and ordered first, and the order statement must be declared **before**
+  the stylesheet loads — otherwise the new layer name sorts last and the reset wins. `index.html`
+  demonstrates the migration.
+- **lightningcss drops the standalone `@layer a, b, c;` statement** after physically reordering
+  the blocks to match it. Verified: given a statement that contradicts first-appearance order, it
+  reorders rather than mis-cascades. So the declaration is honoured, just normalised away — don't
+  assert on its presence, assert on block order (`bundle-layers.test.ts`).
+- **The tailwind format is deliberately NOT layered by us.** Its utilities are `@utility`
+  definitions, which Tailwind places in its own `utilities` layer _and_ which are what make
+  variants (`hover:`, `@md:`) work. Moving them into a post-`utilities` layer would win the
+  cascade and lose variant support — measured against tailwindcss@4.3.3.
+
+Known gap: `layout.css` mixes structural rules with utilities in one partial, so it sits in
+`vitops.components` whole and its utility half can't override a pattern. Splitting it is a
+separate change.
 
 ### `--format` mode
 
@@ -271,7 +307,26 @@ All tasks go through `npx vp run <name>` (see [vite.config.ts](vite.config.ts)).
 - `docs/bricks/index.md` — listing + the "prefer framework CSS classes over hand-tuning Bricks UI properties" guidance; links `elements.md` + `../css/classes.md`.
 - `docs/bricks/elements.md` — concept: per-element control reference, parsed from each element's docblock, class metadata, `get_label`/`get_keywords`/`get_nestable_children`, and a small PHP-array-literal parse of `set_controls()`.
 
-The agent-facing skill is **not** generated: it's the static `packages/cli/skill/SKILL.md` shipped inside `@getvitops/cli`, which teaches agents to fetch these docs live via `vitops docs <topic>` (topic → bundle-path map in `packages/cli/src/agents.ts`, drift-guarded by `agents.test.ts`). Drift-prone data (`TW_CLASH`, `BASE_HOOK`) lives in `packages/generator/src/shared.ts` — shared by `generate.ts` and `docs.ts` (a direct import between them would be a cycle) and re-exported from the package index.
+The agent-facing skill is **not** generated: it's the static `packages/cli/skill/SKILL.md` shipped inside `@getvitops/cli`, which teaches agents to fetch these docs live via `vitops docs <topic>` (topic → bundle-path map in `packages/cli/src/agents.ts`, drift-guarded by `agents.test.ts`). Drift-prone data (`TW_CLASH`, `BASE_HOOK`, `DARK_SEL`, `REQUIRED_ROLES`, `ROLE_TOKEN_SUFFIXES`) lives in `packages/generator/src/shared.ts` — shared by `generate.ts` and `docs.ts` (a direct import between them would be a cycle) and re-exported from the package index.
+
+**One emitter for the role colour vocabulary.** `roleColorUtilities()` (`generate.ts`) returns
+every role utility as data — `{ cls, prop, value, axis: 'plane' | 'stop' }` — and both the
+css/bricks and tailwind paths render from it. Two axes share the
+`<family>-<role>-<modifier>` namespace (functional **planes** like `--<role>-bg-muted`, and
+appearance-relative emphasis **stops** like `--color-<role>-muted`); where they collide the
+plane wins, decided in that function so every class is emitted exactly once. This used to be
+implicit — the css path emitted stops then planes and relied on the minifier dropping the
+shadowed rule, while the tailwind path ran only the plane half, so **87 role classes existed in
+css/bricks and not in tailwind**. `format-parity.test.ts` now holds the three formats to the
+same vocabulary, allowing exactly four documented differences (Bricks' own palette-import
+utilities, `TW_CLASH` drops, variant spelling, and `@theme` auto-generation).
+
+**Role tokens must stay out of Tailwind's `@theme`.** Measured against tailwindcss@4.3.3: when a
+token is in `@theme` _and_ an `@utility` of the derived name exists, Tailwind merges both into
+one rule with the `@theme` declaration **last**, regardless of source order. Promoting
+`--color-<role>-<stop>` would silently swap the plane for the stop on `bg-<role>-muted`,
+`text-<role>-muted`, `text-<role>-x-muted`, `border-<role>-bold` and `bg-surface-bold` — two of
+which are the contrast-guaranteed text tokens. Raw hue scales are safe there (nothing competes).
 
 `docs/**` are generated artifacts — don't hand-edit them (they're in `fmt.ignorePatterns` to avoid churn); change the PHP / `design-system.json` / the generator's static strings and regenerate. Frontmatter deliberately omits `timestamp` (an OKF-recommended field) to keep output deterministic and diffs clean. If the generator gains a new source, extend the relevant `build:*` task's `input` list (e.g. `build:generator`). `index.html` stays a human/local-dev docsite (dogfoods the build); it is **not** the AI context vehicle — the `docs/` bundle is.
 

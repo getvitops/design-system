@@ -49,8 +49,8 @@ const { class: dialogAttrClass, style: dialogAttrStyle, ...dialogRestAttrs } = a
     aria-label={trigger?.label || 'Open drawer'}
     {...triggerRestAttrs}
   >
-    <span class={trigger?.icon ? 'sr-only' : ''}>{trigger?.label || 'Open'}</span>
-    {trigger?.icon && <Icon name={iconResolver(trigger.icon)} class="not-sr-only" />}
+    <span class:list={[trigger?.icon && 'visually-hidden']}>{trigger?.label || 'Open'}</span>
+    {trigger?.icon && <Icon name={iconResolver(trigger.icon)} />}
   </button>
 </slot>
 
@@ -63,3 +63,20 @@ const { class: dialogAttrClass, style: dialogAttrStyle, ...dialogRestAttrs } = a
 >
   <slot />
 </dialog>
+
+<style>
+  /* Icon-only triggers keep their label for screen readers. Component-scoped
+     rather than the framework's `sr-only`: that one is in the generator's
+     TW_CLASH list, so the tailwind format ships no rule for it. */
+  .visually-hidden {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>

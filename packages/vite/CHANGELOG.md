@@ -1,5 +1,18 @@
 # @getvitops/vite
 
+## 0.9.0
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies [c949cae]
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @getvitops/generator@0.9.0
+  - @getvitops/utils@0.9.0
+
 ## 0.8.0
 
 ### Minor Changes

@@ -9,7 +9,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { jsonSchema, SCHEMA_URL, type DesignSystem } from './schema.ts';
-import { BASE_HOOK, TW_CLASH } from './shared.ts';
+import { BASE_HOOK, DARK_SEL, REQUIRED_ROLES, TW_CLASH } from './shared.ts';
 import { expandPalette } from './tokens.ts';
 
 const DS_PATH = 'design-system.json';
@@ -640,9 +640,17 @@ Families: ${code(families)} (\`--font-*\`).
 ## Colour
 
 **Functional tokens are the primary vocabulary** — classes name the *job*, not the tone, and
-every one remaps automatically under \`:root[data-brx-theme="dark"]\` (background/text ends
+every one remaps automatically under \`${DARK_SEL}\` (background/text ends
 swap; \`solid\` fills stay mode-stable with a computed \`on-\` foreground). Prefer these over
-raw steps. Rules (role ∈ ${code(roles)}):
+raw steps.
+
+**Role names are yours.** \`colors.roles\` is an open map: add a key, and the generator emits
+that role's full functional token set, its dark flip and every utility below. Your config
+currently defines ${code(roles)}. Six of those are a **required core** — the framework's own
+component CSS references \`${REQUIRED_ROLES.join('`, `')}\` with no fallback, so removing one
+leaves those components uncoloured (\`vitops validate\` warns). Everything beyond them is free.
+
+Rules (role ∈ ${code(roles)}, or whatever you add):
 
 - **Surfaces** — \`bg-<role>\` (the role's background wash; for \`surface\` this is the
   card/panel plane), \`bg-<role>-muted\` (subtle / sunken), \`bg-surface-bold\` (raised plane).
@@ -656,15 +664,38 @@ raw steps. Rules (role ∈ ${code(roles)}):
   \`--color-<role>-{x-muted,muted,bold,x-bold}\` — \`muted\` recedes toward the background
   extreme, \`bold\` advances toward the foreground, in *either* appearance.
 
-Everyday pairings: page \`bg-neutral\` + \`text-neutral\`; cards \`bg-surface\`; captions
-\`text-neutral-muted\`; buttons \`bg-ui-primary-solid text-on-ui-primary\`; status text
-\`text-danger\` / \`text-success\` / \`text-warning\` / \`text-info\`.
+Everyday pairings, using the roles this config defines: page
+\`bg-${roles[0] ?? 'neutral'}\` + \`text-${roles[0] ?? 'neutral'}\`; captions
+\`text-${roles[0] ?? 'neutral'}-muted\`; buttons
+\`bg-${roles[2] ?? roles[0] ?? 'ui-primary'}-solid text-on-${roles[2] ?? roles[0] ?? 'ui-primary'}\`.
 
 **Raw scale** (secondary / fine control) — rule \`<util>-<hue>-<step>\` with util ∈
 ${code(utils)}: every hue is an 11-step OKLCH scale generated from its seed (or fixed brand
 tones), numeric steps \`50\` … \`950\` (tinted near-white → tinted near-black) — e.g.
 \`bg-${ramps[0] ?? 'brand'}-100\`, \`text-${ramps[0] ?? 'brand'}-800\`. Hues: ${code(ramps)}.
 The **bare** role name (\`bg-<role>\`, \`text-<role>\`) is always the functional token.
+
+> **Raw scale classes are frozen — they do NOT remap in dark mode.**
+> \`bg-${ramps[0] ?? 'brand'}-800\` is that exact colour in every appearance. The automatic
+> dark flip described above applies **only** to the functional role tokens, because
+> \`--color-<hue>-<step>\` is emitted once and never re-pointed under \`${DARK_SEL}\`.
+> A raw step on a page that can switch appearance is a latent bug: it looks correct in
+> whichever mode you built it in and inverts in the other.
+>
+> If you are reaching for a raw step, you usually want a **role** instead — and roles are
+> extensible, so adding one is a two-line config change:
+>
+> | instead of | use | why |
+> | --- | --- | --- |
+> | \`bg-<hue>-50\` / \`-950\` | \`bg-<role>\` | the page/backdrop plane, flips automatically |
+> | \`bg-<hue>-100\` / \`-900\` | \`bg-<role>-muted\` | one plane in from the page |
+> | \`bg-<hue>-500\`…\`-700\` | \`bg-<role>-solid\` | vivid fill, mode-stable, pairs with \`text-on-<role>\` |
+> | \`text-<hue>-950\` / \`-50\` | \`text-<role>\` | contrast-guaranteed body text |
+> | \`text-<hue>-800\` / \`-200\` | \`text-<role>-muted\` | secondary text |
+> | \`border-<hue>-200\` / \`-800\` | \`border-<role>\` | |
+>
+> Raw steps stay the right tool for genuinely fixed colours — a brand mark, a chart series,
+> an illustration — where the value must not move between appearances.
 
 ## Shadows
 
@@ -845,9 +876,27 @@ ${clashList.map((c) => `\`${c}\``).join(', ')}
 Other Tailwind-specific behaviour:
 
 - **Variants are Tailwind's job.** No pre-expanded breakpoint/state classes are emitted
-  (the framework's \`@container (min-width: …)\` variant blocks are dropped); use Tailwind
-  syntax — \`@md:split-1-2\`, \`hover:flip-fade-in\`. Container breakpoints are registered as
+  (the framework's \`@container (min-width: …)\` **variant** blocks are dropped; component
+  container queries such as the sitenav's desktop switch are kept); use Tailwind syntax —
+  \`@md:split-1-2\`, \`hover:flip-fade-in\`. Container breakpoints are registered as
   \`--container-{sm,md,lg,xl}\` = 30/48/64/80rem, backing the \`@sm:\`…\`@xl:\` variants.
+
+  > **Three spellings, and only two of them work here.**
+  >
+  > | you write | in \`tailwind\` | note |
+  > | --- | --- | --- |
+  > | \`@md:flex-row\` | ✅ container query | the framework's breakpoints (48rem) |
+  > | \`md:flex-row\` | ✅ media query | **Tailwind's** breakpoints, which differ — \`sm:\` is 40rem where \`@sm:\` is 30rem |
+  > | \`md-flex-row\` | ❌ silently nothing | the css/bricks spelling; not emitted in this format |
+  >
+  > \`md-*\` is the trap: it is a real class in \`css\`/\`bricks\` and a no-op here, and
+  > nothing errors — the element simply never changes at the breakpoint. Prefer \`@md:\`
+  > so one vocabulary of breakpoints applies throughout.
+
+- **Overriding \`--container-*\` also moves Tailwind's width scale.** Registering the
+  framework breakpoints in \`@theme\` re-points \`max-w-sm\`…\`max-w-xl\` at the same values,
+  so \`max-w-md\` is 48rem here rather than Tailwind's stock 28rem. Use
+  \`max-w-(--container-md)\` style arbitrary values if you need to be explicit.
 - **The space scale is NOT mapped into Tailwind's \`--spacing-*\` namespace** (that would
   corrupt Tailwind's numeric multipliers and \`max-w-*\` sizes). Numeric utilities like
   \`p-4\` keep Tailwind's 0.25rem meaning; use the design-system scale via arbitrary
@@ -857,6 +906,18 @@ Other Tailwind-specific behaviour:
   (\`bg-<role>\`, \`text-<role>-muted\`, …) is the public API. The raw hue scales ARE
   \`@theme\` colours, so native \`bg-<hue>-500\`-style utilities work.
 
+  This split is deliberate and load-bearing. When a token sits in \`@theme\` *and* an
+  \`@utility\` of the derived name exists, Tailwind merges both into one rule with the
+  \`@theme\` declaration last — regardless of source order. Promoting the role tokens
+  would therefore silently replace the functional plane with the emphasis stop on
+  \`bg-<role>-muted\`, \`text-<role>-muted\`, \`text-<role>-x-muted\`, \`border-<role>-bold\`
+  and \`bg-surface-bold\`, two of which are the contrast-guaranteed text tokens.
+- **\`colors.utilities\` is a floor here, not a ceiling.** It controls which families get
+  explicit role \`@utility\` rules, exactly as in \`css\`/\`bricks\`. But the raw hue scales
+  are \`@theme\` colours, and Tailwind derives *every* colour family from those on demand
+  (\`ring-\`, \`divide-\`, \`accent-\`, \`caret-\`, …), so hue-step utilities you did not enable
+  still resolve in this format.
+
 ## \`css\` — standalone bundle
 
 Emits a bundled, self-contained \`styles.css\` + \`tokens.json\` + \`design-manifest.json\`.
@@ -864,6 +925,26 @@ The colour and font/scale layers are fully included, and every utility family is
 pre-expanded — including breakpoint/state variants with \`-\` separators
 (\`md-split-1-2\`, \`hover-fade-in\`). For non-Bricks, non-Tailwind consumers and the
 docs build.
+
+**Cascade layers.** The bundle ships three, in precedence order:
+
+\`\`\`
+@layer vitops.base, vitops.components, vitops.utilities;
+\`\`\`
+
+- \`vitops.base\` — the UA reset and the pure \`:root\` token blocks.
+- \`vitops.components\` — the animation engine, structural layout, and every pattern.
+- \`vitops.utilities\` — \`bg-*\`, \`text-*\`, \`border-*\`, \`drop-shadow-*\`, \`font-*\`,
+  animation effects, and the display/\`sr-only\` families.
+
+So a utility overrides a pattern: \`class="card bg-danger-muted"\` tints the card. Your own
+unlayered CSS beats all three — see [concepts/patterns.md](concepts/patterns.md) for the
+override story and the one gotcha (a reset must be layered and ordered first).
+
+Known gap: \`layout.css\` is a single partial mixing structural rules (\`.rhythm\`,
+\`.centered\`) with utilities (\`.m-*\`, \`.flex\`, \`.split-*\`), so it sits in
+\`vitops.components\` whole — its utility half cannot yet override a pattern. Splitting it is
+tracked separately.
 
 ## \`bricks\` — WordPress / Bricks Builder payload
 
@@ -936,10 +1017,15 @@ Classes name the token, not the tone: \`bg-<role>\`, \`text-<role>-muted\`, \`te
 
 ## Automatic dark mode
 
-Dark mode is a **functional flip** under \`:root[data-brx-theme="dark"]\`: background and
+Dark mode is a **functional flip** under \`${DARK_SEL}\`: background and
 text ends of each scale swap, while \`solid\` fills stay mode-stable with a recomputed
 \`on-solid\` foreground. There is no per-appearance scheme grammar to author and no named
 steps — a role token means the same *job* in both appearances.
+
+Two attributes, one flip: \`data-brx-theme\` is Bricks' own (Bricks sets it on the
+WordPress target), \`data-theme\` is what the shipped \`<color-scheme-toggle>\` writes on
+\`<html>\`, so the toggle works on every other target. Set either. There is deliberately
+no \`prefers-color-scheme\` block — the flip follows an explicit choice only.
 
 ## Contrast guarantees
 
@@ -1014,9 +1100,34 @@ function renderPatternsConcept(ds: DesignSystem): string {
 # Component patterns — the CSS chain
 
 Patterns (currently ${code(patternNames)}) are authored declaratively under \`patterns\` in
-\`design-system.json\` (see [authoring.md](../authoring.md)) and compiled to CSS in the
-**\`components\` cascade layer** — so utility classes (declared in a later layer) always win
-over pattern styling without specificity fights.
+\`design-system.json\` (see [authoring.md](../authoring.md)) and compiled to CSS in a
+**components cascade layer** — so utility classes, which live in a later layer, always win over
+pattern styling without specificity fights. \`class="card bg-danger-muted"\` tints the card.
+
+The layer names differ by format, because each defers to its host:
+
+| format | layer stack (last wins) |
+| --- | --- |
+| \`css\`, \`bricks\` | \`vitops.base\` → \`vitops.components\` → \`vitops.utilities\` |
+| \`tailwind\` | Tailwind's own \`theme\` → \`base\` → \`components\` → \`utilities\` |
+
+**Your own CSS beats all of it.** Unlayered styles outrank every cascade layer regardless of
+specificity, so a plain stylesheet, an Astro scoped \`<style>\`, or a Bricks-authored class
+overrides the framework with no \`!important\` and no specificity escalation. That is the
+intended override story.
+
+The one thing to watch: a **reset** must be layered too, and ordered *below* the framework —
+left unlayered it beats the very component rules it is meant to sit under (a bare
+\`p { margin: 0 }\` would defeat \`.rhythm\`). Declare the order before you load the stylesheet,
+since layer precedence is fixed by first declaration:
+
+\`\`\`html
+<style>@layer my.reset, vitops.base, vitops.components, vitops.utilities;</style>
+<link rel="stylesheet" href="/styles.css">
+\`\`\`
+
+Put it *after* the link and \`my.reset\` becomes a new name introduced later — which sorts
+**last**, i.e. highest priority, and the reset wins. That is the one non-obvious step.
 
 ## 1 — Token cascade
 

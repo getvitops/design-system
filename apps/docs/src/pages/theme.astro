@@ -1,0 +1,386 @@
+---
+/**
+ * Theme preview — one page showing everything the theme editor can change.
+ *
+ * The point is *co-location*: open `<wc-theme-editor>` next to this and every
+ * knob you turn has something visible reacting to it. So the selection here is
+ * "what would I need on screen to judge this edit", not "what does the framework
+ * have" — that's the class vocabulary reference's job.
+ *
+ * Everything enumerable is read from `design-manifest.json` (the generator's own
+ * output) rather than typed out: roles, typographic roles, both scales, the
+ * pattern list, radii and shadows. Hand-listing them would go stale the moment
+ * someone edits `design-system.json`, and a preview page that lies about the
+ * theme is worse than no preview page.
+ *
+ * The examples themselves are hand-written, because "one good example of a
+ * pattern" is a judgement call the manifest can't make.
+ */
+import Docs from '../layouts/Docs.astro';
+import manifest from '../styles/design-manifest.json';
+
+const roles = manifest.colors.roles.map((r) => r.name);
+const typoRoles = manifest.typography.roles;
+const text = manifest.scales.text;
+const space = manifest.scales.space;
+const shadows = Object.keys(manifest.shadows);
+const radii = Object.keys(manifest.patterns.radii);
+const patterns = manifest.patterns.items;
+
+/** The functional tokens every role carries, in cascade order. */
+const SURFACE_TOKENS = ['bg', 'bg-muted', 'border', 'border-bold', 'solid', 'solid-bold'];
+const TEXT_TOKENS = ['text', 'text-muted', 'text-x-muted'];
+
+/** Patterns with a plain-class example; the rest are listed as coverage. */
+const SHOWN = new Set(['btn', 'cta', 'link', 'badge', 'tag', 'status', 'card', 'table', 'list']);
+const notShown = patterns.filter((p) => !SHOWN.has(p.name)).map((p) => p.name);
+
+const headings = [
+  { depth: 2, slug: 'colour', text: 'Colour' },
+  { depth: 2, slug: 'typography', text: 'Typography' },
+  { depth: 2, slug: 'scales', text: 'Scales' },
+  { depth: 2, slug: 'layout', text: 'Layout' },
+  { depth: 2, slug: 'patterns', text: 'Patterns' },
+  { depth: 2, slug: 'surfaces', text: 'Radii & shadows' },
+];
+---
+
+<Docs
+  title="Theme preview"
+  description="Every token the theme editor changes, on one page. Open the editor (🎨) and watch."
+  headings={headings}
+>
+  <p class="font-body">
+    Open the <strong>🎨 Theme</strong> panel and edit — this page is the target. The panel is
+    modeless (no scrim, no light-dismiss), so you can keep clicking around while it's open.
+  </p>
+
+  <!-- ── Colour ──────────────────────────────────────────────────────────── -->
+  <h2 id="colour" class="font-title">Colour</h2>
+  <p class="font-body text-surface-muted">
+    Each role resolves to a set of <em>functional</em> tokens, not a ramp. Dark mode flips the
+    bg/text ends automatically; <code>solid</code> stays mode-stable so a filled button keeps its
+    identity, and <code>on-solid</code> is computed for contrast against it.
+  </p>
+
+  {roles.map((role) => (
+    <section class="rhythm tp-role">
+      <p class="font-eyebrow">{role}</p>
+      <div class="tp-swatches">
+        {SURFACE_TOKENS.map((t) => (
+          <div class="tp-swatch">
+            <span class="tp-chip" style={`background: var(--${role}-${t})`}></span>
+            <code class="font-footnote">{t}</code>
+          </div>
+        ))}
+        <div class="tp-swatch">
+          <span
+            class="tp-chip tp-chip--label"
+            style={`background: var(--${role}-solid); color: var(--${role}-on-solid)`}
+          >Aa</span>
+          <code class="font-footnote">on-solid</code>
+        </div>
+      </div>
+      <p class="tp-texts" style={`background: var(--${role}-bg)`}>
+        {TEXT_TOKENS.map((t) => (
+          <span style={`color: var(--${role}-${t})`}>{t}</span>
+        ))}
+      </p>
+    </section>
+  ))}
+
+  <h3 class="font-heading">Utility classes</h3>
+  <div class="tp-swatches">
+    {roles.map((role) => (
+      <span class={`badge bg-${role}-muted text-${role}`}>bg-{role}-muted</span>
+    ))}
+  </div>
+
+  <!-- ── Typography ──────────────────────────────────────────────────────── -->
+  <h2 id="typography" class="font-title">Typography</h2>
+  <p class="font-body text-surface-muted">
+    Semantic roles, not sizes. Each is a bundle of family, size, weight, leading, tracking and
+    transform — so changing <code>heading</code> changes every heading, everywhere.
+  </p>
+  {typoRoles.map((role) => (
+    <div class="tp-typerow">
+      <code class="font-footnote text-surface-x-muted">.font-{role}</code>
+      <p class={`font-${role}`}>The quick brown fox jumps over the lazy dog</p>
+    </div>
+  ))}
+
+  <!-- ── Scales ──────────────────────────────────────────────────────────── -->
+  <h2 id="scales" class="font-title">Scales</h2>
+  <p class="font-body text-surface-muted">
+    Both scales are fluid: each step is a <code>clamp()</code> that interpolates with viewport
+    width, so resizing the window moves them too.
+  </p>
+
+  <h3 class="font-heading">Type scale</h3>
+  {text.map((s) => (
+    <div class="tp-typerow">
+      <code class="font-footnote text-surface-x-muted">--text-{s.name}</code>
+      <span style={`font-size: var(--text-${s.name}); line-height: 1.1`}>{s.name} · Aa</span>
+    </div>
+  ))}
+
+  <h3 class="font-heading">Space scale</h3>
+  {space.map((s) => (
+    <div class="tp-typerow">
+      <code class="font-footnote text-surface-x-muted">--space-{s.name}</code>
+      <span class="tp-bar" style={`inline-size: var(--space-${s.name})`}></span>
+    </div>
+  ))}
+
+  <h3 class="font-heading">Vertical rhythm</h3>
+  <p class="font-body text-surface-muted">
+    <code>.rhythm</code> spaces siblings by element pair (heading→para differs from para→para),
+    scaled by <code>--rhythm-scale</code> — the dial in the editor's Layout section.
+  </p>
+  <div class="card rhythm">
+    <h4 class="font-heading">A heading</h4>
+    <p class="font-body">A paragraph after a heading sits closer than one after a paragraph.</p>
+    <p class="font-body">A second paragraph, to show the pair spacing differ.</p>
+  </div>
+
+  <!-- ── Layout ──────────────────────────────────────────────────────────── -->
+  <h2 id="layout" class="font-title">Layout</h2>
+
+  <h3 class="font-heading">Tracks (<code>.centered</code>)</h3>
+  <p class="font-body text-surface-muted">
+    A track grid: children land in <code>measure</code> by default, and opt out to a wider track.
+    Widths are the <code>--width-*</code> knobs in the editor.
+  </p>
+  <div class="centered tp-tracks">
+    <div class="measure tp-track">measure</div>
+    <div class="breakout tp-track">breakout</div>
+    <div class="spotlight tp-track">spotlight</div>
+    <div class="fullbleed tp-track">fullbleed</div>
+  </div>
+
+  <h3 class="font-heading">Split ratios</h3>
+  {['1-2', '1-3', '2-1', '1-4'].map((ratio) => (
+    <div class={`split split-${ratio} tp-split`}>
+      <div class="tp-track">1</div>
+      <div class="tp-track">{ratio.split('-')[1]}</div>
+    </div>
+  ))}
+
+  <h3 class="font-heading">Cluster</h3>
+  {['start', 'center', 'end', 'between'].map((v) => (
+    <div class={`cluster-${v} tp-cluster`}>
+      <span class="badge">one</span>
+      <span class="badge">two</span>
+      <span class="badge">three</span>
+    </div>
+  ))}
+
+  <h3 class="font-heading">Auto grid</h3>
+  <div class="grid-auto">
+    {[1, 2, 3, 4, 5, 6].map((n) => (
+      <div class="card"><p class="font-body">Card {n}</p></div>
+    ))}
+  </div>
+
+  <!-- ── Patterns ────────────────────────────────────────────────────────── -->
+  <h2 id="patterns" class="font-title">Patterns</h2>
+  <p class="font-body text-surface-muted">
+    Geometry (padding, radius, border, shadow, size) resolves through each pattern's group, so the
+    editor's <em>Pattern groups</em> section moves whole families at once and <em>Components</em>
+    overrides just one.
+  </p>
+
+  <h3 class="font-heading">Buttons — two tiers</h3>
+  <p class="font-body text-surface-muted">
+    <code>.cta</code> is persuasion (filled, lifts on hover); <code>btn</code> is bare affordance —
+    a plain <code>&lt;button&gt;</code> gets it with no class at all.
+  </p>
+  <div class="cluster-start tp-cluster">
+    <button>bare button</button>
+    <button class="btn">.btn</button>
+    <a class="cta" href="#patterns">.cta</a>
+    <a class="cta cta-brand-primary" href="#patterns">.cta-brand-primary</a>
+  </div>
+  <div class="cluster-start tp-cluster">
+    {(patterns.find((p) => p.name === 'btn')?.roles ?? []).map((r) => (
+      <button class={`btn btn-${r}`}>btn-{r}</button>
+    ))}
+  </div>
+
+  <h3 class="font-heading">Links</h3>
+  <p class="font-body">
+    A <a href="#patterns">bare anchor</a> is already styled, and <span class="link">.link</span>
+    carries it to any element.
+  </p>
+
+  <h3 class="font-heading">Labels — badge, tag, status</h3>
+  <p class="font-body text-surface-muted">
+    Split by behaviour: <code>badge</code> is static, <code>tag</code> is removable/editable.
+  </p>
+  <div class="cluster-start tp-cluster">
+    <span class="badge">badge</span>
+    {(patterns.find((p) => p.name === 'badge')?.roles ?? []).map((r) => (
+      <span class={`badge badge-${r}`}>{r}</span>
+    ))}
+  </div>
+  <div class="cluster-start tp-cluster">
+    <span class="tag">tag<button class="tag__remove" aria-label="Remove">×</button></span>
+    {(patterns.find((p) => p.name === 'status')?.roles ?? []).map((r) => (
+      <span class={`status status-${r}`}>{r}</span>
+    ))}
+  </div>
+
+  <h3 class="font-heading">Card</h3>
+  <div class="split split-1-2">
+    <div class="card rhythm">
+      <p class="font-eyebrow">Eyebrow</p>
+      <h4 class="font-heading">Card title</h4>
+      <p class="font-body">Body copy inside a card, showing padding, radius, border and shadow.</p>
+      <a class="cta" href="#patterns">Action</a>
+    </div>
+    <div class="card bg-info-muted rhythm">
+      <h4 class="font-heading">Tinted card</h4>
+      <p class="font-body">The same pattern with a role background utility.</p>
+    </div>
+  </div>
+
+  <h3 class="font-heading">Table</h3>
+  <table class="table">
+    <thead><tr><th>Token</th><th>Group</th><th>Roles</th></tr></thead>
+    <tbody>
+      {patterns.slice(0, 5).map((p) => (
+        <tr><td><code>{p.name}</code></td><td>{p.group ?? '—'}</td><td>{p.roles.length || '—'}</td></tr>
+      ))}
+    </tbody>
+  </table>
+
+  <h3 class="font-heading">List &amp; details</h3>
+  <div class="split split-1-2">
+    <ul class="list">
+      <li>First item</li>
+      <li>Second item</li>
+      <li>Third item</li>
+    </ul>
+    <details class="details">
+      <summary class="btn">A disclosure</summary>
+      <p class="font-body">Native <code>&lt;details&gt;</code> — no JavaScript.</p>
+    </details>
+  </div>
+
+  <p class="font-footnote text-surface-x-muted">
+    Also in the theme, shown on their own pages or needing interaction:
+    {notShown.map((n, i) => (<><code>{n}</code>{i < notShown.length - 1 ? ', ' : ''}</>))}.
+  </p>
+
+  <!-- ── Radii & shadows ─────────────────────────────────────────────────── -->
+  <h2 id="surfaces" class="font-title">Radii &amp; shadows</h2>
+  <div class="cluster-start tp-cluster">
+    {radii.map((r) => (
+      <span class="tp-radius" style={`border-radius: var(--br-${r})`}>{r}</span>
+    ))}
+    <span class="tp-radius" style="border-radius: var(--br-default)">default</span>
+  </div>
+  <div class="cluster-start tp-cluster tp-shadows">
+    {shadows.map((s) => (
+      <span class={`tp-shadowbox drop-shadow-${s}`}>{s}</span>
+    ))}
+  </div>
+</Docs>
+
+<style>
+  /* Preview scaffolding only — labels, chips and measuring bars that exist to
+     make the theme visible. Nothing here is a candidate for the framework: a
+     swatch grid is a documentation device, not a UI pattern. */
+  .tp-role {
+    padding-block: 0.5rem;
+  }
+  .tp-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .tp-swatch {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    align-items: center;
+  }
+  .tp-chip {
+    inline-size: 3.5rem;
+    block-size: 2.25rem;
+    border-radius: var(--br-default);
+    border: 1px solid var(--surface-border);
+  }
+  .tp-chip--label {
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+  }
+  .tp-texts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--br-default);
+  }
+  .tp-typerow {
+    display: grid;
+    grid-template-columns: 10rem 1fr;
+    gap: 1rem;
+    align-items: baseline;
+    padding-block: 0.3rem;
+    border-block-end: 1px solid var(--surface-border);
+  }
+  .tp-typerow > p {
+    margin: 0;
+  }
+  .tp-bar {
+    display: inline-block;
+    block-size: 1rem;
+    background: var(--ui-primary-solid);
+    border-radius: 2px;
+  }
+  /* Track + ratio demos need a visible box; the framework classes under test
+     only set geometry, so the fill is ours. */
+  .tp-track {
+    padding: 0.5rem;
+    text-align: center;
+    background: var(--ui-primary-bg-muted);
+    border: 1px solid var(--ui-primary-border);
+    border-radius: var(--br-default);
+    font-size: var(--text-xs);
+  }
+  .tp-tracks > * + * {
+    margin-block-start: 0.4rem;
+  }
+  .tp-split,
+  .tp-cluster {
+    gap: 0.5rem;
+    margin-block: 0.5rem;
+  }
+  .tp-cluster {
+    padding: 0.5rem;
+    border: 1px dashed var(--surface-border);
+    border-radius: var(--br-default);
+  }
+  .tp-radius,
+  .tp-shadowbox {
+    display: grid;
+    place-items: center;
+    inline-size: 5rem;
+    block-size: 3rem;
+    font-size: var(--text-xs);
+  }
+  .tp-radius {
+    background: var(--ui-primary-bg-muted);
+    border: 1px solid var(--ui-primary-border);
+  }
+  .tp-shadowbox {
+    background: var(--surface-bg-bold, var(--surface-bg));
+    border-radius: var(--br-default);
+  }
+  .tp-shadows {
+    gap: 1.25rem;
+    padding-block: 1rem;
+  }
+</style>

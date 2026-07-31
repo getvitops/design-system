@@ -24,6 +24,21 @@
     backdrop-filter: blur(4px);
   }
 
+  /**
+   * Modeless — a panel you work *alongside* rather than through. Drops the
+   * scrim so the page behind stays legible, which is the whole point for a
+   * live editor or an inspector: you're watching what your edits do.
+   *
+   * Pair with `popover="manual"`. An `auto` popover light-dismisses on the
+   * first click outside — i.e. exactly the interaction a modeless panel exists
+   * to allow — and `manual` also drops Esc, so give it an explicit close
+   * control (and wire Esc yourself if the panel warrants it).
+   */
+  &.drawer--modeless::backdrop {
+    background: none;
+    backdrop-filter: none;
+  }
+
   &,
   &.drawer--left {
     inset-block: 0;

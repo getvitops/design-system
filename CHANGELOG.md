@@ -11,6 +11,124 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 0.9.0 — 2026-07-31
+
+**Format parity.** The three outputs had quietly drifted apart — the same markup meant different
+things depending on which one you built. Most of this release is closing that, plus the dead
+references and unrendered components the investigation turned up. Prompted by a report from a
+14-page consumer site built on the `tailwind` format.
+
+One change can surprise you: **the `css`/`bricks` bundle is now layered**, so your own CSS
+overrides the framework by default. If you ship a reset, read the migration under _Changed_.
+
+### Added
+
+- **`vitops lint`** — reports framework classes in your source that resolve to nothing. An
+  unknown utility class is indistinguishable from a working one: nothing errors, the element
+  just never gets the style. Format-aware (`md-flex-row` is real in `css`/`bricks` and inert in
+  `tailwind`), and it only judges classes anchored to your own config — a palette hue, a role, a
+  type role, a shadow — so it stays silent on Tailwind's utilities and your own class names.
+
+  ```
+  vitops lint --format tailwind --src src
+  ```
+
+- **`validate()` warns when a required role is missing.** `colors.roles` is an open map, but the
+  shipped component CSS references `brand-primary`, `danger`, `neutral`, `surface`, `ui-primary`
+  and `warning` with no fallback. Omitting one leaves those components uncoloured, silently.
+
+- **`<wc-theme-editor>` no longer dims the page it is editing**, so you can judge colour changes
+  against the real design rather than through a scrim.
+
+### Changed
+
+- **The `css`/`bricks` bundle now ships cascade layers.** Previously every colour utility was
+  emitted before every pattern and both sat at `0-1-0`, so the pattern won on source order:
+  `class="card bg-danger-muted"` left the card on `--surface-bg` here while tinting it correctly
+  in `tailwind`. The bundle now emits
+  `@layer vitops.base, vitops.components, vitops.utilities;`, so a utility overrides a pattern in
+  every format. No rule changed — 1482 rules before, 1482 after — only precedence.
+
+  **What this changes for you:** unlayered CSS beats every cascade layer regardless of
+  specificity, so your own stylesheet, an Astro scoped `<style>`, or a Bricks-authored class now
+  overrides the framework with no `!important`. That is the intended override story.
+
+  **Migration, only if you ship a reset.** An unlayered reset will now beat the framework
+  component rules it used to lose to — a bare `p { margin: 0 }` defeats `.rhythm`. Put it in a
+  layer and declare the order **before** the stylesheet loads:
+
+  ```html
+  <style>
+    @layer my.reset, vitops.base, vitops.components, vitops.utilities;
+  </style>
+  <link rel="stylesheet" href="/styles.css" />
+  ```
+
+  Declaring it _after_ the link makes `my.reset` a new name introduced later — which sorts last,
+  i.e. highest priority — and the reset wins anyway. This repo's `index.html` shows the change.
+
+  The `tailwind` format is byte-identical: its utilities are `@utility` definitions, which
+  Tailwind already layers correctly and which are what make `hover:`/`@md:` variants work.
+
+  Known gap: `layout.css` mixes structural rules with utilities in one partial, so it sits in
+  `vitops.components` whole and its utility half (`.m-*`, `.flex`, `.split-*`) still can't
+  override a pattern.
+
+### Fixed
+
+- **The `tailwind` format was missing 87 role colour classes.** `bg-<role>-x-muted`,
+  `bg-<role>-bold`, `bg-<role>-x-bold`, `text-<role>-bold`, `text-<role>-x-bold` and
+  `border-<role>-{muted,x-muted,x-bold}` existed in the `css`/`bricks` outputs and silently did
+  nothing in `tailwind`. No test built the tailwind format, so nothing caught it. All three
+  formats now render from one emitter and a parity test holds them to the same vocabulary,
+  permitting only four documented differences. **No class changes meaning; `css`/`bricks` output
+  is unchanged.**
+- **`colors.utilities` is now honoured in the `tailwind` format** (it was hardcoded to
+  bg/text/border). For raw hue scales it stays a floor rather than a ceiling — those are
+  `@theme` colours and Tailwind derives every colour family from them on demand.
+- **The `tailwind` format stripped component container queries.** The pass that drops the
+  framework's pre-expanded `md-*` utilities matched every `@container (min-width: …)` block,
+  including component behaviour — so `.sitenav--bp-{sm,md,lg,xl}` were removed and the nav
+  never left its mobile layout.
+- **`vitops init` and `vp create` scaffolded broken configs.** Both still referenced
+  `--color-surface-xl` / `--color-surface-xxl`, aliases from the named-step scale removed in
+  0.6, giving a `card` with no background and an invalid default border. The EmDash template
+  also carried the `patterns.radii.card` collision that `validate()` warns about.
+- **`.text-reveal` rendered invisible text.** Its gradient read two custom properties with no
+  defaults; when they were unset the `var()` substitution failed, `background` became invalid at
+  computed-value time, and the paired `color: transparent` left nothing to see.
+- **`.bordered` silently fell back to `currentColor`** through a reference to a token the
+  generator never emitted.
+- **`vitops docs` / `vitops agents` now surface config warnings** (on stderr, so piping `docs`
+  is unaffected). They discarded them, unlike `generate` and `validate`.
+- **Contrast is checked against every background plane** a role emits (`bg`, `bg-muted`,
+  `bg-bold`), not only `bg` — body text on a `card` was previously unguaranteed.
+- **`Subgrid` and `Cards` rendered as unstyled lists, in every format.** They drew their geometry
+  with Tailwind utilities that no framework CSS layer defines, so under `css`/`bricks` they had
+  no layout at all — and under `tailwind` too, because **Tailwind v4 is JIT and does not scan
+  `node_modules`**: a class only a shipped component references is never generated. Cards laid
+  out at `grid-row: auto` — visually plausible, quietly wrong. Now drawn with framework CSS.
+- **`<details>` disclosures never opened.** The `.details` pattern animated `block-size` from a
+  collapsed state that `<details>` itself controls, so the content stayed at zero height.
+- **`tailwindcss` and `@tailwindcss/vite` are optional peer dependencies of `@getvitops/astro`,
+  not dependencies.** Installing the integration no longer pulls Tailwind into projects using
+  the `css` or `bricks` format.
+
+### Docs
+
+- **Raw scale classes are frozen and do not remap in dark mode** — now stated, with a migration
+  table to the role equivalents. The dark-mode guarantee only ever covered functional role
+  tokens, and nothing said so; a consumer site hardcoded `data-brx-theme="dark"` and filled up
+  with latent light-mode bugs.
+- **Roles are extensible over a required core** — the schema description and class reference
+  read as a closed enumeration, which is why that consumer forked their own colour layer instead
+  of adding a role.
+- **`md:` vs `@md:` vs `md-` in the tailwind format** — `@md:` uses the framework's breakpoints,
+  `md:` works but uses Tailwind's (which differ: `sm:` is 40rem, `@sm:` is 30rem), `md-` is
+  silently inert. Plus: registering `--container-*` also re-points Tailwind's `max-w-*` scale.
+- The `css`/`bricks` bundles carry a `/*!` banner pointing at `npx vitops docs classes`. The
+  previous plain comment was stripped by the minifier and never reached the file.
+
 ## 0.8.0 — 2026-07-27
 
 One new feature — a live theme editor — plus repairs to things shipped in 0.7.0 that didn't work

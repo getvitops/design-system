@@ -10,9 +10,34 @@ generator: "@getvitops/generator"
 # Component patterns — the CSS chain
 
 Patterns (currently `btn`, `cta`, `link`, `badge`, `card`, `tag`, `status`, `tooltip`, `dialog`, `popover`, `dropdown`, `notification`, `lightbox`, `comment`, `tabs`, `drawer`, `carousel`, `nav`, `banner`, `details`, `table`, `list`, `tree`, `pull-quote`, `combobox`, `forms`) are authored declaratively under `patterns` in
-`design-system.json` (see [authoring.md](../authoring.md)) and compiled to CSS in the
-**`components` cascade layer** — so utility classes (declared in a later layer) always win
-over pattern styling without specificity fights.
+`design-system.json` (see [authoring.md](../authoring.md)) and compiled to CSS in a
+**components cascade layer** — so utility classes, which live in a later layer, always win over
+pattern styling without specificity fights. `class="card bg-danger-muted"` tints the card.
+
+The layer names differ by format, because each defers to its host:
+
+| format | layer stack (last wins) |
+| --- | --- |
+| `css`, `bricks` | `vitops.base` → `vitops.components` → `vitops.utilities` |
+| `tailwind` | Tailwind's own `theme` → `base` → `components` → `utilities` |
+
+**Your own CSS beats all of it.** Unlayered styles outrank every cascade layer regardless of
+specificity, so a plain stylesheet, an Astro scoped `<style>`, or a Bricks-authored class
+overrides the framework with no `!important` and no specificity escalation. That is the
+intended override story.
+
+The one thing to watch: a **reset** must be layered too, and ordered *below* the framework —
+left unlayered it beats the very component rules it is meant to sit under (a bare
+`p { margin: 0 }` would defeat `.rhythm`). Declare the order before you load the stylesheet,
+since layer precedence is fixed by first declaration:
+
+```html
+<style>@layer my.reset, vitops.base, vitops.components, vitops.utilities;</style>
+<link rel="stylesheet" href="/styles.css">
+```
+
+Put it *after* the link and `my.reset` becomes a new name introduced later — which sorts
+**last**, i.e. highest priority, and the reset wins. That is the one non-obvious step.
 
 ## 1 — Token cascade
 

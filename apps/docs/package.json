@@ -2,7 +2,7 @@
   "name": "docs",
   "version": "0.0.0",
   "private": true,
-  "description": "Vitops documentation site \u2014 a plain Astro site built with the design system it documents.",
+  "description": "Vitops documentation site — a plain Astro site built with the design system it documents.",
   "type": "module",
   "scripts": {
     "sync": "node ./scripts/sync-reference.mjs",
@@ -14,6 +14,7 @@
     "@getvitops/astro": "workspace:*",
     "astro": "catalog:",
     "astro-icon": "^1.1.5",
+    "baseline-status": "^1.1.1",
     "sharp": "catalog:"
   },
   "devDependencies": {

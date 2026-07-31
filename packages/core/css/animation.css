@@ -303,6 +303,16 @@
    failure leaves readable text rather than blank space. Scroll-timeline is also
    guarded — without it the text simply shows the final (to) color, still legible. */
 .text-reveal {
+  /* Both tones MUST default, and NOT to currentColor. They are consumed by the
+     gradient below, where a var() substitution failure makes `background`
+     invalid at computed-value time — which, with the `color: transparent` in
+     that same block, renders the text completely invisible rather than
+     degrading. currentColor is unusable there for the same reason: inside the
+     @supports block it resolves to that transparent value. So default to the
+     functional text tokens (they flip with the appearance) with a literal
+     backstop, since this is precisely the declaration that must never fail. */
+  --_reveal-from: var(--text-reveal-color-from, var(--neutral-text-x-muted, #9099a8));
+  --_reveal-to: var(--text-reveal-color-to, var(--neutral-text, #05070d));
   /* Fallback baseline: ordinary visible text in the start color. */
   color: var(--text-reveal-color-from, currentColor);
 }
@@ -313,8 +323,8 @@
       --text-reveal-background,
       linear-gradient(
         var(--text-reveal-slant, 90deg),
-        var(--text-reveal-color-to) 50%,
-        var(--text-reveal-color-from) 50%
+        var(--_reveal-to) 50%,
+        var(--_reveal-from) 50%
       )
     );
     background-size: 200% 100%;
