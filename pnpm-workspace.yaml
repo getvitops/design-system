@@ -8,6 +8,8 @@ catalog:
   '@astrojs/sitemap': ^3.7.3
   '@changesets/cli': ^2.27.0
   '@emdash-cms/cloudflare': ^0.31.0
+  '@iconify/types': ^2.0.0
+  '@iconify/utils': ^2.3.0
   '@lit-labs/signals': ^0.3.0
   '@oddbird/css-anchor-positioning': ^0.9.0
   '@oddbird/popover-polyfill': ^0.7.0

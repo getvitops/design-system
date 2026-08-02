@@ -20,6 +20,12 @@ export { expandPalette, functionalRole } from './tokens.ts';
 export type { ExpandedHue, FunctionalRole } from './tokens.ts';
 
 export { generateDocs } from './docs.ts';
+/**
+ * SVG sprite emitter. `spriteId` is the id grammar `<use href="…#id">` targets;
+ * @getvitops/astro's Icon.astro mirrors it, so treat it as a shared contract.
+ */
+export { buildIconSprite, spriteId } from './icons-sprite.ts';
+export type { IconSpriteOptions, IconSpriteResult } from './icons-sprite.ts';
 export { NUMERIC_STEPS } from './tokens.ts';
 export {
   TW_CLASH,

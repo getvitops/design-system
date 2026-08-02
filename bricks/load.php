@@ -15,6 +15,7 @@
  *   3. Registers a "Vitops" builder category so the elements group together.
  *   4. Defaults the design system to dark mode.
  *   5. Registers [vitops_legal] for the generated legal documents.
+ *   6. Registers vitops_icon() + [vitops_icon] for the generated SVG sprite.
  *
  * Owned by the framework repo (vitops: bricks/); copied into the theme's
  * dist/bricks/ on build — do not hand-edit in the theme.
@@ -170,5 +171,95 @@ add_shortcode(
 		}
 
 		return file_get_contents( $path );
+	}
+);
+
+/**
+ * 6. vitops_icon() / [vitops_icon name="menu"] — render an icon from the sprite.
+ *
+ * The build emits dist/icons.svg (a hidden <svg> of <symbol>s) when the site
+ * config sets `icons.sprite`. Referencing one is a plain `<use>`: no JavaScript,
+ * no request to an icon API, and it inherits `currentColor` like any other glyph.
+ *
+ * Two ids resolve. A qualified icon is `ph--caret-down` (the `prefix:name`
+ * separator becomes `--`, since `:` is not valid in a fragment identifier), and
+ * a semantic name also gets a set-independent `icon-menu` alias — so markup
+ * written here survives changing icon sets, the same guarantee the Astro
+ * components get from resolveIcon().
+ *
+ * IMPORTANT: an external-file <use> is same-origin only, and dead under file://.
+ * That is fine for a theme-relative dist/, but if you ever serve dist/ from a
+ * CDN on another origin the icons vanish silently — no console error, just
+ * empty boxes. Inline the sprite into the page instead if that day comes.
+ *
+ * `$name` is charset-gated rather than allowlisted (unlike [vitops_legal], whose
+ * value lands in a filesystem read): here it only ever reaches an HTML
+ * attribute, so restricting it to id-safe characters plus escaping is the
+ * matching level of care.
+ */
+if ( ! defined( 'VITOPS_SPRITE_URI' ) ) {
+	define( 'VITOPS_SPRITE_URI', get_stylesheet_directory_uri() . '/dist/icons.svg' );
+}
+
+/**
+ * @param string $name  Sprite id — 'menu' (semantic) or 'ph--list' (qualified).
+ * @param array  $args  'size' => any CSS length, 'label' => accessible name,
+ *                      'class' => extra classes on the wrapper.
+ * @return string HTML, or '' when the name is unusable.
+ */
+function vitops_icon( $name, $args = array() ) {
+	$name = is_string( $name ) ? strtolower( trim( $name ) ) : '';
+
+	// Sprite ids are ASCII word characters, hyphens and colons only. Anything
+	// else is a mistake, and echoing it would put author input into markup.
+	if ( '' === $name || ! preg_match( '/^[a-z0-9:_-]+$/', $name ) ) {
+		return '';
+	}
+
+	// Accept a qualified `prefix:name` too, and normalise it to the sprite's id.
+	$id = str_replace( ':', '--', $name );
+
+	$defaults = array(
+		'size'  => '',
+		'label' => '',
+		'class' => '',
+	);
+	$args     = array_merge( $defaults, is_array( $args ) ? $args : array() );
+
+	$classes = trim( 'icon ' . $args['class'] );
+	$style   = '' !== $args['size'] ? ' style="--icon-size:' . esc_attr( $args['size'] ) . '"' : '';
+
+	// Decorative by default — an icon beside a label must not be announced twice.
+	$a11y = '' !== $args['label']
+		? ' role="img" aria-label="' . esc_attr( $args['label'] ) . '"'
+		: ' aria-hidden="true"';
+
+	return '<span class="' . esc_attr( $classes ) . '"' . $style . $a11y . '>'
+		. '<svg><use href="' . esc_url( VITOPS_SPRITE_URI ) . '#' . esc_attr( $id ) . '"></use></svg>'
+		. '</span>';
+}
+
+add_shortcode(
+	'vitops_icon',
+	function ( $atts ) {
+		$atts = shortcode_atts(
+			array(
+				'name'  => '',
+				'size'  => '',
+				'label' => '',
+				'class' => '',
+			),
+			$atts,
+			'vitops_icon'
+		);
+
+		return vitops_icon(
+			$atts['name'],
+			array(
+				'size'  => $atts['size'],
+				'label' => $atts['label'],
+				'class' => $atts['class'],
+			)
+		);
 	}
 );

@@ -106,6 +106,14 @@ export interface VitopsPluginOptions {
    */
   editorManifestDir?: string;
   /**
+   * Directory to mirror the generated `icons.svg` into as `vitops/icons.svg` —
+   * the URL `<Icon />` targets under the `sprite` engine. Same reasoning as
+   * `editorManifestDir`: copied inside the generate pass, so it can't race a
+   * cold start or go stale after a config edit. The *href* is a plain string
+   * decided at config:setup; only the bytes arrive here.
+   */
+  spriteDir?: string;
+  /**
    * Also render the site's legal documents on build, and re-render when the site
    * config changes.
    *
@@ -152,6 +160,14 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
         const dest = resolve(root, options.editorManifestDir, 'vitops');
         mkdirSync(dest, { recursive: true });
         copyFileSync(src, join(dest, 'design-manifest.json'));
+      }
+    }
+    if (options.spriteDir) {
+      const src = resolve(root, outDir, 'icons.svg');
+      if (existsSync(src)) {
+        const dest = resolve(root, options.spriteDir, 'vitops');
+        mkdirSync(dest, { recursive: true });
+        copyFileSync(src, join(dest, 'icons.svg'));
       }
     }
     if (options.favicon) {

@@ -673,6 +673,9 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
               // Mirrored inside the generate pass so the served copy can never be
               // missing on a cold start or stale after a config edit.
               ...(editor ? { editorManifestDir: publicDir } : {}),
+              // Same mirroring rule as the manifest: the bytes are produced by
+              // this pass, so the copy belongs inside it rather than in the hook.
+              ...(iconsData?.sprite ? { spriteDir: publicDir } : {}),
               // Same reasoning: inside the pass, so the documents track the site
               // config in dev instead of going stale after the first build.
               ...(opts.legal ? { legal: opts.legal } : {}),

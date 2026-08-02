@@ -20,7 +20,9 @@ import { validate, type DesignSystem } from './schema.ts';
 import { generateDocs } from './docs.ts';
 import { emitDesignMd } from './design-md.ts';
 import { generateLegal } from './legal/index.ts';
+import { buildIconSprite } from './icons-sprite.ts';
 import { resolveSiteConfig, type SiteConfig } from './site.ts';
+import { generateIconInclude, resolveIcon } from '@getvitops/utils';
 import { BASE_HOOK, DARK_SEL, TW_CLASH, type RoleSpec, roleHue, roleKind } from './shared.ts';
 import {
   checkContrast,
@@ -1579,6 +1581,44 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
     const site = loadSiteConfigFile(options.site);
     const legal = generateLegal(site, { output: 'html' });
     for (const [name, content] of Object.entries(legal)) put(join('legal', name), content);
+
+    // Icon sprite → outDir/icons.svg.
+    //
+    // Opt-in via `icons.sprite`, because building it needs the @iconify-json/*
+    // collections and most consumers render icons through their framework's own
+    // integration instead. This is the path for the ones that can't: Bricks,
+    // EmDash renderers, any plain HTML — `<use href="…/icons.svg#id">`, no JS.
+    const icons = site.icons as
+      | { sprite?: boolean; ui?: string; brand?: string; weight?: string; semantic?: string[] }
+      | undefined;
+    if (icons?.sprite) {
+      const { ui, brand, weight, semantic, sprite: _sprite, ...sets } = icons;
+      const include = generateIconInclude({
+        ...(ui ? { ui } : {}),
+        ...(brand ? { brand } : {}),
+        ...(weight ? { weight } : {}),
+        ...(semantic ? { semantic } : {}),
+        ...sets,
+      });
+      // Semantic names get a set-independent alias (`icon-menu`) alongside the
+      // qualified id, so markup written against a sprite survives a set swap —
+      // the same guarantee `resolveIcon` gives Astro consumers.
+      const aliases: Record<string, string> = {};
+      for (const name of semantic ?? []) {
+        try {
+          aliases[`icon-${name}`] = resolveIcon(name, ui ?? 'fa7-solid', weight ? { weight } : {});
+        } catch {
+          // Already reported by generateIconInclude, which throws on the same input.
+        }
+      }
+      const built = await buildIconSprite({ include, aliases });
+      put('icons.svg', built.svg);
+      if (built.missing.length)
+        console.warn(
+          `[vitops] icons.sprite: ${built.missing.length} icon(s) were not found and are ` +
+            `absent from the sprite: ${built.missing.join(', ')}.`,
+        );
+    }
   }
 
   return { format, outDir, written };

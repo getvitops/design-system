@@ -26,11 +26,13 @@
   },
   "dependencies": {
     "@getvitops/utils": "workspace:*",
+    "@iconify/utils": "catalog:",
     "lightningcss": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@getvitops/core": "workspace:*",
+    "@iconify/types": "catalog:",
     "vitest": "^4.1.9"
   }
 }
