@@ -18,6 +18,7 @@ describe('generateDocs bundle', () => {
         'concepts/color.md',
         'concepts/scales.md',
         'concepts/patterns.md',
+        'concepts/icons.md',
         'css/index.md',
         'css/classes.md',
         'bricks/index.md',

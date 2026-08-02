@@ -2077,6 +2077,39 @@
                 ><button class="success">success</button><button class="danger">danger</button
                 ><button class="warning">warning</button><button class="info">info</button>
               </p>
+              <!-- Icons. `.cta` and :where(button, .btn) are already inline-flex with a
+                   gap, so a start/end adornment is CHILD ORDER — there is no
+                   `cta--with-icon` modifier and there shouldn't be. `.icon` is the box:
+                   it sizes in em via --icon-size and sets fill: currentColor on its svg,
+                   which is why these pick up each button's own text colour for free.
+                   On a real site the svg comes from <Icon /> or the generated sprite;
+                   inlined here because this page builds without a site config. -->
+              <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
+                <a class="cta" href="#patterns"
+                  ><span class="icon" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <path d="M5 12h14M12 5l7 7-7 7" /></svg></span
+                  >start icon</a
+                ><a class="cta" href="#patterns"
+                  >end icon<span class="icon" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <path d="M5 12h14M12 5l7 7-7 7" /></svg></span
+                ></a>
+                <button class="danger">
+                  <span class="icon" aria-hidden="true"
+                    ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg></span
+                  >delete
+                </button>
+                <span class="icon" style="--icon-size: 2rem" aria-hidden="true"
+                  ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 6h16M4 12h16M4 18h16" /></svg
+                ></span>
+                <span class="icon text-danger" aria-hidden="true"
+                  ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 6h16M4 12h16M4 18h16" /></svg
+                ></span>
+              </p>
               <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
                 <span class="badge">badge</span><span class="badge badge-success">success</span
                 ><span class="badge badge-danger">danger</span

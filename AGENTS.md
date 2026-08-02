@@ -359,6 +359,42 @@ The generator takes `--format <css|bricks|tailwind|design>` (default `bricks`; `
 
   Three things the spec can't hold, resolved the same way every time and **stated in the emitted prose** so the file is self-describing: fluid `clamp()` sizes → the **max** value (a `Dimension` is a bare number + px/em/rem); the automatic dark flip → **light values only**, with the flip explained (an agent that flattens role tokens to hexes breaks dark mode, which is the whole hazard); a `50%` radius → dropped from `rounded` and named in the Shapes prose rather than emitted as an invalid `Dimension`. Role tokens are `{colors.<hue>-<step>}` **references** into the raw ramps, not flattened hexes, so the role → ramp lineage survives — `on-solid` excepted, being a computed contrast literal. `meta.name`/`meta.description` (optional, in `design-system.json`) supply the brand name + Overview paragraph; everything else derives from the config. `design.md lint` reports zero errors on the emitted file; its ~190 `orphaned-tokens` warnings are inherent (our tokens are consumed by utility classes, not by the `components` block) and the file says so.
 
+### Icons
+
+Icons are named by **meaning** and resolved per configured set — `menu` becomes `fa7-solid:bars`,
+`lucide:menu` or `ph:list` — so swapping sets is a config edit, not a find-and-replace. **A name
+containing `:` passes through untouched**, which is the escape hatch for a set-specific glyph. The
+map lives in `packages/utils/src/icons.ts` (`iconMap`, `resolveIcon`, `generateIconInclude`); the
+declaration lives in the **site config**'s `icons` block, not `design-system.json`, because it
+describes what a site uses rather than what the system defines.
+
+**Weight is per-set-shape, not universal.** Phosphor keeps every weight in one collection and varies
+the NAME (`list`, `list-bold`), so `ph` takes `weight`; Font Awesome splits weights across
+collections (`fa7-solid` / `fa7-regular`), so there it's part of the prefix. `WEIGHTED_SETS` records
+which is which, and an unknown weight throws rather than silently resolving to the regular glyph.
+
+**The `include` map exists for one reason: SSR bundle size.** astro-icon is zero-config on a static
+build but bundles _every icon in a set_ under `output: 'server'`. The `icons` option on
+`getvitops()` derives the list by scanning source during `astro:config:setup` — awaited **before**
+the `updateConfig` that appends the icon integration, because an appended integration's own
+`config:setup` runs after this hook returns, and the Vite plugin's `buildStart` is far too late. On
+a static build **no `include` is passed at all**. Declared names that don't resolve throw; scanned
+ones only warn (a bare unmapped name is usually a local `src/icons/*.svg`); runtime-computed names
+are reported with file and line, never guessed.
+
+Three delivery paths: `astro-icon` / `astro-iconset` for Astro, and a **build-time SVG sprite**
+(`icons.svg`, opt-in via `icons.sprite`) for Bricks, EmDash renderers and plain HTML —
+`<use href="…#ph--list">`, no JS and no icon-API call, which is what keeps it a tier-1 pattern.
+Sprite ids are the qualified name with `:` → `--`, plus a set-independent `icon-<name>` alias per
+semantic name so sprite markup survives a set swap. `spriteId()` in the generator and `Icon.astro`
+must agree; `icon.test.ts` guards it, since a drift renders an empty box rather than erroring.
+Note external-file `<use>` is **same-origin only**.
+
+Markup is always `<span class="icon">…</span>`. `.icon` sizes in `em` via `--icon-size` and sets
+`fill: currentColor`; because `.cta` and `:where(button, .btn)` are already `inline-flex` with a
+`gap`, **a start/end icon is child order, not a modifier class**. Don't confuse `.icon` with
+`.icon-mask`, the CSS-only adornment path behind `.link--icon::before`.
+
 ### Utility variant naming (Tailwind-aligned)
 
 Responsive/state utilities follow Tailwind's left-to-right order in every format; CSS/Bricks swap `:` for `-`, Tailwind keeps `:` (and `@` for container queries):

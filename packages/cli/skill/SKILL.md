@@ -33,6 +33,7 @@ never stale and always names the project's actual tokens. (If `vitops` isn't on 
 | `vitops docs color`     | how the colour system works (seeded OKLCH scales, roles, dark mode)    |
 | `vitops docs scales`    | how the fluid type/space scales work                                   |
 | `vitops docs patterns`  | how pattern CSS is assembled (token cascade, override hooks, states)   |
+| `vitops docs icons`     | semantic icon names across sets, bundle derivation, sprite delivery    |
 | `vitops docs elements`  | the custom Bricks Builder elements and their controls                  |
 
 `vitops docs` (no topic) lists the topics; `vitops docs --all` prints everything.

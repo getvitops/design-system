@@ -48,10 +48,11 @@ pattern's own hook. Members: `badge`, `tag`, `status`, `tooltip`.
 
 ## Astro integration (`@getvitops/astro`)
 
-- **Semantic icon mapping → the integration.** Components currently take an `iconResolver` prop
-  (semantic name like `expand-more`/`close` → a fully-qualified `astro-icon` name like
-  `fa7-solid:chevron-down`), defaulting to pass-through. Move this mapping into the `getvitops()`
-  integration so it's provided centrally (per-site) rather than threaded through every component.
+- ~~**Semantic icon mapping → the integration.**~~ Done — the `icons` option on `getvitops()`
+  configures the set once per site and `<Icon />` resolves against it via
+  `virtual:getvitops/icons`; `iconResolver` stays as a deprecated prop. The same pass derives
+  astro-icon's `include` by scanning source (only under `output: 'server'`, where the bundle is
+  actually at stake) and can emit an SVG sprite for non-Astro consumers.
 - ~~**Ship the generic component tier.**~~ Done — the framework-agnostic content/HTML helpers moved
   to `@getvitops/utils`, and the generic primitives export at `@getvitops/astro/components/*`:
   `Subgrid`, `Cards`, `NodeRenderer`, `WebComponentLoader`, plus `Popover`/`Details`/`Drawer`

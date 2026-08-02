@@ -43,6 +43,10 @@ export const TOPICS: Record<string, { path: string; summary: string }> = {
     path: 'concepts/scales.md',
     summary: 'fluid modular type & space scales',
   },
+  icons: {
+    path: 'concepts/icons.md',
+    summary: 'semantic icon names across sets, bundle derivation, sprite delivery',
+  },
   patterns: {
     path: 'concepts/patterns.md',
     summary: 'pattern CSS: token cascade, override hooks, states, role variants',

@@ -133,8 +133,13 @@ back-compat, but new code should import them from `@getvitops/utils`.
   is fine (handled centrally by core's polyfill bundle); behaviour JS is not — build a web component.
 - **Accessible fallback first.** The rendered markup must be usable without JS; a web component then
   parses + augments it (see `WCEntries` in `@getvitops/core`).
-- Icons resolve through an injectable `iconResolver` (pass-through by default; the integration wires
-  the site's icon set). Text is `Localizable`; resolve with `t(value, locale, defaultLocale)`.
-- Deps use the workspace `catalog:`; `astro` is a peer (`>=7`) and `astro-icon` an **optional** peer
-  (`>=1`, only for `Popover`/`Details`/`Drawer`). Versions independently of the `fixed`
-  `core`/`generator`/`utils`/`cli`/`vite` group.
+- Icons go through `<Icon />` (`components/Icon.astro`), which resolves a semantic name against the
+  set the `icons` integration option configures, carried in via `virtual:getvitops/icons`. The old
+  per-component `iconResolver` prop still works but is deprecated. **Engines load by dynamic
+  `import()`** — a static `astro-icon/components` import made the optional peer mandatory for anyone
+  rendering these components, which is the bug `<Icon />` fixes. Text is `Localizable`; resolve with
+  `t(value, locale, defaultLocale)`.
+- Deps use the workspace `catalog:`; `astro` is a peer (`>=7`), with `astro-icon` and
+  `@astrojs/sitemap` **optional** peers. Versioned in **lockstep** with the `fixed` group —
+  `core`/`generator`/`utils`/`cli`/`vite`/`astro` share one version (see `.changeset/config.json`).
+  (This line previously claimed independent versioning; it was wrong.)
