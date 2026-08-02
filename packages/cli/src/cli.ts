@@ -15,8 +15,8 @@
  * Every client brings their own consumer-editable design-system.json.
  */
 import { parseArgs } from 'node:util';
-import { writeFileSync, existsSync, readFileSync, mkdirSync, readdirSync } from 'node:fs';
-import { resolve, join, dirname, extname } from 'node:path';
+import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
+import { resolve, join, dirname } from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import {
@@ -40,7 +40,7 @@ import {
   type LegalOutput,
   type SiteConfig,
 } from '@getvitops/generator';
-import { generateFavicons } from '@getvitops/utils';
+import { generateFavicons, scanFiles } from '@getvitops/utils';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
 import { lintSource, vocabulary } from './lint.ts';
 
@@ -393,35 +393,6 @@ function cmdDocs(argv: string[]) {
     ? Object.values(TOPICS).map((t) => t.path)
     : [TOPICS[topic as string]!.path];
   process.stdout.write(paths.map((p) => docs[p]).join('\n'));
-}
-
-const SCAN_EXT = new Set([
-  '.astro',
-  '.html',
-  '.htm',
-  '.js',
-  '.jsx',
-  '.ts',
-  '.tsx',
-  '.vue',
-  '.svelte',
-  '.php',
-  '.md',
-  '.mdx',
-]);
-const SCAN_SKIP = new Set(['node_modules', 'dist', '.git', '.astro', 'build', 'coverage']);
-
-function scanFiles(dir: string, acc: { path: string; text: string }[] = []) {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    if (e.name.startsWith('.') && e.name !== '.') continue;
-    const p = join(dir, e.name);
-    if (e.isDirectory()) {
-      if (!SCAN_SKIP.has(e.name)) scanFiles(p, acc);
-    } else if (SCAN_EXT.has(extname(e.name))) {
-      acc.push({ path: p, text: readFileSync(p, 'utf8') });
-    }
-  }
-  return acc;
 }
 
 function cmdLint(argv: string[]) {

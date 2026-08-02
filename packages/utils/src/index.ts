@@ -58,6 +58,7 @@ export type {
  * icon picker consumes it from here too.
  */
 export {
+  WEIGHTED_SETS,
   generateIconInclude,
   iconMap,
   prefixToMapKey,
@@ -65,3 +66,19 @@ export {
   resolveIcon,
 } from './icons.ts';
 export type { BrandIcon, IconSet, SemanticIcon } from './icons.ts';
+
+/**
+ * Consumer-source scanning. Shared by `vitops lint` (classes) and the Astro
+ * integration's icon pass (names) — the CLI can't be imported as a library, so
+ * anything both need lives here.
+ */
+export { SCAN_EXT, SCAN_SKIP, scanFiles } from './scan.ts';
+export type { ScanOptions, SourceFile } from './scan.ts';
+export { collectIconRefs, extractIconRefs } from './icons-scan.ts';
+export type {
+  DynamicIconRef,
+  IconRef,
+  IconRefKind,
+  IconScanOptions,
+  IconScanResult,
+} from './icons-scan.ts';
