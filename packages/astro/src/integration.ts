@@ -8,13 +8,17 @@
  * config from the `virtual:getvitops/head` module this integration provides.
  */
 import { cpSync, existsSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { LegalOutput, StylesheetFormat } from '@getvitops/generator';
 import {
   type FaviconLink,
+  collectIconRefs,
   faviconLinks,
   generateFavicons,
+  generateIconInclude,
+  resolveIcon,
+  scanFiles,
   writeFaviconManifest,
 } from '@getvitops/utils';
 import vitops from '@getvitops/vite';
@@ -182,6 +186,67 @@ export interface GetvitopsOptions {
    * CMS — using both double-emits them.
    */
   seo?: GetvitopsSeoOptions;
+  /**
+   * Resolve semantic icon names centrally and, on a server build, derive which
+   * icons to bundle by scanning your source. Off unless provided; `true` uses
+   * the defaults below.
+   *
+   * Two separate jobs, and it is worth knowing which one you are buying:
+   *
+   * 1. **Naming.** `<Icon name="menu" />` resolves through the semantic map, so
+   *    the icon set is a config value rather than something spelled out at every
+   *    call site. A name containing `:` passes through untouched — that is the
+   *    escape hatch for a set-specific glyph.
+   * 2. **Bundle size.** astro-icon is zero-config on a static build, but under
+   *    `output: 'server'` it bundles EVERY icon in a set unless given an
+   *    `include` map. That is the list consumers end up hand-maintaining. Here it
+   *    is derived by scanning `scan` for icon references, merged with anything
+   *    you declare. On a static build no `include` is passed at all, because
+   *    there is nothing to trim.
+   *
+   * Names the scanner cannot read statically (`<Icon name={expr} />`) are
+   * reported with file and line, not guessed at — declare them in `include`.
+   */
+  icons?: boolean | GetvitopsIconsOptions;
+}
+
+export interface GetvitopsIconsOptions {
+  /** Icon set for UI chrome. Default `'fa7-solid'`. */
+  ui?: string;
+  /** Icon set for brand marks. Default `'simple-icons'`. */
+  brand?: string;
+  /**
+   * Weight for suffix-weighted sets like Phosphor (`'bold'`, `'fill'`, …).
+   * Ignored by sets that split weights across collections, e.g. Font Awesome.
+   */
+  weight?: string;
+  /**
+   * Icons to bundle, in `generateIconInclude`'s shape:
+   * `{ semantic: ['menu'], 'simple-icons': ['zoho'] }`.
+   *
+   * Merged with what the scan finds. Declared names that don't resolve **throw**
+   * (a config error); scanned names that don't resolve only **warn** (a source
+   * typo shouldn't kill the dev server).
+   */
+  include?: Parameters<typeof generateIconInclude>[0];
+  /**
+   * Which renderer `<Icon />` uses. `'auto'` (default) probes astro-icon, then
+   * astro-iconset, then the sprite. Naming an engine explicitly makes a missing
+   * package an error rather than a silent fallback.
+   */
+  engine?: 'auto' | 'astro-icon' | 'astro-iconset' | 'sprite';
+  /**
+   * Register the icon integration for you (default true). Set false when you
+   * already list `icon()` in `integrations` yourself — the scan, the sprite and
+   * the resolver still run either way.
+   */
+  register?: boolean;
+  /** Directories to scan, relative to the project root. Default `['src']`; `false` disables. */
+  scan?: string[] | false;
+  /** Public href of the sprite, for the `'sprite'` engine. Default `'/vitops/icons.svg'`. */
+  sprite?: string;
+  /** Aliases applied before the semantic map — legacy names, or values stored in CMS content. */
+  overrides?: Record<string, string>;
 }
 
 /**
@@ -217,6 +282,83 @@ function virtualHeadPlugin(data: HeadData) {
       return id === RESOLVED_ID ? `export default ${JSON.stringify(data)};` : null;
     },
   };
+}
+
+/**
+ * What `<Icon />` needs to resolve a name at render time.
+ *
+ * JSON only, same rule as `HeadData` — which is precisely why there is no
+ * `resolver` field. `resolveIcon` is a pure function in `@getvitops/utils` that
+ * the component imports statically; what varies per site is the *data* it takes.
+ */
+interface IconsData {
+  engine: 'astro-icon' | 'astro-iconset' | 'sprite' | 'none';
+  ui: string;
+  brand: string;
+  weight: string | null;
+  overrides: Record<string, string>;
+  sprite: string | null;
+}
+
+const ICONS_ID = 'virtual:getvitops/icons';
+const RESOLVED_ICONS_ID = `\0${ICONS_ID}`;
+
+function virtualIconsPlugin(data: IconsData) {
+  return {
+    name: '@getvitops/astro:virtual-icons',
+    resolveId(id: string) {
+      return id === ICONS_ID ? RESOLVED_ICONS_ID : null;
+    },
+    load(id: string) {
+      return id === RESOLVED_ICONS_ID ? `export default ${JSON.stringify(data)};` : null;
+    },
+  };
+}
+
+/** Defaults live here so the component and the integration can't drift. */
+const ICON_DEFAULTS = {
+  ui: 'fa7-solid',
+  brand: 'simple-icons',
+  sprite: '/vitops/icons.svg',
+  scan: ['src'],
+} as const;
+
+/**
+ * Pick the renderer.
+ *
+ * `'auto'` probes in order and falls through quietly — both icon integrations
+ * are optional peers, and a site that installed neither can still render from a
+ * sprite. Naming one explicitly is a promise that it's installed, so a miss is
+ * an error: silently rendering something else would hide the mistake until a
+ * page came out wrong.
+ */
+async function resolveIconEngine(
+  requested: 'auto' | 'astro-icon' | 'astro-iconset' | 'sprite',
+  logger: { warn(msg: string): void },
+): Promise<IconsData['engine']> {
+  if (requested === 'sprite') return 'sprite';
+  const probe = async (name: 'astro-icon' | 'astro-iconset') => {
+    try {
+      await import(/* @vite-ignore */ name);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  if (requested !== 'auto') {
+    if (await probe(requested)) return requested;
+    throw new Error(
+      `[getvitops] icons.engine: '${requested}' is not installed. Add it to your ` +
+        `devDependencies, or use icons.engine: 'auto' (or 'sprite').`,
+    );
+  }
+  if (await probe('astro-icon')) return 'astro-icon';
+  if (await probe('astro-iconset')) return 'astro-iconset';
+  logger.warn(
+    'icons: neither astro-icon nor astro-iconset is installed — falling back to the sprite. ' +
+      'Install one, or set icons.engine explicitly to silence this.',
+  );
+  return 'sprite';
 }
 
 export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration {
@@ -361,10 +503,141 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
           }
         }
 
-        // 4. Virtual head module for <Head/>
+        // 4. Icons — resolve names centrally, and derive the bundle on a server build.
+        //
+        // Everything here has to finish BEFORE the updateConfig that appends the
+        // icon integration, because an appended integration's own
+        // astro:config:setup runs after this hook returns — it cannot be handed
+        // options computed later. That is why the scan is synchronous rather than
+        // deferred to the Vite plugin's buildStart, which runs far too late.
+        let iconsData: IconsData | null = null;
+        if (opts.icons) {
+          const o: GetvitopsIconsOptions = opts.icons === true ? {} : opts.icons;
+          const ui = o.ui ?? ICON_DEFAULTS.ui;
+          const brand = o.brand ?? ICON_DEFAULTS.brand;
+          const spriteHref = o.sprite ?? ICON_DEFAULTS.sprite;
+
+          // Declared icons first. An unresolvable name here THROWS — it's a
+          // config error, and generateIconInclude has always been loud about it.
+          // `exactOptionalPropertyTypes` is on, so an optional key has to be
+          // absent rather than explicitly undefined.
+          const weightOpt = o.weight ? { weight: o.weight } : {};
+          const include: Record<string, string[]> = o.include
+            ? generateIconInclude({ ui, brand, ...weightOpt, ...o.include })
+            : {};
+          const add = (prefix: string, name: string) => {
+            const list = (include[prefix] ??= []);
+            if (!list.includes(name)) list.push(name);
+          };
+
+          // Then whatever the source actually references.
+          const scanDirs = o.scan === false ? [] : (o.scan ?? [...ICON_DEFAULTS.scan]);
+          const unresolved: string[] = [];
+          const dynamic: { file: string; line: number; expr: string }[] = [];
+          for (const dir of scanDirs) {
+            const abs = resolve(root, dir);
+            if (!existsSync(abs)) continue;
+            const found = collectIconRefs(scanFiles(abs));
+            dynamic.push(
+              ...found.dynamic.map((d) => ({
+                file: relative(root, d.file),
+                line: d.line,
+                expr: d.expr,
+              })),
+            );
+            for (const name of found.names) {
+              // Already qualified — group it under its own prefix verbatim.
+              const colon = name.indexOf(':');
+              if (colon > 0) {
+                add(name.slice(0, colon), name.slice(colon + 1));
+                continue;
+              }
+              // A scanned name that doesn't resolve only WARNS. It is far more
+              // likely a local SVG (astro-icon reads src/icons/*.svg by bare
+              // name) or a sprite id than a mistake, and a dev server that dies
+              // on a typo in a template is worse than one that tells you.
+              try {
+                const q = resolveIcon(name, ui, weightOpt);
+                add(q.slice(0, q.indexOf(':')), q.slice(q.indexOf(':') + 1));
+              } catch {
+                unresolved.push(name);
+              }
+            }
+          }
+
+          // `include` only matters where a bundle is at stake. astro-icon is
+          // zero-config on a static build; passing a list there would trim
+          // nothing and risk dropping a glyph the scan couldn't see.
+          const wantsInclude = config.output !== 'static';
+          if (dynamic.length && wantsInclude) {
+            logger.warn(
+              `icons: ${dynamic.length} icon name(s) are computed at runtime and cannot be ` +
+                `bundled automatically:\n` +
+                dynamic.map((d) => `  ${d.file}:${d.line}  ${d.expr}`).join('\n') +
+                `\n  Declare them in \`icons.include\` (or set \`icons.scan: false\` to silence this).`,
+            );
+          }
+          if (unresolved.length)
+            logger.warn(
+              `icons: ${unresolved.length} name(s) are not in the semantic map for '${ui}': ` +
+                `${unresolved.join(', ')}. Left as-is — fine for a local src/icons/*.svg or a ` +
+                `sprite id, a typo otherwise.`,
+            );
+
+          const engine = await resolveIconEngine(o.engine ?? 'auto', logger);
+          if (o.sprite && !opts.css)
+            logger.warn(
+              'icons: the sprite is written by the same pass that generates the CSS, so ' +
+                '`sprite` without `css` produces no file. Add `css`, or run `vitops icons --sprite`.',
+            );
+
+          const registered = config.integrations.map((i) => i.name);
+          const already = registered.find((n) => n === 'astro-icon' || n === 'astro-iconset');
+          if (o.register === false) {
+            logger.info('icons: register: false — resolving names only, not registering anything.');
+          } else if (already) {
+            // Only the registration is skipped. The resolver, the scan and the
+            // sprite are not astro-icon's job, so they still run.
+            logger.info(
+              `icons: ${already} is already in your integrations — leaving yours in charge.`,
+            );
+          } else if (engine === 'astro-icon' || engine === 'astro-iconset') {
+            type IconFactory = (o?: Record<string, unknown>) => AstroIntegration;
+            const { default: icon } = (await import(/* @vite-ignore */ engine)) as unknown as {
+              default: IconFactory;
+            };
+            updateConfig({ integrations: [icon(wantsInclude ? { include } : {})] });
+            logger.info(
+              wantsInclude
+                ? `icons: ${engine} registered — bundling ${Object.values(include).flat().length} icon(s)`
+                : `icons: ${engine} registered (output: 'static' — no include needed)`,
+            );
+          }
+
+          iconsData = {
+            engine,
+            ui,
+            brand,
+            weight: o.weight ?? null,
+            overrides: o.overrides ?? {},
+            sprite: engine === 'sprite' || o.sprite ? spriteHref : null,
+          };
+        }
+
+        // 5. Virtual head module for <Head/>
         updateConfig({
           vite: {
             plugins: [
+              virtualIconsPlugin(
+                iconsData ?? {
+                  engine: 'none',
+                  ui: ICON_DEFAULTS.ui,
+                  brand: ICON_DEFAULTS.brand,
+                  weight: null,
+                  overrides: {},
+                  sprite: null,
+                },
+              ),
               virtualHeadPlugin({
                 favicons: !!opts.favicon,
                 faviconLinks: opts.favicon ? faviconLinks({ hasSvg, manifest: hasManifest }) : [],
@@ -380,7 +653,7 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
           },
         });
 
-        // 5. CSS — generate + compile + auto-inject (consumer imports nothing).
+        // 6. CSS — generate + compile + auto-inject (consumer imports nothing).
         if (opts.css) {
           const format: StylesheetFormat = opts.css.format ?? 'tailwind';
           // Typed out above, but a plain-JS config reaches here unchecked and

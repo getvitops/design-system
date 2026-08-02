@@ -1,5 +1,5 @@
 ---
-import { Icon } from 'astro-icon/components';
+import Icon from './Icon.astro';
 
 interface Props {
   id: string;
@@ -14,8 +14,14 @@ interface Props {
   class?: string;
   anchorName?: string;
   positionArea?: string;
-  /** Resolve semantic icon names to fully-qualified astro-icon names.
-   *  Defaults to pass-through (expects already-qualified names like 'fa7-solid:bars'). */
+  /**
+   * Map a semantic name onto a fully-qualified one before rendering.
+   *
+   * @deprecated The `icons` option on `getvitops()` now does this centrally, so
+   * the site's set is configured once instead of threaded through every call
+   * site. Left in place because removing it would break consumers passing one;
+   * when omitted, `<Icon />` resolves through the site config.
+   */
   iconResolver?: (name: string) => string;
 }
 

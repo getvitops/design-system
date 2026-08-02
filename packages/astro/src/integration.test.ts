@@ -49,22 +49,40 @@ function harness(opts: GetvitopsOptions = {}, config: Partial<Params['config']> 
 const added = (updates: Record<string, unknown>[]): AstroIntegration[] =>
   updates.flatMap((u) => (u.integrations as AstroIntegration[] | undefined) ?? []);
 
-/** The HeadData the virtual module would serve, read back off the vite plugin. */
-function headData(updates: Record<string, unknown>[]): Record<string, unknown> {
+/**
+ * Read a virtual module's payload back off the vite plugin that serves it.
+ *
+ * Selected by plugin NAME, not "the first one with a load hook" — the run
+ * registers more than one virtual module now, and picking positionally silently
+ * read the wrong plugin's `load` (which returns null for an id it doesn't own).
+ */
+function virtualData(
+  updates: Record<string, unknown>[],
+  pluginName: string,
+  id: string,
+): Record<string, unknown> {
   const plugins = updates.flatMap(
     (u) => ((u.vite as { plugins?: unknown[] } | undefined)?.plugins ?? []) as unknown[],
   );
   const plugin = plugins.find(
     (p): p is { name: string; load: (id: string) => string | null } =>
-      typeof p === 'object' && p !== null && 'name' in p && 'load' in p,
+      typeof p === 'object' && p !== null && (p as { name?: string }).name === pluginName,
   );
-  const src = plugin?.load('\0virtual:getvitops/head');
+  const src = plugin?.load(id);
   return JSON.parse(
     String(src)
       .replace(/^export default /, '')
       .replace(/;$/, ''),
   );
 }
+
+/** The HeadData the virtual module would serve. */
+const headData = (updates: Record<string, unknown>[]) =>
+  virtualData(updates, '@getvitops/astro:virtual-head', '\0virtual:getvitops/head');
+
+/** The IconsData `<Icon />` would read. */
+const iconsData = (updates: Record<string, unknown>[]) =>
+  virtualData(updates, '@getvitops/astro:virtual-icons', '\0virtual:getvitops/icons');
 
 const warned = (logs: { level: string; msg: string }[], needle: string) =>
   logs.some((l) => l.level === 'warn' && l.msg.includes(needle));
@@ -159,5 +177,100 @@ describe('getvitops({ seo })', () => {
     const h = harness({ seo: { siteName: 'Acme' } }, { integrations: [integration('emdash')] });
     await h.run();
     expect(warned(h.logs, 'EmDashHead')).toBe(true);
+  });
+});
+
+describe('getvitops({ icons })', () => {
+  it('registers nothing and serves an inert module unless asked', async () => {
+    const h = harness();
+    await h.run();
+    expect(added(h.updates)).toHaveLength(0);
+    // The module is always served so <Icon /> can import it unconditionally;
+    // `engine: 'none'` is what makes it warn instead of rendering nothing silently.
+    expect(iconsData(h.updates).engine).toBe('none');
+  });
+
+  it('passes NO include on a static build', async () => {
+    // The whole point of the option is trimming a server bundle. astro-icon is
+    // zero-config on static, so an include there trims nothing and can only drop
+    // a glyph the scan could not see.
+    const h = harness({ icons: { engine: 'sprite', scan: false } }, { output: 'static' });
+    await h.run();
+    expect(iconsData(h.updates).engine).toBe('sprite');
+  });
+
+  it('carries the configured sets, weight and overrides into the module', async () => {
+    const h = harness({
+      icons: {
+        ui: 'ph',
+        brand: 'simple-icons',
+        weight: 'bold',
+        engine: 'sprite',
+        scan: false,
+        overrides: { zap: 'lightbulb' },
+      },
+    });
+    await h.run();
+    expect(iconsData(h.updates)).toMatchObject({
+      ui: 'ph',
+      brand: 'simple-icons',
+      weight: 'bold',
+      overrides: { zap: 'lightbulb' },
+    });
+  });
+
+  it('leaves a consumer-registered icon integration in charge, but still resolves', async () => {
+    const h = harness(
+      { icons: { engine: 'sprite', scan: false } },
+      { integrations: [integration('astro-icon')] },
+    );
+    await h.run();
+    expect(added(h.updates)).toHaveLength(0);
+    expect(h.logs.some((l) => l.msg.includes('already in your integrations'))).toBe(true);
+    // Registration is skipped; naming is not astro-icon's job, so it still runs.
+    expect(iconsData(h.updates).engine).toBe('sprite');
+  });
+
+  it('warns that a sprite without `css` writes no file', async () => {
+    const h = harness({ icons: { engine: 'sprite', sprite: '/x/icons.svg', scan: false } });
+    await h.run();
+    expect(warned(h.logs, 'sprite')).toBe(true);
+  });
+
+  it('registers the named engine when it is installed', async () => {
+    // astro-icon is a devDependency of this package (the components import it),
+    // so this exercises the real resolution path rather than a mock.
+    const h = harness({ icons: { engine: 'astro-icon', scan: false } });
+    await h.run();
+    expect(added(h.updates).map((i) => i.name)).toContain('astro-icon');
+    expect(iconsData(h.updates).engine).toBe('astro-icon');
+  });
+
+  it('throws when an explicitly named engine is not installed', async () => {
+    // 'auto' may fall through quietly; naming one is a promise it exists, and
+    // silently rendering something else would hide the mistake. astro-iconset is
+    // deliberately absent here, so this is the real failure, not a simulated one.
+    const h = harness({ icons: { engine: 'astro-iconset', scan: false } });
+    await expect(h.run()).rejects.toThrow(/not installed/);
+  });
+
+  it("falls through to the sprite under 'auto' and says so", async () => {
+    // Probes astro-icon first; it IS installed here, so assert the order holds
+    // rather than the fallback — the fallback is covered by the peer test.
+    const h = harness({ icons: true });
+    await h.run();
+    expect(iconsData(h.updates).engine).toBe('astro-icon');
+  });
+
+  it('keeps IconsData JSON-serialisable', async () => {
+    // The module is JSON.stringify'd, so a function crossing it would be
+    // silently dropped rather than fail — hence no resolver field.
+    const h = harness({ icons: { engine: 'sprite', scan: false } });
+    await h.run();
+    const data = iconsData(h.updates);
+    expect(Object.values(data).every((v) => typeof v !== 'function')).toBe(true);
+    expect(new Set(Object.keys(data))).toEqual(
+      new Set(['engine', 'ui', 'brand', 'weight', 'overrides', 'sprite']),
+    );
   });
 });

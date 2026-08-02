@@ -26,3 +26,25 @@ declare module 'virtual:getvitops/head' {
   const data: HeadData;
   export default data;
 }
+
+/** Types for the virtual module the getvitops() integration provides to <Icon />. */
+declare module 'virtual:getvitops/icons' {
+  // Keep these keys in step with `IconsData` in src/integration.ts, for the same
+  // reason as HeadData above; `icons.test.ts` asserts the key sets match.
+  //
+  // Note what is NOT here: a resolver function. The module is JSON.stringify'd,
+  // so only data crosses. <Icon /> imports the pure `resolveIcon` from
+  // @getvitops/utils and feeds it these values.
+  interface IconsData {
+    engine: 'astro-icon' | 'astro-iconset' | 'sprite' | 'none';
+    ui: string;
+    brand: string;
+    weight: string | null;
+    /** Consumer aliases applied before the semantic map (legacy names, content values). */
+    overrides: Record<string, string>;
+    /** Public href of the sprite, or null when none is emitted. */
+    sprite: string | null;
+  }
+  const data: IconsData;
+  export default data;
+}
