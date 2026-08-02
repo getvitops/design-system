@@ -694,9 +694,24 @@ export const SiteConfigSchema = z.object({
   ),
   icons: desc(
     z.optional(
-      z.object({
-        ui: desc(z.optional(z.string()), 'Icon set used for UI chrome (e.g. "lucide").'),
+      // LOOSE on purpose. The per-set keys below are the sets `iconMap` knows
+      // semantically, but the value shape is "any iconify collection name → a
+      // list of icons", which is open-ended by definition. A closed object
+      // silently DROPPED unlisted collections (`icons: { ph: [...] }` vanished
+      // in validateSite with no error) while `generateIconInclude`'s parameter
+      // type advertised `[prefix: string]` — so the config validated, the icons
+      // never bundled, and the failure only showed as missing glyphs in prod.
+      z.looseObject({
+        ui: desc(z.optional(z.string()), 'Icon set used for UI chrome (e.g. "lucide", "ph").'),
         brand: desc(z.optional(z.string()), 'Icon set used for brand marks.'),
+        weight: desc(
+          z.optional(z.string()),
+          'Weight for suffix-weighted sets like Phosphor ("regular" | "bold" | "duotone" | "fill" | "light" | "thin"). Ignored by sets that split weights across collections, e.g. Font Awesome.',
+        ),
+        sprite: desc(
+          z.optional(z.boolean()),
+          'Emit an SVG sprite (icons.svg) alongside the stylesheet, for consumers that cannot run an icon integration (Bricks/WordPress, EmDash renderers).',
+        ),
         semantic: desc(z.optional(z.array(z.string())), 'Named semantic icons to include.'),
         'fa7-solid': z.optional(z.array(z.string())),
         'fa7-regular': z.optional(z.array(z.string())),
@@ -706,6 +721,7 @@ export const SiteConfigSchema = z.object({
         'simple-icons': z.optional(z.array(z.string())),
         'material-symbols': z.optional(z.array(z.string())),
         lucide: z.optional(z.array(z.string())),
+        ph: z.optional(z.array(z.string())),
       }),
     ),
     'Icon sets and the specific icons to bundle from each (keys are iconify collection names).',

@@ -29,6 +29,20 @@ export const prefixToMapKey: Record<string, string> = {
   'simple-icons': 'simple-icons',
   'material-symbols': 'material-symbols',
   lucide: 'lucide',
+  ph: 'ph',
+};
+
+/**
+ * Sets whose weights are a name SUFFIX inside one collection rather than
+ * separate prefixed collections. Phosphor is the case that forced this:
+ * `ph:lightning`, `ph:lightning-bold`, `ph:lightning-fill` all live in `ph`,
+ * whereas Font Awesome splits the same idea across `fa7-solid`/`fa7-regular`/…
+ * (which is what `prefixToMapKey` collapses).
+ *
+ * The first entry is the unsuffixed default — asking for it adds nothing.
+ */
+export const WEIGHTED_SETS: Record<string, readonly string[]> = {
+  ph: ['regular', 'bold', 'duotone', 'fill', 'light', 'thin'],
 };
 
 export const iconMap = {
@@ -454,6 +468,106 @@ export const iconMap = {
     palette: 'palette',
     lightbulb: 'lightbulb',
   },
+  // Phosphor. Unlike fa7, the weights are NOT separate collections — `ph` is one
+  // collection and the weight is a name SUFFIX (`lightning`, `lightning-bold`,
+  // `lightning-fill`, …), which is why `prefixToMapKey` maps `ph` to itself with
+  // nothing to collapse. See WEIGHTED_SETS / resolveIcon's `weight` option.
+  ph: {
+    // Navigation / UI
+    menu: 'list',
+    close: 'x',
+    home: 'house',
+    settings: 'gear',
+    search: 'magnifying-glass',
+    'expand-more': 'caret-down',
+    'expand-less': 'caret-up',
+    'chevron-right': 'caret-right',
+    'chevron-left': 'caret-left',
+    'arrow-back': 'arrow-left',
+    'arrow-forward': 'arrow-right',
+    'external-link': 'arrow-square-out',
+    'more-vert': 'dots-three-vertical',
+    'more-horiz': 'dots-three',
+    // Actions
+    add: 'plus',
+    remove: 'minus',
+    delete: 'trash',
+    edit: 'pencil',
+    save: 'floppy-disk',
+    copy: 'copy',
+    paste: 'clipboard',
+    attach: 'paperclip',
+    upload: 'upload',
+    download: 'download',
+    share: 'share',
+    bookmark: 'bookmark',
+    favorite: 'heart',
+    star: 'star',
+    login: 'sign-in',
+    logout: 'sign-out',
+    // Communication
+    email: 'envelope',
+    phone: 'phone',
+    location: 'map-pin',
+    globe: 'globe',
+    link: 'link',
+    // Time
+    clock: 'clock',
+    calendar: 'calendar',
+    schedule: 'calendar-dots',
+    // People
+    person: 'person',
+    group: 'users',
+    // Content / files
+    file: 'file',
+    'file-add': 'file-plus',
+    folder: 'folder',
+    'folder-open': 'folder-open',
+    'folder-add': 'folder-plus',
+    image: 'image',
+    export: 'upload-simple',
+    import: 'download-simple',
+    backup: 'cloud-arrow-up',
+    compress: 'arrows-in',
+    // Status / feedback
+    check: 'check',
+    error: 'warning-circle',
+    warning: 'warning',
+    info: 'info',
+    help: 'question',
+    // Commerce
+    cart: 'shopping-cart',
+    tag: 'tag',
+    'credit-card': 'credit-card',
+    receipt: 'receipt',
+    // Nature (landscaping)
+    leaf: 'leaf',
+    tree: 'tree',
+    seedling: 'plant',
+    trowel: 'shovel',
+    droplet: 'drop',
+    snowflake: 'snowflake',
+    sun: 'sun',
+    cloud: 'cloud',
+    // Layout / view
+    grid: 'squares-four',
+    list: 'list',
+    filter: 'funnel',
+    sort: 'arrows-down-up',
+    fullscreen: 'corners-out',
+    collapse: 'corners-in',
+    // Misc
+    building: 'building',
+    video: 'video',
+    lock: 'lock',
+    unlock: 'lock-open',
+    eye: 'eye',
+    'eye-off': 'eye-slash',
+    print: 'printer',
+    code: 'code',
+    palette: 'palette',
+    lightbulb: 'lightbulb',
+  },
 } as const satisfies Record<string, Record<string, string>>;
 
 export type IconSet = keyof typeof iconMap;
@@ -465,9 +579,13 @@ export type BrandIcon = keyof (typeof iconMap)['simple-icons'];
  * Names containing ':' are returned as-is (pass-through for fully-qualified names).
  *
  * @param name - Semantic name ('email') or fully-qualified ('fa7-solid:envelope')
- * @param prefix - astro-icon prefix, e.g. 'fa7-solid', 'material-symbols', 'lucide'
+ * @param prefix - astro-icon prefix, e.g. 'fa7-solid', 'material-symbols', 'lucide', 'ph'
+ * @param opts.weight - Weight for suffix-weighted sets (see `WEIGHTED_SETS`), e.g.
+ *   `resolveIcon('menu', 'ph', { weight: 'bold' })` → `'ph:list-bold'`. Ignored for
+ *   sets that aren't suffix-weighted; an unknown weight throws rather than silently
+ *   resolving to the regular glyph, which would be indistinguishable from a typo.
  */
-export function resolveIcon(name: string, prefix: string): string {
+export function resolveIcon(name: string, prefix: string, opts?: { weight?: string }): string {
   if (name.includes(':')) return name;
   const mapKey = prefixToMapKey[prefix] as IconSet | undefined;
   if (!mapKey)
@@ -478,7 +596,19 @@ export function resolveIcon(name: string, prefix: string): string {
   const resolved = map[name as keyof typeof map];
   if (!resolved)
     throw new Error(`Icon "${name}" not found in set "${prefix}" (map key: "${mapKey}")`);
-  return `${prefix}:${resolved}`;
+  return `${prefix}:${applyWeight(resolved, prefix, opts?.weight)}`;
+}
+
+/** Append a weight suffix for suffix-weighted sets. The first weight is the bare default. */
+function applyWeight(name: string, prefix: string, weight?: string): string {
+  if (!weight) return name;
+  const weights = WEIGHTED_SETS[prefix];
+  if (!weights) return name;
+  if (!weights.includes(weight))
+    throw new Error(
+      `Unknown weight "${weight}" for icon set "${prefix}". Valid: ${weights.join(', ')}.`,
+    );
+  return weight === weights[0] ? name : `${name}-${weight}`;
 }
 
 /**
@@ -515,6 +645,7 @@ export function resolveBrandIcon(name: string, prefix: string): string {
 export function generateIconInclude(iconsConfig?: {
   ui?: string;
   brand?: string;
+  weight?: string;
   semantic?: string[];
   [prefix: string]: string | string[] | undefined;
 }): Record<string, string[]> {
@@ -528,7 +659,13 @@ export function generateIconInclude(iconsConfig?: {
 
   // Pass through per-set explicit lists directly
   for (const [key, val] of Object.entries(iconsConfig ?? {})) {
-    if (key !== 'ui' && key !== 'brand' && key !== 'semantic' && Array.isArray(val)) {
+    if (
+      key !== 'ui' &&
+      key !== 'brand' &&
+      key !== 'weight' &&
+      key !== 'semantic' &&
+      Array.isArray(val)
+    ) {
       addToInclude(key, val as string[]);
     }
   }
@@ -549,8 +686,11 @@ export function generateIconInclude(iconsConfig?: {
   for (const name of iconsConfig?.semantic ?? []) {
     const ui = (iconMap[uiMapKey!] as Record<string, string>)[name];
     const brand = (iconMap[brandMapKey!] as Record<string, string>)[name];
-    if (ui) addToInclude(uiPrefix, [ui]);
-    if (brand) addToInclude(brandPrefix, [brand]);
+    // The weight is part of the icon NAME for suffix-weighted sets, so the
+    // bundled name has to carry it — including `ph:list-bold` but not
+    // `ph:list` would ship the wrong glyph (or nothing) under output: 'server'.
+    if (ui) addToInclude(uiPrefix, [applyWeight(ui, uiPrefix, iconsConfig?.weight)]);
+    if (brand) addToInclude(brandPrefix, [applyWeight(brand, brandPrefix, iconsConfig?.weight)]);
     if (!ui && !brand) unresolved.push(name);
   }
 
