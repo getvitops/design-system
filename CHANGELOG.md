@@ -11,6 +11,123 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 1.0.0 — 2026-08-02
+
+**The colour system is rebuilt.** Every colour token and utility class is renamed; this is the
+breaking change the 1.0 is for. Alongside it: a fourth output format that emits an agent-facing
+`DESIGN.md`, generated legal documents, and a base-typography binding that also fixes the theme
+editor's dead Body controls.
+
+### Breaking
+
+- **Colour moves to a target-prefixed grammar over one shared lightness ladder.**
+  `--color-<target>-<role>[-<variant>]`, target ∈ `bg` `text` `icon` `border`, and **the class
+  name is the token name minus `--color-`**.
+
+  What it replaces: two axes shared one namespace — functional _planes_ (`--<role>-bg-muted`) and
+  appearance-relative _stops_ (`--color-<role>-muted`) — arbitrated by a "plane wins" rule. The
+  result wasn't a scale. On the shipped palette `bg-ui-accent-x-muted` and `bg-ui-accent-muted`
+  both resolved to step 100, bare `bg-ui-accent` was _lighter_ than both, and
+  `--color-<role>-muted` was unreachable through any `bg-` class. With the target inside the
+  token name there is nothing left to arbitrate.
+
+  Ramps now sit on a fixed lightness ladder (50 → L 0.98 … 950 → L 0.21); only chroma and hue
+  vary, so a step means the same lightness in every hue. Authored colours — a `seed`, an
+  `anchors` entry, a `tones` value — are still pinned verbatim at their nearest step, the only
+  steps allowed off the ladder, and warn past ~0.03 L.
+
+  **Migration:** the full before/after table is in
+  `node_modules/@getvitops/generator/CHANGELOG.md`. The two that catch people:
+  `bg-<role>` on a chromatic role becomes `bg-<role>-x-muted` (a chromatic role has no bare
+  background — say how loud you mean), and the **`surface` names rotate value-preservingly** —
+  the page is now `bg-surface-muted`, the card is `bg-surface`. `vitops lint` reports role
+  classes that no longer resolve, with suggestions derived from what the generator actually
+  emits.
+
+- **Contrast is enforced at build time, not only in tests.** Text ≥ APCA Lc 75 on its primary
+  background, ≥ 60 on secondary planes, icons and surface boundaries ≥ 45, in both appearances.
+  A violation now throws out of `generate` — a palette that used to build and read badly now
+  fails loudly. `text-<role>-x-muted` (placeholder) and `-xx-muted` (disabled) are exempt.
+
+- **Two `tones` claiming the same step is now an error** rather than one silently overwriting
+  the other. Use the record form (`tones: { "600": "…", "700": "…" }`) to resolve it.
+
+### Added
+
+- **`--format design`** — a fourth format emitting one `DESIGN.md` and no CSS: the brief in
+  [google-labs-code/design.md](https://github.com/google-labs-code/design.md) format, YAML token
+  front matter plus a prose body. It's what you hand a coding agent or a Figma import that has
+  never heard of the toolchain; `vitops docs` stays the richer reference for those who have it.
+  Run it with `--out .` — the file conventionally sits at a repo root beside `AGENTS.md`.
+
+  Role tokens are emitted as `{colors.<hue>-<step>}` references rather than flattened hexes, so
+  the role → ramp lineage survives the export; flattening them is exactly what breaks dark mode
+  downstream. `StylesheetFormat` (`Exclude<Format, 'design'>`) is new on the public API, and is
+  what `@getvitops/astro`'s `css.format` and `vitops lint --format` now take — passing `design`
+  where a stylesheet is expected is a type error rather than a missing-file build failure.
+
+- **`vitops legal`** — privacy policy, terms of service and cookie notice rendered from a site
+  config, as markdown, an HTML fragment or EmDash Portable Text. The documents are _derived_:
+  the analytics vendor they name is the one whose ID you set, the personal information they list
+  is what your forms collect. A provider swap updates the policy on the next build. Delivered
+  per stack — the CLI anywhere, `dist/legal/*.html` plus a `[vitops_legal]` shortcode on
+  Bricks, a content collection on Astro. **It is not legal advice, and it is only as true as
+  your config**; every document opens with a review banner saying so.
+
+- **`typography.headings` can bind base page typography to a type role** — map `"body"` to your
+  prose role and the generator emits `body { font-family: var(--body-ff, …); … }`, so prose
+  inherits the role instead of a hand-written `body { line-height: … }` block each consumer had
+  to author. If you keep such a block, drop the properties the role now owns: restating them
+  shadows the role's tokens, and unlayered CSS wins.
+
+- **`icon-<role>`** — a non-text colour tier, so a glyph can run more vivid than text. `icon`
+  joins `bg`/`text`/`border` as a default utility family. Plus `--color-border-focus`, the
+  focus-ring tone.
+
+- **A pattern's fill can be undone.** `background`/`background-color` join `BASE_HOOK`, so
+  `.card` emits `background: var(--bg-card, …)` and a flat border-only card is
+  `style="--bg-card: transparent; --ds-card: none"` rather than an inline override. The `css`
+  and `bricks` formats also gain `bg-transparent` / `bg-inherit` (Tailwind ships both itself).
+
+- **`<Seo />`** for non-EmDash Astro sites — `<title>`, description, canonical, Open Graph,
+  Twitter cards, robots, `article:*`, `hreflang`, verification tokens. Site defaults in the
+  integration, per-page overrides as props. It owns `<title>` and the description meta, so
+  remove yours when you adopt it. On an EmDash site use `<EmDashHead>` instead.
+
+- **An opt-in `sitemap` option** on the Astro integration, registering `@astrojs/sitemap` (an
+  optional peer) and linking the result from `<Head />`. It needs the `site` config option and
+  lists prerendered routes only. On EmDash, leave it off — EmDash serves its own.
+
+- **An optional `meta` key** (`{ name, description }`) in `design-system.json`, supplying the
+  brand name and Overview paragraph to `DESIGN.md`. No other format reads it.
+
+### Fixed
+
+- **Theme-editor typography edits that previewed live and vanished on save.** The design
+  manifest's `reverseIndex` only mapped hooks a role explicitly declared, while the editor
+  renders a control for every hook — so editing `--body-ls` or `--body-tt` on a role that
+  omitted it updated the page and then silently dropped out of the `design-system.json` patch.
+  Every hook of every role is now indexed, and pattern backgrounds (`--bg-card`, `--bg-btn`,
+  `--bg-status`) are tunable in the browser alongside their geometry.
+
+- **`validate()` warns when a shadow value can't survive `drop-shadow()`.** A `--shadow-<name>`
+  token feeds both `box-shadow` and `filter: drop-shadow(…)`. A spread radius, a second layer or
+  `inset` invalidates the whole filter, so `.drop-shadow-<name>` rendered nothing while the token
+  still looked correct everywhere it was authored.
+
+- **The `virtual:getvitops/head` type declaration** was missing the `editor` field `<Head />`
+  already reads — a type error in consumer projects that don't set `skipLibCheck`.
+
+- **`validateSite` rejects a privacy policy with no contact or `domains.canonical`**, both of
+  which are interpolated into sentences that would otherwise render blank.
+
+### Docs
+
+Every Astro example now binds the integration as `vitops` (`import vitops from
+'@getvitops/astro'`). The default export is unchanged — configs binding it as `getvitops` keep
+working. The generator and CLI reference pages now document the `design` format, and the
+scaffolded `emdash` template moves onto the new colour tokens.
+
 ## 0.9.0 — 2026-07-31
 
 **Format parity.** The three outputs had quietly drifted apart — the same markup meant different

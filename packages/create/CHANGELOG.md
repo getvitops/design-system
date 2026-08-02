@@ -1,5 +1,33 @@
 # @getvitops/create
 
+## 0.3.4
+
+### Patch Changes
+
+- bb92a14: Update the `emdash` template for the target-prefixed colour grammar.
+
+  The template's `design-system.json` and layout referenced tokens the generator no longer
+  emits — `--surface-bg`, `--surface-bg-muted`, `--neutral-border` — so a freshly scaffolded
+  project rendered a transparent card on a borderless footer. They now read
+  `--color-bg-surface-muted`, `--color-bg-surface-x-muted` and `--color-border-neutral`, and
+  `colors.utilities` picks up the new `icon` tier.
+
+  Existing scaffolds are unaffected until you upgrade `@getvitops/*`; when you do, the
+  [colour grammar migration table](https://www.npmjs.com/package/@getvitops/generator) applies
+  to your own `design-system.json` the same way.
+
+- bb92a14: Docs: import the Astro integration as `vitops`, and document the fourth output format.
+
+  Every example now reads `import vitops from '@getvitops/astro'` and calls `vitops({ … })`,
+  including the scaffolded `emdash` template. The default export is unchanged, so this is a
+  naming convention in the docs rather than an API change — existing configs that bind it as
+  `getvitops` keep working.
+
+  The `@getvitops/generator` and `@getvitops/cli` docs also describe the `design` format, which
+  was shipped without a mention in either package's output table: `--format design` writes a
+  single `DESIGN.md` and no CSS, so a run that composes it with a stylesheet wants its own
+  `--out` (the brief conventionally sits at a repo root, the stylesheet does not).
+
 ## 0.3.3
 
 ### Patch Changes

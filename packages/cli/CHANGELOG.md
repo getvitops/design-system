@@ -1,5 +1,231 @@
 # @getvitops/cli
 
+## 1.0.0
+
+### Major Changes
+
+- bb92a14: **The colour system is rebuilt on a target-prefixed grammar and a shared lightness ladder.**
+  This is a breaking change to every colour token and utility class.
+
+  ## Why
+
+  Two axes shared one class namespace — functional _planes_ (`--<role>-bg-muted`) and
+  appearance-relative _stops_ (`--color-<role>-muted`) — arbitrated by a "plane wins" rule. The
+  result was not a scale. On the shipped palette, light mode:
+
+  | class                              | resolved to  | step                                          |
+  | ---------------------------------- | ------------ | --------------------------------------------- |
+  | `bg-ui-accent-x-muted`             | stop         | 100                                           |
+  | `bg-ui-accent-muted`               | plane        | 100 — identical, so `x-muted` was a dead rung |
+  | `bg-ui-accent`                     | plane        | 50 — _lighter_ than both its "muted" rungs    |
+  | `border-ui-accent-muted` / `-bold` | stop / plane | 300 / 300 — identical                         |
+  | `text-ui-accent-bold`              | stop         | 700 — _lighter_ than `text-…-muted` (800)     |
+
+  Every family was non-monotonic, two had duplicate rungs, and `--color-<role>-muted` was
+  unreachable through any `bg-` class.
+
+  ## The new grammar
+
+  ```
+  --color-<target>-<role>[-<variant>]        target ∈ bg | text | icon | border
+  ```
+
+  The target is **inside** the name, so `bg-danger-muted` and `text-danger-muted` are different
+  tokens and there is nothing left to arbitrate. **The class name is the token name minus
+  `--color-`** — one vocabulary instead of two.
+
+  Variants are ordinal (`xx-muted` < `x-muted` < `muted` < bare < `bold` < `x-bold`) and the
+  tables are sparse: only cells that hold their contrast target exist.
+
+  ## Role kinds
+
+  `colors.roles` values may now be `{ hue, kind }` as well as a bare hue string:
+
+  ```jsonc
+  "roles": {
+    "danger":  "rust",                             // shorthand => chromatic
+    "surface": { "hue": "navy", "kind": "surface" }
+  }
+  ```
+
+  - **`surface`** — a page/panel colour: `bg-<role>` is the card, `bg-<role>-muted` the page
+    behind it, `bg-<role>-x-muted` a well, `bg-<role>-bold` the inverse surface. Full text scale.
+  - **`chromatic`** (default) — a signal colour: tints (`bg-<role>-x-muted`/`-muted`) and solids
+    (`bg-<role>-solid[-bold|-x-bold]`), with **no bare `bg-<role>`** — say how loud you mean.
+    `text-on-<role>` is the guaranteed foreground for the solid family.
+
+  ## Palette generation
+
+  Every ramp now sits on one **fixed lightness ladder** (50 → L 0.98 … 950 → L 0.21); only chroma
+  and hue vary. That is what makes a step mean the same lightness in every hue. Previously each
+  seed transposed the curve, so relative luminance at step 300 ranged from 0.253 to 0.384 across
+  the shipped palette — the same variant read differently depending on the role.
+
+  Authored colours are still reproduced **exactly**. A `seed`, an `anchors` entry or a `tones`
+  value is pinned verbatim at its nearest step; every other step takes the ladder. Snapping brand
+  colours to the ladder was measured and rejected: 11 of 18 real brand hexes moved beyond a
+  just-noticeable difference (worst ΔE-OK 0.050 — Facebook's `#1877F2` → `#0067e1`) and six left
+  sRGB gamut. Deviation is now bounded and local to pinned steps, and warns past ~0.03 L.
+
+  Two tones that claim the same step now **error** instead of one silently overwriting the other;
+  the record form (`tones: { "600": "…", "700": "…" }`) is how you resolve it.
+
+  ## New
+  - **`icon-<role>`** — a non-text tier, so a glyph may run more vivid than text. `icon` is now a
+    default utility family alongside `bg`/`text`/`border`.
+  - **`--color-border-focus`** — the focus-ring tone, taken from `ui-primary`'s solid.
+  - **Contrast is enforced at build time**, not only in tests: text ≥ APCA Lc 75 on its primary
+    background, ≥ 60 on secondary planes, icons and surface boundaries ≥ 45, both appearances.
+    A violation now fails `generate`. Chromatic text is checked against the _surface_ planes it
+    actually sits on, not only its own tints. `text-<role>-x-muted` (placeholder) and `-xx-muted`
+    (disabled) are explicitly exempt; nothing else is.
+
+  ## Migrating
+
+  Rename `--<role>-<suffix>` → `--color-<target>-<role>[-<variant>]`, and the same for classes:
+
+  | before                                  | after                                                            |
+  | --------------------------------------- | ---------------------------------------------------------------- |
+  | `--<role>-bg` / `bg-<role>` (chromatic) | `--color-bg-<role>-x-muted` / `bg-<role>-x-muted`                |
+  | `--<role>-bg-muted`                     | `--color-bg-<role>-muted`                                        |
+  | `--<role>-solid` / `-solid-bold`        | `--color-bg-<role>-solid` / `-solid-bold`                        |
+  | `--<role>-on-solid` / `text-on-<role>`  | `--color-text-on-<role>` (class unchanged)                       |
+  | `--<role>-text` / `-text-muted`         | `--color-text-<role>` / `-muted`                                 |
+  | `--<role>-border` / `-border-bold`      | `--color-border-<role>` / `-bold`                                |
+  | `--color-<role>-muted` (stop)           | judge by use: `--color-bg-<role>-muted` or `--color-text-<role>` |
+
+  **`surface` background names rotate**, value-preserving: what was `--surface-bg` (the page) is
+  now `--color-bg-surface-muted`; what was `--surface-bg-bold` (raised) is now
+  `--color-bg-surface`. Elevation is expressed by which token you reach for — page `bg-muted`,
+  card `bg` — rather than a raised/sunken pair, which is what lets a future surfaces axis flatten
+  it without touching markup.
+
+  `vitops lint` reports role classes that no longer resolve, and now derives its suggestions from
+  what the generator actually emits rather than a hand-maintained list.
+
+### Minor Changes
+
+- bb92a14: Add a fourth output format, `design`, that emits `DESIGN.md` — the agent-facing brief in
+  [google-labs-code/design.md](https://github.com/google-labs-code/design.md) format.
+
+  ```sh
+  vitops generate --format design --out .     # DESIGN.md, and nothing else
+  vitops generate --format css,design         # compose it with a stylesheet
+  ```
+
+  The file is YAML front matter carrying the tokens (`colors`, `typography`, `rounded`,
+  `spacing`, `components`, cross-referenced with `{group.token}`) followed by a prose body
+  carrying the rationale — colour model, fluid scales, layout vocabulary, elevation, shape
+  cascade, component tiers, do's and don'ts. Every section is rendered from your config, so
+  it cannot describe a system the other formats don't build. Point a coding agent, a Figma
+  import, or a designer at this one file when they don't have the toolchain; `vitops docs`
+  remains the richer reference for those who do.
+
+  It is emitted with `--out .` in mind: DESIGN.md conventionally lives at a repo root beside
+  `AGENTS.md`, not in a build directory.
+
+  Three things the spec cannot express, handled the same way every time and explained in the
+  emitted prose so the file is self-describing:
+  - **Fluid `clamp()` sizes** → the maximum (desktop) value, since a spec `Dimension` is a
+    bare number plus px/em/rem.
+  - **Dark mode** → light values only, with the automatic functional flip explained. Role
+    tokens are emitted as `{colors.<hue>-<step>}` references into the raw ramps rather than
+    flattened hexes, so the role → ramp lineage survives the export — flattening them is
+    exactly what breaks dark mode downstream.
+  - **A `50%` radius** → dropped from `rounded` (it is not a `Dimension`) and named in the
+    Shapes prose instead, so nothing is silently lost.
+
+  **New:** an optional `meta` key in `design-system.json` (`{ name, description }`) supplies
+  the brand name and the Overview paragraph. It affects no other format.
+
+  **New:** `StylesheetFormat` (`Exclude<Format, 'design'>`), exported from
+  `@getvitops/generator`. `@getvitops/astro`'s `css.format` now takes that narrower type —
+  `design` produces no stylesheet to inject, so passing it there is a type error rather than
+  a missing-file failure at build time. `vitops lint --format` is likewise restricted to the
+  three CSS formats. No change for anyone already passing `tailwind`, `css` or `bricks`.
+
+- bb92a14: Generate legal documents from your site config
+
+  `vitops legal` renders a privacy policy, terms of service and cookie notice from a site
+  config, in markdown, HTML or EmDash Portable Text:
+
+  ```sh
+  vitops legal --out ./content                 # every enabled document, as markdown
+  vitops legal --doc privacy --format html     # one document, as an HTML fragment
+  ```
+
+  The documents are **derived from your config**, not filled into a form. The analytics
+  provider they name is the one whose ID you set; the personal information they list is what
+  your configured forms actually collect; the countries they name come from the providers you
+  use. So a provider swap updates the policy on the next build, and the fix for a wrong policy
+  is a corrected config — hand-editing the output is overwritten.
+
+  Enable documents under `legal`, which gains the facts the prose asserts:
+
+  ```jsonc
+  {
+    "legal": {
+      "jurisdiction": "ca", // only 'ca' (PIPEDA) ships today
+      "privacyPolicy": {
+        "enabled": true,
+        "lastUpdated": "2026-08-01",
+        "retention": "24 months after our last contact with you",
+        // Third parties the config cannot imply. Analytics, Turnstile and your
+        // deploy platform are detected automatically — list only the rest.
+        "processors": [
+          {
+            "name": "Stripe",
+            "purpose": "payment processing",
+            "country": "the United States",
+          },
+        ],
+      },
+      "termsOfService": { "enabled": true },
+      "cookieConsent": {
+        "enabled": true,
+        "type": "opt-in",
+        "categories": ["Essential", "Analytics"],
+      },
+    },
+  }
+  ```
+
+  Delivery, by stack:
+  - **Any stack** — `vitops legal`. No integration code; prints to stdout without `--out`.
+  - **WordPress/Bricks** — `vitops generate --site <path>` also writes `dist/legal/*.html`, and
+    the theme loader now registers `[vitops_legal doc="privacy"]` to render one in a page. The
+    document updates on the next deploy with no action in WordPress.
+  - **Astro** — `getvitops({ legal: { input: 'site.json', out: 'src/content/legal' } })` writes
+    markdown into a content collection and re-renders when the site config changes. It needs a
+    `css` config (that is what registers the Vite plugin); without one, use the CLI.
+  - **EmDash** — `--format portable-text`, pasted into the admin.
+
+  Also new on the public API: `generateLegal()`, `renderMarkdown()`, `renderNodes()`,
+  `derivePolicyVars()`, `parseMarkdown()` / `toHtmlFragment()` / `toPortableText()`, and
+  `resolvePrivacyContact()`.
+
+  Two things to know before you publish anything this produces:
+  - **It is not legal advice.** Every document opens with a review banner saying so. The
+    bundled terms-of-service prose in particular is generic website boilerplate and
+    deliberately does not cover sales, refunds, subscriptions, accounts or user-generated
+    content — a site doing any of those needs clauses drafted for it.
+  - **It is only as true as your config.** A policy asserting things your site does not do is
+    worse than no policy. Check that the config describes reality before you ship the output.
+
+  `validateSite` now rejects a config that enables a privacy policy without a contact for
+  privacy requests or a `domains.canonical`, since both are interpolated into sentences that
+  would otherwise render blank.
+
+### Patch Changes
+
+- Updated dependencies [bb92a14]
+- Updated dependencies [bb92a14]
+- Updated dependencies [bb92a14]
+- Updated dependencies [bb92a14]
+- Updated dependencies [eeb059f]
+  - @getvitops/generator@1.0.0
+  - @getvitops/utils@1.0.0
+
 ## 0.9.0
 
 ### Minor Changes

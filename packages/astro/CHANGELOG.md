@@ -1,5 +1,223 @@
 # @getvitops/astro
 
+## 1.0.0
+
+### Minor Changes
+
+- fd1a35b: Add `<Seo />` — page metadata for non-EmDash sites: `<title>`, description, canonical, Open Graph,
+  Twitter cards, robots, `article:*`, `hreflang` and verification tokens.
+
+  Site-level defaults go in the integration; pages pass only what differs.
+
+  ```js
+  // astro.config.mjs
+  vitops({
+    seo: {
+      siteName: 'Acme',
+      titleTemplate: '%s · Acme',
+      defaultDescription: 'We make the thing.',
+      openGraph: {
+        locale: 'en_CA',
+        image: { url: '/og.png', alt: 'Acme', width: 1200, height: 630 },
+      },
+      twitter: { site: '@acme' },
+    },
+  });
+  ```
+
+  ```astro
+  ---
+  import Seo from '@getvitops/astro/Seo.astro';
+  ---
+  <Seo title={title} description={description} image={cover} />
+  ```
+
+  **`<Seo />` owns `<title>` and `<meta name="description">` — remove them from your layout when you
+  adopt it.** It already computes the resolved title for `og:title`/`twitter:title`, and emitting those
+  in one place while the layout emits `<title>` in another is how the two drift apart. `<Head />` is
+  unaffected and still handles favicons, theme-color and the web-component runtime; use both.
+
+  Notable behaviour:
+  - `titleTemplate` is skipped when a page's title already equals `siteName`, so a homepage titled
+    "Acme" emits `Acme` rather than `Acme · Acme`. It never applies to `defaultTitle`.
+  - Canonical, `og:url` and relative `og:image` values need the `site` astro.config option. Without it
+    they're omitted rather than derived from the request URL — a canonical built from a dev or preview
+    origin can de-index you — and the integration warns at build time. Absolute image URLs still work.
+  - `robots` is omitted unless it says something; `index, follow` is what crawlers already assume. Use
+    `noindex`/`nofollow`/`noarchive`/`nocache`/`robotsExtras` per page, `robots` for a full override, or
+    `seo.robots` site-wide.
+  - `twitter:card` upgrades to `summary_large_image` whenever an image resolves.
+  - `hreflang` alternates are explicit only — pass `alternates`, including the current page. Nothing is
+    inferred from a locale list.
+  - No JSON-LD. The `./schemas/*` components take entity data and compose alongside it.
+
+  **On an EmDash site use `<EmDashHead>` instead** — it emits the same tags from the CMS, and rendering
+  both duplicates every one of them. The integration warns if `seo` is configured alongside `emdash()`.
+
+  The merge logic ships as the pure `resolveSeo(defaults, props, ctx)` if you need to drive it yourself.
+
+- 20252c2: Add an opt-in `sitemap` option to `getvitops()`, and link the result from `<Head />`.
+
+  `sitemap: true` registers the official `@astrojs/sitemap` for you; pass an object to configure it
+  (`filter`, `customPages`, `changefreq`, `priority`, `i18n`, `entryLimit`, `filenameBase`,
+  `serialize`, …). `<Head />` gains a matching `<link rel="sitemap">`.
+
+  ```js
+  getvitops({ sitemap: true });
+  getvitops({ sitemap: { filter: (page) => !page.includes('/draft/') } });
+  ```
+
+  `@astrojs/sitemap` is an **optional peer** — install it yourself (`pnpm add -D @astrojs/sitemap`) and
+  the build fails with a message saying so if you don't, rather than silently emitting nothing. The
+  option also needs the `site` astro.config option, since a sitemap lists absolute URLs; without it the
+  option warns and skips. Note `@astrojs/sitemap` enumerates **prerendered** routes only, so on an
+  `output: 'server'` site you'll want `export const prerender = true` on the pages you want indexed, or
+  `sitemap.customPages`.
+
+  **On an EmDash site, leave it off** — EmDash serves its own database-driven `/sitemap.xml`, which also
+  covers on-demand pages a static sitemap can't. The option detects `emdash()` and skips with a warning.
+  If you want both, add `sitemap()` to your own `integrations` array; getvitops detects that too and
+  leaves yours in charge, which is also how you reach the few `@astrojs/sitemap` options this
+  integration doesn't mirror.
+
+  Also fixes the `virtual:getvitops/head` type declaration, which was missing the `editor` field that
+  `<Head />` already reads — a type error in consumer projects that don't set `skipLibCheck`.
+
+- bb92a14: Add a fourth output format, `design`, that emits `DESIGN.md` — the agent-facing brief in
+  [google-labs-code/design.md](https://github.com/google-labs-code/design.md) format.
+
+  ```sh
+  vitops generate --format design --out .     # DESIGN.md, and nothing else
+  vitops generate --format css,design         # compose it with a stylesheet
+  ```
+
+  The file is YAML front matter carrying the tokens (`colors`, `typography`, `rounded`,
+  `spacing`, `components`, cross-referenced with `{group.token}`) followed by a prose body
+  carrying the rationale — colour model, fluid scales, layout vocabulary, elevation, shape
+  cascade, component tiers, do's and don'ts. Every section is rendered from your config, so
+  it cannot describe a system the other formats don't build. Point a coding agent, a Figma
+  import, or a designer at this one file when they don't have the toolchain; `vitops docs`
+  remains the richer reference for those who do.
+
+  It is emitted with `--out .` in mind: DESIGN.md conventionally lives at a repo root beside
+  `AGENTS.md`, not in a build directory.
+
+  Three things the spec cannot express, handled the same way every time and explained in the
+  emitted prose so the file is self-describing:
+  - **Fluid `clamp()` sizes** → the maximum (desktop) value, since a spec `Dimension` is a
+    bare number plus px/em/rem.
+  - **Dark mode** → light values only, with the automatic functional flip explained. Role
+    tokens are emitted as `{colors.<hue>-<step>}` references into the raw ramps rather than
+    flattened hexes, so the role → ramp lineage survives the export — flattening them is
+    exactly what breaks dark mode downstream.
+  - **A `50%` radius** → dropped from `rounded` (it is not a `Dimension`) and named in the
+    Shapes prose instead, so nothing is silently lost.
+
+  **New:** an optional `meta` key in `design-system.json` (`{ name, description }`) supplies
+  the brand name and the Overview paragraph. It affects no other format.
+
+  **New:** `StylesheetFormat` (`Exclude<Format, 'design'>`), exported from
+  `@getvitops/generator`. `@getvitops/astro`'s `css.format` now takes that narrower type —
+  `design` produces no stylesheet to inject, so passing it there is a type error rather than
+  a missing-file failure at build time. `vitops lint --format` is likewise restricted to the
+  three CSS formats. No change for anyone already passing `tailwind`, `css` or `bricks`.
+
+- bb92a14: Generate legal documents from your site config
+
+  `vitops legal` renders a privacy policy, terms of service and cookie notice from a site
+  config, in markdown, HTML or EmDash Portable Text:
+
+  ```sh
+  vitops legal --out ./content                 # every enabled document, as markdown
+  vitops legal --doc privacy --format html     # one document, as an HTML fragment
+  ```
+
+  The documents are **derived from your config**, not filled into a form. The analytics
+  provider they name is the one whose ID you set; the personal information they list is what
+  your configured forms actually collect; the countries they name come from the providers you
+  use. So a provider swap updates the policy on the next build, and the fix for a wrong policy
+  is a corrected config — hand-editing the output is overwritten.
+
+  Enable documents under `legal`, which gains the facts the prose asserts:
+
+  ```jsonc
+  {
+    "legal": {
+      "jurisdiction": "ca", // only 'ca' (PIPEDA) ships today
+      "privacyPolicy": {
+        "enabled": true,
+        "lastUpdated": "2026-08-01",
+        "retention": "24 months after our last contact with you",
+        // Third parties the config cannot imply. Analytics, Turnstile and your
+        // deploy platform are detected automatically — list only the rest.
+        "processors": [
+          {
+            "name": "Stripe",
+            "purpose": "payment processing",
+            "country": "the United States",
+          },
+        ],
+      },
+      "termsOfService": { "enabled": true },
+      "cookieConsent": {
+        "enabled": true,
+        "type": "opt-in",
+        "categories": ["Essential", "Analytics"],
+      },
+    },
+  }
+  ```
+
+  Delivery, by stack:
+  - **Any stack** — `vitops legal`. No integration code; prints to stdout without `--out`.
+  - **WordPress/Bricks** — `vitops generate --site <path>` also writes `dist/legal/*.html`, and
+    the theme loader now registers `[vitops_legal doc="privacy"]` to render one in a page. The
+    document updates on the next deploy with no action in WordPress.
+  - **Astro** — `getvitops({ legal: { input: 'site.json', out: 'src/content/legal' } })` writes
+    markdown into a content collection and re-renders when the site config changes. It needs a
+    `css` config (that is what registers the Vite plugin); without one, use the CLI.
+  - **EmDash** — `--format portable-text`, pasted into the admin.
+
+  Also new on the public API: `generateLegal()`, `renderMarkdown()`, `renderNodes()`,
+  `derivePolicyVars()`, `parseMarkdown()` / `toHtmlFragment()` / `toPortableText()`, and
+  `resolvePrivacyContact()`.
+
+  Two things to know before you publish anything this produces:
+  - **It is not legal advice.** Every document opens with a review banner saying so. The
+    bundled terms-of-service prose in particular is generic website boilerplate and
+    deliberately does not cover sales, refunds, subscriptions, accounts or user-generated
+    content — a site doing any of those needs clauses drafted for it.
+  - **It is only as true as your config.** A policy asserting things your site does not do is
+    worse than no policy. Check that the config describes reality before you ship the output.
+
+  `validateSite` now rejects a config that enables a privacy policy without a contact for
+  privacy requests or a `domains.canonical`, since both are interpolated into sentences that
+  would otherwise render blank.
+
+### Patch Changes
+
+- bb92a14: Docs: import the Astro integration as `vitops`, and document the fourth output format.
+
+  Every example now reads `import vitops from '@getvitops/astro'` and calls `vitops({ … })`,
+  including the scaffolded `emdash` template. The default export is unchanged, so this is a
+  naming convention in the docs rather than an API change — existing configs that bind it as
+  `getvitops` keep working.
+
+  The `@getvitops/generator` and `@getvitops/cli` docs also describe the `design` format, which
+  was shipped without a mention in either package's output table: `--format design` writes a
+  single `DESIGN.md` and no CSS, so a run that composes it with a stylesheet wants its own
+  `--out` (the brief conventionally sits at a repo root, the stylesheet does not).
+
+- Updated dependencies [bb92a14]
+- Updated dependencies [bb92a14]
+- Updated dependencies [bb92a14]
+- Updated dependencies [bb92a14]
+- Updated dependencies [eeb059f]
+  - @getvitops/generator@1.0.0
+  - @getvitops/vite@1.0.0
+  - @getvitops/utils@1.0.0
+  - @getvitops/core@1.0.0
+
 ## 0.9.0
 
 ### Minor Changes
