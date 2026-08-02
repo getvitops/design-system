@@ -18,6 +18,7 @@
     "sharp": "catalog:"
   },
   "devDependencies": {
+    "@astrojs/sitemap": "catalog:",
     "@getvitops/generator": "workspace:*"
   }
 }

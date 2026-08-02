@@ -33,6 +33,9 @@ export default defineConfig({
       // "Save to source" needs the dev server (`vp run docs:dev`), where it
       // writes back into ../../src/design-system.json and regenerates.
       editor: true,
+      // Static output + `site` set + no EmDash — the exact shape the option
+      // targets. <Head /> emits the <link rel="sitemap"> for it.
+      sitemap: true,
     }),
   ],
 });

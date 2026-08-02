@@ -66,10 +66,37 @@ Astro's module graph and Astro emits that link itself.
 | `css.inject`    | `true`               | inject the stylesheet into every SSR page                         |
 | `webComponents` | `true`               | copy + link the web-component bundles                             |
 | `favicon`       | off unless given     | `source`, `lowResSource`, `name`, `themeColor`, `backgroundColor` |
+| `sitemap`       | off unless given     | generate `sitemap-index.xml` via `@astrojs/sitemap`               |
 
 Set `css.inject: false` when another integration adds routes that must not inherit the design system
 (e.g. EmDash's `/_emdash/admin`) — then import the generated file (`<out>/tailwind.css` or
 `<out>/styles.css`) from your own layout, so only your pages are styled.
+
+## Sitemap
+
+`sitemap: true` registers the official [`@astrojs/sitemap`](https://docs.astro.build/en/guides/integrations-guide/sitemap/)
+and links the result from `<Head />`. Pass an object to configure it (`filter`, `customPages`,
+`changefreq`, `priority`, `i18n`, `entryLimit`, `filenameBase`, `serialize`, …):
+
+```js
+getvitops({ sitemap: { filter: (page) => !page.includes('/draft/') } });
+```
+
+Three things to know:
+
+- **It's an optional peer — install it yourself:** `pnpm add -D @astrojs/sitemap`. Without it the
+  build fails with a message telling you so, rather than silently emitting nothing.
+- **It needs the `site` astro.config option**, since a sitemap lists absolute URLs. Without it the
+  option warns and skips.
+- **It lists prerendered routes only.** On an `output: 'server'` site, mark the pages you want
+  indexed with `export const prerender = true`, or list them in `sitemap.customPages`.
+
+**On an EmDash site, leave it off.** EmDash serves its own `/sitemap.xml` from the database, which
+also covers on-demand pages a static sitemap can't; the option detects `emdash()` and skips with a
+warning. The two write different filenames and so don't actually collide — if you want both (DB
+content _and_ hand-authored `.astro` pages), add `sitemap()` to your own `integrations` array.
+getvitops detects that too and leaves yours in charge, which is also how you reach the handful of
+`@astrojs/sitemap` options this integration doesn't mirror.
 
 ## Components
 

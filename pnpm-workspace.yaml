@@ -5,6 +5,7 @@ packages:
 # these via the `catalog:` protocol so a version is bumped in exactly one place.
 catalog:
   '@astrojs/cloudflare': ^14.0.0
+  '@astrojs/sitemap': ^3.7.3
   '@changesets/cli': ^2.27.0
   '@emdash-cms/cloudflare': ^0.31.0
   '@lit-labs/signals': ^0.3.0

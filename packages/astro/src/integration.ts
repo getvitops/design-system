@@ -48,6 +48,64 @@ export interface GetvitopsCssOptions {
   inject?: boolean;
 }
 
+/** `changefreq`, mirroring @astrojs/sitemap's `ChangeFreq`. */
+export type GetvitopsSitemapChangeFreq =
+  | 'always'
+  | 'hourly'
+  | 'daily'
+  | 'weekly'
+  | 'monthly'
+  | 'yearly'
+  | 'never';
+
+/** One sitemap entry, mirroring @astrojs/sitemap's `SitemapItem`. */
+export interface GetvitopsSitemapEntry {
+  url: string;
+  lastmod?: string;
+  changefreq?: GetvitopsSitemapChangeFreq;
+  priority?: number;
+  /** Alternate-language variants. `lang` is required, as upstream requires it. */
+  links?: { lang: string; hreflang?: string; url: string }[];
+}
+
+/**
+ * Forwarded verbatim to `@astrojs/sitemap`. Deliberately a hand-written subset of
+ * its `SitemapOptions` rather than a re-export: aliasing would put an
+ * `import … from '@astrojs/sitemap'` — and, transitively via `SitemapItem`, from
+ * `sitemap` — into this package's published .d.mts, which cannot resolve for the
+ * consumers who don't install the optional peer. Worse, `skipLibCheck` (on by
+ * default via astro's base tsconfig) *suppresses* that error, silently degrading
+ * the option to `any` instead of failing loudly.
+ *
+ * Need something not listed here (e.g. `chunks`)? Add `sitemap()` to your own
+ * `integrations` array — getvitops detects it and leaves yours in charge.
+ */
+export interface GetvitopsSitemapOptions {
+  /** Keep a page out of the sitemap. Receives the page's full absolute URL. */
+  filter?: (page: string) => boolean;
+  /** Absolute URLs of pages Astro doesn't build but the site serves. */
+  customPages?: string[];
+  /** Absolute URLs of externally-generated sitemaps to list in the index. */
+  customSitemaps?: string[];
+  /** Max entries per file before it splits (default 45000). */
+  entryLimit?: number;
+  /** Filename prefix (default 'sitemap' → `sitemap-index.xml`). */
+  filenameBase?: string;
+  changefreq?: GetvitopsSitemapChangeFreq;
+  lastmod?: Date;
+  priority?: number;
+  /** Per-entry rewrite; return `undefined` to drop the entry. */
+  serialize?: (
+    item: GetvitopsSitemapEntry,
+  ) => GetvitopsSitemapEntry | Promise<GetvitopsSitemapEntry | undefined> | undefined;
+  /** Emit `<xhtml:link rel="alternate">` for localised routes. */
+  i18n?: { defaultLocale: string; locales: Record<string, string> };
+  /** XSL stylesheet to prettify the XML (path relative to `site`, or absolute URL). */
+  xslURL?: string;
+  /** XML namespaces to exclude (all included by default). */
+  namespaces?: { news?: boolean; xhtml?: boolean; image?: boolean; video?: boolean };
+}
+
 export interface GetvitopsOptions {
   favicon?: GetvitopsFaviconOptions;
   /** Copy + link the web-component bundles (default true). */
@@ -66,8 +124,26 @@ export interface GetvitopsOptions {
    * dev server, so on a static build that button simply isn't rendered.
    */
   editor?: boolean;
+  /**
+   * Emit `sitemap-index.xml` + `sitemap-0.xml` via `@astrojs/sitemap`, and link it
+   * from `<Head />`. Off unless provided; `true` uses its defaults.
+   *
+   * Needs `@astrojs/sitemap` (an optional peer — install it yourself) and the
+   * `site` astro.config option, since a sitemap lists absolute URLs.
+   *
+   * Skipped with a warning when `emdash()` is registered — EmDash serves its own
+   * database-driven `/sitemap.xml` — and deferred to when you already list
+   * `@astrojs/sitemap` yourself. Note it enumerates **prerendered** routes only,
+   * so on-demand pages of an `output: 'server'` site are not listed.
+   */
+  sitemap?: boolean | GetvitopsSitemapOptions;
 }
 
+/**
+ * Serialised into the virtual module with `JSON.stringify`, so every field here
+ * must be JSON-representable — no functions. (That is why the sitemap's *href*
+ * lives here and its options, which carry `filter`/`serialize`, do not.)
+ */
 interface HeadData {
   favicons: boolean;
   faviconLinks: FaviconLink[];
@@ -75,6 +151,8 @@ interface HeadData {
   webComponents: boolean;
   wcBase: string;
   editor: boolean;
+  /** `<link rel="sitemap">` target, or null when no sitemap was registered. */
+  sitemap: string | null;
 }
 
 const VIRTUAL_ID = 'virtual:getvitops/head';
@@ -149,7 +227,72 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
           }
         }
 
-        // 3. Virtual head module for <Head/>
+        // 3. Sitemap — opt-in, delegated to the official @astrojs/sitemap.
+        //
+        // Registered through updateConfig rather than imported at module scope,
+        // because the package is an optional peer. Astro core has no
+        // addIntegration() (that is Starlight's plugin API), but appending here is
+        // supported: runHookConfigSetup re-reads `integrations.length` each
+        // iteration and assigns the merged array back onto the settings, and
+        // @astrojs/sitemap declares no `astro:config:setup` hook at all — only
+        // config:done / routes:resolved / build:done, which all run afterwards.
+        //
+        // Runs before the virtual head module so <Head /> can link the result.
+        let sitemapHref: string | null = null;
+        if (opts.sitemap) {
+          const registered = config.integrations.map((i) => i.name);
+          if (registered.includes('@astrojs/sitemap')) {
+            logger.info(
+              'sitemap: @astrojs/sitemap is already in your integrations — leaving yours in charge.',
+            );
+          } else if (registered.includes('emdash')) {
+            logger.warn(
+              'sitemap: emdash() already serves /sitemap.xml from the database, which also covers ' +
+                'on-demand pages a static sitemap cannot. Skipping — drop the `sitemap` option, or ' +
+                'add @astrojs/sitemap to `integrations` yourself to run both.',
+            );
+          } else if (!config.site) {
+            logger.warn(
+              'sitemap: needs the `site` astro.config option (your deployed URL) — a sitemap lists ' +
+                'absolute URLs. Skipping.',
+            );
+          } else {
+            // Optional peer, loaded the same way as @tailwindcss/vite below.
+            //
+            // The import is cast because the option surface here is this package's
+            // narrowed mirror, not @astrojs/sitemap's own `SitemapOptions`: the two
+            // disagree on `serialize`'s entry type (upstream's `changefreq` is the
+            // `EnumChangefreq` enum, ours the string union a consumer actually
+            // wants to write). The shapes are identical at runtime — the value is
+            // forwarded verbatim. Cast the module rather than widening the local to
+            // `(o?: unknown)`, which is the wrong variance: a target accepting
+            // `unknown` promises to accept *any* argument, which upstream doesn't.
+            type SitemapFactory = (o?: GetvitopsSitemapOptions) => AstroIntegration;
+            let sitemap: SitemapFactory;
+            try {
+              ({ default: sitemap } = (await import('@astrojs/sitemap')) as unknown as {
+                default: SitemapFactory;
+              });
+            } catch {
+              throw new Error(
+                '[getvitops] sitemap requires `@astrojs/sitemap` in your devDependencies — ' +
+                  'install it, or drop the `sitemap` option.',
+              );
+            }
+            if (config.output === 'server')
+              logger.warn(
+                "sitemap: output: 'server' — @astrojs/sitemap lists prerendered routes only, so " +
+                  'on-demand pages are left out. Add `export const prerender = true` to the pages ' +
+                  'you want indexed, or list them in `sitemap.customPages`.',
+              );
+            const sitemapOpts = opts.sitemap === true ? undefined : opts.sitemap;
+            updateConfig({ integrations: [sitemap(sitemapOpts)] });
+            sitemapHref = `/${sitemapOpts?.filenameBase ?? 'sitemap'}-index.xml`;
+            logger.info(`sitemap registered → ${sitemapHref.slice(1)}`);
+          }
+        }
+
+        // 4. Virtual head module for <Head/>
         updateConfig({
           vite: {
             plugins: [
@@ -160,12 +303,13 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
                 webComponents,
                 wcBase: '/vitops',
                 editor,
+                sitemap: sitemapHref,
               }),
             ],
           },
         });
 
-        // 4. CSS — generate + compile + auto-inject (consumer imports nothing).
+        // 5. CSS — generate + compile + auto-inject (consumer imports nothing).
         if (opts.css) {
           const format: Format = opts.css.format ?? 'tailwind';
           const out = opts.css.out ?? 'src/styles';

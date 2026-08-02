@@ -15,6 +15,20 @@ via the `astro:config:setup` hook:
   `elements.js`, `deferred.js` + code-split chunks) into `public/vitops/`.
 - **CSS (opt-in `css:`)** → generates the design-system CSS from `design-system.json` (via
   `@getvitops/vite` + the generator) and auto-injects it — no manual stylesheet import.
+- **sitemap (opt-in `sitemap:`)** → registers the official `@astrojs/sitemap` (an **optional peer**,
+  dynamically imported like `@tailwindcss/vite`) via `updateConfig({ integrations })`, and hands
+  `<Head />` the href to link. Skipped with a warning when `site` is unset or `emdash()` is
+  registered — EmDash serves its own DB-driven `/sitemap.xml` — and deferred to when the consumer
+  already lists `@astrojs/sitemap` themselves, which is the documented escape hatch for the options
+  `GetvitopsSitemapOptions` does not mirror.
+
+  **The option type is hand-declared, not re-exported.** Aliasing `SitemapOptions` would put an
+  `@astrojs/sitemap` import (and transitively a `sitemap` one, via `SitemapItem`) into the published
+  `.d.mts` — unresolvable for the consumers who don't install the optional peer, and `skipLibCheck`
+  makes that fail _silently_ as `any` rather than loudly. Same reasoning as `css.format` narrowing
+  the generator's `Format`. The handoff casts through `unknown` because the two disagree on
+  `serialize`'s entry type (upstream's `changefreq` is the `EnumChangefreq` enum, ours the string
+  union a consumer wants to write); the values are forwarded verbatim.
 
 Resolved config is exposed through the `virtual:getvitops/head` module. `<Head />`
 (`src/components/Head.astro`, imported by consumers as `@getvitops/astro/Head.astro`, placed in the
@@ -76,8 +90,13 @@ typed props and emits a single `<script type="application/ld+json">` block at SS
 markup (no runtime JS), so it fits the tier-3 rule. One component per Schema.org type, e.g.
 `Article`, `Organization`, `LocalBusiness`, `Product`, `Review`, `Event`, `FAQ`, `Recipe`,
 `Breadcrumb`, `JobPosting`, `Course`, `Dataset`, `ProfilePage`, `QAPage`, `SoftwareApp`,
-`Carousel`, … Drop one into a page's `<head>` (or via `<Head />`) with the entity's data; use them
-alongside `SEO.astro`, which covers the `<meta>`/Open Graph tags.
+`Carousel`, … Drop one into a page's `<head>` (or via `<Head />`) with the entity's data.
+
+They are the **only** SEO surface this package ships: there is no `<meta>`/Open Graph component.
+(One existed — `SEO.astro`, deleted in `c949cae` with the rest of the site-model layer — and this
+file pointed at it long after it was gone.) Until one is rebuilt under the rules above, `<title>`,
+`<meta name="description">`, `<link rel="canonical">` and the `og:`/`twitter:` tags are the
+consumer layout's job; on an EmDash site `<EmDashHead>` already covers them.
 
 ## Authoring helpers
 

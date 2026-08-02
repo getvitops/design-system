@@ -41,3 +41,26 @@ describe('<Head /> pre-paint colour-scheme script', () => {
     expect(head).toMatch(/try\{[\s\S]*catch/);
   });
 });
+
+/**
+ * `virtual.d.ts` hand-duplicates `HeadData` — an ambient `declare module` in a
+ * standalone shipped .d.ts can't import from src. Nothing enforced agreement, and
+ * the two duly drifted: `editor` was added to the runtime data and read by
+ * Head.astro while the declared type never learned about it, so the field
+ * type-checked as an error in consumer projects that don't set skipLibCheck.
+ */
+describe('virtual:getvitops/head declaration', () => {
+  const keys = (src: string) => {
+    const body = /interface HeadData \{([\s\S]*?)\n {0,2}\}/.exec(src)?.[1];
+    expect(body, 'both files must declare an `interface HeadData`').toBeTruthy();
+    return new Set(
+      [...String(body).matchAll(/^\s*(\w+)\??:/gm)].map((m) => m[1]).filter((k) => k !== undefined),
+    );
+  };
+
+  it('declares exactly the fields the integration serialises', () => {
+    expect([...keys(read('../../virtual.d.ts'))].sort()).toEqual(
+      [...keys(read('../integration.ts'))].sort(),
+    );
+  });
+});

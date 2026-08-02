@@ -41,6 +41,9 @@ const THEME_SCRIPT =
 ))}
 {favicons && head.themeColor && <meta name="theme-color" content={head.themeColor} />}
 
+{/* Set by getvitops({ sitemap }); null when no sitemap was registered. */}
+{head.sitemap && <link rel="sitemap" type="application/xml" href={head.sitemap} />}
+
 {webComponents && (
   <>
     {/*

@@ -45,18 +45,23 @@
     "@getvitops/vite": "workspace:*"
   },
   "devDependencies": {
+    "@astrojs/sitemap": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "astro": "catalog:",
     "tailwindcss": "catalog:",
     "vitest": "^4.1.9"
   },
   "peerDependencies": {
+    "@astrojs/sitemap": ">=3.6",
     "@tailwindcss/vite": ">=4",
     "astro": ">=7",
     "astro-icon": ">=1",
     "tailwindcss": ">=4"
   },
   "peerDependenciesMeta": {
+    "@astrojs/sitemap": {
+      "optional": true
+    },
     "@tailwindcss/vite": {
       "optional": true
     },

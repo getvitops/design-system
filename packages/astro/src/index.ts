@@ -11,5 +11,8 @@ export type {
   GetvitopsCssOptions,
   GetvitopsFaviconOptions,
   GetvitopsOptions,
+  GetvitopsSitemapChangeFreq,
+  GetvitopsSitemapEntry,
+  GetvitopsSitemapOptions,
 } from './integration.ts';
 export * from '@getvitops/utils';
