@@ -1,26 +1,46 @@
 /**
- * Palette expansion + semantic functional tokens.
+ * Palette expansion + semantic colour tokens.
  *
  * A palette hue is authored one of two ways:
  *   • `{ seed, anchors? }` — an 11-step numeric scale (50…950) generated in
- *     OKLCH via @getvitops/utils/color (lightness transposed toward tinted
- *     near-white/near-black, chroma dampened at the extremes),
+ *     OKLCH via @getvitops/utils/color. Lightness comes from the shared
+ *     `LIGHTNESS_LADDER`; the seed (and any anchors) are reproduced verbatim at
+ *     their steps.
  *   • `{ tones }` — a fixed brand kit: authored tones placed verbatim at their
  *     nearest steps + tinted endpoints; nothing else is invented (strict kits).
  *
- * Every role (from `colors.roles`) gets FUNCTIONAL tokens — the public API:
- *   --<role>-bg / -bg-muted / -border / -border-bold / -solid / -solid-bold /
- *   -on-solid / -text / -text-muted / -text-x-muted
- * plus the appearance-relative emphasis stops (x-muted · muted · bold · x-bold)
- * and, for `surface`, the translucent `--surface-glass` + `--overlay` scrim.
- * Dark mode flips the mapping automatically (solid stays mode-stable).
+ * **The grammar.** Every role gets tokens named `--color-<target>-<role>[-<variant>]`,
+ * where target ∈ bg | text | icon | border. Putting the target *inside* the name is
+ * the point: `--color-bg-danger-muted` and `--color-text-danger-muted` are distinct
+ * tokens, so the two axes that used to collide over one `<family>-<role>-<modifier>
+ * ` namespace cannot any more. The utility class is the token name minus `--color-`.
+ *
+ * Variants are ordinal — xx-muted < x-muted < muted < (bare) < bold < x-bold —
+ * and the tables are **sparse**: a target only emits the cells that are actually
+ * viable. `bold` means "more emphatic than the role's default in the current
+ * appearance", not "darker"; the appearance decides polarity.
+ *
+ * Roles come in two kinds (declared in `colors.roles`):
+ *   • `surface` — a page/panel colour. Has a bare `bg-<role>` plus the full
+ *     emphasis range and the complete text scale.
+ *   • `chromatic` (default) — a signal colour. Backgrounds split into *tints*
+ *     (`bg-<role>-x-muted` / `-muted`) and *solids* (`bg-<role>-solid[-bold|-x-bold]`);
+ *     there is deliberately **no bare `bg-<role>`**, because "how loud?" is a
+ *     question the author has to answer.
+ *
+ * Dark mode re-points which step each token reads; the solid family and the
+ * `text-on-<role>` foreground computed against it stay mode-stable, so a filled
+ * button keeps its identity across appearances.
  */
 import {
+  ENDPOINT_CHROMA,
+  LIGHTNESS_LADDER,
   contrastLc,
   generateOklchPalette,
   hexToOklch,
   oklchStringToHex,
   pickOn,
+  tintedEndpoints,
 } from '@getvitops/utils/color';
 
 export const NUMERIC_STEPS = [
@@ -38,26 +58,27 @@ export const NUMERIC_STEPS = [
 ] as const;
 type NumStep = (typeof NUMERIC_STEPS)[number];
 
-// Lightness centres of the numeric scale (mirrors the engine's internal curve).
-const STEP_L: Record<NumStep, number> = {
-  '50': 0.95,
-  '100': 0.9,
-  '200': 0.8,
-  '300': 0.7,
-  '400': 0.6,
-  '500': 0.5,
-  '600': 0.4,
-  '700': 0.3,
-  '800': 0.2,
-  '900': 0.1,
-  '950': 0.05,
-};
+/**
+ * Lightness of each numeric step. Re-exported from the engine's ladder rather
+ * than restated — there used to be three copies of this curve (here, the engine,
+ * and the linter) and they were free to drift.
+ */
+const STEP_L = Object.fromEntries(
+  NUMERIC_STEPS.map((s) => [s, LIGHTNESS_LADDER[Number(s) as keyof typeof LIGHTNESS_LADDER]]),
+) as Record<NumStep, number>;
 
 export interface ExpandedHue {
   /** Numeric steps (sparse for fixed-tone kits). */
   numeric: Partial<Record<NumStep, string>>;
   /** True when only authored tones + endpoints exist (no interpolation). */
   sparse?: boolean;
+  /**
+   * Steps the author pinned, and how far each sits from the ladder's lightness.
+   * A pinned colour is reproduced exactly, so a large value here is legal — but
+   * it means this hue reads heavier or lighter than its siblings at that step,
+   * which the generator surfaces as a warning.
+   */
+  deviations?: Partial<Record<NumStep, number>>;
 }
 
 interface SeedInput {
@@ -79,41 +100,92 @@ const nearestStep = (l: number): NumStep =>
     Math.abs(l - STEP_L[s]) < Math.abs(l - STEP_L[best]) ? s : best,
   );
 
-function expandSeeded(input: SeedInput): ExpandedHue {
-  // Seed + author anchors pinned at their natural (or explicit) steps, PLUS
-  // implicit tinted near-white/near-black endpoint anchors (unless the author
-  // pins 50/950 themselves). The engine then interpolates lightness/chroma
-  // piecewise BETWEEN anchors — monotonic by construction, with the light side
-  // actually reaching near-white (the original "mid-gray light end" bug) and
-  // chroma tapering toward the tinted-neutral ends.
+/**
+ * Claim `step` for `value`, refusing to overwrite a step another colour already
+ * took.
+ *
+ * Silently dropping one of two colliding tones is the worst outcome: the palette
+ * still builds, and the tone the author cared about is simply gone. The record
+ * form (`tones: { "600": "#…", "700": "#…" }`) is the escape hatch, so the error
+ * points at it.
+ */
+function claim(
+  into: Record<string, string>,
+  step: string,
+  value: string,
+  hueLabel: string,
+  what: string,
+): void {
+  const taken = into[step];
+  if (taken != null && taken !== value) {
+    throw new Error(
+      `palette hue "${hueLabel}": ${what} ${value} and ${taken} both map to step ${step}. ` +
+        `Key them explicitly, e.g. { "${step}": "${taken}", "${Number(step) + 100}": "${value}" }.`,
+    );
+  }
+  into[step] = value;
+}
+
+function expandSeeded(input: SeedInput, hueLabel: string): ExpandedHue {
+  // The seed and any author anchors pin verbatim at their natural (or explicit)
+  // steps; the engine fills every other step from the shared lightness ladder,
+  // fading chroma toward the tinted ends. No implicit 50/950 anchors any more —
+  // the ladder already defines the endpoints, and pinning them would override it.
+  // Author anchors are placed FIRST and may collide only with each other. The
+  // seed goes in afterwards, and only where an anchor hasn't already claimed the
+  // step: an explicit anchor is the author overriding that step, which is exactly
+  // what the live editor writes when you recolour a swatch. Treating that as a
+  // collision would break the editor's save path.
   const anchors: Record<string, string> = {};
-  const seedStep = nearestStep(hexToOklch(input.seed).l);
-  anchors[seedStep] = toOklchStr(input.seed);
   for (const [key, value] of Object.entries(input.anchors ?? {})) {
     const step = (NUMERIC_STEPS as readonly string[]).includes(key)
       ? key
       : nearestStep(hexToOklch(value).l);
-    anchors[step] = toOklchStr(value);
+    claim(anchors, step, toOklchStr(value), hueLabel, 'anchors');
   }
-  const hue = hexToOklch(input.seed).h;
-  anchors['50'] ??= `oklch(97% 0.008 ${hue.toFixed(2)})`;
-  anchors['950'] ??= `oklch(13% 0.015 ${hue.toFixed(2)})`;
+  const seedStep = nearestStep(hexToOklch(input.seed).l);
+  anchors[seedStep] ??= toOklchStr(input.seed);
   const scale = generateOklchPalette(anchors) as Record<string, string>;
   const numeric: Partial<Record<NumStep, string>> = {};
   for (const s of NUMERIC_STEPS) if (scale[s] != null) numeric[s] = oklchStringToHex(scale[s]);
-  return { numeric };
+  return { numeric, deviations: deviationsFor(anchors) };
 }
 
-function expandTones(input: TonesInput): ExpandedHue {
+function expandTones(input: TonesInput, hueLabel: string): ExpandedHue {
   // Strict kit: authored tones verbatim at their nearest step; add tinted
   // endpoints (the one allowed exception); interpolate nothing else.
-  const tones = Array.isArray(input.tones) ? input.tones : Object.values(input.tones);
+  const entries: Array<[string | null, string]> = Array.isArray(input.tones)
+    ? input.tones.map((hex) => [null, hex])
+    : Object.entries(input.tones).map(([k, hex]) => [k, hex]);
+
+  const placed: Record<string, string> = {};
+  for (const [key, hex] of entries) {
+    const step =
+      key != null && (NUMERIC_STEPS as readonly string[]).includes(key)
+        ? key
+        : nearestStep(hexToOklch(hex).l);
+    claim(placed, step, hex, hueLabel, 'tones');
+  }
+
   const numeric: Partial<Record<NumStep, string>> = {};
-  for (const hex of tones) numeric[nearestStep(hexToOklch(hex).l)] = hex;
-  const hue = hexToOklch(tones[0] ?? '#808080').h;
-  numeric['50'] ??= oklchStringToHex(`oklch(97% 0.010 ${hue.toFixed(2)})`);
-  numeric['950'] ??= oklchStringToHex(`oklch(15% 0.015 ${hue.toFixed(2)})`);
-  return { numeric, sparse: true };
+  for (const [step, hex] of Object.entries(placed)) numeric[step as NumStep] = hex;
+
+  const firstTone = entries[0]?.[1] ?? '#808080';
+  const ends = tintedEndpoints(hexToOklch(firstTone).h);
+  numeric['50'] ??= ends.light;
+  numeric['950'] ??= ends.dark;
+
+  return { numeric, sparse: true, deviations: deviationsFor(placed) };
+}
+
+/** How far each pinned colour sits from its step's ladder lightness. */
+function deviationsFor(pinned: Record<string, string>): Partial<Record<NumStep, number>> {
+  const out: Partial<Record<NumStep, number>> = {};
+  for (const [step, value] of Object.entries(pinned)) {
+    const l = isHex(value) ? hexToOklch(value).l : hexToOklch(oklchStringToHex(value)).l;
+    out[step as NumStep] = l - STEP_L[step as NumStep];
+  }
+  return out;
 }
 
 /** Snap to the nearest AVAILABLE numeric step (sparse kits). */
@@ -130,100 +202,221 @@ export function expandPalette(raw: Record<string, unknown>): Record<string, Expa
   const out: Record<string, ExpandedHue> = {};
   for (const [name, entry] of Object.entries(raw)) {
     const e = entry as Partial<SeedInput & TonesInput>;
-    if (typeof e?.seed === 'string') out[name] = expandSeeded(e as SeedInput);
-    else if (e?.tones != null) out[name] = expandTones(e as TonesInput);
+    if (typeof e?.seed === 'string') out[name] = expandSeeded(e as SeedInput, name);
+    else if (e?.tones != null) out[name] = expandTones(e as TonesInput, name);
     else throw new Error(`palette hue "${name}" must have a "seed" or "tones"`);
   }
   return out;
 }
 
-// ── functional token mapping ─────────────────────────────────────────────────
+/**
+ * Warn about pinned colours that sit noticeably off the ladder. Not an error:
+ * the author asked for that exact colour and gets it. But at ~0.03 L the hue
+ * starts reading visibly heavier or lighter than its siblings at that step, and
+ * that is the class of drift the fixed ladder exists to prevent.
+ */
+export const LADDER_TOLERANCE = 0.03;
 
-type TokenMap = Record<string, NumStep>;
-const LIGHT: TokenMap = {
+export function ladderWarnings(palette: Record<string, ExpandedHue>): string[] {
+  const warnings: string[] = [];
+  for (const [hue, expanded] of Object.entries(palette)) {
+    for (const [step, deviation] of Object.entries(expanded.deviations ?? {})) {
+      if (Math.abs(deviation as number) <= LADDER_TOLERANCE) continue;
+      const dir = (deviation as number) > 0 ? 'lighter' : 'darker';
+      warnings.push(
+        `colors.palette.${hue}: the colour pinned at step ${step} is ${Math.abs(
+          deviation as number,
+        ).toFixed(3)} ${dir} than the shared lightness ladder — this hue will read ` +
+          `${dir} than others at ${step}. Legal, but move it to a neighbouring step if that wasn't intended.`,
+      );
+    }
+  }
+  return warnings;
+}
+
+// ── the token tables ─────────────────────────────────────────────────────────
+
+/** Which shape of token set a role gets. */
+export type RoleKind = 'surface' | 'chromatic';
+
+/** Token key → numeric step. Keys are `<target>[-<variant>]`; see `tokenVar`. */
+type Table = Record<string, NumStep>;
+
+/**
+ * Surface roles: a bare `bg` (cards, panels, inputs), `bg-muted` for the page
+ * behind them, `bg-x-muted` for wells, and `bg-bold`/`-x-bold` for the inverse
+ * surface a tooltip sits on. Elevation is expressed by *which* token you reach
+ * for — page `bg-muted`, card `bg` — rather than by a raised/sunken pair. That
+ * is what lets a future `data-surfaces` axis flatten it without touching markup.
+ */
+const SURFACE_LIGHT: Table = {
   bg: '50',
   'bg-muted': '100',
+  'bg-x-muted': '200',
+  'bg-bold': '800',
+  'bg-x-bold': '950',
+  text: '900',
+  'text-bold': '950',
+  'text-muted': '700',
+  'text-x-muted': '500',
+  'text-xx-muted': '400',
+  'text-on-bold': '50',
+  icon: '600',
+  'icon-muted': '500',
+  'border-muted': '200',
+  border: '300',
+  'border-bold': '600',
+};
+const SURFACE_DARK: Table = {
+  bg: '900',
+  'bg-muted': '950',
+  'bg-x-muted': '950',
+  'bg-bold': '200',
+  'bg-x-bold': '50',
+  text: '100',
+  'text-bold': '50',
+  // 300 and 400, not v3.1's 400 and 500: those were tuned against WCAG and come
+  // up short of APCA's secondary-text and non-text bars over a dark surface.
+  'text-muted': '300',
+  'text-x-muted': '500',
+  'text-xx-muted': '600',
+  'text-on-bold': '950',
+  icon: '400',
+  'icon-muted': '500',
+  'border-muted': '800',
+  border: '700',
+  'border-bold': '400',
+};
+
+/**
+ * Chromatic roles: tints for alert/badge backgrounds, solids for fills. No bare
+ * `bg` — see the module docblock. No `text-muted` either: a de-emphasised
+ * coloured text could not hold its contrast target off a white surface, so the
+ * way to soften coloured text is weight/size, not another colour.
+ */
+const CHROMATIC_LIGHT: Table = {
+  'bg-x-muted': '50',
+  'bg-muted': '100',
+  text: '700',
+  'text-bold': '900',
+  icon: '600',
   border: '200',
   'border-bold': '300',
-  text: '950',
-  'text-muted': '800',
-  'text-x-muted': '600',
 };
-const DARK: TokenMap = {
-  bg: '950',
+const CHROMATIC_DARK: Table = {
+  'bg-x-muted': '950',
   'bg-muted': '900',
+  text: '300',
+  'text-bold': '200',
+  icon: '400',
   border: '800',
   'border-bold': '700',
-  text: '50',
-  'text-muted': '200',
-  'text-x-muted': '400',
 };
-// surface = background planes; elevation is lighter-when-raised in BOTH modes.
-const SURFACE_LIGHT: TokenMap = { ...LIGHT, bg: '100', 'bg-muted': '200', 'bg-bold': '50' };
-const SURFACE_DARK: TokenMap = { ...DARK, bg: '900', 'bg-muted': '950', 'bg-bold': '800' };
-// appearance-relative emphasis stops (base excluded — the bare name is functional).
-const EMPHASIS_LIGHT: TokenMap = { 'x-muted': '100', muted: '300', bold: '700', 'x-bold': '900' };
-const EMPHASIS_DARK: TokenMap = { 'x-muted': '900', muted: '700', bold: '300', 'x-bold': '100' };
+
 /**
- * The emphasis-stop names, derived from the table rather than re-listed, so the
- * utility emitter in `generate.ts` cannot drift from the tokens it emits.
+ * The solid family — mode-stable, so a filled button keeps its identity when the
+ * appearance flips. Fixed steps rather than the old scan-and-clamp: with a shared
+ * lightness ladder every hue's 600 already sits at the same lightness, so there
+ * is nothing left to search for. `text-on-<role>` is computed against `bg-solid`.
  */
-export const EMPHASIS_STOPS: readonly string[] = Object.keys(EMPHASIS_LIGHT);
+const SOLID: Table = { 'bg-solid': '600', 'bg-solid-bold': '700', 'bg-solid-x-bold': '800' };
+
+/**
+ * Map a token key to its CSS custom property for a given role.
+ *
+ * `on` is the one irregular case: the foreground for a filled surface reads
+ * `--color-text-on-<role>`, with the role *after* `on`, because it names what it
+ * sits on rather than what it is.
+ *
+ * The utility class name is this minus the `--color-` prefix, which is why the
+ * emitter and the linter can both derive their vocabulary from one function.
+ */
+export function tokenVar(role: string, key: string): string {
+  const dash = key.indexOf('-');
+  const target = dash === -1 ? key : key.slice(0, dash);
+  const variant = dash === -1 ? '' : key.slice(dash + 1);
+  if (variant === 'on') return `--color-${target}-on-${role}`;
+  if (variant.startsWith('on-')) return `--color-${target}-on-${role}-${variant.slice(3)}`;
+  return variant ? `--color-${target}-${role}-${variant}` : `--color-${target}-${role}`;
+}
+
+/** The class name a token key produces for a role (`bg-danger-solid`, …). */
+export const tokenClass = (role: string, key: string): string =>
+  tokenVar(role, key).slice('--color-'.length);
 
 export interface FunctionalRole {
   role: string;
   hue: string;
-  /** token → CSS value, per appearance. */
+  kind: RoleKind;
+  /** token key → CSS value, per appearance. */
   light: Record<string, string>;
   dark: Record<string, string>;
 }
 
-/** Resolve the functional token set for one role over its hue. */
-export function functionalRole(role: string, hueName: string, hue: ExpandedHue): FunctionalRole {
+/** Resolve the token set for one role over its hue. */
+export function functionalRole(
+  role: string,
+  hueName: string,
+  hue: ExpandedHue,
+  kind: RoleKind = 'chromatic',
+): FunctionalRole {
   const numeric = hue.numeric;
   const v = (n: NumStep) => `var(--color-${hueName}-${snap(numeric, n)})`;
   const hex = (n: NumStep) => numeric[snap(numeric, n)] as string;
 
-  // solid: the vivid tone — at least 500 (white text needs the depth), at most 700.
-  const naturalRaw = NUMERIC_STEPS.find((s) => numeric[s] === hex('500')) ?? '500';
-  const natural = Number(snap(numeric, naturalRaw));
-  const solidStep = snap(numeric, String(Math.min(Math.max(natural, 500), 700)) as NumStep);
-  const solidBold = snap(numeric, String(Math.min(Number(solidStep) + 100, 950)) as NumStep);
-  const onSolid = pickOn(numeric[solidStep] as string);
+  const map = (table: Table): Record<string, string> => {
+    const out: Record<string, string> = {};
+    for (const [token, step] of Object.entries(table)) out[token] = v(step);
+    return out;
+  };
 
-  const isSurface = role === 'surface';
-  const map = (table: TokenMap): Record<string, string> => {
-    const out: Record<string, string> = {};
-    for (const [token, step] of Object.entries(table)) out[token] = v(step as NumStep);
-    return out;
-  };
-  const emphasis = (table: TokenMap, prefix: string): Record<string, string> => {
-    const out: Record<string, string> = {};
-    for (const [stop, step] of Object.entries(table)) out[`${prefix}-${stop}`] = v(step as NumStep);
-    return out;
-  };
+  // Solids and the foreground computed against them are identical in both
+  // appearances — that mode-stability is the whole point of the family.
+  const solids = map(SOLID);
+  const onSolid = pickOn(hex(SOLID['bg-solid'] as NumStep));
 
   const light = {
-    ...map(isSurface ? SURFACE_LIGHT : LIGHT),
-    solid: v(solidStep),
-    'solid-bold': v(solidBold),
-    'on-solid': onSolid,
-    ...emphasis(EMPHASIS_LIGHT, 'stop'),
+    ...map(kind === 'surface' ? SURFACE_LIGHT : CHROMATIC_LIGHT),
+    ...solids,
+    'text-on': onSolid,
   };
   const dark = {
-    ...map(isSurface ? SURFACE_DARK : DARK),
-    solid: v(solidStep),
-    'solid-bold': v(solidBold),
-    'on-solid': onSolid,
-    ...emphasis(EMPHASIS_DARK, 'stop'),
+    ...map(kind === 'surface' ? SURFACE_DARK : CHROMATIC_DARK),
+    ...solids,
+    'text-on': onSolid,
   };
-  return { role, hue: hueName, light, dark };
+  return { role, hue: hueName, kind, light, dark };
 }
 
-/** Verify a functional role's contrast targets. Returns human-readable failures. */
+// ── the contrast contract ────────────────────────────────────────────────────
+
+/**
+ * APCA targets. `TEXT` is the body-text bar; `SECONDARY` covers text on a
+ * non-primary surface and de-emphasised text. `NON_TEXT` is the icon/boundary
+ * tier — the APCA analogue of WCAG's 3:1, where a glyph may run more vivid than
+ * text because shape carries meaning alongside contrast.
+ */
+export const CONTRAST = { TEXT: 75, SECONDARY: 60, NON_TEXT: 45 } as const;
+
+/**
+ * Text tokens deliberately exempt from the contract. Placeholders and disabled
+ * text are required to look unavailable; holding them to the body-text bar would
+ * defeat the affordance. Nothing else may be exempt.
+ */
+const EXEMPT_TEXT = new Set(['text-x-muted', 'text-xx-muted']);
+
+/**
+ * Verify a role's contrast targets. Returns human-readable failures.
+ *
+ * Chromatic roles are checked against the surface planes they actually sit on
+ * (`surfaceBg`) as well as their own tints — coloured text almost never appears
+ * over its own solid, it appears over the page. Checking only within the role
+ * would have missed the pairing that matters most.
+ */
 export function checkContrast(
   fr: FunctionalRole,
   numericOf: (hueName: string) => Partial<Record<NumStep, string>>,
+  surfaceBg?: { light: string[]; dark: string[] },
 ): string[] {
   const failures: string[] = [];
   const resolve = (val: string): string => {
@@ -231,43 +424,69 @@ export function checkContrast(
     if (!m) return val;
     return numericOf(m[1] as string)[m[2] as NumStep] ?? val;
   };
-  for (const [name, tokens] of [
+  const fail = (appearance: string, msg: string) =>
+    failures.push(`${fr.role}/${appearance}: ${msg}`);
+
+  for (const [appearance, tokens] of [
     ['light', fr.light],
     ['dark', fr.dark],
   ] as const) {
-    // Check text against EVERY background plane the role emits, not just `bg`.
-    // Body text on a `card` sits on `--surface-bg-muted` / `-bg-bold`, and those
-    // pairings were entirely unguarded before — the point of having planes is
-    // that you can stack them, so each one has to stay legible.
-    //
-    // The bar differs by plane, deliberately. `bg` is the role's primary
-    // surface and holds the full APCA body-text target (Lc 75). The secondary
-    // planes hold APCA's large/bold-text target (Lc 60): `surface`'s sunken
-    // plane in light mode currently measures Lc 69.1 for `text`, which clears
-    // 60 but not 75. Closing that needs a step-table change (surface's bg-muted
-    // is at step 200 with `text` already pinned at the 950 extreme, so there is
-    // no headroom without re-inseting the role), which is a colour-ramp
-    // decision, not a test fix. Recorded here so it stays visible.
-    const PRIMARY_PLANE = 'bg';
-    const planes = (['bg', 'bg-muted', 'bg-bold'] as const).filter((p) => tokens[p] != null);
-    for (const plane of planes) {
-      const bg = resolve(tokens[plane] as string);
-      const textMin = plane === PRIMARY_PLANE ? 75 : 60;
-      const checks: Array<[string, string, number]> = [
-        ['text', resolve(tokens.text as string), textMin],
-        ['text-muted', resolve(tokens['text-muted'] as string), 60],
-      ];
-      for (const [token, hexV, min] of checks) {
-        const lc = contrastLc(hexV, bg);
-        if (lc < min)
-          failures.push(
-            `${fr.role}/${name}: ${token} Lc ${lc.toFixed(1)} < ${min} on ${plane} ${bg}`,
+    // Backgrounds this role's own foregrounds have to work on. For a surface
+    // role that's its own planes; for a chromatic role it's the page surface
+    // plus its own tints.
+    const ownBg = Object.keys(tokens)
+      .filter((k) => k === 'bg' || k.startsWith('bg-'))
+      .filter((k) => !k.startsWith('bg-solid'))
+      .filter((k) => !k.startsWith('bg-bold') && !k.startsWith('bg-x-bold'));
+    const planes: Array<[string, string]> =
+      fr.kind === 'surface'
+        ? ownBg.map((k) => [k, resolve(tokens[k] as string)])
+        : [
+            ...(surfaceBg?.[appearance] ?? []).map(
+              (h, i) => [`surface#${i}`, h] as [string, string],
+            ),
+            ...ownBg.map((k) => [k, resolve(tokens[k] as string)] as [string, string]),
+          ];
+
+    for (const [planeName, bg] of planes) {
+      // `bg` is the role's primary surface and holds the full body-text bar;
+      // every other plane holds the secondary bar.
+      const textMin = planeName === 'bg' ? CONTRAST.TEXT : CONTRAST.SECONDARY;
+      for (const key of ['text', 'text-bold', 'text-muted']) {
+        if (tokens[key] == null || EXEMPT_TEXT.has(key)) continue;
+        const min = key === 'text-muted' ? CONTRAST.SECONDARY : textMin;
+        const lc = contrastLc(resolve(tokens[key] as string), bg);
+        if (lc < min) fail(appearance, `${key} Lc ${lc.toFixed(1)} < ${min} on ${planeName} ${bg}`);
+      }
+      // Icons carry meaning, so they hold the non-text bar everywhere. Borders
+      // do not: a chromatic `border-<role>` is *decorative* — the tinted edge of
+      // an alert, where the colour reinforces a message the text already makes.
+      // Only a surface role's `border-bold` is the "this boundary is the only
+      // thing separating two regions" token, so only that one is guaranteed.
+      const nonText = fr.kind === 'surface' ? ['icon', 'border-bold'] : ['icon'];
+      for (const key of nonText) {
+        if (tokens[key] == null) continue;
+        const lc = contrastLc(resolve(tokens[key] as string), bg);
+        if (lc < CONTRAST.NON_TEXT)
+          fail(
+            appearance,
+            `${key} Lc ${lc.toFixed(1)} < ${CONTRAST.NON_TEXT} on ${planeName} ${bg}`,
           );
       }
     }
-    const onLc = contrastLc(tokens['on-solid'] as string, resolve(tokens.solid as string));
-    if (onLc < 60)
-      failures.push(`${fr.role}/${name}: on-solid Lc ${onLc.toFixed(1)} < 60 on solid`);
+
+    // The filled-surface pairing: text-on against the solid it names.
+    const solid = resolve(tokens['bg-solid'] as string);
+    const onLc = contrastLc(tokens['text-on'] as string, solid);
+    if (onLc < CONTRAST.SECONDARY)
+      fail(appearance, `text-on Lc ${onLc.toFixed(1)} < ${CONTRAST.SECONDARY} on bg-solid`);
+
+    // The inverse surface, where it exists.
+    if (tokens['bg-bold'] != null && tokens['text-on-bold'] != null) {
+      const lc = contrastLc(resolve(tokens['text-on-bold'] as string), resolve(tokens['bg-bold']));
+      if (lc < CONTRAST.TEXT)
+        fail(appearance, `text-on-bold Lc ${lc.toFixed(1)} < ${CONTRAST.TEXT} on bg-bold`);
+    }
   }
   return failures;
 }

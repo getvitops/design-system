@@ -25,8 +25,8 @@ dialog.dialog {
   border: var(--_b);
   border-radius: var(--_br);
   box-shadow: var(--_ds);
-  background: var(--surface-bg);
-  color: var(--surface-text);
+  background: var(--color-bg-surface);
+  color: var(--color-text-surface);
   max-block-size: calc(100vh - 2rem);
 
   &::backdrop {

@@ -25,7 +25,7 @@ const maxVisits = Math.max(1, ...days.map(([, v]) => v));
 
 <Base title="Overview">
   {denied && (
-    <div class="card border-warning bg-warning text-neutral">
+    <div class="card border-warning bg-warning-muted text-neutral">
       Your current plan doesn’t include <strong>{denied}</strong>. <a href="/settings" class="text-brand-primary underline">See plans</a>.
     </div>
   )}

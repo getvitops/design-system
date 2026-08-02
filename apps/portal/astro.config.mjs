@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs';
 import node from '@astrojs/node';
 import react from '@astrojs/react';
-import getvitops from '@getvitops/astro';
+import vitops from '@getvitops/astro';
 import { vitopsEmdash } from '@getvitops/emdash';
 import { defineConfig, passthroughImageService } from 'astro/config';
 import emdash, { local } from 'emdash/astro';
@@ -25,7 +25,7 @@ export default defineConfig({
     // copies the web-component bundles into public/vitops/, and generates +
     // auto-injects the design-system CSS (no manual stylesheet import). <Head />
     // (in the layouts) renders the favicon/PWA + web-component tags.
-    getvitops({
+    vitops({
       favicon: {
         source: 'brand/logo.svg',
         name: 'Vitops Portal',

@@ -19,7 +19,7 @@
 import Docs from '../layouts/Docs.astro';
 import manifest from '../styles/design-manifest.json';
 
-const roles = manifest.colors.roles.map((r) => r.name);
+const roles = manifest.colors.roles;
 const typoRoles = manifest.typography.roles;
 const text = manifest.scales.text;
 const space = manifest.scales.space;
@@ -27,9 +27,30 @@ const shadows = Object.keys(manifest.shadows);
 const radii = Object.keys(manifest.patterns.radii);
 const patterns = manifest.patterns.items;
 
-/** The functional tokens every role carries, in cascade order. */
-const SURFACE_TOKENS = ['bg', 'bg-muted', 'border', 'border-bold', 'solid', 'solid-bold'];
-const TEXT_TOKENS = ['text', 'text-muted', 'text-x-muted'];
+/**
+ * Token name for a role + key, mirroring the generator's `tokenVar()`. `on` is
+ * the irregular one — the role follows it, because the token names what it sits
+ * on rather than what it is.
+ */
+const tokenVar = (role: string, key: string): string => {
+  const i = key.indexOf('-');
+  const target = i === -1 ? key : key.slice(0, i);
+  const variant = i === -1 ? '' : key.slice(i + 1);
+  if (variant === 'on') return `--color-${target}-on-${role}`;
+  if (variant.startsWith('on-')) return `--color-${target}-on-${role}-${variant.slice(3)}`;
+  return variant ? `--color-${target}-${role}-${variant}` : `--color-${target}-${role}`;
+};
+
+/**
+ * The tokens a role actually carries, read from the manifest rather than typed
+ * out — the two role kinds emit *different* sets, so any hand-written list would
+ * be wrong for one of them. Grouped by target so each row is one comparable axis.
+ */
+const targetOf = (key: string) => (key.includes('-') ? key.slice(0, key.indexOf('-')) : key);
+const tokensFor = (role: { name: string; ramp: string; kind: string }, target: string) =>
+  Object.keys(manifest.colors.roleTokens[role.ramp]?.[role.kind]?.light ?? {}).filter(
+    (k) => targetOf(k) === target && !k.startsWith('text-on'),
+  );
 
 /** Patterns with a plain-class example; the rest are listed as coverage. */
 const SHOWN = new Set(['btn', 'cta', 'link', 'badge', 'tag', 'status', 'card', 'table', 'list']);
@@ -58,32 +79,59 @@ const headings = [
   <!-- ── Colour ──────────────────────────────────────────────────────────── -->
   <h2 id="colour" class="font-title">Colour</h2>
   <p class="font-body text-surface-muted">
-    Each role resolves to a set of <em>functional</em> tokens, not a ramp. Dark mode flips the
-    bg/text ends automatically; <code>solid</code> stays mode-stable so a filled button keeps its
-    identity, and <code>on-solid</code> is computed for contrast against it.
+    A role resolves to tokens named <code>--color-&lt;target&gt;-&lt;role&gt;[-&lt;variant&gt;]</code>,
+    not to a ramp. The labels below are the <em>class names</em> — the token name minus
+    <code>--color-</code>. A <b>surface</b> role has a bare <code>bg-</code> and the full range; a
+    <b>chromatic</b> role has tints and solids and no bare <code>bg-</code>. Dark mode re-points
+    each token; the solid family stays mode-stable so a filled button keeps its identity, and
+    <code>text-on-&lt;role&gt;</code> is computed for contrast against it.
   </p>
 
   {roles.map((role) => (
     <section class="rhythm tp-role">
-      <p class="font-eyebrow">{role}</p>
+      <p class="font-eyebrow">{role.name} <span class="tp-kind">{role.kind}</span></p>
       <div class="tp-swatches">
-        {SURFACE_TOKENS.map((t) => (
+        {tokensFor(role, 'bg').map((t) => (
           <div class="tp-swatch">
-            <span class="tp-chip" style={`background: var(--${role}-${t})`}></span>
-            <code class="font-footnote">{t}</code>
+            <span class="tp-chip" style={`background: var(${tokenVar(role.name, t)})`}></span>
+            <code class="font-footnote">{tokenVar(role.name, t).slice(8)}</code>
           </div>
         ))}
         <div class="tp-swatch">
           <span
             class="tp-chip tp-chip--label"
-            style={`background: var(--${role}-solid); color: var(--${role}-on-solid)`}
+            style={`background: var(--color-bg-${role.name}-solid); color: var(--color-text-on-${role.name})`}
           >Aa</span>
-          <code class="font-footnote">on-solid</code>
+          <code class="font-footnote">text-on-{role.name}</code>
         </div>
       </div>
-      <p class="tp-texts" style={`background: var(--${role}-bg)`}>
-        {TEXT_TOKENS.map((t) => (
-          <span style={`color: var(--${role}-${t})`}>{t}</span>
+      <div class="tp-swatches">
+        {tokensFor(role, 'border').map((t) => (
+          <div class="tp-swatch">
+            <span
+              class="tp-chip tp-chip--hollow"
+              style={`border-color: var(${tokenVar(role.name, t)})`}
+            ></span>
+            <code class="font-footnote">{tokenVar(role.name, t).slice(8)}</code>
+          </div>
+        ))}
+        {tokensFor(role, 'icon').map((t) => (
+          <div class="tp-swatch">
+            <span class="tp-chip tp-chip--label" style={`color: var(${tokenVar(role.name, t)})`}>
+              ◆
+            </span>
+            <code class="font-footnote">{tokenVar(role.name, t).slice(8)}</code>
+          </div>
+        ))}
+      </div>
+      <p
+        class="tp-texts"
+        style={`background: var(--color-bg-${role.name}${role.kind === 'surface' ? '' : '-x-muted'})`}
+      >
+        {tokensFor(role, 'text').map((t) => (
+          <span style={`color: var(${tokenVar(role.name, t)})`}>
+            {tokenVar(role.name, t).slice(8)}
+          </span>
         ))}
       </p>
     </section>
@@ -91,7 +139,7 @@ const headings = [
 
   <h3 class="font-heading">Utility classes</h3>
   <div class="tp-swatches">
-    {roles.map((role) => (
+    {roles.map(({ name: role }) => (
       <span class={`badge bg-${role}-muted text-${role}`}>bg-{role}-muted</span>
     ))}
   </div>
@@ -309,7 +357,17 @@ const headings = [
     inline-size: 3.5rem;
     block-size: 2.25rem;
     border-radius: var(--br-default);
-    border: 1px solid var(--surface-border);
+    border: 1px solid var(--color-border-surface);
+  }
+  /* Borders and icons are about the stroke, not a fill — show them hollow so
+     what you're judging is the thing the token actually sets. */
+  .tp-chip--hollow {
+    background: none;
+    border-width: 3px;
+  }
+  .tp-kind {
+    opacity: 0.6;
+    font-weight: 400;
   }
   .tp-chip--label {
     display: grid;
@@ -329,7 +387,7 @@ const headings = [
     gap: 1rem;
     align-items: baseline;
     padding-block: 0.3rem;
-    border-block-end: 1px solid var(--surface-border);
+    border-block-end: 1px solid var(--color-border-surface);
   }
   .tp-typerow > p {
     margin: 0;
@@ -337,7 +395,7 @@ const headings = [
   .tp-bar {
     display: inline-block;
     block-size: 1rem;
-    background: var(--ui-primary-solid);
+    background: var(--color-bg-ui-primary-solid);
     border-radius: 2px;
   }
   /* Track + ratio demos need a visible box; the framework classes under test
@@ -345,8 +403,8 @@ const headings = [
   .tp-track {
     padding: 0.5rem;
     text-align: center;
-    background: var(--ui-primary-bg-muted);
-    border: 1px solid var(--ui-primary-border);
+    background: var(--color-bg-ui-primary-muted);
+    border: 1px solid var(--color-border-ui-primary);
     border-radius: var(--br-default);
     font-size: var(--text-xs);
   }
@@ -360,7 +418,7 @@ const headings = [
   }
   .tp-cluster {
     padding: 0.5rem;
-    border: 1px dashed var(--surface-border);
+    border: 1px dashed var(--color-border-surface);
     border-radius: var(--br-default);
   }
   .tp-radius,
@@ -372,11 +430,11 @@ const headings = [
     font-size: var(--text-xs);
   }
   .tp-radius {
-    background: var(--ui-primary-bg-muted);
-    border: 1px solid var(--ui-primary-border);
+    background: var(--color-bg-ui-primary-muted);
+    border: 1px solid var(--color-border-ui-primary);
   }
   .tp-shadowbox {
-    background: var(--surface-bg-bold, var(--surface-bg));
+    background: var(--color-bg-surface, var(--color-bg-surface-muted));
     border-radius: var(--br-default);
   }
   .tp-shadows {

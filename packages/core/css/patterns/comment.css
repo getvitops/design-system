@@ -62,7 +62,7 @@
     grid-column: 1 / -1;
     margin-inline-start: var(--comment-indent, 2rem);
     padding-inline-start: var(--comment-indent, 2rem);
-    border-inline-start: 2px solid var(--color-surface-muted);
+    border-inline-start: 2px solid var(--color-bg-surface-muted);
     display: flex;
     flex-direction: column;
     gap: 1rem;

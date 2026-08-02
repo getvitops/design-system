@@ -19,14 +19,19 @@ const manifestOf = (ds: DesignSystem = defaultConfig()) =>
       ramps: string[];
       steps: string[];
       palette: Record<string, Record<string, string>>;
-      roles: { name: string; ramp: string }[];
+      roles: { name: string; ramp: string; kind: 'surface' | 'chromatic' }[];
       roleTokens: Record<
         string,
         {
-          default: { light: Record<string, string>; dark: Record<string, string> };
+          chromatic: { light: Record<string, string>; dark: Record<string, string> };
           surface: { light: Record<string, string>; dark: Record<string, string> };
         }
       >;
+    };
+    typography: {
+      roles: string[];
+      hooks: Record<string, { prop: string; key: string }>;
+      specs: Record<string, Record<string, string | number>>;
     };
     patterns: {
       radii: Record<string, string>;
@@ -46,38 +51,42 @@ describe('design-manifest: colours', () => {
     for (const hue of m.colors.ramps) expect(m.colors.palette[hue]).toBeDefined();
   });
 
-  it('ships functional token sets for every hue, in both appearances', () => {
+  it('ships a token set per hue and role KIND, in both appearances', () => {
     const m = manifestOf();
     for (const hue of m.colors.ramps) {
       const entry = m.colors.roleTokens[hue];
       expect(entry, `roleTokens.${hue}`).toBeDefined();
-      for (const kind of ['default', 'surface'] as const)
+      for (const kind of ['chromatic', 'surface'] as const)
         for (const scheme of ['light', 'dark'] as const) {
-          const tokens = entry?.[kind][scheme] ?? {};
-          // The full functional API a role remap has to rewrite.
-          for (const t of ['bg', 'bg-muted', 'border', 'text', 'solid', 'on-solid'])
-            expect(Object.keys(tokens), `${hue}.${kind}.${scheme}`).toContain(t);
-          // Emphasis stops travel under the `stop-` prefix (→ --color-<role>-<stop>).
-          expect(Object.keys(tokens)).toContain('stop-bold');
+          const tokens = Object.keys(entry?.[kind][scheme] ?? {});
+          // Everything a role remap has to rewrite, whichever kind it is.
+          for (const t of ['bg-muted', 'border', 'text', 'bg-solid', 'text-on'])
+            expect(tokens, `${hue}.${kind}.${scheme}`).toContain(t);
+          // The kinds are genuinely different shapes — that is why there are two.
+          if (kind === 'surface') expect(tokens).toContain('bg');
+          else expect(tokens).not.toContain('bg');
         }
     }
   });
 
-  it('gives `on-solid` as a literal, since it is computed and not derivable', () => {
+  it('gives `text-on` as a literal, since it is computed and not derivable', () => {
     const m = manifestOf();
     const hue = m.colors.ramps[0] as string;
-    // Every other token is a var() ref into the hue; on-solid is a contrast pick,
+    // Every other token is a var() ref into the hue; text-on is a contrast pick,
     // so a client that assumed "all values are var(--color-…)" would break here.
-    expect(m.colors.roleTokens[hue]?.default.light.bg).toMatch(/^var\(--color-/);
-    expect(m.colors.roleTokens[hue]?.default.light['on-solid']).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(m.colors.roleTokens[hue]?.chromatic.light['bg-muted']).toMatch(/^var\(--color-/);
+    expect(m.colors.roleTokens[hue]?.chromatic.light['text-on']).toMatch(/^#[0-9a-f]{6}$/i);
   });
 
-  it('surface uses its own step table (elevation is lighter when raised)', () => {
+  it('carries each role kind so the editor picks the right set on a remap', () => {
+    // The editor used to infer this from `role === 'surface'`, which silently did
+    // the wrong thing for any other surface-kind role (`neutral`, or a consumer's
+    // own `canvas`). It travels with the role now.
     const m = manifestOf();
-    const hue = m.colors.ramps[0] as string;
-    const entry = m.colors.roleTokens[hue];
-    expect(entry?.surface.light.bg).not.toBe(entry?.default.light.bg);
-    expect(Object.keys(entry?.surface.light ?? {})).toContain('bg-bold');
+    const byName = new Map(m.colors.roles.map((r) => [r.name, r.kind]));
+    expect(byName.get('surface')).toBe('surface');
+    expect(byName.get('neutral')).toBe('surface');
+    expect(byName.get('danger')).toBe('chromatic');
   });
 });
 
@@ -163,6 +172,28 @@ describe('design-manifest: patch round-trip', () => {
     // The anchor has to actually move the ramp, or "save to source" would appear
     // to work and change nothing.
     expect(manifestOf(merged).colors.palette[hue]?.['500']).toBe('#123456');
+  });
+});
+
+describe('design-manifest: typography', () => {
+  /**
+   * The editor renders one control per `typography.hooks` entry for every role,
+   * and `buildPatch` saves a control only if `reverseIndex` has its var. Anything
+   * missing here previews live and is then silently dropped on "Save to source" —
+   * the worst failure mode the editor has, because the preview says it worked.
+   */
+  it('reverse-indexes every hook of every role, not just the declared ones', () => {
+    const m = manifestOf();
+    for (const role of m.typography.roles)
+      for (const [sfx, { key }] of Object.entries(m.typography.hooks))
+        expect(m.reverseIndex[`--${role}-${sfx}`]).toBe(`typography.roles.${role}.${key}`);
+  });
+
+  it('indexes a hook the role leaves undeclared', () => {
+    const ds = defaultConfig();
+    // `body` declares no tracking — its `--body-ls` control must still be savable.
+    expect(ds.typography?.roles?.body?.tracking).toBeUndefined();
+    expect(manifestOf(ds).reverseIndex['--body-ls']).toBe('typography.roles.body.tracking');
   });
 });
 

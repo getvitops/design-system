@@ -6,7 +6,13 @@
  * validation, and the published JSON Schema all derive from it.
  */
 export { generate, roleColorUtilities } from './generate.ts';
-export type { GenerateOptions, GenerateResult, Format, ColorUtility } from './generate.ts';
+export type {
+  GenerateOptions,
+  GenerateResult,
+  Format,
+  StylesheetFormat,
+  ColorUtility,
+} from './generate.ts';
 
 // Exposed so `vitops lint` can ask what the generator emits instead of
 // re-deriving the vocabulary and drifting from it.
@@ -14,7 +20,19 @@ export { expandPalette, functionalRole } from './tokens.ts';
 export type { ExpandedHue, FunctionalRole } from './tokens.ts';
 
 export { generateDocs } from './docs.ts';
-export { TW_CLASH, BASE_HOOK, DARK_SEL, REQUIRED_ROLES, ROLE_TOKEN_SUFFIXES } from './shared.ts';
+export { NUMERIC_STEPS } from './tokens.ts';
+export {
+  TW_CLASH,
+  BASE_HOOK,
+  DARK_SEL,
+  REQUIRED_ROLES,
+  ROLE_TOKEN_KEYS,
+  roleHue,
+  roleKind,
+} from './shared.ts';
+export type { RoleSpec } from './shared.ts';
+export { tokenVar, tokenClass, CONTRAST } from './tokens.ts';
+export type { RoleKind } from './tokens.ts';
 
 export { DesignSystemSchema, jsonSchema, SCHEMA_URL, validate } from './schema.ts';
 export type { DesignSystem, ValidationResult } from './schema.ts';
@@ -24,11 +42,50 @@ export {
   SITE_SCHEMA_URL,
   validateSite,
   resolveSiteConfig,
+  resolvePrivacyContact,
   resolveTheme,
   stripNulls,
   deepMerge,
+  JURISDICTIONS,
 } from './site.ts';
-export type { SiteConfig, SiteValidationResult } from './site.ts';
+export type {
+  ContactObject,
+  Jurisdiction,
+  PostalAddress,
+  SiteConfig,
+  SiteValidationResult,
+} from './site.ts';
+
+// Legal documents. A sibling of `generateDocs`, not a `generate()` format:
+// `generate()` is keyed to a DesignSystem, and these render from a SiteConfig.
+export {
+  generateLegal,
+  enabledDocs,
+  renderMarkdown,
+  renderNodes,
+  derivePolicyVars,
+  detectProcessorKeys,
+  resolveProcessors,
+  KNOWN_PROCESSORS,
+  parseMarkdown,
+  toContentNodes,
+  toHtmlFragment,
+  toPortableText,
+  DOC_ORDER,
+  DOC_SLUGS,
+  TEMPLATES,
+} from './legal/index.ts';
+export type {
+  GenerateLegalOptions,
+  LegalDoc,
+  LegalOutput,
+  PolicyVars,
+  Processor,
+  KnownProcessorKey,
+  Block,
+  Span,
+  DocSet,
+} from './legal/index.ts';
 
 import { SCHEMA_URL, type DesignSystem } from './schema.ts';
 
@@ -49,11 +106,14 @@ export function defaultConfig(): DesignSystem {
         sun: { seed: '#d08a1f' },
         rose: { seed: '#c74a42' },
       },
-      // role → hue. Functional tokens (bg/text/solid/on-solid/…) derive from
-      // the hue's scale; dark mode flips automatically.
+      // role → hue. Tokens (--color-<target>-<role>-<variant>) derive from the
+      // hue's scale; dark mode flips automatically. `kind: "surface"` marks the
+      // page/panel colours, which get a bare `bg-<role>`; the bare-string form
+      // means chromatic, so a signal colour says tint-or-solid rather than
+      // leaving "how loud?" to a guess.
       roles: {
-        neutral: 'ink',
-        surface: 'ink',
+        neutral: { hue: 'ink', kind: 'surface' },
+        surface: { hue: 'ink', kind: 'surface' },
         'ui-primary': 'brand',
         'brand-primary': 'brand',
         info: 'sky',
@@ -61,7 +121,7 @@ export function defaultConfig(): DesignSystem {
         warning: 'sun',
         danger: 'rose',
       },
-      utilities: ['bg', 'text', 'border'],
+      utilities: ['bg', 'text', 'icon', 'border'],
     },
     shadows: {
       sm: '0 1px 2px rgb(0 0 0 / 0.08)',
@@ -92,7 +152,7 @@ export function defaultConfig(): DesignSystem {
     patterns: {
       defaults: {
         ds: 'none',
-        b: '1px solid var(--surface-bg-muted)',
+        b: '1px solid var(--color-border-surface-muted)',
         br: '0.375rem',
         p: '1rem',
         fs: '1rem',
@@ -149,7 +209,7 @@ export function defaultConfig(): DesignSystem {
             cursor: 'pointer',
           },
           states: {
-            hover: { step: 1, css: { 'background-color': 'var(--color-surface-muted)' } },
+            hover: { step: 1, css: { 'background-color': 'var(--color-bg-surface-muted)' } },
             'focus-visible': { ring: true },
           },
           roles: [],
@@ -180,7 +240,7 @@ export function defaultConfig(): DesignSystem {
             'font-weight': '600',
             'text-decoration': 'none',
             cursor: 'pointer',
-            color: 'var(--ui-primary-on-solid)',
+            color: 'var(--color-text-on-ui-primary)',
             'box-shadow': 'var(--ds-cta-group)',
           },
           states: {
@@ -196,7 +256,7 @@ export function defaultConfig(): DesignSystem {
           base: {
             'border-radius': 'var(--br-card-group)',
             padding: '1.5rem',
-            background: 'var(--surface-bg)',
+            background: 'var(--color-bg-surface)',
             border: 'var(--b-card-group)',
             'box-shadow': 'var(--ds-card-group)',
           },
@@ -222,7 +282,9 @@ export function defaultConfig(): DesignSystem {
         heading: { family: 'display', size: 'var(--text-xl)', weight: 600, 'line-height': '1.3' },
         body: { family: 'sans', size: 'var(--text-m)', weight: 400, 'line-height': '1.55' },
       },
-      headings: { h1: 'display', h2: 'heading', h3: 'heading' },
+      // `body` binds base page typography to the body role, so prose inherits it
+      // and the role's tokens stay the single place it's edited.
+      headings: { body: 'body', h1: 'display', h2: 'heading', h3: 'heading' },
     },
     animations: {
       effects: {

@@ -38,11 +38,11 @@
   transition: background-color 0.15s ease;
 
   &:hover {
-    background: var(--color-surface-muted);
+    background: var(--color-bg-surface-muted);
   }
 
   &:focus-visible {
-    outline: 2px solid var(--split-link-focus-color, var(--color-brand-primary-muted));
+    outline: 2px solid var(--split-link-focus-color, var(--color-border-focus));
     outline-offset: 2px;
   }
 
@@ -71,8 +71,8 @@
   border: var(--_b);
   border-radius: var(--_br);
   box-shadow: var(--_ds);
-  background: var(--surface-bg);
-  color: var(--surface-text);
+  background: var(--color-bg-surface);
+  color: var(--color-text-surface);
 }
 
 /* Top-layer popover: anchored + placed via position-area. */

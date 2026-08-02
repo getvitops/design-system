@@ -20,23 +20,39 @@ enforces.
   [type & space scales](concepts/scales.md), [component patterns](concepts/patterns.md).
 - What each output format does with these tokens: [formats.md](formats.md).
 
+## `meta` *(optional)*
+
+Brand identity for agent-facing output. Consumed only by the `design` format (`DESIGN.md`); it emits no CSS and no tokens.
+
+- `name` (string) — Brand/system name. Used as the `name` field and `<h1>` of the `design` format's `DESIGN.md`. Defaults to "Design System".
+- `description` (string) — One or two sentences on the brand personality and the feeling the UI should evoke — what an agent needs when no token answers the question. Becomes the DESIGN.md `description` field and opens its Overview section; if omitted, a generic description of the system's mechanics is used instead.
+
 ## `colors`
 
-The colour system (the only required section): `palette` hues become generated OKLCH scales; `roles` map semantic roles onto those hues, from which all functional tokens and dark mode derive.
+The colour system (the only required section): `palette` hues become generated OKLCH scales; `roles` map semantic roles onto those hues, from which all role tokens and dark mode derive.
 
 - `palette` (map, required) — Palette hues by name. Each becomes an 11-step numeric OKLCH scale (`--color-<hue>-50…950`).
   - `<name>` (one of) — A palette hue, authored one of two ways: `{ seed, anchors? }` generates an 11-step numeric OKLCH scale (50…950) from the seed, or `{ tones }` supplies a fixed brand kit used verbatim.
     - *one of* — Seeded hue: the 11-step scale is GENERATED in OKLCH from `seed` (anchors pin specific steps).
       - `seed` (string, required) — Seed colour (hex or oklch()). An 11-step numeric scale (50…950, tinted near-white → tinted near-black) is generated in OKLCH from it; the seed is preserved at its natural step.
-      - `anchors` (map) — Step → colour overrides (hex or oklch()) that pin specific steps of the generated scale; the remaining steps interpolate around them.
+      - `anchors` (map) — Step → colour overrides (hex or oklch()) pinned VERBATIM at those steps. Every other step takes its lightness from the shared ladder, with chroma and hue interpolated between the anchors — so an anchor is reproduced exactly and is the only step allowed off the ladder. An explicit anchor overrides the seed at that step; two anchors that resolve to the same step are an error.
     - *one of* — Fixed hue: authored brand tones used verbatim; no generation.
       - `tones` (one of, required) — Fixed brand kit: authored tones placed verbatim at their nearest steps plus tinted off-white/off-black endpoints; no interpolation. Either an ordered light → dark array or a step → colour map.
-- `roles` (map, required) — Maps semantic role names onto palette hues. Role names are ARBITRARY — add a key and the generator emits that role's full FUNCTIONAL token set (`--<role>-{bg,bg-muted,border,border-bold,solid,solid-bold,on-solid,text,text-muted,text-x-muted}`), its emphasis stops, its dark-mode flip and its utility classes. Dark mode flips automatically; there is no per-appearance scheme grammar. Six roles are a required core, because the shipped framework CSS references them with no fallback: brand-primary, danger, neutral, surface, ui-primary, warning. Conventional additions are ui-secondary/accent, brand-secondary, info and success.
-- `utilities` (array of bg | text | border | outline | fill | stroke) — Which colour utility-class families to emit (`bg-*`, `text-*`, `border-*`, `outline-*`, `fill-*`, `stroke-*`). Defaults to bg, text, border.
+- `roles` (map, required) — Maps semantic role names onto palette hues. Role names are ARBITRARY — add a key and the generator emits that role's token set (`--color-<target>-<role>[-<variant>]` for target bg/text/icon/border), its dark-mode flip and its utility classes.
+
+A value is either a hue name (`"danger": "rust"`) or `{ "hue": …, "kind": "surface" | "chromatic" }`. **The kind decides the shape of the token set.** `chromatic` (the default, and what the bare-string form means) is a signal colour: its backgrounds split into tints (`bg-<role>-x-muted`/`-muted`) and solids (`bg-<role>-solid[-bold|-x-bold]`), with deliberately **no bare `bg-<role>`** — "how loud?" is a question the author answers. `surface` is a page/panel colour: it has a bare `bg-<role>` plus the full emphasis range and text scale.
+
+Dark mode flips automatically; there is no per-appearance scheme grammar. The solid family and its computed `text-on-<role>` foreground stay mode-stable so a filled button keeps its identity. Six roles are a required core, because the shipped framework CSS references them with no fallback: brand-primary, danger, neutral, surface, ui-primary, warning. Conventional additions are ui-secondary/accent, brand-secondary, info and success.
+  - `<name>` (one of)
+    - *one of* — A palette hue name. Shorthand for `{ hue, kind: "chromatic" }`.
+    - *one of*
+      - `hue` (string, required) — The palette hue this role resolves to.
+      - `kind` (surface | chromatic) — `surface` — a page/panel colour: gets a bare `bg-<role>` plus the full emphasis range and text scale. `chromatic` (default) — a signal colour: tints and solids only, no bare `bg-<role>`.
+- `utilities` (array of bg | text | icon | border | outline | fill | stroke) — Which colour utility-class families to emit (`bg-*`, `text-*`, `icon-*`, `border-*`, `outline-*`, `fill-*`, `stroke-*`). Defaults to bg, text, icon, border. `icon` is a separate non-text tier (a glyph may run more vivid than text); `outline`/`fill`/`stroke` have no tokens of their own and alias the border and icon tiers.
 
 ## `shadows` *(optional)*
 
-Named shadows → `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Values are shadow parameter lists (offset/blur/colour), applied via `filter: drop-shadow(…)`.
+Named shadows → `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Values are shadow parameter lists (offset/blur/colour). Each token feeds two consumers with different grammars — `box-shadow` (pattern geometry, via the `--ds-*` group aliases) and `filter: drop-shadow(…)` (the utilities and the `shadow:` state shortcut) — so values must stay in the intersection: **one layer, no spread radius, no `inset`**. `drop-shadow()` rejects all three, and rejecting them invalidates the whole filter, so the shadow vanishes rather than degrading.
 
 ## `fonts` *(optional)*
 
@@ -90,18 +106,18 @@ Component patterns and their token cascade: `defaults` → `groups` → per-patt
     - `fill` (boolean) — Whether this pattern is colour-filled (states/roles drive `background-color` + `on-solid` text) or text-coloured (they drive `color`). Defaults to true when `base` declares a background.
     - `default_role` (string) — Semantic colour role applied to the bare/default variant.
     - `base` (map) — Base CSS declarations. Geometry properties (padding, border-radius, border, box-shadow, font-size) are wrapped in per-pattern override hooks (`--p-<name>`, `--br-<name>`, `--b-<name>`, `--ds-<name>`, `--fs-<name>`) so consumers can restyle one pattern by setting one variable.
-    - `states` (map) — Interaction states (hover / active / focus-visible), each a map of shortcuts: `step` (intensify fills/text by n emphasis stops), `scale` (transform scale), `lift` (translateY + shadow), `shadow` (a shadow name → drop-shadow(var(--shadow-<name>)), or true → lift shadow), `ring` (focus ring), or raw `css` declarations. Hover rules are wrapped in `@media (hover: hover)`.
+    - `states` (map) — Interaction states (hover / active / focus-visible), each a map of shortcuts: `step` (intensify the fill or text by n rungs — `bg-<role>-solid` → `-solid-bold`, `text-<role>` → `-bold`), `scale` (transform scale), `lift` (translateY + shadow), `shadow` (a shadow name → drop-shadow(var(--shadow-<name>)), or true → lift shadow), `ring` (focus ring), or raw `css` declarations. Hover rules are wrapped in `@media (hover: hover)`.
     - `roles` (array of string) — Semantic colour role variants to emit as `<pattern>-<role>` classes (fills use the role solid / on-solid tokens).
 
 ## `typography` *(optional)*
 
-Typography: family aliases, semantic type roles (→ `font-<role>` classes), and the heading-element → role mapping.
+Typography: family aliases, semantic type roles (→ `font-<role>` classes), and the bare-element → role mapping.
 
 - `families` (map) — Role-facing family aliases → CSS font values, usually referencing the top-level `fonts` tokens (e.g. "var(--font-display)").
 - `roles` (map) — Semantic type roles (display, title, heading, body, quote, caption, eyebrow, code, lead, footnote, tag, …), each emitted as a `font-<role>` class.
   - `<name>` (map) — An open bag of CSS-ish keys (family / size / weight / line-height / tracking / transform / decoration / text-wrap / …); the generator maps known keys and passes the rest through.
     - `<name>` (string | number)
-- `headings` (map) — Maps heading elements (h1…h6) to type roles so bare headings pick up role styling.
+- `headings` (map) — Maps bare elements to type roles so unclassed markup picks up role styling — `{ "h1": "display", "h2": "heading" }`. The key is used verbatim as a selector, so it is not limited to h1…h6: **map `"body"` to your prose role** to bind base page typography to the role rather than hand-writing it. That binding is what makes the role editable — a stylesheet that re-states `font-family`/`line-height` as literals on `body` shadows `--<role>-ff`/`--<role>-lh`, and the live theme editor then appears to do nothing.
 
 ## `animations` *(optional)*
 

@@ -104,7 +104,7 @@
   "patterns": {
     "defaults": {
       "ds": "none",
-      "b": "1px solid var(--surface-bg-muted)",
+      "b": "1px solid var(--color-border-surface-muted)",
       "br": "0.375rem",
       "p": "1rem",
       "fs": "1rem"
@@ -177,7 +177,7 @@
           "font-family": "inherit",
           "font-size": "inherit",
           "cursor": "pointer",
-          "color": "#fff",
+          "color": "var(--color-text-on-neutral)",
           "box-shadow": "var(--shadow-sm)"
         },
         "states": {
@@ -203,7 +203,7 @@
         "element": "a",
         "default_role": "brand-primary",
         "base": {
-          "color": "var(--color-ui-primary-bold)",
+          "color": "var(--color-text-ui-primary)",
           "text-decoration": "underline",
           "text-underline-offset": "0.15em"
         },
@@ -227,7 +227,7 @@
           "border-radius": "var(--br-pill, 999px)",
           "font-size": "0.85em",
           "font-weight": "600",
-          "color": "#fff"
+          "color": "var(--color-text-on-neutral)"
         },
         "states": {},
         "roles": [
@@ -243,7 +243,7 @@
         "base": {
           "border-radius": "var(--br-card-group)",
           "padding": "1.75rem",
-          "background": "var(--surface-bg)",
+          "background": "var(--color-bg-surface)",
           "border": "var(--b-card-group)",
           "box-shadow": "var(--ds-card-group)"
         },
@@ -265,7 +265,7 @@
           "font-weight": "500",
           "line-height": "1.2",
           "white-space": "nowrap",
-          "color": "var(--color-neutral-bold)"
+          "color": "var(--color-text-neutral-bold)"
         },
         "states": {},
         "roles": [
@@ -283,7 +283,7 @@
           "inline-size": "var(--status-size, 0.5rem)",
           "block-size": "var(--status-size, 0.5rem)",
           "border-radius": "var(--br-circle, 50%)",
-          "background-color": "var(--color-neutral-bold)"
+          "background-color": "var(--color-bg-neutral-bold)"
         },
         "states": {},
         "roles": [
@@ -413,7 +413,7 @@
         "size": "var(--text-s)",
         "weight": 400,
         "line-height": "1.3",
-        "color": "var(--color-neutral-muted)"
+        "color": "var(--color-text-neutral-muted)"
       },
       "eyebrow": {
         "family": "sans",
@@ -422,14 +422,14 @@
         "line-height": "1.3",
         "tracking": "0.08em",
         "text-transform": "uppercase",
-        "color": "var(--color-brand-primary-muted)"
+        "color": "var(--color-text-brand-primary)"
       },
       "footnote": {
         "family": "sans",
         "size": "var(--text-xs)",
         "weight": 400,
         "line-height": "1.4",
-        "color": "var(--color-neutral-muted)"
+        "color": "var(--color-text-neutral-muted)"
       },
       "code": {
         "family": "code",

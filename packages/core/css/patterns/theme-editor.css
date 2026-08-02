@@ -64,7 +64,7 @@ wc-theme-editor {
     overflow: hidden;
     font-family: var(--font-mono, monospace);
     font-size: 0.9em;
-    color: var(--surface-text-x-muted);
+    color: var(--color-text-surface-x-muted);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -74,7 +74,7 @@ wc-theme-editor {
     padding: 0.3em 0.5em;
     border: var(--b-default);
     border-radius: var(--br-default);
-    background: var(--surface-bg);
+    background: var(--color-bg-surface);
     color: inherit;
     font: inherit;
   }
@@ -107,16 +107,16 @@ wc-theme-editor {
     inset-block-start: 0;
     z-index: 1;
     padding-block: 0.5rem;
-    background: var(--surface-bg);
+    background: var(--color-bg-surface);
   }
   .ed-segwrap {
     display: inline-flex;
   }
   .ed-seg.is-active {
-    background: var(--ui-primary-solid);
-    color: var(--ui-primary-on-solid);
+    background: var(--color-bg-ui-primary-solid);
+    color: var(--color-text-on-ui-primary);
   }
   .ed-danger {
-    color: var(--danger-text);
+    color: var(--color-text-danger);
   }
 }

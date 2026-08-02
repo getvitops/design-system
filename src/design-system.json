@@ -1,4 +1,8 @@
 {
+  "meta": {
+    "name": "Vitops",
+    "description": "Vitops is a calm, structural design system for content-led sites — editorial rather than app-like. It should feel considered and unhurried: generous measure, deliberate vertical rhythm, and colour used sparingly so a single accent still carries weight. Pine green anchors the identity against a deep navy surface; warmth comes from amber and rust, used as signals rather than decoration. Prefer restraint over ornament — depth from tonal layering and hairlines first, shadows only where something genuinely floats."
+  },
   "colors": {
     "palette": {
       "pine": {
@@ -21,8 +25,8 @@
       }
     },
     "roles": {
-      "neutral": "grey",
-      "surface": "navy",
+      "neutral": { "hue": "grey", "kind": "surface" },
+      "surface": { "hue": "navy", "kind": "surface" },
       "ui-primary": "pine",
       "ui-secondary": "cobalt",
       "ui-accent": "amber",
@@ -33,14 +37,14 @@
       "warning": "amber",
       "danger": "rust"
     },
-    "utilities": ["bg", "text", "border"]
+    "utilities": ["bg", "text", "icon", "border"]
   },
   "shadows": {
     "sm": "0 1px 2px rgb(0 0 0 / 0.08)",
     "md": "0 4px 6px rgb(0 0 0 / 0.12)",
     "lg": "0 10px 15px rgb(0 0 0 / 0.18)",
     "xl": "0 20px 25px rgb(0 0 0 / 0.22)",
-    "2xl": "0 40px 80px -20px rgb(0 0 0 / 0.5)"
+    "2xl": "0 32px 44px rgb(0 0 0 / 0.26)"
   },
   "fonts": {
     "display": "'Mulish', system-ui, -apple-system, 'Segoe UI', sans-serif",
@@ -74,7 +78,7 @@
   "patterns": {
     "defaults": {
       "ds": "none",
-      "b": "1px solid var(--surface-bg-muted)",
+      "b": "1px solid var(--color-border-surface-muted)",
       "br": "0.375rem",
       "p": "1rem",
       "fs": "1rem"
@@ -165,7 +169,7 @@
           "hover": {
             "step": 1,
             "css": {
-              "background-color": "var(--color-surface-muted)"
+              "background-color": "var(--color-bg-surface-muted)"
             }
           },
           "focus-visible": {
@@ -199,7 +203,7 @@
           "line-height": "inherit",
           "text-decoration": "none",
           "cursor": "pointer",
-          "color": "var(--ui-primary-on-solid)",
+          "color": "var(--color-text-on-ui-primary)",
           "box-shadow": "var(--ds-cta-group)"
         },
         "states": {
@@ -222,7 +226,7 @@
         "class": "link",
         "default_role": "ui-primary",
         "base": {
-          "color": "var(--color-ui-primary-bold)",
+          "color": "var(--color-text-ui-primary)",
           "text-decoration": "underline",
           "text-underline-offset": "0.15em"
         },
@@ -251,7 +255,7 @@
           "border-radius": "var(--br-badge-group)",
           "font-size": "var(--fs-badge-group)",
           "font-weight": "600",
-          "color": "#fff"
+          "color": "var(--color-text-on-neutral)"
         },
         "states": {},
         "roles": ["success", "danger", "warning", "info"]
@@ -265,7 +269,7 @@
         "base": {
           "border-radius": "var(--br-card-group)",
           "padding": "var(--p-card-group)",
-          "background": "var(--surface-bg)",
+          "background": "var(--color-bg-surface)",
           "border": "var(--b-card-group)",
           "box-shadow": "var(--ds-card-group)"
         },
@@ -292,7 +296,7 @@
           "font-weight": "500",
           "line-height": "1.2",
           "white-space": "nowrap",
-          "color": "var(--color-neutral-bold)"
+          "color": "var(--color-text-neutral-bold)"
         },
         "states": {},
         "roles": ["success", "danger", "warning", "info"]
@@ -308,7 +312,7 @@
           "inline-size": "var(--status-size, 0.5rem)",
           "block-size": "var(--status-size, 0.5rem)",
           "border-radius": "var(--br-status-group)",
-          "background-color": "var(--color-neutral-bold)"
+          "background-color": "var(--color-bg-neutral-bold)"
         },
         "states": {},
         "roles": ["success", "danger", "warning", "info"]
@@ -433,7 +437,7 @@
         "size": "var(--text-s)",
         "weight": 400,
         "line-height": "1.3",
-        "color": "var(--color-neutral-muted)"
+        "color": "var(--color-text-neutral-muted)"
       },
       "eyebrow": {
         "family": "sans",
@@ -442,14 +446,14 @@
         "line-height": "1.3",
         "tracking": "0.08em",
         "text-transform": "uppercase",
-        "color": "var(--color-brand-primary-muted)"
+        "color": "var(--color-text-brand-primary)"
       },
       "footnote": {
         "family": "sans",
         "size": "var(--text-xs)",
         "weight": 400,
         "line-height": "1.4",
-        "color": "var(--color-neutral-muted)"
+        "color": "var(--color-text-neutral-muted)"
       },
       "code": {
         "family": "code",
@@ -467,6 +471,7 @@
       }
     },
     "headings": {
+      "body": "body",
       "h1": "display",
       "h2": "title",
       "h3": "heading",

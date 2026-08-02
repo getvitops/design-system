@@ -38,7 +38,7 @@
     }
 
     &:focus-visible {
-      outline: 2px solid var(--copy-focus-color, var(--color-brand-primary-muted));
+      outline: 2px solid var(--copy-focus-color, var(--color-border-focus));
       outline-offset: 2px;
     }
   }
@@ -66,8 +66,8 @@
     font-size: 0.75rem;
     border-radius: 0.25rem;
     white-space: nowrap;
-    background: var(--surface-text);
-    color: var(--surface-bg);
+    background: var(--color-text-surface);
+    color: var(--color-bg-surface);
     opacity: 0;
     visibility: hidden;
     transition:

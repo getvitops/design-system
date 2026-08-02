@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { build, roleColorUtilities } from './generate.ts';
 import { defaultConfig } from './index.ts';
-import { DARK_SEL } from './shared.ts';
-import { expandPalette, functionalRole } from './tokens.ts';
+import { DARK_SEL, roleHue, roleKind } from './shared.ts';
+import { expandPalette, functionalRole, tokenVar } from './tokens.ts';
 import type { DesignSystem } from './schema.ts';
 
 /**
@@ -139,15 +139,27 @@ describe('tailwind @theme boundary', () => {
   });
 
   it('keeps role tokens OUT of @theme', () => {
-    // Measured against tailwindcss@4.3.3: when a token is in @theme AND an
-    // @utility of the derived name exists, Tailwind merges both into one rule
-    // with the @theme declaration LAST — regardless of source order. Promoting
-    // `--color-<role>-<stop>` here would therefore silently replace the plane
-    // with the stop on the colliding classes, including `text-<role>-muted`
-    // (step 800 → 300), i.e. the tokens tokens.ts asserts are readable.
+    // Measured against tailwindcss@4.3.3: a token in @theme *and* an @utility of
+    // the derived name merge into one rule with the @theme declaration LAST,
+    // regardless of source order. Only palette hues belong in @theme, where
+    // nothing competes for the name.
+    //
+    // Target-prefixed names make an accidental collision much harder — a @theme
+    // `--color-bg-danger-muted` would derive the utility `bg-` + `bg-danger-muted`,
+    // not `bg-danger-muted` — but role tokens still don't belong there, and this is
+    // what says so. Matched against the emitted token names rather than a
+    // hand-written pattern, so the guard can't go vacuous when the grammar moves
+    // again.
+    const palette = expandPalette(ds().colors.palette);
+    const roleTokenNames = new Set(
+      Object.entries(ds().colors.roles).flatMap(([role, spec]) => {
+        const fr = functionalRole(role, roleHue(spec), palette[roleHue(spec)]!, roleKind(spec));
+        return Object.keys(fr.light).map((k) => tokenVar(role, k));
+      }),
+    );
+    expect(roleTokenNames.size).toBeGreaterThan(50); // the guard has something to guard
     const declared = theme().match(/--color-[\w-]+(?=:)/g) ?? [];
-    const leaked = declared.filter((v) => ROLES.some((r) => v.startsWith(`--color-${r}-`)));
-    expect(leaked).toEqual([]);
+    expect(declared.filter((v) => roleTokenNames.has(v))).toEqual([]);
   });
 });
 
@@ -187,13 +199,12 @@ describe('role utility references resolve', () => {
     const colorCss = build(ds(), 'css', ASSETS).generated['color.css'] ?? '';
     const darkBlock = colorCss.slice(colorCss.indexOf(DARK_SEL));
     const palette = expandPalette(ds().colors.palette);
-    for (const [role, hue] of Object.entries(ds().colors.roles)) {
-      const fr = functionalRole(role, hue, palette[hue]!);
+    for (const [role, spec] of Object.entries(ds().colors.roles)) {
+      const hue = roleHue(spec);
+      const fr = functionalRole(role, hue, palette[hue]!, roleKind(spec));
       for (const [token, lightVal] of Object.entries(fr.light))
         if (fr.dark[token] !== lightVal) {
-          const v = token.startsWith('stop-')
-            ? `--color-${role}-${token.slice(5)}`
-            : `--${role}-${token}`;
+          const v = tokenVar(role, token);
           expect(darkBlock, `${v} flips but is not re-pointed under DARK_SEL`).toContain(`${v}:`);
         }
     }

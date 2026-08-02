@@ -43,6 +43,14 @@
 
 type Scheme = 'light' | 'dark';
 
+/**
+ * Which shape of token set a role has. A surface role carries a bare `bg` and the
+ * full emphasis range; a chromatic role carries tints plus the solid family and
+ * deliberately no bare `bg`. The two are different sets, so a remap has to know
+ * which one it is copying.
+ */
+type RoleKind = 'surface' | 'chromatic';
+
 /** token → CSS value, for one appearance. */
 type TokenMap = Record<string, string>;
 interface RoleVariant {
@@ -55,8 +63,8 @@ interface Manifest {
     ramps: string[];
     steps: string[];
     palette: Record<string, Record<string, string>>;
-    roles: { name: string; ramp: string }[];
-    roleTokens: Record<string, { default: RoleVariant; surface: RoleVariant }>;
+    roles: { name: string; ramp: string; kind: RoleKind }[];
+    roleTokens: Record<string, Record<RoleKind, RoleVariant>>;
   };
   typography: {
     roles: string[];
@@ -96,9 +104,22 @@ const SCHEME_KEY = 'vitops-color-scheme';
 const DARK_SELECTOR = ':root[data-brx-theme="dark"], :root[data-theme="dark"]';
 const SAVE_URL = '/__vitops/design-system';
 
-/** Functional-token var name — mirrors the generator's `fnVar()`. */
-const fnVar = (role: string, token: string): string =>
-  token.startsWith('stop-') ? `--color-${role}-${token.slice(5)}` : `--${role}-${token}`;
+/**
+ * Role-token var name — mirrors the generator's `tokenVar()`.
+ *
+ * Keys are `<target>[-<variant>]` and the role goes in the MIDDLE:
+ * `bg-muted` + `danger` → `--color-bg-danger-muted`. `on` is the irregular one —
+ * the role follows it, because the token names what it sits on rather than what
+ * it is.
+ */
+const fnVar = (role: string, token: string): string => {
+  const dash = token.indexOf('-');
+  const target = dash === -1 ? token : token.slice(0, dash);
+  const variant = dash === -1 ? '' : token.slice(dash + 1);
+  if (variant === 'on') return `--color-${target}-on-${role}`;
+  if (variant.startsWith('on-')) return `--color-${target}-on-${role}-${variant.slice(3)}`;
+  return variant ? `--color-${target}-${role}-${variant}` : `--color-${target}-${role}`;
+};
 
 const stepVar = (hue: string, step: string): string => `--color-${hue}-${step}`;
 
@@ -267,7 +288,10 @@ export class WCThemeEditor extends HTMLElement {
 
   // ── role remapping ────────────────────────────────────────────────────────
   private roleTokenNames(m: Manifest, role: string, hue: string): [string, string, Scheme][] {
-    const kind = role === 'surface' ? 'surface' : 'default';
+    // The kind travels with the role in the manifest. It used to be inferred as
+    // `role === 'surface'`, which quietly gave the wrong token set to every other
+    // surface-kind role — `neutral`, or a consumer's own `canvas`.
+    const kind = m.colors.roles.find((r) => r.name === role)?.kind ?? 'chromatic';
     const variant = m.colors.roleTokens?.[hue]?.[kind];
     if (!variant) return [];
     const out: [string, string, Scheme][] = [];
@@ -300,7 +324,7 @@ export class WCThemeEditor extends HTMLElement {
   }
 
   // ── JSON patch export ─────────────────────────────────────────────────────
-  private deepSet(obj: Record<string, unknown>, path: string, value: string): void {
+  private deepSet(obj: Record<string, unknown>, path: string, value: unknown): void {
     const keys = path.split('.');
     let node = obj;
     for (let i = 0; i < keys.length - 1; i++) {
@@ -321,7 +345,13 @@ export class WCThemeEditor extends HTMLElement {
   private buildPatch(m: Manifest): { patch: Record<string, unknown>; skipped: string[] } {
     const patch: Record<string, unknown> = {};
     const skipped: string[] = [];
-    for (const [role, hue] of this.roles) this.deepSet(patch, `colors.roles.${role}`, hue);
+    // Written as the object form, always. A bare hue string is the shorthand for
+    // `kind: "chromatic"`, so patching one over a surface role would silently
+    // demote it and strip its bare `bg-<role>` on the next build.
+    for (const [role, hue] of this.roles) {
+      const kind = m.colors.roles.find((r) => r.name === role)?.kind ?? 'chromatic';
+      this.deepSet(patch, `colors.roles.${role}`, { hue, kind });
+    }
     for (const [varName, value] of this.store.light) {
       if (this.roleVars.has(varName)) continue; // already covered by colors.roles
       const path = m.reverseIndex[varName];

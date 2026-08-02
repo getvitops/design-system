@@ -21,11 +21,11 @@ npm i -D @getvitops/astro
 
 ```js title="astro.config.mjs"
 import { defineConfig } from 'astro/config';
-import getvitops from '@getvitops/astro';
+import vitops from '@getvitops/astro';
 
 export default defineConfig({
   integrations: [
-    getvitops({
+    vitops({
       css: { input: 'design-system.json', format: 'tailwind', out: 'src/styles' },
       favicon: { source: 'src/assets/logo.svg', name: 'My Site' },
     }),
@@ -62,9 +62,9 @@ npm i -D @getvitops/vite
 ```
 
 ```js title="vite.config.ts"
-import getvitops from '@getvitops/vite';
+import vitops from '@getvitops/vite';
 
-export default { plugins: [getvitops({ input: 'design-system.json', out: 'src/styles' })] };
+export default { plugins: [vitops({ input: 'design-system.json', out: 'src/styles' })] };
 ```
 
 ## Version pinning

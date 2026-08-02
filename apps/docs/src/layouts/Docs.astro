@@ -79,10 +79,10 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
     <Head />
   </head>
 
-  <body class="bg-surface text-surface">
+  <body class="bg-surface-muted text-surface">
     <a class="link skip-link" href="#content">Skip to content</a>
 
-    <header class="docs-header bg-surface-muted">
+    <header class="docs-header bg-surface-x-muted">
       <div class="centered"><div class="spotlight cluster-between" style="align-items: center; gap: 1rem">
         <a class="font-title docs-brand" href={href('index')}>Vitops</a>
 
@@ -101,7 +101,7 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
         <!-- No-JS mobile nav: native <details> disclosure, styled by the framework. -->
         <details class="details docs-header__mobile">
           <summary class="btn" aria-label="Menu">☰</summary>
-          <div class="docs-mobile-menu bg-surface rhythm">
+          <div class="docs-mobile-menu bg-surface-muted rhythm">
             {nav.map((group) => (
               <div>
                 <p class="font-eyebrow text-surface-muted">{group.section}</p>
@@ -180,7 +180,7 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
          "Save to source" button writes back into src/design-system.json. -->
     <wc-theme-editor></wc-theme-editor>
 
-    <footer class="docs-footer bg-surface-muted">
+    <footer class="docs-footer bg-surface-x-muted">
       <div class="centered"><div class="spotlight cluster-between font-footnote text-surface-muted">
         <p>Built with the design system it documents.</p>
         <p><a class="link" href="https://www.npmjs.com/org/getvitops">@getvitops on npm</a></p>

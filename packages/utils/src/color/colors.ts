@@ -346,20 +346,40 @@ export const HARMONY_DEFINITIONS: Record<HarmonyType, HarmonyDefinition> = {
   },
 };
 
-// Default lightness positions (lightest to darkest)
-const DEFAULT_LIGHTNESS_SCALE: Record<StepName, number> = {
-  50: 0.95,
-  100: 0.9,
-  200: 0.8,
-  300: 0.7,
-  400: 0.6,
-  500: 0.5,
-  600: 0.4,
-  700: 0.3,
-  800: 0.2,
-  900: 0.1,
-  950: 0.05,
+/**
+ * The shared lightness ladder every ramp is built on (lightest → darkest).
+ *
+ * Fixed, NOT seed-derived. Two hues at the same step have to read equally light,
+ * otherwise one contrast table cannot serve every hue and a `muted` variant means
+ * something different depending on which role you ask. Only chroma and hue vary
+ * between ramps.
+ *
+ * The previous engine transposed this curve onto each seed, which let relative
+ * luminance at step 300 range from 0.253 (rust) to 0.384 (amber) across the
+ * shipped palette — the drift this replaces.
+ *
+ * Anchored steps are the one deliberate exception: see `generateOklchPalette`.
+ */
+export const LIGHTNESS_LADDER: Record<StepName, number> = {
+  50: 0.98,
+  100: 0.95,
+  200: 0.9,
+  300: 0.83,
+  400: 0.74,
+  500: 0.65,
+  600: 0.54,
+  700: 0.47,
+  800: 0.38,
+  900: 0.29,
+  950: 0.21,
 };
+
+/**
+ * Chroma a ramp decays to beyond its outermost anchors, so the near-white and
+ * near-black ends keep a whisper of the hue instead of going flat grey. The dark
+ * end carries slightly more because chroma reads weaker against black.
+ */
+export const ENDPOINT_CHROMA = { light: 0.008, dark: 0.015 } as const;
 
 interface OklchColor {
   l: number;
@@ -392,98 +412,24 @@ function lerp(start: number, end: number, factor: number): number {
 }
 
 /**
- * Transpose the default lightness scale to match the provided anchors.
+ * Interpolate hue the short way round the wheel. A ramp anchored at 350° and 10°
+ * spans 20°, not 340° — the naive lerp sent it the long way through cyan.
  */
-function transposeLightnessScale(
-  parsedAnchors: Record<StepName, OklchColor>,
-  sortedAnchorSteps: StepName[],
-): Record<StepName, number> {
-  const transposedScale: Record<number, number> = {};
-
-  if (sortedAnchorSteps.length === 1) {
-    const anchorStep = sortedAnchorSteps[0] as StepName;
-    const anchorL = (parsedAnchors[anchorStep] as OklchColor).l;
-    const defaultAnchorL = DEFAULT_LIGHTNESS_SCALE[anchorStep];
-
-    for (const step of STEP_NAMES) {
-      if (step === anchorStep) {
-        transposedScale[step] = anchorL;
-        continue;
-      }
-
-      const defaultStepL = DEFAULT_LIGHTNESS_SCALE[step];
-
-      if (defaultStepL > defaultAnchorL) {
-        const factor = (defaultStepL - defaultAnchorL) / (1.0 - defaultAnchorL);
-        transposedScale[step] = lerp(anchorL, 0.97, factor);
-      } else {
-        const factor = defaultStepL / defaultAnchorL;
-        transposedScale[step] = lerp(0.05, anchorL, factor);
-      }
-    }
-
-    return transposedScale;
-  }
-
-  for (const step of STEP_NAMES) {
-    const anchored = parsedAnchors[step];
-    if (anchored) {
-      transposedScale[step] = anchored.l;
-      continue;
-    }
-
-    let lowerStep: StepName | null = null;
-    let upperStep: StepName | null = null;
-
-    for (let i = sortedAnchorSteps.length - 1; i >= 0; i--) {
-      const candidate = sortedAnchorSteps[i] as StepName;
-      if (candidate < step) {
-        lowerStep = candidate;
-        break;
-      }
-    }
-
-    for (const anchorStep of sortedAnchorSteps) {
-      if (anchorStep > step) {
-        upperStep = anchorStep;
-        break;
-      }
-    }
-
-    if (lowerStep !== null && upperStep !== null) {
-      const lowerL = (parsedAnchors[lowerStep] as OklchColor).l;
-      const upperL = (parsedAnchors[upperStep] as OklchColor).l;
-      const span = upperStep - lowerStep;
-      const position = step - lowerStep;
-      const factor = position / span;
-      transposedScale[step] = lerp(lowerL, upperL, factor);
-    } else if (lowerStep !== null) {
-      const lowerL = (parsedAnchors[lowerStep] as OklchColor).l;
-      const defaultLowerL = DEFAULT_LIGHTNESS_SCALE[lowerStep];
-      const defaultStepL = DEFAULT_LIGHTNESS_SCALE[step];
-      const factor = defaultStepL / defaultLowerL;
-      transposedScale[step] = lerp(0.05, lowerL, factor);
-    } else if (upperStep !== null) {
-      const upperL = (parsedAnchors[upperStep] as OklchColor).l;
-      const defaultUpperL = DEFAULT_LIGHTNESS_SCALE[upperStep];
-      const defaultStepL = DEFAULT_LIGHTNESS_SCALE[step];
-      const factor = (defaultStepL - defaultUpperL) / (1.0 - defaultUpperL);
-      transposedScale[step] = lerp(upperL, 0.97, factor);
-    }
-  }
-
-  return transposedScale;
+function lerpHue(start: number, end: number, factor: number): number {
+  const delta = ((((end - start) % 360) + 540) % 360) - 180;
+  return (start + delta * factor + 360) % 360;
 }
 
 /**
- * Automatically assigns a color to the most appropriate step based on its lightness.
+ * The ladder step whose lightness is closest to `lightness` — i.e. where a
+ * supplied colour naturally belongs.
  */
-function assignStepByLightness(lightness: number): StepName {
+export function assignStepByLightness(lightness: number): StepName {
   let closestStep: StepName = 500;
-  let minDiff = Math.abs(lightness - DEFAULT_LIGHTNESS_SCALE[500]);
+  let minDiff = Math.abs(lightness - LIGHTNESS_LADDER[500]);
 
   for (const step of STEP_NAMES) {
-    const diff = Math.abs(lightness - DEFAULT_LIGHTNESS_SCALE[step]);
+    const diff = Math.abs(lightness - LIGHTNESS_LADDER[step]);
     if (diff < minDiff) {
       minDiff = diff;
       closestStep = step;
@@ -494,8 +440,37 @@ function assignStepByLightness(lightness: number): StepName {
 }
 
 /**
- * Generates a complete 11-step OKLCH palette from one or more colors.
- * Automatically determines which step each color belongs to based on lightness.
+ * How far an anchored colour sits from its step's ladder lightness.
+ *
+ * The generator surfaces this as a warning: a large deviation is legal (the
+ * caller asked for that exact colour) but it means the hue will read heavier or
+ * lighter than its siblings at that step, which is worth knowing rather than
+ * discovering later.
+ */
+export function ladderDeviation(step: StepName, lightness: number): number {
+  return lightness - LIGHTNESS_LADDER[step];
+}
+
+/** Absolute chroma ceiling — beyond this nothing survives gamut mapping anyway. */
+const MAX_CHROMA = 0.37;
+
+/**
+ * Build a complete 11-step OKLCH ramp from one or more anchor colours.
+ *
+ * **Ladder-first with exact anchors.** Every anchor is reproduced *verbatim* at
+ * its step; every other step takes its lightness from `LIGHTNESS_LADDER`, with
+ * chroma and hue interpolated between the flanking anchors and decayed toward
+ * `ENDPOINT_CHROMA` beyond the outermost ones.
+ *
+ * The consequence is the point: a client's brand hex survives byte-for-byte,
+ * while the other ten steps stay directly comparable to every other hue. The
+ * deviation from the ladder is bounded and *local to anchored steps* — unlike
+ * the previous engine, which warped the whole ramp to fit its anchors so every
+ * step drifted.
+ *
+ * Chroma may come out beyond the sRGB gamut here; that is deliberate.
+ * `oklchStringToHex` gamut-maps with the CSS algorithm, which reduces chroma
+ * while holding lightness, so the ladder survives the conversion.
  */
 export function generateOklchPalette(
   input: string | string[] | Record<string, string>,
@@ -503,17 +478,13 @@ export function generateOklchPalette(
   let anchors: Record<number, string> = {};
 
   if (typeof input === 'string') {
-    const parsed = parseOklch(input);
-    const step = assignStepByLightness(parsed.l);
-    anchors[step] = input;
+    anchors[assignStepByLightness(parseOklch(input).l)] = input;
   } else if (Array.isArray(input)) {
     for (const colorStr of input) {
-      const parsed = parseOklch(colorStr);
-      const step = assignStepByLightness(parsed.l);
-      anchors[step] = colorStr;
+      anchors[assignStepByLightness(parseOklch(colorStr).l)] = colorStr;
     }
-  } else if (typeof input === 'object') {
-    anchors = input;
+  } else if (typeof input === 'object' && input !== null) {
+    anchors = { ...input };
   } else {
     throw new Error(
       'Input must be a color string, array of colors, or object with step assignments',
@@ -521,85 +492,64 @@ export function generateOklchPalette(
   }
 
   const parsedAnchors: Record<number, OklchColor> = {};
-
-  for (const key in anchors) {
-    parsedAnchors[parseInt(key)] = parseOklch(anchors[key] as string);
+  for (const [key, value] of Object.entries(anchors)) {
+    parsedAnchors[Number(key)] = parseOklch(value);
   }
 
-  const sortedAnchorSteps = Object.keys(parsedAnchors)
+  const anchorSteps = Object.keys(parsedAnchors)
     .map(Number)
     .sort((a, b) => a - b) as StepName[];
 
-  const lightnessScale = transposeLightnessScale(
-    parsedAnchors as Record<StepName, OklchColor>,
-    sortedAnchorSteps,
-  );
+  // Interpolate across step *index*, not the numeric label: the labels aren't
+  // evenly spaced (50→100 is a smaller jump than 100→200), so lerping on them
+  // would bunch the ramp up at the light end.
+  const idx = (step: number) => STEP_NAMES.indexOf(step as StepName);
+  const lastIdx = STEP_NAMES.length - 1;
 
   const palette: Record<number, string> = {};
 
   for (const step of STEP_NAMES) {
+    // An anchor is the caller's exact colour. Emit it untouched.
     if (parsedAnchors[step]) {
       palette[step] = anchors[step] as string;
       continue;
     }
 
-    let startStep: StepName | null = null;
-    let endStep: StepName | null = null;
+    // `lighter` is the nearest anchor with a smaller step (50 is lightest);
+    // `darker` the nearest with a larger one.
+    const lighter = [...anchorSteps].reverse().find((s) => s < step);
+    const darker = anchorSteps.find((s) => s > step);
 
-    for (let i = sortedAnchorSteps.length - 1; i >= 0; i--) {
-      const candidate = sortedAnchorSteps[i] as StepName;
-      if (candidate < step) {
-        startStep = candidate;
-        break;
-      }
-    }
+    let chroma: number;
+    let hue: number;
 
-    for (const anchorStep of sortedAnchorSteps) {
-      if (anchorStep > step) {
-        endStep = anchorStep;
-        break;
-      }
-    }
-
-    let c_int, h_int;
-
-    if (startStep !== null && endStep !== null) {
-      const startColor = parsedAnchors[startStep] as OklchColor;
-      const endColor = parsedAnchors[endStep] as OklchColor;
-      const span = endStep - startStep;
-      const position = step - startStep;
-      const factor = position / span;
-
-      c_int = lerp(startColor.c, endColor.c, factor);
-      h_int = lerp(startColor.h, endColor.h, factor);
-    } else if (startStep !== null) {
-      const a = parsedAnchors[startStep] as OklchColor;
-      c_int = a.c;
-      h_int = a.h;
-    } else if (endStep !== null) {
-      const a = parsedAnchors[endStep] as OklchColor;
-      c_int = a.c;
-      h_int = a.h;
+    if (lighter !== undefined && darker !== undefined) {
+      const a = parsedAnchors[lighter] as OklchColor;
+      const b = parsedAnchors[darker] as OklchColor;
+      const factor = (idx(step) - idx(lighter)) / (idx(darker) - idx(lighter));
+      chroma = lerp(a.c, b.c, factor);
+      hue = lerpHue(a.h, b.h, factor);
+    } else if (lighter !== undefined) {
+      // Past the darkest anchor — fade toward the tinted near-black end.
+      const a = parsedAnchors[lighter] as OklchColor;
+      const factor = (idx(step) - idx(lighter)) / (lastIdx - idx(lighter));
+      chroma = lerp(a.c, ENDPOINT_CHROMA.dark, factor);
+      hue = a.h;
+    } else if (darker !== undefined) {
+      // Past the lightest anchor — fade toward the tinted near-white end.
+      const b = parsedAnchors[darker] as OklchColor;
+      const factor = (idx(darker) - idx(step)) / idx(darker);
+      chroma = lerp(b.c, ENDPOINT_CHROMA.light, factor);
+      hue = b.h;
     } else {
-      c_int = 0.1;
-      h_int = 0;
+      chroma = 0.1;
+      hue = 0;
     }
 
-    const l_int = lightnessScale[step] as number;
-
-    const dampeningFactor =
-      l_int < 0.25
-        ? 0.3 + (l_int / 0.25) * 0.7
-        : l_int > 0.75
-          ? 0.3 + ((1 - l_int) / 0.25) * 0.7
-          : 1.0;
-
-    c_int *= dampeningFactor;
-    c_int = Math.min(c_int, 0.37);
-
-    const finalL = (l_int * 100).toFixed(2) + '%';
-    const finalC = c_int.toFixed(4);
-    const finalH = h_int.toFixed(2);
+    const lightness = LIGHTNESS_LADDER[step];
+    const finalL = (lightness * 100).toFixed(2) + '%';
+    const finalC = Math.min(chroma, MAX_CHROMA).toFixed(4);
+    const finalH = hue.toFixed(2);
 
     palette[step] = `oklch(${finalL} ${finalC} ${finalH})`;
   }
@@ -629,10 +579,23 @@ export function pickOn(bg: string, hue?: number): string {
  * The tinted off-white / off-black endpoints for a hue — white/black with a
  * whisper of the hue mixed in. These are the text/background tints every ramp
  * needs (and the one exception strict brand kits allow).
+ *
+ * Derived from `LIGHTNESS_LADDER` and `ENDPOINT_CHROMA` rather than its own
+ * literals, so a strict tone kit's endpoints land on the same ladder rungs a
+ * generated ramp would have used. This is the single definition — callers must
+ * not hand-write their own near-white/near-black.
  */
-export function tintedEndpoints(hue: number, chroma = 0.01): { light: string; dark: string } {
+export function tintedEndpoints(hue: number, chroma?: number): { light: string; dark: string } {
   return {
-    light: oklchToHex({ l: 0.98, c: Math.min(chroma, 0.02), h: hue }),
-    dark: oklchToHex({ l: 0.16, c: Math.min(chroma * 1.5, 0.03), h: hue }),
+    light: oklchToHex({
+      l: LIGHTNESS_LADDER[50],
+      c: Math.min(chroma ?? ENDPOINT_CHROMA.light, 0.02),
+      h: hue,
+    }),
+    dark: oklchToHex({
+      l: LIGHTNESS_LADDER[950],
+      c: Math.min((chroma ?? ENDPOINT_CHROMA.dark) * 1.5, 0.03),
+      h: hue,
+    }),
   };
 }

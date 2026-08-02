@@ -23,12 +23,12 @@ const reqTone = (s: string) =>
     {result?.data?.ok && <p class="font-caption text-success">Submitted — it will forward shortly.</p>}
     {result?.error && <p class="font-caption text-danger">{result.error.message}</p>}
     <form method="POST" action={actions.submitProvisioning} class="rhythm">
-      <select name="op" class="rounded border border-neutral bg-surface px-3 py-2 font-body">
+      <select name="op" class="rounded border border-neutral bg-surface-muted px-3 py-2 font-body">
         <option value="jml">JML (joiner / mover / leaver)</option>
         <option value="pto">PTO (sick / vacation)</option>
       </select>
-      <input name="subject" required placeholder="User (email or name)" class="w-full rounded border border-neutral bg-surface px-3 py-2 font-body" />
-      <textarea name="detail" placeholder="Details (dates, role, systems…)" class="w-full rounded border border-neutral bg-surface px-3 py-2 font-body"></textarea>
+      <input name="subject" required placeholder="User (email or name)" class="w-full rounded border border-neutral bg-surface-muted px-3 py-2 font-body" />
+      <textarea name="detail" placeholder="Details (dates, role, systems…)" class="w-full rounded border border-neutral bg-surface-muted px-3 py-2 font-body"></textarea>
       <button type="submit" class="rounded bg-ui-primary-solid px-4 py-2 font-body text-on-ui-primary">Submit request</button>
     </form>
   </section>

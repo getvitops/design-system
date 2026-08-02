@@ -2,13 +2,14 @@
 /**
  * `vitops` — CLI for the Vitops design-system generator.
  *
- *   vitops generate  --input <json> --format <bricks|css|tailwind[,…]> --out <dir>
+ *   vitops generate  --input <json> --format <bricks|css|tailwind|design[,…]> --out <dir>
  *   vitops init      [--out design-system.json] [--force]
  *   vitops validate  <design-system.json>
  *   vitops favicon   --input <svg|png> --out <dir> [--low-res <svg|png>]
  *   vitops agents    [--input <json>] [--out AGENTS.md] [--docs-dir <dir>]
  *   vitops docs      [topic] [--input <json>] [--all]
  *   vitops lint      [--input <json>] [--format <fmt>] [--src <dir>]
+ *   vitops legal     [--input <site.json>] [--doc <name>] [--format <md|html|portable-text>] [--out <dir>]
  *
  * Thin wrapper over @getvitops/generator (generation) and @getvitops/utils (favicons).
  * Every client brings their own consumer-editable design-system.json.
@@ -17,23 +18,42 @@ import { parseArgs } from 'node:util';
 import { writeFileSync, existsSync, readFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { resolve, join, dirname, extname } from 'node:path';
 import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import {
   generate,
   validate,
   defaultConfig,
   generateDocs,
+  generateLegal,
+  enabledDocs,
+  resolveSiteConfig,
   roleColorUtilities,
   functionalRole,
   expandPalette,
+  roleHue,
+  roleKind,
   SCHEMA_URL,
   type Format,
+  type StylesheetFormat,
   type DesignSystem,
+  type LegalDoc,
+  type LegalOutput,
+  type SiteConfig,
 } from '@getvitops/generator';
 import { generateFavicons } from '@getvitops/utils';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
 import { lintSource, vocabulary } from './lint.ts';
 
-const FORMATS = new Set<Format>(['bricks', 'css', 'tailwind']);
+const FORMATS = new Set<Format>(['bricks', 'css', 'tailwind', 'design']);
+// `lint` judges class names against what a build emits, and the `design` format
+// emits no CSS at all — so it is a valid target for `generate` and a category
+// error for `lint`.
+const LINT_FORMATS = new Set<StylesheetFormat>(['bricks', 'css', 'tailwind']);
+
+// `legal` reads a *site* config, not a design-system.json, and has its own
+// output set — it renders documents, not stylesheets.
+const LEGAL_DOCS = new Set<LegalDoc>(['privacy', 'terms', 'cookies']);
+const LEGAL_OUTPUTS = new Set<LegalOutput>(['md', 'html', 'portable-text']);
 
 const HELP = `vitops — generate design-system outputs from a design-system.json
 
@@ -45,11 +65,17 @@ Usage:
   vitops agents [options]       Link the design-system agent skill + AGENTS.md pointer
   vitops docs [topic]           Print live design-system reference docs to stdout
   vitops lint [options]         Report framework classes in your source that resolve to nothing
+  vitops legal [options]        Render legal documents from a site config
 
 Generate options:
   -i, --input <path>    Config file (default: ./design-system.json)
-  -f, --format <list>   bricks | css | tailwind (comma-separated; default: bricks)
+  -f, --format <list>   bricks | css | tailwind | design (comma-separated; default: bricks)
+                        design emits DESIGN.md only (the agent-facing brief) — pair it
+                        with --out . to write it beside AGENTS.md, or compose:
+                        --format css,design
   -o, --out <dir>       Output directory (default: ./dist)
+      --site <path>     Site config; also emits legal/*.html into the output
+                        directory (see: vitops legal). Omitted: no legal files.
 
 Init options:
   -o, --out <path>      Where to write (default: ./design-system.json)
@@ -78,6 +104,20 @@ Lint options:
                         Responsive md-* classes are real in css/bricks, inert in tailwind.
   -s, --src <dir>       Directory to scan (default: ./src)
 
+Legal options:
+  -i, --input <path>    Site config: .json, or a .js/.ts module with a default
+                        export (default: ./site.json)
+  -d, --doc <name>      privacy | terms | cookies (repeatable; default: those
+                        enabled in the config)
+  -f, --format <fmt>    md | html | portable-text (default: md)
+                        html suits WordPress/Bricks and plain sites;
+                        portable-text suits EmDash
+  -o, --out <dir>       Write files here (default: print to stdout)
+      --site-env <env>  Environment whose A/B variant applies (default: production)
+
+  Generated from your config — a starting point, not legal advice. Review before
+  publishing, and make sure the config describes what your site actually does.
+
 Common:
   -h, --help            Show this help
 `;
@@ -94,22 +134,30 @@ async function cmdGenerate(argv: string[]) {
       input: { type: 'string', short: 'i', default: 'design-system.json' },
       format: { type: 'string', short: 'f', default: 'bricks' },
       out: { type: 'string', short: 'o', default: 'dist' },
+      site: { type: 'string' },
     },
     allowPositionals: false,
   });
   const input = resolve(values.input as string);
   if (!existsSync(input)) fail(`config not found: ${input}`);
+  const site = values.site ? resolve(values.site as string) : undefined;
+  if (site && !existsSync(site)) fail(`site config not found: ${site}`);
   const formats = (values.format as string)
     .split(',')
     .map((f) => f.trim())
     .filter(Boolean);
   for (const f of formats)
     if (!FORMATS.has(f as Format))
-      fail(`unknown format "${f}" (expected: bricks | css | tailwind)`);
+      fail(`unknown format "${f}" (expected: bricks | css | tailwind | design)`);
 
   for (const format of formats as Format[]) {
     try {
-      const res = await generate({ input, format, outDir: values.out as string });
+      const res = await generate({
+        input,
+        format,
+        outDir: values.out as string,
+        ...(site ? { site } : {}),
+      });
       console.log(`✓ ${format} → ${res.outDir} (${res.written.length} paths)`);
     } catch (err) {
       fail((err as Error).message);
@@ -210,6 +258,91 @@ function loadConfig(path: string): DesignSystem {
   return result.data;
 }
 
+/**
+ * Read + resolve a site config, or exit with a message.
+ *
+ * Accepts JSON, or a JS/TS module with a default export — deliberately not YAML,
+ * which would mean a parser dependency for one command. `resolveSiteConfig` is
+ * documented as taking an already-parsed object precisely so the loader is the
+ * consumer's choice; anyone on YAML can convert it or export from a module.
+ */
+async function loadSiteConfig(path: string, siteEnv: string): Promise<SiteConfig> {
+  if (!existsSync(path)) fail(`site config not found: ${path}`);
+  let raw: unknown;
+  if (/\.(json)$/.test(path)) {
+    try {
+      raw = JSON.parse(readFileSync(path, 'utf8'));
+    } catch (err) {
+      fail(`could not parse JSON: ${(err as Error).message}`);
+    }
+  } else {
+    try {
+      raw = (await import(pathToFileURL(path).href)).default;
+    } catch (err) {
+      fail(`could not import ${path}: ${(err as Error).message}`);
+    }
+    if (raw == null) fail(`${path} has no default export`);
+  }
+  try {
+    return resolveSiteConfig(raw, siteEnv);
+  } catch (err) {
+    // resolveSiteConfig already formats one issue per line.
+    fail((err as Error).message);
+  }
+}
+
+/**
+ * Render the site's legal documents.
+ *
+ * The universal delivery path: every consumer has this CLI regardless of stack,
+ * so a WordPress theme, an Eleventy build or a hand-written HTML site all get
+ * the same documents without any integration code. Prints to stdout like
+ * `vitops docs`, or writes files when given `--out`.
+ */
+async function cmdLegal(argv: string[]) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      input: { type: 'string', short: 'i', default: 'site.json' },
+      doc: { type: 'string', short: 'd', multiple: true },
+      format: { type: 'string', short: 'f', default: 'md' },
+      out: { type: 'string', short: 'o' },
+      'site-env': { type: 'string', default: 'production' },
+    },
+    allowPositionals: false,
+  });
+
+  const output = values.format as LegalOutput;
+  if (!LEGAL_OUTPUTS.has(output))
+    fail(`unknown format "${output}" (expected: ${[...LEGAL_OUTPUTS].join(' | ')})`);
+
+  const requested = (values.doc ?? []) as string[];
+  for (const d of requested)
+    if (!LEGAL_DOCS.has(d as LegalDoc))
+      fail(`unknown doc "${d}" (expected: ${[...LEGAL_DOCS].join(' | ')})`);
+
+  const site = await loadSiteConfig(resolve(values.input as string), values['site-env'] as string);
+  const docs = requested.length ? (requested as LegalDoc[]) : enabledDocs(site);
+  if (docs.length === 0)
+    fail(
+      'no legal documents are enabled — set legal.privacyPolicy.enabled (or termsOfService / cookieConsent) in your site config, or name one with --doc',
+    );
+
+  const files = generateLegal(site, { docs, output });
+
+  if (!values.out) {
+    process.stdout.write(Object.values(files).join('\n'));
+    return;
+  }
+  const outDir = resolve(values.out as string);
+  mkdirSync(outDir, { recursive: true });
+  for (const [name, content] of Object.entries(files)) writeFileSync(join(outDir, name), content);
+  console.log(`✓ legal → ${outDir} (${Object.keys(files).length} files)`);
+  console.log(
+    '  These are generated from your config and are not legal advice — review them before publishing.',
+  );
+}
+
 // This CLI's own version (dist/cli.mjs → package-root package.json).
 function cliVersion(): string {
   try {
@@ -301,8 +434,9 @@ function cmdLint(argv: string[]) {
     },
     allowPositionals: false,
   });
-  const format = values.format as Format;
-  if (!FORMATS.has(format)) fail(`unknown format "${format}" (expected: bricks | css | tailwind)`);
+  const format = values.format as StylesheetFormat;
+  if (!LINT_FORMATS.has(format))
+    fail(`unknown format "${format}" (expected: bricks | css | tailwind)`);
   const ds = loadConfig(resolve(values.input as string));
   const srcDir = resolve(values.src as string);
   if (!existsSync(srcDir)) fail(`source directory not found: ${srcDir}`);
@@ -310,11 +444,12 @@ function cmdLint(argv: string[]) {
   // Ask the generator what it actually emits rather than re-deriving the rules
   // here — a linter that models the vocabulary separately just drifts into
   // reporting classes that do exist.
+  const palette = expandPalette(ds.colors.palette);
   const roleClasses = roleColorUtilities(
-    Object.entries(ds.colors.roles).map(([role, hue]) =>
-      functionalRole(role, hue, expandPalette(ds.colors.palette)[hue]!),
+    Object.entries(ds.colors.roles).map(([role, spec]) =>
+      functionalRole(role, roleHue(spec), palette[roleHue(spec)]!, roleKind(spec)),
     ),
-    ds.colors.utilities ?? ['bg', 'text', 'border'],
+    ds.colors.utilities ?? ['bg', 'text', 'icon', 'border'],
   ).map((u) => u.cls);
 
   const files = scanFiles(srcDir);
@@ -418,6 +553,7 @@ function cmdAgents(argv: string[]) {
     '- `vitops generate --format tailwind --out src/styles` — Tailwind v4 / Astro',
     '- `vitops generate --format css --out dist` — standalone CSS',
     '- `vitops generate --format bricks --out <theme>/dist` — WordPress / Bricks',
+    '- `vitops generate --format design --out .` — `DESIGN.md`, the agent-facing brief',
     '- `vitops init` · `vitops validate` · `vitops favicon`',
     '',
     ...pointer,
@@ -470,9 +606,11 @@ async function main() {
       return cmdDocs(rest);
     case 'lint':
       return cmdLint(rest);
+    case 'legal':
+      return cmdLegal(rest);
     default:
       fail(
-        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint). Try: vitops --help`,
+        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint | legal). Try: vitops --help`,
       );
   }
 }

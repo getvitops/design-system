@@ -11,7 +11,14 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
-import { generate, validate, type Format } from '@getvitops/generator';
+import {
+  generate,
+  generateLegal,
+  resolveSiteConfig,
+  validate,
+  type Format,
+  type LegalOutput,
+} from '@getvitops/generator';
 import { generateFavicons, writeFaviconManifest } from '@getvitops/utils';
 
 /** Endpoint `<wc-theme-editor>` probes for, and POSTs its patch to. */
@@ -98,16 +105,47 @@ export interface VitopsPluginOptions {
    * it can't race the first generation and can't go stale on regeneration.
    */
   editorManifestDir?: string;
+  /**
+   * Also render the site's legal documents on build, and re-render when the site
+   * config changes.
+   *
+   * Its own option rather than part of the design-system pass because it reads a
+   * different config kind — a `SiteConfig`, not a `design-system.json`.
+   */
+  legal?: VitopsLegalOptions;
+}
+
+export interface VitopsLegalOptions {
+  /** Path to the site config (JSON). */
+  input: string;
+  /** Directory to write documents into. Default: 'src/content/legal'. */
+  out?: string;
+  /** Output format. Default: 'md', which suits an Astro content collection. */
+  format?: LegalOutput;
+  /** Environment whose A/B variant applies. Default: 'production'. */
+  siteEnv?: string;
 }
 
 export default function vitops(options: VitopsPluginOptions = {}): Plugin {
   const format: Format = options.format ?? 'tailwind';
   const outDir = options.out ?? 'src/styles';
   let input = resolve(options.input ?? 'design-system.json');
+  let legalInput = options.legal ? resolve(options.legal.input) : '';
   let root = '';
 
   const run = async () => {
     await generate({ input, format, outDir });
+    if (options.legal) {
+      const legalOut = resolve(root, options.legal.out ?? 'src/content/legal');
+      const site = resolveSiteConfig(
+        JSON.parse(readFileSync(legalInput, 'utf8')),
+        options.legal.siteEnv ?? 'production',
+      );
+      const files = generateLegal(site, { output: options.legal.format ?? 'md' });
+      mkdirSync(legalOut, { recursive: true });
+      for (const [name, content] of Object.entries(files))
+        writeFileSync(join(legalOut, name), content);
+    }
     if (options.editorManifestDir) {
       const src = resolve(root, outDir, 'design-manifest.json');
       if (existsSync(src)) {
@@ -137,24 +175,30 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
     }
   };
 
+  // Both configs are inputs to `run()`, so both must trigger a re-run — a legal
+  // document that only refreshes when the design system changes is worse than
+  // one that never refreshes, because it looks current.
+  const watched = () => (legalInput ? [input, legalInput] : [input]);
+
   return {
     name: '@getvitops/vite',
     // Resolve paths against Vite's project root once it's known.
     configResolved(config) {
       root = config.root;
       input = resolve(config.root, options.input ?? 'design-system.json');
+      if (options.legal) legalInput = resolve(config.root, options.legal.input);
     },
     async buildStart() {
-      this.addWatchFile(input);
+      for (const f of watched()) this.addWatchFile(f);
       await run();
     },
     async watchChange(id) {
-      if (resolve(id) === input) await run();
+      if (watched().includes(resolve(id))) await run();
     },
     configureServer(server) {
-      server.watcher.add(input);
+      for (const f of watched()) server.watcher.add(f);
       server.watcher.on('change', async (file) => {
-        if (resolve(file) !== input) return;
+        if (!watched().includes(resolve(file))) return;
         await run();
         server.ws.send({ type: 'full-reload' });
       });

@@ -1,5 +1,5 @@
 import react from '@astrojs/react';
-import getvitops from '@getvitops/astro';
+import vitops from '@getvitops/astro';
 import { vitopsEmdash, vitopsHosting } from '@getvitops/emdash';
 import { defineConfig } from 'astro/config';
 import emdash from 'emdash/astro';
@@ -32,7 +32,7 @@ export default defineConfig({
       // which emits the web-component runtime tags.
       plugins: [vitopsEmdash()],
     }),
-    getvitops({
+    vitops({
       favicon: {
         source: 'src/assets/logo.svg',
         name: 'My EmDash Site',

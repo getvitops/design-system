@@ -44,8 +44,8 @@
   padding: var(--_p);
   border-radius: var(--_br);
   box-shadow: var(--_ds);
-  background: var(--surface-text);
-  color: var(--surface-bg);
+  background: var(--color-text-surface);
+  color: var(--color-bg-surface);
   font-size: var(--_fs);
   white-space: nowrap;
   max-inline-size: 20rem;

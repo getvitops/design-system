@@ -37,6 +37,17 @@ the seed: home, about, terms (`/terms`), and privacy policy (`/privacy`).
 Until then the home route shows a friendly empty state. Unknown paths render
 `src/pages/404.astro`.
 
+The two legal pages are placeholders. To generate real ones from what your site
+actually does, describe it in a site config and run:
+
+```sh
+npx vitops legal --format portable-text --out ./legal
+```
+
+Then paste each document's blocks into the matching page in the admin. The
+output is generated from your config, not legal advice — have it reviewed
+before you publish.
+
 ## Deploy
 
 ```bash
@@ -132,7 +143,7 @@ and media in the storage backend (bucket/directory copy).
 ## The design system
 
 `design-system.json` is the single source of truth for colors, type, spacing,
-shadows, patterns, and animations. The `getvitops()` integration regenerates
+shadows, patterns, and animations. The `vitops()` integration regenerates
 `src/styles/tailwind.css` from it on dev/build (the file is gitignored — edit
 the JSON, not the CSS). `Layout.astro` imports the stylesheet so the admin
 routes stay unstyled by it.

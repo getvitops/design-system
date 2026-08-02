@@ -7,6 +7,7 @@
  *   (default) bricks   → full theme payload (styles.min.css, Bricks JSON, JS, bricks/, docs/)
  *   --format css       → standalone styles.css + design-manifest.json (docsite)
  *   --format tailwind  → tailwind.css + tokens.json (Astro/EmDash)
+ *   --format design    → DESIGN.md (agent brief) — written to the REPO ROOT, not dist/
  */
 import { cpSync, rmSync } from 'node:fs';
 import { generate, type Format } from '@getvitops/generator';
@@ -14,7 +15,11 @@ import { generate, type Format } from '@getvitops/generator';
 const i = process.argv.indexOf('--format');
 const format = (i >= 0 ? (process.argv[i + 1] as Format) : 'bricks') as Format;
 
-const res = await generate({ input: 'src/design-system.json', format, outDir: 'dist' });
+// DESIGN.md is a tracked, root-level document (it sits beside AGENTS.md and is
+// read by agents, not served), so it is the one format that does not target dist/.
+const outDir = format === 'design' ? '.' : 'dist';
+
+const res = await generate({ input: 'src/design-system.json', format, outDir });
 console.log(`build-theme: ${format} → ${res.written.length} paths in ${res.outDir}/`);
 
 // Mirror the generated OKF bundle into the tracked `docs/` tree. `dist/` is

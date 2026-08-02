@@ -106,9 +106,9 @@ describe('pattern fill mode', () => {
     const ds = defaultConfig();
     ds.patterns!.items!.btn!.roles = ['danger'];
     const css = patternsOf(ds);
-    expect(css).toContain('color: var(--color-danger-bold)');
+    expect(css).toContain('color: var(--color-text-danger)');
     expect(css).not.toContain(
-      'background-color: var(--danger-solid); color: var(--danger-on-solid)',
+      'background-color: var(--color-bg-danger-solid); color: var(--color-text-on-danger)',
     );
   });
 
@@ -122,13 +122,13 @@ describe('pattern fill mode', () => {
       // Wrapped in the `--bg-<pattern>` override hook, like every other base
       // property — the role still supplies the value, it is just overridable.
       new RegExp(
-        `\\.cta \\{[^}]*background-color: var\\(--bg-cta, var\\(--${role}-solid\\)\\)`,
+        `\\.cta \\{[^}]*background-color: var\\(--bg-cta, var\\(--color-bg-${role}-solid\\)\\)`,
         's',
       ),
     );
     // …and the paired text colour comes from the same role, or the default
     // variant can end up unreadable on its own fill.
-    expect(css).toMatch(new RegExp(`\\.cta \\{[^}]*color: var\\(--${role}-on-solid\\)`, 's'));
+    expect(css).toMatch(new RegExp(`\\.cta \\{[^}]*color: var\\(--color-text-on-${role}\\)`, 's'));
   });
 
   it('gives every base background an override hook, so a fill can be undone', () => {
@@ -137,7 +137,7 @@ describe('pattern fill mode', () => {
     // spellings map to `bg` because patterns author either.
     const ds = defaultConfig();
     const css = patternsOf(ds);
-    expect(css).toContain('background: var(--bg-card, var(--surface-bg))');
+    expect(css).toContain('background: var(--bg-card, var(--color-bg-surface))');
     expect(css).toContain('background: var(--bg-btn, transparent)');
   });
 
@@ -156,8 +156,10 @@ describe('pattern fill mode', () => {
     // case must still treat `badge` as a fill. The injected default goes through
     // the `--bg-<pattern>` hook; role VARIANTS are emitted separately and stay
     // unwrapped, so overriding `--bg-badge` doesn't silently defeat `.badge-info`.
-    expect(css).toContain('background-color: var(--bg-badge, var(--neutral-solid))');
-    expect(css).toContain('background-color: var(--info-solid); color: var(--info-on-solid)');
+    expect(css).toContain('background-color: var(--bg-badge, var(--color-bg-neutral-solid))');
+    expect(css).toContain(
+      'background-color: var(--color-bg-info-solid); color: var(--color-text-on-info)',
+    );
   });
 });
 

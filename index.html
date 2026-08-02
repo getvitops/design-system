@@ -71,13 +71,15 @@
       /* ── Docsite scaffolding — only styles with NO framework equivalent ────
          Deliberately UNLAYERED: this is bespoke page chrome that should win
          over the framework, which is exactly what unlayered CSS now does. */
+      /* Base prose typography is NOT restated here. `typography.headings` maps
+         `body` → the `body` role, so the generator emits it as
+         `font-family: var(--body-ff, …)` etc. Re-stating those literals — this
+         block is unlayered, so it would win — shadows the role's tokens and the
+         live theme editor's Body controls silently stop working. */
       body {
         margin: 0;
-        font-family: var(--font-sans);
-        font-size: var(--text-m);
-        line-height: 1.55;
-        background: var(--surface-bg);
-        color: var(--surface-text);
+        background: var(--color-bg-surface-muted);
+        color: var(--color-text-surface);
         -webkit-font-smoothing: antialiased;
         transition:
           background-color 0.3s ease,
@@ -86,20 +88,20 @@
       :not(pre) > code {
         font-family: var(--font-mono);
         font-size: 0.85em;
-        background: var(--neutral-border);
-        color: var(--neutral-text);
+        background: var(--color-border-neutral);
+        color: var(--color-text-neutral);
         padding: 0.1em 0.4em;
         border-radius: var(--br-default);
         white-space: nowrap;
       }
       hr {
         border: 0;
-        border-top: 1px solid var(--color-surface-muted);
+        border-top: 1px solid var(--color-bg-surface-x-muted);
         opacity: 0.5;
         margin-block: 2rem;
       }
       .section-no {
-        color: var(--brand-primary-solid);
+        color: var(--color-bg-brand-primary-solid);
         margin-inline-end: 0.5em;
       }
       /* NOTE: no `.card` rule here. The docsite used to redeclare border +
@@ -110,9 +112,9 @@
          THEM. Redeclaring a pattern you are documenting is the one thing this
          block must not do. */
       .callout {
-        border-inline-start: 3px solid var(--brand-primary-solid);
+        border-inline-start: 3px solid var(--color-bg-brand-primary-solid);
         padding: 0.75rem 1rem;
-        background: color-mix(in srgb, var(--brand-primary-solid) 8%, transparent);
+        background: color-mix(in srgb, var(--color-bg-brand-primary-solid) 8%, transparent);
         border-radius: var(--br-default);
       }
 
@@ -127,9 +129,9 @@
         gap: 1rem;
         justify-content: space-between;
         padding: 0.85rem clamp(1rem, 4cqi, 2rem);
-        background: color-mix(in srgb, var(--surface-bg) 88%, transparent);
+        background: color-mix(in srgb, var(--color-bg-surface-muted) 88%, transparent);
         backdrop-filter: blur(8px);
-        border-bottom: 1px solid var(--color-surface-muted);
+        border-bottom: 1px solid var(--color-bg-surface-x-muted);
       }
       .topbar .brand {
         font-weight: 700;
@@ -141,13 +143,13 @@
          follows the palette in both appearances (its own defaults are
          standalone hard-coded greys). */
       color-scheme-toggle {
-        --color-scheme-toggle-bg: var(--surface-bg);
-        --color-scheme-toggle-color: var(--surface-text);
-        --color-scheme-toggle-hover-bg: var(--surface-bg-muted);
-        --color-scheme-toggle-active-bg: var(--brand-primary-solid);
-        --color-scheme-toggle-active-color: var(--brand-primary-on-solid);
-        --color-scheme-toggle-border: 1px solid var(--surface-border);
-        --color-scheme-toggle-focus-color: var(--brand-primary-solid);
+        --color-scheme-toggle-bg: var(--color-bg-surface-muted);
+        --color-scheme-toggle-color: var(--color-text-surface);
+        --color-scheme-toggle-hover-bg: var(--color-bg-surface-x-muted);
+        --color-scheme-toggle-active-bg: var(--color-bg-brand-primary-solid);
+        --color-scheme-toggle-active-color: var(--color-text-on-brand-primary);
+        --color-scheme-toggle-border: 1px solid var(--color-border-surface);
+        --color-scheme-toggle-focus-color: var(--color-bg-brand-primary-solid);
         --color-scheme-toggle-radius: var(--br-control);
       }
 
@@ -159,7 +161,7 @@
         padding: 2rem clamp(1rem, 4cqi, 2rem) 5rem;
       }
       .toc-sidebar nav a .n {
-        color: var(--brand-primary-solid);
+        color: var(--color-bg-brand-primary-solid);
         display: inline-block;
         width: 1.9ch;
         font-variant-numeric: tabular-nums;
@@ -172,13 +174,13 @@
       }
       .drawer-menu .drawer-nav a {
         text-decoration: none;
-        color: var(--surface-text);
+        color: var(--color-text-surface);
         padding: 0.4rem 0.6rem;
         border-radius: var(--br-default);
         font-size: var(--text-s);
       }
       .drawer-menu .drawer-nav a .n {
-        color: var(--brand-primary-solid);
+        color: var(--color-bg-brand-primary-solid);
         margin-inline-end: 0.5ch;
       }
 
@@ -191,7 +193,7 @@
         grid-template-columns: minmax(11rem, 18rem) 1fr;
         gap: 0.4rem 2rem;
         padding-block: 0.7rem;
-        border-top: 1px solid var(--color-surface-muted);
+        border-top: 1px solid var(--color-bg-surface-x-muted);
         align-items: baseline;
       }
       @media (max-width: 44rem) {
@@ -208,11 +210,11 @@
       }
       .api-sig code {
         font-size: 0.9em;
-        background: var(--color-surface-muted);
+        background: var(--color-bg-surface-x-muted);
         white-space: normal;
       }
       .api-desc {
-        color: var(--color-surface-bold);
+        color: var(--color-bg-surface-bold);
       }
       .api-desc code {
         white-space: normal;
@@ -224,7 +226,7 @@
         opacity: 0.9;
       }
       .api-desc .sub strong {
-        color: var(--surface-text);
+        color: var(--color-text-surface);
         font-weight: 600;
       }
 
@@ -246,18 +248,18 @@
          emits: a role resolves to functional tokens and a hue to numeric steps,
          so every marker background silently computed to transparent.) */
       .t-resp {
-        background: var(--info-bg-muted);
-        color: var(--info-text);
+        background: var(--color-bg-info-muted);
+        color: var(--color-text-info);
       }
       .t-state {
-        background: var(--warning-bg-muted);
-        color: var(--warning-text);
+        background: var(--color-bg-warning-muted);
+        color: var(--color-text-warning);
       }
       /* `neutral`, not `ui-secondary` — that role shares cobalt with `info`, so
          the Tailwind marker would be indistinguishable from the responsive one. */
       .t-tw {
-        background: var(--neutral-bg-muted);
-        color: var(--neutral-text);
+        background: var(--color-bg-neutral-muted);
+        color: var(--color-text-neutral);
       }
 
       /* ── Demo helpers (compact, gridded) ── */
@@ -270,25 +272,25 @@
         gap: 0.6rem;
       }
       .demo-cell {
-        border: 1px solid var(--color-surface-muted);
+        border: 1px solid var(--color-bg-surface-x-muted);
         border-radius: var(--br-default);
         padding: 0.6rem;
         display: grid;
         gap: 0.45rem;
         align-content: start;
-        background: var(--surface-bg);
+        background: var(--color-bg-surface-muted);
       }
       .demo-cell > code {
         font-size: 0.72rem;
         justify-self: start;
       }
       .demo-frame {
-        border: 1px dashed var(--color-surface-muted);
+        border: 1px dashed var(--color-bg-surface-x-muted);
         border-radius: var(--br-default);
         padding: 0.75rem;
       }
       .box {
-        background: var(--brand-primary-solid);
+        background: var(--color-bg-brand-primary-solid);
         color: #fff;
         border-radius: calc(var(--br-default) / 1.5);
         min-height: 1.6rem;
@@ -298,12 +300,12 @@
         padding: 0.25rem 0.4rem;
       }
       .box.b2 {
-        background: var(--color-cobalt);
+        background: var(--color-cobalt-500);
       }
       /* Like .box, but sets NO `display` — so responsive display utilities
          (.hidden / .md-hidden / .md-inline-block) can win the cascade. */
       .viz-swatch {
-        background: var(--brand-primary-solid);
+        background: var(--color-bg-brand-primary-solid);
         color: #fff;
         border-radius: calc(var(--br-default) / 1.5);
         text-align: center;
@@ -311,17 +313,17 @@
         padding: 0.25rem 0.4rem;
       }
       .viz-swatch.b2 {
-        background: var(--color-cobalt);
+        background: var(--color-cobalt-500);
       }
       .box.b3 {
-        background: var(--color-amber);
-        color: var(--surface-text);
+        background: var(--color-amber-500);
+        color: var(--color-text-surface);
       }
       .mini-flex {
         display: flex;
         gap: 0.3rem;
         min-height: 4rem;
-        background: var(--color-surface-muted);
+        background: var(--color-bg-surface-x-muted);
         border-radius: calc(var(--br-default) / 1.5);
         padding: 0.3rem;
       }
@@ -365,12 +367,12 @@
         gap: 0.5rem;
         padding: 1rem;
         border-radius: var(--br-default);
-        background: var(--color-surface-muted);
+        background: var(--color-bg-surface-x-muted);
       }
       .gutter-label {
         text-align: center;
         font-size: var(--text-xs);
-        color: var(--surface-bg);
+        color: var(--color-bg-surface-muted);
         opacity: 0.8;
       }
       .band {
@@ -409,7 +411,7 @@
       }
       .band-measure {
         width: 46%;
-        background: var(--brand-primary-solid);
+        background: var(--color-bg-brand-primary-solid);
       }
 
       /* ── Colour ramps + semantic roles ── */
@@ -454,7 +456,7 @@
         gap: 1.5rem;
         align-items: baseline;
         padding-block: 0.7rem;
-        border-top: 1px solid var(--color-surface-muted);
+        border-top: 1px solid var(--color-bg-surface-x-muted);
       }
       .type-row .label {
         font-family: var(--font-mono);
@@ -475,7 +477,7 @@
         padding: 1rem;
         border: 0;
         border-radius: var(--br-default);
-        background: var(--brand-primary-solid);
+        background: var(--color-bg-brand-primary-solid);
         color: #fff;
         text-align: center;
         cursor: default;
@@ -493,8 +495,8 @@
       .float-cell {
         padding: 1rem;
         border-radius: var(--br-default);
-        background: var(--color-surface-muted);
-        color: var(--surface-bg);
+        background: var(--color-bg-surface-x-muted);
+        color: var(--color-bg-surface-muted);
         display: grid;
         gap: 0.5rem;
       }
@@ -510,7 +512,7 @@
         width: 2.5rem;
         height: 2.5rem;
         border-radius: 0.5rem;
-        background: var(--brand-primary-solid);
+        background: var(--color-bg-brand-primary-solid);
       }
       .anim-cell .stage-tag {
         justify-self: start;
@@ -536,7 +538,7 @@
         width: 1.5rem;
         height: 1.5rem;
         border-radius: 50%;
-        background: var(--color-amber);
+        background: var(--color-amber-500);
       }
 
       @media (max-width: 32rem) {
@@ -885,37 +887,53 @@
           <section class="rhythm measure" id="color">
             <h2><span class="section-no">02</span>Color &amp; shadow</h2>
             <p>
-              Colour is consumed through <b>functional tokens</b> — classes that name the
-              <em>job</em> (<code>bg-neutral</code>, <code>text-neutral-muted</code>,
-              <code>bg-ui-primary-solid</code> + <code>text-on-ui-primary</code>) and flip
-              automatically with dark mode. Underneath, each hue is an 11-step OKLCH scale generated
-              from a <b>seed</b> (tinted near-white → tinted near-black), with raw steps available
-              for fine control. Only <code>bg</code>, <code>text</code>, and
-              <code>border</code> families are emitted (per <code>design-system.json</code>).
+              Every colour token is named
+              <code>--color-&lt;target&gt;-&lt;role&gt;[-&lt;variant&gt;]</code>, where target is
+              one of <code>bg</code> <code>text</code> <code>icon</code> <code>border</code>. The
+              target sits <em>inside</em> the name deliberately: <code>bg-danger-muted</code> and
+              <code>text-danger-muted</code> are different tokens, so nothing has to arbitrate
+              between them. <b>The token name is also the class name</b> — write
+              <code>class="bg-danger-muted"</code> and you are using
+              <code>--color-bg-danger-muted</code>. Underneath, each hue is an 11-step OKLCH scale
+              on a <b>shared lightness ladder</b>, so a step means the same lightness in every hue.
             </p>
 
             <div class="card rhythm">
               <p class="font-caption">
-                <strong>Functional tokens</strong> (per role): <code>bg</code> <code>bg-muted</code>
-                <code>solid</code> <code>solid-bold</code> <code>on-solid</code> <code>text</code>
-                <code>text-muted</code> <code>text-x-muted</code> <code>border</code>
-                <code>border-bold</code> — plus <code>glass</code> / <code>--overlay</code> on
-                <code>surface</code>. Contrast is verified at build (text ≥ Lc 75, muted ≥ Lc 60,
-                both appearances).
+                <strong>Variants are ordinal:</strong> <code>xx-muted</code> &lt;
+                <code>x-muted</code> &lt; <code>muted</code> &lt; (bare) &lt; <code>bold</code> &lt;
+                <code>x-bold</code>. <code>bold</code> means
+                <em>more emphatic in the current appearance</em>, not darker — the appearance
+                decides polarity.
               </p>
               <p class="font-caption">
-                <strong>Roles:</strong> <code>neutral</code> (page bg / text / borders)
-                <code>surface</code> (cards / panels / elevation) <code>ui-primary</code>
-                <code>ui-secondary</code> <code>ui-accent</code> <code>brand-primary</code>
-                <code>brand-secondary</code> <code>info</code> <code>success</code>
-                <code>warning</code> <code>danger</code>
+                <strong>Surface roles</strong> (<code>neutral</code>, <code>surface</code>) are page
+                and panel colours: <code>bg-&lt;role&gt;</code> is the card,
+                <code>bg-&lt;role&gt;-muted</code> the page behind it,
+                <code>bg-&lt;role&gt;-x-muted</code> a well. Full text scale, plus
+                <code>border-&lt;role&gt;-bold</code> as the contrast-guaranteed boundary and
+                <code>glass</code> / <code>--overlay</code> on <code>surface</code>.
+              </p>
+              <p class="font-caption">
+                <strong>Chromatic roles</strong> (<code>ui-primary</code> <code>ui-secondary</code>
+                <code>ui-accent</code> <code>brand-primary</code> <code>brand-secondary</code>
+                <code>info</code> <code>success</code> <code>warning</code> <code>danger</code>) are
+                signal colours. Backgrounds are either <em>tints</em> (<code
+                  >bg-&lt;role&gt;-x-muted</code
+                >
+                / <code>-muted</code>) or <em>solids</em> (<code>bg-&lt;role&gt;-solid</code> /
+                <code>-solid-bold</code> / <code>-solid-x-bold</code>) — there is deliberately
+                <b>no bare <code>bg-&lt;role&gt;</code></b
+                >, because "how loud?" is a question you should answer.
+                <code>text-on-&lt;role&gt;</code> is the guaranteed foreground for the solid family.
               </p>
               <p class="font-caption">
                 <strong>Seeded hues:</strong> <code>pine</code> <code>navy</code> <code>amber</code>
                 <code>rust</code> <code>cobalt</code> <code>grey</code> — numeric steps
-                <code>50…950</code> (e.g. <code>bg-pine-100</code>). Emphasis stops
-                <code>--color-&lt;role&gt;-{x-muted,muted,bold,x-bold}</code> are
-                appearance-relative (muted recedes, bold advances — in either mode).
+                <code>50…950</code> (e.g. <code>bg-pine-100</code>), fixed at build and
+                <em>not</em> re-pointed in dark mode. Contrast is enforced at build time and fails
+                the build: text ≥ Lc 75 on its primary background, ≥ Lc 60 on secondary planes,
+                icons and the surface boundary ≥ Lc 45, in both appearances.
               </p>
             </div>
 
@@ -950,47 +968,65 @@
             <dl class="api-list">
               <div class="api-row">
                 <div class="api-sig">
-                  <code>.bg-{role}[-muted|-solid|-solid-bold]</code
+                  <code>.bg-{surface-role}[-muted|-x-muted|-bold|-x-bold]</code
                   ><span class="t t-tw">Tailwind</span>
                 </div>
                 <div class="api-desc">
-                  Functional backgrounds. <code>.bg-neutral</code> (page),
-                  <code>.bg-surface</code> (card/panel plane),
-                  <code>.bg-surface-muted</code> (sunken), <code>.bg-ui-primary-solid</code> (fill),
-                  <code>.bg-warning</code> (status wash).
+                  Surface backgrounds. <code>.bg-surface</code> (card / panel),
+                  <code>.bg-surface-muted</code> (the page behind it),
+                  <code>.bg-surface-x-muted</code> (well / inset),
+                  <code>.bg-surface-bold</code> (inverse surface, e.g. a tooltip). Elevation is
+                  which token you reach for, not a separate raised/sunken pair.
                 </div>
               </div>
               <div class="api-row">
                 <div class="api-sig">
-                  <code>.text-{role}[-muted|-x-muted]</code> / <code>.text-on-{role}</code
-                  ><span class="t t-tw">Tailwind</span>
+                  <code>.bg-{role}-{x-muted|muted}</code> ·
+                  <code>.bg-{role}-solid[-bold|-x-bold]</code><span class="t t-tw">Tailwind</span>
                 </div>
                 <div class="api-desc">
-                  Functional text. <code>.text-neutral</code> (primary),
-                  <code>.text-neutral-muted</code> (secondary),
-                  <code>.text-neutral-x-muted</code> (disabled);
-                  <code>.text-on-ui-primary</code> pairs with the role's solid fill.
+                  Chromatic backgrounds — tint or solid, never a bare
+                  <code>.bg-{role}</code>. <code>.bg-danger-x-muted</code> (alert wash),
+                  <code>.bg-danger-muted</code> (badge), <code>.bg-danger-solid</code> (fill, pairs
+                  with <code>.text-on-danger</code>), <code>-solid-bold</code> hover,
+                  <code>-solid-x-bold</code> active.
                 </div>
               </div>
               <div class="api-row">
                 <div class="api-sig">
-                  <code>.border-{role}[-bold]</code> · <code>.glass</code
-                  ><span class="t t-tw">Tailwind</span>
+                  <code>.text-{role}[-bold|-muted|-x-muted|-xx-muted]</code> /
+                  <code>.text-on-{role}</code><span class="t t-tw">Tailwind</span>
                 </div>
                 <div class="api-desc">
-                  Functional borders (<code>.border-neutral</code> dividers,
-                  <code>.border-neutral-bold</code> emphasis); <code>.glass</code> = translucent
-                  surface + backdrop blur.
+                  Text. <code>.text-surface</code> (body),
+                  <code>.text-surface-muted</code> (secondary),
+                  <code>.text-surface-x-muted</code> (placeholder — contrast-exempt),
+                  <code>.text-danger</code> (coloured, legible over the page).
+                  <code>.text-on-{role}</code> pairs with that role's solid fill.
                 </div>
               </div>
               <div class="api-row">
                 <div class="api-sig">
-                  <code>.{bg|text|border}-{hue}-{50…950}</code><span class="t t-tw">Tailwind</span>
+                  <code>.icon-{role}[-muted]</code> · <code>.border-{role}[-muted|-bold]</code> ·
+                  <code>.glass</code><span class="t t-tw">Tailwind</span>
                 </div>
                 <div class="api-desc">
-                  Raw scale (fine control). e.g. <code>.bg-pine-100</code>,
-                  <code>.text-grey-800</code>, <code>.bg-amber-300</code>. The bare role name is
-                  always the functional token.
+                  Icons sit on their own 3:1-equivalent tier, so a glyph may run more vivid than
+                  text. Borders: <code>.border-surface-muted</code> hairlines,
+                  <code>.border-surface-bold</code> when a boundary must carry contrast on its own;
+                  chromatic borders are decorative. <code>.glass</code> = translucent surface +
+                  backdrop blur.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.{bg|text|icon|border}-{hue}-{50…950}</code
+                  ><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">
+                  Raw scale (fine control, bypasses theming). e.g. <code>.bg-pine-100</code>,
+                  <code>.text-grey-800</code>. These are fixed — unlike role tokens they are
+                  <b>not</b> re-pointed in dark mode.
                 </div>
               </div>
             </dl>
@@ -1002,8 +1038,8 @@
                   class="box drop-shadow-sm"
                   style="
                     min-height: 3rem;
-                    background: var(--surface-bg);
-                    color: var(--surface-text);
+                    background: var(--color-bg-surface-muted);
+                    color: var(--color-text-surface);
                   "
                 >
                   sm
@@ -1015,8 +1051,8 @@
                   class="box drop-shadow-md"
                   style="
                     min-height: 3rem;
-                    background: var(--surface-bg);
-                    color: var(--surface-text);
+                    background: var(--color-bg-surface-muted);
+                    color: var(--color-text-surface);
                   "
                 >
                   md
@@ -1028,8 +1064,8 @@
                   class="box drop-shadow-lg"
                   style="
                     min-height: 3rem;
-                    background: var(--surface-bg);
-                    color: var(--surface-text);
+                    background: var(--color-bg-surface-muted);
+                    color: var(--color-text-surface);
                   "
                 >
                   lg
@@ -1041,8 +1077,8 @@
                   class="box drop-shadow-xl"
                   style="
                     min-height: 3rem;
-                    background: var(--surface-bg);
-                    color: var(--surface-text);
+                    background: var(--color-bg-surface-muted);
+                    color: var(--color-text-surface);
                   "
                 >
                   xl
@@ -1805,7 +1841,7 @@
               >
                 <div
                   class="overlay"
-                  style="--overlay: color-mix(in oklch, var(--color-navy) 55%, transparent)"
+                  style="--overlay: color-mix(in oklch, var(--color-navy-950) 55%, transparent)"
                 >
                   <div class="box" style="width: 100%; height: 100%"></div>
                 </div>
@@ -1830,7 +1866,7 @@
             </dl>
 
             <h3>Separator</h3>
-            <div class="demo rhythm" style="color: var(--color-surface-bold)">
+            <div class="demo rhythm" style="color: var(--color-bg-surface-bold)">
               <div class="separator"></div>
               <div class="separator separator--dashed"></div>
               <div class="separator separator--dotted"></div>
@@ -1906,7 +1942,7 @@
               <wc-split-panel style="block-size: 7rem; border-radius: var(--br-default)">
                 <div
                   slot="start"
-                  class="bg-brand-primary"
+                  class="bg-brand-primary-muted"
                   style="height: 100%; display: grid; place-items: center; color: #fff"
                 >
                   start
@@ -2000,7 +2036,9 @@
             <div class="demo rhythm">
               <div class="card" style="padding: 1rem">
                 <p class="font-heading">Card</p>
-                <p class="font-caption">A padded, rounded panel on <code>--surface-bg</code>.</p>
+                <p class="font-caption">
+                  A padded, rounded panel on <code>--color-bg-surface-muted</code>.
+                </p>
               </div>
               <!-- Two ways to recolour a panel, and they are different tools, not
                    alternatives. A role variant is a mode-stable SOLID fill with a
@@ -3194,7 +3232,7 @@
               </p>
               <p
                 class="font-title text-reveal"
-                style="--text-reveal-color-to: var(--brand-primary-solid)"
+                style="--text-reveal-color-to: var(--color-bg-brand-primary-solid)"
               >
                 Scroll-driven two-tone fill
               </p>
@@ -3397,7 +3435,7 @@
               <div class="demo-cell">
                 <span
                   class="svg-container"
-                  style="--svg-size: 2rem; color: var(--brand-primary-solid)"
+                  style="--svg-size: 2rem; color: var(--color-bg-brand-primary-solid)"
                 >
                   <svg viewBox="0 0 24 24" fill="currentColor">
                     <circle cx="12" cy="12" r="9" />
@@ -3408,7 +3446,7 @@
               <div class="demo-cell">
                 <span
                   class="svg-container svg-animated svg-animated--spin"
-                  style="--svg-size: 2rem; color: var(--color-cobalt)"
+                  style="--svg-size: 2rem; color: var(--color-cobalt-600)"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round" />

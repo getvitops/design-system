@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <!-- Placeholder mark — replace with your brand. This file is also the
-       favicon/PWA source (see astro.config.mjs → getvitops({ favicon })). -->
+       favicon/PWA source (see astro.config.mjs → vitops({ favicon })). -->
   <rect width="64" height="64" rx="14" fill="#2e9b73" />
   <path d="M18 24l14 20 14-20" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
 </svg>

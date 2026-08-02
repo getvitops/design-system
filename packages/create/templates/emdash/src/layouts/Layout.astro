@@ -3,7 +3,7 @@ import VitopsHead from '@getvitops/astro/Head.astro';
 import { getMenu, getSiteSettings } from 'emdash';
 import { createPublicPageContext } from 'emdash/page';
 import { EmDashHead } from 'emdash/ui';
-// Design-system CSS, layout-scoped (getvitops css.inject: false): only pages
+// Design-system CSS, layout-scoped (vitops css.inject: false): only pages
 // rendered through this layout get it — keeps it out of /_emdash/admin, while
 // EmDash previews (rendered through this layout) keep it.
 import '../styles/tailwind.css';
@@ -126,7 +126,7 @@ const year = new Date().getFullYear();
       footer {
         margin-block-start: var(--space-2xl);
         padding-block: var(--space-l);
-        border-block-start: 1px solid var(--neutral-border);
+        border-block-start: 1px solid var(--color-border-neutral);
       }
     </style>
   </body>

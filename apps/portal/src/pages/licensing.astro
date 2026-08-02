@@ -20,7 +20,7 @@ const licenses = await listLicenses(scoped);
             <span class:list={['font-caption', l.status === 'active' ? 'text-success' : 'text-warning']}>{l.status}</span>
           </div>
           <div class="font-display text-2xl mt-1">{l.used}<span class="text-neutral-muted font-body text-base">/{l.seats} seats</span></div>
-          <div class="mt-2 h-2 overflow-hidden rounded bg-surface-muted">
+          <div class="mt-2 h-2 overflow-hidden rounded bg-surface-x-muted">
             <div class:list={[pct > 90 ? 'bg-danger-solid' : 'bg-ui-primary-solid']} style={`width:${pct}%`}></div>
           </div>
           <div class="font-caption text-neutral-muted mt-2">Renews {l.renewalDate ?? '—'}</div>

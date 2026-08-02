@@ -18,8 +18,8 @@
   border: var(--_b);
   border-radius: var(--_br);
   box-shadow: var(--_ds);
-  background: var(--surface-bg);
-  color: var(--surface-text);
+  background: var(--color-bg-surface);
+  color: var(--color-text-surface);
   animation: notification-enter 0.3s ease;
 
   &.notification--exiting {
@@ -77,7 +77,7 @@
     inset-block-end: 0;
     inset-inline: 0;
     block-size: 3px;
-    background: var(--brand-primary-solid);
+    background: var(--color-bg-brand-primary-solid);
     border-radius: 0 0 var(--_br) var(--_br);
     transform-origin: left;
     animation: notification-progress var(--notification-duration, 5s) linear forwards;

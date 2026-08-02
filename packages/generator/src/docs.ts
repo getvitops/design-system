@@ -546,7 +546,7 @@ function renderCssClasses(ds: DesignSystem): string {
   const expanded = expandPalette(ds.colors.palette as Record<string, unknown>);
   const ramps = Object.keys(expanded);
   const roles = Object.keys(ds.colors.roles ?? {});
-  const utils = ds.colors.utilities ?? ['bg', 'text', 'border'];
+  const utils = ds.colors.utilities ?? ['bg', 'text', 'icon', 'border'];
   const typeRoles = Object.keys(ds.typography?.roles ?? {});
   const shadows = Object.keys(ds.shadows ?? {});
   const effects = Object.keys(ds.animations?.effects ?? {});
@@ -645,35 +645,53 @@ swap; \`solid\` fills stay mode-stable with a computed \`on-\` foreground). Pref
 raw steps.
 
 **Role names are yours.** \`colors.roles\` is an open map: add a key, and the generator emits
-that role's full functional token set, its dark flip and every utility below. Your config
+that role's full token set, its dark flip and every utility below. Your config
 currently defines ${code(roles)}. Six of those are a **required core** — the framework's own
 component CSS references \`${REQUIRED_ROLES.join('`, `')}\` with no fallback, so removing one
 leaves those components uncoloured (\`vitops validate\` warns). Everything beyond them is free.
 
-Rules (role ∈ ${code(roles)}, or whatever you add):
+The rule is one shape — **\`<target>-<role>[-<variant>]\`**, target ∈ \`bg\` \`text\` \`icon\`
+\`border\` — and the class name is exactly its token name minus \`--color-\`. Variants are
+ordinal (\`xx-muted\` < \`x-muted\` < \`muted\` < bare < \`bold\` < \`x-bold\`) and sparse: only the
+cells that hold their contrast target exist.
 
-- **Surfaces** — \`bg-<role>\` (the role's background wash; for \`surface\` this is the
-  card/panel plane), \`bg-<role>-muted\` (subtle / sunken), \`bg-surface-bold\` (raised plane).
-- **Solid fills** — \`bg-<role>-solid\`, \`bg-<role>-solid-bold\` (hover / emphasis), paired
-  with \`text-on-<role>\` for guaranteed-contrast foreground.
-- **Content** — \`text-<role>\` (primary, contrast-guaranteed in both appearances),
-  \`text-<role>-muted\` (secondary), \`text-<role>-x-muted\` (tertiary / disabled).
-- **Borders** — \`border-<role>\`, \`border-<role>-bold\`.
-- **Translucency** — \`glass\` (translucent surface + backdrop blur); \`--overlay\` scrim var.
-- **Emphasis stops** (appearance-relative vars for power use):
-  \`--color-<role>-{x-muted,muted,bold,x-bold}\` — \`muted\` recedes toward the background
-  extreme, \`bold\` advances toward the foreground, in *either* appearance.
+**Which cells exist depends on the role's \`kind\`:**
+
+*Surface roles* (page and panel colours):
+
+- **Backgrounds** — \`bg-<role>\` (the card/panel), \`bg-<role>-muted\` (the page behind it),
+  \`bg-<role>-x-muted\` (well / inset), \`bg-<role>-bold\` and \`-x-bold\` (inverse surface).
+  Elevation is *which* token you reach for, not a raised/sunken pair.
+- **Content** — \`text-<role>\` (body), \`text-<role>-bold\`, \`text-<role>-muted\` (secondary),
+  \`text-<role>-x-muted\` (placeholder) and \`-xx-muted\` (disabled). The last two are
+  contrast-exempt by design.
+- **Borders** — \`border-<role>-muted\` (hairline), \`border-<role>\`, \`border-<role>-bold\`
+  (the one guaranteed to carry a boundary on its own).
+
+*Chromatic roles* (signal colours) — **there is no bare \`bg-<role>\`**; say tint or solid:
+
+- **Tints** — \`bg-<role>-x-muted\` (alert wash), \`bg-<role>-muted\` (badge).
+- **Solids** — \`bg-<role>-solid\`, \`-solid-bold\` (hover), \`-solid-x-bold\` (active), each
+  pairing with \`text-on-<role>\` for a guaranteed-contrast foreground.
+- **Content** — \`text-<role>\`, \`text-<role>-bold\`. There is deliberately no
+  \`text-<role>-muted\`: it could not hold its contrast target off a light surface, so soften
+  coloured text with weight or size instead.
+- **Borders** — \`border-<role>\`, \`border-<role>-bold\` (decorative status edges).
+
+Both kinds also get **\`icon-<role>\`** — a separate non-text tier, so a glyph may run more
+vivid than text — plus \`glass\` (translucent surface + backdrop blur), the \`--overlay\` scrim
+and \`--color-border-focus\` for focus rings.
 
 Everyday pairings, using the roles this config defines: page
-\`bg-${roles[0] ?? 'neutral'}\` + \`text-${roles[0] ?? 'neutral'}\`; captions
-\`text-${roles[0] ?? 'neutral'}-muted\`; buttons
-\`bg-${roles[2] ?? roles[0] ?? 'ui-primary'}-solid text-on-${roles[2] ?? roles[0] ?? 'ui-primary'}\`.
+\`bg-${roles[0] ?? 'neutral'}-muted\`, cards \`bg-${roles[0] ?? 'neutral'}\` on top of it, body
+\`text-${roles[0] ?? 'neutral'}\`, captions \`text-${roles[0] ?? 'neutral'}-muted\`; buttons
+\`bg-${roles[2] ?? roles[0] ?? 'ui-primary'}-solid text-on-${roles[2] ?? roles[0] ?? 'ui-primary'}\`;
+alerts \`bg-danger-x-muted text-danger\`.
 
 **Raw scale** (secondary / fine control) — rule \`<util>-<hue>-<step>\` with util ∈
 ${code(utils)}: every hue is an 11-step OKLCH scale generated from its seed (or fixed brand
 tones), numeric steps \`50\` … \`950\` (tinted near-white → tinted near-black) — e.g.
 \`bg-${ramps[0] ?? 'brand'}-100\`, \`text-${ramps[0] ?? 'brand'}-800\`. Hues: ${code(ramps)}.
-The **bare** role name (\`bg-<role>\`, \`text-<role>\`) is always the functional token.
 
 > **Raw scale classes are frozen — they do NOT remap in dark mode.**
 > \`bg-${ramps[0] ?? 'brand'}-800\` is that exact colour in every appearance. The automatic
@@ -687,8 +705,8 @@ The **bare** role name (\`bg-<role>\`, \`text-<role>\`) is always the functional
 >
 > | instead of | use | why |
 > | --- | --- | --- |
-> | \`bg-<hue>-50\` / \`-950\` | \`bg-<role>\` | the page/backdrop plane, flips automatically |
-> | \`bg-<hue>-100\` / \`-900\` | \`bg-<role>-muted\` | one plane in from the page |
+> | \`bg-<hue>-50\` / \`-950\` | \`bg-<role>\` (surface kind) | the card plane, flips automatically |
+> | \`bg-<hue>-100\` / \`-900\` | \`bg-<role>-muted\` | the page, or a chromatic tint |
 > | \`bg-<hue>-500\`…\`-700\` | \`bg-<role>-solid\` | vivid fill, mode-stable, pairs with \`text-on-<role>\` |
 > | \`text-<hue>-950\` / \`-50\` | \`text-<role>\` | contrast-guaranteed body text |
 > | \`text-<hue>-800\` / \`-200\` | \`text-<role>-muted\` | secondary text |
@@ -846,19 +864,23 @@ function renderFormats(ds: DesignSystem): string {
   const spaceName = ds.spaceScale?.baseline ?? ds.spaceScale?.names?.[0] ?? 'm';
   return `${frontmatter({
     type: 'Formats Reference',
-    title: 'Vitops — output formats (tailwind vs css vs bricks)',
+    title: 'Vitops — output formats (tailwind vs css vs bricks vs design)',
     description:
       'What each vitops generate format emits, what the target platform provides instead, and the Tailwind-specific rules (which framework utilities are stripped in favour of Tailwind defaults).',
     resource: DS_PATH,
-    tags: ['formats', 'tailwind', 'bricks', 'css', 'design-system'],
+    tags: ['formats', 'tailwind', 'bricks', 'css', 'design', 'design-system'],
   })}
 
-# Output formats — \`tailwind\` vs \`css\` vs \`bricks\`
+# Output formats — \`tailwind\` vs \`css\` vs \`bricks\` vs \`design\`
 
-One config, three targets: \`vitops generate --format <tailwind|css|bricks>\`. The **class
-vocabulary is the same** everywhere (see [css/classes.md](css/classes.md)); what differs is
-which layers the generator emits versus which the platform provides, and the variant
-separator (\`-\` in CSS/Bricks, \`:\` / \`@\` in Tailwind).
+One config, four targets: \`vitops generate --format <tailwind|css|bricks|design>\`. Three of
+them are stylesheets, and across those the **class vocabulary is the same** (see
+[css/classes.md](css/classes.md)); what differs is which layers the generator emits versus
+which the platform provides, and the variant separator (\`-\` in CSS/Bricks, \`:\` / \`@\` in
+Tailwind). The fourth, \`design\`, emits no CSS at all.
+
+\`--format\` takes a comma-separated list, so the brief composes with a stylesheet:
+\`vitops generate --format css,design\`.
 
 ## \`tailwind\` — single-file Tailwind v4 layer
 
@@ -908,10 +930,10 @@ Other Tailwind-specific behaviour:
 
   This split is deliberate and load-bearing. When a token sits in \`@theme\` *and* an
   \`@utility\` of the derived name exists, Tailwind merges both into one rule with the
-  \`@theme\` declaration last — regardless of source order. Promoting the role tokens
-  would therefore silently replace the functional plane with the emphasis stop on
-  \`bg-<role>-muted\`, \`text-<role>-muted\`, \`text-<role>-x-muted\`, \`border-<role>-bold\`
-  and \`bg-surface-bold\`, two of which are the contrast-guaranteed text tokens.
+  \`@theme\` declaration last — regardless of source order. Only palette hues belong in
+  \`@theme\`, where nothing competes for the name. Role tokens stay in a plain \`:root\`
+  block, and \`format-parity.test.ts\` derives that guard from the emitted token names so
+  it cannot go quiet if the grammar moves again.
 - **\`colors.utilities\` is a floor here, not a ceiling.** It controls which families get
   explicit role \`@utility\` rules, exactly as in \`css\`/\`bricks\`. But the raw hue scales
   are \`@theme\` colours, and Tailwind derives *every* colour family from those on demand
@@ -956,12 +978,41 @@ this docs bundle under \`docs/\`.
 - **Bricks provides the token layer.** \`color.css\` and \`type-tokens.css\` are one-line
   stubs: the colour \`:root\` tokens, dark-mode overrides, colour utility classes, fonts,
   and type/space scales are generated live by Bricks' Color / Font / Variables Managers
-  from the imported JSONs. Semantic palette entries carry \`darkEnabled\` + a \`dark\` ref so
+  from the imported JSONs. Semantic palette entries carry \`darkModeEnabled\` + a \`dark\` ref so
   Bricks emits the dark-mode overrides on import.
 - Everything else (patterns, shadows, typography roles, animation effects, structural
   framework CSS) ships in \`styles.min.css\` as in the other formats.
 - Pattern states reference shadows by name, compiled to
   \`filter: drop-shadow(var(--shadow-<name>))\`.
+
+## \`design\` — the agent-facing brief
+
+Emits exactly one file, \`DESIGN.md\`, in the
+[google-labs-code/design.md](https://github.com/google-labs-code/design.md) format: YAML
+front matter carrying the tokens (\`colors\`, \`typography\`, \`rounded\`, \`spacing\`,
+\`components\`, with \`{group.token}\` references) followed by a prose body carrying the
+rationale. It is meant to be run with \`--out .\` — DESIGN.md conventionally sits at a repo
+root beside \`AGENTS.md\`, not in a build directory.
+
+**No CSS, no \`tokens.json\`, nothing else.** This format is a description of the system for
+a tool that has to work without it — a coding agent in another repo, a Figma import, a
+designer. It is not a build target, and \`vitops lint\` does not accept it.
+
+Three things the format cannot represent, and what is emitted instead:
+
+| Ours | Why it doesn't fit | Emitted as |
+| --- | --- | --- |
+| fluid \`clamp()\` type / space steps | a spec \`Dimension\` is a number + px/em/rem | the **max** (desktop) value, with the prose saying so |
+| the automatic dark flip | the spec has no notion of a second appearance | **light** values only, with the flip explained in prose |
+| a \`50%\` radius | same \`Dimension\` restriction | dropped from \`rounded\`, named in the Shapes prose |
+
+Role tokens are emitted as \`{colors.<hue>-<step>}\` **references** into the raw ramps rather
+than flattened hexes, so the role → ramp lineage survives the export. \`on-solid\` is the
+exception — it is a computed contrast literal with no step behind it.
+
+\`meta.name\` / \`meta.description\` in \`design-system.json\` supply the brand name and the
+Overview paragraph; everything else is derived from the config, so the brief cannot drift
+from what the other three formats build.
 `;
 }
 
@@ -971,9 +1022,9 @@ function renderColorConcept(ds: DesignSystem): string {
   const roles = Object.keys(ds.colors.roles ?? {});
   return `${frontmatter({
     type: 'Design Concept',
-    title: 'Vitops colour system — seeded scales, functional tokens, automatic dark mode',
+    title: 'Vitops colour system — seeded scales, target-prefixed tokens, automatic dark mode',
     description:
-      'How palette hues become 11-step OKLCH scales, how semantic roles derive functional tokens from them, and how dark mode flips automatically.',
+      'How palette hues become 11-step OKLCH scales on a shared lightness ladder, how semantic roles derive target-prefixed tokens from them, and how dark mode flips automatically.',
     resource: DS_PATH,
     tags: ['color', 'oklch', 'dark-mode', 'design-system'],
   })}
@@ -982,7 +1033,7 @@ function renderColorConcept(ds: DesignSystem): string {
 
 Authoring is two maps in \`design-system.json\` (see [authoring.md](../authoring.md)):
 \`colors.palette\` (hues) and \`colors.roles\` (semantic role → hue). Everything else —
-scales, functional tokens, utilities, dark mode — is derived.
+scales, role tokens, utilities, dark mode — is derived.
 
 ## From seed to scale
 
@@ -997,30 +1048,55 @@ running tinted near-white → tinted near-black. Two authoring modes:
 
 Current hues: ${code(hues)}.
 
-## Functional tokens (the public vocabulary)
+## The token grammar
 
-Each role in \`colors.roles\` (currently ${code(roles)}) derives a family of
-**job-named** tokens from its hue's scale:
+Every colour token is named:
 
-- \`--<role>-bg\`, \`--<role>-bg-muted\` — background washes.
-- \`--<role>-border\`, \`--<role>-border-bold\` — borders.
-- \`--<role>-solid\`, \`--<role>-solid-bold\` — opaque fills (buttons, badges), paired with
-  \`--<role>-on-solid\` for a guaranteed-contrast foreground.
-- \`--<role>-text\`, \`--<role>-text-muted\`, \`--<role>-text-x-muted\` — content colours.
-- **Emphasis stops** \`--color-<role>-{x-muted,muted,bold,x-bold}\` — appearance-relative:
-  \`muted\` recedes toward the background extreme and \`bold\` advances toward the
-  foreground, in *either* light or dark.
-- Plus \`--surface-glass\` (translucent surface) and \`--overlay\` (scrim).
+\`\`\`
+--color-<target>-<role>[-<variant>]      target ∈ bg | text | icon | border
+\`\`\`
 
-Classes name the token, not the tone: \`bg-<role>\`, \`text-<role>-muted\`, \`text-on-<role>\`,
-\`border-<role>\` (see [css/classes.md](../css/classes.md)).
+The target sits **inside** the name on purpose. \`--color-bg-danger-muted\` and
+\`--color-text-danger-muted\` are different tokens, so there is nothing to arbitrate between
+them — an earlier grammar put both on one \`<family>-<role>-<modifier>\` name and needed a
+precedence rule, which made half the variants unreachable and the rest non-monotonic.
+
+**The token name is also the utility class name**, minus the \`--color-\` prefix. Write
+\`class="bg-danger-muted"\` and you are using \`--color-bg-danger-muted\`. One vocabulary, not
+two (see [css/classes.md](../css/classes.md)).
+
+Variants are ordinal — \`xx-muted\` < \`x-muted\` < \`muted\` < (bare) < \`bold\` < \`x-bold\` — and
+the tables are **sparse**: only cells that actually hold their contrast target exist.
+\`bold\` means *more emphatic in the current appearance*, not darker.
+
+## Role kinds
+
+A role in \`colors.roles\` (currently ${code(roles)}) is one of two kinds, and the kind decides
+which tokens exist:
+
+- **\`surface\`** — a page or panel colour. \`bg-<role>\` is the card, \`bg-<role>-muted\` the page
+  behind it, \`bg-<role>-x-muted\` a well, \`bg-<role>-bold\` the inverse surface a tooltip sits
+  on. Full text scale, and \`border-<role>-bold\` as the contrast-guaranteed boundary.
+- **\`chromatic\`** (the default, and what the bare-string form means) — a signal colour.
+  Backgrounds split into *tints* (\`bg-<role>-x-muted\`, \`bg-<role>-muted\`) and *solids*
+  (\`bg-<role>-solid\`, \`-solid-bold\`, \`-solid-x-bold\`). There is deliberately **no bare
+  \`bg-<role>\`**: "how loud?" is a question the author answers. \`text-on-<role>\` is the
+  guaranteed foreground for the solid family.
+
+Plus \`--surface-glass\` (translucent surface), \`--overlay\` (scrim) and
+\`--color-border-focus\` (the focus ring, taken from \`ui-primary\`'s solid tone).
 
 ## Automatic dark mode
 
-Dark mode is a **functional flip** under \`${DARK_SEL}\`: background and
-text ends of each scale swap, while \`solid\` fills stay mode-stable with a recomputed
-\`on-solid\` foreground. There is no per-appearance scheme grammar to author and no named
-steps — a role token means the same *job* in both appearances.
+Dark mode re-points which step each token reads, under \`${DARK_SEL}\`:
+background and text ends of each scale swap, while the **solid family stays mode-stable**
+along with the \`text-on-<role>\` foreground computed against it — so a filled button keeps
+its identity when the appearance flips. There is no per-appearance scheme grammar to author
+and no named steps: a role token means the same *job* in both appearances.
+
+Raw hue steps (\`--color-<hue>-<step>\`) are the exception — they are fixed values and are
+**not** re-pointed. Reach for a role token unless you specifically want a colour that
+ignores the appearance.
 
 Two attributes, one flip: \`data-brx-theme\` is Bricks' own (Bricks sets it on the
 WordPress target), \`data-theme\` is what the shipped \`<color-scheme-toggle>\` writes on
@@ -1029,8 +1105,24 @@ no \`prefers-color-scheme\` block — the flip follows an explicit choice only.
 
 ## Contrast guarantees
 
-Text tokens target APCA Lc ≥ 75 and muted text Lc ≥ 60, in **both** appearances —
-enforced by the generator's unit tests, not left to the author.
+Enforced **at build time** — a violation fails \`generate\`, so an unreadable pairing cannot
+ship. In both appearances:
+
+| tier | target | applies to |
+| --- | --- | --- |
+| text | APCA Lc ≥ 75 | \`text-<role>\` on the role's primary background |
+| secondary | Lc ≥ 60 | text on any other background plane; \`text-<role>-muted\`; \`text-on-<role>\` on its solid |
+| non-text | Lc ≥ 45 | \`icon-<role>\`, and a surface role's \`border-<role>-bold\` |
+
+Two deliberate exemptions: \`text-<role>-x-muted\` (placeholders) and \`-xx-muted\` (disabled
+text) are *required* to look unavailable, and holding them to the body-text bar would defeat
+the affordance. Nothing else is exempt.
+
+Chromatic text is checked against the **surface planes it actually sits on**, not only its
+own tints — coloured text appears over the page far more often than over its own wash.
+
+A \`tones\` kit thin enough that snapping can't cover a tier is reported rather than shipped;
+the fix is another tone, and the failure says so.
 `;
 }
 
@@ -1184,13 +1276,14 @@ tunes the default fill without silently defeating \`.card-danger\`.
 
 \`states\` (hover / active / focus-visible) compile from shortcuts:
 
-- \`step: n\` — intensify the pattern's colour one emphasis stop: fills swap
-  \`--<role>-solid\` → \`--<role>-solid-bold\`; text patterns swap the \`bold\` emphasis stop →
-  \`x-bold\`.
+- \`step: n\` — intensify the pattern's colour one rung: fills swap
+  \`--color-bg-<role>-solid\` → \`-solid-bold\`; text patterns swap
+  \`--color-text-<role>\` → \`--color-text-<role>-bold\`.
 - \`scale: 0.97\` — transform scale; \`lift: "<length>"\` — \`translate: 0 calc(-1 * <length>)\`.
 - \`shadow: "<name>"\` — \`filter: drop-shadow(var(--shadow-<name>))\`; \`shadow: true\` — the
   generic lift box-shadow.
-- \`ring: true\` — focus ring (\`box-shadow\` in the role's \`muted\` stop, outline removed).
+- \`ring: true\` — focus ring (\`box-shadow\` in the role's solid tone, or
+  \`--color-border-focus\` when the pattern has no role; outline removed).
 - \`css: { … }\` — raw declarations escape hatch.
 
 Any pattern with states also gets a composed transition block (translate / scale / filter /
@@ -1204,9 +1297,10 @@ rules are wrapped in \`@media (hover: hover)\` so touch devices never stick.
 element and the \`-<role>\` form (\`:where(button, .btn).danger, .btn-danger\`), so the same
 variant works on a non-element host — both at class specificity, so neither outranks a
 plain class. Fill
-patterns set \`background-color: var(--<role>-solid)\` + \`color: var(--<role>-on-solid)\`;
-text patterns use the role's \`bold\` emphasis stop. \`default_role\` colours the bare,
-unsuffixed pattern. States re-apply per variant with the variant's role.
+patterns set \`background-color: var(--color-bg-<role>-solid)\` +
+\`color: var(--color-text-on-<role>)\`; text patterns use \`var(--color-text-<role>)\`, the
+token guaranteed legible over a surface in both appearances. \`default_role\` colours the
+bare, unsuffixed pattern. States re-apply per variant with the variant's role.
 `;
 }
 
@@ -1223,7 +1317,7 @@ variable-driven CSS framework plus progressively-enhanced web components, genera
 # Contents
 
 * [Authoring reference](authoring.md) - every design-system.json field, generated from the JSON Schema
-* [Output formats](formats.md) - tailwind vs css vs bricks: what's emitted, what the platform provides, which utilities Tailwind owns
+* [Output formats](formats.md) - tailwind vs css vs bricks vs design: what's emitted, what the platform provides, which utilities Tailwind owns
 * [Concepts](concepts/) - the colour system, type/space scales, and pattern CSS architecture
 * [CSS framework](css/) - the class vocabulary (colour, type, space, layout, animation, component patterns), stated as naming rules
 * [Bricks Builder](bricks/) - custom elements and how to style them
@@ -1237,7 +1331,7 @@ function renderConceptsIndex(): string {
 
 # Contents
 
-* [Colour system](color.md) - seeded OKLCH scales, functional tokens, automatic dark mode
+* [Colour system](color.md) - seeded OKLCH scales on a shared lightness ladder, target-prefixed tokens, automatic dark mode
 * [Type & space scales](scales.md) - fluid modular scales and the tokens they emit
 * [Component patterns](patterns.md) - token cascade, override hooks, states, role variants
 `;

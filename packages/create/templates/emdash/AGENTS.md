@@ -6,7 +6,7 @@ styled by the Vitops design system.
 - `design-system.json` is the single source of truth for the design system
   (colors, type, spacing, patterns, animations). Never edit
   `src/styles/tailwind.css` — it is generated from the JSON by the
-  `getvitops()` integration on every dev/build and is gitignored.
+  `vitops()` integration on every dev/build and is gitignored.
 - Content lives in the EmDash database, not in the repo. Query it with
   `getEmDashCollection` / `getEmDashEntry` from `emdash`; render Portable Text
   with `<PortableText />` from `emdash/ui` (the Vitops blocks from
@@ -39,7 +39,16 @@ styled by the Vitops design system.
   auto-merge; merging deploys prod. Only run it when the user explicitly asks
   to promote/ship to production.
 - Sample legal pages (`/terms`, `/privacy`) ship as seeded placeholder content
-  — remind the user to replace them before launch.
+  — remind the user to replace them before launch. They are deliberately short
+  and obviously unfinished; do not "improve" them into something that reads as
+  a finished policy, because the risk here is a plausible-looking document
+  getting shipped unread.
+  To replace them properly, write a site config and run
+  `npx vitops legal --format portable-text --out ./legal`, then paste each
+  document's blocks into the page in the admin. That renders a real policy from
+  what the site actually does — the analytics provider it uses, the fields its
+  forms collect, where it deploys — rather than from guesses. It still needs
+  review before launch.
 
 ## Docs MCP servers
 

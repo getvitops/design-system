@@ -1,7 +1,7 @@
 # @getvitops/cli
 
-CLI for the Vitops design-system generator. Turn a `design-system.json` into Bricks, CSS, or
-Tailwind v4 output.
+CLI for the Vitops design-system generator. Turn a `design-system.json` into Tailwind v4,
+Bricks, `DESIGN.md`, or standalone CSS output.
 
 ```sh
 # scaffold a starter config (stamps a $schema for editor autocomplete)
@@ -17,14 +17,14 @@ npx vitops generate --format bricks,css --out dist
 
 ## Commands
 
-| command                                            | does                                          |
-| -------------------------------------------------- | --------------------------------------------- |
-| `vitops init [--out design-system.json] [--force]` | write a starter config with `$schema`         |
-| `vitops validate <file>`                           | schema-check (non-zero exit on error)         |
-| `vitops generate -i <file> -f <formats> -o <dir>`  | generate `bricks` / `css` / `tailwind` output |
-| `vitops favicon -i <svg\|png> -o <dir>`            | generate a favicon set from a source image    |
-| `vitops agents [-o AGENTS.md] [--docs-dir <dir>]`  | link the agent skill + AGENTS.md pointer      |
-| `vitops docs [topic] [--all]`                      | print live reference docs to stdout           |
+| command                                            | does                                            |
+| -------------------------------------------------- | ----------------------------------------------- |
+| `vitops init [--out design-system.json] [--force]` | write a starter config with `$schema`           |
+| `vitops validate <file>`                           | schema-check (non-zero exit on error)           |
+| `vitops generate -i <file> -f <formats> -o <dir>`  | `tailwind` / `bricks` / `design` / `css` output |
+| `vitops favicon -i <svg\|png> -o <dir>`            | generate a favicon set from a source image      |
+| `vitops agents [-o AGENTS.md] [--docs-dir <dir>]`  | link the agent skill + AGENTS.md pointer        |
+| `vitops docs [topic] [--all]`                      | print live reference docs to stdout             |
 
 ## Using the output
 
@@ -79,6 +79,19 @@ The CLI only writes files — how they reach WordPress is up to you:
 
 - **CI:** run `vitops generate --format bricks` in your pipeline and deploy the artifact the
   same way you deploy the rest of the theme.
+
+**Agent brief (`DESIGN.md`).** `--format design` emits a single `DESIGN.md` and **no CSS** — the
+portable brief in [design.md](https://github.com/google-labs-code/design.md) format (YAML token
+front matter, then prose) for a coding agent or design tool that doesn't have the toolchain
+installed. It conventionally lives at the repo root beside `AGENTS.md`:
+
+```sh
+vitops generate --input design-system.json --format design --out .
+```
+
+`--format` is comma-separated, but a run shares one `--out` — so keep the brief its own invocation
+whenever your stylesheet goes somewhere other than the repo root. Regenerate it with your CSS; it's
+derived from the same config, so it can't drift from what the browser gets.
 
 ## Teaching AI agents (`vitops agents` + `vitops docs`)
 

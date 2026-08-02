@@ -1,6 +1,6 @@
 ---
 title: Vitops
-description: A design-system toolchain — generate Bricks, standalone CSS, or Tailwind v4 output from one design-system.json.
+description: A design-system toolchain — generate Tailwind v4, Bricks, DESIGN.md, or standalone CSS output from one design-system.json.
 section: 'Start here'
 order: 0
 ---
@@ -20,8 +20,9 @@ that has to be kept in sync with a token file.
 
 ## What you get
 
-**One config, three targets.** The same file emits a WordPress/Bricks payload, a standalone bundled
-stylesheet, or a self-contained Tailwind v4 theme. Pick with `--format`.
+**One config, four targets.** The same file emits a self-contained Tailwind v4 theme, a
+WordPress/Bricks payload, an agent-facing `DESIGN.md` brief, or a standalone bundled stylesheet. Pick
+with `--format` — it takes a comma-separated list, so the brief composes with a stylesheet.
 
 **Modern CSS first.** Anchor Positioning, Popover, Invoker Commands, `<details>`, subgrid, container
 queries and scroll-driven animations do the work. JavaScript is the exception, not the baseline.

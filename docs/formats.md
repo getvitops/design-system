@@ -1,18 +1,22 @@
 ---
 type: "Formats Reference"
-title: "Vitops — output formats (tailwind vs css vs bricks)"
+title: "Vitops — output formats (tailwind vs css vs bricks vs design)"
 description: "What each vitops generate format emits, what the target platform provides instead, and the Tailwind-specific rules (which framework utilities are stripped in favour of Tailwind defaults)."
 resource: "design-system.json"
-tags: [formats, tailwind, bricks, css, design-system]
+tags: [formats, tailwind, bricks, css, design, design-system]
 generator: "@getvitops/generator"
 ---
 
-# Output formats — `tailwind` vs `css` vs `bricks`
+# Output formats — `tailwind` vs `css` vs `bricks` vs `design`
 
-One config, three targets: `vitops generate --format <tailwind|css|bricks>`. The **class
-vocabulary is the same** everywhere (see [css/classes.md](css/classes.md)); what differs is
-which layers the generator emits versus which the platform provides, and the variant
-separator (`-` in CSS/Bricks, `:` / `@` in Tailwind).
+One config, four targets: `vitops generate --format <tailwind|css|bricks|design>`. Three of
+them are stylesheets, and across those the **class vocabulary is the same** (see
+[css/classes.md](css/classes.md)); what differs is which layers the generator emits versus
+which the platform provides, and the variant separator (`-` in CSS/Bricks, `:` / `@` in
+Tailwind). The fourth, `design`, emits no CSS at all.
+
+`--format` takes a comma-separated list, so the brief composes with a stylesheet:
+`vitops generate --format css,design`.
 
 ## `tailwind` — single-file Tailwind v4 layer
 
@@ -62,10 +66,10 @@ Other Tailwind-specific behaviour:
 
   This split is deliberate and load-bearing. When a token sits in `@theme` *and* an
   `@utility` of the derived name exists, Tailwind merges both into one rule with the
-  `@theme` declaration last — regardless of source order. Promoting the role tokens
-  would therefore silently replace the functional plane with the emphasis stop on
-  `bg-<role>-muted`, `text-<role>-muted`, `text-<role>-x-muted`, `border-<role>-bold`
-  and `bg-surface-bold`, two of which are the contrast-guaranteed text tokens.
+  `@theme` declaration last — regardless of source order. Only palette hues belong in
+  `@theme`, where nothing competes for the name. Role tokens stay in a plain `:root`
+  block, and `format-parity.test.ts` derives that guard from the emitted token names so
+  it cannot go quiet if the grammar moves again.
 - **`colors.utilities` is a floor here, not a ceiling.** It controls which families get
   explicit role `@utility` rules, exactly as in `css`/`bricks`. But the raw hue scales
   are `@theme` colours, and Tailwind derives *every* colour family from those on demand
@@ -110,9 +114,38 @@ this docs bundle under `docs/`.
 - **Bricks provides the token layer.** `color.css` and `type-tokens.css` are one-line
   stubs: the colour `:root` tokens, dark-mode overrides, colour utility classes, fonts,
   and type/space scales are generated live by Bricks' Color / Font / Variables Managers
-  from the imported JSONs. Semantic palette entries carry `darkEnabled` + a `dark` ref so
+  from the imported JSONs. Semantic palette entries carry `darkModeEnabled` + a `dark` ref so
   Bricks emits the dark-mode overrides on import.
 - Everything else (patterns, shadows, typography roles, animation effects, structural
   framework CSS) ships in `styles.min.css` as in the other formats.
 - Pattern states reference shadows by name, compiled to
   `filter: drop-shadow(var(--shadow-<name>))`.
+
+## `design` — the agent-facing brief
+
+Emits exactly one file, `DESIGN.md`, in the
+[google-labs-code/design.md](https://github.com/google-labs-code/design.md) format: YAML
+front matter carrying the tokens (`colors`, `typography`, `rounded`, `spacing`,
+`components`, with `{group.token}` references) followed by a prose body carrying the
+rationale. It is meant to be run with `--out .` — DESIGN.md conventionally sits at a repo
+root beside `AGENTS.md`, not in a build directory.
+
+**No CSS, no `tokens.json`, nothing else.** This format is a description of the system for
+a tool that has to work without it — a coding agent in another repo, a Figma import, a
+designer. It is not a build target, and `vitops lint` does not accept it.
+
+Three things the format cannot represent, and what is emitted instead:
+
+| Ours | Why it doesn't fit | Emitted as |
+| --- | --- | --- |
+| fluid `clamp()` type / space steps | a spec `Dimension` is a number + px/em/rem | the **max** (desktop) value, with the prose saying so |
+| the automatic dark flip | the spec has no notion of a second appearance | **light** values only, with the flip explained in prose |
+| a `50%` radius | same `Dimension` restriction | dropped from `rounded`, named in the Shapes prose |
+
+Role tokens are emitted as `{colors.<hue>-<step>}` **references** into the raw ramps rather
+than flattened hexes, so the role → ramp lineage survives the export. `on-solid` is the
+exception — it is a computed contrast literal with no step behind it.
+
+`meta.name` / `meta.description` in `design-system.json` supply the brand name and the
+Overview paragraph; everything else is derived from the config, so the brief cannot drift
+from what the other three formats build.

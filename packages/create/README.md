@@ -24,7 +24,7 @@ vp create @getvitops:emdash
 An [EmDash CMS](https://docs.emdashcms.com) website on Cloudflare Workers,
 with every relevant `@getvitops/*` package pre-wired:
 
-- **`@getvitops/astro`** — the `getvitops()` integration: design-system CSS
+- **`@getvitops/astro`** — the `vitops()` integration: design-system CSS
   generated from `design-system.json` (Tailwind v4 format, layout-scoped via
   `css.inject: false`), favicons/PWA from `src/assets/logo.svg`, and the
   web-component runtime copied into `public/vitops/`.

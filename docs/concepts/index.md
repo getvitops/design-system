@@ -4,6 +4,6 @@
 
 # Contents
 
-* [Colour system](color.md) - seeded OKLCH scales, functional tokens, automatic dark mode
+* [Colour system](color.md) - seeded OKLCH scales on a shared lightness ladder, target-prefixed tokens, automatic dark mode
 * [Type & space scales](scales.md) - fluid modular scales and the tokens they emit
 * [Component patterns](patterns.md) - token cascade, override hooks, states, role variants

@@ -40,7 +40,23 @@ never stale and always names the project's actual tokens. (If `vitops` isn't on 
 ## Other commands
 
 - `vitops generate --format <tailwind|css|bricks>` — generate the platform output.
+- `vitops generate --format design --out .` — write `DESIGN.md`, the agent-facing brief
+  (google-labs-code/design.md format: YAML token front matter + prose rationale). It
+  emits no CSS, so it composes: `--format css,design`. The live reference above is
+  richer; DESIGN.md is for handing the identity to a tool that doesn't have this skill.
 - `vitops init` / `vitops validate` — scaffold / check a `design-system.json`.
+- `vitops legal` — render the site's privacy policy, terms of service and cookie notice
+  from a **site config** (not a `design-system.json`). `--format md|html|portable-text`
+  covers Astro content collections, WordPress/Bricks fragments and EmDash respectively;
+  `--out <dir>` writes files, otherwise it prints to stdout.
+  The documents are **derived from the config**: the analytics provider it names is the
+  one whose ID is set, the personal information it lists is what the configured forms
+  collect, the countries it names come from the providers in use. So the fix for a wrong
+  policy is a corrected config, never hand-editing the output — the next build overwrites
+  it. Declare processors the config cannot imply (payment, CRM, mail) under
+  `legal.privacyPolicy.processors`.
+  Generated from config, not legal advice — always tell the user to have it reviewed
+  before publishing.
 - `vitops agents` — (re-)link this skill into `.agents/skills/` + `.claude/skills/` and
   refresh the AGENTS.md pointer block. The links point into the installed package and
   survive version bumps; re-run only if they were deleted.

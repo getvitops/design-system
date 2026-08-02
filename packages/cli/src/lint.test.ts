@@ -3,6 +3,8 @@ import {
   expandPalette,
   functionalRole,
   roleColorUtilities,
+  roleHue,
+  roleKind,
 } from '@getvitops/generator';
 import { describe, expect, it } from 'vitest';
 import { extractClasses, judge, lintSource, vocabulary } from './lint.ts';
@@ -20,8 +22,10 @@ import { extractClasses, judge, lintSource, vocabulary } from './lint.ts';
 const ds = defaultConfig();
 const pal = expandPalette(ds.colors.palette);
 const roleClasses = roleColorUtilities(
-  Object.entries(ds.colors.roles).map(([r, h]) => functionalRole(r, h, pal[h]!)),
-  ds.colors.utilities ?? ['bg', 'text', 'border'],
+  Object.entries(ds.colors.roles).map(([r, spec]) =>
+    functionalRole(r, roleHue(spec), pal[roleHue(spec)]!, roleKind(spec)),
+  ),
+  ds.colors.utilities ?? ['bg', 'text', 'icon', 'border'],
 ).map((u) => u.cls);
 const v = vocabulary(ds, roleClasses);
 const hue = Object.keys(ds.colors.palette)[0] as string;

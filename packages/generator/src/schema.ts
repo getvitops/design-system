@@ -8,7 +8,7 @@
  *   • the generated `authoring.md` reference doc (walks `jsonSchema`'s descriptions).
  */
 import * as z from 'zod/mini';
-import { REQUIRED_ROLES } from './shared.ts';
+import { REQUIRED_ROLES, type RoleSpec, roleHue } from './shared.ts';
 
 /**
  * Attach a JSON-Schema `description`. zod/mini has no `.describe()` method; the
@@ -36,7 +36,7 @@ const SeededRamp = desc(
     anchors: z.optional(
       desc(
         z.record(z.string(), z.string()),
-        'Step → colour overrides (hex or oklch()) that pin specific steps of the generated scale; the remaining steps interpolate around them.',
+        'Step → colour overrides (hex or oklch()) pinned VERBATIM at those steps. Every other step takes its lightness from the shared ladder, with chroma and hue interpolated between the anchors — so an anchor is reproduced exactly and is the only step allowed off the ladder. An explicit anchor overrides the seed at that step; two anchors that resolve to the same step are an error.',
       ),
     ),
   }),
@@ -56,7 +56,25 @@ const Ramp = desc(
   'A palette hue, authored one of two ways: `{ seed, anchors? }` generates an 11-step numeric OKLCH scale (50…950) from the seed, or `{ tones }` supplies a fixed brand kit used verbatim.',
 );
 
-const UtilityName = z.enum(['bg', 'text', 'border', 'outline', 'fill', 'stroke']);
+/**
+ * A role points at a hue, and optionally declares its kind. The bare-string form
+ * is the shorthand for a chromatic role — signal colours are the common case,
+ * and the two or three surfaces are worth naming explicitly.
+ */
+const RoleSpecSchema = z.union([
+  desc(z.string(), 'A palette hue name. Shorthand for `{ hue, kind: "chromatic" }`.'),
+  z.object({
+    hue: desc(z.string(), 'The palette hue this role resolves to.'),
+    kind: z.optional(
+      desc(
+        z.enum(['surface', 'chromatic']),
+        '`surface` — a page/panel colour: gets a bare `bg-<role>` plus the full emphasis range and text scale. `chromatic` (default) — a signal colour: tints and solids only, no bare `bg-<role>`.',
+      ),
+    ),
+  }),
+]);
+
+const UtilityName = z.enum(['bg', 'text', 'icon', 'border', 'outline', 'fill', 'stroke']);
 
 const Colors = desc(
   z.object({
@@ -65,17 +83,17 @@ const Colors = desc(
       'Palette hues by name. Each becomes an 11-step numeric OKLCH scale (`--color-<hue>-50…950`).',
     ),
     roles: desc(
-      z.record(z.string(), z.string()),
-      `Maps semantic role names onto palette hues. Role names are ARBITRARY — add a key and the generator emits that role's full FUNCTIONAL token set (\`--<role>-{bg,bg-muted,border,border-bold,solid,solid-bold,on-solid,text,text-muted,text-x-muted}\`), its emphasis stops, its dark-mode flip and its utility classes. Dark mode flips automatically; there is no per-appearance scheme grammar. Six roles are a required core, because the shipped framework CSS references them with no fallback: ${REQUIRED_ROLES.join(', ')}. Conventional additions are ui-secondary/accent, brand-secondary, info and success.`,
+      z.record(z.string(), RoleSpecSchema),
+      `Maps semantic role names onto palette hues. Role names are ARBITRARY — add a key and the generator emits that role's token set (\`--color-<target>-<role>[-<variant>]\` for target bg/text/icon/border), its dark-mode flip and its utility classes.\n\nA value is either a hue name (\`"danger": "rust"\`) or \`{ "hue": …, "kind": "surface" | "chromatic" }\`. **The kind decides the shape of the token set.** \`chromatic\` (the default, and what the bare-string form means) is a signal colour: its backgrounds split into tints (\`bg-<role>-x-muted\`/\`-muted\`) and solids (\`bg-<role>-solid[-bold|-x-bold]\`), with deliberately **no bare \`bg-<role>\`** — "how loud?" is a question the author answers. \`surface\` is a page/panel colour: it has a bare \`bg-<role>\` plus the full emphasis range and text scale.\n\nDark mode flips automatically; there is no per-appearance scheme grammar. The solid family and its computed \`text-on-<role>\` foreground stay mode-stable so a filled button keeps its identity. Six roles are a required core, because the shipped framework CSS references them with no fallback: ${REQUIRED_ROLES.join(', ')}. Conventional additions are ui-secondary/accent, brand-secondary, info and success.`,
     ),
     utilities: z.optional(
       desc(
         z.array(UtilityName),
-        'Which colour utility-class families to emit (`bg-*`, `text-*`, `border-*`, `outline-*`, `fill-*`, `stroke-*`). Defaults to bg, text, border.',
+        'Which colour utility-class families to emit (`bg-*`, `text-*`, `icon-*`, `border-*`, `outline-*`, `fill-*`, `stroke-*`). Defaults to bg, text, icon, border. `icon` is a separate non-text tier (a glyph may run more vivid than text); `outline`/`fill`/`stroke` have no tokens of their own and alias the border and icon tiers.',
       ),
     ),
   }),
-  'The colour system (the only required section): `palette` hues become generated OKLCH scales; `roles` map semantic roles onto those hues, from which all functional tokens and dark mode derive.',
+  'The colour system (the only required section): `palette` hues become generated OKLCH scales; `roles` map semantic roles onto those hues, from which all role tokens and dark mode derive.',
 );
 
 // ── fluid modular scale (type + space) ──────────────────────────────────────
@@ -141,7 +159,7 @@ const Pattern = desc(
     ),
     states: desc(
       z.optional(z.record(z.string(), z.record(z.string(), z.unknown()))),
-      'Interaction states (hover / active / focus-visible), each a map of shortcuts: `step` (intensify fills/text by n emphasis stops), `scale` (transform scale), `lift` (translateY + shadow), `shadow` (a shadow name → drop-shadow(var(--shadow-<name>)), or true → lift shadow), `ring` (focus ring), or raw `css` declarations. Hover rules are wrapped in `@media (hover: hover)`.',
+      'Interaction states (hover / active / focus-visible), each a map of shortcuts: `step` (intensify the fill or text by n rungs — `bg-<role>-solid` → `-solid-bold`, `text-<role>` → `-bold`), `scale` (transform scale), `lift` (translateY + shadow), `shadow` (a shadow name → drop-shadow(var(--shadow-<name>)), or true → lift shadow), `ring` (focus ring), or raw `css` declarations. Hover rules are wrapped in `@media (hover: hover)`.',
     ),
     roles: desc(
       z.optional(z.array(z.string())),
@@ -189,10 +207,10 @@ const Typography = desc(
     ),
     headings: desc(
       z.optional(z.record(z.string(), z.string())),
-      'Maps heading elements (h1…h6) to type roles so bare headings pick up role styling.',
+      'Maps bare elements to type roles so unclassed markup picks up role styling — `{ "h1": "display", "h2": "heading" }`. The key is used verbatim as a selector, so it is not limited to h1…h6: **map `"body"` to your prose role** to bind base page typography to the role rather than hand-writing it. That binding is what makes the role editable — a stylesheet that re-states `font-family`/`line-height` as literals on `body` shadows `--<role>-ff`/`--<role>-lh`, and the live theme editor then appears to do nothing.',
     ),
   }),
-  'Typography: family aliases, semantic type roles (→ `font-<role>` classes), and the heading-element → role mapping.',
+  'Typography: family aliases, semantic type roles (→ `font-<role>` classes), and the bare-element → role mapping.',
 );
 
 // ── animations ──────────────────────────────────────────────────────────────
@@ -243,10 +261,25 @@ export const DesignSystemSchema = z.object({
     z.optional(z.string()),
     'URL of the published JSON Schema (stamped by `vitops init`) so editors provide autocomplete + validation.',
   ),
+  meta: desc(
+    z.optional(
+      z.object({
+        name: desc(
+          z.optional(z.string()),
+          'Brand/system name. Used as the `name` field and `<h1>` of the `design` format\'s `DESIGN.md`. Defaults to "Design System".',
+        ),
+        description: desc(
+          z.optional(z.string()),
+          "One or two sentences on the brand personality and the feeling the UI should evoke — what an agent needs when no token answers the question. Becomes the DESIGN.md `description` field and opens its Overview section; if omitted, a generic description of the system's mechanics is used instead.",
+        ),
+      }),
+    ),
+    'Brand identity for agent-facing output. Consumed only by the `design` format (`DESIGN.md`); it emits no CSS and no tokens.',
+  ),
   colors: Colors,
   shadows: desc(
     z.optional(z.record(z.string(), z.string())),
-    'Named shadows → `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Values are shadow parameter lists (offset/blur/colour), applied via `filter: drop-shadow(…)`.',
+    'Named shadows → `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Values are shadow parameter lists (offset/blur/colour). Each token feeds two consumers with different grammars — `box-shadow` (pattern geometry, via the `--ds-*` group aliases) and `filter: drop-shadow(…)` (the utilities and the `shadow:` state shortcut) — so values must stay in the intersection: **one layer, no spread radius, no `inset`**. `drop-shadow()` rejects all three, and rejecting them invalidates the whole filter, so the shadow vanishes rather than degrading.',
   ),
   fonts: desc(
     z.optional(z.record(z.string(), z.string())),
@@ -274,7 +307,7 @@ export type DesignSystem = z.infer<typeof DesignSystemSchema>;
 // (validate the resolved theme against `DesignSystemSchema`).
 const ColorsPatch = z.object({
   palette: z.optional(z.record(z.string(), Ramp)),
-  roles: z.optional(z.record(z.string(), z.string())),
+  roles: z.optional(z.record(z.string(), RoleSpecSchema)),
   utilities: z.optional(z.array(UtilityName)),
 });
 export const DesignSystemPatchSchema = z.extend(z.partial(DesignSystemSchema), {
@@ -295,6 +328,51 @@ export const jsonSchema = {
   ...z.toJSONSchema(DesignSystemSchema, { target: 'draft-2020-12' }),
 };
 
+/** Split a CSS value on top-level commas, ignoring commas nested in `rgba(…)` etc. */
+const splitLayers = (value: string): string[] => {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < value.length; i++) {
+    const c = value[i];
+    if (c === '(') depth++;
+    else if (c === ')') depth--;
+    else if (c === ',' && depth === 0) {
+      out.push(value.slice(start, i));
+      start = i + 1;
+    }
+  }
+  out.push(value.slice(start));
+  return out.map((s) => s.trim()).filter(Boolean);
+};
+
+const LENGTH = /^[+-]?(\d+\.?\d*|\.\d+)(px|rem|em|ch|ex|vh|vw|vmin|vmax|cm|mm|in|pt|pc|q)?$/i;
+
+/**
+ * Why a shadow can be *valid CSS* and still render nothing: a `--shadow-<name>`
+ * token is consumed both as a `box-shadow` (pattern geometry) and inside
+ * `filter: drop-shadow(…)` (the `.drop-shadow-<name>` utilities, the `shadow:`
+ * state shortcut). `drop-shadow()` accepts a *single* layer of at most three
+ * lengths and no `inset` — a spread radius, a second comma-separated layer or an
+ * inset keyword makes the function invalid, which drops the entire `filter`
+ * declaration. `box-shadow` accepts all three happily, so the value looks fine
+ * everywhere it is authored and only the utility silently goes blank.
+ */
+const dropShadowIssue = (value: string): string | undefined => {
+  const layers = splitLayers(value);
+  if (layers.length > 1) return `${layers.length} comma-separated layers`;
+  const layer = layers[0] ?? '';
+  if (/(^|\s)inset(\s|$)/i.test(layer)) return 'an `inset` keyword';
+  // Drop function calls (`rgb(0 0 0 / .5)`, `color-mix(…)`) so their numbers
+  // aren't miscounted as lengths, then count what's left.
+  const lengths = layer
+    .replaceAll(/[\w-]*\([^()]*\)/g, ' ')
+    .split(/\s+/)
+    .filter((t) => LENGTH.test(t));
+  if (lengths.length > 3) return `a spread radius (${lengths.length} lengths)`;
+  return undefined;
+};
+
 export type ValidationResult =
   | { ok: true; data: DesignSystem; errors: []; warnings: string[] }
   | { ok: false; data: undefined; errors: z.core.$ZodIssue[]; warnings: string[] };
@@ -312,7 +390,8 @@ export function validate(input: unknown): ValidationResult {
     return { ok: false, data: undefined, errors: result.error.issues, warnings: [] };
   // Every role must point at a palette hue that exists.
   const { palette, roles } = result.data.colors;
-  for (const [role, hue] of Object.entries(roles)) {
+  for (const [role, spec] of Object.entries(roles)) {
+    const hue = roleHue(spec as RoleSpec);
     if (palette[hue] == null) {
       return {
         ok: false,
@@ -354,5 +433,14 @@ export function validate(input: unknown): ValidationResult {
         `patterns.radii.${name} collides with the "${name}" pattern on --br-${name}; ` +
           `the pattern's override hook wins — rename the radius`,
       );
+  for (const [name, value] of Object.entries(result.data.shadows ?? {})) {
+    const issue = dropShadowIssue(value);
+    if (issue)
+      warnings.push(
+        `shadows.${name} carries ${issue}, which \`filter: drop-shadow()\` rejects — ` +
+          `\`.drop-shadow-${name}\` will render no shadow at all (the token still works ` +
+          `as a \`box-shadow\`). Use one layer of at most three lengths.`,
+      );
+  }
   return { ok: true, data: result.data, errors: [], warnings };
 }

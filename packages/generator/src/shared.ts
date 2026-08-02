@@ -49,22 +49,55 @@ export const REQUIRED_ROLES: readonly string[] = [
 ];
 
 /**
- * The functional-token and emphasis-stop suffixes a role resolves to. Shared so
- * the required-roles drift test greps for exactly what the generator emits.
+ * Every token key a role can resolve to, across both role kinds. Shared so the
+ * required-roles drift test greps for exactly what the generator emits.
+ *
+ * These are *keys*, not var names: the role sits in the middle of the property
+ * (`--color-bg-danger-muted`), so compose them with `tokenVar()` from `tokens.ts`
+ * rather than concatenating by hand.
  */
-export const ROLE_TOKEN_SUFFIXES: readonly string[] = [
+export const ROLE_TOKEN_KEYS: readonly string[] = [
+  // backgrounds — surface roles get the bare token and the full range,
+  // chromatic roles get tints plus the solid family.
   'bg',
   'bg-muted',
+  'bg-x-muted',
   'bg-bold',
-  'border',
-  'border-bold',
-  'solid',
-  'solid-bold',
-  'on-solid',
+  'bg-x-bold',
+  'bg-solid',
+  'bg-solid-bold',
+  'bg-solid-x-bold',
+  // foregrounds
   'text',
+  'text-bold',
   'text-muted',
   'text-x-muted',
+  'text-xx-muted',
+  'text-on',
+  'text-on-bold',
+  // non-text tiers
+  'icon',
+  'icon-muted',
+  'border',
+  'border-muted',
+  'border-bold',
 ];
+
+/** How a role is authored in `colors.roles`: a bare hue, or a hue plus its kind. */
+// `kind` admits an explicit `undefined` because the repo runs
+// `exactOptionalPropertyTypes` and the zod-inferred config type spells optionals
+// that way — without it every call site would need a cast.
+export type RoleSpec = string | { hue: string; kind?: 'surface' | 'chromatic' | undefined };
+
+/** The palette hue a role points at, through either authoring form. */
+export const roleHue = (spec: RoleSpec): string => (typeof spec === 'string' ? spec : spec.hue);
+
+/**
+ * A role's kind. The bare-string shorthand means `chromatic`, because signal
+ * colours are the common case and surfaces are the two or three you name once.
+ */
+export const roleKind = (spec: RoleSpec): 'surface' | 'chromatic' =>
+  typeof spec === 'string' ? 'chromatic' : (spec.kind ?? 'chromatic');
 
 /**
  * Pattern base geometry props → per-pattern override-hook shorthand. Each hook

@@ -98,4 +98,9 @@ pattern's own hook. Members: `badge`, `tag`, `status`, `tooltip`.
 See **`DESIGN-SYSTEM-GAPS.md`** for the token-level gaps found while reproducing the Home
 page (border/hairline token, radii→token bricks-gating, button base, `.flex` fix, etc.).
 
-- Output format for Google's DESIGN.md format https://github.com/google-labs-code/design.md
+- ~~Output format for Google's DESIGN.md format https://github.com/google-labs-code/design.md~~
+  — done: `vitops generate --format design` (`packages/generator/src/design-md.ts`), plus the
+  root `DESIGN.md` via `npx vp run build:design`. Deferred from it: a **DESIGN.md → config
+  importer** (`design.md` as an _input_, seeding `design-system.json` from a brand brief) and a
+  `diff` gate in CI. See the deferred DTCG/OKF plan in `PLAN.md` for the wider framing — its
+  Phase 3 (OKF bundle) is already live as `docs/`.

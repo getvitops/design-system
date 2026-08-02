@@ -31,7 +31,7 @@ const statusTone = (s: string) =>
     <h2 class="font-heading text-lg">Plans</h2>
     <div class="mt-3 grid gap-3 sm:grid-cols-3">
       {PLANS.map((p) => (
-        <div class:list={['rounded border p-3', p === plan ? 'border-ui-primary bg-ui-primary' : 'border-neutral']}>
+        <div class:list={['rounded border p-3', p === plan ? 'border-ui-primary bg-ui-primary-muted' : 'border-neutral']}>
           <div class="font-heading uppercase">{p}</div>
           <ul class="font-caption text-neutral-muted mt-1">
             {[...capabilitiesFor(p)].map((c) => <li>• {c}</li>)}

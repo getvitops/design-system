@@ -57,11 +57,11 @@
   transition: background-color 0.15s ease;
 
   &:hover {
-    background: var(--color-surface-muted);
+    background: var(--color-bg-surface-muted);
   }
 
   &:focus-visible {
-    outline: 2px solid var(--icon-button-focus-color, var(--color-brand-primary-muted));
+    outline: 2px solid var(--icon-button-focus-color, var(--color-border-focus));
     outline-offset: 2px;
   }
 

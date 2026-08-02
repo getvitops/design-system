@@ -10,7 +10,7 @@
 import { cpSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { StylesheetFormat } from '@getvitops/generator';
+import type { LegalOutput, StylesheetFormat } from '@getvitops/generator';
 import {
   type FaviconLink,
   faviconLinks,
@@ -52,6 +52,22 @@ export interface GetvitopsCssOptions {
    * only your own pages (and previews rendered through them) are styled.
    */
   inject?: boolean;
+}
+
+export interface GetvitopsLegalOptions {
+  /** Path to the site config (JSON) the documents are rendered from. */
+  input: string;
+  /**
+   * Where to write them (default 'src/content/legal'). The default is a content
+   * collection: the documents are markdown, and a collection is what lets a page
+   * render one through your own layout rather than the integration injecting a
+   * route (which nothing in this package does).
+   */
+  out?: string;
+  /** Output format (default 'md'). */
+  format?: LegalOutput;
+  /** Environment whose A/B variant applies (default 'production'). */
+  siteEnv?: string;
 }
 
 /** `changefreq`, mirroring @astrojs/sitemap's `ChangeFreq`. */
@@ -131,6 +147,16 @@ export interface GetvitopsOptions {
    */
   editor?: boolean;
   /**
+   * Render the site's legal documents (privacy policy, terms, cookie notice)
+   * from a site config, and re-render when it changes. Off unless provided.
+   *
+   * Requires `css`, which is what registers the Vite plugin that runs the
+   * generation — without it the documents would be written once and never
+   * refresh. Not using `css`? Run `vitops legal` from the CLI instead; it is the
+   * same renderer and works in any stack.
+   */
+  legal?: GetvitopsLegalOptions;
+  /**
    * Emit `sitemap-index.xml` + `sitemap-0.xml` via `@astrojs/sitemap`, and link it
    * from `<Head />`. Off unless provided; `true` uses its defaults.
    *
@@ -204,6 +230,11 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
         const editor = opts.editor === true;
         if (editor && !opts.css)
           logger.warn('editor: true needs a `css` config — it reads design-manifest.json.');
+        if (opts.legal && !opts.css)
+          logger.warn(
+            'legal: needs a `css` config — the generation runs in the Vite plugin that `css` ' +
+              'registers. Run `npx vitops legal` instead if you do not use `css`.',
+          );
         if (opts.seo) {
           // Warn once here rather than letting every page silently drop its
           // canonical — a missing absolute URL is invisible in the output.
@@ -369,6 +400,9 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
               // Mirrored inside the generate pass so the served copy can never be
               // missing on a cold start or stale after a config edit.
               ...(editor ? { editorManifestDir: publicDir } : {}),
+              // Same reasoning: inside the pass, so the documents track the site
+              // config in dev instead of going stale after the first build.
+              ...(opts.legal ? { legal: opts.legal } : {}),
             }),
           ];
           // Tailwind is an optional peer — only the `tailwind` format needs it,

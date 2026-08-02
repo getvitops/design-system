@@ -22,7 +22,7 @@
  * actionable: you named something from your design system, and it doesn't
  * resolve.
  */
-import type { DesignSystem, Format } from '@getvitops/generator';
+import { NUMERIC_STEPS, type DesignSystem, type Format } from '@getvitops/generator';
 
 export interface LintFinding {
   file: string;
@@ -32,9 +32,26 @@ export interface LintFinding {
   suggestion?: string;
 }
 
-const UTIL_FAMILIES = ['bg', 'text', 'border', 'outline', 'fill', 'stroke'];
+const UTIL_FAMILIES = ['bg', 'text', 'icon', 'border', 'outline', 'fill', 'stroke'];
 const BREAKPOINTS = ['sm', 'md', 'lg', 'xl'];
-const ROLE_MODIFIERS = ['', 'muted', 'x-muted', 'bold', 'x-bold', 'solid', 'solid-bold', 'bg-bold'];
+
+/**
+ * The modifiers actually emitted for one family + role, read back out of the
+ * generator's own class list.
+ *
+ * This used to be a hand-maintained array, which is the wrong shape for a
+ * suggestion: the two role kinds emit different modifiers (a chromatic role has
+ * `solid` and no bare form; a surface role the reverse), so a single list was
+ * wrong for one of them no matter what it said.
+ */
+const emittedModifiers = (roleClasses: Set<string>, fam: string, role: string): string[] => {
+  const prefix = `${fam}-${role}`;
+  return [...roleClasses]
+    .filter((c) => c === prefix || c.startsWith(`${prefix}-`))
+    .map((c) => c.slice(prefix.length + 1))
+    .filter(Boolean)
+    .sort();
+};
 
 /** Everything the config makes namable, so we only judge classes we can judge. */
 interface Vocabulary {
@@ -52,7 +69,7 @@ export function vocabulary(ds: DesignSystem, roleClasses: Iterable<string>): Voc
   return {
     roles: Object.keys(ds.colors?.roles ?? {}),
     hues: Object.keys(ds.colors?.palette ?? {}),
-    steps: ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'],
+    steps: [...NUMERIC_STEPS],
     typeRoles: Object.keys(ds.typography?.roles ?? {}),
     shadows: Object.keys(ds.shadows ?? {}),
     patterns: Object.keys(ds.patterns?.items ?? {}),
@@ -115,10 +132,13 @@ export function judge(
 
     if (useRole) {
       const mod = rest.slice((role as string).length + 1);
+      const valid = emittedModifiers(v.roleClasses, fam as string, role as string);
       return {
         cls: raw,
         reason: `\`${fam}-${role}${mod ? `-${mod}` : ''}\` is not emitted for the \`${role}\` role`,
-        suggestion: `valid modifiers: ${ROLE_MODIFIERS.filter(Boolean).join(', ')}`,
+        suggestion: valid.length
+          ? `valid modifiers: ${valid.join(', ')}`
+          : `the \`${role}\` role emits no \`${fam}-*\` utilities`,
       };
     }
     if (hue) {

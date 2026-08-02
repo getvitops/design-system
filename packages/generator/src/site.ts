@@ -104,6 +104,9 @@ const ContactObjectSchema = z.object({
 // contact is either a string (location key reference) or an inline object
 const ContactConfigSchema = z.union([z.string(), ContactObjectSchema]);
 
+export type PostalAddress = z.infer<typeof PostalAddressSchema>;
+export type ContactObject = z.infer<typeof ContactObjectSchema>;
+
 // ── Locations (schema.org LocalBusiness) ────────────────────────────────────────
 
 const GeoSchema = z.object({
@@ -408,6 +411,40 @@ const TwitterSchema = z.object({
   image: z.optional(ImageRefSchema),
 });
 
+// ── Legal ───────────────────────────────────────────────────────────────────────
+
+/**
+ * Which template set the generated legal documents are written against. This is
+ * a closed enum rather than a free string because an unrecognised value would
+ * otherwise silently fall back to the wrong body of law; `validateSite` rejects
+ * anything without a registered template. Add a member here and a matching entry
+ * in `legal/templates/index.ts` — the two are checked against each other.
+ */
+export const JURISDICTIONS = ['ca'] as const;
+const JurisdictionSchema = z.enum(JURISDICTIONS);
+export type Jurisdiction = (typeof JURISDICTIONS)[number];
+
+/**
+ * A third party that receives personal information. The generator derives the
+ * ones it can see (analytics IDs, Turnstile, the deploy platform); this is for
+ * the rest, which no other part of the config implies.
+ *
+ * Deliberately facts, not prose: the config records *what is true*, the template
+ * owns *how it is said*. That keeps a policy correct when the wording changes.
+ */
+const ProcessorSchema = z.object({
+  name: desc(z.string(), 'The provider, as a reader would recognise it (e.g. "Stripe").'),
+  purpose: desc(
+    z.string(),
+    'Why they receive it, as a noun phrase that reads after "for" (e.g. "payment processing").',
+  ),
+  country: desc(
+    z.optional(z.string()),
+    'Where they process it, as it should read in a sentence (e.g. "the United States"). Feeds the cross-border-transfer disclosure.',
+  ),
+  privacyUrl: z.optional(z.url()),
+});
+
 // ── Top-level schema ────────────────────────────────────────────────────────────
 
 export const SiteConfigSchema = z.object({
@@ -609,11 +646,27 @@ export const SiteConfigSchema = z.object({
   legal: desc(
     z.optional(
       z.object({
+        jurisdiction: desc(
+          z.optional(JurisdictionSchema),
+          'Which legal template set the generated documents use. Default `ca`.',
+        ),
         privacyPolicy: z.optional(
           z.object({
             enabled: z.boolean(),
             url: z.optional(z.url()),
             lastUpdated: z.optional(IsoDate),
+            privacyOfficer: desc(
+              z.optional(ContactConfigSchema),
+              'Who privacy requests go to. Falls back to `contact`, then `primaryLocation`.',
+            ),
+            retention: desc(
+              z.optional(z.string()),
+              'How long personal information is kept, in prose (e.g. "24 months after last contact").',
+            ),
+            processors: desc(
+              z.optional(z.array(ProcessorSchema)),
+              'Third parties that receive personal information and cannot be inferred from the rest of the config (payment processors, CRMs, mail senders). Known providers implied by `analytics`, `security` and `deployment` are added automatically — list only the rest.',
+            ),
           }),
         ),
         termsOfService: z.optional(
@@ -621,6 +674,10 @@ export const SiteConfigSchema = z.object({
             enabled: z.boolean(),
             url: z.optional(z.url()),
             lastUpdated: z.optional(z.nullable(IsoDate)),
+            governingLaw: desc(
+              z.optional(z.string()),
+              'Governing-law clause, in prose (e.g. "the Province of Ontario"). Defaults from the contact address.',
+            ),
           }),
         ),
         cookieConsent: z.optional(
@@ -633,7 +690,7 @@ export const SiteConfigSchema = z.object({
         ),
       }),
     ),
-    'Legal pages + cookie-consent configuration.',
+    'Legal pages: which documents exist, where they live, and the facts the generated prose asserts.',
   ),
   icons: desc(
     z.optional(
@@ -788,8 +845,65 @@ export function validateSite(input: unknown): SiteValidationResult {
         ),
       );
 
+  // Legal. An enabled document is a promise to publish a specific, correct
+  // sentence — so the inputs those sentences interpolate are required here
+  // rather than allowed to render as a blank. `jurisdiction` needs no check:
+  // the enum rejects an unregistered value at parse time.
+  const privacy = cfg.legal?.privacyPolicy;
+  if (typeof privacy?.privacyOfficer === 'string' && !has(cfg.locations, privacy.privacyOfficer))
+    errors.push(
+      issue(
+        ['legal', 'privacyPolicy', 'privacyOfficer'],
+        `privacyOfficer "${privacy.privacyOfficer}" is not a locations key`,
+      ),
+    );
+  if (privacy?.enabled) {
+    if (resolvePrivacyContact(cfg) == null)
+      errors.push(
+        issue(
+          ['legal', 'privacyPolicy'],
+          'privacyPolicy.enabled requires a contact for privacy requests — set legal.privacyPolicy.privacyOfficer, contact, or organization.email/address',
+        ),
+      );
+    if (cfg.domains?.canonical == null)
+      errors.push(
+        issue(
+          ['legal', 'privacyPolicy'],
+          'privacyPolicy.enabled requires domains.canonical — the policy states where information is held',
+        ),
+      );
+  }
+
   if (errors.length) return { ok: false, data: undefined, errors };
   return { ok: true, data: cfg, errors: [] };
+}
+
+/**
+ * Resolve who privacy requests go to: the explicit privacy officer, else the
+ * site contact, else the primary location, else the organization itself.
+ *
+ * Exported because `validateSite` and the legal-document derivation must agree
+ * on it exactly — a config that validates must be one the policy can render, and
+ * two copies of this precedence would drift into a policy with a blank address.
+ */
+export function resolvePrivacyContact(cfg: SiteConfig): ContactObject | undefined {
+  // A location's `name` is Localizable and a contact's is a plain string; the
+  // name is not used in the rendered address, so drop it rather than pick a locale.
+  const deref = (c: string | ContactObject | undefined): ContactObject | undefined => {
+    if (c == null) return undefined;
+    if (typeof c !== 'string') return c;
+    const loc = cfg.locations?.[c];
+    return loc && { email: loc.email, phone: loc.phone, address: loc.address };
+  };
+  const org = cfg.organization;
+  const candidates = [
+    deref(cfg.legal?.privacyPolicy?.privacyOfficer),
+    deref(cfg.contact),
+    deref(cfg.primaryLocation),
+    org && { email: org.email, phone: org.phone, address: org.address },
+  ];
+  // A contact with no reachable channel is not a contact — skip to the next.
+  return candidates.find((c) => c != null && (c.email != null || c.address != null));
 }
 
 // ── Theme resolution (extends) ──────────────────────────────────────────────────

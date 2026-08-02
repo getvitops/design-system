@@ -100,13 +100,14 @@ tunes the default fill without silently defeating `.card-danger`.
 
 `states` (hover / active / focus-visible) compile from shortcuts:
 
-- `step: n` — intensify the pattern's colour one emphasis stop: fills swap
-  `--<role>-solid` → `--<role>-solid-bold`; text patterns swap the `bold` emphasis stop →
-  `x-bold`.
+- `step: n` — intensify the pattern's colour one rung: fills swap
+  `--color-bg-<role>-solid` → `-solid-bold`; text patterns swap
+  `--color-text-<role>` → `--color-text-<role>-bold`.
 - `scale: 0.97` — transform scale; `lift: "<length>"` — `translate: 0 calc(-1 * <length>)`.
 - `shadow: "<name>"` — `filter: drop-shadow(var(--shadow-<name>))`; `shadow: true` — the
   generic lift box-shadow.
-- `ring: true` — focus ring (`box-shadow` in the role's `muted` stop, outline removed).
+- `ring: true` — focus ring (`box-shadow` in the role's solid tone, or
+  `--color-border-focus` when the pattern has no role; outline removed).
 - `css: { … }` — raw declarations escape hatch.
 
 Any pattern with states also gets a composed transition block (translate / scale / filter /
@@ -120,6 +121,7 @@ rules are wrapped in `@media (hover: hover)` so touch devices never stick.
 element and the `-<role>` form (`:where(button, .btn).danger, .btn-danger`), so the same
 variant works on a non-element host — both at class specificity, so neither outranks a
 plain class. Fill
-patterns set `background-color: var(--<role>-solid)` + `color: var(--<role>-on-solid)`;
-text patterns use the role's `bold` emphasis stop. `default_role` colours the bare,
-unsuffixed pattern. States re-apply per variant with the variant's role.
+patterns set `background-color: var(--color-bg-<role>-solid)` +
+`color: var(--color-text-on-<role>)`; text patterns use `var(--color-text-<role>)`, the
+token guaranteed legible over a surface in both appearances. `default_role` colours the
+bare, unsuffixed pattern. States re-apply per variant with the variant's role.

@@ -18,7 +18,7 @@ framework (accessible no-JS fallbacks included).
 
 ## Install
 
-The plugin **composes with** the `getvitops()` Astro integration from
+The plugin **composes with** the `vitops()` Astro integration from
 `@getvitops/astro` — the integration generates the design-system CSS and copies
 the web-component bundles into `public/vitops/`; this plugin adds the
 editor-facing layer. You need both:
@@ -26,7 +26,7 @@ editor-facing layer. You need both:
 ```js
 // astro.config.mjs
 import react from '@astrojs/react';
-import getvitops from '@getvitops/astro';
+import vitops from '@getvitops/astro';
 import { vitopsEmdash } from '@getvitops/emdash';
 import emdash, { local } from 'emdash/astro';
 import { sqlite } from 'emdash/db';
@@ -36,7 +36,7 @@ export default defineConfig({
   adapter: /* node/cloudflare */,
   integrations: [
     react(),
-    getvitops({ css: { input: 'design-system.json', format: 'tailwind', out: 'src/styles' } }),
+    vitops({ css: { input: 'design-system.json', format: 'tailwind', out: 'src/styles' } }),
     emdash({
       database: sqlite({ url: 'file:./data.db' }),
       storage: local({ directory: './uploads', baseUrl: '/_emdash/api/media/file' }),

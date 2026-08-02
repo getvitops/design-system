@@ -18,17 +18,31 @@ import { createHash } from 'node:crypto';
 import { transform } from 'lightningcss';
 import { validate, type DesignSystem } from './schema.ts';
 import { generateDocs } from './docs.ts';
-import { BASE_HOOK, DARK_SEL, TW_CLASH } from './shared.ts';
+import { emitDesignMd } from './design-md.ts';
+import { generateLegal } from './legal/index.ts';
+import { resolveSiteConfig, type SiteConfig } from './site.ts';
+import { BASE_HOOK, DARK_SEL, TW_CLASH, type RoleSpec, roleHue, roleKind } from './shared.ts';
 import {
-  EMPHASIS_STOPS,
+  checkContrast,
   expandPalette,
   functionalRole,
+  ladderWarnings,
   NUMERIC_STEPS,
+  tokenClass,
+  tokenVar,
   type ExpandedHue,
   type FunctionalRole,
 } from './tokens.ts';
 
-export type Format = 'bricks' | 'css' | 'tailwind';
+export type Format = 'bricks' | 'css' | 'tailwind' | 'design';
+
+/**
+ * Formats that emit a stylesheet. `design` is the odd one out — it emits a
+ * single `DESIGN.md` brief and no CSS at all — so anything that expects to
+ * import the generator's output (the Vite plugin's injected stylesheet, the
+ * Astro integration) types against this narrower set.
+ */
+export type StylesheetFormat = Exclude<Format, 'design'>;
 
 export interface GenerateOptions {
   /** Path to a design-system.json, OR an already-parsed config object. */
@@ -39,6 +53,15 @@ export interface GenerateOptions {
   outDir?: string;
   /** Override the framework asset root (advanced/testing). */
   assetsDir?: string;
+  /**
+   * Optional site config (path, or already-parsed) enabling legal-document
+   * output into `<outDir>/legal/*.html`.
+   *
+   * Separate from `input` because it is a different config kind: `input` is a
+   * `design-system.json`, this is a `SiteConfig`. Nothing else in `generate`
+   * reads it, and omitting it emits no legal files.
+   */
+  site?: string | SiteConfig;
 }
 
 export interface GenerateResult {
@@ -51,22 +74,41 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ASSETS = join(HERE, '..', 'assets');
 
 // ── colour machinery ─────────────────────────────────────────────────────────
-// Every hue is an 11-step numeric OKLCH scale (see tokens.ts); every role is a
-// hue reference that resolves to FUNCTIONAL tokens. No named steps, no scheme
-// grammar — dark mode is the automatic functional flip.
+// Every hue is an 11-step numeric OKLCH scale on a shared lightness ladder (see
+// tokens.ts); every role resolves to `--color-<target>-<role>[-<variant>]`.
+// Dark mode re-points which step each token reads; the solid family is stable.
 const UTILITY_PROPS: Record<string, string> = {
   bg: 'background-color',
   text: 'color',
+  icon: 'color',
   border: 'border-color',
   outline: 'outline-color',
   fill: 'fill',
   stroke: 'stroke',
 };
 
-// Functional-token var name: emphasis stops live in the --color-* namespace
-// (`stop-x-muted` → --color-<role>-x-muted); everything else is --<role>-<token>.
-const fnVar = (role: string, token: string): string =>
-  token.startsWith('stop-') ? `--color-${role}-${token.slice(5)}` : `--${role}-${token}`;
+/**
+ * Which token target a utility family draws from. Four families have tokens of
+ * their own; the other three are aliases, because an SVG fill wants the icon
+ * tier (3:1, may run vivid) and an outline wants the border tier — minting
+ * separate tokens for them would be three more things to keep in contrast.
+ */
+const UTILITY_SOURCE: Record<string, string> = {
+  bg: 'bg',
+  text: 'text',
+  icon: 'icon',
+  border: 'border',
+  outline: 'border',
+  fill: 'icon',
+  stroke: 'icon',
+};
+
+/** The target segment of a token key (`bg-solid-bold` → `bg`). */
+const targetOf = (key: string): string => {
+  const i = key.indexOf('-');
+  return i === -1 ? key : key.slice(0, i);
+};
+
 export interface ColorUtility {
   /** Class name, without the leading dot. */
   cls: string;
@@ -74,83 +116,45 @@ export interface ColorUtility {
   prop: string;
   /** `var(--…)` reference the class resolves to. */
   value: string;
-  /** Which of the two axes below produced it. */
-  axis: 'plane' | 'stop';
 }
 
 /**
  * Every role colour utility, each class name emitted EXACTLY once.
  *
- * Two axes share the `<family>-<role>-<modifier>` namespace: the functional
- * background/text/border **planes** (`--<role>-bg-muted`) and the
- * appearance-relative emphasis **stops** (`--color-<role>-muted`). Where both
- * would produce the same class the plane wins.
+ * There is now a single axis. The target lives *inside* the token name, so
+ * `bg-danger-muted` and `text-danger-muted` are different tokens and the
+ * collision the old plane/stop precedence rule existed to arbitrate cannot
+ * arise. Both the css/bricks and tailwind paths render from this one list, which
+ * is what keeps the three formats in step; `format-parity.test.ts` holds them
+ * there.
  *
- * That precedence used to be implicit — the css path emitted the stop matrix,
- * then the planes, and relied on the CSS minifier dropping the shadowed
- * earlier rule. The tailwind path never ran the stop half at all, so the two
- * formats shipped different vocabularies (87 role classes existed in css and
- * not in tailwind) with nothing to catch it. Deciding it here, once, is what
- * keeps all three formats in step; `format-parity.test.ts` holds them there.
- *
- * Order is stops-then-planes to match the css bundle's historical rule order.
+ * The class name IS the token name minus `--color-`, so there is no separate
+ * naming rule to drift — see `tokenClass` in tokens.ts.
  */
 export function roleColorUtilities(
   roles: readonly FunctionalRole[],
   utilities: readonly string[],
 ): ColorUtility[] {
-  const plane = (cls: string, prop: string, value: string): ColorUtility => ({
-    cls,
-    prop,
-    value,
-    axis: 'plane',
-  });
-  // Planes exist only for bg/text/border, and in this fixed family order —
-  // outline/fill/stroke have no functional equivalent, so enabling them yields
-  // stop utilities only.
-  const planes: ColorUtility[] = [];
-  for (const { role } of roles) {
-    if (utilities.includes('bg')) {
-      planes.push(
-        plane(`bg-${role}`, 'background-color', `var(--${role}-bg)`),
-        plane(`bg-${role}-muted`, 'background-color', `var(--${role}-bg-muted)`),
-        plane(`bg-${role}-solid`, 'background-color', `var(--${role}-solid)`),
-        plane(`bg-${role}-solid-bold`, 'background-color', `var(--${role}-solid-bold)`),
-      );
-      // Only `surface` carries a third background plane (the raised one).
-      if (role === 'surface')
-        planes.push(plane(`bg-${role}-bold`, 'background-color', `var(--${role}-bg-bold)`));
-    }
-    if (utilities.includes('text'))
-      planes.push(
-        plane(`text-${role}`, 'color', `var(--${role}-text)`),
-        plane(`text-${role}-muted`, 'color', `var(--${role}-text-muted)`),
-        plane(`text-${role}-x-muted`, 'color', `var(--${role}-text-x-muted)`),
-        plane(`text-on-${role}`, 'color', `var(--${role}-on-solid)`),
-      );
-    if (utilities.includes('border'))
-      planes.push(
-        plane(`border-${role}`, 'border-color', `var(--${role}-border)`),
-        plane(`border-${role}-bold`, 'border-color', `var(--${role}-border-bold)`),
-      );
-  }
-
-  const claimed = new Set(planes.map((p) => p.cls));
-  const stops: ColorUtility[] = [];
-  for (const { role } of roles)
-    for (const stop of EMPHASIS_STOPS)
-      for (const fam of utilities) {
-        const cls = `${fam}-${role}-${stop}`;
-        if (claimed.has(cls) || !(fam in UTILITY_PROPS)) continue;
-        stops.push({
+  const out: ColorUtility[] = [];
+  for (const fr of roles) {
+    for (const fam of utilities) {
+      const source = UTILITY_SOURCE[fam];
+      if (source == null) continue;
+      for (const key of Object.keys(fr.light)) {
+        if (targetOf(key) !== source) continue;
+        const canonical = tokenClass(fr.role, key);
+        // Alias families keep the token but rename the leading segment:
+        // `border-danger-bold` → `outline-danger-bold`.
+        const cls = fam === source ? canonical : fam + canonical.slice(source.length);
+        out.push({
           cls,
           prop: UTILITY_PROPS[fam] as string,
-          value: `var(--color-${role}-${stop})`,
-          axis: 'stop',
+          value: `var(${tokenVar(fr.role, key)})`,
         });
       }
-
-  return [...stops, ...planes];
+    }
+  }
+  return out;
 }
 
 /** Render the shared set as plain rules (css/bricks formats). */
@@ -277,6 +281,7 @@ interface Built {
   tokensJson: string;
   designManifest: string;
   tailwind: string;
+  designMd: string;
   // captured for the tailwind bundler
   twTypeTokensCss: string;
   twPatternTokensCss: string;
@@ -290,18 +295,59 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
   // Every hue expands to its 11-step numeric OKLCH scale; every role resolves
   // to functional tokens over its hue. Dark mode is the automatic flip.
   const expandedPalette = expandPalette(ds.colors.palette as Record<string, unknown>);
-  const roleMap = ds.colors.roles as Record<string, string>;
+  const roleMap = ds.colors.roles as Record<string, RoleSpec>;
   const scaleRoles: FunctionalRole[] = [];
-  for (const [role, hueName] of Object.entries(roleMap)) {
+  for (const [role, spec] of Object.entries(roleMap)) {
+    const hueName = roleHue(spec);
     const hue = expandedPalette[hueName];
     if (hue == null) throw new Error(`role "${role}" references unknown palette hue "${hueName}"`);
-    scaleRoles.push(functionalRole(role, hueName, hue));
+    scaleRoles.push(functionalRole(role, hueName, hue, roleKind(spec)));
   }
   const surfaceRole = scaleRoles.find((r) => r.role === 'surface');
+  // The focus ring is role-less by default, so it needs one nominated source.
+  // `ui-primary` is the interaction hue — a ring in the brand colour would drift
+  // away from the buttons and links it appears on.
+  const focusRole = scaleRoles.find((r) => r.role === 'ui-primary') ?? scaleRoles[0];
+
+  // A pinned brand colour that sits off the shared lightness ladder is legal —
+  // the author asked for that exact colour — but past ~0.03 L the hue reads
+  // visibly heavier or lighter than its siblings at that step, so say so.
+  for (const w of ladderWarnings(expandedPalette)) console.warn(`[vitops] ${w}`);
+
+  // The contrast contract runs at BUILD time, not only in tests: a consumer
+  // editing their own palette has no test suite, and an illegible pairing that
+  // ships is far more expensive than a build that stops. Chromatic roles are
+  // checked against the surface planes they actually sit on, since coloured text
+  // appears over the page far more often than over its own tint.
+  {
+    const numericOf = (hueName: string) => expandedPalette[hueName]?.numeric ?? {};
+    const resolve = (val: string): string => {
+      const m = /^var\(--color-([a-z0-9-]+)-(\d+)\)$/.exec(val);
+      return m ? (numericOf(m[1] as string)[m[2] as never] ?? val) : val;
+    };
+    const planeKeys = ['bg', 'bg-muted', 'bg-x-muted'] as const;
+    const surfaceBg = surfaceRole
+      ? {
+          light: planeKeys.flatMap((k) =>
+            surfaceRole.light[k] ? [resolve(surfaceRole.light[k] as string)] : [],
+          ),
+          dark: planeKeys.flatMap((k) =>
+            surfaceRole.dark[k] ? [resolve(surfaceRole.dark[k] as string)] : [],
+          ),
+        }
+      : undefined;
+    const failures = scaleRoles.flatMap((fr) => checkContrast(fr, numericOf, surfaceBg));
+    if (failures.length)
+      throw new Error(
+        `colour contrast contract failed (${failures.length} pairing${
+          failures.length === 1 ? '' : 's'
+        }):\n  ${failures.join('\n  ')}`,
+      );
+  }
   const patterns = ds.patterns;
   const shadows = ds.shadows;
   const typography = ds.typography;
-  const UTILITIES = (ds.colors.utilities ?? ['bg', 'text', 'border']).filter(
+  const UTILITIES = (ds.colors.utilities ?? ['bg', 'text', 'icon', 'border']).filter(
     (u) => u in UTILITY_PROPS,
   );
 
@@ -333,12 +379,17 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
     for (const [name, hue] of Object.entries(expandedPalette))
       for (const [n, hex] of Object.entries(hue.numeric))
         css += `  --color-${name}-${n}: ${hex};\n`;
-    css += `\n  /* Functional role tokens (the public API) */\n`;
+    css += `\n  /* Role tokens (the public API) */\n`;
     for (const fr of scaleRoles)
-      for (const [t, val] of Object.entries(fr.light)) css += `  ${fnVar(fr.role, t)}: ${val};\n`;
+      for (const [t, val] of Object.entries(fr.light))
+        css += `  ${tokenVar(fr.role, t)}: ${val};\n`;
+    if (focusRole) {
+      css += `\n  /* Focus ring — a boundary, so it takes the solid tone, not a border tint. */\n`;
+      css += `  --color-border-focus: ${focusRole.light['bg-solid']};\n`;
+    }
     if (surfaceRole) {
       css += `\n  /* Translucent surface + scrim */\n`;
-      css += `  --surface-glass: color-mix(in oklch, var(--surface-bg) 72%, transparent);\n`;
+      css += `  --surface-glass: color-mix(in oklch, var(--color-bg-surface) 72%, transparent);\n`;
       css += `  --overlay: color-mix(in oklch, var(--color-${surfaceRole.hue}-950) 45%, transparent);\n`;
     }
     css += `}\n\n`;
@@ -347,7 +398,7 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
       let fb = '';
       for (const fr of scaleRoles)
         for (const [t, val] of Object.entries(fr.dark))
-          if (fr.light[t] !== val) fb += `  ${fnVar(fr.role, t)}: ${val};\n`;
+          if (fr.light[t] !== val) fb += `  ${tokenVar(fr.role, t)}: ${val};\n`;
       if (surfaceRole)
         fb += `  --overlay: color-mix(in oklch, var(--color-${surfaceRole.hue}-950) 60%, transparent);\n`;
       if (fb) {
@@ -355,9 +406,9 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
         css += `${DARK_SEL} {\n  color-scheme: dark;\n${fb}}\n\n`;
       }
     }
-    // Raw hue steps, then the role set. `roleColorUtilities` has already
-    // resolved plane-vs-stop collisions, so every class here is emitted once —
-    // no reliance on the minifier dropping a shadowed rule.
+    // Raw hue steps, then the role set. One axis means every class here is
+    // emitted exactly once by construction — no precedence rule, and no reliance
+    // on the minifier dropping a shadowed rule.
     css += `/* Colour utilities — ${UTILITIES.join(', ')} */\n`;
     for (const [name, hue] of Object.entries(expandedPalette))
       for (const n of Object.keys(hue.numeric))
@@ -492,8 +543,10 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
       if (typeof spec.step === 'number' && role) {
         const stateVar =
           colorProp === 'background-color'
-            ? `var(--${role}-${spec.step >= 1 ? 'solid-bold' : 'solid'})`
-            : `var(--color-${role}-${spec.step >= 1 ? 'x-bold' : 'bold'})`;
+            ? `var(--color-bg-${role}-${spec.step >= 1 ? 'solid-bold' : 'solid'})`
+            : spec.step >= 1
+              ? `var(--color-text-${role}-bold)`
+              : `var(--color-text-${role})`;
         body.push(`${colorProp}: ${stateVar};`);
       }
       if (typeof spec.scale === 'number') body.push(`scale: ${spec.scale};`);
@@ -503,7 +556,11 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
       else if (spec.shadow === true)
         body.push(`box-shadow: var(--lift-shadow, 0 8px 20px -6px rgb(0 0 0 / 0.25));`);
       if (spec.ring === true) {
-        const ringColor = role ? `var(--color-${role}-muted)` : `var(--color-ui-primary-muted)`;
+        // A focus ring has to be *seen*, so it uses the solid tone rather than a
+        // decorative border tint. `--color-border-focus` is the role-less
+        // default, emitted once from ui-primary and contrast-checked as a
+        // non-text boundary.
+        const ringColor = role ? `var(--color-bg-${role}-solid)` : `var(--color-border-focus)`;
         body.push(`outline: none;`, `box-shadow: 0 0 0 3px ${ringColor};`);
       }
       if (spec.css && typeof spec.css === 'object')
@@ -560,7 +617,7 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
       pat += `  translate: 0 0; scale: 1; rotate: 0deg;\n`;
     }
     if (defaultRole && fills && base['background-color'] == null && base['background'] == null)
-      base['background-color'] = `var(--${defaultRole}-solid)`;
+      base['background-color'] = `var(--color-bg-${defaultRole}-solid)`;
     const wrappedBase: Record<string, string> = {};
     for (const [prop, val] of Object.entries(base)) {
       const sfx = BASE_HOOK[prop];
@@ -577,11 +634,12 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
       const variantSels = p.element
         ? [elementSel(`.${role}`), ...(cls ? [`.${cls}-${role}`] : [])]
         : [`.${cls}-${role}`];
-      // Fills sit on the role's solid + pair with on-solid; text variants use
-      // the bold emphasis stop (readable accent in both appearances).
+      // Fills sit on the role's solid and pair with the foreground computed
+      // against it; text variants use the role's text token, which is the one
+      // guaranteed legible over a surface in both appearances.
       const variantColorDecl = fills
-        ? `background-color: var(--${role}-solid); color: var(--${role}-on-solid)`
-        : `color: var(--color-${role}-bold)`;
+        ? `background-color: var(--color-bg-${role}-solid); color: var(--color-text-on-${role})`
+        : `color: var(--color-text-${role})`;
       pat += `${variantSels.join(',\n')} { ${variantColorDecl}; }\n`;
       pat += stateRules(variantSels, role, states, colorProp);
     }
@@ -658,7 +716,7 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
     for (const [t, light] of Object.entries(fr.light)) {
       const dark = fr.dark[t] as string;
       semanticColors.push({
-        raw: `var(${fnVar(fr.role, t)})`,
+        raw: `var(${tokenVar(fr.role, t)})`,
         light,
         darkModeEnabled: light !== dark,
         dark,
@@ -768,22 +826,31 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
     for (const [name, hue] of Object.entries(expandedPalette))
       for (const n of Object.keys(hue.numeric))
         reverseIndex[`--color-${name}-${n}`] = `colors.palette.${name}.anchors.${n}`;
-    const colorRoles = Object.entries(roleMap).map(([name, ramp]) => ({ name, ramp }));
-    // Per-hue functional token sets, so a client (the live editor) can re-point a
-    // role at another hue. It can't derive these itself: `solid` scans for the
-    // hue's natural 500 and clamps, and `on-solid` is a computed contrast literal,
-    // not a var() ref. Two variants because `surface` uses its own step table.
-    // Keys are functional tokens (`bg`, `on-solid`, `stop-bold`, …) — the same
-    // ones `fnVar()` turns into --<role>-<token> / --color-<role>-<stop>.
+    // `kind` travels with the role so the editor picks the right `roleTokens`
+    // variant on a remap — it used to infer that from `role === 'surface'`, which
+    // silently did the wrong thing for any other surface-kind role.
+    const colorRoles = Object.entries(roleMap).map(([name, spec]) => ({
+      name,
+      ramp: roleHue(spec),
+      kind: roleKind(spec),
+    }));
+    // Per-hue token sets, so a client (the live editor) can re-point a role at
+    // another hue. It can't derive these itself: `text-on` is a computed contrast
+    // literal, not a var() ref. One variant per role KIND, because the two kinds
+    // emit different token sets — a chromatic role has no bare `bg`, a surface
+    // role has no solid tints.
+    //
+    // Keys are token keys (`bg`, `text-on`, `border-bold`, …) — the same ones
+    // `tokenVar()` turns into `--color-<target>-<role>[-<variant>]`.
     const roleTokens = Object.fromEntries(
       Object.entries(expandedPalette).map(([hueName, hue]) => {
-        const def = functionalRole('_', hueName, hue);
-        const sfc = functionalRole('surface', hueName, hue);
+        const chromatic = functionalRole('_', hueName, hue, 'chromatic');
+        const surface = functionalRole('_', hueName, hue, 'surface');
         return [
           hueName,
           {
-            default: { light: def.light, dark: def.dark },
-            surface: { light: sfc.light, dark: sfc.dark },
+            chromatic: { light: chromatic.light, dark: chromatic.dark },
+            surface: { light: surface.light, dark: surface.dark },
           },
         ];
       }),
@@ -791,9 +858,15 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
     const typoRoles = (typography?.roles ?? {}) as Record<string, TypographyRole>;
     const hooks: Record<string, { prop: string; key: string }> = {};
     for (const [key, [prop, sfx]] of Object.entries(TYPO_KEYMAP)) hooks[sfx] = { prop, key };
-    for (const [role, spec] of Object.entries(typoRoles))
+    // Index EVERY hook for every role, not just the ones the role already
+    // declares. The editor builds its control set from `typography.hooks` (all
+    // of TYPO_KEYMAP), so a role that omits `tracking` still gets a `--<role>-ls`
+    // control; without an entry here that edit previews live and is then dropped
+    // as "skipped" on save. The path is a valid place to write whether or not it
+    // exists yet — `roles` is an open record and the patch deep-merges.
+    for (const role of Object.keys(typoRoles))
       for (const [key, [, sfx]] of Object.entries(TYPO_KEYMAP))
-        if (spec[key] != null) reverseIndex[`--${role}-${sfx}`] = `typography.roles.${role}.${key}`;
+        reverseIndex[`--${role}-${sfx}`] = `typography.roles.${role}.${key}`;
     const pDefaults = patterns?.defaults ?? {};
     const pRadii = patterns?.radii ?? {};
     const pGroups = patterns?.groups ?? {};
@@ -871,6 +944,14 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
           utilities: UTILITIES,
         });
 
+  // ── DESIGN.md ────────────────────────────────────────────────────────────────
+  // Same deal as the tailwind bundle: only its own format consumes it, so the
+  // other three don't pay for building it.
+  const designMd =
+    format !== 'design'
+      ? ''
+      : emitDesignMd({ ds, expandedPalette, scaleRoles, typeSteps, spaceSteps, shadows });
+
   return {
     generated,
     bricksColorsNamed,
@@ -879,6 +960,7 @@ export function build(ds: DesignSystem, format: Format, assetsDir: string): Buil
     tokensJson,
     designManifest,
     tailwind,
+    designMd,
     twTypeTokensCss,
     twPatternTokensCss,
     patternsCss: pat,
@@ -983,13 +1065,15 @@ function emitTailwind(ctx: TwCtx): string {
   if (scaleRoles.length) {
     let fn = '';
     for (const fr of scaleRoles)
-      for (const [t, val] of Object.entries(fr.light)) fn += `  ${fnVar(fr.role, t)}: ${val};\n`;
+      for (const [t, val] of Object.entries(fr.light)) fn += `  ${tokenVar(fr.role, t)}: ${val};\n`;
+    const focus = scaleRoles.find((r) => r.role === 'ui-primary') ?? scaleRoles[0];
+    if (focus) fn += `  --color-border-focus: ${focus.light['bg-solid']};\n`;
     const surface = scaleRoles.find((r) => r.role === 'surface');
     if (surface) {
-      fn += `  --surface-glass: color-mix(in oklch, var(--surface-bg) 72%, transparent);\n`;
+      fn += `  --surface-glass: color-mix(in oklch, var(--color-bg-surface) 72%, transparent);\n`;
       fn += `  --overlay: color-mix(in oklch, var(--color-${surface.hue}-950) 45%, transparent);\n`;
     }
-    parts.push(`/* Functional role tokens (the public API) */\n:root {\n${fn}}\n`);
+    parts.push(`/* Role tokens (the public API) */\n:root {\n${fn}}\n`);
   }
 
   parts.push(
@@ -1001,7 +1085,7 @@ function emitTailwind(ctx: TwCtx): string {
   let darkBlock = '';
   for (const fr of scaleRoles)
     for (const [t, val] of Object.entries(fr.dark))
-      if (fr.light[t] !== val) darkBlock += `  ${fnVar(fr.role, t)}: ${val};\n`;
+      if (fr.light[t] !== val) darkBlock += `  ${tokenVar(fr.role, t)}: ${val};\n`;
   {
     const surface = scaleRoles.find((r) => r.role === 'surface');
     if (surface)
@@ -1442,7 +1526,13 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
     written.push(p);
   };
 
-  if (format === 'tailwind') {
+  if (format === 'design') {
+    // Deliberately the only output: DESIGN.md conventionally lives at the repo
+    // root next to AGENTS.md, not in a build directory, so this format is meant
+    // to be run with `--out .` — writing a stylesheet alongside it would be
+    // surprising. Compose it when you want both: `--format css,design`.
+    put('DESIGN.md', built.designMd);
+  } else if (format === 'tailwind') {
     put('tailwind.css', built.tailwind);
     put('tokens.json', built.tokensJson);
   } else if (format === 'css') {
@@ -1476,5 +1566,26 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
     for (const [rel, content] of Object.entries(docs)) put(join('docs', rel), content);
   }
 
+  // Legal documents → outDir/legal, as HTML fragments.
+  //
+  // Opt-in via `site`, and emitted for every format that emits files at all —
+  // passing a site config and silently getting nothing back would be the
+  // surprising behaviour. `design` is excluded because it emits DESIGN.md and
+  // deliberately nothing else.
+  //
+  // HTML rather than markdown because this is the fragment a WordPress theme,
+  // a Bricks shortcode or a plain page can include with no build step of its own.
+  if (options.site != null && format !== 'design') {
+    const site = loadSiteConfigFile(options.site);
+    const legal = generateLegal(site, { output: 'html' });
+    for (const [name, content] of Object.entries(legal)) put(join('legal', name), content);
+  }
+
   return { format, outDir, written };
+}
+
+function loadSiteConfigFile(input: string | SiteConfig): SiteConfig {
+  const raw = typeof input === 'string' ? JSON.parse(readFileSync(input, 'utf8')) : input;
+  // resolveSiteConfig validates and throws with one issue per line.
+  return resolveSiteConfig(raw);
 }

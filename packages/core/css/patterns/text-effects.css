@@ -225,7 +225,7 @@
 
 /* ── Highlight sweep ──────────────────────────────────────────────────────── */
 .text-highlight {
-  --_highlight-color: var(--text-highlight-color, var(--color-warning-muted));
+  --_highlight-color: var(--text-highlight-color, var(--color-bg-warning-muted));
   --_highlight-duration: var(--text-highlight-duration, 0.5s);
   --_highlight-pad-block: var(--text-highlight-pad-block, 0.1em);
   --_highlight-pad-inline: var(--text-highlight-pad-inline, 0);

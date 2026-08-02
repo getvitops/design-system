@@ -39,7 +39,7 @@ const nav = NAV.filter((i) => !i.cap || hasCapability(plan, i.cap));
     </script>
   </head>
   <body class="bg-neutral text-neutral min-h-screen">
-    <header class="bg-surface border-b border-neutral">
+    <header class="bg-surface-muted border-b border-neutral">
       <div class="flex items-center justify-between gap-4 px-6 py-3">
         <a href="/dashboard" class="font-display text-brand-primary text-xl">Vitops<span class="text-neutral-muted">·</span>Portal</a>
         <div class="flex items-center gap-4">
@@ -61,7 +61,7 @@ const nav = NAV.filter((i) => !i.cap || hasCapability(plan, i.cap));
                 'block rounded px-3 py-2 font-body',
                 path === i.href || path.startsWith(i.href + '/')
                   ? 'bg-ui-primary-solid text-on-ui-primary'
-                  : 'text-neutral hover:bg-surface-muted',
+                  : 'text-neutral hover:bg-surface-x-muted',
               ]}
             >
               {i.label}

@@ -123,7 +123,7 @@
 
   .scroll-progress__bar {
     block-size: 100%;
-    background: var(--scroll-progress-color, var(--brand-primary-solid));
+    background: var(--scroll-progress-color, var(--color-bg-brand-primary-solid));
     transform-origin: left;
     animation: scroll-progress-grow linear;
     animation-timeline: scroll(root);

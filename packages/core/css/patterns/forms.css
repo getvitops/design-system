@@ -32,7 +32,7 @@
 
   .form-group__error {
     font-size: var(--form-error-size, 0.75rem);
-    color: var(--color-danger-bold);
+    color: var(--color-text-danger);
     display: flex;
     align-items: center;
     gap: 0.25rem;
@@ -87,7 +87,7 @@ fieldset.fieldset,
   border: var(--_b);
   border-radius: var(--_br);
   padding: var(--_p);
-  background: var(--surface-bg);
+  background: var(--color-bg-surface);
 }
 
 /* ── Range + colour controls ───────────────────────────────────────────────── */
@@ -95,7 +95,7 @@ fieldset.fieldset,
  * natively, in both appearances, with no pseudo-element rewriting. The colour
  * swatch only needs its chrome removed so the well fills the control box. */
 input[type='range'] {
-  accent-color: var(--range-accent, var(--ui-primary-solid));
+  accent-color: var(--range-accent, var(--color-bg-ui-primary-solid));
   inline-size: 100%;
   min-inline-size: 0;
 }
@@ -202,7 +202,7 @@ input[type='color'] {
     block-size: var(--_check-size);
     border: var(--_b);
     border-radius: var(--_br);
-    background: var(--surface-bg);
+    background: var(--color-bg-surface);
     color: #fff;
     display: flex;
     align-items: center;
@@ -225,8 +225,8 @@ input[type='color'] {
   }
 
   input:checked + .custom-check__box {
-    background: var(--brand-primary-solid);
-    border-color: var(--brand-primary-solid);
+    background: var(--color-bg-brand-primary-solid);
+    border-color: var(--color-bg-brand-primary-solid);
 
     .custom-check__indicator {
       opacity: 1;
@@ -235,7 +235,7 @@ input[type='color'] {
   }
 
   input:focus-visible + .custom-check__box {
-    outline: 2px solid var(--check-focus-color, var(--color-brand-primary-muted));
+    outline: 2px solid var(--check-focus-color, var(--color-border-focus));
     outline-offset: 2px;
   }
 
@@ -288,7 +288,7 @@ input[type='color'] {
     inline-size: var(--_switch-width);
     block-size: var(--_switch-height);
     border-radius: var(--br-switch-track, var(--br-pill, 999px));
-    background: var(--color-surface-muted);
+    background: var(--color-bg-surface-muted);
     transition: background-color 0.2s ease;
   }
 
@@ -306,7 +306,7 @@ input[type='color'] {
   }
 
   input:checked + .switch__track {
-    background: var(--brand-primary-solid);
+    background: var(--color-bg-brand-primary-solid);
 
     .switch__thumb {
       inset-inline-start: calc(100% - var(--_switch-thumb-size) - 2px);
@@ -314,7 +314,7 @@ input[type='color'] {
   }
 
   input:focus-visible + .switch__track {
-    outline: 2px solid var(--switch-focus-color, var(--color-brand-primary-muted));
+    outline: 2px solid var(--switch-focus-color, var(--color-border-focus));
     outline-offset: 2px;
   }
 
@@ -360,7 +360,7 @@ select.custom-select {
   cursor: pointer;
 
   &:focus-visible {
-    outline: 2px solid var(--select-focus-color, var(--color-brand-primary-muted));
+    outline: 2px solid var(--select-focus-color, var(--color-border-focus));
     outline-offset: 2px;
   }
 }

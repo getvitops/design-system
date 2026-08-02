@@ -311,8 +311,8 @@
      @supports block it resolves to that transparent value. So default to the
      functional text tokens (they flip with the appearance) with a literal
      backstop, since this is precisely the declaration that must never fail. */
-  --_reveal-from: var(--text-reveal-color-from, var(--neutral-text-x-muted, #9099a8));
-  --_reveal-to: var(--text-reveal-color-to, var(--neutral-text, #05070d));
+  --_reveal-from: var(--text-reveal-color-from, var(--color-text-neutral-x-muted, #9099a8));
+  --_reveal-to: var(--text-reveal-color-to, var(--color-text-neutral, #05070d));
   /* Fallback baseline: ordinary visible text in the start color. */
   color: var(--text-reveal-color-from, currentColor);
 }

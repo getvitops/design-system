@@ -4,14 +4,14 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { defaultConfig } from './index.ts';
 import { validate } from './schema.ts';
-import { REQUIRED_ROLES, ROLE_TOKEN_SUFFIXES } from './shared.ts';
+import { REQUIRED_ROLES, ROLE_TOKEN_KEYS } from './shared.ts';
 
 /**
  * `REQUIRED_ROLES` is hand-maintained (validate() must stay filesystem-free),
  * so this re-derives it from the framework CSS and fails if the two disagree.
  *
- * Add a partial that hard-references `--info-solid` and this test tells you to
- * add `info` to the list — rather than a consumer discovering it as an
+ * Add a partial that hard-references `--color-bg-info-solid` and this test tells
+ * you to add `info` to the list — rather than a consumer discovering it as an
  * uncoloured component months later.
  */
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -31,15 +31,29 @@ function cssFiles(dir: string): string[] {
   );
 }
 
-/** Roles referenced by `var(--<role>-<token>)` with NO fallback. */
+/**
+ * Roles referenced by `var(--color-<target>-<role>[-<variant>])` with NO fallback.
+ *
+ * The role now sits in the MIDDLE of the property, so this matches on the target
+ * prefix and the variant suffix around it. `text-on-<role>` is the irregular one
+ * — the role follows `on` — so it gets its own alternative.
+ */
 function hardReferencedRoles(files: string[], roles: string[]): Set<string> {
   const alt = [...roles].sort((a, b) => b.length - a.length).join('|');
-  const fn = new RegExp(`var\\(\\s*--(${alt})-(?:${ROLE_TOKEN_SUFFIXES.join('|')})\\s*\\)`, 'g');
-  const stop = new RegExp(`var\\(\\s*--color-(${alt})-(?:x-muted|muted|bold|x-bold)\\s*\\)`, 'g');
+  const targets = [...new Set(ROLE_TOKEN_KEYS.map((k) => k.split('-')[0]))].join('|');
+  const variants = [...new Set(ROLE_TOKEN_KEYS.flatMap((k) => k.split('-').slice(1).join('-')))]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .join('|');
+  const scoped = new RegExp(
+    `var\\(\\s*--color-(?:${targets})-(${alt})(?:-(?:${variants}))?\\s*\\)`,
+    'g',
+  );
+  const on = new RegExp(`var\\(\\s*--color-(?:${targets})-on-(${alt})(?:-bold)?\\s*\\)`, 'g');
   const found = new Set<string>();
   for (const f of files) {
     const txt = readFileSync(f, 'utf8');
-    for (const re of [fn, stop]) for (const m of txt.matchAll(re)) found.add(m[1] as string);
+    for (const re of [scoped, on]) for (const m of txt.matchAll(re)) found.add(m[1] as string);
   }
   return found;
 }

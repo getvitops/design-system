@@ -15,8 +15,8 @@
   padding: var(--_p);
   border: var(--_b);
   box-shadow: var(--_ds);
-  background: var(--surface-bg);
-  color: var(--surface-text);
+  background: var(--color-bg-surface);
+  color: var(--color-text-surface);
   max-inline-size: none;
   max-block-size: none;
 
