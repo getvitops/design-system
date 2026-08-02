@@ -284,6 +284,9 @@ importers:
       '@emdash-cms/cloudflare':
         specifier: 'catalog:'
         version: 0.31.1(cdadb7106cc3edd3d12d988da9bb460b)
+      '@getvitops/utils':
+        specifier: workspace:*
+        version: link:../utils
       astro:
         specifier: 'catalog:'
         version: 7.1.2(@astrojs/markdown-remark@7.2.1)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.2)(@types/node@25.9.3)(jiti@2.7.0)(rollup@4.62.2)

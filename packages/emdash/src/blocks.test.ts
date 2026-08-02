@@ -2,9 +2,11 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import pkg from '../package.json' with { type: 'json' };
 import { BLOCKS } from './blocks.ts';
+import { SEMANTIC_ICON_OPTIONS } from './icon-options.ts';
 import { createPlugin, vitopsEmdash } from './index.ts';
 
 const componentFiles: Record<string, string> = {
+  'vitops.actionLink': 'src/astro/blocks/ActionLink.astro',
   'vitops.imageCompare': 'src/astro/blocks/ImageCompare.astro',
   'vitops.copyButton': 'src/astro/blocks/CopyButton.astro',
   'vitops.banner': 'src/astro/blocks/Banner.astro',
@@ -77,5 +79,29 @@ describe('block ↔ component agreement', () => {
     for (const block of BLOCKS) {
       expect(source).toContain(`'${block.type}'`);
     }
+  });
+});
+
+describe('semantic icon options', () => {
+  it('still matches the icon map they were generated from', async () => {
+    // src/icon-options.ts is a build-time COPY of @getvitops/utils' iconMap,
+    // because this package carries no runtime @getvitops/* dependency — that is
+    // what lets it version independently of the fixed toolchain group. The copy
+    // can therefore go stale, so check it rather than trust it. Regenerate with
+    // `pnpm --filter @getvitops/emdash gen:icons`.
+    const { iconMap } = await import('@getvitops/utils');
+    expect(SEMANTIC_ICON_OPTIONS.map((o) => o.value)).toEqual(Object.keys(iconMap.fa7).sort());
+  });
+
+  it('uses the value as its own label, so the two cannot drift', () => {
+    expect(SEMANTIC_ICON_OPTIONS.every((o) => o.label === o.value)).toBe(true);
+  });
+
+  it('is what the actionLink icon fields offer', () => {
+    const block = BLOCKS.find((b) => b.type === 'vitops.actionLink');
+    const combos = (block?.fields ?? []).filter((f) => f.type === 'combobox');
+    expect(combos.map((f) => f.action_id)).toEqual(['startIcon', 'endIcon']);
+    for (const f of combos)
+      expect((f as { options: unknown[] }).options).toBe(SEMANTIC_ICON_OPTIONS);
   });
 });

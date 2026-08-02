@@ -11,11 +11,12 @@
  */
 
 import type { PortableTextBlockConfig } from 'emdash';
+import { SEMANTIC_ICON_OPTIONS } from './icon-options.ts';
 
 /** The v1 subset of EmDash Block Kit field elements used by these blocks. */
 export type BlockKitFieldDef = Extract<
   NonNullable<PortableTextBlockConfig['fields']>[number],
-  { type: 'text_input' | 'number_input' | 'select' | 'toggle' }
+  { type: 'text_input' | 'number_input' | 'select' | 'toggle' | 'combobox' }
 >;
 
 export type PortableTextBlockDef = Omit<PortableTextBlockConfig, 'fields'> & {
@@ -23,6 +24,68 @@ export type PortableTextBlockDef = Omit<PortableTextBlockConfig, 'fields'> & {
 };
 
 export const BLOCKS: PortableTextBlockDef[] = [
+  {
+    /**
+     * A link or button, optionally with an icon at either end.
+     *
+     * Flattened on purpose: Block Kit has no object-group element, so a shape
+     * like `{ label, url }` becomes sibling fields. Same constraint the
+     * marketing-blocks plugin documents.
+     *
+     * The icons are `combobox` — a searchable typeahead over a STATIC option
+     * list, which is exactly what the semantic name list is. It is the closest
+     * fit Block Kit offers: its element union is closed (no custom element, no
+     * raw HTML), so `<icon-picker>` cannot be mounted inside a block modal
+     * however much nicer it would be. Revisit if EmDash opens that union.
+     */
+    type: 'vitops.actionLink',
+    label: 'Link or button',
+    icon: 'link',
+    placeholder: 'A link or button, with optional icons',
+    fields: [
+      { type: 'text_input', action_id: 'label', label: 'Label' },
+      { type: 'text_input', action_id: 'href', label: 'URL' },
+      {
+        type: 'select',
+        action_id: 'variant',
+        label: 'Style',
+        initial_value: 'link',
+        options: [
+          { label: 'Link', value: 'link' },
+          { label: 'Button', value: 'btn' },
+          { label: 'Call to action', value: 'cta' },
+        ],
+      },
+      {
+        type: 'combobox',
+        action_id: 'startIcon',
+        label: 'Icon before the label',
+        placeholder: 'None',
+        options: SEMANTIC_ICON_OPTIONS,
+      },
+      {
+        type: 'combobox',
+        action_id: 'endIcon',
+        label: 'Icon after the label',
+        placeholder: 'None',
+        options: SEMANTIC_ICON_OPTIONS,
+      },
+      {
+        type: 'select',
+        action_id: 'role',
+        label: 'Colour role',
+        initial_value: '',
+        options: [
+          { label: 'Default', value: '' },
+          { label: 'Success', value: 'success' },
+          { label: 'Danger', value: 'danger' },
+          { label: 'Warning', value: 'warning' },
+          { label: 'Info', value: 'info' },
+        ],
+      },
+      { type: 'toggle', action_id: 'newTab', label: 'Open in a new tab', initial_value: false },
+    ],
+  },
   {
     type: 'vitops.imageCompare',
     label: 'Image compare',

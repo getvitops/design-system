@@ -1,0 +1,77 @@
+---
+/**
+ * A link or button with optional icons at either end.
+ *
+ * Icons come from the generated SVG sprite, not astro-icon: this package has no
+ * astro-icon peer and shouldn't acquire one, and a platform wrapper that needed
+ * runtime JS would be the wrong tier. `<use href="…#icon-menu">` is plain markup
+ * that inherits `currentColor`.
+ *
+ * The `icon-<name>` ids are the sprite's set-independent aliases, so content
+ * authored here survives the site changing icon sets — the same guarantee
+ * resolveIcon() gives Astro call sites.
+ *
+ * No new CSS: `.cta` and `:where(button, .btn)` are already
+ * `inline-flex; align-items: center; gap`, so an adornment is child order. `.link`
+ * is not a flex container, so its icons sit inline via the same `.icon` box.
+ *
+ * Every action_id declared in blocks.ts must be NAMED in the destructure below —
+ * blocks.test.ts checks by literal substring, so reaching them via a spread would
+ * pass type-checking and fail the contract test.
+ */
+import { resolveBlockValue } from './value.ts';
+
+interface Value {
+  label?: string;
+  href?: string;
+  variant?: 'link' | 'btn' | 'cta';
+  startIcon?: string;
+  endIcon?: string;
+  role?: string;
+  newTab?: boolean;
+}
+
+interface Props {
+  /** Base URL of the sprite. Matches VitopsEmdashOptions.wcBase, where the integration puts it. */
+  spriteBase?: string;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const { label, href, variant = 'link', startIcon, endIcon, role, newTab = false } = value;
+const { spriteBase = '/vitops' } = Astro.props as Props;
+
+const sprite = `${spriteBase}/icons.svg`;
+// `link` is the pattern's own bare class; a role variant is `<pattern>-<role>`.
+const classes = [variant, role ? `${variant}-${role}` : null, newTab ? 'link--external' : null]
+  .filter(Boolean)
+  .join(' ');
+
+// Only render when there is somewhere to go and something to read — a bare icon
+// with no label would be an unlabelled link.
+const renderable = Boolean(label && href);
+---
+
+{
+  renderable && (
+    <a
+      class={classes}
+      href={href}
+      {...(newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+      {startIcon && (
+        <span class="icon" aria-hidden="true">
+          <svg>
+            <use href={`${sprite}#icon-${startIcon}`} />
+          </svg>
+        </span>
+      )}
+      <span>{label}</span>
+      {endIcon && (
+        <span class="icon" aria-hidden="true">
+          <svg>
+            <use href={`${sprite}#icon-${endIcon}`} />
+          </svg>
+        </span>
+      )}
+    </a>
+  )
+}
