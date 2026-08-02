@@ -1,0 +1,68 @@
+---
+/**
+ * <Seo /> — the page's SEO <head> tags. Place inside your layout's <head>,
+ * alongside <Head /> (which owns favicons, theme-color and the web-component
+ * runtime — the two don't overlap).
+ *
+ * Site-level defaults come from `getvitops({ seo: … })` via the
+ * `virtual:getvitops/head` module; the props here override them per page.
+ *
+ * It owns <title> and <meta name="description">, so **remove them from your
+ * layout** when you adopt it. That is not tidiness: this component already
+ * computes the resolved title for `og:title`/`twitter:title`, and the previous
+ * version of it emitted those while leaving <title> to the layout — so the two
+ * drifted. Whoever computes the title emits it.
+ *
+ * It emits no JSON-LD. The structured-data components in `../schemas/` take
+ * entity data; this takes page data. Compose them:
+ *   <Seo title={title} description={description} />
+ *   <Organization {...org} />
+ *
+ * On an EmDash site use <EmDashHead> instead — it covers the same tags from the
+ * CMS. Using both double-emits every og:/twitter: tag.
+ */
+// @ts-ignore — virtual module provided by the getvitops() integration at build time
+import head from 'virtual:getvitops/head';
+import { resolveSeo, type SeoProps } from '../seo.ts';
+
+export type Props = SeoProps;
+
+// `Astro.site` is `URL | undefined`; `head.site` is the `config.site` string the
+// integration captured. Same value, different types — the fallback is there so a
+// render context without `Astro.site` still resolves absolute URLs.
+const site: URL | undefined = Astro.site ?? (head.site ? new URL(head.site) : undefined);
+
+/*
+ * `Astro.url.pathname` already includes `base`, and being an absolute path it
+ * replaces any path in `site` — so `site: 'https://x.com'` + `base: '/docs'`
+ * yields `https://x.com/docs/page/`. Do not prepend `base` by hand; that
+ * double-prefixes.
+ *
+ * The pathname follows whatever `trailingSlash`/`build.format` produced. Under
+ * the default `trailingSlash: 'ignore'` dev and build can disagree, so pin
+ * `'always'` or `'never'` if you need a byte-stable canonical. We deliberately
+ * don't normalise it here — rewriting the URL Astro actually serves is how you
+ * end up with a canonical that redirects.
+ */
+const seo = resolveSeo(head.seo ?? {}, Astro.props, {
+  site,
+  pathname: Astro.url.pathname,
+});
+---
+
+{seo.title && <title set:text={seo.title} />}
+{seo.description && <meta name="description" content={seo.description} />}
+{seo.canonical && <link rel="canonical" href={seo.canonical} />}
+{/* Omitted when it would only restate `index, follow`, which crawlers assume. */}
+{seo.robots && <meta name="robots" content={seo.robots} />}
+
+{seo.openGraph.map((t) => <meta property={t.property} content={t.content} />)}
+{seo.twitter.map((t) => <meta name={t.name} content={t.content} />)}
+
+{/*
+  Explicit only — see SeoProps.alternates. Nothing is inferred from a locale list,
+  because only the page knows where its own translations live.
+*/}
+{seo.alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
+
+{seo.verification.map((t) => <meta name={t.name} content={t.content} />)}

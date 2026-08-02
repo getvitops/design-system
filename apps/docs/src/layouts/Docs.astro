@@ -25,6 +25,7 @@
  * works with no JavaScript.
  */
 import Head from '@getvitops/astro/Head.astro';
+import Seo from '@getvitops/astro/Seo.astro';
 import { getCollection } from 'astro:content';
 import '../styles/styles.css';
 
@@ -69,8 +70,12 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title} · Vitops</title>
-    {description && <meta name="description" content={description} />}
+    {/*
+      <Seo /> owns <title> and the description — the ` · Vitops` suffix is now
+      `seo.titleTemplate` in astro.config.mjs. It also adds the canonical and the
+      og:/twitter: tags this site never had.
+    */}
+    <Seo title={title} description={description} />
     <Head />
   </head>
 

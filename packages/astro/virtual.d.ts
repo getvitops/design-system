@@ -17,6 +17,11 @@ declare module 'virtual:getvitops/head' {
     wcBase: string;
     editor: boolean;
     sitemap: string | null;
+    site: string | null;
+    // Structurally `GetvitopsSeoOptions` (src/seo.ts). Left loose here because
+    // this file can't import from src, and <Seo /> re-types it on the way into
+    // `resolveSeo`, which is where the real contract is enforced.
+    seo: Record<string, unknown>;
   }
   const data: HeadData;
   export default data;

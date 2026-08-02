@@ -15,4 +15,15 @@ export type {
   GetvitopsSitemapEntry,
   GetvitopsSitemapOptions,
 } from './integration.ts';
+export { resolveSeo } from './seo.ts';
+export type {
+  GetvitopsSeoOptions,
+  ResolvedSeo,
+  SeoContext,
+  SeoNameTag,
+  SeoOgType,
+  SeoPropertyTag,
+  SeoProps,
+  SeoTwitterCard,
+} from './seo.ts';
 export * from '@getvitops/utils';

@@ -81,6 +81,18 @@ defaults), and it must type against the **existing** `SiteConfig` from `@getvito
 (`src/site.ts`) instead of casting to `any`. Anything rebuilt has to land in `files` **and**
 `exports` or it isn't reachable.
 
+**`<Seo />` (`src/components/Seo.astro`) is the one sanctioned piece of that layer**, and it obeys
+those rules rather than bending them: its config arrives as an **argument** — `getvitops({ seo })`
+bakes the defaults into `virtual:getvitops/head`, the component reads `head.seo` and per-page props
+override it — so nothing imports consumer global state, and no value is frozen at module scope. It
+does **not** import `SiteConfig`; `GetvitopsSeoOptions` (`src/seo.ts`) deliberately mirrors that
+schema's `seo` block field-for-field so an adapter would be a flat map, while staying
+JSON-serialisable (it is `JSON.stringify`d into the virtual module — no functions, no `URL`s).
+Resolution lives in the pure `resolveSeo()` and the component only renders its output; the version
+this replaces fused the two, which is why it was never unit-tested and why its `<title>` drifted
+from its `og:title`. It is in both `files` and `exports` — and so is `src/seo.ts`, which the shipped
+component imports.
+
 All components live in `src/components/` (alongside `Head.astro`).
 
 ## Structured data — Schema.org / JSON-LD (`src/schemas/`)
@@ -92,11 +104,19 @@ markup (no runtime JS), so it fits the tier-3 rule. One component per Schema.org
 `Breadcrumb`, `JobPosting`, `Course`, `Dataset`, `ProfilePage`, `QAPage`, `SoftwareApp`,
 `Carousel`, … Drop one into a page's `<head>` (or via `<Head />`) with the entity's data.
 
-They are the **only** SEO surface this package ships: there is no `<meta>`/Open Graph component.
-(One existed — `SEO.astro`, deleted in `c949cae` with the rest of the site-model layer — and this
-file pointed at it long after it was gone.) Until one is rebuilt under the rules above, `<title>`,
-`<meta name="description">`, `<link rel="canonical">` and the `og:`/`twitter:` tags are the
-consumer layout's job; on an EmDash site `<EmDashHead>` already covers them.
+**They stay orthogonal to `<Seo />`, and that split is deliberate.** These take **entity** data
+(an organisation, a product, a recipe); `<Seo />` takes **page** data (this page's title, canonical,
+share image). Fold them together and `<Seo />` needs an `organization` prop, a `localBusiness` prop,
+… which is exactly how the deleted `SEO.astro` reached 276 lines and a `siteConfig.locations` import.
+`Seo.astro` therefore emits no `ld+json` and imports nothing from here — `components/seo.test.ts`
+asserts both. Consumers compose:
+
+```astro
+<Seo title={title} description={description} />
+<Organization {...org} />
+```
+
+Skip a `WebPage` graph: it only restates the `<title>`/description/canonical a crawler already reads.
 
 ## Authoring helpers
 

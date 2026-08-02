@@ -10,7 +10,7 @@
 import { cpSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Format } from '@getvitops/generator';
+import type { StylesheetFormat } from '@getvitops/generator';
 import {
   type FaviconLink,
   faviconLinks,
@@ -19,6 +19,7 @@ import {
 } from '@getvitops/utils';
 import vitops from '@getvitops/vite';
 import type { AstroIntegration } from 'astro';
+import type { GetvitopsSeoOptions } from './seo.ts';
 
 export interface GetvitopsFaviconOptions {
   /** Source SVG or PNG. */
@@ -34,8 +35,13 @@ export interface GetvitopsFaviconOptions {
 export interface GetvitopsCssOptions {
   /** Path to design-system.json (default 'design-system.json'). */
   input?: string;
-  /** Output format (default 'tailwind'). */
-  format?: Format;
+  /**
+   * Output format (default 'tailwind'). Narrower than the generator's `Format`
+   * on purpose: this option exists to produce a stylesheet to inject, and the
+   * `design` format emits only `DESIGN.md`. Run that one via the CLI
+   * (`vitops generate --format design --out .`).
+   */
+  format?: StylesheetFormat;
   /** Directory the generated CSS is written to (default 'src/styles'). */
   out?: string;
   /**
@@ -137,6 +143,19 @@ export interface GetvitopsOptions {
    * so on-demand pages of an `output: 'server'` site are not listed.
    */
   sitemap?: boolean | GetvitopsSitemapOptions;
+  /**
+   * Site-level defaults for `<Seo />` (`@getvitops/astro/Seo.astro`) — site name,
+   * title template, Open Graph + Twitter defaults, verification tokens. Off unless
+   * provided; per-page props override every field.
+   *
+   * Needs the `site` astro.config option for canonical and `og:url`; without it
+   * `<Seo />` omits every absolute-URL tag rather than deriving one from the
+   * request, and this warns at build time.
+   *
+   * On an EmDash site prefer `<EmDashHead>`, which covers the same tags from the
+   * CMS — using both double-emits them.
+   */
+  seo?: GetvitopsSeoOptions;
 }
 
 /**
@@ -153,6 +172,10 @@ interface HeadData {
   editor: boolean;
   /** `<link rel="sitemap">` target, or null when no sitemap was registered. */
   sitemap: string | null;
+  /** `config.site`, so `<Seo />` has a canonical base even without `Astro.site`. */
+  site: string | null;
+  /** Site-level `<Seo />` defaults. Function-free, hence serialisable. */
+  seo: GetvitopsSeoOptions;
 }
 
 const VIRTUAL_ID = 'virtual:getvitops/head';
@@ -181,6 +204,21 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
         const editor = opts.editor === true;
         if (editor && !opts.css)
           logger.warn('editor: true needs a `css` config — it reads design-manifest.json.');
+        if (opts.seo) {
+          // Warn once here rather than letting every page silently drop its
+          // canonical — a missing absolute URL is invisible in the output.
+          if (!config.site)
+            logger.warn(
+              'seo: needs the `site` astro.config option (your deployed URL) — without it <Seo /> ' +
+                'omits canonical, og:url and any relative og:image rather than guessing an origin.',
+            );
+          if (config.integrations.some((i) => i.name === 'emdash'))
+            logger.warn(
+              'seo: emdash() is registered, and its <EmDashHead> emits the same title/description/' +
+                'canonical/og tags from the CMS. Use one or the other — rendering both duplicates ' +
+                'every tag.',
+            );
+        }
         const hasManifest = !!(opts.favicon?.name && opts.favicon?.themeColor);
         let hasSvg = false;
 
@@ -304,6 +342,8 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
                 wcBase: '/vitops',
                 editor,
                 sitemap: sitemapHref,
+                site: config.site ?? null,
+                seo: opts.seo ?? {},
               }),
             ],
           },
@@ -311,7 +351,15 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
 
         // 5. CSS — generate + compile + auto-inject (consumer imports nothing).
         if (opts.css) {
-          const format: Format = opts.css.format ?? 'tailwind';
+          const format: StylesheetFormat = opts.css.format ?? 'tailwind';
+          // Typed out above, but a plain-JS config reaches here unchecked and
+          // would otherwise fail late with an unresolvable `styles.css` import.
+          if ((format as string) === 'design')
+            throw new Error(
+              "[getvitops] css.format: 'design' emits only DESIGN.md, not a stylesheet. " +
+                'Run `npx vitops generate --format design --out .` for that file, and set ' +
+                "css.format to 'tailwind' | 'css' | 'bricks' here.",
+            );
           const out = opts.css.out ?? 'src/styles';
           const plugins = [
             vitops({

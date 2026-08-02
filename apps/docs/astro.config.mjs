@@ -1,5 +1,5 @@
 // @ts-check
-import getvitops from '@getvitops/astro';
+import vitops from '@getvitops/astro';
 import { defineConfig } from 'astro/config';
 
 /**
@@ -20,7 +20,7 @@ import { defineConfig } from 'astro/config';
 export default defineConfig({
   site: 'https://docs.vitops.ca',
   integrations: [
-    getvitops({
+    vitops({
       css: {
         input: '../../src/design-system.json',
         format: 'css',
@@ -36,6 +36,15 @@ export default defineConfig({
       // Static output + `site` set + no EmDash — the exact shape the option
       // targets. <Head /> emits the <link rel="sitemap"> for it.
       sitemap: true,
+      // Site-level defaults for <Seo /> in Docs.astro; pages override per-page.
+      seo: {
+        siteName: 'Vitops',
+        titleTemplate: '%s · Vitops',
+        defaultDescription:
+          'A generated design system for Astro and WordPress — variable-driven CSS framework, ' +
+          'progressive-enhancement web components, and one config file.',
+        openGraph: { locale: 'en_CA' },
+      },
     }),
   ],
 });

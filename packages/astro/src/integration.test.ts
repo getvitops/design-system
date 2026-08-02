@@ -125,3 +125,39 @@ describe('getvitops({ sitemap })', () => {
     expect(warned(h.logs, 'prerender')).toBe(true);
   });
 });
+
+describe('getvitops({ seo })', () => {
+  it('defaults to an empty object so <Seo /> can read it unconditionally', async () => {
+    const h = harness();
+    await h.run();
+    expect(headData(h.updates).seo).toEqual({});
+  });
+
+  it('carries the defaults and `site` into the virtual module', async () => {
+    const seo = { siteName: 'Acme', titleTemplate: '%s · Acme' };
+    const h = harness({ seo });
+    await h.run();
+    expect(headData(h.updates).seo).toEqual(seo);
+    expect(headData(h.updates).site).toBe('https://example.com');
+  });
+
+  it('warns when `site` is unset, since every absolute-URL tag then drops', async () => {
+    // Invisible in the output otherwise — the tags are simply absent.
+    const h = harness({ seo: { siteName: 'Acme' } }, { site: undefined });
+    await h.run();
+    expect(warned(h.logs, '`site`')).toBe(true);
+    expect(headData(h.updates).site).toBeNull();
+  });
+
+  it('stays quiet about `site` when seo is not configured', async () => {
+    const h = harness({}, { site: undefined });
+    await h.run();
+    expect(h.logs.filter((l) => l.level === 'warn')).toEqual([]);
+  });
+
+  it('warns that <EmDashHead> already covers these tags', async () => {
+    const h = harness({ seo: { siteName: 'Acme' } }, { integrations: [integration('emdash')] });
+    await h.run();
+    expect(warned(h.logs, 'EmDashHead')).toBe(true);
+  });
+});

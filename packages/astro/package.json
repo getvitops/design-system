@@ -6,6 +6,8 @@
   "files": [
     "dist",
     "src/components/Head.astro",
+    "src/components/Seo.astro",
+    "src/seo.ts",
     "src/components/Subgrid.astro",
     "src/components/Cards.astro",
     "src/components/NodeRenderer.astro",
@@ -25,6 +27,7 @@
       "import": "./dist/index.mjs"
     },
     "./Head.astro": "./src/components/Head.astro",
+    "./Seo.astro": "./src/components/Seo.astro",
     "./components/Subgrid.astro": "./src/components/Subgrid.astro",
     "./components/Cards.astro": "./src/components/Cards.astro",
     "./components/NodeRenderer.astro": "./src/components/NodeRenderer.astro",
