@@ -22,6 +22,13 @@ declare module 'virtual:getvitops/head' {
     // this file can't import from src, and <Seo /> re-types it on the way into
     // `resolveSeo`, which is where the real contract is enforced.
     seo: Record<string, unknown>;
+    // Likewise `GetvitopsAnalyticsOptions` (src/analytics.ts) — re-typed by
+    // <Analytics /> on the way into `resolveAnalytics`.
+    analytics: Record<string, unknown>;
+    consent: boolean;
+    consentCategories: string[];
+    consentPolicyUrl: string | null;
+    consentRuntime: boolean;
   }
   const data: HeadData;
   export default data;

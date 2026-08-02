@@ -67,6 +67,15 @@ const THEME_SCRIPT =
 )}
 
 {/*
+  The consent gate + <wc-consent> — its own Lit-free bundle, loaded whenever the
+  gate is on or a tag needs scheduling. Deliberately NOT inside the
+  `webComponents` block: this module decides whether third-party tags run at all,
+  so it must not be switched off along with the element runtime, and it must be
+  free to load ahead of the deferred Lit bundle rather than behind it.
+*/}
+{head.consentRuntime && <script is:inline type="module" src={`${wc}/consent.js`}></script>}
+
+{/*
   The live theme editor — a separate, opt-in bundle (getvitops({ editor: true })).
   It is tooling, not part of the runtime, so it stays out of elements.js and off
   every page that doesn't ask for it. Loads independently of `webComponents`:

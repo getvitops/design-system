@@ -7,7 +7,7 @@
  * The `<Head />` component (shipped alongside) renders the tags, reading resolved
  * config from the `virtual:getvitops/head` module this integration provides.
  */
-import { cpSync, existsSync } from 'node:fs';
+import { cpSync, existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { LegalOutput, StylesheetFormat } from '@getvitops/generator';
@@ -19,6 +19,13 @@ import {
 } from '@getvitops/utils';
 import vitops from '@getvitops/vite';
 import type { AstroIntegration } from 'astro';
+import {
+  consentCategories,
+  type GetvitopsAnalyticsOptions,
+  type GetvitopsConsentOptions,
+  type OptionalConsentCategory,
+  resolveAnalytics,
+} from './analytics.ts';
 import type { GetvitopsSeoOptions } from './seo.ts';
 
 export interface GetvitopsFaviconOptions {
@@ -182,6 +189,31 @@ export interface GetvitopsOptions {
    * CMS — using both double-emits them.
    */
   seo?: GetvitopsSeoOptions;
+  /**
+   * Analytics tags for `<Analytics />` — Google Analytics, Microsoft Clarity,
+   * Matomo, Plausible. Off unless provided.
+   *
+   * Every tag loads off the critical path (`strategy`, default `'idle'`: after
+   * `load`, on an idle callback) and, when it sets cookies, only after consent.
+   *
+   * Which consent category a provider needs is derived from whether it sets
+   * cookies, not declared — so configuring a cookie-setting provider without
+   * `consent` warns rather than silently tracking everyone.
+   */
+  analytics?: GetvitopsAnalyticsOptions;
+  /**
+   * The consent gate: `@getvitops/core/consent` + `<CookieConsent />`. Off unless
+   * provided; `true` uses its defaults.
+   *
+   * A sibling of `analytics`, not part of it. The gate is general — anything
+   * marked `data-consent="<category>"` waits on the same choice, so A/B
+   * assignment, personalisation and third-party embeds use it too, and a site can
+   * enable it with no analytics configured at all.
+   *
+   * Pair it with `legal` so the cookie notice describes the categories this
+   * actually offers.
+   */
+  consent?: boolean | GetvitopsConsentOptions;
 }
 
 /**
@@ -202,6 +234,52 @@ interface HeadData {
   site: string | null;
   /** Site-level `<Seo />` defaults. Function-free, hence serialisable. */
   seo: GetvitopsSeoOptions;
+  /** `<Analytics />` providers. IDs and flags only — function-free. */
+  analytics: GetvitopsAnalyticsOptions;
+  /** Is the consent gate active? Decides whether tags are gated at all. */
+  consent: boolean;
+  /** Categories `<CookieConsent />` offers unless a page overrides them. */
+  consentCategories: OptionalConsentCategory[];
+  /** Cookie-notice URL for the banner, or null. */
+  consentPolicyUrl: string | null;
+  /** Does `<Head />` need to load `consent.js`? (gate enabled, or a tag needs scheduling) */
+  consentRuntime: boolean;
+}
+
+/**
+ * Which providers `getvitops({ analytics })` configures that the site config's
+ * own `analytics` block does not.
+ *
+ * The two are separate surfaces on purpose — the integration must not import
+ * `SiteConfig` — but they describe the same site, and a disagreement between them
+ * is a compliance defect rather than a style issue: `vitops legal` derives the
+ * cookie notice from the site config, so a provider missing there is a tag the
+ * site runs and its own notice never mentions. That is precisely what the
+ * generator's processor table exists to prevent.
+ *
+ * Read is best-effort — the `legal` step already reports an unreadable config,
+ * and a second copy of that error helps nobody.
+ */
+const SITE_CONFIG_KEYS: Record<string, string> = {
+  googleAnalytics: 'googleAnalyticsId',
+  clarity: 'clarityId',
+  matomo: 'matomo',
+  plausible: 'plausibleDomain',
+};
+
+function undisclosedProviders(configPath: string, analytics: GetvitopsAnalyticsOptions): string[] {
+  let declared: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(readFileSync(configPath, 'utf8')) as { analytics?: unknown };
+    declared = (parsed.analytics ?? {}) as Record<string, unknown>;
+  } catch {
+    return [];
+  }
+  return Object.keys(SITE_CONFIG_KEYS).filter(
+    (key) =>
+      analytics[key as keyof GetvitopsAnalyticsOptions] !== undefined &&
+      !declared[SITE_CONFIG_KEYS[key] as string],
+  );
 }
 
 const VIRTUAL_ID = 'virtual:getvitops/head';
@@ -250,6 +328,34 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
                 'every tag.',
             );
         }
+        // Analytics + consent are resolved here rather than in the component:
+        // resolveAnalytics is pure, its warnings belong beside the others, and
+        // step 2 needs to know whether the consent bundle has to be copied.
+        const consentEnabled = !!opts.consent;
+        const consentOpts: GetvitopsConsentOptions =
+          typeof opts.consent === 'object' ? opts.consent : {};
+        const analytics = resolveAnalytics(opts.analytics, { consent: consentEnabled });
+        // Fall back to `analytics` rather than an empty list: the gate is general,
+        // so a site may be gating an A/B split or an embed we cannot see from
+        // here, and a banner offering no choices is useless.
+        const detectedCategories = consentCategories(analytics.tags);
+        const offeredCategories: OptionalConsentCategory[] =
+          consentOpts.categories ??
+          (detectedCategories.length ? detectedCategories : ['analytics']);
+        for (const warning of analytics.warnings) logger.warn(warning);
+
+        if (opts.analytics && opts.legal) {
+          const undisclosed = undisclosedProviders(resolve(root, opts.legal.input), opts.analytics);
+          if (undisclosed.length)
+            logger.warn(
+              `analytics: ${undisclosed.join(', ')} ${undisclosed.length === 1 ? 'is' : 'are'} ` +
+                "configured here but absent from your site config's `analytics` block, so the " +
+                'cookie notice `legal` generates will not disclose ' +
+                `${undisclosed.length === 1 ? 'it' : 'them'}. Add ` +
+                `${undisclosed.map((k) => SITE_CONFIG_KEYS[k]).join(', ')} to ${opts.legal.input}.`,
+            );
+        }
+
         const hasManifest = !!(opts.favicon?.name && opts.favicon?.themeColor);
         let hasSvg = false;
 
@@ -277,12 +383,21 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
         }
 
         // 2. Web-component bundles → public/vitops/
-        if (webComponents) {
+        //
+        // `consent.js` is copied independently of `webComponents`: the gate is
+        // what decides whether third-party tags run, so a site that turned the
+        // element runtime off and still asked for consent must not silently lose
+        // it — that failure mode is tags loading for everyone.
+        const consentRuntime = consentEnabled || analytics.needsRuntime;
+        if (webComponents || consentRuntime) {
           const corePkg = fileURLToPath(import.meta.resolve('@getvitops/core/package.json'));
           const coreDist = join(dirname(corePkg), 'dist');
           const dest = join(publicDir, 'vitops');
           if (existsSync(coreDist)) {
-            const bundles = ['polyfills.js', 'deferred.js', 'elements.js', 'polyfills'];
+            const bundles = webComponents
+              ? ['polyfills.js', 'deferred.js', 'elements.js', 'polyfills']
+              : [];
+            if (consentRuntime) bundles.push('consent.js');
             if (editor) bundles.push('editor.js');
             for (const f of bundles) {
               const src = join(coreDist, f);
@@ -375,6 +490,11 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
                 sitemap: sitemapHref,
                 site: config.site ?? null,
                 seo: opts.seo ?? {},
+                analytics: opts.analytics ?? {},
+                consent: consentEnabled,
+                consentCategories: offeredCategories,
+                consentPolicyUrl: consentOpts.policyUrl ?? null,
+                consentRuntime,
               }),
             ],
           },

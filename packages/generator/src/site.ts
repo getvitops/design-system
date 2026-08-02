@@ -614,9 +614,23 @@ export const SiteConfigSchema = z.object({
         googleAnalyticsId: z.optional(z.string()),
         plausibleDomain: z.optional(z.string()),
         googleTagManagerId: z.optional(z.string()),
+        clarityId: desc(z.optional(z.string()), 'Microsoft Clarity project ID.'),
+        matomo: desc(
+          z.optional(
+            z.object({
+              url: desc(z.string(), 'Instance base URL (self-hosted, or `*.matomo.cloud`).'),
+              siteId: desc(z.string(), 'Site ID within that instance.'),
+              cookies: desc(
+                z.optional(z.boolean()),
+                'Default false — Matomo runs cookieless (`disableCookies`), which is what lets the cookie notice state positively that it sets none.',
+              ),
+            }),
+          ),
+          'Matomo instance.',
+        ),
       }),
     ),
-    'Analytics provider IDs (gated per environment via `environments.<env>.analytics`).',
+    'Analytics provider IDs (gated per environment via `environments.<env>.analytics`). Which provider is set is also what the generated privacy policy and cookie notice disclose — see `legal`.',
   ),
   notifications: desc(
     z.optional(z.object({ email: z.optional(z.email()) })),

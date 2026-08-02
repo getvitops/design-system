@@ -30,6 +30,13 @@
          entries, color-scheme-toggle, multi-field). Progressive: markup degrades
          without JS; these upgrade it on load. -->
     <script type="module" src="./dist/elements.js"></script>
+    <!-- Consent gate (@getvitops/core/consent — its own Lit-free bundle, not part of
+         elements.js). Installs window.vitopsConsent, activates any
+         [data-consent] tag whose category is granted, and registers <wc-consent>.
+         Loaded here because this page demonstrates the banner; a real site loads it
+         via getvitops({ consent }). This page sets no analytics tag, so there is
+         nothing for the gate to release — only the banner itself is on show. -->
+    <script type="module" src="./dist/consent.js"></script>
     <!-- Live theme editor (@getvitops/core/editor — a separate, opt-in bundle, not
          part of elements.js). Reads dist/design-manifest.json and layers runtime
          :root overrides so the page's tokens can be tuned live. The <wc-theme-editor>
@@ -2713,6 +2720,39 @@
                   <button class="banner__close" data-dismiss aria-label="Dismiss">✕</button>
                 </div>
               </wc-dismissable>
+              <!-- The consent banner. It ships `hidden` and <wc-consent> reveals it
+                   only while a choice is outstanding, so the button below is what
+                   makes it appear here (a real site's first-time visitor sees it
+                   without asking). Shown in the top layer via the Popover API — this
+                   very page sets `body { container-type: inline-size }`, which would
+                   otherwise become the containing block and trap the fixed banner
+                   mid-document. Everything inside is .btn/.cta/.link. -->
+              <p>
+                <button class="btn" data-consent-open>Cookie settings</button>
+                <span class="sub"
+                  >Reopens the consent banner below, without discarding a recorded choice.</span
+                >
+              </p>
+              <wc-consent hidden>
+                <form class="consent" popover="manual" aria-label="Cookies on this site">
+                  <div class="consent__body">
+                    <p>
+                      We use cookies to understand how this site is used. You can decline without
+                      losing any functionality.
+                    </p>
+                    <a class="link" href="#patterns">Cookie notice</a>
+                  </div>
+                  <div class="consent__options">
+                    <label><input type="checkbox" name="analytics" /> Analytics</label>
+                    <label><input type="checkbox" name="marketing" /> Marketing</label>
+                  </div>
+                  <div class="consent__actions">
+                    <button type="button" class="btn" data-consent-reject>Reject</button>
+                    <button type="button" class="btn" data-consent-save>Save choices</button>
+                    <button type="button" class="cta" data-consent-accept>Accept</button>
+                  </div>
+                </form>
+              </wc-consent>
               <ul class="list list--divided list--interactive">
                 <li class="list__item">
                   <span class="list__icon">◆</span>
@@ -2805,6 +2845,46 @@
                     ><strong>Parts:</strong> <code>__close</code>, <code>__content</code>,
                     <code>__action</code>. <strong>Modifiers:</strong> <code>--dismissible</code>,
                     <code>--sticky</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.consent</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Bottom-docked consent banner, shown in the top layer via
+                  <code>popover="manual"</code> — like <code>.tooltip</code>, that is what keeps it
+                  out of the containing-block chain, since
+                  <code>body { container-type }</code> would otherwise trap a fixed banner mid-page.
+                  Out of flow it also contributes nothing to CLS.<span class="sub"
+                    ><strong>Parts:</strong> <code>__body</code>, <code>__options</code>,
+                    <code>__actions</code>. Everything inside composes <code>.btn</code>,
+                    <code>.cta</code>, <code>.link</code> and the form patterns.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>&lt;wc-consent&gt;</code><span class="t t-state">consent.js</span>
+                </div>
+                <div class="api-desc">
+                  Reveals + wires the banner above. Its own Lit-free bundle
+                  (<code>@getvitops/core/consent</code>), because it gates whether third-party tags
+                  run and so must load ahead of <code>elements.js</code>, not behind it. Ships
+                  <code>hidden</code>: with no JS the gate never runs, so nothing loads and there is
+                  nothing to consent to.<span class="sub"
+                    ><strong>Controls:</strong> <code>[data-consent-accept]</code>,
+                    <code>[data-consent-reject]</code>, <code>[data-consent-save]</code>,
+                    <code>input[name=analytics|marketing|preferences]</code>,
+                    <code>[data-consent-open]</code> (anywhere on the page).
+                    <strong>Attributes:</strong> <code>reload-on-revoke</code>.
+                    <strong>API:</strong> <code>window.vitopsConsent</code> — <code>get</code>,
+                    <code>granted</code>, <code>needed</code>, <code>set</code>,
+                    <code>acceptAll</code>, <code>rejectAll</code>, <code>reset</code>,
+                    <code>open</code>, <code>subscribe</code>. <strong>Fires:</strong>
+                    <code>vitops:consent</code> on <code>document</code>.
+                    <strong>Gates:</strong> any
+                    <code>&lt;script type="text/plain" data-vitops-tag data-consent="…"&gt;</code>
+                    or <code>[data-consent-src]</code> — analytics, A/B splits, embeds alike.</span
                   >
                 </div>
               </div>

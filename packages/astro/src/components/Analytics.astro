@@ -1,0 +1,59 @@
+---
+/**
+ * <Analytics /> — the site's analytics tags, off the critical path and behind the
+ * consent gate. Place in your layout's <head>; requires the getvitops()
+ * integration, which supplies `virtual:getvitops/head`.
+ *
+ * A dumb renderer over `resolveAnalytics()` (src/analytics.ts) — every decision
+ * about which tag, which consent category and which cookies lives there and is
+ * unit-tested. Nothing in this file chooses anything.
+ *
+ * The gated tags are `type="text/plain"`, which is the whole trick: the browser
+ * never parses the body as script and never fetches the library, so an undecided
+ * or declining visitor's page issues no third-party request at all. Consent
+ * implemented by *asking a tracker not to track* is a promise; this is a fact
+ * about the document. `@getvitops/core/consent` (loaded by <Head />) activates
+ * them when their category is granted and their strategy has fired.
+ *
+ * Emits no `preconnect` on purpose: warming a connection at parse time is exactly
+ * the critical-path cost the `idle` strategy exists to avoid.
+ */
+import { type AnalyticsStrategy, resolveAnalytics } from '../analytics.ts';
+// @ts-ignore — virtual module provided by the getvitops() integration at build time
+import head from 'virtual:getvitops/head';
+
+interface Props {
+  /** Render nothing (e.g. on a preview deployment). Defaults to true. */
+  enabled?: boolean;
+  /** Override the configured load strategy for this page. */
+  strategy?: AnalyticsStrategy;
+}
+const { enabled = true, strategy } = Astro.props;
+
+const options = strategy ? { ...head.analytics, strategy } : head.analytics;
+const { tags } = enabled
+  ? resolveAnalytics(options, { consent: head.consent })
+  : { tags: [] };
+---
+
+{tags.map((tag) => tag.gated
+  ? (
+      <script
+        is:inline
+        type="text/plain"
+        data-vitops-tag
+        data-consent={tag.category}
+        data-strategy={tag.strategy}
+        data-src={tag.src}
+        data-consent-cookies={tag.cookies.length ? tag.cookies.join(',') : undefined}
+        {...tag.attrs}
+        set:html={tag.inline}
+      />
+    )
+  : (
+      <>
+        {tag.inline && <script is:inline set:html={tag.inline} />}
+        {tag.src && <script is:inline async src={tag.src} {...tag.attrs}></script>}
+      </>
+    )
+)}

@@ -21,6 +21,15 @@ via the `astro:config:setup` hook:
   registered — EmDash serves its own DB-driven `/sitemap.xml` — and deferred to when the consumer
   already lists `@astrojs/sitemap` themselves, which is the documented escape hatch for the options
   `GetvitopsSitemapOptions` does not mirror.
+- **analytics + consent (opt-in `analytics:` / `consent:`)** → resolves the provider tags via the
+  pure `resolveAnalytics()` and bakes them into the virtual module for `<Analytics />`; copies
+  `@getvitops/core`'s `consent.js` into `public/vitops/` for `<CookieConsent />`. Two options, not
+  one, because **consent is not an analytics feature** — the gate is general (`data-consent` on any
+  element) and a site can enable it with no analytics at all.
+
+  The `consent.js` copy is deliberately **outside** the `webComponents` gate. That bundle decides
+  whether third-party tags run, so switching off the element runtime must not switch off consent
+  along with it; the failure mode is tags loading for everyone.
 
   **The option type is hand-declared, not re-exported.** Aliasing `SitemapOptions` would put an
   `@astrojs/sitemap` import (and transitively a `sitemap` one, via `SitemapItem`) into the published
@@ -92,6 +101,31 @@ Resolution lives in the pure `resolveSeo()` and the component only renders its o
 this replaces fused the two, which is why it was never unit-tested and why its `<title>` drifted
 from its `og:title`. It is in both `files` and `exports` — and so is `src/seo.ts`, which the shipped
 component imports.
+
+**`<Analytics />` and `<CookieConsent />` follow the same rules and one more.** Config arrives as an
+argument (`getvitops({ analytics, consent })` → the virtual module), resolution lives in the pure
+`resolveAnalytics()` (`src/analytics.ts`, unit-tested), and the components only render. Both are in
+`files` **and** `exports`, and so is `src/analytics.ts`.
+
+The extra rule is the one that matters: **a gated tag must never carry a live `src`.** It renders as
+`<script type="text/plain" …data-src="…">`, so the browser neither parses the body nor fetches the
+library and an ungated visitor's page issues no third-party request at all. Emitting a real `src`
+would make the gate cosmetic while looking correct in the markup — `components/analytics.test.ts`
+asserts there is exactly one `src=` in the file and that it belongs to the ungated branch.
+
+Two things that look like omissions and are not: no `preconnect` (warming a third-party connection
+during parse is the critical-path cost the `idle` strategy exists to avoid), and **basic** consent
+mode for GA rather than Consent Mode v2 advanced (nothing reaches Google pre-consent, at the price of
+modelled conversions). Provider cookie names live in `analytics.ts` and travel with the tag on
+`data-consent-cookies`; a table of them in `@getvitops/core` would be a second copy to keep in step
+with the generator's processor table.
+
+**`analytics` also has a cross-package invariant.** `vitops legal` derives the cookie notice from the
+_site config's_ `analytics` block, which is a different surface (the integration must not import
+`SiteConfig`). A provider configured here and absent there is a tag the site runs and its own notice
+never discloses, so when `legal` is configured too the integration reads that file and warns —
+`undisclosedProviders()` in `integration.ts`. Adding a provider means touching **both**: here, and
+`KNOWN_PROCESSORS` + `detectProcessorKeys` in `@getvitops/generator`'s `legal/providers.ts`.
 
 All components live in `src/components/` (alongside `Head.astro`).
 

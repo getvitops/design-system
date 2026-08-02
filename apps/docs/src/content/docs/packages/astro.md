@@ -68,6 +68,8 @@ Astro's module graph and Astro emits that link itself.
 | `favicon`       | off unless given     | `source`, `lowResSource`, `name`, `themeColor`, `backgroundColor` |
 | `sitemap`       | off unless given     | generate `sitemap-index.xml` via `@astrojs/sitemap`               |
 | `seo`           | off unless given     | site-level defaults for `<Seo />`                                 |
+| `analytics`     | off unless given     | providers for `<Analytics />` (GA4, Clarity, Matomo, Plausible)   |
+| `consent`       | off unless given     | the consent gate + `<CookieConsent />`                            |
 
 Set `css.inject: false` when another integration adds routes that must not inherit the design system
 (e.g. EmDash's `/_emdash/admin`) — then import the generated file (`<out>/tailwind.css` or
@@ -164,6 +166,137 @@ both duplicates every one of them; the integration warns if you configure `seo` 
 
 The merge logic is a pure function, exported as `resolveSeo(defaults, props, ctx)` if you need to
 drive it yourself.
+
+## Analytics
+
+`<Analytics />` emits the tags for the providers you configure. Nothing touches the critical path,
+and anything that sets cookies waits for consent.
+
+```js
+// astro.config.mjs
+vitops({
+  analytics: {
+    googleAnalytics: 'G-XXXXXXXXXX',
+    clarity: 'abcd1234',
+    matomo: { url: 'https://stats.acme.com', siteId: '1' },
+    plausible: 'acme.com',
+    strategy: 'idle',
+  },
+  consent: { policyUrl: '/legal/cookies' },
+});
+```
+
+```astro
+---
+import Analytics from '@getvitops/astro/Analytics.astro';
+import CookieConsent from '@getvitops/astro/CookieConsent.astro';
+---
+<head>
+  <Head />
+  <Analytics />
+</head>
+<body>
+  <slot />
+  <CookieConsent />
+</body>
+```
+
+| provider               | sets cookies | consent category | notes                                                                            |
+| ---------------------- | ------------ | ---------------- | -------------------------------------------------------------------------------- |
+| **Google Analytics** 4 | yes          | `analytics`      | `_ga`, `_ga_*`, `_gid`. `category: 'marketing'` if the property feeds Ads        |
+| **Microsoft Clarity**  | yes          | `analytics`      | session replay + heatmaps; `_clck`, `_clsk`, `MUID`                              |
+| **Matomo**             | **no**       | `necessary`      | `disableCookies` by default; `cookies: true` opts in and moves it to `analytics` |
+| **Plausible**          | no           | `necessary`      | cookieless, ~1 KB                                                                |
+
+**The category is derived, not declared.** It follows from whether the provider sets cookies, which
+follows from that provider's own configuration. You can't mark Google Analytics `necessary` to skip
+the banner — but you _can_ pick a genuinely cookieless provider and be done with it, which is the
+choice the table is trying to make legible.
+
+### Loading
+
+`strategy` decides when a tag runs. The default keeps analytics off the critical path entirely:
+
+| `strategy`       | loads                                                            |
+| ---------------- | ---------------------------------------------------------------- |
+| `idle` (default) | after `load`, on an idle callback (3s timeout)                   |
+| `async`          | immediately, with the vendor's own `async` semantics             |
+| `interaction`    | on first pointer/key/scroll, or after 8s — whichever comes first |
+
+`interaction` is the cheapest and the least accurate: a visitor who reads and leaves is counted only
+by the 8s fallback. No `preconnect` is emitted for any of them — warming a third-party connection
+during parse is exactly the cost `idle` exists to avoid.
+
+### How consent actually blocks a tag
+
+Gated tags render as `<script type="text/plain">` with the URL on `data-src`. The browser never parses
+the body and never fetches the library, so an undecided or declining visitor's page issues **no
+third-party request at all**. Consent implemented by asking a tracker not to track is a promise; this
+is a fact about the document.
+
+For Google Analytics that means **basic consent mode, not advanced**: nothing reaches Google until the
+visitor accepts, rather than loading immediately with signals denied to send cookieless pings. Fewer
+modelled conversions, nothing to defend. Clarity is gated the same way and additionally receives
+`clarity('consentv2', …)`, because Microsoft enforces the signal separately for EEA/UK/CH traffic.
+
+## Cookie consent
+
+`consent: true` ships `@getvitops/core/consent` — a 2.3 KB gzipped, Lit-free bundle — and enables
+`<CookieConsent />`.
+
+**It is not an analytics feature.** The gate is general: mark anything `data-consent="<category>"`
+and it waits on the same choice.
+
+```html
+<script type="text/plain" data-vitops-tag data-consent="marketing" data-src="https://…"></script>
+<iframe data-consent="marketing" data-consent-src="https://www.youtube.com/embed/…"></iframe>
+```
+
+Categories are `necessary` (always granted), `analytics`, `marketing`, `preferences`. The banner
+offers only the ones something is actually waiting on.
+
+Anything else — A/B assignment, account personalisation, your own scripts — uses `window.vitopsConsent`:
+
+```js
+window.vitopsConsent.subscribe((state) => {
+  if (window.vitopsConsent.granted('preferences')) restoreSavedLayout();
+});
+```
+
+`get()` · `granted(category)` · `needed()` · `set({ analytics: true })` · `acceptAll()` ·
+`rejectAll()` · `reset()` · `open()` · `subscribe(fn)`. A `vitops:consent` event fires on `document`
+at startup and on every change. Anything with `[data-consent-open]` reopens the banner, so a footer
+"Cookie settings" link needs no JS of its own.
+
+Behaviour worth knowing:
+
+- **Nothing is stored until the visitor chooses.** No cookie, no localStorage. Showing the banner
+  can't be the thing that needs consent. An unreadable or wrong-version cookie re-prompts rather than
+  being read permissively.
+- **Revoking clears cookies and reloads.** An already-executing tracker can't be unloaded any other
+  way. `<CookieConsent noReloadOnRevoke />` turns the reload off, at the cost of that tracker running
+  until the next navigation.
+- **Rejecting is a decision** — the banner stays gone, it doesn't keep asking until told yes.
+- **No geo detection.** The banner shows for everyone once enabled. Suppressing it from a timezone or
+  an IP guess fails toward _not asking_, which is the expensive direction to be wrong in.
+- **With no JS, nothing happens and that's correct** — the gate never runs, so no gated tag loads and
+  no non-essential cookie is set. The banner stays hidden because there is nothing to consent to.
+- **`<Analytics />` alone still uses the runtime** for scheduling, unless every provider is cookieless
+  _and_ `strategy: 'async'` — the one configuration that ships no consent JavaScript at all.
+
+### Keep it in step with your cookie notice
+
+`vitops legal` derives the privacy policy and cookie notice from your **site config**, and
+`getvitops({ analytics })` is a separate surface. Declare each provider in both:
+
+```jsonc
+// site config — what the documents disclose
+{ "analytics": { "googleAnalyticsId": "G-XXXXXXXXXX", "clarityId": "abcd1234" } }
+```
+
+Configure `legal` alongside `analytics` and the integration checks this for you, naming any provider
+you'd otherwise be running without disclosing. It also warns when a cookie-setting provider is
+configured with no `consent` gate.
 
 ## Components
 
