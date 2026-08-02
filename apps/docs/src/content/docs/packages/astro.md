@@ -142,8 +142,11 @@ web-component runtime); use both.
 
 Behaviour worth knowing:
 
-- **`titleTemplate` is skipped when a page's title already equals `siteName`**, so a homepage titled
-  "Acme" emits `Acme`, not `Acme · Acme`. It never applies to `defaultTitle` either.
+- **`titleTemplate` applies to `<title>` only.** `og:title`/`twitter:title` get the _untemplated_
+  title, because a social card already shows `og:site_name` and the domain — "Pricing · Acme" would
+  sit directly above "Acme". Pass `ogTitle` for a different social headline. The template is also
+  skipped when a page's title already equals `siteName`, so a homepage titled "Acme" emits `Acme`,
+  not `Acme · Acme`, and it never applies to `defaultTitle`.
 - **Canonical needs the `site` astro.config option.** Without it, canonical, `og:url` and any
   _relative_ `og:image` are omitted rather than derived from the request — a canonical built from a
   dev or preview origin can de-index you. The integration warns at build time. Absolute image URLs
