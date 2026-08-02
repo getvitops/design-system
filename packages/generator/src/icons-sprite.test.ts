@@ -116,3 +116,15 @@ describe('buildIconSprite', () => {
     expect(r.ids).toEqual([]);
   });
 });
+
+describe('collection resolution', () => {
+  it('resolves @iconify-json/* from the consumer, not from this package', async () => {
+    // The collections are the CONSUMER's dependency. A bare specifier imported
+    // from inside the generator resolves against the generator's own
+    // node_modules — where they are deliberately absent — and every project
+    // that HAS them would be told they are "not installed".
+    await expect(
+      buildIconSprite({ include: { ph: ['list'] }, resolveFrom: '/nonexistent' }),
+    ).rejects.toThrow(/not installed/);
+  });
+});

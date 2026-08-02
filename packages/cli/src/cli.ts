@@ -16,10 +16,11 @@
  */
 import { parseArgs } from 'node:util';
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
-import { resolve, join, dirname } from 'node:path';
+import { resolve, join, dirname, relative } from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import {
+  buildIconSprite,
   generate,
   validate,
   defaultConfig,
@@ -40,7 +41,13 @@ import {
   type LegalOutput,
   type SiteConfig,
 } from '@getvitops/generator';
-import { generateFavicons, scanFiles } from '@getvitops/utils';
+import {
+  collectIconRefs,
+  generateFavicons,
+  generateIconInclude,
+  resolveIcon,
+  scanFiles,
+} from '@getvitops/utils';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
 import { lintSource, vocabulary } from './lint.ts';
 
@@ -66,6 +73,7 @@ Usage:
   vitops docs [topic]           Print live design-system reference docs to stdout
   vitops lint [options]         Report framework classes in your source that resolve to nothing
   vitops legal [options]        Render legal documents from a site config
+  vitops icons [options]        Report which icons your source uses, and build the sprite
 
 Generate options:
   -i, --input <path>    Config file (default: ./design-system.json)
@@ -97,6 +105,13 @@ Docs options:
                         (no topic: list topics with summaries)
   -i, --input <path>    Config file (default: ./design-system.json)
       --all             Print every topic, concatenated
+
+Icons options:
+      --site <path>     Site config carrying the "icons" block (default: ./site.json)
+      --src <dir>       Source to scan for icon usage (default: ./src)
+      --sprite          Also build the SVG sprite
+  -o, --out <dir>       Where to write icons.svg with --sprite (default: ./dist)
+      --json            Machine-readable report on stdout
 
 Lint options:
   -i, --input <path>    Config file (default: ./design-system.json)
@@ -299,6 +314,129 @@ async function loadSiteConfig(path: string, siteEnv: string): Promise<SiteConfig
  * the same documents without any integration code. Prints to stdout like
  * `vitops docs`, or writes files when given `--out`.
  */
+/**
+ * Report the icon vocabulary a project actually uses, and optionally build the
+ * sprite from it.
+ *
+ * A sibling of `legal` rather than a widening of `lint`: `lint` judges classes
+ * against a design-system.json, whereas icons are anchored to a SiteConfig.
+ *
+ * Exit codes carry the same distinction the Astro integration makes. A name the
+ * config DECLARES but that doesn't resolve is a config error and fails the
+ * command; a name only the SCAN found is reported and tolerated, because a bare
+ * unmapped name is more often a local src/icons/*.svg than a mistake. Runtime-
+ * computed names are listed with file and line so they can be declared, never
+ * guessed at.
+ */
+async function cmdIcons(argv: string[]) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      site: { type: 'string', default: 'site.json' },
+      src: { type: 'string', default: 'src' },
+      sprite: { type: 'boolean', default: false },
+      out: { type: 'string', short: 'o', default: 'dist' },
+      json: { type: 'boolean', default: false },
+      'site-env': { type: 'string', default: 'production' },
+    },
+    allowPositionals: false,
+  });
+
+  const sitePath = resolve(values.site as string);
+  const icons = existsSync(sitePath)
+    ? (((await loadSiteConfig(sitePath, values['site-env'] as string)).icons ?? {}) as Record<
+        string,
+        unknown
+      >)
+    : {};
+  const ui = (icons.ui as string) ?? 'fa7-solid';
+  const brand = (icons.brand as string) ?? 'simple-icons';
+  const weight = icons.weight as string | undefined;
+  const weightOpt = weight ? { weight } : {};
+
+  // Declared first — this throws on an unresolvable name, by design.
+  let include: Record<string, string[]> = {};
+  try {
+    include = generateIconInclude({ ...(icons as object) } as Parameters<
+      typeof generateIconInclude
+    >[0]);
+  } catch (e) {
+    fail((e as Error).message);
+  }
+  const add = (prefix: string, name: string) => {
+    const list = (include[prefix] ??= []);
+    if (!list.includes(name)) list.push(name);
+  };
+
+  const srcDir = resolve(values.src as string);
+  const scanned = existsSync(srcDir) ? collectIconRefs(scanFiles(srcDir)) : null;
+  const unmapped: string[] = [];
+  for (const name of scanned?.names ?? []) {
+    const colon = name.indexOf(':');
+    if (colon > 0) {
+      add(name.slice(0, colon), name.slice(colon + 1));
+      continue;
+    }
+    try {
+      const q = resolveIcon(name, ui, weightOpt);
+      add(q.slice(0, q.indexOf(':')), q.slice(q.indexOf(':') + 1));
+    } catch {
+      unmapped.push(name);
+    }
+  }
+
+  const dynamic = (scanned?.dynamic ?? []).map((d) => ({
+    file: relative(process.cwd(), d.file),
+    line: d.line,
+    expr: d.expr,
+  }));
+  const total = Object.values(include).flat().length;
+
+  let sprite: { ids: string[]; missing: string[] } | null = null;
+  if (values.sprite) {
+    const aliases: Record<string, string> = {};
+    for (const name of (icons.semantic as string[]) ?? []) {
+      try {
+        aliases[`icon-${name}`] = resolveIcon(name, ui, weightOpt);
+      } catch {
+        /* already reported by generateIconInclude above */
+      }
+    }
+    const built = await buildIconSprite({ include, aliases });
+    const outDir = resolve(values.out as string);
+    mkdirSync(outDir, { recursive: true });
+    writeFileSync(join(outDir, 'icons.svg'), built.svg);
+    sprite = { ids: built.ids, missing: built.missing };
+  }
+
+  if (values.json) {
+    process.stdout.write(
+      `${JSON.stringify({ ui, brand, weight: weight ?? null, include, unmapped, dynamic, sprite }, null, 2)}\n`,
+    );
+  } else {
+    console.log(`icon sets: ui=${ui} brand=${brand}${weight ? ` weight=${weight}` : ''}`);
+    for (const [prefix, names] of Object.entries(include))
+      console.log(`  ${prefix}: ${names.length} — ${names.join(', ')}`);
+    console.log(`✓ ${total} icon(s) across ${Object.keys(include).length} set(s)`);
+    if (sprite)
+      console.log(
+        `✓ sprite → ${resolve(values.out as string)}/icons.svg (${sprite.ids.length} symbols)`,
+      );
+    for (const d of dynamic)
+      console.log(`  ! ${d.file}:${d.line}  ${d.expr} — computed at runtime, declare it in icons`);
+    if (unmapped.length)
+      console.log(
+        `  ! not in the '${ui}' map: ${unmapped.join(', ')} (fine for a local svg or sprite id)`,
+      );
+    if (sprite?.missing.length)
+      console.log(`  ! absent from the sprite: ${sprite.missing.join(', ')}`);
+  }
+
+  // Dynamic holes and unmapped bare names are warnings, not failures — same
+  // tolerance `lint` shows template holes, but visible rather than silent.
+  if (sprite?.missing.length) process.exitCode = 1;
+}
+
 async function cmdLegal(argv: string[]) {
   const { values } = parseArgs({
     args: argv,
@@ -579,9 +717,11 @@ async function main() {
       return cmdLint(rest);
     case 'legal':
       return cmdLegal(rest);
+    case 'icons':
+      return cmdIcons(rest);
     default:
       fail(
-        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint | legal). Try: vitops --help`,
+        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint | legal | icons). Try: vitops --help`,
       );
   }
 }

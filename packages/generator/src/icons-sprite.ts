@@ -12,8 +12,11 @@
  * map spans five sets, so depending on them directly would be indefensible for
  * every consumer who never asks for a sprite.
  */
-import { getIconData, iconToSVG, replaceIDs } from '@iconify/utils';
+import { createRequire } from 'node:module';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { IconifyJSON } from '@iconify/types';
+import { getIconData, iconToSVG, replaceIDs } from '@iconify/utils';
 
 export interface IconSpriteOptions {
   /** Exactly `generateIconInclude()`'s shape: collection → icon names. */
@@ -23,6 +26,15 @@ export interface IconSpriteOptions {
    * so a consumer can reference a semantic name without knowing the set.
    */
   aliases?: Record<string, string>;
+  /**
+   * Directory to resolve `@iconify-json/*` from. Defaults to `process.cwd()`.
+   *
+   * Load-bearing: the collections are the CONSUMER's dependency, not this
+   * package's, so a bare `import('@iconify-json/ph/…')` from inside the
+   * generator resolves against the generator's own node_modules and misses them
+   * entirely — which reads as "not installed" on a project that has them.
+   */
+  resolveFrom?: string;
   /** Injected in tests so the emitter can run without any @iconify-json/* installed. */
   loadSet?: (prefix: string) => Promise<IconifyJSON | null>;
 }
@@ -46,12 +58,18 @@ export function spriteId(qualified: string): string {
   return qualified.replace(':', '--');
 }
 
-/** Default loader: the collection JSON shipped by `@iconify-json/<prefix>`. */
-async function loadCollection(prefix: string): Promise<IconifyJSON | null> {
+/**
+ * Default loader: the collection JSON shipped by `@iconify-json/<prefix>`.
+ *
+ * Resolved through a `createRequire` rooted at the consumer's directory, then
+ * imported by absolute path — a bare specifier would resolve against this
+ * package instead, where the collections deliberately aren't installed.
+ */
+async function loadCollection(prefix: string, from: string): Promise<IconifyJSON | null> {
   try {
-    const mod = await import(/* @vite-ignore */ `@iconify-json/${prefix}/icons.json`, {
-      with: { type: 'json' },
-    });
+    const req = createRequire(pathToFileURL(join(from, 'noop.js')));
+    const path = req.resolve(`@iconify-json/${prefix}/icons.json`);
+    const mod = await import(pathToFileURL(path).href, { with: { type: 'json' } });
     return (mod.default ?? mod) as IconifyJSON;
   } catch {
     return null;
@@ -59,7 +77,8 @@ async function loadCollection(prefix: string): Promise<IconifyJSON | null> {
 }
 
 export async function buildIconSprite(o: IconSpriteOptions): Promise<IconSpriteResult> {
-  const load = o.loadSet ?? loadCollection;
+  const from = o.resolveFrom ?? process.cwd();
+  const load = o.loadSet ?? ((prefix: string) => loadCollection(prefix, from));
   const symbols: string[] = [];
   const ids: string[] = [];
   const missing: string[] = [];
