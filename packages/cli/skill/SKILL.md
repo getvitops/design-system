@@ -97,6 +97,22 @@ where no provider covers the family.
   `legal.privacyPolicy.processors`.
   Generated from config, not legal advice — always tell the user to have it reviewed
   before publishing.
+- `vitops indexing` — tell search engines a deploy happened, from a **site config**'s
+  `seo.indexing` block. Run `--dry` first: it prints the full plan and makes no requests.
+  **Be accurate about what this does, because the obvious assumption is wrong.** Google
+  has no API that requests indexing — the Search Console button is not exposed anywhere,
+  URL Inspection is read-only, and the sitemap ping endpoint was removed in 2023. So:
+  it resubmits the sitemap through the Search Console API, pings **IndexNow**
+  (Bing, Yandex, Naver, Seznam, Yep — _not_ Google), and `--check` verifies afterwards
+  whether Google actually indexed `seo.indexing.priorityUrls`, exiting non-zero if not.
+  Never tell a user this makes Google re-index faster; it automates the sanctioned steps
+  and makes the result visible.
+  Two things decide whether it works at all: the sitemap needs real per-page `<lastmod>`
+  (wire `gitLastmod()` from `@getvitops/astro` into the `sitemap` option — without it
+  only added/removed pages are detectable, never an edit), and `.vitops/` must persist
+  between runs or every run submits everything. Google's **Indexing API is deliberately
+  not wired**: it is scoped to `JobPosting`/`BroadcastEvent`, and using it for ordinary
+  pages violates its terms — don't suggest it as a workaround.
 - `vitops agents` — (re-)link this skill into `.agents/skills/` + `.claude/skills/` and
   refresh the AGENTS.md pointer block. The links point into the installed package and
   survive version bumps; re-run only if they were deleted.

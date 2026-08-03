@@ -182,11 +182,11 @@ packages under `packages/` (a pnpm workspace), by layer:
 
   `legal` renders the site's privacy policy, terms of service and cookie notice — see the
   Legal documents section below. It is one of the three commands anchored to a `SiteConfig`
-  rather than a `design-system.json` (with `icons` and `notify`), because what it renders
+  rather than a `design-system.json` (with `icons` and `indexing`), because what it renders
   describes a site rather than a token set.
 
-  `notify` tells search engines a deploy happened, from `seo.indexing` — see the
-  Search-engine notification section below.
+  `indexing` tells search engines a deploy happened, from `seo.indexing` — see the
+  Search-engine indexing section below.
 
 - **`@getvitops/vite`** — a Vite plugin (Astro/EmDash) that runs the generator on build/dev (+
   optional favicon generation) and hot-regenerates when the config changes.
@@ -324,9 +324,9 @@ surface every consumer has regardless of stack:
 Every document opens with a non-optional review banner. These are rendered from a template by
 a build tool; the one failure mode with real consequences is a consumer publishing one as-is.
 
-## Search-engine notification
+## Search-engine indexing
 
-`vitops notify` (`packages/cli` → `@getvitops/utils/notify`) replaces the manual "open Search
+`vitops indexing` (`packages/cli` → `@getvitops/utils/indexing`) replaces the manual "open Search
 Console and resubmit" step at the end of a deploy. It reads a **`SiteConfig`**'s `seo.indexing`
 block.
 
@@ -349,7 +349,7 @@ describe this as making Google re-index faster.
 
 Five things are load-bearing:
 
-- **The pure/I-O split is the same one the consent store makes.** `notify/plan.ts` decides
+- **The pure/I-O split is the same one the consent store makes.** `indexing/plan.ts` decides
   everything — which URLs, which channels, why each was skipped — and touches no network, no
   filesystem, no clock; `indexnow.ts` and `gsc.ts` execute a plan and decide nothing. That is
   what makes `--dry` a _complete_ account of a run rather than an approximation, and what lets
@@ -368,7 +368,7 @@ Five things are load-bearing:
 - **The `noindex` gate reads the environment, so the URLs must too.** `plan()` refuses the whole
   run when the resolved environment's `robots` contains `noindex` — submitting a staging host to
   IndexNow publishes it to several engines and invites them to crawl it, which a later directive
-  does not undo. This is why `toNotifyConfig` derives the origin from `environments[env].url`
+  does not undo. This is why `toIndexingConfig` derives the origin from `environments[env].url`
   **before** `domains.canonical`: the canonical is the _production_ origin, so deriving from it
   while notifying staging would submit production URLs that the gate — reading the environment —
   would not catch.
@@ -380,7 +380,7 @@ Five things are load-bearing:
   integration writes `public/<key>.txt` from it.
 - **Write the snapshot last, and only on success.** Writing it eagerly records URLs as notified
   that never were, and because the next run diffs against it, one transient 503 would drop those
-  pages from every future notify — silently and permanently. Equally, a corrupt or absent
+  pages from every future run — silently and permanently. Equally, a corrupt or absent
   snapshot reads as "submit everything, and say so", never as "nothing changed".
 
 Credentials follow `lib/deploy.ts`'s env-var pattern; the toolchain has no secret store and
@@ -390,7 +390,7 @@ OAuth token is minted with ~30 lines of `node:crypto` — **do not add `googleap
 dependency for two endpoints in a CLI that installs into every consumer project.
 
 `@getvitops/utils` cannot import from `@getvitops/generator` (the generator already depends on
-it), so `NotifyConfig` mirrors the `seo.indexing` block structurally and the CLI adapts — the
+it), so `IndexingConfig` mirrors the `seo.indexing` block structurally and the CLI adapts — the
 same arrangement, for the same reason, as `GetvitopsSeoOptions` in `@getvitops/astro`.
 
 ## Development

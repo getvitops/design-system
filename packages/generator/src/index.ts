@@ -67,6 +67,9 @@ export type {
   ResolvedInput,
   SiteConfig,
   SiteFont,
+  SiteIndexNow,
+  SiteIndexing,
+  SiteSearchConsole,
   SiteValidationResult,
 } from './site.ts';
 

@@ -97,6 +97,33 @@ content _and_ hand-authored `.astro` pages), add `sitemap()` to your own `integr
 vitops detects that too and leaves yours in charge, which is also how you reach the handful of
 `@astrojs/sitemap` options this integration doesn't mirror.
 
+### Real `<lastmod>` dates
+
+A sitemap without `<lastmod>` tells a crawler a page exists but never that it changed. `gitLastmod()`
+stamps each entry from its source file's last commit:
+
+```js
+import vitops, { gitLastmod } from '@getvitops/astro';
+
+export default defineConfig({
+  site: 'https://acme.ca',
+  integrations: [vitops({ sitemap: { serialize: await gitLastmod() } })],
+});
+```
+
+It maps file-based routes exactly (`src/pages/about.astro` → `/about`) and content entries by unique
+slug. Three deliberate refusals, all of the same kind — **no date beats a wrong one**, because Google
+weighs `lastmod` only while it stays consistent with what actually changed:
+
+- **Dynamic routes get nothing.** One `[slug].astro` backs many URLs; its commit date describes the
+  template, not any page.
+- **An ambiguous slug gets nothing** rather than a coin flip presented as a fact.
+- **A shallow clone gets nothing, loudly.** It shells out to `git`, so `fetch-depth: 1` (the
+  actions/checkout default) yields no history — it warns and emits no dates. Set `fetch-depth: 0`.
+
+This is also what makes `vitops indexing` able to submit only what changed, rather than everything on
+every deploy.
+
 ## `<Seo />`
 
 Page metadata: `<title>`, description, canonical, Open Graph, Twitter cards, robots, `article:*`,

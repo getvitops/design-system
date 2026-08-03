@@ -446,6 +446,67 @@ const TwitterSchema = z.object({
   image: z.optional(ImageRefSchema),
 });
 
+// ── Indexing ────────────────────────────────────────────────────────────────────
+
+/**
+ * What `vitops notify` needs to tell search engines a deploy happened.
+ *
+ * Scoped by what search engines actually accept, which is narrower than it looks:
+ * Google exposes **no** "request indexing" API (the Search Console button is not in
+ * its API, and URL Inspection is read-only), and it removed the sitemap ping
+ * endpoint in 2023. So the sanctioned set is: an accurate sitemap, a Search Console
+ * sitemap resubmit, an IndexNow ping — which Google does *not* honour but Bing,
+ * Yandex, Naver, Seznam and Yep do — and a read-only inspection pass to find out
+ * what Google actually did.
+ *
+ * Facts only, the same rule the legal block follows: this records what the site has
+ * (a key, a property, which pages matter), never what to say about it.
+ */
+const IndexNowSchema = z.object({
+  key: desc(
+    z.string().check(z.regex(/^[a-zA-Z0-9-]{8,128}$/)),
+    'IndexNow key (8–128 chars, hex is conventional). NOT a secret — it is served publicly at `keyLocation` so the engine can verify you own the host. Generate one with `vitops notify --new-key`.',
+  ),
+  keyLocation: desc(
+    z.optional(z.url()),
+    'Absolute URL of the key file. Defaults to `<canonical>/<key>.txt`; set it only when the file lives elsewhere.',
+  ),
+  endpoint: desc(
+    z.optional(z.url()),
+    'IndexNow endpoint (default `https://api.indexnow.org/indexnow`). Any participating engine shares submissions with the rest, so one is normally enough.',
+  ),
+});
+
+const SearchConsoleSchema = z.object({
+  siteUrl: desc(
+    z.string(),
+    'The property exactly as Search Console identifies it — `sc-domain:acme.ca` for a domain property, or the URL-prefix form `https://acme.ca/`. A mismatch here is a 403, not a "not found".',
+  ),
+  resubmitSitemap: desc(
+    z.optional(z.boolean()),
+    'Re-submit the sitemap through the Search Console API on each notify (default true when `searchConsole` is set). This is the automated equivalent of the manual resubmit in the UI.',
+  ),
+});
+
+const IndexingSchema = z.object({
+  sitemapUrl: desc(
+    z.optional(z.url()),
+    'The sitemap to submit and to diff for changed URLs. Defaults to `<canonical>/sitemap-index.xml`.',
+  ),
+  indexNow: desc(
+    z.optional(IndexNowSchema),
+    'IndexNow submission (Bing, Yandex, Naver, Seznam, Yep — not Google). Omit to skip the channel.',
+  ),
+  searchConsole: desc(
+    z.optional(SearchConsoleSchema),
+    'Google Search Console property. Needs a service-account credential in `VITOPS_GSC_SERVICE_ACCOUNT` or `GOOGLE_APPLICATION_CREDENTIALS` at run time — never put the key in this file.',
+  ),
+  priorityUrls: desc(
+    z.optional(z.array(z.url())),
+    'The pages whose indexing actually matters. `vitops notify --check` inspects these and exits non-zero if Google has not indexed one. Kept explicit because URL Inspection is quota-bound (2000/day), so checking every page is neither affordable nor informative.',
+  ),
+});
+
 // ── Legal ───────────────────────────────────────────────────────────────────────
 
 /**
@@ -624,9 +685,13 @@ export const SiteConfigSchema = z.object({
         bingSiteVerification: z.optional(z.string()),
         openGraph: z.optional(OpenGraphSchema),
         twitter: z.optional(TwitterSchema),
+        indexing: desc(
+          z.optional(IndexingSchema),
+          'How `vitops notify` tells search engines about a deploy: which sitemap, IndexNow key, Search Console property, and which pages to verify afterwards.',
+        ),
       }),
     ),
-    'SEO defaults: title/description templates, robots policy, verification tokens, Open Graph + Twitter cards.',
+    'SEO defaults: title/description templates, robots policy, verification tokens, Open Graph + Twitter cards, and post-deploy indexing notification.',
   ),
   analytics: desc(
     z.optional(
@@ -795,6 +860,12 @@ export const SiteConfigSchema = z.object({
 export type SiteConfig = z.infer<typeof SiteConfigSchema>;
 /** One `fonts[]` entry — a serialisable projection of an Astro Fonts API family. */
 export type SiteFont = z.infer<typeof SiteFontSchema>;
+/** The `seo.indexing` block — what `vitops notify` reads. */
+export type SiteIndexing = z.infer<typeof IndexingSchema>;
+/** IndexNow submission settings. The `key` is public by design. */
+export type SiteIndexNow = z.infer<typeof IndexNowSchema>;
+/** Google Search Console property settings. The credential is never in the config. */
+export type SiteSearchConsole = z.infer<typeof SearchConsoleSchema>;
 
 // ── JSON Schema + validation ────────────────────────────────────────────────────
 
@@ -928,6 +999,28 @@ export function validateSite(input: unknown): SiteValidationResult {
         issue(
           ['legal', 'privacyPolicy'],
           'privacyPolicy.enabled requires domains.canonical — the policy states where information is held',
+        ),
+      );
+  }
+
+  // Indexing. Both defaults (the sitemap URL and the IndexNow key location) are
+  // built from `domains.canonical`, so without it the block is unresolvable —
+  // and the failure would otherwise surface at deploy time, as a submission
+  // against `undefined/sitemap-index.xml`, rather than here.
+  const indexing = cfg.seo?.indexing;
+  if (indexing != null && cfg.domains?.canonical == null) {
+    if (indexing.sitemapUrl == null)
+      errors.push(
+        issue(
+          ['seo', 'indexing', 'sitemapUrl'],
+          'seo.indexing needs domains.canonical to derive the sitemap URL — set one, or state sitemapUrl explicitly',
+        ),
+      );
+    if (indexing.indexNow != null && indexing.indexNow.keyLocation == null)
+      errors.push(
+        issue(
+          ['seo', 'indexing', 'indexNow', 'keyLocation'],
+          'seo.indexing.indexNow needs domains.canonical to derive the key location — set one, or state keyLocation explicitly',
         ),
       );
   }

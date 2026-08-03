@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite-plus';
 
 // Node library build for @getvitops/utils. Externalises sharp + png-to-ico
-// (native/heavy — loaded lazily at runtime). Two entries: index + favicon subpath.
+// (native/heavy — loaded lazily at runtime). One entry per published subpath —
+// `indexing` is separate because it is the only network-touching module here.
 export default defineConfig({
   pack: {
-    entry: ['src/index.ts', 'src/favicon.ts', 'src/color/index.ts'],
+    entry: ['src/index.ts', 'src/favicon.ts', 'src/color/index.ts', 'src/indexing/index.ts'],
     outDir: 'dist',
     format: ['es'],
     platform: 'node',

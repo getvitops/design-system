@@ -10,6 +10,7 @@
  *   vitops docs      [topic] [--input <json>] [--all]
  *   vitops lint      [--input <json>] [--format <fmt>] [--src <dir>]
  *   vitops legal     [--input <site.json>] [--doc <name>] [--format <md|html|portable-text>] [--out <dir>]
+ *   vitops indexing  [--input <site.json>] [--dry] [--all] [--check]
  *
  * Thin wrapper over @getvitops/generator (generation) and @getvitops/utils (favicons).
  * Every client brings their own consumer-editable design-system.json.
@@ -52,6 +53,29 @@ import {
   resolveIcon,
   scanFiles,
 } from '@getvitops/utils';
+// Its own subpath: `indexing` is the only network-touching module in utils, and the
+// other commands should not pull it in.
+import {
+  SNAPSHOT_PATH,
+  collectEntries,
+  formatPlan,
+  getAccessToken,
+  inspectUrl,
+  keyFileContents,
+  newKey,
+  parseServiceAccount,
+  plan,
+  readSnapshot,
+  resolveKeyLocation,
+  resolveSitemapUrl,
+  submitBatch,
+  submitSitemap,
+  toSnapshot,
+  verifyKeyFile,
+  writeSnapshot,
+  type IndexingConfig,
+  type ServiceAccount,
+} from '@getvitops/utils/indexing';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
 import { lintCss } from './lint-css.ts';
 import { lintSource, vocabulary } from './lint.ts';
@@ -84,6 +108,7 @@ Usage:
   vitops lint [options]         Report framework classes in your source that resolve to nothing
   vitops legal [options]        Render legal documents from a site config
   vitops icons [options]        Report which icons your source uses, and build the sprite
+  vitops indexing [options]    Tell search engines about a deploy (sitemap + IndexNow)
 
 Generate options:
   -i, --input <path>    design-system.json or site config (default: ./design-system.json)
@@ -155,6 +180,31 @@ Legal options:
 
   Generated from your config — a starting point, not legal advice. Review before
   publishing, and make sure the config describes what your site actually does.
+
+Indexing options:
+  -i, --input <path>    Site config carrying seo.indexing (default: ./site.json)
+      --site-env <env>  Environment to notify for (default: production). An
+                        environment whose robots policy says noindex is refused.
+      --sitemap <src>   Sitemap URL or local path (default: from the config)
+      --urls <list>     Comma-separated URLs to submit, skipping the diff
+      --all             Submit every URL in the sitemap, not just what changed
+      --dry             Print the plan and exit. Makes no requests.
+      --check           Read-only: ask Google whether seo.indexing.priorityUrls
+                        are indexed. Exits non-zero if one is not.
+      --new-key         Print a fresh IndexNow key and exit
+      --write-key <dir> Write the IndexNow key file into <dir> (for stacks with
+                        no Astro integration to do it — Bricks, WordPress)
+      --snapshot <path> Changed-URL state file (default: .vitops/sitemap-snapshot.json).
+                        Persist it between runs (a CI cache) or every run submits
+                        everything.
+
+  What this can and cannot do: Google exposes no "request indexing" API, and its
+  sitemap ping endpoint was removed in 2023 — so it resubmits your sitemap
+  through the Search Console API and verifies the result with --check. IndexNow
+  reaches Bing, Yandex, Naver, Seznam and Yep; Google does not participate.
+  Search Console needs a service account in VITOPS_GSC_SERVICE_ACCOUNT (inline
+  JSON) or GOOGLE_APPLICATION_CREDENTIALS (a path), added as an owner of the
+  property.
 
 Common:
   -h, --help            Show this help
@@ -568,6 +618,268 @@ async function cmdLegal(argv: string[]) {
   );
 }
 
+/**
+ * Adapt a `SiteConfig` to the indexing module's own option shape.
+ *
+ * A flat field map, as intended: `@getvitops/utils` cannot import from the
+ * generator (the generator already depends on it), so `IndexingConfig` mirrors the
+ * `seo.indexing` block rather than being it. The one piece of judgment here is the
+ * origin — see below.
+ */
+function toIndexingConfig(site: SiteConfig, siteEnv: string): IndexingConfig {
+  const indexing = site.seo?.indexing ?? {};
+  const env = site.environments?.[siteEnv];
+  /*
+   * The environment's own URL wins over `domains.canonical`.
+   *
+   * `domains.canonical` is the production origin — it is what absolute URLs and
+   * SEO tags resolve against. Notifying a non-production environment while
+   * deriving URLs from the canonical origin would submit *production* URLs under
+   * the belief they were staging's, which the noindex gate below would then not
+   * catch, because the gate reads the environment and the URLs would not.
+   */
+  const canonical = env?.url ?? site.domains?.canonical;
+  return {
+    ...(canonical ? { canonical } : {}),
+    ...(indexing.sitemapUrl ? { sitemapUrl: indexing.sitemapUrl } : {}),
+    ...(indexing.indexNow ? { indexNow: indexing.indexNow } : {}),
+    ...(indexing.searchConsole ? { searchConsole: indexing.searchConsole } : {}),
+    ...(indexing.priorityUrls ? { priorityUrls: indexing.priorityUrls } : {}),
+    // Fall back to the site-wide policy so a site that states `noindex` once,
+    // globally, is still protected.
+    ...((env?.robots ?? site.seo?.robots) ? { robots: env?.robots ?? site.seo?.robots } : {}),
+  };
+}
+
+/**
+ * The Search Console credential, from either supported source.
+ *
+ * Never from the config file: it is the one genuine secret in this command, and a
+ * `site.json` is committed. Returns `undefined` rather than failing, so a site
+ * running IndexNow alone doesn't need a GCP project at all.
+ */
+function loadServiceAccount(): ServiceAccount | undefined {
+  const inline = process.env.VITOPS_GSC_SERVICE_ACCOUNT;
+  const path = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const raw = inline ?? (path && existsSync(path) ? readFileSync(path, 'utf8') : undefined);
+  if (!raw) return undefined;
+  try {
+    return parseServiceAccount(raw);
+  } catch (err) {
+    fail(
+      `${inline ? 'VITOPS_GSC_SERVICE_ACCOUNT' : `GOOGLE_APPLICATION_CREDENTIALS (${path})`}: ${(err as Error).message}`,
+    );
+  }
+}
+
+/** Read a sitemap from a URL or a local path. */
+const readSitemap = async (source: string): Promise<string> => {
+  if (/^https?:\/\//i.test(source)) {
+    const res = await fetch(source);
+    if (!res.ok) fail(`could not fetch ${source}: ${res.status}`);
+    return res.text();
+  }
+  if (!existsSync(source)) fail(`sitemap not found: ${source}`);
+  return readFileSync(source, 'utf8');
+};
+
+/**
+ * Tell search engines a deploy happened.
+ *
+ * Worth being precise about what this is, because the obvious expectation is
+ * wrong: **Google has no API that requests indexing.** The Search Console button
+ * is not exposed anywhere, URL Inspection is read-only, and the sitemap ping
+ * endpoint was removed in 2023. So the Google half of this command resubmits the
+ * sitemap and then *verifies* the outcome with `--check`; the immediate-push half
+ * is IndexNow, which Google does not participate in.
+ *
+ * The Indexing API is deliberately absent — see `@getvitops/utils/indexing`'s
+ * `gsc.ts`.
+ */
+async function cmdIndexing(argv: string[]) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      input: { type: 'string', short: 'i', default: 'site.json' },
+      'site-env': { type: 'string', default: 'production' },
+      sitemap: { type: 'string' },
+      urls: { type: 'string' },
+      all: { type: 'boolean', default: false },
+      dry: { type: 'boolean', default: false },
+      check: { type: 'boolean', default: false },
+      'new-key': { type: 'boolean', default: false },
+      'write-key': { type: 'string' },
+      snapshot: { type: 'string', default: SNAPSHOT_PATH },
+    },
+    allowPositionals: false,
+  });
+
+  // Stands alone: generating a key is what you do *before* there is a config to
+  // put it in.
+  if (values['new-key']) {
+    const key = newKey();
+    console.log(key);
+    console.log(
+      `\n  Add to your site config:\n    "seo": { "indexing": { "indexNow": { "key": "${key}" } } }`,
+    );
+    console.log(`  Then serve it at /${key}.txt — \`vitops indexing --write-key public\`.`);
+    return;
+  }
+
+  const site = await loadSiteConfig(resolve(values.input as string), values['site-env'] as string);
+  const config = toIndexingConfig(site, values['site-env'] as string);
+
+  if (values['write-key'] !== undefined) {
+    const key = config.indexNow?.key;
+    if (!key) fail('no seo.indexing.indexNow.key in the config — generate one with --new-key');
+    const dir = resolve(values['write-key']);
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, `${key}.txt`);
+    writeFileSync(file, keyFileContents(key));
+    console.log(`✓ IndexNow key file → ${file}`);
+    console.log(`  It must be served at ${resolveKeyLocation(config) ?? `/${key}.txt`}`);
+    return;
+  }
+
+  const sitemapUrl = (values.sitemap as string | undefined) ?? resolveSitemapUrl(config);
+  if (!sitemapUrl)
+    fail(
+      'no sitemap to read — set seo.indexing.sitemapUrl or domains.canonical, or pass --sitemap',
+    );
+
+  const explicitUrls = values.urls
+    ? (values.urls as string)
+        .split(',')
+        .map((u) => u.trim())
+        .filter(Boolean)
+    : undefined;
+
+  // The sitemap is only needed when the URL set comes from it.
+  const current =
+    explicitUrls?.length && !values.check
+      ? []
+      : (await collectEntries(sitemapUrl, readSitemap)).entries;
+
+  const snapshotPath = resolve(values.snapshot as string);
+  const p = plan({
+    config: { ...config, sitemapUrl },
+    current,
+    previous: readSnapshot(snapshotPath),
+    explicitUrls,
+    all: values.all as boolean,
+  });
+
+  console.log(formatPlan(p));
+
+  if (p.blocked) {
+    // Not a failure. Running this against a `noindex` environment is a coherent
+    // thing for a deploy script to do — the config said not to index it, and the
+    // command honoured that. Failing the build would punish the correct setup.
+    return;
+  }
+  if (values.dry) {
+    console.log('\n(--dry: nothing was submitted)');
+    return;
+  }
+
+  const account = loadServiceAccount();
+  let failed = false;
+
+  // ── --check: read-only, and nothing else runs ───────────────────────────────
+  if (values.check) {
+    if (!p.searchConsole.siteUrl)
+      fail('--check needs seo.indexing.searchConsole.siteUrl (the Search Console property)');
+    if (!account)
+      fail(
+        '--check needs a Search Console service account in VITOPS_GSC_SERVICE_ACCOUNT or GOOGLE_APPLICATION_CREDENTIALS',
+      );
+    if (p.check.length === 0)
+      fail('--check needs seo.indexing.priorityUrls — the pages whose indexing matters');
+
+    const token = await getAccessToken(account);
+    console.log(`\nInspecting ${p.check.length} priority URL(s):`);
+    for (const url of p.check) {
+      const r = await inspectUrl(token, p.searchConsole.siteUrl, url);
+      if (r.error) {
+        console.log(`  ? ${url} — ${r.error}`);
+        failed = true;
+      } else {
+        console.log(
+          `  ${r.indexed ? '✓' : '✗'} ${url} — ${r.coverageState ?? r.verdict ?? 'unknown'}`,
+        );
+        if (!r.indexed) failed = true;
+      }
+    }
+    if (failed) {
+      console.error('\n✖ one or more priority URLs are not indexed');
+      process.exit(1);
+    }
+    console.log('\n✓ every priority URL is indexed');
+    return;
+  }
+
+  // ── IndexNow ────────────────────────────────────────────────────────────────
+  if (p.indexNow.enabled) {
+    const { key, keyLocation } = p.indexNow;
+    const check = await verifyKeyFile(keyLocation!, key!);
+    if (!check.ok) {
+      // Hard stop rather than "submit and hope": IndexNow answers 202 and then
+      // discards the batch when the key doesn't verify, so submitting anyway
+      // would print a success it did not earn.
+      console.error(`✖ IndexNow key file check failed — ${check.reason}`);
+      console.error(`  Write it with: vitops indexing --write-key <public dir>`);
+      failed = true;
+    } else {
+      let sent = 0;
+      for (const batch of p.indexNow.batches) {
+        const r = await submitBatch(p.indexNow, batch);
+        if (!r.ok) {
+          console.error(`✖ IndexNow: ${r.message ?? r.status}`);
+          failed = true;
+          break;
+        }
+        sent += r.urls;
+      }
+      if (!failed) console.log(`✓ IndexNow: ${sent} URL(s) submitted`);
+    }
+  }
+
+  // ── Search Console ──────────────────────────────────────────────────────────
+  if (p.searchConsole.enabled) {
+    if (!account) {
+      console.log(
+        '· Search Console: skipped — no VITOPS_GSC_SERVICE_ACCOUNT / GOOGLE_APPLICATION_CREDENTIALS',
+      );
+    } else {
+      const token = await getAccessToken(account);
+      const r = await submitSitemap(token, p.searchConsole.siteUrl!, sitemapUrl);
+      if (r.ok) console.log(`✓ Search Console: sitemap resubmitted`);
+      else {
+        console.error(`✖ Search Console: ${r.message}`);
+        failed = true;
+      }
+    }
+  }
+
+  if (failed) process.exit(1);
+
+  /*
+   * The snapshot is written last, and only on success.
+   *
+   * Writing it eagerly would record URLs as notified that never were — and since
+   * the next run diffs against it, a single transient 503 would drop those pages
+   * from every future run, silently and permanently.
+   */
+  if (current.length > 0) {
+    writeSnapshot(snapshotPath, toSnapshot(sitemapUrl, current, new Date().toISOString()));
+    console.log(`  state → ${relative(process.cwd(), snapshotPath)}`);
+  }
+  if (p.check.length > 0)
+    console.log(
+      `\n  Indexing is not instant. Run \`vitops indexing --check\` in a day or two to see what Google actually did.`,
+    );
+}
+
 // This CLI's own version (dist/cli.mjs → package-root package.json).
 function cliVersion(): string {
   try {
@@ -832,9 +1144,11 @@ async function main() {
       return cmdLegal(rest);
     case 'icons':
       return cmdIcons(rest);
+    case 'indexing':
+      return cmdIndexing(rest);
     default:
       fail(
-        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint | legal | icons). Try: vitops --help`,
+        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint | legal | icons | indexing). Try: vitops --help`,
       );
   }
 }

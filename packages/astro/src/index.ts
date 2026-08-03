@@ -30,6 +30,11 @@ export type {
   ResolvedAnalytics,
   ResolvedTag,
 } from './analytics.ts';
+// Real per-page <lastmod> for the sitemap. A helper rather than a `sitemap`
+// option, because it shells out to git and returns nothing from a shallow clone —
+// a caveat that belongs at the call site.
+export { gitLastmod, routeFromPage, slugFromContent } from './lastmod.ts';
+export type { GitLastmodOptions } from './lastmod.ts';
 export { resolveSeo } from './seo.ts';
 export type {
   GetvitopsSeoOptions,

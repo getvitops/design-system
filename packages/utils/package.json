@@ -21,6 +21,10 @@
     "./color": {
       "types": "./dist/color/index.d.mts",
       "import": "./dist/color/index.mjs"
+    },
+    "./indexing": {
+      "types": "./dist/indexing/index.d.mts",
+      "import": "./dist/indexing/index.mjs"
     }
   },
   "publishConfig": {

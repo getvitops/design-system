@@ -7,7 +7,7 @@
  * The `<Head />` component (shipped alongside) renders the tags, reading resolved
  * config from the `virtual:getvitops/head` module this integration provides.
  */
-import { cpSync, existsSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { LegalOutput, SiteFont, StylesheetFormat } from '@getvitops/generator';
@@ -827,6 +827,36 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
             updateConfig({ integrations: [sitemap(sitemapOpts)] });
             sitemapHref = `/${sitemapOpts?.filenameBase ?? 'sitemap'}-index.xml`;
             logger.info(`sitemap registered → ${sitemapHref.slice(1)}`);
+          }
+        }
+
+        // 3b. The IndexNow key file.
+        //
+        // Derived from the site config rather than an option of its own: the key
+        // is already declared there for `vitops notify`, and a second place to
+        // write it is a second place for it to disagree. Nothing else is needed
+        // to opt in — a config with `seo.indexing.indexNow.key` has, by saying so,
+        // asked for the file that makes the key usable.
+        //
+        // Not a secret. IndexNow verifies host ownership by fetching this file
+        // back, so publishing it *is* the mechanism.
+        if (siteInput) {
+          try {
+            const site = resolveSiteConfig(
+              JSON.parse(readFileSync(resolve(root, siteInput), 'utf8')),
+              opts.site?.siteEnv ?? 'production',
+            );
+            const key = site.seo?.indexing?.indexNow?.key;
+            if (key) {
+              mkdirSync(publicDir, { recursive: true });
+              writeFileSync(join(publicDir, `${key}.txt`), `${key}\n`);
+              logger.info(`IndexNow key file → public/${key}.txt`);
+            }
+          } catch (err) {
+            // Never fatal. Every other consumer of this config validates it
+            // loudly elsewhere in this hook; failing the build a second time,
+            // here, would just bury the first message.
+            logger.warn(`IndexNow key file skipped: ${(err as Error).message}`);
           }
         }
 

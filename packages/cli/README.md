@@ -25,6 +25,7 @@ npx vitops generate --format bricks,css --out dist
 | `vitops favicon -i <svg\|png> -o <dir>`            | generate a favicon set from a source image      |
 | `vitops agents [-o AGENTS.md] [--docs-dir <dir>]`  | link the agent skill + AGENTS.md pointer        |
 | `vitops docs [topic] [--all]`                      | print live reference docs to stdout             |
+| `vitops indexing [--dry] [--check]`                | tell search engines about a deploy              |
 
 Every `--input` takes a `design-system.json` **or** the larger site config that embeds one
 (`company.json` / `site.json`) — told apart by shape, so name the file whatever you like. Add
