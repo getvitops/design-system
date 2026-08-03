@@ -24,11 +24,11 @@ describe('static references', () => {
   });
 
   it('reads icon-bearing props and start/end adornments', () => {
-    const src = '<a class="cta" startIcon="menu" endIcon="arrow-forward">Go</a>';
+    const src = '<a class="cta" startIcon="menu" endIcon="forward">Go</a>';
     const { refs } = extractIconRefs(src);
     expect(refs.map((r) => [r.attr, r.name])).toEqual([
       ['startIcon', 'menu'],
-      ['endIcon', 'arrow-forward'],
+      ['endIcon', 'forward'],
     ]);
     expect(refs.every((r) => r.kind === 'prop')).toBe(true);
   });

@@ -354,6 +354,16 @@ body {
   display: grid;
   gap: var(--grid-gap, 1rem);
   grid-template-columns: repeat(auto-fit, minmax(var(--grid-min, 13rem), 1fr));
+
+  /* Spacing between items is the grid's job, not the flow's — neutralise the
+     `.rhythm :where(ul, ol) > li + li` margin, which reaches into any list
+     inside a prose container. `.subgrid` already does this; a `<ul class="grid-auto">`
+     needs it just as much, and the symptom is easy to misread: every item bar
+     the FIRST gets a top margin, the grid stretches the row to the tallest, and
+     the first cell alone looks vertically offset. */
+  &:is(ul, ol) > li + li {
+    margin-block-start: 0;
+  }
 }
 
 .split-1-2 {

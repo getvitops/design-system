@@ -35,6 +35,16 @@ alias, so sprite markup survives an icon-set change. WordPress gets `vitops_icon
 **New `vitops icons`** command: reports which icons your source uses, which names couldn't be
 resolved, and which are computed at runtime; `--sprite` builds the sprite, `--json` for CI.
 
+**Renamed, for a vocabulary that reads as one system.** The chevron family now
+says what it does rather than which way it points — `expand-more`/`expand-less` →
+`expand-vert`/`collapse-vert`, `chevron-right`/`chevron-left` →
+`expand-horiz`/`collapse-horiz` — and the arrows drop their prefix:
+`arrow-forward`/`arrow-back` → `forward`/`back`. `lightning` is new.
+
+If you passed any of the old names to `<Icon />`, `resolveIcon` or an `icons`
+config, update them. They fail loudly rather than silently: an unresolvable
+declared name throws, and `vitops icons` reports scanned ones.
+
 **Phosphor (`ph`) joins the semantic map**, with all 83 names verified against the real icon set.
 Phosphor keeps every weight in one collection and varies the name (`list`, `list-bold`), unlike Font
 Awesome's per-weight collections, so `resolveIcon` and `generateIconInclude` gained a `weight`

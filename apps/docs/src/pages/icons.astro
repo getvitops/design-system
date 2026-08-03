@@ -54,7 +54,7 @@ const headings = [
     toolchain knows answers to this same list, which is what makes swapping one safe.
   </p>
 
-  <ul class="ic-grid">
+  <ul class="grid-auto ic-grid" style="--grid-min: 8rem">
     {
       NAMES.map((name) => (
         <li class="ic-cell">
@@ -167,14 +167,14 @@ const headings = [
 </Docs>
 
 <style>
-  /* A plain auto-fill grid: the vocabulary is ~80 cells and the point is to scan
-     it, not to read it in order. */
+  /* The framework's .grid-auto does the columns (--grid-min) and, importantly,
+     the list-rhythm reset — a bespoke grid here left every cell but the first
+     with a prose top-margin, which read as the first one being misaligned. */
   .ic-grid {
+    --grid-gap: 0.75rem;
+
     list-style: none;
     padding: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
-    gap: 0.75rem;
     margin-block: 1.5rem;
   }
 
