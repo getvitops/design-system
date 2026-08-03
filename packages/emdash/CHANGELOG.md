@@ -1,5 +1,59 @@
 # @getvitops/emdash
 
+## 0.3.0
+
+### Minor Changes
+
+- 04a51d8: New `vitops.actionLink` block: a link or button with optional icons at either end.
+
+  Editors get a label, URL, style (link / button / call-to-action), colour role, new-tab toggle, and
+  searchable pickers for a start and end icon. Icons render from the generated SVG sprite, so the
+  block needs no JavaScript, and they use the sprite's set-independent aliases — content authored in
+  the CMS survives the site changing icon sets.
+
+  Fields are flattened (`label`, `href`, … as siblings rather than a nested object) because Block Kit
+  has no object-group element. The icon pickers are comboboxes over the semantic name list for the
+  same reason: Block Kit's element union is closed, so a richer icon picker isn't mountable inside a
+  block modal today.
+
+- bf453b0: **Breaking:** this package now depends on the toolchain instead of pretending it doesn't.
+
+  It shipped with no `@getvitops/*` dependency at all, on the reasoning that the independence let it
+  version separately from the fixed toolchain group. That reasoning stopped being true when the blocks
+  started rendering from the generated SVG sprite: `vitops.actionLink` emits
+  `<use href="/vitops/icons.svg#icon-menu">`, and those ids only exist if the site's toolchain built
+  the sprite with the matching semantic vocabulary. Installed against an older toolchain the block
+  rendered an **empty box** — no install-time error, no console warning, nothing to grep for.
+
+  Two changes make the coupling real:
+  - **`@getvitops/utils` is a hard dependency**, and `SEMANTIC_ICON_OPTIONS` is now derived from its
+    `iconMap` rather than generated into `src/icon-options.ts` by a script. The editor's icon list and
+    the sprite's aliases are one source, so they cannot drift. `pnpm gen:icons` is gone; there is
+    nothing left to regenerate.
+  - **`@getvitops/astro` is a peer** (`>=2.0.0`). It is the integration that emits the sprite into
+    `public/`, and it belongs to the site — a hard dependency would let a version mismatch install two
+    copies of an Astro integration rather than telling you about it.
+
+  **Migration:** install or upgrade `@getvitops/astro` (and the rest of the toolchain, which moves in
+  lockstep) to `2.x` alongside this release. If your package manager reports an unmet peer on
+  `@getvitops/astro`, that is this change working — it is the error that replaced the empty box.
+
+### Patch Changes
+
+- Updated dependencies [4756788]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [04a51d8]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [feae1a3]
+- Updated dependencies [bf453b0]
+  - @getvitops/astro@2.0.0
+  - @getvitops/utils@2.0.0
+
 ## 0.2.3
 
 ### Patch Changes

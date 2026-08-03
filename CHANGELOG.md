@@ -11,6 +11,114 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 2.0.0 — 2026-08-03
+
+_Also: `@getvitops/emdash` 0.3.0, `@getvitops/create` 0.4.0._
+
+**Three things that were quietly not working now work, and each one needed a breaking change to
+fix.** Utilities never actually beat patterns; the framework assumed a border-box reset it didn't
+ship; and the site config had nowhere to put a system-wide fact. Alongside them: an icon system with
+one semantic vocabulary across icon sets, webfont loading through Astro's Fonts API, analytics with
+a consent gate, and every config-taking surface now accepting the larger site config that embeds a
+design system.
+
+If you are upgrading a real site, read **Breaking** in full — two of the three change how existing
+markup renders, and neither announces itself.
+
+### Breaking
+
+- **Cascade layers are assigned by what a rule _is_, not which file it lives in.** The three-layer
+  order (`vitops.base → components → utilities`) has existed for a while and its entire purpose is
+  to let `class="card bg-danger-muted"` work without `!important`. But layers were chosen per
+  _partial_, and `layout.css` held both structural patterns and roughly three quarters of the
+  framework's utilities — so `.m-*`, `.flex-*`, `.items-*`, `.justify-*`, `.text-*` and the split
+  ratios were shelved _below_ the patterns they exist to override and silently did nothing.
+  `utilities.css` had the mirror-image problem, holding the `.reveal` component family.
+
+  Both are split, and a shared `LAYER_CONTRACT` asserts the classification across formats so the
+  halves cannot drift. **Migration:** combinations like `class="table text-center"`,
+  `class="banner items-start"` and `class="media items-center"` now take effect. If you wrote one,
+  never noticed it did nothing, and preferred the old result — remove the utility. To keep a pattern
+  winning, write the rule in your own stylesheet: unlayered CSS still beats all three layers.
+
+  **Removed: the bare `<bp>-split` classes** (`sm-split` … `xl-split`). `@utility` cannot live in a
+  cascade layer, so `@md:split` was impossible and the css/bricks counterpart went with it. Use
+  `md-flex-row`, which says the same thing in every format.
+
+- **The framework ships a border-box reset.** In `vitops.base`, so unlayered consumer CSS still
+  wins, and the opt-out is one rule: `*, *::before, *::after { box-sizing: content-box }`. The
+  `tailwind` format is unaffected — preflight already did this. The reason it stopped being
+  optional: `.split`'s ratio is a flex basis, which sizes the border box, so under content-box a
+  padded column came out wider than its sibling by exactly its padding. Stating the assumption once
+  beats every pattern re-asserting it and the ones that forget being quietly wrong.
+
+- **`designSystem` in a site config is now an object.** The map moves under `themes`, and
+  `defaultTheme` + `defaultColorScheme` move inside it; `respectSystemPreference` is gone, since
+  `defaultColorScheme: "system"` says the same thing and the incoherent combination is no longer
+  expressible. Migration is automatic at runtime — all three spellings are accepted — but
+  `site.schema.json` is published to a stable URL, so an editor pinned to `$schema` will flag the
+  old shape.
+
+  This is what made `<color-scheme-toggle>`'s **System** position work. It had always shipped three
+  segments and one did nothing: it removes the theme attribute, and with no `prefers-color-scheme`
+  block in the emitted CSS the page fell through to light on every machine. Opt in with
+  `defaultColorScheme: "system"` (+303 B gzipped); it is opt-in because switching it on visibly
+  flips an existing site dark for dark-OS visitors.
+
+- **`@getvitops/emdash` now depends on the toolchain.** Its blocks render from the generated SVG
+  sprite, so against an older toolchain `vitops.actionLink` rendered an **empty box** — no error,
+  nothing to grep. It hard-depends on `@getvitops/utils` (the editor's icon list is now derived from
+  `iconMap`, not copied) and peers on `@getvitops/astro` `>=2.0.0`. An unmet-peer warning on upgrade
+  is this change working.
+
+### Added
+
+- **An icon system.** Icons are named by meaning and resolved per configured set — `menu` becomes
+  `fa7-solid:bars`, `lucide:menu` or `ph:list` — so swapping sets is a config edit. A name
+  containing `:` passes through untouched. Three delivery paths: `astro-icon`, `astro-iconset`, and
+  a build-time **SVG sprite** (`icons.sprite`) for Bricks, EmDash and plain HTML — `<use href>`, no
+  JS, no icon-API call. The `include` map that keeps an SSR bundle from shipping an entire icon set
+  is derived by scanning your source, not hand-maintained.
+- **`getvitops({ fonts })`** loads webfonts through Astro's Fonts API instead of hand-rolled tags,
+  and `fonts` in `design-system.json` is now documented as what it always was: stacks only, loading
+  nothing.
+- **`<Analytics />` and a general-purpose consent gate.** GA4, Clarity, Matomo and Plausible, every
+  tag off the critical path (`strategy` defaults to `'idle'`) and, when it sets cookies, only after
+  consent. The gate is a sibling of analytics, not part of it — anything marked
+  `data-consent="<category>"` waits on the same choice.
+- **Any config-taking surface accepts a site config.** `generate()`, the Vite plugin, the Astro
+  integration and every CLI command take a `design-system.json` **or** the larger `company.json`
+  that embeds one, told apart by shape rather than filename. A site config also supplies the
+  site-level facts — colour scheme, legal documents, icon sprite, fonts — so the path is declared
+  once. New `theme` / `siteEnv` options select a theme and apply an A/B variant.
+- **`vitops lint` catches reinvention**, not just typos: hand-written CSS that re-implements a
+  framework primitive. Findings gained a severity, so an advisory rule can't break your CI on first
+  run.
+- `gap-*` utilities over the fluid space scale, `text-{wrap,nowrap,balance,pretty}`, `.split`
+  stacking + `.split-reverse`, and `text-wrap` as a stated decision on every type role.
+
+### Fixed
+
+- **A filled CTA's text turned dark on hover.** `:where()` zeroes the element, but a pseudo appended
+  outside it does not — so `:where(a, .link):hover` was 0-1-0, tied with `.cta-<role>`, and won on
+  source order. Every `<a class="cta">` flipped to the link colour mid-hover.
+- **JS and scroll-timeline detection moved into CSS**, so no-JS visitors stop getting invisible
+  content, and animation families that never animated now do.
+- **`validate()` rejects what the published JSON Schema already rejected** — it was lenient where
+  the schema was strict, so a config could pass `vitops validate` and fail in an editor. `vitops
+validate` also routes on the file's shape: pointed at a site config it used to report one
+  `unrecognized_keys` and nothing about the file's real contents.
+- **A chroma-0 seed produces an actual neutral** instead of a pink one, and non-monotonic ramps are
+  now rejected rather than silently producing a scale that doesn't darken.
+- **Maskable favicons are composited opaque**, so they stop rendering as a logo in a black box.
+- Three tailwind-only divergences: `container-name: body` was missing (so the TOC patterns were
+  stuck narrow), `grid-auto` lost its list-margin reset, and **`.sticky` was being deleted outright**
+  because its name collides with a Tailwind utility.
+- **`@getvitops/create` templates track `latest`.** They pinned `@getvitops/astro: ^0.7.0` and
+  scaffolded projects a full major behind through the whole 1.0 release; `vite`/`vite-plus` were
+  `catalog:`, which cannot resolve outside this monorepo at all, so the scaffold succeeded and the
+  first install in it failed.
+
 ## 1.0.0 — 2026-08-02
 
 **The colour system is rebuilt.** Every colour token and utility class is renamed; this is the

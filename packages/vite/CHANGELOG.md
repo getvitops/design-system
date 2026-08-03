@@ -1,5 +1,212 @@
 # @getvitops/vite
 
+## 2.0.0
+
+### Minor Changes
+
+- bf453b0: Anywhere the toolchain takes a config, that file may now be a `design-system.json` **or** the larger
+  site config that embeds one.
+
+  If you keep your tokens inside a `company.json` / `site.json`, you had to maintain a second file for
+  the tooling's sake — or duplicate your whole token set, because a site config must carry a complete
+  `designSystem`. Now you point the same option at the file you already have:
+
+  ```js
+  // astro.config.mjs
+  getvitops({ css: { input: 'company.json', format: 'css' } });
+  ```
+
+  ```
+  vitops generate --input company.json --format css --out dist
+  vitops lint --input company.json --src src
+  ```
+
+  The design system is taken from `designSystem.themes[theme]` with its `extends` chain resolved —
+  `defaultTheme`, else `default`, else whatever `--theme` / the `theme` option names. Nothing changes
+  for a plain `design-system.json`; the two are told apart by shape, not by filename, so you can call
+  the file anything.
+
+  **A site config also supplies the site-level facts generation reads**, so the path is declared once
+  rather than per option:
+  - `designSystem.defaultColorScheme: "system"` — emits the `prefers-color-scheme` block, which is
+    what makes `<color-scheme-toggle>`'s System position do anything.
+  - `legal.*.enabled` — renders the documents. `legal: {}` is now the whole declaration; `legal.input`
+    is optional.
+  - `icons.sprite` — builds `icons.svg`.
+  - `fonts` — `fonts: true` reads the families from it.
+
+  Each of those is already gated on a field in that config, so nothing new appears unless the config
+  asks for it. An explicit `site` option still wins when the two are genuinely different files.
+
+  Also:
+  - **`vitops validate` routes on the file's shape.** Pointed at a site config it used to report a
+    single `unrecognized_keys` for `designSystem` and nothing about the file's actual contents — a
+    wrong answer that reads like a right one. It now validates a site config as one, including the
+    cross-field integrity JSON Schema can't express, and checks every theme resolves to a complete
+    design system (`validateSite` only checked that the `extends` chain resolved, not what it resolved
+    to).
+  - **`generate()` gained `theme` and `siteEnv`.** The A/B variant for `siteEnv` is applied before the
+    theme is selected, so a variant can override tokens.
+  - **The theme editor's Save to source follows the design system into a site config.** Its patch is
+    design-system-relative, so the dev server merges into that subtree and writes only the surrounding
+    file whole. It locates the subtree in the raw on-disk object rather than the normalised one, so an
+    author who wrote either `designSystem` shorthand still gets their own keys edited.
+
+- bf453b0: **Breaking (site config):** `designSystem` is now an object, and the toggle's "System" position works.
+
+  `<color-scheme-toggle>` has always shipped three segments, and "System" did nothing. It removes the
+  theme attribute, and with no `prefers-color-scheme` block in the generated CSS the page fell straight
+  through to light on every machine — so a third of the control was inert, and a no-JS page could never
+  follow the OS at all.
+
+  The fix is a second, opt-in copy of the dark delta under
+  `@media (prefers-color-scheme: dark)`, scoped to "no explicit choice has been made". An explicit
+  light choice still wins over a dark OS. It costs **+303 B gzipped** on the colour layer — the block
+  repeats only the tokens whose dark value differs, and two identical runs of text compress to almost
+  nothing. It is opt-in because switching it on visibly flips an existing site dark for dark-OS
+  visitors.
+
+  Turning it on is a site-level fact, which needed somewhere to live:
+
+  ```jsonc
+  "designSystem": {
+    "themes": { "default": { … }, "elegant": { "extends": "default", … } },
+    "defaultTheme": "default",
+    "defaultColorScheme": "system"   // 'light' | 'dark' | 'system'
+  }
+  ```
+
+  **What changed.** `designSystem` was a bare map of themeName → design system, so _every_ key was a
+  theme name and there was nowhere to put a system-wide field without it colliding with a theme of that
+  name. The map moves under `themes`, and `defaultTheme` + `defaultColorScheme` move inside the block.
+  `respectSystemPreference` is gone — `defaultColorScheme: "system"` says the same thing, and the two
+  were always read together, so the incoherent combination is no longer expressible.
+
+  **Migration is automatic at runtime.** `resolveSiteConfig` accepts all three spellings — the
+  canonical shape, a bare theme map (the old schema), and a bare design system written inline. But
+  `site.schema.json` is published to a stable URL, so an editor pinned to `$schema` will flag the old
+  shape; update it when convenient.
+
+  One behavioural change worth knowing: shorthand normalisation now runs **before** the A/B variant
+  merge, not after. Previously an `abTesting` override's key path depended on which shorthand the base
+  config happened to use, so the same patch landed in different places in two otherwise-equivalent
+  configs. Overrides now always address `designSystem.themes.<name>`.
+
+  Also: `getvitops({ site: { input } })` gives the Astro integration one place to name the site config
+  — `legal`, `fonts` and the colour scheme all read from it — and `css.systemColorScheme` sets the
+  appearance directly for consumers who have no site config.
+
+  Light/dark remains **derived**, not a theme: `functionalRole()` builds both appearances from one ramp,
+  which is what lets the contrast contract check both at build time and what gives every consumer a
+  working dark mode without authoring one. `themes` is for authored variants.
+
+- 04a51d8: Icons: one semantic vocabulary across icon sets, with the bundle derived from your source.
+
+  Name icons by meaning — `<Icon name="menu" />` resolves to `fa7-solid:bars`, `ph:list` or
+  `lucide:menu` depending on the set you configure, so swapping sets is a config edit rather than a
+  find-and-replace. A name containing `:` still passes through untouched, which is the escape hatch
+  for a set-specific glyph.
+
+  **New `icons` option on `getvitops()`.** Configures the sets once per site and, under
+  `output: 'server'`, derives astro-icon's `include` map by scanning your source — the list most
+  projects end up maintaining by hand. On a static build no `include` is passed at all, because
+  astro-icon is already zero-config there and a list could only drop a glyph the scan couldn't see.
+  Names you declare that don't resolve fail the build; names only the scan found just warn; names
+  computed at runtime are reported with file and line so you can declare them.
+
+  **New `<Icon />` component**, and a real fix with it: `Popover`, `Details` and `Drawer` imported
+  `astro-icon/components` at module scope, so the _optional_ peer was resolved whether or not an icon
+  ever rendered — hard-failing anyone who hadn't installed it. Engines now load dynamically. The
+  per-component `iconResolver` prop still works but is deprecated in favour of the integration option.
+
+  **New SVG sprite** (`icons.sprite: true` in your site config) for consumers that can't run an icon
+  integration — Bricks/WordPress, EmDash renderers, plain HTML. `<use href="…/icons.svg#ph--list">`,
+  no JavaScript and no icon-API request. Every semantic name also gets a set-independent `icon-<name>`
+  alias, so sprite markup survives an icon-set change. WordPress gets `vitops_icon()`, a
+  `[vitops_icon]` shortcode and a **Vitops → Icon** Bricks element.
+
+  **New `vitops icons`** command: reports which icons your source uses, which names couldn't be
+  resolved, and which are computed at runtime; `--sprite` builds the sprite, `--json` for CI.
+
+  **Renamed, and completed to all four directions.** Chevrons and arrows are the
+  one family whose _meaning is_ its direction, and that direction is physical, not
+  logical — a chevron in a details marker points down in every writing mode. So they
+  are named for where they point: `expand-more`/`expand-less` →
+  `chevron-down`/`chevron-up`, and `arrow-forward`/`arrow-back` →
+  `arrow-right`/`arrow-left`. `chevron-left`/`chevron-right` keep their names.
+  `arrow-up`/`arrow-down` are new, so both families now cover all four directions.
+  `lightning` is new.
+
+  If you passed any of the old names to `<Icon />`, `resolveIcon` or an `icons`
+  config, update them. They fail loudly rather than silently: an unresolvable
+  declared name throws, and `vitops icons` reports scanned ones.
+
+  **Fixed three Font Awesome mappings that named no real glyph** and so rendered an
+  empty box: `login`/`logout` were mapped to `login`/`logout` (Font Awesome calls
+  them `right-to-bracket`/`right-from-bracket`) and `backup` to `backup`
+  (`cloud-arrow-up`). Every value in all four UI sets is now checked against the
+  installed collection.
+
+  **Phosphor (`ph`) joins the semantic map**, with all 83 names verified against the real icon set.
+  Phosphor keeps every weight in one collection and varies the name (`list`, `list-bold`), unlike Font
+  Awesome's per-weight collections, so `resolveIcon` and `generateIconInclude` gained a `weight`
+  option for sets shaped that way.
+
+  Fixes: `site.icons` was a closed object, so any icon collection not in its hand-written key list was
+  silently dropped during validation — your config passed and the icons never bundled. It accepts any
+  collection name now.
+
+- bf453b0: Maskable favicons are now opaque, so they stop rendering as a logo in a black box.
+
+  `icon-mask.png` is declared `purpose: "maskable"` and `apple-touch-icon.png` is linked on every
+  page. Both sit a deliberately-inset logo on a larger canvas — that inset **is** the maskable safe
+  zone and was always correct — but the canvas was filled with `alpha: 0`. From any transparent
+  source that left 36% of `icon-mask.png` and 40% of `apple-touch-icon.png` transparent, on two files
+  whose entire contract is full bleed: the OS crops them to its own shape and composites the rest onto
+  whatever it likes, usually black. iOS discards alpha on the apple-touch-icon outright.
+
+  `backgroundColor` was already the obvious input for this and already plumbed — as far as the web
+  manifest, and no further. So the raster and the manifest disagreed about the very colour meant to
+  sit behind the icon.
+
+  Now:
+  - those two outputs are composited onto `backgroundColor`, defaulting to `#ffffff` — the same
+    default the manifest's `background_color` already used;
+  - `favicon.svg`, `icon-{16,32,192,512}.png` and `favicon.ico` keep the source's transparency, since
+    none of them is maskable;
+  - a transparent source with no `backgroundColor` set now warns, rather than silently inheriting
+    white — a dark logo would lose against it;
+  - `icon-192`/`icon-512` declare `purpose: "any"` explicitly. Omitting it was legal (unset means
+    "any"), but with a maskable present and nothing claiming "any", some launchers picked the maskable
+    — the one with the safe-zone inset — for slots that wanted a plain icon.
+
+  `vitops favicon` gained `--background <hex>`; it previously had no way to set this at all.
+  `getvitops({ favicon })` and the Vite plugin now forward the option they were already accepting.
+
+### Patch Changes
+
+- Updated dependencies [4756788]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [04a51d8]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+  - @getvitops/generator@2.0.0
+  - @getvitops/utils@2.0.0
+
 ## 1.0.0
 
 ### Minor Changes

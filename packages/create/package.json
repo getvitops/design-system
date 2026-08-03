@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/create",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "description": "Project templates for the Vitops design system — scaffold wired-up sites with `vp create @getvitops`.",
   "license": "MIT",
   "files": [

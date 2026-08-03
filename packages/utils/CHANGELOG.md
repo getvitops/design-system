@@ -1,5 +1,119 @@
 # @getvitops/utils
 
+## 2.0.0
+
+### Minor Changes
+
+- 04a51d8: Icons: one semantic vocabulary across icon sets, with the bundle derived from your source.
+
+  Name icons by meaning — `<Icon name="menu" />` resolves to `fa7-solid:bars`, `ph:list` or
+  `lucide:menu` depending on the set you configure, so swapping sets is a config edit rather than a
+  find-and-replace. A name containing `:` still passes through untouched, which is the escape hatch
+  for a set-specific glyph.
+
+  **New `icons` option on `getvitops()`.** Configures the sets once per site and, under
+  `output: 'server'`, derives astro-icon's `include` map by scanning your source — the list most
+  projects end up maintaining by hand. On a static build no `include` is passed at all, because
+  astro-icon is already zero-config there and a list could only drop a glyph the scan couldn't see.
+  Names you declare that don't resolve fail the build; names only the scan found just warn; names
+  computed at runtime are reported with file and line so you can declare them.
+
+  **New `<Icon />` component**, and a real fix with it: `Popover`, `Details` and `Drawer` imported
+  `astro-icon/components` at module scope, so the _optional_ peer was resolved whether or not an icon
+  ever rendered — hard-failing anyone who hadn't installed it. Engines now load dynamically. The
+  per-component `iconResolver` prop still works but is deprecated in favour of the integration option.
+
+  **New SVG sprite** (`icons.sprite: true` in your site config) for consumers that can't run an icon
+  integration — Bricks/WordPress, EmDash renderers, plain HTML. `<use href="…/icons.svg#ph--list">`,
+  no JavaScript and no icon-API request. Every semantic name also gets a set-independent `icon-<name>`
+  alias, so sprite markup survives an icon-set change. WordPress gets `vitops_icon()`, a
+  `[vitops_icon]` shortcode and a **Vitops → Icon** Bricks element.
+
+  **New `vitops icons`** command: reports which icons your source uses, which names couldn't be
+  resolved, and which are computed at runtime; `--sprite` builds the sprite, `--json` for CI.
+
+  **Renamed, and completed to all four directions.** Chevrons and arrows are the
+  one family whose _meaning is_ its direction, and that direction is physical, not
+  logical — a chevron in a details marker points down in every writing mode. So they
+  are named for where they point: `expand-more`/`expand-less` →
+  `chevron-down`/`chevron-up`, and `arrow-forward`/`arrow-back` →
+  `arrow-right`/`arrow-left`. `chevron-left`/`chevron-right` keep their names.
+  `arrow-up`/`arrow-down` are new, so both families now cover all four directions.
+  `lightning` is new.
+
+  If you passed any of the old names to `<Icon />`, `resolveIcon` or an `icons`
+  config, update them. They fail loudly rather than silently: an unresolvable
+  declared name throws, and `vitops icons` reports scanned ones.
+
+  **Fixed three Font Awesome mappings that named no real glyph** and so rendered an
+  empty box: `login`/`logout` were mapped to `login`/`logout` (Font Awesome calls
+  them `right-to-bracket`/`right-from-bracket`) and `backup` to `backup`
+  (`cloud-arrow-up`). Every value in all four UI sets is now checked against the
+  installed collection.
+
+  **Phosphor (`ph`) joins the semantic map**, with all 83 names verified against the real icon set.
+  Phosphor keeps every weight in one collection and varies the name (`list`, `list-bold`), unlike Font
+  Awesome's per-weight collections, so `resolveIcon` and `generateIconInclude` gained a `weight`
+  option for sets shaped that way.
+
+  Fixes: `site.icons` was a closed object, so any icon collection not in its hand-written key list was
+  silently dropped during validation — your config passed and the icons never bundled. It accepts any
+  collection name now.
+
+- bf453b0: Maskable favicons are now opaque, so they stop rendering as a logo in a black box.
+
+  `icon-mask.png` is declared `purpose: "maskable"` and `apple-touch-icon.png` is linked on every
+  page. Both sit a deliberately-inset logo on a larger canvas — that inset **is** the maskable safe
+  zone and was always correct — but the canvas was filled with `alpha: 0`. From any transparent
+  source that left 36% of `icon-mask.png` and 40% of `apple-touch-icon.png` transparent, on two files
+  whose entire contract is full bleed: the OS crops them to its own shape and composites the rest onto
+  whatever it likes, usually black. iOS discards alpha on the apple-touch-icon outright.
+
+  `backgroundColor` was already the obvious input for this and already plumbed — as far as the web
+  manifest, and no further. So the raster and the manifest disagreed about the very colour meant to
+  sit behind the icon.
+
+  Now:
+  - those two outputs are composited onto `backgroundColor`, defaulting to `#ffffff` — the same
+    default the manifest's `background_color` already used;
+  - `favicon.svg`, `icon-{16,32,192,512}.png` and `favicon.ico` keep the source's transparency, since
+    none of them is maskable;
+  - a transparent source with no `backgroundColor` set now warns, rather than silently inheriting
+    white — a dark logo would lose against it;
+  - `icon-192`/`icon-512` declare `purpose: "any"` explicitly. Omitting it was legal (unset means
+    "any"), but with a maskable present and nothing claiming "any", some launchers picked the maskable
+    — the one with the safe-zone inset — for slots that wanted a plain icon.
+
+  `vitops favicon` gained `--background <hex>`; it previously had no way to set this at all.
+  `getvitops({ favicon })` and the Vite plugin now forward the option they were already accepting.
+
+- bf453b0: A chroma-0 seed now produces an actual neutral instead of a pink one.
+
+  Beyond a ramp's outermost authored colour, chroma decays towards a small endpoint value (0.008
+  light / 0.015 dark) so the near-white and near-black ends keep a whisper of the hue. That was
+  written as a lerp _target_, and the interpolation factor reaches exactly 1 at steps 50 and 950 for
+  every anchor position — so the endpoints were those constants **unconditionally**. Seeds at chroma
+  0.001, 0.002, 0.05 and 0.2 all produced a byte-identical `#f5f9fe` at step 50.
+
+  There was therefore no seed that yielded a plain neutral, and chroma 0 was the worst case: a true
+  achromatic colour has no hue (colorjs returns NaN), which collapses to 0 — red — so asking for grey
+  gave you `#fdf6f8`, a pink. A brand wanting plain white with grey panels had to discover `anchors`
+  to get there.
+
+  The endpoint is now a **ceiling** rather than a target, so a seed below it keeps its own chroma:
+
+  | seed chroma | step 50 before | step 50 after |
+  | ----------- | -------------- | ------------- |
+  | 0           | `#fdf6f8` 🩷   | `#f8f8f8`     |
+  | 0.001       | `#f5f9fe`      | `#f8f8f9`     |
+  | 0.003       | `#f5f9fe`      | `#f7f8fa`     |
+  | 0.05        | `#f5f9fe`      | `#f5f9fe`     |
+
+  `seed: "#808080"` now gives a real grey ramp — `#f8f8f8` / `#eee` / `#808080` / `#2b2b2b` / `#181818`.
+
+  **No existing palette moves.** The ceiling only binds below itself, and every ordinary brand hue
+  sits above it; the repo's own `tokens.json` is byte-identical across this change.
+
 ## 1.0.0
 
 ### Major Changes

@@ -1,5 +1,481 @@
 # @getvitops/astro
 
+## 2.0.0
+
+### Minor Changes
+
+- 4756788: Add `<Analytics />` and a general-purpose consent gate.
+
+  `getvitops({ analytics })` configures Google Analytics 4, Microsoft Clarity, Matomo and Plausible;
+  `<Analytics />` emits their tags. Nothing touches the critical path — `strategy` defaults to `'idle'`,
+  which loads every tag after `load` on an idle callback (`'async'` and `'interaction'` are the other
+  options), and no `preconnect` is emitted, since warming a third-party connection during parse is the
+  cost `idle` exists to avoid.
+
+  `getvitops({ consent })` adds the gate: `@getvitops/core/consent`, a 2.3 KB gzipped Lit-free bundle,
+  plus `<CookieConsent />`.
+
+  ```js
+  vitops({
+    analytics: { googleAnalytics: 'G-XXXXXXXXXX', plausible: 'acme.com' },
+    consent: { policyUrl: '/legal/cookies' },
+  });
+  ```
+
+  **Consent is not an analytics feature.** The gate is general — mark anything
+  `data-consent="<category>"` and it waits on the same choice, so A/B assignment, personalisation and
+  third-party embeds use it too, and a site can enable the banner with no analytics at all. Categories
+  are `necessary` / `analytics` / `marketing` / `preferences`, and `window.vitopsConsent` plus a
+  `vitops:consent` event on `document` are how your own code reads the answer.
+
+  **Which category a provider needs is derived, not declared.** It follows from whether that provider
+  sets cookies, which follows from its own config: Matomo runs cookieless by default (`disableCookies`)
+  and so needs no banner; `cookies: true` opts in and moves it behind `analytics`. You can't mark
+  Google Analytics `necessary` to skip the banner — but you can pick a genuinely cookieless provider.
+
+  Gated tags render as `<script type="text/plain">` with the URL on `data-src`, so an undecided or
+  declining visitor's page issues **no third-party request at all**. For Google Analytics that is basic
+  consent mode rather than Consent Mode v2 advanced: nothing reaches Google until the visitor accepts.
+  Clarity additionally receives `clarity('consentv2', …)`, because Microsoft enforces the signal
+  separately for EEA/UK/CH traffic. Nothing is stored until a choice is made — the banner can't be the
+  thing that needs consent — and revoking clears the provider's cookies and reloads, because an
+  already-executing tracker can't be unloaded any other way.
+
+  The banner is shown in the top layer via `popover="manual"`, like `.tooltip`: a plain fixed banner
+  resolves against the nearest containing block, and `body { container-type: inline-size }` — ordinary
+  in a framework whose breakpoints are container queries — would otherwise trap it mid-page.
+
+  **The site config gained `analytics.clarityId` and `analytics.matomo`**, so `vitops legal` discloses
+  them. Clarity and Matomo join the processor table with their real cookie names, cookieless Matomo
+  asserts positively that it sets none, and a Clarity site's privacy policy now describes session
+  replay rather than filing it under page-view analytics. Configure `legal` alongside `analytics` and
+  the Astro integration cross-checks the two, naming any provider you'd otherwise run without
+  disclosing; it also warns when a cookie-setting provider has no `consent` gate.
+
+  Existing configs are unaffected — both options are off unless provided. One behaviour change if you
+  use the ad-conversion tracking script: `packages/astro/src/scripts/tracking.ts` now waits for
+  `marketing` consent before writing its 90-day `_ac` click-ID cookie, when the gate is present. With
+  no gate on the page it behaves exactly as before.
+
+- bf453b0: Animation families that never actually animated, and a driver that fired before you could see it.
+
+  Each of these looked correct in source and failed somewhere else — in the bundler, in hit-testing,
+  or in the difference between a time-based and a progress-based timeline. Nothing here needs a
+  markup change.
+
+  **Changed: entrances are now timed off the element's midpoint.** Every driver used to key off a
+  fraction of the element's _own height_, which meant the same class behaved differently on a 4rem
+  card and a full-bleed section — and on small elements it was over before they appeared
+  (`entry 20%` is about 17px of scroll for a 5.5rem tile). Motion now starts once the element's
+  **midpoint is 10% of the viewport in**, and a one-shot entrance completes at **25%**. This applies
+  to `animate-view` and to the `.is-active` observer that drives `animate-trigger` and the
+  `active-<fx>` transition variants, so everything on a page starts at the same moment on screen.
+
+  The pivot is `entry 50%` — the one point that means "midpoint on the viewport edge" for an element
+  of any height — plus a viewport length. Shift the window with `--anim-start` / `--anim-end`, or
+  replace it with `--anim-range`. `--stagger-range-step` is now a viewport length (`5vh`) to match.
+
+  **Fixed: every journey ran on a truncated range.** The generator emitted `animation-range: entry
+exit`; lightningcss parsed the end of that shorthand as `exit 0%` rather than the spec's `exit
+100%`, so the bundle shipped `entry exit 0%`. Journeys reach their `100%` keyframe — the hidden
+  `from` state — as the element hits the top of the viewport, which is to say they faded out while
+  still fully on screen. Journeys now run `entry calc(50% + 10vh) → exit 100%`: they start on the same
+  midpoint pivot as everything else and keep the full entry → hold → exit arc, so the hold sits in the
+  middle of the crossing. `animation-effects.test.ts` asserts on the **bundled** css, because the
+  emitter was right the whole time.
+
+  **Fixed: `slide-journey` had no distance to travel.** `animations.journeys.base.slide` was `{}` in
+  both `defaultConfig()` and the shipped example, so the keyframe animated `translate: 0 → 0`. It now
+  declares `translate-y-from: var(--slide-distance, 2rem)` — the same var the `slide-up` effect uses,
+  so one knob tunes both. If your own config has an empty `slide` base, add the same line.
+
+  **Fixed: `reveal-*` on hover was unreachable.** A `hover-reveal-left` element rests at `clip-path:
+inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting — so it had zero
+  hittable area and could never receive the hover that would reveal it. The state variants now match
+  the element **or its direct parent**, mirroring what `animation.css` already did for the trigger
+  driver (`:is(.is-active, [data-active]) > .animate-trigger`):
+
+  ```css
+  .hover-<fx>:hover, :hover > .hover-<fx> { … }
+  .focus-<fx>:focus-visible, :focus-within > .focus-<fx> { … }
+  ```
+
+  Specificity is unchanged (0-2-0), so nothing reorders. **Behaviour change:** a `hover-<fx>` element
+  that is a direct child of a hovered element now flips with its parent. Wrap it in an intermediate
+  element if you need the old element-only behaviour.
+
+  **Fixed: `.stagger` did nothing on a scroll-driven timeline.** It offsets children with
+  `animation-delay`, which is time-based and is ignored outright on a `view()` / `scroll()` timeline,
+  so `.stagger > .animate-view` arrived all at once. It now also offsets each child's view
+  `animation-range` by the same index, so one class works under both driver families — tune the
+  scroll-driven step with `--stagger-range-step` (default `5vh`). Journeys declare their own range and
+  opt out by construction.
+
+  Two smaller faults found alongside it: `@supports (--x: sibling-index())` is **always true** — any
+  token stream is a valid custom-property value — so the guard around `sibling-index()` guarded
+  nothing in both `.stagger` and `.subgrid`'s row index, and on an engine without support the
+  declaration went invalid rather than being skipped. Both now test a real property. And the CSS path
+  was 1-based while the JS fallback wrote 0-based, so the two disagreed by one step wherever both ran.
+
+  **Fixed: the pre-paint `<html>` class script was missing entirely.** `<Head />` now emits it again,
+  outside the `webComponents` block since it gates stylesheet behaviour rather than the element
+  runtime. It does two things `animation.css` depends on and that three other files documented as
+  already shipping:
+  - `no-js` → `js`, so `.animate-trigger` is paused only where JS can un-pause it;
+  - `.no-scroll-timeline` when `animation-timeline: view()` is unsupported, which is what cancels
+    `.animate-view` / `.animate-scroll`. Scroll-driven animations are deliberately **not** polyfilled,
+    so without this flag those elements sit at their `from` keyframe — `opacity: 0`, i.e. invisible
+    content — on any engine without support. It had been dropped in the move to publishable packages,
+    leaving the cancel rule as dead code.
+
+  **New: `hover-size-grow` and friends exist.** The layout effects (`size-grow`, `size-shrink`) were
+  the one family with no state variants, on the grounds that `.transition` doesn't cover `height`.
+  That wasn't a platform limit — `height: 0 → auto` just needs `interpolate-size: allow-keywords`,
+  which the framework already sets on `:root`, and which the `layout` **keyframe** depended on
+  equally. So the exclusion bought no portability; it only made `hover-size-grow` a class the docs
+  advertised and the stylesheet didn't define. `.transition` now declares `height` inside an
+  `@supports (interpolate-size: allow-keywords)` block, and the generator emits the full
+  `hover-`/`focus-`/`active-` set for layout effects, carrying each effect's own `overflow: clip` so a
+  collapsed box hides its content instead of spilling it. Where `interpolate-size` is missing, the
+  height simply doesn't transition — the same degradation the keyframe path has. (For the record:
+  `transition-behavior: allow-discrete` is _not_ the tool here — it only lets genuinely discrete
+  properties transition, and would snap at the midpoint.)
+
+  `.transition` switched from the `transition` shorthand to `transition-property` +
+  `transition-duration` + `transition-timing-function`, so the gated block can append `height` without
+  restating the list. If you override `.transition`'s timing, override the longhands.
+
+  The generated class reference (`vitops docs classes`) was the upstream source of that mismatch — it
+  listed every effect under "with the state prefixes above", including the layout ones. It now states
+  which stage needs the feature gate, when each driver plays, and how `stagger` composes with both.
+
+- bf453b0: Anywhere the toolchain takes a config, that file may now be a `design-system.json` **or** the larger
+  site config that embeds one.
+
+  If you keep your tokens inside a `company.json` / `site.json`, you had to maintain a second file for
+  the tooling's sake — or duplicate your whole token set, because a site config must carry a complete
+  `designSystem`. Now you point the same option at the file you already have:
+
+  ```js
+  // astro.config.mjs
+  getvitops({ css: { input: 'company.json', format: 'css' } });
+  ```
+
+  ```
+  vitops generate --input company.json --format css --out dist
+  vitops lint --input company.json --src src
+  ```
+
+  The design system is taken from `designSystem.themes[theme]` with its `extends` chain resolved —
+  `defaultTheme`, else `default`, else whatever `--theme` / the `theme` option names. Nothing changes
+  for a plain `design-system.json`; the two are told apart by shape, not by filename, so you can call
+  the file anything.
+
+  **A site config also supplies the site-level facts generation reads**, so the path is declared once
+  rather than per option:
+  - `designSystem.defaultColorScheme: "system"` — emits the `prefers-color-scheme` block, which is
+    what makes `<color-scheme-toggle>`'s System position do anything.
+  - `legal.*.enabled` — renders the documents. `legal: {}` is now the whole declaration; `legal.input`
+    is optional.
+  - `icons.sprite` — builds `icons.svg`.
+  - `fonts` — `fonts: true` reads the families from it.
+
+  Each of those is already gated on a field in that config, so nothing new appears unless the config
+  asks for it. An explicit `site` option still wins when the two are genuinely different files.
+
+  Also:
+  - **`vitops validate` routes on the file's shape.** Pointed at a site config it used to report a
+    single `unrecognized_keys` for `designSystem` and nothing about the file's actual contents — a
+    wrong answer that reads like a right one. It now validates a site config as one, including the
+    cross-field integrity JSON Schema can't express, and checks every theme resolves to a complete
+    design system (`validateSite` only checked that the `extends` chain resolved, not what it resolved
+    to).
+  - **`generate()` gained `theme` and `siteEnv`.** The A/B variant for `siteEnv` is applied before the
+    theme is selected, so a variant can override tokens.
+  - **The theme editor's Save to source follows the design system into a site config.** Its patch is
+    design-system-relative, so the dev server merges into that subtree and writes only the surrounding
+    file whole. It locates the subtree in the raw on-disk object rather than the normalised one, so an
+    author who wrote either `designSystem` shorthand still gets their own keys edited.
+
+- bf453b0: **Breaking (site config):** `designSystem` is now an object, and the toggle's "System" position works.
+
+  `<color-scheme-toggle>` has always shipped three segments, and "System" did nothing. It removes the
+  theme attribute, and with no `prefers-color-scheme` block in the generated CSS the page fell straight
+  through to light on every machine — so a third of the control was inert, and a no-JS page could never
+  follow the OS at all.
+
+  The fix is a second, opt-in copy of the dark delta under
+  `@media (prefers-color-scheme: dark)`, scoped to "no explicit choice has been made". An explicit
+  light choice still wins over a dark OS. It costs **+303 B gzipped** on the colour layer — the block
+  repeats only the tokens whose dark value differs, and two identical runs of text compress to almost
+  nothing. It is opt-in because switching it on visibly flips an existing site dark for dark-OS
+  visitors.
+
+  Turning it on is a site-level fact, which needed somewhere to live:
+
+  ```jsonc
+  "designSystem": {
+    "themes": { "default": { … }, "elegant": { "extends": "default", … } },
+    "defaultTheme": "default",
+    "defaultColorScheme": "system"   // 'light' | 'dark' | 'system'
+  }
+  ```
+
+  **What changed.** `designSystem` was a bare map of themeName → design system, so _every_ key was a
+  theme name and there was nowhere to put a system-wide field without it colliding with a theme of that
+  name. The map moves under `themes`, and `defaultTheme` + `defaultColorScheme` move inside the block.
+  `respectSystemPreference` is gone — `defaultColorScheme: "system"` says the same thing, and the two
+  were always read together, so the incoherent combination is no longer expressible.
+
+  **Migration is automatic at runtime.** `resolveSiteConfig` accepts all three spellings — the
+  canonical shape, a bare theme map (the old schema), and a bare design system written inline. But
+  `site.schema.json` is published to a stable URL, so an editor pinned to `$schema` will flag the old
+  shape; update it when convenient.
+
+  One behavioural change worth knowing: shorthand normalisation now runs **before** the A/B variant
+  merge, not after. Previously an `abTesting` override's key path depended on which shorthand the base
+  config happened to use, so the same patch landed in different places in two otherwise-equivalent
+  configs. Overrides now always address `designSystem.themes.<name>`.
+
+  Also: `getvitops({ site: { input } })` gives the Astro integration one place to name the site config
+  — `legal`, `fonts` and the colour scheme all read from it — and `css.systemColorScheme` sets the
+  appearance directly for consumers who have no site config.
+
+  Light/dark remains **derived**, not a theme: `functionalRole()` builds both appearances from one ramp,
+  which is what lets the contrast contract check both at build time and what gives every consumer a
+  working dark mode without authoring one. `themes` is for authored variants.
+
+- bf453b0: `getvitops({ fonts })` — load webfonts through Astro's Fonts API instead of hand-rolling it.
+
+  The design system names fonts and loads none of them, and there was no seam for the loading half —
+  so the only available path was installing a `@fontsource*` package and importing its CSS, which
+  renders correctly while silently giving up subsetting, preload, and the `size-adjust` /
+  `ascent-override` fallback metrics. That is a CLS regression that looks like a working setup. This
+  is the counterpart to `vitopsHosting()`: declare the family, let the integration wire it.
+
+  ```js
+  getvitops({
+    fonts: [
+      {
+        name: 'League Spartan',
+        provider: 'fontsource',
+        cssVariable: '--font-league-spartan',
+        weights: ['100 900'],
+        subsets: ['latin'],
+        preload: true,
+      },
+    ],
+  });
+  ```
+
+  ```jsonc
+  // design-system.json — the token points at the variable, not at a literal stack
+  "fonts": { "display": "var(--font-league-spartan), sans-serif" }
+  ```
+
+  `fonts` also takes a **string**: the path to a site config, whose `fonts` array has carried exactly
+  these declarations (provider / weights / subsets / preload) since it was written — nothing had ever
+  read it. Or `{ input, families, siteEnv }` for both.
+
+  `<Head />` now emits `<Font />` for each declared family, with `preload` driven by the declaration.
+  That half is not optional: Astro's `fonts:` config resolves the files, but `<Font />` is what puts
+  the `@font-face` on the page, so a declaration without `<Head />` in your layout loads nothing.
+
+  Notes:
+  - Independent of `css` — the wiring runs in `astro:config:setup`, not the Vite plugin.
+  - Only families declared here get a `<Font />`. One from your own `astro:config` `fonts:` array or
+    from another integration is left alone, because `<Font />` throws on a `cssVariable` Astro cannot
+    resolve. Astro concatenates the arrays, so the three coexist; two entries claiming one variable
+    is the collision that matters, and it now throws (within our set) or warns (against yours)
+    instead of silently dropping a family.
+  - `provider: 'adobe'` throws with instructions: `fontProviders.adobe({ id })` needs a key from the
+    environment, and a JSON declaration has nowhere to hold one.
+  - New exports from `@getvitops/generator`: `SiteFontSchema` and the `SiteFont` type.
+
+- 04a51d8: Icons: one semantic vocabulary across icon sets, with the bundle derived from your source.
+
+  Name icons by meaning — `<Icon name="menu" />` resolves to `fa7-solid:bars`, `ph:list` or
+  `lucide:menu` depending on the set you configure, so swapping sets is a config edit rather than a
+  find-and-replace. A name containing `:` still passes through untouched, which is the escape hatch
+  for a set-specific glyph.
+
+  **New `icons` option on `getvitops()`.** Configures the sets once per site and, under
+  `output: 'server'`, derives astro-icon's `include` map by scanning your source — the list most
+  projects end up maintaining by hand. On a static build no `include` is passed at all, because
+  astro-icon is already zero-config there and a list could only drop a glyph the scan couldn't see.
+  Names you declare that don't resolve fail the build; names only the scan found just warn; names
+  computed at runtime are reported with file and line so you can declare them.
+
+  **New `<Icon />` component**, and a real fix with it: `Popover`, `Details` and `Drawer` imported
+  `astro-icon/components` at module scope, so the _optional_ peer was resolved whether or not an icon
+  ever rendered — hard-failing anyone who hadn't installed it. Engines now load dynamically. The
+  per-component `iconResolver` prop still works but is deprecated in favour of the integration option.
+
+  **New SVG sprite** (`icons.sprite: true` in your site config) for consumers that can't run an icon
+  integration — Bricks/WordPress, EmDash renderers, plain HTML. `<use href="…/icons.svg#ph--list">`,
+  no JavaScript and no icon-API request. Every semantic name also gets a set-independent `icon-<name>`
+  alias, so sprite markup survives an icon-set change. WordPress gets `vitops_icon()`, a
+  `[vitops_icon]` shortcode and a **Vitops → Icon** Bricks element.
+
+  **New `vitops icons`** command: reports which icons your source uses, which names couldn't be
+  resolved, and which are computed at runtime; `--sprite` builds the sprite, `--json` for CI.
+
+  **Renamed, and completed to all four directions.** Chevrons and arrows are the
+  one family whose _meaning is_ its direction, and that direction is physical, not
+  logical — a chevron in a details marker points down in every writing mode. So they
+  are named for where they point: `expand-more`/`expand-less` →
+  `chevron-down`/`chevron-up`, and `arrow-forward`/`arrow-back` →
+  `arrow-right`/`arrow-left`. `chevron-left`/`chevron-right` keep their names.
+  `arrow-up`/`arrow-down` are new, so both families now cover all four directions.
+  `lightning` is new.
+
+  If you passed any of the old names to `<Icon />`, `resolveIcon` or an `icons`
+  config, update them. They fail loudly rather than silently: an unresolvable
+  declared name throws, and `vitops icons` reports scanned ones.
+
+  **Fixed three Font Awesome mappings that named no real glyph** and so rendered an
+  empty box: `login`/`logout` were mapped to `login`/`logout` (Font Awesome calls
+  them `right-to-bracket`/`right-from-bracket`) and `backup` to `backup`
+  (`cloud-arrow-up`). Every value in all four UI sets is now checked against the
+  installed collection.
+
+  **Phosphor (`ph`) joins the semantic map**, with all 83 names verified against the real icon set.
+  Phosphor keeps every weight in one collection and varies the name (`list`, `list-bold`), unlike Font
+  Awesome's per-weight collections, so `resolveIcon` and `generateIconInclude` gained a `weight`
+  option for sets shaped that way.
+
+  Fixes: `site.icons` was a closed object, so any icon collection not in its hand-written key list was
+  silently dropped during validation — your config passed and the icons never bundled. It accepts any
+  collection name now.
+
+- bf453b0: Detect JavaScript and scroll-driven timelines in CSS, so no-JS visitors stop getting invisible
+  content.
+
+  `animation.css` gated two rules on classes that had to be put on `<html>`: `no-js`, which the
+  framework expected an author to write into their own markup, and `.no-scroll-timeline`, which an
+  inline `<head>` snippet was supposed to set. **That snippet never shipped.** Three source comments
+  described it and nothing implemented it, so on every Astro and Bricks site the `:root:not(.no-js)`
+  gate matched unconditionally and `.animate-trigger` stayed `animation-play-state: paused` with no
+  `IntersectionObserver` coming to release it. An entrance animation that never runs is `opacity: 0`.
+
+  Both gates are now platform queries:
+
+  ```css
+  @media (scripting: enabled) {
+    .animate-trigger {
+      animation-play-state: paused;
+    }
+    /* …released by .is-active */
+  }
+
+  @supports not (animation-timeline: view()) {
+    :where(.animate-view, .animate-scroll) {
+      animation: none;
+    }
+  }
+  ```
+
+  Nothing to install, nothing to remember, and correct for consumers the old approach could not reach —
+  a Bricks site, or anyone rendering their own `<head>`. It also fails the right way round: an engine
+  that doesn't know either feature drops the block and the animation simply runs, costing an
+  enhancement rather than hiding the page.
+
+  **Nothing to do to adopt this.** Drop `class="no-js"` from your `<html>` and any script that removes
+  it if you like — both are inert now, not harmful. `<Head />` no longer emits a class-flipping script.
+
+  Support is baseline: `scripting` shipped in Firefox 113, Safari 17 and Chrome 120, all in 2023.
+
+- bf453b0: Maskable favicons are now opaque, so they stop rendering as a logo in a black box.
+
+  `icon-mask.png` is declared `purpose: "maskable"` and `apple-touch-icon.png` is linked on every
+  page. Both sit a deliberately-inset logo on a larger canvas — that inset **is** the maskable safe
+  zone and was always correct — but the canvas was filled with `alpha: 0`. From any transparent
+  source that left 36% of `icon-mask.png` and 40% of `apple-touch-icon.png` transparent, on two files
+  whose entire contract is full bleed: the OS crops them to its own shape and composites the rest onto
+  whatever it likes, usually black. iOS discards alpha on the apple-touch-icon outright.
+
+  `backgroundColor` was already the obvious input for this and already plumbed — as far as the web
+  manifest, and no further. So the raster and the manifest disagreed about the very colour meant to
+  sit behind the icon.
+
+  Now:
+  - those two outputs are composited onto `backgroundColor`, defaulting to `#ffffff` — the same
+    default the manifest's `background_color` already used;
+  - `favicon.svg`, `icon-{16,32,192,512}.png` and `favicon.ico` keep the source's transparency, since
+    none of them is maskable;
+  - a transparent source with no `backgroundColor` set now warns, rather than silently inheriting
+    white — a dark logo would lose against it;
+  - `icon-192`/`icon-512` declare `purpose: "any"` explicitly. Omitting it was legal (unset means
+    "any"), but with a maskable present and nothing claiming "any", some launchers picked the maskable
+    — the one with the safe-zone inset — for slots that wanted a plain icon.
+
+  `vitops favicon` gained `--background <hex>`; it previously had no way to set this at all.
+  `getvitops({ favicon })` and the Vite plugin now forward the option they were already accepting.
+
+- feae1a3: `<Seo />`: `titleTemplate` now applies to `<title>` only — `og:title` and `twitter:title` get the
+  untemplated page title.
+
+  A social card is self-contained and already shows `og:site_name` and the domain, so the templated
+  value put the brand on screen twice: `og:title="Installation · Acme"` sitting directly above
+  `og:site_name="Acme"`. `<title>` keeps the suffix, because a browser tab or a search result has
+  nothing else to disambiguate it.
+
+  ```html
+  <!-- before -->
+  <title>Installation · Acme</title>
+  <meta property="og:title" content="Installation · Acme" />
+  <meta property="og:site_name" content="Acme" />
+
+  <!-- after -->
+  <title>Installation · Acme</title>
+  <meta property="og:title" content="Installation" />
+  <meta property="og:site_name" content="Acme" />
+  ```
+
+  Adds an `ogTitle` prop for pages that want a genuinely different social headline, and exposes the
+  resolved value as `socialTitle` on `resolveSeo()`'s return. Nothing changes for sites that don't set
+  `titleTemplate` — the two values are identical there.
+
+### Patch Changes
+
+- bf453b0: Fixed: a site on `css.format: 'css'` failed to build because of Tailwind.
+
+  `getvitops()` loads `@tailwindcss/vite` lazily, so a project that never sets `css.format:
+'tailwind'` should never touch it. But the specifier was a literal, which makes it statically
+  analysable — so the bundler **followed** the import regardless of the branch ever running, down
+  through `@tailwindcss/node` to `@tailwindcss/oxide`'s native `.node` binding, which it cannot parse.
+  The build died on `[UNLOADABLE_DEPENDENCY] … stream did not contain valid UTF-8`, naming a package
+  the project does not use and never asked for.
+
+  The specifier now goes through a constant with `/* @vite-ignore */`, matching how the other
+  optional peers in that file (`astro-icon`, `astro-iconset`) were already loaded. Optional has to
+  mean optional to the bundler too.
+
+- Updated dependencies [4756788]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [04a51d8]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+- Updated dependencies [bf453b0]
+  - @getvitops/generator@2.0.0
+  - @getvitops/core@2.0.0
+  - @getvitops/vite@2.0.0
+  - @getvitops/utils@2.0.0
+
 ## 1.0.0
 
 ### Minor Changes
