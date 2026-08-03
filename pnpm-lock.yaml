@@ -285,6 +285,10 @@ importers:
       temporal-polyfill:
         specifier: 'catalog:'
         version: 1.0.1
+    devDependencies:
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@25.9.3)(@vitest/browser-preview@4.1.9)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0))
 
   packages/create:
     devDependencies:

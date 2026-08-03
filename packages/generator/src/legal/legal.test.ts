@@ -102,6 +102,35 @@ describe('processor derivation', () => {
     expect(privacyOf(plausible)).not.toContain('Google Analytics');
   });
 
+  test('pick the Matomo entry that matches how Matomo is configured', () => {
+    // The two entries differ only in their cookie list, which is the whole point:
+    // whether Matomo sets cookies is a configuration choice, and the notice says
+    // something materially different in each case.
+    const cookieless = fixture({
+      analytics: { matomo: { url: 'https://m.acme.example', siteId: '1' } },
+    });
+    const cookied = fixture({
+      analytics: { matomo: { url: 'https://m.acme.example', siteId: '1', cookies: true } },
+    });
+    expect(detectProcessorKeys(cookieless)).toEqual(['matomoCookieless']);
+    expect(detectProcessorKeys(cookied)).toEqual(['matomo']);
+  });
+
+  test('assert a cross-border transfer for Matomo Cloud but not a self-hosted instance', () => {
+    // Self-hosted Matomo very often runs on the consumer's own infrastructure in
+    // their own country. Naming a transfer that is not happening is the same
+    // class of defect as omitting one that is.
+    const cloud = privacyOf(
+      fixture({ analytics: { matomo: { url: 'https://acme.matomo.cloud', siteId: '1' } } }),
+    );
+    expect(cloud).toContain('the European Union');
+
+    const own = privacyOf(
+      fixture({ analytics: { matomo: { url: 'https://stats.acme.example', siteId: '1' } } }),
+    );
+    expect(own).not.toContain('the European Union');
+  });
+
   test('do not name Cloudflare twice when Turnstile already implies it', () => {
     const site = fixture({
       security: { turnstile: { siteKey: '0x4' } },
@@ -203,6 +232,51 @@ describe('cookie notice', () => {
     expect(renderMarkdown(site, 'cookies')).not.toContain('unsubscribe');
     // …but the privacy policy, which covers e-mail too, still does.
     expect(renderMarkdown(site, 'privacy')).toContain('unsubscribe');
+  });
+
+  test('names Microsoft Clarity and its cookies', () => {
+    // The failure this guards is a site running Clarity whose own cookie notice
+    // never mentions it — a compliance defect, not an omission of detail.
+    const md = renderMarkdown(fixture({ analytics: { clarityId: 'abc123' } }), 'cookies');
+    expect(md).toContain('Microsoft Clarity');
+    expect(md).toContain('`_clck`');
+  });
+
+  test('states positively that a cookieless Matomo sets none', () => {
+    const md = renderMarkdown(
+      fixture({ analytics: { matomo: { url: 'https://m.acme.example', siteId: '1' } } }),
+      'cookies',
+    );
+    expect(md).toContain('do not set cookies');
+    expect(md).toContain('Matomo');
+    expect(md).not.toContain('_pk_id');
+  });
+
+  test('lists Matomo cookies once the consumer opts into them', () => {
+    const md = renderMarkdown(
+      fixture({
+        analytics: { matomo: { url: 'https://m.acme.example', siteId: '1', cookies: true } },
+      }),
+      'cookies',
+    );
+    expect(md).toContain('`_pk_id`');
+  });
+});
+
+describe('session replay', () => {
+  /**
+   * Clarity records how a visitor moved through a page, which is a materially
+   * different disclosure from "which pages you viewed". Folding it into the
+   * generic analytics wording would under-describe what is actually collected.
+   */
+  test('is disclosed in the privacy policy when Clarity is configured', () => {
+    const md = privacyOf(fixture({ analytics: { clarityId: 'abc123' } }));
+    expect(md).toMatch(/recording of how you interacted/);
+  });
+
+  test('is not claimed for a site that only runs page-view analytics', () => {
+    const md = privacyOf(fixture({ analytics: { plausibleDomain: 'acme.example' } }));
+    expect(md).not.toMatch(/recording of how you interacted/);
   });
 });
 

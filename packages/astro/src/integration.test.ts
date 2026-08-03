@@ -1,6 +1,7 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { AstroIntegration, HookParameters } from 'astro';
 import { describe, expect, it } from 'vitest';
 import getvitops, { type GetvitopsOptions } from './integration.ts';
@@ -312,5 +313,133 @@ describe('a site config at css.input', () => {
     await expect(
       at({ css: { input: 'design-system.json', format: 'css' }, legal: {} }).run(),
     ).rejects.toThrow(/legal: needs/);
+  });
+});
+
+describe('getvitops({ analytics, consent })', () => {
+  /**
+   * The bundle copy is real filesystem work, so anything that turns the consent
+   * runtime on needs a publicDir it may actually write to. (The base harness
+   * avoids this by keeping every I/O-doing step switched off.)
+   */
+  const scratch = () => ({
+    publicDir: pathToFileURL(`${mkdtempSync(join(tmpdir(), 'vitops-'))}/`),
+  });
+
+  it('is off unless asked, and <Analytics /> can read the defaults unconditionally', async () => {
+    const h = harness();
+    await h.run();
+    const head = headData(h.updates);
+    expect(head.analytics).toEqual({});
+    expect(head.consent).toBe(false);
+    expect(head.consentRuntime).toBe(false);
+  });
+
+  it('carries the provider config into the virtual module verbatim', async () => {
+    const analytics = { googleAnalytics: 'G-ABC123', strategy: 'interaction' as const };
+    const h = harness({ analytics, consent: true }, scratch());
+    await h.run();
+    expect(headData(h.updates).analytics).toEqual(analytics);
+    expect(headData(h.updates).consent).toBe(true);
+  });
+
+  it('warns when a cookie-setting provider has no consent gate', async () => {
+    const h = harness({ analytics: { googleAnalytics: 'G-ABC123' } }, scratch());
+    await h.run();
+    expect(warned(h.logs, 'Google Analytics')).toBe(true);
+    expect(warned(h.logs, 'consent: true')).toBe(true);
+  });
+
+  it('stays quiet when every configured provider is cookieless', async () => {
+    const h = harness({ analytics: { plausible: 'example.com' } }, scratch());
+    await h.run();
+    expect(h.logs.filter((l) => l.level === 'warn')).toEqual([]);
+  });
+
+  it('needs no runtime for a cookieless provider on `async`', async () => {
+    // The configuration that ships zero consent JavaScript.
+    const h = harness({ analytics: { plausible: 'example.com', strategy: 'async' } });
+    await h.run();
+    expect(headData(h.updates).consentRuntime).toBe(false);
+  });
+
+  it('turns the runtime on for consent alone, with no analytics configured', async () => {
+    // The gate is general: a site may be gating an A/B split or an embed.
+    const h = harness({ consent: true }, scratch());
+    await h.run();
+    expect(headData(h.updates).consentRuntime).toBe(true);
+    expect(headData(h.updates).consentCategories).toEqual(['analytics']);
+  });
+
+  it('offers only the categories the configured providers need', async () => {
+    const h = harness(
+      {
+        consent: true,
+        analytics: { clarity: { id: 'abc', category: 'marketing' }, plausible: 'example.com' },
+      },
+      scratch(),
+    );
+    await h.run();
+    expect(headData(h.updates).consentCategories).toEqual(['marketing']);
+  });
+
+  it('lets the consumer state the categories explicitly', async () => {
+    const h = harness({ consent: { categories: ['analytics', 'preferences'] } }, scratch());
+    await h.run();
+    expect(headData(h.updates).consentCategories).toEqual(['analytics', 'preferences']);
+  });
+
+  it('carries the cookie-notice URL through for the banner to link', async () => {
+    const h = harness({ consent: { policyUrl: '/legal/cookies' } }, scratch());
+    await h.run();
+    expect(headData(h.updates).consentPolicyUrl).toBe('/legal/cookies');
+  });
+
+  it('copies consent.js even with webComponents off', async () => {
+    // The gate decides whether third-party tags run, so switching off the element
+    // runtime must not silently switch off consent along with it.
+    const dir = scratch();
+    const h = harness({ consent: true, webComponents: false }, dir);
+    await h.run();
+    const dest = join(fileURLToPath(dir.publicDir), 'vitops');
+    // Skipped rather than failed when core hasn't been built — the integration
+    // warns in that case and the test for the decision is `consentRuntime` above.
+    if (existsSync(dest)) {
+      expect(existsSync(join(dest, 'consent.js'))).toBe(true);
+      expect(existsSync(join(dest, 'elements.js'))).toBe(false);
+    }
+  });
+
+  /**
+   * The defect this catches is specific and quiet: a site runs a tag its own
+   * generated cookie notice never mentions, because `getvitops({ analytics })`
+   * and the site config's `analytics` block are separate surfaces.
+   */
+  it('warns when a provider is missing from the site config the legal docs render from', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-'));
+    const input = join(dir, 'site.json');
+    writeFileSync(input, JSON.stringify({ analytics: { plausibleDomain: 'example.com' } }));
+
+    const h = harness(
+      { analytics: { clarity: 'abc', plausible: 'example.com' }, consent: true, legal: { input } },
+      { root: pathToFileURL(`${dir}/`), publicDir: pathToFileURL(`${dir}/public/`) },
+    );
+    await h.run();
+    expect(warned(h.logs, 'clarityId')).toBe(true);
+    // Plausible *is* declared there, so it must not be named.
+    expect(h.logs.some((l) => l.msg.includes('plausibleDomain'))).toBe(false);
+  });
+
+  it('stays quiet when the site config declares every configured provider', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-'));
+    const input = join(dir, 'site.json');
+    writeFileSync(input, JSON.stringify({ analytics: { clarityId: 'abc' } }));
+
+    const h = harness(
+      { analytics: { clarity: 'abc' }, consent: true, legal: { input } },
+      { root: pathToFileURL(`${dir}/`), publicDir: pathToFileURL(`${dir}/public/`) },
+    );
+    await h.run();
+    expect(h.logs.some((l) => l.msg.includes('cookie notice'))).toBe(false);
   });
 });

@@ -1,0 +1,117 @@
+/**
+ * Consent — the docked banner `<wc-consent>` reveals.
+ *
+ * Deliberately thin: this partial owns the *dock* (where the thing sits and how it
+ * stacks) and nothing else. Everything inside it is composed from patterns that
+ * already exist — `.banner`, `.cluster`, `.btn`, `.cta`, the form patterns — so a
+ * consumer restyles their consent banner by restyling those, not by learning a
+ * second vocabulary.
+ *
+ * **Shown in the top layer via the Popover API**, for the same reason `.tooltip`
+ * is: a plain `position: fixed` banner resolves against the nearest containing
+ * block, and any ancestor with `container-type`, `transform`, `filter` or
+ * `contain` becomes one. `body { container-type: inline-size }` is a normal thing
+ * to write in a framework whose breakpoints are container queries — and it traps a
+ * fixed banner mid-page. The top layer escapes the containing-block chain
+ * entirely, so the dock is always the viewport and no z-index can lose to
+ * anything. `popover="manual"` (not `auto`): a light-dismiss banner would let a
+ * stray click count as a decision.
+ *
+ * The other reason it's fixed-and-floating: the banner appears after hydration,
+ * and out of flow it can't push content, so it contributes nothing to CLS. A
+ * statically-positioned bar inserted at the top of the document would shift the
+ * whole page and cost the metric the deferred script-loading strategy protects.
+ */
+
+/* ── Consent — bottom-docked banner shown while a choice is outstanding ────── */
+
+/**
+ * Layout only — `display` is set by the open/closed rules below.
+ *
+ * `[popover].consent` (0-2-0) rather than `.consent` (0-1-0) on purpose: this
+ * partial is imported *after* popover.css, whose `[popover] { &:not(:popover-open)
+ * { display: none } }` sits at 0-1-0. A bare `.consent { display: flex }` would
+ * tie on specificity, win on order, and reveal a closed popover.
+ */
+.consent {
+  --_p: var(--p-consent, var(--p-consent-group, var(--p-default)));
+  --_br: var(--br-consent, var(--br-consent-group, var(--br-default)));
+  --_ds: var(--ds-consent, var(--ds-consent-group, var(--ds-default)));
+  --_b: var(--b-consent, var(--b-consent-group, var(--b-default)));
+
+  position: fixed;
+  z-index: 100;
+  /* The gap is an inset, not a block margin: for an absolutely positioned box the
+     offsets resolve against the margin edge, so `inset-block-end: 0` plus a bottom
+     margin still sits flush to the viewport edge. Inline centring does come from
+     `margin-inline: auto`, where that resolution is the one we want. */
+  inset-block-end: 1rem;
+  inset-inline: 0;
+  inset-block-start: auto;
+  margin-inline: auto;
+  max-inline-size: min(48rem, calc(100% - 2rem));
+
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: var(--_p);
+  border: var(--_b);
+  border-radius: var(--_br);
+  box-shadow: var(--_ds);
+  background: var(--color-bg-surface);
+  color: var(--color-text-surface);
+
+  /* Clear an iOS home indicator. */
+  padding-block-end: max(var(--_p), env(safe-area-inset-bottom));
+
+  .consent__body {
+    flex: 1 1 20rem;
+  }
+
+  .consent__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-inline-start: auto;
+  }
+
+  /* The per-category checkboxes. Two buttons answer a one-category question, so
+     `<CookieConsent />` only renders these when there is more than one — a banner
+     that demands reading is a banner that gets accepted unread. */
+  .consent__options {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+}
+
+/* Open, in the top layer. */
+[popover].consent:popover-open {
+  display: flex;
+}
+
+/* The no-popover path: `<wc-consent>` strips the attribute when `showPopover` is
+   missing and falls back to toggling `hidden`, so this needs no `:popover-open`
+   support to work. `[hidden]` comes last and wins over both. */
+.consent:not([popover]) {
+  display: flex;
+}
+
+.consent[hidden],
+wc-consent[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .consent {
+    animation: consent-enter 0.25s ease-out;
+  }
+}
+
+@keyframes consent-enter {
+  from {
+    opacity: 0;
+    translate: 0 1rem;
+  }
+}

@@ -43,12 +43,14 @@ cpSync(join(REPO, 'bricks', 'elements'), join(assets, 'bricks', 'elements'), { r
 cpSync(join(REPO, 'bricks', 'load.php'), join(assets, 'bricks', 'load.php'));
 
 // Pre-built framework JS bundles from @getvitops/core's build. editor.js (the live
-// theme editor) rides along so a generated dist/ can host it, but nothing enqueues
-// it — a page opts in by placing a <wc-theme-editor> tag and loading the bundle.
+// theme editor) and consent.js (the consent gate) ride along so a generated dist/
+// can host them, but nothing enqueues either — a page opts in by placing the tag
+// (<wc-theme-editor>, <wc-consent>) and loading the bundle. A Bricks site needs the
+// consent gate as much as an Astro one, and this is the only route it has to it.
 mkdirSync(join(assets, 'js'), { recursive: true });
 const coreDist = join(CORE, 'dist');
 let jsCount = 0;
-for (const f of ['polyfills.js', 'elements.js', 'deferred.js', 'editor.js']) {
+for (const f of ['polyfills.js', 'elements.js', 'deferred.js', 'consent.js', 'editor.js']) {
   if (existsSync(join(coreDist, f))) {
     cpSync(join(coreDist, f), join(assets, 'js', f));
     jsCount++;

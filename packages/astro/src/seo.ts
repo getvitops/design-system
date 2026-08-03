@@ -32,6 +32,11 @@ export interface GetvitopsSeoOptions {
   /**
    * Page-title pattern; `%s` is the page's own title. e.g. `'%s · Acme'`.
    *
+   * Applies to `<title>` only. `og:title`/`twitter:title` get the untemplated
+   * title: a social card already shows `og:site_name` and the domain, so the
+   * suffix would sit directly above the brand it repeats. Override per page with
+   * `ogTitle`.
+   *
    * Skipped when a page's title already equals `siteName` — a homepage titled
    * "Acme" emits `Acme`, not `Acme · Acme` — and never applied to `defaultTitle`.
    */
@@ -70,6 +75,12 @@ export interface GetvitopsSeoOptions {
 export interface SeoProps {
   /** Page title, before `titleTemplate` is applied. */
   title?: string;
+  /**
+   * `og:title`/`twitter:title`, when the social headline should differ from
+   * `title`. Defaults to `title` **without** `titleTemplate` — see the note on
+   * `titleTemplate` for why the suffix is dropped there.
+   */
+  ogTitle?: string;
   description?: string;
   /** Overrides the computed canonical. Relative values resolve against `site`. */
   canonical?: string;
@@ -132,6 +143,8 @@ export interface SeoNameTag {
 /** Everything `<Seo />` renders, already decided. `null` means "emit nothing". */
 export interface ResolvedSeo {
   title: string | null;
+  /** `og:title`/`twitter:title` — the page title without `titleTemplate`. */
+  socialTitle: string | null;
   description: string | null;
   canonical: string | null;
   robots: string | null;
@@ -214,11 +227,27 @@ export function resolveSeo(
   // it over `defaultTitle`, and a homepage whose own title happens to equal the
   // site name — which is the common case, not an edge case.
   const templated = props.title && defaults.titleTemplate && props.title !== siteName;
+  const fallbackTitle = defaults.defaultTitle ?? siteName;
   const title = props.title
     ? templated
       ? String(defaults.titleTemplate).replaceAll('%s', props.title)
       : props.title
-    : (defaults.defaultTitle ?? siteName);
+    : fallbackTitle;
+
+  /*
+   * `og:title`/`twitter:title` take the page's title *without* the template.
+   *
+   * The two are read in different places. `<title>` is navigational — a browser
+   * tab or a search result, competing with a dozen others, so it needs the brand
+   * suffix to disambiguate. A social card is self-contained and already shows
+   * `og:site_name` and the domain, so repeating the brand there is furniture:
+   * "Installation · Acme" sitting directly above "Acme".
+   *
+   * They still derive from one value, which is the part that matters — the
+   * component this replaces computed them in separate places and they drifted.
+   * Pass `ogTitle` when a page wants a genuinely different social headline.
+   */
+  const socialTitle = props.ogTitle ?? props.title ?? fallbackTitle;
 
   const description = props.description ?? defaults.defaultDescription ?? null;
 
@@ -248,7 +277,7 @@ export function resolveSeo(
   };
 
   og('og:type', type);
-  og('og:title', title);
+  og('og:title', socialTitle);
   og('og:description', description);
   og('og:url', canonical);
   og('og:site_name', siteName);
@@ -280,7 +309,7 @@ export function resolveSeo(
   tw('twitter:card', image ? 'summary_large_image' : (defaults.twitter?.card ?? 'summary'));
   tw('twitter:site', defaults.twitter?.site);
   tw('twitter:creator', props.twitterCreator ?? defaults.twitter?.creator);
-  tw('twitter:title', title);
+  tw('twitter:title', socialTitle);
   tw('twitter:description', description);
   tw('twitter:image', image);
   tw('twitter:image:alt', image ? imageAlt : null);
@@ -296,6 +325,7 @@ export function resolveSeo(
 
   return {
     title,
+    socialTitle,
     description,
     canonical,
     robots: resolveRobots(props, defaults),

@@ -29,6 +29,13 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    - Shipped as feature-detected, deferred ES-module bundles
      (`@getvitops/core/{polyfills,elements,deferred}`); polyfills load **only** when a native feature
      is missing (see `Polyfills.astro`).
+   - **`<wc-consent>` is the one element outside `elements.js`** (`@getvitops/core/consent`), and it
+     still meets the tier-2 bar. It ships in its own Lit-free bundle for two reasons pulling the same
+     way: consent is a legal requirement, so a site needing it must not be made to download a
+     rendering framework; and the same module gates every third-party tag on the page, so it has to
+     be free to load ahead of the deferred Lit bundle rather than behind it. Its fallback markup
+     ships `hidden` — with no JS the gate never runs, no gated tag loads and no non-essential cookie
+     is set, so there is genuinely nothing to consent to. That fallback isn't empty, it's _moot_.
 
 3. **Platform wrappers** (`@getvitops/astro` components; future `@getvitops/bricks`) — thin
    **authoring conveniences (DX)** for the pure-HTML/CSS patterns: they render the correct
@@ -48,6 +55,41 @@ on purpose. It is quarantined instead of excused: its own bundle entry (`src/js/
 `dist/editor.js`), never registered in `elements.js`, opt-in per consumer
 (`getvitops({ editor: true })`), and carrying no Lit, so a production page that doesn't ask for it
 pays nothing. Don't use it as precedent for putting behaviour JS in a `<wc-*>` element.
+
+## The consent gate
+
+`@getvitops/core/consent` (`src/js/consent.ts` → `dist/consent.js`, ~2.3 KB gzipped, no Lit) is a
+**general** permission gate, not an analytics feature. Anything marked `data-consent="<category>"` —
+a third-party tag, an A/B assignment, a personalisation cookie, an embedded map — waits on one
+choice, exposed as `window.vitopsConsent` plus a `vitops:consent` event on `document`. Categories are
+`necessary` / `analytics` / `marketing` / `preferences`, defined once in `consent/store.ts` and
+mirrored (not imported) by `@getvitops/astro`'s `analytics.ts`.
+
+Four things are load-bearing:
+
+- **`type="text/plain"` is what makes the gate real.** A gated tag renders inert with its URL on
+  `data-src`; the browser neither parses the body nor fetches the library, so an undecided visitor's
+  page issues no third-party request. A gate that instead _asks_ a loaded third-party script not to
+  track is a promise. Never give a gated tag a live `src`.
+- **Nothing is stored until the visitor chooses.** Absence of the cookie is undecided, and undecided
+  denies everything but `necessary`. If the banner wrote state just by appearing, it would be the
+  thing it asks permission for. Equally, a corrupt or wrong-version cookie **re-prompts** rather than
+  reading as "decided, all denied" — the safe-looking read strands a visitor who wants to opt in with
+  no way to say so.
+- **Revoking clears cookies and reloads.** An already-executing tracker cannot be unloaded any other
+  way; clearing alone only stops it identifying the visitor _next_ time. Cookie names ride on
+  `data-consent-cookies`, written by whoever emitted the tag — a provider table in core would be a
+  second copy to keep in step with the generator's processor table.
+- **The store is pure and the DOM wiring is not tested.** `@getvitops/core` has no DOM test
+  environment, so everything legally decidable (what an absent cookie means, what a corrupt one
+  means, what a revoke covers) lives in `consent/store.ts` as functions over a cookie string and is
+  asserted in `store.test.ts`. Keep new decisions on that side of the line.
+
+The facts that drive the gate must also drive the **generated cookie notice** — see the Legal
+documents section. `analytics.clarityId` in a site config is what makes the notice name Clarity; the
+same provider in `getvitops({ analytics })` is what makes the tag load. The Astro integration warns
+when the two disagree, because a site running a tag its own notice omits is a compliance defect
+rather than a documentation gap.
 
 ## The live theme editor
 
@@ -98,7 +140,8 @@ packages under `packages/` (a pnpm workspace), by layer:
 - **`@getvitops/core`** — the design-system **framework** (the runtime everything builds on): the
   variable-driven **CSS partials** (`css/`), the Lit **web components**, and the feature-detected
   browser **polyfills**. Subpath exports: `./css/*`, `./elements`, `./polyfills`, `./deferred`,
-  `./editor`. Inert on its own — the CSS resolves against the token layer the generator emits.
+  `./consent`, `./editor`. Inert on its own — the CSS resolves against the token layer the generator
+  emits.
 - **`@getvitops/generator`** — the **generator** as a library + the JSON Schema. Public API:
   `generate({ input, format, outDir })`, `generateDocs()`, `validate()`, `defaultConfig()`,
   `DesignSystemSchema`, `jsonSchema`. The `zod/mini` schema in `packages/generator/src/schema.ts` is

@@ -11,6 +11,7 @@
   "type": "module",
   "exports": {
     "./elements": "./dist/elements.js",
+    "./consent": "./dist/consent.js",
     "./editor": "./dist/editor.js",
     "./polyfills": "./dist/polyfills.js",
     "./deferred": "./dist/deferred.js",
@@ -32,5 +33,8 @@
     "lit": "catalog:",
     "scroll-timeline-polyfill": "catalog:",
     "temporal-polyfill": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.9"
   }
 }

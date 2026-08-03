@@ -1,0 +1,106 @@
+---
+/**
+ * <CookieConsent /> — the consent banner. Place near the end of <body>; requires
+ * the getvitops() integration with `consent` enabled, which is what loads
+ * `@getvitops/core/consent` (the gate + `<wc-consent>`).
+ *
+ * This renders the *fallback*: a real, semantic form with real buttons. The
+ * element parses and augments it — it never renders from empty. The markup ships
+ * `hidden` because with no JS the gate never runs, so no gated tag loads and no
+ * non-essential cookie is set: there is genuinely nothing to consent to, and a
+ * banner would be asking permission for something that isn't happening.
+ *
+ * The banner does not itself set a cookie. Only an explicit accept/reject/save
+ * writes one — otherwise the thing asking permission would be the thing needing
+ * it.
+ *
+ * **Consent is not an analytics feature.** The same gate covers A/B assignment,
+ * personalisation and embedded third-party content: mark any of them
+ * `data-consent="<category>"` and they wait on the same choice. Which categories
+ * this banner offers therefore comes from the integration, not from
+ * `<Analytics />`.
+ */
+// @ts-ignore — virtual module provided by the getvitops() integration at build time
+import head from 'virtual:getvitops/head';
+import type { OptionalConsentCategory } from '../analytics.ts';
+
+interface Props {
+  /** Categories to offer. Defaults to those the configured providers need. */
+  categories?: OptionalConsentCategory[];
+  /** Link to the cookie notice (`vitops legal` renders one). */
+  policyUrl?: string;
+  policyLabel?: string;
+  heading?: string;
+  acceptLabel?: string;
+  rejectLabel?: string;
+  saveLabel?: string;
+  /** Per-category wording, merged over the defaults. */
+  labels?: Partial<Record<OptionalConsentCategory, string>>;
+  /**
+   * Keep an already-running tracker alive after a revoke (default false — we
+   * reload). See `ConsentApi.reloadOnRevoke`.
+   */
+  noReloadOnRevoke?: boolean;
+}
+
+const DEFAULT_LABELS: Record<OptionalConsentCategory, string> = {
+  analytics: 'Analytics — how the site is used, so we can improve it',
+  marketing: 'Marketing — measuring which campaigns bring people here',
+  preferences: 'Preferences — remembering choices you make on the site',
+};
+
+const {
+  categories = head.consentCategories ?? ['analytics'],
+  policyUrl = head.consentPolicyUrl ?? undefined,
+  policyLabel = 'Cookie notice',
+  heading = 'Cookies on this site',
+  acceptLabel = 'Accept',
+  rejectLabel = 'Reject',
+  saveLabel = 'Save choices',
+  labels = {},
+  noReloadOnRevoke = false,
+} = Astro.props;
+
+const wording = { ...DEFAULT_LABELS, ...labels };
+// One category is a yes/no question; checkboxes for it would be a form standing in
+// for two buttons that already say the same thing.
+const choose = categories.length > 1;
+---
+
+<wc-consent hidden {...noReloadOnRevoke ? { 'reload-on-revoke': 'false' } : {}}>
+  {/*
+    Shown in the top layer. A plain fixed banner resolves against the nearest
+    containing block, and `body { container-type: inline-size }` — ordinary in a
+    framework whose breakpoints are container queries — makes body one, trapping
+    the banner mid-page. `manual`, not `auto`: light dismiss would let a stray
+    click count as a decision.
+  */}
+  <form class="consent" popover="manual" aria-label={heading}>
+    <div class="consent__body">
+      <slot>
+        <p>
+          We use cookies to understand how this site is used. You can decline without
+          losing any functionality.
+        </p>
+      </slot>
+      {policyUrl && <a class="link" href={policyUrl}>{policyLabel}</a>}
+    </div>
+
+    {choose && (
+      <div class="consent__options">
+        {categories.map((category) => (
+          <label>
+            <input type="checkbox" name={category} />
+            {wording[category]}
+          </label>
+        ))}
+      </div>
+    )}
+
+    <div class="consent__actions">
+      <button type="button" class="btn" data-consent-reject>{rejectLabel}</button>
+      {choose && <button type="button" class="btn" data-consent-save>{saveLabel}</button>}
+      <button type="button" class="cta" data-consent-accept>{acceptLabel}</button>
+    </div>
+  </form>
+</wc-consent>

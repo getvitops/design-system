@@ -196,9 +196,12 @@ export function derivePolicyVars(site: SiteConfig): PolicyVars {
   const processors = resolveProcessors(site);
   const fields = formFields(site);
   const hasForms = fields.length > 0;
-  const hasAnalytics =
-    !!site.analytics &&
-    Object.values(site.analytics).some((v) => typeof v === 'string' && v.length > 0);
+  // Any configured provider counts, whether its config is an ID string
+  // (`googleAnalyticsId`) or an object (`matomo`). Checking only for strings
+  // would silently under-report a Matomo-only site as having no analytics at all.
+  const hasAnalytics = Object.values(site.analytics ?? {}).some((v) =>
+    typeof v === 'string' ? v.length > 0 : !!v,
+  );
   const cookieProcessors = processors.filter((p) => p.cookies?.length);
   const consent = legal?.cookieConsent;
   const contact = resolvePrivacyContact(site);
@@ -230,16 +233,26 @@ export function derivePolicyVars(site: SiteConfig): PolicyVars {
     'any other personal information that you choose to submit to us',
   ]);
 
+  // Session replay is a materially different disclosure from page-view analytics
+  // and cannot be folded into `hasAnalytics`: a policy that lists "the pages you
+  // view" while the site records mouse movement, scrolling and clicks is
+  // under-disclosing, not summarising.
+  const hasSessionReplay = !!site.analytics?.clarityId;
+
   const techInfo = uniq([
     'your domain name',
     'your numerical IP address',
     hasAnalytics ? 'the pages you view and the files you request' : undefined,
     hasAnalytics ? 'the type of browser and operating system you use' : undefined,
     hasAnalytics ? 'the address of the site that referred you' : undefined,
+    hasSessionReplay
+      ? 'a recording of how you interacted with a page, including mouse movement, scrolling and clicks'
+      : undefined,
   ]);
 
   const techInfoPurposes = uniq([
     hasAnalytics ? 'measure the performance of our Site' : undefined,
+    hasSessionReplay ? 'see where visitors encounter difficulty using our Site' : undefined,
     site.security?.turnstile?.siteKey
       ? 'protect our Site and its forms from automated abuse'
       : undefined,
@@ -253,11 +266,13 @@ export function derivePolicyVars(site: SiteConfig): PolicyVars {
     'the type of web browser and operating system used',
     'the pages of the Site visited',
     ab?.enabled ? 'which version of a page you were shown' : undefined,
+    hasSessionReplay ? 'how you moved through and interacted with a page' : undefined,
   ]);
 
   const cookiePurposes = uniq([
     'keep the Site functioning as you move between pages',
     hasAnalytics ? 'understand how our Site is used, in aggregate' : undefined,
+    hasSessionReplay ? 'recognise a returning visit as part of the same session' : undefined,
     ab?.enabled ? 'keep you on a consistent version of the Site between visits' : undefined,
     site.security?.turnstile?.siteKey ? 'distinguish visitors from automated traffic' : undefined,
   ]);

@@ -15,6 +15,21 @@ export type {
   GetvitopsSitemapEntry,
   GetvitopsSitemapOptions,
 } from './integration.ts';
+export { consentCategories, resolveAnalytics } from './analytics.ts';
+export type {
+  AnalyticsStrategy,
+  ClarityOptions,
+  ConsentCategory,
+  GetvitopsAnalyticsOptions,
+  GetvitopsConsentOptions,
+  GoogleAnalyticsOptions,
+  MatomoOptions,
+  OptionalConsentCategory,
+  PlausibleOptions,
+  ResolveAnalyticsContext,
+  ResolvedAnalytics,
+  ResolvedTag,
+} from './analytics.ts';
 export { resolveSeo } from './seo.ts';
 export type {
   GetvitopsSeoOptions,

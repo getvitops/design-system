@@ -67,6 +67,36 @@ export const KNOWN_PROCESSORS = {
     // an empty list rather than omitted, so the cookie notice can say so.
     cookies: [],
   },
+  clarity: {
+    name: 'Microsoft Clarity',
+    purpose: 'session replay and heatmaps',
+    country: 'the United States',
+    privacyUrl: 'https://privacy.microsoft.com/privacystatement',
+    // Clarity records what a visitor does on the page, not just that they were
+    // here, so the purpose says "session replay" rather than "analytics" — a
+    // reader deciding whether to consent needs to know they may be recorded.
+    cookies: ['_clck', '_clsk', 'MUID'],
+    optOut: 'https://privacy.microsoft.com/privacystatement',
+  },
+  // Matomo appears twice on purpose: whether it sets cookies is a *configuration*
+  // choice (`analytics.matomo.cookies`), and the notice says something materially
+  // different in each case. One entry with a conditional cookie list would put
+  // that branch in the prose layer, where the rule is that templates own wording
+  // and never facts.
+  matomo: {
+    name: 'Matomo',
+    purpose: 'website analytics',
+    privacyUrl: 'https://matomo.org/privacy-policy/',
+    cookies: ['_pk_id', '_pk_ses'],
+  },
+  matomoCookieless: {
+    name: 'Matomo',
+    purpose: 'website analytics',
+    privacyUrl: 'https://matomo.org/privacy-policy/',
+    // `disableCookies` is on: Matomo stores no identifier on the device. The
+    // empty list is the assertion — see the Processor.cookies note above.
+    cookies: [],
+  },
   turnstile: {
     name: 'Cloudflare Turnstile',
     purpose: 'bot protection on forms',
@@ -119,6 +149,12 @@ export function detectProcessorKeys(site: SiteConfig): KnownProcessorKey[] {
   if (analytics?.googleAnalyticsId) keys.push('googleAnalytics');
   if (analytics?.googleTagManagerId) keys.push('googleTagManager');
   if (analytics?.plausibleDomain) keys.push('plausible');
+  if (analytics?.clarityId) keys.push('clarity');
+  // Cookieless is the default, matching the tag the Astro integration emits
+  // (`_paq.push(['disableCookies'])` unless `cookies: true`). The two must agree:
+  // a notice claiming no cookies while the tag sets them is the defect this whole
+  // table exists to prevent.
+  if (analytics?.matomo) keys.push(analytics.matomo.cookies ? 'matomo' : 'matomoCookieless');
   if (site.security?.turnstile?.siteKey) keys.push('turnstile');
 
   const platform = site.deployment?.platform;
@@ -137,7 +173,24 @@ export function detectProcessorKeys(site: SiteConfig): KnownProcessorKey[] {
  * an explicit declaration is a statement of fact we have no grounds to drop.
  */
 export function resolveProcessors(site: SiteConfig): Processor[] {
-  const detected = detectProcessorKeys(site).map((k) => KNOWN_PROCESSORS[k] as Processor);
+  const detected = detectProcessorKeys(site).map((k) =>
+    matomoCountry(KNOWN_PROCESSORS[k] as Processor, site),
+  );
   const declared = site.legal?.privacyPolicy?.processors ?? [];
   return [...detected, ...declared];
+}
+
+/**
+ * Matomo is the one provider whose location the config actually knows.
+ *
+ * Matomo Cloud is hosted in the EU; a self-hosted instance is wherever the
+ * consumer put it, which is very often their own infrastructure in their own
+ * country. So the cross-border transfer sentence is asserted only for the case we
+ * can see. Naming a transfer that isn't happening is the same class of error as
+ * omitting one that is — the config records facts, and "we don't know" is a fact.
+ */
+function matomoCountry(processor: Processor, site: SiteConfig): Processor {
+  if (processor.name !== 'Matomo') return processor;
+  const url = site.analytics?.matomo?.url ?? '';
+  return /\.matomo\.cloud/i.test(url) ? { ...processor, country: 'the European Union' } : processor;
 }

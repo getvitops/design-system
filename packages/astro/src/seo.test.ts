@@ -56,11 +56,47 @@ describe('title', () => {
     expect(run({ titleTemplate: '%s — %s' }, { title: 'X' }).title).toBe('X — X');
   });
 
-  it('drives og:title and twitter:title from the same resolved value', () => {
-    // The bug this component replaces: <title> and og:title computed separately.
-    const r = run({ titleTemplate: '%s · Acme' }, { title: 'Pricing' });
-    expect(og(r, 'og:title')).toEqual([r.title]);
-    expect(tw(r, 'twitter:title')).toBe(r.title);
+  it('gives og:title and twitter:title the title WITHOUT the template', () => {
+    // A social card already shows og:site_name and the domain, so "Pricing · Acme"
+    // would sit directly above "Acme". <title> keeps the suffix because a browser
+    // tab or search result has nothing else to disambiguate it.
+    const r = run({ titleTemplate: '%s · Acme', siteName: 'Acme' }, { title: 'Pricing' });
+    expect(r.title).toBe('Pricing · Acme');
+    expect(r.socialTitle).toBe('Pricing');
+    expect(og(r, 'og:title')).toEqual(['Pricing']);
+    expect(tw(r, 'twitter:title')).toBe('Pricing');
+  });
+
+  it('keeps og:title and twitter:title in step with each other', () => {
+    // The bug this component replaces: the social titles and <title> were computed
+    // in separate places. They may differ by the template now — but by exactly
+    // that, and never independently.
+    for (const props of [{ title: 'Pricing' }, { title: 'X', ogTitle: 'Y' }, {}]) {
+      const r = run({ titleTemplate: '%s · Acme', siteName: 'Acme' }, props);
+      expect(og(r, 'og:title')).toEqual([r.socialTitle]);
+      expect(tw(r, 'twitter:title')).toBe(r.socialTitle ?? undefined);
+    }
+  });
+
+  it('lets ogTitle override the social headline without touching <title>', () => {
+    const r = run(
+      { titleTemplate: '%s · Acme' },
+      { title: 'Pricing', ogTitle: 'Plans that scale' },
+    );
+    expect(r.title).toBe('Pricing · Acme');
+    expect(og(r, 'og:title')).toEqual(['Plans that scale']);
+  });
+
+  it('falls back to the same value for both when the page has no title', () => {
+    const r = run({ titleTemplate: '%s · Acme', defaultTitle: 'Acme' }, {});
+    expect(r.title).toBe('Acme');
+    expect(r.socialTitle).toBe('Acme');
+  });
+
+  it('leaves the two identical when no template is configured', () => {
+    const r = run({}, { title: 'Pricing' });
+    expect(r.title).toBe('Pricing');
+    expect(r.socialTitle).toBe('Pricing');
   });
 });
 
