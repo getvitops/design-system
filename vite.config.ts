@@ -265,45 +265,27 @@ export default defineConfig({
           'apps/docs/src/content/docs/changelog.md',
         ],
       },
+      // `build:astro` is a dependency of both, not just `docs:sync`'s generator:
+      // the site *renders* through @getvitops/astro, so it needs that package's
+      // dist/, and dist/ is gitignored. On a warm checkout this was invisible
+      // (something else had already built it); from a clean clone — CI — the
+      // Astro build fails to resolve the integration.
       'docs:dev': {
         command: 'pnpm --filter docs exec astro dev',
-        dependsOn: ['docs:sync'],
+        dependsOn: ['docs:sync', 'build:astro'],
       },
       'docs:build': {
         command: 'pnpm --filter docs exec astro build',
-        dependsOn: ['docs:sync'],
+        dependsOn: ['docs:sync', 'build:astro'],
         output: ['apps/docs/dist/**'],
       },
       'docs:preview': {
         command: 'pnpm --filter docs exec astro preview',
       },
 
-      // ── apps/portal (extraction-bound playground) ──────────────────────────
-      // Fully isolated from the Bricks/design-system release DAG: NOT wired into
-      // `build`, `build:packages`, or `deploy`, and NOT dependent on any
-      // @getvitops package (the design-system CSS dogfooding is deferred while
-      // that framework is in flux — the app uses its own wireframe stylesheet).
-      // Migrations are plain SQL run by drizzle-orm's migrator; tests run under
-      // the root vitest (vite-plus).
-      'portal:dev': {
-        command: 'cd apps/portal && astro dev',
-      },
-      'portal:build': {
-        command: 'cd apps/portal && astro build',
-      },
-      'portal:migrate': {
-        command: 'cd apps/portal && node --env-file-if-exists=.env ./scripts/migrate.ts',
-      },
-      'portal:seed': {
-        command: 'cd apps/portal && node --env-file-if-exists=.env ./scripts/seed.ts',
-      },
-      // Long-lived background worker: node-cron sync + outbox dispatch.
-      'portal:worker': {
-        command: 'cd apps/portal && node --env-file-if-exists=.env ./src/workers/cron.ts',
-      },
-      'portal:test': {
-        command: 'vp test run apps/portal',
-      },
+      // apps/portal and its `portal:*` tasks were extracted to its own repo
+      // (getvitops/portal) — it was the dogfood target before apps/docs existed,
+      // and apps/docs covers that now.
     },
   },
 });

@@ -11,7 +11,12 @@
  * gains a name, and a page that lies about the vocabulary is worse than none.
  */
 import Icon from '@getvitops/astro/components/Icon.astro';
-import { iconMap, resolveIcon } from '@getvitops/astro';
+// From @getvitops/utils, not @getvitops/astro, even though the latter re-exports
+// both: its package root also exports the integration, so importing through it
+// pulls astro-icon → @iconify/tools → svgo → css-tree into this *page's* render
+// bundle. Bundled, css-tree's `createRequire(import.meta.url)('../data/patch.json')`
+// resolves against the emitted chunk and the build dies prerendering this route.
+import { iconMap, resolveIcon } from '@getvitops/utils';
 import Docs from '../layouts/Docs.astro';
 
 /** Every semantic name, grouped the way the map itself is commented. */

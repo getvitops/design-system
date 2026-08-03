@@ -181,8 +181,12 @@ packages under `packages/` (a pnpm workspace), by layer:
   positive. It asks `roleColorUtilities()` what the generator emits rather than re-deriving it.
 
   `legal` renders the site's privacy policy, terms of service and cookie notice — see the
-  Legal documents section below. It is the **only** command that reads a `SiteConfig`
-  rather than a `design-system.json`.
+  Legal documents section below. It is one of the three commands anchored to a `SiteConfig`
+  rather than a `design-system.json` (with `icons` and `notify`), because what it renders
+  describes a site rather than a token set.
+
+  `notify` tells search engines a deploy happened, from `seo.indexing` — see the
+  Search-engine notification section below.
 
 - **`@getvitops/vite`** — a Vite plugin (Astro/EmDash) that runs the generator on build/dev (+
   optional favicon generation) and hot-regenerates when the config changes.
@@ -319,6 +323,75 @@ surface every consumer has regardless of stack:
 
 Every document opens with a non-optional review banner. These are rendered from a template by
 a build tool; the one failure mode with real consequences is a consumer publishing one as-is.
+
+## Search-engine notification
+
+`vitops notify` (`packages/cli` → `@getvitops/utils/notify`) replaces the manual "open Search
+Console and resubmit" step at the end of a deploy. It reads a **`SiteConfig`**'s `seo.indexing`
+block.
+
+**Start from what search engines actually accept, because the obvious assumption is wrong and
+every design decision here follows from it:**
+
+- **Google exposes no "request indexing" API.** The button in the Search Console UI is not in
+  the Search Console API or anywhere else, and the **URL Inspection API is read-only**.
+- **The sitemap ping endpoint was removed in June 2023.** `google.com/ping?sitemap=` is a no-op.
+- **The Indexing API is scoped to `JobPosting`/`BroadcastEvent`.** It accepts other URLs and
+  discards them; general use violates its terms, with the consumer's own GCP project on the
+  line. **Deliberately not wired** — shipping a documented path to that in a toolchain other
+  people install is handing them the violation. Don't add it.
+- **Google does not participate in IndexNow.** Bing, Yandex, Naver, Seznam and Yep do.
+
+So the command does every sanctioned thing and then **verifies**: resubmit the sitemap
+(`sitemaps.submit`), ping IndexNow, and `--check` inspects `priorityUrls` and exits non-zero on
+one Google hasn't indexed. That last part is what actually replaces the manual visit. Never
+describe this as making Google re-index faster.
+
+Five things are load-bearing:
+
+- **The pure/I-O split is the same one the consent store makes.** `notify/plan.ts` decides
+  everything — which URLs, which channels, why each was skipped — and touches no network, no
+  filesystem, no clock; `indexnow.ts` and `gsc.ts` execute a plan and decide nothing. That is
+  what makes `--dry` a _complete_ account of a run rather than an approximation, and what lets
+  `plan.test.ts` assert the consequential cases without a network.
+- **`lastmod` is not a nice-to-have, it is the mechanism.** The changed-URL diff compares each
+  entry's `<lastmod>` against `.vitops/sitemap-snapshot.json`. With no lastmod the diff can see
+  pages appear and disappear but never see one _change_ — so an edited page is never
+  resubmitted, and the command looks healthy while doing less than it appears to. `plan()`
+  therefore counts lastmod-less entries and says so every run. `gitLastmod()` in
+  `@getvitops/astro` derives real dates from `git log`; it is an exported helper rather than a
+  `sitemap` option because it shells out to git and returns **nothing** from a shallow CI clone
+  (`fetch-depth: 1`), a caveat that belongs at the call site. It leaves an unmatched URL alone
+  rather than stamping the build time: Google weighs lastmod only while it stays consistent with
+  what changed, so a site that stamps every page every deploy teaches it to distrust the field
+  site-wide.
+- **The `noindex` gate reads the environment, so the URLs must too.** `plan()` refuses the whole
+  run when the resolved environment's `robots` contains `noindex` — submitting a staging host to
+  IndexNow publishes it to several engines and invites them to crawl it, which a later directive
+  does not undo. This is why `toNotifyConfig` derives the origin from `environments[env].url`
+  **before** `domains.canonical`: the canonical is the _production_ origin, so deriving from it
+  while notifying staging would submit production URLs that the gate — reading the environment —
+  would not catch.
+- **Verify the IndexNow key file before submitting.** A submission whose key file is unreachable
+  returns `403`, but one whose key file is _reachable and stale_ is accepted with `202` and then
+  silently discarded. Only a prior GET distinguishes "submitted" from "submitted and ignored",
+  which is the exact failure this command exists to remove. The key is **not a secret** — the
+  engine fetching it back is the ownership proof — so it lives in the config, and the Astro
+  integration writes `public/<key>.txt` from it.
+- **Write the snapshot last, and only on success.** Writing it eagerly records URLs as notified
+  that never were, and because the next run diffs against it, one transient 503 would drop those
+  pages from every future notify — silently and permanently. Equally, a corrupt or absent
+  snapshot reads as "submit everything, and say so", never as "nothing changed".
+
+Credentials follow `lib/deploy.ts`'s env-var pattern; the toolchain has no secret store and
+should not grow one. The Search Console service account comes from
+`VITOPS_GSC_SERVICE_ACCOUNT` (inline JSON) or `GOOGLE_APPLICATION_CREDENTIALS` (a path), and the
+OAuth token is minted with ~30 lines of `node:crypto` — **do not add `googleapis`**, an enormous
+dependency for two endpoints in a CLI that installs into every consumer project.
+
+`@getvitops/utils` cannot import from `@getvitops/generator` (the generator already depends on
+it), so `NotifyConfig` mirrors the `seo.indexing` block structurally and the CLI adapts — the
+same arrangement, for the same reason, as `GetvitopsSeoOptions` in `@getvitops/astro`.
 
 ## Development
 
@@ -593,7 +666,9 @@ consumer fetches live per topic; `DESIGN.md` is the single self-contained artifa
 something that has never heard of `vitops`. Both are generated from the same config, so neither can
 drift from what the stylesheet formats build.
 
-`apps/docs` is private and **isolated from the release DAG** like `apps/portal` (not in `build`, `build:packages` or `deploy`).
+`apps/docs` is private and **isolated from the release DAG** (not in `build`, `build:packages` or `deploy`). It is now the only app in `apps/` — `apps/portal` was the dogfood target before this site existed and has been extracted to its own repo, since `apps/docs` covers that job and covers it better (it exercises the `css` format through the Astro integration rather than a hand-maintained wireframe).
+
+It is published to GitHub Pages at <https://docs.vitops.ca> by `.github/workflows/docs.yml` — a static build uploaded as a Pages artifact, so `apps/docs/dist/` stays gitignored. The custom domain is load-bearing: served from the apex, the site needs no Astro `base`, and the absolute paths `@getvitops/astro` emits (`/vitops/icons.svg`, `/vitops/design-manifest.json`) resolve as-is. A project-pages URL would require making the integration base-aware first. The domain lives in `apps/docs/public/CNAME`, which Astro copies to `dist/CNAME` verbatim.
 
 **It is deliberately a plain Astro site, not a docs framework.** Starlight was tried and removed: a themed docs framework ships its own CSS layer and component library, which hides the very thing under test. The whole site — layout, nav, type, colour, controls — is built from the framework's own vocabulary (`.rhythm`, `.centered`, `.split-*`, `.font-<role>`, `.link`, `.card`, `.details`, `.btn`) via the `getvitops()` integration at `css.format: 'css'`, plus the `color-scheme-toggle` web component. **If you find yourself adding hand-written CSS to `src/layouts/Docs.astro`, that's a signal the framework is missing a pattern — add it to `@getvitops/core` instead.** The `<style>` block there is meant to stay short; it's the site's honest scorecard. (Root `index.html` also exercises the css format, but as a static page — `apps/docs` is the only thing covering that format _through the Astro integration_.)
 

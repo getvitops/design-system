@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@getvitops/astro": "workspace:*",
+    "@getvitops/utils": "workspace:*",
     "astro": "catalog:",
     "astro-icon": "^1.1.5",
     "baseline-status": "^1.1.1",

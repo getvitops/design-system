@@ -1,0 +1,68 @@
+# Publishes apps/docs to GitHub Pages at https://docs.vitops.ca.
+#
+# The site is Astro `output: 'static'`, so this is a plain build-and-upload — no
+# adapter, no runtime. It deploys from the Pages artifact rather than a gh-pages
+# branch, which is why `apps/docs/dist/` can stay gitignored.
+#
+# The custom domain is what keeps this simple: served from the apex of
+# docs.vitops.ca, the site needs no Astro `base`, and the absolute asset paths
+# @getvitops/astro emits (`/vitops/icons.svg`, `/vitops/design-manifest.json`)
+# resolve as-is. Moving to a project-pages URL would mean making the integration
+# base-aware first. The domain itself is declared in `apps/docs/public/CNAME`,
+# which Astro copies to `dist/CNAME` verbatim.
+name: Deploy docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let an in-flight deploy finish rather than cancelling it — a half-applied Pages
+# deployment is worse than a slightly stale one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Before setup-node, so its `cache: pnpm` can find the store. The version
+      # comes from the root package.json `packageManager` field.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `docs:build` pulls in the whole chain it needs: build:core →
+      # build:generator → build:utils → build:vite-plugin → build:astro, plus
+      # docs:sync, which regenerates the Reference section from the generator so
+      # the published site can't describe output the toolchain doesn't emit.
+      - run: pnpm exec vp run docs:build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/docs/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
