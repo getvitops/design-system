@@ -50,6 +50,7 @@ const SECTIONS = ['Start here', 'Live preview', 'Packages', 'Reference', 'Releas
 const PAGES = [
   { id: 'theme', data: { title: 'Theme preview', section: 'Live preview', order: 10 } },
   { id: 'animation', data: { title: 'Animation library', section: 'Live preview', order: 20 } },
+  { id: 'icons', data: { title: 'Icons', section: 'Live preview', order: 30 } },
 ];
 
 const all = [...(await getCollection('docs')), ...PAGES];
@@ -94,7 +95,10 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
           <a class="link" href={href('changelog')}>Changelog</a>
           <!-- Self-contained (shadow DOM, renders its own segmented control) and
                `display: none` until `:defined`, so with no JS it simply isn't
-               there — colour scheme then follows the OS via prefers-color-scheme. -->
+               there. Colour scheme then follows the OS via prefers-color-scheme,
+               which the generated stylesheet emits because this site's config
+               sets `respectSystemPreference` — it is opt-in, and without it both
+               the no-JS case and the toggle's own "System" resolve to light. -->
           <color-scheme-toggle></color-scheme-toggle>
         </nav>
 

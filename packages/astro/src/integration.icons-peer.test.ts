@@ -67,7 +67,7 @@ describe('the include map handed to the icon integration', () => {
     // The single most misreadable part of the feature: astro-icon is zero-config
     // on static, so an `include` there can only drop glyphs the scan missed.
     const { default: getvitops } = await import('./integration.ts');
-    const h = harness(getvitops, { icons: { engine: 'astro-icon', scan: false } });
+    const h = harness(getvitops, { icons: { scan: false } });
     await h.run();
     expect(forwarded(h.updates)).toEqual({});
   });
@@ -76,7 +76,7 @@ describe('the include map handed to the icon integration', () => {
     const { default: getvitops } = await import('./integration.ts');
     const h = harness(
       getvitops,
-      { icons: { ui: 'ph', engine: 'astro-icon', scan: false, include: { semantic: ['menu'] } } },
+      { icons: { ui: 'ph', scan: false, include: { semantic: ['menu'] } } },
       { output: 'server' },
     );
     await h.run();
@@ -92,7 +92,6 @@ describe('the include map handed to the icon integration', () => {
         icons: {
           ui: 'ph',
           weight: 'bold',
-          engine: 'astro-icon',
           scan: false,
           include: { semantic: ['menu'] },
         },
@@ -107,14 +106,17 @@ describe('the include map handed to the icon integration', () => {
     // Declared names are a config error and stay loud, unlike scanned ones.
     const { default: getvitops } = await import('./integration.ts');
     const h = harness(getvitops, {
-      icons: { ui: 'ph', engine: 'astro-icon', scan: false, include: { semantic: ['nonsense'] } },
+      icons: { ui: 'ph', scan: false, include: { semantic: ['nonsense'] } },
     });
     await expect(h.run()).rejects.toThrow(/not found/);
   });
 });
 
-describe("engine: 'auto' with neither icon package installed", () => {
-  it('falls back to the sprite and says why', async () => {
+describe('with neither icon package installed', () => {
+  it('registers nothing, and rendering is unaffected', async () => {
+    // The whole point of inlining: no icon integration is required for <Icon />
+    // to draw. A missing package means there is simply nothing to register —
+    // not a warning, and certainly not an error.
     vi.doMock('astro-icon', () => {
       throw new Error("Cannot find package 'astro-icon'");
     });
@@ -124,8 +126,6 @@ describe("engine: 'auto' with neither icon package installed", () => {
     const { default: getvitops } = await import('./integration.ts');
     const h = harness(getvitops, { icons: { scan: false } });
     await h.run();
-    // Nothing registered — there is nothing to register — but rendering still works.
     expect(h.updates.flatMap((u) => (u.integrations as unknown[]) ?? [])).toEqual([]);
-    expect(h.logs.some((m) => m.includes('falling back to the sprite'))).toBe(true);
   });
 });

@@ -6,22 +6,29 @@
  * configured set, OR a fully-qualified `prefix:name` which passes straight
  * through — that is the escape hatch for a glyph the map doesn't cover.
  *
- * Three things worth knowing:
+ * **Why this doesn't use astro-icon.** It can't. astro-icon's `./components`
+ * entry is a TypeScript file that Vite has to transform, so it is only reachable
+ * through a statically-analysable import — and a *static* import is precisely
+ * what made the optional peer mandatory for anyone rendering Popover, Details or
+ * Drawer, which is the bug this component exists to fix. A dynamic
+ * `import(/* @vite-ignore *\/ …)` compiles nothing and hands Node raw TS, which
+ * fails silently and renders an empty box. So the glyph is read straight out of
+ * the `@iconify-json/*` collection instead — the same loader the sprite emitter
+ * uses, so both delivery paths draw the identical icon and neither needs a peer.
  *
- * - **The engine is imported dynamically.** A static `import { Icon } from
- *   'astro-icon/components'` is what made Popover/Details/Drawer hard-fail for
- *   consumers who hadn't installed the optional peer — the module was resolved
- *   whether or not the icon was ever rendered.
+ * Two other things worth knowing:
+ *
  * - **An unresolvable name warns, it doesn't throw.** A missing glyph must never
- *   500 an SSR page; the box renders empty and the build log says which name and
- *   where. `vitops icons` is the place that fails hard.
+ *   500 an SSR page; the box renders empty and the build log says which name.
+ *   `vitops icons` is the place that fails hard.
  * - **`.icon` already does the layout.** It's an inline-flex box sized in `em`
  *   (`--icon-size`) that stretches its `<svg>` child and sets `fill:
  *   currentColor`. So a start/end adornment on `.cta`/`.btn` — both already
  *   `inline-flex` with a `gap` — is a matter of child order, not a new class.
- *   Don't confuse this with `.icon-mask`, which is the CSS-only adornment path
- *   (see `.link--icon::before` in anchor-link.css).
+ *   Don't confuse this with `.icon-mask`, the CSS-only adornment path (see
+ *   `.link--icon::before` in anchor-link.css).
  */
+import { loadIconSvg, spriteId } from '@getvitops/generator';
 import { resolveIcon } from '@getvitops/utils';
 import icons from 'virtual:getvitops/icons';
 
@@ -45,35 +52,25 @@ const { name, brand = false, size, label, class: className } = Astro.props;
 const set = brand ? icons.brand : icons.ui;
 const aliased = icons.overrides[name] ?? name;
 
-let resolved: string | null = null;
+let qualified: string | null = null;
 try {
-  resolved = resolveIcon(aliased, set, { weight: icons.weight ?? undefined });
+  qualified = resolveIcon(aliased, set, { weight: icons.weight ?? undefined });
 } catch {
-  // Bare names that aren't in the map are legitimate for astro-icon (it reads
-  // src/icons/*.svg by bare name), so only a *qualified*-looking miss is worth
-  // shouting about. Either way we hand the raw name to the engine and let it try.
-  resolved = aliased.includes(':') ? aliased : null;
+  // A bare name that isn't in the map is legitimate — a sprite id, or a local
+  // SVG — so fall through with what we were given rather than giving up.
+  qualified = aliased.includes(':') ? aliased : null;
 }
 
-/** `ph:caret-down` → `ph--caret-down`. Must match the generator's spriteId(). */
-const spriteId = (q: string) => q.replace(':', '--');
-
-const engine = icons.engine;
-const forEngine = resolved ?? aliased;
-
-// Dynamic so an uninstalled optional peer costs nothing.
-let Rendered: unknown = null;
-if (engine === 'astro-icon' || engine === 'astro-iconset') {
-  try {
-    const mod = await import(/* @vite-ignore */ `${engine}/components`);
-    Rendered = mod.Icon;
-  } catch {
+let svg: { viewBox: string; body: string } | null = null;
+if (icons.engine === 'inline' && qualified) {
+  // resolveFrom is the project root, not process.cwd() — see IconsData.root.
+  svg = await loadIconSvg(qualified, { resolveFrom: icons.root });
+  if (!svg)
     console.warn(
-      `[getvitops] <Icon name="${name}">: ${engine} is configured but its components entry ` +
-        `could not be loaded. Rendering an empty icon box.`,
+      `[getvitops] <Icon name="${name}"> — "${qualified}" not found. Is ` +
+        `@iconify-json/${qualified.slice(0, qualified.indexOf(':'))} installed?`,
     );
-  }
-} else if (engine === 'none') {
+} else if (icons.engine === 'none') {
   console.warn(
     `[getvitops] <Icon name="${name}"> rendered but icons are not configured. ` +
       'Add `icons: true` to getvitops() in astro.config.',
@@ -82,15 +79,16 @@ if (engine === 'astro-icon' || engine === 'astro-iconset') {
 
 const a11y = label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': 'true' };
 const style = size ? `--icon-size:${size}` : undefined;
-const Tag = Rendered as never;
 ---
 
 <span class:list={['icon', className]} style={style} {...a11y}>
   {
-    Rendered ? (
-      <Tag name={forEngine} />
-    ) : engine === 'sprite' && icons.sprite ? (
-      <svg><use href={`${icons.sprite}#${spriteId(forEngine)}`} /></svg>
+    svg ? (
+      <svg viewBox={svg.viewBox} set:html={svg.body} />
+    ) : icons.engine === 'sprite' && icons.sprite && qualified ? (
+      <svg>
+        <use href={`${icons.sprite}#${spriteId(qualified)}`} />
+      </svg>
     ) : null
   }
 </span>

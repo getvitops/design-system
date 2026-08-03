@@ -520,7 +520,10 @@ export class WCThemeEditor extends HTMLElement {
       { class: 'details details--marker-start ed-section', ...(open ? { open: true } : {}) },
       [
         this.el('summary', { class: 'font-eyebrow' }, [
-          this.el('span', { class: 'details-icon', 'aria-hidden': 'true' }, ['▸']),
+          this.el('span', {
+            class: 'icon-mask details-icon ed-icon ed-icon--caret',
+            'aria-hidden': 'true',
+          }),
           title,
         ]),
         body,
@@ -799,7 +802,12 @@ export class WCThemeEditor extends HTMLElement {
           const close = this.el(
             'button',
             { type: 'button', class: 'btn', popovertarget: id, popovertargetaction: 'hide' },
-            ['×'],
+            [
+              this.el('span', {
+                class: 'icon-mask ed-icon ed-icon--close',
+                'aria-hidden': 'true',
+              }),
+            ],
           );
           close.setAttribute('aria-label', 'Close editor');
           return close;
@@ -813,10 +821,17 @@ export class WCThemeEditor extends HTMLElement {
       ...this.buildPatterns(m),
     );
 
+    // The icon is a masked SVG, not the palette emoji it replaced: an emoji is
+    // text, so it renders as a different picture on every platform (and as a
+    // monochrome outline on some). `.cta` is already inline-flex with a gap, so
+    // the icon is simply the first child.
     const launcher = this.el(
       'button',
       { type: 'button', class: 'cta ed-launch', popovertarget: id },
-      ['🎨 Theme'],
+      [
+        this.el('span', { class: 'icon-mask ed-icon ed-icon--theme', 'aria-hidden': 'true' }),
+        'Theme',
+      ],
     );
 
     // Esc, which `popover="manual"` doesn't give us. Bound on the document so it

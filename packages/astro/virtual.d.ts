@@ -36,7 +36,9 @@ declare module 'virtual:getvitops/icons' {
   // so only data crosses. <Icon /> imports the pure `resolveIcon` from
   // @getvitops/utils and feeds it these values.
   interface IconsData {
-    engine: 'astro-icon' | 'astro-iconset' | 'sprite' | 'none';
+    engine: 'inline' | 'sprite' | 'none';
+    /** Absolute project root — where `@iconify-json/*` is resolved from. */
+    root: string;
     ui: string;
     brand: string;
     weight: string | null;

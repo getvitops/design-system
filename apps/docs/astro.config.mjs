@@ -25,6 +25,11 @@ export default defineConfig({
         input: '../../src/design-system.json',
         format: 'css',
         out: 'src/styles',
+        // Dogfooding the thing that makes the toggle's "System" position real:
+        // it removes the theme attribute, so without this block System — and the
+        // no-JS case, where the toggle isn't rendered at all — resolved to light
+        // on every machine. Opt-in because it visibly changes an existing site.
+        systemColorScheme: true,
       },
       // The framework's Lit components are copied into public/ and loaded by
       // <Head />: the colour-scheme toggle in the header is a real one.
@@ -36,6 +41,14 @@ export default defineConfig({
       // Static output + `site` set + no EmDash — the exact shape the option
       // targets. <Head /> emits the <link rel="sitemap"> for it.
       sitemap: true,
+      // Icons, resolved by meaning. `<Icon name="menu" />` becomes `ph:list`
+      // here; pointing `ui` at another set would change every call site at once.
+      //
+      // Worth noting what this does NOT do: the site is `output: 'static'`, so
+      // no `include` map is passed to astro-icon at all. It only matters under
+      // `output: 'server'`, where the whole set would otherwise land in the
+      // bundle. The scan still runs, and `vitops icons` reports it.
+      icons: { ui: 'ph', brand: 'simple-icons' },
       // Site-level defaults for <Seo /> in Docs.astro; pages override per-page.
       seo: {
         siteName: 'Vitops',

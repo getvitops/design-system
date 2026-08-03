@@ -237,29 +237,19 @@ describe('getvitops({ icons })', () => {
     expect(warned(h.logs, 'sprite')).toBe(true);
   });
 
-  it('registers the named engine when it is installed', async () => {
-    // astro-icon is a devDependency of this package (the components import it),
-    // so this exercises the real resolution path rather than a mock.
-    const h = harness({ icons: { engine: 'astro-icon', scan: false } });
+  it('defaults to inlining the glyph, which needs no icon integration', async () => {
+    const h = harness({ icons: { scan: false } });
+    await h.run();
+    expect(iconsData(h.updates).engine).toBe('inline');
+  });
+
+  it('still registers an installed icon integration for the consumer’s own use', async () => {
+    // Separate concern from how <Icon /> renders: registering astro-icon is what
+    // makes the consumer's own <Icon> work and hands it the derived include.
+    // astro-icon is a devDependency here, so this is the real path.
+    const h = harness({ icons: { scan: false } });
     await h.run();
     expect(added(h.updates).map((i) => i.name)).toContain('astro-icon');
-    expect(iconsData(h.updates).engine).toBe('astro-icon');
-  });
-
-  it('throws when an explicitly named engine is not installed', async () => {
-    // 'auto' may fall through quietly; naming one is a promise it exists, and
-    // silently rendering something else would hide the mistake. astro-iconset is
-    // deliberately absent here, so this is the real failure, not a simulated one.
-    const h = harness({ icons: { engine: 'astro-iconset', scan: false } });
-    await expect(h.run()).rejects.toThrow(/not installed/);
-  });
-
-  it("falls through to the sprite under 'auto' and says so", async () => {
-    // Probes astro-icon first; it IS installed here, so assert the order holds
-    // rather than the fallback — the fallback is covered by the peer test.
-    const h = harness({ icons: true });
-    await h.run();
-    expect(iconsData(h.updates).engine).toBe('astro-icon');
   });
 
   it('keeps IconsData JSON-serialisable', async () => {
@@ -270,7 +260,7 @@ describe('getvitops({ icons })', () => {
     const data = iconsData(h.updates);
     expect(Object.values(data).every((v) => typeof v !== 'function')).toBe(true);
     expect(new Set(Object.keys(data))).toEqual(
-      new Set(['engine', 'ui', 'brand', 'weight', 'overrides', 'sprite']),
+      new Set(['engine', 'root', 'ui', 'brand', 'weight', 'overrides', 'sprite']),
     );
   });
 });

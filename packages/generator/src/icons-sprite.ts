@@ -135,3 +135,33 @@ export async function buildIconSprite(o: IconSpriteOptions): Promise<IconSpriteR
 
   return { svg, ids, missing };
 }
+
+/**
+ * One icon's renderable parts, for inlining into markup.
+ *
+ * Exists because `<Icon />` cannot go through astro-icon: its `./components`
+ * entry is a TypeScript file that Vite must transform, so it can only be
+ * reached by a statically-analysable import — and a static import is exactly
+ * what made the optional peer mandatory for anyone rendering Popover, Details
+ * or Drawer. Reading the collection directly sidesteps the peer entirely and
+ * shares this file's loader with the sprite, so both paths draw the same glyph.
+ */
+export async function loadIconSvg(
+  qualified: string,
+  opts?: { resolveFrom?: string; loadSet?: (prefix: string) => Promise<IconifyJSON | null> },
+): Promise<{ viewBox: string; body: string } | null> {
+  const i = qualified.indexOf(':');
+  if (i <= 0) return null;
+  const prefix = qualified.slice(0, i);
+  const name = qualified.slice(i + 1);
+  const from = opts?.resolveFrom ?? process.cwd();
+  const load = opts?.loadSet ?? ((p: string) => loadCollection(p, from));
+  const set = await load(prefix);
+  if (!set) return null;
+  const data = getIconData(set, name);
+  if (!data) return null;
+  const built = iconToSVG(data, { height: 'none' });
+  // Same id-collision guard as the sprite: several inlined icons share one
+  // document, so an un-rewritten gradient id would cross-render.
+  return { viewBox: built.attributes.viewBox, body: replaceIDs(built.body) };
+}

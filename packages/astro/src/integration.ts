@@ -230,11 +230,17 @@ export interface GetvitopsIconsOptions {
    */
   include?: Parameters<typeof generateIconInclude>[0];
   /**
-   * Which renderer `<Icon />` uses. `'auto'` (default) probes astro-icon, then
-   * astro-iconset, then the sprite. Naming an engine explicitly makes a missing
-   * package an error rather than a silent fallback.
+   * How `<Icon />` draws the glyph.
+   *
+   * `'inline'` (default) reads it from the `@iconify-json/*` collection and
+   * inlines the `<svg>` — no runtime request, no icon-integration peer.
+   * `'sprite'` emits `<use href="…/icons.svg#id">` instead, for pages served
+   * where the sprite is already on the origin.
+   *
+   * Note this is separate from `register`: whether astro-icon is registered for
+   * YOUR OWN `<Icon>` usage is a different question from how ours renders.
    */
-  engine?: 'auto' | 'astro-icon' | 'astro-iconset' | 'sprite';
+  engine?: 'inline' | 'sprite';
   /**
    * Register the icon integration for you (default true). Set false when you
    * already list `icon()` in `integrations` yourself — the scan, the sprite and
@@ -292,7 +298,16 @@ function virtualHeadPlugin(data: HeadData) {
  * the component imports statically; what varies per site is the *data* it takes.
  */
 interface IconsData {
-  engine: 'astro-icon' | 'astro-iconset' | 'sprite' | 'none';
+  engine: 'inline' | 'sprite' | 'none';
+  /**
+   * Absolute project root, for resolving `@iconify-json/*`.
+   *
+   * Explicit rather than `process.cwd()`: the collections are a dependency of
+   * the SITE, and the cwd is wherever the process happened to start — a task
+   * runner invoking astro from a monorepo root resolves nothing and every icon
+   * renders as an empty box, with no error to explain it.
+   */
+  root: string;
   ui: string;
   brand: string;
   weight: string | null;
@@ -324,41 +339,17 @@ const ICON_DEFAULTS = {
 } as const;
 
 /**
- * Pick the renderer.
- *
- * `'auto'` probes in order and falls through quietly — both icon integrations
- * are optional peers, and a site that installed neither can still render from a
- * sprite. Naming one explicitly is a promise that it's installed, so a miss is
- * an error: silently rendering something else would hide the mistake until a
- * page came out wrong.
+ * Probe an optional icon integration so it can be registered for the consumer's
+ * OWN `<Icon>` usage. Nothing here decides how our `<Icon />` renders — that is
+ * `engine`, and it never needs a peer.
  */
-async function resolveIconEngine(
-  requested: 'auto' | 'astro-icon' | 'astro-iconset' | 'sprite',
-  logger: { warn(msg: string): void },
-): Promise<IconsData['engine']> {
-  if (requested === 'sprite') return 'sprite';
-  const probe = async (name: 'astro-icon' | 'astro-iconset') => {
-    try {
-      await import(/* @vite-ignore */ name);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-  if (requested !== 'auto') {
-    if (await probe(requested)) return requested;
-    throw new Error(
-      `[getvitops] icons.engine: '${requested}' is not installed. Add it to your ` +
-        `devDependencies, or use icons.engine: 'auto' (or 'sprite').`,
-    );
+async function probeIconPackage(name: 'astro-icon' | 'astro-iconset'): Promise<boolean> {
+  try {
+    await import(/* @vite-ignore */ name);
+    return true;
+  } catch {
+    return false;
   }
-  if (await probe('astro-icon')) return 'astro-icon';
-  if (await probe('astro-iconset')) return 'astro-iconset';
-  logger.warn(
-    'icons: neither astro-icon nor astro-iconset is installed — falling back to the sprite. ' +
-      'Install one, or set icons.engine explicitly to silence this.',
-  );
-  return 'sprite';
 }
 
 export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration {
@@ -584,7 +575,7 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
                 `sprite id, a typo otherwise.`,
             );
 
-          const engine = await resolveIconEngine(o.engine ?? 'auto', logger);
+          const engine: IconsData['engine'] = o.engine ?? 'inline';
           if (o.sprite && !opts.css)
             logger.warn(
               'icons: the sprite is written by the same pass that generates the CSS, so ' +
@@ -601,21 +592,33 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
             logger.info(
               `icons: ${already} is already in your integrations — leaving yours in charge.`,
             );
-          } else if (engine === 'astro-icon' || engine === 'astro-iconset') {
-            type IconFactory = (o?: Record<string, unknown>) => AstroIntegration;
-            const { default: icon } = (await import(/* @vite-ignore */ engine)) as unknown as {
-              default: IconFactory;
-            };
-            updateConfig({ integrations: [icon(wantsInclude ? { include } : {})] });
-            logger.info(
-              wantsInclude
-                ? `icons: ${engine} registered — bundling ${Object.values(include).flat().length} icon(s)`
-                : `icons: ${engine} registered (output: 'static' — no include needed)`,
-            );
+          } else {
+            // Registered for the consumer's OWN `<Icon>` (astro-icon's), and to
+            // hand it the derived include. Independent of how ours renders —
+            // `<Icon />` inlines from the collection and needs no integration —
+            // so a missing package is silence, not an error.
+            const pkg = (await probeIconPackage('astro-icon'))
+              ? 'astro-icon'
+              : (await probeIconPackage('astro-iconset'))
+                ? 'astro-iconset'
+                : null;
+            if (pkg) {
+              type IconFactory = (o?: Record<string, unknown>) => AstroIntegration;
+              const { default: icon } = (await import(/* @vite-ignore */ pkg)) as unknown as {
+                default: IconFactory;
+              };
+              updateConfig({ integrations: [icon(wantsInclude ? { include } : {})] });
+              logger.info(
+                wantsInclude
+                  ? `icons: ${pkg} registered — bundling ${Object.values(include).flat().length} icon(s)`
+                  : `icons: ${pkg} registered (output: 'static' — no include needed)`,
+              );
+            }
           }
 
           iconsData = {
             engine,
+            root,
             ui,
             brand,
             weight: o.weight ?? null,
@@ -631,6 +634,7 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
               virtualIconsPlugin(
                 iconsData ?? {
                   engine: 'none',
+                  root,
                   ui: ICON_DEFAULTS.ui,
                   brand: ICON_DEFAULTS.brand,
                   weight: null,

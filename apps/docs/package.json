@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@astrojs/sitemap": "catalog:",
-    "@getvitops/generator": "workspace:*"
+    "@getvitops/generator": "workspace:*",
+    "@iconify-json/ph": "^1.2.2"
   }
 }

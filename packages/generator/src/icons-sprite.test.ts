@@ -1,4 +1,7 @@
 import type { IconifyJSON } from '@iconify/types';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildIconSprite, spriteId } from './icons-sprite.ts';
 
@@ -118,13 +121,44 @@ describe('buildIconSprite', () => {
 });
 
 describe('collection resolution', () => {
-  it('resolves @iconify-json/* from the consumer, not from this package', async () => {
-    // The collections are the CONSUMER's dependency. A bare specifier imported
-    // from inside the generator resolves against the generator's own
-    // node_modules — where they are deliberately absent — and every project
-    // that HAS them would be told they are "not installed".
+  /**
+   * The fix this locks: collections are the CONSUMER's dependency, so a bare
+   * `import('@iconify-json/ph/…')` from inside the generator resolves against the
+   * generator's own node_modules and reports "not installed" on a project that
+   * has them. Proven by rooting resolution at a directory that owns a collection
+   * the repo does not — if `resolveFrom` were ignored, this could not load.
+   */
+  it('resolves @iconify-json/* from the directory it is given', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'vitops-icons-'));
+    const pkgDir = join(root, 'node_modules', '@iconify-json', 'fixtureset');
+    await mkdir(pkgDir, { recursive: true });
+    await writeFile(
+      join(pkgDir, 'package.json'),
+      JSON.stringify({
+        name: '@iconify-json/fixtureset',
+        version: '1.0.0',
+        exports: { './icons.json': './icons.json' },
+      }),
+    );
+    await writeFile(
+      join(pkgDir, 'icons.json'),
+      JSON.stringify({
+        prefix: 'fixtureset',
+        icons: { only: { body: '<path d="M0 0h1v1H0z"/>' } },
+        width: 16,
+        height: 16,
+      }),
+    );
+
+    const r = await buildIconSprite({ include: { fixtureset: ['only'] }, resolveFrom: root });
+    expect(r.ids).toEqual(['fixtureset--only']);
+    expect(r.svg).toContain('M0 0h1v1H0z');
+
+    // …and the same set is invisible from anywhere else.
     await expect(
-      buildIconSprite({ include: { ph: ['list'] }, resolveFrom: '/nonexistent' }),
+      buildIconSprite({ include: { fixtureset: ['only'] }, resolveFrom: tmpdir() }),
     ).rejects.toThrow(/not installed/);
+
+    await rm(root, { recursive: true, force: true });
   });
 });

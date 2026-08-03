@@ -38,10 +38,17 @@ describe('virtual:getvitops/icons declaration', () => {
  * who hadn't installed it. Every engine load must stay dynamic.
  */
 describe('optional-peer safety', () => {
-  it('never imports an icon engine statically', () => {
-    const staticImport = /^\s*import\s[^\n]*from\s+'(astro-icon|astro-iconset)/m;
-    expect(staticImport.test(icon)).toBe(false);
-    expect(icon).toMatch(/await import\(/);
+  it('does not reference an icon integration at all', () => {
+    // Stronger than "no static import": <Icon /> reads the collection directly,
+    // so neither astro-icon nor astro-iconset is in its module graph. It can't
+    // be, either — astro-icon's ./components entry is a .ts file Vite must
+    // transform, so a *dynamic* import compiles nothing and hands Node raw TS,
+    // which fails silently and renders an empty box. That was a real bug.
+    // Checked against code only — the docblock above deliberately spells out the
+    // failed dynamic-import approach, and matching that would be a false alarm.
+    const code = icon.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(code).not.toMatch(/from\s+'astro-icons?(et)?/);
+    expect(code).not.toMatch(/import\(\s*'astro-icons?(et)?/);
   });
 
   it('holds for the three components that previously did', () => {
@@ -74,9 +81,11 @@ describe('rendering contract', () => {
     expect(icon).not.toMatch(/throw new Error/);
   });
 
-  it('uses the same sprite id grammar as the generator', () => {
-    // `ph:caret-down` → `ph--caret-down`. If these drift the <use> silently
-    // resolves to nothing, which renders as an empty box.
-    expect(icon).toContain("replace(':', '--')");
+  it('imports the sprite id grammar rather than restating it', () => {
+    // `ph:caret-down` → `ph--caret-down`. Sharing the generator's spriteId()
+    // removes the drift entirely; a local copy would resolve <use> to nothing
+    // the moment the grammar moved, and render as an empty box, not an error.
+    expect(icon).toMatch(/import \{[^}]*spriteId[^}]*\} from '@getvitops\/generator'/);
+    expect(icon).toContain('spriteId(qualified)');
   });
 });

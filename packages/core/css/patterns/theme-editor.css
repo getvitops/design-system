@@ -120,3 +120,40 @@ wc-theme-editor {
     color: var(--color-text-danger);
   }
 }
+
+/**
+ * Editor chrome icons.
+ *
+ * The editor ships as a standalone JS bundle: no astro-icon, no build-time
+ * sprite, no `<Icon />`. That is exactly the case `.icon-mask` exists for — a
+ * `currentColor`-filled box driven by a `mask-image`, with the glyph as a data
+ * URI. It is the same mechanism `.link--icon::before` uses, and the reason it is
+ * worth using here rather than typing a character: `×` and `🎨` are TEXT, so
+ * they resolve through font fallback and render differently on every platform
+ * (the CTA arrow shipped wrong in Chrome for exactly this reason). A mask has no
+ * font to fall back to.
+ *
+ * Scoped under `wc-theme-editor` like everything else here, so a consumer who
+ * never loads the editor bundle pays nothing.
+ */
+wc-theme-editor {
+  .ed-icon {
+    /* Slightly under the 1.25em default: this chrome runs at --text-xs. */
+    --icon-size: 1.1em;
+  }
+
+  /* Palette — the launcher. */
+  .ed-icon--theme {
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%23000' d='M200.8 53.9A103.4 103.4 0 0 0 128 24h-1.1A104 104 0 0 0 24 128c0 57.3 46.7 104 104 104a24 24 0 0 0 24-24a23.6 23.6 0 0 0-6.2-16.1a8 8 0 0 1 6-13.3H176a56 56 0 0 0 56-56a102.9 102.9 0 0 0-31.2-68.7M176 152h-24.2a24 24 0 0 0-17.9 40a8 8 0 0 1-5.9 13.3A88 88 0 0 1 40 128a88 88 0 0 1 87.1-88h.9a88 88 0 0 1 88 88a40 40 0 0 1-40 24m-96-16a12 12 0 1 1-12-12a12 12 0 0 1 12 12m0-48a12 12 0 1 1-12-12a12 12 0 0 1 12 12m48-16a12 12 0 1 1-12-12a12 12 0 0 1 12 12m48 16a12 12 0 1 1-12-12a12 12 0 0 1 12 12'/%3E%3C/svg%3E");
+  }
+
+  /* Close — a real X, not the multiplication sign a keyboard offers. */
+  .ed-icon--close {
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%23000' d='M205.7 194.3a8 8 0 0 1-11.4 11.4L128 139.3l-66.3 66.4a8 8 0 0 1-11.4-11.4l66.4-66.3l-66.4-66.3a8 8 0 0 1 11.4-11.4l66.3 66.4l66.3-66.4a8 8 0 0 1 11.4 11.4L139.3 128Z'/%3E%3C/svg%3E");
+  }
+
+  /* Disclosure caret. `.details-icon` supplies the rotation on [open]. */
+  .ed-icon--caret {
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%23000' d='M181.7 133.7l-80 80a8 8 0 0 1-11.4-11.4L164.7 128L90.3 53.7a8 8 0 0 1 11.4-11.4l80 80a8 8 0 0 1 0 11.4'/%3E%3C/svg%3E");
+  }
+}

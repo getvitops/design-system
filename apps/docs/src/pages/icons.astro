@@ -1,0 +1,202 @@
+---
+/**
+ * Icons — a live demonstration of the semantic icon vocabulary.
+ *
+ * This page is a dogfood, not an illustration: every glyph below is rendered by
+ * the real `<Icon />` through the real integration, with `icons: { ui: 'ph' }` in
+ * astro.config. If the resolution chain breaks, this page breaks.
+ *
+ * The names come from the same `iconMap` the toolchain ships, read at build time
+ * rather than typed out — a hand-listed grid would drift the moment the map
+ * gains a name, and a page that lies about the vocabulary is worse than none.
+ */
+import Icon from '@getvitops/astro/components/Icon.astro';
+import { iconMap } from '@getvitops/astro';
+import Docs from '../layouts/Docs.astro';
+
+/** Every semantic name, grouped the way the map itself is commented. */
+const NAMES = Object.keys(iconMap.fa7);
+
+/** Phosphor's weights — a suffix on the name, not a separate collection. */
+const WEIGHTS = ['regular', 'bold', 'fill', 'duotone', 'thin'] as const;
+
+const headings = [
+  { depth: 2, slug: 'vocabulary', text: 'The vocabulary' },
+  { depth: 2, slug: 'sizing', text: 'Sizing & colour' },
+  { depth: 2, slug: 'adornments', text: 'Icons in buttons and links' },
+  { depth: 2, slug: 'weights', text: 'Weights' },
+  { depth: 2, slug: 'escape-hatch', text: 'The escape hatch' },
+];
+---
+
+<Docs
+  title="Icons"
+  description="Semantic icon names that resolve per configured set, sized in em and coloured by currentColor."
+  headings={headings}
+>
+  <p class="font-body">
+    Icons are named by <strong>meaning</strong>, not by set. This site configures
+    <code>ui: 'ph'</code>, so <code>menu</code> renders Phosphor's <code>list</code>. Point that at
+    <code>lucide</code> or <code>fa7-solid</code> and every glyph on this page changes at once —
+    no call site is touched.
+  </p>
+  <p class="font-body text-surface-muted">
+    Note what this page <em>doesn't</em> ship: an <code>include</code> map. The site is
+    <code>output: 'static'</code>, where astro-icon already bundles only what's used. That list
+    exists for <code>output: 'server'</code>, and the integration derives it there by scanning
+    source rather than asking you to maintain it.
+  </p>
+
+  <!-- ── The vocabulary ──────────────────────────────────────────────────── -->
+  <h2 id="vocabulary" class="font-title">The vocabulary</h2>
+  <p class="font-body text-surface-muted">
+    All {NAMES.length} semantic names, read from the shipped map at build time. Every set the
+    toolchain knows answers to this same list, which is what makes swapping one safe.
+  </p>
+
+  <ul class="ic-grid">
+    {
+      NAMES.map((name) => (
+        <li class="ic-cell">
+          <Icon name={name} size="1.5rem" />
+          <code class="font-caption">{name}</code>
+        </li>
+      ))
+    }
+  </ul>
+
+  <!-- ── Sizing & colour ─────────────────────────────────────────────────── -->
+  <h2 id="sizing" class="font-title">Sizing &amp; colour</h2>
+  <p class="font-body text-surface-muted">
+    <code>.icon</code> is a box sized in <code>em</code> via <code>--icon-size</code> (default
+    <code>1.25em</code>), and its <code>svg</code> inherits <code>currentColor</code>. So an icon
+    takes the size and colour of whatever it sits in — there is no
+    <code>icon-large</code> or <code>icon-danger</code> variant to learn.
+  </p>
+
+  <p class="cluster cluster-start ic-row">
+    <Icon name="star" size="1rem" />
+    <Icon name="star" size="1.5rem" />
+    <Icon name="star" size="2rem" />
+    <Icon name="star" size="3rem" />
+  </p>
+
+  <p class="cluster cluster-start ic-row">
+    <span class="text-brand-primary"><Icon name="favorite" size="2rem" /></span>
+    <span class="text-success"><Icon name="check" size="2rem" /></span>
+    <span class="text-warning"><Icon name="warning" size="2rem" /></span>
+    <span class="text-danger"><Icon name="error" size="2rem" /></span>
+    <span class="text-surface-muted"><Icon name="info" size="2rem" /></span>
+  </p>
+
+  <p class="font-body">
+    Inline in a sentence <Icon name="lightbulb" /> the icon tracks the text size, because the box is
+    measured in <code>em</code> against its own font-size.
+  </p>
+
+  <!-- ── Adornments ──────────────────────────────────────────────────────── -->
+  <h2 id="adornments" class="font-title">Icons in buttons and links</h2>
+  <p class="font-body text-surface-muted">
+    <code>.cta</code> and <code>:where(button, .btn)</code> are already
+    <code>inline-flex</code> with a <code>gap</code>, so an icon before or after the label is
+    <strong>child order</strong> — there is no <code>cta--with-icon</code> modifier, and there
+    shouldn't be one. The glyph picks up each tier's own text colour for free.
+  </p>
+
+  <p class="cluster cluster-start ic-row">
+    <a class="cta" href="#adornments"><Icon name="add" />New project</a>
+    <a class="cta" href="#adornments">Continue<Icon name="arrow-forward" /></a>
+    <button class="btn"><Icon name="download" />Download</button>
+    <button class="danger"><Icon name="delete" />Delete</button>
+  </p>
+
+  <p class="font-body text-surface-muted">
+    An icon-only control still needs a name. Pass <code>label</code> and it becomes
+    <code>role="img"</code> with an <code>aria-label</code>; leave it off and the icon is
+    <code>aria-hidden</code>, which is right whenever a text label sits beside it.
+  </p>
+
+  <p class="cluster cluster-start ic-row">
+    <button class="icon-button" aria-label="Search"><Icon name="search" /></button>
+    <button class="icon-button" aria-label="Settings"><Icon name="settings" /></button>
+    <button class="icon-button" aria-label="Close"><Icon name="close" /></button>
+  </p>
+
+  <!-- ── Weights ─────────────────────────────────────────────────────────── -->
+  <h2 id="weights" class="font-title">Weights</h2>
+  <p class="font-body text-surface-muted">
+    Phosphor keeps every weight in <em>one</em> collection and varies the icon name
+    (<code>list</code>, <code>list-bold</code>, <code>list-fill</code>). Font Awesome splits the same
+    idea across collections instead (<code>fa7-solid</code> vs <code>fa7-regular</code>), so there
+    the weight is part of the prefix. Set <code>icons.weight</code> once and the site-wide default
+    follows; these are spelled out per-icon to show the difference.
+  </p>
+
+  <p class="cluster cluster-start ic-row">
+    {
+      WEIGHTS.map((w) => (
+        <span class="ic-cell">
+          <Icon name={w === 'regular' ? 'ph:heart' : `ph:heart-${w}`} size="2rem" />
+          <code class="font-caption">{w}</code>
+        </span>
+      ))
+    }
+  </p>
+
+  <!-- ── Escape hatch ────────────────────────────────────────────────────── -->
+  <h2 id="escape-hatch" class="font-title">The escape hatch</h2>
+  <p class="font-body text-surface-muted">
+    A name containing <code>:</code> passes through untouched. Brand marks are the usual case —
+    they're in <code>simple-icons</code>, not the semantic map, and there is no meaningful
+    "semantic name" for a logo.
+  </p>
+
+  <p class="cluster cluster-start ic-row">
+    <Icon name="ph:sparkle" size="2rem" />
+    <Icon name="ph:cube" size="2rem" />
+    <Icon name="ph:terminal-window" size="2rem" />
+  </p>
+
+  <p class="font-body text-surface-muted">
+    Outside Astro — Bricks, WordPress, an EmDash renderer — the same names come from a generated
+    SVG sprite instead: <code>&lt;use href="…/icons.svg#ph--list"&gt;</code>, no JavaScript and no
+    icon-API request. Every semantic name also gets a set-independent <code>icon-&lt;name&gt;</code>
+    alias there, so that markup survives a set swap too. See
+    <a class="link" href="/reference/concepts-icons/">the icons reference</a>.
+  </p>
+</Docs>
+
+<style>
+  /* A plain auto-fill grid: the vocabulary is ~80 cells and the point is to scan
+     it, not to read it in order. */
+  .ic-grid {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+    gap: 0.75rem;
+    margin-block: 1.5rem;
+  }
+
+  .ic-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.75rem 0.5rem;
+    border: 1px solid var(--color-border-surface-muted);
+    border-radius: var(--br-panel);
+    text-align: center;
+  }
+
+  .ic-cell code {
+    color: var(--color-text-surface-muted);
+    word-break: break-all;
+  }
+
+  .ic-row {
+    gap: 0.75rem;
+    align-items: center;
+    margin-block: 1.25rem;
+  }
+</style>
