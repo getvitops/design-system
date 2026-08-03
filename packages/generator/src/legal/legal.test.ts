@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import { defaultConfig } from '../index.ts';
 import { DOC_SLUGS } from './templates/index.ts';
-import { validateSite, type SiteConfig } from '../site.ts';
+import { resolveSiteConfig, validateSite, type SiteConfig } from '../site.ts';
 import { derivePolicyVars } from './derive.ts';
 import { enabledDocs, generateLegal, renderMarkdown } from './index.ts';
 import { detectProcessorKeys } from './providers.ts';
@@ -25,7 +25,7 @@ function fixture(patch: Partial<SiteConfig> = {}): SiteConfig {
     defaultLocale: 'en',
     locales: { en: { name: 'English' } },
     environments: { production: { url: 'https://acme.example' } },
-    designSystem: { default: defaultConfig() },
+    designSystem: { themes: { default: defaultConfig() } },
     organization: {
       name: 'Acme',
       legalName: 'Acme Widgets Inc.',
@@ -350,5 +350,104 @@ describe('output formats', () => {
     expect(generateLegal(site, { output: 'portable-text' })).toEqual(
       generateLegal(site, { output: 'portable-text' }),
     );
+  });
+});
+
+/**
+ * `designSystem` is an object — `{ themes, defaultTheme, defaultColorScheme }` —
+ * rather than the bare theme map it used to be. It had to become one: every key
+ * of the old map was a theme name, so there was nowhere to put a system-wide
+ * field without it colliding with a theme of that name.
+ *
+ * Both older spellings still resolve, keyed off what cannot be a theme name in
+ * the other reading (`colors` → a bare DesignSystem; `themes` → already
+ * canonical; neither → the legacy map).
+ */
+describe('designSystem normalisation', () => {
+  const base = () => {
+    const { designSystem: _drop, ...rest } = fixture();
+    return rest as Record<string, unknown>;
+  };
+  const themesOf = (designSystem: unknown) =>
+    Object.keys(resolveSiteConfig({ ...base(), designSystem }).designSystem.themes);
+
+  test('accepts the canonical shape', () => {
+    expect(themesOf({ themes: { default: defaultConfig() } })).toEqual(['default']);
+  });
+
+  test('accepts a legacy bare theme map', () => {
+    expect(themesOf({ default: defaultConfig(), elegant: { extends: 'default' } })).toEqual([
+      'default',
+      'elegant',
+    ]);
+  });
+
+  test('accepts a bare DesignSystem written inline', () => {
+    expect(themesOf(defaultConfig())).toEqual(['default']);
+  });
+
+  test('rejects a themes map with no default and no defaultTheme', () => {
+    expect(() => themesOf({ themes: { elegant: defaultConfig() } })).toThrow(
+      /themes must include a "default"/,
+    );
+  });
+
+  test('rejects a defaultTheme that names no entry', () => {
+    expect(() => themesOf({ themes: { default: defaultConfig() }, defaultTheme: 'nope' })).toThrow(
+      /defaultTheme "nope" is not in designSystem\.themes/,
+    );
+  });
+
+  /**
+   * Normalisation runs BEFORE the A/B merge. With the merge first, an override's
+   * key path depended on which shorthand the base config happened to use — so the
+   * same patch landed in a different place in two otherwise-equivalent configs.
+   */
+  test('applies an A/B override against the canonical shape, whatever the base used', () => {
+    const withVariant = (designSystem: unknown) =>
+      resolveSiteConfig(
+        {
+          ...base(),
+          designSystem,
+          environments: { production: { url: 'https://acme.example', variant: 'b' } },
+          abTesting: {
+            enabled: true,
+            variants: {
+              b: {
+                environment: 'production',
+                overrides: { designSystem: { themes: { elegant: { extends: 'default' } } } },
+              },
+            },
+          },
+        },
+        'production',
+      ).designSystem.themes;
+
+    // Base written canonically, and base written as a legacy bare map, must land
+    // the same override in the same place.
+    for (const ds of [{ themes: { default: defaultConfig() } }, { default: defaultConfig() }])
+      expect(Object.keys(withVariant(ds)).sort()).toEqual(['default', 'elegant']);
+  });
+
+  test('normalises a shorthand inside the override too', () => {
+    const themes = resolveSiteConfig(
+      {
+        ...base(),
+        designSystem: { themes: { default: defaultConfig() } },
+        environments: { production: { url: 'https://acme.example', variant: 'b' } },
+        abTesting: {
+          enabled: true,
+          variants: {
+            b: {
+              environment: 'production',
+              // Legacy spelling in the patch — must not nest under `themes.themes`.
+              overrides: { designSystem: { elegant: { extends: 'default' } } },
+            },
+          },
+        },
+      },
+      'production',
+    ).designSystem.themes;
+    expect(Object.keys(themes).sort()).toEqual(['default', 'elegant']);
   });
 });

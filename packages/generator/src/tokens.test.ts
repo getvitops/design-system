@@ -1,5 +1,6 @@
 import { LIGHTNESS_LADDER, contrastLc, hexToOklch } from '@getvitops/utils/color';
 import { describe, expect, it } from 'vitest';
+import { build } from './generate.ts';
 import { defaultConfig } from './index.ts';
 import { roleHue, roleKind } from './shared.ts';
 import {
@@ -7,6 +8,7 @@ import {
   expandPalette,
   functionalRole,
   ladderWarnings,
+  monotonicityErrors,
   NUMERIC_STEPS,
   tokenClass,
   tokenVar,
@@ -233,5 +235,129 @@ describe('contrast engine sanity', () => {
   it('APCA Lc between tinted endpoints is far above the text target', () => {
     const hue = expandPalette({ slate: { seed: SEEDS.slate } }).slate!.numeric!;
     expect(contrastLc(hue['950']!, hue['50']!)).toBeGreaterThan(90);
+  });
+});
+
+/**
+ * Endpoint chroma is a CEILING, not a target.
+ *
+ * The interpolation factor reaches exactly 1 at steps 50 and 950 for every anchor
+ * position, so as a target it pinned both ends to the constants unconditionally —
+ * seeds at chroma 0.001, 0.002, 0.05 and 0.2 all produced a byte-identical step
+ * 50. There was therefore no seed that yielded a plain neutral, and chroma 0 was
+ * the worst case: colorjs returns NaN hue for a true achromatic colour, which
+ * `hexToOklch` collapses to 0, so the "neutral" came out pink.
+ */
+describe('endpoint chroma', () => {
+  const ramp = (seed: string) => expandPalette({ x: { seed } }).x!.numeric!;
+  /** Channel spread is the direct test for "is this actually grey?". */
+  const hexToRgb = (hex: string) => {
+    const h = hex.replace('#', '');
+    const full = h.length === 3 ? [...h].map((c) => c + c).join('') : h;
+    const n = Number.parseInt(full, 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  };
+
+  it('lets a grey seed produce an actual grey', () => {
+    const grey = ramp('#808080');
+    for (const step of ['50', '500', '950'] as const) {
+      const { r, g, b } = hexToRgb(grey[step]!);
+      expect(Math.max(r, g, b) - Math.min(r, g, b), `step ${step} is ${grey[step]}`).toBeLessThan(
+        2,
+      );
+    }
+  });
+
+  it('no longer snaps a low-chroma seed onto the endpoint constant', () => {
+    // Every seed below the ceiling used to land on the chroma-0.008 value, so
+    // 0.001, 0.002 and 0.05 all produced a byte-identical #f5f9fe at step 50.
+    const atCeiling = ramp('oklch(0.5 0.008 255)')['50'];
+    for (const c of ['0.001', '0.002', '0.003'])
+      expect(
+        ramp(`oklch(0.5 ${c} 255)`)['50'],
+        `chroma ${c} should stay below the ceiling`,
+      ).not.toBe(atCeiling);
+    // Above the ceiling it still binds, which is what leaves normal hues untouched.
+    expect(ramp('oklch(0.5 0.05 255)')['50']).toBe(atCeiling);
+  });
+
+  it('scales the endpoint tint with the seed rather than flattening it', () => {
+    const spread = (seed: string) => {
+      const { r, g, b } = hexToRgb(ramp(seed)['50']!);
+      return Math.max(r, g, b) - Math.min(r, g, b);
+    };
+    expect(spread('oklch(0.5 0 255)')).toBe(0);
+    expect(spread('oklch(0.5 0.003 255)')).toBeGreaterThan(spread('oklch(0.5 0.001 255)'));
+    expect(spread('oklch(0.5 0.008 255)')).toBeGreaterThan(spread('oklch(0.5 0.003 255)'));
+  });
+
+  it('still tints the ends of an ordinary seed', () => {
+    // The ceiling only binds below it — a normal brand hue is unchanged, which is
+    // why the shipped palette's tokens.json is byte-identical across this change.
+    const brand = ramp('#2e9b73');
+    const { r, g, b } = hexToRgb(brand['50']!);
+    expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeGreaterThan(1);
+  });
+});
+
+/**
+ * A ramp must darken from 50 to 950. Only pinned colours can break that — a
+ * ladder-built ramp cannot invert — and nothing caught it: `ladderWarnings`
+ * compares each pinned step against its OWN ladder rung, never its neighbours.
+ *
+ * The case below is real. Anchoring the shipped `navy` at 600 produced
+ * 600 #2c3b4e (L 0.348) above 700 #4e5c6f (L 0.470), which inverts the
+ * `bg-<role>-solid` → `-solid-bold` hover. The generator warned about ladder
+ * deviation and said the ramp was "Legal", which is the misleading part.
+ */
+describe('ramp monotonicity', () => {
+  const errorsFor = (hue: Record<string, unknown>) =>
+    monotonicityErrors(expandPalette({ navy: hue }));
+
+  it('catches the anchor that inverts 600 and 700', () => {
+    const errors = errorsFor({ seed: '#1A2230', anchors: { 600: '#2c3b4e' } });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('colors.palette.navy');
+    // Names the PAIR — a per-step message can't express the fix.
+    expect(errors[0]).toContain('step 700');
+    expect(errors[0]).toContain('step 600');
+    // And points at the colour the AUTHOR wrote, plus where it belongs — not at
+    // the unpinned neighbour, which is already exactly where it should be.
+    expect(errors[0]).toContain('#2c3b4e (pinned at 600)');
+    expect(errors[0]).toContain('nearest step 800');
+    expect(errors[0]).not.toContain('#4e5c6f (pinned');
+  });
+
+  it('passes every hue in the shipped config', () => {
+    expect(monotonicityErrors(expandPalette(defaultConfig().colors.palette))).toEqual([]);
+  });
+
+  it('accepts a sparse tones kit, comparing only the steps present', () => {
+    // Absent steps must not invent inversions.
+    expect(errorsFor({ tones: ['#eafaf3', '#2e9b73', '#0d3b2b'] })).toEqual([]);
+  });
+
+  it('catches tones supplied out of order', () => {
+    // `claim` only rejects two tones landing on the SAME step, never the wrong order.
+    expect(errorsFor({ tones: { 600: '#2c3b4e', 700: '#4e5c6f' } }).length).toBeGreaterThan(0);
+  });
+
+  it('is what stops a bad palette reaching the stylesheet', () => {
+    expect(() =>
+      build(
+        {
+          ...defaultConfig(),
+          colors: {
+            ...defaultConfig().colors,
+            palette: {
+              ...defaultConfig().colors.palette,
+              navy: { seed: '#1A2230', anchors: { 600: '#2c3b4e' } },
+            },
+          },
+        },
+        'css',
+        '/nonexistent-assets',
+      ),
+    ).toThrow(/LIGHTER/);
   });
 });

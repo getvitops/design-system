@@ -94,8 +94,43 @@ describe('pattern selectors', () => {
     const ds = defaultConfig();
     ds.patterns!.items!.btn!.roles = ['danger'];
     const css = patternsOf(ds);
-    expect(hasRule(css, ':where(button, .btn).danger:focus-visible')).toBe(true);
+    expect(hasRule(css, ':where(button:focus-visible, .btn:focus-visible).danger')).toBe(true);
     expect(hasRule(css, '.btn-danger:focus-visible')).toBe(true);
+  });
+
+  it('keeps an element pattern at zero specificity in its STATE rules too', () => {
+    // `:where()` zeroes the element, but a pseudo appended OUTSIDE it does not:
+    // `:where(a, .link):hover` is 0-1-0, which tied with `.cta` / `.cta-<role>`
+    // and won on source order (`link` is emitted after `cta`). Every
+    // `<a class="cta">` therefore flipped to the link colour mid-hover — dark
+    // text on a filled button. Inside the `:where()` it is a true 0-0-0.
+    const ds = defaultConfig();
+    ds.patterns!.items!.link = {
+      element: 'a',
+      class: 'link',
+      default_role: 'ui-primary',
+      base: { color: 'var(--color-text-ui-primary)' },
+      states: { hover: { step: 1 } },
+    };
+    const css = patternsOf(ds);
+    expect(css).toContain(':where(a:hover, .link:hover)');
+    expect(css).not.toContain(':where(a, .link):hover');
+  });
+
+  it('leaves the filled CTA foreground alone through every state', () => {
+    // The bug this guards is not "the wrong colour is declared" — the right one
+    // always was — it is that nothing may out-cascade it. So assert the shape
+    // the cascade depends on: no state rule of another pattern may reach a
+    // 0-1-0 `color` that could tie with `.cta-<role>`.
+    const ds = defaultConfig();
+    ds.patterns!.items!.cta!.roles = ['danger'];
+    const css = patternsOf(ds);
+    expect(hasRule(css, '.cta-danger')).toBe(true);
+    expect(css).toMatch(/\.cta-danger\s*\{[^}]*color: var\(--color-text-on-danger\)/);
+    // …and the CTA's own hover only touches the fill, never the foreground.
+    const hover = /\.cta-danger:hover \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(hover).toContain('background-color:');
+    expect(hover).not.toMatch(/(^|;)\s*color:/);
   });
 });
 
@@ -190,5 +225,153 @@ describe('tailwind container-block strip', () => {
     const css = tw();
     for (const cls of ['.md-split-1-2', '.lg-flex-row', '.sm-items-center'])
       expect(css, `${cls} should be Tailwind's to generate`).not.toContain(cls);
+  });
+});
+
+/**
+ * The typography role key set is CLOSED (`TYPO_KEYMAP`), and an unrecognised key
+ * is dropped rather than emitted. That failure is invisible: the role still
+ * renders, just without the declaration you asked for.
+ *
+ * The schema itself advertised `transform` and `decoration` for a while, which
+ * are exactly the two plausible-but-wrong short forms — that shipped title-case
+ * navigation to production across two deploys. So the warning is the guard, and
+ * these assert it names the right replacement rather than only complaining.
+ */
+describe('typography role keys', () => {
+  const withRole = (spec: Record<string, string>) => {
+    const ds = defaultConfig();
+    ds.typography = { ...ds.typography, roles: { ...ds.typography?.roles, eyebrow: spec } };
+    return ds;
+  };
+  const warningsFor = (ds: DesignSystem) => {
+    const seen: string[] = [];
+    const real = console.warn;
+    console.warn = (...args: unknown[]) => void seen.push(args.join(' '));
+    try {
+      build(ds, 'css', '/nonexistent-assets');
+    } finally {
+      console.warn = real;
+    }
+    return seen.filter((w) => w.includes('typography.roles'));
+  };
+
+  it('warns on the short forms, naming the real key', () => {
+    const warnings = warningsFor(withRole({ transform: 'uppercase', decoration: 'underline' }));
+    expect(warnings).toHaveLength(2);
+    expect(warnings.join('\n')).toContain('"text-transform"');
+    expect(warnings.join('\n')).toContain('"text-decoration"');
+  });
+
+  it('lists the recognised keys for a key it has no suggestion for', () => {
+    const warnings = warningsFor(withRole({ colour: 'red' }));
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('Recognised:');
+    expect(warnings[0]).toContain('text-transform');
+  });
+
+  it('stays silent on every key it actually maps', () => {
+    expect(
+      warningsFor(
+        withRole({
+          family: 'display',
+          size: 'sm',
+          weight: '700',
+          style: 'italic',
+          'line-height': '1.2',
+          tracking: '0.05em',
+          'text-transform': 'uppercase',
+          'text-decoration': 'none',
+          'text-wrap': 'balance',
+          color: 'var(--color-text-muted)',
+        }),
+      ),
+    ).toEqual([]);
+  });
+});
+
+/**
+ * The OS-preference dark block. Opt-in, because switching it on flips a site dark
+ * for dark-OS users — that is the site's call, which is why it rides on the site
+ * config's `designSystem.defaultColorScheme` rather than on the design system.
+ */
+describe('prefers-color-scheme block', () => {
+  const colorCss = (systemColorScheme: boolean) =>
+    build(defaultConfig(), 'css', '/nonexistent-assets', { systemColorScheme }).generated[
+      'color.css'
+    ] as string;
+
+  it('is absent by default', () => {
+    expect(colorCss(false)).not.toContain('prefers-color-scheme');
+  });
+
+  it('re-points the same tokens as the explicit-choice block', () => {
+    const css = colorCss(true);
+    const [, explicit = '', system = ''] =
+      /\{([^}]*)\}[\s\S]*?@media \(prefers-color-scheme: dark\)[\s\S]*?\{[\s\S]*?\{([^}]*)\}/.exec(
+        css.slice(css.indexOf('Functional role tokens (dark)')),
+      ) ?? [];
+    const vars = (block: string) => (block.match(/--[\w-]+(?=:)/g) ?? []).sort();
+    expect(vars(system).length).toBeGreaterThan(0);
+    // Same delta, or the two appearances drift apart depending on how you got there.
+    expect(vars(system)).toEqual(vars(explicit));
+  });
+
+  it('sits inside the media query, not beside it', () => {
+    // Emitted unconditionally it would flip every consumer site dark.
+    const css = colorCss(true);
+    const at = css.indexOf('@media (prefers-color-scheme: dark)');
+    const close = css.indexOf('\n}\n', css.indexOf(':root:not(', at));
+    expect(css.slice(at, close)).toContain('--color-bg-neutral');
+  });
+
+  it('reaches the tailwind format too', () => {
+    const tw = (on: boolean) =>
+      build(defaultConfig(), 'tailwind', '/nonexistent-assets', { systemColorScheme: on }).tailwind;
+    expect(tw(false)).not.toContain('prefers-color-scheme');
+    expect(tw(true)).toContain('@media (prefers-color-scheme: dark)');
+  });
+});
+
+/**
+ * `layout.css` is skipped wholesale in the tailwind format and a hand-maintained
+ * subset re-emitted above it. Two families fell through that gap entirely —
+ * absent from the format, not present in `TW_CLASH`, and with no Tailwind
+ * equivalent to fall back on.
+ *
+ * That is the worst shape of the bug this round is about: `vitops lint` cannot
+ * flag them either, because they are structural classes rather than anything
+ * anchored to the consumer's config. A consumer who wrote `grid-auto` got
+ * silence and no styling.
+ */
+describe('tailwind vocabulary parity', () => {
+  const tw = () => build(defaultConfig(), 'tailwind', '/nonexistent-assets').tailwind;
+
+  it('emits the auto-fit grid', () => {
+    expect(tw()).toContain('@utility grid-auto');
+  });
+
+  it('emits every rhythm override, pairs and steps alike', () => {
+    const css = tw();
+    for (const pair of [
+      'h-p',
+      'p-p',
+      'p-h',
+      'h-h',
+      'p-list',
+      'list-p',
+      'li-li',
+      'text-media',
+      'media-text',
+    ])
+      expect(css, `m-${pair}`).toContain(`@utility m-${pair} `);
+    for (const step of ['0', 'xs', 's', 'm', 'l', 'xl'])
+      expect(css, `m-${step}`).toContain(`@utility m-${step} `);
+  });
+
+  it('keeps them keyed to the same rhythm variables as the css format', () => {
+    // A copy that drifted to literal values would look right and stop responding
+    // to `--rhythm-base`, which is the whole point of the scale.
+    expect(tw()).toContain('calc(var(--rhythm-base) * var(--rhythm-h-p))');
   });
 });

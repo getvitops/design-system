@@ -200,6 +200,10 @@ export default defineConfig({
       // EmDash CMS plugin: descriptor/runtime only (the ./astro entry ships as source).
       'build:emdash': {
         command: 'cd packages/emdash && vp pack',
+        // The Block Kit icon options are derived from @getvitops/utils' iconMap
+        // rather than copied, so the dts pass needs utils' types built. The
+        // module itself stays external (it is a real `dependencies` entry).
+        dependsOn: ['build:utils'],
         input: [
           'packages/emdash/src/**/*.ts',
           'packages/emdash/vite.config.ts',

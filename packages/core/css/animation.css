@@ -11,15 +11,18 @@
  *     · animate-view / animate-scroll — keyframe linked to a scroll timeline
  *     · animate-trigger              — keyframe, time-based; plays once when
  *                                      .is-active / [data-active] is set
- *     · transition-active / -hover   — TRANSITION (not keyframe) over the same
- *                                      from/to vars, so it reverses on state flip
+ *     · transition + hover-/focus-/  — TRANSITION (not keyframe) over the same
+ *       active-<fx>                    from/to vars, so it reverses on state flip.
+ *                                      Each state matches the element OR its
+ *                                      direct parent, so an effect that clips
+ *                                      itself away (reveal-*) is still reachable.
  *   Both driver families read the same `--<prop>-*` vars, so one effect
  *   (e.g. .fade-in) works in every mode with no redefinition.
  *
  * Effects by rendering stage (cheapest → most expensive):
  *   composite: fade-in/out, slide-up/down/left/right, scale-up/down, rotate-cw/ccw
  *   paint:     blur-in/out, elevate-up/down, reveal-left/right/up/down
- *   layout:    size-grow, size-shrink            (keyframe-only — auto height)
+ *   layout:    size-grow, size-shrink            (auto height; needs interpolate-size)
  *   journey:   fade-journey, slide-journey, …    (multi-phase; view timeline)
  * One keyframe per element: same-stage effects compose via vars (fade-in +
  * scale-up); cross-stage (fade + blur) needs nested elements.
@@ -31,8 +34,8 @@
  * Usage:
  *   <div class="fade-in slide-up animate-view">     <!-- scroll-into-view -->
  *   <div class="fade-in scale-up animate-trigger">  <!-- play once on enter -->
- *   <button class="scale-up transition-hover">      <!-- grow on hover -->
- *   <div class="fade-in slide-up transition-active"><!-- flip via .is-active -->
+ *   <button class="transition hover-scale-up">      <!-- grow on hover -->
+ *   <div class="transition active-fade-in">         <!-- flip via .is-active -->
  */
 
 /* ===========================================
@@ -220,11 +223,20 @@
 /* ===========================================
  * Trigger Play-State
  * Paused until activated. deferred.ts adds .is-active via IntersectionObserver,
- * but [data-active] / .is-active can also be toggled by any state logic. Gated
- * on JS (no-js → animation runs immediately, so content is never stuck hidden).
+ * but [data-active] / .is-active can also be toggled by any state logic.
+ *
+ * Gated on `scripting: enabled` because pausing is only safe when something can
+ * un-pause it: with no JS, .is-active is never added, and a paused entrance
+ * animation is `opacity: 0` — i.e. invisible content, permanently. Note which way
+ * this fails. An engine that doesn't know the media feature drops the whole block
+ * and the animation simply runs on load: an enhancement lost, nothing hidden.
+ * That is the right direction, and it is why this is a media query rather than
+ * the `:root:not(.no-js)` class it replaced — that spelling needed a class in the
+ * consumer's own <html>, which the Astro integration cannot put there, so every
+ * Astro site was silently failing the other way.
  * =========================================== */
 
-:where(:root:not(.no-js)) {
+@media (scripting: enabled) {
   .animate-trigger {
     animation-play-state: paused;
   }
@@ -261,6 +273,21 @@
  * Stagger Support
  * =========================================== */
 
+/* Both are per-element positions, never something a child should inherit — an
+   unregistered custom property would leak the parent's index into every
+   descendant that happens to carry a driver. */
+@property --_stagger-index {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --_anim-range-offset {
+  syntax: '<length-percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
 .stagger {
   --_stagger-amount: var(--stagger-amount, 0.1s);
 }
@@ -270,15 +297,36 @@
      --_stagger-index inline, which wins. Where sibling-index() is supported
      it provides a JS-free fallback via the @supports block below. */
   --_stagger-index: 0;
+
+  /* Time-based drivers (.animate-trigger, .float) stagger on delay. */
   animation-delay: calc(var(--_stagger-index) * var(--_stagger-amount));
+
+  /* Scroll-driven drivers do NOT: animation-delay is time-based and is ignored
+     outright on a progress-based timeline, which is why `.stagger > .animate-view`
+     used to arrive all at once. Offsetting the view RANGE by the same index is the
+     equivalent move — each child starts its entrance a little further into its own
+     entry phase. .animate-view folds this into its default range, so one .stagger
+     works under both driver families. Journeys set an explicit animation-range and
+     opt out by construction.
+
+     The step is a VIEWPORT length, matching the window it shifts: .animate-view
+     now spans 10vh → 25vh of the element's midpoint travel, so a step expressed
+     as a percentage of the element's own height (which is what a bare `%` means
+     inside the entry range) would be a few pixels against an ~80px window — a
+     stagger too small to read, and one that changed meaning with tile size. */
+  --_anim-range-offset: calc(var(--_stagger-index) * var(--stagger-range-step, 5vh));
 }
 
-/* sibling-index() is near-baseline (lacking only Firefox as of 2026). Guarded so
-   that on unsupported engines the declaration is skipped and delay stays 0
-   (items animate together) rather than producing an invalid animation-delay. */
-@supports (--x: sibling-index()) {
+/* sibling-index() is near-baseline (lacking only Firefox as of 2026). The test
+   must be a REAL property — `@supports (--x: sibling-index())` is always true,
+   because any token stream is a valid custom-property value, so it guarded
+   nothing. Where it is unsupported the declaration is skipped and the index stays
+   0 (items animate together) rather than producing an invalid delay/range.
+   `- 1` because applyRowStagger writes a 0-based index and sibling-index() is
+   1-based; the two must agree or the JS and CSS paths differ by one step. */
+@supports (animation-delay: calc(sibling-index() * 1s)) {
   .stagger > * {
-    --_stagger-index: sibling-index();
+    --_stagger-index: calc(sibling-index() - 1);
   }
 }
 
@@ -355,11 +403,34 @@
 .animate-view {
   animation-name: var(--_anim);
   animation-timeline: view();
-  /* Finish the entrance early — by default within the first 20% of the element's
-     ENTRY into the viewport — so it's done just after it appears (fill: both
-     holds the end state). Override the stops via --anim-range; journey effects
-     set their own `entry exit` range and are unaffected. */
-  animation-range: var(--anim-range, entry 0% entry 20%);
+  /* Timed off the element's MIDPOINT, measured into the viewport — the only
+     framing that behaves the same for a 4rem card and a full-bleed section.
+
+     The pivot is `entry 50%`. The entry phase runs from "leading edge at the
+     viewport's trailing edge" to "trailing edge at the viewport's trailing
+     edge", a scroll of exactly one element height — so at its halfway point the
+     element's midpoint sits precisely ON the viewport edge, whatever the element
+     measures. Everything after that is stated in viewport units: `+ 10vh` is
+     "midpoint 10% of the viewport further in".
+
+     So the default plays from midpoint 15% in to midpoint 25% in. Both stops are
+     the ELEMENT's position on screen, not a fraction of its own height, which is
+     what the previous defaults got wrong in both directions: `entry 20%` was ~17px
+     of scroll for a small tile (over before it appeared), and `entry 100%` still
+     finished with the element flush against the bottom edge.
+
+     Percentages here resolve against the entry range (the element's height) and
+     lengths against the scrollport, so the two mix in one calc() by design.
+
+     --anim-start / --anim-end move the window without restating the pivot;
+     --anim-range replaces it outright; --_anim-range-offset shifts both stops
+     together (that's how .stagger offsets scroll-driven children — see Stagger
+     Support). Journeys declare their own range and ignore all of it. */
+  animation-range: var(
+    --anim-range,
+    entry calc(50% + var(--anim-start, 10vh) + var(--_anim-range-offset, 0%)) entry
+      calc(50% + var(--anim-end, 25vh) + var(--_anim-range-offset, 0%))
+  );
 }
 
 .animate-scroll {
@@ -372,13 +443,21 @@
   animation-duration: var(--trigger-animation-duration);
 }
 
-/* Fallback: when scroll-driven timelines are unsupported, deferred.ts adds
-   .no-scroll-timeline to <html>. Without a timeline, view()/scroll() animations
-   never advance and elements would stick at their `from` keyframe (e.g.
-   opacity:0, clipped, blurred). Cancel the animation so they render in their
-   natural, fully-visible state. Trigger animations are unaffected (JS-driven). */
-:root.no-scroll-timeline :where(.animate-view, .animate-scroll) {
-  animation: none;
+/* Fallback: without a scroll-driven timeline, view()/scroll() animations never
+   advance and their elements stick at the `from` keyframe (opacity:0, clipped,
+   blurred) — an entrance animation that never runs is invisible content. Cancel
+   the animation so they render in their natural, fully-visible state. Trigger
+   animations are unaffected (JS-driven, see Trigger Play-State above).
+
+   Same probe as the `.text-reveal` block above, in its negative form — no JS, so
+   it holds with scripting disabled, which the `.no-scroll-timeline` class this
+   replaced could not (a class only JS can add cannot help a page with no JS).
+   `.animate-scroll` uses scroll() rather than view(), but no engine has shipped
+   one without the other, so one probe covers both. */
+@supports not (animation-timeline: view()) {
+  :where(.animate-view, .animate-scroll) {
+    animation: none;
+  }
 }
 
 /* ===========================================
@@ -388,7 +467,8 @@
  * active-<fx> in animation-effects.css) set those vars per state, so different
  * effects bind to different states on one element:
  *   <div class="transition hover-slide-up active-elevate-up">
- * Covers compositor + the full paint chain; layout (auto height) is keyframe-only.
+ * Covers compositor, the full paint chain, and — where `interpolate-size` is
+ * supported — the layout stage (auto height) too.
  * =========================================== */
 
 .transition {
@@ -409,13 +489,44 @@
     saturate(var(--t-saturate, var(--saturate-from, 1))) sepia(var(--t-sepia, var(--sepia-from, 0)))
     hue-rotate(var(--t-hue-rotate, var(--hue-rotate-from, 0deg)));
   clip-path: var(--t-clip, var(--clip-from, none));
-  transition:
-    opacity var(--animation-duration) var(--custom-ease-out),
-    translate var(--animation-duration) var(--custom-ease-out),
-    scale var(--animation-duration) var(--custom-ease-out),
-    rotate var(--animation-duration) var(--custom-ease-out),
-    filter var(--animation-duration) var(--custom-ease-out),
-    clip-path var(--animation-duration) var(--custom-ease-out);
+  /* Longhands rather than the `transition` shorthand: every property here shares
+     one duration and one easing, so listing them once lets the @supports block
+     below APPEND height without restating the whole list (a shorthand would
+     replace it, and transition-property has no additive form). */
+  transition-property: opacity, translate, scale, rotate, filter, clip-path;
+  transition-duration: var(--animation-duration);
+  transition-timing-function: var(--custom-ease-out);
+}
+
+/* Layout stage — `height`, the only one that reflows, and the only one that
+   needs a feature gate.
+
+   `height: 0 → auto` is not interpolable on its own: `auto` isn't a length, so
+   the pair falls back to discrete and the transition doesn't run.
+   `interpolate-size: allow-keywords` (set on :root in utilities.css) is what
+   makes `auto` a real endpoint — NOT `transition-behavior: allow-discrete`,
+   which only permits genuinely discrete properties (display,
+   content-visibility, overlay) to transition and would at best snap at the
+   midpoint here. Gated so engines without it keep no height transition rather
+   than that snap. The same dependency applies to the `layout` KEYFRAME, so this
+   is not a weaker path than a driver — it is the same requirement, stated once.
+
+   Declaring `height: auto` on every .transition element is safe because auto is
+   the initial value and animation.css is imported second in index.css — before
+   layout.css, every pattern and utilities.css — so anything later at equal
+   specificity still wins.
+
+   Caveat worth keeping: patterns/details.css records that transitioning
+   block-size to `auto` on ::details-content DEADLOCKS in Chrome 149
+   (content-visibility: hidden → no layout → `auto` resolves to 0 → nothing
+   runs). That is specific to ::details-content, but the lesson generalises — a
+   passing @supports query is not evidence the interaction works. Verify a real
+   hover before trusting a change here. */
+@supports (interpolate-size: allow-keywords) {
+  .transition {
+    height: var(--t-height, var(--height-from, auto));
+    transition-property: opacity, translate, scale, rotate, filter, clip-path, height;
+  }
 }
 
 /* Respect reduced-motion: drop keyframes, transitions, and continuous floats so

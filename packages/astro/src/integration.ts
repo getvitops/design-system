@@ -10,7 +10,9 @@
 import { cpSync, existsSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { LegalOutput, StylesheetFormat } from '@getvitops/generator';
+import { readFileSync } from 'node:fs';
+import type { LegalOutput, SiteFont, StylesheetFormat } from '@getvitops/generator';
+import { isSiteConfig, resolveSiteConfig } from '@getvitops/generator';
 import {
   type FaviconLink,
   collectIconRefs,
@@ -23,6 +25,7 @@ import {
 } from '@getvitops/utils';
 import vitops from '@getvitops/vite';
 import type { AstroIntegration } from 'astro';
+import { type HeadFont, resolveFonts } from './fonts.ts';
 import type { GetvitopsSeoOptions } from './seo.ts';
 
 export interface GetvitopsFaviconOptions {
@@ -37,8 +40,21 @@ export interface GetvitopsFaviconOptions {
 }
 
 export interface GetvitopsCssOptions {
-  /** Path to design-system.json (default 'design-system.json'). */
+  /**
+   * Path to the config (default `'design-system.json'`).
+   *
+   * May be a `design-system.json` **or** the larger site config that embeds one
+   * (`company.json` / `site.json`) — they are told apart by shape. Pointing this
+   * at a site config makes the top-level `site` option redundant and lets
+   * `legal` and `fonts` default their own `input` to it, so the path is declared
+   * once.
+   */
   input?: string;
+  /**
+   * Which `designSystem.themes` entry to build, when `input` is a site config.
+   * Default: the config's `defaultTheme`, else `default`.
+   */
+  theme?: string;
   /**
    * Output format (default 'tailwind'). Narrower than the generator's `Format`
    * on purpose: this option exists to produce a stylesheet to inject, and the
@@ -56,11 +72,38 @@ export interface GetvitopsCssOptions {
    * only your own pages (and previews rendered through them) are styled.
    */
   inject?: boolean;
+  /**
+   * Also flip to dark when the visitor's OS asks and they have made no explicit
+   * choice — `@media (prefers-color-scheme: dark)`.
+   *
+   * Off by default: turning it on flips the site dark for dark-OS visitors, which
+   * is a visible change to an existing site. Turning it **on** is what makes
+   * `<color-scheme-toggle>`'s "System" position do anything (System removes the
+   * theme attribute, so without this block it falls through to light), and it is
+   * the only way a no-JS page gets the OS appearance at all.
+   *
+   * The site config's `designSystem.defaultColorScheme: "system"` says the same thing and is the
+   * better home for it when you have one — this option wins if both are set, and
+   * exists because requiring a whole `SiteConfig` to set one boolean would be out
+   * of proportion.
+   */
+  systemColorScheme?: boolean;
+}
+
+export interface GetvitopsSiteOptions {
+  /** Path to the site config (JSON). */
+  input: string;
+  /** Environment whose A/B variant applies (default 'production'). */
+  siteEnv?: string;
 }
 
 export interface GetvitopsLegalOptions {
-  /** Path to the site config (JSON) the documents are rendered from. */
-  input: string;
+  /**
+   * Path to the site config (JSON) the documents are rendered from. Optional
+   * when the top-level `site` option is set — it defaults to that file, since
+   * they are almost always the same one.
+   */
+  input?: string;
   /**
    * Where to write them (default 'src/content/legal'). The default is a content
    * collection: the documents are markdown, and a collection is what lets a page
@@ -133,6 +176,19 @@ export interface GetvitopsSitemapOptions {
 }
 
 export interface GetvitopsOptions {
+  /**
+   * Your site config — the one place to name it.
+   *
+   * A `SiteConfig` records site-level facts, several of which other options here
+   * need: `designSystem.defaultColorScheme` decides whether the generated colour layer
+   * carries a `prefers-color-scheme` block, `fonts` can supply the webfont
+   * declarations, and `legal` renders from it. Set this and each of those reads
+   * it, rather than repeating the path per feature. Every one can still be given
+   * explicitly, which wins.
+   *
+   * Needs `css`, since the generation runs in the Vite plugin `css` registers.
+   */
+  site?: GetvitopsSiteOptions;
   favicon?: GetvitopsFaviconOptions;
   /** Copy + link the web-component bundles (default true). */
   webComponents?: boolean;
@@ -160,6 +216,37 @@ export interface GetvitopsOptions {
    * same renderer and works in any stack.
    */
   legal?: GetvitopsLegalOptions;
+  /**
+   * Load webfonts through Astro's Fonts API and emit `<Font />` for each from
+   * `<Head />`. Off unless provided.
+   *
+   * This is the seam the design system deliberately lacks. `design-system.json`'s
+   * `fonts` block holds **stacks only** — `--font-<name>` tokens and nothing else: no
+   * `@font-face`, no preload, no metrics-matched fallback. Declaring the family here
+   * makes the token resolvable *and* loaded, so the token keeps pointing at a
+   * `cssVariable` rather than at a literal stack the browser has no file for:
+   *
+   * ```js
+   * getvitops({ fonts: [{ name: 'League Spartan', provider: 'fontsource',
+   *                       cssVariable: '--font-league-spartan',
+   *                       weights: ['100 900'], subsets: ['latin'], preload: true }] })
+   * ```
+   * ```jsonc
+   * // design-system.json
+   * "fonts": { "display": "var(--font-league-spartan), sans-serif" }
+   * ```
+   *
+   * Pass a **string** instead to read the array from a site config's `fonts` block —
+   * the same declarations, kept next to the rest of the site's facts. (`siteEnv`
+   * picks the A/B variant, as in `legal`.) With the top-level `site` option set,
+   * plain `true` does the same thing without repeating the path.
+   *
+   * Independent of `css`: the loading runs in `astro:config:setup`, not in the Vite
+   * plugin. Both `<Head />` and the config entry are required — Astro's `fonts:`
+   * config resolves the files, and `<Font />` is what puts the `@font-face` on the
+   * page — so a declaration without `<Head />` in your layout loads nothing.
+   */
+  fonts?: boolean | string | SiteFont[] | GetvitopsFontsOptions;
   /**
    * Emit `sitemap-index.xml` + `sitemap-0.xml` via `@astrojs/sitemap`, and link it
    * from `<Head />`. Off unless provided; `true` uses its defaults.
@@ -208,6 +295,15 @@ export interface GetvitopsOptions {
    * reported with file and line, not guessed at — declare them in `include`.
    */
   icons?: boolean | GetvitopsIconsOptions;
+}
+
+export interface GetvitopsFontsOptions {
+  /** Path to a site config (JSON) whose `fonts` array holds the declarations. */
+  input?: string;
+  /** Declarations written inline; merged after anything `input` supplies. */
+  families?: SiteFont[];
+  /** Environment whose A/B variant applies to `input` (default 'production'). */
+  siteEnv?: string;
 }
 
 export interface GetvitopsIconsOptions {
@@ -269,6 +365,12 @@ interface HeadData {
   editor: boolean;
   /** `<link rel="sitemap">` target, or null when no sitemap was registered. */
   sitemap: string | null;
+  /**
+   * Families registered by `getvitops({ fonts })`, for `<Font />`. Only ours: a
+   * `cssVariable` Astro cannot resolve makes `<Font />` throw, so this must never
+   * include a family declared elsewhere (a user-level `fonts:`, or EmDash's).
+   */
+  fonts: HeadFont[];
   /** `config.site`, so `<Seo />` has a canonical base even without `Astro.site`. */
   site: string | null;
   /** Site-level `<Seo />` defaults. Function-free, hence serialisable. */
@@ -343,10 +445,33 @@ const ICON_DEFAULTS = {
  * OWN `<Icon>` usage. Nothing here decides how our `<Icon />` renders — that is
  * `engine`, and it never needs a peer.
  */
+/**
+ * Indirection so the bundler can't resolve the specifier statically. See the
+ * import site in the `tailwind` branch for why that matters.
+ */
+const TAILWIND_VITE = '@tailwindcss/vite';
+
 async function probeIconPackage(name: 'astro-icon' | 'astro-iconset'): Promise<boolean> {
   try {
     await import(/* @vite-ignore */ name);
     return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Does the file at `path` hold a site config rather than a bare design system?
+ *
+ * Swallows a missing or unparseable file and answers `false`: this only decides
+ * whether the other options may default their paths to this one, and the real
+ * read happens in the Vite plugin, which reports a parse error properly. Failing
+ * the build here would turn "your JSON has a trailing comma" into an error about
+ * an option the consumer never set.
+ */
+function readsAsSiteConfig(path: string): boolean {
+  try {
+    return isSiteConfig(JSON.parse(readFileSync(path, 'utf8')));
   } catch {
     return false;
   }
@@ -367,6 +492,30 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
           logger.warn(
             'legal: needs a `css` config — the generation runs in the Vite plugin that `css` ' +
               'registers. Run `npx vitops legal` instead if you do not use `css`.',
+          );
+        // Where the site config is, if there is one. `css.input` counts when it
+        // is itself a site config — that is the common setup once a consumer
+        // keeps their tokens inside `company.json`, and making every option
+        // repeat the path is exactly the friction this is meant to remove.
+        // The effective path, default included, so the answer matches what the
+        // Vite plugin will actually read rather than only covering the case
+        // where the option was written out.
+        const cssInput = opts.css ? (opts.css.input ?? 'design-system.json') : undefined;
+        const siteInput =
+          opts.site?.input ??
+          (cssInput != null && readsAsSiteConfig(resolve(root, cssInput)) ? cssInput : undefined);
+        if (opts.site && !opts.css)
+          logger.warn(
+            'site: needs a `css` config — it is read during generation, which runs in the Vite ' +
+              'plugin that `css` registers. Without it the site config changes nothing here.',
+          );
+        // `legal` only needs its own `input` when it points somewhere other than
+        // the site config; the two are almost always the same file.
+        const legalInput = opts.legal?.input ?? siteInput;
+        if (opts.legal && !legalInput)
+          throw new Error(
+            '[getvitops] legal: needs `legal.input` (a site config path), the top-level `site` ' +
+              'option, or a `css.input` that is itself a site config.',
           );
         if (opts.seo) {
           // Warn once here rather than letting every page silently drop its
@@ -396,6 +545,11 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
             ...(opts.favicon.lowResSource
               ? { lowResSource: resolve(root, opts.favicon.lowResSource) }
               : {}),
+            // Also the manifest's `background_color`. The maskable outputs are
+            // composited onto it, so the raster and the manifest agree.
+            ...(opts.favicon.backgroundColor
+              ? { backgroundColor: opts.favicon.backgroundColor }
+              : {}),
           });
           if (opts.favicon.name && opts.favicon.themeColor) {
             await writeFaviconManifest(publicDir, {
@@ -407,6 +561,70 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
             });
           }
           logger.info('generated favicons + manifest → public/');
+        }
+
+        // 1b. Webfonts → Astro's `fonts:` config (+ <Font /> data for <Head />)
+        let headFonts: HeadFont[] = [];
+        if (opts.fonts) {
+          const given: GetvitopsFontsOptions = Array.isArray(opts.fonts)
+            ? { families: opts.fonts }
+            : typeof opts.fonts === 'string'
+              ? { input: opts.fonts }
+              : opts.fonts === true
+                ? {}
+                : opts.fonts;
+          // `fonts: true` (or an options object with no `input`) reads the site
+          // config's own `fonts` array — one place to declare a family, next to
+          // the rest of the site's facts. That config is wherever it is: the
+          // `site` option, or `css.input` when it is one.
+          const o: GetvitopsFontsOptions = {
+            ...given,
+            ...(given.input == null && given.families == null && siteInput
+              ? { input: siteInput, ...(opts.site?.siteEnv ? { siteEnv: opts.site.siteEnv } : {}) }
+              : {}),
+          };
+          const declared: SiteFont[] = [];
+          if (o.input) {
+            // resolveSiteConfig validates and throws with field paths, so a typo'd
+            // provider fails the build here rather than resolving to a fallback stack.
+            const site = resolveSiteConfig(
+              JSON.parse(readFileSync(resolve(root, o.input), 'utf8')),
+              o.siteEnv ?? 'production',
+            );
+            declared.push(...(site.fonts ?? []));
+          }
+          declared.push(...(o.families ?? []));
+
+          if (declared.length === 0) {
+            logger.warn(
+              'fonts: nothing declared — no webfonts will load. Add families, or drop the option.',
+            );
+          } else {
+            // A user-level `fonts:` is already on `config` here; another integration's
+            // is not (its updateConfig may not have run yet). Astro concatenates the
+            // arrays, and two entries on one variable means the last wins silently —
+            // so flag the half we can actually see.
+            const existing = new Set(
+              ((config as { fonts?: { cssVariable?: string }[] }).fonts ?? []).map(
+                (f) => f.cssVariable,
+              ),
+            );
+            const { fonts, head } = resolveFonts(declared);
+            for (const f of head)
+              if (existing.has(f.cssVariable))
+                logger.warn(
+                  `fonts: ${f.cssVariable} is already declared in your astro.config \`fonts\` ` +
+                    'array. Astro resolves one family per variable, so one of the two will be ' +
+                    'dropped — remove it from one place.',
+                );
+            updateConfig({ fonts });
+            headFonts = head;
+            const preloaded = head.filter((f) => f.preload !== false).length;
+            logger.info(
+              `fonts: ${fonts.length} famil${fonts.length === 1 ? 'y' : 'ies'} registered ` +
+                `via Astro's Fonts API (${preloaded} preloaded) — <Head /> emits <Font /> for each`,
+            );
+          }
         }
 
         // 2. Web-component bundles → public/vitops/
@@ -650,6 +868,7 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
                 wcBase: '/vitops',
                 editor,
                 sitemap: sitemapHref,
+                fonts: headFonts,
                 site: config.site ?? null,
                 seo: opts.seo ?? {},
               }),
@@ -672,6 +891,7 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
           const plugins = [
             vitops({
               input: opts.css.input ?? 'design-system.json',
+              ...(opts.css.theme != null ? { theme: opts.css.theme } : {}),
               format,
               out,
               // Mirrored inside the generate pass so the served copy can never be
@@ -682,7 +902,14 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
               ...(iconsData?.sprite ? { spriteDir: publicDir } : {}),
               // Same reasoning: inside the pass, so the documents track the site
               // config in dev instead of going stale after the first build.
-              ...(opts.legal ? { legal: opts.legal } : {}),
+              ...(opts.legal ? { legal: { ...opts.legal, input: legalInput as string } } : {}),
+              // Read during generation for the site-level facts the stylesheet
+              // depends on — currently `designSystem.defaultColorScheme`, which decides
+              // whether the colour layer carries a prefers-color-scheme block.
+              ...(opts.site ? { site: opts.site } : {}),
+              ...(opts.css.systemColorScheme != null
+                ? { systemColorScheme: opts.css.systemColorScheme }
+                : {}),
             }),
           ];
           // Tailwind is an optional peer — only the `tailwind` format needs it,
@@ -690,10 +917,21 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
           // plugin is typed against a newer vite than @getvitops/vite's peer;
           // the Plugin shapes are structurally compatible at runtime — Astro
           // forwards them verbatim — so bridge the two type identities.)
+          //
+          // The specifier goes through a constant, with `@vite-ignore`, for the
+          // same reason `probeIconPackage` does it: a statically analysable
+          // `import('@tailwindcss/vite')` makes the bundler FOLLOW the module
+          // even on a `css`-format site that never reaches this branch, and the
+          // chain ends at @tailwindcss/oxide's native `.node` binding, which it
+          // cannot parse. That failed the whole build with an opaque
+          // "stream did not contain valid UTF-8" — for a site not using Tailwind
+          // at all. `optional peer` has to mean optional to the bundler too.
           if (format === 'tailwind') {
             let tailwindcss: () => unknown[];
             try {
-              ({ default: tailwindcss } = await import('@tailwindcss/vite'));
+              ({ default: tailwindcss } = (await import(
+                /* @vite-ignore */ TAILWIND_VITE
+              )) as unknown as { default: () => unknown[] });
             } catch {
               throw new Error(
                 "[getvitops] css.format: 'tailwind' requires `tailwindcss` and `@tailwindcss/vite` " +

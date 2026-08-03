@@ -3,7 +3,7 @@
  * `design-system.json`-compliant `designSystem`.
  *
  * Authored with `zod/mini` (same instance the design-system schema uses), so the
- * two compose: `DesignSystemSchema` is embedded as `designSystem.<theme>` and the
+ * two compose: `DesignSystemSchema` is embedded as `designSystem.themes.<theme>` and the
  * whole thing serialises to one JSON Schema via `z.toJSONSchema`. Everything a
  * generator needs derives from here: the `SiteConfig` type (`z.infer`), the
  * published JSON Schema (`siteJsonSchema`), and runtime validation (`validateSite`).
@@ -48,19 +48,54 @@ const DayOfWeek = z.enum([
   'Sunday',
 ]);
 
-// ── Design system (named-theme map) ─────────────────────────────────────────────
-// Each entry is a full `DesignSystem` plus a localised `displayName` and an
-// optional `extends` (another entry's key). Entries are lenient (all top-level
+// ── Design system ───────────────────────────────────────────────────────────────
+// Each `themes` entry is a full `DesignSystem` plus a localised `displayName` and
+// an optional `extends` (another entry's key). Entries are lenient (all top-level
 // fields optional) so an extending entry can be a partial patch; the resolved
 // theme is validated against the full `DesignSystemSchema` by `resolveTheme`.
 
 const DesignSystemEntry = z.extend(DesignSystemPatchSchema, {
-  displayName: desc(z.optional(LocalizableSchema), 'Human-readable theme name (localisable).'),
+  displayName: desc(
+    z.optional(LocalizableSchema),
+    'Human-readable theme name (localisable). The label a theme picker would show — nothing reads it yet, because nothing builds more than one theme (see `themes`).',
+  ),
   extends: desc(
     z.optional(z.string()),
-    'Another `designSystem` key to inherit from; this entry then only supplies what it overrides.',
+    'Another `themes` key to inherit from; this entry then only supplies what it overrides.',
   ),
 });
+
+/**
+ * The design system as a whole: the named themes plus the facts that describe the
+ * system rather than any one theme.
+ *
+ * `themes` is nested rather than being the block itself because the block used to
+ * BE the map — every key was a theme name, so there was nowhere to put
+ * system-wide metadata without it colliding with a theme of that name.
+ *
+ * Note the two axes here are independent, and deliberately so. `defaultTheme`
+ * picks a *theme* (an authored design system); `defaultColorScheme` picks an
+ * *appearance* (light/dark), which every theme already has because the flip is
+ * derived from one ramp rather than authored. "Theme `elegant`, appearance
+ * follows the OS" has to be sayable, and a single union could not express it.
+ */
+const DesignSystemBlock = desc(
+  z.strictObject({
+    themes: desc(
+      z.record(z.string(), DesignSystemEntry),
+      'Named themes. `default` is the base; others may `extends` another and supply a partial patch. Light/dark is NOT a theme — the functional tokens flip per appearance within each one, so `default` already has both. Only the default theme is built today; multi-theme output and a picker are not wired yet.',
+    ),
+    defaultTheme: desc(
+      z.optional(z.string()),
+      'Which `themes` entry to use (convention: "default"). Validated against the map; selecting a non-default theme is not wired yet.',
+    ),
+    defaultColorScheme: desc(
+      z.optional(z.enum(['light', 'dark', 'system'])),
+      'Initial appearance. `"system"` follows the OS via `prefers-color-scheme` and is what makes `<color-scheme-toggle>`\'s "System" position resolve to anything — it removes the theme attribute, so without this the page falls through to light. It also gives a no-JS page the OS appearance. Defaults to `"light"`, because switching an existing site to `"system"` visibly flips it dark for dark-OS visitors.',
+    ),
+  }),
+  'The design system: named themes plus the system-wide facts (which theme, which appearance). A bare design system, or a bare theme map, is accepted as shorthand for `{ themes: … }`.',
+);
 
 // ── Locales ─────────────────────────────────────────────────────────────────────
 
@@ -213,7 +248,7 @@ const AbVariantSchema = z.object({
 // ── Fonts (Astro Fonts API projection) ──────────────────────────────────────────
 // Font *loading* — a serialisable projection of Astro's `fonts:[…]` config. A
 // loader maps `provider` (string) → `fontProviders.<name>()`. Distinct from the
-// design-system font *tokens* (`designSystem.<theme>.fonts` / typography.families),
+// design-system font *tokens* (`designSystem.themes.<theme>.fonts` / typography.families),
 // which reference the same `cssVariable`.
 
 const FontProvider = z.enum([
@@ -239,7 +274,7 @@ const FontVariantSchema = z.object({
   display: z.optional(FontDisplay),
 });
 
-const FontSchema = z.object({
+export const SiteFontSchema = z.object({
   name: z.string(),
   provider: FontProvider,
   cssVariable: z.string().check(z.regex(/^--/)),
@@ -533,26 +568,11 @@ export const SiteConfigSchema = z.object({
     'A/B testing: cookie-based split plus named variants whose `overrides` patch the config per environment.',
   ),
 
-  designSystem: desc(
-    z.record(z.string(), DesignSystemEntry),
-    'Named-theme map of design systems. `default` is the base; other entries may `extends` another and supply a partial patch. Light/dark is automatic (functional tokens flip per appearance), not a separate theme entry. A bare design system (with `colors`) is shorthand for `{ default: … }`.',
-  ),
-  defaultTheme: desc(
-    z.optional(z.string()),
-    'Which `designSystem` entry to use by default (convention: "default").',
-  ),
-  defaultColorScheme: desc(
-    z.optional(z.enum(['light', 'dark'])),
-    'Initial appearance to render before any user/system preference applies.',
-  ),
-  respectSystemPreference: desc(
-    z.optional(z.boolean()),
-    "Follow the user's OS light/dark preference.",
-  ),
+  designSystem: DesignSystemBlock,
 
   fonts: desc(
-    z.optional(z.array(FontSchema)),
-    'Font LOADING (a serialisable projection of the Astro Fonts API: provider, weights, subsets, preload). Font TOKENS live in `designSystem.<theme>.fonts` and reference the same `cssVariable`.',
+    z.optional(z.array(SiteFontSchema)),
+    'Font LOADING (a serialisable projection of the Astro Fonts API: provider, weights, subsets, preload). Font TOKENS live in `designSystem.themes.<theme>.fonts` and reference the same `cssVariable`.',
   ),
 
   tags: desc(
@@ -759,6 +779,8 @@ export const SiteConfigSchema = z.object({
 });
 
 export type SiteConfig = z.infer<typeof SiteConfigSchema>;
+/** One `fonts[]` entry — a serialisable projection of an Astro Fonts API family. */
+export type SiteFont = z.infer<typeof SiteFontSchema>;
 
 // ── JSON Schema + validation ────────────────────────────────────────────────────
 
@@ -793,29 +815,35 @@ export function validateSite(input: unknown): SiteValidationResult {
   if (!has(cfg.locales, cfg.defaultLocale))
     errors.push(issue(['defaultLocale'], `defaultLocale "${cfg.defaultLocale}" is not in locales`));
 
-  if (!has(cfg.designSystem, 'default') && cfg.defaultTheme == null)
-    errors.push(issue(['designSystem'], 'designSystem must include a "default" theme'));
+  const themes = cfg.designSystem?.themes ?? {};
+  const defaultTheme = cfg.designSystem?.defaultTheme;
 
-  if (cfg.defaultTheme != null && !has(cfg.designSystem, cfg.defaultTheme))
+  if (!has(themes, 'default') && defaultTheme == null)
+    errors.push(issue(['designSystem', 'themes'], 'themes must include a "default" entry'));
+
+  if (defaultTheme != null && !has(themes, defaultTheme))
     errors.push(
-      issue(['defaultTheme'], `defaultTheme "${cfg.defaultTheme}" is not in designSystem`),
+      issue(
+        ['designSystem', 'defaultTheme'],
+        `defaultTheme "${defaultTheme}" is not in designSystem.themes`,
+      ),
     );
 
-  for (const [key, entry] of Object.entries(cfg.designSystem)) {
-    if (entry.extends != null && !has(cfg.designSystem, entry.extends))
+  for (const [key, entry] of Object.entries(themes)) {
+    if (entry.extends != null && !has(themes, entry.extends))
       errors.push(
         issue(
-          ['designSystem', key, 'extends'],
-          `extends "${entry.extends}" is not a designSystem key`,
+          ['designSystem', 'themes', key, 'extends'],
+          `extends "${entry.extends}" is not a themes key`,
         ),
       );
   }
   // extends acyclicity + each resolved theme is a complete DesignSystem
-  for (const key of Object.keys(cfg.designSystem)) {
+  for (const key of Object.keys(themes)) {
     try {
-      resolveTheme(cfg.designSystem as Record<string, DesignSystemEntryT>, key);
+      resolveTheme(themes as Record<string, DesignSystemEntryT>, key);
     } catch (e) {
-      errors.push(issue(['designSystem', key], (e as Error).message));
+      errors.push(issue(['designSystem', 'themes', key], (e as Error).message));
     }
   }
 
@@ -956,15 +984,43 @@ export function resolveTheme(
 }
 
 /**
+ * Normalise the two `designSystem` shorthands to the canonical
+ * `{ themes: { … } }` shape.
+ *
+ * Both are keyed off what CANNOT be a theme name in the other reading:
+ *  - `colors` → a bare `DesignSystem` was written inline.
+ *  - `themes` → already canonical.
+ *  - neither → the legacy bare theme map, from before the block gained
+ *    system-wide fields. Every config authored against the old schema takes this
+ *    branch, which is what keeps the change forgiving at runtime even though the
+ *    published JSON Schema moved.
+ */
+function normaliseDesignSystem(raw: Record<string, unknown>): void {
+  const ds = raw.designSystem as Record<string, unknown> | undefined;
+  if (ds == null || typeof ds !== 'object') return;
+  if ('themes' in ds) return;
+  raw.designSystem = 'colors' in ds ? { themes: { default: ds } } : { themes: ds };
+}
+
+/**
  * Resolve a raw (already-parsed) config into a validated `SiteConfig`:
  *  1. strip YAML nulls,
- *  2. apply the active A/B variant's `overrides` (by `siteEnv`),
- *  3. normalise a bare-`DesignSystem` `designSystem` shorthand to `{ default: … }`,
+ *  2. normalise the `designSystem` shorthands to `{ themes: … }`,
+ *  3. apply the active A/B variant's `overrides` (by `siteEnv`),
  *  4. validate (shape + cross-field).
  * Pure — no YAML/env access. A loader supplies `siteEnv`.
+ *
+ * Steps 2 and 3 are in this order deliberately. Normalising first means an
+ * `abTesting` override always addresses the canonical shape
+ * (`designSystem.themes.<name>`), whatever shorthand the base config used. With
+ * the merge first, an override's key path depended on how the base happened to be
+ * written — so the same patch hit a different place in two configs that were
+ * otherwise equivalent.
  */
 export function resolveSiteConfig(input: unknown, siteEnv = 'production'): SiteConfig {
   const raw = stripNulls(input) as Record<string, unknown>;
+
+  normaliseDesignSystem(raw);
 
   const envConfig = (raw.environments as Record<string, { variant?: string }> | undefined)?.[
     siteEnv
@@ -973,12 +1029,13 @@ export function resolveSiteConfig(input: unknown, siteEnv = 'production'): SiteC
     const overrides = (
       raw.abTesting as { variants?: Record<string, { overrides?: Record<string, unknown> }> }
     )?.variants?.[envConfig.variant]?.overrides;
-    if (overrides) deepMerge(raw, overrides);
+    if (overrides) {
+      // An override may itself use a shorthand; normalise it to the same shape or
+      // deepMerge would nest a bare map under the canonical one.
+      normaliseDesignSystem(overrides);
+      deepMerge(raw, overrides);
+    }
   }
-
-  // Shorthand: a bare DesignSystem (has `colors`) → { default: … }.
-  const ds = raw.designSystem as Record<string, unknown> | undefined;
-  if (ds != null && 'colors' in ds) raw.designSystem = { default: ds };
 
   const result = validateSite(raw);
   if (!result.ok) {
@@ -986,6 +1043,72 @@ export function resolveSiteConfig(input: unknown, siteEnv = 'production'): SiteC
     throw new Error(`Invalid site config:\n${msg}`);
   }
   return result.data;
+}
+
+// ── Accepting either config kind ────────────────────────────────────────────────
+
+/**
+ * Is this raw config a `SiteConfig` rather than a bare `design-system.json`?
+ *
+ * The discriminator is **total**, not a heuristic, and both halves are load-
+ * bearing: `SiteConfigSchema` cannot validate without a `designSystem` (a config
+ * lacking one fails `validateSite` with `themes must include a "default" entry`),
+ * and `DesignSystemSchema` is strict, so a `designSystem` key in a design system
+ * is an `unrecognized_keys` error. No document can be read as both, and no
+ * document that is neither reaches here without failing validation anyway.
+ *
+ * Deliberately shape-based rather than filename-based: consumers name this file
+ * whatever suits them (`company.json`, `site.json`, `vitops.config.json`), and a
+ * rule keyed to a name would silently stop working the moment someone renamed it.
+ */
+export function isSiteConfig(raw: unknown): boolean {
+  return typeof raw === 'object' && raw != null && !Array.isArray(raw) && 'designSystem' in raw;
+}
+
+/** What a config file turned out to hold. */
+export interface ResolvedInput {
+  /** The design system to build from — a resolved theme, if the input was a `SiteConfig`. */
+  designSystem: DesignSystem;
+  /** The site config, when that is what the input was. */
+  site?: SiteConfig;
+  /** Which `themes` key was selected. Absent for a bare `design-system.json`. */
+  theme?: string;
+}
+
+/**
+ * Resolve a raw config of either kind into the design system to build from.
+ *
+ * Every entry point that used to take a `design-system.json` goes through this,
+ * so a consumer who keeps their tokens inside the larger site config points the
+ * same option at that file instead of maintaining a second one. The site config
+ * is handed back too, because the parts of generation that depend on site-level
+ * facts (`designSystem.defaultColorScheme`, the legal documents, the icon
+ * sprite) would otherwise need the same path declared a second time.
+ *
+ * The returned `designSystem` is **not** validated here — the caller does that,
+ * so it can say which file and which theme the errors belong to. Validation of
+ * the site config itself has already happened (`resolveSiteConfig` throws).
+ */
+export function resolveInput(
+  raw: unknown,
+  opts: { theme?: string; siteEnv?: string } = {},
+): ResolvedInput {
+  if (!isSiteConfig(raw)) {
+    if (opts.theme != null)
+      throw new Error(
+        `theme "${opts.theme}" was requested, but this is a design-system.json — it holds one ` +
+          'design system and no `themes` map. Point at a site config to select a theme.',
+      );
+    return { designSystem: raw as DesignSystem };
+  }
+  const site = resolveSiteConfig(raw, opts.siteEnv);
+  const themes = (site.designSystem?.themes ?? {}) as Record<string, DesignSystemEntryT>;
+  const theme = opts.theme ?? site.designSystem?.defaultTheme ?? 'default';
+  if (!(theme in themes))
+    throw new Error(
+      `designSystem.themes has no "${theme}" entry (found: ${Object.keys(themes).join(', ') || 'none'})`,
+    );
+  return { designSystem: resolveTheme(themes, theme), site, theme };
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────

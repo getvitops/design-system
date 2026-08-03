@@ -49,8 +49,72 @@ describe('design-system JSON Schema descriptions', () => {
 describe('site-config JSON Schema descriptions', () => {
   it('describes every top-level field', () => {
     const props = (siteJsonSchema as unknown as Node).properties ?? {};
-    expect(Object.keys(props).length).toBeGreaterThan(30);
+    expect(Object.keys(props).length).toBeGreaterThan(25);
     for (const [key, node] of Object.entries(props))
       expect(node.description, `${key} needs a description`).toBeTruthy();
+  });
+
+  /**
+   * The descriptions ARE the authoring documentation — `vitops docs authoring`
+   * renders them, and editors show them as hovers. A top-level-only check stopped
+   * covering `defaultTheme` / `defaultColorScheme` the moment they moved inside
+   * `designSystem`, which is exactly when an undescribed field is easiest to ship.
+   */
+  it('describes every field of the designSystem block', () => {
+    const ds = ((siteJsonSchema as unknown as Node).properties ?? {}).designSystem;
+    expect(ds?.description, 'the designSystem block itself needs a description').toBeTruthy();
+    const props = ds?.properties ?? {};
+    expect(Object.keys(props)).toEqual(
+      expect.arrayContaining(['themes', 'defaultTheme', 'defaultColorScheme']),
+    );
+    for (const [key, node] of Object.entries(props))
+      expect(node.description, `designSystem.${key} needs a description`).toBeTruthy();
+  });
+});
+
+/**
+ * Runtime validation and the published JSON Schema derive from the same zod
+ * schema, but they used to disagree: `toJSONSchema` emits
+ * `additionalProperties: false`, while a plain `z.object` *strips* unknown keys
+ * at runtime. So an editor honouring `$schema` flagged what `vitops validate`
+ * called `✓ valid` — and the config that slipped through was one whose extra
+ * keys were being silently discarded at generate time.
+ *
+ * The `{ seed, tones }` case is the expensive one: it fails both `Ramp` branches,
+ * so the raw union error is a bare "Invalid input" that names neither key.
+ */
+describe('validate() is as strict as the published schema', () => {
+  const withHue = (hue: unknown) => ({
+    colors: { palette: { brand: hue }, roles: { neutral: 'brand' } },
+  });
+  const failure = (input: unknown) => {
+    const r = validate(input);
+    expect(r.ok, 'expected this config to be rejected').toBe(false);
+    if (r.ok) throw new Error('unreachable');
+    return r.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(' | ');
+  };
+
+  it('rejects a hue that is both seeded and fixed, and says which to drop', () => {
+    const msg = failure(withHue({ seed: '#2e9b73', tones: {} }));
+    expect(msg).toContain('colors.palette.brand');
+    expect(msg).toMatch(/not both/);
+    // The reason it matters, not just that it's invalid.
+    expect(msg).toContain('ignored at generate time');
+  });
+
+  it('rejects an unknown key on a hue and names it', () => {
+    expect(failure(withHue({ seed: '#2e9b73', anchor: {} }))).toContain('"anchor"');
+  });
+
+  it('rejects an unknown key anywhere else and names it', () => {
+    const msg = failure({ ...withHue({ seed: '#2e9b73' }), spaceScale: { base: '1rem', nope: 1 } });
+    expect(msg).toContain('spaceScale');
+    expect(msg).toContain('"nope"');
+  });
+
+  it('still accepts both legitimate hue forms', () => {
+    expect(validate(withHue({ seed: '#2e9b73' })).ok).toBe(true);
+    expect(validate(withHue({ seed: '#2e9b73', anchors: { 600: '#1f6b50' } })).ok).toBe(true);
+    expect(validate(withHue({ tones: ['#eafaf3', '#2e9b73', '#0d3b2b'] })).ok).toBe(true);
   });
 });

@@ -1,7 +1,7 @@
 /**
  * @getvitops/vite — a Vite plugin that generates Vitops design-system output from a
- * `design-system.json` during a Vite/Astro (EmDash) build, and hot-regenerates when
- * the config changes in dev.
+ * `design-system.json` (or from the larger site config that embeds one) during a
+ * Vite/Astro (EmDash) build, and hot-regenerates when the config changes in dev.
  *
  *   import vitops from '@getvitops/vite';
  *   export default { plugins: [vitops({ input: 'design-system.json', format: 'tailwind', out: 'src/styles' })] };
@@ -14,6 +14,7 @@ import type { Plugin } from 'vite';
 import {
   generate,
   generateLegal,
+  isSiteConfig,
   resolveSiteConfig,
   validate,
   type Format,
@@ -23,6 +24,38 @@ import { generateFavicons, writeFaviconManifest } from '@getvitops/utils';
 
 /** Endpoint `<wc-theme-editor>` probes for, and POSTs its patch to. */
 const EDITOR_ENDPOINT = '/__vitops/design-system';
+
+/**
+ * Where the design system lives inside the config file on disk.
+ *
+ * `[]` for a `design-system.json` — the file *is* the design system. For a site
+ * config it is under `designSystem`, and this reads the **raw** object rather
+ * than the resolved one because the editor's write-back has to land where the
+ * author actually put it. `resolveSiteConfig` normalises the two shorthands in
+ * memory; a writer that assumed the canonical shape would grow a second
+ * `themes` key beside the author's bare map and silently stop editing anything.
+ */
+export function designSystemPath(raw: unknown, theme = 'default'): string[] {
+  if (!isSiteConfig(raw)) return [];
+  const ds = (raw as Record<string, unknown>).designSystem as Record<string, unknown>;
+  if (ds != null && typeof ds === 'object') {
+    if ('themes' in ds) return ['designSystem', 'themes', theme];
+    // A bare `DesignSystem` written inline — one theme, and it is `default`.
+    if ('colors' in ds) return ['designSystem'];
+  }
+  return ['designSystem', theme]; // the legacy bare theme map
+}
+
+export const getAt = (obj: unknown, path: string[]): unknown =>
+  path.reduce<unknown>((cur, k) => (cur as Record<string, unknown>)?.[k], obj);
+
+/** Return a copy of `obj` with `path` replaced by `value`. Creates missing objects. */
+export function setAt(obj: unknown, path: string[], value: unknown): unknown {
+  if (!path.length) return value;
+  const [head, ...rest] = path as [string, ...string[]];
+  const base = (typeof obj === 'object' && obj !== null ? obj : {}) as Record<string, unknown>;
+  return { ...base, [head]: setAt(base[head], rest, value) };
+}
 
 /**
  * Recursively merge a patch into a config. Plain objects merge key-wise;
@@ -90,8 +123,22 @@ export interface VitopsFaviconOptions {
 }
 
 export interface VitopsPluginOptions {
-  /** Path to the design-system.json. Default: 'design-system.json'. */
+  /**
+   * Path to the config. Default: `'design-system.json'`.
+   *
+   * May be a `design-system.json` **or** the larger site config that embeds one
+   * (`company.json` / `site.json`) — told apart by shape. Pointing it at a site
+   * config also supplies `site` below, so a consumer who keeps their tokens
+   * there declares the path once instead of three times.
+   */
   input?: string;
+  /**
+   * Which `designSystem.themes` entry to build, when `input` is a site config.
+   * Default: the config's `defaultTheme`, else `default`.
+   *
+   * Also the theme `<wc-theme-editor>`'s **Save to source** writes back into.
+   */
+  theme?: string;
   /** Output target. Default: 'tailwind' (the EmDash/Astro case). */
   format?: Format;
   /** Directory to write generated output into. Default: 'src/styles'. */
@@ -117,15 +164,42 @@ export interface VitopsPluginOptions {
    * Also render the site's legal documents on build, and re-render when the site
    * config changes.
    *
-   * Its own option rather than part of the design-system pass because it reads a
-   * different config kind — a `SiteConfig`, not a `design-system.json`.
+   * Its own option because it is an *output* you opt into — but its `input` is
+   * optional, defaulting to `site.input`, then to `input` when that is itself a
+   * site config. `legal: {}` is therefore the whole declaration in the common case.
    */
   legal?: VitopsLegalOptions;
+  /**
+   * The site config, for the parts of generation that depend on site-level facts
+   * rather than on the design system — currently `designSystem.defaultColorScheme`, which
+   * decides whether the colour layer carries a `prefers-color-scheme` block.
+   *
+   * Only needed when the site config is a *different* file from `input`; when
+   * `input` is itself a site config, that one is used. Watched, so an edit
+   * regenerates.
+   */
+  site?: VitopsSiteOptions;
+  /**
+   * Emit the `prefers-color-scheme: dark` block. Normally read from the site
+   * config's `designSystem.defaultColorScheme: "system"`; set here it wins, for consumers with no
+   * site config.
+   */
+  systemColorScheme?: boolean;
+}
+
+export interface VitopsSiteOptions {
+  /** Path to the site config (JSON). */
+  input: string;
+  /** Environment whose A/B variant applies. Default: 'production'. */
+  siteEnv?: string;
 }
 
 export interface VitopsLegalOptions {
-  /** Path to the site config (JSON). */
-  input: string;
+  /**
+   * Path to the site config (JSON). Optional: defaults to `site.input`, then to
+   * the plugin's own `input` when that is itself a site config.
+   */
+  input?: string;
   /** Directory to write documents into. Default: 'src/content/legal'. */
   out?: string;
   /** Output format. Default: 'md', which suits an Astro content collection. */
@@ -138,17 +212,43 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
   const format: Format = options.format ?? 'tailwind';
   const outDir = options.out ?? 'src/styles';
   let input = resolve(options.input ?? 'design-system.json');
-  let legalInput = options.legal ? resolve(options.legal.input) : '';
+  let legalInput = options.legal?.input ? resolve(options.legal.input) : '';
+  let siteInput = options.site ? resolve(options.site.input) : '';
   let root = '';
 
+  const readJson = (p: string) => JSON.parse(readFileSync(p, 'utf8')) as unknown;
+
   const run = async () => {
-    await generate({ input, format, outDir });
+    // Read once and hand `generate` the parsed object: it has to be inspected
+    // here anyway to know whether `input` is a site config, and reading the same
+    // file twice per regeneration is how a half-written save gets picked up.
+    const raw = readJson(input);
+    const inputIsSite = isSiteConfig(raw);
+    // `generate` reads the site config only for what the stylesheet depends on;
+    // legal documents stay the separate opt-in below.
+    await generate({
+      input: raw as Parameters<typeof generate>[0]['input'],
+      format,
+      outDir,
+      ...(options.theme != null ? { theme: options.theme } : {}),
+      siteEnv: options.site?.siteEnv ?? 'production',
+      ...(options.systemColorScheme != null
+        ? { systemColorScheme: options.systemColorScheme }
+        : {}),
+      // An explicit `site` wins; otherwise `input` supplies it when it is one.
+      ...(siteInput ? { site: readJson(siteInput) as never } : {}),
+    });
     if (options.legal) {
+      // The three paths are the same file in almost every project, so the
+      // declaration cascades rather than being repeated.
+      const legalPath = legalInput || siteInput || (inputIsSite ? input : '');
+      if (!legalPath)
+        throw new Error(
+          '[vitops] legal: needs a site config — set `legal.input`, or the `site` option, or ' +
+            'point `input` at a site config.',
+        );
       const legalOut = resolve(root, options.legal.out ?? 'src/content/legal');
-      const site = resolveSiteConfig(
-        JSON.parse(readFileSync(legalInput, 'utf8')),
-        options.legal.siteEnv ?? 'production',
-      );
+      const site = resolveSiteConfig(readJson(legalPath), options.legal.siteEnv ?? 'production');
       const files = generateLegal(site, { output: options.legal.format ?? 'md' });
       mkdirSync(legalOut, { recursive: true });
       for (const [name, content] of Object.entries(files))
@@ -178,6 +278,11 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
         ...(options.favicon.lowResSource
           ? { lowResSource: resolve(root, options.favicon.lowResSource) }
           : {}),
+        // Composited under the maskable outputs, so they match the manifest's
+        // `background_color` rather than being transparent where it must not be.
+        ...(options.favicon.backgroundColor
+          ? { backgroundColor: options.favicon.backgroundColor }
+          : {}),
       });
       if (options.favicon.name && options.favicon.themeColor) {
         await writeFaviconManifest(faviconOut, {
@@ -191,10 +296,12 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
     }
   };
 
-  // Both configs are inputs to `run()`, so both must trigger a re-run — a legal
-  // document that only refreshes when the design system changes is worse than
-  // one that never refreshes, because it looks current.
-  const watched = () => (legalInput ? [input, legalInput] : [input]);
+  // Every config `run()` reads is an input, so every one must trigger a re-run —
+  // a legal document (or a colour layer) that only refreshes when the design
+  // system changes is worse than one that never refreshes, because it looks
+  // current. De-duplicated because `site.input` and `legal.input` are usually the
+  // same file, and watching it twice would regenerate twice per edit.
+  const watched = () => [...new Set([input, siteInput, legalInput].filter(Boolean))];
 
   return {
     name: '@getvitops/vite',
@@ -202,7 +309,8 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
     configResolved(config) {
       root = config.root;
       input = resolve(config.root, options.input ?? 'design-system.json');
-      if (options.legal) legalInput = resolve(config.root, options.legal.input);
+      if (options.legal?.input) legalInput = resolve(config.root, options.legal.input);
+      if (options.site) siteInput = resolve(config.root, options.site.input);
     },
     async buildStart() {
       for (const f of watched()) this.addWatchFile(f);
@@ -224,6 +332,15 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
       // and never in a build — on a static deploy the editor's probe 404s and the
       // button simply isn't rendered. The only writable path is `input`, already
       // resolved from config: a request supplies a patch, never a destination.
+      //
+      // The editor's patch is always design-system-relative (`colors.palette.…`),
+      // because that is the only config it knows about. When `input` is a site
+      // config the patch is therefore merged into — and validated against — the
+      // design system SUBTREE, and only the surrounding file is written whole.
+      // Merging it at the root instead would write a `colors` key beside
+      // `organization` that nothing reads, and `validate` would reject the site
+      // config wholesale, so every save would fail with errors about the wrong
+      // document.
       server.middlewares.use(EDITOR_ENDPOINT, (req, res, next) => {
         const json = (status: number, body: unknown): void => {
           res.statusCode = status;
@@ -233,10 +350,15 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
 
         if (req.method === 'GET') {
           try {
+            const current = readJson(input);
+            const at = designSystemPath(current, options.theme);
             return json(200, {
               writable: true,
               path: input,
-              config: JSON.parse(readFileSync(input, 'utf8')),
+              // The subtree, not the file: the editor's own model of a config is
+              // a design system, and `at` says where in the file it lives.
+              at,
+              config: getAt(current, at),
             });
           } catch (err) {
             return json(500, { error: (err as Error).message });
@@ -255,8 +377,9 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
             if (patch == null || typeof patch !== 'object')
               return json(400, { errors: ['body must be { patch: object }'] });
 
-            const current = JSON.parse(readFileSync(input, 'utf8')) as unknown;
-            const merged = deepMerge(current, patch);
+            const current = readJson(input);
+            const at = designSystemPath(current, options.theme);
+            const merged = deepMerge(getAt(current, at), patch);
             // Validate the *merged* result, not the patch: a patch is a partial
             // by design, so it can't be validated on its own, and writing an
             // invalid config would break the very dev server doing the writing.
@@ -266,7 +389,7 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
                 errors: result.errors.map((e) => `${e.path.join('.') || '(root)'}: ${e.message}`),
               });
 
-            writeFileSync(input, `${formatConfig(merged)}\n`);
+            writeFileSync(input, `${formatConfig(setAt(current, at, merged))}\n`);
             // The watcher above picks the write up and regenerates + reloads.
             return json(200, { ok: true, warnings: result.warnings });
           } catch (err) {

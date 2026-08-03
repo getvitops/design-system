@@ -11,11 +11,46 @@
  * gains a name, and a page that lies about the vocabulary is worse than none.
  */
 import Icon from '@getvitops/astro/components/Icon.astro';
-import { iconMap } from '@getvitops/astro';
+import { iconMap, resolveIcon } from '@getvitops/astro';
 import Docs from '../layouts/Docs.astro';
 
 /** Every semantic name, grouped the way the map itself is commented. */
 const NAMES = Object.keys(iconMap.fa7);
+
+/**
+ * The UI sets, for the vocabulary switcher.
+ *
+ * Every set is rendered at build time and the picker swaps which grid is shown
+ * with CSS (`:has(:checked)`), because the claim the page is making — the same
+ * name resolves in every set — is only demonstrated by actually resolving it in
+ * every set. A JS picker would prove the same thing with a runtime the rest of
+ * the page doesn't need, and a screenshot would prove nothing at all.
+ *
+ * `<Icon />` resolves against the site's configured set, so each grid goes
+ * through `resolveIcon` here and hands the component the qualified name — the
+ * documented `prefix:name` pass-through. That is also why the collections are
+ * devDependencies of this app: the inline engine reads the glyph out of
+ * `@iconify-json/*` directly.
+ */
+const SETS = [
+  { prefix: 'ph', label: 'Phosphor' },
+  { prefix: 'lucide', label: 'Lucide' },
+  { prefix: 'fa7-solid', label: 'Font Awesome 7' },
+  { prefix: 'material-symbols', label: 'Material Symbols' },
+] as const;
+
+/** Resolve up front so a set missing a name is a build-time warning, not a blank cell. */
+const GRIDS = SETS.map((set) => ({
+  ...set,
+  icons: NAMES.map((name) => {
+    try {
+      return { name, qualified: resolveIcon(name, set.prefix) };
+    } catch {
+      console.warn(`[docs/icons] "${name}" has no entry in ${set.prefix}`);
+      return { name, qualified: null };
+    }
+  }),
+}));
 
 /** Phosphor's weights — a suffix on the name, not a separate collection. */
 const WEIGHTS = ['regular', 'bold', 'fill', 'duotone', 'thin'] as const;
@@ -51,19 +86,46 @@ const headings = [
   <h2 id="vocabulary" class="font-title">The vocabulary</h2>
   <p class="font-body text-surface-muted">
     All {NAMES.length} semantic names, read from the shipped map at build time. Every set the
-    toolchain knows answers to this same list, which is what makes swapping one safe.
+    toolchain knows answers to this same list, which is what makes swapping one safe — so pick one
+    and watch the glyphs change while the names don't. The second line in each cell is what that
+    name resolves to; in your own project it's one line of <code>astro.config</code>.
   </p>
 
-  <ul class="grid-auto ic-grid" style="--grid-min: 8rem">
+  <fieldset class="ic-sets">
+    <legend class="sr-only">Icon set</legend>
+    <p class="cluster cluster-start ic-picker">
+      {
+        GRIDS.map((set, i) => (
+          <Fragment>
+            <input
+              type="radio"
+              name="ic-set"
+              id={`ic-set-${set.prefix}`}
+              class="sr-only"
+              checked={i === 0}
+            />
+            <label class="btn" for={`ic-set-${set.prefix}`}>
+              {set.label}
+            </label>
+          </Fragment>
+        ))
+      }
+    </p>
+
     {
-      NAMES.map((name) => (
-        <li class="ic-cell">
-          <Icon name={name} size="1.5rem" />
-          <code class="font-caption">{name}</code>
-        </li>
+      GRIDS.map((set) => (
+        <ul class="grid-auto ic-grid" data-set={set.prefix} style="--grid-min: 8rem">
+          {set.icons.map(({ name, qualified }) => (
+            <li class="ic-cell">
+              {qualified ? <Icon name={qualified} size="1.5rem" /> : <span class="icon" />}
+              <code class="font-caption">{name}</code>
+              <code class="font-footnote ic-resolved">{qualified ?? '—'}</code>
+            </li>
+          ))}
+        </ul>
       ))
     }
-  </ul>
+  </fieldset>
 
   <!-- ── Sizing & colour ─────────────────────────────────────────────────── -->
   <h2 id="sizing" class="font-title">Sizing &amp; colour</h2>
@@ -105,7 +167,7 @@ const headings = [
 
   <p class="cluster cluster-start ic-row">
     <a class="cta" href="#adornments"><Icon name="add" />New project</a>
-    <a class="cta" href="#adornments">Continue<Icon name="arrow-forward" /></a>
+    <a class="cta" href="#adornments">Continue<Icon name="arrow-right" /></a>
     <button class="btn"><Icon name="download" />Download</button>
     <button class="danger"><Icon name="delete" />Delete</button>
   </p>
@@ -192,6 +254,47 @@ const headings = [
   .ic-cell code {
     color: var(--color-text-surface-muted);
     word-break: break-all;
+  }
+
+  .ic-resolved {
+    color: var(--color-text-surface-x-muted);
+  }
+
+  /* The set picker: radios + `:has(:checked)`, so switching sets costs no JS.
+     A framework `.segmented`/`.tabs` pattern would own this — there isn't one
+     yet, which is the honest reading of these 20 lines. */
+  .ic-sets {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-inline-size: 0;
+  }
+
+  .ic-picker {
+    gap: 0.5rem;
+    margin-block: 1.25rem;
+  }
+
+  .ic-picker input:checked + label {
+    background-color: var(--color-bg-brand-primary-solid);
+    color: var(--color-text-on-brand-primary);
+  }
+
+  /* The focus ring lives on the hidden input, so move it to the label. */
+  .ic-picker input:focus-visible + label {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+  }
+
+  .ic-grid {
+    display: none;
+  }
+
+  .ic-sets:has(#ic-set-ph:checked) .ic-grid[data-set='ph'],
+  .ic-sets:has(#ic-set-lucide:checked) .ic-grid[data-set='lucide'],
+  .ic-sets:has(#ic-set-fa7-solid:checked) .ic-grid[data-set='fa7-solid'],
+  .ic-sets:has(#ic-set-material-symbols:checked) .ic-grid[data-set='material-symbols'] {
+    display: grid;
   }
 
   .ic-row {

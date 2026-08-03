@@ -21,7 +21,7 @@ const { features } = Astro.props;
 <ul class="list bl-list">
   {features.map((f) => (
     <li class="bl-item">
-      <div class="bl-head">
+      <div class="cluster-start items-center bl-head">
         <code class="font-footnote">{f.label}</code>
         <baseline-status featureId={f.id}></baseline-status>
       </div>
@@ -47,11 +47,11 @@ const { features } = Astro.props;
     display: grid;
     gap: 0.35rem;
   }
+  /* Flex, wrap and gap come from `.cluster-start`; alignment from `.items-center`.
+     `vitops lint` flagged the hand-written version — this file is the site's
+     scorecard, so it gets fixed rather than excused. */
   .bl-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.75rem;
+    --cluster-gap: 0.75rem;
   }
   .bl-note {
     margin: 0;

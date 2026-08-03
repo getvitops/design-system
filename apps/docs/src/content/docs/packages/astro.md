@@ -37,6 +37,8 @@ export default defineConfig({
 });
 ```
 
+`css.input` takes a `design-system.json` **or** the larger site config that embeds one (`company.json`) — told apart by shape. A site config also feeds `site`, `legal` and `fonts`, so those need no path of their own. `css.theme` picks a `designSystem.themes` entry other than the default.
+
 ```astro
 ---
 // src/layouts/Base.astro

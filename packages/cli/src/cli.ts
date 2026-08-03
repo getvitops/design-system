@@ -4,8 +4,8 @@
  *
  *   vitops generate  --input <json> --format <bricks|css|tailwind|design[,…]> --out <dir>
  *   vitops init      [--out design-system.json] [--force]
- *   vitops validate  <design-system.json>
- *   vitops favicon   --input <svg|png> --out <dir> [--low-res <svg|png>]
+ *   vitops validate  <design-system.json|site.json>
+ *   vitops favicon   --input <svg|png> --out <dir> [--low-res <svg|png>] [--background <hex>]
  *   vitops agents    [--input <json>] [--out AGENTS.md] [--docs-dir <dir>]
  *   vitops docs      [topic] [--input <json>] [--all]
  *   vitops lint      [--input <json>] [--format <fmt>] [--src <dir>]
@@ -27,7 +27,10 @@ import {
   generateDocs,
   generateLegal,
   enabledDocs,
+  isSiteConfig,
+  resolveInput,
   resolveSiteConfig,
+  resolveTheme,
   roleColorUtilities,
   functionalRole,
   expandPalette,
@@ -39,6 +42,7 @@ import {
   type DesignSystem,
   type LegalDoc,
   type LegalOutput,
+  type ResolvedInput,
   type SiteConfig,
 } from '@getvitops/generator';
 import {
@@ -49,6 +53,7 @@ import {
   scanFiles,
 } from '@getvitops/utils';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
+import { lintCss } from './lint-css.ts';
 import { lintSource, vocabulary } from './lint.ts';
 
 const FORMATS = new Set<Format>(['bricks', 'css', 'tailwind', 'design']);
@@ -64,10 +69,15 @@ const LEGAL_OUTPUTS = new Set<LegalOutput>(['md', 'html', 'portable-text']);
 
 const HELP = `vitops — generate design-system outputs from a design-system.json
 
+Anywhere a command takes --input, that file may be a design-system.json OR the
+larger site config that embeds one (company.json / site.json). The two are told
+apart by shape, and a site config also supplies the site-level facts generation
+reads — its default colour scheme, its legal documents, its icon sprite.
+
 Usage:
   vitops generate [options]     Generate platform output from a config
   vitops init [options]         Scaffold a starter design-system.json
-  vitops validate <file>        Validate a config against the schema
+  vitops validate <file>        Validate a config against the schema it says it is
   vitops favicon [options]      Generate a favicon set from a source image
   vitops agents [options]       Link the design-system agent skill + AGENTS.md pointer
   vitops docs [topic]           Print live design-system reference docs to stdout
@@ -76,14 +86,19 @@ Usage:
   vitops icons [options]        Report which icons your source uses, and build the sprite
 
 Generate options:
-  -i, --input <path>    Config file (default: ./design-system.json)
+  -i, --input <path>    design-system.json or site config (default: ./design-system.json)
   -f, --format <list>   bricks | css | tailwind | design (comma-separated; default: bricks)
                         design emits DESIGN.md only (the agent-facing brief) — pair it
                         with --out . to write it beside AGENTS.md, or compose:
                         --format css,design
   -o, --out <dir>       Output directory (default: ./dist)
-      --site <path>     Site config; also emits legal/*.html into the output
-                        directory (see: vitops legal). Omitted: no legal files.
+      --theme <name>    Which designSystem.themes entry to build, when --input is
+                        a site config (default: its defaultTheme, else "default")
+      --site <path>     Site config, when it is a different file from --input.
+                        Emits legal/*.html into the output directory (see:
+                        vitops legal). Omitted with a plain design-system.json:
+                        no legal files.
+      --site-env <env>  Environment whose A/B variant applies (default: production)
 
 Init options:
   -o, --out <path>      Where to write (default: ./design-system.json)
@@ -93,9 +108,13 @@ Favicon options:
   -i, --input <path>    Source SVG or PNG (required)
   -o, --out <dir>       Output directory (default: ./public)
       --low-res <path>  Optional simplified source for the 16px icon
+      --background <hex>  Background under the maskable icons, which must be
+                        opaque (default: #ffffff)
 
 Agents options:
-  -i, --input <path>    Config file (default: ./design-system.json; validated if present)
+  -i, --input <path>    design-system.json or site config (default: ./design-system.json;
+                        validated if present)
+      --theme <name>    Theme to read, when --input is a site config
   -o, --out <path>      Doc file to update, idempotently (default: ./AGENTS.md)
       --docs-dir <dir>  Legacy layout: write the docs bundle as files to this dir
                         instead of linking the packaged skill
@@ -103,7 +122,8 @@ Agents options:
 Docs options:
   <topic>               classes | authoring | formats | color | scales | patterns | elements
                         (no topic: list topics with summaries)
-  -i, --input <path>    Config file (default: ./design-system.json)
+  -i, --input <path>    design-system.json or site config (default: ./design-system.json)
+      --theme <name>    Theme to render docs from, when --input is a site config
       --all             Print every topic, concatenated
 
 Icons options:
@@ -114,10 +134,13 @@ Icons options:
       --json            Machine-readable report on stdout
 
 Lint options:
-  -i, --input <path>    Config file (default: ./design-system.json)
+  -i, --input <path>    design-system.json or site config (default: ./design-system.json)
+      --theme <name>    Theme to judge classes against, when --input is a site config
   -f, --format <fmt>    Format you build (bricks | css | tailwind; default: bricks).
                         Responsive md-* classes are real in css/bricks, inert in tailwind.
   -s, --src <dir>       Directory to scan (default: ./src)
+      --strict          Also fail on suggestions (reuse hints), not just on
+                        classes that resolve to nothing
 
 Legal options:
   -i, --input <path>    Site config: .json, or a .js/.ts module with a default
@@ -150,6 +173,8 @@ async function cmdGenerate(argv: string[]) {
       format: { type: 'string', short: 'f', default: 'bricks' },
       out: { type: 'string', short: 'o', default: 'dist' },
       site: { type: 'string' },
+      theme: { type: 'string' },
+      'site-env': { type: 'string' },
     },
     allowPositionals: false,
   });
@@ -172,6 +197,8 @@ async function cmdGenerate(argv: string[]) {
         format,
         outDir: values.out as string,
         ...(site ? { site } : {}),
+        ...(values.theme ? { theme: values.theme as string } : {}),
+        ...(values['site-env'] ? { siteEnv: values['site-env'] as string } : {}),
       });
       console.log(`✓ ${format} → ${res.outDir} (${res.written.length} paths)`);
     } catch (err) {
@@ -199,10 +226,19 @@ function cmdInit(argv: string[]) {
   console.log(`  Editors read the "$schema" (${SCHEMA_URL}) for autocomplete + validation.`);
 }
 
+/**
+ * Validate a config against the schema its shape says it is.
+ *
+ * Routing on kind rather than asking the caller matters here: pointed at a site
+ * config, the design-system schema used to report a single `unrecognized_keys`
+ * for `designSystem` and nothing about the file's actual contents — a wrong
+ * answer that reads like a right one. A site config is validated whole, which
+ * also covers the cross-field integrity JSON Schema can't express.
+ */
 function cmdValidate(argv: string[]) {
   const { values, positionals } = parseArgs({
     args: argv,
-    options: { input: { type: 'string', short: 'i' } },
+    options: { input: { type: 'string', short: 'i' }, 'site-env': { type: 'string' } },
     allowPositionals: true,
   });
   const path = resolve((positionals[0] ?? values.input ?? 'design-system.json') as string);
@@ -213,6 +249,37 @@ function cmdValidate(argv: string[]) {
   } catch (err) {
     fail(`could not parse JSON: ${(err as Error).message}`);
   }
+
+  if (isSiteConfig(raw)) {
+    let site: SiteConfig;
+    try {
+      site = resolveSiteConfig(raw, values['site-env'] as string | undefined);
+    } catch (err) {
+      // Already formatted as one issue per line, with field paths.
+      console.error(`✖ ${path} is invalid as a site config:`);
+      console.error((err as Error).message.replace(/^Invalid site config:\n/, ''));
+      process.exit(1);
+    }
+    // Each theme is validated in turn: `validateSite` checks the `extends` chain
+    // resolves, not that what it resolves to is a complete design system, so a
+    // theme could pass there and still fail to build.
+    const themes = (site.designSystem?.themes ?? {}) as Parameters<typeof resolveTheme>[0];
+    let bad = false;
+    for (const name of Object.keys(themes)) {
+      const result = validate(resolveTheme(themes, name));
+      for (const w of result.warnings) console.warn(`  ! designSystem.themes.${name}: ${w}`);
+      if (result.ok) continue;
+      bad = true;
+      console.error(`✖ ${path} — designSystem.themes.${name} is not a complete design system:`);
+      for (const e of result.errors)
+        console.error(`  • ${e.path.join('.') || '(root)'}: ${e.message}`);
+    }
+    if (bad) process.exit(1);
+    const n = Object.keys(themes).length;
+    console.log(`✓ ${path} is a valid site config (${n} theme${n === 1 ? '' : 's'})`);
+    return;
+  }
+
   const result = validate(raw);
   for (const w of result.warnings) console.warn(`  ! ${w}`);
   if (result.ok) {
@@ -231,6 +298,9 @@ async function cmdFavicon(argv: string[]) {
       input: { type: 'string', short: 'i' },
       out: { type: 'string', short: 'o', default: 'public' },
       'low-res': { type: 'string' },
+      // The maskable outputs must be opaque — the OS crops them to its own shape,
+      // so transparency there becomes a black frame, not "no background".
+      background: { type: 'string' },
     },
     allowPositionals: false,
   });
@@ -242,6 +312,7 @@ async function cmdFavicon(argv: string[]) {
       source,
       outputDir: values.out as string,
       ...(values['low-res'] ? { lowResSource: resolve(values['low-res'] as string) } : {}),
+      ...(values.background ? { backgroundColor: values.background as string } : {}),
     });
     console.log(`✓ favicons → ${values.out} (${written.length} files)`);
   } catch (err) {
@@ -249,8 +320,16 @@ async function cmdFavicon(argv: string[]) {
   }
 }
 
-// Read + parse + validate a design-system.json, or exit with a message.
-function loadConfig(path: string): DesignSystem {
+/**
+ * Read + parse + validate the design system at `path`, or exit with a message.
+ *
+ * `path` may be a `design-system.json` **or** the larger site config that embeds
+ * one — every command that judges source against the design system (`docs`,
+ * `lint`, `agents`) accepts either, so a consumer who keeps their tokens in
+ * `company.json` doesn't have to maintain a second file for the tooling's sake.
+ * `resolveInput` tells them apart by shape and resolves the theme.
+ */
+function loadConfig(path: string, theme?: string): DesignSystem {
   if (!existsSync(path)) fail(`config not found: ${path}`);
   let raw: unknown;
   try {
@@ -258,9 +337,17 @@ function loadConfig(path: string): DesignSystem {
   } catch (err) {
     fail(`could not parse JSON: ${(err as Error).message}`);
   }
-  const result = validate(raw);
+  let resolved: ResolvedInput;
+  try {
+    resolved = resolveInput(raw, theme != null ? { theme } : {});
+  } catch (err) {
+    // resolveSiteConfig formats one issue per line; a bad --theme is one line.
+    fail(`${path}: ${(err as Error).message}`);
+  }
+  const result = validate(resolved.designSystem);
   if (!result.ok) {
-    console.error(`✖ ${path} is invalid:`);
+    const where = resolved.theme != null ? ` (designSystem.themes.${resolved.theme})` : '';
+    console.error(`✖ ${path}${where} is invalid:`);
     for (const e of result.errors)
       console.error(`  • ${e.path.join('.') || '(root)'}: ${e.message}`);
     process.exit(1);
@@ -509,6 +596,7 @@ function cmdDocs(argv: string[]) {
     args: argv,
     options: {
       input: { type: 'string', short: 'i', default: 'design-system.json' },
+      theme: { type: 'string' },
       all: { type: 'boolean', default: false },
     },
     allowPositionals: true,
@@ -525,7 +613,7 @@ function cmdDocs(argv: string[]) {
     return;
   }
   if (topic && !TOPICS[topic]) fail(`unknown topic "${topic}". Valid topics:\n${topicList()}`);
-  const ds = loadConfig(resolve(values.input as string));
+  const ds = loadConfig(resolve(values.input as string), values.theme as string | undefined);
   const docs = generateDocs(ds, generatorAssetsDir());
   const paths = values.all
     ? Object.values(TOPICS).map((t) => t.path)
@@ -538,15 +626,19 @@ function cmdLint(argv: string[]) {
     args: argv,
     options: {
       input: { type: 'string', short: 'i', default: 'design-system.json' },
+      theme: { type: 'string' },
       format: { type: 'string', short: 'f', default: 'bricks' },
       src: { type: 'string', short: 's', default: 'src' },
+      // Suggestions are advisory: a reuse rule that failed CI the day it shipped
+      // would be a worse defect than the drift it reports.
+      strict: { type: 'boolean', default: false },
     },
     allowPositionals: false,
   });
   const format = values.format as StylesheetFormat;
   if (!LINT_FORMATS.has(format))
     fail(`unknown format "${format}" (expected: bricks | css | tailwind)`);
-  const ds = loadConfig(resolve(values.input as string));
+  const ds = loadConfig(resolve(values.input as string), values.theme as string | undefined);
   const srcDir = resolve(values.src as string);
   if (!existsSync(srcDir)) fail(`source directory not found: ${srcDir}`);
 
@@ -562,7 +654,15 @@ function cmdLint(argv: string[]) {
   ).map((u) => u.cls);
 
   const files = scanFiles(srcDir);
-  const findings = lintSource(files, vocabulary(ds, roleClasses), format);
+  // `.css` is not in the default extension set — the class linter reads markup,
+  // not stylesheets — so the reuse rules get their own pass. Component files are
+  // scanned twice on purpose: once for their class attributes, once for any
+  // `<style>` block, which is where hand-rolled layout tends to accumulate.
+  const cssFiles = [...files, ...scanFiles(srcDir, { exts: ['.css'] })];
+  const findings = [
+    ...lintSource(files, vocabulary(ds, roleClasses), format),
+    ...lintCss(cssFiles, format),
+  ];
 
   if (!findings.length) {
     console.log(
@@ -571,17 +671,28 @@ function cmdLint(argv: string[]) {
     );
     return;
   }
-  for (const f of findings) {
-    console.error(`${f.file}:${f.line}  ${f.cls}`);
+
+  const errors = findings.filter((f) => f.severity === 'error');
+  const suggestions = findings.filter((f) => f.severity === 'suggestion');
+  // Errors first: a class that resolves to nothing is a defect, a reuse
+  // suggestion is a judgement call, and mixing them buries the former.
+  for (const f of [...errors, ...suggestions]) {
+    console.error(`${f.file}:${f.line}  ${f.severity === 'error' ? f.cls : `(${f.cls})`}`);
     console.error(`    ${f.reason}`);
     if (f.suggestion) console.error(`    try: ${f.suggestion}`);
   }
-  const n = findings.length;
+
+  const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const parts: string[] = [];
+  if (errors.length) parts.push(count(errors.length, 'unresolvable class', 'unresolvable classes'));
+  if (suggestions.length) parts.push(count(suggestions.length, 'suggestion', 'suggestions'));
+  const failing = errors.length > 0 || (values.strict === true && suggestions.length > 0);
   console.error(
-    `\n✖ ${n} unresolvable class${n === 1 ? '' : 'es'} in ` +
-      `${files.length} file${files.length === 1 ? '' : 's'}`,
+    `\n${failing ? '✖' : '!'} ${parts.join(', ')} in ` +
+      `${files.length} file${files.length === 1 ? '' : 's'}` +
+      (suggestions.length && !values.strict ? ' (suggestions do not fail; use --strict)' : ''),
   );
-  process.exit(1);
+  if (failing) process.exit(1);
 }
 
 function cmdAgents(argv: string[]) {
@@ -589,6 +700,7 @@ function cmdAgents(argv: string[]) {
     args: argv,
     options: {
       input: { type: 'string', short: 'i', default: 'design-system.json' },
+      theme: { type: 'string' },
       out: { type: 'string', short: 'o', default: 'AGENTS.md' },
       'docs-dir': { type: 'string' },
     },
@@ -598,7 +710,8 @@ function cmdAgents(argv: string[]) {
   // The command is pure wiring: validate the config when present (fail on an
   // invalid one), but don't require it — docs are rendered live by `vitops docs`.
   let ds: DesignSystem | null = null;
-  if (existsSync(resolve(inputRel))) ds = loadConfig(resolve(inputRel));
+  if (existsSync(resolve(inputRel)))
+    ds = loadConfig(resolve(inputRel), values.theme as string | undefined);
   else console.warn(`  ⚠ ${inputRel} not found — run \`vitops init\` to scaffold one`);
 
   // Explicit --docs-dir = legacy layout: write the docs bundle as files, no skill.

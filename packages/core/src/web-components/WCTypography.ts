@@ -438,7 +438,7 @@ export class WCTypography extends BaseElement {
         background: oklch(0.9 0 0);
       }
 
-      .role-tab[aria-selected="true"] {
+      .role-tab[aria-selected='true'] {
         background: oklch(1 0 0);
         box-shadow: 0 1px 3px oklch(0 0 0 / 0.1);
       }
@@ -568,16 +568,46 @@ export class WCTypography extends BaseElement {
     };
 
     this.roles = {
-      display:  { ...defaultConfig, weight: '700', lineHeight: '1', letterSpacing: '-0.05em', textWrap: 'balance' },
-      headline: { ...defaultConfig, weight: '700', lineHeight: '1.2', letterSpacing: '-0.025em', textWrap: 'balance' },
-      title:    { ...defaultConfig, weight: '600', lineHeight: '1.3', letterSpacing: '-0.015em', textWrap: 'balance' },
-      flair:    { ...defaultConfig, style: 'italic' },
-      body:     { ...defaultConfig, lineHeight: '1.5', textWrap: 'pretty' },
-      quote:    { ...defaultConfig, style: 'italic', lineHeight: '1.4', textWrap: 'balance' },
-      caption:  { ...defaultConfig, lineHeight: '1.4', color: '#666666' },
-      cta:      { ...defaultConfig, weight: '700', lineHeight: '1.2', letterSpacing: '0.05em', textTransform: 'uppercase' },
-      label:    { ...defaultConfig, weight: '500', letterSpacing: '0.025em' },
-      eyebrow:  { ...defaultConfig, weight: '500', lineHeight: '1.2', letterSpacing: '0.1em', textTransform: 'uppercase' },
+      display: {
+        ...defaultConfig,
+        weight: '700',
+        lineHeight: '1',
+        letterSpacing: '-0.05em',
+        textWrap: 'balance',
+      },
+      headline: {
+        ...defaultConfig,
+        weight: '700',
+        lineHeight: '1.2',
+        letterSpacing: '-0.025em',
+        textWrap: 'balance',
+      },
+      title: {
+        ...defaultConfig,
+        weight: '600',
+        lineHeight: '1.3',
+        letterSpacing: '-0.015em',
+        textWrap: 'balance',
+      },
+      flair: { ...defaultConfig, style: 'italic' },
+      body: { ...defaultConfig, lineHeight: '1.5', textWrap: 'pretty' },
+      quote: { ...defaultConfig, style: 'italic', lineHeight: '1.4', textWrap: 'balance' },
+      caption: { ...defaultConfig, lineHeight: '1.4', color: '#666666' },
+      cta: {
+        ...defaultConfig,
+        weight: '700',
+        lineHeight: '1.2',
+        letterSpacing: '0.05em',
+        textTransform: 'uppercase',
+      },
+      label: { ...defaultConfig, weight: '500', letterSpacing: '0.025em' },
+      eyebrow: {
+        ...defaultConfig,
+        weight: '500',
+        lineHeight: '1.2',
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase',
+      },
     };
   }
 
@@ -593,16 +623,37 @@ export class WCTypography extends BaseElement {
       // Using Google Fonts API (requires API key for production)
       // For demo, using a static list of popular fonts
       const popularFonts = [
-        'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Oswald',
-        'Source Sans Pro', 'Raleway', 'PT Sans', 'Merriweather',
-        'Noto Sans', 'Playfair Display', 'Poppins', 'Ubuntu',
-        'Roboto Condensed', 'Roboto Slab', 'Nunito', 'Work Sans',
-        'Fira Sans', 'Quicksand', 'Mulish', 'Barlow', 'Libre Baskerville',
-        'IBM Plex Sans', 'Inter', 'Manrope', 'DM Sans', 'Space Grotesk',
+        'Roboto',
+        'Open Sans',
+        'Lato',
+        'Montserrat',
+        'Oswald',
+        'Source Sans Pro',
+        'Raleway',
+        'PT Sans',
+        'Merriweather',
+        'Noto Sans',
+        'Playfair Display',
+        'Poppins',
+        'Ubuntu',
+        'Roboto Condensed',
+        'Roboto Slab',
+        'Nunito',
+        'Work Sans',
+        'Fira Sans',
+        'Quicksand',
+        'Mulish',
+        'Barlow',
+        'Libre Baskerville',
+        'IBM Plex Sans',
+        'Inter',
+        'Manrope',
+        'DM Sans',
+        'Space Grotesk',
       ];
 
-      const filtered = popularFonts.filter(font =>
-        font.toLowerCase().includes(query.toLowerCase())
+      const filtered = popularFonts.filter((font) =>
+        font.toLowerCase().includes(query.toLowerCase()),
       );
 
       this._searchResults = filtered.slice(0, 10);
@@ -628,7 +679,7 @@ export class WCTypography extends BaseElement {
   }
 
   private async _addFont(fontName: string): Promise<void> {
-    if (this.fonts.some(f => f.name === fontName)) return;
+    if (this.fonts.some((f) => f.name === fontName)) return;
 
     // Load font from Google Fonts
     const link = document.createElement('link');
@@ -644,7 +695,7 @@ export class WCTypography extends BaseElement {
   }
 
   private _removeFont(fontName: string): void {
-    this.fonts = this.fonts.filter(f => f.name !== fontName);
+    this.fonts = this.fonts.filter((f) => f.name !== fontName);
     this._dispatchChange();
   }
 
@@ -700,7 +751,7 @@ export class WCTypography extends BaseElement {
         },
         bubbles: true,
         composed: true,
-      })
+      }),
     );
   }
 
@@ -749,7 +800,7 @@ export class WCTypography extends BaseElement {
                     ${this._isSearching
                       ? html`<div class="font-search__loading">Searching...</div>`
                       : this._searchResults.map(
-                          font => html`
+                          (font) => html`
                             <button
                               type="button"
                               class="font-search__result"
@@ -758,7 +809,7 @@ export class WCTypography extends BaseElement {
                             >
                               ${font}
                             </button>
-                          `
+                          `,
                         )}
                   </div>
                 `
@@ -766,7 +817,7 @@ export class WCTypography extends BaseElement {
           </div>
           <div class="font-list">
             ${this.fonts.map(
-              font => html`
+              (font) => html`
                 <span class="font-tag" style="font-family: '${font.name}', sans-serif">
                   ${font.name}
                   <button
@@ -778,7 +829,7 @@ export class WCTypography extends BaseElement {
                     &times;
                   </button>
                 </span>
-              `
+              `,
             )}
           </div>
         </div>
@@ -801,10 +852,8 @@ export class WCTypography extends BaseElement {
             >
               ${Object.entries(TYPOGRAPHIC_SCALES).map(
                 ([name, value]) => html`
-                  <option value=${name} ?selected=${this.scale === name}>
-                    ${name} (${value})
-                  </option>
-                `
+                  <option value=${name} ?selected=${this.scale === name}>${name} (${value})</option>
+                `,
               )}
             </select>
           </div>
@@ -823,7 +872,7 @@ export class WCTypography extends BaseElement {
             <span>px</span>
           </div>
           <div class="scale-viz">
-            ${[6, 5, 4, 3, 2, 1, 0].map(step => {
+            ${[6, 5, 4, 3, 2, 1, 0].map((step) => {
               const size = this._calculateSize(step - 1);
               return html`
                 <span
@@ -858,7 +907,8 @@ export class WCTypography extends BaseElement {
                 placeholder="0.75"
                 .value=${this.fluid.min}
                 ?disabled=${!this.fluid.enabled}
-                @change=${(e: Event) => this._handleFluidChange('min', (e.target as HTMLInputElement).value)}
+                @change=${(e: Event) =>
+                  this._handleFluidChange('min', (e.target as HTMLInputElement).value)}
               />
             </div>
             <div class="field">
@@ -870,7 +920,8 @@ export class WCTypography extends BaseElement {
                 placeholder="0.5rem + 3cqi"
                 .value=${this.fluid.preferred}
                 ?disabled=${!this.fluid.enabled}
-                @change=${(e: Event) => this._handleFluidChange('preferred', (e.target as HTMLInputElement).value)}
+                @change=${(e: Event) =>
+                  this._handleFluidChange('preferred', (e.target as HTMLInputElement).value)}
               />
             </div>
             <div class="field">
@@ -882,7 +933,8 @@ export class WCTypography extends BaseElement {
                 placeholder="1.25"
                 .value=${this.fluid.max}
                 ?disabled=${!this.fluid.enabled}
-                @change=${(e: Event) => this._handleFluidChange('max', (e.target as HTMLInputElement).value)}
+                @change=${(e: Event) =>
+                  this._handleFluidChange('max', (e.target as HTMLInputElement).value)}
               />
             </div>
           </div>
@@ -898,13 +950,18 @@ export class WCTypography extends BaseElement {
                 min="20"
                 max="120"
                 step="1"
-                @change=${(e: Event) => this._handleMeasureChange('value', parseInt((e.target as HTMLInputElement).value) || 66)}
+                @change=${(e: Event) =>
+                  this._handleMeasureChange(
+                    'value',
+                    parseInt((e.target as HTMLInputElement).value) || 66,
+                  )}
               />
               <select
                 id="measure-unit"
                 class="field__select"
                 .value=${this.measure.unit}
-                @change=${(e: Event) => this._handleMeasureChange('unit', (e.target as HTMLSelectElement).value)}
+                @change=${(e: Event) =>
+                  this._handleMeasureChange('unit', (e.target as HTMLSelectElement).value)}
               >
                 <option value="ch" ?selected=${this.measure.unit === 'ch'}>ch</option>
                 <option value="rem" ?selected=${this.measure.unit === 'rem'}>rem</option>
@@ -927,7 +984,7 @@ export class WCTypography extends BaseElement {
         <div class="section__content">
           <div class="role-tabs" role="tablist">
             ${TYPOGRAPHY_ROLES.map(
-              role => html`
+              (role) => html`
                 <button
                   type="button"
                   class="role-tab"
@@ -937,7 +994,7 @@ export class WCTypography extends BaseElement {
                 >
                   ${role}
                 </button>
-              `
+              `,
             )}
           </div>
 
@@ -948,14 +1005,18 @@ export class WCTypography extends BaseElement {
                 class="field__select"
                 .value=${config.fontFamily}
                 @change=${(e: Event) =>
-                  this._handleRoleChange(this._activeRole, 'fontFamily', (e.target as HTMLSelectElement).value)}
+                  this._handleRoleChange(
+                    this._activeRole,
+                    'fontFamily',
+                    (e.target as HTMLSelectElement).value,
+                  )}
               >
                 ${this.fonts.map(
-                  font => html`
+                  (font) => html`
                     <option value=${font.name} ?selected=${config.fontFamily === font.name}>
                       ${font.name}
                     </option>
-                  `
+                  `,
                 )}
               </select>
             </div>
@@ -966,14 +1027,18 @@ export class WCTypography extends BaseElement {
                 class="field__select"
                 .value=${config.weight}
                 @change=${(e: Event) =>
-                  this._handleRoleChange(this._activeRole, 'weight', (e.target as HTMLSelectElement).value)}
+                  this._handleRoleChange(
+                    this._activeRole,
+                    'weight',
+                    (e.target as HTMLSelectElement).value,
+                  )}
               >
                 ${FONT_WEIGHTS.map(
-                  w => html`
+                  (w) => html`
                     <option value=${w.value} ?selected=${config.weight === w.value}>
                       ${w.label}
                     </option>
-                  `
+                  `,
                 )}
               </select>
             </div>
@@ -984,14 +1049,18 @@ export class WCTypography extends BaseElement {
                 class="field__select"
                 .value=${config.style}
                 @change=${(e: Event) =>
-                  this._handleRoleChange(this._activeRole, 'style', (e.target as HTMLSelectElement).value)}
+                  this._handleRoleChange(
+                    this._activeRole,
+                    'style',
+                    (e.target as HTMLSelectElement).value,
+                  )}
               >
                 ${FONT_STYLES.map(
-                  s => html`
+                  (s) => html`
                     <option value=${s.value} ?selected=${config.style === s.value}>
                       ${s.label}
                     </option>
-                  `
+                  `,
                 )}
               </select>
             </div>
@@ -1003,7 +1072,11 @@ export class WCTypography extends BaseElement {
                 class="field__input"
                 .value=${config.lineHeight}
                 @change=${(e: Event) =>
-                  this._handleRoleChange(this._activeRole, 'lineHeight', (e.target as HTMLInputElement).value)}
+                  this._handleRoleChange(
+                    this._activeRole,
+                    'lineHeight',
+                    (e.target as HTMLInputElement).value,
+                  )}
               />
             </div>
 
@@ -1015,7 +1088,11 @@ export class WCTypography extends BaseElement {
                 placeholder="e.g., -0.02em"
                 .value=${config.letterSpacing}
                 @change=${(e: Event) =>
-                  this._handleRoleChange(this._activeRole, 'letterSpacing', (e.target as HTMLInputElement).value)}
+                  this._handleRoleChange(
+                    this._activeRole,
+                    'letterSpacing',
+                    (e.target as HTMLInputElement).value,
+                  )}
               />
             </div>
 
@@ -1025,14 +1102,18 @@ export class WCTypography extends BaseElement {
                 class="field__select"
                 .value=${config.fontVariant}
                 @change=${(e: Event) =>
-                  this._handleRoleChange(this._activeRole, 'fontVariant', (e.target as HTMLSelectElement).value)}
+                  this._handleRoleChange(
+                    this._activeRole,
+                    'fontVariant',
+                    (e.target as HTMLSelectElement).value,
+                  )}
               >
                 ${FONT_VARIANTS.map(
-                  v => html`
+                  (v) => html`
                     <option value=${v.value} ?selected=${config.fontVariant === v.value}>
                       ${v.label}
                     </option>
-                  `
+                  `,
                 )}
               </select>
             </div>
@@ -1043,14 +1124,18 @@ export class WCTypography extends BaseElement {
                 class="field__select"
                 .value=${config.textDecoration}
                 @change=${(e: Event) =>
-                  this._handleRoleChange(this._activeRole, 'textDecoration', (e.target as HTMLSelectElement).value)}
+                  this._handleRoleChange(
+                    this._activeRole,
+                    'textDecoration',
+                    (e.target as HTMLSelectElement).value,
+                  )}
               >
                 ${TEXT_DECORATIONS.map(
-                  d => html`
+                  (d) => html`
                     <option value=${d.value} ?selected=${config.textDecoration === d.value}>
                       ${d.label}
                     </option>
-                  `
+                  `,
                 )}
               </select>
             </div>
@@ -1061,14 +1146,18 @@ export class WCTypography extends BaseElement {
                 class="field__select"
                 .value=${config.textTransform}
                 @change=${(e: Event) =>
-                  this._handleRoleChange(this._activeRole, 'textTransform', (e.target as HTMLSelectElement).value)}
+                  this._handleRoleChange(
+                    this._activeRole,
+                    'textTransform',
+                    (e.target as HTMLSelectElement).value,
+                  )}
               >
                 ${TEXT_TRANSFORMS.map(
-                  t => html`
+                  (t) => html`
                     <option value=${t.value} ?selected=${config.textTransform === t.value}>
                       ${t.label}
                     </option>
-                  `
+                  `,
                 )}
               </select>
             </div>
@@ -1079,14 +1168,18 @@ export class WCTypography extends BaseElement {
                 class="field__select"
                 .value=${config.textWrap}
                 @change=${(e: Event) =>
-                  this._handleRoleChange(this._activeRole, 'textWrap', (e.target as HTMLSelectElement).value)}
+                  this._handleRoleChange(
+                    this._activeRole,
+                    'textWrap',
+                    (e.target as HTMLSelectElement).value,
+                  )}
               >
                 ${TEXT_WRAPS.map(
-                  w => html`
+                  (w) => html`
                     <option value=${w.value} ?selected=${config.textWrap === w.value}>
                       ${w.label}
                     </option>
-                  `
+                  `,
                 )}
               </select>
             </div>
@@ -1098,7 +1191,11 @@ export class WCTypography extends BaseElement {
                 class="field__input field__input--color"
                 .value=${config.color}
                 @change=${(e: Event) =>
-                  this._handleRoleChange(this._activeRole, 'color', (e.target as HTMLInputElement).value)}
+                  this._handleRoleChange(
+                    this._activeRole,
+                    'color',
+                    (e.target as HTMLInputElement).value,
+                  )}
               />
             </div>
           </div>
@@ -1115,17 +1212,16 @@ export class WCTypography extends BaseElement {
     const { min, preferred, max } = this.fluid;
 
     // Parse min/max as multipliers or absolute values
-    const minValue = min.includes('px') || min.includes('rem')
-      ? min
-      : `calc(${staticSize}px * ${min})`;
-    const maxValue = max.includes('px') || max.includes('rem')
-      ? max
-      : `calc(${staticSize}px * ${max})`;
+    const minValue =
+      min.includes('px') || min.includes('rem') ? min : `calc(${staticSize}px * ${min})`;
+    const maxValue =
+      max.includes('px') || max.includes('rem') ? max : `calc(${staticSize}px * ${max})`;
 
     // Preferred can be a complex expression
-    const preferredValue = preferred.includes('cqi') || preferred.includes('vw') || preferred.includes('+')
-      ? `calc(${staticSize}px * 0.5 + ${preferred.replace(/[\d.]+rem \+ /, '')})`
-      : `calc(${staticSize}px * ${preferred})`;
+    const preferredValue =
+      preferred.includes('cqi') || preferred.includes('vw') || preferred.includes('+')
+        ? `calc(${staticSize}px * 0.5 + ${preferred.replace(/[\d.]+rem \+ /, '')})`
+        : `calc(${staticSize}px * ${preferred})`;
 
     return `clamp(${minValue}, ${preferredValue}, ${maxValue})`;
   }
@@ -1134,17 +1230,17 @@ export class WCTypography extends BaseElement {
     const measureValue = `${this.measure.value}${this.measure.unit}`;
 
     return html`
-        <div class="preview__samples">
-          ${TYPOGRAPHY_ROLES.map(role => {
-            const config = this.roles[role];
-            const staticSize = this._getRoleFontSize(role);
-            const fontSize = this._getFluidFontSize(staticSize);
+      <div class="preview__samples">
+        ${TYPOGRAPHY_ROLES.map((role) => {
+          const config = this.roles[role];
+          const staticSize = this._getRoleFontSize(role);
+          const fontSize = this._getFluidFontSize(staticSize);
 
-            return html`
-              <div class="preview__sample-label">${role}</div>
-              <p
-                class="preview__sample-text"
-                style="
+          return html`
+            <div class="preview__sample-label">${role}</div>
+            <p
+              class="preview__sample-text"
+              style="
                   font-family: '${config.fontFamily}', sans-serif;
                   font-size: ${fontSize};
                   font-weight: ${config.weight};
@@ -1158,14 +1254,14 @@ export class WCTypography extends BaseElement {
                   color: ${config.color};
                   max-inline-size: ${measureValue};
                 "
-              >
-                ${role === 'body'
-                  ? 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
-                  : this._previewText}
-              </p>
-            `;
-          })}
-        </div>
+            >
+              ${role === 'body'
+                ? 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
+                : this._previewText}
+            </p>
+          `;
+        })}
+      </div>
     `;
   }
 
@@ -1173,13 +1269,9 @@ export class WCTypography extends BaseElement {
     return html`
       <wc-split-panel position="35" min-size="280" snap-points="35,50">
         <div slot="start" class="controls" part="controls">
-          ${this._renderFontSection()}
-          ${this._renderScaleSection()}
-          ${this._renderRolesSection()}
+          ${this._renderFontSection()} ${this._renderScaleSection()} ${this._renderRolesSection()}
         </div>
-        <div slot="end" class="preview" part="preview">
-          ${this._renderPreviewContent()}
-        </div>
+        <div slot="end" class="preview" part="preview">${this._renderPreviewContent()}</div>
       </wc-split-panel>
     `;
   }

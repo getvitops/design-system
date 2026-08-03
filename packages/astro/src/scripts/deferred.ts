@@ -7,10 +7,10 @@ function applyRowStagger(container: Element): void {
 
   // Group items by their visual vertical position (same row)
   // Uses getBoundingClientRect for accurate visual position regardless of margins
-  items.forEach(item => {
+  items.forEach((item) => {
     const top = Math.round(item.getBoundingClientRect().top - containerTop);
     // Find existing row within 10px tolerance
-    let row = rows.find(r => Math.abs(r.top - top) < 10);
+    let row = rows.find((r) => Math.abs(r.top - top) < 10);
     if (!row) {
       row = { top, items: [] };
       rows.push(row);
@@ -26,7 +26,6 @@ function applyRowStagger(container: Element): void {
   });
 }
 
-
 // Recalculate on resize
 let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
 function handleResize(): void {
@@ -40,7 +39,7 @@ function handleResize(): void {
 
 // Observer for .anim-trigger elements - adds .triggered when element enters viewport
 const triggerObserver = new IntersectionObserver((entries, observer) => {
-  entries.forEach(entry => {
+  entries.forEach((entry) => {
     if (entry.isIntersecting) {
       (entry.target as HTMLElement).classList.add('triggered');
       observer.unobserve(entry.target);
@@ -62,18 +61,20 @@ function setHorizontalScrollTrackWidth(container: Element): void {
 }
 
 // Show/hide popovers on hover for dropdown/split-link menus
-document.querySelectorAll('.dropdown--show-on-hover, .split-link--show-on-hover').forEach(container => {
-  const popover = container.querySelector('[popover]') as HTMLElement | null;
-  if (!popover) return;
+document
+  .querySelectorAll('.dropdown--show-on-hover, .split-link--show-on-hover')
+  .forEach((container) => {
+    const popover = container.querySelector('[popover]') as HTMLElement | null;
+    if (!popover) return;
 
-  container.addEventListener('pointerenter', () => {
-    popover.showPopover();
-  });
+    container.addEventListener('pointerenter', () => {
+      popover.showPopover();
+    });
 
-  container.addEventListener('pointerleave', () => {
-    popover.hidePopover();
+    container.addEventListener('pointerleave', () => {
+      popover.hidePopover();
+    });
   });
-});
 
 // Close open dialogs when clicking same-document fragment links inside them
 document.addEventListener('click', (e) => {
@@ -87,7 +88,6 @@ document.addEventListener('click', (e) => {
 // these operations can cause forced reflows if done too early.
 window.addEventListener('load', () => {
   requestAnimationFrame(() => {
-
     // Apply row-based stagger to all stagger containers (deferred to avoid forced reflow)
     document.querySelectorAll('.stagger').forEach(applyRowStagger);
     window.addEventListener('resize', handleResize);
@@ -96,13 +96,13 @@ window.addEventListener('load', () => {
     document.querySelectorAll('.horizontal-scroll').forEach(setHorizontalScrollTrackWidth);
 
     // Observe .anim-trigger elements
-    document.querySelectorAll('.anim-trigger').forEach(el => {
+    document.querySelectorAll('.anim-trigger').forEach((el) => {
       triggerObserver.observe(el);
     });
 
     // Update all current year elements
     const currentYear = new Date().getFullYear();
-    document.querySelectorAll('[data-current-year]').forEach(el => {
+    document.querySelectorAll('[data-current-year]').forEach((el) => {
       el.textContent = currentYear.toString();
     });
   });

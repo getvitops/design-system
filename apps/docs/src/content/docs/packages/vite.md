@@ -28,6 +28,8 @@ export default {
 };
 ```
 
+`input` takes a `design-system.json` **or** the larger site config that embeds one (`company.json`) — told apart by shape. A site config also supplies the site-level facts generation reads, so `legal: {}` needs no `input` of its own. `theme` picks a `designSystem.themes` entry other than the default.
+
 Then import the generated stylesheet (Tailwind v4):
 
 ```css

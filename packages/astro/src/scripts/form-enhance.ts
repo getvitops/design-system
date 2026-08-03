@@ -3,10 +3,10 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   const forms = document.querySelectorAll<HTMLFormElement>(
-    'form[action*="/api/"], form[data-track-form]'
+    'form[action*="/api/"], form[data-track-form]',
   );
 
-  forms.forEach(form => {
+  forms.forEach((form) => {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -17,9 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
       form.querySelector('.form-error')?.remove();
 
       const formData = new FormData(form);
-      const data = Object.fromEntries(
-        [...formData.entries()].map(([k, v]) => [k, String(v)])
-      );
+      const data = Object.fromEntries([...formData.entries()].map(([k, v]) => [k, String(v)]));
 
       try {
         const res = await fetch(form.action, {

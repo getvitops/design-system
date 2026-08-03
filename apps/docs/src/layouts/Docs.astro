@@ -15,9 +15,12 @@
  *     child (`.spotlight`, `.breakout`, `.fullbleed`) and lay out inside that.
  *     Stacking `.centered .cluster-between` looks fine only because cluster.css
  *     is imported later and its `display: flex` quietly wins.
- *   • `.split-*` sets ratio variables only; the flex context is `.split`. Without
- *     it the ratio is inert. Responsive variants resolve against
+ *   • `.split-*` carries the ratio; the flex context is `.split`. Without it the
+ *     ratio is inert. Responsive variants resolve against
  *     `body { container-type: inline-size }`, so no extra container is needed.
+ *     `.flex-col` + `.md-split-1-4` is the stack-then-split idiom, and
+ *     `.split > *` already carries `min-inline-size: 0`, so nothing here needs to
+ *     re-derive it to keep long code blocks from stretching the main column.
  *
  * The hand-written CSS at the bottom is what no framework pattern covers. Keep
  * it short — a rule that belongs to a reusable pattern should move into
@@ -96,9 +99,10 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
           <!-- Self-contained (shadow DOM, renders its own segmented control) and
                `display: none` until `:defined`, so with no JS it simply isn't
                there. Colour scheme then follows the OS via prefers-color-scheme,
-               which the generated stylesheet emits because this site's config
-               sets `respectSystemPreference` — it is opt-in, and without it both
-               the no-JS case and the toggle's own "System" resolve to light. -->
+               which the generated stylesheet emits because this site opts in
+               (`css.systemColorScheme`, or `designSystem.defaultColorScheme:
+               "system"` in a site config). Without it both the no-JS case and
+               the toggle's own "System" position resolve to light. -->
           <color-scheme-toggle></color-scheme-toggle>
         </nav>
 
@@ -126,7 +130,7 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
          variables — the flex context comes from `.split`. So the two can't sit on
          one element: place a track child, and split inside it. -->
     <div class="centered">
-      <div class="spotlight split md-split-1-4 docs-shell">
+      <div class="spotlight split flex-col md-split-1-4 items-start docs-shell">
       <aside class="docs-sidebar rhythm" aria-label="Documentation">
         {nav.map((group) => (
           <nav class="rhythm">
@@ -215,7 +219,6 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
         text-decoration: none;
       }
       .docs-shell {
-        align-items: start;
         gap: 3rem;
         padding-block: 2.5rem;
       }
@@ -228,9 +231,6 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
       .docs-sidebar__link.is-active {
         font-weight: 600;
         text-decoration-thickness: 2px;
-      }
-      .docs-main {
-        min-inline-size: 0; /* let long code blocks scroll instead of stretching the grid */
       }
       .docs-prose :global(pre) {
         overflow-x: auto;

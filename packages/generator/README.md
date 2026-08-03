@@ -10,7 +10,7 @@ This is the library that powers
 import { generate, validate, defaultConfig } from '@getvitops/generator';
 
 await generate({
-  input: './design-system.json', // path or a config object
+  input: './design-system.json', // path or object; a design-system.json OR a site config
   format: 'tailwind', // 'tailwind' | 'bricks' | 'design' | 'css'
   outDir: './src/styles',
 });
@@ -19,6 +19,13 @@ await generate({
 ## API
 
 - `generate({ input, format, outDir })` → writes the chosen format into `outDir`.
+  `input` may be a `design-system.json` **or** the larger site config that embeds one — told apart
+  by shape, not by filename. For a site config the design system is `designSystem.themes[theme]`
+  with its `extends` chain resolved (`theme`, else the config's `defaultTheme`, else `default`), and
+  the site config also supplies `site`, so the colour scheme, legal documents and icon sprite it
+  asks for need no second path.
+- `resolveInput(raw, { theme, siteEnv })` / `isSiteConfig(raw)` → the discriminator itself, for
+  tools that need to do the same routing.
 - `validate(configOrObject)` → `{ ok, errors }` against the schema.
 - `defaultConfig()` → a complete starter `DesignSystem`.
 - `DesignSystemSchema` / `jsonSchema` / `SCHEMA_URL` — the `zod/mini` schema, its JSON Schema,

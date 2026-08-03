@@ -35,15 +35,24 @@ alias, so sprite markup survives an icon-set change. WordPress gets `vitops_icon
 **New `vitops icons`** command: reports which icons your source uses, which names couldn't be
 resolved, and which are computed at runtime; `--sprite` builds the sprite, `--json` for CI.
 
-**Renamed, for a vocabulary that reads as one system.** The chevron family now
-says what it does rather than which way it points — `expand-more`/`expand-less` →
-`expand-vert`/`collapse-vert`, `chevron-right`/`chevron-left` →
-`expand-horiz`/`collapse-horiz` — and the arrows drop their prefix:
-`arrow-forward`/`arrow-back` → `forward`/`back`. `lightning` is new.
+**Renamed, and completed to all four directions.** Chevrons and arrows are the
+one family whose _meaning is_ its direction, and that direction is physical, not
+logical — a chevron in a details marker points down in every writing mode. So they
+are named for where they point: `expand-more`/`expand-less` →
+`chevron-down`/`chevron-up`, and `arrow-forward`/`arrow-back` →
+`arrow-right`/`arrow-left`. `chevron-left`/`chevron-right` keep their names.
+`arrow-up`/`arrow-down` are new, so both families now cover all four directions.
+`lightning` is new.
 
 If you passed any of the old names to `<Icon />`, `resolveIcon` or an `icons`
 config, update them. They fail loudly rather than silently: an unresolvable
 declared name throws, and `vitops icons` reports scanned ones.
+
+**Fixed three Font Awesome mappings that named no real glyph** and so rendered an
+empty box: `login`/`logout` were mapped to `login`/`logout` (Font Awesome calls
+them `right-to-bracket`/`right-from-bracket`) and `backup` to `backup`
+(`cloud-arrow-up`). Every value in all four UI sets is now checked against the
+installed collection.
 
 **Phosphor (`ph`) joins the semantic map**, with all 83 names verified against the real icon set.
 Phosphor keeps every weight in one collection and varies the name (`list`, `list-bold`), unlike Font

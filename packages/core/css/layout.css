@@ -71,54 +71,6 @@
   margin-top: calc(var(--rhythm-base) * var(--rhythm-media-text));
 }
 
-/* Manual rhythm overrides (apply to the second element of a pair) */
-.m-h-p {
-  margin-top: calc(var(--rhythm-base) * var(--rhythm-h-p));
-}
-.m-p-p {
-  margin-top: calc(var(--rhythm-base) * var(--rhythm-p-p));
-}
-.m-p-h {
-  margin-top: calc(var(--rhythm-base) * var(--rhythm-p-h));
-}
-.m-h-h {
-  margin-top: calc(var(--rhythm-base) * var(--rhythm-h-h));
-}
-.m-p-list {
-  margin-top: calc(var(--rhythm-base) * var(--rhythm-p-list));
-}
-.m-list-p {
-  margin-top: calc(var(--rhythm-base) * var(--rhythm-list-p));
-}
-.m-li-li {
-  margin-top: calc(var(--rhythm-base) * var(--rhythm-li-li));
-}
-.m-text-media {
-  margin-top: calc(var(--rhythm-base) * var(--rhythm-text-media));
-}
-.m-media-text {
-  margin-top: calc(var(--rhythm-base) * var(--rhythm-media-text));
-}
-
-.m-0 {
-  margin-top: 0;
-}
-.m-xs {
-  margin-top: calc(var(--rhythm-base) * 0.25);
-}
-.m-s {
-  margin-top: calc(var(--rhythm-base) * 0.5);
-}
-.m-m {
-  margin-top: calc(var(--rhythm-base) * 1);
-}
-.m-l {
-  margin-top: calc(var(--rhythm-base) * 1.5);
-}
-.m-xl {
-  margin-top: calc(var(--rhythm-base) * 2);
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
    4. CENTERED SECTIONS — named-track grid
    Put .centered on a Div. Children default to the measure (reading) track;
@@ -160,78 +112,6 @@ body {
   grid-column: measure;
 }
 
-/* Bare placement. .measure restates the default (redundant but parser-visible). */
-.measure {
-  grid-column: measure;
-}
-.breakout {
-  grid-column: breakout;
-}
-.spotlight {
-  grid-column: spotlight;
-}
-.fullbleed {
-  grid-column: fullbleed;
-}
-
-/* Promotion variants (base = measure; widen past each container breakpoint) */
-@container (min-width: 30rem) {
-  .sm-measure {
-    grid-column: measure;
-  }
-  .sm-breakout {
-    grid-column: breakout;
-  }
-  .sm-spotlight {
-    grid-column: spotlight;
-  }
-  .sm-fullbleed {
-    grid-column: fullbleed;
-  }
-}
-@container (min-width: 48rem) {
-  .md-measure {
-    grid-column: measure;
-  }
-  .md-breakout {
-    grid-column: breakout;
-  }
-  .md-spotlight {
-    grid-column: spotlight;
-  }
-  .md-fullbleed {
-    grid-column: fullbleed;
-  }
-}
-@container (min-width: 64rem) {
-  .lg-measure {
-    grid-column: measure;
-  }
-  .lg-breakout {
-    grid-column: breakout;
-  }
-  .lg-spotlight {
-    grid-column: spotlight;
-  }
-  .lg-fullbleed {
-    grid-column: fullbleed;
-  }
-}
-@container (min-width: 80rem) {
-  .xl-measure {
-    grid-column: measure;
-  }
-  .xl-breakout {
-    grid-column: breakout;
-  }
-  .xl-spotlight {
-    grid-column: spotlight;
-  }
-  .xl-fullbleed {
-    grid-column: fullbleed;
-  }
-}
-
 /* Vertical rhythm region (usually on the Section) */
 .region {
   padding-block: clamp(
@@ -242,492 +122,68 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   5. LAYOUT UTILITIES — flex direction, splits, alignment, text-align
-   Container-gated (unnamed @container): resolve against the nearest
-   container-type ancestor. Bare = base/mobile; sm- md- lg- xl- widen up.
-   Breakpoints: sm 30rem · md 48rem · lg 64rem · xl 80rem.
+   5. SPLIT — a two-column pair
+   The ratio classes, the reversal and every other utility named here live in
+   layout-utilities.css, which is mapped to `vitops.utilities`. This file is
+   `vitops.components`, so a utility beats this pattern BY LAYER — there is no
+   source order to maintain, and `class="split flex-col md-split-1-2"` means the
+   same thing in every format.
    ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ── Flex direction (display + direction; tiered classes set both) ── */
-.flex {
-  display: flex;
-  /* Set direction explicitly (not just `display:flex`): hosts like Bricks' block
-     element default `flex-direction: column`, which would otherwise win. `.flex-col`
-     still overrides. */
-  flex-direction: row;
-  --_flex-direction: row;
-}
-/* Each direction class also publishes --_flex-direction so descendants (e.g. .group)
-   can read the container's axis via a style query and adapt when it flips responsively. */
-.flex-row {
-  flex-direction: row;
-  --_flex-direction: row;
-}
-.flex-col {
-  flex-direction: column;
-  --_flex-direction: column;
-}
-
-@container (min-width: 30rem) {
-  .sm-flex {
-    display: flex;
-  }
-  .sm-flex-row {
-    display: flex;
-    flex-direction: row;
-    --_flex-direction: row;
-  }
-  .sm-flex-col {
-    display: flex;
-    flex-direction: column;
-    --_flex-direction: column;
-  }
-}
-@container (min-width: 48rem) {
-  .md-flex {
-    display: flex;
-  }
-  .md-flex-row {
-    display: flex;
-    flex-direction: row;
-    --_flex-direction: row;
-  }
-  .md-flex-col {
-    display: flex;
-    flex-direction: column;
-    --_flex-direction: column;
-  }
-}
-@container (min-width: 64rem) {
-  .lg-flex {
-    display: flex;
-  }
-  .lg-flex-row {
-    display: flex;
-    flex-direction: row;
-    --_flex-direction: row;
-  }
-  .lg-flex-col {
-    display: flex;
-    flex-direction: column;
-    --_flex-direction: column;
-  }
-}
-@container (min-width: 80rem) {
-  .xl-flex {
-    display: flex;
-  }
-  .xl-flex-row {
-    display: flex;
-    flex-direction: row;
-    --_flex-direction: row;
-  }
-  .xl-flex-col {
-    display: flex;
-    flex-direction: column;
-    --_flex-direction: column;
-  }
-}
 
 /* ── Splits (internal fractions). .split sets its own flex context so it works
    standalone AND is registered by Bricks' parser (a non-empty bare rule). ── */
 .split {
   display: flex;
+  /* Restates the initial value so a HOST that defaults the element to `column`
+     — Bricks' block element — doesn't turn a split into a stack. Note the limit
+     of that: this rule is layered, and unlayered CSS beats every layer, so it
+     only wins against a host whose rule is itself layered or lower-specificity.
+     `.flex` carries the same caveat. */
+  flex-direction: row;
 }
 /* Equal by default. A ratio class sets two flex vars on the container (any a:b
-   in one line); the first/last child read them. Responsive prefixes engage the
-   ratio from a container breakpoint (equal below it). */
+   in one line); the first/last child read them; the class lives one layer up.
+   Responsive prefixes engage the ratio from a container breakpoint AND assert
+   the row, which is what lets `.flex-col` stack the pair below that breakpoint. */
 .split > * {
   flex: 1;
+  /* Load-bearing for the ratio below, which is a flex BASIS: a basis sizes the
+     border box only when the item IS border-box. `global.css` sets that
+     globally; restated here at a higher layer so the pattern still holds if a
+     consumer overrides the reset in a layer of their own, and so the dependency
+     is visible where it matters. */
+  box-sizing: border-box;
+  /* A flex item's automatic minimum is its min-content size, so one long
+     unbreakable run (a URL, a code span, a `<pre>`) pushes its column past its
+     share and the ratio quietly stops holding. Every consumer was re-deriving
+     this as `min-w-0`; it belongs to the pattern. */
+  min-inline-size: 0;
 }
 .split > :first-child {
-  flex: var(--_split-a, 1);
+  flex-grow: var(--_split-a, 1);
 }
 .split > :last-child {
-  flex: var(--_split-b, 1);
+  flex-grow: var(--_split-b, 1);
 }
+/* The ratio is a BASIS, not a grow factor.
+   `flex-grow` shares out only the FREE space, and a child's padding is not part
+   of it — so a padded column came out wider than its sibling by exactly its
+   horizontal padding and the ratio silently did not hold. Measured in Chrome:
+   an equal `.split` 1000px wide, one child with 40px padding a side, resolved
+   540 / 460. `flex-basis` sizes the BORDER box (children are border-box), so
+   padding sits inside the ratio: 500 / 500.
 
-/* ── Auto-fit grid: cards wrap into as many equal columns as fit, each at least
-   --grid-min wide. Unlike .split (explicit fractions) the column count is
-   content-driven. ── */
-.grid-auto {
-  display: grid;
-  gap: var(--grid-gap, 1rem);
-  grid-template-columns: repeat(auto-fit, minmax(var(--grid-min, 13rem), 1fr));
+   Scoped to a two-child split, because a ratio is a pair contract — only
+   :first-child and :last-child carry one. With three or more children the bases
+   would not sum to 100% and a middle child, having no basis of its own, would
+   collapse to zero width; those keep the grow-factor behaviour above.
 
-  /* Spacing between items is the grid's job, not the flow's — neutralise the
-     `.rhythm :where(ul, ol) > li + li` margin, which reaches into any list
-     inside a prose container. `.subgrid` already does this; a `<ul class="grid-auto">`
-     needs it just as much, and the symptom is easy to misread: every item bar
-     the FIRST gets a top margin, the grid stretches the row to the tallest, and
-     the first cell alone looks vertically offset. */
-  &:is(ul, ol) > li + li {
-    margin-block-start: 0;
-  }
+   `gap` is absorbed by proportional shrink, which the spec weights by CONTENT-box
+   size, so a gapped pair whose columns are padded unequally lands within a few
+   px of its ratio rather than a whole padding out. */
+.split > :first-child:nth-last-child(2) {
+  flex-basis: calc(var(--_split-a, 1) / (var(--_split-a, 1) + var(--_split-b, 1)) * 100%);
 }
-
-.split-1-2 {
-  --_split-a: 1;
-  --_split-b: 2;
-}
-.split-2-1 {
-  --_split-a: 2;
-  --_split-b: 1;
-}
-.split-1-3 {
-  --_split-a: 1;
-  --_split-b: 3;
-}
-.split-3-1 {
-  --_split-a: 3;
-  --_split-b: 1;
-}
-.split-1-4 {
-  --_split-a: 1;
-  --_split-b: 4;
-}
-.split-4-1 {
-  --_split-a: 4;
-  --_split-b: 1;
-}
-.split-2-3 {
-  --_split-a: 2;
-  --_split-b: 3;
-}
-.split-3-2 {
-  --_split-a: 3;
-  --_split-b: 2;
-}
-
-@container (min-width: 30rem) {
-  .sm-split {
-    --_split-a: 1;
-    --_split-b: 1;
-  }
-  .sm-split-1-2 {
-    --_split-a: 1;
-    --_split-b: 2;
-  }
-  .sm-split-2-1 {
-    --_split-a: 2;
-    --_split-b: 1;
-  }
-  .sm-split-1-3 {
-    --_split-a: 1;
-    --_split-b: 3;
-  }
-  .sm-split-3-1 {
-    --_split-a: 3;
-    --_split-b: 1;
-  }
-  .sm-split-1-4 {
-    --_split-a: 1;
-    --_split-b: 4;
-  }
-  .sm-split-4-1 {
-    --_split-a: 4;
-    --_split-b: 1;
-  }
-  .sm-split-2-3 {
-    --_split-a: 2;
-    --_split-b: 3;
-  }
-  .sm-split-3-2 {
-    --_split-a: 3;
-    --_split-b: 2;
-  }
-}
-@container (min-width: 48rem) {
-  .md-split {
-    --_split-a: 1;
-    --_split-b: 1;
-  }
-  .md-split-1-2 {
-    --_split-a: 1;
-    --_split-b: 2;
-  }
-  .md-split-2-1 {
-    --_split-a: 2;
-    --_split-b: 1;
-  }
-  .md-split-1-3 {
-    --_split-a: 1;
-    --_split-b: 3;
-  }
-  .md-split-3-1 {
-    --_split-a: 3;
-    --_split-b: 1;
-  }
-  .md-split-1-4 {
-    --_split-a: 1;
-    --_split-b: 4;
-  }
-  .md-split-4-1 {
-    --_split-a: 4;
-    --_split-b: 1;
-  }
-  .md-split-2-3 {
-    --_split-a: 2;
-    --_split-b: 3;
-  }
-  .md-split-3-2 {
-    --_split-a: 3;
-    --_split-b: 2;
-  }
-}
-@container (min-width: 64rem) {
-  .lg-split {
-    --_split-a: 1;
-    --_split-b: 1;
-  }
-  .lg-split-1-2 {
-    --_split-a: 1;
-    --_split-b: 2;
-  }
-  .lg-split-2-1 {
-    --_split-a: 2;
-    --_split-b: 1;
-  }
-  .lg-split-1-3 {
-    --_split-a: 1;
-    --_split-b: 3;
-  }
-  .lg-split-3-1 {
-    --_split-a: 3;
-    --_split-b: 1;
-  }
-  .lg-split-1-4 {
-    --_split-a: 1;
-    --_split-b: 4;
-  }
-  .lg-split-4-1 {
-    --_split-a: 4;
-    --_split-b: 1;
-  }
-  .lg-split-2-3 {
-    --_split-a: 2;
-    --_split-b: 3;
-  }
-  .lg-split-3-2 {
-    --_split-a: 3;
-    --_split-b: 2;
-  }
-}
-@container (min-width: 80rem) {
-  .xl-split {
-    --_split-a: 1;
-    --_split-b: 1;
-  }
-  .xl-split-1-2 {
-    --_split-a: 1;
-    --_split-b: 2;
-  }
-  .xl-split-2-1 {
-    --_split-a: 2;
-    --_split-b: 1;
-  }
-  .xl-split-1-3 {
-    --_split-a: 1;
-    --_split-b: 3;
-  }
-  .xl-split-3-1 {
-    --_split-a: 3;
-    --_split-b: 1;
-  }
-  .xl-split-1-4 {
-    --_split-a: 1;
-    --_split-b: 4;
-  }
-  .xl-split-4-1 {
-    --_split-a: 4;
-    --_split-b: 1;
-  }
-  .xl-split-2-3 {
-    --_split-a: 2;
-    --_split-b: 3;
-  }
-  .xl-split-3-2 {
-    --_split-a: 3;
-    --_split-b: 2;
-  }
-}
-
-/* ── Alignment (flex parents) + text-align. Bare classes, then shared tiers.
-   Names mirror Tailwind: items-* (align-items), justify-* (justify-content),
-   text-* (text-align). ── */
-.items-start {
-  align-items: flex-start;
-}
-.items-center {
-  align-items: center;
-}
-.items-end {
-  align-items: flex-end;
-}
-.items-stretch {
-  align-items: stretch;
-}
-
-.justify-start {
-  justify-content: flex-start;
-}
-.justify-center {
-  justify-content: center;
-}
-.justify-end {
-  justify-content: flex-end;
-}
-.justify-between {
-  justify-content: space-between;
-}
-
-.text-start {
-  text-align: start;
-}
-.text-center {
-  text-align: center;
-}
-.text-end {
-  text-align: end;
-}
-
-@container (min-width: 30rem) {
-  .sm-items-start {
-    align-items: flex-start;
-  }
-  .sm-items-center {
-    align-items: center;
-  }
-  .sm-items-end {
-    align-items: flex-end;
-  }
-  .sm-items-stretch {
-    align-items: stretch;
-  }
-  .sm-justify-start {
-    justify-content: flex-start;
-  }
-  .sm-justify-center {
-    justify-content: center;
-  }
-  .sm-justify-end {
-    justify-content: flex-end;
-  }
-  .sm-justify-between {
-    justify-content: space-between;
-  }
-  .sm-text-start {
-    text-align: start;
-  }
-  .sm-text-center {
-    text-align: center;
-  }
-  .sm-text-end {
-    text-align: end;
-  }
-}
-@container (min-width: 48rem) {
-  .md-items-start {
-    align-items: flex-start;
-  }
-  .md-items-center {
-    align-items: center;
-  }
-  .md-items-end {
-    align-items: flex-end;
-  }
-  .md-items-stretch {
-    align-items: stretch;
-  }
-  .md-justify-start {
-    justify-content: flex-start;
-  }
-  .md-justify-center {
-    justify-content: center;
-  }
-  .md-justify-end {
-    justify-content: flex-end;
-  }
-  .md-justify-between {
-    justify-content: space-between;
-  }
-  .md-text-start {
-    text-align: start;
-  }
-  .md-text-center {
-    text-align: center;
-  }
-  .md-text-end {
-    text-align: end;
-  }
-}
-@container (min-width: 64rem) {
-  .lg-items-start {
-    align-items: flex-start;
-  }
-  .lg-items-center {
-    align-items: center;
-  }
-  .lg-items-end {
-    align-items: flex-end;
-  }
-  .lg-items-stretch {
-    align-items: stretch;
-  }
-  .lg-justify-start {
-    justify-content: flex-start;
-  }
-  .lg-justify-center {
-    justify-content: center;
-  }
-  .lg-justify-end {
-    justify-content: flex-end;
-  }
-  .lg-justify-between {
-    justify-content: space-between;
-  }
-  .lg-text-start {
-    text-align: start;
-  }
-  .lg-text-center {
-    text-align: center;
-  }
-  .lg-text-end {
-    text-align: end;
-  }
-}
-@container (min-width: 80rem) {
-  .xl-items-start {
-    align-items: flex-start;
-  }
-  .xl-items-center {
-    align-items: center;
-  }
-  .xl-items-end {
-    align-items: flex-end;
-  }
-  .xl-items-stretch {
-    align-items: stretch;
-  }
-  .xl-justify-start {
-    justify-content: flex-start;
-  }
-  .xl-justify-center {
-    justify-content: center;
-  }
-  .xl-justify-end {
-    justify-content: flex-end;
-  }
-  .xl-justify-between {
-    justify-content: space-between;
-  }
-  .xl-text-start {
-    text-align: start;
-  }
-  .xl-text-center {
-    text-align: center;
-  }
-  .xl-text-end {
-    text-align: end;
-  }
+.split > :nth-child(2):last-child {
+  flex-basis: calc(var(--_split-b, 1) / (var(--_split-a, 1) + var(--_split-b, 1)) * 100%);
 }

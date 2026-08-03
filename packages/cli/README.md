@@ -26,6 +26,11 @@ npx vitops generate --format bricks,css --out dist
 | `vitops agents [-o AGENTS.md] [--docs-dir <dir>]`  | link the agent skill + AGENTS.md pointer        |
 | `vitops docs [topic] [--all]`                      | print live reference docs to stdout             |
 
+Every `--input` takes a `design-system.json` **or** the larger site config that embeds one
+(`company.json` / `site.json`) — told apart by shape, so name the file whatever you like. Add
+`--theme <name>` to build a `designSystem.themes` entry other than the default. `vitops validate`
+routes the same way and checks a site config as a site config.
+
 ## Using the output
 
 **Tailwind / Astro (EmDash).** Generate into your styles dir and import it (Tailwind v4):

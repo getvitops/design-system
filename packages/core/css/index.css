@@ -7,6 +7,11 @@
 @import './generated/tokens.css';
 @import './generated/typography.css';
 @import './layout.css';
+/* Must precede utilities.css: both are `vitops.utilities`, and utilities.css
+   re-emits `.<bp>-flex` AFTER its own `.hidden` so `class="hidden md-flex"`
+   reveals. That re-emit is only load-bearing because this file's `.md-flex`
+   comes first. */
+@import './layout-utilities.css';
 /* was layout-extra.css */
 @import './patterns/cluster.css';
 @import './patterns/grouped.css';
@@ -17,7 +22,9 @@
 @import './patterns/sticky.css';
 @import './patterns/stack.css';
 @import './patterns/splitter.css';
+@import './patterns/reveal.css';
 @import './utilities.css';
+@import './generated/spacing.css';
 @import './generated/patterns.css';
 /* was overlays.css */
 @import './patterns/dialog.css';

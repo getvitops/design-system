@@ -12,10 +12,12 @@
 // Detection mirrors the progressive-enhancement stance in AGENTS.md: prefer
 // native modern CSS/HTML, degrade gracefully, and only reach for JS/polyfills
 // where a missing capability would actually break the experience (rather than
-// merely drop an enhancement). Scroll-timeline is the exception that's already
-// handled *without* JS — the inline <head> snippet flips `.no-scroll-timeline`
-// on <html> before paint and animation.css cancels the affected animations, so
-// its `load` here is an opt-in upgrade, not a correctness requirement.
+// merely drop an enhancement). Scroll-timeline is the exception that's genuinely
+// handled *without* JS: animation.css cancels the affected animations under
+// `@supports not (animation-timeline: view())`, so an engine without timelines
+// renders them at their natural opacity whether or not this file ever runs. Its
+// `load` below is an opt-in upgrade, not a correctness requirement — which is why
+// it can sit commented out.
 
 // `CSS.supports` can throw on malformed input in some engines; guard it.
 const cssSupports = (decl: string): boolean => {

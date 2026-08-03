@@ -45,7 +45,46 @@ never stale and always names the project's actual tokens. (If `vitops` isn't on 
   (google-labs-code/design.md format: YAML token front matter + prose rationale). It
   emits no CSS, so it composes: `--format css,design`. The live reference above is
   richer; DESIGN.md is for handing the identity to a tool that doesn't have this skill.
-- `vitops init` / `vitops validate` — scaffold / check a `design-system.json`.
+- `vitops init` / `vitops validate` — scaffold / check a config. `validate` routes on the
+  file's shape, so it checks a site config as a site config.
+
+**The config may be a `design-system.json` or the site config that embeds one.** Every
+`--input` (and the Vite plugin / Astro integration equivalent) accepts either; a site
+config holds the design system at `designSystem.themes.<name>`, selected with `--theme`.
+If this project keeps its tokens inside a `company.json` / `site.json`, point `--input`
+there — do not create a second file for the tooling's sake.
+
+## Fonts: vitops names them, it does not load them
+
+`design-system.json`'s `fonts` block holds **stacks only** — each entry emits a
+`--font-<name>` token and nothing else: no `@font-face`, no preload, no metrics-matched
+fallback. Loading is the host framework's job.
+
+On Astro, load with the **Fonts API** and point the token at the family's `cssVariable`:
+
+```js
+// astro.config.mjs
+fonts: [
+  {
+    provider: fontProviders.fontsource(),
+    name: 'League Spartan',
+    cssVariable: '--font-league-spartan',
+    weights: ['100 900'],
+    subsets: ['latin'],
+  },
+];
+```
+
+```jsonc
+// design-system.json
+"fonts": { "display": "var(--font-league-spartan), sans-serif" }
+```
+
+Installing `@fontsource*` and importing its CSS in a layout also renders, so it looks
+correct — but it gives up subsetting control, preload, and the `size-adjust` /
+`ascent-override` fallback metrics, which is a real CLS regression. Reach for it only
+where no provider covers the family.
+
 - `vitops legal` — render the site's privacy policy, terms of service and cookie notice
   from a **site config** (not a `design-system.json`). `--format md|html|portable-text`
   covers Astro content collections, WordPress/Bricks fragments and EmDash respectively;

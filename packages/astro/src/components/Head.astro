@@ -4,22 +4,28 @@
  * layout's <head>. Requires the getvitops() integration (it provides the
  * `virtual:getvitops/head` config + copies the assets into public/).
  *
- * Renders: favicon + PWA manifest tags, and the web-component runtime scripts in
+ * Renders: favicon + PWA manifest tags, the webfont <Font /> tags for families
+ * declared via getvitops({ fonts }), and the web-component runtime scripts in
  * canonical order/priority. It does NOT emit a stylesheet <link> — the CSS is
  * imported into Astro's graph by the integration and Astro emits that link.
  */
 // @ts-ignore — virtual module provided by the getvitops() integration at build time
 import head from 'virtual:getvitops/head';
+// @ts-ignore — `Font` is provided by Astro's Fonts API (astro >= 7)
+import { Font } from 'astro:assets';
 
 interface Props {
   favicons?: boolean;
   webComponents?: boolean;
   editor?: boolean;
+  /** Emit `<Font />` for the declared families (default true when any were declared). */
+  fonts?: boolean;
 }
 const {
   favicons = head.favicons,
   webComponents = head.webComponents,
   editor = head.editor,
+  fonts = true,
 } = Astro.props;
 const wc = head.wcBase;
 
@@ -34,12 +40,42 @@ const THEME_SCRIPT =
   `try{var s=localStorage.getItem('vitops-color-scheme');` +
   `if(s==='light'||s==='dark'){document.documentElement.dataset.theme=s;` +
   `document.documentElement.style.colorScheme=s+' only'}}catch(e){}`;
+
+/*
+ * No `<html>` class flips here on purpose. `animation.css` used to need `no-js`
+ * and `.no-scroll-timeline` set before first paint; it now asks the platform
+ * directly — `@media (scripting: enabled)` and `@supports not
+ * (animation-timeline: view())` — so there is nothing to inject.
+ *
+ * That is not a simplification for its own sake: a class-based switch could only
+ * ever reach pages that render this component, so a Bricks site or a consumer
+ * with their own `<head>` stayed broken, and `no-js` in particular had to be
+ * written into an `<html>` tag Astro does not own. The CSS version is correct for
+ * every consumer of the stylesheet, including the ones that never load any JS.
+ */
 ---
 
 {favicons && head.faviconLinks.map((l: { rel: string; href: string; type?: string; sizes?: string }) => (
   <link rel={l.rel} href={l.href} type={l.type} sizes={l.sizes} />
 ))}
 {favicons && head.themeColor && <meta name="theme-color" content={head.themeColor} />}
+
+{/*
+  Webfonts declared via getvitops({ fonts }). Astro's `fonts:` config resolves and
+  optimises the files; this component is what actually puts the @font-face on the page,
+  so without it the config is inert and every --font-* token falls through to its
+  fallback stack.
+
+  Only families this integration registered — <Font /> throws on a cssVariable Astro
+  cannot resolve, so a family from a user-level `fonts:` or another integration is
+  deliberately not listed here; render <Font /> for those yourself.
+
+  `preload` comes from the declaration, so which faces get a preload link is a property
+  of the font, not something re-decided in every layout.
+*/}
+{fonts && head.fonts.map((f: { cssVariable: string; preload: boolean | object[] }) => (
+  <Font cssVariable={f.cssVariable} preload={f.preload} />
+))}
 
 {/* Set by getvitops({ sitemap }); null when no sitemap was registered. */}
 {head.sitemap && <link rel="sitemap" type="application/xml" href={head.sitemap} />}

@@ -9,7 +9,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { jsonSchema, SCHEMA_URL, type DesignSystem } from './schema.ts';
-import { BASE_HOOK, DARK_SEL, REQUIRED_ROLES, TW_CLASH } from './shared.ts';
+import { BASE_HOOK, DARK_SEL, REQUIRED_ROLES, SYSTEM_DARK_SEL, TW_CLASH } from './shared.ts';
 import { expandPalette } from './tokens.ts';
 
 const DS_PATH = 'design-system.json';
@@ -550,6 +550,15 @@ function renderCssClasses(ds: DesignSystem): string {
   const typeRoles = Object.keys(ds.typography?.roles ?? {});
   const shadows = Object.keys(ds.shadows ?? {});
   const effects = Object.keys(ds.animations?.effects ?? {});
+  // Split by keyframe family, because only composite/paint effects get the
+  // hover-/focus-/active- state variants — `.transition` deliberately doesn't
+  // transition `height`, so a `hover-size-grow` would be a class that resolves
+  // to nothing. Listing every effect under "with the state prefixes above" is
+  // what sent the docs site rendering exactly that.
+  const stateful = Object.entries(ds.animations?.effects ?? {})
+    .filter(([, e]) => e.kf === 'composite' || e.kf === 'paint')
+    .map(([name]) => name);
+  const keyframeOnly = effects.filter((name) => !stateful.includes(name));
   const items = (ds.patterns?.items ?? {}) as Record<
     string,
     { roles?: string[]; default_role?: string }
@@ -615,9 +624,29 @@ Every utility accepts a **container-breakpoint prefix**; animation utilities als
   \`--width-breakout\` / \`--width-spotlight\` and \`--gutter\`.
 - **\`rhythm\`** — relationship-based vertical spacing (margins between headings, paragraphs,
   lists, media) driven by the space scale. Usually paired with \`centered\`.
-- **\`split\`** — equal flex columns. Ratio rule: **\`split-<a>-<b>\`** where \`<a>-<b>\` ∈
-  \`1-2\`, \`2-1\`, \`1-3\`, \`3-1\`, \`1-4\`, \`4-1\`, \`2-3\`, \`3-2\` (breakpoint-prefixable).
-- **Flex** — \`flex\`, \`flex-row\`, \`flex-col\`; \`g\` for gap (space-scale token).
+- **\`split\`** — a two-column pair. Ratio rule: **\`split-<a>-<b>\`** where \`<a>-<b>\` ∈
+  \`1-2\`, \`2-1\`, \`1-3\`, \`3-1\`, \`1-4\`, \`4-1\`, \`2-3\`, \`3-2\` (breakpoint-prefixable); equal
+  columns without one. The ratio is a flex **basis**, so a column's padding counts
+  inside its share, and \`min-inline-size: 0\` is built in so long unbreakable content
+  can't stretch a column past it.
+  - **Stacking is \`flex-col\`** — there is no split-specific class for it:
+    \`class="split flex-col md-split-1-2"\` is stacked below 48rem and 1:2 above,
+    because the \`<bp>-\` ratio classes assert the row. While stacked the ratio goes
+    inert on its own (a percentage basis against an auto-height column resolves as
+    \`content\`), unless you give the split a definite \`block-size\`.
+  - **\`split-reverse\`** — swaps the two panels (breakpoint-prefixable). Implemented
+    as \`order\` on the first child, so it reverses on whichever axis the split is
+    currently on: bare, it swaps the columns in a row AND the rows in a stack;
+    scoped (\`md-split-reverse\`) it swaps only once there are two columns — media
+    first in source so it leads on mobile, on the right at width. The ratio stays
+    with the source-first child, not with the visual position.
+    - **Accessibility:** reversing makes visual order disagree with DOM order, and
+      focus order follows the DOM (WCAG 2.4.3 Focus Order). Put focusable content in
+      **only one** of the two panels, or the tab order will not be linear. The
+      pattern declares \`reading-flow: flex-visual\`, which fixes this properly where
+      it is supported; support is not yet broad enough to rely on.
+- **Flex** — \`flex\`, \`flex-row\`, \`flex-col\`, \`flex-row-reverse\`, \`flex-col-reverse\`
+  (all breakpoint-prefixable).
 - **Alignment** — \`items-{start,center,end,stretch}\`, \`justify-{start,center,end,between}\`,
   text align \`text-{start,center,end}\` (all breakpoint-prefixable).
 - **Display** — \`block\`, \`inline\`, \`inline-block\`, \`flex\`, \`grid\`, \`hidden\`
@@ -628,14 +657,26 @@ Every utility accepts a **container-breakpoint prefix**; animation utilities als
 ## Spacing
 
 The space scale is ${code(spaceNames)} exposed as \`--space-<name>\` tokens.
-Gap (\`g\`) and \`rhythm\` margins consume these tokens; prefer \`rhythm\` for vertical flow
-rather than per-element margins.
+\`rhythm\` margins consume these tokens; prefer \`rhythm\` for vertical flow rather than
+per-element margins.
+
+Rule: **\`gap-<name>\`**, **\`gap-x-<name>\`** (column) and **\`gap-y-<name>\`** (row), name ∈
+${code(spaceNames)} — all breakpoint-prefixable (\`md-gap-l\`, \`@md:gap-l\`). These are the
+framework's own utilities in every format: the fluid steps are deliberately kept out of
+Tailwind's \`--spacing-*\` namespace (named keys there shadow the size scales, so
+\`max-w-7xl\` would resolve to \`var(--spacing-7xl)\`), which means Tailwind's numeric
+\`gap-4\` still uses its own multiplier and coexists with these.
 
 ## Typography
 
 Rule: **\`font-<role>\`** — role ∈ ${code(typeRoles)}. Each role carries its own family,
-size (from the type scale ${code(typeNames)}), tracking, transform, and weight.
+size (from the type scale ${code(typeNames)}), tracking, transform, weight and \`text-wrap\`.
 Families: ${code(families)} (\`--font-*\`).
+
+Because the role owns \`text-wrap\`, a heading is balanced and copy is \`pretty\` with **no
+class at all** wherever \`typography.headings\` maps the bare element to a role. Override one
+element with \`text-{wrap,nowrap,balance,pretty}\` — the per-element escape hatch, for markup
+that carries no role class. (These four are Tailwind's own in the tailwind format.)
 
 ## Colour
 
@@ -722,10 +763,45 @@ follows non-rectangular shapes).
 
 ## Animation
 
-Rule: **\`<effect>\`** (with the state/flip prefixes above) — effect ∈ ${code(effects)}.
+An effect carries no motion of its own — it sets \`--<prop>-from\`/\`-to\` and picks a keyframe.
+A **driver** supplies the motion, and you always compose one of each:
+
+- \`animate-view\` — plays as the element crosses the viewport
+- \`animate-scroll\` — scrubs against page scroll
+- \`animate-trigger\` — time-based; plays once when \`.is-active\` / \`[data-active]\` is set
+- \`transition\` — transitions the same from/to vars, so it reverses on a state flip
+
+Rule: **\`<effect>\`** — effect ∈ ${code(effects)}. The state/flip prefixes above pair with
+\`transition\` and apply to every one of them.
+
+Each state matches the element **or its direct parent** (\`.hover-<fx>:hover, :hover > .hover-<fx>\`),
+which is what makes \`reveal-*\` usable: it rests at a zero-area \`clip-path\`, and \`clip-path\` clips
+hit-testing as well as painting, so the element itself can never be hovered.${
+    keyframeOnly.length
+      ? `
+
+${code(keyframeOnly)} animate \`height\`, the only stage that reflows and the only one behind a
+feature gate: \`0 → auto\` is not interpolable without \`interpolate-size: allow-keywords\`, so
+\`transition\` declares \`height\` only inside an \`@supports\` for it. The \`layout\` **keyframe**
+has the same dependency — this is not a limit of the transition driver.`
+      : ''
+  }
+
+**When it plays.** \`animate-view\` and \`.is-active\` are both timed off the element's **midpoint**:
+motion starts once that midpoint is 10% of the viewport in, and a one-shot entrance completes at
+25%. Both stops are the element's position on screen rather than a fraction of its own height, so a
+small card and a full-bleed section behave alike. Shift the window with \`--anim-start\` /
+\`--anim-end\`, or replace it outright with \`--anim-range\`.
+
 Composed **journeys** chain multiple effects into one entrance: rule \`<parts>-journey\`
-(e.g. \`fade-slide-journey\`, \`fade-scale-blur-journey\`). All require \`transition\` on the
-element; scroll-linked entrances resolve within the first portion of the element's scroll.
+(e.g. \`fade-slide-journey\`, \`fade-scale-blur-journey\`). They need a **keyframe** driver, not
+\`transition\`. A journey is entry → hold → exit, so it starts on that same 10% pivot but runs to the
+end of the exit phase — the hold occupies the middle of the crossing instead of the bottom edge of
+the screen.
+
+**\`stagger\`** on a parent offsets each child by \`--stagger-amount\` (time-based drivers) and by
+\`--stagger-range-step\` (scroll-driven ones — \`animation-delay\` is ignored on a progress-based
+timeline). Journeys set an explicit range and opt out.
 
 ## Component patterns
 
@@ -850,6 +926,13 @@ enforces.
 
 - Set \`"$schema": "${SCHEMA_URL}"\` in the config for editor autocomplete + validation.
 - Scaffold a starter config with \`vitops init\`; check one with \`vitops validate\`.
+- **This can be a standalone file, or live inside a site config.** Anywhere the
+  toolchain takes a config — \`--input\`, the Vite plugin, the Astro integration's
+  \`css.input\` — that file may be a \`design-system.json\` or the larger site config
+  that embeds one under \`designSystem.themes.<name>\`. They are told apart by shape,
+  and the fields below are the same either way. A site config additionally supplies
+  the site-level facts generation reads (its default colour scheme, legal documents,
+  icon sprite), so the path is declared once rather than per option.
 - The *why* behind each section: [colour system](concepts/color.md),
   [type & space scales](concepts/scales.md), [component patterns](concepts/patterns.md).
 - What each output format does with these tokens: [formats.md](formats.md).
@@ -954,19 +1037,31 @@ docs build.
 @layer vitops.base, vitops.components, vitops.utilities;
 \`\`\`
 
-- \`vitops.base\` — the UA reset and the pure \`:root\` token blocks.
-- \`vitops.components\` — the animation engine, structural layout, and every pattern.
+- \`vitops.base\` — the reset (\`box-sizing: border-box\` on every element and pseudo-element,
+  a 16px root, no body margin) and the pure \`:root\` token blocks. Lowest of the three, so
+  your own reset overrides it — unlayered, or from a layer you declare before \`vitops.base\`.
+- \`vitops.components\` — the animation engine, the structural patterns (\`.rhythm\`,
+  \`.centered\`, \`.region\`, \`.split\`, \`.reveal\`) and every UI pattern.
 - \`vitops.utilities\` — \`bg-*\`, \`text-*\`, \`border-*\`, \`drop-shadow-*\`, \`font-*\`,
-  animation effects, and the display/\`sr-only\` families.
+  \`gap-*\`, animation effects, the layout utilities (\`.m-*\`, \`.flex-*\`, \`.items-*\`,
+  \`.split-<a>-<b>\`, track placement) and the display/\`sr-only\` families.
 
-So a utility overrides a pattern: \`class="card bg-danger-muted"\` tints the card. Your own
-unlayered CSS beats all three — see [concepts/patterns.md](concepts/patterns.md) for the
-override story and the one gotcha (a reset must be layered and ordered first).
+So a utility overrides a pattern: \`class="card bg-danger-muted"\` tints the card,
+\`class="split flex-col"\` stacks the split, \`class="table text-center"\` centres the table.
+Your own unlayered CSS beats all three — see [concepts/patterns.md](concepts/patterns.md) for
+the override story and the one gotcha (a reset must be layered and ordered first).
 
-Known gap: \`layout.css\` is a single partial mixing structural rules (\`.rhythm\`,
-\`.centered\`) with utilities (\`.m-*\`, \`.flex\`, \`.split-*\`), so it sits in
-\`vitops.components\` whole — its utility half cannot yet override a pattern. Splitting it is
-tracked separately.
+The classification is by RULE, not by file: a partial that mixes patterns and utilities is
+split in two rather than shelved whole. \`layout.css\` (patterns) and \`layout-utilities.css\`
+(utilities) are the same family in two files for exactly this reason, and the \`tailwind\`
+format reaches the same arrangement by its own route — patterns in \`@layer components\`,
+utilities as \`@utility\`.
+
+Known gap: the \`typography.headings\` bare-element bindings (\`h1\`, \`h2\`, \`body\`) are
+emitted alongside \`.font-<role>\` and so sit in \`vitops.utilities\`, where a tag rule
+outranks every pattern — \`<h2 class="pull-quote">\` keeps the heading's font-size in
+\`css\`/\`bricks\` and the pattern's in \`tailwind\`, which puts the bindings in \`@layer base\`.
+Give the element a \`.font-<role>\` class to pin it either way.
 
 ## \`bricks\` — WordPress / Bricks Builder payload
 
@@ -1100,8 +1195,18 @@ ignores the appearance.
 
 Two attributes, one flip: \`data-brx-theme\` is Bricks' own (Bricks sets it on the
 WordPress target), \`data-theme\` is what the shipped \`<color-scheme-toggle>\` writes on
-\`<html>\`, so the toggle works on every other target. Set either. There is deliberately
-no \`prefers-color-scheme\` block — the flip follows an explicit choice only.
+\`<html>\`, so the toggle works on every other target. Set either.
+
+The OS preference is a **second, opt-in block**. Set
+\`designSystem.defaultColorScheme: "system"\` in your site config and the same delta is emitted again inside
+\`@media (prefers-color-scheme: dark)\`, under
+\`${SYSTEM_DARK_SEL}\` — i.e. whenever no explicit choice has been made. That is what makes
+\`<color-scheme-toggle>\`'s "System" position resolve to the OS (it *removes* the attribute,
+so without this block it fell through to light), and it gives a no-JS page the OS
+appearance, which the toggle alone never could. An explicit light choice still wins.
+
+It is opt-in rather than default because turning it on flips a site dark for dark-OS
+visitors, which is the site's decision and not the design system's.
 
 ## Contrast guarantees
 
@@ -1355,7 +1460,7 @@ describes what a site uses, not what the design system defines.
     "ui": "ph",
     "brand": "simple-icons",
     "weight": "bold",
-    "semantic": ["menu", "close", "forward"],
+    "semantic": ["menu", "close", "arrow-right"],
     "simple-icons": ["zoho", "cloudflare"],
     "sprite": true
   }

@@ -123,3 +123,36 @@ describe('lintSource', () => {
     expect(lintSource(clean, v, 'tailwind')).toEqual([]);
   });
 });
+
+/**
+ * The format-spelling check used to run in one direction only. `md-split-1-2` in
+ * a tailwind project was caught, but `@md:split-1-2` in a css/bricks project was
+ * not: `stripVariants` removed the `@md:` regardless of format, leaving a bare
+ * class that matched nothing and returned null. Same silent no-op, unreported.
+ */
+describe('format spelling, both directions', () => {
+  it('flags the container-query spelling in css and bricks', () => {
+    for (const format of ['css', 'bricks'] as const) {
+      const verdict = judge('@md:split-1-2', v, format);
+      expect(verdict?.reason, format).toContain('tailwind-format spelling');
+      expect(verdict?.suggestion, format).toBe('md-split-1-2');
+      expect(verdict?.severity).toBe('error');
+    }
+  });
+
+  it('leaves it alone in tailwind, where it is the correct spelling', () => {
+    expect(judge('@md:split-1-2', v, 'tailwind')).toBeNull();
+  });
+
+  it('still sees through non-container variants in every format', () => {
+    // `hover:` is real everywhere — only the `@`-prefixed form is format-specific.
+    expect(judge(`hover:bg-${hue}-d`, v, 'css')?.reason).toContain('not a step');
+  });
+
+  it('marks everything it already reported as an error, not a suggestion', () => {
+    // Severity was added for the reuse rules; the pre-existing findings are all
+    // "this resolves to nothing", which must keep failing the command.
+    for (const cls of [`bg-${hue}-d`, 'md-flex-row'])
+      expect(judge(cls, v, 'tailwind')?.severity, cls).toBe('error');
+  });
+});

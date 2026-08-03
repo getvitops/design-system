@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="no-js">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -783,6 +783,43 @@
               </div>
             </dl>
 
+            <h3>Wrapping</h3>
+            <p>
+              Each role sets its own <code>text-wrap</code>, so headings balance and copy is
+              <code>pretty</code> with no class at all — including on bare
+              <code>&lt;h1&gt;</code>/<code>&lt;body&gt;</code>, which
+              <code>typography.headings</code> binds to a role. These four override one element.
+            </p>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.text-balance</code></div>
+                <div class="api-desc">
+                  Even line lengths — short, multi-line headings and pull quotes.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.text-pretty</code></div>
+                <div class="api-desc">Running copy, without an orphaned last word.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.text-wrap</code></div>
+                <div class="api-desc">Plain wrapping — opts an element back out of the above.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.text-nowrap</code></div>
+                <div class="api-desc">No wrapping at all.</div>
+              </div>
+            </dl>
+
+            <div class="demo demo-frame rhythm" style="max-inline-size: 26rem">
+              <p class="font-heading text-wrap">
+                Unbalanced: a heading long enough to leave a stranded last word
+              </p>
+              <p class="font-heading text-balance">
+                Balanced: a heading long enough to leave a stranded last word
+              </p>
+            </div>
+
             <div class="demo demo-frame rhythm">
               <p class="pull-quote">
                 Design is intelligence made visible.<span class="pull-quote__attribution"
@@ -951,7 +988,7 @@
                 mode):
               </p>
               <div class="sem-grid" id="semantic"></div>
-              <p class="cluster cluster-start" style="gap: 0.75rem; margin-top: 1rem">
+              <p class="cluster cluster-start gap-s" style="margin-top: 1rem">
                 <span class="text-neutral">.text-neutral</span>
                 <span class="text-neutral-muted">.text-neutral-muted</span>
                 <span class="text-neutral-x-muted">.text-neutral-x-muted</span>
@@ -1206,28 +1243,49 @@
                 </div>
                 <div class="api-desc">Flex direction column.</div>
               </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.flex-row-reverse</code> / <code>.flex-col-reverse</code
+                  ><span class="t t-resp">responsive</span><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">
+                  Same axis, reversed order. For a two-column pair prefer
+                  <code>.split-reverse</code>, which flips the row without changing which item leads
+                  when stacked.
+                </div>
+              </div>
             </dl>
 
             <h3>Split columns</h3>
             <div class="demo rhythm">
-              <div class="split" style="gap: 0.4rem">
+              <div class="split gap-2xs">
                 <div class="box">1</div>
                 <div class="box b2">1</div>
               </div>
-              <div class="split split-1-2" style="gap: 0.4rem">
+              <div class="split split-1-2 gap-2xs">
                 <div class="box">1</div>
                 <div class="box b2">2</div>
               </div>
-              <div class="split split-2-1" style="gap: 0.4rem">
+              <div class="split split-2-1 gap-2xs">
                 <div class="box">2</div>
                 <div class="box b2">1</div>
               </div>
-              <div class="split split-1-3" style="gap: 0.4rem">
+              <div class="split split-1-3 gap-2xs">
                 <div class="box">1</div>
                 <div class="box b2">3</div>
               </div>
-              <div class="split split-3-2" style="gap: 0.4rem">
+              <div class="split split-3-2 gap-2xs">
                 <div class="box">3</div>
+                <div class="box b2">2</div>
+              </div>
+              <!-- The ratio is a flex BASIS, so a padded column keeps its share
+                   instead of coming out wider by exactly its padding. -->
+              <div class="split split-1-2 gap-2xs">
+                <div class="box" style="padding-inline: 1.5rem">1 · padded</div>
+                <div class="box b2">2</div>
+              </div>
+              <div class="split split-1-2 split-reverse gap-2xs">
+                <div class="box">1 · first in source</div>
                 <div class="box b2">2</div>
               </div>
             </div>
@@ -1237,7 +1295,9 @@
                   <code>.split</code><span class="t t-resp">responsive</span>
                 </div>
                 <div class="api-desc">
-                  Two-child flex container; children share space equally by default.
+                  Two-child flex row; children share space equally by default. Carries
+                  <code>min-inline-size: 0</code>, so long unbreakable content can't stretch a
+                  column past its share.
                 </div>
               </div>
               <div class="api-row">
@@ -1248,7 +1308,42 @@
                 <div class="api-desc">
                   Ratio modifiers — add alongside <code>.split</code>. Fixed first:second ratios:
                   <code>1-2</code>, <code>2-1</code>, <code>1-3</code>, <code>3-1</code>,
-                  <code>1-4</code>, <code>4-1</code>, <code>2-3</code>, <code>3-2</code>.
+                  <code>1-4</code>, <code>4-1</code>, <code>2-3</code>, <code>3-2</code>. The ratio
+                  is a flex <em>basis</em>, so a column's padding sits inside its share.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  Stacking — <code>.flex-col</code><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">
+                  There is no split-specific stacking class; use
+                  <code>.flex-col</code> and let a breakpoint-prefixed ratio un-stack it:
+                  <code>class="split flex-col md-split-1-2"</code> — stacked below 48rem, 1:2 above.
+                  <code>.flex-col</code> wins because <code>.split</code> is a <em>pattern</em> in
+                  <code>vitops.components</code> and every utility sits one layer above it — no
+                  source order involved. While stacked the ratio goes inert on its own, because a
+                  percentage flex basis against an auto-height column resolves as
+                  <code>content</code>.
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.split-reverse</code><span class="t t-resp">responsive</span>
+                </div>
+                <div class="api-desc">
+                  Swap the two panels. It's <code>order</code>, not <code>row-reverse</code>, so it
+                  reverses on whichever axis the split is on: bare, it swaps the columns in a row
+                  <em>and</em> the rows in a stack; scoped (<code>md-split-reverse</code>) it swaps
+                  only once there are two columns — media first in source so it leads on mobile, on
+                  the right at width. The ratio stays with the source-first child.
+                  <span class="sub"
+                    ><strong>Accessibility:</strong> reversing puts visual order out of step with
+                    DOM order, and focus order follows the DOM (WCAG 2.4.3). Keep focusable content
+                    in <em>only one</em> of the two panels. The pattern declares
+                    <code>reading-flow: flex-visual</code>, which fixes this where supported — not
+                    yet broadly enough to rely on.</span
+                  >
                 </div>
               </div>
             </dl>
@@ -1396,9 +1491,40 @@
               </div>
             </dl>
 
+            <h3>Gap</h3>
+            <div class="demo rhythm">
+              <div class="cluster cluster-start gap-2xs demo-frame">
+                <span class="tag">gap-2xs</span><span class="tag">·</span><span class="tag">·</span
+                ><span class="tag">·</span>
+              </div>
+              <div class="cluster cluster-start gap-m demo-frame">
+                <span class="tag">gap-m</span><span class="tag">·</span><span class="tag">·</span
+                ><span class="tag">·</span>
+              </div>
+              <div class="cluster cluster-start gap-2xl demo-frame">
+                <span class="tag">gap-2xl</span><span class="tag">·</span><span class="tag">·</span
+                ><span class="tag">·</span>
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.gap-&lt;name&gt;</code> <code>.gap-x-&lt;name&gt;</code>
+                  <code>.gap-y-&lt;name&gt;</code><span class="t t-resp">responsive</span>
+                </div>
+                <div class="api-desc">
+                  <code>gap</code> / <code>column-gap</code> / <code>row-gap</code> from the fluid
+                  space scale — <code>2xs</code> … <code>7xl</code>. These are the framework's own
+                  in every format: the fluid steps are deliberately kept out of Tailwind's
+                  <code>--spacing-*</code> namespace (named keys there shadow the size scales), so
+                  Tailwind's numeric <code>gap-4</code> keeps its own multiplier and coexists.
+                </div>
+              </div>
+            </dl>
+
             <h3>Cluster (wrapping flex group)</h3>
             <div class="demo">
-              <div class="cluster cluster-between demo-frame" style="gap: 0.4rem">
+              <div class="cluster cluster-between demo-frame gap-2xs">
                 <span class="tag">alpha</span><span class="tag">bravo</span
                 ><span class="tag">charlie</span><span class="tag">delta</span
                 ><span class="tag">echo</span>
@@ -1639,7 +1765,7 @@
               <p class="swatch-note">
                 Subgrid cards — media, body, and footer rows align across siblings:
               </p>
-              <div class="subgrid subgrid-cols-3" style="gap: 0.75rem">
+              <div class="subgrid subgrid-cols-3 gap-s">
                 <div class="subgrid-card card" style="padding: 0.75rem">
                   <div class="subgrid-card__media box" style="min-height: 3rem">media</div>
                   <p class="font-heading">Alpha</p>
@@ -2046,7 +2172,7 @@
                    utility gives a tinted plane that flips with the appearance and
                    inherits its text colour — that works because utilities sit in
                    vitops.utilities, a later layer than the patterns. -->
-              <div class="cluster cluster-start" style="gap: 0.75rem; align-items: stretch">
+              <div class="cluster cluster-start gap-s items-stretch">
                 <div class="card card-danger" style="padding: 1rem; flex: 1 1 12rem">
                   <p class="font-heading">card-danger</p>
                   <p class="font-caption">Role variant — solid fill + <code>on-solid</code>.</p>
@@ -2066,13 +2192,13 @@
                   <p class="font-caption">Flat — border only, sits on whatever is behind it.</p>
                 </div>
               </div>
-              <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
+              <p class="cluster cluster-start gap-2xs items-center">
                 <a class="cta" href="#patterns">Get started</a
                 ><button class="cta">as a button</button
                 ><a class="cta cta-success" href="#patterns">success</a
                 ><a class="cta cta-danger" href="#patterns">danger</a>
               </p>
-              <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
+              <p class="cluster cluster-start gap-2xs items-center">
                 <button>Button</button><a class="btn" href="#patterns">as a link</a
                 ><button class="success">success</button><button class="danger">danger</button
                 ><button class="warning">warning</button><button class="info">info</button>
@@ -2084,7 +2210,7 @@
                    which is why these pick up each button's own text colour for free.
                    On a real site the svg comes from <Icon /> or the generated sprite;
                    inlined here because this page builds without a site config. -->
-              <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
+              <p class="cluster cluster-start gap-2xs items-center">
                 <a class="cta" href="#patterns"
                   ><span class="icon" aria-hidden="true"
                     ><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -2110,13 +2236,13 @@
                     <path d="M4 6h16M4 12h16M4 18h16" /></svg
                 ></span>
               </p>
-              <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
+              <p class="cluster cluster-start gap-2xs items-center">
                 <span class="badge">badge</span><span class="badge badge-success">success</span
                 ><span class="badge badge-danger">danger</span
                 ><span class="badge badge-warning">warning</span
                 ><span class="badge badge-info">info</span>
               </p>
-              <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
+              <p class="cluster cluster-start gap-2xs items-center">
                 <span class="tag">tag</span><span class="tag tag-success">success</span
                 ><span class="tag tag-danger">danger</span
                 ><span class="tag tag-warning">warning</span><span class="tag tag-info">info</span>
@@ -2565,7 +2691,7 @@
           <section class="rhythm measure" id="overlays">
             <h2><span class="section-no">08</span>Dialogs/Popovers</h2>
             <div class="demo">
-              <p class="cluster cluster-start" style="gap: 0.5rem; align-items: center">
+              <p class="cluster cluster-start gap-2xs items-center">
                 <button popovertarget="d-dialog">Open dialog</button>
                 <button popovertarget="d-drawer">Open drawer</button>
                 <span class="popover-anchor">
@@ -3567,7 +3693,6 @@
     </div>
 
     <script>
-      document.documentElement.classList.replace('no-js', 'js');
       const $ = (id) => document.getElementById(id);
 
       // ---- Build the TOC (sidebar + drawer) from the sections on the page ----

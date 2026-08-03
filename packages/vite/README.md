@@ -10,13 +10,18 @@ import vitops from '@getvitops/vite';
 export default {
   plugins: [
     vitops({
-      input: 'design-system.json', // default
+      input: 'design-system.json', // default — or a site config (company.json) that embeds one
       format: 'tailwind', // 'bricks' | 'css' | 'tailwind' (default: 'tailwind')
       out: 'src/styles', // default
     }),
   ],
 };
 ```
+
+`input` accepts either config kind. Pointed at a site config it builds
+`designSystem.themes[theme]` (`theme` option; default the config's `defaultTheme`, else `default`)
+and reads the site-level facts from the same file — so `legal: {}` needs no `input` of its own, and
+the theme editor's **Save to source** writes back into that theme rather than the file root.
 
 Then import the generated stylesheet (Tailwind v4):
 

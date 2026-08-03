@@ -49,7 +49,7 @@ class Vitops_Element_Icon extends \Bricks\Element {
 			'type'        => 'text',
 			'placeholder' => 'menu',
 			'description' => esc_html__(
-				'A semantic name (menu, close, forward) or a set-specific one (ph:list). Only icons listed in the site config are in the sprite.',
+				'A semantic name (menu, close, arrow-right) or a set-specific one (ph:list). Only icons listed in the site config are in the sprite.',
 				'bricks'
 			),
 		);

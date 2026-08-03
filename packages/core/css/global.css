@@ -8,12 +8,28 @@
   font-size: 100% !important;
 }
 
+/* Border-box sizing, everywhere.
+   The framework used to refuse this on the grounds that a global reset would
+   silently reflow consumer layouts. Two things changed. It is now LAYERED (this
+   file is `vitops.base`, the lowest of the three), so it loses to any unlayered
+   consumer rule — the opt-out is `*, *::before, *::after { box-sizing:
+   content-box }` in your own stylesheet, and a consumer who already ships a
+   border-box reset (Tailwind preflight, normalize, almost any modern base) sees
+   no change at all. And several patterns are only CORRECT under border-box: the
+   `.split` ratio is a flex basis, which sizes the border box, so under
+   content-box a padded column came out wider than its sibling by exactly its
+   padding. Stating the assumption beats each pattern re-asserting it and the
+   ones that forget being quietly wrong. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 /* Drop the UA's 8px body margin. The framework owns page gutters via `.centered`
    (--gutter), so the UA default just offsets every full-bleed surface — sticky
    headers and `bg-*` bands end up inset by 8px with a sliver of canvas showing
-   around them. This is the only UA reset the framework makes: it deliberately
-   does NOT ship a general reset (no global box-sizing change), because that
-   would silently reflow existing consumer layouts. */
+   around them. */
 body {
   margin: 0;
 }

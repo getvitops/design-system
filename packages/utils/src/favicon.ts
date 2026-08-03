@@ -24,6 +24,32 @@ export interface FaviconOptions {
   outputDir?: string;
   /** Run `oxipng` on the larger PNGs when available (default: true). */
   optimize?: boolean;
+  /**
+   * Background composited under the two MASKABLE outputs — `icon-mask.png` and
+   * `apple-touch-icon.png` (default `#ffffff`, matching the web manifest's
+   * `background_color`). The other outputs keep the source's transparency.
+   *
+   * Maskable means the OS crops the image to its own shape and expects full
+   * bleed, so transparency there is not "no background", it is whatever the
+   * launcher happens to composite onto — usually black. iOS discards alpha on the
+   * apple-touch-icon outright. Since both files sit a deliberately-sized logo on a
+   * larger canvas (the maskable safe zone), leaving that canvas transparent turned
+   * ~36% of one and ~40% of the other into a black frame on the home screen.
+   */
+  backgroundColor?: string;
+}
+
+/** `#rgb` / `#rrggbb` → a sharp background. Anything else is rejected loudly. */
+function parseBackground(color: string): { r: number; g: number; b: number; alpha: number } {
+  const hex = color.trim().replace(/^#/, '');
+  const full =
+    hex.length === 3 ? [...hex].map((c) => c + c).join('') : hex.length === 6 ? hex : null;
+  if (full == null || !/^[0-9a-f]{6}$/i.test(full))
+    throw new Error(
+      `favicon: backgroundColor must be a hex colour like "#ffffff" or "#fff" (got ${JSON.stringify(color)}).`,
+    );
+  const n = Number.parseInt(full, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, alpha: 1 };
 }
 
 let warnedNoOxipng = false;
@@ -41,6 +67,25 @@ async function optimizePng(file: string, enabled: boolean): Promise<void> {
 }
 
 /**
+ * Does the source carry any transparency at all?
+ *
+ * Best-effort and deliberately quiet on failure — this only decides whether to
+ * print a warning, so a probe that throws must not take the build down with it.
+ * `stats().isOpaque` is sharp's own answer and covers the SVG case too, since it
+ * rasterises first.
+ */
+async function hasTransparency(
+  sharp: typeof import('sharp').default,
+  source: string,
+): Promise<boolean> {
+  try {
+    return !(await sharp(source, { density: 384 }).stats()).isOpaque;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Generate the standard favicon set from an SVG/PNG source into `outputDir`:
  * `favicon.ico`, `icon-{16?,32,192,512}.png`, `apple-touch-icon.png`, `icon-mask.png`.
  * Returns the list of written file paths.
@@ -53,6 +98,9 @@ export async function generateFavicons(opts: FaviconOptions): Promise<string[]> 
 
   const dir = (opts.outputDir ?? '.').replace(/\/+$/, '');
   const optimize = opts.optimize ?? true;
+  // Same default as the web manifest's `background_color`. The two disagreeing is
+  // the actual bug: `backgroundColor` reached the manifest and never the raster.
+  const maskBg = parseBackground(opts.backgroundColor ?? '#ffffff');
   mkdirSync(dir, { recursive: true });
   const out = (name: string) => join(dir, name);
 
@@ -99,30 +147,34 @@ export async function generateFavicons(opts: FaviconOptions): Promise<string[]> 
   await writeFile(out('favicon.ico'), await pngToIco(icoSources));
   written.push(out('favicon.ico'));
 
-  // apple-touch-icon: 140x140 logo centered on a 180x180 transparent canvas.
+  // The two MASKABLE outputs below are composited onto an opaque background: the
+  // OS crops them to its own shape, so transparency reads as a black frame rather
+  // than as "no background". Warn when we're inventing that colour rather than
+  // being told it, since white is a guess that a dark logo would lose against.
+  if (opts.backgroundColor == null && (await hasTransparency(sharp, source))) {
+    console.warn(
+      `favicon: ${source} has transparency, and the maskable outputs (icon-mask.png, ` +
+        'apple-touch-icon.png) must be opaque — the OS crops them to its own shape. ' +
+        'Defaulting their background to #ffffff; set backgroundColor to choose.',
+    );
+  }
+
+  // apple-touch-icon: 140x140 logo centered on a 180x180 canvas.
   await sharp(out('icon-512.png'))
-    .resize(140, 140, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .extend({
-      top: 20,
-      bottom: 20,
-      left: 20,
-      right: 20,
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
+    .resize(140, 140, { fit: 'contain', background: maskBg })
+    .extend({ top: 20, bottom: 20, left: 20, right: 20, background: maskBg })
+    .flatten({ background: maskBg }) // iOS discards alpha; do it ourselves so we pick the colour
     .png()
     .toFile(out('apple-touch-icon.png'));
   written.push(out('apple-touch-icon.png'));
 
-  // icon-mask (maskable): 409x409 logo centered on a 512x512 canvas.
+  // icon-mask (maskable): 409x409 logo centered on a 512x512 canvas. The 409/512
+  // inset IS the maskable safe zone — the geometry was always right, only the
+  // fill was wrong.
   await sharp(out('icon-512.png'))
-    .resize(409, 409, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .extend({
-      top: 52,
-      bottom: 51,
-      left: 52,
-      right: 51,
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
+    .resize(409, 409, { fit: 'contain', background: maskBg })
+    .extend({ top: 52, bottom: 51, left: 52, right: 51, background: maskBg })
+    .flatten({ background: maskBg })
     .png()
     .toFile(out('icon-mask.png'));
   written.push(out('icon-mask.png'));
@@ -186,9 +238,13 @@ export function faviconManifest(opts: WebManifestOptions): Record<string, unknow
   return {
     name: opts.name,
     short_name: opts.shortName ?? opts.name,
+    // `purpose` is stated on all three rather than left to default. An entry with
+    // no purpose is implicitly "any", so omitting it worked — but with a maskable
+    // present and nothing else claiming "any", some launchers picked the maskable
+    // for slots that wanted a plain icon, i.e. the one with the safe-zone inset.
     icons: [
-      { src: src('icon-192.png'), sizes: '192x192', type: 'image/png' },
-      { src: src('icon-512.png'), sizes: '512x512', type: 'image/png' },
+      { src: src('icon-192.png'), sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: src('icon-512.png'), sizes: '512x512', type: 'image/png', purpose: 'any' },
       { src: src('icon-mask.png'), sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
     theme_color: opts.themeColor ?? '#ffffff',

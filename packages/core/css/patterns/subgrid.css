@@ -48,8 +48,13 @@
      .stagger (animation.css): sibling-index() lacks only Firefox as of 2026,
      and where it's missing the margin stays 0 and rows fall back to the grid
      gap, rather than producing an invalid margin. The second selector repeats
-     the rule at the specificity rhythm forces above. */
-  @supports (--x: sibling-index()) {
+     the rule at the specificity rhythm forces above.
+
+     The test must name a REAL property: `@supports (--x: sibling-index())` is
+     always true, because any token stream is a valid custom-property value —
+     it guarded nothing, and on an engine without sibling-index() the margin
+     went invalid-at-computed-value-time instead of being skipped. */
+  @supports (margin-block-start: calc(sibling-index() * 1px)) {
     > *,
     &:is(ul, ol) > li + li {
       --_row-index: round(down, calc((sibling-index() - 1) / var(--_cols)), 1);

@@ -83,12 +83,13 @@ describe('block ↔ component agreement', () => {
 });
 
 describe('semantic icon options', () => {
-  it('still matches the icon map they were generated from', async () => {
-    // src/icon-options.ts is a build-time COPY of @getvitops/utils' iconMap,
-    // because this package carries no runtime @getvitops/* dependency — that is
-    // what lets it version independently of the fixed toolchain group. The copy
-    // can therefore go stale, so check it rather than trust it. Regenerate with
-    // `pnpm --filter @getvitops/emdash gen:icons`.
+  it('offers exactly the semantic vocabulary the sprite is built from', async () => {
+    // These are now DERIVED from @getvitops/utils rather than copied from it,
+    // so this can no longer go stale — it asserts the derivation, and that the
+    // reference collection is `fa7` (every semantic name is defined there; the
+    // other sets are alternate resolutions of the same names). An editor may
+    // only pick a name the sprite will actually carry an `icon-<name>` alias
+    // for, or the block renders an empty box with no error anywhere.
     const { iconMap } = await import('@getvitops/utils');
     expect(SEMANTIC_ICON_OPTIONS.map((o) => o.value)).toEqual(Object.keys(iconMap.fa7).sort());
   });

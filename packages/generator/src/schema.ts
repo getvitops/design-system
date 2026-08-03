@@ -28,7 +28,7 @@ const VarMap = z.record(z.string(), Scalar);
 
 // ── colors ──────────────────────────────────────────────────────────────────
 const SeededRamp = desc(
-  z.object({
+  z.strictObject({
     seed: desc(
       z.string(),
       'Seed colour (hex or oklch()). An 11-step numeric scale (50…950, tinted near-white → tinted near-black) is generated in OKLCH from it; the seed is preserved at its natural step.',
@@ -43,7 +43,7 @@ const SeededRamp = desc(
   'Seeded hue: the 11-step scale is GENERATED in OKLCH from `seed` (anchors pin specific steps).',
 );
 const FixedRamp = desc(
-  z.object({
+  z.strictObject({
     tones: desc(
       z.union([z.array(z.string()), z.record(z.string(), z.string())]),
       'Fixed brand kit: authored tones placed verbatim at their nearest steps plus tinted off-white/off-black endpoints; no interpolation. Either an ordered light → dark array or a step → colour map.',
@@ -63,7 +63,7 @@ const Ramp = desc(
  */
 const RoleSpecSchema = z.union([
   desc(z.string(), 'A palette hue name. Shorthand for `{ hue, kind: "chromatic" }`.'),
-  z.object({
+  z.strictObject({
     hue: desc(z.string(), 'The palette hue this role resolves to.'),
     kind: z.optional(
       desc(
@@ -77,10 +77,10 @@ const RoleSpecSchema = z.union([
 const UtilityName = z.enum(['bg', 'text', 'icon', 'border', 'outline', 'fill', 'stroke']);
 
 const Colors = desc(
-  z.object({
+  z.strictObject({
     palette: desc(
       z.record(z.string(), Ramp),
-      'Palette hues by name. Each becomes an 11-step numeric OKLCH scale (`--color-<hue>-50…950`).',
+      'Palette hues by name. Each becomes an 11-step numeric OKLCH scale (`--color-<hue>-50…950`). Every ramp shares one fixed lightness ladder, so a step means the same lightness in every hue; only chroma and hue vary. Beyond the outermost authored colour the chroma decays towards a small endpoint value (0.008 light / 0.015 dark) so the near-white and near-black ends keep a whisper of the hue — but that is a **ceiling**, not a target, so a low-chroma seed stays low and **a chroma-0 seed gives a true neutral** rather than a tinted one. The ladder is also enforced: if pinned colours leave a ramp non-monotonic (some step darker than the one below it), the build fails rather than shipping a scale whose hover states run backwards.',
     ),
     roles: desc(
       z.record(z.string(), RoleSpecSchema),
@@ -97,7 +97,7 @@ const Colors = desc(
 );
 
 // ── fluid modular scale (type + space) ──────────────────────────────────────
-const Scale = z.object({
+const Scale = z.strictObject({
   base: desc(z.string(), 'Anchor size (a CSS length, e.g. "1rem") — the value at `baseStep`.'),
   ratio: desc(z.number(), 'Modular ratio between adjacent steps at large viewports.'),
   steps: desc(
@@ -115,7 +115,7 @@ const Scale = z.object({
   ),
   fluid: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         minVw: desc(z.string(), 'Viewport width (CSS length) where fluid scaling bottoms out.'),
         maxVw: desc(z.string(), 'Viewport width (CSS length) where fluid scaling tops out.'),
         minRatio: desc(z.number(), 'Modular ratio at/below `minVw` (usually < `ratio`).'),
@@ -127,7 +127,7 @@ const Scale = z.object({
 
 // ── patterns ────────────────────────────────────────────────────────────────
 const Pattern = desc(
-  z.object({
+  z.strictObject({
     group: desc(
       z.optional(z.string()),
       'Token-cascade group this pattern belongs to (e.g. tag / control / panel); base declarations resolve through `--<prop>-<group>` before `--<prop>-default`.',
@@ -170,7 +170,7 @@ const Pattern = desc(
 );
 
 const Patterns = desc(
-  z.object({
+  z.strictObject({
     defaults: z.optional(
       desc(CssDecls, 'Cascade-wide fallback tokens, emitted as `--<prop>-default`.'),
     ),
@@ -193,10 +193,10 @@ const Patterns = desc(
 // ── typography ──────────────────────────────────────────────────────────────
 const TypographyRole = desc(
   z.record(z.string(), Scalar),
-  'An open bag of CSS-ish keys (family / size / weight / line-height / tracking / transform / decoration / text-wrap / …); the generator maps known keys and passes the rest through.',
+  'A bag of CSS-ish keys, each mapped to a declaration plus a `--<role>-<sfx>` override hook. The recognised set is **closed**: `family`, `size`, `weight`, `style`, `line-height`, `tracking` (→ `letter-spacing`), `text-transform`, `text-decoration`, `text-wrap`, `color`. Note the last four are spelled with their full CSS property names — `transform` and `decoration` are NOT accepted. Anything unrecognised is **ignored**, not passed through, so the generator warns rather than emitting it: a silently-dropped `transform: uppercase` is how title-case navigation reaches production. Note also that `style`, `text-transform`, `text-decoration` and `text-wrap` are emitted on **every** role at their identity value (`normal`/`none`/`none`/`wrap`) whether declared or not, so applying one role class over another fully resets it — which means **omitting `text-wrap` is not "inherit"**: it emits `text-wrap: wrap` and cancels the `pretty` the role would otherwise inherit from a `pretty` ancestor such as a `body`-mapped role. Declare it on every role — `balance` for heading-like roles, `pretty` for copy, `wrap` for short single-line labels.',
 );
 const Typography = desc(
-  z.object({
+  z.strictObject({
     families: desc(
       z.optional(z.record(z.string(), z.string())),
       'Role-facing family aliases → CSS font values, usually referencing the top-level `fonts` tokens (e.g. "var(--font-display)").',
@@ -215,7 +215,7 @@ const Typography = desc(
 
 // ── animations ──────────────────────────────────────────────────────────────
 const AnimEffect = desc(
-  z.object({
+  z.strictObject({
     kf: desc(
       z.string(),
       'Keyframe family driving the effect: composite (transform/opacity), paint, or layout.',
@@ -231,14 +231,14 @@ const AnimEffect = desc(
   'A named animation effect class — a pure value layer (`--_anim` + `--<prop>-from/-to`) over the static keyframe engine.',
 );
 const Animations = desc(
-  z.object({
+  z.strictObject({
     effects: desc(
       z.optional(z.record(z.string(), AnimEffect)),
       'Effect classes to emit (`.fade-in`, `.reveal-left`, …), keyed by class name.',
     ),
     journeys: desc(
       z.optional(
-        z.object({
+        z.strictObject({
           base: desc(
             z.optional(z.record(z.string(), VarMap)),
             'Named journey building blocks: part name → var map.',
@@ -256,14 +256,14 @@ const Animations = desc(
 );
 
 // ── the design system ───────────────────────────────────────────────────────
-export const DesignSystemSchema = z.object({
+export const DesignSystemSchema = z.strictObject({
   $schema: desc(
     z.optional(z.string()),
     'URL of the published JSON Schema (stamped by `vitops init`) so editors provide autocomplete + validation.',
   ),
   meta: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         name: desc(
           z.optional(z.string()),
           'Brand/system name. Used as the `name` field and `<h1>` of the `design` format\'s `DESIGN.md`. Defaults to "Design System".',
@@ -283,7 +283,7 @@ export const DesignSystemSchema = z.object({
   ),
   fonts: desc(
     z.optional(z.record(z.string(), z.string())),
-    'Raw font stacks by name, emitted as `--font-<name>` tokens (referenced by `typography.families`).',
+    'Raw font stacks by name, emitted as `--font-<name>` tokens (referenced by `typography.families`). **Stacks only — vitops does not load webfonts.** A value here is a `font-family` list and nothing more: it emits no `@font-face`, no preload, and no metrics-matched fallback. If a family needs loading, declare it in Astro\'s `fonts:` config (`astro.config`, or the site config\'s `fonts` array) and point the token at the family\'s `cssVariable` — `"display": "var(--font-league-spartan), sans-serif"`. Installing a `@fontsource*` package and importing its CSS also works but gives up subsetting, preload and `size-adjust`/`ascent-override` fallbacks, so it regresses CLS.',
   ),
   typeScale: desc(
     z.optional(Scale),
@@ -300,12 +300,16 @@ export const DesignSystemSchema = z.object({
 
 export type DesignSystem = z.infer<typeof DesignSystemSchema>;
 
-// A deep-partial view used for theme deltas: `extends` patches and alternate
-// schemes supply only what they override, so every field (down through
-// colors → schemes → semantic) is optional. Reuses the same leaf schemas, so
-// there's no second source of truth. Completeness is enforced after merge
-// (validate the resolved theme against `DesignSystemSchema`).
-const ColorsPatch = z.object({
+// A deep-partial view used for theme deltas: an `extends` patch supplies only
+// what it overrides, so every field is optional — including one level down
+// through `colors` into palette / roles / utilities. Reuses the same leaf
+// schemas, so there's no second source of truth. Completeness is enforced after
+// merge (validate the resolved theme against `DesignSystemSchema`).
+//
+// Note this is NOT a per-appearance grammar. Light/dark is derived inside a
+// single design system by re-pointing which ramp step each token reads; the old
+// `schemes` layer this comment used to describe was removed with that redesign.
+const ColorsPatch = z.strictObject({
   palette: z.optional(z.record(z.string(), Ramp)),
   roles: z.optional(z.record(z.string(), RoleSpecSchema)),
   utilities: z.optional(z.array(UtilityName)),
@@ -377,6 +381,51 @@ export type ValidationResult =
   | { ok: true; data: DesignSystem; errors: []; warnings: string[] }
   | { ok: false; data: undefined; errors: z.core.$ZodIssue[]; warnings: string[] };
 
+const RAMP_KEYS = new Set(['seed', 'anchors', 'tones']);
+
+/**
+ * Replace the bare "Invalid input" a failed union produces with the reason.
+ *
+ * `Ramp` is `SeededRamp | FixedRamp`, and both branches are closed — so `{ seed,
+ * tones }` or a stray key fails *both* and zod reports only that the union didn't
+ * match. That message sends you reading the schema rather than looking at the two
+ * keys in front of you, and the config that produced it is one whose `tones` were
+ * being silently discarded at generate time.
+ */
+const explainRamp =
+  (input: unknown) =>
+  (issue: z.core.$ZodIssue): z.core.$ZodIssue => {
+    // A closed object reports the offending keys on the issue but renders them as
+    // a bare "Invalid input", which names the parent and not the typo.
+    if (issue.code === 'unrecognized_keys') {
+      const keys = (issue as { keys?: string[] }).keys ?? [];
+      if (keys.length)
+        return {
+          ...issue,
+          message: `unknown key${keys.length > 1 ? 's' : ''} ${keys.map((k) => `"${k}"`).join(', ')} — not part of the schema, so ignored at generate time.`,
+        };
+    }
+    if (issue.path.length !== 3 || issue.path[0] !== 'colors' || issue.path[1] !== 'palette')
+      return issue;
+    const hue = (input as { colors?: { palette?: Record<string, unknown> } })?.colors?.palette?.[
+      String(issue.path[2])
+    ];
+    if (hue == null || typeof hue !== 'object') return issue;
+    const keys = Object.keys(hue);
+    const unknown = keys.filter((k) => !RAMP_KEYS.has(k));
+    const message =
+      'seed' in hue && 'tones' in hue
+        ? 'a hue is either seeded (`seed`, with optional `anchors`) or fixed (`tones`) — not both. ' +
+          'Drop one: with both present the `tones` are ignored at generate time.'
+        : unknown.length
+          ? `unknown key${unknown.length > 1 ? 's' : ''} ${unknown.map((k) => `"${k}"`).join(', ')}. ` +
+            'A hue takes `seed` + optional `anchors`, or `tones`.'
+          : keys.length === 0
+            ? 'a hue needs `seed` (+ optional `anchors`) or `tones`.'
+            : null;
+    return message ? { ...issue, message } : issue;
+  };
+
 /**
  * Validate an unknown value against the design-system schema.
  *
@@ -387,7 +436,12 @@ export type ValidationResult =
 export function validate(input: unknown): ValidationResult {
   const result = z.safeParse(DesignSystemSchema, input);
   if (!result.success)
-    return { ok: false, data: undefined, errors: result.error.issues, warnings: [] };
+    return {
+      ok: false,
+      data: undefined,
+      errors: result.error.issues.map(explainRamp(input)),
+      warnings: [],
+    };
   // Every role must point at a palette hue that exists.
   const { palette, roles } = result.data.colors;
   for (const [role, spec] of Object.entries(roles)) {

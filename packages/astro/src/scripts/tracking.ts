@@ -8,17 +8,17 @@ const AB_COOKIE = '_ab';
 
 /** All known ad platform click ID parameters */
 const CLICK_ID_PARAMS = [
-  'gclid', 'gbraid', 'wbraid',    // Google Ads
-  'fbclid',                       // Meta (Facebook/Instagram)
-  'ttclid',                       // TikTok
-  'rdt_cid',                      // Reddit
-  'ScCid',                        // Snapchat
-  'msclkid',                      // Microsoft/Bing
+  'gclid',
+  'gbraid',
+  'wbraid', // Google Ads
+  'fbclid', // Meta (Facebook/Instagram)
+  'ttclid', // TikTok
+  'rdt_cid', // Reddit
+  'ScCid', // Snapchat
+  'msclkid', // Microsoft/Bing
 ] as const;
 
-const UTM_PARAMS = [
-  'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
-] as const;
+const UTM_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;
 
 // ---------------------------------------------------------------------------
 // 1. Capture click IDs + UTMs from URL → cookie
@@ -33,8 +33,12 @@ for (const key of [...CLICK_ID_PARAMS, ...UTM_PARAMS]) {
 }
 
 // Include A/B variant if assigned by the router Worker
-const abMatch = document.cookie.split(';').find(c => c.trim().startsWith(`${AB_COOKIE}=`));
-if (abMatch) trackingData['ab_variant'] = abMatch.split('=')[1]?.trim();
+const abMatch = document.cookie.split(';').find((c) => c.trim().startsWith(`${AB_COOKIE}=`));
+// `split('=')[1]` is only absent for a malformed cookie (`ab_variant` with no
+// `=`), but a bare assignment would put `undefined` into a Record<string,string>
+// and ship the literal string "undefined" as the variant.
+const abVariant = abMatch?.split('=')[1]?.trim();
+if (abVariant) trackingData['ab_variant'] = abVariant;
 
 if (Object.keys(trackingData).length > 0) {
   // Merge with any existing cookie data (don't overwrite prior click IDs
@@ -49,16 +53,14 @@ if (Object.keys(trackingData).length > 0) {
   };
 
   // Remove undefined values before serializing
-  const clean = Object.fromEntries(
-    Object.entries(merged).filter(([, v]) => v !== undefined)
-  );
+  const clean = Object.fromEntries(Object.entries(merged).filter(([, v]) => v !== undefined));
 
   const expires = new Date(Date.now() + COOKIE_DAYS * 864e5).toUTCString();
   document.cookie = `${COOKIE_NAME}=${encodeURIComponent(JSON.stringify(clean))};expires=${expires};path=/;SameSite=Lax`;
 }
 
 function readCookie(): Record<string, any> | null {
-  const match = document.cookie.split(';').find(c => c.trim().startsWith(`${COOKIE_NAME}=`));
+  const match = document.cookie.split(';').find((c) => c.trim().startsWith(`${COOKIE_NAME}=`));
   if (!match) return null;
   try {
     return JSON.parse(decodeURIComponent(match.split('=').slice(1).join('=')));
@@ -77,9 +79,6 @@ document.addEventListener('click', (e) => {
 
   // Fire-and-forget beacon; don't block the tel: navigation
   if (navigator.sendBeacon) {
-    navigator.sendBeacon(
-      '/api/track',
-      JSON.stringify({ event: 'call', phone: link.href })
-    );
+    navigator.sendBeacon('/api/track', JSON.stringify({ event: 'call', phone: link.href }));
   }
 });

@@ -16,6 +16,13 @@ enforces.
 
 - Set `"$schema": "https://unpkg.com/@getvitops/generator/schema.json"` in the config for editor autocomplete + validation.
 - Scaffold a starter config with `vitops init`; check one with `vitops validate`.
+- **This can be a standalone file, or live inside a site config.** Anywhere the
+  toolchain takes a config — `--input`, the Vite plugin, the Astro integration's
+  `css.input` — that file may be a `design-system.json` or the larger site config
+  that embeds one under `designSystem.themes.<name>`. They are told apart by shape,
+  and the fields below are the same either way. A site config additionally supplies
+  the site-level facts generation reads (its default colour scheme, legal documents,
+  icon sprite), so the path is declared once rather than per option.
 - The *why* behind each section: [colour system](concepts/color.md),
   [type & space scales](concepts/scales.md), [component patterns](concepts/patterns.md).
 - What each output format does with these tokens: [formats.md](formats.md).
@@ -31,7 +38,7 @@ Brand identity for agent-facing output. Consumed only by the `design` format (`D
 
 The colour system (the only required section): `palette` hues become generated OKLCH scales; `roles` map semantic roles onto those hues, from which all role tokens and dark mode derive.
 
-- `palette` (map, required) — Palette hues by name. Each becomes an 11-step numeric OKLCH scale (`--color-<hue>-50…950`).
+- `palette` (map, required) — Palette hues by name. Each becomes an 11-step numeric OKLCH scale (`--color-<hue>-50…950`). Every ramp shares one fixed lightness ladder, so a step means the same lightness in every hue; only chroma and hue vary. Beyond the outermost authored colour the chroma decays towards a small endpoint value (0.008 light / 0.015 dark) so the near-white and near-black ends keep a whisper of the hue — but that is a **ceiling**, not a target, so a low-chroma seed stays low and **a chroma-0 seed gives a true neutral** rather than a tinted one. The ladder is also enforced: if pinned colours leave a ramp non-monotonic (some step darker than the one below it), the build fails rather than shipping a scale whose hover states run backwards.
   - `<name>` (one of) — A palette hue, authored one of two ways: `{ seed, anchors? }` generates an 11-step numeric OKLCH scale (50…950) from the seed, or `{ tones }` supplies a fixed brand kit used verbatim.
     - *one of* — Seeded hue: the 11-step scale is GENERATED in OKLCH from `seed` (anchors pin specific steps).
       - `seed` (string, required) — Seed colour (hex or oklch()). An 11-step numeric scale (50…950, tinted near-white → tinted near-black) is generated in OKLCH from it; the seed is preserved at its natural step.
@@ -56,7 +63,7 @@ Named shadows → `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. 
 
 ## `fonts` *(optional)*
 
-Raw font stacks by name, emitted as `--font-<name>` tokens (referenced by `typography.families`).
+Raw font stacks by name, emitted as `--font-<name>` tokens (referenced by `typography.families`). **Stacks only — vitops does not load webfonts.** A value here is a `font-family` list and nothing more: it emits no `@font-face`, no preload, and no metrics-matched fallback. If a family needs loading, declare it in Astro's `fonts:` config (`astro.config`, or the site config's `fonts` array) and point the token at the family's `cssVariable` — `"display": "var(--font-league-spartan), sans-serif"`. Installing a `@fontsource*` package and importing its CSS also works but gives up subsetting, preload and `size-adjust`/`ascent-override` fallbacks, so it regresses CLS.
 
 ## `typeScale` *(optional)*
 
@@ -115,7 +122,7 @@ Typography: family aliases, semantic type roles (→ `font-<role>` classes), and
 
 - `families` (map) — Role-facing family aliases → CSS font values, usually referencing the top-level `fonts` tokens (e.g. "var(--font-display)").
 - `roles` (map) — Semantic type roles (display, title, heading, body, quote, caption, eyebrow, code, lead, footnote, tag, …), each emitted as a `font-<role>` class.
-  - `<name>` (map) — An open bag of CSS-ish keys (family / size / weight / line-height / tracking / transform / decoration / text-wrap / …); the generator maps known keys and passes the rest through.
+  - `<name>` (map) — A bag of CSS-ish keys, each mapped to a declaration plus a `--<role>-<sfx>` override hook. The recognised set is **closed**: `family`, `size`, `weight`, `style`, `line-height`, `tracking` (→ `letter-spacing`), `text-transform`, `text-decoration`, `text-wrap`, `color`. Note the last four are spelled with their full CSS property names — `transform` and `decoration` are NOT accepted. Anything unrecognised is **ignored**, not passed through, so the generator warns rather than emitting it: a silently-dropped `transform: uppercase` is how title-case navigation reaches production. Note also that `style`, `text-transform`, `text-decoration` and `text-wrap` are emitted on **every** role at their identity value (`normal`/`none`/`none`/`wrap`) whether declared or not, so applying one role class over another fully resets it — which means **omitting `text-wrap` is not "inherit"**: it emits `text-wrap: wrap` and cancels the `pretty` the role would otherwise inherit from a `pretty` ancestor such as a `body`-mapped role. Declare it on every role — `balance` for heading-like roles, `pretty` for copy, `wrap` for short single-line labels.
     - `<name>` (string | number)
 - `headings` (map) — Maps bare elements to type roles so unclassed markup picks up role styling — `{ "h1": "display", "h2": "heading" }`. The key is used verbatim as a selector, so it is not limited to h1…h6: **map `"body"` to your prose role** to bind base page typography to the role rather than hand-writing it. That binding is what makes the role editable — a stylesheet that re-states `font-family`/`line-height` as literals on `body` shadows `--<role>-ff`/`--<role>-lh`, and the live theme editor then appears to do nothing.
 

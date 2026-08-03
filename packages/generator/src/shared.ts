@@ -14,14 +14,30 @@
  * clicking "Dark" changed an attribute no rule matched. Matching both makes the
  * component work on every target without changing what Bricks already does.
  *
- * Note this covers the explicit choice only — there is deliberately no
- * `prefers-color-scheme` block, so the toggle's "System" position currently
- * resolves to light. Adding one would flip every existing consumer site dark for
- * dark-OS users, which is a product decision, not a bug fix.
+ * This covers the EXPLICIT choice. The OS preference is a second, opt-in block —
+ * see `SYSTEM_DARK_SEL` — because turning it on flips a site dark for dark-OS
+ * users, which is the site's decision rather than the design system's.
  *
  * Shared so the docs quote the selector the generator actually emits.
  */
 export const DARK_SEL = ':root[data-brx-theme="dark"], :root[data-theme="dark"]';
+
+/**
+ * Selector for the OS-preference dark block, emitted inside
+ * `@media (prefers-color-scheme: dark)` when a site opts in.
+ *
+ * Derived from `DARK_SEL`'s attributes rather than written out a third time, and
+ * inverted: this must apply when NO explicit choice has been made. That is
+ * exactly what `<color-scheme-toggle>`'s "System" position produces — it removes
+ * `data-theme` entirely — so with this block present System resolves to the OS
+ * instead of silently falling through to light, and needs no JS to do it.
+ *
+ * The `:not()`s are what keep an explicit *light* choice winning over a dark OS.
+ */
+export const SYSTEM_DARK_SEL = `:root${DARK_SEL.split(', ')
+  .map((s) => s.replace(/^:root\[([\w-]+)="dark"\]$/, '[$1="light"]'))
+  .map((attr) => `:not(${attr})`)
+  .join('')}`;
 
 /**
  * Roles the shipped CSS partials reference with NO fallback, so a config that
@@ -180,4 +196,8 @@ export const TW_CLASH: ReadonlySet<string> = new Set<string>([
   'text-justify',
   'text-start',
   'text-end',
+  'text-wrap',
+  'text-nowrap',
+  'text-balance',
+  'text-pretty',
 ]);

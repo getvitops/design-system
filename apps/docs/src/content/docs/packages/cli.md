@@ -25,6 +25,8 @@ npx vitops generate --input design-system.json --format tailwind --out src/style
 npx vitops generate --format bricks,css --out dist
 ```
 
+`--input` takes a `design-system.json` **or** the larger site config that embeds one (`company.json`) — told apart by shape, on every command that accepts it. `--theme <name>` picks a `designSystem.themes` entry other than the default, and `vitops validate` routes on the file's shape.
+
 ## Commands
 
 | command                                            | does                                          |

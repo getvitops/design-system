@@ -448,6 +448,10 @@ Layout is composed from utilities rather than bespoke CSS:
   decision rather than per-element margins.
 - `.flex` / `.split-<a>-<b>` / `.grid` — the structural families, with container-query
   variants prefixed `sm-` / `md-` / `lg-` / `xl-` (30 / 48 / 64 / 80rem).
+  `.split` is a two-column pair. Stack it with `.flex-col` and let a
+  breakpoint-prefixed ratio un-stack it (`split flex-col md-split-1-2`);
+  `.split-reverse` swaps the two panels. Reversing puts visual order out of step
+  with DOM order, so keep focusable content in only one panel.
 
 Breakpoints are **container** queries, not viewport media queries: a component
 responds to the space it is given, so the same markup works in a sidebar and a full-width

@@ -50,7 +50,8 @@ Astro's module graph and Astro emits that link itself.
 | option          | default              | does                                                              |
 | --------------- | -------------------- | ----------------------------------------------------------------- |
 | `css`           | off unless given     | generate + auto-inject the design-system CSS                      |
-| `css.input`     | `design-system.json` | source config                                                     |
+| `css.input`     | `design-system.json` | source config — a design-system.json, or a site config            |
+| `css.theme`     | the config's default | `designSystem.themes` entry to build, for a site-config `input`   |
 | `css.format`    | `tailwind`           | `tailwind` \| `css` \| `bricks`                                   |
 | `css.out`       | `src/styles`         | directory the generated CSS is written to                         |
 | `css.inject`    | `true`               | inject the stylesheet into every SSR page                         |
@@ -58,6 +59,11 @@ Astro's module graph and Astro emits that link itself.
 | `favicon`       | off unless given     | `source`, `lowResSource`, `name`, `themeColor`, `backgroundColor` |
 | `sitemap`       | off unless given     | generate `sitemap-index.xml` via `@astrojs/sitemap`               |
 | `seo`           | off unless given     | site-level defaults for `<Seo />`                                 |
+
+**`css.input` takes either config kind.** Point it at a `design-system.json`, or at the larger site
+config that embeds one (`company.json` / `site.json`) — they're told apart by shape, so the file can
+be called anything. A site config also supplies what `site`, `legal` and `fonts` would otherwise need
+their own path for, so `legal: {}` and `fonts: true` become the whole declaration.
 
 Set `css.inject: false` when another integration adds routes that must not inherit the design system
 (e.g. EmDash's `/_emdash/admin`) — then import the generated file (`<out>/tailwind.css` or

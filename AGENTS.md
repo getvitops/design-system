@@ -58,7 +58,7 @@ as CSS or as a `design-system.json` patch; on a dev server running `@getvitops/v
 source** POSTs that patch to `/__vitops/design-system` and the plugin merges → validates → writes →
 regenerates. On any static build the probe fails and the button isn't rendered.
 
-Three things here are load-bearing and easy to break:
+These are load-bearing and easy to break:
 
 - **A role is not a ramp alias.** `--color-<role>-<step>` is never emitted — a role resolves to
   target-prefixed tokens (`--color-bg-<role>`, `--color-bg-<role>-solid`, `--color-text-<role>`, …).
@@ -75,6 +75,15 @@ Three things here are load-bearing and easy to break:
   redefines `--color-<hue>-<step>`. Hue edits therefore belong in `:root` only.
 - **A step maps to `colors.palette.<hue>.anchors.<n>`, not `.seed`.** The seed regenerates the whole
   ramp, and mapping all 11 steps to one path silently loses every edit but the last.
+- **The patch is always design-system-relative; the file it lands in may not be.** The editor only
+  knows about a design system, so when the plugin's `input` is a site config the server merges into
+  — and validates — the design-system _subtree_ (`designSystemPath()` in `@getvitops/vite`), writing
+  only the surrounding file whole. It reads that path off the **raw** on-disk object, not the
+  resolved one: `resolveSiteConfig` normalises the two `designSystem` shorthands in memory, so a
+  writer assuming the canonical shape would grow a `themes` key beside the author's bare map and
+  silently edit a copy nothing builds from. Merging at the root instead is the louder version of the
+  same bug — a `colors` key beside `organization`, and `validate` rejecting the site config
+  wholesale so every save fails with errors about the wrong document.
 
 Consumers point the element at its manifest with the `manifest` attribute; the Astro integration's
 `editor: true` mirrors the file to `/vitops/design-manifest.json` (the default) _inside the generate
@@ -97,6 +106,19 @@ packages under `packages/` (a pnpm workspace), by layer:
   `toJSONSchema` → `schema.json`, and runtime validation all derive from it). It sources the framework
   CSS partials + prebuilt JS bundles from `@getvitops/core` and ships the Bricks PHP + `load.php`; it
   also carries the site-config schema (`site.ts` → `site.schema.json`).
+
+  **`input` takes either config kind.** A bare `design-system.json`, or the `SiteConfig` that
+  embeds one — `resolveInput` discriminates on the presence of a `designSystem` key and resolves
+  `themes[theme]` through its `extends` chain. The discriminator is **total, not a heuristic**, and
+  both halves are load-bearing: a `SiteConfig` cannot validate without a `designSystem`, and
+  `DesignSystemSchema` is strict, so a design system carrying that key is an `unrecognized_keys`
+  error. Keyed to shape rather than filename, because consumers name the file whatever they like.
+
+  A site-config `input` also **supplies `site`**, so `defaultColorScheme`, the legal documents and
+  the icon sprite don't need the same path declared again. That is safe to do implicitly because
+  each of those outputs is already gated on a field in that config (`legal.*.enabled`,
+  `icons.sprite`) — the config asks for what it gets. An explicit `site` still wins.
+
 - **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
   `png-to-ico`, loaded lazily; `oxipng` crush optional). Consumed by cli/vite/astro.
 - **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint` (bin `vitops`), a
@@ -128,10 +150,19 @@ packages under `packages/` (a pnpm workspace), by layer:
 - **`@getvitops/create`** — **`vp create` org templates** (no build step; published as-is). Its
   `package.json` carries a `createConfig.templates` manifest over bundled `templates/*` directories,
   so `vp create @getvitops` opens a picker and `vp create @getvitops:emdash` scaffolds an EmDash CMS
-  website on Cloudflare Workers (D1 + R2) with `@getvitops/{astro,emdash,cli}` pre-wired. Template
-  deps must use concrete npm ranges (never `workspace:*`/`catalog:` — scaffolded projects live
-  outside this monorepo), and `templates/**` is excluded from the root lint (imports resolve only in
-  a scaffolded project). Ship `_gitignore` (renamed to `.gitignore` on scaffold).
+  website on Cloudflare Workers (D1 + R2) with `@getvitops/{astro,emdash,cli}` pre-wired.
+
+  **Every template dep must be resolvable by a bare `npm install` in an empty directory** —
+  `workspace:*` and `catalog:` are pnpm protocols that mean nothing outside this repo, and the
+  publish-time rewrite that handles them for a package's own dependencies does **not** reach inside
+  `templates/**`, which ships as verbatim data. **`@getvitops/*` deps use `latest`, not a `^` pin:**
+  a pin is a version that was current the day it was typed and silently isn't afterwards — the
+  emdash template sat on `@getvitops/astro: ^0.7.0` through the entire 1.0 release, scaffolding
+  projects a major behind. `latest` is right here specifically because the toolchain packages are
+  `fixed`, so it resolves to a set that was released together. `templates.test.ts` enforces both
+  rules over every template. Third-party deps keep ordinary `^` ranges. `templates/**` is excluded
+  from the root lint (imports resolve only in a scaffolded project). Ship `_gitignore` (renamed to
+  `.gitignore` on scaffold).
 
 Dependency versions are centralized in `pnpm-workspace.yaml`'s `catalog:` (referenced via the
 `catalog:` protocol); internal deps use `workspace:*`. Both are rewritten to concrete versions on
@@ -162,8 +193,16 @@ Build/publish: `npx vp run build:packages` (core → generator → utils → cli
 `dependsOn` the packages it imports) and `npx vp run release` (`build:packages && changeset publish`).
 Versioning is via Changesets (`.changeset/config.json`): `core`/`generator`/`utils`/`cli`/`vite`/`astro`
 are **fixed** together — one version for the whole toolchain; `@getvitops/emdash` and
-`@getvitops/create` version independently (they have no `@getvitops/*` dependencies); the root and
-`apps/*` stay private/ignored.
+`@getvitops/create` version independently; the root and `apps/*` stay private/ignored.
+
+Independent versioning does **not** mean unconstrained. `@getvitops/emdash` depends on
+`@getvitops/utils` (a hard dep — `SEMANTIC_ICON_OPTIONS` is derived from its `iconMap`) and peers on
+`@getvitops/astro` `>=2.0.0`. Both exist because its blocks render from the generated SVG sprite:
+`<use href="…/icons.svg#icon-menu">` resolves to nothing if the site's toolchain built a different
+icon vocabulary, and an **empty box is the entire failure** — no error, nothing to grep. Depending
+on one member of a `fixed` group pins the whole generation, which is why one peer suffices. The
+astro edge is a peer rather than a dep on purpose: a mismatch must be an install-time error, not two
+copies of an Astro integration.
 
 The lockstep is **load-bearing, not cosmetic**: `packages/generator/scripts/prepare.mjs` snapshots
 core's CSS + built JS bundles into `packages/generator/assets/`, so generator@X ships a frozen copy
@@ -316,10 +355,20 @@ var(--br-control)`), and `overrides` replace an alias with a literal. So a patte
 
   **Two button tiers, by intent.** `.cta` is _persuasion_ — filled, bolder, larger padding, lift on hover; it's a class, so it works on any element (`<a class="cta">` is the common case, since CTAs usually navigate). `btn` is _affordance_ — it only signals "this is interactive", and pairs `element: "button"` with `class: "btn"` so it emits one `:where(button, .btn)` rule: a bare `<button>` gets it with no class, `.btn` carries it to other tags, and because the rule sits at zero specificity **any** explicit class overrides it (`.cta`, or a component's own `.dialog__close`). A pattern that sets both `element` and `class` is the general mechanism here; `link` does the same to emit `:where(a, .link)`. Use `fill: true|false` to state whether states/roles drive `background-color` (+ `on-solid` text) or `color` — `btn` must set `fill: false` because its `background: transparent` would otherwise be inferred as a fill.
 
+  **A state pseudo goes INSIDE the `:where()`, not after it.** `:where()` zeroes the element, but a
+  pseudo-class appended outside it still carries weight — so `:where(a, .link):hover` is **0-1-0**, not
+  0-0-0, and the zero-specificity promise silently held for a pattern's base rule while breaking for
+  every one of its state rules. That tied `link`'s hover colour with `.cta` / `.cta-<role>` (both
+  0-1-0) and won on source order, because `link` is emitted after `cta` — so every `<a class="cta">`
+  flipped to dark link-coloured text on its filled background mid-hover. `:where(a:hover, .link:hover)`
+  is a true 0-0-0. This is why `stateRules` takes a selector **builder** keyed on the pseudo rather
+  than a finished selector string; a role class (`extra`) still sits outside the wrapper, since a
+  variant is meant to carry a class's weight.
+
 - **animation-effects** (`animation-effects.css`) — the effect + journey classes from `animations` in the JSON (`.fade-in`, `.reveal-left`, `.<parts>-journey`, …), each a pure value layer (`--_anim` + `--<prop>-from/-to`). Journeys are composed from `animations.journeys.base` + `compose`. Always emitted. The animation **engine** (keyframes, drivers, floats, utilities) stays hand-written in `@getvitops/core`'s `css/animation.css`.
 - `dist/bricks-colors-{named,semantic}.json` — palettes for Bricks Builder's Color Manager. Each semantic entry carries `darkEnabled` + a `dark` ref so Bricks generates the dark-mode overrides on import.
 
-The framework CSS lives in **`@getvitops/core`**: `packages/core/css/index.css` is the bundle entry; core primitives (`global.css`, `animation.css`, `layout.css`, `utilities.css`) at `packages/core/css/` root; each UI pattern its own partial under `packages/core/css/patterns/` (one file per pattern — `dialog.css`, `table.css`, `cluster.css`, `overlay.css`, …). The generator produces the token layers above and bundles them with these partials (via lightningcss, in memory). Keep that split when adding files, and wire any new partial into `index.css`.
+The framework CSS lives in **`@getvitops/core`**: `packages/core/css/index.css` is the bundle entry; core primitives (`global.css`, `animation.css`, `layout.css`, `layout-utilities.css`, `utilities.css`) at `packages/core/css/` root; each UI pattern its own partial under `packages/core/css/patterns/` (one file per pattern — `dialog.css`, `table.css`, `cluster.css`, `overlay.css`, …). The generator produces the token layers above and bundles them with these partials (via lightningcss, in memory). Keep that split when adding files, and wire any new partial into `index.css`.
 
 **The bundle is layered.** `bundleCss()` wraps every chunk via the `CHUNK_LAYER` map and emits
 `@layer vitops.base, vitops.components, vitops.utilities;`. That is what lets a utility override
@@ -339,14 +388,43 @@ Three consequences worth holding:
   the blocks to match it. Verified: given a statement that contradicts first-appearance order, it
   reorders rather than mis-cascades. So the declaration is honoured, just normalised away — don't
   assert on its presence, assert on block order (`bundle-layers.test.ts`).
-- **The tailwind format is deliberately NOT layered by us.** Its utilities are `@utility`
+- **The tailwind format is layered too, just by Tailwind.** Its utilities are `@utility`
   definitions, which Tailwind places in its own `utilities` layer _and_ which are what make
-  variants (`hover:`, `@md:`) work. Moving them into a post-`utilities` layer would win the
-  cascade and lose variant support — measured against tailwindcss@4.3.3.
+  variants (`hover:`, `@md:`) work; its patterns go in explicit `@layer components` blocks the
+  emitter writes. So the classification is the same in both — only the mechanism differs.
 
-Known gap: `layout.css` mixes structural rules with utilities in one partial, so it sits in
-`vitops.components` whole and its utility half can't override a pattern. Splitting it is a
-separate change.
+**One class, one classification, enforced across formats.** A pattern is `vitops.components` /
+`@layer components`; a single-purpose utility is `vitops.utilities` / `@utility`. `LAYER_CONTRACT`
+(`packages/generator/src/layer-contract.ts`) names a representative sample and is asserted twice —
+the css half in `bundle-layers.test.ts`, the tailwind half in `format-parity.test.ts` — so the two
+can't drift. Three consequences that bite when adding CSS:
+
+- **Classify by RULE, not by file.** `layout.css` was ~75% utilities and unmapped, so its whole
+  utility half lost to every pattern; `utilities.css` held the `.reveal` component family and so
+  beat every pattern. Both are now split (`layout-utilities.css`, `patterns/reveal.css`). If a new
+  partial mixes the two, split it rather than picking the lesser evil.
+- **A utilities partial must also be in `TAILWIND_SKIP`.** Otherwise it is inlined into tailwind's
+  `@layer components` — the exact inversion — and it fails _silently_, because every class in it
+  already exists as an `@utility` that wins on layer anyway. `format-parity.test.ts` asserts the
+  implication structurally.
+- **`@utility` cannot live in a layer.** Measured: it throws `` `@utility` cannot be nested ``
+  inside `@layer`, and also inside a file pulled in with `@import … layer(…)` — the layer clause is
+  itself a nesting context. A `@custom-variant` is no escape hatch either; a variant applied to a
+  components-layer class emits nothing, because variants attach to utility candidates only. So a
+  pattern cannot be responsive-by-variant in tailwind, which is why `.split` has no `@md:split` and
+  `md-flex-row` carries that job instead.
+- **Never contract on Tailwind's order _within_ its utilities layer.** It is property-based and
+  flips when a declaration is added: `@utility split-1-2 { flex-direction: row }` sorts after
+  `flex-col`, and adding `--_split-a: 1` sorts it before. The one stable rule is that a variant
+  sorts after the un-varianted utility, which is what `class="split flex-col md-split-1-2"` relies
+  on. If two of our own utilities must be ordered, put both in the same css partial and say so.
+
+Known gap: `generated/typography.css` is mapped to `vitops.utilities` but emits the
+`typography.headings` bare-element bindings (`h1`, `h2`, `body`) alongside `.font-<role>` — so those
+tag rules beat every component pattern. `<h2 class="pull-quote">` loses its font-size in css/bricks
+and keeps it in tailwind, which puts the bindings in `@layer base`. Same shape of fix as the
+`layout.css` split: emit the role utilities and the element bindings as separate chunks and map the
+bindings to `vitops.base`.
 
 ### `--format` mode
 
@@ -480,9 +558,17 @@ Its _Reference_ section is not written by hand: `apps/docs/scripts/sync-referenc
 
 Note the app tasks shell out via `pnpm --filter <app> exec …`: vp resolves binaries itself and doesn't put `apps/*/node_modules/.bin` on `PATH`, so a bare `cd apps/docs && astro build` fails with "cannot find binary path".
 
-One non-obvious caching/ordering gotcha:
+Two non-obvious caching/ordering gotchas:
 
 - **`build:theme`'s `input` is declared explicitly.** vp's auto file-tracker only sees files the task itself reads. `node lib/build-theme.ts` reads its script + `design-system.json` and imports the built generator _inside_ the spawned Node process, so without an explicit `input` list (covering `packages/generator/dist/**` + `packages/generator/assets/**` + the config), source edits hit the cache and the dist files appear "stuck" on stale content.
+
+- **A running `docs:dev` does NOT pick up edits to `packages/core/css/**`.** `@getvitops/vite` watches only the config files (`input`/`site.input`/`legal.input`— see`watched()`in`packages/vite/src/index.ts`), which is right for a consumer, where core arrives via `node_modules`and changes only on install. But this repo dogfoods: core's partials reach the generator through the`packages/generator/assets/`snapshot that`prepare.mjs`writes, so a framework CSS edit needs`build:generator`**and** a fresh`generate()`before the docs site sees it. A dev server started earlier will keep serving`apps/docs/src/styles/styles.css`from whenever it last ran, with no error and no reload — the change looks like it silently didn't work. Restart`docs:dev`, or regenerate that artifact directly:
+
+  ```
+  node -e "import('./packages/generator/dist/index.mjs').then(m => m.generate({ input: 'src/design-system.json', format: 'css', outDir: 'apps/docs/src/styles' }))"
+  ```
+
+  Check the served file before concluding a CSS change didn't land: `curl -s localhost:<port>/src/styles/styles.css`.
 
 Lint, format and typecheck run automatically on save and via a `PostToolUse` hook on `Edit|Write` (`.claude/settings.json`) — don't invoke `vp check` / `vp fmt` / `vp lint` manually as a verification step. The `staged` key wires `vp check --fix` into the pre-commit hook.
 

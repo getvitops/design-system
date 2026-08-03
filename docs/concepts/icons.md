@@ -28,7 +28,7 @@ describes what a site uses, not what the design system defines.
     "ui": "ph",
     "brand": "simple-icons",
     "weight": "bold",
-    "semantic": ["menu", "close", "arrow-forward"],
+    "semantic": ["menu", "close", "arrow-right"],
     "simple-icons": ["zoho", "cloudflare"],
     "sprite": true
   }

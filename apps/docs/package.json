@@ -20,6 +20,9 @@
   "devDependencies": {
     "@astrojs/sitemap": "catalog:",
     "@getvitops/generator": "workspace:*",
+    "@iconify-json/fa7-solid": "^1.2.5",
+    "@iconify-json/lucide": "^1.2.121",
+    "@iconify-json/material-symbols": "^1.2.88",
     "@iconify-json/ph": "^1.2.2"
   }
 }

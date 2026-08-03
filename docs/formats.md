@@ -29,7 +29,7 @@ split ratios, track placement).
 deliberately stripped from the bundle because Tailwind provides them natively — writing
 them still works, but they are Tailwind's, not the framework's:
 
-`absolute`, `block`, `collapse`, `content-around`, `content-between`, `content-center`, `content-end`, `content-evenly`, `content-start`, `contents`, `fixed`, `flex`, `flex-col`, `flex-col-reverse`, `flex-nowrap`, `flex-row`, `flex-row-reverse`, `flex-wrap`, `flow-root`, `grid`, `hidden`, `inline`, `inline-block`, `inline-flex`, `inline-grid`, `inline-table`, `invisible`, `isolate`, `items-baseline`, `items-center`, `items-end`, `items-start`, `items-stretch`, `justify-around`, `justify-between`, `justify-center`, `justify-end`, `justify-evenly`, `justify-start`, `list-item`, `not-sr-only`, `relative`, `sr-only`, `static`, `sticky`, `table`, `table-caption`, `table-cell`, `table-row`, `text-center`, `text-end`, `text-justify`, `text-left`, `text-right`, `text-start`, `visible`
+`absolute`, `block`, `collapse`, `content-around`, `content-between`, `content-center`, `content-end`, `content-evenly`, `content-start`, `contents`, `fixed`, `flex`, `flex-col`, `flex-col-reverse`, `flex-nowrap`, `flex-row`, `flex-row-reverse`, `flex-wrap`, `flow-root`, `grid`, `hidden`, `inline`, `inline-block`, `inline-flex`, `inline-grid`, `inline-table`, `invisible`, `isolate`, `items-baseline`, `items-center`, `items-end`, `items-start`, `items-stretch`, `justify-around`, `justify-between`, `justify-center`, `justify-end`, `justify-evenly`, `justify-start`, `list-item`, `not-sr-only`, `relative`, `sr-only`, `static`, `sticky`, `table`, `table-caption`, `table-cell`, `table-row`, `text-balance`, `text-center`, `text-end`, `text-justify`, `text-left`, `text-nowrap`, `text-pretty`, `text-right`, `text-start`, `text-wrap`, `visible`
 
 Other Tailwind-specific behaviour:
 
@@ -90,19 +90,31 @@ docs build.
 @layer vitops.base, vitops.components, vitops.utilities;
 ```
 
-- `vitops.base` — the UA reset and the pure `:root` token blocks.
-- `vitops.components` — the animation engine, structural layout, and every pattern.
+- `vitops.base` — the reset (`box-sizing: border-box` on every element and pseudo-element,
+  a 16px root, no body margin) and the pure `:root` token blocks. Lowest of the three, so
+  your own reset overrides it — unlayered, or from a layer you declare before `vitops.base`.
+- `vitops.components` — the animation engine, the structural patterns (`.rhythm`,
+  `.centered`, `.region`, `.split`, `.reveal`) and every UI pattern.
 - `vitops.utilities` — `bg-*`, `text-*`, `border-*`, `drop-shadow-*`, `font-*`,
-  animation effects, and the display/`sr-only` families.
+  `gap-*`, animation effects, the layout utilities (`.m-*`, `.flex-*`, `.items-*`,
+  `.split-<a>-<b>`, track placement) and the display/`sr-only` families.
 
-So a utility overrides a pattern: `class="card bg-danger-muted"` tints the card. Your own
-unlayered CSS beats all three — see [concepts/patterns.md](concepts/patterns.md) for the
-override story and the one gotcha (a reset must be layered and ordered first).
+So a utility overrides a pattern: `class="card bg-danger-muted"` tints the card,
+`class="split flex-col"` stacks the split, `class="table text-center"` centres the table.
+Your own unlayered CSS beats all three — see [concepts/patterns.md](concepts/patterns.md) for
+the override story and the one gotcha (a reset must be layered and ordered first).
 
-Known gap: `layout.css` is a single partial mixing structural rules (`.rhythm`,
-`.centered`) with utilities (`.m-*`, `.flex`, `.split-*`), so it sits in
-`vitops.components` whole — its utility half cannot yet override a pattern. Splitting it is
-tracked separately.
+The classification is by RULE, not by file: a partial that mixes patterns and utilities is
+split in two rather than shelved whole. `layout.css` (patterns) and `layout-utilities.css`
+(utilities) are the same family in two files for exactly this reason, and the `tailwind`
+format reaches the same arrangement by its own route — patterns in `@layer components`,
+utilities as `@utility`.
+
+Known gap: the `typography.headings` bare-element bindings (`h1`, `h2`, `body`) are
+emitted alongside `.font-<role>` and so sit in `vitops.utilities`, where a tag rule
+outranks every pattern — `<h2 class="pull-quote">` keeps the heading's font-size in
+`css`/`bricks` and the pattern's in `tailwind`, which puts the bindings in `@layer base`.
+Give the element a `.font-<role>` class to pin it either way.
 
 ## `bricks` — WordPress / Bricks Builder payload
 

@@ -45,10 +45,13 @@ modifier-class and structural guidance from the element itself.
 
 ## Split — `vitops-split` · nestable
 
-A nestable flex row rendering the framework's `.split` (src/css/layout.css) — equal
-columns by default. Set a ratio by adding a class in the CSS-classes field:
-`split-1-2` / `2-1` / `1-3` / `3-1` / `1-4` / `4-1` / `2-3` / `3-2`, each with an
-optional `-sm/-md/-lg/-xl` suffix to engage the ratio from a container breakpoint.
+A nestable flex row rendering the framework's `.split` (layout.css) — equal columns
+by default. Set a ratio by adding a class in the CSS-classes field: `split-1-2` /
+`2-1` / `1-3` / `3-1` / `1-4` / `4-1` / `2-3` / `3-2`, each with an optional
+`sm-`/`md-`/`lg-`/`xl-` PREFIX to engage the ratio from a container breakpoint.
+`flex-col` stacks the columns below that breakpoint; `split-reverse` (also
+breakpoint-prefixable) swaps the two panels. Reversing puts visual order out of
+step with DOM order, so keep focusable content in only one of the two columns.
 
 The `.split` base rides on the built-in "CSS classes" setting (defaulted below) so it
 shows in the builder canvas (assembled from settings) and the frontend.
@@ -56,7 +59,7 @@ shows in the builder canvas (assembled from settings) and the frontend.
 **Controls**
 
 - **HTML tag** (select, default `div`) — Options: `div`, `section`, `article`, `aside`, `main`, `header`, `footer`, `nav`.
-- _Note:_ Equal columns by default. Add a class in "CSS classes" for a ratio: split-1-2, 2-1, 1-3, 3-1, 1-4, 4-1, 2-3, 3-2 (append -sm/-md/-lg/-xl to engage it from a breakpoint).
+- _Note:_ Equal columns by default. Add a class in "CSS classes" for a ratio: split-1-2, 2-1, 1-3, 3-1, 1-4, 4-1, 2-3, 3-2 (prefix with sm-/md-/lg-/xl- to engage it from a breakpoint). Add flex-col to stack the columns below that breakpoint, and split-reverse to swap the two panels — when reversing, keep focusable content in only one column so the tab order stays linear.
 
 **Base CSS class:** `split` (applied automatically; add ratio/modifier classes alongside it in the element's "CSS classes" field).
 
@@ -378,7 +381,7 @@ live while editing.
 
 **Controls**
 
-- **Icon name** (text, placeholder `menu`) — A semantic name (menu, close, arrow-forward) or a set-specific one (ph:list). Only icons listed in the site config are in the sprite.
+- **Icon name** (text, placeholder `menu`) — A semantic name (menu, close, arrow-right) or a set-specific one (ph:list). Only icons listed in the site config are in the sprite.
 - **Size** (text, placeholder `1.25em`) — Any CSS length. Sets --icon-size; em units track the surrounding text.
 - **Accessible label** (text) — Leave empty for decorative icons — they are then hidden from screen readers. Fill it in only when the icon carries meaning on its own.
 

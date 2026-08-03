@@ -166,12 +166,16 @@ describe('design-manifest: patch round-trip', () => {
     const ds = defaultConfig();
     const m = manifestOf(ds);
     const hue = m.colors.ramps[0] as string;
+    // L 0.652 — on the step-500 rung, so the anchor moves the colour without
+    // inverting the ramp. (A dark placeholder like #123456 is L 0.319, which
+    // belongs around step 900; pinning it at 500 makes 600 lighter than 500 and
+    // the build now rejects it. That is the check working, not the fixture.)
     const merged = merge(ds, {
-      colors: { palette: { [hue]: { anchors: { '500': '#123456' } } } },
+      colors: { palette: { [hue]: { anchors: { '500': '#e0663a' } } } },
     }) as DesignSystem;
     // The anchor has to actually move the ramp, or "save to source" would appear
     // to work and change nothing.
-    expect(manifestOf(merged).colors.palette[hue]?.['500']).toBe('#123456');
+    expect(manifestOf(merged).colors.palette[hue]?.['500']).toBe('#e0663a');
   });
 });
 

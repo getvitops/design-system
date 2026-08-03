@@ -33,7 +33,6 @@
  * button keeps its identity across appearances.
  */
 import {
-  ENDPOINT_CHROMA,
   LIGHTNESS_LADDER,
   contrastLc,
   generateOklchPalette,
@@ -232,6 +231,69 @@ export function ladderWarnings(palette: Record<string, ExpandedHue>): string[] {
     }
   }
   return warnings;
+}
+
+/**
+ * Gamut mapping nudges lightness by a hair, so an exact `<` comparison would
+ * report rounding as an inversion. Well below any deviation a person could see.
+ */
+const MONOTONIC_EPSILON = 1e-3;
+
+/**
+ * Ramps whose lightness does not fall monotonically from 50 to 950.
+ *
+ * A ramp built from the ladder alone cannot invert — only pinned colours (a seed,
+ * an `anchor`, a `tones` entry) can, because they are the one thing allowed off
+ * it. `ladderWarnings` will not catch it: it compares each pinned step against
+ * *its own* ladder rung, never against its neighbours, so it reports the wrong
+ * defect ("reads darker than others at 600") while the real problem is that 600
+ * is darker than 700. And since `LADDER_TOLERANCE` is 0.03 — the same size as the
+ * ladder's own 50→100 gap — two anchors can each sit within tolerance and still
+ * invert, with no warning at all.
+ *
+ * This is an error rather than a warning because the rest of the system assumes
+ * the order: `snap` picks the nearest step by ladder lightness, the mode-stable
+ * solid family hard-codes 600/700/800 as increasingly dark, and both dark tables
+ * re-point steps on the same assumption. An inverted ramp therefore runs hover
+ * states backwards — the failure the fixed ladder was introduced to eliminate.
+ */
+export function monotonicityErrors(palette: Record<string, ExpandedHue>): string[] {
+  const errors: string[] = [];
+  for (const [hue, expanded] of Object.entries(palette)) {
+    const numeric = expanded.numeric ?? {};
+    // Present steps only — a sparse `tones` kit is legal, and comparing against
+    // absent steps would invent inversions that aren't there.
+    const steps = NUMERIC_STEPS.filter((s) => numeric[s] != null);
+    for (let i = 1; i < steps.length; i++) {
+      const [prev, step] = [steps[i - 1] as NumStep, steps[i] as NumStep];
+      // The final hex, not the nominal ladder value: a pinned colour is emitted
+      // verbatim, and it is precisely the pinned steps that can invert.
+      const lPrev = hexToOklch(numeric[prev] as string).l;
+      const lStep = hexToOklch(numeric[step] as string).l;
+      if (lStep < lPrev + MONOTONIC_EPSILON) continue;
+      // Point at the colour the author actually wrote. Only a pinned step can be
+      // off the ladder, so naming its correct home is the actionable half — the
+      // unpinned neighbour is already exactly where it belongs, and telling
+      // someone to move that one sends them the wrong way.
+      const pinned = expanded.deviations ?? {};
+      const culprits = ([prev, step] as NumStep[]).filter((s) => pinned[s] != null);
+      const fix = culprits.length
+        ? culprits
+            .map((s) => {
+              const l = hexToOklch(numeric[s] as string).l;
+              return `${numeric[s]} (pinned at ${s}) sits at L ${l.toFixed(3)}, nearest step ${nearestStep(l)}`;
+            })
+            .join('; ')
+        : `no step here is pinned, so this is a bug in the generator rather than in your config`;
+      errors.push(
+        `colors.palette.${hue}: step ${step} (${numeric[step]}, L ${lStep.toFixed(3)}) is LIGHTER ` +
+          `than step ${prev} (${numeric[prev]}, L ${lPrev.toFixed(3)}). A ramp must darken from 50 ` +
+          `to 950 — inverted, a hover from \`bg-<role>-solid\` to \`-solid-bold\` gets lighter, and ` +
+          `the dark-mode tables re-point steps assuming the order. ${fix}.`,
+      );
+    }
+  }
+  return errors;
 }
 
 // ── the token tables ─────────────────────────────────────────────────────────

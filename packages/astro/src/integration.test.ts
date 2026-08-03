@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { AstroIntegration, HookParameters } from 'astro';
 import { describe, expect, it } from 'vitest';
 import getvitops, { type GetvitopsOptions } from './integration.ts';
@@ -262,5 +265,52 @@ describe('getvitops({ icons })', () => {
     expect(new Set(Object.keys(data))).toEqual(
       new Set(['engine', 'root', 'ui', 'brand', 'weight', 'overrides', 'sprite']),
     );
+  });
+});
+
+/**
+ * Once a consumer keeps their tokens inside `company.json`, `css.input` IS the
+ * site config — and every other option that wants one should stop asking for the
+ * path again. This is the whole point of the change; without it the config file
+ * moved but the number of times you name it did not.
+ */
+describe('a site config at css.input', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vitops-astro-'));
+  const rootUrl = new URL(`file://${root}/`);
+  writeFileSync(
+    join(root, 'company.json'),
+    JSON.stringify({
+      defaultLocale: 'en',
+      locales: { en: { name: 'English' } },
+      environments: { production: { url: 'https://acme.example' } },
+      organization: { name: 'Acme' },
+      designSystem: { themes: { default: {} } },
+      fonts: [{ name: 'Inter', provider: 'google', cssVariable: '--font-inter' }],
+    }),
+  );
+  writeFileSync(join(root, 'design-system.json'), JSON.stringify({ colors: { palette: {} } }));
+
+  const at = (opts: GetvitopsOptions) => harness(opts, { root: rootUrl });
+
+  it('lets `legal` default its input to it, so `legal: {}` is the whole declaration', async () => {
+    await expect(
+      at({ css: { input: 'company.json', format: 'css' }, legal: {} }).run(),
+    ).resolves.toBeUndefined();
+  });
+
+  it('lets `fonts: true` read the families from it', async () => {
+    const h = at({ css: { input: 'company.json', format: 'css' }, fonts: true });
+    await h.run();
+    // The warning fires only when nothing was declared anywhere — its absence is
+    // the evidence the site config was found and read.
+    expect(h.logs.filter((l) => l.msg.startsWith('fonts: nothing declared'))).toHaveLength(0);
+  });
+
+  it('still demands a path when css.input is a plain design system', async () => {
+    // The fallback is not "guess"; a design-system.json holds no legal facts, so
+    // asking is the only correct answer.
+    await expect(
+      at({ css: { input: 'design-system.json', format: 'css' }, legal: {} }).run(),
+    ).rejects.toThrow(/legal: needs/);
   });
 });

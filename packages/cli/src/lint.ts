@@ -24,12 +24,25 @@
  */
 import { NUMERIC_STEPS, type DesignSystem, type Format } from '@getvitops/generator';
 
+/**
+ * `error` — you named something from your design system and it resolves to
+ * nothing. Always actionable, and fails the command.
+ *
+ * `suggestion` — the code works, but the framework already has a primitive for
+ * it. Advisory by design: these are judgement calls, and a new rule that failed
+ * CI on first run would be a worse defect than the drift it reports. `--strict`
+ * promotes them for consumers who want the ratchet.
+ */
+export type LintSeverity = 'error' | 'suggestion';
+
 export interface LintFinding {
   file: string;
   line: number;
+  /** The class token, or for a CSS rule the declaration that triggered it. */
   cls: string;
   reason: string;
   suggestion?: string;
+  severity: LintSeverity;
 }
 
 const UTIL_FAMILIES = ['bg', 'text', 'icon', 'border', 'outline', 'fill', 'stroke'];
@@ -77,10 +90,21 @@ export function vocabulary(ds: DesignSystem, roleClasses: Iterable<string>): Voc
   };
 }
 
-/** Strip Tailwind variant prefixes (`@md:`, `hover:`, `dark:`) from a candidate. */
-const stripVariants = (cls: string): string => {
+/**
+ * Strip variant prefixes (`@md:`, `hover:`, `dark:`) from a candidate.
+ *
+ * Format-aware, because the container-query spelling only exists in tailwind.
+ * Stripping `@md:` unconditionally made the check asymmetric: `md-split-1-2` in a
+ * tailwind project was caught, but `@md:split-1-2` in a css/bricks project became
+ * a bare `split-1-2` that matched nothing and returned null — the same silent
+ * no-op, in the other direction, unreported.
+ */
+const stripVariants = (cls: string, format: Format): string => {
   let out = cls;
-  while (/^@?[a-zA-Z0-9_-]+:/.test(out)) out = out.slice(out.indexOf(':') + 1);
+  while (/^@?[a-zA-Z0-9_-]+:/.test(out)) {
+    if (format !== 'tailwind' && out.startsWith('@')) break;
+    out = out.slice(out.indexOf(':') + 1);
+  }
   return out;
 };
 
@@ -96,13 +120,26 @@ export function judge(
   v: Vocabulary,
   format: Format,
 ): Omit<LintFinding, 'file' | 'line'> | null {
-  const cls = stripVariants(raw);
+  const cls = stripVariants(raw, format);
+
+  // ── the `@<bp>:` container-query spelling, in a format that has none ───────
+  // Tailwind's engine expands these; css/bricks ship pre-expanded `<bp>-` classes
+  // instead, so this spelling resolves to nothing there.
+  const cq = /^@(sm|md|lg|xl):(.+)$/.exec(cls);
+  if (cq && format !== 'tailwind')
+    return {
+      cls: raw,
+      severity: 'error' as const,
+      reason: `\`@${cq[1]}:\` container-query variants are a tailwind-format spelling; the ${format} format emits pre-expanded classes`,
+      suggestion: `${cq[1]}-${cq[2]}`,
+    };
 
   // ── the `<bp>-` responsive spelling ────────────────────────────────────────
   const bp = /^(sm|md|lg|xl)-(.+)$/.exec(cls);
   if (bp && format === 'tailwind')
     return {
       cls: raw,
+      severity: 'error' as const,
       reason: `\`${bp[1]}-\` responsive classes are not emitted in the tailwind format`,
       suggestion: `@${bp[1]}:${bp[2]} (framework breakpoints) or ${bp[1]}:${bp[2]} (Tailwind's)`,
     };
@@ -135,6 +172,7 @@ export function judge(
       const valid = emittedModifiers(v.roleClasses, fam as string, role as string);
       return {
         cls: raw,
+        severity: 'error' as const,
         reason: `\`${fam}-${role}${mod ? `-${mod}` : ''}\` is not emitted for the \`${role}\` role`,
         suggestion: valid.length
           ? `valid modifiers: ${valid.join(', ')}`
@@ -146,12 +184,14 @@ export function judge(
       if (step === '')
         return {
           cls: raw,
+          severity: 'error' as const,
           reason: `\`${fam}-${hue}\` names a palette hue with no step`,
           suggestion: `${fam}-${hue}-500, or a role such as ${fam}-${v.roles[0] ?? 'neutral'}`,
         };
       if (!v.steps.includes(step))
         return {
           cls: raw,
+          severity: 'error' as const,
           reason: `\`${step}\` is not a step on the \`${hue}\` scale (steps are 50…950)`,
           suggestion: `${fam}-${hue}-500, or a role such as ${fam}-${v.roles[0] ?? 'neutral'} which also flips in dark mode`,
         };
@@ -168,6 +208,7 @@ export function judge(
     if (near)
       return {
         cls: raw,
+        severity: 'error' as const,
         reason: `\`${font[1]}\` is not a typography role`,
         suggestion: `font-${near}`,
       };
@@ -178,6 +219,7 @@ export function judge(
   if (ds && v.shadows.length && !v.shadows.includes(ds[1] as string))
     return {
       cls: raw,
+      severity: 'error' as const,
       reason: `\`${ds[1]}\` is not a defined shadow`,
       suggestion: `drop-shadow-${v.shadows[0]}`,
     };

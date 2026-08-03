@@ -42,7 +42,7 @@ details,
    *
    * This carried the canonical open/close animation (`block-size: 0 → auto` with
    * `content-visibility` under `allow-discrete`, backed by the
-   * `interpolate-size: allow-keywords` in utilities.css). In Chrome 149 that
+   * `interpolate-size: allow-keywords` in patterns/reveal.css). In Chrome 149 that
    * deadlocks: `content-visibility` stays `hidden`, so the content has no layout,
    * so `auto` resolves to `0`, so the transition has nothing to run — and the
    * disclosure never opens *at all*. Not "opens without animating": every

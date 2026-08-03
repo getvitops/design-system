@@ -247,107 +247,28 @@
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   DISCLOSURE — animatable show/hide (auto ↔ 0), layered by support
-   Layer 1 (primary, broadly supported): CSS grid 0fr↔1fr hack. Needs ONE child
-     wrapper; the wrapper clips its own content as the track reveals.
-   Layer 2 (progressive): interpolate-size + native height:auto animation.
-   Layer 3 (native <details>): animate ::details-content directly.
-   `.reveal-fade` covers the display:none fade case with the allow-discrete +
-   @starting-style idiom (same as nav.css `.drawer-menu`).
-   Toggle: consumer sets `.is-open` / `[data-open]` (mirrors .is-active /
-   [data-active] in animation.css), OR nests under an [open] element (<details>).
-   ═══════════════════════════════════════════════════════════════════════════ */
-:root {
-  --reveal-duration: 0.4s;
-}
+/* ── text-wrap — per-element opt-in ──
+   The typography ROLES own the default (`text-wrap` is a role key, so every
+   `.font-*` and every `typography.headings` tag rule carries one, editable via
+   `--<role>-tw` and the theme editor). These four are the escape hatch for a
+   single element that wants to differ, and for markup with no role class —
+   a Bricks-authored heading, say.
 
-/* ── Layer 1: grid-rows hack (primary) ──
-   Markup:
-     <div class="reveal" id="panel">        <!-- the animated track -->
-       <div> … </div>                          <!-- required single wrapper -->
-     </div>
-   Toggle .is-open / [data-open] on `.reveal` (JS/Lit), or nest under an [open]
-   element (e.g. <details>). The wrapper needs min-height:0 + overflow:hidden so
-   the content can be clipped to the 0fr track. */
-.reveal {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows var(--reveal-duration) var(--interact-easing, ease);
-}
-.reveal > * {
-  min-height: 0;
-  overflow: hidden;
-}
-.reveal.is-open,
-.reveal[data-open],
-:where([open]) > .reveal {
-  grid-template-rows: 1fr;
-}
+   Names + values are Tailwind-exact; Tailwind ships them natively, so they are
+   in TW_CLASH and the tailwind format drops these copies.
 
-/* ── Layer 2: native height:auto animation (progressive enhancement) ──
-   Where interpolate-size is supported, animate height directly (no wrapper
-   needed). Guarded so unsupported engines keep the grid hack above. */
-@supports (interpolate-size: allow-keywords) {
-  :root {
-    interpolate-size: allow-keywords;
-  }
-  .reveal-h {
-    height: auto;
-    overflow: hidden;
-    transition: height var(--reveal-duration) var(--interact-easing, ease);
-  }
-  .reveal-h:not(.is-open):not([data-open]) {
-    height: 0;
-  }
+   Namespace note: `text-*` is shared with the role colour utilities
+   (`text-danger-muted`). These four can only collide if a consumer names a hue
+   or colour role `wrap`/`nowrap`/`balance`/`pretty`. */
+.text-wrap {
+  text-wrap: wrap;
 }
-
-/* ── Layer 3: native <details> disclosure ──
-   Markup:
-     <details>
-       <summary>Toggle</summary>
-       … content …
-     </details>
-   Animate the UA-generated content box directly; interpolate-size (Layer 2)
-   lets block-size reach `auto`. Guarded — engines without ::details-content just
-   snap open (fully accessible). */
-/* NOTE: the transition that used to live here is gone, for the same reason as in
-   patterns/details.css — in Chrome 149 *any* transition on ::details-content
-   deadlocks (content-visibility stays hidden → `auto` resolves to 0 → nothing
-   runs) and the disclosure never opens. Collapsing still works; only the motion
-   is dropped. Don't reinstate it without checking that a first click expands. */
-@supports selector(::details-content) {
-  details::details-content {
-    overflow: clip;
-    block-size: 0;
-  }
-  details[open]::details-content {
-    block-size: auto;
-  }
+.text-nowrap {
+  text-wrap: nowrap;
 }
-
-/* ── display:none fade/slide — allow-discrete + @starting-style ──
-   Same idiom as nav.css `.drawer-menu`. Base is display:none; the open state
-   restores display and fades in, and `display`/`overlay` are transitioned with
-   allow-discrete so the element animates out before it is removed. `overlay` is
-   a no-op unless the element is in the top layer (popover/dialog) — harmless.
-   Markup: <div class="reveal-fade" [data-open]?> … </div>  (toggle .is-open) */
-.reveal-fade {
-  display: none;
-  opacity: 0;
-  transition:
-    opacity var(--reveal-duration) var(--interact-easing, ease),
-    overlay var(--reveal-duration) allow-discrete,
-    display var(--reveal-duration) allow-discrete;
+.text-balance {
+  text-wrap: balance;
 }
-.reveal-fade.is-open,
-.reveal-fade[data-open] {
-  display: block;
-  opacity: 1;
-}
-@starting-style {
-  .reveal-fade.is-open,
-  .reveal-fade[data-open] {
-    opacity: 0;
-  }
+.text-pretty {
+  text-wrap: pretty;
 }

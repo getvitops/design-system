@@ -375,9 +375,23 @@ export const LIGHTNESS_LADDER: Record<StepName, number> = {
 };
 
 /**
- * Chroma a ramp decays to beyond its outermost anchors, so the near-white and
- * near-black ends keep a whisper of the hue instead of going flat grey. The dark
- * end carries slightly more because chroma reads weaker against black.
+ * Chroma a ramp decays *towards* beyond its outermost anchors, so the near-white
+ * and near-black ends keep a whisper of the hue instead of going flat grey. The
+ * dark end carries slightly more because chroma reads weaker against black.
+ *
+ * It is a CEILING, not a target — `Math.min(ENDPOINT_CHROMA.x, anchor.c)`. That
+ * distinction is the whole reason a neutral is authorable. The interpolation
+ * factor reaches exactly 1 at steps 50 and 950 for every anchor position, so as a
+ * target it made the endpoints these constants *unconditionally*: seeds at chroma
+ * 0.001, 0.002, 0.05 and 0.2 all produced a byte-identical step 50. A brand
+ * wanting plain white with grey panels had no seed that worked, and chroma 0 was
+ * worst of all — colorjs returns NaN hue for a true achromatic colour, which
+ * `hexToOklch` collapses to 0, so the "neutral" came out pink.
+ *
+ * As a ceiling, a low-chroma seed simply stays low and a chroma-0 seed stays 0 at
+ * every unanchored step, which makes the NaN-hue collapse invisible rather than
+ * something `hexToOklch` has to solve (its `|| 0` is load-bearing for
+ * `getColorName`).
  */
 export const ENDPOINT_CHROMA = { light: 0.008, dark: 0.015 } as const;
 
@@ -533,13 +547,13 @@ export function generateOklchPalette(
       // Past the darkest anchor — fade toward the tinted near-black end.
       const a = parsedAnchors[lighter] as OklchColor;
       const factor = (idx(step) - idx(lighter)) / (lastIdx - idx(lighter));
-      chroma = lerp(a.c, ENDPOINT_CHROMA.dark, factor);
+      chroma = lerp(a.c, Math.min(ENDPOINT_CHROMA.dark, a.c), factor);
       hue = a.h;
     } else if (darker !== undefined) {
       // Past the lightest anchor — fade toward the tinted near-white end.
       const b = parsedAnchors[darker] as OklchColor;
       const factor = (idx(darker) - idx(step)) / idx(darker);
-      chroma = lerp(b.c, ENDPOINT_CHROMA.light, factor);
+      chroma = lerp(b.c, Math.min(ENDPOINT_CHROMA.light, b.c), factor);
       hue = b.h;
     } else {
       chroma = 0.1;

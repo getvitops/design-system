@@ -5,7 +5,7 @@ export type Feature = 'contact-form' | 'conversion-tracking' | 'legal-docs' | 'a
 
 const PLAN_FEATURES: Record<PlanTier, readonly Feature[]> = {
   free: ['contact-form'],
-  pro:  ['contact-form', 'conversion-tracking', 'legal-docs', 'ab-testing'],
+  pro: ['contact-form', 'conversion-tracking', 'legal-docs', 'ab-testing'],
 };
 
 export const sitePlan: PlanTier = SITE_PLAN === 'pro' ? 'pro' : 'free';

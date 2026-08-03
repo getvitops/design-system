@@ -67,6 +67,14 @@ const TEXT_EFFECTS = [
 const BIG = new Set(['size-grow', 'size-shrink']);
 
 /**
+ * `layout` effects animate `height`, which only reaches `auto` where
+ * `interpolate-size: allow-keywords` is supported — so their tiles carry a
+ * support note. Everything else about them is ordinary: `.transition
+ * hover-size-grow` like every other row.
+ */
+const NEEDS_INTERPOLATE_SIZE = new Set(['layout']);
+
+/**
  * What this page depends on, and what happens without it. IDs are web-features
  * IDs (the ones in webstatus.dev URLs), verified against api.webstatus.dev.
  */
@@ -168,17 +176,22 @@ const headings = [
     <p class="font-body">
       A deliberate choice, and the one exception to the polyfill strategy. A scroll-timeline
       polyfill is large and runs on every frame, to buy back an effect that is decorative by
-      definition — so instead an inline <code>&lt;head&gt;</code> snippet flips
-      <code>.no-scroll-timeline</code> on <code>&lt;html&gt;</code> <em>before paint</em>, and
-      <code>animation.css</code> cancels the affected animations outright:
+      definition — so instead <code>animation.css</code> asks the engine directly and cancels the
+      affected animations outright:
     </p>
-    <pre><code>{`:root.no-scroll-timeline :where(.animate-view, .animate-scroll) {
-  animation: none;
+    <pre><code>{`@supports not (animation-timeline: view()) {
+  :where(.animate-view, .animate-scroll) { animation: none }
 }`}</code></pre>
     <p class="font-body">
       Without that cancel these elements would sit at their first keyframe forever — and an entrance
       animation that never runs is <code>opacity: 0</code>, i.e. invisible content. Cancelling costs
       an animation; not cancelling costs the page.
+    </p>
+    <p class="font-body">
+      There is no class and no inline snippet to install: the check is CSS, so it holds on a page
+      that never loads a byte of JavaScript. The same reasoning governs
+      <code>.animate-trigger</code>, which is paused only inside
+      <code>@media (scripting: enabled)</code> — pausing is safe only when something can un-pause it.
     </p>
 
     <h3 class="font-heading">What is polyfilled</h3>
@@ -214,9 +227,8 @@ const headings = [
       </ul>
       <p class="font-footnote text-surface-muted">
         Scroll-driven, via <code>animation-timeline</code>. Where that's unsupported,
-        <code>deferred.js</code> sets <code>.no-scroll-timeline</code> and the animation is
-        cancelled so content renders in its natural visible state rather than stuck at
-        <code>opacity: 0</code>.
+        <code>@supports</code> cancels the animation so content renders in its natural visible state
+        rather than stuck at <code>opacity: 0</code>.
       </p>
     </div>
     <div class="card rhythm">
@@ -254,13 +266,40 @@ const headings = [
     while the block is faded, clipped or displaced.
   </p>
 
+  <p class="font-footnote text-surface-x-muted">
+    <strong>Hovering the outline works too.</strong> Each state variant matches the element
+    <em>or its direct parent</em> (<code>.hover-&lt;fx&gt;:hover, :hover &gt; .hover-&lt;fx&gt;</code>),
+    which is what makes <code>reveal-*</code> usable at all: those rest at
+    <code>clip-path: inset(0 100% 0 0)</code>, and <code>clip-path</code> clips
+    <em>hit-testing</em> as well as painting — so an element clipped to nothing can never receive
+    the hover that would reveal it. The parent is the handle.
+  </p>
+
   {byKind.map(({ kind, items }) => (
     <section class="rhythm">
       <h3 class="font-heading">{kind} <span class="badge">{items.length}</span></h3>
+      {NEEDS_INTERPOLATE_SIZE.has(kind) && (
+        <p class="font-footnote text-surface-x-muted">
+          The only stage that reflows, and the only one behind a feature gate:
+          <code>height: 0 → auto</code> needs <code>interpolate-size: allow-keywords</code> to be
+          interpolable at all. Where that's missing the tile snaps instead of growing — the
+          <code>layout</code> keyframe has the same dependency, so this isn't a weakness of the
+          transition driver.
+        </p>
+      )}
       <div class="an-grid">
         {items.map((fx) => (
           <div class={`an-cell ${BIG.has(fx) ? 'an-cell--tall' : ''}`}>
-            <div class={`an-tile transition hover-${fx}`}></div>
+            {NEEDS_INTERPOLATE_SIZE.has(kind) ? (
+              // `.an-layouttile`, not `.an-tile` — see the note in the styles
+              // below. Needs real content too: `auto` on an empty div resolves
+              // to 0, so the grow would have nothing to grow to.
+              <div class={`an-layouttile transition hover-${fx}`}>
+                <code class="font-footnote">auto</code>
+              </div>
+            ) : (
+              <div class={`an-tile transition hover-${fx}`}></div>
+            )}
             <code class="font-footnote an-label">{fx}</code>
           </div>
         ))}
@@ -273,6 +312,14 @@ const headings = [
   <p class="font-body text-surface-muted">
     The same effects under <code>.animate-view</code>. <strong>Scroll up and back down</strong> —
     they replay, because the timeline is the scroll position, not a one-shot.
+  </p>
+  <p class="font-footnote text-surface-x-muted">
+    Timed off the element's <strong>midpoint</strong>: motion starts once that midpoint is 10% of
+    the viewport in and completes at 25%. Both stops are the element's position on screen, not a
+    fraction of its own height — so these tiles and a full-bleed section start at the same moment.
+    The pivot is <code>entry 50%</code>, which is exactly where a midpoint meets the viewport edge
+    whatever the element measures; <code>--anim-start</code> / <code>--anim-end</code> move the
+    window, <code>--anim-range</code> replaces it.
   </p>
   <div class="an-grid">
     {['fade-in', 'slide-up', 'slide-left', 'scale-up', 'blur-in', 'reveal-left'].map((fx) => (
@@ -288,8 +335,10 @@ const headings = [
   <p class="font-body text-surface-muted">
     Compositions of the base parts (<code>fade</code>, <code>slide</code>, <code>scale</code>,
     <code>blur</code>) into one keyframe, so multiple properties move on a single timeline rather
-    than fighting over <code>animation-name</code>. They set their own
-    <code>entry exit</code> range — the motion tracks the element across the whole viewport.
+    than fighting over <code>animation-name</code>. A journey is entry → hold → exit, so it needs a
+    longer range than a one-shot entrance: it starts on the same 10% midpoint pivot but runs to the
+    end of the <code>exit</code> phase, putting the hold in the middle of the crossing rather than
+    at the bottom edge of the screen.
   </p>
   <div class="an-grid">
     {journeys.map((j) => (
@@ -307,9 +356,18 @@ const headings = [
     <code>--stagger-amount</code>. Pure CSS via <code>sibling-index()</code> where supported, with a
     JS fallback that sets the index inline.
   </p>
+  <p class="font-footnote text-surface-x-muted">
+    <code>animation-delay</code> is time-based and is <em>ignored</em> on a scroll-driven timeline,
+    so <code>.stagger</code> offsets each child's view <code>animation-range</code> by the same
+    index as well — one class, both driver families. Journeys declare their own range and so opt
+    out; tune the scroll-driven step with <code>--stagger-range-step</code>.
+  </p>
   <div class="an-grid stagger">
     {[1, 2, 3, 4, 5, 6].map((n) => (
-      <div class="an-tile animate-view slide-up an-tile--solo">
+      // `fade-in slide-up`, not `slide-up` alone: both are `composite`, so they
+      // compose through the shared keyframe's vars. A stagger is only legible if
+      // the thing being staggered is legible, and a bare 14px slide is not.
+      <div class="an-tile animate-view fade-in slide-up an-tile--solo">
         <code class="font-footnote">{n}</code>
       </div>
     ))}
@@ -413,21 +471,43 @@ const headings = [
   .an-cell--tall {
     min-block-size: 7rem;
   }
-  .an-tile {
+  /* Appearance is shared; SIZING is not, and that split is load-bearing rather
+     than tidiness. These rules are in an Astro scoped <style>, i.e. unlayered —
+     and unlayered author CSS outranks every framework layer. So a `block-size`
+     here would beat the `height` that `hover-size-grow` drives, and the layout
+     tiles would sit frozen at 55% looking exactly like the bug this page is
+     documenting. `.an-layouttile` therefore declares no block-size at all and
+     lets its content and padding set the natural height `auto` resolves to.
+     (A separate class rather than a modifier: you cannot un-declare a property,
+     so the sizing must never land on these elements in the first place.) */
+  .an-tile,
+  .an-layouttile {
     /* Smaller than the cell so the effect's travel happens *within* the landing
        zone. `--slide-distance` is the effect's own knob, turned down to match. */
     --slide-distance: 0.9rem;
 
     inline-size: 68%;
-    block-size: 55%;
-    min-block-size: 2rem;
     margin-block-end: 0.9rem;
     background: var(--color-bg-ui-primary-muted);
     border: 1px solid var(--color-border-ui-primary);
     border-radius: var(--br-default);
   }
-  /* Stagger demo: no landing zone needed — they all arrive, just not at once. */
+  .an-tile {
+    block-size: 55%;
+    min-block-size: 2rem;
+  }
+  .an-layouttile {
+    display: grid;
+    place-items: center;
+    padding-block: 0.9rem;
+  }
+  /* Stagger demo: no landing zone needed — they all arrive, just not at once.
+     And because there's no cell to stay inside, the dialled-down travel that
+     `.an-tile` needs is actively harmful here: at 0.9rem the whole animation is
+     a 14px nudge, which is invisible whether or not it staggers. Full distance. */
   .an-tile--solo {
+    --slide-distance: 2rem;
+
     display: grid;
     place-items: center;
     min-block-size: 4rem;

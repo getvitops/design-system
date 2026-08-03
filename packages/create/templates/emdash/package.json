@@ -19,8 +19,8 @@
     "@astrojs/cloudflare": "^14.0.0",
     "@astrojs/react": "^6.0.0",
     "@emdash-cms/cloudflare": "^0.31.0",
-    "@getvitops/astro": "^0.7.0",
-    "@getvitops/emdash": "^0.2.1",
+    "@getvitops/astro": "latest",
+    "@getvitops/emdash": "latest",
     "astro": "^7.1.2",
     "emdash": "^0.31.0",
     "react": "^19.2.4",
@@ -29,10 +29,10 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.7",
     "@cloudflare/workers-types": "^4.20260305.1",
-    "@getvitops/cli": "^0.4.0",
+    "@getvitops/cli": "latest",
     "typescript": "^6.0.3",
-    "vite": "catalog:",
-    "vite-plus": "catalog:",
+    "vite": "latest",
+    "vite-plus": "latest",
     "wrangler": "^4.111.0"
   },
   "devEngines": {

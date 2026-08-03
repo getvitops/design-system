@@ -33,6 +33,12 @@ export default defineConfig({
 });
 ```
 
+> **The config can be your site config.** `css.input` takes a `design-system.json` **or** the larger
+> site config that embeds one under `designSystem.themes.<name>` — they're told apart by shape, so
+> the file can be called `company.json`. If you already keep your tokens there, point this at that
+> file rather than maintaining a second one; it also supplies the site-level facts generation reads
+> (default colour scheme, legal documents, icon sprite).
+
 Then drop `<Head />` into your layout's `<head>` — it emits the favicon/PWA tags and the
 web-component runtime in the right order:
 

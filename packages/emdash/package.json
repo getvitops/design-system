@@ -21,13 +21,13 @@
   "publishConfig": {
     "access": "public"
   },
-  "scripts": {
-    "gen:icons": "node scripts/gen-icon-options.mjs"
+  "dependencies": {
+    "@getvitops/utils": "workspace:*"
   },
   "devDependencies": {
     "@astrojs/cloudflare": "catalog:",
     "@emdash-cms/cloudflare": "catalog:",
-    "@getvitops/utils": "workspace:*",
+    "@getvitops/astro": "workspace:*",
     "astro": "catalog:",
     "emdash": "catalog:",
     "vitest": "^4.1.9"
@@ -35,6 +35,7 @@
   "peerDependencies": {
     "@astrojs/cloudflare": ">=14",
     "@emdash-cms/cloudflare": ">=0.31.0",
+    "@getvitops/astro": ">=2.0.0",
     "astro": ">=7",
     "emdash": ">=0.31.0"
   },

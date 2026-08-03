@@ -44,12 +44,18 @@ export { DesignSystemSchema, jsonSchema, SCHEMA_URL, validate } from './schema.t
 export type { DesignSystem, ValidationResult } from './schema.ts';
 export {
   SiteConfigSchema,
+  SiteFontSchema,
   siteJsonSchema,
   SITE_SCHEMA_URL,
   validateSite,
   resolveSiteConfig,
   resolvePrivacyContact,
   resolveTheme,
+  // Every entry point that takes a config goes through these, so a consumer who
+  // keeps their tokens inside the larger site config points the same option at
+  // that file rather than maintaining a second one.
+  isSiteConfig,
+  resolveInput,
   stripNulls,
   deepMerge,
   JURISDICTIONS,
@@ -58,7 +64,9 @@ export type {
   ContactObject,
   Jurisdiction,
   PostalAddress,
+  ResolvedInput,
   SiteConfig,
+  SiteFont,
   SiteValidationResult,
 } from './site.ts';
 
@@ -277,6 +285,9 @@ export function defaultConfig(): DesignSystem {
         sans: 'var(--font-sans)',
         code: 'var(--font-mono, ui-monospace, monospace)',
       },
+      // `text-wrap` is stated on every role because omitting it is NOT "inherit":
+      // it is emitted at its identity (`wrap`) so role classes fully reset one
+      // another, which would cancel the `pretty` a role inherits from body.
       roles: {
         display: {
           family: 'display',
@@ -284,9 +295,22 @@ export function defaultConfig(): DesignSystem {
           weight: 700,
           'line-height': '1.05',
           tracking: '-0.03em',
+          'text-wrap': 'balance',
         },
-        heading: { family: 'display', size: 'var(--text-xl)', weight: 600, 'line-height': '1.3' },
-        body: { family: 'sans', size: 'var(--text-m)', weight: 400, 'line-height': '1.55' },
+        heading: {
+          family: 'display',
+          size: 'var(--text-xl)',
+          weight: 600,
+          'line-height': '1.3',
+          'text-wrap': 'balance',
+        },
+        body: {
+          family: 'sans',
+          size: 'var(--text-m)',
+          weight: 400,
+          'line-height': '1.55',
+          'text-wrap': 'pretty',
+        },
       },
       // `body` binds base page typography to the body role, so prose inherits it
       // and the role's tokens stay the single place it's edited.
@@ -301,7 +325,14 @@ export function defaultConfig(): DesignSystem {
         },
       },
       journeys: {
-        base: { fade: { 'opacity-from': 0 }, slide: {} },
+        // Each part must declare the `from` endpoint its keyframe reads — an
+        // empty `slide` leaves slide-journey animating translate 0 → 0, i.e. a
+        // journey that silently doesn't slide. Same var as the `slide-up`
+        // effect above, so `--slide-distance` tunes both.
+        base: {
+          fade: { 'opacity-from': 0 },
+          slide: { 'translate-y-from': 'var(--slide-distance, 2rem)' },
+        },
         compose: [['fade'], ['slide'], ['fade', 'slide']],
       },
     },

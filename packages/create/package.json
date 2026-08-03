@@ -11,6 +11,9 @@
   "publishConfig": {
     "access": "public"
   },
+  "devDependencies": {
+    "vitest": "^4.1.9"
+  },
   "createConfig": {
     "templates": [
       {

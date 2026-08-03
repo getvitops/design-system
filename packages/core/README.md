@@ -10,7 +10,22 @@ turns into platform output and that `@getvitops/bricks` / `@getvitops/astro` bui
 - **Browser polyfills** — a feature-detected loader (Anchor Positioning, Popover, Scroll
   Timeline, …) used by both the CSS patterns and the web components.
 
+## Most consumers never install this package
+
+`@getvitops/astro` copies the JS bundles into your `public/vitops/` and links them from
+`<Head />`, and `@getvitops/generator` inlines the CSS partials into the stylesheet it emits
+from your `design-system.json`. Both reach core through their own dependency, so a normal
+site lists neither the package nor the imports below.
+
 ## Subpath exports
+
+Reach for these only when you're bypassing the integration and the generator. Install it
+directly first — core is otherwise a transitive dependency, and under pnpm (or any strict
+`node_modules` layout) these specifiers won't resolve from your app code:
+
+```sh
+npm i -D @getvitops/core
+```
 
 ```ts
 import '@getvitops/core/polyfills'; // feature-detected polyfill loader (load high in <head>)
@@ -22,11 +37,10 @@ import '@getvitops/core/deferred'; // late progressive-enhancement behaviour
 @import '@getvitops/core/css/index.css'; /* framework partials (needs generated tokens) */
 ```
 
-Most consumers don't import the CSS directly — they run
-[`@getvitops/generator`](https://www.npmjs.com/package/@getvitops/generator) (via the
+The CSS import in particular is inert on its own: the partials resolve against the token layer
+[`@getvitops/generator`](https://www.npmjs.com/package/@getvitops/generator) emits (via the
 [CLI](https://www.npmjs.com/package/@getvitops/cli) or
-[Vite plugin](https://www.npmjs.com/package/@getvitops/vite)) to emit a bundled stylesheet
-from their `design-system.json`, and load these JS bundles for interactivity.
+[Vite plugin](https://www.npmjs.com/package/@getvitops/vite)), so you need that output too.
 
 ## Changelog
 
