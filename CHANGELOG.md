@@ -11,6 +11,123 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 3.0.0 — unreleased
+
+Navigation shells, a top-layer animation driver, and a run of fixes to things that had never
+worked. Read the **Breaking** list before upgrading: two custom elements are renamed, and two
+spacing/animation changes are visible on every existing site.
+
+### Breaking
+
+- **`<copy-button>` → `<wc-copy>`, `<multi-field>` → `<wc-multifield>`.** Update your markup.
+  Unchanged: the Bricks element keys (`vitops-copy-button`, `vitops-multi-field`), so elements
+  already placed on a Bricks page keep working; the `--multi-field-*` custom properties; and the
+  `multi-field-*` events.
+
+- **`.rhythm` now gives every non-heading block heading-spacing before a heading.** The pairs used
+  to enumerate the _other_ side (`p`, later `p, pre, blockquote, table, dl, ul, ol`), so a heading
+  after anything not on that list fell through to paragraph-to-paragraph spacing. They are now
+  defined by what a heading **is** — `h1`–`h6` plus the `font-display` / `font-title` /
+  `font-heading` type roles — and inverted to `:not(<heading>) + <heading>`.
+
+  This is the change most likely to be visible on an existing site: expect a little more space
+  above headings that follow a code block, table, figure-like `<div>` or component. To keep the old
+  spacing somewhere specific, set `--rhythm-p-h` on that container.
+
+- **`<details>` animates open and closed** where `prefers-reduced-motion` allows. It was previously
+  instant on purpose — the transition used to deadlock the disclosure _shut_, which is a content-loss
+  bug rather than a missing animation. Re-verified on Chrome 149 with a real click. If you extend
+  this pattern, keep **both** `block-size` and `content-visibility` in the transition list; dropping
+  the latter reproduces the deadlock.
+
+- **Drawers and dialogs animate on close.** Both drove their entry with `animation:` on `[open]`,
+  which by construction plays once, so the close was instant. Both now use the top-layer driver.
+  `nav.css`'s `.drawer-menu` timing moves from a hand-set 0.4s/0.7s to `--animation-duration` /
+  `--custom-ease-out`.
+
+- **`popover.css` no longer pins `[popover]:popover-open { opacity: 1 }`.** It never animated
+  anything on its own, but at (0,1,0) and imported after `animation.css` it outranked
+  `.transition`'s opacity and made every top-layer fade impossible. Removing it is what lets the
+  driver work — do not re-add it.
+
+### Fixed
+
+- **`.sitenav--bp-sm` dropdowns could never open.** Its desktop block had drifted onto an older
+  markup shape, selecting `.sitenav__disclosure > .sitenav__submenu` where the submenu is the
+  disclosure's _sibling_. `md`/`lg`/`xl` were byte-identical and only `sm` had rotted — exactly the
+  drift four hand-maintained parallel blocks invite. Now one shared block behind a style query,
+  583 → 361 lines.
+
+- **Hover dropdowns rendered off-screen.** A closed popover is not in the top layer but keeps the
+  UA's `position: fixed`, and `.dropdown--show-on-hover` reset only `inset` — so the panel faded in
+  around 3300px from its trigger, which reads as "hover does nothing". Now anchored to the trigger,
+  and it follows on scroll. Same fix for `.split-link--show-on-hover`.
+
+- **Horizontal overflow on narrow screens.** `.centered > *` floors at `min-inline-size: 0`; `body`
+  gets `overflow-wrap: break-word`; `patterns/code.css` gains the `pre` rules it never had
+  (`max-inline-size: 100%`, `overflow-x: auto`, `overscroll-behavior-x: contain`) and gives inline
+  `<code>` `overflow-wrap: anywhere`.
+
+  Worth knowing if you hit this class of bug: a scroll container does **not** zero its min-content
+  contribution in Chrome. A single `<pre>` reported 797px of min-content inside a 390px viewport, and
+  any ancestor sized under `fit-content` resolved to _that_ rather than the available width.
+
+- **`.split-<a>-<b>` publishes `--_flex-direction: row`.** Only the `.flex-*` utilities did, so
+  `class="split flex-col md-split-1-2"` left the variable reading `column` at every width — and
+  `patterns/grouped.css` resolves its collapsed-border axis from a style query on it, so a nested
+  `.grouped` collapsed on the wrong axis with nothing to indicate why.
+
+- **`.toc-layout`** uses `minmax(0, 1fr)` rather than a bare `1fr`, whose automatic minimum is
+  min-content.
+
+### Added
+
+- **`navshell` — a nav aside beside content, collapsing to a toggle and drawer.** Available as the
+  `navshell` pattern and as `<NavShell>` / `<NavShellToggle>` from `@getvitops/astro`.
+
+  It **nests**, which is the point: a site nav wrapping an on-this-page nav, each promoting at its
+  own breakpoint. That works through a style query on an inherited flag rather than one copied block
+  per breakpoint, and its content column is a container, so an inner shell measures the space it
+  actually has instead of the viewport. The toggle can live outside the shell — in a site header,
+  say — with `toggle="external"`.
+
+- **`navbar`** — extracted from `nav.css`, where `.navbar` existed only as half of that file's
+  drawer⇄navbar pair, plus `--start` / `--center` / `--end`, `__spacer` and `--sticky`
+  (`.navbar-sticky` is aliased).
+
+- **A top-layer animation driver.** `animation.css` gains the fourth driver alongside
+  `animate-view` / `animate-scroll` / `animate-trigger` / `transition`, and every effect gains an
+  `open-<fx>` state variant in all three formats. Overlays now state _where they start_ rather than
+  owning a keyframe, so effects compose: `class="drawer drawer--right open-fade-in"` slides and
+  fades. Applied at zero specificity with identity defaults, so a popover that sets no effect vars
+  is unchanged.
+
+- **One scrim.** `--scrim` / `--scrim-filter` and `.no-scrim` in `popover.css`, replacing 18
+  `::backdrop` blocks across seven partials. `.drawer--modeless` is aliased to `.no-scrim`.
+
+- **`<wc-marquee>`** — clones the content enough times to cover the track, so every gap matches
+  including the seam. CSS alone cannot do this: it has to pad each copy to the track width, which
+  puts the slack at the end of every copy. The CSS-only `.marquee` is unchanged and still works
+  without the element; `--marquee-gap` is new.
+
+- **`--width-nav`** joins `--width-measure` / `--width-breakout` / `--width-spotlight`.
+
+- **`.skip-link`** in `patterns/anchor-link.css`, using a clip rather than the `-100vw` idiom,
+  which overflows in RTL and ignores the scrollbar gutter.
+
+### Notes
+
+- **`patterns/nav.css` is legacy.** Its header promised a Lit nav component that was never written
+  and is not planned — the house pattern is native (`popovertarget` + `[popover]`, `<details>`).
+  Use `navbar`, `sitenav` or `navshell`. Removal is a later change.
+- **`scroll-target.css`'s `.is-current` no longer claims to be a JS scroll-spy fallback.** There is
+  no such code. `:target-current` is the only working highlight, which today means Chrome; set
+  `.is-current` yourself if you need it sooner.
+- `elements.js` gains one element (`wc-marquee`), so the shared bundle is slightly larger for every
+  consumer. Shipping only the components a page uses is tracked in `TODO.md`.
+- If you register a custom property, its `initial-value` must be computationally independent —
+  `16rem` is not, so `@property` drops the whole rule silently. `navshell` uses an inline fallback.
+
 ## 2.1.0 — 2026-08-04
 
 _Also: `@getvitops/emdash` 0.3.1._
