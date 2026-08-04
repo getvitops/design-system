@@ -402,20 +402,6 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
     <li><span class="text-stagger">Staggered letters</span></li>
   </ul>
 
-  <h3>Marquee</h3>
-  {/* One authored copy. `<wc-marquee>` measures the track and clones as many as
-      it takes, which is what keeps the seam gap the same as every other gap —
-      the CSS-only path has to pad each copy to 100% and can't. With no JS this
-      is the plain `.marquee`, scrolling exactly as before. */}
-  <wc-marquee class="marquee marquee--pause-hover card">
-    <div class="marquee__content">
-      {['css', 'tailwind', 'bricks', 'design', 'astro', 'wordpress'].map((t) => (
-        <span class="badge marquee__item">{t}</span>
-      ))}
-    </div>
-  </wc-marquee>
-  <p class="font-caption text-surface-muted">Hover to pause (<code>marquee--pause-hover</code>).</p>
-
   <!-- ── Progressive enhancement ───────────────────────────────────────────── -->
   <h2 id="enhanced">Progressive enhancement</h2>
   <p>
@@ -477,6 +463,20 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
       <button class="banner__close" data-dismiss aria-label="Dismiss">&times;</button>
     </div>
   </wc-dismissable>
+
+  <h3>Marquee</h3>
+  {/* One authored copy. `<wc-marquee>` measures the track and clones as many as
+      it takes, which is what keeps the seam gap the same as every other gap —
+      the CSS-only path has to pad each copy to 100% and can't. With no JS this
+      is the plain `.marquee`, scrolling exactly as before. */}
+  <wc-marquee class="marquee marquee--pause-hover card">
+    <div class="marquee__content">
+      {['css', 'tailwind', 'bricks', 'design', 'astro', 'wordpress'].map((t) => (
+        <span class="badge marquee__item">{t}</span>
+      ))}
+    </div>
+  </wc-marquee>
+  <p class="font-caption text-surface-muted">Hover to pause (<code>marquee--pause-hover</code>).</p>
 
   <h3>Multi field</h3>
   <wc-multifield class="rhythm">
