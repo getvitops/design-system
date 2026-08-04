@@ -11,7 +11,7 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
-## 3.0.0 — unreleased
+## 3.0.0 — 2026-08-04
 
 Navigation shells, a top-layer animation driver, and a run of fixes to things that had never
 worked. Read the **Breaking** list before upgrading: two custom elements are renamed, and two
