@@ -13,18 +13,25 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import { defaultConfig } from '../index.ts';
 import { DOC_SLUGS } from './templates/index.ts';
-import { resolveSiteConfig, validateSite, type SiteConfig } from '../site.ts';
+import { resolveConfig, validateConfig, type Config, type OrganizationConfig } from '../config.ts';
 import { derivePolicyVars } from './derive.ts';
 import { enabledDocs, generateLegal, renderMarkdown } from './index.ts';
 import { detectProcessorKeys } from './providers.ts';
 import { parseMarkdown, toHtmlFragment, toPortableText } from './render.ts';
 
-/** A minimal site that enables all three documents. */
-function fixture(patch: Partial<SiteConfig> = {}): SiteConfig {
+/**
+ * A minimal config that enables all three documents.
+ *
+ * The patch is a **`site`-section** patch, because that is the section almost
+ * every assertion here varies (which analytics provider, which forms, which
+ * legal documents). `org` patches the other section; both replace their key
+ * wholesale, matching how the tests read.
+ */
+function fixture(
+  patch: Partial<Config['site']> = {},
+  org: Partial<OrganizationConfig> = {},
+): Config {
   return {
-    defaultLocale: 'en',
-    locales: { en: { name: 'English' } },
-    environments: { production: { url: 'https://acme.example' } },
     designSystem: { themes: { default: defaultConfig() } },
     organization: {
       name: 'Acme',
@@ -37,18 +44,27 @@ function fixture(patch: Partial<SiteConfig> = {}): SiteConfig {
         postalCode: 'M5H 1A1',
         addressCountry: 'Canada',
       },
+      ...org,
     },
-    domains: { canonical: 'https://acme.example' },
-    legal: {
-      privacyPolicy: { enabled: true, lastUpdated: '2026-08-01' },
-      termsOfService: { enabled: true },
-      cookieConsent: { enabled: true, type: 'opt-in', categories: ['Essential', 'Analytics'] },
+    site: {
+      defaultLocale: 'en',
+      locales: { en: { name: 'English' } },
+      environments: { production: { url: 'https://acme.example' } },
+      domains: { canonical: 'https://acme.example' },
+      legal: {
+        privacyPolicy: { enabled: true, lastUpdated: '2026-08-01' },
+        termsOfService: { enabled: true },
+        cookieConsent: { enabled: true, type: 'opt-in', categories: ['Essential', 'Analytics'] },
+      },
+      ...patch,
     },
-    ...patch,
-  } as SiteConfig;
+  } as Config;
 }
 
-const privacyOf = (site: SiteConfig) => renderMarkdown(site, 'privacy');
+/** The `site` section of the default fixture — for patches that extend it. */
+const baseSite = () => fixture().site;
+
+const privacyOf = (cfg: Config) => renderMarkdown(cfg, 'privacy');
 
 describe('generated legal documents', () => {
   test('resolve every variable — no placeholder reaches the page', () => {
@@ -80,7 +96,7 @@ describe('generated legal documents', () => {
   test('describe the config they were given, not a remembered one', () => {
     const before = privacyOf(fixture());
     const after = privacyOf(
-      fixture({ organization: { legalName: 'Different Holdings Ltd.', email: 'p@d.example' } }),
+      fixture({}, { legalName: 'Different Holdings Ltd.', email: 'p@d.example' }),
     );
     expect(before).toContain('Acme Widgets Inc.');
     expect(after).toContain('Different Holdings Ltd.');
@@ -288,8 +304,9 @@ describe('terms of service', () => {
   });
 
   test('names only the country when there is no province to name', () => {
-    const site = fixture({
-      organization: {
+    const site = fixture(
+      {},
+      {
         legalName: 'Acme Widgets Inc.',
         email: 'privacy@acme.example',
         address: {
@@ -298,14 +315,14 @@ describe('terms of service', () => {
           addressCountry: 'France',
         },
       },
-    });
+    );
     expect(renderMarkdown(site, 'terms')).toContain('governed by the laws of France.');
   });
 
   test('lets a consumer state the clause outright', () => {
     const site = fixture({
       legal: {
-        ...fixture().legal,
+        ...baseSite().legal,
         termsOfService: { enabled: true, governingLaw: 'the Province of British Columbia' },
       },
     });
@@ -317,28 +334,25 @@ describe('terms of service', () => {
 
 describe('validation', () => {
   test('rejects a jurisdiction with no templates behind it', () => {
-    const result = validateSite(fixture({ legal: { jurisdiction: 'eu' } } as never));
+    const result = validateConfig(fixture({ legal: { jurisdiction: 'eu' } } as never));
     expect(result.ok).toBe(false);
   });
 
   test('rejects an enabled policy with nobody to contact', () => {
-    const result = validateSite({
-      ...fixture(),
-      organization: { name: 'Acme' },
-      contact: undefined,
-    });
+    const result = validateConfig({ ...fixture(), organization: { name: 'Acme' } });
     expect(result.ok).toBe(false);
     expect(result.errors.map((e) => e.message).join(' ')).toContain('contact for privacy requests');
   });
 
   test('rejects an enabled policy with no canonical domain', () => {
-    const result = validateSite({ ...fixture(), domains: undefined });
+    const full = fixture();
+    const result = validateConfig({ ...full, site: { ...full.site, domains: undefined } });
     expect(result.ok).toBe(false);
-    expect(result.errors.map((e) => e.message).join(' ')).toContain('domains.canonical');
+    expect(result.errors.map((e) => e.message).join(' ')).toContain('site.domains.canonical');
   });
 
   test('accepts the fixture', () => {
-    expect(validateSite(fixture()).ok).toBe(true);
+    expect(validateConfig(fixture()).ok).toBe(true);
   });
 });
 
@@ -438,12 +452,12 @@ describe('output formats', () => {
  * canonical; neither → the legacy map).
  */
 describe('designSystem normalisation', () => {
-  const base = () => {
+  const base = (site: Record<string, unknown> = {}) => {
     const { designSystem: _drop, ...rest } = fixture();
-    return rest as Record<string, unknown>;
+    return { ...rest, site: { ...rest.site, ...site } } as Record<string, unknown>;
   };
   const themesOf = (designSystem: unknown) =>
-    Object.keys(resolveSiteConfig({ ...base(), designSystem }).designSystem.themes);
+    Object.keys(resolveConfig({ ...base(), designSystem }).designSystem.themes);
 
   test('accepts the canonical shape', () => {
     expect(themesOf({ themes: { default: defaultConfig() } })).toEqual(['default']);
@@ -479,20 +493,21 @@ describe('designSystem normalisation', () => {
    */
   test('applies an A/B override against the canonical shape, whatever the base used', () => {
     const withVariant = (designSystem: unknown) =>
-      resolveSiteConfig(
+      resolveConfig(
         {
-          ...base(),
-          designSystem,
-          environments: { production: { url: 'https://acme.example', variant: 'b' } },
-          abTesting: {
-            enabled: true,
-            variants: {
-              b: {
-                environment: 'production',
-                overrides: { designSystem: { themes: { elegant: { extends: 'default' } } } },
+          ...base({
+            environments: { production: { url: 'https://acme.example', variant: 'b' } },
+            abTesting: {
+              enabled: true,
+              variants: {
+                b: {
+                  environment: 'production',
+                  overrides: { designSystem: { themes: { elegant: { extends: 'default' } } } },
+                },
               },
             },
-          },
+          }),
+          designSystem,
         },
         'production',
       ).designSystem.themes;
@@ -504,21 +519,22 @@ describe('designSystem normalisation', () => {
   });
 
   test('normalises a shorthand inside the override too', () => {
-    const themes = resolveSiteConfig(
+    const themes = resolveConfig(
       {
-        ...base(),
-        designSystem: { themes: { default: defaultConfig() } },
-        environments: { production: { url: 'https://acme.example', variant: 'b' } },
-        abTesting: {
-          enabled: true,
-          variants: {
-            b: {
-              environment: 'production',
-              // Legacy spelling in the patch — must not nest under `themes.themes`.
-              overrides: { designSystem: { elegant: { extends: 'default' } } },
+        ...base({
+          environments: { production: { url: 'https://acme.example', variant: 'b' } },
+          abTesting: {
+            enabled: true,
+            variants: {
+              b: {
+                environment: 'production',
+                // Legacy spelling in the patch — must not nest under `themes.themes`.
+                overrides: { designSystem: { elegant: { extends: 'default' } } },
+              },
             },
           },
-        },
+        }),
+        designSystem: { themes: { default: defaultConfig() } },
       },
       'production',
     ).designSystem.themes;

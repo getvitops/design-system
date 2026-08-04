@@ -17,7 +17,7 @@ import { cpSync, mkdirSync, rmSync, existsSync, readdirSync, writeFileSync } fro
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { jsonSchema } from '../src/schema.ts';
-import { siteJsonSchema } from '../src/site.ts';
+import { configJsonSchema } from '../src/config.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PKG = join(HERE, '..');
@@ -59,9 +59,9 @@ for (const f of ['polyfills.js', 'elements.js', 'deferred.js', 'consent.js', 'ed
 if (existsSync(join(coreDist, 'polyfills')))
   cpSync(join(coreDist, 'polyfills'), join(assets, 'js', 'polyfills'), { recursive: true });
 
-// Published JSON Schemas (design-system + site config).
+// Published JSON Schemas (design-system + the three-section config).
 writeFileSync(join(PKG, 'schema.json'), JSON.stringify(jsonSchema, null, 2) + '\n');
-writeFileSync(join(PKG, 'site.schema.json'), JSON.stringify(siteJsonSchema, null, 2) + '\n');
+writeFileSync(join(PKG, 'config.schema.json'), JSON.stringify(configJsonSchema, null, 2) + '\n');
 
 const cssCount = readdirSync(join(assets, 'css')).filter((f) => f.endsWith('.css')).length;
 const patCount = readdirSync(join(assets, 'css', 'patterns')).length;

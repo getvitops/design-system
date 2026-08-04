@@ -20,7 +20,7 @@ and the integration guidance in [/bricks/index.md](index.md).
   pinned to the **top** of the element panel. Insert one by searching its **label** (e.g.
   "Split", "Carousel") or any of its **keywords** (listed per element).
 - Two rendering families:
-  - **Web-component elements** render a Lit custom element (`<wc-*>`, `<copy-button>`, …)
+  - **Web-component elements** render a Lit custom element (`<wc-*>`, `<wc-copy>`, …)
     from `dist/elements.js` and progressively enhance. A few (Image Compare, Split Panel)
     show their children stacked in the builder canvas until the client-side upgrade runs —
     that is expected, not broken.
@@ -133,24 +133,6 @@ live while editing.
 - **Initial scheme** (select, placeholder `System`) — Options: `System`, `Light`, `Dark`.
 
 **Keywords:** color, scheme, theme, dark, light, toggle.
-
----
-
-## Copy Button — `vitops-copy-button` · not nestable
-
-Renders the <copy-button> Lit component (src/web-components/WCCopy.ts): a
-copy-to-clipboard button, hidden until connected (Clipboard API gate). The `value`
-is copied; `label` is the button text (falls back to slotted text).
-
-Non-nestable: PHP render() runs in the builder canvas too, so the button upgrades
-live while editing.
-
-**Controls**
-
-- **Value to copy** (text)
-- **Button label** (text, placeholder `Copy to clipboard`)
-
-**Keywords:** copy, clipboard, button.
 
 ---
 
@@ -271,33 +253,6 @@ so render() drives all markup and runs in the builder canvas too.
 
 ---
 
-## Multi Field — `vitops-multi-field` · not nestable
-
-Renders the <multi-field> Lit component (src/web-components/WCMultiField.ts): a
-form-associated repeatable input group (add / remove entries, min / max). Default
-entries are supplied as slotted <input value="…"> children, which the component reads
-on connect.
-
-Non-nestable: PHP render() runs in the builder canvas too, so the field group upgrades
-live while editing.
-
-**Controls**
-
-- **Field name** (text) — Submitted as name[] for each entry.
-- **Input type** (text, placeholder `text`)
-- **Placeholder** (text)
-- **Min entries** (number)
-- **Max entries** (number)
-- **Protect default entries** (checkbox)
-- **Add button label** (text, placeholder `Add`)
-- **Clear button label** (text, placeholder `Clear`)
-- **Delete button label** (text, placeholder `Delete`)
-- **Default entries** (repeater) — Fields: Value.
-
-**Keywords:** multi, field, repeatable, form, input.
-
----
-
 ## Split Link — `vitops-split-link` · nestable
 
 A "split button": a primary <a> flush with a <button> that toggles an anchored
@@ -359,6 +314,24 @@ shows the two columns stacked (upgrade happens client-side via dist/elements.js)
 
 ---
 
+## Copy Button — `vitops-copy-button` · not nestable
+
+Renders the <wc-copy> Lit component (src/web-components/WCCopy.ts): a
+copy-to-clipboard button, hidden until connected (Clipboard API gate). The `value`
+is copied; `label` is the button text (falls back to slotted text).
+
+Non-nestable: PHP render() runs in the builder canvas too, so the button upgrades
+live while editing.
+
+**Controls**
+
+- **Value to copy** (text)
+- **Button label** (text, placeholder `Copy to clipboard`)
+
+**Keywords:** copy, clipboard, button.
+
+---
+
 ## Icon — `vitops-icon` · not nestable
 
 Renders one icon from the generated sprite (dist/icons.svg) as
@@ -386,3 +359,30 @@ live while editing.
 - **Accessible label** (text) — Leave empty for decorative icons — they are then hidden from screen readers. Fill it in only when the icon carries meaning on its own.
 
 **Keywords:** icon, svg, sprite, symbol.
+
+---
+
+## Multi Field — `vitops-multi-field` · not nestable
+
+Renders the <wc-multifield> Lit component (src/web-components/WCMultiField.ts): a
+form-associated repeatable input group (add / remove entries, min / max). Default
+entries are supplied as slotted <input value="…"> children, which the component reads
+on connect.
+
+Non-nestable: PHP render() runs in the builder canvas too, so the field group upgrades
+live while editing.
+
+**Controls**
+
+- **Field name** (text) — Submitted as name[] for each entry.
+- **Input type** (text, placeholder `text`)
+- **Placeholder** (text)
+- **Min entries** (number)
+- **Max entries** (number)
+- **Protect default entries** (checkbox)
+- **Add button label** (text, placeholder `Add`)
+- **Clear button label** (text, placeholder `Clear`)
+- **Delete button label** (text, placeholder `Delete`)
+- **Default entries** (repeater) — Fields: Value.
+
+**Keywords:** multi, field, repeatable, form, input.

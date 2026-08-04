@@ -5,7 +5,7 @@
  * slash menu) and ships the Astro components that render them via the
  * `componentsEntry` (`@getvitops/emdash/astro`).
  *
- * Composes with — does not replace — the `getvitops()` Astro integration from
+ * Composes with — does not replace — the `vitops()` Astro integration from
  * `@getvitops/astro`: the integration owns design-system CSS generation and
  * copies the web-component bundles into `public/<wcBase>/`; this plugin only
  * adds the editor-facing layer. Register both in the consumer site:
@@ -14,7 +14,7 @@
  * // astro.config.mjs
  * integrations: [
  *   react(),
- *   getvitops({ css: {...} }),
+ *   vitops({ css: {...} }),
  *   emdash({ database, storage, plugins: [vitopsEmdash()] }),
  * ]
  * ```
@@ -51,7 +51,7 @@ export interface VitopsEmdashOptions {
    * - `'fragments'` — for layouts using EmDash's `<EmDashHead/>`/`<EmDashBodyEnd/>`
    *   instead: the plugin injects the script tags via the `page:fragments` hook.
    *   Either way the bundles themselves must exist under `public/<wcBase>/`,
-   *   which the `getvitops()` integration provides (webComponents: true).
+   *   which the `vitops()` integration provides (webComponents: true).
    *   Do not enable both delivery paths — the scripts would load twice.
    */
   scripts?: 'integration' | 'fragments';

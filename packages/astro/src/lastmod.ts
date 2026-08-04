@@ -122,7 +122,7 @@ export async function gitLastmod(
   options: GitLastmodOptions = {},
 ): Promise<(item: GetvitopsSitemapEntry) => GetvitopsSitemapEntry> {
   const cwd = options.cwd ?? process.cwd();
-  const warn = options.onWarn ?? ((m: string) => console.warn(`[getvitops] gitLastmod: ${m}`));
+  const warn = options.onWarn ?? ((m: string) => console.warn(`[vitops] gitLastmod: ${m}`));
   const dirs = (options.dirs ?? DEFAULT_DIRS).filter((d) => existsSync(`${cwd}/${d}`));
 
   const identity = (item: GetvitopsSitemapEntry) => item;

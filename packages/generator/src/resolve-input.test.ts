@@ -19,37 +19,46 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { generate } from './generate.ts';
 import { defaultConfig } from './index.ts';
-import { isSiteConfig, resolveInput, type SiteConfig } from './site.ts';
+import { isConfig, resolveInput, type Config } from './config.ts';
 
-/** The smallest site config that validates, wrapping a real design system. */
+/**
+ * The smallest full config that validates, wrapping a real design system.
+ *
+ * A `designSystem` key in the patch replaces the top-level section; everything
+ * else patches the `site` section, which is where all the rest of these fixtures
+ * vary (`environments`, `abTesting`, `defaultLocale`).
+ */
 function site(patch: Record<string, unknown> = {}): Record<string, unknown> {
+  const { designSystem, ...sitePatch } = patch;
   return {
-    defaultLocale: 'en',
-    locales: { en: { name: 'English' } },
-    environments: { production: { url: 'https://acme.example' } },
-    designSystem: { themes: { default: defaultConfig() } },
+    designSystem: designSystem ?? { themes: { default: defaultConfig() } },
     organization: { name: 'Acme' },
-    ...patch,
+    site: {
+      defaultLocale: 'en',
+      locales: { en: { name: 'English' } },
+      environments: { production: { url: 'https://acme.example' } },
+      ...sitePatch,
+    },
   };
 }
 
-describe('isSiteConfig', () => {
+describe('isConfig', () => {
   test('a design system is not one — it cannot carry a `designSystem` key', () => {
     // The other half of the guarantee: `DesignSystemSchema` is strict, so a
     // design system holding a `designSystem` key fails validation rather than
     // being ambiguous here.
-    expect(isSiteConfig(defaultConfig())).toBe(false);
+    expect(isConfig(defaultConfig())).toBe(false);
   });
 
   test('a site config is one, whichever `designSystem` shorthand it uses', () => {
-    expect(isSiteConfig(site())).toBe(true);
-    expect(isSiteConfig(site({ designSystem: { default: defaultConfig() } }))).toBe(true);
-    expect(isSiteConfig(site({ designSystem: defaultConfig() }))).toBe(true);
+    expect(isConfig(site())).toBe(true);
+    expect(isConfig(site({ designSystem: { default: defaultConfig() } }))).toBe(true);
+    expect(isConfig(site({ designSystem: defaultConfig() }))).toBe(true);
   });
 
   test('is not fooled by things that are not objects', () => {
     for (const v of [null, undefined, 'design-system.json', 42, [{ designSystem: {} }]])
-      expect(isSiteConfig(v)).toBe(false);
+      expect(isConfig(v)).toBe(false);
   });
 });
 
@@ -58,15 +67,15 @@ describe('resolveInput', () => {
     const ds = defaultConfig();
     const out = resolveInput(ds);
     expect(out.designSystem).toBe(ds);
-    expect(out.site).toBeUndefined();
+    expect(out.config).toBeUndefined();
     expect(out.theme).toBeUndefined();
   });
 
-  test('unwraps the default theme of a site config, and hands back the site', () => {
+  test('unwraps the default theme of a config, and hands back the config', () => {
     const out = resolveInput(site());
     expect(out.theme).toBe('default');
     expect(out.designSystem.colors).toBeTruthy();
-    expect((out.site as SiteConfig).organization?.name).toBe('Acme');
+    expect((out.config as Config).organization?.name).toBe('Acme');
   });
 
   test('honours `defaultTheme`, and an explicit override of it', () => {
@@ -135,7 +144,7 @@ describe('resolveInput', () => {
     // Pointed at a broken site config, the useful message is about the site
     // config. Reporting `colors: required` on a file full of company facts sends
     // the reader to the wrong document.
-    expect(() => resolveInput(site({ defaultLocale: 'fr' }))).toThrow(/Invalid site config/);
+    expect(() => resolveInput(site({ defaultLocale: 'fr' }))).toThrow(/Invalid config/);
   });
 });
 
@@ -189,7 +198,7 @@ describe('generate() with a site config as input', () => {
       input: path,
       site: site({
         designSystem: { themes: { default: defaultConfig() }, defaultColorScheme: 'system' },
-      }) as unknown as SiteConfig,
+      }) as unknown as Config,
       format: 'css',
       outDir: out,
       assetsDir,

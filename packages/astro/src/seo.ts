@@ -17,11 +17,11 @@ export type SeoTwitterCard = 'summary' | 'summary_large_image' | 'app' | 'player
 export type SeoOgType = 'website' | 'article' | 'profile';
 
 /**
- * Site-level SEO defaults, passed to `getvitops({ seo })` and baked into the
+ * Site-level SEO defaults, passed to `vitops({ seo })` and baked into the
  * `virtual:getvitops/head` module. Per-page `<Seo />` props override these.
  *
  * The vocabulary mirrors the site-config schema's `seo` block
- * (`@getvitops/generator`, `src/site.ts`) so a `SiteConfig` → these adapter would
+ * (`@getvitops/generator`, `src/config.ts`) so a `Config` → these adapter would
  * be a flat field map — but it is not imported from there. This is the
  * integration's own option surface, and it must stay JSON-serialisable: it is
  * `JSON.stringify`d into the virtual module, so no functions, no `URL`s, no dates.

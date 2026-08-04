@@ -19,6 +19,48 @@ spacing/animation changes are visible on every existing site.
 
 ### Breaking
 
+- **The site config is now a three-section `Config`: `designSystem`, `organization`, `site`.** The
+  flat shape held the company and the deployment as peers, so no single noun described it and a
+  second site sharing the same company had no way to say so. Now several sites can carry one
+  `organization` and differ only in `site`.
+
+  `designSystem` stays at the root — it is what tells a config apart from a bare
+  `design-system.json`, so moving it would have turned a total discriminator into a guess. The
+  fields already under `organization` stay put. Everything else moves:
+  - → `site`: `defaultLocale`, `locales`, `domains`, `dns`, `cloudflare`, `environments`,
+    `abTesting`, `fonts`, `tags`, `postTypes`, `galleries`, `testimonials`, `templates`,
+    `navigation`, `seo`, `analytics`, `notifications`, `tracking`, `security`, `legal`, `icons`,
+    `favicon`, `deployment`
+  - → `organization`: `contact`, `primaryLocation`, `locations`, `services`, `links`
+
+  **You don't have to apply that list by hand.** `vitops validate` recognises a pre-3.0 flat
+  config and names every move; it short-circuits before the schema would bury you in a dozen
+  `unrecognized_keys` errors, because a failure that says "unknown key: analytics" teaches nobody
+  where it went.
+
+  Renamed exports from `@getvitops/generator`: `SiteConfigSchema` → `ConfigSchema`, `SiteConfig` →
+  `Config`, `validateSite` → `validateConfig`, `resolveSiteConfig` → `resolveConfig`,
+  `isSiteConfig` → `isConfig`, `siteJsonSchema` → `configJsonSchema`, `SITE_SCHEMA_URL` →
+  `CONFIG_SCHEMA_URL`, `SiteValidationResult` → `ConfigValidationResult`; `ResolvedInput.site` is
+  now `ResolvedInput.config`. Added: `OrganizationConfig`, `SiteSection`.
+
+  The published schema moves with them: `@getvitops/generator/site.schema.json` →
+  `@getvitops/generator/config.schema.json`. Update the `$schema` key in your config.
+
+  Option names are unchanged. `vitops({ site: { input } })`, the Vite plugin's `site` and
+  `generate({ site })` all still point at the config file.
+
+- **The Astro integration is now `vitops()`, not `getvitops()`.** It is a default export, so the
+  name is yours to choose and nothing breaks on upgrade — but every example now reads
+  `import vitops from '@getvitops/astro'`, matching the Vite plugin, which has always been `vitops`.
+  The package scope (`@getvitops/*`) and the internal `virtual:getvitops/*` module ids are
+  unchanged; neither is an import name.
+
+  ```js
+  import vitops from '@getvitops/astro';
+  export default defineConfig({ integrations: [vitops({ css: { input: 'site.json' } })] });
+  ```
+
 - **`<copy-button>` → `<wc-copy>`, `<multi-field>` → `<wc-multifield>`.** Update your markup.
   Unchanged: the Bricks element keys (`vitops-copy-button`, `vitops-multi-field`), so elements
   already placed on a Bricks page keep working; the `--multi-field-*` custom properties; and the
@@ -81,6 +123,16 @@ spacing/animation changes are visible on every existing site.
   min-content.
 
 ### Added
+
+- **A generated config authoring reference.** `vitops docs config` prints it; it ships as
+  `config.md` in the OKF bundle and as _Config reference_ on the docs site. Every field of all three
+  sections is rendered by walking the published JSON Schema — the same helper that renders the
+  `design-system.json` reference — so it cannot document a field validation does not accept, and
+  the two references cannot drift apart in presentation. Its `designSystem` section lists only the
+  wrapper and links to the design-system reference rather than duplicating it.
+
+  The docs site also picks up the icons concept doc, which the bundle has had but the site's page
+  list never included.
 
 - **`navshell` — a nav aside beside content, collapsing to a toggle and drawer.** Available as the
   `navshell` pattern and as `<NavShell>` / `<NavShellToggle>` from `@getvitops/astro`.

@@ -11,7 +11,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { LegalOutput, SiteFont, StylesheetFormat } from '@getvitops/generator';
-import { isSiteConfig, resolveSiteConfig } from '@getvitops/generator';
+import { isConfig, resolveConfig } from '@getvitops/generator';
 import {
   type FaviconLink,
   collectIconRefs,
@@ -22,7 +22,8 @@ import {
   scanFiles,
   writeFaviconManifest,
 } from '@getvitops/utils';
-import vitops from '@getvitops/vite';
+// Aliased: this module's own default export is `vitops` (the integration).
+import vitopsPlugin from '@getvitops/vite';
 // Type only — the encoder itself is loaded by the Vite plugin, in the pass that
 // runs it, so a project without a `media` option never reaches ffmpeg.
 import type { OutputKind as MediaOutputKind } from '@getvitops/utils/media';
@@ -120,7 +121,7 @@ export interface GetvitopsCssOptions {
    *
    * The site config's `designSystem.defaultColorScheme: "system"` says the same thing and is the
    * better home for it when you have one — this option wins if both are set, and
-   * exists because requiring a whole `SiteConfig` to set one boolean would be out
+   * exists because requiring a whole `Config` to set one boolean would be out
    * of proportion.
    */
   systemColorScheme?: boolean;
@@ -215,7 +216,7 @@ export interface GetvitopsOptions {
   /**
    * Your site config — the one place to name it.
    *
-   * A `SiteConfig` records site-level facts, several of which other options here
+   * A `Config` records site-level facts, several of which other options here
    * need: `designSystem.defaultColorScheme` decides whether the generated colour layer
    * carries a `prefers-color-scheme` block, `fonts` can supply the webfont
    * declarations, and `legal` renders from it. Set this and each of those reads
@@ -287,7 +288,7 @@ export interface GetvitopsOptions {
    * `cssVariable` rather than at a literal stack the browser has no file for:
    *
    * ```js
-   * getvitops({ fonts: [{ name: 'League Spartan', provider: 'fontsource',
+   * vitops({ fonts: [{ name: 'League Spartan', provider: 'fontsource',
    *                       cssVariable: '--font-league-spartan',
    *                       weights: ['100 900'], subsets: ['latin'], preload: true }] })
    * ```
@@ -451,7 +452,7 @@ interface HeadData {
   /** `<link rel="sitemap">` target, or null when no sitemap was registered. */
   sitemap: string | null;
   /**
-   * Families registered by `getvitops({ fonts })`, for `<Font />`. Only ours: a
+   * Families registered by `vitops({ fonts })`, for `<Font />`. Only ours: a
    * `cssVariable` Astro cannot resolve makes `<Font />` throw, so this must never
    * include a family declared elsewhere (a user-level `fonts:`, or EmDash's).
    */
@@ -473,11 +474,11 @@ interface HeadData {
 }
 
 /**
- * Which providers `getvitops({ analytics })` configures that the site config's
+ * Which providers `vitops({ analytics })` configures that the site config's
  * own `analytics` block does not.
  *
  * The two are separate surfaces on purpose — the integration must not import
- * `SiteConfig` — but they describe the same site, and a disagreement between them
+ * `Config` — but they describe the same site, and a disagreement between them
  * is a compliance defect rather than a style issue: `vitops legal` derives the
  * cookie notice from the site config, so a provider missing there is a tag the
  * site runs and its own notice never mentions. That is precisely what the
@@ -496,8 +497,14 @@ const SITE_CONFIG_KEYS: Record<string, string> = {
 function undisclosedProviders(configPath: string, analytics: GetvitopsAnalyticsOptions): string[] {
   let declared: Record<string, unknown>;
   try {
-    const parsed = JSON.parse(readFileSync(configPath, 'utf8')) as { analytics?: unknown };
-    declared = (parsed.analytics ?? {}) as Record<string, unknown>;
+    // `site.analytics`, matching the three-section config. Reading the wrong path
+    // here does not fail quietly in the harmless direction: an empty `declared`
+    // makes *every* configured provider look undisclosed, so the warning would
+    // fire on correct configs and stop being worth reading.
+    const parsed = JSON.parse(readFileSync(configPath, 'utf8')) as {
+      site?: { analytics?: unknown };
+    };
+    declared = (parsed.site?.analytics ?? {}) as Record<string, unknown>;
   } catch {
     return [];
   }
@@ -600,15 +607,15 @@ async function probeIconPackage(name: 'astro-icon' | 'astro-iconset'): Promise<b
  * the build here would turn "your JSON has a trailing comma" into an error about
  * an option the consumer never set.
  */
-function readsAsSiteConfig(path: string): boolean {
+function readsAsConfig(path: string): boolean {
   try {
-    return isSiteConfig(JSON.parse(readFileSync(path, 'utf8')));
+    return isConfig(JSON.parse(readFileSync(path, 'utf8')));
   } catch {
     return false;
   }
 }
 
-export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration {
+export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
   return {
     name: '@getvitops/astro',
     hooks: {
@@ -639,7 +646,7 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
         const cssInput = opts.css ? (opts.css.input ?? 'design-system.json') : undefined;
         const siteInput =
           opts.site?.input ??
-          (cssInput != null && readsAsSiteConfig(resolve(root, cssInput)) ? cssInput : undefined);
+          (cssInput != null && readsAsConfig(resolve(root, cssInput)) ? cssInput : undefined);
         if (opts.site && !opts.css)
           logger.warn(
             'site: needs a `css` config — it is read during generation, which runs in the Vite ' +
@@ -650,7 +657,7 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
         const legalInput = opts.legal?.input ?? siteInput;
         if (opts.legal && !legalInput)
           throw new Error(
-            '[getvitops] legal: needs `legal.input` (a site config path), the top-level `site` ' +
+            '[vitops] legal: needs `legal.input` (a site config path), the top-level `site` ' +
               'option, or a `css.input` that is itself a site config.',
           );
         if (opts.seo) {
@@ -753,13 +760,13 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
           };
           const declared: SiteFont[] = [];
           if (o.input) {
-            // resolveSiteConfig validates and throws with field paths, so a typo'd
+            // resolveConfig validates and throws with field paths, so a typo'd
             // provider fails the build here rather than resolving to a fallback stack.
-            const site = resolveSiteConfig(
+            const cfg = resolveConfig(
               JSON.parse(readFileSync(resolve(root, o.input), 'utf8')),
               o.siteEnv ?? 'production',
             );
-            declared.push(...(site.fonts ?? []));
+            declared.push(...(cfg.site.fonts ?? []));
           }
           declared.push(...(o.families ?? []));
 
@@ -872,7 +879,7 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
               });
             } catch {
               throw new Error(
-                '[getvitops] sitemap requires `@astrojs/sitemap` in your devDependencies — ' +
+                '[vitops] sitemap requires `@astrojs/sitemap` in your devDependencies — ' +
                   'install it, or drop the `sitemap` option.',
               );
             }
@@ -901,11 +908,11 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
         // back, so publishing it *is* the mechanism.
         if (siteInput) {
           try {
-            const site = resolveSiteConfig(
+            const cfg = resolveConfig(
               JSON.parse(readFileSync(resolve(root, siteInput), 'utf8')),
               opts.site?.siteEnv ?? 'production',
             );
-            const key = site.seo?.indexing?.indexNow?.key;
+            const key = cfg.site.seo?.indexing?.indexNow?.key;
             if (key) {
               mkdirSync(publicDir, { recursive: true });
               writeFileSync(join(publicDir, `${key}.txt`), `${key}\n`);
@@ -1095,13 +1102,13 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
           // would otherwise fail late with an unresolvable `styles.css` import.
           if ((format as string) === 'design')
             throw new Error(
-              "[getvitops] css.format: 'design' emits only DESIGN.md, not a stylesheet. " +
+              "[vitops] css.format: 'design' emits only DESIGN.md, not a stylesheet. " +
                 'Run `npx vitops generate --format design --out .` for that file, and set ' +
                 "css.format to 'tailwind' | 'css' | 'bricks' here.",
             );
           const out = opts.css.out ?? 'src/styles';
           const plugins = [
-            vitops({
+            vitopsPlugin({
               input: opts.css.input ?? 'design-system.json',
               ...(opts.css.theme != null ? { theme: opts.css.theme } : {}),
               format,
@@ -1149,7 +1156,7 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
               )) as unknown as { default: () => unknown[] });
             } catch {
               throw new Error(
-                "[getvitops] css.format: 'tailwind' requires `tailwindcss` and `@tailwindcss/vite` " +
+                "[vitops] css.format: 'tailwind' requires `tailwindcss` and `@tailwindcss/vite` " +
                   'in your devDependencies — install them, or switch to css.format: ' +
                   "'css' for the standalone bundle.",
               );

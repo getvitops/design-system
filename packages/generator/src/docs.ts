@@ -9,10 +9,13 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { jsonSchema, SCHEMA_URL, type DesignSystem } from './schema.ts';
+import { configJsonSchema, CONFIG_SCHEMA_URL } from './config.ts';
 import { BASE_HOOK, DARK_SEL, REQUIRED_ROLES, SYSTEM_DARK_SEL, TW_CLASH } from './shared.ts';
 import { expandPalette } from './tokens.ts';
 
 const DS_PATH = 'design-system.json';
+/** The `resource` a config-reference doc points at. Consumers rename it freely. */
+const CONFIG_PATH = 'site.json';
 
 // Curated element display order (by $name, sans the vitops- prefix). Unlisted
 // elements fall to the end alphabetically so new ones still appear.
@@ -895,19 +898,30 @@ function renderSchemaNode(
   for (const c of childEntries(node)) renderSchemaNode(c.label, c.node, c.required, depth + 1, out);
 }
 
-function renderAuthoring(): string {
-  const schema = jsonSchema as unknown as JsonSchemaNode;
+/**
+ * One `## <key>` section per top-level property: its description, then its
+ * fields as a bullet tree. Shared by both references so the two cannot drift in
+ * presentation — only in which schema they are pointed at.
+ */
+function schemaSections(schema: JsonSchemaNode, heading = '##'): string[] {
   const required = schema.required ?? [];
   const sections: string[] = [];
   for (const [key, node] of Object.entries(schema.properties ?? {})) {
     if (key === '$schema') continue;
-    const parts: string[] = [`## \`${key}\`${required.includes(key) ? '' : ' *(optional)*'}`];
+    const parts: string[] = [
+      `${heading} \`${key}\`${required.includes(key) ? '' : ' *(optional)*'}`,
+    ];
     if (node.description) parts.push('', node.description);
     const bullets: string[] = [];
     for (const c of childEntries(node)) renderSchemaNode(c.label, c.node, c.required, 0, bullets);
     if (bullets.length) parts.push('', ...bullets);
     sections.push(parts.join('\n'));
   }
+  return sections;
+}
+
+function renderAuthoring(): string {
+  const sections = schemaSections(jsonSchema as unknown as JsonSchemaNode);
   return `${frontmatter({
     type: 'Config Reference',
     title: 'Vitops — design-system.json authoring reference',
@@ -936,6 +950,84 @@ enforces.
 - The *why* behind each section: [colour system](concepts/color.md),
   [type & space scales](concepts/scales.md), [component patterns](concepts/patterns.md).
 - What each output format does with these tokens: [formats.md](formats.md).
+
+${sections.join('\n\n')}
+`;
+}
+
+// ── Config authoring reference (walked from the site JSON Schema) ────────────
+// The same walker, pointed at the other published schema. Everything a consumer
+// can say about their *company* and their *site* — as opposed to their tokens —
+// is described here, and it is generated rather than written so it cannot claim
+// a field validation does not accept.
+
+function renderConfig(): string {
+  const schema = configJsonSchema as unknown as JsonSchemaNode;
+  const props = schema.properties ?? {};
+  const required = schema.required ?? [];
+
+  // The top level is three sections, so rendering it the way `authoring.md`
+  // renders `design-system.json` would put ~23 unrelated fields under one
+  // heading. Each section gets a `##`; each of ITS fields gets a `###`.
+  const sections = Object.entries(props).map(([key, node]) => {
+    const head = [
+      `## \`${key}\`${required.includes(key) ? '' : ' *(optional)*'}`,
+      ...(node.description ? ['', node.description] : []),
+    ].join('\n');
+    // `designSystem` is documented in full by authoring.md; here it needs only
+    // its own wrapper fields, not a second copy of the whole token schema.
+    const fields = schemaSections(node, '###').join('\n\n');
+    if (key === 'designSystem')
+      return [
+        head,
+        'The token set. Its `themes.<name>` entries are full design systems — every field of\none is in [authoring.md](authoring.md). Only the wrapper is listed here.',
+        fields,
+      ].join('\n\n');
+    return [head, fields].join('\n\n');
+  });
+
+  return `${frontmatter({
+    type: 'Config Reference',
+    title: 'Vitops — config authoring reference',
+    description:
+      'Every field of the three-section config (designSystem / organization / site), generated from the published JSON Schema so it always matches validation.',
+    resource: CONFIG_PATH,
+    tags: ['config', 'schema', 'authoring', 'site', 'organization'],
+  })}
+
+# Config authoring reference
+
+The document that describes a **whole project**: the token set, the company, and the
+published site. It is the input every command that needs more than tokens is anchored
+to — \`vitops legal\`, \`vitops icons\`, \`vitops indexing\` — and it can also stand in for
+a \`design-system.json\` anywhere the toolchain takes one, since it carries a full
+\`designSystem\`.
+
+Consumers name the file whatever suits them (\`site.json\`, \`company.json\`,
+\`vitops.config.json\`); it is recognised by **shape**, not by name — a document with a
+top-level \`designSystem\` key is this, and one without it is a bare
+\`design-system.json\`.
+
+- Set \`"$schema": "${CONFIG_SCHEMA_URL}"\` in the config for editor autocomplete + validation.
+- Check one with \`vitops validate\`.
+
+## The three sections
+
+| Section | Holds | Changes when |
+| --- | --- | --- |
+| \`designSystem\` | the token set — named themes, which theme, which appearance | the brand's design changes |
+| \`organization\` | the company — name, contact, locations, services, profiles | the company changes |
+| \`site\` | this published site — locales, domains, environments, SEO, analytics, legal, icons, deployment | this site changes |
+
+The split is what makes the multi-site case expressible: several sites can carry the
+same \`organization\` and differ only in \`site\`. It is also what the generated legal
+documents rely on — a privacy policy asserts facts about the *company* (who to contact,
+where it is) and facts about the *site* (which forms exist, which analytics run), and
+those two are separately true.
+
+**Fields are described where they are, not where they were.** If you are migrating a
+pre-3.0 flat config, \`vitops validate\` names every move rather than reporting a dozen
+unknown keys.
 
 ${sections.join('\n\n')}
 `;
@@ -1422,6 +1514,7 @@ variable-driven CSS framework plus progressively-enhanced web components, genera
 # Contents
 
 * [Authoring reference](authoring.md) - every design-system.json field, generated from the JSON Schema
+* [Config reference](config.md) - every field of the three-section config (designSystem / organization / site), generated from the JSON Schema
 * [Output formats](formats.md) - tailwind vs css vs bricks vs design: what's emitted, what the platform provides, which utilities Tailwind owns
 * [Concepts](concepts/) - the colour system, type/space scales, and pattern CSS architecture
 * [CSS framework](css/) - the class vocabulary (colour, type, space, layout, animation, component patterns), stated as naming rules
@@ -1593,6 +1686,7 @@ export function generateDocs(ds: DesignSystem, assetsDir: string): Record<string
   return {
     'index.md': renderTopIndex(),
     'authoring.md': renderAuthoring(),
+    'config.md': renderConfig(),
     'formats.md': renderFormats(ds),
     'concepts/index.md': renderConceptsIndex(),
     'concepts/color.md': renderColorConcept(ds),

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { AstroIntegration, HookParameters } from 'astro';
 import { describe, expect, it } from 'vitest';
-import getvitops, { type GetvitopsOptions } from './integration.ts';
+import vitops, { type GetvitopsOptions } from './integration.ts';
 
 type Params = HookParameters<'astro:config:setup'>;
 
@@ -42,7 +42,7 @@ function harness(opts: GetvitopsOptions = {}, config: Partial<Params['config']> 
     // reads — one cast at the seam beats stubbing the whole of Astro.
   } as unknown as Params;
 
-  const hook = getvitops({ webComponents: false, ...opts }).hooks['astro:config:setup'] as (
+  const hook = vitops({ webComponents: false, ...opts }).hooks['astro:config:setup'] as (
     p: Params,
   ) => Promise<void>;
 
@@ -93,7 +93,7 @@ const warned = (logs: { level: string; msg: string }[], needle: string) =>
 
 const integration = (name: string): AstroIntegration => ({ name, hooks: {} });
 
-describe('getvitops({ sitemap })', () => {
+describe('vitops({ sitemap })', () => {
   it('registers nothing unless asked', async () => {
     const h = harness();
     await h.run();
@@ -148,7 +148,7 @@ describe('getvitops({ sitemap })', () => {
   });
 });
 
-describe('getvitops({ seo })', () => {
+describe('vitops({ seo })', () => {
   it('defaults to an empty object so <Seo /> can read it unconditionally', async () => {
     const h = harness();
     await h.run();
@@ -184,7 +184,7 @@ describe('getvitops({ seo })', () => {
   });
 });
 
-describe('getvitops({ icons })', () => {
+describe('vitops({ icons })', () => {
   it('registers nothing and serves an inert module unless asked', async () => {
     const h = harness();
     await h.run();
@@ -281,12 +281,14 @@ describe('a site config at css.input', () => {
   writeFileSync(
     join(root, 'company.json'),
     JSON.stringify({
-      defaultLocale: 'en',
-      locales: { en: { name: 'English' } },
-      environments: { production: { url: 'https://acme.example' } },
-      organization: { name: 'Acme' },
       designSystem: { themes: { default: {} } },
-      fonts: [{ name: 'Inter', provider: 'google', cssVariable: '--font-inter' }],
+      organization: { name: 'Acme' },
+      site: {
+        defaultLocale: 'en',
+        locales: { en: { name: 'English' } },
+        environments: { production: { url: 'https://acme.example' } },
+        fonts: [{ name: 'Inter', provider: 'google', cssVariable: '--font-inter' }],
+      },
     }),
   );
   writeFileSync(join(root, 'design-system.json'), JSON.stringify({ colors: { palette: {} } }));
@@ -316,7 +318,7 @@ describe('a site config at css.input', () => {
   });
 });
 
-describe('getvitops({ analytics, consent })', () => {
+describe('vitops({ analytics, consent })', () => {
   /**
    * The bundle copy is real filesystem work, so anything that turns the consent
    * runtime on needs a publicDir it may actually write to. (The base harness
@@ -412,13 +414,16 @@ describe('getvitops({ analytics, consent })', () => {
 
   /**
    * The defect this catches is specific and quiet: a site runs a tag its own
-   * generated cookie notice never mentions, because `getvitops({ analytics })`
+   * generated cookie notice never mentions, because `vitops({ analytics })`
    * and the site config's `analytics` block are separate surfaces.
    */
   it('warns when a provider is missing from the site config the legal docs render from', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'vitops-'));
     const input = join(dir, 'site.json');
-    writeFileSync(input, JSON.stringify({ analytics: { plausibleDomain: 'example.com' } }));
+    writeFileSync(
+      input,
+      JSON.stringify({ site: { analytics: { plausibleDomain: 'example.com' } } }),
+    );
 
     const h = harness(
       { analytics: { clarity: 'abc', plausible: 'example.com' }, consent: true, legal: { input } },
@@ -433,7 +438,7 @@ describe('getvitops({ analytics, consent })', () => {
   it('stays quiet when the site config declares every configured provider', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'vitops-'));
     const input = join(dir, 'site.json');
-    writeFileSync(input, JSON.stringify({ analytics: { clarityId: 'abc' } }));
+    writeFileSync(input, JSON.stringify({ site: { analytics: { clarityId: 'abc' } } }));
 
     const h = harness(
       { analytics: { clarity: 'abc' }, consent: true, legal: { input } },

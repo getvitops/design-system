@@ -1,7 +1,7 @@
 /**
  * The indexing module's own option surface.
  *
- * Deliberately structural rather than `SiteConfig['seo']['indexing']` imported
+ * Deliberately structural rather than `Config['seo']['indexing']` imported
  * from `@getvitops/generator`: the generator already depends on this package, so
  * importing back would be a cycle. The vocabulary mirrors that block field for
  * field, so the CLI's adapter is a flat map — the same arrangement, and for the

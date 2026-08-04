@@ -20,7 +20,7 @@ vi.mock('@astrojs/sitemap', () => ({
 }));
 
 /** Same shape as integration.test.ts's harness; see its comment for the I/O gating. */
-function harness(getvitops: (o?: GetvitopsOptions) => AstroIntegration, opts: GetvitopsOptions) {
+function harness(vitops: (o?: GetvitopsOptions) => AstroIntegration, opts: GetvitopsOptions) {
   const updates: Record<string, unknown>[] = [];
   const params = {
     config: {
@@ -38,7 +38,7 @@ function harness(getvitops: (o?: GetvitopsOptions) => AstroIntegration, opts: Ge
     logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
   } as unknown as Params;
 
-  const hook = getvitops({ webComponents: false, ...opts }).hooks['astro:config:setup'] as (
+  const hook = vitops({ webComponents: false, ...opts }).hooks['astro:config:setup'] as (
     p: Params,
   ) => Promise<void>;
   return { updates, run: () => hook(params) };
@@ -54,8 +54,8 @@ beforeEach(() => {
 
 describe('sitemap option forwarding', () => {
   it('forwards an options object verbatim', async () => {
-    const { default: getvitops } = await import('./integration.ts');
-    const h = harness(getvitops, { sitemap: { changefreq: 'weekly', entryLimit: 100 } });
+    const { default: vitops } = await import('./integration.ts');
+    const h = harness(vitops, { sitemap: { changefreq: 'weekly', entryLimit: 100 } });
     await h.run();
     expect(forwarded(h.updates)).toEqual({ changefreq: 'weekly', entryLimit: 100 });
   });
@@ -63,8 +63,8 @@ describe('sitemap option forwarding', () => {
   it('forwards undefined — not `true` — for sitemap: true', async () => {
     // Passing `true` through would reach @astrojs/sitemap as a non-object and
     // blow up inside its own option parsing rather than using its defaults.
-    const { default: getvitops } = await import('./integration.ts');
-    const h = harness(getvitops, { sitemap: true });
+    const { default: vitops } = await import('./integration.ts');
+    const h = harness(vitops, { sitemap: true });
     await h.run();
     expect(forwarded(h.updates)).toBeUndefined();
   });
@@ -75,9 +75,9 @@ describe('sitemap without @astrojs/sitemap installed', () => {
     vi.doMock('@astrojs/sitemap', () => {
       throw new Error("Cannot find package '@astrojs/sitemap'");
     });
-    const { default: getvitops } = await import('./integration.ts');
-    const h = harness(getvitops, { sitemap: true });
-    await expect(h.run()).rejects.toThrow('[getvitops] sitemap requires `@astrojs/sitemap`');
+    const { default: vitops } = await import('./integration.ts');
+    const h = harness(vitops, { sitemap: true });
+    await expect(h.run()).rejects.toThrow('[vitops] sitemap requires `@astrojs/sitemap`');
     vi.doUnmock('@astrojs/sitemap');
   });
 });

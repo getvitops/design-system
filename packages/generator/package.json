@@ -7,7 +7,7 @@
     "dist",
     "assets",
     "schema.json",
-    "site.schema.json",
+    "config.schema.json",
     "CHANGELOG.md"
   ],
   "type": "module",
@@ -18,7 +18,7 @@
       "import": "./dist/index.mjs"
     },
     "./schema.json": "./schema.json",
-    "./site.schema.json": "./site.schema.json",
+    "./config.schema.json": "./config.schema.json",
     "./package.json": "./package.json"
   },
   "publishConfig": {

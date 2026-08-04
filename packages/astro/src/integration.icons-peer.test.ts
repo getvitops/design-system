@@ -20,7 +20,7 @@ vi.mock('astro-icon', () => ({
 
 /** Same shape as integration.test.ts's harness; see its comment for the I/O gating. */
 function harness(
-  getvitops: (o?: GetvitopsOptions) => AstroIntegration,
+  vitops: (o?: GetvitopsOptions) => AstroIntegration,
   opts: GetvitopsOptions,
   config: Partial<Params['config']> = {},
 ) {
@@ -48,7 +48,7 @@ function harness(
     },
   } as unknown as Params;
 
-  const hook = getvitops({ webComponents: false, ...opts }).hooks['astro:config:setup'] as (
+  const hook = vitops({ webComponents: false, ...opts }).hooks['astro:config:setup'] as (
     p: Params,
   ) => Promise<void>;
   return { updates, logs, run: () => hook(params) };
@@ -66,16 +66,16 @@ describe('the include map handed to the icon integration', () => {
   it('passes an empty object on a static build — nothing to trim', async () => {
     // The single most misreadable part of the feature: astro-icon is zero-config
     // on static, so an `include` there can only drop glyphs the scan missed.
-    const { default: getvitops } = await import('./integration.ts');
-    const h = harness(getvitops, { icons: { scan: false } });
+    const { default: vitops } = await import('./integration.ts');
+    const h = harness(vitops, { icons: { scan: false } });
     await h.run();
     expect(forwarded(h.updates)).toEqual({});
   });
 
   it('passes declared icons through on a server build', async () => {
-    const { default: getvitops } = await import('./integration.ts');
+    const { default: vitops } = await import('./integration.ts');
     const h = harness(
-      getvitops,
+      vitops,
       { icons: { ui: 'ph', scan: false, include: { semantic: ['menu'] } } },
       { output: 'server' },
     );
@@ -85,9 +85,9 @@ describe('the include map handed to the icon integration', () => {
   });
 
   it('carries the weight into the bundled name', async () => {
-    const { default: getvitops } = await import('./integration.ts');
+    const { default: vitops } = await import('./integration.ts');
     const h = harness(
-      getvitops,
+      vitops,
       {
         icons: {
           ui: 'ph',
@@ -104,8 +104,8 @@ describe('the include map handed to the icon integration', () => {
 
   it('throws on a declared name that does not resolve', async () => {
     // Declared names are a config error and stay loud, unlike scanned ones.
-    const { default: getvitops } = await import('./integration.ts');
-    const h = harness(getvitops, {
+    const { default: vitops } = await import('./integration.ts');
+    const h = harness(vitops, {
       icons: { ui: 'ph', scan: false, include: { semantic: ['nonsense'] } },
     });
     await expect(h.run()).rejects.toThrow(/not found/);
@@ -123,8 +123,8 @@ describe('with neither icon package installed', () => {
     vi.doMock('astro-iconset', () => {
       throw new Error("Cannot find package 'astro-iconset'");
     });
-    const { default: getvitops } = await import('./integration.ts');
-    const h = harness(getvitops, { icons: { scan: false } });
+    const { default: vitops } = await import('./integration.ts');
+    const h = harness(vitops, { icons: { scan: false } });
     await h.run();
     expect(h.updates.flatMap((u) => (u.integrations as unknown[]) ?? [])).toEqual([]);
   });

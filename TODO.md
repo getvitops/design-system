@@ -142,7 +142,18 @@ Notes for whoever picks this up:
 - Check it against the Bricks builder, where markup is injected and re-rendered
   constantly — that is the hardest case for an observer-driven loader.
 
-## `SiteConfig` → `Config`, with three sections — todo
+## `SiteConfig` → `Config`, with three sections — DONE
+
+Landed. `packages/generator/src/config.ts` (was `site.ts`) now exports `ConfigSchema` /
+`Config` / `validateConfig` / `resolveConfig` / `isConfig` / `configJsonSchema` /
+`CONFIG_SCHEMA_URL`, emitting `config.schema.json`. `validateConfig` detects the old flat
+shape via `MOVED_KEYS` and names every move instead of emitting `unrecognized_keys`.
+The site-config authoring reference it blocked is live: `docs/config.md`, topic
+`vitops docs config`, and _Config reference_ in the docs site.
+
+The original note follows, for the reasoning.
+
+### Original entry
 
 Restructure the top-level config from a flat `SiteConfig` into:
 

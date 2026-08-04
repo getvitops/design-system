@@ -4,7 +4,7 @@
  * alongside <Head /> (which owns favicons, theme-color and the web-component
  * runtime — the two don't overlap).
  *
- * Site-level defaults come from `getvitops({ seo: … })` via the
+ * Site-level defaults come from `vitops({ seo: … })` via the
  * `virtual:getvitops/head` module; the props here override them per page.
  *
  * It owns <title> and <meta name="description">, so **remove them from your
@@ -21,7 +21,7 @@
  * On an EmDash site use <EmDashHead> instead — it covers the same tags from the
  * CMS. Using both double-emits every og:/twitter: tag.
  */
-// @ts-ignore — virtual module provided by the getvitops() integration at build time
+// @ts-ignore — virtual module provided by the vitops() integration at build time
 import head from 'virtual:getvitops/head';
 import { resolveSeo, type SeoProps } from '../seo.ts';
 

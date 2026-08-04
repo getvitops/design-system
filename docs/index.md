@@ -9,6 +9,7 @@ variable-driven CSS framework plus progressively-enhanced web components, genera
 # Contents
 
 * [Authoring reference](authoring.md) - every design-system.json field, generated from the JSON Schema
+* [Config reference](config.md) - every field of the three-section config (designSystem / organization / site), generated from the JSON Schema
 * [Output formats](formats.md) - tailwind vs css vs bricks vs design: what's emitted, what the platform provides, which utilities Tailwind owns
 * [Concepts](concepts/) - the colour system, type/space scales, and pattern CSS architecture
 * [CSS framework](css/) - the class vocabulary (colour, type, space, layout, animation, component patterns), stated as naming rules

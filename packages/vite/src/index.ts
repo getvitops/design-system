@@ -14,8 +14,8 @@ import type { Plugin } from 'vite';
 import {
   generate,
   generateLegal,
-  isSiteConfig,
-  resolveSiteConfig,
+  isConfig,
+  resolveConfig,
   validate,
   type Format,
   type LegalOutput,
@@ -39,12 +39,12 @@ const EDITOR_ENDPOINT = '/__vitops/design-system';
  * `[]` for a `design-system.json` — the file *is* the design system. For a site
  * config it is under `designSystem`, and this reads the **raw** object rather
  * than the resolved one because the editor's write-back has to land where the
- * author actually put it. `resolveSiteConfig` normalises the two shorthands in
+ * author actually put it. `resolveConfig` normalises the two shorthands in
  * memory; a writer that assumed the canonical shape would grow a second
  * `themes` key beside the author's bare map and silently stop editing anything.
  */
 export function designSystemPath(raw: unknown, theme = 'default'): string[] {
-  if (!isSiteConfig(raw)) return [];
+  if (!isConfig(raw)) return [];
   const ds = (raw as Record<string, unknown>).designSystem as Record<string, unknown>;
   if (ds != null && typeof ds === 'object') {
     if ('themes' in ds) return ['designSystem', 'themes', theme];
@@ -274,7 +274,7 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
     // here anyway to know whether `input` is a site config, and reading the same
     // file twice per regeneration is how a half-written save gets picked up.
     const raw = readJson(input);
-    const inputIsSite = isSiteConfig(raw);
+    const inputIsSite = isConfig(raw);
     // `generate` reads the site config only for what the stylesheet depends on;
     // legal documents stay the separate opt-in below.
     await generate({
@@ -299,7 +299,7 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
             'point `input` at a site config.',
         );
       const legalOut = resolve(root, options.legal.out ?? 'src/content/legal');
-      const site = resolveSiteConfig(readJson(legalPath), options.legal.siteEnv ?? 'production');
+      const site = resolveConfig(readJson(legalPath), options.legal.siteEnv ?? 'production');
       const files = generateLegal(site, { output: options.legal.format ?? 'md' });
       mkdirSync(legalOut, { recursive: true });
       for (const [name, content] of Object.entries(files))

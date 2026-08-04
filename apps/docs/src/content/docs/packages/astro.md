@@ -336,7 +336,7 @@ Behaviour worth knowing:
 ### Keep it in step with your cookie notice
 
 `vitops legal` derives the privacy policy and cookie notice from your **site config**, and
-`getvitops({ analytics })` is a separate surface. Declare each provider in both:
+`vitops({ analytics })` is a separate surface. Declare each provider in both:
 
 ```jsonc
 // site config — what the documents disclose

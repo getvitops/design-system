@@ -21,7 +21,7 @@ import { generateDocs } from './docs.ts';
 import { emitDesignMd } from './design-md.ts';
 import { generateLegal } from './legal/index.ts';
 import { buildIconSprite } from './icons-sprite.ts';
-import { resolveInput, resolveSiteConfig, type SiteConfig } from './site.ts';
+import { resolveInput, resolveConfig, type Config } from './config.ts';
 import { generateIconInclude, resolveIcon } from '@getvitops/utils';
 import {
   BASE_HOOK,
@@ -60,10 +60,10 @@ export interface GenerateOptions {
    * The config to build from — a path, or an already-parsed object.
    *
    * **Either kind is accepted.** A bare `design-system.json`, or the larger
-   * `SiteConfig` that embeds one (commonly `company.json` / `site.json`), in
+   * `Config` that embeds one (commonly `company.json` / `site.json`), in
    * which case the design system is `designSystem.themes[theme]` with its
    * `extends` chain resolved. The two are told apart by shape, not by filename —
-   * see `isSiteConfig`.
+   * see `isConfig`.
    *
    * Passing a site config here also supplies `site`, so the site-level facts
    * generation depends on (`designSystem.defaultColorScheme`, the legal
@@ -71,7 +71,7 @@ export interface GenerateOptions {
    * those is still gated on a field in that config, so nothing new appears
    * unless the config asks for it.
    */
-  input: string | DesignSystem | SiteConfig;
+  input: string | DesignSystem | Config;
   /** Output target. Default: 'bricks'. */
   format?: Format;
   /** Directory to write outputs into. Default: 'dist'. */
@@ -96,14 +96,14 @@ export interface GenerateOptions {
    *
    * Redundant when `input` is already a site config; set both and this one wins.
    */
-  site?: string | SiteConfig;
+  site?: string | Config;
   /**
    * Emit the `prefers-color-scheme: dark` block (see `BuildOptions`).
    *
    * Normally this comes from the site config's `designSystem.defaultColorScheme: "system"`, which
    * is where the fact belongs. This is the escape hatch for consumers with a
    * `design-system.json` and no site config at all: requiring a whole
-   * `SiteConfig` — which must carry a full `designSystem` — to set one boolean
+   * `Config` — which must carry a full `designSystem` — to set one boolean
    * would be out of proportion. Set explicitly, it wins over the site config.
    */
   systemColorScheme?: boolean;
@@ -1974,9 +1974,9 @@ function bundleCss(
  * is wrong *here*" when the file is a few hundred lines of company facts.
  */
 function loadInput(
-  input: string | DesignSystem | SiteConfig,
+  input: string | DesignSystem | Config,
   opts: { theme?: string; siteEnv?: string },
-): { ds: DesignSystem; site?: SiteConfig } {
+): { ds: DesignSystem; config?: Config } {
   const raw = typeof input === 'string' ? JSON.parse(readFileSync(input, 'utf8')) : input;
   const resolved = resolveInput(raw, opts);
   const result = validate(resolved.designSystem);
@@ -1992,14 +1992,14 @@ function loadInput(
     throw new Error(`Invalid ${where}:\n${lines}`);
   }
   for (const w of result.warnings) console.warn(`[vitops] ${w}`);
-  return { ds: result.data, ...(resolved.site ? { site: resolved.site } : {}) };
+  return { ds: result.data, ...(resolved.config ? { config: resolved.config } : {}) };
 }
 
 export async function generate(options: GenerateOptions): Promise<GenerateResult> {
   const format: Format = options.format ?? 'bricks';
   const outDir = options.outDir ?? 'dist';
   const assetsDir = options.assetsDir ?? DEFAULT_ASSETS;
-  const { ds, site: embedded } = loadInput(options.input, {
+  const { ds, config: embedded } = loadInput(options.input, {
     ...(options.theme != null ? { theme: options.theme } : {}),
     ...(options.siteEnv != null ? { siteEnv: options.siteEnv } : {}),
   });
@@ -2010,10 +2010,10 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
   // An explicit `site` wins over one embedded in `input` — it is the more
   // specific statement, and the two are the same file in every case but the one
   // where a consumer deliberately split them.
-  const site = options.site != null ? loadSiteConfigFile(options.site, options.siteEnv) : embedded;
+  const config = options.site != null ? loadConfigFile(options.site, options.siteEnv) : embedded;
   const built = build(ds, format, assetsDir, {
     systemColorScheme:
-      options.systemColorScheme ?? site?.designSystem?.defaultColorScheme === 'system',
+      options.systemColorScheme ?? config?.designSystem?.defaultColorScheme === 'system',
   });
   mkdirSync(outDir, { recursive: true });
   const written: string[] = [];
@@ -2073,8 +2073,8 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
   //
   // HTML rather than markdown because this is the fragment a WordPress theme,
   // a Bricks shortcode or a plain page can include with no build step of its own.
-  if (site != null && format !== 'design') {
-    const legal = generateLegal(site, { output: 'html' });
+  if (config != null && format !== 'design') {
+    const legal = generateLegal(config, { output: 'html' });
     for (const [name, content] of Object.entries(legal)) put(join('legal', name), content);
 
     // Icon sprite → outDir/icons.svg.
@@ -2083,7 +2083,7 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
     // collections and most consumers render icons through their framework's own
     // integration instead. This is the path for the ones that can't: Bricks,
     // EmDash renderers, any plain HTML — `<use href="…/icons.svg#id">`, no JS.
-    const icons = site.icons as
+    const icons = config.site.icons as
       | { sprite?: boolean; ui?: string; brand?: string; weight?: string; semantic?: string[] }
       | undefined;
     if (icons?.sprite) {
@@ -2119,8 +2119,8 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
   return { format, outDir, written };
 }
 
-function loadSiteConfigFile(input: string | SiteConfig, siteEnv?: string): SiteConfig {
+function loadConfigFile(input: string | Config, siteEnv?: string): Config {
   const raw = typeof input === 'string' ? JSON.parse(readFileSync(input, 'utf8')) : input;
-  // resolveSiteConfig validates and throws with one issue per line.
-  return resolveSiteConfig(raw, siteEnv);
+  // resolveConfig validates and throws with one issue per line.
+  return resolveConfig(raw, siteEnv);
 }

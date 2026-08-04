@@ -1,15 +1,15 @@
 ---
 /**
  * <Head /> — the Vitops design system's <head> contributions. Place inside your
- * layout's <head>. Requires the getvitops() integration (it provides the
+ * layout's <head>. Requires the vitops() integration (it provides the
  * `virtual:getvitops/head` config + copies the assets into public/).
  *
  * Renders: favicon + PWA manifest tags, the webfont <Font /> tags for families
- * declared via getvitops({ fonts }), and the web-component runtime scripts in
+ * declared via vitops({ fonts }), and the web-component runtime scripts in
  * canonical order/priority. It does NOT emit a stylesheet <link> — the CSS is
  * imported into Astro's graph by the integration and Astro emits that link.
  */
-// @ts-ignore — virtual module provided by the getvitops() integration at build time
+// @ts-ignore — virtual module provided by the vitops() integration at build time
 import head from 'virtual:getvitops/head';
 // @ts-ignore — `Font` is provided by Astro's Fonts API (astro >= 7)
 import { Font } from 'astro:assets';
@@ -61,7 +61,7 @@ const THEME_SCRIPT =
 {favicons && head.themeColor && <meta name="theme-color" content={head.themeColor} />}
 
 {/*
-  Webfonts declared via getvitops({ fonts }). Astro's `fonts:` config resolves and
+  Webfonts declared via vitops({ fonts }). Astro's `fonts:` config resolves and
   optimises the files; this component is what actually puts the @font-face on the page,
   so without it the config is inert and every --font-* token falls through to its
   fallback stack.
@@ -77,7 +77,7 @@ const THEME_SCRIPT =
   <Font cssVariable={f.cssVariable} preload={f.preload} />
 ))}
 
-{/* Set by getvitops({ sitemap }); null when no sitemap was registered. */}
+{/* Set by vitops({ sitemap }); null when no sitemap was registered. */}
 {head.sitemap && <link rel="sitemap" type="application/xml" href={head.sitemap} />}
 
 {webComponents && (
@@ -112,7 +112,7 @@ const THEME_SCRIPT =
 {head.consentRuntime && <script is:inline type="module" src={`${wc}/consent.js`}></script>}
 
 {/*
-  The live theme editor — a separate, opt-in bundle (getvitops({ editor: true })).
+  The live theme editor — a separate, opt-in bundle (vitops({ editor: true })).
   It is tooling, not part of the runtime, so it stays out of elements.js and off
   every page that doesn't ask for it. Loads independently of `webComponents`:
   <wc-theme-editor> registers itself and pulls in no framework element.

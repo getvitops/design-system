@@ -1,7 +1,7 @@
 ---
 /**
  * <CookieConsent /> — the consent banner. Place near the end of <body>; requires
- * the getvitops() integration with `consent` enabled, which is what loads
+ * the vitops() integration with `consent` enabled, which is what loads
  * `@getvitops/core/consent` (the gate + `<wc-consent>`).
  *
  * This renders the *fallback*: a real, semantic form with real buttons. The
@@ -20,7 +20,7 @@
  * this banner offers therefore comes from the integration, not from
  * `<Analytics />`.
  */
-// @ts-ignore — virtual module provided by the getvitops() integration at build time
+// @ts-ignore — virtual module provided by the vitops() integration at build time
 import head from 'virtual:getvitops/head';
 import type { OptionalConsentCategory } from '../analytics.ts';
 

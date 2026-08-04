@@ -3,7 +3,7 @@
  *
  * Shaped after `generateDocs` rather than after a `generate()` format, and the
  * reason is structural: `generate()` is keyed to a **`DesignSystem`**, while a
- * privacy policy renders from a **`SiteConfig`**. Bolting it on as a `Format`
+ * privacy policy renders from a **`Config`**. Bolting it on as a `Format`
  * would mean a format that ignores its own input. So this is a sibling public
  * function that returns a `{ relPath: content }` map and lets each caller write
  * it where it belongs — the CLI to stdout or a directory, the bricks build into
@@ -14,7 +14,7 @@
 import { derivePolicyVars, type PolicyVars } from './derive.ts';
 import { parseMarkdown, toContentNodes, toHtmlFragment, toPortableText } from './render.ts';
 import { DOC_ORDER, DOC_SLUGS, TEMPLATES, type LegalDoc } from './templates/index.ts';
-import type { SiteConfig } from '../site.ts';
+import type { Config } from '../config.ts';
 import type { ContentNode } from '@getvitops/utils';
 
 export type LegalOutput = 'md' | 'html' | 'portable-text';
@@ -33,8 +33,8 @@ const EXT: Record<LegalOutput, string> = {
 };
 
 /** Which documents the config asks for, in a stable order. */
-export function enabledDocs(site: SiteConfig): LegalDoc[] {
-  const legal = site.legal;
+export function enabledDocs(cfg: Config): LegalDoc[] {
+  const legal = cfg.site.legal;
   const on: Record<LegalDoc, boolean> = {
     privacy: !!legal?.privacyPolicy?.enabled,
     terms: !!legal?.termsOfService?.enabled,
@@ -44,13 +44,13 @@ export function enabledDocs(site: SiteConfig): LegalDoc[] {
 }
 
 /** Render one document to markdown. The other outputs derive from this. */
-export function renderMarkdown(site: SiteConfig, doc: LegalDoc, vars?: PolicyVars): string {
-  const jurisdiction = site.legal?.jurisdiction ?? 'ca';
-  // `validateSite` rejects an unregistered jurisdiction, so this is a guard for
+export function renderMarkdown(cfg: Config, doc: LegalDoc, vars?: PolicyVars): string {
+  const jurisdiction = cfg.site.legal?.jurisdiction ?? 'ca';
+  // `validateConfig` rejects an unregistered jurisdiction, so this is a guard for
   // callers that skipped validation rather than an expected path.
   const set = TEMPLATES[jurisdiction];
   if (!set) throw new Error(`no legal templates for jurisdiction "${jurisdiction}"`);
-  return set[doc](vars ?? derivePolicyVars(site));
+  return set[doc](vars ?? derivePolicyVars(cfg));
 }
 
 /**
@@ -58,8 +58,8 @@ export function renderMarkdown(site: SiteConfig, doc: LegalDoc, vars?: PolicyVar
  * site config already uses for `templates` of type `nodes`, so an Astro consumer
  * can hand it to `NodeRenderer` instead of injecting a string of HTML.
  */
-export function renderNodes(site: SiteConfig, doc: LegalDoc): ContentNode[] {
-  return toContentNodes(parseMarkdown(renderMarkdown(site, doc)));
+export function renderNodes(cfg: Config, doc: LegalDoc): ContentNode[] {
+  return toContentNodes(parseMarkdown(renderMarkdown(cfg, doc)));
 }
 
 /**
@@ -69,18 +69,18 @@ export function renderNodes(site: SiteConfig, doc: LegalDoc): ContentNode[] {
  * id so a caller can write the map verbatim.
  */
 export function generateLegal(
-  site: SiteConfig,
+  cfg: Config,
   opts: GenerateLegalOptions = {},
 ): Record<string, string> {
   const output = opts.output ?? 'md';
-  const docs = opts.docs ?? enabledDocs(site);
+  const docs = opts.docs ?? enabledDocs(cfg);
   // Derived once: every document asserts the same facts, and re-deriving per
   // document would let them disagree if the derivation ever stopped being pure.
-  const vars = derivePolicyVars(site);
+  const vars = derivePolicyVars(cfg);
 
   const out: Record<string, string> = {};
   for (const doc of docs) {
-    const md = renderMarkdown(site, doc, vars);
+    const md = renderMarkdown(cfg, doc, vars);
     const slug = DOC_SLUGS[doc];
     const content =
       output === 'md'

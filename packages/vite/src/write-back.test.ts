@@ -4,7 +4,7 @@
  * was pointed at. Now that `input` may be the larger site config, the server has
  * to know *where in that file* the design system lives — and get it right for
  * every shape the site schema accepts, including the two shorthands
- * `resolveSiteConfig` normalises away in memory.
+ * `resolveConfig` normalises away in memory.
  *
  * This is the one place in the change that writes to a consumer's source, so it
  * is the one worth pinning hardest. The failure isn't an exception: merge at the
@@ -38,7 +38,7 @@ describe('designSystemPath', () => {
   });
 
   test('a bare design system written inline — one theme, and it is the block itself', () => {
-    // `resolveSiteConfig` reads this as `{ themes: { default: … } }`, but on disk
+    // `resolveConfig` reads this as `{ themes: { default: … } }`, but on disk
     // there is no `themes` key. Writing to the normalised path would add one
     // beside the author's object and edit a copy nobody builds from.
     expect(designSystemPath({ designSystem: ds })).toEqual(['designSystem']);

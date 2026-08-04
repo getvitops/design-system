@@ -73,12 +73,12 @@ export function resolveFonts(decls: readonly SiteFont[]): ResolvedFonts {
   for (const decl of decls) {
     if (!PROVIDERS.has(decl.provider))
       throw new Error(
-        `[getvitops] fonts: unknown provider "${decl.provider}" for "${decl.name}". ` +
+        `[vitops] fonts: unknown provider "${decl.provider}" for "${decl.name}". ` +
           `Astro provides: ${[...PROVIDERS].sort().join(', ')}.`,
       );
     if (NEEDS_OPTIONS.has(decl.provider))
       throw new Error(
-        `[getvitops] fonts: provider "${decl.provider}" needs an API id from your environment ` +
+        `[vitops] fonts: provider "${decl.provider}" needs an API id from your environment ` +
           `("${decl.name}"), and a JSON declaration has nowhere to hold one. Declare this family ` +
           `in astro.config instead — fonts: [{ provider: fontProviders.${decl.provider}` +
           `({ id: process.env.ADOBE_ID }), name: '${decl.name}', cssVariable: '${decl.cssVariable}' }] — ` +
@@ -86,13 +86,13 @@ export function resolveFonts(decls: readonly SiteFont[]): ResolvedFonts {
       );
     if (!decl.cssVariable.startsWith('--'))
       throw new Error(
-        `[getvitops] fonts: cssVariable "${decl.cssVariable}" (${decl.name}) must start with "--".`,
+        `[vitops] fonts: cssVariable "${decl.cssVariable}" (${decl.name}) must start with "--".`,
       );
     // Two families on one variable is the documented failure of Astro's Fonts API:
     // it warns and the last one wins, so the first family silently never loads.
     if (seen.has(decl.cssVariable))
       throw new Error(
-        `[getvitops] fonts: two families both declare ${decl.cssVariable} ` +
+        `[vitops] fonts: two families both declare ${decl.cssVariable} ` +
           `(the second is "${decl.name}"). Astro resolves one family per variable — ` +
           `give them separate variables, or drop one.`,
       );

@@ -13,6 +13,7 @@ describe('generateDocs bundle', () => {
       [
         'index.md',
         'authoring.md',
+        'config.md',
         'formats.md',
         'concepts/index.md',
         'concepts/color.md',
@@ -46,6 +47,23 @@ describe('generateDocs bundle', () => {
   it('formats.md lists every TW_CLASH utility (no-drift guarantee)', () => {
     const formats = docs()['formats.md']!;
     for (const cls of TW_CLASH) expect(formats, `missing \`${cls}\``).toContain(`\`${cls}\``);
+  });
+
+  /**
+   * The config reference is the only documentation of the three-section shape that
+   * cannot fall behind the schema, so what is pinned is that it actually walked it:
+   * all three sections present, and fields from each rendered underneath.
+   */
+  it('config.md walks the config JSON Schema (all three sections)', () => {
+    const config = docs()['config.md']!;
+    for (const section of ['designSystem', 'organization', 'site'])
+      expect(config, `missing section \`${section}\``).toContain(`## \`${section}\``);
+    // One field from each of the two sections the restructure created — if the
+    // walker rendered headings but no children, these are what go missing.
+    for (const field of ['defaultLocale', 'analytics', 'legal', 'locations', 'services'])
+      expect(config, `missing field \`${field}\``).toContain(`### \`${field}\``);
+    // It must NOT inline the whole design-system schema a second time.
+    expect(config).toContain('[authoring.md](authoring.md)');
   });
 
   it('authoring.md walks the JSON Schema (top-level sections + descriptions)', () => {

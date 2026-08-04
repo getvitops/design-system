@@ -4,7 +4,7 @@
 //
 // The `_ac` cookie below is a 90-day identifier tying a visitor to the ad that
 // brought them, which is squarely `marketing` consent. So when the consent gate
-// is present (`getvitops({ consent })` loads @getvitops/core/consent), this defers
+// is present (`vitops({ consent })` loads @getvitops/core/consent), this defers
 // to it; with no gate on the page it behaves as it always has, because a site
 // that has not adopted consent has made no promise for this to break.
 

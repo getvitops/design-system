@@ -1,30 +1,30 @@
 /**
- * Site/company config — public entry point.
+ * Top-level config — public entry point.
  *
  * The schema itself now lives in the `@getvitops/generator` package
- * (`packages/generator/src/site.ts`), so it composes with the design-system schema,
+ * (`packages/generator/src/config.ts`), so it composes with the design-system schema,
  * exports one JSON Schema, and validates without a workspace-root zod install.
  * This file re-exports it and keeps the pattern-group mappings.
  *
  * YAML loading is the consumer's job (this stays dependency-light): read the
- * YAML, then hand the parsed object to `resolveSiteConfig(obj, siteEnv)`.
+ * YAML, then hand the parsed object to `resolveConfig(obj, siteEnv)`.
  *
  *   import { load as loadYaml } from 'js-yaml';
- *   import { resolveSiteConfig } from '@getvitops/generator';
- *   export default resolveSiteConfig(loadYaml(yamlRaw), import.meta.env.SITE_ENV);
+ *   import { resolveConfig } from '@getvitops/generator';
+ *   export default resolveConfig(loadYaml(yamlRaw), import.meta.env.SITE_ENV);
  */
 
 export {
-  SiteConfigSchema,
-  siteJsonSchema,
-  SITE_SCHEMA_URL,
-  validateSite,
-  resolveSiteConfig,
+  ConfigSchema,
+  configJsonSchema,
+  CONFIG_SCHEMA_URL,
+  validateConfig,
+  resolveConfig,
   resolveTheme,
   stripNulls,
   deepMerge,
 } from '@getvitops/generator';
-export type { SiteConfig, SiteValidationResult } from '@getvitops/generator';
+export type { Config, ConfigValidationResult } from '@getvitops/generator';
 
 // ── Pattern Group Mappings ────────────────────────────────────────────────────
 // Retained for downstream pattern-group tooling.

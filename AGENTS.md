@@ -53,7 +53,7 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
 a page pattern — a live editor has no accessible no-JS fallback to enhance, so it fails the tier-2 bar
 on purpose. It is quarantined instead of excused: its own bundle entry (`src/js/editor.ts` →
 `dist/editor.js`), never registered in `elements.js`, opt-in per consumer
-(`getvitops({ editor: true })`), and carrying no Lit, so a production page that doesn't ask for it
+(`vitops({ editor: true })`), and carrying no Lit, so a production page that doesn't ask for it
 pays nothing. Don't use it as precedent for putting behaviour JS in a `<wc-*>` element.
 
 ## The consent gate
@@ -86,8 +86,8 @@ Four things are load-bearing:
   asserted in `store.test.ts`. Keep new decisions on that side of the line.
 
 The facts that drive the gate must also drive the **generated cookie notice** — see the Legal
-documents section. `analytics.clarityId` in a site config is what makes the notice name Clarity; the
-same provider in `getvitops({ analytics })` is what makes the tag load. The Astro integration warns
+documents section. `site.analytics.clarityId` in a config is what makes the notice name Clarity; the
+same provider in `vitops({ analytics })` is what makes the tag load. The Astro integration warns
 when the two disagree, because a site running a tag its own notice omits is a compliance defect
 rather than a documentation gap.
 
@@ -121,7 +121,7 @@ These are load-bearing and easy to break:
   knows about a design system, so when the plugin's `input` is a site config the server merges into
   — and validates — the design-system _subtree_ (`designSystemPath()` in `@getvitops/vite`), writing
   only the surrounding file whole. It reads that path off the **raw** on-disk object, not the
-  resolved one: `resolveSiteConfig` normalises the two `designSystem` shorthands in memory, so a
+  resolved one: `resolveConfig` normalises the two `designSystem` shorthands in memory, so a
   writer assuming the canonical shape would grow a `themes` key beside the author's bare map and
   silently edit a copy nothing builds from. Merging at the root instead is the louder version of the
   same bug — a `colors` key beside `organization`, and `validate` rejecting the site config
@@ -148,19 +148,30 @@ packages under `packages/` (a pnpm workspace), by layer:
   the **single source of truth** (the `DesignSystem` type via `z.infer`, the published JSON Schema via
   `toJSONSchema` → `schema.json`, and runtime validation all derive from it). It sources the framework
   CSS partials + prebuilt JS bundles from `@getvitops/core` and ships the Bricks PHP + `load.php`; it
-  also carries the site-config schema (`site.ts` → `site.schema.json`).
+  also carries the project-config schema (`config.ts` → `config.schema.json`).
 
-  **`input` takes either config kind.** A bare `design-system.json`, or the `SiteConfig` that
+  **`input` takes either config kind.** A bare `design-system.json`, or the `Config` that
   embeds one — `resolveInput` discriminates on the presence of a `designSystem` key and resolves
   `themes[theme]` through its `extends` chain. The discriminator is **total, not a heuristic**, and
-  both halves are load-bearing: a `SiteConfig` cannot validate without a `designSystem`, and
-  `DesignSystemSchema` is strict, so a design system carrying that key is an `unrecognized_keys`
-  error. Keyed to shape rather than filename, because consumers name the file whatever they like.
+  both halves are load-bearing: a `Config` requires `designSystem`, and `DesignSystemSchema` is
+  strict, so a design system carrying that key is an `unrecognized_keys` error. Keyed to shape
+  rather than filename, because consumers name the file whatever they like.
 
-  A site-config `input` also **supplies `site`**, so `defaultColorScheme`, the legal documents and
+  A full-config `input` also **supplies `site`**, so `defaultColorScheme`, the legal documents and
   the icon sprite don't need the same path declared again. That is safe to do implicitly because
-  each of those outputs is already gated on a field in that config (`legal.*.enabled`,
-  `icons.sprite`) — the config asks for what it gets. An explicit `site` still wins.
+  each of those outputs is already gated on a field in that config (`site.legal.*.enabled`,
+  `site.icons.sprite`) — the config asks for what it gets. An explicit `site` still wins.
+
+  **`Config` is three sections: `designSystem`, `organization`, `site`.** `designSystem` is the
+  token set, `organization` is the company (name, contact, locations, services, links) and `site`
+  is one published presentation of it (locales, domains, environments, SEO, analytics, legal,
+  icons, favicon, deployment). Three named sections beat the flat `SiteConfig` they replaced for
+  two reasons: no single noun described a document holding the company _and_ the deployment as
+  peers, and several sites can now `extends` one file and override only `site`. `designSystem`
+  stayed at the root deliberately — it is the discriminator, and moving it would have made
+  `isConfig` a heuristic. `validateConfig` detects the old flat shape and **names every move**
+  (`MOVED_KEYS` in `config.ts`), short-circuiting before zod would report a dozen
+  `unrecognized_keys`; that error is the migration.
 
 - **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
   `png-to-ico`, loaded lazily; `oxipng` crush optional). Consumed by cli/vite/astro.
@@ -181,16 +192,16 @@ packages under `packages/` (a pnpm workspace), by layer:
   positive. It asks `roleColorUtilities()` what the generator emits rather than re-deriving it.
 
   `legal` renders the site's privacy policy, terms of service and cookie notice — see the
-  Legal documents section below. It is one of the three commands anchored to a `SiteConfig`
+  Legal documents section below. It is one of the three commands anchored to a `Config`
   rather than a `design-system.json` (with `icons` and `indexing`), because what it renders
   describes a site rather than a token set.
 
-  `indexing` tells search engines a deploy happened, from `seo.indexing` — see the
+  `indexing` tells search engines a deploy happened, from `site.seo.indexing` — see the
   Search-engine indexing section below.
 
 - **`@getvitops/vite`** — a Vite plugin (Astro/EmDash) that runs the generator on build/dev (+
   optional favicon generation) and hot-regenerates when the config changes.
-- **`@getvitops/astro`** — the **Astro integration**: a default `getvitops()` integration
+- **`@getvitops/astro`** — the **Astro integration**: a default `vitops()` integration
   (favicons/PWA + web-component bundles copied to `public/` + the design-system CSS generated and
   auto-injected) plus a `<Head />` component and HTML/type authoring helpers. Wraps generator + utils
   - vite + core.
@@ -232,7 +243,7 @@ anything expecting a stylesheet types against (the Astro integration's `css.form
 editor that used to sit beside it is now `@getvitops/core/editor` (see below).
 `packages/generator/scripts/prepare.mjs` snapshots core's CSS + built JS bundles (and
 the repo's `bricks/` PHP) into `packages/generator/assets/` and emits `schema.json` /
-`site.schema.json` — all gitignored build inputs, like `dist/`. The root `build` runs the toolchain
+`config.schema.json` — all gitignored build inputs, like `dist/`. The root `build` runs the toolchain
 (`build:bricks` → `build:theme` → `lib/build-theme.ts` → the generator; no lightningcss CLI) — see
 the Build system section.
 
@@ -273,7 +284,9 @@ the group without solving that skew.
 ## Legal documents
 
 `generateLegal(site, { docs, output })` (`packages/generator/src/legal/`) renders a privacy
-policy, terms of service and cookie notice from a **`SiteConfig`**. It is a sibling of
+policy, terms of service and cookie notice from a **`Config`**. It reads facts from two of its
+sections — the company from `organization`, what the site actually does from `site` — which is
+the split the documents already assumed. It is a sibling of
 `generateDocs`, **not** a `generate()` format, and that is structural rather than stylistic:
 `generate()` is keyed to a `DesignSystem`, so a legal format would be a format that ignores
 its own input. It returns a `{ filename: content }` map and lets each caller write it.
@@ -288,13 +301,13 @@ Four things here are load-bearing:
 
 - **The provider table (`providers.ts`) is what makes derivation possible.** A policy naming
   Plausible while the site runs GA is a compliance defect, not a typo, so the provider comes
-  from which analytics ID is set, whether `security.turnstile.siteKey` exists, and what
-  `deployment.platform` says — never from a hand-maintained string. It covers only what the
+  from which analytics ID is set, whether `site.security.turnstile.siteKey` exists, and what
+  `site.deployment.platform` says — never from a hand-maintained string. It covers only what the
   schema can imply; everything else (payment, CRM, mail) is declared in
-  `legal.privacyPolicy.processors` and flows through the same pipeline. `cookies: []` is
+  `site.legal.privacyPolicy.processors` and flows through the same pipeline. `cookies: []` is
   **meaningfully different from `undefined`**: it asserts a provider is cookieless (Plausible),
   which the cookie notice states positively rather than omitting.
-- **Form templates are the PII inventory.** `templates` entries of type `form` are the only
+- **Form templates are the PII inventory.** `site.templates` entries of type `form` are the only
   place the config says what personal information the site actually collects, so
   `piiCollected` derives from their `FormFieldSchema` fields. `hidden` fields and honeypots are
   excluded — neither is visitor-supplied, and describing them as collected would be untrue.
@@ -304,7 +317,7 @@ Four things here are load-bearing:
   degrade — that is what stops a literal `| --- |` reaching a published page. HTML goes through
   `nodesToHtml` from `@getvitops/utils` (escaping already solved); Portable Text maps the `> `
   quote to `vitops.banner` and **drops the `# ` heading**, which is EmDash's `data.title` field.
-- **`JURISDICTIONS` in `site.ts` and `TEMPLATES` in `legal/templates/index.ts` are checked
+- **`JURISDICTIONS` in `config.ts` and `TEMPLATES` in `legal/templates/index.ts` are checked
   against each other** by `satisfies`. Adding a jurisdiction is: author three templates, add
   one enum member, add one registry key — skip either and it fails to compile rather than
   rendering against the wrong body of law. Only `ca` (PIPEDA) ships; its prose names the
@@ -318,7 +331,7 @@ surface every consumer has regardless of stack:
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **any stack** | `vitops legal [--doc <name>] [--format md\|html\|portable-text] [--out <dir>]` — stdout without `--out`. Hugo, Eleventy, a hand-built WP theme need no integration code.                                                                                            |
 | **WordPress** | `generate({ site })` also emits `dist/legal/*.html`; `bricks/load.php` registers `[vitops_legal doc="privacy"]`, whose `doc` is matched against a fixed allowlist (it lands in a filesystem read). `legal.test.ts` drift-guards that allowlist against `DOC_SLUGS`. |
-| **Astro**     | `getvitops({ legal: { input, out } })` — a sibling of `css`, not a widening of it. Runs inside `@getvitops/vite`'s `run()` so it regenerates on config change; writes markdown to a content collection. No route injection (nothing in the repo does that).         |
+| **Astro**     | `vitops({ legal: { input, out } })` — a sibling of `css`, not a widening of it. Runs inside `@getvitops/vite`'s `run()` so it regenerates on config change; writes markdown to a content collection. No route injection (nothing in the repo does that).            |
 | **EmDash**    | `--format portable-text`, pasted into the admin. The scaffolded seed keeps its short, obviously-unfinished placeholders on purpose — a full generated policy for a fictional business is likelier to ship unread.                                                   |
 
 Every document opens with a non-optional review banner. These are rendered from a template by
@@ -327,7 +340,7 @@ a build tool; the one failure mode with real consequences is a consumer publishi
 ## Search-engine indexing
 
 `vitops indexing` (`packages/cli` → `@getvitops/utils/indexing`) replaces the manual "open Search
-Console and resubmit" step at the end of a deploy. It reads a **`SiteConfig`**'s `seo.indexing`
+Console and resubmit" step at the end of a deploy. It reads a **`Config`**'s `site.seo.indexing`
 block.
 
 **Start from what search engines actually accept, because the obvious assumption is wrong and
@@ -368,7 +381,7 @@ Five things are load-bearing:
 - **The `noindex` gate reads the environment, so the URLs must too.** `plan()` refuses the whole
   run when the resolved environment's `robots` contains `noindex` — submitting a staging host to
   IndexNow publishes it to several engines and invites them to crawl it, which a later directive
-  does not undo. This is why `toIndexingConfig` derives the origin from `environments[env].url`
+  does not undo. This is why `toIndexingConfig` derives the origin from `site.environments[env].url`
   **before** `domains.canonical`: the canonical is the _production_ origin, so deriving from it
   while notifying staging would submit production URLs that the gate — reading the environment —
   would not catch.
@@ -390,7 +403,7 @@ OAuth token is minted with ~30 lines of `node:crypto` — **do not add `googleap
 dependency for two endpoints in a CLI that installs into every consumer project.
 
 `@getvitops/utils` cannot import from `@getvitops/generator` (the generator already depends on
-it), so `IndexingConfig` mirrors the `seo.indexing` block structurally and the CLI adapts — the
+it), so `IndexingConfig` mirrors the `site.seo.indexing` block structurally and the CLI adapts — the
 same arrangement, for the same reason, as `GetvitopsSeoOptions` in `@getvitops/astro`.
 
 ## Development
@@ -569,7 +582,7 @@ which is which, and an unknown weight throws rather than silently resolving to t
 
 **The `include` map exists for one reason: SSR bundle size.** astro-icon is zero-config on a static
 build but bundles _every icon in a set_ under `output: 'server'`. The `icons` option on
-`getvitops()` derives the list by scanning source during `astro:config:setup` — awaited **before**
+`vitops()` derives the list by scanning source during `astro:config:setup` — awaited **before**
 the `updateConfig` that appends the icon integration, because an appended integration's own
 `config:setup` runs after this hook returns, and the Vite plugin's `buildStart` is far too late. On
 a static build **no `include` is passed at all**. Declared names that don't resolve throw; scanned
@@ -577,7 +590,7 @@ ones only warn (a bare unmapped name is usually a local `src/icons/*.svg`); runt
 are reported with file and line, never guessed.
 
 Three delivery paths: `astro-icon` / `astro-iconset` for Astro, and a **build-time SVG sprite**
-(`icons.svg`, opt-in via `icons.sprite`) for Bricks, EmDash renderers and plain HTML —
+(`icons.svg`, opt-in via `site.icons.sprite`) for Bricks, EmDash renderers and plain HTML —
 `<use href="…#ph--list">`, no JS and no icon-API call, which is what keeps it a tier-1 pattern.
 Sprite ids are the qualified name with `:` → `--`, plus a set-independent `icon-<name>` alias per
 semantic name so sprite markup survives a set swap. `spriteId()` in the generator and `Icon.astro`
@@ -609,10 +622,16 @@ All tasks go through `npx vp run <name>` (see [vite.config.ts](vite.config.ts)).
 
 `build:theme` emits the deployable Bricks payload into `dist/`: `styles.min.css`, the Bricks import JSON, `tokens.json`, the JS bundles, the repo-owned Bricks sources (`bricks/elements/*.php`, `bricks/load.php`) under `dist/bricks/`, and the generated `docs/` tree under `dist/docs/` — an LLM-oriented context bundle in **Open Knowledge Format** (OKF; served at `<theme>/dist/docs/`) so an AI has documentation matching what deploys. (Generated by the generator's `docs.ts`; the legacy `lib/generate-design-system.ts` / `lib/generate-docs.ts` have been removed.) OKF rules the generator follows: reserved `index.md` files carry **no frontmatter** and are directory listings (`* [Title](path) - desc`); every other `.md` is a "concept" doc that **must** begin with a YAML frontmatter block with a non-empty `type` (plus `title`/`description`/`resource`/`tags`/`generator`). The tree:
 
-- `docs/index.md` — bundle index → `authoring.md`, `formats.md`, `concepts/`, `css/`, `bricks/`.
+- `docs/index.md` — bundle index → `authoring.md`, `config.md`, `formats.md`, `concepts/`, `css/`, `bricks/`.
 - `docs/authoring.md` — concept: every `design-system.json` field, **rendered by walking the published JSON Schema's `description` metadata** (authored once in `packages/generator/src/schema.ts` via the `desc()` helper — the same descriptions editors show as hovers), so it cannot drift from validation.
+- `docs/config.md` — concept: every field of the three-section config (`designSystem` /
+  `organization` / `site`), walked from `config.schema.json` by the **same** `schemaSections()`
+  helper `authoring.md` uses — one walker, two schemas, so the two references cannot drift in
+  presentation. Its `designSystem` section lists only the wrapper (`themes`/`defaultTheme`/
+  `defaultColorScheme`) and links to `authoring.md` for the token fields, rather than shipping a
+  second copy of the whole design-system schema.
 - `docs/formats.md` — concept: tailwind vs css vs bricks output differences, including the interpolated `TW_CLASH` list (from `packages/generator/src/shared.ts`) of framework utilities the tailwind format strips in favour of Tailwind's own.
-- `docs/concepts/{index.md,color.md,scales.md,patterns.md}` — concept docs for the colour system (seeded OKLCH scales on a shared lightness ladder, target-prefixed tokens, automatic dark flip), the fluid modular scales, and the pattern CSS chain (token cascade, `BASE_HOOK` override vars, state shortcuts, role variants).
+- `docs/concepts/{index.md,color.md,scales.md,patterns.md,icons.md}` — concept docs for the colour system (seeded OKLCH scales on a shared lightness ladder, target-prefixed tokens, automatic dark flip), the fluid modular scales, and the pattern CSS chain (token cascade, `BASE_HOOK` override vars, state shortcuts, role variants).
 - `docs/css/index.md` — listing → `classes.md`.
 - `docs/css/classes.md` — concept: the CSS framework class vocabulary **summarized by naming rule** (not enumerated), pulled live from `src/design-system.json` (colours, type roles, space/type scales, shadows, animation effects, component patterns) plus static structural utilities and the responsive/state variant grammar.
 - `docs/bricks/index.md` — listing + the "prefer framework CSS classes over hand-tuning Bricks UI properties" guidance; links `elements.md` + `../css/classes.md`.
@@ -670,7 +689,7 @@ drift from what the stylesheet formats build.
 
 It is published to GitHub Pages at <https://docs.vitops.ca> by `.github/workflows/docs.yml` — a static build uploaded as a Pages artifact, so `apps/docs/dist/` stays gitignored. The custom domain is load-bearing: served from the apex, the site needs no Astro `base`, and the absolute paths `@getvitops/astro` emits (`/vitops/icons.svg`, `/vitops/design-manifest.json`) resolve as-is. A project-pages URL would require making the integration base-aware first. The domain lives in `apps/docs/public/CNAME`, which Astro copies to `dist/CNAME` verbatim.
 
-**It is deliberately a plain Astro site, not a docs framework.** Starlight was tried and removed: a themed docs framework ships its own CSS layer and component library, which hides the very thing under test. The whole site — layout, nav, type, colour, controls — is built from the framework's own vocabulary (`.rhythm`, `.centered`, `.split-*`, `.font-<role>`, `.link`, `.card`, `.details`, `.btn`) via the `getvitops()` integration at `css.format: 'css'`, plus the `color-scheme-toggle` web component. **If you find yourself adding hand-written CSS to `src/layouts/Docs.astro`, that's a signal the framework is missing a pattern — add it to `@getvitops/core` instead.** The `<style>` block there is meant to stay short; it's the site's honest scorecard. (Root `index.html` also exercises the css format, but as a static page — `apps/docs` is the only thing covering that format _through the Astro integration_.)
+**It is deliberately a plain Astro site, not a docs framework.** Starlight was tried and removed: a themed docs framework ships its own CSS layer and component library, which hides the very thing under test. The whole site — layout, nav, type, colour, controls — is built from the framework's own vocabulary (`.rhythm`, `.centered`, `.split-*`, `.font-<role>`, `.link`, `.card`, `.details`, `.btn`) via the `vitops()` integration at `css.format: 'css'`, plus the `color-scheme-toggle` web component. **If you find yourself adding hand-written CSS to `src/layouts/Docs.astro`, that's a signal the framework is missing a pattern — add it to `@getvitops/core` instead.** The `<style>` block there is meant to stay short; it's the site's honest scorecard. (Root `index.html` also exercises the css format, but as a static page — `apps/docs` is the only thing covering that format _through the Astro integration_.)
 
 Its _Reference_ section is not written by hand: `apps/docs/scripts/sync-reference.mjs` calls the generator's `generateDocs()` and emits pages into `src/content/docs/reference/` (gitignored), so the site can't describe output the toolchain doesn't produce. The script flattens the OKF tree (`concepts/patterns.md` → `concepts-patterns`), drops the frontmatter-less `index.md` listings (the site builds nav from the collection), rewrites the bundle's relative `.md` cross-links to site slugs, and sets `generated: true` so the layout renders a "don't edit this" banner. Guides, package pages and the landing page **are** hand-written. Tasks: `docs:sync` (dependsOn `build:generator`), `docs:dev`, `docs:build`, `docs:preview`.
 

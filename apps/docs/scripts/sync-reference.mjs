@@ -30,10 +30,12 @@ const require = createRequire(import.meta.url);
 /** Sidebar order + the human-facing title for each generated topic. */
 const PAGES = [
   ['authoring.md', 'design-system.json reference', 10],
+  ['config.md', 'Config reference', 15],
   ['formats.md', 'Output formats', 20],
   ['concepts/color.md', 'Colour system', 30],
   ['concepts/scales.md', 'Type & space scales', 40],
   ['concepts/patterns.md', 'Component patterns', 50],
+  ['concepts/icons.md', 'Icons', 55],
   ['css/classes.md', 'CSS class vocabulary', 60],
   ['bricks/elements.md', 'Bricks elements', 70],
 ];

@@ -67,13 +67,13 @@ if (icons.engine === 'inline' && qualified) {
   svg = await loadIconSvg(qualified, { resolveFrom: icons.root });
   if (!svg)
     console.warn(
-      `[getvitops] <Icon name="${name}"> — "${qualified}" not found. Is ` +
+      `[vitops] <Icon name="${name}"> — "${qualified}" not found. Is ` +
         `@iconify-json/${qualified.slice(0, qualified.indexOf(':'))} installed?`,
     );
 } else if (icons.engine === 'none') {
   console.warn(
-    `[getvitops] <Icon name="${name}"> rendered but icons are not configured. ` +
-      'Add `icons: true` to getvitops() in astro.config.',
+    `[vitops] <Icon name="${name}"> rendered but icons are not configured. ` +
+      'Add `icons: true` to vitops() in astro.config.',
   );
 }
 

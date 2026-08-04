@@ -9,7 +9,7 @@ src/css/generated/
 packages/*/dist/
 packages/generator/assets/
 packages/generator/schema.json
-packages/generator/site.schema.json
+packages/generator/config.schema.json
 
 # apps/*
 apps/*/.dev.vars

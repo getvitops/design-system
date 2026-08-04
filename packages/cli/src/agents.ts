@@ -31,6 +31,11 @@ export const TOPICS: Record<string, { path: string; summary: string }> = {
     path: 'authoring.md',
     summary: 'every design-system.json field, rendered from the JSON Schema',
   },
+  config: {
+    path: 'config.md',
+    summary:
+      'every field of the three-section config (designSystem / organization / site), rendered from the JSON Schema',
+  },
   formats: {
     path: 'formats.md',
     summary: "tailwind vs css vs bricks: what's emitted vs what the platform provides",

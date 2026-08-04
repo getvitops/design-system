@@ -2,7 +2,7 @@
  * The media module's own option surface.
  *
  * Everything here describes *how to encode*, never *what the site is* — which is
- * why there is no `SiteConfig` block behind it. `legal`, `icons` and `indexing`
+ * why there is no `Config` block behind it. `legal`, `icons` and `indexing`
  * are anchored to a site config because what they emit describes the site; an
  * encoder setting describes a build step.
  */

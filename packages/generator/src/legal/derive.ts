@@ -10,13 +10,13 @@
  * Everything it returns is derived from config the site already has to hold to
  * function — which analytics ID is set, which forms exist, where it deploys —
  * plus the facts a consumer declares in `legal.privacyPolicy`. There is no
- * source of truth here beyond `SiteConfig`.
+ * source of truth here beyond `Config`.
  *
  * Pure: no I/O, no clock. `lastUpdated` comes from the config rather than
  * `Date.now()` so a rebuild produces a byte-identical document.
  */
 import { t } from '@getvitops/utils';
-import { resolvePrivacyContact, type ContactObject, type SiteConfig } from '../site.ts';
+import { resolvePrivacyContact, type ContactObject, type Config } from '../config.ts';
 import { resolveProcessors, type Processor } from './providers.ts';
 
 /**
@@ -177,7 +177,7 @@ function expandProvince(region: string | undefined): string | undefined {
 }
 
 /** Every field across every `form` template, honeypots excluded. */
-function formFields(site: SiteConfig): { name: string; type: string }[] {
+function formFields(site: Config['site']): { name: string; type: string }[] {
   const out: { name: string; type: string }[] = [];
   for (const tpl of Object.values(site.templates ?? {})) {
     if (tpl.type !== 'form') continue;
@@ -188,12 +188,16 @@ function formFields(site: SiteConfig): { name: string; type: string }[] {
 
 // ── Derivation ──────────────────────────────────────────────────────────────────
 
-export function derivePolicyVars(site: SiteConfig): PolicyVars {
+export function derivePolicyVars(cfg: Config): PolicyVars {
+  // The two sections this reads from. Everything the policy asserts about the
+  // *company* comes from `organization`; everything it asserts about what the
+  // *site* does (forms, analytics, cookies, A/B) comes from `site`.
+  const site = cfg.site;
+  const org = cfg.organization;
   const locale = site.defaultLocale;
-  const org = site.organization;
   const legal = site.legal;
   const privacy = legal?.privacyPolicy;
-  const processors = resolveProcessors(site);
+  const processors = resolveProcessors(cfg);
   const fields = formFields(site);
   const hasForms = fields.length > 0;
   // Any configured provider counts, whether its config is an ID string
@@ -204,7 +208,7 @@ export function derivePolicyVars(site: SiteConfig): PolicyVars {
   );
   const cookieProcessors = processors.filter((p) => p.cookies?.length);
   const consent = legal?.cookieConsent;
-  const contact = resolvePrivacyContact(site);
+  const contact = resolvePrivacyContact(cfg);
 
   const businessName =
     org?.legalName ?? (org?.name != null ? t(org.name, locale, locale) : undefined) ?? 'we';
@@ -212,7 +216,7 @@ export function derivePolicyVars(site: SiteConfig): PolicyVars {
   const collectionReasons = uniq([
     'contact us through e-mail, telephone, mail or other correspondence',
     hasForms ? 'submit one of the forms on our Site' : undefined,
-    site.services && Object.keys(site.services).length > 0
+    org?.services && Object.keys(org.services).length > 0
       ? 'register for a service we provide'
       : undefined,
     fields.some((f) => /newsletter|subscribe|mailing/i.test(f.name))

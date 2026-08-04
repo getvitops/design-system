@@ -29,9 +29,9 @@ import {
   generateDocs,
   generateLegal,
   enabledDocs,
-  isSiteConfig,
+  isConfig,
   resolveInput,
-  resolveSiteConfig,
+  resolveConfig,
   resolveTheme,
   roleColorUtilities,
   functionalRole,
@@ -45,7 +45,7 @@ import {
   type LegalDoc,
   type LegalOutput,
   type ResolvedInput,
-  type SiteConfig,
+  type Config,
 } from '@getvitops/generator';
 import {
   collectIconRefs,
@@ -336,17 +336,17 @@ function cmdValidate(argv: string[]) {
     fail(`could not parse JSON: ${(err as Error).message}`);
   }
 
-  if (isSiteConfig(raw)) {
-    let site: SiteConfig;
+  if (isConfig(raw)) {
+    let site: Config;
     try {
-      site = resolveSiteConfig(raw, values['site-env'] as string | undefined);
+      site = resolveConfig(raw, values['site-env'] as string | undefined);
     } catch (err) {
       // Already formatted as one issue per line, with field paths.
       console.error(`✖ ${path} is invalid as a site config:`);
       console.error((err as Error).message.replace(/^Invalid site config:\n/, ''));
       process.exit(1);
     }
-    // Each theme is validated in turn: `validateSite` checks the `extends` chain
+    // Each theme is validated in turn: `validateConfig` checks the `extends` chain
     // resolves, not that what it resolves to is a complete design system, so a
     // theme could pass there and still fail to build.
     const themes = (site.designSystem?.themes ?? {}) as Parameters<typeof resolveTheme>[0];
@@ -414,7 +414,7 @@ const OUTPUT_KINDS = new Set<OutputKind>(['webm', 'mp4', 'poster']);
  * Flags only, with no config file, following `favicon`: `site.favicon` exists in
  * the schema and `cmdFavicon` still doesn't read it. The same reasoning applies
  * more strongly here — `legal`, `icons` and `indexing` are anchored to a
- * `SiteConfig` because what they emit *describes the site*, and an encoder setting
+ * `Config` because what they emit *describes the site*, and an encoder setting
  * describes a build step.
  */
 async function cmdMedia(argv: string[]) {
@@ -500,7 +500,7 @@ async function cmdMedia(argv: string[]) {
  * `company.json` doesn't have to maintain a second file for the tooling's sake.
  * `resolveInput` tells them apart by shape and resolves the theme.
  */
-function loadConfig(path: string, theme?: string): DesignSystem {
+function loadDesignSystem(path: string, theme?: string): DesignSystem {
   if (!existsSync(path)) fail(`config not found: ${path}`);
   let raw: unknown;
   try {
@@ -512,7 +512,7 @@ function loadConfig(path: string, theme?: string): DesignSystem {
   try {
     resolved = resolveInput(raw, theme != null ? { theme } : {});
   } catch (err) {
-    // resolveSiteConfig formats one issue per line; a bad --theme is one line.
+    // resolveConfig formats one issue per line; a bad --theme is one line.
     fail(`${path}: ${(err as Error).message}`);
   }
   const result = validate(resolved.designSystem);
@@ -535,11 +535,11 @@ function loadConfig(path: string, theme?: string): DesignSystem {
  * Read + resolve a site config, or exit with a message.
  *
  * Accepts JSON, or a JS/TS module with a default export — deliberately not YAML,
- * which would mean a parser dependency for one command. `resolveSiteConfig` is
+ * which would mean a parser dependency for one command. `resolveConfig` is
  * documented as taking an already-parsed object precisely so the loader is the
  * consumer's choice; anyone on YAML can convert it or export from a module.
  */
-async function loadSiteConfig(path: string, siteEnv: string): Promise<SiteConfig> {
+async function loadConfig(path: string, siteEnv: string): Promise<Config> {
   if (!existsSync(path)) fail(`site config not found: ${path}`);
   let raw: unknown;
   if (/\.(json)$/.test(path)) {
@@ -557,9 +557,9 @@ async function loadSiteConfig(path: string, siteEnv: string): Promise<SiteConfig
     if (raw == null) fail(`${path} has no default export`);
   }
   try {
-    return resolveSiteConfig(raw, siteEnv);
+    return resolveConfig(raw, siteEnv);
   } catch (err) {
-    // resolveSiteConfig already formats one issue per line.
+    // resolveConfig already formats one issue per line.
     fail((err as Error).message);
   }
 }
@@ -577,7 +577,7 @@ async function loadSiteConfig(path: string, siteEnv: string): Promise<SiteConfig
  * sprite from it.
  *
  * A sibling of `legal` rather than a widening of `lint`: `lint` judges classes
- * against a design-system.json, whereas icons are anchored to a SiteConfig.
+ * against a design-system.json, whereas icons are anchored to a Config.
  *
  * Exit codes carry the same distinction the Astro integration makes. A name the
  * config DECLARES but that doesn't resolve is a config error and fails the
@@ -602,7 +602,7 @@ async function cmdIcons(argv: string[]) {
 
   const sitePath = resolve(values.site as string);
   const icons = existsSync(sitePath)
-    ? (((await loadSiteConfig(sitePath, values['site-env'] as string)).icons ?? {}) as Record<
+    ? (((await loadConfig(sitePath, values['site-env'] as string)).site.icons ?? {}) as Record<
         string,
         unknown
       >)
@@ -717,11 +717,11 @@ async function cmdLegal(argv: string[]) {
     if (!LEGAL_DOCS.has(d as LegalDoc))
       fail(`unknown doc "${d}" (expected: ${[...LEGAL_DOCS].join(' | ')})`);
 
-  const site = await loadSiteConfig(resolve(values.input as string), values['site-env'] as string);
+  const site = await loadConfig(resolve(values.input as string), values['site-env'] as string);
   const docs = requested.length ? (requested as LegalDoc[]) : enabledDocs(site);
   if (docs.length === 0)
     fail(
-      'no legal documents are enabled — set legal.privacyPolicy.enabled (or termsOfService / cookieConsent) in your site config, or name one with --doc',
+      'no legal documents are enabled — set site.legal.privacyPolicy.enabled (or termsOfService / cookieConsent) in your config, or name one with --doc',
     );
 
   const files = generateLegal(site, { docs, output });
@@ -740,14 +740,15 @@ async function cmdLegal(argv: string[]) {
 }
 
 /**
- * Adapt a `SiteConfig` to the indexing module's own option shape.
+ * Adapt a `Config` to the indexing module's own option shape.
  *
  * A flat field map, as intended: `@getvitops/utils` cannot import from the
  * generator (the generator already depends on it), so `IndexingConfig` mirrors the
  * `seo.indexing` block rather than being it. The one piece of judgment here is the
  * origin — see below.
  */
-function toIndexingConfig(site: SiteConfig, siteEnv: string): IndexingConfig {
+function toIndexingConfig(cfg: Config, siteEnv: string): IndexingConfig {
+  const site = cfg.site;
   const indexing = site.seo?.indexing ?? {};
   const env = site.environments?.[siteEnv];
   /*
@@ -847,12 +848,12 @@ async function cmdIndexing(argv: string[]) {
     return;
   }
 
-  const site = await loadSiteConfig(resolve(values.input as string), values['site-env'] as string);
+  const site = await loadConfig(resolve(values.input as string), values['site-env'] as string);
   const config = toIndexingConfig(site, values['site-env'] as string);
 
   if (values['write-key'] !== undefined) {
     const key = config.indexNow?.key;
-    if (!key) fail('no seo.indexing.indexNow.key in the config — generate one with --new-key');
+    if (!key) fail('no site.seo.indexing.indexNow.key in the config — generate one with --new-key');
     const dir = resolve(values['write-key']);
     mkdirSync(dir, { recursive: true });
     const file = join(dir, `${key}.txt`);
@@ -1046,7 +1047,7 @@ function cmdDocs(argv: string[]) {
     return;
   }
   if (topic && !TOPICS[topic]) fail(`unknown topic "${topic}". Valid topics:\n${topicList()}`);
-  const ds = loadConfig(resolve(values.input as string), values.theme as string | undefined);
+  const ds = loadDesignSystem(resolve(values.input as string), values.theme as string | undefined);
   const docs = generateDocs(ds, generatorAssetsDir());
   const paths = values.all
     ? Object.values(TOPICS).map((t) => t.path)
@@ -1071,7 +1072,7 @@ function cmdLint(argv: string[]) {
   const format = values.format as StylesheetFormat;
   if (!LINT_FORMATS.has(format))
     fail(`unknown format "${format}" (expected: bricks | css | tailwind)`);
-  const ds = loadConfig(resolve(values.input as string), values.theme as string | undefined);
+  const ds = loadDesignSystem(resolve(values.input as string), values.theme as string | undefined);
   const srcDir = resolve(values.src as string);
   if (!existsSync(srcDir)) fail(`source directory not found: ${srcDir}`);
 
@@ -1144,7 +1145,7 @@ function cmdAgents(argv: string[]) {
   // invalid one), but don't require it — docs are rendered live by `vitops docs`.
   let ds: DesignSystem | null = null;
   if (existsSync(resolve(inputRel)))
-    ds = loadConfig(resolve(inputRel), values.theme as string | undefined);
+    ds = loadDesignSystem(resolve(inputRel), values.theme as string | undefined);
   else console.warn(`  ⚠ ${inputRel} not found — run \`vitops init\` to scaffold one`);
 
   // Explicit --docs-dir = legacy layout: write the docs bundle as files, no skill.

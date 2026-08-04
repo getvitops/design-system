@@ -1,13 +1,13 @@
 # @getvitops/astro
 
-The Astro integration for the Vitops design system: a `getvitops()` integration, a `<Head />`
+The Astro integration for the Vitops design system: a `vitops()` integration, a `<Head />`
 component, **tier-3 platform wrappers** for the framework's HTML/CSS patterns, and HTML/type
 authoring helpers. See the root [`AGENTS.md`](../../AGENTS.md) for the shared **Component
 architecture** (CSS framework → web components → platform wrappers) and the `@getvitops/*` toolchain.
 
 ## Integration + `<Head />`
 
-`getvitops(opts)` (default export, `src/integration.ts`) wires the design system into an Astro build
+`vitops(opts)` (default export, `src/integration.ts`) wires the design system into an Astro build
 via the `astro:config:setup` hook:
 
 - **favicons + PWA** → generates favicons + `site.webmanifest` into `public/` (`@getvitops/utils`).
@@ -91,7 +91,7 @@ defaults), and it must type against the **existing** `SiteConfig` from `@getvito
 `exports` or it isn't reachable.
 
 **`<Seo />` (`src/components/Seo.astro`) is the one sanctioned piece of that layer**, and it obeys
-those rules rather than bending them: its config arrives as an **argument** — `getvitops({ seo })`
+those rules rather than bending them: its config arrives as an **argument** — `vitops({ seo })`
 bakes the defaults into `virtual:getvitops/head`, the component reads `head.seo` and per-page props
 override it — so nothing imports consumer global state, and no value is frozen at module scope. It
 does **not** import `SiteConfig`; `GetvitopsSeoOptions` (`src/seo.ts`) deliberately mirrors that
@@ -103,7 +103,7 @@ from its `og:title`. It is in both `files` and `exports` — and so is `src/seo.
 component imports.
 
 **`<Analytics />` and `<CookieConsent />` follow the same rules and one more.** Config arrives as an
-argument (`getvitops({ analytics, consent })` → the virtual module), resolution lives in the pure
+argument (`vitops({ analytics, consent })` → the virtual module), resolution lives in the pure
 `resolveAnalytics()` (`src/analytics.ts`, unit-tested), and the components only render. Both are in
 `files` **and** `exports`, and so is `src/analytics.ts`.
 

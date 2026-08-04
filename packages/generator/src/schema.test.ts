@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultConfig } from './index.ts';
 import { jsonSchema, validate } from './schema.ts';
-import { siteJsonSchema } from './site.ts';
+import { configJsonSchema } from './config.ts';
 
 interface Node {
   description?: string;
@@ -46,12 +46,27 @@ describe('design-system JSON Schema descriptions', () => {
   });
 });
 
-describe('site-config JSON Schema descriptions', () => {
-  it('describes every top-level field', () => {
-    const props = (siteJsonSchema as unknown as Node).properties ?? {};
-    expect(Object.keys(props).length).toBeGreaterThan(25);
+describe('config JSON Schema descriptions', () => {
+  /**
+   * The top level is three sections, so a top-level-only check would assert
+   * almost nothing. The fields that need describing live one level down — and
+   * they are the ones `vitops docs config` renders.
+   */
+  it('describes all three sections', () => {
+    const props = (configJsonSchema as unknown as Node).properties ?? {};
+    expect(Object.keys(props).sort()).toEqual(['designSystem', 'organization', 'site']);
     for (const [key, node] of Object.entries(props))
       expect(node.description, `${key} needs a description`).toBeTruthy();
+  });
+
+  it('describes every field of the site and organization sections', () => {
+    const props = (configJsonSchema as unknown as Node).properties ?? {};
+    for (const section of ['site', 'organization'] as const) {
+      const fields = props[section]?.properties ?? {};
+      expect(Object.keys(fields).length, `${section} should have fields`).toBeGreaterThan(4);
+      for (const [key, node] of Object.entries(fields))
+        expect(node.description, `${section}.${key} needs a description`).toBeTruthy();
+    }
   });
 
   /**
@@ -61,7 +76,7 @@ describe('site-config JSON Schema descriptions', () => {
    * `designSystem`, which is exactly when an undescribed field is easiest to ship.
    */
   it('describes every field of the designSystem block', () => {
-    const ds = ((siteJsonSchema as unknown as Node).properties ?? {}).designSystem;
+    const ds = ((configJsonSchema as unknown as Node).properties ?? {}).designSystem;
     expect(ds?.description, 'the designSystem block itself needs a description').toBeTruthy();
     const props = ds?.properties ?? {};
     expect(Object.keys(props)).toEqual(

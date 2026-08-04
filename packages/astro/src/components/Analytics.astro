@@ -1,7 +1,7 @@
 ---
 /**
  * <Analytics /> — the site's analytics tags, off the critical path and behind the
- * consent gate. Place in your layout's <head>; requires the getvitops()
+ * consent gate. Place in your layout's <head>; requires the vitops()
  * integration, which supplies `virtual:getvitops/head`.
  *
  * A dumb renderer over `resolveAnalytics()` (src/analytics.ts) — every decision
@@ -19,7 +19,7 @@
  * the critical-path cost the `idle` strategy exists to avoid.
  */
 import { type AnalyticsStrategy, resolveAnalytics } from '../analytics.ts';
-// @ts-ignore — virtual module provided by the getvitops() integration at build time
+// @ts-ignore — virtual module provided by the vitops() integration at build time
 import head from 'virtual:getvitops/head';
 
 interface Props {

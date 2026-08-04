@@ -18,7 +18,7 @@
  * pipeline. This is not a directory of the web; it's the set of providers the
  * toolchain itself can vouch for.
  */
-import type { SiteConfig } from '../site.ts';
+import type { Config } from '../config.ts';
 
 export interface Processor {
   /** The provider as a reader would recognise it. */
@@ -143,7 +143,8 @@ const HOSTING_PATTERNS: [RegExp, KnownProcessorKey][] = [
  * Returns keys rather than processors so a caller can test the detection
  * independently of the prose attached to it.
  */
-export function detectProcessorKeys(site: SiteConfig): KnownProcessorKey[] {
+export function detectProcessorKeys(cfg: Config): KnownProcessorKey[] {
+  const site = cfg.site;
   const keys: KnownProcessorKey[] = [];
   const analytics = site.analytics;
   if (analytics?.googleAnalyticsId) keys.push('googleAnalytics');
@@ -172,11 +173,11 @@ export function detectProcessorKeys(site: SiteConfig): KnownProcessorKey[] {
  * Consumer entries come last and are never deduplicated against the built-ins —
  * an explicit declaration is a statement of fact we have no grounds to drop.
  */
-export function resolveProcessors(site: SiteConfig): Processor[] {
-  const detected = detectProcessorKeys(site).map((k) =>
-    matomoCountry(KNOWN_PROCESSORS[k] as Processor, site),
+export function resolveProcessors(cfg: Config): Processor[] {
+  const detected = detectProcessorKeys(cfg).map((k) =>
+    matomoCountry(KNOWN_PROCESSORS[k] as Processor, cfg.site),
   );
-  const declared = site.legal?.privacyPolicy?.processors ?? [];
+  const declared = cfg.site.legal?.privacyPolicy?.processors ?? [];
   return [...detected, ...declared];
 }
 
@@ -189,7 +190,7 @@ export function resolveProcessors(site: SiteConfig): Processor[] {
  * can see. Naming a transfer that isn't happening is the same class of error as
  * omitting one that is — the config records facts, and "we don't know" is a fact.
  */
-function matomoCountry(processor: Processor, site: SiteConfig): Processor {
+function matomoCountry(processor: Processor, site: Config['site']): Processor {
   if (processor.name !== 'Matomo') return processor;
   const url = site.analytics?.matomo?.url ?? '';
   return /\.matomo\.cloud/i.test(url) ? { ...processor, country: 'the European Union' } : processor;

@@ -43,38 +43,40 @@ export type { RoleKind } from './tokens.ts';
 export { DesignSystemSchema, jsonSchema, SCHEMA_URL, validate } from './schema.ts';
 export type { DesignSystem, ValidationResult } from './schema.ts';
 export {
-  SiteConfigSchema,
+  ConfigSchema,
   SiteFontSchema,
-  siteJsonSchema,
-  SITE_SCHEMA_URL,
-  validateSite,
-  resolveSiteConfig,
+  configJsonSchema,
+  CONFIG_SCHEMA_URL,
+  validateConfig,
+  resolveConfig,
   resolvePrivacyContact,
   resolveTheme,
   // Every entry point that takes a config goes through these, so a consumer who
-  // keeps their tokens inside the larger site config points the same option at
-  // that file rather than maintaining a second one.
-  isSiteConfig,
+  // keeps their tokens inside the larger three-section config points the same
+  // option at that file rather than maintaining a second one.
+  isConfig,
   resolveInput,
   stripNulls,
   deepMerge,
   JURISDICTIONS,
-} from './site.ts';
+} from './config.ts';
 export type {
   ContactObject,
   Jurisdiction,
   PostalAddress,
   ResolvedInput,
-  SiteConfig,
+  Config,
+  OrganizationConfig,
+  SiteSection,
   SiteFont,
   SiteIndexNow,
   SiteIndexing,
   SiteSearchConsole,
-  SiteValidationResult,
-} from './site.ts';
+  ConfigValidationResult,
+} from './config.ts';
 
 // Legal documents. A sibling of `generateDocs`, not a `generate()` format:
-// `generate()` is keyed to a DesignSystem, and these render from a SiteConfig.
+// `generate()` is keyed to a DesignSystem, and these render from a Config.
 export {
   generateLegal,
   enabledDocs,

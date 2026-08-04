@@ -29,6 +29,7 @@ never stale and always names the project's actual tokens. (If `vitops` isn't on 
 | ----------------------- | ---------------------------------------------------------------------- |
 | `vitops docs classes`   | which class to apply — the full class vocabulary as naming rules       |
 | `vitops docs authoring` | what a `design-system.json` field means / what's valid                 |
+| `vitops docs config`    | the three-section config: `designSystem` / `organization` / `site`     |
 | `vitops docs formats`   | tailwind vs css vs bricks output — incl. which utilities Tailwind owns |
 | `vitops docs color`     | how the colour system works (seeded OKLCH scales, roles, dark mode)    |
 | `vitops docs scales`    | how the fluid type/space scales work                                   |

@@ -136,7 +136,7 @@ export interface ResolvedAnalytics {
 }
 
 export interface ResolveAnalyticsContext {
-  /** Is the consent gate enabled on this site (`getvitops({ consent })`)? */
+  /** Is the consent gate enabled on this site (`vitops({ consent })`)? */
   consent?: boolean;
 }
 

@@ -1,14 +1,29 @@
 /**
- * Company / site-level configuration schema — the umbrella around a
+ * The top-level configuration schema — the umbrella around a
  * `design-system.json`-compliant `designSystem`.
+ *
+ * **Three sections, one document.** A config is `{ designSystem, organization,
+ * site }`:
+ *
+ *  - `designSystem` — the token set (named themes + which theme/appearance).
+ *  - `organization` — the company: who it is, where it is, how to reach it, what
+ *    it sells. Facts that stay true if the site is rebuilt from scratch.
+ *  - `site` — this published site: locales, domains, environments, SEO,
+ *    analytics, legal, icons, deployment. Facts about *a* presentation of the
+ *    organization.
+ *
+ * The split is not cosmetic. The flat predecessor (`SiteConfig`) held the company
+ * and the deployment as peers, so no single noun described it — and the
+ * multi-site case was inexpressible. With three sections, several sites can share
+ * one `organization` and override only `site`.
  *
  * Authored with `zod/mini` (same instance the design-system schema uses), so the
  * two compose: `DesignSystemSchema` is embedded as `designSystem.themes.<theme>` and the
  * whole thing serialises to one JSON Schema via `z.toJSONSchema`. Everything a
- * generator needs derives from here: the `SiteConfig` type (`z.infer`), the
- * published JSON Schema (`siteJsonSchema`), and runtime validation (`validateSite`).
+ * generator needs derives from here: the `Config` type (`z.infer`), the
+ * published JSON Schema (`configJsonSchema`), and runtime validation (`validateConfig`).
  *
- * Pure: no YAML/env/fs. `resolveSiteConfig` takes an already-parsed object; a
+ * Pure: no YAML/env/fs. `resolveConfig` takes an already-parsed object; a
  * thin loader (reading YAML, injecting `SITE_ENV`) lives outside this module.
  */
 import * as z from 'zod/mini';
@@ -193,15 +208,27 @@ const LocationSchema = z.object({
 // ── Organization (schema.org Organization) ──────────────────────────────────────
 
 const OrganizationSchema = z.object({
-  name: z.optional(LocalizableSchema),
-  legalName: z.optional(z.string()),
-  foundingDate: z.optional(IsoDate),
-  logo: z.optional(ImageRefSchema),
-  email: z.optional(z.email()),
-  phone: z.optional(z.string()),
-  address: z.optional(PostalAddressSchema),
-  taxID: z.optional(z.string()),
-  vatID: z.optional(z.string()),
+  name: desc(
+    z.optional(LocalizableSchema),
+    'Trading name, as a reader would recognise it (e.g. "Acme"). Localisable.',
+  ),
+  legalName: desc(
+    z.optional(z.string()),
+    'Registered legal name (e.g. "Acme Widgets Inc."). The generated legal documents prefer this over `name` — a policy is a statement by the legal entity.',
+  ),
+  foundingDate: desc(z.optional(IsoDate), 'Date the organization was founded (YYYY-MM-DD).'),
+  logo: desc(z.optional(ImageRefSchema), 'Organization logo → JSON-LD `logo`.'),
+  email: desc(
+    z.optional(z.email()),
+    'General contact address. Also the last fallback for privacy requests — see `contact`.',
+  ),
+  phone: desc(z.optional(z.string()), 'General contact telephone number.'),
+  address: desc(
+    z.optional(PostalAddressSchema),
+    'Registered/mailing address. Its `addressRegion` and `addressCountry` are what the governing-law clause of the generated terms of service defaults to.',
+  ),
+  taxID: desc(z.optional(z.string()), 'Tax identification number.'),
+  vatID: desc(z.optional(z.string()), 'VAT identification number.'),
   sameAs: desc(z.optional(z.array(z.url())), 'Profile URLs → JSON-LD `sameAs` (mirrors `links`).'),
 });
 
@@ -512,7 +539,7 @@ const IndexingSchema = z.object({
 /**
  * Which template set the generated legal documents are written against. This is
  * a closed enum rather than a free string because an unrecognised value would
- * otherwise silently fall back to the wrong body of law; `validateSite` rejects
+ * otherwise silently fall back to the wrong body of law; `validateConfig` rejects
  * anything without a registered template. Add a member here and a matching entry
  * in `legal/templates/index.ts` — the two are checked against each other.
  */
@@ -541,9 +568,12 @@ const ProcessorSchema = z.object({
   privacyUrl: z.optional(z.url()),
 });
 
-// ── Top-level schema ────────────────────────────────────────────────────────────
+// ── The `site` section ──────────────────────────────────────────────────────────
+// This published site: where it lives, what it says, how it is built. Everything
+// here is a fact about a *presentation* of the organization — swap the site and
+// these change while `organization` does not.
 
-export const SiteConfigSchema = z.object({
+const SiteSectionSchema = z.object({
   defaultLocale: desc(
     z.string(),
     'The locale used when none is specified; must be a `locales` key.',
@@ -551,14 +581,6 @@ export const SiteConfigSchema = z.object({
   locales: desc(
     z.record(z.string(), LocaleSchema),
     'Locales the site is published in, keyed by BCP 47 tag (e.g. "en", "fr").',
-  ),
-  organization: desc(
-    z.optional(OrganizationSchema),
-    'schema.org Organization details for JSON-LD (name, legalName, logo, tax IDs, sameAs profiles).',
-  ),
-  contact: desc(
-    z.optional(ContactConfigSchema),
-    'Primary contact: either a `locations` key (string reference) or an inline name/email/phone/address object.',
   ),
   domains: desc(
     z.optional(
@@ -571,32 +593,6 @@ export const SiteConfigSchema = z.object({
       }),
     ),
     'Canonical domain + redirecting aliases.',
-  ),
-  primaryLocation: desc(
-    z.optional(z.string()),
-    'The main `locations` key (for JSON-LD and defaults).',
-  ),
-  locations: desc(
-    z.optional(z.record(z.string(), LocationSchema)),
-    'Physical locations (schema.org LocalBusiness): address, geo, opening hours, service area.',
-  ),
-  services: desc(
-    z.optional(z.record(z.string(), ServiceSchema)),
-    'Services offered (schema.org Service/Offer): name, description, slug, price offers.',
-  ),
-  links: desc(
-    z.optional(
-      z.object({
-        googleMaps: z.optional(z.url()),
-        instagram: z.optional(z.url()),
-        facebook: z.optional(z.url()),
-        x: z.optional(z.url()),
-        linkedin: z.optional(z.url()),
-        youtube: z.optional(z.url()),
-        github: z.optional(z.url()),
-      }),
-    ),
-    'Public profile URLs (also feed JSON-LD `sameAs` via `organization.sameAs`).',
   ),
   dns: desc(
     z.optional(z.record(z.string(), DnsDomainSchema)),
@@ -628,9 +624,6 @@ export const SiteConfigSchema = z.object({
     ),
     'A/B testing: cookie-based split plus named variants whose `overrides` patch the config per environment.',
   ),
-
-  designSystem: DesignSystemBlock,
-
   fonts: desc(
     z.optional(z.array(SiteFontSchema)),
     'Font LOADING (a serialisable projection of the Astro Fonts API: provider, weights, subsets, preload). Font TOKENS live in `designSystem.themes.<theme>.fonts` and reference the same `cssVariable`.',
@@ -797,7 +790,7 @@ export const SiteConfigSchema = z.object({
       // semantically, but the value shape is "any iconify collection name → a
       // list of icons", which is open-ended by definition. A closed object
       // silently DROPPED unlisted collections (`icons: { ph: [...] }` vanished
-      // in validateSite with no error) while `generateIconInclude`'s parameter
+      // in validateConfig with no error) while `generateIconInclude`'s parameter
       // type advertised `[prefix: string]` — so the config validated, the icons
       // never bundled, and the failure only showed as missing glyphs in prod.
       z.looseObject({
@@ -857,7 +850,65 @@ export const SiteConfigSchema = z.object({
   ),
 });
 
-export type SiteConfig = z.infer<typeof SiteConfigSchema>;
+// ── The `organization` section ──────────────────────────────────────────────────
+// The company itself. `OrganizationSchema` above is the schema.org core; the
+// section adds the things that describe the same entity rather than the site —
+// where it operates, how to reach it, what it sells, where it can be found.
+// Defined here rather than beside `OrganizationSchema` because it references
+// `ServiceSchema`, which is declared further down.
+
+const OrganizationSectionSchema = z.extend(OrganizationSchema, {
+  contact: desc(
+    z.optional(ContactConfigSchema),
+    'Primary contact: either a `locations` key (string reference) or an inline name/email/phone/address object.',
+  ),
+  primaryLocation: desc(
+    z.optional(z.string()),
+    'The main `locations` key (for JSON-LD and defaults).',
+  ),
+  locations: desc(
+    z.optional(z.record(z.string(), LocationSchema)),
+    'Physical locations (schema.org LocalBusiness): address, geo, opening hours, service area.',
+  ),
+  services: desc(
+    z.optional(z.record(z.string(), ServiceSchema)),
+    'Services offered (schema.org Service/Offer): name, description, slug, price offers.',
+  ),
+  links: desc(
+    z.optional(
+      z.object({
+        googleMaps: z.optional(z.url()),
+        instagram: z.optional(z.url()),
+        facebook: z.optional(z.url()),
+        x: z.optional(z.url()),
+        linkedin: z.optional(z.url()),
+        youtube: z.optional(z.url()),
+        github: z.optional(z.url()),
+      }),
+    ),
+    'Public profile URLs (also feed JSON-LD `sameAs` via `organization.sameAs`).',
+  ),
+});
+
+// ── Top-level schema ────────────────────────────────────────────────────────────
+
+export const ConfigSchema = z.object({
+  designSystem: DesignSystemBlock,
+  organization: desc(
+    z.optional(OrganizationSectionSchema),
+    'The company: schema.org Organization details for JSON-LD (name, legalName, logo, tax IDs, sameAs), plus its contact, physical locations, services and public profiles. These stay true across sites — several sites can share one `organization` and differ only in `site`.',
+  ),
+  site: desc(
+    SiteSectionSchema,
+    'This published site: locales, domains, environments, content templates, SEO, analytics, legal documents, icons, favicon and deployment. Facts about a *presentation* of the organization rather than the organization itself.',
+  ),
+});
+
+export type Config = z.infer<typeof ConfigSchema>;
+/** The `organization` section — the company, independent of any one site. */
+export type OrganizationConfig = z.infer<typeof OrganizationSectionSchema>;
+/** The `site` section — one published presentation of the organization. */
+export type SiteSection = z.infer<typeof SiteSectionSchema>;
 /** One `fonts[]` entry — a serialisable projection of an Astro Fonts API family. */
 export type SiteFont = z.infer<typeof SiteFontSchema>;
 /** The `seo.indexing` block — what `vitops notify` reads. */
@@ -869,36 +920,109 @@ export type SiteSearchConsole = z.infer<typeof SearchConsoleSchema>;
 
 // ── JSON Schema + validation ────────────────────────────────────────────────────
 
-export const SITE_SCHEMA_URL = 'https://unpkg.com/@getvitops/generator/site.schema.json';
+export const CONFIG_SCHEMA_URL = 'https://unpkg.com/@getvitops/generator/config.schema.json';
 
 /** The published JSON Schema (draft-2020-12), derived from the zod schema. */
-export const siteJsonSchema = {
-  $id: SITE_SCHEMA_URL,
-  ...z.toJSONSchema(SiteConfigSchema, { target: 'draft-2020-12' }),
+export const configJsonSchema = {
+  $id: CONFIG_SCHEMA_URL,
+  ...z.toJSONSchema(ConfigSchema, { target: 'draft-2020-12' }),
 };
 
-export type SiteValidationResult =
-  | { ok: true; data: SiteConfig; errors: [] }
+export type ConfigValidationResult =
+  | { ok: true; data: Config; errors: [] }
   | { ok: false; data: undefined; errors: z.core.$ZodIssue[] };
 
 type Issue = z.core.$ZodIssue;
 const issue = (path: (string | number)[], message: string): Issue =>
   ({ code: 'custom', path, message }) as Issue;
 
+// ── Migration from the flat `SiteConfig` ────────────────────────────────────────
+
+/**
+ * Where each key of the old flat config now lives.
+ *
+ * This exists so the restructure fails with a sentence a reader can act on. Zod
+ * reports a flat config as a dozen separate `unrecognized_keys` issues plus a
+ * missing required `site` — an accurate description of the document that teaches
+ * nobody where anything went. Checked first, and it short-circuits: once we know
+ * the document is the old shape, every other error is downstream noise.
+ */
+const MOVED_KEYS: Record<string, 'site' | 'organization'> = {
+  defaultLocale: 'site',
+  locales: 'site',
+  domains: 'site',
+  dns: 'site',
+  cloudflare: 'site',
+  environments: 'site',
+  abTesting: 'site',
+  fonts: 'site',
+  tags: 'site',
+  postTypes: 'site',
+  galleries: 'site',
+  testimonials: 'site',
+  templates: 'site',
+  navigation: 'site',
+  seo: 'site',
+  analytics: 'site',
+  notifications: 'site',
+  tracking: 'site',
+  security: 'site',
+  legal: 'site',
+  icons: 'site',
+  favicon: 'site',
+  deployment: 'site',
+  contact: 'organization',
+  primaryLocation: 'organization',
+  locations: 'organization',
+  services: 'organization',
+  links: 'organization',
+};
+
+/**
+ * Detect the pre-3.0 flat shape and name the moves.
+ *
+ * Keyed on a moved key sitting at the ROOT, not on the absence of `site` — a
+ * config that simply forgot `site` should get the ordinary "required" error, and
+ * a partially-migrated one (some keys moved, some not) is exactly the case worth
+ * catching loudly.
+ */
+function migrationIssues(raw: unknown): Issue[] {
+  if (typeof raw !== 'object' || raw == null || Array.isArray(raw)) return [];
+  const found = Object.keys(raw).filter((k) => k in MOVED_KEYS);
+  if (found.length === 0) return [];
+  const moves = found.map((k) => `  ${k} → ${MOVED_KEYS[k]}.${k}`).join('\n');
+  return [
+    issue(
+      [],
+      'this is the pre-3.0 flat site config. The top level is now three sections — ' +
+        '`designSystem`, `organization`, `site` — and these keys moved:\n' +
+        `${moves}\n` +
+        '`designSystem` and the fields already under `organization` stay where they are.',
+    ),
+  ];
+}
+
 /**
  * Validate a raw (already parsed) config: shape via zod, then the cross-field
  * integrity that JSON Schema can't express (referential keys, extends acyclicity).
  * These live only here — the published JSON Schema enforces shape, not integrity.
  */
-export function validateSite(input: unknown): SiteValidationResult {
-  const parsed = z.safeParse(SiteConfigSchema, input);
+export function validateConfig(input: unknown): ConfigValidationResult {
+  const migration = migrationIssues(input);
+  if (migration.length) return { ok: false, data: undefined, errors: migration };
+
+  const parsed = z.safeParse(ConfigSchema, input);
   if (!parsed.success) return { ok: false, data: undefined, errors: parsed.error.issues };
   const cfg = parsed.data;
+  const site = cfg.site;
+  const org = cfg.organization;
   const errors: Issue[] = [];
   const has = (m: Record<string, unknown> | undefined, k: string) => !!m && k in m;
 
-  if (!has(cfg.locales, cfg.defaultLocale))
-    errors.push(issue(['defaultLocale'], `defaultLocale "${cfg.defaultLocale}" is not in locales`));
+  if (!has(site.locales, site.defaultLocale))
+    errors.push(
+      issue(['site', 'defaultLocale'], `defaultLocale "${site.defaultLocale}" is not in locales`),
+    );
 
   const themes = cfg.designSystem?.themes ?? {};
   const defaultTheme = cfg.designSystem?.defaultTheme;
@@ -932,45 +1056,53 @@ export function validateSite(input: unknown): SiteValidationResult {
     }
   }
 
-  if (cfg.primaryLocation != null && !has(cfg.locations, cfg.primaryLocation))
+  if (org?.primaryLocation != null && !has(org.locations, org.primaryLocation))
     errors.push(
-      issue(['primaryLocation'], `primaryLocation "${cfg.primaryLocation}" is not in locations`),
+      issue(
+        ['organization', 'primaryLocation'],
+        `primaryLocation "${org.primaryLocation}" is not in organization.locations`,
+      ),
     );
-  if (typeof cfg.contact === 'string' && !has(cfg.locations, cfg.contact))
-    errors.push(issue(['contact'], `contact "${cfg.contact}" is not a locations key`));
+  if (typeof org?.contact === 'string' && !has(org.locations, org.contact))
+    errors.push(
+      issue(
+        ['organization', 'contact'],
+        `contact "${org.contact}" is not an organization.locations key`,
+      ),
+    );
 
-  for (const [name, v] of Object.entries(cfg.abTesting?.variants ?? {}))
-    if (!has(cfg.environments, v.environment))
+  for (const [name, v] of Object.entries(site.abTesting?.variants ?? {}))
+    if (!has(site.environments, v.environment))
       errors.push(
         issue(
-          ['abTesting', 'variants', name, 'environment'],
-          `environment "${v.environment}" is not in environments`,
+          ['site', 'abTesting', 'variants', name, 'environment'],
+          `environment "${v.environment}" is not in site.environments`,
         ),
       );
-  for (const [i, a] of (cfg.domains?.aliases ?? []).entries())
-    if (a.environment != null && !has(cfg.environments, a.environment))
+  for (const [i, a] of (site.domains?.aliases ?? []).entries())
+    if (a.environment != null && !has(site.environments, a.environment))
       errors.push(
         issue(
-          ['domains', 'aliases', i, 'environment'],
-          `environment "${a.environment}" is not in environments`,
+          ['site', 'domains', 'aliases', i, 'environment'],
+          `environment "${a.environment}" is not in site.environments`,
         ),
       );
 
-  const templates = cfg.templates;
-  const at = cfg.navigation?.activeTemplate;
+  const templates = site.templates;
+  const at = site.navigation?.activeTemplate;
   if (at?.default != null && !has(templates, at.default))
     errors.push(
       issue(
-        ['navigation', 'activeTemplate', 'default'],
-        `template "${at.default}" is not in templates`,
+        ['site', 'navigation', 'activeTemplate', 'default'],
+        `template "${at.default}" is not in site.templates`,
       ),
     );
   for (const [bp, tpl] of Object.entries(at?.breakpoints ?? {}))
     if (!has(templates, tpl))
       errors.push(
         issue(
-          ['navigation', 'activeTemplate', 'breakpoints', bp],
-          `template "${tpl}" is not in templates`,
+          ['site', 'navigation', 'activeTemplate', 'breakpoints', bp],
+          `template "${tpl}" is not in site.templates`,
         ),
       );
 
@@ -978,27 +1110,27 @@ export function validateSite(input: unknown): SiteValidationResult {
   // sentence — so the inputs those sentences interpolate are required here
   // rather than allowed to render as a blank. `jurisdiction` needs no check:
   // the enum rejects an unregistered value at parse time.
-  const privacy = cfg.legal?.privacyPolicy;
-  if (typeof privacy?.privacyOfficer === 'string' && !has(cfg.locations, privacy.privacyOfficer))
+  const privacy = site.legal?.privacyPolicy;
+  if (typeof privacy?.privacyOfficer === 'string' && !has(org?.locations, privacy.privacyOfficer))
     errors.push(
       issue(
-        ['legal', 'privacyPolicy', 'privacyOfficer'],
-        `privacyOfficer "${privacy.privacyOfficer}" is not a locations key`,
+        ['site', 'legal', 'privacyPolicy', 'privacyOfficer'],
+        `privacyOfficer "${privacy.privacyOfficer}" is not an organization.locations key`,
       ),
     );
   if (privacy?.enabled) {
     if (resolvePrivacyContact(cfg) == null)
       errors.push(
         issue(
-          ['legal', 'privacyPolicy'],
-          'privacyPolicy.enabled requires a contact for privacy requests — set legal.privacyPolicy.privacyOfficer, contact, or organization.email/address',
+          ['site', 'legal', 'privacyPolicy'],
+          'privacyPolicy.enabled requires a contact for privacy requests — set site.legal.privacyPolicy.privacyOfficer, organization.contact, or organization.email/address',
         ),
       );
-    if (cfg.domains?.canonical == null)
+    if (site.domains?.canonical == null)
       errors.push(
         issue(
-          ['legal', 'privacyPolicy'],
-          'privacyPolicy.enabled requires domains.canonical — the policy states where information is held',
+          ['site', 'legal', 'privacyPolicy'],
+          'privacyPolicy.enabled requires site.domains.canonical — the policy states where information is held',
         ),
       );
   }
@@ -1007,20 +1139,20 @@ export function validateSite(input: unknown): SiteValidationResult {
   // built from `domains.canonical`, so without it the block is unresolvable —
   // and the failure would otherwise surface at deploy time, as a submission
   // against `undefined/sitemap-index.xml`, rather than here.
-  const indexing = cfg.seo?.indexing;
-  if (indexing != null && cfg.domains?.canonical == null) {
+  const indexing = site.seo?.indexing;
+  if (indexing != null && site.domains?.canonical == null) {
     if (indexing.sitemapUrl == null)
       errors.push(
         issue(
-          ['seo', 'indexing', 'sitemapUrl'],
-          'seo.indexing needs domains.canonical to derive the sitemap URL — set one, or state sitemapUrl explicitly',
+          ['site', 'seo', 'indexing', 'sitemapUrl'],
+          'site.seo.indexing needs site.domains.canonical to derive the sitemap URL — set one, or state sitemapUrl explicitly',
         ),
       );
     if (indexing.indexNow != null && indexing.indexNow.keyLocation == null)
       errors.push(
         issue(
-          ['seo', 'indexing', 'indexNow', 'keyLocation'],
-          'seo.indexing.indexNow needs domains.canonical to derive the key location — set one, or state keyLocation explicitly',
+          ['site', 'seo', 'indexing', 'indexNow', 'keyLocation'],
+          'site.seo.indexing.indexNow needs site.domains.canonical to derive the key location — set one, or state keyLocation explicitly',
         ),
       );
   }
@@ -1031,26 +1163,31 @@ export function validateSite(input: unknown): SiteValidationResult {
 
 /**
  * Resolve who privacy requests go to: the explicit privacy officer, else the
- * site contact, else the primary location, else the organization itself.
+ * organization's contact, else its primary location, else the organization itself.
  *
- * Exported because `validateSite` and the legal-document derivation must agree
+ * Exported because `validateConfig` and the legal-document derivation must agree
  * on it exactly — a config that validates must be one the policy can render, and
  * two copies of this precedence would drift into a policy with a blank address.
+ *
+ * Note every candidate but the first now lives in `organization`, and the first
+ * (`site.legal.privacyPolicy.privacyOfficer`) still dereferences against
+ * `organization.locations` — the officer is a person at the company, named by the
+ * site because a company may publish more than one policy.
  */
-export function resolvePrivacyContact(cfg: SiteConfig): ContactObject | undefined {
+export function resolvePrivacyContact(cfg: Config): ContactObject | undefined {
+  const org = cfg.organization;
   // A location's `name` is Localizable and a contact's is a plain string; the
   // name is not used in the rendered address, so drop it rather than pick a locale.
   const deref = (c: string | ContactObject | undefined): ContactObject | undefined => {
     if (c == null) return undefined;
     if (typeof c !== 'string') return c;
-    const loc = cfg.locations?.[c];
+    const loc = org?.locations?.[c];
     return loc && { email: loc.email, phone: loc.phone, address: loc.address };
   };
-  const org = cfg.organization;
   const candidates = [
-    deref(cfg.legal?.privacyPolicy?.privacyOfficer),
-    deref(cfg.contact),
-    deref(cfg.primaryLocation),
+    deref(cfg.site.legal?.privacyPolicy?.privacyOfficer),
+    deref(org?.contact),
+    deref(org?.primaryLocation),
     org && { email: org.email, phone: org.phone, address: org.address },
   ];
   // A contact with no reachable channel is not a contact — skip to the next.
@@ -1110,7 +1247,7 @@ function normaliseDesignSystem(raw: Record<string, unknown>): void {
 }
 
 /**
- * Resolve a raw (already-parsed) config into a validated `SiteConfig`:
+ * Resolve a raw (already-parsed) config into a validated `Config`:
  *  1. strip YAML nulls,
  *  2. normalise the `designSystem` shorthands to `{ themes: … }`,
  *  3. apply the active A/B variant's `overrides` (by `siteEnv`),
@@ -1123,18 +1260,23 @@ function normaliseDesignSystem(raw: Record<string, unknown>): void {
  * the merge first, an override's key path depended on how the base happened to be
  * written — so the same patch hit a different place in two configs that were
  * otherwise equivalent.
+ *
+ * The A/B lookup reads `site.environments` / `site.abTesting`, and the overrides
+ * still deep-merge at the **root** — a variant patches whichever section it names,
+ * which is what lets one target `designSystem` and another `site.seo`.
  */
-export function resolveSiteConfig(input: unknown, siteEnv = 'production'): SiteConfig {
+export function resolveConfig(input: unknown, siteEnv = 'production'): Config {
   const raw = stripNulls(input) as Record<string, unknown>;
 
   normaliseDesignSystem(raw);
 
-  const envConfig = (raw.environments as Record<string, { variant?: string }> | undefined)?.[
+  const site = raw.site as Record<string, unknown> | undefined;
+  const envConfig = (site?.environments as Record<string, { variant?: string }> | undefined)?.[
     siteEnv
   ];
   if (envConfig?.variant) {
     const overrides = (
-      raw.abTesting as { variants?: Record<string, { overrides?: Record<string, unknown> }> }
+      site?.abTesting as { variants?: Record<string, { overrides?: Record<string, unknown> }> }
     )?.variants?.[envConfig.variant]?.overrides;
     if (overrides) {
       // An override may itself use a shorthand; normalise it to the same shape or
@@ -1144,10 +1286,12 @@ export function resolveSiteConfig(input: unknown, siteEnv = 'production'): SiteC
     }
   }
 
-  const result = validateSite(raw);
+  const result = validateConfig(raw);
   if (!result.ok) {
-    const msg = result.errors.map((e) => `  ${e.path.join('.')}: ${e.message}`).join('\n');
-    throw new Error(`Invalid site config:\n${msg}`);
+    const msg = result.errors
+      .map((e) => `  ${e.path.join('.') || '<root>'}: ${e.message}`)
+      .join('\n');
+    throw new Error(`Invalid config:\n${msg}`);
   }
   return result.data;
 }
@@ -1155,29 +1299,31 @@ export function resolveSiteConfig(input: unknown, siteEnv = 'production'): SiteC
 // ── Accepting either config kind ────────────────────────────────────────────────
 
 /**
- * Is this raw config a `SiteConfig` rather than a bare `design-system.json`?
+ * Is this raw config a full `Config` rather than a bare `design-system.json`?
  *
  * The discriminator is **total**, not a heuristic, and both halves are load-
- * bearing: `SiteConfigSchema` cannot validate without a `designSystem` (a config
- * lacking one fails `validateSite` with `themes must include a "default" entry`),
- * and `DesignSystemSchema` is strict, so a `designSystem` key in a design system
- * is an `unrecognized_keys` error. No document can be read as both, and no
- * document that is neither reaches here without failing validation anyway.
+ * bearing: `ConfigSchema` cannot validate without a `designSystem` (it is a
+ * required key), and `DesignSystemSchema` is strict, so a `designSystem` key in a
+ * design system is an `unrecognized_keys` error. No document can be read as both,
+ * and no document that is neither reaches here without failing validation anyway.
+ *
+ * The restructure did not weaken this: `designSystem` stayed at the root
+ * precisely so the discriminator kept working unchanged.
  *
  * Deliberately shape-based rather than filename-based: consumers name this file
  * whatever suits them (`company.json`, `site.json`, `vitops.config.json`), and a
  * rule keyed to a name would silently stop working the moment someone renamed it.
  */
-export function isSiteConfig(raw: unknown): boolean {
+export function isConfig(raw: unknown): boolean {
   return typeof raw === 'object' && raw != null && !Array.isArray(raw) && 'designSystem' in raw;
 }
 
 /** What a config file turned out to hold. */
 export interface ResolvedInput {
-  /** The design system to build from — a resolved theme, if the input was a `SiteConfig`. */
+  /** The design system to build from — a resolved theme, if the input was a full `Config`. */
   designSystem: DesignSystem;
-  /** The site config, when that is what the input was. */
-  site?: SiteConfig;
+  /** The whole config, when that is what the input was. */
+  config?: Config;
   /** Which `themes` key was selected. Absent for a bare `design-system.json`. */
   theme?: string;
 }
@@ -1186,36 +1332,36 @@ export interface ResolvedInput {
  * Resolve a raw config of either kind into the design system to build from.
  *
  * Every entry point that used to take a `design-system.json` goes through this,
- * so a consumer who keeps their tokens inside the larger site config points the
- * same option at that file instead of maintaining a second one. The site config
+ * so a consumer who keeps their tokens inside the larger config points the
+ * same option at that file instead of maintaining a second one. The config
  * is handed back too, because the parts of generation that depend on site-level
  * facts (`designSystem.defaultColorScheme`, the legal documents, the icon
  * sprite) would otherwise need the same path declared a second time.
  *
  * The returned `designSystem` is **not** validated here — the caller does that,
  * so it can say which file and which theme the errors belong to. Validation of
- * the site config itself has already happened (`resolveSiteConfig` throws).
+ * the config itself has already happened (`resolveConfig` throws).
  */
 export function resolveInput(
   raw: unknown,
   opts: { theme?: string; siteEnv?: string } = {},
 ): ResolvedInput {
-  if (!isSiteConfig(raw)) {
+  if (!isConfig(raw)) {
     if (opts.theme != null)
       throw new Error(
         `theme "${opts.theme}" was requested, but this is a design-system.json — it holds one ` +
-          'design system and no `themes` map. Point at a site config to select a theme.',
+          'design system and no `themes` map. Point at a full config to select a theme.',
       );
     return { designSystem: raw as DesignSystem };
   }
-  const site = resolveSiteConfig(raw, opts.siteEnv);
-  const themes = (site.designSystem?.themes ?? {}) as Record<string, DesignSystemEntryT>;
-  const theme = opts.theme ?? site.designSystem?.defaultTheme ?? 'default';
+  const config = resolveConfig(raw, opts.siteEnv);
+  const themes = (config.designSystem?.themes ?? {}) as Record<string, DesignSystemEntryT>;
+  const theme = opts.theme ?? config.designSystem?.defaultTheme ?? 'default';
   if (!(theme in themes))
     throw new Error(
       `designSystem.themes has no "${theme}" entry (found: ${Object.keys(themes).join(', ') || 'none'})`,
     );
-  return { designSystem: resolveTheme(themes, theme), site, theme };
+  return { designSystem: resolveTheme(themes, theme), config, theme };
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
