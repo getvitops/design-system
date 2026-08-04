@@ -529,6 +529,85 @@
   }
 }
 
+/* ===========================================
+ * Tier 1c: Top layer (popover / dialog open-close)
+ * The `open-<fx>` state variants (generated, like hover-/focus-/active-) already
+ * supply the VALUES. What a top-layer element additionally needs is mechanism,
+ * and that is the same for every effect — so it lives here, once:
+ *
+ *   <div popover class="drawer drawer--start transition open-slide-right">
+ *
+ * Before this existed there was no driver for the top layer, so every overlay
+ * pattern hand-rolled one: drawer.css drove entry with four @keyframes and
+ * `animation:`, which only plays on OPEN (its close was instant), while
+ * sitenav.css used a transition and animated both ways. Same job, two
+ * mechanisms, two behaviours.
+ * =========================================== */
+
+/* Applied to the top layer BY DEFAULT, and at `:where()` zero specificity.
+ *
+ * Not an opt-in class, unlike the other three drivers, for two reasons. It is
+ * free: every endpoint below defaults to identity (opacity 1, translate 0,
+ * scale 1), so a popover that sets no effect vars transitions between two
+ * identical states and looks exactly as it did before. And it preserves the DX
+ * the keyframes had — `.drawer--right` animated without asking the author for a
+ * driver class, and it still does; it just states its start as
+ * `--translate-x-from: 100%` instead of owning a keyframe.
+ *
+ * Zero specificity means any pattern that wants different motion simply
+ * declares it. */
+:where([popover], dialog) {
+  opacity: var(--t-opacity, var(--opacity-from, 1));
+  translate: var(--t-translate-x, var(--translate-x-from, 0))
+    var(--t-translate-y, var(--translate-y-from, 0));
+  scale: var(--t-scale-x, var(--scale-x-from, 1)) var(--t-scale-y, var(--scale-y-from, 1));
+  rotate: var(--t-rotate, var(--rotate-from, 0deg));
+  clip-path: var(--t-clip, var(--clip-from, none));
+
+  /* `display` and `overlay` are discrete, and BOTH must transition or the
+     element is yanked out of the top layer the instant it closes — you get an
+     entry animation and no exit, which is exactly the asymmetry drawer.css had.
+     `allow-discrete` is what keeps it rendered for the duration. */
+  transition-property: opacity, translate, scale, rotate, clip-path, display, overlay;
+  transition-duration: var(--animation-duration);
+  transition-timing-function: var(--custom-ease-out);
+  transition-behavior: allow-discrete;
+}
+
+/* The open flip. Mirrors what the generated `open-<fx>` variants do, so the
+   common case needs no effect class at all; an explicit `open-<fx>` still wins
+   on specificity and can pick a different effect. */
+:where([popover]:popover-open, dialog[open]) {
+  --t-opacity: var(--opacity-to, 1);
+  --t-translate-x: var(--translate-x-to, 0);
+  --t-translate-y: var(--translate-y-to, 0);
+  --t-scale-x: var(--scale-x-to, 1);
+  --t-scale-y: var(--scale-y-to, 1);
+  --t-rotate: var(--rotate-to, 0deg);
+  --t-clip: var(--clip-to, none);
+}
+
+/* The entry half. A closed popover is `display: none`, so it has no
+   before-change style and the open transition would simply not run —
+   @starting-style supplies one.
+ *
+ * It declares the PROPERTIES rather than resetting the `--t-*` custom
+ * properties, which sidesteps a specificity trap: the generated
+ * `.open-<fx>:popover-open` rules are (0,2,0), set `--t-*`, and are imported
+ * after this file, so a custom-property reset here would have to outrank them.
+ * Setting `opacity`/`translate`/… directly at (0,2,0) instead competes only with
+ * the (0,0,0) base rule above, which it beats regardless of what any effect
+ * class does. */
+@starting-style {
+  :is([popover], dialog):is(:popover-open, [open]) {
+    opacity: var(--opacity-from, 1);
+    translate: var(--translate-x-from, 0) var(--translate-y-from, 0);
+    scale: var(--scale-x-from, 1) var(--scale-y-from, 1);
+    rotate: var(--rotate-from, 0deg);
+    clip-path: var(--clip-from, none);
+  }
+}
+
 /* Respect reduced-motion: drop keyframes, transitions, and continuous floats so
    elements settle at their natural resolved state. Plain selectors + !important
    so this reliably overrides the driver/float rules (a legitimate a11y override). */
@@ -541,6 +620,17 @@
     animation: none !important;
   }
   .transition {
+    transition: none !important;
+  }
+  /* The top-layer driver is applied by default rather than by class, so it needs
+     naming here explicitly — `.transition` above does not cover it. `display`
+     and `overlay` must still change, they just must not be animated, and
+     `transition: none` is exactly that. */
+  [popover],
+  dialog {
+    transition: none !important;
+  }
+  :where([popover], dialog)::backdrop {
     transition: none !important;
   }
 }

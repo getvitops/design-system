@@ -14,8 +14,15 @@
   color: var(--scroll-target-inactive-color, currentColor);
 }
 
-/* `.is-current` mirrors `:target-current` for the JS scroll-spy fallback
-   (deferred.ts) on engines without `scroll-target-group` support. */
+/* `.is-current` is a MANUAL hook, mirroring `:target-current` for anything that
+   sets it itself.
+
+   It previously claimed to be "the JS scroll-spy fallback (deferred.ts)". There
+   is no such code — nothing in the repo sets `.is-current`, and deferred.ts has
+   no scroll-spy. Highlighting is therefore `:target-current` only, which today
+   means Chrome; other engines get no highlight until they ship
+   `scroll-target-group`, which is a deliberate choice, not an oversight. Set
+   `.is-current` yourself if you need it sooner. */
 .scroll-target-group a:target-current,
 .scroll-target-group a.is-current {
   color: var(--scroll-target-active-color, var(--color-bg-brand-primary-solid));
@@ -67,12 +74,19 @@
   }
 }
 
+/* Superseded by `.navshell` (patterns/navshell.css), which is this plus a mobile
+   toggle, a parametric breakpoint, an inline-end variant and the ability to
+   nest. Kept because it ships in a published major; prefer `.navshell` for new
+   work. */
 .toc-layout {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 
   @container body (inline-size >= 64rem) {
-    grid-template-columns: 16rem 1fr;
+    /* minmax(0, 1fr), never a bare `1fr`: a `1fr` track's automatic minimum is
+       min-content, so one wide <pre> or long token in the content column blows
+       the grid out and the page scrolls sideways. */
+    grid-template-columns: 16rem minmax(0, 1fr);
     gap: var(--gutter, 2rem);
   }
 }

@@ -1,21 +1,47 @@
 /**
  * Marquee — CSS-only infinite scrolling row/column migrated from old-css-lib.
- * Duplicate the .marquee__content for a seamless loop. Pauses on hover with the
- * --pause-hover modifier; reverses / goes vertical via modifiers.
+ *
+ *   <div class="marquee marquee--pause-hover">
+ *     <div class="marquee__content"><span class="marquee__item">…</span></div>
+ *     <div class="marquee__content" aria-hidden="true">…the same items…</div>
+ *   </div>
+ *
+ * TWO `.marquee__content` blocks, not one. Each is `min-inline-size: 100%` and the
+ * keyframe travels exactly its own width, so the second copy is what occupies the
+ * space the first vacates. With a single copy the track scrolls off and leaves
+ * blank space — which reads as "the marquee isn't working" rather than as a
+ * missing duplicate.
+ *
+ * Spacing is `--marquee-gap`, and it has to be applied in BOTH places: between
+ * items inside a copy, and between the two copies. The keyframe then travels
+ * `100% + gap`, because the seam between copies is one more gap that has to be
+ * consumed for the loop to be seamless — translate by a bare `-100%` and the
+ * items visibly bunch up once per revolution.
  */
 
 .marquee {
   --_marquee-direction: var(--marquee-direction, normal);
 
+  /* `<wc-marquee>` overrides this to `auto`, releasing the 100% floor. */
+  --_marquee-min: 100%;
+
   display: flex;
+  gap: var(--marquee-gap, 1rem);
   overflow: hidden;
   user-select: none;
   mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
 
   .marquee__content {
     display: flex;
+    gap: var(--marquee-gap, 1rem);
     flex-shrink: 0;
-    min-inline-size: 100%;
+    /* 100% pads a short copy out to the track width, which puts the leftover
+       space at the end of every copy and makes the seam gap wider than the item
+       gaps. `<wc-marquee>` sets `--_marquee-min: auto` and clones enough copies to
+       cover the track, so the copy can be its own width and every gap matches.
+       Without the element this stays 100% — the CSS-only loop still works, it
+       just needs the author to duplicate the content. */
+    min-inline-size: var(--_marquee-min, 100%);
     animation: marquee-scroll var(--marquee-duration, 20s) linear infinite;
     animation-direction: var(--_marquee-direction);
   }
@@ -54,7 +80,9 @@
     translate: 0 0;
   }
   to {
-    translate: -100% 0;
+    /* One copy + one gap. `--_marquee-distance` is the measured px value when
+       the element is present; the percentage is the CSS-only equivalent. */
+    translate: calc(-1 * var(--_marquee-distance, calc(100% + var(--marquee-gap, 1rem)))) 0;
   }
 }
 
@@ -63,6 +91,6 @@
     translate: 0 0;
   }
   to {
-    translate: 0 -100%;
+    translate: 0 calc(-1 * var(--_marquee-distance, calc(100% + var(--marquee-gap, 1rem))));
   }
 }

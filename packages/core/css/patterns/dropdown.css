@@ -19,7 +19,19 @@
       opacity 0.2s ease,
       translate 0.2s ease,
       visibility 0.2s allow-discrete;
+    /* `position: absolute`, anchored to the `position: relative` host above.
+       This is the whole reason a hover dropdown ever worked or didn't: a closed
+       popover is NOT in the top layer, but it keeps the UA's
+       `[popover] { position: fixed }`. Resetting only `inset` left it fixed to
+       the VIEWPORT at whatever static position it resolved to — measured 3300px
+       below its own trigger and off-screen, so the panel faithfully faded in
+       somewhere nobody was looking, which reads exactly like "hover does
+       nothing". Anchoring it puts it under the trigger and makes it follow on
+       scroll. */
+    position: absolute;
     inset: auto;
+    inset-block-start: 100%;
+    inset-inline-start: 0;
     margin: 0;
   }
 
@@ -39,7 +51,9 @@
     padding-block-start: var(--dropdown-gap, 0.5rem);
   }
 
+  /* Was `!important`, to beat popover.css's then plain-specificity ::backdrop.
+     That rule is `:where()` (0,0,0) now, so ordinary specificity is enough. */
   > [popover]::backdrop {
-    background: transparent !important;
+    background: transparent;
   }
 }

@@ -46,10 +46,82 @@
 .rhythm > * + * {
   margin-top: calc(var(--rhythm-base) * var(--rhythm-p-p));
 }
-.rhythm > :where(h1, h2, h3, h4, h5, h6) + p {
+/* The heading pairs are defined by what a heading IS, not by a list of what can
+   sit next to one.
+   These used to enumerate the other side (`p`, then `p, pre, blockquote, table,
+   dl, ul, ol`), and an enumeration is a list that is always one element short:
+   first a `<pre>` got paragraph-to-paragraph spacing before a heading, then a
+   `<div class="marquee">` did. Any block is content; only headings are special.
+   So the rules invert — `:not(<heading>) + <heading>` — and nothing has to be
+   added here again.
+
+   `:where()` keeps the whole selector at (0,1,0), the same weight as the generic
+   `* + *` above, so SOURCE ORDER is what makes these win. Keep them below it,
+   and keep the media pairs below these — `figure + h2` matches both, and the
+   media rule is meant to take it.
+
+   A heading is also a TYPE ROLE, not just a tag: this framework's own idiom is
+   `<p class="font-heading">` inside a card, which is a heading in every sense
+   that matters to rhythm.
+
+   Those three are matched with `[class~="…"]`, not `.font-heading`, and the
+   difference is not cosmetic. `LAYER_CONTRACT` asserts that a utility's class
+   name appears first in `vitops.utilities`; writing `.font-display` here — in a
+   partial that lands in `vitops.components` — reads to that guard exactly like a
+   utility defined in the wrong layer, and it fails the build. The attribute form
+   says what is true: this rule REFERENCES the class, it does not define it. */
+.rhythm
+  > :where(
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    [class~='font-display'],
+    [class~='font-title'],
+    [class~='font-heading']
+  )
+  + :not(
+    :where(
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6,
+      [class~='font-display'],
+      [class~='font-title'],
+      [class~='font-heading']
+    )
+  ) {
   margin-top: calc(var(--rhythm-base) * var(--rhythm-h-p));
 }
-.rhythm > p + :where(h1, h2, h3, h4, h5, h6) {
+.rhythm
+  > :not(
+    :where(
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6,
+      [class~='font-display'],
+      [class~='font-title'],
+      [class~='font-heading']
+    )
+  )
+  + :where(
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    [class~='font-display'],
+    [class~='font-title'],
+    [class~='font-heading']
+  ) {
   margin-top: calc(var(--rhythm-base) * var(--rhythm-p-h));
 }
 .rhythm > :where(h1, h2, h3, h4, h5, h6) + :where(h1, h2, h3, h4, h5, h6) {
@@ -81,6 +153,11 @@
   --width-measure: 65ch;
   --width-breakout: 90ch;
   --width-spotlight: 120ch;
+  /* A navigation column beside content (`navshell`). In `rem`, not `ch`, unlike
+     the three above: those are reading measures and scale with the text they
+     hold, while a nav column is chrome sized in the page's own rhythm — it
+     should not get wider because the prose font has a wide `0` glyph. */
+  --width-nav: 16rem;
   --gutter: clamp(1rem, 4cqi, 3rem);
 }
 
@@ -110,6 +187,14 @@ body {
 
 .centered > * {
   grid-column: measure;
+  /* A grid item's automatic minimum size is its MIN-CONTENT size, and every
+     track here is definite (`--_measure` is a min() of two lengths; the rest are
+     minmax(0, …)). So a track child holding something with a large min-content —
+     a wide <pre>, a long unbreakable token — pushes past its track and the whole
+     document scrolls sideways. This caps the container; wrapping or scrolling
+     the CONTENT (see global.css and patterns/code.css) is what stops the visual
+     overflow. */
+  min-inline-size: 0;
 }
 
 /* Vertical rhythm region (usually on the Section) */

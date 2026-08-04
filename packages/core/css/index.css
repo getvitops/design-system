@@ -33,7 +33,12 @@
 @import './patterns/tooltip.css';
 @import './patterns/dropdown.css';
 @import './patterns/split-link.css';
+/* navbar before sitenav: sitenav's wide state composes it. */
+@import './patterns/navbar.css';
 @import './patterns/sitenav.css';
+/* After sitenav (the nav family stays contiguous) and after drawer.css, whose
+   panel surface navshell's desktop block has to undo. */
+@import './patterns/navshell.css';
 @import './patterns/notification.css';
 @import './patterns/lightbox.css';
 @import './patterns/overlay.css';

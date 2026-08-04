@@ -29,16 +29,20 @@ dialog.dialog {
   color: var(--color-text-surface);
   max-block-size: calc(100vh - 2rem);
 
-  &::backdrop {
-    backdrop-filter: blur(4px);
-  }
+  /* The scrim itself is one rule in popover.css; this only says how it should
+     look for a dialog. It also fades in/out from there, so the bespoke
+     `dialog-backdrop-enter` keyframe that used to run here is gone (it only ever
+     animated the entry). */
+  --scrim-filter: blur(4px);
 
-  &[open] {
-    animation: dialog-enter 0.3s ease;
-  }
-  &[open]::backdrop {
-    animation: dialog-backdrop-enter 0.3s ease;
-  }
+  /* The entry, as effect vars rather than a keyframe. Same three endpoints the
+     `dialog-enter` keyframe used, now run by the top-layer driver in
+     animation.css — which means the dialog also animates OUT, which it never did
+     (an `animation:` on `[open]` only ever plays once, on open). */
+  --opacity-from: 0;
+  --scale-x-from: 0.95;
+  --scale-y-from: 0.95;
+  --translate-y-from: -1rem;
 
   .dialog__header {
     display: flex;
@@ -73,27 +77,5 @@ dialog.dialog {
     justify-content: flex-end;
     gap: 0.75rem;
     margin-block-start: 1.5rem;
-  }
-}
-
-@keyframes dialog-enter {
-  from {
-    opacity: 0;
-    scale: 0.95;
-    translate: 0 -1rem;
-  }
-  to {
-    opacity: 1;
-    scale: 1;
-    translate: 0 0;
-  }
-}
-
-@keyframes dialog-backdrop-enter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
   }
 }

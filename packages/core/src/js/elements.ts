@@ -18,3 +18,4 @@ import '../web-components/WCCarousel.js';
 import '../web-components/WCEntries.js';
 import '../web-components/WCColorSchemeToggle.js';
 import '../web-components/WCMultiField.js';
+import '../web-components/WCMarquee.js';

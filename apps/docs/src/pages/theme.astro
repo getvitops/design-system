@@ -25,7 +25,6 @@ const text = manifest.scales.text;
 const space = manifest.scales.space;
 const shadows = Object.keys(manifest.shadows);
 const radii = Object.keys(manifest.patterns.radii);
-const patterns = manifest.patterns.items;
 
 /**
  * Token name for a role + key, mirroring the generator's `tokenVar()`. `on` is
@@ -51,10 +50,6 @@ const tokensFor = (role: { name: string; ramp: string; kind: string }, target: s
   Object.keys(manifest.colors.roleTokens[role.ramp]?.[role.kind]?.light ?? {}).filter(
     (k) => targetOf(k) === target && !k.startsWith('text-on'),
   );
-
-/** Patterns with a plain-class example; the rest are listed as coverage. */
-const SHOWN = new Set(['btn', 'cta', 'link', 'badge', 'tag', 'status', 'card', 'table', 'list']);
-const notShown = patterns.filter((p) => !SHOWN.has(p.name)).map((p) => p.name);
 
 const headings = [
   { depth: 2, slug: 'colour', text: 'Colour' },
@@ -235,92 +230,15 @@ const headings = [
   <p class="font-body text-surface-muted">
     Geometry (padding, radius, border, shadow, size) resolves through each pattern's group, so the
     editor's <em>Pattern groups</em> section moves whole families at once and <em>Components</em>
-    overrides just one.
+    overrides just one. Retune a group here and every pattern in it follows.
   </p>
-
-  <h3 class="font-heading">Buttons — two tiers</h3>
   <p class="font-body text-surface-muted">
-    <code>.cta</code> is persuasion (filled, lifts on hover); <code>btn</code> is bare affordance —
-    a plain <code>&lt;button&gt;</code> gets it with no class at all.
-  </p>
-  <div class="cluster-start tp-cluster">
-    <button>bare button</button>
-    <button class="btn">.btn</button>
-    <a class="cta" href="#patterns">.cta</a>
-    <a class="cta cta-brand-primary" href="#patterns">.cta-brand-primary</a>
-  </div>
-  <div class="cluster-start tp-cluster">
-    {(patterns.find((p) => p.name === 'btn')?.roles ?? []).map((r) => (
-      <button class={`btn btn-${r}`}>btn-{r}</button>
-    ))}
-  </div>
-
-  <h3 class="font-heading">Links</h3>
-  <p class="font-body">
-    A <a href="#patterns">bare anchor</a> is already styled, and <span class="link">.link</span>
-    carries it to any element.
+    The components themselves — buttons, labels, cards, overlays, navigation and the
+    progressively-enhanced elements — live on <a class="link" href="/patterns">Patterns</a>,
+    where each one is interactive. They used to be duplicated here, which meant two galleries
+    to keep in step and neither of them complete.
   </p>
 
-  <h3 class="font-heading">Labels — badge, tag, status</h3>
-  <p class="font-body text-surface-muted">
-    Split by behaviour: <code>badge</code> is static, <code>tag</code> is removable/editable.
-  </p>
-  <div class="cluster-start tp-cluster">
-    <span class="badge">badge</span>
-    {(patterns.find((p) => p.name === 'badge')?.roles ?? []).map((r) => (
-      <span class={`badge badge-${r}`}>{r}</span>
-    ))}
-  </div>
-  <div class="cluster-start tp-cluster">
-    <span class="tag">tag<button class="tag__remove" aria-label="Remove">×</button></span>
-    {(patterns.find((p) => p.name === 'status')?.roles ?? []).map((r) => (
-      <span class={`status status-${r}`}>{r}</span>
-    ))}
-  </div>
-
-  <h3 class="font-heading">Card</h3>
-  <div class="split split-1-2">
-    <div class="card rhythm">
-      <p class="font-eyebrow">Eyebrow</p>
-      <h4 class="font-heading">Card title</h4>
-      <p class="font-body">Body copy inside a card, showing padding, radius, border and shadow.</p>
-      <a class="cta" href="#patterns">Action</a>
-    </div>
-    <div class="card bg-info-muted rhythm">
-      <h4 class="font-heading">Tinted card</h4>
-      <p class="font-body">The same pattern with a role background utility.</p>
-    </div>
-  </div>
-
-  <h3 class="font-heading">Table</h3>
-  <table class="table">
-    <thead><tr><th>Token</th><th>Group</th><th>Roles</th></tr></thead>
-    <tbody>
-      {patterns.slice(0, 5).map((p) => (
-        <tr><td><code>{p.name}</code></td><td>{p.group ?? '—'}</td><td>{p.roles.length || '—'}</td></tr>
-      ))}
-    </tbody>
-  </table>
-
-  <h3 class="font-heading">List &amp; details</h3>
-  <div class="split split-1-2">
-    <ul class="list">
-      <li>First item</li>
-      <li>Second item</li>
-      <li>Third item</li>
-    </ul>
-    <details class="details">
-      <summary class="btn">A disclosure</summary>
-      <p class="font-body">Native <code>&lt;details&gt;</code> — no JavaScript.</p>
-    </details>
-  </div>
-
-  <p class="font-footnote text-surface-x-muted">
-    Also in the theme, shown on their own pages or needing interaction:
-    {notShown.map((n, i) => (<><code>{n}</code>{i < notShown.length - 1 ? ', ' : ''}</>))}.
-  </p>
-
-  <!-- ── Radii & shadows ─────────────────────────────────────────────────── -->
   <h2 id="surfaces" class="font-title">Radii &amp; shadows</h2>
   <div class="cluster-start tp-cluster">
     {radii.map((r) => (

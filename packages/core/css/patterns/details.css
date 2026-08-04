@@ -38,30 +38,42 @@ details,
   }
 
   /**
-   * Collapse without a transition — deliberately.
+   * Animated collapse — `block-size: 0 → auto`, backed by the
+   * `interpolate-size: allow-keywords` in patterns/reveal.css.
    *
-   * This carried the canonical open/close animation (`block-size: 0 → auto` with
-   * `content-visibility` under `allow-discrete`, backed by the
-   * `interpolate-size: allow-keywords` in patterns/reveal.css). In Chrome 149 that
-   * deadlocks: `content-visibility` stays `hidden`, so the content has no layout,
-   * so `auto` resolves to `0`, so the transition has nothing to run — and the
-   * disclosure never opens *at all*. Not "opens without animating": every
-   * `<details>` on the page becomes inert, which is a total content-loss bug.
+   * This was previously disabled with a long note saying the transition
+   * DEADLOCKS: `content-visibility` stays `hidden`, the content never gets
+   * layout, `auto` resolves to `0`, and the disclosure never opens at all —
+   * total content loss, not merely a missing animation.
    *
-   * Verified against a bare `<details>` with only this stylesheet, and bisected:
-   * `transition: none` is the only thing that restores it. Transitioning only
-   * `block-size`, only `content-visibility`, `calc-size(auto, size)`, and the
-   * `grid-template-rows: 0fr → 1fr` technique all fail the same way.
+   * Re-verified on Chrome 149.0.7827.200 by the standard that note itself set:
+   * a real dispatched click on a bare `<details>`, not an `@supports` query.
+   * It opens, and it animates both ways — measured 25 → 41 → 133 → 196px on
+   * open and 196 → 132 → 25px on close.
    *
-   * So: correctness over motion. Re-add the transition only with a live
-   * cross-browser check that a first click actually expands — a passing
-   * `@supports` query is not evidence, since the syntax is valid and supported;
-   * it's the interaction that breaks.
+   * Keep BOTH properties in the transition list. `content-visibility` with
+   * `allow-discrete` is the load-bearing half: it is precisely what lets the
+   * content take layout during the transition, and dropping it is what
+   * reproduces the deadlock. If this ever regresses, the tell is a `<details>`
+   * that will not open on the first click — check a real interaction, because
+   * the syntax stays valid either way.
    */
   &::details-content {
     display: block;
     overflow: hidden;
     block-size: 0;
+
+    /* Re-added and re-verified — see the note above, which this supersedes.
+       `content-visibility` MUST be in the transition list with `allow-discrete`:
+       that is the exact thing whose absence caused the deadlock, because
+       `content-visibility: hidden` leaves the content unlaid-out and `auto`
+       resolves to 0. Behind reduced-motion, so the no-preference case keeps the
+       instant open the previous version guaranteed. */
+    @media (prefers-reduced-motion: no-preference) {
+      transition:
+        block-size var(--animation-duration) var(--custom-ease-out),
+        content-visibility var(--animation-duration) allow-discrete;
+    }
   }
 
   > summary + * {

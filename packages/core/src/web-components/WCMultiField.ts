@@ -30,7 +30,7 @@ export interface WCMultiField {
  * Enables adding, deleting, and clearing multiple field entries.
  * The `protect-defaults` attribute prevents deletion of initial entries.
  *
- * @element multi-field
+ * @element wc-multifield
  * @slot add-label - Custom label for add button
  * @slot clear-label - Custom label for clear button
  * @slot delete-label - Custom label for delete buttons
@@ -57,9 +57,9 @@ export interface WCMultiField {
  *
  * @example
  * ```html
- * <multi-field name="emails" placeholder="Enter email" protect-defaults>
+ * <wc-multifield name="emails" placeholder="Enter email" protect-defaults>
  *   <input type="email" value="default@example.com">
- * </multi-field>
+ * </wc-multifield>
  * ```
  */
 export class WCMultiField extends BaseElement {
@@ -506,12 +506,12 @@ export class WCMultiField extends BaseElement {
   }
 }
 
-if (!customElements.get('multi-field')) {
-  customElements.define('multi-field', WCMultiField);
+if (!customElements.get('wc-multifield')) {
+  customElements.define('wc-multifield', WCMultiField);
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'multi-field': WCMultiField;
+    'wc-multifield': WCMultiField;
   }
 }

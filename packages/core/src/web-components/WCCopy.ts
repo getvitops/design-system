@@ -10,9 +10,9 @@ import { BaseElement } from './BaseElement.js';
  *
  * @example
  * ```html
- * <copy-button value="text to copy">
+ * <wc-copy value="text to copy">
  *   <span>Fallback text</span>
- * </copy-button>
+ * </wc-copy>
  * ```
  */
 
@@ -42,7 +42,7 @@ export class WCCopy extends BaseElement {
           transform 0.1s ease;
       }
 
-      :host(copy-button:defined) .copy__button {
+      :host(wc-copy:defined) .copy__button {
         display: inline-flex;
       }
 
@@ -169,12 +169,12 @@ export class WCCopy extends BaseElement {
   }
 }
 
-if (!customElements.get('copy-button')) {
-  customElements.define('copy-button', WCCopy);
+if (!customElements.get('wc-copy')) {
+  customElements.define('wc-copy', WCCopy);
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'copy-button': WCCopy;
+    'wc-copy': WCCopy;
   }
 }

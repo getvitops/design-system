@@ -35,6 +35,12 @@ export const LAYER_CONTRACT = {
     // `CLASH_KEEP` exists: the tailwind strip matched a rule's leading `.<name>`
     // and deleted `patterns/sticky.css` wholesale.
     'sticky',
+    // A layout pattern whose responsive behaviour lives in container queries
+    // keyed on its OWN classes. Guarded here because the tailwind strip drops any
+    // `@container (min-width:)` block whose selectors are all `.<bp>-` prefixed —
+    // name those wrong and the desktop layout ships in css/bricks only, which is
+    // how a mobile-stuck `sitenav` once went out.
+    'navshell',
   ],
   /** Single-purpose utilities the framework defines itself. */
   utilities: [

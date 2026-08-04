@@ -1,0 +1,123 @@
+---
+/**
+ * NavShell — a navigation aside beside main content at width, collapsing to a
+ * toggle + drawer below it. Markup only: every declaration lives in the
+ * framework's `navshell` pattern (patterns/navshell.css), which is emitted in
+ * all three output formats.
+ *
+ * It nests. A docs page is typically two of these — a site nav wrapping an
+ * on-this-page nav — promoting at different breakpoints:
+ *
+ *   <NavShell id="site-nav" label="Documentation" breakpoint="md">
+ *     <Fragment slot="nav">…</Fragment>
+ *     <main>
+ *       <NavShell id="page-toc" label="On this page" breakpoint="lg" side="end">
+ *         <Fragment slot="nav">…</Fragment>
+ *         …prose…
+ *       </NavShell>
+ *     </main>
+ *   </NavShell>
+ *
+ * Nothing here may reach for a Tailwind utility: Tailwind doesn't scan
+ * node_modules, so a class only it can emit is silently never generated — and
+ * classes in the generator's TW_CLASH list are stripped from the framework's own
+ * tailwind bundle by design. `navshell*` and `drawer*` are in neither list.
+ *
+ * No runtime JS: the toggle is `<button popovertarget>` against a `[popover]`
+ * panel, so it works from the first paint and degrades to a visible panel if the
+ * Popover API is missing.
+ */
+interface Props {
+  /**
+   * The panel's id, and the `popovertarget` the toggle points at.
+   *
+   * Required, never generated. It IS the toggle↔panel contract, and a generated
+   * id would make the one real hazard of nesting — two instances colliding on
+   * the same id, so the outer toggle opens the inner panel — invisible rather
+   * than impossible. Making the author name each instance makes a collision a
+   * thing you can see in the markup.
+   */
+  id: string;
+  /** Accessible name for the `<nav>`, e.g. "Documentation" / "On this page". */
+  label: string;
+  /** Container width at which the aside appears. Default `md` (48rem). */
+  breakpoint?: 'sm' | 'md' | 'lg' | 'xl';
+  /** Which side the aside sits on at width. Default `start`. */
+  side?: 'start' | 'end';
+  /**
+   * Aside column width once promoted, e.g. `'14rem'`. Defaults to the design
+   * system's `--width-nav` token rather than a literal, so a site retunes every
+   * nav column in one place.
+   */
+  size?: string;
+  /** Accessible name for the toggle. Defaults to `Open ${label}`. */
+  toggleLabel?: string;
+  /**
+   * Where the toggle lives. `'inline'` renders a `.navshell__bar` row above the
+   * content; `'external'` renders none, for when a `<NavShellToggle>` elsewhere
+   * (typically the site header) opens this shell instead.
+   *
+   * Two NESTED shells should not both be `'inline'`: their bars are sticky at
+   * the same offset and land on top of each other. Hoist the outer one.
+   */
+  toggle?: 'inline' | 'external';
+  class?: string;
+}
+
+const {
+  id,
+  label,
+  breakpoint = 'md',
+  side = 'start',
+  // Not a literal: the default REFERENCES the design system's token, so an
+  // unsized instance still tracks `--width-nav`. A literal here would shadow it
+  // on every instance and quietly make the token unreachable through this
+  // component, which is the only way most consumers will use the pattern.
+  size = 'var(--width-nav, 16rem)',
+  toggleLabel,
+  toggle = 'inline',
+  class: className,
+} = Astro.props;
+
+// Always emitted, even when the author passes no `size`. `--navshell-size`
+// inherits (it can't be registered as non-inheriting — a registered property's
+// initial-value must be computationally independent, and this one is in rem), so
+// without this an inner instance would silently adopt an outer instance's column
+// width. Writing it on every root severs the inheritance at each boundary.
+const style = `--navshell-size: ${size}`;
+
+// The drawer slides in from the side its aside will occupy, so the motion points
+// at where the panel is going to live.
+const edge = side === 'end' ? 'drawer--right' : 'drawer--left';
+---
+
+<div
+  class:list={['navshell', `navshell--bp-${breakpoint}`, side === 'end' && 'navshell--end', className]}
+  style={style}
+>
+  {toggle === 'inline' && (
+    <div class="navshell__bar">
+      <slot name="toggle">
+        <button class="navshell__toggle" popovertarget={id} aria-label={toggleLabel ?? `Open ${label}`}>
+          <slot name="toggle-label">{label}</slot>
+        </button>
+      </slot>
+    </div>
+  )}
+
+  <div id={id} popover class:list={['navshell__panel', 'drawer', edge]}>
+    <button
+      class="navshell__close"
+      popovertarget={id}
+      popovertargetaction="hide"
+      aria-label={`Close ${label}`}>&times;</button
+    >
+    <nav class="navshell__nav" aria-label={label}>
+      <slot name="nav" />
+    </nav>
+  </div>
+
+  <div class="navshell__main">
+    <slot />
+  </div>
+</div>

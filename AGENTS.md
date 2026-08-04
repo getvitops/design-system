@@ -25,7 +25,7 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      (`createRenderRoot() → this`) so the framework CSS applies to both the fallback and the enhanced
      result.
    - Exemplar: **`WCEntries`** — with no JS it renders semantic `<h3>` + `<dl>` pairs; with JS on a
-     wide container it parses them into a table. (Others: carousel, image-compare, multi-field, …)
+     wide container it parses them into a table. (Others: carousel, image-compare, wc-multifield, …)
    - Shipped as feature-detected, deferred ES-module bundles
      (`@getvitops/core/{polyfills,elements,deferred}`); polyfills load **only** when a native feature
      is missing (see `Polyfills.astro`).

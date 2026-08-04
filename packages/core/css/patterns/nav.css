@@ -1,8 +1,18 @@
 /**
- * Nav — base / navbar / drawer / collapse navigation presentations migrated
- * from old-css-lib. CSS shell: drawer + submenu use the Popover API / <details>
- * with @starting-style transitions (polyfilled). The open/close toggle wiring
- * arrives with the Lit nav component; the CSS degrades to plain links without it.
+ * Nav — LEGACY. Base / drawer / collapse navigation presentations migrated from
+ * old-css-lib, superseded by the three patterns below. Kept because it ships in
+ * a published major; removal is its own breaking change.
+ *
+ * This header used to say "the open/close toggle wiring arrives with the Lit nav
+ * component". No such component was ever written, and none is planned — the
+ * house pattern is native (`popovertarget` + `[popover]`, `<details>`), which
+ * needs no JS at all beyond the Popover polyfill.
+ *
+ * Which one you actually want:
+ *   · `patterns/navbar.css`  — a horizontal row of links, with alignment.
+ *   · `patterns/sitenav.css` — navbar at width ⇄ toggle + drawer below it.
+ *   · `patterns/navshell.css` — a nav ASIDE beside main content, collapsing to a
+ *                               toggle + drawer. Nestable (site nav + on-page nav).
  */
 
 nav:has(> .nav-items) {
@@ -133,48 +143,20 @@ nav:has(> .nav-items) {
   width: 100%;
   background: var(--color-bg-surface);
   color: var(--color-text-surface);
-  opacity: 0;
-  translate: -100%;
-  transition-timing-function: var(--interact-easing, ease);
-  transition:
-    opacity 0.4s,
-    translate 0.4s,
-    overlay 0.4s allow-discrete,
-    display 0.4s allow-discrete;
+
+  /* Entry direction only. The transition, the `@starting-style` and the scrim
+     used to be restated here in full; they now come from the top-layer driver in
+     animation.css and the single `::backdrop` in popover.css. Add an effect
+     class to change the motion (`class="drawer-menu open-fade-in"`).
+
+     Timing moved with them: this was a hand-set 0.4s / 0.7s pair and is now the
+     framework's `--animation-duration` + `--custom-ease-out`, like every other
+     transition in the system. */
+  --translate-x-from: -100%;
 
   &[open],
   &:popover-open {
     display: flex;
-    opacity: 1;
-    translate: 0%;
-  }
-
-  @starting-style {
-    &[open],
-    &:popover-open {
-      opacity: 0;
-      translate: -100%;
-    }
-  }
-
-  &::backdrop {
-    background-color: transparent;
-    transition:
-      display 0.7s allow-discrete,
-      overlay 0.7s allow-discrete,
-      background-color 0.7s;
-  }
-
-  &[open]::backdrop,
-  &:popover-open::backdrop {
-    background-color: rgb(0 0 0 / 25%);
-  }
-
-  @starting-style {
-    &[open]::backdrop,
-    &:popover-open::backdrop {
-      background-color: transparent;
-    }
   }
 }
 
@@ -193,43 +175,9 @@ nav:has(> .nav-items) {
   overflow-y: auto;
 }
 
-/* ── Navbar presentation ──────────────────────────────────────────────────── */
-.navbar {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-
-  nav {
-    flex: 1;
-    flex-direction: row;
-  }
-
-  .nav-items {
-    flex: 1;
-    flex-direction: row;
-    gap: 2.25rem;
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-
-  .nav-actions {
-    flex-direction: row;
-    gap: 2.25rem;
-    border-top: none;
-    padding-top: 0;
-  }
-
-  .nav-header {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-}
-
-.navbar-sticky {
-  position: sticky;
-  top: 0;
-  z-index: var(--z-tier-sticky);
-}
+/* Navbar presentation moved to patterns/navbar.css, where it is a primitive
+   rather than one half of this file's drawer⇄navbar pair. `.navbar-sticky`
+   is aliased there so existing markup keeps working. */
 
 .nav-split {
   margin-block-start: auto;

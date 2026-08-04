@@ -30,6 +30,10 @@
 
 /* ── Container + mobile chrome ─────────────────────────────────────────────── */
 .sitenav {
+  /* Reset first — the flag inherits, so a nested sitenav must resolve against
+     itself rather than an outer instance's promoted state. */
+  --_sitenav-wide: 0;
+
   display: flex;
   align-items: center;
 }
@@ -226,357 +230,132 @@
 .sitenav__item--desktop-branch > .sitenav__submenu {
   display: none;
 }
-
-/* ── Desktop promotion — one block per framework breakpoint ─────────────────
-   Only the min-width threshold + `.sitenav--bp-*` scope differ; the nested ruleset
-   is identical. CSS has no mixins, so the four blocks are intentionally parallel —
-   edit them together. Each: hide the mobile chrome, force the [popover] panel back
-   inline as a navbar, turn the list horizontal, and promote submenus to dropdowns. */
+/* ── Desktop promotion.
+ *
+ * Four thresholds, ONE ruleset. This used to be four ~86-line blocks that had to
+ * be kept in step by hand, and the file said so: "CSS has no mixins, so the four
+ * blocks are intentionally parallel — edit them together."
+ *
+ * They were not in step. `md`, `lg` and `xl` were byte-identical; `sm` had drifted
+ * onto an older markup shape, selecting `.sitenav__disclosure > .sitenav__submenu`
+ * where the submenu is actually the disclosure's SIBLING (see the accordion
+ * comment above, and bricks/elements/sitenav.php). So `.sitenav--bp-sm` shipped a
+ * navbar whose dropdowns could never open, and nothing failed loudly enough to
+ * notice. One shared block makes that class of drift unrepresentable.
+ *
+ * The mechanism is a style query on an inherited flag, the same one
+ * patterns/navshell.css uses. `.sitenav` resets the flag so a nested sitenav
+ * resolves against ITSELF rather than inheriting an outer instance's "I'm wide".
+ *
+ * Note the wide state is a navbar in everything but name — a horizontal row of
+ * links. It does not literally compose `patterns/navbar.css`, because the panel
+ * has to be a COLUMN in its drawer state, and a class can't be conditional; the
+ * flip would have to be undone at mobile, which costs more than the two
+ * declarations it saves. Use `.navbar` directly for a link row that is only ever
+ * a row.
+ * ── */
 @container (min-width: 30rem) {
   .sitenav--bp-sm {
-    & > .sitenav__toggle,
-    & .sitenav__close {
-      display: none;
-    }
-    /* [popover] is UA/polyfill display:none while closed; !important forces the
-       navbar body back inline (the hamburger is gone, so it never re-hides). */
-    & .sitenav__panel {
-      display: flex !important;
-      flex-direction: row;
-      align-items: center;
-      position: static;
-      inset: auto;
-      inline-size: auto;
-      max-inline-size: none;
-      block-size: auto;
-      padding: 0;
-      translate: none;
-      opacity: 1;
-      overflow: visible;
-      background: none;
-      color: inherit;
-      box-shadow: none;
-      z-index: auto;
-    }
-    & .sitenav__panel::backdrop {
-      display: none;
-    }
-    & .sitenav__list {
-      flex-direction: row;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    & .sitenav__item--branch {
-      position: relative;
-      display: flex;
-      align-items: center;
-      grid-template-columns: none;
-      grid-template-rows: none;
-    }
-    & .sitenav__submenu {
-      position: absolute;
-      inset-block-start: 100%;
-      inset-inline-start: 0;
-      min-inline-size: 13rem;
-      padding: 0.5rem;
-      overflow: visible;
-      background: var(--color-bg-surface);
-      color: var(--color-text-surface);
-      border: var(--b-panel);
-      border-radius: var(--br-panel);
-      box-shadow: var(--ds-panel);
-      z-index: var(--z-tier-overlay);
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-      translate: 0 0.25rem;
-      transition:
-        opacity 0.15s ease,
-        translate 0.15s ease,
-        visibility 0.15s allow-discrete;
-    }
-    /* deeper submenus (inside a panel) fly out to the side, not downward */
-    & .sitenav__submenu .sitenav__item--branch > .sitenav__disclosure > .sitenav__submenu {
-      inset-block-start: 0;
-      inset-inline-start: 100%;
-      translate: 0.25rem 0;
-    }
-    & .sitenav__item--branch:hover > .sitenav__disclosure > .sitenav__submenu,
-    & .sitenav__item--branch:focus-within > .sitenav__disclosure > .sitenav__submenu,
-    & .sitenav__item--branch > .sitenav__disclosure[open] > .sitenav__submenu {
-      opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
-      translate: 0 0;
-    }
-    /* depth caps flip at the breakpoint */
-    & .sitenav__item--desktop-branch > .sitenav__disclosure > .sitenav__subtoggle {
-      display: inline-flex;
-    }
-    & .sitenav__item--mobile-branch > .sitenav__disclosure > .sitenav__subtoggle,
-    & .sitenav__item--mobile-branch > .sitenav__disclosure > .sitenav__submenu {
-      display: none;
-    }
+    --_sitenav-wide: 1;
   }
 }
-
 @container (min-width: 48rem) {
   .sitenav--bp-md {
-    & > .sitenav__toggle,
-    & .sitenav__close {
-      display: none;
-    }
-    & .sitenav__panel {
-      display: flex !important;
-      flex-direction: row;
-      align-items: center;
-      position: static;
-      inset: auto;
-      inline-size: auto;
-      max-inline-size: none;
-      block-size: auto;
-      padding: 0;
-      translate: none;
-      opacity: 1;
-      overflow: visible;
-      background: none;
-      color: inherit;
-      box-shadow: none;
-      z-index: auto;
-    }
-    & .sitenav__panel::backdrop {
-      display: none;
-    }
-    & .sitenav__list {
-      flex-direction: row;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    & .sitenav__item--branch {
-      position: relative;
-      display: flex;
-      align-items: center;
-      grid-template-columns: none;
-      grid-template-rows: none;
-    }
-    & .sitenav__submenu {
-      position: absolute;
-      inset-block-start: 100%;
-      inset-inline-start: 0;
-      min-inline-size: 13rem;
-      padding: 0.5rem;
-      overflow: visible;
-      background: var(--color-bg-surface);
-      color: var(--color-text-surface);
-      border: var(--b-panel);
-      border-radius: var(--br-panel);
-      box-shadow: var(--ds-panel);
-      z-index: var(--z-tier-overlay);
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-      translate: 0 0.25rem;
-      transition:
-        opacity 0.15s ease,
-        translate 0.15s ease,
-        visibility 0.15s allow-discrete;
-    }
-    & .sitenav__submenu .sitenav__item--branch > .sitenav__submenu {
-      inset-block-start: 0;
-      inset-inline-start: 100%;
-      translate: 0.25rem 0;
-    }
-    & .sitenav__item--branch:hover > .sitenav__submenu,
-    & .sitenav__item--branch:focus-within > .sitenav__submenu,
-    & .sitenav__item--branch:has(> .sitenav__disclosure[open]) > .sitenav__submenu {
-      opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
-      translate: 0 0;
-    }
-    /* depth caps flip at the breakpoint: desktop-only branches reveal their caret +
-       dropdown; mobile-only branches collapse to a plain link. */
-    & .sitenav__item--desktop-branch > .sitenav__disclosure,
-    & .sitenav__item--desktop-branch > .sitenav__submenu {
-      display: block;
-    }
-    & .sitenav__item--mobile-branch > .sitenav__disclosure,
-    & .sitenav__item--mobile-branch > .sitenav__submenu {
-      display: none;
-    }
+    --_sitenav-wide: 1;
   }
 }
-
 @container (min-width: 64rem) {
   .sitenav--bp-lg {
-    & > .sitenav__toggle,
-    & .sitenav__close {
-      display: none;
-    }
-    & .sitenav__panel {
-      display: flex !important;
-      flex-direction: row;
-      align-items: center;
-      position: static;
-      inset: auto;
-      inline-size: auto;
-      max-inline-size: none;
-      block-size: auto;
-      padding: 0;
-      translate: none;
-      opacity: 1;
-      overflow: visible;
-      background: none;
-      color: inherit;
-      box-shadow: none;
-      z-index: auto;
-    }
-    & .sitenav__panel::backdrop {
-      display: none;
-    }
-    & .sitenav__list {
-      flex-direction: row;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    & .sitenav__item--branch {
-      position: relative;
-      display: flex;
-      align-items: center;
-      grid-template-columns: none;
-      grid-template-rows: none;
-    }
-    & .sitenav__submenu {
-      position: absolute;
-      inset-block-start: 100%;
-      inset-inline-start: 0;
-      min-inline-size: 13rem;
-      padding: 0.5rem;
-      overflow: visible;
-      background: var(--color-bg-surface);
-      color: var(--color-text-surface);
-      border: var(--b-panel);
-      border-radius: var(--br-panel);
-      box-shadow: var(--ds-panel);
-      z-index: var(--z-tier-overlay);
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-      translate: 0 0.25rem;
-      transition:
-        opacity 0.15s ease,
-        translate 0.15s ease,
-        visibility 0.15s allow-discrete;
-    }
-    & .sitenav__submenu .sitenav__item--branch > .sitenav__submenu {
-      inset-block-start: 0;
-      inset-inline-start: 100%;
-      translate: 0.25rem 0;
-    }
-    & .sitenav__item--branch:hover > .sitenav__submenu,
-    & .sitenav__item--branch:focus-within > .sitenav__submenu,
-    & .sitenav__item--branch:has(> .sitenav__disclosure[open]) > .sitenav__submenu {
-      opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
-      translate: 0 0;
-    }
-    /* depth caps flip at the breakpoint: desktop-only branches reveal their caret +
-       dropdown; mobile-only branches collapse to a plain link. */
-    & .sitenav__item--desktop-branch > .sitenav__disclosure,
-    & .sitenav__item--desktop-branch > .sitenav__submenu {
-      display: block;
-    }
-    & .sitenav__item--mobile-branch > .sitenav__disclosure,
-    & .sitenav__item--mobile-branch > .sitenav__submenu {
-      display: none;
-    }
+    --_sitenav-wide: 1;
+  }
+}
+@container (min-width: 80rem) {
+  .sitenav--bp-xl {
+    --_sitenav-wide: 1;
   }
 }
 
-@container (min-width: 80rem) {
-  .sitenav--bp-xl {
-    & > .sitenav__toggle,
-    & .sitenav__close {
-      display: none;
-    }
-    & .sitenav__panel {
-      display: flex !important;
-      flex-direction: row;
-      align-items: center;
-      position: static;
-      inset: auto;
-      inline-size: auto;
-      max-inline-size: none;
-      block-size: auto;
-      padding: 0;
-      translate: none;
-      opacity: 1;
-      overflow: visible;
-      background: none;
-      color: inherit;
-      box-shadow: none;
-      z-index: auto;
-    }
-    & .sitenav__panel::backdrop {
-      display: none;
-    }
-    & .sitenav__list {
-      flex-direction: row;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    & .sitenav__item--branch {
-      position: relative;
-      display: flex;
-      align-items: center;
-      grid-template-columns: none;
-      grid-template-rows: none;
-    }
-    & .sitenav__submenu {
-      position: absolute;
-      inset-block-start: 100%;
-      inset-inline-start: 0;
-      min-inline-size: 13rem;
-      padding: 0.5rem;
-      overflow: visible;
-      background: var(--color-bg-surface);
-      color: var(--color-text-surface);
-      border: var(--b-panel);
-      border-radius: var(--br-panel);
-      box-shadow: var(--ds-panel);
-      z-index: var(--z-tier-overlay);
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-      translate: 0 0.25rem;
-      transition:
-        opacity 0.15s ease,
-        translate 0.15s ease,
-        visibility 0.15s allow-discrete;
-    }
-    & .sitenav__submenu .sitenav__item--branch > .sitenav__submenu {
-      inset-block-start: 0;
-      inset-inline-start: 100%;
-      translate: 0.25rem 0;
-    }
-    & .sitenav__item--branch:hover > .sitenav__submenu,
-    & .sitenav__item--branch:focus-within > .sitenav__submenu,
-    & .sitenav__item--branch:has(> .sitenav__disclosure[open]) > .sitenav__submenu {
-      opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
-      translate: 0 0;
-    }
-    /* depth caps flip at the breakpoint: desktop-only branches reveal their caret +
-       dropdown; mobile-only branches collapse to a plain link. */
-    & .sitenav__item--desktop-branch > .sitenav__disclosure,
-    & .sitenav__item--desktop-branch > .sitenav__submenu {
-      display: block;
-    }
-    & .sitenav__item--mobile-branch > .sitenav__disclosure,
-    & .sitenav__item--mobile-branch > .sitenav__submenu {
-      display: none;
-    }
+@container style(--_sitenav-wide: 1) {
+  .sitenav > .sitenav__toggle,
+  .sitenav__close {
+    display: none;
+  }
+  .sitenav__panel {
+    display: flex !important;
+    flex-direction: row;
+    align-items: center;
+    position: static;
+    inset: auto;
+    inline-size: auto;
+    max-inline-size: none;
+    block-size: auto;
+    padding: 0;
+    translate: none;
+    opacity: 1;
+    overflow: visible;
+    background: none;
+    color: inherit;
+    box-shadow: none;
+    z-index: auto;
+  }
+  .sitenav__panel::backdrop {
+    display: none;
+  }
+  .sitenav__list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .sitenav__item--branch {
+    position: relative;
+    display: flex;
+    align-items: center;
+    grid-template-columns: none;
+    grid-template-rows: none;
+  }
+  .sitenav__submenu {
+    position: absolute;
+    inset-block-start: 100%;
+    inset-inline-start: 0;
+    min-inline-size: 13rem;
+    padding: 0.5rem;
+    overflow: visible;
+    background: var(--color-bg-surface);
+    color: var(--color-text-surface);
+    border: var(--b-panel);
+    border-radius: var(--br-panel);
+    box-shadow: var(--ds-panel);
+    z-index: var(--z-tier-overlay);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    translate: 0 0.25rem;
+    transition:
+      opacity 0.15s ease,
+      translate 0.15s ease,
+      visibility 0.15s allow-discrete;
+  }
+  .sitenav__submenu .sitenav__item--branch > .sitenav__submenu {
+    inset-block-start: 0;
+    inset-inline-start: 100%;
+    translate: 0.25rem 0;
+  }
+  .sitenav__item--branch:hover > .sitenav__submenu,
+  .sitenav__item--branch:focus-within > .sitenav__submenu,
+  .sitenav__item--branch:has(> .sitenav__disclosure[open]) > .sitenav__submenu {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    translate: 0 0;
+  }
+  /* depth caps flip at the breakpoint: desktop-only branches reveal their caret +
+     dropdown; mobile-only branches collapse to a plain link. */
+  .sitenav__item--desktop-branch > .sitenav__disclosure,
+  .sitenav__item--desktop-branch > .sitenav__submenu {
+    display: block;
+  }
+  .sitenav__item--mobile-branch > .sitenav__disclosure,
+  .sitenav__item--mobile-branch > .sitenav__submenu {
+    display: none;
   }
 }

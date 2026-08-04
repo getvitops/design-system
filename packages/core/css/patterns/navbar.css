@@ -1,0 +1,86 @@
+/**
+ * Navbar — a horizontal row of links, with alignment.
+ *
+ *   <nav class="navbar navbar--end">
+ *     <a class="link" href="/guides">Guides</a>
+ *     <a class="link" href="/reference">Reference</a>
+ *   </nav>
+ *
+ * Extracted from patterns/nav.css, where `.navbar` already lived but only as the
+ * horizontal half of that file's drawer⇄navbar pair — it could not be used on
+ * its own, and it had no way to say where the links should sit. It is a
+ * primitive now, so `sitenav` (and anything else that needs a link row at width)
+ * composes it instead of restating `display: flex` and a gap.
+ *
+ * Deliberately NOT a `.cluster`: a cluster wraps and is content-agnostic; a
+ * navbar is a single row of navigation that stays a row, and carries the
+ * alignment vocabulary a nav actually needs.
+ */
+.navbar {
+  display: flex;
+  align-items: center;
+  gap: var(--navbar-gap, 2rem);
+
+  /* Links stay on one line — a navbar that wraps mid-row reads as broken chrome.
+     Above its breakpoint `sitenav` is what decides there is room; below it, the
+     drawer is the answer, not a wrapped bar. */
+  flex-wrap: nowrap;
+}
+
+/* ── Alignment. `--start` is the default and exists so the intent can be stated
+   rather than inferred from its absence. ── */
+.navbar--start {
+  justify-content: flex-start;
+}
+.navbar--center {
+  justify-content: center;
+}
+.navbar--end {
+  justify-content: flex-end;
+}
+
+/**
+ * Push everything after this element to the far edge — the usual "brand on the
+ * left, links on the right" split, without a wrapper element per side.
+ */
+.navbar__spacer {
+  margin-inline-start: auto;
+}
+
+.navbar--sticky,
+/* The pre-extraction spelling. Kept so an existing consumer's markup keeps
+   working; prefer `.navbar--sticky`. */
+.navbar-sticky {
+  position: sticky;
+  inset-block-start: var(--navbar-sticky-offset, 0);
+  z-index: var(--z-tier-sticky);
+}
+
+/* ── Legacy composition: nav.css's `.nav-*` parts inside a navbar. Kept with the
+   pattern they belong to so nav.css can be retired as one piece. ── */
+.navbar {
+  nav {
+    flex: 1;
+    flex-direction: row;
+  }
+
+  .nav-items {
+    flex: 1;
+    flex-direction: row;
+    gap: 2.25rem;
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .nav-actions {
+    flex-direction: row;
+    gap: 2.25rem;
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .nav-header {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}

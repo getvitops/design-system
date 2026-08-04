@@ -21,24 +21,30 @@
   max-block-size: none;
 
   &::backdrop {
-    backdrop-filter: blur(4px);
+    backdrop-filter: var(--scrim-filter, blur(4px));
   }
 
   /**
-   * Modeless — a panel you work *alongside* rather than through. Drops the
-   * scrim so the page behind stays legible, which is the whole point for a
-   * live editor or an inspector: you're watching what your edits do.
+   * Each edge states WHERE IT STARTS in the animation system's own vocabulary
+   * (`--translate-<axis>-from`) instead of owning a keyframe. Add `.transition`
+   * and the top-layer driver in animation.css animates it — both ways.
    *
-   * Pair with `popover="manual"`. An `auto` popover light-dismisses on the
-   * first click outside — i.e. exactly the interaction a modeless panel exists
-   * to allow — and `manual` also drops Esc, so give it an explicit close
-   * control (and wire Esc yourself if the panel warrants it).
+   * This replaced four `@keyframes drawer-slide-in-*` driven by `animation:`,
+   * which only ever played on OPEN: the drawer's close was instant, while
+   * sitenav's transition-based copy of the same idea animated both ways.
+   *
+   * The var is set here rather than asking authors for a `.slide-*` effect
+   * class, because both would trip them up: the effect names read backwards for
+   * an edge panel (a LEFT drawer starts off-screen left and travels right, i.e.
+   * `.slide-right`), and `--slide-distance` defaults to 2rem where a drawer
+   * needs the full 100%. An explicit effect class still overrides this.
+   *
+   * EVERY edge states BOTH axes. The unset axis does not inherit a sensible
+   * zero — it inherits whatever the bare `.drawer` default left there, and the
+   * default is the left edge's `-100%`. Setting only `--translate-y-from` on
+   * `.drawer--bottom` therefore produced `translate: -100% 100%` and the panel
+   * flew in diagonally from the bottom-left corner.
    */
-  &.drawer--modeless::backdrop {
-    background: none;
-    backdrop-filter: none;
-  }
-
   &,
   &.drawer--left {
     inset-block: 0;
@@ -46,11 +52,8 @@
     block-size: 100dvh;
     inline-size: min(100dvi, var(--drawer-max-inline-size, 280px));
     border-radius: 0;
-
-    &[open],
-    &:popover-open {
-      animation: drawer-slide-in-left 0.3s ease;
-    }
+    --translate-x-from: -100%;
+    --translate-y-from: 0;
   }
 
   &.drawer--right {
@@ -58,22 +61,16 @@
     inset-inline-end: 0;
     inset-inline-start: auto;
     inline-size: min(100dvi, var(--drawer-max-inline-size, 280px));
-
-    &[open],
-    &:popover-open {
-      animation: drawer-slide-in-right 0.3s ease;
-    }
+    --translate-x-from: 100%;
+    --translate-y-from: 0;
   }
 
   &.drawer--top {
     inset-block-start: 0;
     inset-inline: 0;
     block-size: min(100dvb, var(--drawer-max-block-size, 100dvb));
-
-    &[open],
-    &:popover-open {
-      animation: drawer-slide-in-top 0.3s ease;
-    }
+    --translate-x-from: 0;
+    --translate-y-from: -100%;
   }
 
   &.drawer--bottom {
@@ -81,43 +78,7 @@
     inset-block-start: auto;
     inset-inline: 0;
     block-size: min(100dvb, var(--drawer-max-block-size, 100dvb));
-
-    &[open],
-    &:popover-open {
-      animation: drawer-slide-in-bottom 0.3s ease;
-    }
-  }
-}
-
-@keyframes drawer-slide-in-left {
-  from {
-    translate: -100% 0;
-  }
-  to {
-    translate: 0 0;
-  }
-}
-@keyframes drawer-slide-in-right {
-  from {
-    translate: 100% 0;
-  }
-  to {
-    translate: 0 0;
-  }
-}
-@keyframes drawer-slide-in-top {
-  from {
-    translate: 0 -100%;
-  }
-  to {
-    translate: 0 0;
-  }
-}
-@keyframes drawer-slide-in-bottom {
-  from {
-    translate: 0 100%;
-  }
-  to {
-    translate: 0 0;
+    --translate-x-from: 0;
+    --translate-y-from: 100%;
   }
 }

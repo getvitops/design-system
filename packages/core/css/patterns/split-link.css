@@ -101,9 +101,9 @@
     }
   }
 
-  &::backdrop {
-    background: transparent;
-  }
+  /* No scrim. Stated through popover.css's token rather than overriding its
+     ::backdrop rule, so it keeps the shared fade timing. */
+  --scrim: transparent;
 }
 
 /* Builder-only: rendered without the `popover` attribute so nested content is

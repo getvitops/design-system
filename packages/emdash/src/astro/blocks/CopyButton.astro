@@ -14,9 +14,9 @@ const { text, label = 'Copy', display = 'code-block' } = value;
 {text && display === 'code-block' && (
   <div class="copy">
     <pre><code>{text}</code></pre>
-    <copy-button value={text} label={label}>{label}</copy-button>
+    <wc-copy value={text} label={label}>{label}</wc-copy>
   </div>
 )}
 {text && display === 'inline' && (
-  <copy-button value={text} label={label}><code>{text}</code></copy-button>
+  <wc-copy value={text} label={label}><code>{text}</code></wc-copy>
 )}

@@ -32,6 +32,16 @@
    around them. */
 body {
   margin: 0;
+
+  /* Long unbreakable strings are the single most common source of horizontal
+     page scroll, and prose is full of them — URLs, file paths, CSS selectors.
+     `break-word` rather than `anywhere` on purpose: it only takes effect when a
+     word would otherwise overflow, and it does NOT contribute to min-content
+     sizing, so no existing layout's intrinsic measurements move. (`anywhere`
+     does affect min-content, which would silently resize every intrinsically
+     sized box in a consumer's site.) Inline <code> gets the stronger `anywhere`
+     in patterns/code.css, where a break mid-token is the correct trade. */
+  overflow-wrap: break-word;
 }
 
 @media (prefers-reduced-motion: no-preference) {

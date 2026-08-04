@@ -28,20 +28,68 @@
   inset: auto;
 }
 
+/**
+ * Open/closed behaviour, at real specificity so a component's own rules can't
+ * accidentally reveal a closed popover.
+ *
+ * This block used to also carry `&:popover-open { opacity: 1 }` and an
+ * `@starting-style { opacity: 0 }`. Both are gone, and must not come back:
+ * nothing here declared a `transition`, so they never animated anything on their
+ * own — but `[popover]:popover-open` is (0,1,0) and this partial is imported
+ * AFTER animation.css, so that rule outranked `.transition`'s
+ * `opacity: var(--t-opacity, …)` at equal specificity and pinned every top-layer
+ * fade to 1. The `open-<fx>` driver cannot work while it exists.
+ */
 [popover] {
-  &:popover-open {
-    opacity: 1;
-  }
-
   &:not(:popover-open):not([open]) {
     display: none;
   }
+}
 
-  @starting-style {
-    &:popover-open {
-      opacity: 0;
-    }
+/**
+ * The scrim — one definition for every top-layer element.
+ *
+ * This used to be restated in seven partials (dialog, drawer, dropdown,
+ * lightbox, nav, sitenav, split-link — 18 `::backdrop` blocks between them),
+ * each inventing its own colour, blur and transition. They are now one rule with
+ * two knobs.
+ *
+ * `:where()` for the same reason the visual reset above uses it: this partial is
+ * imported after drawer.css and dialog.css, so at plain specificity it would
+ * beat their own `::backdrop` rules. At zero specificity any pattern still wins.
+ *
+ * `overlay`/`display` transition with `allow-discrete` so the scrim fades OUT
+ * too — without them the backdrop vanishes the instant the popover closes while
+ * the panel is still animating away.
+ */
+:where([popover], dialog)::backdrop {
+  background-color: var(--scrim, rgb(0 0 0 / 25%));
+  backdrop-filter: var(--scrim-filter, none);
+  transition:
+    background-color var(--scrim-duration, 0.3s),
+    overlay var(--scrim-duration, 0.3s) allow-discrete,
+    display var(--scrim-duration, 0.3s) allow-discrete;
+}
+:where([popover], dialog):not(:popover-open):not([open])::backdrop {
+  background-color: transparent;
+}
+@starting-style {
+  :where([popover], dialog):is(:popover-open, [open])::backdrop {
+    background-color: transparent;
   }
+}
+
+/**
+ * No scrim — a panel you work *alongside* rather than through, where the page
+ * behind must stay legible (a live editor, an inspector). Pair with
+ * `popover="manual"`: an `auto` popover light-dismisses on the first outside
+ * click, which is exactly the interaction a modeless panel exists to allow.
+ * `.drawer--modeless` is the historical name and stays as an alias.
+ */
+.no-scrim::backdrop,
+.drawer--modeless::backdrop {
+  background-color: transparent;
+  backdrop-filter: none;
 }
 
 .popover-anchor {

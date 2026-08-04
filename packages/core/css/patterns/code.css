@@ -14,4 +14,28 @@
   color: var(--color-text-neutral);
   padding: 0.1em 0.4em;
   border-radius: var(--br-default);
+
+  /* `anywhere`, not the `break-word` global.css gives prose: an inline code span
+     is usually ONE token with no break opportunity at all — a 61-character CSS
+     selector or a package path — so `break-word` never fires and it overflows
+     the measure. Breaking mid-token is the right trade for code in running text.
+     `anywhere` does affect min-content sizing, which is the point here: it lets
+     an intrinsically sized ancestor shrink instead of being held open. */
+  overflow-wrap: anywhere;
+}
+
+/* ── Code blocks. The framework had NO `pre` rule, so every consumer re-derived
+   this — and a <pre> is the widest thing on a typical docs page.
+
+   Worth knowing, because it is the reverse of what the spec reads like: making a
+   <pre> a scroll container does NOT zero its min-content contribution in Chrome.
+   Measured at 390px on this repo's own docs site, a `pre` with `overflow-x: auto`
+   still reported a 797px min-content, its parent inherited 829px, and any
+   ancestor sized under `fit-content` resolved to THAT rather than the available
+   width. `max-inline-size: 100%` is what actually caps it. ── */
+:where(pre) {
+  max-inline-size: 100%;
+  overflow-x: auto;
+  /* Don't chain a horizontal flick out to the page once the block ends. */
+  overscroll-behavior-x: contain;
 }

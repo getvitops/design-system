@@ -1,0 +1,541 @@
+---
+/**
+ * Patterns — every component pattern, live.
+ *
+ * Two jobs, and the second is why it's worth the length. It documents the
+ * component vocabulary; and because every demo here is the REAL pattern rather
+ * than a picture of one, it is the manual regression surface for the overlay
+ * family — the one part of the framework whose behaviour a unit test can't
+ * reach. Open a drawer, close it, and you are testing the top-layer driver.
+ *
+ * Everything is no-JS except where a pattern is explicitly a web component: the
+ * disclosures are `<details>`, the overlays are `[popover]` / `<dialog>` driven
+ * by `popovertarget` and `command`, and the nav demos are the same markup the
+ * Bricks element emits. If a demo here needs a script, the pattern is in the
+ * wrong tier.
+ *
+ * Role names come from `design-system.json` so the colour variants can't drift
+ * from what the generator emits.
+ */
+import Docs from '../layouts/Docs.astro';
+import designSystem from '../../../../src/design-system.json';
+
+const ds = designSystem as unknown as {
+  colors: { roles: Record<string, unknown> };
+  patterns: Record<string, unknown>;
+};
+
+/** Chromatic roles only — a surface role has no `solid` fill to demonstrate. */
+const roles = Object.entries(ds.colors.roles)
+  .filter(([, v]) => (typeof v === 'string' ? true : (v as { kind?: string }).kind !== 'surface'))
+  .map(([name]) => name);
+
+const SECTIONS = [
+  ['controls', 'Controls'],
+  ['content', 'Content'],
+  ['disclosure', 'Disclosure'],
+  ['overlays', 'Overlays'],
+  ['navigation', 'Navigation'],
+  ['layout', 'Layout'],
+  ['motion', 'Motion & text'],
+  ['enhanced', 'Progressive enhancement'],
+  ['feedback', 'Feedback'],
+] as const;
+
+const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
+---
+
+<Docs
+  title="Patterns"
+  description="Every component pattern, live and interactive — the same markup the framework ships, not a picture of it."
+  headings={headings}
+>
+  <aside class="card bg-info-muted">
+    <p class="font-caption">
+      Every demo below is the real pattern. The overlays in particular are worth
+      opening and closing: they are driven by the top-layer animation driver, and
+      this page is where that behaviour is checked by hand.
+    </p>
+  </aside>
+
+  <!-- ── Controls ──────────────────────────────────────────────────────────── -->
+  <h2 id="controls">Controls</h2>
+
+  <h3>Buttons</h3>
+  <p>
+    <code>.cta</code> is <em>persuasion</em> — filled and larger. <code>btn</code> is <em>affordance</em>:
+    it pairs <code>element: "button"</code> with <code>class: "btn"</code>,
+    so a bare <code>&lt;button&gt;</code> gets it with no class at all, at zero specificity.
+  </p>
+  <div class="cluster-start">
+    <button>Bare button</button>
+    <span class="btn">.btn on a span</span>
+    <a class="cta" href="#controls">.cta on a link</a>
+  </div>
+
+  <h3>CTA roles</h3>
+  <div class="cluster-start">
+    {roles.map((r) => <a class={`cta cta-${r}`} href="#controls">{r}</a>)}
+  </div>
+
+  <h3>Links</h3>
+  <p class="rhythm">
+    A <a class="link" href="#controls">plain link</a>, an <a class="link link--external" href="https://example.com" target="_blank" rel="noopener">external one</a>,
+    a <a class="link" href="mailto:hi@example.com">mailto</a> and a <a class="link" href="tel:+15550100">tel</a>
+    — each gets its own affordance from
+    <code>anchor-link.css</code> with no extra class.
+  </p>
+
+  <h3>Icon</h3>
+  <p>
+    <code>.icon</code> sizes in <code>em</code> and inherits <code>currentColor</code>. Because
+    <code>.cta</code> and <code>btn</code> are already <code>inline-flex</code> with a gap, a
+    start or end icon is <strong>child order</strong>, not a modifier class.
+  </p>
+
+  <!-- ── Content ───────────────────────────────────────────────────────────── -->
+  <h2 id="content">Content</h2>
+
+  <h3>Card</h3>
+  <ul class="grid-auto" style="--grid-min: 14rem">
+    <li class="card rhythm">
+      <p class="font-heading">Card</p>
+      <p class="font-caption text-surface-muted">A surface with padding, radius and a border, all from the pattern's token chain.</p>
+    </li>
+    <li class="card bg-info-muted rhythm">
+      <p class="font-heading">With a utility</p>
+      <p class="font-caption">A colour utility overrides the pattern because utilities sit in a later cascade layer.</p>
+    </li>
+    <li class="card rhythm">
+      <p class="font-heading">Third</p>
+      <p class="font-caption text-surface-muted">Sized by <code>.grid-auto</code> and <code>--grid-min</code>.</p>
+    </li>
+  </ul>
+
+  <h3>Badge and tag</h3>
+  <p>
+    Split by behaviour, not by looks: a <strong>badge</strong> is a static label; a <strong>tag</strong>
+    is editable or dismissable. Their shared group is named <code>label</code> — deliberately
+    not <code>tag</code>, because a pattern whose key equals its group name collides in the
+    token namespace.
+  </p>
+  <div class="cluster-start">
+    {roles.map((r) => <span class={`badge badge-${r}`}>{r}</span>)}
+  </div>
+  <ul class="tag-list">
+    <li class="tag">Design<button class="tag__remove" aria-label="Remove">&times;</button></li>
+    <li class="tag">System<button class="tag__remove" aria-label="Remove">&times;</button></li>
+  </ul>
+
+  <h3>Media object and tile</h3>
+  <div class="media card">
+    <div class="media__figure"><span class="badge">fig</span></div>
+    <div class="media__body rhythm">
+      <p class="font-heading">Media object</p>
+      <p class="font-caption text-surface-muted">Figure beside body, the oldest layout primitive there is.</p>
+    </div>
+  </div>
+  <a class="tile card" href="#content">
+    <div class="tile__figure"><span class="badge">tile</span></div>
+    <div class="tile__body"><p class="font-heading">Clickable tile</p><p class="font-caption text-surface-muted">The whole surface is the target.</p></div>
+  </a>
+
+  <h3>Comment thread</h3>
+  <ul class="comment-thread">
+    <li class="comment">
+      <div class="comment__avatar"><span class="badge">AG</span></div>
+      <div class="comment__body">
+        <div class="comment__header"><span class="comment__author font-heading">Alex</span><span class="comment__date font-footnote text-surface-muted">2 days ago</span></div>
+        <p class="font-caption">A threaded comment, laid out on a grid so the avatar column stays aligned.</p>
+      </div>
+    </li>
+    <li class="comment comment--compact">
+      <div class="comment__avatar"><span class="badge">VT</span></div>
+      <div class="comment__body">
+        <div class="comment__header"><span class="comment__author font-heading">Vitops</span></div>
+        <p class="font-caption">The compact variant.</p>
+      </div>
+    </li>
+  </ul>
+
+  <h3>Pull quote</h3>
+  <blockquote class="pull-quote">
+    A pattern whose responsive behaviour lives in a container query keyed on its own
+    classes survives the tailwind strip; one keyed on breakpoint prefixes does not.
+  </blockquote>
+
+  <h3>Table</h3>
+  <div class="table-wrapper">
+    <table class="table">
+      <thead><tr><th>Pattern</th><th>Tier</th><th>Needs JS</th></tr></thead>
+      <tbody>
+        <tr><td>card</td><td>CSS</td><td>No</td></tr>
+        <tr><td>drawer</td><td>CSS + Popover API</td><td>No</td></tr>
+        <tr><td>theme editor</td><td>Web component</td><td>Yes — quarantined</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Separator</h3>
+  <hr class="separator" />
+  <hr class="separator separator--dashed" />
+
+  <!-- ── Disclosure ────────────────────────────────────────────────────────── -->
+  <h2 id="disclosure">Disclosure</h2>
+  <p>
+    Native <code>&lt;details&gt;</code>. Note the pattern deliberately ships <em>no</em>
+    <code>::details-content</code> transition: it deadlocks in Chrome 149, because
+    <code>content-visibility: hidden</code> means no layout, so <code>auto</code> resolves
+    to <code>0</code> and the disclosure never opens at all.
+  </p>
+  <details class="details">
+    <summary>What the framework guarantees</summary>
+    <div class="rhythm">
+      <p>Fallback markup is accessible and usable with no JavaScript.</p>
+    </div>
+  </details>
+  <details class="details" open>
+    <summary>Open by default</summary>
+    <div class="rhythm"><p>State lives in the DOM, so it survives with scripting off.</p></div>
+  </details>
+
+  <h3>Reveal</h3>
+  <p>
+    The class-driven disclosure, for when the trigger isn't a <code>&lt;summary&gt;</code>.
+    <code>.reveal</code> animates on <code>.is-open</code> via the grid <code>0fr → 1fr</code>
+    trick, so it works where <code>::details-content</code> can't reach.
+  </p>
+  <div class="card rhythm">
+    <p class="font-caption text-surface-muted"><code>.reveal.is-open</code> — shown open here; the framework animates the flip.</p>
+    <div class="reveal reveal-fade is-open"><p class="font-caption">Revealed content.</p></div>
+  </div>
+
+  <h3>Tree</h3>
+  <ul class="tree">
+    <li>
+      <details open>
+        <summary>packages</summary>
+        <ul>
+          <li><details><summary>core</summary><ul><li>css/</li><li>src/</li></ul></details></li>
+          <li>generator</li>
+        </ul>
+      </details>
+    </li>
+  </ul>
+
+  <!-- ── Overlays ──────────────────────────────────────────────────────────── -->
+  <h2 id="overlays">Overlays</h2>
+  <p>
+    All four edges, plus a dialog. Each states only where it <em>starts</em>
+    (<code>--translate-x-from</code>); the transition, the <code>@starting-style</code> and the
+    scrim come from the top-layer driver and <code>popover.css</code>. They animate
+    <strong>out</strong> as well as in — which the keyframe versions never did.
+  </p>
+  <div class="cluster-start">
+    <button class="btn" popovertarget="dr-left">Drawer left</button>
+    <button class="btn" popovertarget="dr-right">Drawer right</button>
+    <button class="btn" popovertarget="dr-top">Drawer top</button>
+    <button class="btn" popovertarget="dr-bottom">Drawer bottom</button>
+    <button class="btn" popovertarget="dr-fade">Right + fade</button>
+    <button class="btn" commandfor="pt-dialog" command="show-modal">Dialog</button>
+  </div>
+
+  {(['left', 'right', 'top', 'bottom'] as const).map((edge) => (
+    <div id={`dr-${edge}`} popover class={`drawer drawer--${edge} rhythm`}>
+      <p class="font-heading">drawer--{edge}</p>
+      <p class="font-caption text-surface-muted">Esc or click outside to dismiss.</p>
+      <button class="btn" popovertarget={`dr-${edge}`} popovertargetaction="hide">Close</button>
+    </div>
+  ))}
+
+  {/* Effects compose: the edge supplies the slide, `open-fade-in` adds opacity. */}
+  <div id="dr-fade" popover class="drawer drawer--right open-fade-in rhythm">
+    <p class="font-heading">Composed</p>
+    <p class="font-caption text-surface-muted"><code>drawer--right open-fade-in</code></p>
+    <button class="btn" popovertarget="dr-fade" popovertargetaction="hide">Close</button>
+  </div>
+
+  <dialog id="pt-dialog" class="dialog">
+    <div class="dialog__header">
+      <p class="dialog__title font-heading">Dialog</p>
+      <button class="dialog__close" commandfor="pt-dialog" command="close" aria-label="Close">&times;</button>
+    </div>
+    <div class="dialog__body rhythm">
+      <p>Entry and exit both animate now — the old <code>animation:</code> on <code>[open]</code> only ever played once.</p>
+      <p class="font-caption text-surface-muted">Scrim via <code>--scrim-filter</code>.</p>
+    </div>
+  </dialog>
+
+  <h3>Popover and dropdown</h3>
+  <div class="cluster-start">
+    <span class="popover-anchor">
+      <button class="btn" popovertarget="pt-pop">Anchored popover</button>
+      <div id="pt-pop" popover class="popover popover--bottom card rhythm">
+        <p class="font-caption">Positioned with the Anchor Positioning API.</p>
+      </div>
+    </span>
+    <span class="dropdown dropdown--show-on-hover">
+      <button class="btn" popovertarget="pt-drop">Hover dropdown</button>
+      <div id="pt-drop" popover class="card rhythm">
+        <p class="font-caption">Revealed on hover, no scrim.</p>
+      </div>
+    </span>
+  </div>
+
+  <!-- ── Navigation ────────────────────────────────────────────────────────── -->
+  <h2 id="navigation">Navigation</h2>
+
+  <h3>Navbar</h3>
+  <p>A horizontal row of links, with alignment. The primitive <code>sitenav</code>'s wide state is shaped like.</p>
+  <nav class="navbar card"><a class="link" href="#navigation">Home</a><a class="link" href="#navigation">Docs</a><span class="navbar__spacer"></span><a class="link" href="#navigation">Login</a></nav>
+
+  <h3>Sitenav</h3>
+  <p>
+    One markup tree, two presentations, switched purely by container width: a toggle +
+    drawer below the breakpoint, an inline navbar with dropdowns above it. Resize the
+    window to cross <code>48rem</code>.
+  </p>
+  <div class="sitenav sitenav--bp-md sitenav--drawer-start card">
+    <button class="sitenav__toggle" popovertarget="pt-sitenav" aria-label="Menu">☰</button>
+    <div id="pt-sitenav" popover class="sitenav__panel">
+      <button class="sitenav__close" popovertarget="pt-sitenav" popovertargetaction="hide" aria-label="Close">&times;</button>
+      <ul class="sitenav__list">
+        <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Home</a></li>
+        <li class="sitenav__item sitenav__item--branch">
+          <a class="sitenav__link split-link__link" href="#navigation">Products</a>
+          <details class="sitenav__disclosure"><summary class="sitenav__subtoggle"><span class="split-link__caret">▾</span></summary></details>
+          <ul class="sitenav__submenu">
+            <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Toolchain</a></li>
+            <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Components</a></li>
+          </ul>
+        </li>
+        <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Pricing</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Navshell</h3>
+  <p>
+    A nav aside beside content, collapsing to a toggle + drawer. This whole page is
+    already inside two of them — the site nav and the on-this-page nav — so the demo
+    below is a <em>third</em>, nested one level deeper, which is the point: it promotes
+    independently of both.
+  </p>
+  <div class="navshell navshell--bp-lg card" style="--navshell-size: 10rem; --navshell-gap: 1.5rem">
+    <div class="navshell__bar">
+      <button class="navshell__toggle" popovertarget="pt-navshell">Sections</button>
+    </div>
+    <div id="pt-navshell" popover class="navshell__panel drawer drawer--left">
+      <button class="navshell__close" popovertarget="pt-navshell" popovertargetaction="hide" aria-label="Close">&times;</button>
+      <nav class="navshell__nav" aria-label="Demo sections">
+        <a class="navshell__link" aria-current="page" href="#navigation">Overview</a>
+        <a class="navshell__link" href="#navigation">Details</a>
+      </nav>
+    </div>
+    <div class="navshell__main rhythm">
+      <p class="font-caption text-surface-muted">
+        Its own <code>--_navshell-wide</code> flag is reset at this root, and the content
+        column it sits in is a container — so it measures the space it actually has, not
+        the viewport, and stays stacked here regardless of the two shells around it.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── Layout ────────────────────────────────────────────────────────────── -->
+  <h2 id="layout">Layout</h2>
+
+  <h3>Cluster</h3>
+  <div class="cluster-between card">
+    <span class="badge">start</span><span class="badge">middle</span><span class="badge">end</span>
+  </div>
+
+  <h3>Split</h3>
+  <p>
+    <code>class="split flex-col md-split-1-2"</code> — stacked below <code>48rem</code>, 1:2
+    above. <code>.flex-col</code> beats <code>.split</code> by layer; <code>.md-split-1-2</code>
+    beats <code>.flex-col</code> by sitting later in the same file.
+  </p>
+  <div class="split flex-col md-split-1-2">
+    <div class="card"><p class="font-caption">1</p></div>
+    <div class="card"><p class="font-caption">2</p></div>
+  </div>
+
+  <h3>Subgrid</h3>
+  <ul class="subgrid pt-subgrid">
+    <li class="card rhythm"><p class="font-heading">Short</p><p class="font-caption">One line.</p><p class="font-footnote text-surface-muted">Footer</p></li>
+    <li class="card rhythm"><p class="font-heading">Longer heading that wraps</p><p class="font-caption">Two lines of body copy so the tranches have something to align against.</p><p class="font-footnote text-surface-muted">Footer</p></li>
+    <li class="card rhythm"><p class="font-heading">Third</p><p class="font-caption">Body.</p><p class="font-footnote text-surface-muted">Footer</p></li>
+  </ul>
+  <p class="font-caption text-surface-muted">
+    Headings, bodies and footers sit on shared row lines because each card's rows
+    are <code>subgrid</code> — not because anything was measured.
+  </p>
+
+
+  <h3>Masonry</h3>
+  <ul class="masonry" style="--masonry-cols: 3">
+    {[6, 3, 5, 2, 4, 3].map((n, i) => (
+      <li class="masonry__item card"><p class="font-caption">Item {i + 1}</p><p class="font-footnote text-surface-muted">{'▪ '.repeat(n)}</p></li>
+    ))}
+  </ul>
+
+  <h3>Grouped</h3>
+  <p>
+    <code>.group</code> collapses the borders between children into one shared edge. It reads
+    <code>--_flex-direction</code> from whatever flex utility is on it via a style query, so it
+    knows which corners to round without being told.
+  </p>
+  <div class="group group-inline bordered">
+    <button class="btn">One</button><button class="btn">Two</button><button class="btn">Three</button>
+  </div>
+
+  <!-- ── Motion & text ─────────────────────────────────────────────────────── -->
+  <h2 id="motion">Motion &amp; text</h2>
+  <p>
+    Typographic effects from <code>text-effects.css</code>. All CSS-only — the animation
+    engine drives them, so they respect <code>prefers-reduced-motion</code> without a script.
+  </p>
+  <ul class="rhythm">
+    <li><span class="typing">A typewriter line.</span></li>
+    <li><span class="text-gradient-animate font-heading">Animated gradient</span></li>
+    <li><span class="text-highlight">Highlighted phrase</span></li>
+    <li><span class="text-stagger">Staggered letters</span></li>
+  </ul>
+
+  <h3>Marquee</h3>
+  {/* One authored copy. `<wc-marquee>` measures the track and clones as many as
+      it takes, which is what keeps the seam gap the same as every other gap —
+      the CSS-only path has to pad each copy to 100% and can't. With no JS this
+      is the plain `.marquee`, scrolling exactly as before. */}
+  <wc-marquee class="marquee marquee--pause-hover card">
+    <div class="marquee__content">
+      {['css', 'tailwind', 'bricks', 'design', 'astro', 'wordpress'].map((t) => (
+        <span class="badge marquee__item">{t}</span>
+      ))}
+    </div>
+  </wc-marquee>
+  <p class="font-caption text-surface-muted">Hover to pause (<code>marquee--pause-hover</code>).</p>
+
+  <!-- ── Progressive enhancement ───────────────────────────────────────────── -->
+  <h2 id="enhanced">Progressive enhancement</h2>
+  <p>
+    The tier-2 elements. Every one of these renders <em>something usable</em> before its
+    bundle loads — that is the bar for existing at all. Turn JavaScript off and the
+    carousel is a scroll-snap strip, the compare slider is two images, the entries are
+    headings and definition lists.
+  </p>
+
+  <h3>Carousel</h3>
+  <wc-carousel class="carousel carousel--scroll-markers" aria-label="Demo carousel">
+    <div class="card"><p class="font-heading">One</p></div>
+    <div class="card"><p class="font-heading">Two</p></div>
+    <div class="card"><p class="font-heading">Three</p></div>
+  </wc-carousel>
+  <p class="font-caption text-surface-muted">
+    Scroll-snap and the marker dots are pure CSS (<code>::scroll-marker</code>); the element
+    adds infinite looping by cloning slides at both ends.
+  </p>
+
+  <h3>Split panel</h3>
+  <wc-split-panel class="splitter">
+    <div slot="start" class="card rhythm"><p class="font-heading">Start</p><p class="font-caption">Drag the divider.</p></div>
+    <div slot="end" class="card rhythm"><p class="font-heading">End</p><p class="font-caption">Resizable panes.</p></div>
+  </wc-split-panel>
+
+  <h3>Image compare</h3>
+  <wc-image-compare class="card">
+    <img slot="before" src="/vitops/icons.svg" alt="Before" width="320" height="180" />
+    <img slot="after" src="/vitops/icons.svg" alt="After" width="320" height="180" />
+  </wc-image-compare>
+  <p class="font-caption text-surface-muted">
+    Two images and a drag handle; with no JS you simply see the "after" image.
+  </p>
+
+  <h3>Entries</h3>
+  <p>
+    The exemplar for the whole tier: semantic <code>&lt;h3&gt;</code> + <code>&lt;dl&gt;</code>
+    pairs with no JS, parsed into a table when the container is wide enough.
+  </p>
+  <wc-entries>
+    <h4>css</h4>
+    <dl><dt>Emits</dt><dd>styles.css</dd><dt>Tokens</dt><dd>Yes</dd></dl>
+    <h4>tailwind</h4>
+    <dl><dt>Emits</dt><dd>tailwind.css</dd><dt>Tokens</dt><dd>@theme</dd></dl>
+    <h4>bricks</h4>
+    <dl><dt>Emits</dt><dd>full payload</dd><dt>Tokens</dt><dd>JSON import</dd></dl>
+  </wc-entries>
+
+  <h3>Copy button</h3>
+  <wc-copy value="npx vitops generate --format css">
+    <span class="btn">Copy the generate command</span>
+  </wc-copy>
+
+  <h3>Dismissable</h3>
+  <wc-dismissable>
+    <div class="banner banner--dismissible bg-warning-muted">
+      <div class="banner__content font-caption">Dismiss me — the element removes the node and fires a cancelable event.</div>
+      <button class="banner__close" data-dismiss aria-label="Dismiss">&times;</button>
+    </div>
+  </wc-dismissable>
+
+  <h3>Multi field</h3>
+  <wc-multifield class="rhythm">
+    <div class="form-group">
+      <label class="form-label" for="pt-mf">Repeatable field</label>
+      <input class="form-control" id="pt-mf" name="item[]" type="text" placeholder="Add another" />
+    </div>
+  </wc-multifield>
+
+  <!-- ── Feedback ──────────────────────────────────────────────────────────── -->
+  <h2 id="feedback">Feedback</h2>
+
+  <h3>Banner</h3>
+  <div class="banner bg-info-muted"><p class="font-caption">An announcement bar. Add <code>.sticky</code> to pin it.</p></div>
+
+  <h3>Notification</h3>
+  <div class="notification card rhythm">
+    <p class="font-heading">Saved</p>
+    <p class="font-caption text-surface-muted">Toast shell — entry, exit and an auto-dismiss progress bar.</p>
+  </div>
+
+  <h3>Form controls</h3>
+  <form class="rhythm" onsubmit="return false">
+    <div class="form-group">
+      <label class="form-label" for="pt-name">Name</label>
+      <input class="form-control" id="pt-name" name="name" type="text" placeholder="Ada Lovelace" />
+      <p class="form-helper">Helper text.</p>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="pt-sel">Format</label>
+      <select class="form-control" id="pt-sel" name="format">
+        <option>css</option><option>tailwind</option><option>bricks</option><option>design</option>
+      </select>
+    </div>
+    <button class="cta" type="submit">Submit</button>
+  </form>
+
+  <style>
+    /* Demo scaffolding only — spacing between a heading and the example under it.
+       Nothing here is a pattern; if it starts looking like one it belongs in core. */
+    h3 {
+      margin-block-start: 2rem;
+    }
+    .tag-list {
+      margin-block-start: 0.75rem;
+    }
+    /* Three columns is a demo choice, not a default — and a fixed column count
+       with no narrow fallback is exactly the bug the overflow probe exists to
+       catch. It caught this one. */
+    .pt-subgrid {
+      --subgrid-cols: 1;
+      /* Heading + body + footer = three tranches. The default is 2, which lands
+         the body and the footer in the same row track, overlapping. */
+      --subgrid-row-span: 3;
+    }
+    @container body (inline-size >= 48rem) {
+      .pt-subgrid {
+        --subgrid-cols: 3;
+      }
+    }
+  </style>
+</Docs>

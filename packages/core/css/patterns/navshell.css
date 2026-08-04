@@ -1,0 +1,383 @@
+/**
+ * Navshell — a navigation ASIDE beside main content at width, collapsing to a
+ * toggle + drawer below it. One markup tree, two presentations, no JS beyond the
+ * Popover polyfill.
+ *
+ *   <div class="navshell navshell--bp-md">
+ *     <div class="navshell__bar">
+ *       <button class="navshell__toggle" popovertarget="site-nav">Menu</button>
+ *     </div>
+ *     <div id="site-nav" popover class="navshell__panel drawer drawer--left">
+ *       <button class="navshell__close" popovertarget="site-nav" popovertargetaction="hide">×</button>
+ *       <nav class="navshell__nav" aria-label="Documentation"> … </nav>
+ *     </div>
+ *     <div class="navshell__main"> … </div>
+ *   </div>
+ *
+ * It NESTS — that is the point, and it is what `.toc-layout` (which this
+ * supersedes) could not do. A docs page is a site nav wrapping a page nav:
+ * the outer promotes to two columns at `md`, the inner waits for `lg`, and
+ * neither needs to know about the other.
+ *
+ * The mobile panel composes `.drawer`, so this file declares NO animation and no
+ * `::backdrop`: the edge modifier states the slide direction, the top-layer
+ * driver in animation.css runs it both ways, and popover.css owns the scrim.
+ */
+
+.navshell {
+  /* RESET FIRST — these two must sit above the breakpoint blocks, and EVERY
+     root must re-declare them.
+     Both custom properties inherit, and this pattern is built to nest. Without
+     the reset, an outer instance already past ITS breakpoint hands its flag and
+     column template down to an inner instance that is still narrow, and the
+     inner one renders its desktop layout early. Re-declaring on every root
+     severs the inheritance at each instance boundary.
+     `.navshell--bp-*` and `.navshell` are the same specificity, so ORDER is what
+     lets the breakpoint blocks win. */
+  --_navshell-wide: 0;
+  --_navshell-cols: minmax(0, 1fr);
+
+  display: grid;
+  grid-template-columns: var(--_navshell-cols);
+  align-items: start;
+
+  /* Stacked, `gap` is the space between the toggle row and the content — a
+     different job from the space between two columns, and the column value is
+     far too big for it. `--navshell-gap` is applied in the breakpoint blocks
+     instead, which is also the only place it CAN be: the desktop style query
+     below cannot reach `.navshell` itself, because a style query resolves
+     against an ancestor container and never the declaring element. */
+  gap: var(--navshell-stack-gap, 0.75rem);
+
+  /* Resolved once here, read as `--_navshell-size` below, so the fallback chain
+     is stated in one place instead of eight. `--width-nav` is the design
+     system's own token (layout.css, beside --width-measure/-breakout/-spotlight);
+     the literal is only a last resort for navshell.css used without it. */
+  --_navshell-size: var(--navshell-size, var(--width-nav, 16rem));
+}
+
+/* ── Promotion thresholds. Four blocks, but each is two lines: they only raise a
+   FLAG. The desktop ruleset itself is written once, below. (Contrast
+   patterns/sitenav.css, which repeats a ~60-line block per breakpoint and whose
+   own header says "CSS has no mixins — edit them together".)
+
+   `minmax(0, 1fr)` for the content column, never a bare `1fr`: a `1fr` track's
+   automatic minimum is min-content, so one wide <pre> pushes the grid past the
+   viewport. That is the bug this pattern was written to end.
+
+   `--navshell-size` carries an inline fallback rather than being registered with
+   `@property { inherits: false }`, which is what this wanted. A registered
+   property's `initial-value` must be computationally independent, and `16rem`
+   depends on the root font-size — so Chrome rejects the whole rule and the
+   variable resolves to nothing, which takes `--_navshell-cols` and then
+   `grid-template-columns` down with it (measured: the shell silently fell back
+   to auto columns). `0`/`0%` initial values, like the two registrations in
+   animation.css, are fine; lengths in rem are not.
+
+   The cost is that `--navshell-size` INHERITS, so an inner instance adopts an
+   outer instance's width unless it sets its own. NavShell.astro always emits it
+   for exactly this reason. ── */
+@container (min-width: 30rem) {
+  .navshell--bp-sm {
+    --_navshell-wide: 1;
+    gap: var(--navshell-gap, 3rem);
+    --_navshell-cols: var(--_navshell-size) minmax(0, 1fr);
+  }
+  .navshell--bp-sm.navshell--end {
+    --_navshell-cols: minmax(0, 1fr) var(--_navshell-size);
+  }
+}
+@container (min-width: 48rem) {
+  .navshell--bp-md {
+    --_navshell-wide: 1;
+    gap: var(--navshell-gap, 3rem);
+    --_navshell-cols: var(--_navshell-size) minmax(0, 1fr);
+  }
+  .navshell--bp-md.navshell--end {
+    --_navshell-cols: minmax(0, 1fr) var(--_navshell-size);
+  }
+}
+@container (min-width: 64rem) {
+  .navshell--bp-lg {
+    --_navshell-wide: 1;
+    gap: var(--navshell-gap, 3rem);
+    --_navshell-cols: var(--_navshell-size) minmax(0, 1fr);
+  }
+  .navshell--bp-lg.navshell--end {
+    --_navshell-cols: minmax(0, 1fr) var(--_navshell-size);
+  }
+}
+@container (min-width: 80rem) {
+  .navshell--bp-xl {
+    --_navshell-wide: 1;
+    gap: var(--navshell-gap, 3rem);
+    --_navshell-cols: var(--_navshell-size) minmax(0, 1fr);
+  }
+  .navshell--bp-xl.navshell--end {
+    --_navshell-cols: minmax(0, 1fr) var(--_navshell-size);
+  }
+}
+
+/* ── Mobile chrome ────────────────────────────────────────────────────────── */
+
+/**
+ * The in-shell toggle row.
+ *
+ * Sticky by default, but BOTH knobs are variables, because two nested instances
+ * both sticking to `--top-offset` land exactly on top of each other — which is
+ * what happens on a docs page with a site nav and an on-this-page nav. Three
+ * ways out, in order of preference:
+ *
+ *   1. Put the outer toggle in the site header instead (`.navshell-toggle`
+ *      below), leaving one in-flow bar and no conflict. This is the Starlight
+ *      arrangement and the reason the standalone toggle exists.
+ *   2. Stack them: `--navshell-bar-offset: calc(var(--top-offset) + 2.5rem)` on
+ *      the inner instance.
+ *   3. Opt out: `--navshell-bar-position: static`.
+ */
+.navshell__bar {
+  position: var(--navshell-bar-position, sticky);
+  inset-block-start: var(--navshell-bar-offset, var(--top-offset, 0px));
+  z-index: var(--navshell-bar-z, var(--z-tier-sticky));
+  display: flex;
+  align-items: center;
+  gap: var(--navshell-bar-gap, 0.5rem);
+  background: var(--navshell-bar-background, none);
+}
+
+.navshell-toggle,
+.navshell__toggle,
+.navshell__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--br-control, 0.375rem);
+
+  &:hover {
+    background: var(--color-bg-surface-muted);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--navshell-focus-color, var(--color-border-focus));
+    outline-offset: 2px;
+  }
+}
+
+.navshell__close {
+  position: absolute;
+  inset-block-start: 0.75rem;
+  inset-inline-end: 0.75rem;
+}
+
+/**
+ * A toggle that lives OUTSIDE the shell — in a site header, a navbar, anywhere.
+ * `popovertarget` is an id reference, so the HTML works from any position; what
+ * it can't inherit is the shell's own "am I wide?" flag, because a style query
+ * resolves against an ancestor container and the header is not inside
+ * `.navshell`. So it carries its own breakpoint, and the two must agree:
+ * `.navshell--bp-md` pairs with `.navshell-toggle--bp-md`.
+ *
+ * Four two-line blocks rather than one, for the same reason the promotion
+ * thresholds are four: the threshold is the one thing that genuinely differs.
+ */
+@container (min-width: 30rem) {
+  .navshell-toggle--bp-sm {
+    display: none;
+  }
+}
+@container (min-width: 48rem) {
+  .navshell-toggle--bp-md {
+    display: none;
+  }
+}
+@container (min-width: 64rem) {
+  .navshell-toggle--bp-lg {
+    display: none;
+  }
+}
+@container (min-width: 80rem) {
+  .navshell-toggle--bp-xl {
+    display: none;
+  }
+}
+
+/**
+ * The panel. Pair with `.drawer` + an edge modifier in markup; everything about
+ * how it slides in and dims the page behind is theirs.
+ *
+ * What IS here is only what a drawer doesn't already know. Size COMPOSES via the
+ * drawer's own knob rather than re-declaring `inline-size`: `.drawer` states it
+ * under `&, &.drawer--left`, which is (0,2,0) once the edge modifier is on the
+ * element, so a (0,1,0) `.navshell__panel { inline-size: … }` silently lost and
+ * the panel came out at the drawer's 280px default.
+ *
+ * The scrolling half IS the "mobile menu doesn't fill the viewport" bug: the
+ * hand-rolled version this replaces was `position: absolute; inset-inline: 0`
+ * with no block-size, no overflow, no overscroll containment and no stacking — a
+ * strip of links pinned under the header that scrolled the article behind it.
+ * The drawer supplies the full-height box; these two make it usable.
+ *
+ * `overscroll-behavior: contain` rather than a scroll lock: the panel is in the
+ * top layer so stacking is already correct, and what actually went wrong was
+ * scroll CHAINING. A real scroll lock needs `showModal()` or JS, and this is a
+ * no-JS pattern.
+ */
+.navshell__panel {
+  --drawer-max-inline-size: var(--navshell-drawer-size, 20rem);
+
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--navshell-panel-padding, 1.5rem);
+  /* Clearance for the absolutely-positioned close button. */
+  padding-block-start: 3.5rem;
+}
+
+.navshell__main {
+  /* Flex/grid items floor at min-content; without this the content column is
+     held open by its widest <pre> instead of scrolling it. */
+  min-inline-size: 0;
+
+  /* What makes NESTING measure the right thing.
+     The promotion thresholds are unnamed `@container (min-width: …)` queries, so
+     they resolve against the nearest ancestor with a `container-type` — which,
+     for everything in this framework, is `body`. A shell nested inside another
+     shell's content column would therefore promote on the VIEWPORT's width while
+     sitting in a fraction of it, and go two-column inside a 460px column (seen
+     on the Patterns page demo).
+     Declaring the content column a container gives an inner shell its parent's
+     actual width to measure. It also means ordinary responsive utilities inside
+     the column resolve against the column, which is what an unnamed container
+     query is supposed to mean. `@container body (…)` queries are unaffected —
+     they name their container. */
+  container-type: inline-size;
+}
+
+/* ── The nav itself ───────────────────────────────────────────────────────── */
+
+.navshell__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.navshell__link {
+  display: block;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--br-control, 0.375rem);
+  text-decoration: none;
+  color: inherit;
+
+  &:hover {
+    background: var(--color-bg-surface-muted);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--navshell-focus-color, var(--color-border-focus));
+    outline-offset: 2px;
+  }
+}
+
+/* Nesting depth for a table-of-contents nav, from `data-depth` rather than an
+   inline style on every item. */
+.navshell__link[data-depth='2'] {
+  padding-inline-start: 1.75rem;
+}
+.navshell__link[data-depth='3'] {
+  padding-inline-start: 2.75rem;
+}
+
+/**
+ * Current item. TWO rules, deliberately not one selector list: `:target-current`
+ * is unknown to engines that haven't shipped `scroll-target-group`, and one
+ * unknown selector invalidates the WHOLE list — the `[aria-current]` half, which
+ * every engine understands, would go down with it.
+ */
+.navshell__link[aria-current] {
+  font-weight: 600;
+  color: var(--navshell-current-color, var(--color-text-brand-primary));
+}
+.navshell__link:target-current {
+  font-weight: 600;
+  color: var(--navshell-current-color, var(--color-text-brand-primary));
+}
+
+/* ── Desktop. ONE block, because the thresholds above only set a flag.
+ *
+ * Two consequences worth stating:
+ *
+ * · `.navshell` itself is unreachable from here — a style query resolves against
+ *   an ANCESTOR container, never the declaring element. That is why the root's
+ *   own columns come from `--_navshell-cols` above and are restated nowhere.
+ * · Scoping is automatic, and it is what makes nesting work. A nested instance's
+ *   panel resolves this query against the INNER root (its nearest ancestor
+ *   container), which re-declared `--_navshell-wide: 0`. So an outer nav at `md`
+ *   and an inner nav at `lg` promote independently, with no `>` combinators and
+ *   no `.navshell--bp-*` prefix on every inner selector.
+ * ── */
+@container style(--_navshell-wide: 1) {
+  .navshell__bar,
+  .navshell__close {
+    display: none;
+  }
+
+  /* `.navshell__panel.drawer`, not `.navshell__panel`.
+     The drawer states its box under `&, &.drawer--left`, which is (0,2,0) once
+     the edge modifier is on the element — so a (0,1,0) selector here lost every
+     conflicting declaration and the panel kept its DRAWER geometry at desktop:
+     320px wide inside a 224px column (a 48px overlap into the content, visible
+     as the panel's scrollbar sitting inside the prose) and `block-size: 100dvh`
+     instead of `auto`. This compound is (0,2,0) and wins on source order, since
+     navshell.css imports after drawer.css. */
+  .navshell__panel.drawer {
+    /* `[popover]` is UA `display: none` while closed, and the polyfill agrees.
+       `!important` for the same reason patterns/sitenav.css needs it: at this
+       width the toggle is gone, so nothing can ever re-hide the panel. */
+    display: block !important;
+
+    position: sticky;
+    inset-block-start: var(--_navshell-stick, calc(var(--top-offset, 0px) + 1rem));
+    inset-inline: auto;
+    inline-size: auto;
+    max-inline-size: none;
+    block-size: auto;
+    max-block-size: calc(
+      100dvb - var(--_navshell-stick, calc(var(--top-offset, 0px) + 1rem)) - 1rem
+    );
+    padding: 0;
+    overscroll-behavior: auto;
+
+    /* Undo the drawer's panel surface — at this width it is part of the page,
+       not something floating over it. */
+    background: none;
+    color: inherit;
+    border: none;
+    box-shadow: none;
+    z-index: auto;
+    translate: none;
+    opacity: 1;
+
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .navshell__panel::backdrop {
+    display: none;
+  }
+
+  .navshell__main {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  /* The only rules that need to know which side they're on. */
+  .navshell--end > .navshell__panel {
+    grid-column: 2;
+  }
+  .navshell--end > .navshell__main {
+    grid-column: 1;
+  }
+}

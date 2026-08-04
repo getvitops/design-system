@@ -156,43 +156,57 @@
     grid-column: fullbleed;
   }
 }
+/* Every ratio publishes `--_flex-direction` alongside `flex-direction`. Only the
+   `.flex-*` utilities used to do that, so `class="split flex-col md-split-1-2"`
+   left the variable reading `column` at ALL widths — and patterns/grouped.css
+   resolves its collapsed-border axis from a `@container style(--_flex-direction:
+   column)` query, so a `.grouped` inside a re-rowed split collapsed on the wrong
+   axis with nothing to indicate why. */
 .split-1-2 {
   flex-direction: row;
+  --_flex-direction: row;
   --_split-a: 1;
   --_split-b: 2;
 }
 .split-2-1 {
   flex-direction: row;
+  --_flex-direction: row;
   --_split-a: 2;
   --_split-b: 1;
 }
 .split-1-3 {
   flex-direction: row;
+  --_flex-direction: row;
   --_split-a: 1;
   --_split-b: 3;
 }
 .split-3-1 {
   flex-direction: row;
+  --_flex-direction: row;
   --_split-a: 3;
   --_split-b: 1;
 }
 .split-1-4 {
   flex-direction: row;
+  --_flex-direction: row;
   --_split-a: 1;
   --_split-b: 4;
 }
 .split-4-1 {
   flex-direction: row;
+  --_flex-direction: row;
   --_split-a: 4;
   --_split-b: 1;
 }
 .split-2-3 {
   flex-direction: row;
+  --_flex-direction: row;
   --_split-a: 2;
   --_split-b: 3;
 }
 .split-3-2 {
   flex-direction: row;
+  --_flex-direction: row;
   --_split-a: 3;
   --_split-b: 2;
 }
@@ -393,41 +407,49 @@
 @container (min-width: 30rem) {
   .sm-split-1-2 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 1;
     --_split-b: 2;
   }
   .sm-split-2-1 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 2;
     --_split-b: 1;
   }
   .sm-split-1-3 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 1;
     --_split-b: 3;
   }
   .sm-split-3-1 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 3;
     --_split-b: 1;
   }
   .sm-split-1-4 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 1;
     --_split-b: 4;
   }
   .sm-split-4-1 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 4;
     --_split-b: 1;
   }
   .sm-split-2-3 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 2;
     --_split-b: 3;
   }
   .sm-split-3-2 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 3;
     --_split-b: 2;
   }
@@ -441,41 +463,49 @@
 @container (min-width: 48rem) {
   .md-split-1-2 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 1;
     --_split-b: 2;
   }
   .md-split-2-1 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 2;
     --_split-b: 1;
   }
   .md-split-1-3 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 1;
     --_split-b: 3;
   }
   .md-split-3-1 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 3;
     --_split-b: 1;
   }
   .md-split-1-4 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 1;
     --_split-b: 4;
   }
   .md-split-4-1 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 4;
     --_split-b: 1;
   }
   .md-split-2-3 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 2;
     --_split-b: 3;
   }
   .md-split-3-2 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 3;
     --_split-b: 2;
   }
@@ -489,41 +519,49 @@
 @container (min-width: 64rem) {
   .lg-split-1-2 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 1;
     --_split-b: 2;
   }
   .lg-split-2-1 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 2;
     --_split-b: 1;
   }
   .lg-split-1-3 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 1;
     --_split-b: 3;
   }
   .lg-split-3-1 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 3;
     --_split-b: 1;
   }
   .lg-split-1-4 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 1;
     --_split-b: 4;
   }
   .lg-split-4-1 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 4;
     --_split-b: 1;
   }
   .lg-split-2-3 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 2;
     --_split-b: 3;
   }
   .lg-split-3-2 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 3;
     --_split-b: 2;
   }
@@ -537,41 +575,49 @@
 @container (min-width: 80rem) {
   .xl-split-1-2 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 1;
     --_split-b: 2;
   }
   .xl-split-2-1 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 2;
     --_split-b: 1;
   }
   .xl-split-1-3 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 1;
     --_split-b: 3;
   }
   .xl-split-3-1 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 3;
     --_split-b: 1;
   }
   .xl-split-1-4 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 1;
     --_split-b: 4;
   }
   .xl-split-4-1 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 4;
     --_split-b: 1;
   }
   .xl-split-2-3 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 2;
     --_split-b: 3;
   }
   .xl-split-3-2 {
     flex-direction: row;
+    --_flex-direction: row;
     --_split-a: 3;
     --_split-b: 2;
   }

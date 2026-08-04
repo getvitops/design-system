@@ -21,12 +21,12 @@ const ORDER = [
   'centered',
   'carousel',
   'color-scheme-toggle',
-  'copy-button',
+  'wc-copy',
   'dismissable',
   'entries',
   'image-compare',
   'sitenav',
-  'multi-field',
+  'wc-multifield',
   'split-link',
   'split-panel',
 ];
@@ -490,7 +490,7 @@ and the integration guidance in [/bricks/index.md](index.md).
   pinned to the **top** of the element panel. Insert one by searching its **label** (e.g.
   "Split", "Carousel") or any of its **keywords** (listed per element).
 - Two rendering families:
-  - **Web-component elements** render a Lit custom element (\`<wc-*>\`, \`<copy-button>\`, …)
+  - **Web-component elements** render a Lit custom element (\`<wc-*>\`, \`<wc-copy>\`, …)
     from \`dist/elements.js\` and progressively enhance. A few (Image Compare, Split Panel)
     show their children stacked in the builder canvas until the client-side upgrade runs —
     that is expected, not broken.

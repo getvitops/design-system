@@ -80,7 +80,7 @@ export default defineConfig({
 | Slash-menu entry | `_type`               | Renders                                     |
 | ---------------- | --------------------- | ------------------------------------------- |
 | Image compare    | `vitops.imageCompare` | `<wc-image-compare>` before/after slider    |
-| Copy snippet     | `vitops.copyButton`   | `<copy-button>` with code/inline fallback   |
+| Copy snippet     | `vitops.copyButton`   | `<wc-copy>` with code/inline fallback       |
 | Banner           | `vitops.banner`       | `<wc-dismissable>` banner with tone colours |
 | Disclosure       | `vitops.details`      | native `<details>`/`<summary>`              |
 | Carousel         | `vitops.carousel`     | `<wc-carousel>` scroll-snap carousel        |

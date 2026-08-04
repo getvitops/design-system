@@ -2,7 +2,7 @@
 /**
  * Vitops — Multi Field element (Bricks Builder).
  *
- * Renders the <multi-field> Lit component (src/web-components/WCMultiField.ts): a
+ * Renders the <wc-multifield> Lit component (src/web-components/WCMultiField.ts): a
  * form-associated repeatable input group (add / remove entries, min / max). Default
  * entries are supplied as slotted <input value="…"> children, which the component reads
  * on connect.
@@ -22,7 +22,7 @@ class Vitops_Element_Multi_Field extends \Bricks\Element {
 	public $category     = 'vitops';
 	public $name         = 'vitops-multi-field';
 	public $icon         = 'ti-list';
-	public $css_selector = 'multi-field';
+	public $css_selector = 'wc-multifield';
 
 	public function get_label() {
 		return esc_html__( 'Multi Field', 'bricks' );
@@ -143,6 +143,6 @@ class Vitops_Element_Multi_Field extends \Bricks\Element {
 			}
 		}
 
-		echo "<multi-field {$attr_str} {$this->render_attributes( '_root' )}>{$inputs}</multi-field>";
+		echo "<wc-multifield {$attr_str} {$this->render_attributes( '_root' )}>{$inputs}</wc-multifield>";
 	}
 }

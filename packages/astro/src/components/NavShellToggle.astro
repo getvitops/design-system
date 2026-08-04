@@ -1,0 +1,45 @@
+---
+/**
+ * NavShellToggle — a `<NavShell>` toggle rendered outside its shell, so it can
+ * sit in a site header or navbar rather than in a row of its own.
+ *
+ * Two nested shells both rendering their own sticky toggle row put those rows at
+ * the same offset, on top of each other. Hoisting the outer one into the header
+ * — which is already sticky — leaves a single in-flow bar and no conflict. It is
+ * also simply where a site menu button belongs.
+ *
+ *   <header class="navbar">
+ *     <a href="/">Brand</a>
+ *     <NavShellToggle for="site-nav" label="Menu" breakpoint="md" />
+ *   </header>
+ *   …
+ *   <NavShell id="site-nav" label="Documentation" breakpoint="md" toggle="external">
+ *
+ * `breakpoint` MUST match the shell's: outside `.navshell` the toggle cannot read
+ * the shell's internal "am I wide?" flag (a style query resolves against an
+ * ancestor container, and the header is not one), so it carries its own copy.
+ * Mismatch them and you get a toggle visible next to an expanded sidebar, or no
+ * way to open the nav at all.
+ *
+ * No runtime JS: `popovertarget` is an id reference, which works from anywhere in
+ * the document.
+ */
+interface Props {
+  /** The `id` of the `<NavShell>` this opens. */
+  for: string;
+  /** Visible text (and accessible name, unless `aria-label` is given). */
+  label: string;
+  /** Must match the shell's `breakpoint`. Default `md`. */
+  breakpoint?: 'sm' | 'md' | 'lg' | 'xl';
+  class?: string;
+}
+
+const { for: target, label, breakpoint = 'md', class: className } = Astro.props;
+---
+
+<button
+  class:list={['navshell-toggle', `navshell-toggle--bp-${breakpoint}`, className]}
+  popovertarget={target}
+>
+  <slot>{label}</slot>
+</button>

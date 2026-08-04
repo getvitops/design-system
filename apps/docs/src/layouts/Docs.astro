@@ -3,31 +3,34 @@
  * Docs shell — built from the design system's own vocabulary.
  *
  * Every class here comes from the generated framework: `.centered` for the
- * content tracks, `.split` + `.md-split-1-4` for the sidebar/main columns,
- * `.cluster-between` for the header and footer rows, `.rhythm` for vertical
- * spacing, `.font-<role>` for type, `.bg-*` / `.text-*` for colour, and
- * `.link` / `.btn` / `.card` / `.details` / `.list` for controls and content.
+ * content tracks, `<NavShell>` for the nav-aside/main columns, `.cluster-between`
+ * for the header and footer rows, `.rhythm` for vertical spacing, `.font-<role>`
+ * for type, `.bg-*` / `.text-*` for colour, and `.link` / `.card` / `.list` for
+ * controls and content.
  *
- * Two composition rules the framework enforces, both of which this got wrong at
- * first and which fail *silently*:
- *   • `.centered` is a track grid whose `> *` forces children into the `measure`
- *     column, so it can't share an element with a layout class — give it a track
- *     child (`.spotlight`, `.breakout`, `.fullbleed`) and lay out inside that.
- *     Stacking `.centered .cluster-between` looks fine only because cluster.css
- *     is imported later and its `display: flex` quietly wins.
- *   • `.split-*` carries the ratio; the flex context is `.split`. Without it the
- *     ratio is inert. Responsive variants resolve against
- *     `body { container-type: inline-size }`, so no extra container is needed.
- *     `.flex-col` + `.md-split-1-4` is the stack-then-split idiom, and
- *     `.split > *` already carries `min-inline-size: 0`, so nothing here needs to
- *     re-derive it to keep long code blocks from stretching the main column.
+ * One composition rule the framework enforces, which fails *silently*:
+ * `.centered` is a track grid whose `> *` forces children into the `measure`
+ * column, so it can't share an element with a layout class — give it a track
+ * child (`.spotlight`, `.breakout`, `.fullbleed`) and lay out inside that.
+ * Stacking `.centered .cluster-between` looks fine only because cluster.css is
+ * imported later and its `display: flex` quietly wins.
+ *
+ * The shell used to be `split flex-col md-split-1-4 items-start`, which is what
+ * broke this site on mobile. `align-items: flex-start` makes `<main>`
+ * shrink-to-fit, and `fit-content` is `min(max-content, max(min-content,
+ * available))` — so main resolved to its MIN-CONTENT, which a single `<pre>`
+ * held at 797px inside a 390px viewport. `.split > * { min-inline-size: 0 }`
+ * cannot rescue that: it lowers the used-value clamp, not the fit-content
+ * formula. `<NavShell>` stretches its content column and floors it at zero.
  *
  * The hand-written CSS at the bottom is what no framework pattern covers. Keep
  * it short — a rule that belongs to a reusable pattern should move into
- * @getvitops/core instead. Mobile nav is a native <details> disclosure, so it
+ * @getvitops/core instead. Nav is `<button popovertarget>` + `[popover]`, so it
  * works with no JavaScript.
  */
 import Head from '@getvitops/astro/Head.astro';
+import NavShell from '@getvitops/astro/components/NavShell.astro';
+import NavShellToggle from '@getvitops/astro/components/NavShellToggle.astro';
 import Seo from '@getvitops/astro/Seo.astro';
 import { getCollection } from 'astro:content';
 import '../styles/styles.css';
@@ -54,6 +57,7 @@ const PAGES = [
   { id: 'theme', data: { title: 'Theme preview', section: 'Live preview', order: 10 } },
   { id: 'animation', data: { title: 'Animation library', section: 'Live preview', order: 20 } },
   { id: 'icons', data: { title: 'Icons', section: 'Live preview', order: 30 } },
+  { id: 'patterns', data: { title: 'Patterns', section: 'Live preview', order: 40 } },
 ];
 
 const all = [...(await getCollection('docs')), ...PAGES];
@@ -86,9 +90,17 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
   <body class="bg-surface-muted text-surface">
     <a class="link skip-link" href="#content">Skip to content</a>
 
-    <header class="docs-header bg-surface-x-muted">
+    <header class="sticky-header docs-header bg-surface-x-muted">
       <div class="centered"><div class="spotlight cluster-between" style="align-items: center; gap: 1rem">
-        <a class="font-title docs-brand" href={href('index')}>Vitops</a>
+        <!-- The site nav's toggle, hoisted out of the shell into the header.
+             Two nested shells each rendering their own sticky bar put both at
+             the same offset, overlapping; the header is already sticky, so this
+             leaves exactly one in-flow bar (the TOC's). `breakpoint` must match
+             the shell's — outside `.navshell` the toggle can't read its flag. -->
+        <div class="cluster-start" style="align-items: center; gap: 0.5rem">
+          <NavShellToggle for="site-nav" label="Menu" breakpoint="md" />
+          <a class="font-title docs-brand" href={href('index')}>Vitops</a>
+        </div>
 
         <nav class="cluster-start docs-header__links" style="gap: 1rem; align-items: center">
           <a class="link" href={href('guides/installation')}>Guides</a>
@@ -106,79 +118,70 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
           <color-scheme-toggle></color-scheme-toggle>
         </nav>
 
-        <!-- No-JS mobile nav: native <details> disclosure, styled by the framework. -->
-        <details class="details docs-header__mobile">
-          <summary class="btn" aria-label="Menu">☰</summary>
-          <div class="docs-mobile-menu bg-surface-muted rhythm">
-            {nav.map((group) => (
-              <div>
-                <p class="font-eyebrow text-surface-muted">{group.section}</p>
-                <ul class="list">
-                  {group.items.map((item) => (
-                    <li><a class="link" href={href(item.id)}>{item.data.title}</a></li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </details>
       </div></div>
     </header>
 
     <!-- `.centered` is a *track* grid (fullbleed/spotlight/breakout/measure) and
-         forces every direct child into `measure`; `.split-*` only sets the ratio
-         variables — the flex context comes from `.split`. So the two can't sit on
-         one element: place a track child, and split inside it. -->
+         forces every direct child into `measure`, so the shell is placed on a
+         track child and the layout happens inside it.
+
+         Two NavShells, nested. The outer promotes to two columns at `md`, the
+         inner waits for `lg` and puts its nav on the inline-end side — the
+         three-column reading arrangement, from one pattern used twice. Each
+         instance re-declares the pattern's internal flag, which is what stops
+         the outer's "I'm wide" leaking into the inner. -->
     <div class="centered">
-      <div class="spotlight split flex-col md-split-1-4 items-start docs-shell">
-      <aside class="docs-sidebar rhythm" aria-label="Documentation">
-        {nav.map((group) => (
-          <nav class="rhythm">
-            <p class="font-eyebrow text-surface-muted">{group.section}</p>
-            <ul class="list">
-              {group.items.map((item) => (
-                <li>
+      <div class="spotlight docs-shell">
+        <NavShell id="site-nav" label="Documentation" breakpoint="md" toggle="external">
+          <!-- Rendered ONCE. This list used to be duplicated between a desktop
+               <aside> and a separate mobile <details> menu — two markup trees to
+               keep in step, and the mobile copy is where the bug lived. -->
+          <Fragment slot="nav">
+            {nav.map((group) => (
+              <>
+                <p class="font-eyebrow text-surface-muted">{group.section}</p>
+                {group.items.map((item) => (
                   <a
-                    class:list={['link', 'docs-sidebar__link', here === href(item.id) && 'is-active']}
+                    class="navshell__link"
                     aria-current={here === href(item.id) ? 'page' : undefined}
                     href={href(item.id)}
                   >{item.data.title}</a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ))}
-      </aside>
+                ))}
+              </>
+            ))}
+          </Fragment>
 
-      <main id="content" class="docs-main rhythm">
-        <h1 class="font-display">{title}</h1>
-        {description && <p class="font-lead text-surface-muted">{description}</p>}
+          <main id="content" class="docs-main rhythm">
+            <h1 class="font-display">{title}</h1>
+            {description && <p class="font-lead text-surface-muted">{description}</p>}
 
-        {generated && (
-          <aside class="card bg-info-muted">
-            <p class="font-caption">
-              <strong>Generated page.</strong> Rendered from this project’s
-              <code>design-system.json</code> by <code>@getvitops/generator</code> — the same bundle
-              <code>vitops docs</code> prints against your own config. Don’t edit it by hand.
-            </p>
-          </aside>
-        )}
+            {generated && (
+              <aside class="card bg-info-muted">
+                <p class="font-caption">
+                  <strong>Generated page.</strong> Rendered from this project’s
+                  <code>design-system.json</code> by <code>@getvitops/generator</code> — the same bundle
+                  <code>vitops docs</code> prints against your own config. Don’t edit it by hand.
+                </p>
+              </aside>
+            )}
 
-        {toc.length > 1 && (
-          <details class="details docs-toc">
-            <summary class="font-eyebrow">On this page</summary>
-            <ul class="list">
-              {toc.map((h) => (
-                <li style={`padding-inline-start: ${(h.depth - 2) * 1}rem`}>
-                  <a class="link" href={`#${h.slug}`}>{h.text}</a>
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-
-        <div class="rhythm docs-prose"><slot /></div>
-      </main>
+            {toc.length > 1 ? (
+              <NavShell id="page-toc" label="On this page" breakpoint="md" side="end" size="12rem">
+                <Fragment slot="nav">
+                  {/* `.scroll-target-group` drives the current-heading highlight via
+                      :target-current. CSS-only and Chrome-only today; other engines
+                      simply show no highlight until they ship scroll-target-group. */}
+                  {toc.map((h) => (
+                    <a class="navshell__link" data-depth={h.depth} href={`#${h.slug}`}>{h.text}</a>
+                  ))}
+                </Fragment>
+                <div class="rhythm docs-prose"><slot /></div>
+              </NavShell>
+            ) : (
+              <div class="rhythm docs-prose"><slot /></div>
+            )}
+          </main>
+        </NavShell>
       </div>
     </div>
 
@@ -199,19 +202,13 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
       /* Everything below is what the framework does NOT yet cover. Keep it short:
          a rule that belongs to a reusable pattern should move into
          @getvitops/core rather than live here. */
-      .skip-link {
-        position: absolute;
-        inset-inline-start: -100vw;
-      }
-      .skip-link:focus-visible {
-        inset-inline-start: 0.5rem;
-        inset-block-start: 0.5rem;
-        z-index: var(--z-tier-top);
+      /* global.css already reads --top-offset for scroll-padding-block-start, and
+         the navshell's sticky offsets read it too — but nothing defined it, so
+         every in-page anchor landed underneath the sticky header. */
+      :root {
+        --top-offset: 3.5rem;
       }
       .docs-header {
-        position: sticky;
-        inset-block-start: 0;
-        z-index: var(--z-tier-sticky);
         padding-block: 0.75rem;
         border-block-end: var(--b-default);
       }
@@ -219,26 +216,20 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
         text-decoration: none;
       }
       .docs-shell {
-        gap: 3rem;
         padding-block: 2.5rem;
       }
-      .docs-sidebar {
-        position: sticky;
-        inset-block-start: 5rem;
-        max-block-size: calc(100vh - 7rem);
-        overflow-y: auto;
-      }
-      .docs-sidebar__link.is-active {
-        font-weight: 600;
-        text-decoration-thickness: 2px;
-      }
+      /* Decoration only — patterns/code.css owns `pre`'s max-inline-size and
+         overflow now. */
       .docs-prose :global(pre) {
-        overflow-x: auto;
         padding: 1rem;
         border-radius: var(--br-default);
       }
+      /* Markdown emits bare <table>, with nothing to hang `.table-wrapper` on.
+         Wrapping it would need a rehype plugin; four lines is the cheaper trade
+         until a second consumer wants it. */
       .docs-prose :global(table) {
         display: block;
+        max-inline-size: 100%;
         overflow-x: auto;
       }
       .docs-footer {
@@ -246,25 +237,11 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
         padding-block: 2rem;
         border-block-start: var(--b-default);
       }
-      /* Sidebar is a drawer on small screens; the header links collapse with it. */
-      .docs-header__mobile,
-      .docs-mobile-menu {
-        display: none;
-      }
+      /* The panel nav covers the same sections, so the header's own links (and
+         the theme toggle with them) fold away once it's a drawer. */
       @media (width < 48rem) {
-        .docs-sidebar,
         .docs-header__links {
           display: none;
-        }
-        .docs-header__mobile {
-          display: block;
-        }
-        .docs-header__mobile[open] .docs-mobile-menu {
-          display: block;
-          position: absolute;
-          inset-inline: 0;
-          padding: 1rem;
-          border-block-end: var(--b-default);
         }
       }
     </style>

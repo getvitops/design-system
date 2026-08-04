@@ -2,7 +2,7 @@
 /**
  * Vitops — Copy Button element (Bricks Builder).
  *
- * Renders the <copy-button> Lit component (src/web-components/WCCopy.ts): a
+ * Renders the <wc-copy> Lit component (src/web-components/WCCopy.ts): a
  * copy-to-clipboard button, hidden until connected (Clipboard API gate). The `value`
  * is copied; `label` is the button text (falls back to slotted text).
  *
@@ -21,7 +21,7 @@ class Vitops_Element_Copy extends \Bricks\Element {
 	public $category     = 'vitops';
 	public $name         = 'vitops-copy-button';
 	public $icon         = 'ti-clipboard';
-	public $css_selector = 'copy-button';
+	public $css_selector = 'wc-copy';
 
 	public function get_label() {
 		return esc_html__( 'Copy Button', 'bricks' );
@@ -60,6 +60,6 @@ class Vitops_Element_Copy extends \Bricks\Element {
 		$attr_str = implode( ' ', $attrs );
 		$fallback = ! empty( $s['label'] ) ? esc_html( $s['label'] ) : esc_html__( 'Copy to clipboard', 'bricks' );
 
-		echo "<copy-button {$attr_str} {$this->render_attributes( '_root' )}>{$fallback}</copy-button>";
+		echo "<wc-copy {$attr_str} {$this->render_attributes( '_root' )}>{$fallback}</wc-copy>";
 	}
 }

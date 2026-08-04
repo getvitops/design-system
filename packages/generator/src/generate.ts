@@ -913,6 +913,18 @@ export function build(
       ['hover', (s) => `.${s}:hover, :hover > .${s}`],
       ['focus', (s) => `.${s}:focus-visible, :focus-within > .${s}`],
       ['active', (s) => `.${s}.is-active, .${s}[data-active]`],
+      // The top layer's own state. A popover/dialog rests CLOSED at the effect's
+      // `from` values and flips to `to` when it opens — the same shape as hover,
+      // so it costs one row here rather than a bespoke driver, and every effect
+      // gains `open-<fx>` in all three formats for free. `:popover-open` covers
+      // the Popover API; `[open]` covers `<dialog open>` (and `<details open>`,
+      // which is a legitimate use of the same flip).
+      //
+      // The MECHANISM a top-layer element additionally needs — `display`/`overlay`
+      // in transition-property with `allow-discrete`, plus the `@starting-style`
+      // that makes the entry run at all — is not per-effect, so it lives once in
+      // animation.css rather than being multiplied across every effect here.
+      ['open', (s) => `.${s}:popover-open, .${s}[open]`],
     ];
     out += `\n/* State-flip variants — compose with .transition (hover-/focus-/active-<fx>). */\n`;
     // Every keyframe family gets state variants, `layout` included: `.transition`

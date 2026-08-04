@@ -19,6 +19,8 @@
     "src/components/Popover.astro",
     "src/components/Details.astro",
     "src/components/Drawer.astro",
+    "src/components/NavShell.astro",
+    "src/components/NavShellToggle.astro",
     "src/schemas",
     "virtual.d.ts",
     "CHANGELOG.md"
@@ -42,6 +44,8 @@
     "./components/Popover.astro": "./src/components/Popover.astro",
     "./components/Details.astro": "./src/components/Details.astro",
     "./components/Drawer.astro": "./src/components/Drawer.astro",
+    "./components/NavShell.astro": "./src/components/NavShell.astro",
+    "./components/NavShellToggle.astro": "./src/components/NavShellToggle.astro",
     "./schemas/*": "./src/schemas/*",
     "./package.json": "./package.json"
   },
