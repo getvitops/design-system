@@ -36,4 +36,22 @@ Then import the generated stylesheet (Tailwind v4):
 @import './styles/tailwind.css';
 ```
 
+## Video (`media`)
+
+The plugin also encodes raw video, in the same run that generates your CSS:
+
+```ts
+vitops({
+  input: 'design-system.json',
+  media: { raw: 'raw', out: 'src/assets/processed' },
+});
+```
+
+Each source becomes a **VP9/WebM**, an **H.264/MP4** fallback and a **JPG poster**. Runs are cached
+on source content plus encode settings (`.vitops/media-manifest.json`), so a rebuild that changes
+nothing re-encodes nothing. `ffmpeg` must be installed — it's an external tool, not an npm
+dependency, and a missing one fails the build rather than silently skipping.
+
+Full behaviour and flags: [`vitops media`](/packages/cli/).
+
 Powered by [`@getvitops/generator`](https://www.npmjs.com/package/@getvitops/generator).

@@ -29,14 +29,23 @@ npx vitops generate --format bricks,css --out dist
 
 ## Commands
 
-| command                                            | does                                          |
-| -------------------------------------------------- | --------------------------------------------- |
-| `vitops init [--out design-system.json] [--force]` | write a starter config with `$schema`         |
-| `vitops validate <file>`                           | schema-check (non-zero exit on error)         |
+| command                                            | does                                            |
+| -------------------------------------------------- | ----------------------------------------------- |
+| `vitops init [--out design-system.json] [--force]` | write a starter config with `$schema`           |
+| `vitops validate <file>`                           | schema-check (non-zero exit on error)           |
 | `vitops generate -i <file> -f <formats> -o <dir>`  | `tailwind` / `bricks` / `design` / `css` output |
-| `vitops favicon -i <svg\|png> -o <dir>`            | generate a favicon set from a source image    |
-| `vitops agents [-o AGENTS.md] [--docs-dir <dir>]`  | link the agent skill + AGENTS.md pointer      |
-| `vitops docs [topic] [--all]`                      | print live reference docs to stdout           |
+| `vitops favicon -i <svg\|png> -o <dir>`            | generate a favicon set from a source image      |
+| `vitops agents [-o AGENTS.md] [--docs-dir <dir>]`  | link the agent skill + AGENTS.md pointer        |
+| `vitops docs [topic] [--all]`                      | print live reference docs to stdout             |
+| `vitops lint [-f <fmt>] [-s <dir>]`                | find framework classes that resolve to nothing  |
+| `vitops legal [-d <doc>] [-f <fmt>]`               | render privacy policy / terms / cookie notice   |
+| `vitops icons [--sprite]`                          | report icon usage, and build the SVG sprite     |
+| `vitops media [--raw <dir>] [--out <dir>]`         | encode raw video into WebM + MP4 + poster       |
+| `vitops indexing [--dry] [--check]`                | tell search engines about a deploy              |
+
+`legal`, `icons` and `indexing` read a **site config** rather than a `design-system.json`, because
+what they emit describes a site rather than a token set. `media` reads neither — an encoder setting
+describes a build step, so it's all flags.
 
 ## Using the output
 
@@ -104,6 +113,123 @@ vitops generate --input design-system.json --format design --out .
 `--format` is comma-separated, but a run shares one `--out` — so keep the brief its own invocation
 whenever your stylesheet goes somewhere other than the repo root. Regenerate it with your CSS; it's
 derived from the same config, so it can't drift from what the browser gets.
+
+## Video (`vitops media`)
+
+Keep unprocessed video in a `raw/` directory and encode it into web-ready outputs:
+
+```sh
+vitops media --raw raw --out src/assets/processed
+```
+
+**What it produces.** Each source becomes three files, with the directory structure under `--raw`
+preserved:
+
+| output      | what it is                    | why                                                                            |
+| ----------- | ----------------------------- | ------------------------------------------------------------------------------ |
+| `.webm`     | VP9, capped at 1920px, CRF 32 | the modern codec — smaller at the same quality                                 |
+| `.mp4`      | H.264, `+faststart`           | older iOS and social-app webviews still don't decode VP9                       |
+| `.jpg`      | poster frame                  | what the browser shows before the video is decodable                           |
+
+Import them like any other asset, so your bundler content-hashes them:
+
+```astro
+---
+import hero from '../assets/processed/hero.webm';
+import poster from '../assets/processed/hero.jpg';
+---
+
+<video poster={poster.src} autoplay muted loop playsinline>
+  <source src={hero} type="video/webm" />
+</video>
+```
+
+**Runs are cached** on source content plus encode settings, in `.vitops/media-manifest.json`. A
+24 MB clip that took 88 seconds the first time takes 0.14 seconds the second. A missing output
+re-encodes; a corrupt manifest re-encodes everything — neither ever reads as "already done",
+because that failure is silent and no rebuild fixes it.
+
+**Commit the outputs and the manifest.** A fresh CI clone has neither and would re-encode from
+scratch, so committing both means CI never needs ffmpeg. It also keeps history clean: ffmpeg output
+isn't byte-reproducible across versions, so a CI re-encode would rewrite every video on any
+toolchain bump. Use `--force` when you mean to re-encode.
+
+**`ffmpeg` is an external tool, not an npm dependency** — install it yourself (`brew install
+ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails without it rather
+than skipping, because a page referencing a video that was never encoded is broken, not degraded.
+
+Defaults are all flags: `--max-width` (1920), `--crf` (32 on VP9's scale; the MP4 uses the H.264
+equivalent), `--audio` (dropped by default — the common case is a muted autoplay loop),
+`--poster-time` (0, which is often black on a clip that fades in), `--outputs`. `--dry` prints
+exactly what a run would do.
+
+In Astro it's an integration option that runs in the same pass as your CSS —
+`vitops({ css, media: { raw: 'raw', out: 'src/assets/processed' } })`. `@getvitops/vite` has a
+matching `media` option, and `@getvitops/utils/media` exports `processMedia()` for anything else.
+
+## Search engines (`vitops indexing`)
+
+Replaces the manual "open Search Console and resubmit" step at the end of a deploy. Configure it in
+your site config under `seo.indexing`:
+
+```jsonc
+"seo": {
+  "indexing": {
+    "indexNow": { "key": "…" },
+    "searchConsole": { "siteUrl": "sc-domain:acme.ca" },
+    "priorityUrls": ["https://acme.ca/", "https://acme.ca/services"]
+  }
+}
+```
+
+```sh
+vitops indexing --dry     # print the plan, make no requests
+vitops indexing           # submit
+vitops indexing --check   # a day or two later: did Google actually index them?
+```
+
+**What it does.** Reads your sitemap, diffs it against the previous run
+(`.vitops/sitemap-snapshot.json`), and submits only what changed:
+
+| channel            | what happens                                          | reaches                                |
+| ------------------ | ----------------------------------------------------- | -------------------------------------- |
+| **IndexNow**       | changed URLs POSTed to `api.indexnow.org`             | Bing, Yandex, Naver, Seznam, Yep       |
+| **Search Console** | sitemap re-submitted via the API                       | Google                                 |
+| **`--check`**      | URL Inspection on `priorityUrls`; non-zero if unindexed | read-only verification                 |
+
+**Be clear-eyed about the ceiling here, because the obvious expectation is wrong.** Google exposes
+no API that requests indexing — the button in Search Console isn't available anywhere, URL
+Inspection is read-only, and the sitemap ping endpoint was removed in 2023. IndexNow reaches the
+engines above; Google doesn't participate in it. So this automates every sanctioned step and then
+_verifies_ the outcome. It does not make Google re-index on demand, and nothing can. Google's
+Indexing API is deliberately not wired: it's scoped to job postings and livestreams, and using it
+for ordinary pages violates its terms.
+
+`--check` is the part that genuinely replaces the manual visit — run it on a schedule and CI tells
+you when a page quietly falls out of the index.
+
+**Wire up `<lastmod>` too, or the diff can't see edits.** `@astrojs/sitemap` emits none by default,
+which means a crawler is told your pages exist but never that one changed:
+
+```js
+import vitops, { gitLastmod } from '@getvitops/astro';
+vitops({ sitemap: { serialize: await gitLastmod() } });
+```
+
+It derives each date from the source file's last commit and leaves a page alone rather than
+guessing (dynamic routes, ambiguous slugs, shallow clones) — an inaccurate `lastmod` is worse than
+none, because Google stops trusting the field site-wide. Needs `fetch-depth: 0` in CI.
+
+**Credentials.** The IndexNow key is public by design — it's served at `/<key>.txt` as the
+ownership proof — so it lives in your config, and the Astro integration writes the file into
+`public/` for you (`vitops indexing --new-key` generates one, `--write-key <dir>` writes it for
+non-Astro stacks). Search Console needs a service account in `VITOPS_GSC_SERVICE_ACCOUNT` or
+`GOOGLE_APPLICATION_CREDENTIALS`, added as an owner of the property; it's never read from the
+config file.
+
+Persist `.vitops/` between runs (a CI cache), or every run submits everything. An environment whose
+`robots` policy says `noindex` is refused outright, so pointing this at staging can't publish it to
+a search engine.
 
 ## Teaching AI agents (`vitops agents` + `vitops docs`)
 

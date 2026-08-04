@@ -26,6 +26,7 @@ npx vitops generate --format bricks,css --out dist
 | `vitops agents [-o AGENTS.md] [--docs-dir <dir>]`  | link the agent skill + AGENTS.md pointer        |
 | `vitops docs [topic] [--all]`                      | print live reference docs to stdout             |
 | `vitops indexing [--dry] [--check]`                | tell search engines about a deploy              |
+| `vitops media [--raw <dir>] [-o <dir>]`            | encode raw video to WebM + MP4 + poster         |
 
 Every `--input` takes a `design-system.json` **or** the larger site config that embeds one
 (`company.json` / `site.json`) — told apart by shape, so name the file whatever you like. Add
@@ -98,6 +99,51 @@ vitops generate --input design-system.json --format design --out .
 `--format` is comma-separated, but a run shares one `--out` — so keep the brief its own invocation
 whenever your stylesheet goes somewhere other than the repo root. Regenerate it with your CSS; it's
 derived from the same config, so it can't drift from what the browser gets.
+
+## Video (`vitops media`)
+
+Keep unprocessed video in a `raw/` directory and encode it into web-ready outputs:
+
+```sh
+vitops media --raw raw --out src/assets/processed
+```
+
+Each source becomes three files — VP9/WebM, an H.264/MP4 fallback, and a JPG poster frame:
+
+```astro
+---
+import hero from '../assets/processed/hero.webm';
+import poster from '../assets/processed/hero.jpg';
+---
+<video poster={poster.src} autoplay muted loop playsinline>
+  <source src={hero} type="video/webm" />
+</video>
+```
+
+Outputs land under `src/` so your bundler content-hashes them and they can be served immutable,
+while the raw sources stay outside anything it scans.
+
+Defaults: capped at 1920px wide, CRF 32, audio dropped (the common case is a muted autoplay loop),
+poster taken from frame 0. Every one is a flag — `--max-width`, `--crf`, `--audio`,
+`--poster-time`, `--max-bitrate`, `--outputs`. `vitops media --dry` prints exactly what a run
+would do without encoding anything.
+
+**Needs `ffmpeg` on `PATH`.** It's an external tool, not an npm dependency — install it yourself
+(`brew install ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails
+rather than skipping: a page referencing a video that was never encoded is broken, not degraded.
+
+**Commit the outputs and `.vitops/media-manifest.json`.** Runs are cached on source content plus
+encode settings, so a second run costs a hash per file instead of minutes — but a fresh CI clone
+has neither, and would re-encode everything. Committing both means CI never needs ffmpeg at all.
+It also keeps your history clean: ffmpeg output isn't reproducible across versions, so a CI
+re-encode would rewrite every video on any toolchain bump. Use `--force` when you mean to
+re-encode, and commit the result.
+
+Two things worth knowing before you conclude something is broken:
+
+- **Frame 0 is often black** on a clip that fades in. That's `--poster-time`, not a bug.
+- **A missing output re-encodes, a corrupt manifest re-encodes everything.** Neither ever reads as
+  "already done" — the failure that would cause is silent, and a rebuild would never fix it.
 
 ## Teaching AI agents (`vitops agents` + `vitops docs`)
 

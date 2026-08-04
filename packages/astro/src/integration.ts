@@ -23,6 +23,9 @@ import {
   writeFaviconManifest,
 } from '@getvitops/utils';
 import vitops from '@getvitops/vite';
+// Type only — the encoder itself is loaded by the Vite plugin, in the pass that
+// runs it, so a project without a `media` option never reaches ffmpeg.
+import type { OutputKind as MediaOutputKind } from '@getvitops/utils/media';
 import type { AstroIntegration } from 'astro';
 import {
   consentCategories,
@@ -43,6 +46,33 @@ export interface GetvitopsFaviconOptions {
   /** PWA theme color (also `<meta name="theme-color">`). */
   themeColor?: string;
   backgroundColor?: string;
+}
+
+/**
+ * Video encoding. A sibling of `favicon`, not a widening of `css`.
+ *
+ * Mirrors `VitopsMediaOptions` in `@getvitops/vite`, which is where it runs — see
+ * the `media` field on `GetvitopsOptions` for why.
+ */
+export interface GetvitopsMediaOptions {
+  /** Directory of unprocessed video, walked recursively. Default: `'raw'`. */
+  raw?: string;
+  /** Where encoded outputs go. Default: `'src/assets/processed'`. */
+  out?: string;
+  /** Cap the output width, keeping aspect ratio. Default 1920; 0 disables. */
+  maxWidth?: number;
+  /** Quality on VP9's CRF scale (0–63, lower is better). Default 32. */
+  crf?: number;
+  /** Optional bitrate ceiling, e.g. `'2M'`. Absent means constant quality. */
+  maxBitrate?: string;
+  /** Keep the audio track. Default false — the common case is a muted loop. */
+  audio?: boolean;
+  /** Timestamp (seconds) the poster frame comes from. Default 0. */
+  posterTime?: number;
+  /** Which outputs to produce. Default: webm, mp4 and a poster. */
+  outputs?: MediaOutputKind[];
+  /** Cache file. Default `.vitops/media-manifest.json`. */
+  manifest?: string;
 }
 
 export interface GetvitopsCssOptions {
@@ -196,6 +226,30 @@ export interface GetvitopsOptions {
    */
   site?: GetvitopsSiteOptions;
   favicon?: GetvitopsFaviconOptions;
+  /**
+   * Encode raw video into WebM + an MP4 fallback + a poster frame.
+   *
+   * Import the results like any other asset, so Vite content-hashes them:
+   *
+   * ```astro
+   * import hero from '../assets/processed/hero.webm';
+   * import poster from '../assets/processed/hero.jpg';
+   * <video poster={poster.src} autoplay muted loop playsinline>
+   *   <source src={hero} type="video/webm" />
+   * </video>
+   * ```
+   *
+   * Cached on source content and encode settings, so a rebuild costs a hash per
+   * file rather than an encode. **Commit the outputs and
+   * `.vitops/media-manifest.json`** — ffmpeg output is not reproducible across
+   * versions, so re-encoding in CI churns the diff on every toolchain bump.
+   *
+   * Needs `ffmpeg` on PATH, and fails the build without it rather than skipping:
+   * a page referencing a video that was never encoded is broken, not degraded.
+   *
+   * Needs `css`, since it runs in the Vite plugin `css` registers.
+   */
+  media?: GetvitopsMediaOptions;
   /** Copy + link the web-component bundles (default true). */
   webComponents?: boolean;
   /** Generate + auto-inject the design-system CSS. Off unless provided. */
@@ -569,6 +623,11 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
           logger.warn(
             'legal: needs a `css` config — the generation runs in the Vite plugin that `css` ' +
               'registers. Run `npx vitops legal` instead if you do not use `css`.',
+          );
+        if (opts.media && !opts.css)
+          logger.warn(
+            'media: needs a `css` config — the encoding runs in the Vite plugin that `css` ' +
+              'registers. Run `npx vitops media` instead if you do not use `css`.',
           );
         // Where the site config is, if there is one. `css.input` counts when it
         // is itself a site config — that is the common setup once a consumer
@@ -1056,6 +1115,9 @@ export default function getvitops(opts: GetvitopsOptions = {}): AstroIntegration
               // Same reasoning: inside the pass, so the documents track the site
               // config in dev instead of going stale after the first build.
               ...(opts.legal ? { legal: { ...opts.legal, input: legalInput as string } } : {}),
+              // Byte-producing, so it belongs in the pass rather than in this hook.
+              // Its own cache makes a rebuild cheap; nothing here needs to gate it.
+              ...(opts.media ? { media: opts.media } : {}),
               // Read during generation for the site-level facts the stylesheet
               // depends on — currently `designSystem.defaultColorScheme`, which decides
               // whether the colour layer carries a prefers-color-scheme block.

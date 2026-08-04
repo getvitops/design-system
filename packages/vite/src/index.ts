@@ -21,6 +21,14 @@ import {
   type LegalOutput,
 } from '@getvitops/generator';
 import { generateFavicons, writeFaviconManifest } from '@getvitops/utils';
+// Own subpath: it shells out to ffmpeg, and a project without a `media` option
+// should never load it.
+import {
+  MEDIA_MANIFEST_PATH,
+  processMedia,
+  type MediaConfig,
+  type OutputKind,
+} from '@getvitops/utils/media';
 
 /** Endpoint `<wc-theme-editor>` probes for, and POSTs its patch to. */
 const EDITOR_ENDPOINT = '/__vitops/design-system';
@@ -107,6 +115,32 @@ function formatConfig(value: unknown, col = 0, indent = 0): string {
   return JSON.stringify(value) ?? 'null';
 }
 
+export interface VitopsMediaOptions {
+  /** Directory of unprocessed video, walked recursively. Default: 'raw'. */
+  raw?: string;
+  /**
+   * Where encoded outputs go. Default: `'src/assets/processed'`.
+   *
+   * Under `src/` so Vite content-hashes each file and it can be served immutable;
+   * the raw sources stay outside anything Vite scans.
+   */
+  out?: string;
+  /** Cap the output width, keeping aspect ratio. Default 1920; 0 disables. */
+  maxWidth?: number;
+  /** Quality on VP9's CRF scale (0–63, lower is better). Default 32. */
+  crf?: number;
+  /** Optional bitrate ceiling, e.g. `'2M'`. Absent means constant quality. */
+  maxBitrate?: string;
+  /** Keep the audio track. Default false. */
+  audio?: boolean;
+  /** Timestamp (seconds) the poster frame comes from. Default 0. */
+  posterTime?: number;
+  /** Which outputs to produce. Default: webm, mp4 and a poster. */
+  outputs?: OutputKind[];
+  /** Cache file. Default `.vitops/media-manifest.json`. */
+  manifest?: string;
+}
+
 export interface VitopsFaviconOptions {
   /** Source SVG or PNG. */
   source: string;
@@ -145,6 +179,23 @@ export interface VitopsPluginOptions {
   out?: string;
   /** Also generate a favicon set on build from this source image. */
   favicon?: VitopsFaviconOptions;
+  /**
+   * Also encode raw video on build, into WebM + MP4 + a poster frame.
+   *
+   * Runs inside this pass rather than in the Astro integration's `config:setup`
+   * hook, for the same reason the manifest and sprite copies do: it produces bytes,
+   * so it belongs where it cannot race the first generation.
+   *
+   * Cached on source content and encode settings, so re-running costs a hash per
+   * file. Needs `ffmpeg` on PATH and fails loudly without it — an unencoded hero
+   * video is not a degraded build, it is a broken page.
+   *
+   * The raw directory is deliberately **not** watched: `watched()` matches config
+   * files by exact path, and a multi-minute encode triggered mid-dev-server is a
+   * poor trade for it. A video added during dev arrives on restart, or via
+   * `vitops media`.
+   */
+  media?: VitopsMediaOptions;
   /**
    * Directory to mirror `design-manifest.json` into as `vitops/design-manifest.json`
    * — the URL `<wc-theme-editor>` fetches by default. Set by the Astro integration's
@@ -293,6 +344,33 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
             : {}),
         });
       }
+    }
+    if (options.media) {
+      const media = options.media;
+      const config: MediaConfig = {
+        ...(media.maxWidth != null ? { maxWidth: media.maxWidth } : {}),
+        ...(media.crf != null ? { crf: media.crf } : {}),
+        ...(media.maxBitrate ? { maxBitrate: media.maxBitrate } : {}),
+        ...(media.audio != null ? { audio: media.audio } : {}),
+        ...(media.posterTime != null ? { posterTime: media.posterTime } : {}),
+        ...(media.outputs ? { outputs: media.outputs } : {}),
+      };
+      const result = await processMedia({
+        raw: resolve(root, media.raw ?? 'raw'),
+        out: resolve(root, media.out ?? 'src/assets/processed'),
+        config,
+        // Resolved against the project root even when defaulted. Left to
+        // `processMedia` it would resolve against cwd, and in a monorepo run from
+        // the workspace root that puts the cache somewhere the next build won't
+        // look — so every build re-encodes, silently.
+        manifest: resolve(root, media.manifest ?? MEDIA_MANIFEST_PATH),
+        // An encode is minutes of silence otherwise, which in a build reads as a hang.
+        onProgress: (message) => console.log(`[vitops] media: ${message}`),
+      });
+      if (result.written.length > 0)
+        console.log(
+          `[vitops] media: ${result.written.length} written, ${result.skipped} unchanged`,
+        );
     }
   };
 

@@ -25,6 +25,10 @@
     "./indexing": {
       "types": "./dist/indexing/index.d.mts",
       "import": "./dist/indexing/index.mjs"
+    },
+    "./media": {
+      "types": "./dist/media/index.d.mts",
+      "import": "./dist/media/index.mjs"
     }
   },
   "publishConfig": {

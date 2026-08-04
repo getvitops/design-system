@@ -72,6 +72,7 @@ Astro's module graph and Astro emits that link itself.
 | `seo`           | off unless given     | site-level defaults for `<Seo />`                                 |
 | `analytics`     | off unless given     | providers for `<Analytics />` (GA4, Clarity, Matomo, Plausible)   |
 | `consent`       | off unless given     | the consent gate + `<CookieConsent />`                            |
+| `media`         | off unless given     | encode `raw/` video into WebM + MP4 + poster (needs `ffmpeg`)     |
 
 Set `css.inject: false` when another integration adds routes that must not inherit the design system
 (e.g. EmDash's `/_emdash/admin`) — then import the generated file (`<out>/tailwind.css` or
@@ -102,6 +103,49 @@ warning. The two write different filenames and so don't actually collide — if 
 content _and_ hand-authored `.astro` pages), add `sitemap()` to your own `integrations` array.
 vitops detects that too and leaves yours in charge, which is also how you reach the handful of
 `@astrojs/sitemap` options this integration doesn't mirror.
+
+### Real `<lastmod>` dates
+
+A sitemap without `<lastmod>` tells a crawler a page exists but never that it changed. `gitLastmod()`
+stamps each entry from its source file's last commit:
+
+```js
+import vitops, { gitLastmod } from '@getvitops/astro';
+
+export default defineConfig({
+  site: 'https://acme.ca',
+  integrations: [vitops({ sitemap: { serialize: await gitLastmod() } })],
+});
+```
+
+It maps file-based routes exactly (`src/pages/about.astro` → `/about`) and content entries by unique
+slug. Three deliberate refusals, all the same kind — **no date beats a wrong one**, because Google
+weighs `lastmod` only while it stays consistent with what actually changed:
+
+- **Dynamic routes get nothing.** One `[slug].astro` backs many URLs; its commit date describes the
+  template, not any page.
+- **An ambiguous slug gets nothing** rather than a coin flip presented as a fact.
+- **A shallow clone gets nothing, loudly.** It shells out to `git`, so `fetch-depth: 1` (the
+  actions/checkout default) yields no history — it warns and emits no dates. Set `fetch-depth: 0`.
+
+This is also what lets [`vitops indexing`](/packages/cli/) submit only what changed, rather than
+everything on every deploy.
+
+## Video (`media`)
+
+Encode raw video into web-ready outputs in the same pass that generates your CSS:
+
+```js
+vitops({
+  css: { input: 'design-system.json' },
+  media: { raw: 'raw', out: 'src/assets/processed' },
+});
+```
+
+Each source in `raw/` becomes a **VP9/WebM**, an **H.264/MP4** fallback and a **JPG poster**, so you
+can import them like any other asset and let the bundler content-hash them. Runs are cached on
+source content plus encode settings, and `ffmpeg` must be installed — it's an external tool, not an
+npm dependency. Full behaviour, flags and the caching contract: [`vitops media`](/packages/cli/).
 
 ## `<Seo />`
 

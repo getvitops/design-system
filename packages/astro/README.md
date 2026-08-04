@@ -57,6 +57,7 @@ Astro's module graph and Astro emits that link itself.
 | `css.inject`    | `true`               | inject the stylesheet into every SSR page                         |
 | `webComponents` | `true`               | copy + link the web-component bundles                             |
 | `favicon`       | off unless given     | `source`, `lowResSource`, `name`, `themeColor`, `backgroundColor` |
+| `media`         | off unless given     | encode raw video to WebM + MP4 + poster (needs `css`, `ffmpeg`)   |
 | `sitemap`       | off unless given     | generate `sitemap-index.xml` via `@astrojs/sitemap`               |
 | `seo`           | off unless given     | site-level defaults for `<Seo />`                                 |
 | `analytics`     | off unless given     | providers for `<Analytics />` (GA4, Clarity, Matomo, Plausible)   |
@@ -70,6 +71,55 @@ their own path for, so `legal: {}` and `fonts: true` become the whole declaratio
 Set `css.inject: false` when another integration adds routes that must not inherit the design system
 (e.g. EmDash's `/_emdash/admin`) — then import the generated file (`<out>/tailwind.css` or
 `<out>/styles.css`) from your own layout, so only your pages are styled.
+
+## Video
+
+`media` encodes everything in a `raw/` directory into VP9/WebM, an H.264/MP4 fallback, and a JPG
+poster frame:
+
+```js
+vitops({
+  css: { format: 'css' },
+  media: { raw: 'raw', out: 'src/assets/processed' },
+});
+```
+
+Import the results like any other asset, so Vite content-hashes them:
+
+```astro
+---
+import hero from '../assets/processed/hero.webm';
+import poster from '../assets/processed/hero.jpg';
+---
+<video poster={poster.src} autoplay muted loop playsinline>
+  <source src={hero} type="video/webm" />
+</video>
+```
+
+Outputs go under `src/` for that hashing; the raw sources stay outside anything Vite scans.
+
+**`ffmpeg` is an external tool — install it yourself:** `brew install ffmpeg`,
+`apt install ffmpeg`, `winget install Gyan.FFmpeg`. Without it the build fails with a message
+telling you so, rather than quietly shipping a page that points at a video nobody encoded.
+
+Four things are deliberate:
+
+- **Commit the outputs and `.vitops/media-manifest.json`.** Encoding is cached on source content
+  plus settings, so a rebuild costs a hash per file — but a fresh CI clone has neither and would
+  re-encode everything. Committing both means CI never runs ffmpeg. It also keeps history clean:
+  ffmpeg output isn't reproducible across versions, so a CI re-encode rewrites every video on any
+  toolchain bump.
+- **The raw directory isn't watched.** It runs on build and on a config change, not on a file
+  appearing mid-`astro dev` — a multi-minute encode stalling your dev server is a worse trade than
+  a restart. Drop a video in and restart, or run `npx vitops media`.
+- **An MP4 sits beside the WebM on purpose.** Older iOS and the in-app webviews inside social apps
+  still don't decode VP9. The MP4 is written with `+faststart`, without which the browser
+  downloads the whole file before showing frame one.
+- **Audio is dropped by default.** The common case is a muted autoplay loop, where the audio track
+  is bytes nobody will ever hear. `media: { audio: true }` keeps it.
+
+Needs `css`, since the encoding runs in the Vite plugin `css` registers — it warns if you set one
+without the other. For any other stack, `npx vitops media` does the same job with no integration.
 
 ## Sitemap
 

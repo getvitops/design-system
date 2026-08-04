@@ -11,6 +11,7 @@
  *   vitops lint      [--input <json>] [--format <fmt>] [--src <dir>]
  *   vitops legal     [--input <site.json>] [--doc <name>] [--format <md|html|portable-text>] [--out <dir>]
  *   vitops indexing  [--input <site.json>] [--dry] [--all] [--check]
+ *   vitops media     [--raw <dir>] [--out <dir>] [--force] [--dry]
  *
  * Thin wrapper over @getvitops/generator (generation) and @getvitops/utils (favicons).
  * Every client brings their own consumer-editable design-system.json.
@@ -76,6 +77,15 @@ import {
   type IndexingConfig,
   type ServiceAccount,
 } from '@getvitops/utils/indexing';
+// Its own subpath for the same reason: `media` shells out to ffmpeg, and no other
+// command should carry it. `formatPlan` is aliased — indexing exports one too.
+import {
+  MEDIA_MANIFEST_PATH,
+  formatPlan as formatMediaPlan,
+  processMedia,
+  type MediaConfig,
+  type OutputKind,
+} from '@getvitops/utils/media';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
 import { lintCss } from './lint-css.ts';
 import { lintSource, vocabulary } from './lint.ts';
@@ -109,6 +119,7 @@ Usage:
   vitops legal [options]        Render legal documents from a site config
   vitops icons [options]        Report which icons your source uses, and build the sprite
   vitops indexing [options]    Tell search engines about a deploy (sitemap + IndexNow)
+  vitops media [options]       Encode raw video into web-ready WebM + MP4 + poster
 
 Generate options:
   -i, --input <path>    design-system.json or site config (default: ./design-system.json)
@@ -205,6 +216,31 @@ Indexing options:
   Search Console needs a service account in VITOPS_GSC_SERVICE_ACCOUNT (inline
   JSON) or GOOGLE_APPLICATION_CREDENTIALS (a path), added as an owner of the
   property.
+
+Media options:
+      --raw <dir>       Directory of unprocessed video, walked recursively
+                        (default: ./raw)
+  -o, --out <dir>       Where the encoded outputs go (default: ./src/assets/processed).
+                        Subdirectories under --raw are preserved.
+      --max-width <px>  Cap the output width, keeping aspect ratio (default: 1920;
+                        0 disables scaling)
+      --crf <n>         Quality on VP9's scale, 0-63, lower is better (default: 32).
+                        The MP4 fallback uses the equivalent on H.264's scale.
+      --max-bitrate <r> Optional ceiling, e.g. 2M or 800k (default: none, which is
+                        constant quality rather than constrained)
+      --audio           Keep the audio track (default: dropped — the common case is
+                        a muted autoplay loop)
+      --poster-time <s> Timestamp the poster frame is taken from (default: 0, which
+                        is often black on a clip that fades in)
+      --outputs <list>  Comma-separated: webm | mp4 | poster (default: all three)
+      --manifest <path> Cache file (default: .vitops/media-manifest.json)
+      --force           Re-encode everything, ignoring the cache
+      --dry             Print the plan and exit. Encodes nothing.
+
+  Needs ffmpeg on PATH — it is an external tool, not an npm dependency, and this
+  command fails rather than quietly skipping. Commit the outputs and the manifest:
+  ffmpeg output is not reproducible across versions, so re-encoding in CI churns
+  the diff on every toolchain bump. Use --force when you mean to re-encode.
 
 Common:
   -h, --help            Show this help
@@ -365,6 +401,91 @@ async function cmdFavicon(argv: string[]) {
       ...(values.background ? { backgroundColor: values.background as string } : {}),
     });
     console.log(`✓ favicons → ${values.out} (${written.length} files)`);
+  } catch (err) {
+    fail((err as Error).message);
+  }
+}
+
+const OUTPUT_KINDS = new Set<OutputKind>(['webm', 'mp4', 'poster']);
+
+/**
+ * `vitops media` — encode a directory of raw video into web-ready outputs.
+ *
+ * Flags only, with no config file, following `favicon`: `site.favicon` exists in
+ * the schema and `cmdFavicon` still doesn't read it. The same reasoning applies
+ * more strongly here — `legal`, `icons` and `indexing` are anchored to a
+ * `SiteConfig` because what they emit *describes the site*, and an encoder setting
+ * describes a build step.
+ */
+async function cmdMedia(argv: string[]) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      raw: { type: 'string', default: 'raw' },
+      out: { type: 'string', short: 'o', default: 'src/assets/processed' },
+      'max-width': { type: 'string' },
+      crf: { type: 'string' },
+      'max-bitrate': { type: 'string' },
+      audio: { type: 'boolean', default: false },
+      'poster-time': { type: 'string' },
+      outputs: { type: 'string' },
+      manifest: { type: 'string', default: MEDIA_MANIFEST_PATH },
+      force: { type: 'boolean', default: false },
+      dry: { type: 'boolean', default: false },
+    },
+    allowPositionals: false,
+  });
+
+  // Parsed here rather than passed through as strings, so a typo is caught before
+  // ffmpeg spends minutes encoding at a quality nobody asked for.
+  const num = (flag: string, raw: string | undefined): number | undefined => {
+    if (raw === undefined) return undefined;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) fail(`media: --${flag} must be a non-negative number`);
+    return n;
+  };
+
+  let outputs: OutputKind[] | undefined;
+  if (values.outputs) {
+    outputs = (values.outputs as string).split(',').map((s) => s.trim()) as OutputKind[];
+    for (const kind of outputs)
+      if (!OUTPUT_KINDS.has(kind))
+        fail(`media: unknown output "${kind}" (expected: webm | mp4 | poster)`);
+  }
+
+  const maxWidth = num('max-width', values['max-width'] as string | undefined);
+  const crf = num('crf', values.crf as string | undefined);
+  const posterTime = num('poster-time', values['poster-time'] as string | undefined);
+
+  const config: MediaConfig = {
+    ...(maxWidth !== undefined ? { maxWidth } : {}),
+    ...(crf !== undefined ? { crf } : {}),
+    ...(values['max-bitrate'] ? { maxBitrate: values['max-bitrate'] as string } : {}),
+    ...(values.audio ? { audio: true } : {}),
+    ...(posterTime !== undefined ? { posterTime } : {}),
+    ...(outputs ? { outputs } : {}),
+  };
+
+  try {
+    const result = await processMedia({
+      raw: values.raw as string,
+      out: values.out as string,
+      config,
+      manifest: values.manifest as string,
+      force: values.force as boolean,
+      dry: values.dry as boolean,
+      // An encode is minutes of silence otherwise, which reads as a hang.
+      onProgress: (message) => console.error(`  … ${message}`),
+    });
+
+    if (values.dry) {
+      console.log(formatMediaPlan(result.plan));
+      return;
+    }
+    console.log(
+      `✓ media → ${values.out} (${result.written.length} written, ${result.skipped} unchanged)`,
+    );
+    for (const note of result.plan.notes) console.error(`  ! ${note}`);
   } catch (err) {
     fail((err as Error).message);
   }
@@ -1146,9 +1267,11 @@ async function main() {
       return cmdIcons(rest);
     case 'indexing':
       return cmdIndexing(rest);
+    case 'media':
+      return cmdMedia(rest);
     default:
       fail(
-        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint | legal | icons | indexing). Try: vitops --help`,
+        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint | legal | icons | indexing | media). Try: vitops --help`,
       );
   }
 }

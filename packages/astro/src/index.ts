@@ -10,6 +10,7 @@ export { default } from './integration.ts';
 export type {
   GetvitopsCssOptions,
   GetvitopsFaviconOptions,
+  GetvitopsMediaOptions,
   GetvitopsOptions,
   GetvitopsSitemapChangeFreq,
   GetvitopsSitemapEntry,
