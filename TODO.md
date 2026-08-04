@@ -141,3 +141,60 @@ Notes for whoever picks this up:
   anything else rather than behind an observer.
 - Check it against the Bricks builder, where markup is injected and re-rendered
   constantly — that is the hardest case for an observer-driven loader.
+
+## `SiteConfig` → `Config`, with three sections — todo
+
+Restructure the top-level config from a flat `SiteConfig` into:
+
+```jsonc
+{
+  "designSystem": {
+    /* … or a path/shorthand, as today */
+  },
+  "organization": {
+    /* the company: name, address, contact, areaServed, … */
+  },
+  "site": {
+    /* analytics, deployment, dns, api, hosting, seo, icons,
+                       legal, templates, basePath, defaultLocale, security, … */
+  },
+}
+```
+
+**Why.** The current name is the smaller half of the argument. `SiteConfig` today holds
+`organization` (company data) _and_ `analytics`/`deployment`/`basePath`/`designSystem`
+(site and deployment data) as flat peers, so no single noun describes it —
+"CompanyConfig" would be narrower than its contents and "SiteConfig" buries the company
+inside a site. Three named sections under a neutral `Config` says what is actually
+there, and it makes the multi-site case expressible: several sites can `extends` one
+file and override only `site`.
+
+**What it touches.** This is the value of writing it down — it is not a rename:
+
+- `packages/generator/src/site.ts` — the schema, `SITE_SCHEMA_URL`, `siteJsonSchema`,
+  and the emitted `site.schema.json` (probably `config.schema.json`).
+- `resolveInput` keeps working unchanged: it discriminates on the presence of a
+  `designSystem` key, which is still true and still unambiguous against a bare
+  `DesignSystem` (which is strict, so the key is an `unrecognized_keys` error there).
+- `packages/generator/src/legal/` — `derive.ts` and `providers.ts` read `legal.*`,
+  `organization`, `analytics`, `deployment` and `security.turnstile`. Every one of those
+  paths moves except `organization`.
+- `@getvitops/astro` — the `site` option, analytics resolution, the analytics/legal
+  agreement warning.
+- `@getvitops/vite` — `designSystemPath()` walks the RAW on-disk object, so it must
+  learn the new shape; getting this wrong grows a key beside the author's and silently
+  edits a copy nothing builds from.
+- `@getvitops/cli` — `vitops legal`, the only command that reads this config.
+- `@getvitops/create` — every scaffolded template ships one.
+
+**Do it in one major**, alongside the other breaking changes, and give it a real
+migration: `validate` should detect the old flat shape and name the moves rather than
+emitting `unrecognized_keys` for a dozen fields at once. A config that fails with
+"unknown key: analytics" teaches nobody where it went.
+
+**Also blocked on this:** the site-config authoring reference. `site.ts` already carries
+95 `desc()` calls and exports `siteJsonSchema`, so the reference is the existing
+`authoring.md` walker (`docs.ts:822-913`) pointed at a second schema, plus a
+`docs/index.md` entry and a topic mapping in `packages/cli/src/agents.ts`
+(drift-guarded by `agents.test.ts`). Write it AFTER the restructure so it documents the
+shape consumers will actually have.
