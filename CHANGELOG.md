@@ -11,6 +11,88 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 2.1.0 — 2026-08-04
+
+_Also: `@getvitops/emdash` 0.3.1._
+
+Two new commands for the parts of shipping a site that were still hand-rolled per project: encoding
+video, and telling search engines a deploy happened. Nothing breaks — both are additive, and neither
+runs unless you configure it.
+
+### Added
+
+- **`vitops media` — raw video in, web-ready assets out.** Each source in a `raw/` directory becomes
+  a **VP9/WebM**, an **H.264/MP4** fallback and a **JPG poster**, with the directory structure
+  preserved so you can import them like any other asset and let your bundler content-hash them.
+
+  ```sh
+  vitops media --raw raw --out src/assets/processed
+  ```
+
+  Also an Astro integration option (`media: { raw, out }`, running in the same pass as your CSS), a
+  Vite plugin option, and `processMedia()` from `@getvitops/utils/media`.
+
+  **Runs are cached** on source content plus encode settings, in `.vitops/media-manifest.json` — a
+  24 MB clip that took 88 seconds the first time takes 0.14 seconds the second. **Commit the outputs
+  and the manifest:** a fresh CI clone has neither and would re-encode from scratch, and ffmpeg
+  output isn't byte-reproducible across versions, so a CI re-encode would rewrite every video on any
+  toolchain bump.
+
+  `ffmpeg` is an external tool, not an npm dependency — install it yourself. The command fails
+  without it rather than skipping, because a page referencing a video that was never encoded is
+  broken, not degraded.
+
+- **`vitops indexing` — the end-of-deploy Search Console visit, automated.** Reads `seo.indexing`
+  from your site config, diffs your sitemap against the previous run, pings **IndexNow** with what
+  changed, and re-submits your sitemap through the **Search Console API**. `--check` then inspects
+  your `priorityUrls` and exits non-zero on a page Google hasn't indexed, so a scheduled CI job
+  catches a page that quietly falls out of the index.
+
+  ```sh
+  vitops indexing --dry     # print the plan, make no requests
+  vitops indexing           # submit
+  vitops indexing --check   # a day or two later: did Google actually index them?
+  ```
+
+  **Know the ceiling.** Google exposes no API that requests indexing — the button in Search Console
+  isn't available anywhere, URL Inspection is read-only, and the sitemap ping endpoint was removed
+  in 2023. IndexNow reaches Bing, Yandex, Naver, Seznam and Yep; Google doesn't participate. So this
+  automates every sanctioned step and then _verifies_ the outcome; it does not make Google re-index
+  on demand, and nothing can. Google's Indexing API is deliberately not wired — it's scoped to job
+  postings and livestreams, and using it for ordinary pages violates its terms.
+
+  An environment whose `robots` policy says `noindex` is refused outright, so pointing this at
+  staging can't publish it to a search engine. Persist `.vitops/` between runs (a CI cache), or
+  every run submits everything.
+
+- **`gitLastmod()` for real sitemap dates** (`@getvitops/astro`). `@astrojs/sitemap` emits no
+  `<lastmod>`, which means a crawler is told your pages exist but never that one changed — and it's
+  what lets `vitops indexing` submit a handful of URLs instead of all of them.
+
+  ```js
+  import vitops, { gitLastmod } from '@getvitops/astro';
+  vitops({ sitemap: { serialize: await gitLastmod() } });
+  ```
+
+  It derives each date from the source file's last commit and leaves a page alone rather than
+  guessing (dynamic routes, ambiguous slugs, shallow clones): an inaccurate `lastmod` is worse than
+  none, because Google stops trusting the field site-wide. Needs `fetch-depth: 0` in CI.
+
+- **New `@getvitops/utils` subpaths:** `./media` and `./indexing`. Separate entry points so
+  importing the content helpers doesn't drag in an encoder or a network client.
+
+### Fixed
+
+- **Releases were broken since `apps/portal` was extracted.** The changesets `ignore` list still
+  named `portal`, and changesets _errors_ rather than warning on an entry it can't resolve — so
+  `changeset status`, `version` and `publish` all exited non-zero.
+
+- **A peer-dependent no longer takes a spurious major bump.** `@getvitops/emdash` peers on
+  `@getvitops/astro >=2.0.0`, and changesets bumps peer-dependents as major regardless of whether
+  the new version actually leaves that range. An astro 2.0.0 → 2.1.0 minor was queuing emdash
+  0.3.0 → **1.0.0**, announcing a breaking change that didn't exist. It now takes a major only when
+  astro genuinely exits `>=2.0.0`, which is what the peer range was written to express.
+
 ## 2.0.0 — 2026-08-03
 
 _Also: `@getvitops/emdash` 0.3.0, `@getvitops/create` 0.4.0._

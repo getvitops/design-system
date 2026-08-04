@@ -1,5 +1,13 @@
 # @getvitops/core
 
+## 2.1.0
+
+### Patch Changes
+
+- Updated dependencies [20e518e]
+- Updated dependencies [9bf975a]
+  - @getvitops/utils@2.1.0
+
 ## 2.0.0
 
 ### Major Changes
