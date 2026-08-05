@@ -45,18 +45,22 @@ encoder or a network client:
 | `@getvitops/utils`           | content model, HTML helpers, icon resolution, JSON-LD, source scanning    |
 | `@getvitops/utils/favicon`   | `generateFavicons()` — lazily loads `sharp` + `png-to-ico`               |
 | `@getvitops/utils/color`     | the OKLCH ramp + contrast primitives                                      |
-| `@getvitops/utils/media`     | `processMedia()` — video encoding; shells out to `ffmpeg`                |
-| `@getvitops/utils/indexing`  | sitemap diffing, IndexNow, Search Console submission + inspection         |
+| `@getvitops/utils/media`      | `processMedia()` — video encoding; shells out to `ffmpeg`                |
+| `@getvitops/utils/indexing`   | sitemap diffing, IndexNow, Search Console submission + inspection         |
+| `@getvitops/utils/onboarding` | Cloudflare DNS + Google Site Verification + Search Console onboarding     |
 
-`media` and `indexing` share a shape worth knowing if you're extending either: a pure `plan.ts` that
-decides everything and touches nothing, with the executor beside it deciding nothing. That's what
-lets `--dry` be a complete account of a run, and what lets the consequential parts — the encode
-cache, the changed-URL diff — be tested without `ffmpeg` or a network.
+`media`, `indexing` and `onboarding` share a shape worth knowing if you're extending any of them: a
+pure `plan.ts` that decides everything and touches nothing, with the executor beside it deciding
+nothing. That's what lets `--dry` be a complete account of a run, and what lets the consequential
+parts — the encode cache, the changed-URL diff, the onboarding idempotency and backoff — be tested
+without `ffmpeg` or a network.
 
 ```ts
 import { processMedia } from '@getvitops/utils/media';
 import { plan, collectEntries } from '@getvitops/utils/indexing';
+import { plan as planSetup } from '@getvitops/utils/onboarding';
 ```
 
-Both are surfaced by the CLI as [`vitops media`](/packages/cli/) and
-[`vitops indexing`](/packages/cli/), which is the surface every consumer has regardless of stack.
+They are surfaced by the CLI as [`vitops media`](/packages/cli/) and
+[`vitops search`](/packages/cli/) (`notify` + `setup`), which is the surface every consumer has
+regardless of stack.

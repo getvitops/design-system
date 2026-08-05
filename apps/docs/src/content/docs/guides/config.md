@@ -67,7 +67,8 @@ its own input to the same file. Keeping the two files separate works too; point 
 | --- | --- |
 | `vitops legal` | `site.legal`, `site.templates`, `site.analytics`, `organization` |
 | `vitops icons` | `site.icons` |
-| `vitops indexing` | `site.seo.indexing`, `site.environments`, `site.domains` |
+| `vitops search notify` | `site.seo.indexing`, `site.environments`, `site.domains` |
+| `vitops search setup` | `site.searchConsole` |
 | `vitops validate` | all of it — shape plus the cross-field integrity a JSON Schema can't express |
 
 Everything else (`generate`, `docs`, `lint`) needs only the tokens, and accepts either kind of file.

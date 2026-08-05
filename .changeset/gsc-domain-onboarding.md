@@ -1,14 +1,14 @@
 ---
-'@getvitops/generator': minor
-'@getvitops/utils': minor
-'@getvitops/cli': minor
+'@getvitops/generator': major
+'@getvitops/utils': major
+'@getvitops/cli': major
 ---
 
 Add `vitops search setup` — onboard domains into Google Search Console as domain properties.
 
-The `indexing` command is now grouped under a new `search` command as **`vitops search notify`**.
-`vitops indexing` still works as a deprecated alias (it prints a deprecation notice and forwards to
-`search notify`); update scripts to the new spelling at your convenience.
+**Breaking:** the `vitops indexing` command has been renamed to **`vitops search notify`**. There is
+no alias — update any scripts or CI that call `vitops indexing` to `vitops search notify` (same flags,
+same behaviour).
 
 **New: `vitops search setup`.** For each domain in a site config's new `site.searchConsole` block
 (a record keyed by bare hostname), it:

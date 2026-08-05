@@ -224,9 +224,9 @@ packages under `packages/` (a pnpm workspace), by layer:
 
   `search` groups the two Search Console commands, both anchored to a `Config`. `search notify`
   tells search engines a deploy happened, from `site.seo.indexing` (this was the top-level
-  `indexing` command, kept as a deprecated alias) — see the Search-engine indexing section
-  below. `search setup` onboards `site.searchConsole` domains as Search Console domain
-  properties — see the Search Console onboarding section below.
+  `indexing` command, renamed with no alias) — see the Search-engine indexing section below.
+  `search setup` onboards `site.searchConsole` domains as Search Console domain properties —
+  see the Search Console onboarding section below.
 
 - **`@getvitops/vite`** — a Vite plugin (Astro/EmDash) that runs the generator on build/dev (+
   optional favicon generation) and hot-regenerates when the config changes.
@@ -435,8 +435,8 @@ alongside a cookieless analytics provider would otherwise be described as settin
 
 `vitops search notify` (`packages/cli` → `@getvitops/utils/indexing`) replaces the manual "open
 Search Console and resubmit" step at the end of a deploy. It reads a **`Config`**'s
-`site.seo.indexing` block. (It was the top-level `vitops indexing`, which survives as a deprecated
-alias — the `search` command groups it with `search setup`, the onboarding command below.)
+`site.seo.indexing` block. (It was the top-level `vitops indexing`, renamed with no alias — the
+`search` command groups it with `search setup`, the onboarding command below.)
 
 **Start from what search engines actually accept, because the obvious assumption is wrong and
 every design decision here follows from it:**

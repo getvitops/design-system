@@ -1587,11 +1587,6 @@ async function main() {
       return cmdIcons(rest);
     case 'search':
       return cmdSearch(rest);
-    case 'indexing':
-      // Deprecated alias for `search notify`. Kept so consumer CI doesn't break on
-      // the rename; warns to stderr so stdout stays machine-readable.
-      console.error('⚠ `vitops indexing` is deprecated — use `vitops search notify`');
-      return cmdSearch(['notify', ...rest]);
     case 'media':
       return cmdMedia(rest);
     default:

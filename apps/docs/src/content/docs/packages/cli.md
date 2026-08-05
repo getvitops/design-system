@@ -41,9 +41,10 @@ npx vitops generate --format bricks,css --out dist
 | `vitops legal [-d <doc>] [-f <fmt>]`               | render privacy policy / terms / cookie notice   |
 | `vitops icons [--sprite]`                          | report icon usage, and build the SVG sprite     |
 | `vitops media [--raw <dir>] [--out <dir>]`         | encode raw video into WebM + MP4 + poster       |
-| `vitops indexing [--dry] [--check]`                | tell search engines about a deploy              |
+| `vitops search setup [--dry] [--check]`            | onboard domains into Google Search Console      |
+| `vitops search notify [--dry] [--check]`           | tell search engines about a deploy              |
 
-`legal`, `icons` and `indexing` read a **site config** rather than a `design-system.json`, because
+`legal`, `icons` and `search` read a **site config** rather than a `design-system.json`, because
 what they emit describes a site rather than a token set. `media` reads neither — an encoder setting
 describes a build step, so it's all flags.
 
@@ -167,7 +168,13 @@ In Astro it's an integration option that runs in the same pass as your CSS —
 `vitops({ css, media: { raw: 'raw', out: 'src/assets/processed' } })`. `@getvitops/vite` has a
 matching `media` option, and `@getvitops/utils/media` exports `processMedia()` for anything else.
 
-## Search engines (`vitops indexing`)
+## Search engines (`vitops search`)
+
+Two subcommands, split by what they touch: `search setup` gets a domain _into_ Search Console, and
+`search notify` tells the engines a deploy happened. (`search notify` was the top-level
+`vitops indexing`, renamed — there is no alias.)
+
+### `vitops search notify`
 
 Replaces the manual "open Search Console and resubmit" step at the end of a deploy. Configure it in
 your site config under `seo.indexing`:
@@ -183,9 +190,9 @@ your site config under `seo.indexing`:
 ```
 
 ```sh
-vitops indexing --dry     # print the plan, make no requests
-vitops indexing           # submit
-vitops indexing --check   # a day or two later: did Google actually index them?
+vitops search notify --dry     # print the plan, make no requests
+vitops search notify           # submit
+vitops search notify --check   # a day or two later: did Google actually index them?
 ```
 
 **What it does.** Reads your sitemap, diffs it against the previous run
@@ -222,10 +229,53 @@ none, because Google stops trusting the field site-wide. Needs `fetch-depth: 0` 
 
 **Credentials.** The IndexNow key is public by design — it's served at `/<key>.txt` as the
 ownership proof — so it lives in your config, and the Astro integration writes the file into
-`public/` for you (`vitops indexing --new-key` generates one, `--write-key <dir>` writes it for
+`public/` for you (`vitops search notify --new-key` generates one, `--write-key <dir>` writes it for
 non-Astro stacks). Search Console needs a service account in `VITOPS_GSC_SERVICE_ACCOUNT` or
 `GOOGLE_APPLICATION_CREDENTIALS`, added as an owner of the property; it's never read from the
 config file.
+
+### `vitops search setup`
+
+Onboards domains into Google Search Console as **domain properties** — the manual DNS-paste / wait /
+verify / add-property dance, automated. List the domains in your site config under `searchConsole`,
+keyed by bare hostname:
+
+```jsonc
+"searchConsole": {
+  "acme.ca": { "delegatedOwners": ["colleague@acme.ca"], "fullUserGroup": "team@acme.ca" },
+  "acme.com": {}
+}
+```
+
+```sh
+vitops search setup --dry            # print the plan, change nothing
+vitops search setup --check          # report drift, exit non-zero if any domain isn't onboarded
+vitops search setup                  # onboard every domain
+vitops search setup --domain acme.ca # scope to one entry
+```
+
+**What it does, per domain.** Ensures the apex verification TXT in Cloudflare, verifies ownership via
+the Site Verification API (DNS_TXT), adds the `sc-domain:` property, and adds any `delegatedOwners`
+to the verified web resource.
+
+| step         | behaviour                                                                              |
+| ------------ | -------------------------------------------------------------------------------------- |
+| **TXT**      | created in Cloudflare only when missing — records are never edited or deleted          |
+| **verify**   | retried with backoff while DNS propagates; still-unverified is reported **PENDING**    |
+| **property** | `sc-domain:` property added via the Search Console API                                 |
+| **owners**   | `delegatedOwners` added to the web resource (additive — an existing owner is kept)     |
+
+It is **idempotent**: a re-run of an onboarded domain is a no-op. `--check` reports drift and exits
+non-zero without mutating anything; `--dry` prints the plan and stops.
+
+**Full-User access is manual.** Search Console has no user/permission API, so granting a Google Group
+Full-User access can't be automated — set `fullUserGroup` and the command surfaces it as a reminder
+in the summary rather than attempting it.
+
+**Credentials** come from the environment, never the config: `CLOUDFLARE_API_TOKEN` (a `Zone:DNS:Edit`
+token — the standard "Edit zone DNS" template also carries the `Zone:Read` the zone lookup needs), and
+a Google **user OAuth refresh token** as `VITOPS_GOOGLE_CLIENT_ID` / `VITOPS_GOOGLE_CLIENT_SECRET` /
+`VITOPS_GOOGLE_REFRESH_TOKEN`, scoped to `siteverification` + `webmasters`.
 
 Persist `.vitops/` between runs (a CI cache), or every run submits everything. An environment whose
 `robots` policy says `noindex` is refused outright, so pointing this at staging can't publish it to
