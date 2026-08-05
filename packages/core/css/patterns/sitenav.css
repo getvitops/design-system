@@ -97,6 +97,19 @@
   inset-block: 0;
   inline-size: min(100dvw, var(--sitenav-drawer-size, 20rem));
   max-inline-size: 100dvw;
+
+  /* The UA `[popover]` sheet supplies `margin: auto` and `height: fit-content`, and
+     neither was being undone — so `inset-block: 0` bought nothing and the "drawer"
+     rendered as a content-height card floating in the vertical centre, while at
+     width the auto margins absorbed the free space of any stretched `.sitenav`.
+     `drawer.css` resets margin for exactly this reason; this panel doesn't compose
+     it. Both live in the base block because the UA sheet applies in BOTH states:
+     against `position: fixed` + `inset-block: 0` an auto block-size stretches to
+     the drawer's full height, and against the wide branch's `position: static` the
+     same declaration sizes the navbar to its content. */
+  margin: 0;
+  block-size: auto;
+
   padding: 1.5rem;
   padding-block-start: 3.5rem; /* clearance for the close button */
   background: var(--color-bg-surface);
