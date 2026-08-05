@@ -64,6 +64,14 @@ export interface PolicyVars {
   cookieOptOutOptions: string[];
 
   processors: Processor[];
+  /**
+   * Cookies the site sets itself.
+   *
+   * Separate from `processors`, which are third parties — no provider table would
+   * ever name a first-party cookie, so without this the notice can say "we do not
+   * set cookies" while `_ac` sits in the visitor's browser.
+   */
+  firstPartyCookies: { name: string; purpose: string; retention: string }[];
   /** Reads after "including": "…the United States and the European Union". */
   countries: string | undefined;
   consentModel: 'opt-in' | 'opt-out' | 'none';
@@ -265,10 +273,35 @@ export function derivePolicyVars(cfg: Config): PolicyVars {
   ]);
 
   const ab = site.abTesting;
+
+  /**
+   * A site offering the `preferences` category stores at least one setting the
+   * visitor chose — `<color-scheme-toggle>` writes `vitops-color-scheme` to local
+   * storage, gated on exactly this category. The banner asking about it while the
+   * notice never mentions it is the disclosure gap `providers.ts` exists to
+   * prevent, just on the browser-storage side rather than the third-party one.
+   */
+  const hasPreferences = consent?.enabled === true && !!consent.categories?.includes('preferences');
+
+  /**
+   * `site.tracking.enabled` writes the `_ac` cookie: the click ID from the ad a
+   * visitor followed, kept for 90 days so a later enquiry can be attributed to
+   * the campaign that produced it. It is first-party and never leaves the site,
+   * which is exactly why nothing in the provider table would ever mention it —
+   * and why it has to be stated here instead. A notice that lists every
+   * third-party cookie while omitting the one the site sets itself is the same
+   * disclosure defect, pointed inward.
+   */
+  const hasAdTracking = site.tracking?.enabled === true;
+
   const cookieTracked = uniq([
     'your IP address',
     'the type of web browser and operating system used',
     'the pages of the Site visited',
+    hasPreferences
+      ? 'display settings you have chosen, such as light or dark appearance'
+      : undefined,
+    hasAdTracking ? 'which advertisement or campaign brought you to our Site' : undefined,
     ab?.enabled ? 'which version of a page you were shown' : undefined,
     hasSessionReplay ? 'how you moved through and interacted with a page' : undefined,
   ]);
@@ -276,14 +309,22 @@ export function derivePolicyVars(cfg: Config): PolicyVars {
   const cookiePurposes = uniq([
     'keep the Site functioning as you move between pages',
     hasAnalytics ? 'understand how our Site is used, in aggregate' : undefined,
+    hasPreferences ? 'remember display settings you choose, between visits' : undefined,
+    hasAdTracking
+      ? 'attribute an enquiry to the advertisement that brought you here, for up to 90 days'
+      : undefined,
     hasSessionReplay ? 'recognise a returning visit as part of the same session' : undefined,
     ab?.enabled ? 'keep you on a consistent version of the Site between visits' : undefined,
     site.security?.turnstile?.siteKey ? 'distinguish visitors from automated traffic' : undefined,
   ]);
 
+  // Not "shown when you first visit": the banner is raised by whatever needs the
+  // permission, at the point it needs it — on arrival for an analytics tag, on the
+  // click for a display setting. A site that gates nothing never shows one at all,
+  // so promising a first-visit banner would describe a thing that never happens.
   const cookieTool = consent?.enabled
     ? consent.type === 'opt-in'
-      ? 'You may also choose which categories of cookies to allow using the consent banner shown when you first visit our Site, and you may change that choice at any time.'
+      ? 'You may also choose which categories of cookies to allow using the consent banner, which appears when something on the Site first needs your permission, and you may change that choice at any time.'
       : 'You may also withdraw your consent to non-essential cookies at any time using the consent controls on our Site.'
     : undefined;
 
@@ -336,6 +377,16 @@ export function derivePolicyVars(cfg: Config): PolicyVars {
     optOutOptions,
     cookieOptOutOptions,
     processors,
+    firstPartyCookies: hasAdTracking
+      ? [
+          {
+            name: '_ac',
+            purpose:
+              'records the advertisement or campaign you arrived from, so an enquiry can be attributed to it',
+            retention: '90 days',
+          },
+        ]
+      : [],
     countries: countries || undefined,
     consentModel: consent?.enabled ? (consent.type ?? 'opt-in') : 'none',
     cookieCategories: consent?.categories ?? [],

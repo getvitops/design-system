@@ -1,6 +1,23 @@
 import { css, type CSSResultGroup } from 'lit';
 import { html } from '@lit-labs/signals';
 import { BaseElement } from './BaseElement.js';
+// Type-only, and it must stay that way: this element ships in `elements.js` and
+// the consent gate is a separate Lit-free bundle, so a value import would drag
+// the gate — and its top-level `scan()` — into every page with a theme toggle.
+import type {} from '../consent/runtime.js';
+
+/**
+ * Mirrors `CONSENT_EVENT` in `../consent/store.js`, deliberately copied rather
+ * than imported — the same arrangement, for the same reason, as
+ * `@getvitops/astro`'s `analytics.ts` mirroring the category vocabulary.
+ *
+ * Importing it made `store.ts` a shared chunk between `elements.js` and
+ * `consent.js`, so every page with a theme toggle fetched an extra 688-byte
+ * module for one string, including sites with no consent gate at all. The
+ * bundles are meant to be independent; `store.test.ts` pins the two spellings
+ * together so this can't drift.
+ */
+const CONSENT_EVENT = 'vitops:consent';
 
 type ColorScheme = 'system' | 'light' | 'dark';
 
@@ -17,7 +34,10 @@ type ColorScheme = 'system' | 'light' | 'dark';
  *
  * @fires scheme-change - When the color scheme changes, with detail: { scheme: 'system' | 'light' | 'dark' }
  *
- * TODO: Future enhancement - add localStorage persistence with cookie consent integration
+ * The chosen scheme always applies immediately; **remembering** it across visits
+ * goes through the `preferences` consent category when the site has a gate — see
+ * `_persist()`. Picking a non-`system` scheme is therefore what raises the banner
+ * on a site that gates nothing else.
  */
 export class WCColorSchemeToggle extends BaseElement {
   static styles: CSSResultGroup = [
@@ -151,7 +171,13 @@ export class WCColorSchemeToggle extends BaseElement {
    */
   static readonly STORAGE_KEY = 'vitops-color-scheme';
 
-  /** Read the persisted choice; storage can throw in private/partitioned modes. */
+  /**
+   * Read the persisted choice; storage can throw in private/partitioned modes.
+   *
+   * Deliberately **not** gated on consent, unlike the write. A value already in
+   * storage was either consented to or predates the gate; refusing to read it
+   * would throw away the visitor's own setting to protect them from themselves.
+   */
   static readStored(): ColorScheme | null {
     try {
       const v = localStorage.getItem(WCColorSchemeToggle.STORAGE_KEY);
@@ -161,7 +187,49 @@ export class WCColorSchemeToggle extends BaseElement {
     }
   }
 
+  /**
+   * Persist the choice, if we're allowed to.
+   *
+   * The scheme itself always applies — `_applyColorScheme()` is not gated, so the
+   * click does what the visitor asked immediately. Only the *storage* waits on the
+   * `preferences` category, which is the honest split: remembering a choice across
+   * visits is the part that needs permission, and changing the current page is not.
+   *
+   * `require()` both asks and registers the demand, so picking a scheme on a site
+   * with no analytics is what puts the banner up — the one interaction that needs
+   * the permission is the one that requests it. If it is refused, nothing is
+   * written and `_onConsent` picks it up should the visitor grant it later.
+   *
+   * **No gate on the page means no gate**, not deny: a site that never enabled
+   * `consent` keeps storing exactly as before. `<Head />` emits an inline stub
+   * whenever the gate *is* enabled, so an absent `window.vitopsConsent` here is a
+   * reliable "this site has no gate" rather than "consent.js hasn't loaded yet".
+   */
   private _persist(): void {
+    const consent = window.vitopsConsent;
+    if (!consent || consent.require('preferences')) this._write();
+  }
+
+  /**
+   * Flush the current scheme once `preferences` is granted.
+   *
+   * A standing listener rather than a promise on the outstanding `require()`,
+   * because a grant can arrive long after the click that asked for it — the
+   * visitor declines the banner, keeps browsing, then enables preferences from
+   * "Cookie settings". A one-shot promise resolves `false` at the decline and
+   * never fires again, which left the toggle visibly on Dark, permission given,
+   * and nothing stored: the setting silently reverted on the next navigation.
+   *
+   * Listening for the event rather than calling `subscribe()` also sidesteps the
+   * load-order problem — this element can upgrade before `consent.js` evaluates,
+   * so there may be no API object to subscribe to yet, but the event fires either
+   * way.
+   */
+  private _onConsent = (): void => {
+    if (window.vitopsConsent?.granted('preferences')) this._write();
+  };
+
+  private _write(): void {
     try {
       // 'system' is the absence of a choice, so clear rather than store it —
       // that way a visitor who returns to System follows the OS again.
@@ -180,6 +248,9 @@ export class WCColorSchemeToggle extends BaseElement {
     this._boundMediaHandler = this._handleMediaChange.bind(this);
     this._mediaQuery.addEventListener('change', this._boundMediaHandler);
 
+    // Fires on the gate's startup publish and on every change thereafter.
+    document.addEventListener(CONSENT_EVENT, this._onConsent);
+
     // Apply initial scheme
     this._applyColorScheme();
   }
@@ -190,6 +261,8 @@ export class WCColorSchemeToggle extends BaseElement {
     if (this._mediaQuery && this._boundMediaHandler) {
       this._mediaQuery.removeEventListener('change', this._boundMediaHandler);
     }
+
+    document.removeEventListener(CONSENT_EVENT, this._onConsent);
 
     // Deliberately does NOT clear `color-scheme` / `data-theme`: the colour
     // scheme is a document-level user preference, not this element's state.

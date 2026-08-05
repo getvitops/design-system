@@ -30,6 +30,39 @@ describe('THEME_SCRIPT', () => {
   });
 });
 
+describe('CONSENT_STUB', () => {
+  it('is emitted synchronously, not as a module', () => {
+    // The whole point is to exist before `consent.js` and `elements.js`, which
+    // are deferred modules with no ordering between them. A `type="module"` stub
+    // would lose the race it was written to win.
+    expect(SRC).toContain('CONSENT_STUB');
+    expect(SRC).toContain('<script is:inline set:html={CONSENT_STUB} />');
+  });
+
+  it('answers false and queues, rather than guessing', () => {
+    // Nothing is granted before the store has been read. If the stub returned
+    // true, a theme toggle clicked in the load window would store without
+    // permission — the exact leak the gate exists to prevent.
+    expect(SRC).toContain('return false');
+    expect(SRC).toContain('q:[]');
+  });
+
+  it('exposes the two entry points `consent/runtime.ts` drains', () => {
+    // `q` entries are [category] from require() and [category, resolve] from
+    // request(). Renaming either side without the other silently drops every
+    // demand raised before the gate loaded.
+    expect(SRC).toContain('require:function');
+    expect(SRC).toContain('request:function');
+  });
+
+  it('is gated on the gate being on, not on the runtime being loaded', () => {
+    // `head.consentRuntime` is also true for a cookieless tag that only needs
+    // scheduling. Emitting the stub there would tell callers a gate exists on a
+    // site that gates nothing.
+    expect(SRC).toContain('{head.consent && <script is:inline set:html={CONSENT_STUB} />}');
+  });
+});
+
 describe('<html> class flags', () => {
   it('sets none — the CSS asks the platform instead', () => {
     // `animation.css` gates on `@media (scripting: enabled)` and

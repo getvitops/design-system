@@ -711,17 +711,61 @@ const SiteSectionSchema = z.object({
     'Analytics provider IDs (gated per environment via `environments.<env>.analytics`). Which provider is set is also what the generated privacy policy and cookie notice disclose — see `legal`.',
   ),
   notifications: desc(
-    z.optional(z.object({ email: z.optional(z.email()) })),
-    'Where site notifications (e.g. form submissions) are sent.',
+    z.optional(
+      z.object({
+        email: desc(
+          z.optional(
+            z.union([
+              z.email(),
+              z.object({
+                provider: desc(
+                  z.literal('cloudflare'),
+                  'Delivery provider. Only Cloudflare Email Sending is implemented; the field is stated so adding another is additive.',
+                ),
+                to: desc(
+                  z.optional(z.email()),
+                  'Recipient. Defaults to the primary location’s `email`, then the first location that has one.',
+                ),
+                from: desc(
+                  z.optional(z.email()),
+                  'Sender. Defaults to `noreply@<domains.canonical>`. Its domain must be onboarded (`wrangler email sending enable <domain>`) or every send fails.',
+                ),
+                fromName: desc(
+                  z.optional(z.string()),
+                  'Display name on the From header. Defaults to `organization.name`.',
+                ),
+                replyTo: desc(z.optional(z.email()), 'Reply-To header.'),
+                binding: desc(
+                  z.optional(z.string()),
+                  'Workers `send_email` binding name (default `EMAIL`). Set it when using a restricted binding.',
+                ),
+              }),
+            ]),
+          ),
+          'Where conversion notifications are e-mailed. A bare address is shorthand for `{ provider: "cloudflare", to }`.',
+        ),
+      }),
+    ),
+    'Where site notifications (form submissions, tracked calls) are sent. TODO: `sms` and `persist` channels — only `email` is implemented.',
   ),
   tracking: desc(
     z.optional(
       z.object({
-        enabled: z.optional(z.boolean()),
-        platforms: z.optional(z.array(z.string())),
+        enabled: desc(
+          z.optional(z.boolean()),
+          'Capture ad click IDs and UTMs from the landing URL into the `_ac` cookie, for attributing conversions.',
+        ),
+        category: desc(
+          z.optional(z.enum(['marketing', 'analytics'])),
+          'Consent category the `_ac` cookie waits on (default `marketing`). It is a 90-day identifier tying a visitor to the ad that brought them, so it is only written once this category is granted — and asking for it is what raises the banner.',
+        ),
+        platforms: desc(
+          z.optional(z.array(z.string())),
+          'Informational list of ad platforms in use. Capture recognises every known click-ID parameter regardless.',
+        ),
       }),
     ),
-    'Marketing/conversion tracking toggles per platform.',
+    'Ad-click attribution for conversion tracking.',
   ),
   security: desc(
     z.optional(

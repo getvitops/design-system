@@ -58,14 +58,24 @@ pays nothing. Don't use it as precedent for putting behaviour JS in a `<wc-*>` e
 
 ## The consent gate
 
-`@getvitops/core/consent` (`src/js/consent.ts` → `dist/consent.js`, ~2.3 KB gzipped, no Lit) is a
+`@getvitops/core/consent` (`src/js/consent.ts` → `dist/consent.js`, ~2.8 KB gzipped, no Lit) is a
 **general** permission gate, not an analytics feature. Anything marked `data-consent="<category>"` —
 a third-party tag, an A/B assignment, a personalisation cookie, an embedded map — waits on one
 choice, exposed as `window.vitopsConsent` plus a `vitops:consent` event on `document`. Categories are
 `necessary` / `analytics` / `marketing` / `preferences`, defined once in `consent/store.ts` and
 mirrored (not imported) by `@getvitops/astro`'s `analytics.ts`.
 
-Four things are load-bearing:
+**The banner is demand-driven, and that splits one idea into two.** _Offered_ categories are a
+build-time fact — which rows `<CookieConsent />` renders — and the default is deliberately generous,
+because a hidden row costs nothing. _Demanded_ categories are a runtime fact: what something has
+actually asked for and the visitor hasn't answered. `needed()` is a question about the demand
+register, never about the mere absence of a cookie, so a site whose only provider is cookieless
+never interrupts anyone. Demand is registered by a gated element **reaching its loading strategy**
+(so an `idle` tag asks after `load`, off the LCP path, and an `interaction` tag asks only once the
+visitor acts) or by an explicit `require()` / `request()`. `<color-scheme-toggle>` is the reference
+consumer: it applies the scheme immediately and gates only the `localStorage` write.
+
+Six things are load-bearing:
 
 - **`type="text/plain"` is what makes the gate real.** A gated tag renders inert with its URL on
   `data-src`; the browser neither parses the body nor fetches the library, so an undecided visitor's
@@ -76,14 +86,30 @@ Four things are load-bearing:
   thing it asks permission for. Equally, a corrupt or wrong-version cookie **re-prompts** rather than
   reading as "decided, all denied" — the safe-looking read strands a visitor who wants to opt in with
   no way to say so.
+- **"Not asked" is a third value, not a synonym for "declined".** The cookie (v2) records each
+  category as `true` / `false` / `null`, and only `null` can be re-prompted. This is what lets a
+  preferences demand arrive after an analytics prompt was already answered. It also means a patch
+  must cover **exactly** the categories a showing put on screen: `<wc-consent>` builds its own patch
+  rather than calling `acceptAll()`, because "Accept" on a preferences-only prompt that granted
+  analytics would be consent nobody gave. Widening a patch to "all categories" is the easy version
+  of this bug.
 - **Revoking clears cookies and reloads.** An already-executing tracker cannot be unloaded any other
   way; clearing alone only stops it identifying the visitor _next_ time. Cookie names ride on
   `data-consent-cookies`, written by whoever emitted the tag — a provider table in core would be a
   second copy to keep in step with the generator's processor table.
 - **The store is pure and the DOM wiring is not tested.** `@getvitops/core` has no DOM test
   environment, so everything legally decidable (what an absent cookie means, what a corrupt one
-  means, what a revoke covers) lives in `consent/store.ts` as functions over a cookie string and is
-  asserted in `store.test.ts`. Keep new decisions on that side of the line.
+  means, what a revoke covers, **whether a prompt is warranted** — `needed(state, demanded)`) lives
+  in `consent/store.ts` as functions over a cookie string and is asserted in `store.test.ts`. Keep
+  new decisions on that side of the line.
+- **`<Head />` emits an inline stub, and its absence is meaningful.** `consent.js` and `elements.js`
+  are both deferred with no ordering between them, so a toggle can upgrade and be clicked before the
+  gate exists. The stub makes the gate's _existence_ known synchronously in `<head>`; it answers
+  `false` and queues, and the runtime replays the queue. So an absent `window.vitopsConsent` reliably
+  means **this site has no gate** — read it as "store freely", never as "denied". Callers in
+  `elements.js` must not import anything from `consent/` as a value: doing so made `store.ts` a
+  shared chunk and cost every page with a theme toggle an extra 688-byte request for one string.
+  `WCColorSchemeToggle` mirrors `CONSENT_EVENT` and `store.test.ts` pins the two spellings.
 
 The facts that drive the gate must also drive the **generated cookie notice** — see the Legal
 documents section. `site.analytics.clarityId` in a config is what makes the notice name Clarity; the
@@ -336,6 +362,71 @@ surface every consumer has regardless of stack:
 
 Every document opens with a non-optional review banner. These are rendered from a template by
 a build tool; the one failure mode with real consequences is a consumer publishing one as-is.
+
+## Conversion tracking and notifications
+
+A visitor arrives on an ad with a click ID in the URL; `<Tracking />`
+(`@getvitops/astro`) captures it into the first-party **`_ac`** cookie; when they later
+submit a form or tap a `tel:` link, `createConversionRoute()` reads the cookie back and
+notifies whoever the config names. Three packages, split along the seams the rest of the
+toolchain already uses:
+
+| Layer                                         | Where                       | Why there                                                |
+| --------------------------------------------- | --------------------------- | -------------------------------------------------------- |
+| Attribution vocabulary + cookie               | `@getvitops/utils/tracking` | Framework-agnostic, needed on **both** sides of the wire |
+| Plan / render / send                          | `@getvitops/utils/notify`   | Pure planner, I/O sender — `indexing/`'s split exactly   |
+| Capture script, `<Tracking />`, route factory | `@getvitops/astro`          | Beside `analytics.ts` + `<Analytics />`                  |
+
+Both `utils` entries are separate subpaths because they are the only modules that run in a
+**Worker** rather than at build time — keeping them off `src/index.ts` is what stops a
+conversion endpoint pulling `sharp` into its bundle. Neither may use a Node builtin.
+`TrackingConfig`/`NotificationsConfig` mirror the `site.*` blocks structurally, since utils
+cannot import from the generator — the same arrangement as `IndexingConfig`.
+
+Six things are load-bearing:
+
+- **The capture demands consent; it does not merely read it.** `_ac` is a 90-day identifier
+  tying a visitor to an ad, so it waits on `marketing` (configurable — `site.tracking.category`).
+  The script calls `require()`, which is what _raises the banner_. It previously called
+  `granted()` passively, and that is a permanent no-op: nothing else on a page demands
+  `marketing`, so it was never offered, never granted, and `_ac` was never written — silently,
+  on every gated site. The integration adds `marketing` to the offered categories when tracking
+  is on, so there is a row for the category the script will ask about.
+- **Only an arrival that carried something asks.** The demand is guarded on the URL actually
+  holding a click ID or UTM. An organic visitor has nothing to attribute and is never
+  interrupted — demand-driven consent applied to attribution.
+- **The capture is synchronous; only the write waits.** Reading the query string is not storage
+  and needs no permission; keeping it does. The click ID is in the URL only on the landing page,
+  so deferring the _read_ would lose it. The script also listens for `vitops:consent` rather than
+  calling `subscribe()`: `window.vitopsConsent` may still be the inline stub (which has no
+  `subscribe`), and a grant can arrive later in the same page view.
+- **The marker carries `data-consent` but NOT `data-vitops-tag`.** So `scan()` never tries to
+  activate the script — it is ungated by design — while `clearCookies()`, which queries
+  `[data-consent="…"]`, finds it and clears `_ac` on revoke.
+- **`ConversionEvent` is the abstraction.** The event is the _fact_; how it reads belongs to the
+  channel. That is what lets an SMS channel render 160 characters from the same event an email
+  renders in full — the rule the legal templates already follow, applied here.
+- **The plan is pure and says why anything is skipped.** `planNotifications` touches no network
+  and no binding, so a misconfigured site can be told exactly why no notification will arrive.
+  A silently unsent conversion notification is indistinguishable from no conversion.
+
+The `email` channel uses Cloudflare Email Sending's **current** binding — structured
+`env.EMAIL.send({ to, from, subject, html, text })`, not the legacy `EmailMessage` + hand-built
+MIME. The binding is **passed in, never imported**, so utils takes no Cloudflare dependency.
+Only transient codes are retried; `E_SENDER_NOT_VERIFIED` and friends are surfaced verbatim,
+because nothing here can check whether the sending domain was onboarded
+(`wrangler email sending enable <domain>`) and "send failed" would hide the one thing worth
+knowing.
+
+**TODO — `sms` and `persist` channels**, and the generic content+provider helpers behind them.
+The seam is `NotificationsConfig` plus a sender with `sendEmail`'s signature; adding one should
+mean a new file, a branch in `planNotifications` and a schema variant, touching neither
+`ConversionEvent` nor the recipient cascade. Only `email` is implemented — one channel is not
+enough to know what the abstraction should be.
+
+`_ac` is disclosed by the generated cookie notice via `firstPartyCookies` in `legal/derive.ts`.
+It is first-party, so no provider table would ever name it, and a site running attribution
+alongside a cookieless analytics provider would otherwise be described as setting no cookies.
 
 ## Search-engine indexing
 

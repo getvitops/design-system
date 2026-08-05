@@ -4,6 +4,11 @@ import { defineConfig } from 'vite-plus';
 // (native/heavy — loaded lazily at runtime). One entry per published subpath —
 // `indexing` is separate because it is the only network-touching module here, and
 // `media` because it is the only one that shells out to an external encoder.
+//
+// `tracking` and `notify` are separate for a third reason: they are the only
+// modules that run in a **Worker** rather than at build time. Keeping them off
+// `src/index.ts` is what stops a conversion route pulling `sharp` into its bundle.
+// Neither may use a Node builtin, `platform: 'node'` below notwithstanding.
 export default defineConfig({
   pack: {
     entry: [
@@ -12,6 +17,8 @@ export default defineConfig({
       'src/color/index.ts',
       'src/indexing/index.ts',
       'src/media/index.ts',
+      'src/notify/index.ts',
+      'src/tracking/index.ts',
     ],
     outDir: 'dist',
     format: ['es'],

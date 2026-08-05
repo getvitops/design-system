@@ -47,6 +47,11 @@ declare module 'virtual:getvitops/head' {
     consentCategories: string[];
     consentPolicyUrl: string | null;
     consentRuntime: boolean;
+    // Structurally `ResolvedTracking` (src/tracking.ts) — resolved in the
+    // integration rather than the component because its warnings belong beside
+    // the others, and the offered consent categories it checks against are known
+    // only there.
+    tracking: { enabled: boolean; category: string; cookies: string[] } | null;
   }
   const data: HeadData;
   export default data;

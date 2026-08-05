@@ -14,6 +14,13 @@
  * writes one — otherwise the thing asking permission would be the thing needing
  * it.
  *
+ * **`categories` is what the banner *can* ask, not what it will.** A row here is
+ * markup, and a hidden row costs nothing, so the default is generous — every
+ * category the site could plausibly gate. `<wc-consent>` reveals only the rows
+ * something has actually demanded and the visitor hasn't answered, so being
+ * generous here buys coverage without buying interruptions. Narrow it only to
+ * refuse a category outright.
+ *
  * **Consent is not an analytics feature.** The same gate covers A/B assignment,
  * personalisation and embedded third-party content: mark any of them
  * `data-consent="<category>"` and they wait on the same choice. Which categories
@@ -50,7 +57,7 @@ const DEFAULT_LABELS: Record<OptionalConsentCategory, string> = {
 };
 
 const {
-  categories = head.consentCategories ?? ['analytics'],
+  categories = head.consentCategories ?? ['analytics', 'preferences'],
   policyUrl = head.consentPolicyUrl ?? undefined,
   policyLabel = 'Cookie notice',
   heading = 'Cookies on this site',
@@ -62,9 +69,6 @@ const {
 } = Astro.props;
 
 const wording = { ...DEFAULT_LABELS, ...labels };
-// One category is a yes/no question; checkboxes for it would be a form standing in
-// for two buttons that already say the same thing.
-const choose = categories.length > 1;
 ---
 
 <wc-consent hidden {...noReloadOnRevoke ? { 'reload-on-revoke': 'false' } : {}}>
@@ -86,20 +90,24 @@ const choose = categories.length > 1;
       {policyUrl && <a class="link" href={policyUrl}>{policyLabel}</a>}
     </div>
 
-    {choose && (
-      <div class="consent__options">
-        {categories.map((category) => (
-          <label>
-            <input type="checkbox" name={category} />
-            {wording[category]}
-          </label>
-        ))}
-      </div>
-    )}
+    {/*
+      A row per offered category, always rendered. Which of them the visitor
+      actually sees is a runtime decision — `data-consent-row` is how
+      `<wc-consent>` addresses one to reveal or hide it, and it hides the whole
+      group when a showing is about a single category.
+    */}
+    <div class="consent__options">
+      {categories.map((category) => (
+        <label data-consent-row={category}>
+          <input type="checkbox" name={category} />
+          {wording[category]}
+        </label>
+      ))}
+    </div>
 
     <div class="consent__actions">
       <button type="button" class="btn" data-consent-reject>{rejectLabel}</button>
-      {choose && <button type="button" class="btn" data-consent-save>{saveLabel}</button>}
+      <button type="button" class="btn" data-consent-save>{saveLabel}</button>
       <button type="button" class="cta" data-consent-accept>{acceptLabel}</button>
     </div>
   </form>

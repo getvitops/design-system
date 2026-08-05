@@ -49,10 +49,22 @@ If you have questions about our use of cookies, please contact us at ${v.mailing
  * "This site sets no cookies" is a real and increasingly common answer — a
  * cookieless analytics provider is a selling point, not an omission. Saying it
  * plainly beats an empty section that reads as an oversight.
+ *
+ * But it is only true if the site sets none of its **own**, which is why
+ * `firstPartyCookies` is checked alongside the processors: a site running
+ * attribution with a cookieless analytics provider sets `_ac` and no third-party
+ * cookie at all, and the old wording would have declared it cookie-free.
  */
 function providersSection(v: PolicyVars): string {
   const setting = v.processors.filter((p) => p.cookies?.length);
   const cookieless = v.processors.filter((p) => p.cookies?.length === 0);
+  const own = v.firstPartyCookies;
+
+  const ownSection = own.length
+    ? `\n### Cookies We Set Ourselves\n\n${bullets(
+        own.map((c) => `\`${c.name}\` — ${c.purpose}. Kept for ${c.retention}.`),
+      )}\n`
+    : '';
 
   if (setting.length === 0) {
     const named = cookieless.length
@@ -62,10 +74,13 @@ function providersSection(v: PolicyVars): string {
           cookieless.length === 1 ? 'its' : 'their'
         } own.`
       : '';
+    const none = own.length
+      ? `Beyond the cookies strictly necessary to serve and secure the Site, no third party sets cookies through this Site.${named}`
+      : `Beyond the cookies strictly necessary to serve and secure the Site, we do not set cookies.${named}`;
     return `## Cookies Set on This Site
 
-Beyond the cookies strictly necessary to serve and secure the Site, we do not set cookies.${named}
-`;
+${none}
+${ownSection}`;
   }
 
   return `## Cookies Set on This Site
@@ -87,7 +102,7 @@ ${
         cookieless.length === 1 ? 'does' : 'do'
       } not set cookies of ${cookieless.length === 1 ? 'its' : 'their'} own.\n`
     : ''
-}`;
+}${ownSection}`;
 }
 
 /** Only meaningful when a consent tool actually offers the categories. */

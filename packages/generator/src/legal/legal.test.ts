@@ -277,6 +277,37 @@ describe('cookie notice', () => {
     );
     expect(md).toContain('`_pk_id`');
   });
+
+  test('discloses the first-party attribution cookie', () => {
+    // No provider table would ever name `_ac` — it is the site's own. Without
+    // this the notice lists every third party's cookies and omits the one the
+    // site sets itself.
+    const md = renderMarkdown(fixture({ tracking: { enabled: true } }), 'cookies');
+    expect(md).toContain('`_ac`');
+    expect(md).toContain('90 days');
+  });
+
+  test('stops claiming to set no cookies once attribution is on', () => {
+    // The trap: a cookieless analytics provider plus attribution sets no
+    // third-party cookie and one first-party cookie, and the old wording
+    // declared that site cookie-free.
+    const md = renderMarkdown(
+      fixture({ analytics: { plausibleDomain: 'acme.example' }, tracking: { enabled: true } }),
+      'cookies',
+    );
+    expect(md).not.toContain('we do not set cookies');
+    expect(md).toContain('no third party sets cookies');
+    expect(md).toContain('`_ac`');
+  });
+
+  test('says nothing about attribution when tracking is off', () => {
+    const md = renderMarkdown(
+      fixture({ analytics: { plausibleDomain: 'acme.example' } }),
+      'cookies',
+    );
+    expect(md).not.toContain('`_ac`');
+    expect(md).toContain('we do not set cookies');
+  });
 });
 
 describe('session replay', () => {

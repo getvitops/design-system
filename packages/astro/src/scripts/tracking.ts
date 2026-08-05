@@ -1,18 +1,35 @@
-// Ad conversion tracking: capture click IDs, track tel: clicks.
-// Form enhancement is in form-enhance.ts (loaded by FormRenderer.astro).
-// Runs early (not deferred) so click IDs are captured before any navigation.
+// Ad conversion tracking: capture click IDs from the landing URL, track tel:
+// clicks. Form enhancement is in form-enhance.ts.
 //
-// The `_ac` cookie below is a 90-day identifier tying a visitor to the ad that
-// brought them, which is squarely `marketing` consent. So when the consent gate
-// is present (`vitops({ consent })` loads @getvitops/core/consent), this defers
-// to it; with no gate on the page it behaves as it always has, because a site
-// that has not adopted consent has made no promise for this to break.
+// Runs early and ungated on purpose. Reading the query string is not storage and
+// needs nobody's permission; *keeping* it does. So the capture is synchronous —
+// it has to be, the click ID is only in the URL on the landing page — and only
+// the write to `_ac` waits on consent.
+//
+// The `_ac` cookie is a 90-day identifier tying a visitor to the ad that brought
+// them, which is what `marketing` covers. Two things follow, and both matter:
+//
+//   - It **demands** the category rather than passively reading it. Nothing else
+//     on a page would ask for `marketing`, so a passive `granted()` check is a
+//     permanent no-op: the banner never offers it, so it is never granted, so
+//     `_ac` is never written and no attribution ever reaches a notification —
+//     silently, on every site that enabled the gate.
+//   - It only demands when the URL actually carried something. A visitor arriving
+//     organically has nothing to attribute, so they are never asked. That is the
+//     whole point of a demand-driven banner applied to attribution: the one
+//     arrival that needs the permission is the one that requests it.
+//
+// With no gate on the page it behaves as it always has — a site that has not
+// adopted consent has made no promise for this to break.
 
 const COOKIE_NAME = '_ac';
 const COOKIE_DAYS = 90;
 const AB_COOKIE = '_ab';
 
-/** All known ad platform click ID parameters */
+// Mirrors CLICK_ID_PARAMS/UTM_PARAMS in @getvitops/utils/tracking, deliberately
+// copied rather than imported: this file is inlined into the document by
+// <Tracking />, so a bare import would either fail or drag a module graph into
+// the critical path. `tracking.test.ts` in this package pins the two lists.
 const CLICK_ID_PARAMS = [
   'gclid',
   'gbraid',
@@ -44,49 +61,74 @@ const abMatch = document.cookie.split(';').find((c) => c.trim().startsWith(`${AB
 const abVariant = abMatch?.split('=')[1]?.trim();
 if (abVariant) trackingData['ab_variant'] = abVariant;
 
+function readCookie(): Record<string, unknown> | null {
+  const match = document.cookie.split(';').find((c) => c.trim().startsWith(`${COOKIE_NAME}=`));
+  if (!match) return null;
+  try {
+    const data: unknown = JSON.parse(decodeURIComponent(match.split('=').slice(1).join('=')));
+    return typeof data === 'object' && data !== null && !Array.isArray(data)
+      ? (data as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function persist(): void {
-  // Merge with any existing cookie data (don't overwrite prior click IDs
-  // from a different session unless new ones are present)
+  // Merge with any existing cookie data (don't overwrite prior click IDs from a
+  // different session unless new ones are present). `ts` keeps the FIRST
+  // capture: the 90-day window is measured from the original click, and taking
+  // the latest would restart it on every visit.
   const existing = readCookie();
   const merged = {
     ...existing,
     ...trackingData,
     landingPage: location.pathname,
     referrer: document.referrer || undefined,
-    ts: existing?.ts ?? Date.now(),
+    ts: existing?.['ts'] ?? Date.now(),
   };
 
   // Remove undefined values before serializing
   const clean = Object.fromEntries(Object.entries(merged).filter(([, v]) => v !== undefined));
 
   const expires = new Date(Date.now() + COOKIE_DAYS * 864e5).toUTCString();
-  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(JSON.stringify(clean))};expires=${expires};path=/;SameSite=Lax`;
+  const secure = location.protocol === 'https:' ? ';Secure' : '';
+  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(
+    JSON.stringify(clean),
+  )};expires=${expires};path=/;SameSite=Lax${secure}`;
 }
+
+/** Typed locally: a global augmentation here would widen `Window` package-wide. */
+interface ConsentLike {
+  granted(c: string): boolean;
+  require(c: string): boolean;
+}
+const gate = (): ConsentLike | undefined =>
+  (window as unknown as { vitopsConsent?: ConsentLike }).vitopsConsent;
 
 if (Object.keys(trackingData).length > 0) {
-  // `trackingData` is already captured from the URL above, so waiting on consent
-  // costs nothing: the query string is read synchronously and only the *write*
-  // is deferred. If the visitor accepts later in the same page view the
-  // subscription fires and the click ID is still there to record.
-  // Typed inline rather than via a global augmentation: this file is a plain
-  // script, so a top-level `interface Window` here would widen the type for
-  // everything in the package whether or not the gate is actually loaded.
-  const consent = (
-    window as unknown as {
-      vitopsConsent?: { granted(c: string): boolean; subscribe(fn: () => void): () => void };
-    }
-  ).vitopsConsent;
-  if (consent) consent.subscribe(() => void (consent.granted('marketing') && persist()));
-  else persist();
-}
+  // <Tracking /> writes the category onto this marker, which also carries
+  // `data-consent-cookies` so revoking clears `_ac`.
+  const marker = document.querySelector('[data-vitops-tracking]');
+  const category = marker?.getAttribute('data-consent') ?? 'marketing';
 
-function readCookie(): Record<string, any> | null {
-  const match = document.cookie.split(';').find((c) => c.trim().startsWith(`${COOKIE_NAME}=`));
-  if (!match) return null;
-  try {
-    return JSON.parse(decodeURIComponent(match.split('=').slice(1).join('=')));
-  } catch {
-    return null;
+  if (!gate()) {
+    // No gate on this site: behave as it always has.
+    persist();
+  } else {
+    // Ask. This is what raises the banner — without it nothing on the page ever
+    // demands `marketing`, so it is never granted and `_ac` is never written.
+    if (gate()?.require(category)) persist();
+
+    // Then keep listening. A standing listener rather than acting on the one-shot
+    // answer above, for two reasons that both bite: `window.vitopsConsent` may
+    // still be the inline stub <Head /> emits — which queues `require()` and has
+    // no `subscribe` at all — and the visitor may accept a moment later, in this
+    // same page view, with the click ID still in the URL. The event fires either
+    // way, and the runtime publishes once on startup after draining the stub.
+    document.addEventListener('vitops:consent', () => {
+      if (gate()?.granted(category)) persist();
+    });
   }
 }
 

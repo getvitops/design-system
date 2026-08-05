@@ -41,6 +41,33 @@ const THEME_SCRIPT =
   `if(s==='light'||s==='dark'){document.documentElement.dataset.theme=s;` +
   `document.documentElement.style.colorScheme=s+' only'}}catch(e){}`;
 
+/**
+ * The consent gate's build-time signal: "something on this page may need
+ * permission, and the real gate hasn't loaded yet."
+ *
+ * `consent.js` and `elements.js` are both deferred modules with no ordering
+ * guarantee between them, so `<color-scheme-toggle>` can upgrade and be clicked
+ * before the gate exists. Without this, a caller probing for
+ * `window.vitopsConsent` in that window would see nothing, correctly conclude
+ * that sites without the gate should just store — and store. The stub closes the
+ * window by making the gate's *existence* known synchronously in `<head>`, which
+ * is the only place that beats every deferred bundle.
+ *
+ * It answers `false` to everything, because nothing is granted until the store
+ * has been read, and queues what it was asked so `consent/runtime.ts` can replay
+ * it on evaluation. `q` entries are `[category]` for `require()` and
+ * `[category, resolve]` for `request()`. Same shape as the `dataLayer`/`gtag`
+ * stub in `analytics.ts` and for the same reason.
+ *
+ * Emitted only when the gate is on: its absence is what tells a caller the site
+ * has no gate at all.
+ */
+const CONSENT_STUB =
+  `window.vitopsConsent=window.vitopsConsent||{q:[],` +
+  `require:function(c){this.q.push([c]);return false},` +
+  `request:function(c){var s=this;return new Promise(function(r){s.q.push([c,r])})},` +
+  `granted:function(){return false},needed:function(){return false}};`;
+
 /*
  * No `<html>` class flips here on purpose. `animation.css` used to need `no-js`
  * and `.no-scroll-timeline` set before first paint; it now asks the platform
@@ -79,6 +106,17 @@ const THEME_SCRIPT =
 
 {/* Set by vitops({ sitemap }); null when no sitemap was registered. */}
 {head.sitemap && <link rel="sitemap" type="application/xml" href={head.sitemap} />}
+
+{/*
+  The consent stub — synchronous, and ahead of every module script on purpose.
+  See CONSENT_STUB above: it exists so that code which loads before the gate can
+  tell "the gate isn't here yet" from "this site has no gate", and queue rather
+  than assume it may store. Keyed on `head.consent` (is the gate on?) rather than
+  `head.consentRuntime` (does anything need scheduling?) — a site whose only tag
+  is cookieless loads the runtime to schedule it but gates nothing, so there is
+  nothing for a caller to queue behind.
+*/}
+{head.consent && <script is:inline set:html={CONSENT_STUB} />}
 
 {webComponents && (
   <>

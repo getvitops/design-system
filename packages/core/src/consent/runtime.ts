@@ -30,9 +30,13 @@ import {
   COOKIE_NAME,
   cookieAttributes,
   CATEGORIES,
+  CONSENT_EVENT,
+  CONSENT_OPEN_EVENT,
   decide,
   decideAll,
+  decidedFor,
   granted as isGranted,
+  needed as isNeeded,
   parse,
   readCookie,
   revoked,
@@ -40,10 +44,10 @@ import {
   undecided,
 } from './store.js';
 
-/** Fired on `document` once at startup and on every change. */
-export const CONSENT_EVENT = 'vitops:consent';
-/** Fired on `document` when something asks for the banner to be shown again. */
-export const CONSENT_OPEN_EVENT = 'vitops:consent-open';
+// Defined in the pure half so listeners don't have to import this module — see
+// the note on CONSENT_EVENT there. Re-exported because this is where consumers
+// have always imported them from.
+export { CONSENT_EVENT, CONSENT_OPEN_EVENT };
 
 export type ConsentStrategy = 'idle' | 'async' | 'interaction';
 
@@ -52,10 +56,35 @@ export interface ConsentApi {
   readonly categories: readonly ConsentCategory[];
   get(): ConsentState;
   granted(category: ConsentCategory): boolean;
-  /** Is a prompt still needed? (i.e. no choice recorded yet) */
+  /**
+   * Is a prompt warranted? True only when something has actually **demanded** a
+   * category the visitor hasn't answered — not merely because no cookie exists.
+   * A site that gates nothing never asks.
+   */
   needed(): boolean;
+  /** Categories something has asked for this page view, in vocabulary order. */
+  demanded(): readonly ConsentCategory[];
+  /**
+   * Declare that something needs this category *now*, and report whether it is
+   * granted. Registering the demand is what reveals the banner if the visitor
+   * hasn't answered yet, so this is the call that turns a page interaction into a
+   * prompt — `<color-scheme-toggle>` uses it when a scheme is picked.
+   *
+   * Synchronous: it answers about the state as it stands, not about the choice
+   * the visitor is being asked to make. Use `request()` to wait for that.
+   */
+  require(category: ConsentCategory): boolean;
+  /**
+   * `require()`, but resolving once the visitor has answered *this* category —
+   * immediately if they already had. This is how a caller defers a side effect
+   * (writing a preference) until it is actually permitted, without wiring up
+   * `subscribe` and having to unsubscribe.
+   */
+  request(category: ConsentCategory): Promise<boolean>;
   set(patch: Partial<ConsentChoices>): void;
+  /** Grant every optional category. Literally all of them — not just the demanded ones. */
   acceptAll(): void;
+  /** Refuse every optional category. Literally all of them — not just the demanded ones. */
   rejectAll(): void;
   /** Forget the recorded choice entirely and re-prompt. */
   reset(): void;
@@ -80,6 +109,40 @@ const subscribers = new Set<(state: ConsentState) => void>();
 const activated = new WeakSet<Element>();
 /** Categories that had at least one tag activated this page view. */
 const live = new Set<ConsentCategory>();
+
+// ── Demand ─────────────────────────────────────────────────────────────────
+//
+// The banner is shown because something asked, never because a cookie is absent.
+// `demanded` is that register: a gated element reaching its scheduling point adds
+// to it, and so does an explicit `require()` — a theme toggle, an A/B assignment,
+// anything that wants to store something. `needed()` is then a question about
+// this set rather than about the visitor's silence, which is what stops a site
+// with only cookieless analytics from interrupting anyone.
+//
+// Deliberately per page view and not persisted: demand is a fact about what this
+// document does, and re-deriving it costs one `scan()`.
+const demanded = new Set<ConsentCategory>();
+
+/** Callers waiting on a specific category to be answered. */
+const waiting = new Map<ConsentCategory, ((granted: boolean) => void)[]>();
+
+function demand(category: ConsentCategory): void {
+  if (demanded.has(category)) return;
+  demanded.add(category);
+  // Publish so `<wc-consent>`'s existing subscription re-evaluates `needed()`.
+  // A new demand changes whether the banner should be up, and nothing else would
+  // tell it.
+  publish();
+}
+
+/** Resolve anything waiting on a category that has now been answered. */
+function settle(): void {
+  for (const [category, resolvers] of waiting) {
+    if (!decidedFor(state, category)) continue;
+    waiting.delete(category);
+    for (const resolve of resolvers) resolve(isGranted(state, category));
+  }
+}
 
 // ── Scheduling ─────────────────────────────────────────────────────────────
 //
@@ -187,16 +250,29 @@ function activate(el: Element): void {
   el.setAttribute('data-vitops-activated', '');
 }
 
+/**
+ * Find every gated element and schedule it.
+ *
+ * The ungranted ones are scheduled too, and that is the point: reaching the
+ * scheduling point is what registers *demand*. So the banner appears when a tag
+ * would otherwise have run rather than at parse time — an `idle` tag asks after
+ * `load`, where it cannot compete with LCP, and an `interaction` tag asks only
+ * once the visitor has done something. A page whose gated tags never reach their
+ * strategy never asks about them.
+ */
 function scan(): void {
   const gated = document.querySelectorAll(
     'script[data-vitops-tag]:not([data-vitops-activated]),[data-consent-src]:not([data-vitops-activated])',
   );
   for (const el of gated) {
-    if (!isGranted(state, categoryOf(el))) continue;
     const strategy = el.getAttribute('data-strategy');
-    when(strategy === 'async' || strategy === 'interaction' ? strategy : 'idle', () =>
-      activate(el),
-    );
+    when(strategy === 'async' || strategy === 'interaction' ? strategy : 'idle', () => {
+      const category = categoryOf(el);
+      // Re-checked here rather than at schedule time: consent may have been given
+      // in between, in which case this runs instead of asking.
+      if (isGranted(state, category)) activate(el);
+      else demand(category);
+    });
   }
 }
 
@@ -259,6 +335,7 @@ function commit(next: ConsentState, persist: boolean): void {
 }
 
 function publish(): void {
+  settle();
   for (const fn of subscribers) fn(state);
   document.dispatchEvent(new CustomEvent(CONSENT_EVENT, { detail: state }));
 }
@@ -268,7 +345,21 @@ const api: ConsentApi = {
   reloadOnRevoke: true,
   get: () => state,
   granted: (category) => isGranted(state, category),
-  needed: () => !state.decided,
+  needed: () => isNeeded(state, demanded),
+  demanded: () => CATEGORIES.filter((c) => demanded.has(c)),
+  require(category) {
+    demand(category);
+    return isGranted(state, category);
+  },
+  request(category) {
+    demand(category);
+    if (decidedFor(state, category)) return Promise.resolve(isGranted(state, category));
+    return new Promise((resolve) => {
+      const queue = waiting.get(category);
+      if (queue) queue.push(resolve);
+      else waiting.set(category, [resolve]);
+    });
+  },
   set: (patch) => commit(decide(state, patch, Date.now()), true),
   acceptAll: () => commit(decideAll(true, Date.now()), true),
   rejectAll: () => commit(decideAll(false, Date.now()), true),
@@ -281,13 +372,39 @@ const api: ConsentApi = {
   },
 };
 
+/**
+ * The inline stub `<Head />` emits when the gate is enabled, and its queue.
+ *
+ * Both this module and `elements.js` are deferred, with no ordering guarantee
+ * between them, so `<color-scheme-toggle>` can upgrade and be clicked before this
+ * file evaluates. A caller probing for `window.vitopsConsent` in that window would
+ * see nothing, conclude the site has no gate, and store — which is precisely the
+ * leak the gate exists to prevent. The stub makes the gate's *existence* known
+ * synchronously in `<head>`; this drains what it collected.
+ */
+interface ConsentStub {
+  q?: [ConsentCategory, ((granted: boolean) => void)?][];
+}
+
 declare global {
   interface Window {
-    vitopsConsent: ConsentApi;
+    /**
+     * Optional because its absence is meaningful: a site that never enabled the
+     * gate has no `consent.js` and no stub, and callers read that as "nothing to
+     * ask permission from" rather than "denied".
+     */
+    vitopsConsent?: ConsentApi;
   }
 }
 
+const queued = (window.vitopsConsent as (ConsentApi & ConsentStub) | undefined)?.q;
 window.vitopsConsent = api;
+if (queued) {
+  for (const [category, resolve] of queued) {
+    if (resolve) void api.request(category).then(resolve);
+    else api.require(category);
+  }
+}
 
 // A "Cookie settings" control anywhere on the page — footer link, settings menu —
 // needs no JS of its own. Delegated so it works for markup added after load.

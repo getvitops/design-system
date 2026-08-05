@@ -1,0 +1,43 @@
+---
+/**
+ * <Tracking /> — ad-click attribution capture. Place in your layout's <head>;
+ * requires the vitops() integration, which supplies `virtual:getvitops/head`.
+ *
+ * A dumb renderer over `resolveTracking()` (src/tracking.ts) — the one decision,
+ * which consent category `_ac` waits on, lives there and is unit-tested.
+ *
+ * Two things it emits, and the marker is the interesting one:
+ *
+ *  - **The marker** carries `data-consent` (which category) and
+ *    `data-consent-cookies` (what to clear). It deliberately does *not* carry
+ *    `data-vitops-tag`, so the consent runtime's `scan()` never tries to activate
+ *    it — this script is ungated by design, because reading the query string is
+ *    not storage and the click ID is only in the URL on the landing page. But
+ *    `clearCookies()` queries `[data-consent="<category>"]` and reads
+ *    `data-consent-cookies` off whatever it finds, so revoking consent clears
+ *    `_ac`. That cleanup did not exist before.
+ *  - **The script**, which captures synchronously and then waits on consent for
+ *    the *write* only. See src/scripts/tracking.ts.
+ *
+ * `<meta>` rather than a `<span>` so it is valid in `<head>`, where this
+ * component belongs — the capture wants to run before the visitor can navigate.
+ */
+// @ts-ignore — virtual module provided by the vitops() integration at build time
+import head from 'virtual:getvitops/head';
+
+const { enabled, category, cookies } = head.tracking ?? { enabled: false };
+---
+
+{enabled && (
+  <>
+    <meta
+      name="vitops-tracking"
+      data-vitops-tracking
+      data-consent={category}
+      data-consent-cookies={cookies?.length ? cookies.join(',') : undefined}
+    />
+    <script>
+      import '../scripts/tracking.ts';
+    </script>
+  </>
+)}

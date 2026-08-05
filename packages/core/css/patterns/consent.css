@@ -75,14 +75,25 @@
     margin-inline-start: auto;
   }
 
-  /* The per-category checkboxes. Two buttons answer a one-category question, so
-     `<CookieConsent />` only renders these when there is more than one — a banner
-     that demands reading is a banner that gets accepted unread. */
+  /* The per-category checkboxes. A row is hidden unless this showing is about it,
+     so the markup can carry every category the site might ever need while the
+     banner still only asks what was actually demanded. */
   .consent__options {
     flex-basis: 100%;
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
+  }
+
+  /* One category is a yes/no question and the Reject/Accept buttons already ask
+     it — a lone checkbox would be a third control for the same decision, and the
+     Save button a second way to press Accept. `<wc-consent>` sets this class at
+     show time because how many rows are on offer is now a runtime fact. */
+  &.consent--single {
+    .consent__options,
+    [data-consent-save] {
+      display: none;
+    }
   }
 }
 

@@ -23,7 +23,10 @@
     "src/components/NavShellToggle.astro",
     "src/schemas",
     "virtual.d.ts",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "src/components/Tracking.astro",
+    "src/scripts/tracking.ts",
+    "src/tracking.ts"
   ],
   "type": "module",
   "types": "./dist/index.d.mts",
@@ -32,10 +35,15 @@
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
     },
+    "./routes": {
+      "types": "./dist/routes/conversion.d.mts",
+      "import": "./dist/routes/conversion.mjs"
+    },
     "./Head.astro": "./src/components/Head.astro",
     "./Seo.astro": "./src/components/Seo.astro",
     "./Analytics.astro": "./src/components/Analytics.astro",
     "./CookieConsent.astro": "./src/components/CookieConsent.astro",
+    "./Tracking.astro": "./src/components/Tracking.astro",
     "./components/Subgrid.astro": "./src/components/Subgrid.astro",
     "./components/Cards.astro": "./src/components/Cards.astro",
     "./components/NodeRenderer.astro": "./src/components/NodeRenderer.astro",

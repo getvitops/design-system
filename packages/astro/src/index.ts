@@ -17,6 +17,13 @@ export type {
   GetvitopsSitemapOptions,
 } from './integration.ts';
 export { consentCategories, resolveAnalytics } from './analytics.ts';
+export { resolveTracking, TRACKING_COOKIE } from './tracking.ts';
+export type {
+  GetvitopsTrackingOptions,
+  ResolvedTracking,
+  ResolveTrackingContext,
+  TrackingCategory,
+} from './tracking.ts';
 export type {
   AnalyticsStrategy,
   ClarityOptions,

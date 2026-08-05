@@ -3,7 +3,7 @@
  * runtime that is unit-tested (`store.test.ts`; `@getvitops/core` has no DOM test
  * environment). Everything here is a function of a cookie string.
  *
- * Two invariants are load-bearing and easy to break:
+ * Three invariants are load-bearing and easy to break:
  *
  *  - **Undecided denies everything but `necessary`.** The absence of a cookie is a
  *    meaningful state, not a missing one. A parse failure, an unknown schema
@@ -13,6 +13,12 @@
  *  - **Nothing is written until the visitor chooses.** Showing the banner must not
  *    itself set a cookie, or the banner becomes the thing it asks permission for.
  *    `serialize()` is only ever called from an explicit accept/reject/save.
+ *  - **"Not asked" is not "declined".** Consent is tracked per category as
+ *    `true` / `false` / `null`, and the third value is the whole point of the
+ *    demand-driven banner: a visitor who was shown an analytics prompt and
+ *    accepted it has said nothing about preferences, so a later preferences
+ *    demand must be able to ask. Collapsing `null` into `false` would silently
+ *    foreclose every category the first prompt didn't happen to offer.
  */
 
 /**
@@ -30,15 +36,32 @@ export type ConsentCategory = (typeof CATEGORIES)[number];
 /** The categories a visitor actually decides. */
 export type OptionalCategory = Exclude<ConsentCategory, 'necessary'>;
 
-export type ConsentChoices = Record<OptionalCategory, boolean>;
+/**
+ * Per-category state. `null` means *not yet asked* — distinct from `false`, which
+ * means asked and declined. Only `null` can be re-prompted.
+ */
+export type ConsentChoices = Record<OptionalCategory, boolean | null>;
 
 export interface ConsentState {
-  /** Has the visitor made a choice at all? False means "no cookie yet". */
-  decided: boolean;
-  /** When the choice was made (epoch ms), or null while undecided. */
+  /** When the most recent choice was made (epoch ms), or null while untouched. */
   ts: number | null;
   choices: ConsentChoices;
 }
+
+/**
+ * Fired on `document` once at startup and on every change.
+ *
+ * Here rather than in `runtime.ts` so that a consumer can listen for it without
+ * importing the runtime. That matters inside this package: `elements.js` and
+ * `consent.js` are separate bundles, and `<color-scheme-toggle>` needs the name
+ * to know when its `preferences` grant arrived. Importing it from `runtime.ts`
+ * would drag the whole gate — and its top-level `scan()` — into every page with a
+ * theme toggle. This module has no side effects, so the string tree-shakes out
+ * alone.
+ */
+export const CONSENT_EVENT = 'vitops:consent';
+/** Fired on `document` when something asks for the banner to be shown again. */
+export const CONSENT_OPEN_EVENT = 'vitops:consent-open';
 
 export const COOKIE_NAME = 'vitops_consent';
 
@@ -46,8 +69,12 @@ export const COOKIE_NAME = 'vitops_consent';
  * Bumping this invalidates every stored choice, which re-prompts every visitor.
  * That is the intended behaviour when the *meaning* of a category changes — a
  * choice made about a different set of categories isn't consent to this one.
+ *
+ * v2 introduced the tri-state above. A v1 cookie recorded every category as a
+ * definite boolean even though only some were ever put to the visitor, so reading
+ * one forward would assert decisions they were never shown.
  */
-export const COOKIE_VERSION = 1;
+export const COOKIE_VERSION = 2;
 
 /** 180 days. Longer than a year is hard to defend as "freely given". */
 export const COOKIE_MAX_AGE = 60 * 60 * 24 * 180;
@@ -58,13 +85,13 @@ export const OPTIONAL_CATEGORIES: readonly OptionalCategory[] = [
   'preferences',
 ];
 
-function choices(value: boolean): ConsentChoices {
+function choices(value: boolean | null): ConsentChoices {
   return { analytics: value, marketing: value, preferences: value };
 }
 
-/** The state before any choice: everything optional denied. */
+/** The state before any choice: nothing asked, nothing granted. */
 export function undecided(): ConsentState {
-  return { decided: false, ts: null, choices: choices(false) };
+  return { ts: null, choices: choices(null) };
 }
 
 /** Read one cookie out of a `document.cookie`-shaped string. */
@@ -79,6 +106,10 @@ export function readCookie(cookieString: string, name: string): string | null {
 /**
  * Cookie value → state. Anything unrecognised is undecided, never a partial or a
  * permissive read: a value we can't fully understand is not evidence of consent.
+ *
+ * Within a well-formed cookie the same rule applies per category: only a literal
+ * `true` or `false` is a decision, and anything else — absent, a string, a number
+ * — reads as never-asked and stays askable.
  */
 export function parse(value: string | null | undefined): ConsentState {
   if (!value) return undecided();
@@ -98,37 +129,82 @@ export function parse(value: string | null | undefined): ConsentState {
   if (typeof record['c'] !== 'object' || record['c'] === null) return undecided();
   const flags = record['c'] as Record<string, unknown>;
 
-  const result = choices(false);
-  for (const category of OPTIONAL_CATEGORIES) result[category] = flags[category] === true;
-  return {
-    decided: true,
-    ts: typeof record['ts'] === 'number' ? record['ts'] : null,
-    choices: result,
-  };
-}
-
-/** State → cookie value (not the full `Set-Cookie` — see `cookieAttributes`). */
-export function serialize(state: ConsentState): string {
-  return encodeURIComponent(
-    JSON.stringify({ v: COOKIE_VERSION, ts: state.ts ?? 0, c: state.choices }),
-  );
+  const result = choices(null);
+  for (const category of OPTIONAL_CATEGORIES) {
+    const flag = flags[category];
+    if (typeof flag === 'boolean') result[category] = flag;
+  }
+  return { ts: typeof record['ts'] === 'number' ? record['ts'] : null, choices: result };
 }
 
 /**
- * The one question the rest of the runtime asks. `necessary` is unconditional;
- * everything else requires an explicit, recorded choice.
+ * State → cookie value (not the full `Set-Cookie` — see `cookieAttributes`).
+ *
+ * Undecided categories are omitted rather than written as `null`: `parse` already
+ * reads an absent key as never-asked, so the two are equivalent and the shorter
+ * one keeps the cookie small on a site that only ever prompts for one category.
+ */
+export function serialize(state: ConsentState): string {
+  const flags: Record<string, boolean> = {};
+  for (const category of OPTIONAL_CATEGORIES) {
+    const value = state.choices[category];
+    if (typeof value === 'boolean') flags[category] = value;
+  }
+  return encodeURIComponent(JSON.stringify({ v: COOKIE_VERSION, ts: state.ts ?? 0, c: flags }));
+}
+
+/**
+ * The one question the activation half asks. `necessary` is unconditional;
+ * everything else requires an explicit, recorded `true`.
  */
 export function granted(state: ConsentState, category: ConsentCategory): boolean {
   if (category === 'necessary') return true;
-  return state.decided && state.choices[category] === true;
+  return state.choices[category] === true;
 }
 
-/** A decided state with every optional category set the same way. */
+/**
+ * Has this category been put to the visitor and answered? `necessary` is never a
+ * question, so it counts as settled.
+ */
+export function decidedFor(state: ConsentState, category: ConsentCategory): boolean {
+  if (category === 'necessary') return true;
+  return state.choices[category] !== null;
+}
+
+/** The categories still open to being asked about. */
+export function undecidedCategories(state: ConsentState): OptionalCategory[] {
+  return OPTIONAL_CATEGORIES.filter((c) => !decidedFor(state, c));
+}
+
+/**
+ * Is a prompt warranted right now?
+ *
+ * This is the whole demand-driven banner in one line, and the reason it takes
+ * `demanded` rather than reading it off the state: whether to ask is a function of
+ * what something on the page has actually requested, not of what the site could
+ * conceivably use. A site whose only tag is cookieless demands nothing and is
+ * never asked; a site whose theme toggle demands `preferences` is asked at the
+ * moment of the click and not before.
+ */
+export function needed(state: ConsentState, demanded: Iterable<ConsentCategory>): boolean {
+  for (const category of demanded) {
+    if (!decidedFor(state, category)) return true;
+  }
+  return false;
+}
+
+/** A state with every optional category answered the same way. */
 export function decideAll(value: boolean, now: number): ConsentState {
-  return { decided: true, ts: now, choices: choices(value) };
+  return { ts: now, choices: choices(value) };
 }
 
-/** Apply a partial choice, marking the result decided. */
+/**
+ * Apply a partial choice.
+ *
+ * A category the patch omits keeps whatever it had — including `null`. That is
+ * what lets a preferences-only prompt record preferences without asserting
+ * anything about analytics, and what lets analytics be asked about later.
+ */
 export function decide(
   state: ConsentState,
   patch: Partial<ConsentChoices>,
@@ -139,7 +215,7 @@ export function decide(
     const value = patch[category];
     if (typeof value === 'boolean') next[category] = value;
   }
-  return { decided: true, ts: now, choices: next };
+  return { ts: now, choices: next };
 }
 
 /** Which categories lost consent between two states — what needs cleaning up. */

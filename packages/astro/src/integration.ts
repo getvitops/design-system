@@ -37,6 +37,7 @@ import {
 } from './analytics.ts';
 import { type HeadFont, resolveFonts } from './fonts.ts';
 import type { GetvitopsSeoOptions } from './seo.ts';
+import { type GetvitopsTrackingOptions, resolveTracking } from './tracking.ts';
 
 export interface GetvitopsFaviconOptions {
   /** Source SVG or PNG. */
@@ -381,6 +382,21 @@ export interface GetvitopsOptions {
    * actually offers.
    */
   consent?: boolean | GetvitopsConsentOptions;
+  /**
+   * Ad-click attribution for `<Tracking />` — capture click IDs and UTMs from the
+   * landing URL into the `_ac` cookie, so a conversion can be attributed to the
+   * ad that produced it. Off unless provided.
+   *
+   * `_ac` is a 90-day identifier, so writing it waits on consent (`marketing` by
+   * default) — and **asking for that permission is what raises the banner**, on
+   * the arrival that carried a click ID and on no other. A visitor who arrives
+   * organically has nothing to attribute and is never asked.
+   *
+   * Read the cookie back with `parseTrackingCookie` from
+   * `@getvitops/utils/tracking`, and turn a conversion into a notification with
+   * `@getvitops/utils/notify`.
+   */
+  tracking?: boolean | GetvitopsTrackingOptions;
 }
 
 export interface GetvitopsFontsOptions {
@@ -471,6 +487,12 @@ interface HeadData {
   consentPolicyUrl: string | null;
   /** Does `<Head />` need to load `consent.js`? (gate enabled, or a tag needs scheduling) */
   consentRuntime: boolean;
+  /**
+   * What `<Tracking />` emits, or null when tracking is off. Resolved here rather
+   * than in the component because its warnings belong beside the others, and the
+   * offered consent categories it checks against are known only at this point.
+   */
+  tracking: { enabled: boolean; category: string; cookies: string[] } | null;
 }
 
 /**
@@ -682,14 +704,41 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         const consentOpts: GetvitopsConsentOptions =
           typeof opts.consent === 'object' ? opts.consent : {};
         const analytics = resolveAnalytics(opts.analytics, { consent: consentEnabled });
-        // Fall back to `analytics` rather than an empty list: the gate is general,
-        // so a site may be gating an A/B split or an embed we cannot see from
-        // here, and a banner offering no choices is useless.
+        // What the banner *can* ask, not what it will. Since `<wc-consent>` reveals
+        // only the rows something has demanded and the visitor hasn't answered, an
+        // unused row costs a hidden `<label>` and nothing else — so the default is
+        // deliberately wider than what we can detect. `analytics` covers
+        // consumer-authored `data-consent` markup (an A/B split, an embed) that no
+        // build-time scan can see; `preferences` covers core's own
+        // `<color-scheme-toggle>`, which demands it when a scheme is picked.
+        //
+        // This used to be a guess standing in for a fact — falling back to
+        // `['analytics']` and then showing that banner to everyone. The runtime now
+        // has the fact, so this only has to be generous enough not to be in its way.
+        // `marketing` is the one that isn't free: it is the category a visitor is
+        // most likely to read as "this site advertises at me", so it is offered
+        // only when something configured actually needs it — a tag that says so,
+        // or attribution capture, which demands it at runtime the moment someone
+        // arrives on an ad click. This is the build-time half of that pair: the
+        // banner must have a row for the category the capture script will ask for.
+        const trackingOpts: GetvitopsTrackingOptions | undefined =
+          opts.tracking === true ? { enabled: true } : opts.tracking || undefined;
         const detectedCategories = consentCategories(analytics.tags);
+        const defaultCategories: OptionalConsentCategory[] = ['analytics', 'preferences'];
+        const trackingCategory = trackingOpts?.enabled
+          ? (trackingOpts.category ?? 'marketing')
+          : null;
+        if (detectedCategories.includes('marketing') || trackingCategory === 'marketing')
+          defaultCategories.push('marketing');
         const offeredCategories: OptionalConsentCategory[] =
-          consentOpts.categories ??
-          (detectedCategories.length ? detectedCategories : ['analytics']);
+          consentOpts.categories ?? defaultCategories;
         for (const warning of analytics.warnings) logger.warn(warning);
+
+        const tracking = resolveTracking(trackingOpts, {
+          consent: consentEnabled,
+          consentCategories: offeredCategories,
+        });
+        for (const warning of tracking.warnings) logger.warn(warning);
 
         // `legalInput`, not `opts.legal.input` — the path is now a cascade
         // (explicit legal input → `site.input` → a `css.input` that reads as a
@@ -1090,6 +1139,13 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
                 consentCategories: offeredCategories,
                 consentPolicyUrl: consentOpts.policyUrl ?? null,
                 consentRuntime,
+                tracking: tracking.enabled
+                  ? {
+                      enabled: true,
+                      category: tracking.category,
+                      cookies: tracking.cookies,
+                    }
+                  : null,
               }),
             ],
           },

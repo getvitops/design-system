@@ -370,10 +370,27 @@ describe('vitops({ analytics, consent })', () => {
     const h = harness({ consent: true }, scratch());
     await h.run();
     expect(headData(h.updates).consentRuntime).toBe(true);
-    expect(headData(h.updates).consentCategories).toEqual(['analytics']);
   });
 
-  it('offers only the categories the configured providers need', async () => {
+  /**
+   * `consentCategories` is what the banner *can* ask, not what it will.
+   *
+   * These two used to be the same thing, and the banner was shown to everyone on
+   * arrival. Now `<wc-consent>` reveals only the rows something demanded at
+   * runtime, so an unused row costs a hidden `<label>` — which makes offering
+   * broadly the cheap, correct default and detection no longer load-bearing.
+   */
+  it('offers analytics and preferences by default, whatever is configured', async () => {
+    // `analytics` covers consumer-authored `data-consent` markup no build-time
+    // scan can see; `preferences` covers core's own <color-scheme-toggle>.
+    const h = harness({ consent: true }, scratch());
+    await h.run();
+    expect(headData(h.updates).consentCategories).toEqual(['analytics', 'preferences']);
+  });
+
+  it('adds marketing only when a configured tag actually needs it', async () => {
+    // The one category that isn't free to offer — a visitor reads it as a claim
+    // about the site, so it appears only when something is really waiting on it.
     const h = harness(
       {
         consent: true,
@@ -382,7 +399,17 @@ describe('vitops({ analytics, consent })', () => {
       scratch(),
     );
     await h.run();
-    expect(headData(h.updates).consentCategories).toEqual(['marketing']);
+    expect(headData(h.updates).consentCategories).toEqual([
+      'analytics',
+      'preferences',
+      'marketing',
+    ]);
+  });
+
+  it('leaves marketing out when nothing asks for it', async () => {
+    const h = harness({ consent: true, analytics: { googleAnalytics: 'G-X' } }, scratch());
+    await h.run();
+    expect(headData(h.updates).consentCategories).not.toContain('marketing');
   });
 
   it('lets the consumer state the categories explicitly', async () => {

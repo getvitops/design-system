@@ -29,6 +29,14 @@
     "./media": {
       "types": "./dist/media/index.d.mts",
       "import": "./dist/media/index.mjs"
+    },
+    "./notify": {
+      "types": "./dist/notify/index.d.mts",
+      "import": "./dist/notify/index.mjs"
+    },
+    "./tracking": {
+      "types": "./dist/tracking/index.d.mts",
+      "import": "./dist/tracking/index.mjs"
     }
   },
   "publishConfig": {
