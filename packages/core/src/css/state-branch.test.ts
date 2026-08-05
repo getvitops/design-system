@@ -162,7 +162,7 @@ function specificity(sel: string): Spec {
       else if (rest[i] === ')') depth--;
     }
     const args = rest.slice(m.index + m[0].length, i - 1);
-    if (m[1].toLowerCase() !== 'where') {
+    if (m[1]?.toLowerCase() !== 'where') {
       let best: Spec = [0, 0, 0];
       for (const a of splitSelectorList(args)) {
         const c = specificity(a);
@@ -191,7 +191,7 @@ function keyClasses(sel: string): Set<string> {
       .trim()
       .split(/[\s>+~]+(?![^(]*\))/)
       .pop() ?? '';
-  return new Set([...key.matchAll(/\.([\w-]+)/g)].map((m) => m[1]));
+  return new Set([...key.matchAll(/\.([\w-]+)/g)].flatMap((m) => m[1] ?? []));
 }
 
 const ALIAS: Record<string, string> = {

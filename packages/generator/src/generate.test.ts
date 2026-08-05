@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -211,16 +211,40 @@ describe('pattern fill mode', () => {
 describe('tailwind container-block strip', () => {
   const HERE = dirname(fileURLToPath(import.meta.url));
   const assets = join(HERE, '..', 'assets');
-  const hasAssets = existsSync(join(assets, 'css', 'patterns', 'sitenav.css'));
+  const snapshot = join(assets, 'css', 'patterns', 'sitenav.css');
+  const source = join(HERE, '..', '..', 'core', 'css', 'patterns', 'sitenav.css');
+  const hasAssets = existsSync(snapshot);
   const tw = () => build(defaultConfig(), 'tailwind', assets).tailwind;
 
-  it.skipIf(!hasAssets)('keeps component container queries', () => {
+  /**
+   * `hasAssets` proves the snapshot EXISTS; it says nothing about whether it is
+   * CURRENT. That gap is not academic: these assertions read what `prepare.mjs`
+   * copied out of core, so an edit to a core partial that hasn't been re-snapshotted
+   * is asserted against the old bytes. It stayed invisible while every assertion
+   * here happened to predate the snapshot — the first one to depend on newly
+   * generated CSS failed with a 200-line diff of unrelated stylesheet instead of
+   * "your build is stale". Worth catching precisely because `release` runs
+   * `vp test run` BEFORE `build:packages`.
+   */
+  const stale =
+    hasAssets &&
+    existsSync(source) &&
+    readFileSync(snapshot, 'utf8') !== readFileSync(source, 'utf8');
+
+  it.skipIf(!hasAssets)('runs against a current asset snapshot', () => {
+    expect(
+      stale,
+      'packages/generator/assets/ is out of date with packages/core/css/ — run `vp run build:generator` before the tests (the assertions below read the snapshot, not core)',
+    ).toBe(false);
+  });
+
+  it.skipIf(!hasAssets || stale)('keeps component container queries', () => {
     const css = tw();
     for (const bp of ['sm', 'md', 'lg', 'xl'])
       expect(css, `.sitenav--bp-${bp} must survive`).toContain(`sitenav--bp-${bp}`);
   });
 
-  it.skipIf(!hasAssets)('still drops pre-expanded breakpoint utilities', () => {
+  it.skipIf(!hasAssets || stale)('still drops pre-expanded breakpoint utilities', () => {
     // These are Tailwind's job in this format (`@md:split-1-2`).
     const css = tw();
     for (const cls of ['.md-split-1-2', '.lg-flex-row', '.sm-items-center'])
@@ -235,7 +259,7 @@ describe('tailwind container-block strip', () => {
    * nav that is half one and half the other — the narrow branch carries the drawer
    * geometry, the wide branch the navbar reset.
    */
-  it.skipIf(!hasAssets)('keeps both sitenav state branches', () => {
+  it.skipIf(!hasAssets || stale)('keeps both sitenav state branches', () => {
     const css = tw();
     for (const flag of [0, 1])
       expect(css, `the --_sitenav-wide: ${flag} branch must survive`).toContain(
