@@ -250,6 +250,24 @@ const DnsDomainSchema = z.object({
   records: z.optional(z.array(DnsRecordSchema)),
 });
 
+/**
+ * One domain to onboard into Google Search Console via `vitops search setup`.
+ *
+ * The verification token is fetched live from the Site Verification API at run
+ * time and written to DNS — it is never stored here. What the config records is
+ * the *intent*: which domains to onboard, and who should co-own them.
+ */
+const SearchConsoleSetupSchema = z.object({
+  delegatedOwners: desc(
+    z.optional(z.array(z.email())),
+    'Emails added as verification owners on the Site Verification web resource. Automated via the API — additive and idempotent, never removes an existing owner.',
+  ),
+  fullUserGroup: desc(
+    z.optional(z.email()),
+    'A Google Group to grant Full-User access in Search Console. SURFACED AS A REMINDER only: Search Console exposes no user/permission API, so this step stays manual by design.',
+  ),
+});
+
 // ── Environments ──────────────────────────────────────────────────────────────
 
 const RobotsSchema = z.string(); // e.g. "index,follow" / "noindex,nofollow"
@@ -476,7 +494,7 @@ const TwitterSchema = z.object({
 // ── Indexing ────────────────────────────────────────────────────────────────────
 
 /**
- * What `vitops notify` needs to tell search engines a deploy happened.
+ * What `vitops search notify` needs to tell search engines a deploy happened.
  *
  * Scoped by what search engines actually accept, which is narrower than it looks:
  * Google exposes **no** "request indexing" API (the Search Console button is not in
@@ -492,7 +510,7 @@ const TwitterSchema = z.object({
 const IndexNowSchema = z.object({
   key: desc(
     z.string().check(z.regex(/^[a-zA-Z0-9-]{8,128}$/)),
-    'IndexNow key (8–128 chars, hex is conventional). NOT a secret — it is served publicly at `keyLocation` so the engine can verify you own the host. Generate one with `vitops notify --new-key`.',
+    'IndexNow key (8–128 chars, hex is conventional). NOT a secret — it is served publicly at `keyLocation` so the engine can verify you own the host. Generate one with `vitops search notify --new-key`.',
   ),
   keyLocation: desc(
     z.optional(z.url()),
@@ -530,7 +548,7 @@ const IndexingSchema = z.object({
   ),
   priorityUrls: desc(
     z.optional(z.array(z.url())),
-    'The pages whose indexing actually matters. `vitops notify --check` inspects these and exits non-zero if Google has not indexed one. Kept explicit because URL Inspection is quota-bound (2000/day), so checking every page is neither affordable nor informative.',
+    'The pages whose indexing actually matters. `vitops search notify --check` inspects these and exits non-zero if Google has not indexed one. Kept explicit because URL Inspection is quota-bound (2000/day), so checking every page is neither affordable nor informative.',
   ),
 });
 
@@ -601,6 +619,10 @@ const SiteSectionSchema = z.object({
   cloudflare: desc(
     z.optional(z.record(z.string(), z.unknown())),
     'Deliberate escape hatch for provider-specific Cloudflare settings — out of scope to model here.',
+  ),
+  searchConsole: desc(
+    z.optional(z.record(z.string(), SearchConsoleSetupSchema)),
+    'Domains to onboard as Google Search Console *domain properties* via `vitops search setup`, keyed by bare hostname (mirrors `dns`). Credentials come from the environment (CLOUDFLARE_API_TOKEN + the Google OAuth vars) — never in this file.',
   ),
   environments: desc(
     z.record(z.string(), EnvironmentSchema),
@@ -680,7 +702,7 @@ const SiteSectionSchema = z.object({
         twitter: z.optional(TwitterSchema),
         indexing: desc(
           z.optional(IndexingSchema),
-          'How `vitops notify` tells search engines about a deploy: which sitemap, IndexNow key, Search Console property, and which pages to verify afterwards.',
+          'How `vitops search notify` tells search engines about a deploy: which sitemap, IndexNow key, Search Console property, and which pages to verify afterwards.',
         ),
       }),
     ),
@@ -955,12 +977,14 @@ export type OrganizationConfig = z.infer<typeof OrganizationSectionSchema>;
 export type SiteSection = z.infer<typeof SiteSectionSchema>;
 /** One `fonts[]` entry — a serialisable projection of an Astro Fonts API family. */
 export type SiteFont = z.infer<typeof SiteFontSchema>;
-/** The `seo.indexing` block — what `vitops notify` reads. */
+/** The `seo.indexing` block — what `vitops search notify` reads. */
 export type SiteIndexing = z.infer<typeof IndexingSchema>;
 /** IndexNow submission settings. The `key` is public by design. */
 export type SiteIndexNow = z.infer<typeof IndexNowSchema>;
 /** Google Search Console property settings. The credential is never in the config. */
 export type SiteSearchConsole = z.infer<typeof SearchConsoleSchema>;
+/** One `site.searchConsole` entry — a domain to onboard via `vitops search setup`. */
+export type SiteSearchConsoleSetup = z.infer<typeof SearchConsoleSetupSchema>;
 
 // ── JSON Schema + validation ────────────────────────────────────────────────────
 

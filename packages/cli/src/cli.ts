@@ -10,7 +10,7 @@
  *   vitops docs      [topic] [--input <json>] [--all]
  *   vitops lint      [--input <json>] [--format <fmt>] [--src <dir>]
  *   vitops legal     [--input <site.json>] [--doc <name>] [--format <md|html|portable-text>] [--out <dir>]
- *   vitops indexing  [--input <site.json>] [--dry] [--all] [--check]
+ *   vitops search    setup [--domain <name>] [--dry] [--check]  |  notify [--dry] [--all] [--check]
  *   vitops media     [--raw <dir>] [--out <dir>] [--force] [--dry]
  *
  * Thin wrapper over @getvitops/generator (generation) and @getvitops/utils (favicons).
@@ -77,6 +77,30 @@ import {
   type IndexingConfig,
   type ServiceAccount,
 } from '@getvitops/utils/indexing';
+// Its own subpath for the same reason: `onboarding` is network-touching (Cloudflare
+// DNS + Google). `formatPlan`/`plan` are aliased — indexing exports the same names.
+import {
+  addSite,
+  backoffSchedule,
+  createApexTxt,
+  findZoneId,
+  formatPlan as formatSetupPlan,
+  formatSummary,
+  getAccessToken as getGoogleToken,
+  getSite,
+  getVerificationToken,
+  getWebResource,
+  hasDrift,
+  listApexTxt,
+  plan as planSetup,
+  siteUrlFor,
+  updateOwners,
+  verifyWebResource,
+  type DomainResult,
+  type DomainSetup,
+  type DomainState,
+  type GoogleOAuth,
+} from '@getvitops/utils/onboarding';
 // Its own subpath for the same reason: `media` shells out to ffmpeg, and no other
 // command should carry it. `formatPlan` is aliased — indexing exports one too.
 import {
@@ -118,7 +142,7 @@ Usage:
   vitops lint [options]         Report framework classes in your source that resolve to nothing
   vitops legal [options]        Render legal documents from a site config
   vitops icons [options]        Report which icons your source uses, and build the sprite
-  vitops indexing [options]    Tell search engines about a deploy (sitemap + IndexNow)
+  vitops search <sub> [opts]    Search Console: onboard domains (setup) + notify deploys (notify)
   vitops media [options]       Encode raw video into web-ready WebM + MP4 + poster
 
 Generate options:
@@ -192,7 +216,29 @@ Legal options:
   Generated from your config — a starting point, not legal advice. Review before
   publishing, and make sure the config describes what your site actually does.
 
-Indexing options:
+Search subcommands:
+  vitops search setup [opts]    Onboard site.searchConsole domains into GSC
+  vitops search notify [opts]   Tell search engines about a deploy (sitemap + IndexNow)
+
+Search setup options:
+  -i, --input <path>    Site config carrying site.searchConsole (default: ./site.json)
+      --site-env <env>  Environment whose A/B variant applies (default: production)
+      --domain <name>   Scope to a single site.searchConsole entry
+      --dry             Print the plan and exit. Changes nothing.
+      --check           Report drift and exit non-zero if any domain is not fully
+                        onboarded. Mutates nothing.
+
+  For each domain it ensures the apex verification TXT in Cloudflare, verifies
+  ownership (DNS_TXT, retried with backoff while DNS propagates — a still-
+  unverified domain is reported PENDING, not failed), adds the sc-domain: property,
+  and adds any delegatedOwners to the web resource. DNS is only ever created,
+  never edited or deleted. Credentials come from the environment:
+  CLOUDFLARE_API_TOKEN (Zone:DNS:Edit), and VITOPS_GOOGLE_CLIENT_ID /
+  VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN (a user OAuth token
+  scoped to siteverification + webmasters). Granting a Google Group Full-User
+  access has no API and is surfaced as a reminder.
+
+Search notify options:
   -i, --input <path>    Site config carrying seo.indexing (default: ./site.json)
       --site-env <env>  Environment to notify for (default: production). An
                         environment whose robots policy says noindex is refused.
@@ -209,7 +255,7 @@ Indexing options:
                         Persist it between runs (a CI cache) or every run submits
                         everything.
 
-  What this can and cannot do: Google exposes no "request indexing" API, and its
+  What notify can and cannot do: Google exposes no "request indexing" API, and its
   sitemap ping endpoint was removed in 2023 — so it resubmits your sitemap
   through the Search Console API and verifies the result with --check. IndexNow
   reaches Bing, Yandex, Naver, Seznam and Yep; Google does not participate.
@@ -244,6 +290,14 @@ Media options:
 
 Common:
   -h, --help            Show this help
+`;
+
+const SEARCH_HELP = `vitops search — Google Search Console
+
+  vitops search setup [opts]    Onboard site.searchConsole domains as GSC domain properties
+  vitops search notify [opts]   Tell search engines a deploy happened (sitemap + IndexNow)
+
+Run \`vitops --help\` for the full option list for each subcommand.
 `;
 
 function fail(msg: string): never {
@@ -818,7 +872,7 @@ const readSitemap = async (source: string): Promise<string> => {
  * The Indexing API is deliberately absent — see `@getvitops/utils/indexing`'s
  * `gsc.ts`.
  */
-async function cmdIndexing(argv: string[]) {
+async function cmdSearchNotify(argv: string[]) {
   const { values } = parseArgs({
     args: argv,
     options: {
@@ -844,7 +898,7 @@ async function cmdIndexing(argv: string[]) {
     console.log(
       `\n  Add to your site config:\n    "seo": { "indexing": { "indexNow": { "key": "${key}" } } }`,
     );
-    console.log(`  Then serve it at /${key}.txt — \`vitops indexing --write-key public\`.`);
+    console.log(`  Then serve it at /${key}.txt — \`vitops search notify --write-key public\`.`);
     return;
   }
 
@@ -949,7 +1003,7 @@ async function cmdIndexing(argv: string[]) {
       // discards the batch when the key doesn't verify, so submitting anyway
       // would print a success it did not earn.
       console.error(`✖ IndexNow key file check failed — ${check.reason}`);
-      console.error(`  Write it with: vitops indexing --write-key <public dir>`);
+      console.error(`  Write it with: vitops search notify --write-key <public dir>`);
       failed = true;
     } else {
       let sent = 0;
@@ -998,8 +1052,273 @@ async function cmdIndexing(argv: string[]) {
   }
   if (p.check.length > 0)
     console.log(
-      `\n  Indexing is not instant. Run \`vitops indexing --check\` in a day or two to see what Google actually did.`,
+      `\n  Indexing is not instant. Run \`vitops search notify --check\` in a day or two to see what Google actually did.`,
     );
+}
+
+/**
+ * Adapt a `Config` to the onboarding module's own option shape.
+ *
+ * The same flat field map as `toIndexingConfig`, and for the same reason — utils
+ * cannot import the generator. `--domain` scopes to a single `site.searchConsole`
+ * entry, and a name that isn't there is an error, not an empty run.
+ */
+function toSearchConsoleSetup(cfg: Config, domainFilter: string | undefined): DomainSetup[] {
+  const entries = cfg.site.searchConsole ?? {};
+  const setups: DomainSetup[] = Object.entries(entries).map(([domain, e]) => ({
+    domain,
+    ...(e.delegatedOwners ? { delegatedOwners: e.delegatedOwners } : {}),
+    ...(e.fullUserGroup ? { fullUserGroup: e.fullUserGroup } : {}),
+  }));
+  if (domainFilter) {
+    const one = setups.find((s) => s.domain === domainFilter);
+    if (!one)
+      fail(
+        `--domain "${domainFilter}" is not in site.searchConsole (have: ${setups.map((s) => s.domain).join(', ') || 'none'})`,
+      );
+    return [one];
+  }
+  return setups;
+}
+
+/**
+ * The Cloudflare DNS credential. From the environment only — a `site.json` is
+ * committed, and this is a real secret. A `Zone:DNS:Edit` token (the standard
+ * "Edit zone DNS" template, which also carries `Zone:Read`).
+ */
+function loadCloudflareToken(): string | undefined {
+  return process.env.CLOUDFLARE_API_TOKEN || undefined;
+}
+
+/**
+ * The Google user-OAuth credential (refresh-token flow), from the environment.
+ *
+ * A user token, not a service account: onboarding acts *as a person* who can own
+ * the sites. All-or-nothing — a partial set is a misconfiguration worth naming
+ * rather than a reason to run degraded.
+ */
+function loadGoogleOAuth(): GoogleOAuth | undefined {
+  const clientId = process.env.VITOPS_GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.VITOPS_GOOGLE_CLIENT_SECRET;
+  const refreshToken = process.env.VITOPS_GOOGLE_REFRESH_TOKEN;
+  if (!clientId && !clientSecret && !refreshToken) return undefined;
+  const missing = [
+    ['VITOPS_GOOGLE_CLIENT_ID', clientId],
+    ['VITOPS_GOOGLE_CLIENT_SECRET', clientSecret],
+    ['VITOPS_GOOGLE_REFRESH_TOKEN', refreshToken],
+  ]
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
+  if (missing.length) fail(`incomplete Google OAuth credential — missing ${missing.join(', ')}`);
+  return { clientId: clientId!, clientSecret: clientSecret!, refreshToken: refreshToken! };
+}
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * `vitops search` — everything that talks to search engines.
+ *
+ * Two subcommands, split by what they touch: `setup` onboards a domain into
+ * Search Console (DNS + verification + property), `notify` tells the engines a
+ * deploy happened (sitemap + IndexNow). `notify` is the former top-level
+ * `vitops indexing`.
+ */
+async function cmdSearch(argv: string[]) {
+  const [sub, ...rest] = argv;
+  switch (sub) {
+    case 'setup':
+      return cmdSearchSetup(rest);
+    case 'notify':
+      return cmdSearchNotify(rest);
+    case undefined:
+    case '-h':
+    case '--help':
+      console.log(SEARCH_HELP);
+      return;
+    default:
+      fail(`unknown "search" subcommand "${sub}" (expected: setup | notify). Try: vitops --help`);
+  }
+}
+
+/**
+ * Onboard domains into Google Search Console as domain properties.
+ *
+ * Idempotent by construction: the planner decides each step from the domain's live
+ * state, so a re-run of a fully-onboarded domain is all skips. `--check` reports
+ * drift and exits non-zero without mutating; `--dry` prints the plan and stops.
+ * DNS is only ever *created* — the verification TXT — never edited or removed.
+ *
+ * Search Console has no user/permission API, so granting a Google Group Full-User
+ * access stays manual and is surfaced as a reminder, not attempted.
+ */
+async function cmdSearchSetup(argv: string[]) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      input: { type: 'string', short: 'i', default: 'site.json' },
+      'site-env': { type: 'string', default: 'production' },
+      domain: { type: 'string' },
+      check: { type: 'boolean', default: false },
+      dry: { type: 'boolean', default: false },
+    },
+    allowPositionals: false,
+  });
+
+  const cfg = await loadConfig(resolve(values.input as string), values['site-env'] as string);
+  const domains = toSearchConsoleSetup(cfg, values.domain as string | undefined);
+  if (domains.length === 0)
+    fail('no domains in site.searchConsole — add domains to onboard (keyed by bare hostname)');
+
+  const cfToken = loadCloudflareToken();
+  const oauth = loadGoogleOAuth();
+  if (!cfToken)
+    fail('set CLOUDFLARE_API_TOKEN (a Zone:DNS:Edit token) — reading and writing DNS needs it');
+  if (!oauth)
+    fail(
+      'set VITOPS_GOOGLE_CLIENT_ID / VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN — a user OAuth token scoped to siteverification + webmasters',
+    );
+
+  const token = await getGoogleToken(oauth);
+
+  // ── Observe live state per domain (the executors gather; the planner decides) ──
+  const states = new Map<string, DomainState>();
+  const zoneIds = new Map<string, string>();
+  const verifyTokens = new Map<string, string>();
+  const webIds = new Map<string, string>();
+  for (const d of domains) {
+    const zone = await findZoneId(cfToken, d.domain);
+    if (!zone.ok || !zone.zoneId) fail(`${d.domain}: ${zone.message}`);
+    zoneIds.set(d.domain, zone.zoneId);
+
+    const vt = await getVerificationToken(token, d.domain);
+    if (!vt.ok || !vt.token)
+      fail(`${d.domain}: could not obtain a verification token — ${vt.message}`);
+    verifyTokens.set(d.domain, vt.token);
+
+    const txt = await listApexTxt(cfToken, zone.zoneId, d.domain);
+    if (!txt.ok) fail(`${d.domain}: ${txt.message}`);
+
+    const wr = await getWebResource(token, d.domain);
+    if (!wr.ok) fail(`${d.domain}: ${wr.message}`);
+    if (wr.id) webIds.set(d.domain, wr.id);
+
+    const site = await getSite(token, siteUrlFor(d.domain));
+    if (!site.ok) fail(`${d.domain}: ${site.message}`);
+
+    states.set(d.domain, {
+      zoneId: zone.zoneId,
+      txtPresent: txt.contents.includes(vt.token),
+      verified: wr.exists,
+      currentOwners: wr.owners,
+      propertyExists: site.exists,
+    });
+  }
+
+  const p = planSetup({ domains }, states);
+  console.log(formatSetupPlan(p));
+
+  if (values.check) {
+    if (hasDrift(p)) {
+      console.error('\n✖ drift — one or more domains are not fully onboarded');
+      process.exit(1);
+    }
+    console.log('\n✓ every domain is onboarded');
+    return;
+  }
+  if (values.dry) {
+    console.log('\n(--dry: nothing was changed)');
+    return;
+  }
+
+  // ── Execute ─────────────────────────────────────────────────────────────────
+  const results: DomainResult[] = [];
+  let failed = false;
+  const delays = backoffSchedule();
+
+  for (const d of domains) {
+    const dp = p.domains.find((x) => x.domain === d.domain)!;
+    const state = states.get(d.domain)!;
+    const result: DomainResult = {
+      domain: d.domain,
+      txt: '—',
+      verified: '—',
+      property: '—',
+      reminders: dp.reminders,
+    };
+
+    // 1. Ensure the apex TXT record (create only).
+    if (dp.txt.action === 'skip') result.txt = 'present';
+    else {
+      const r = await createApexTxt(cfToken, state.zoneId!, d.domain, verifyTokens.get(d.domain)!);
+      if (!r.ok) {
+        console.error(`✖ ${d.domain} TXT: ${r.message}`);
+        result.txt = 'failed';
+        failed = true;
+        results.push(result);
+        continue;
+      }
+      result.txt = 'created';
+    }
+
+    // 2. Verify ownership, retrying with backoff while DNS propagates.
+    let verified = state.verified;
+    if (verified) result.verified = 'yes';
+    else {
+      for (let attempt = 0; attempt < delays.length; attempt++) {
+        const v = await verifyWebResource(token, d.domain);
+        if (v.ok) {
+          verified = true;
+          if (v.id) webIds.set(d.domain, v.id);
+          break;
+        }
+        if (attempt < delays.length - 1) {
+          const wait = delays[attempt]!;
+          console.log(
+            `  … ${d.domain}: not verified yet (attempt ${attempt + 1}/${delays.length}); retrying in ${wait / 1000}s`,
+          );
+          await sleep(wait);
+        }
+      }
+      // PENDING, not failed: propagation is slow, not broken. Re-run later.
+      result.verified = verified ? 'yes' : 'pending';
+    }
+    if (!verified) {
+      results.push(result);
+      continue;
+    }
+
+    // 3. Add the Search Console property.
+    if (dp.property.action === 'skip') result.property = 'present';
+    else {
+      const r = await addSite(token, dp.siteUrl);
+      if (!r.ok) {
+        console.error(`✖ ${d.domain} property: ${r.message}`);
+        result.property = 'failed';
+        failed = true;
+      } else result.property = 'added';
+    }
+
+    // 4. Add delegated owners to the verified web resource (additive union).
+    if (dp.owners.action === 'update' && dp.ownersToAdd.length) {
+      const id = webIds.get(d.domain);
+      if (!id) {
+        console.error(`✖ ${d.domain} owners: no web-resource id (verify may be too fresh)`);
+        failed = true;
+      } else {
+        const union = Array.from(new Set([...state.currentOwners, ...dp.ownersToAdd]));
+        const r = await updateOwners(token, id, d.domain, union);
+        if (!r.ok) {
+          console.error(`✖ ${d.domain} owners: ${r.message}`);
+          failed = true;
+        } else console.log(`✓ ${d.domain}: added ${dp.ownersToAdd.length} owner(s)`);
+      }
+    }
+
+    results.push(result);
+  }
+
+  console.log(`\n${formatSummary(results)}`);
+  if (failed) process.exit(1);
 }
 
 // This CLI's own version (dist/cli.mjs → package-root package.json).
@@ -1266,13 +1585,18 @@ async function main() {
       return cmdLegal(rest);
     case 'icons':
       return cmdIcons(rest);
+    case 'search':
+      return cmdSearch(rest);
     case 'indexing':
-      return cmdIndexing(rest);
+      // Deprecated alias for `search notify`. Kept so consumer CI doesn't break on
+      // the rename; warns to stderr so stdout stays machine-readable.
+      console.error('⚠ `vitops indexing` is deprecated — use `vitops search notify`');
+      return cmdSearch(['notify', ...rest]);
     case 'media':
       return cmdMedia(rest);
     default:
       fail(
-        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint | legal | icons | indexing | media). Try: vitops --help`,
+        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint | legal | icons | search | media). Try: vitops --help`,
       );
   }
 }

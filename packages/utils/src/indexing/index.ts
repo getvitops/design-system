@@ -1,5 +1,5 @@
 /**
- * `vitops indexing` — telling search engines a deploy happened.
+ * `vitops search notify` — telling search engines a deploy happened.
  *
  * A separate subpath (`@getvitops/utils/indexing`) rather than part of the package
  * index, matching `./favicon`: this is the only module here that touches the

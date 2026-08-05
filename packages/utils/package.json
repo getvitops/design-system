@@ -26,6 +26,10 @@
       "types": "./dist/indexing/index.d.mts",
       "import": "./dist/indexing/index.mjs"
     },
+    "./onboarding": {
+      "types": "./dist/onboarding/index.d.mts",
+      "import": "./dist/onboarding/index.mjs"
+    },
     "./media": {
       "types": "./dist/media/index.d.mts",
       "import": "./dist/media/index.mjs"

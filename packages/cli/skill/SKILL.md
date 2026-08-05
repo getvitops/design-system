@@ -98,7 +98,7 @@ where no provider covers the family.
   `legal.privacyPolicy.processors`.
   Generated from config, not legal advice — always tell the user to have it reviewed
   before publishing.
-- `vitops indexing` — tell search engines a deploy happened, from a **site config**'s
+- `vitops search notify` — tell search engines a deploy happened, from a **site config**'s
   `seo.indexing` block. Run `--dry` first: it prints the full plan and makes no requests.
   **Be accurate about what this does, because the obvious assumption is wrong.** Google
   has no API that requests indexing — the Search Console button is not exposed anywhere,
@@ -114,6 +114,16 @@ where no provider covers the family.
   between runs or every run submits everything. Google's **Indexing API is deliberately
   not wired**: it is scoped to `JobPosting`/`BroadcastEvent`, and using it for ordinary
   pages violates its terms — don't suggest it as a workaround.
+- `vitops search setup` — onboard the domains in a **site config**'s `site.searchConsole`
+  block into Google Search Console as domain properties. For each domain it ensures the
+  apex verification TXT in Cloudflare, verifies ownership (DNS_TXT, retried with backoff
+  while DNS propagates — a still-unverified domain is reported PENDING, not failed), adds
+  the `sc-domain:` property, and adds any `delegatedOwners` to the web resource. Idempotent:
+  a re-run of an onboarded domain is a no-op, and `--check` reports drift without mutating.
+  DNS is only ever created, never edited or deleted. Credentials come from the environment
+  (`CLOUDFLARE_API_TOKEN`, and `VITOPS_GOOGLE_CLIENT_ID`/`_CLIENT_SECRET`/`_REFRESH_TOKEN`),
+  never the config. Granting a Google Group **Full-User** access has no API — it is surfaced
+  as a reminder, not automated; don't tell a user the tool did it.
 - `vitops agents` — (re-)link this skill into `.agents/skills/` + `.claude/skills/` and
   refresh the AGENTS.md pointer block. The links point into the installed package and
   survive version bumps; re-run only if they were deleted.

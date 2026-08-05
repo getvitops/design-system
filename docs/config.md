@@ -11,7 +11,7 @@ generator: "@getvitops/generator"
 
 The document that describes a **whole project**: the token set, the company, and the
 published site. It is the input every command that needs more than tokens is anchored
-to — `vitops legal`, `vitops icons`, `vitops indexing` — and it can also stand in for
+to — `vitops legal`, `vitops icons`, `vitops search` — and it can also stand in for
 a `design-system.json` anywhere the toolchain takes one, since it carries a full
 `designSystem`.
 
@@ -298,6 +298,14 @@ Desired DNS state per domain (provider, nameservers, records) — declarative re
 
 Deliberate escape hatch for provider-specific Cloudflare settings — out of scope to model here.
 
+### `searchConsole` *(optional)*
+
+Domains to onboard as Google Search Console *domain properties* via `vitops search setup`, keyed by bare hostname (mirrors `dns`). Credentials come from the environment (CLOUDFLARE_API_TOKEN + the Google OAuth vars) — never in this file.
+
+- `<name>` (object)
+  - `delegatedOwners` (array of string) — Emails added as verification owners on the Site Verification web resource. Automated via the API — additive and idempotent, never removes an existing owner.
+  - `fullUserGroup` (string) — A Google Group to grant Full-User access in Search Console. SURFACED AS A REMINDER only: Search Console exposes no user/permission API, so this step stays manual by design.
+
 ### `environments`
 
 Deploy environments (production, dev, …): URL, API origin, analytics toggle, robots policy, active A/B variant.
@@ -468,16 +476,16 @@ SEO defaults: title/description templates, robots policy, verification tokens, O
       - `alt` (string, required)
       - `width` (number)
       - `height` (number)
-- `indexing` (object) — How `vitops notify` tells search engines about a deploy: which sitemap, IndexNow key, Search Console property, and which pages to verify afterwards.
+- `indexing` (object) — How `vitops search notify` tells search engines about a deploy: which sitemap, IndexNow key, Search Console property, and which pages to verify afterwards.
   - `sitemapUrl` (string) — The sitemap to submit and to diff for changed URLs. Defaults to `<canonical>/sitemap-index.xml`.
   - `indexNow` (object) — IndexNow submission (Bing, Yandex, Naver, Seznam, Yep — not Google). Omit to skip the channel.
-    - `key` (string, required) — IndexNow key (8–128 chars, hex is conventional). NOT a secret — it is served publicly at `keyLocation` so the engine can verify you own the host. Generate one with `vitops notify --new-key`.
+    - `key` (string, required) — IndexNow key (8–128 chars, hex is conventional). NOT a secret — it is served publicly at `keyLocation` so the engine can verify you own the host. Generate one with `vitops search notify --new-key`.
     - `keyLocation` (string) — Absolute URL of the key file. Defaults to `<canonical>/<key>.txt`; set it only when the file lives elsewhere.
     - `endpoint` (string) — IndexNow endpoint (default `https://api.indexnow.org/indexnow`). Any participating engine shares submissions with the rest, so one is normally enough.
   - `searchConsole` (object) — Google Search Console property. Needs a service-account credential in `VITOPS_GSC_SERVICE_ACCOUNT` or `GOOGLE_APPLICATION_CREDENTIALS` at run time — never put the key in this file.
     - `siteUrl` (string, required) — The property exactly as Search Console identifies it — `sc-domain:acme.ca` for a domain property, or the URL-prefix form `https://acme.ca/`. A mismatch here is a 403, not a "not found".
     - `resubmitSitemap` (boolean) — Re-submit the sitemap through the Search Console API on each notify (default true when `searchConsole` is set). This is the automated equivalent of the manual resubmit in the UI.
-  - `priorityUrls` (array of string) — The pages whose indexing actually matters. `vitops notify --check` inspects these and exits non-zero if Google has not indexed one. Kept explicit because URL Inspection is quota-bound (2000/day), so checking every page is neither affordable nor informative.
+  - `priorityUrls` (array of string) — The pages whose indexing actually matters. `vitops search notify --check` inspects these and exits non-zero if Google has not indexed one. Kept explicit because URL Inspection is quota-bound (2000/day), so checking every page is neither affordable nor informative.
 
 ### `analytics` *(optional)*
 

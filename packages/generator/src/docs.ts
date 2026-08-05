@@ -999,7 +999,7 @@ function renderConfig(): string {
 
 The document that describes a **whole project**: the token set, the company, and the
 published site. It is the input every command that needs more than tokens is anchored
-to — \`vitops legal\`, \`vitops icons\`, \`vitops indexing\` — and it can also stand in for
+to — \`vitops legal\`, \`vitops icons\`, \`vitops search\` — and it can also stand in for
 a \`design-system.json\` anywhere the toolchain takes one, since it carries a full
 \`designSystem\`.
 

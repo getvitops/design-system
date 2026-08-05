@@ -2,7 +2,7 @@
  * Real per-page `<lastmod>` for the sitemap, derived from git.
  *
  * This is the one lever that reliably moves Google. It is also load-bearing for
- * `vitops indexing`, which decides what to submit by diffing lastmod against the
+ * `vitops search notify`, which decides what to submit by diffing lastmod against the
  * previous build — with no lastmod, that diff can see pages appear and disappear
  * but never see one *change*, so an edited page is never resubmitted.
  *
@@ -170,7 +170,7 @@ export async function gitLastmod(
    * No coverage warning here on purpose. `serialize` is called once per entry
    * with no completion signal, so any "matched N of M" it emitted would be a
    * running total printed mid-stream. The same fact is reported properly one step
-   * later: `vitops indexing` counts entries without a `<lastmod>` and says so
+   * later: `vitops search notify` counts entries without a `<lastmod>` and says so
    * against the finished sitemap.
    */
   return (item: GetvitopsSitemapEntry): GetvitopsSitemapEntry => {

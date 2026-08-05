@@ -53,7 +53,7 @@ for why the outputs are meant to be committed.
 
 ## Search-engine notification (`@getvitops/utils/indexing`)
 
-The engine behind `vitops indexing`: sitemap parsing, the changed-URL diff against the previous
+The engine behind `vitops search notify`: sitemap parsing, the changed-URL diff against the previous
 run's snapshot, IndexNow submission, and the Search Console API calls (sitemap resubmit + read-only
 URL inspection). `plan()` is pure — no network, no filesystem, no clock — and `indexnow.ts` /
 `gsc.ts` execute a plan without deciding anything.

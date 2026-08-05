@@ -171,7 +171,7 @@ weighs `lastmod` only while it stays consistent with what actually changed:
 - **A shallow clone gets nothing, loudly.** It shells out to `git`, so `fetch-depth: 1` (the
   actions/checkout default) yields no history — it warns and emits no dates. Set `fetch-depth: 0`.
 
-This is also what makes `vitops indexing` able to submit only what changed, rather than everything on
+This is also what makes `vitops search notify` able to submit only what changed, rather than everything on
 every deploy.
 
 ## `<Seo />`

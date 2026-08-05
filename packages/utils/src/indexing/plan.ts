@@ -1,5 +1,5 @@
 /**
- * Every decision `vitops indexing` makes, as one pure function.
+ * Every decision `vitops search notify` makes, as one pure function.
  *
  * Pure in the load-bearing sense: no `fetch`, no `fs`, no clock. Everything the
  * command could get wrong — submitting a staging URL, submitting nothing because a

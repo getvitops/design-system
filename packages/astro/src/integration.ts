@@ -948,7 +948,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         // 3b. The IndexNow key file.
         //
         // Derived from the site config rather than an option of its own: the key
-        // is already declared there for `vitops notify`, and a second place to
+        // is already declared there for `vitops search notify`, and a second place to
         // write it is a second place for it to disagree. Nothing else is needed
         // to opt in — a config with `seo.indexing.indexNow.key` has, by saying so,
         // asked for the file that makes the key usable.
