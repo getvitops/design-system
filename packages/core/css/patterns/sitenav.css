@@ -17,10 +17,32 @@
  * OR click (native `[open]` pins it). Top-level submenus drop below their item;
  * deeper (megamenu) submenus fly out to the inline-end side.
  *
- * `.sitenav__disclosure` is `display: contents` so the `<summary>` (caret) and the
- * submenu `<ul>` participate directly in the branch item's grid — that is what lets
- * the caret sit inline with the link while the submenu spans full width on its own
- * row. Native `[open]` toggling is unaffected by `display: contents`.
+ * The `<details>` is grid-placed at column 2 and the submenu `<ul>` is its SIBLING,
+ * a real grid child of the branch item — that is what lets the caret sit inline with
+ * the link while the submenu spans full width on its own row.
+ *
+ * ── TWO BRANCHES, NOT BASE-PLUS-OVERRIDE ──
+ *
+ * `@container` contributes ZERO specificity, so a rule inside the wide block competes
+ * at its bare selector weight. A bare `.sitenav--drawer-end .sitenav__panel` (0,2,0)
+ * therefore beat the wide block's `.sitenav__panel` (0,1,0) reset *in the wide state*:
+ * the promoted navbar shipped translated a full panel-width off-screen, and the
+ * accordion's `overflow: hidden` clipped away every third-level megamenu. Before the
+ * four per-breakpoint blocks were folded into one style query, those resets carried a
+ * `.sitenav--bp-*` class and won the tie on source order; folding them removed it.
+ *
+ * So the rule is: **a narrow-state rule that is MORE SPECIFIC than its wide-state
+ * counterpart lives inside `@container style(--_sitenav-wide: 0)`.** Rules at (0,1,0)
+ * — the panel's box, the lists, the links — stay unscoped, because that same work is
+ * what neutralises the UA `[popover]` sheet, which applies in BOTH states; scoping it
+ * would mean writing it twice. `src/css/state-branch.test.ts` asserts the invariant.
+ *
+ * Both branches read an INHERITED flag, so every part must live inside `.sitenav`,
+ * which declares it. Note the file mixes two unnamed query kinds that resolve against
+ * DIFFERENT containers: `style()` against the nearest ancestor ELEMENT (every element
+ * is a style container — no `container-type` needed, and it resolves for a panel
+ * promoted to the top layer), the `(min-width:)` queries below against `body`
+ * (layout.css). That asymmetry is why the flag has to be a custom property.
  *
  * Per-breakpoint depth caps come pre-resolved from PHP as item classes:
  *   `.sitenav__item--desktop-branch` — caret + submenu shown only ≥ breakpoint;
@@ -106,29 +128,41 @@
   }
 }
 
-/* Slide from the chosen edge (default inline-end). */
-.sitenav--drawer-end .sitenav__panel {
-  inset-inline-end: 0;
-  inset-inline-start: auto;
-  translate: 100% 0;
-}
-.sitenav--drawer-start .sitenav__panel {
-  inset-inline-start: 0;
-  inset-inline-end: auto;
-  translate: -100% 0;
-}
-.sitenav__panel:popover-open {
-  opacity: 1;
-  translate: 0 0;
-}
-@starting-style {
-  .sitenav--drawer-end .sitenav__panel:popover-open {
-    opacity: 0;
+/* ── Drawer geometry + transition — NARROW ONLY ─────────────────────────────
+   Scoped rather than bare because these are (0,2,0)/(0,3,0) and would outrank the
+   wide block's (0,1,0) panel reset. `:popover-open` and the `@starting-style`
+   pair are one transition system with the edge modifiers, so they travel with
+   them: both are inert at width only by coincidence (the panel is always
+   displayed there, and their values happen to match the reset's), which is the
+   same shape of accident as the bug itself. ── */
+@container style(--_sitenav-wide: 0) {
+  /* Slide from the chosen edge (default inline-end). The insets also undo the UA
+     `[popover] { inset: 0 }`; the wide branch does that job with `inset: auto`. */
+  .sitenav--drawer-end .sitenav__panel {
+    inset-inline-end: 0;
+    inset-inline-start: auto;
     translate: 100% 0;
   }
-  .sitenav--drawer-start .sitenav__panel:popover-open {
-    opacity: 0;
+  .sitenav--drawer-start .sitenav__panel {
+    inset-inline-start: 0;
+    inset-inline-end: auto;
     translate: -100% 0;
+  }
+
+  .sitenav__panel:popover-open {
+    opacity: 1;
+    translate: 0 0;
+  }
+
+  @starting-style {
+    .sitenav--drawer-end .sitenav__panel:popover-open {
+      opacity: 0;
+      translate: 100% 0;
+    }
+    .sitenav--drawer-start .sitenav__panel:popover-open {
+      opacity: 0;
+      translate: -100% 0;
+    }
   }
 }
 
@@ -167,31 +201,7 @@
   font-style: italic;
 }
 
-/* ── Branch item — mobile accordion ────────────────────────────────────────
-   The item is a grid: [link | caret] on row 1, the submenu spanning row 2. The
-   <details> holds only the caret <summary>; the submenu <ul> is its sibling and a
-   real grid child of the item. The row-2 track animates 0fr→1fr when the details is
-   open (the classic no-JS accordion, driven by `:has`), so the submenu pushes the
-   content below rather than overlaying it. */
-.sitenav__item--branch {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto 0fr;
-  align-items: center;
-  column-gap: 0.5rem;
-  transition: grid-template-rows 0.25s ease;
-}
-
-.sitenav__item--branch > .split-link__link {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-/* <details> is only the caret; keep its box out of the flow's height. */
-.sitenav__disclosure {
-  grid-column: 2;
-  grid-row: 1;
-}
+/* ── Branch item — the two rules both presentations share ──────────────────── */
 
 /* The <summary>. `.split-link__toggle` supplies the flush look, hover + focus, and
    the caret transition; only the disclosure-marker reset is added here. */
@@ -204,31 +214,68 @@
   }
 }
 
-.sitenav__item--branch > .sitenav__submenu {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  /* Stretch to the row-2 track (not content-sized) so the 0fr collapsed state
-     actually clips to 0 — the item's own align-self must beat the grid's
-     `align-items: center`, or overflow:hidden has nothing to clip against. */
-  align-self: stretch;
-  min-block-size: 0;
-  overflow: hidden;
-  padding-inline-start: 1rem;
-}
-
-.sitenav__item--branch:has(> .sitenav__disclosure[open]) {
-  grid-template-rows: auto 1fr;
-}
-
-/* Caret flips while the disclosure is open (summary carries no aria-expanded). */
+/* Caret flips while the disclosure is open (summary carries no aria-expanded).
+   Unscoped: at width the same native `[open]` pins a dropdown, so the flip is
+   wanted in both states. */
 .sitenav__disclosure[open] > .sitenav__subtoggle .split-link__caret {
   rotate: 180deg;
 }
 
-/* Depth cap (mobile side): a desktop-only branch shows just its parent link. */
-.sitenav__item--desktop-branch > .sitenav__disclosure,
-.sitenav__item--desktop-branch > .sitenav__submenu {
-  display: none;
+/* ── Mobile accordion — NARROW ONLY ─────────────────────────────────────────
+   The item is a grid: [link | caret] on row 1, the submenu spanning row 2. The
+   <details> holds only the caret <summary>; the submenu <ul> is its sibling and a
+   real grid child of the item. The row-2 track animates 0fr→1fr when the details is
+   open (the classic no-JS accordion, driven by `:has`), so the submenu pushes the
+   content below rather than overlaying it.
+
+   Scoped because these selectors are (0,2,0)/(0,3,0). Most of what is in here is
+   inert at width anyway — grid placement on a flex item, `align-self` on an
+   absolutely positioned box, `min-block-size: 0` where `auto` already computes to
+   0 — but `overflow: hidden` and `padding-inline-start` are NOT, and leaking them
+   into the navbar is what clipped the megamenus. ── */
+@container style(--_sitenav-wide: 0) {
+  .sitenav__item--branch {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto 0fr;
+    align-items: center;
+    column-gap: 0.5rem;
+    transition: grid-template-rows 0.25s ease;
+  }
+
+  .sitenav__item--branch > .split-link__link {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  /* <details> is only the caret; keep its box out of the flow's height. */
+  .sitenav__disclosure {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .sitenav__item--branch > .sitenav__submenu {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    /* Stretch to the row-2 track (not content-sized) so the 0fr collapsed state
+       actually clips to 0 — the item's own align-self must beat the grid's
+       `align-items: center`, or overflow:hidden has nothing to clip against. */
+    align-self: stretch;
+    min-block-size: 0;
+    overflow: hidden;
+    padding-inline-start: 1rem;
+  }
+
+  .sitenav__item--branch:has(> .sitenav__disclosure[open]) {
+    grid-template-rows: auto 1fr;
+  }
+
+  /* Depth cap (mobile side): a desktop-only branch shows just its parent link.
+     Scoped, so the wide branch needs no counter-rule — it simply stops applying. */
+  .sitenav__item--desktop-branch > .sitenav__disclosure,
+  .sitenav__item--desktop-branch > .sitenav__submenu {
+    display: none;
+  }
 }
 /* ── Desktop promotion.
  *
@@ -310,8 +357,9 @@
     position: relative;
     display: flex;
     align-items: center;
-    grid-template-columns: none;
-    grid-template-rows: none;
+    /* Restated, not inherited: this used to leak in from the accordion rule, which
+       is now narrow-scoped. Without it the caret hugs the link at width. */
+    column-gap: 0.5rem;
   }
   .sitenav__submenu {
     position: absolute;
@@ -319,7 +367,6 @@
     inset-inline-start: 0;
     min-inline-size: 13rem;
     padding: 0.5rem;
-    overflow: visible;
     background: var(--color-bg-surface);
     color: var(--color-text-surface);
     border: var(--b-panel);
@@ -335,6 +382,12 @@
       translate 0.15s ease,
       visibility 0.15s allow-discrete;
   }
+  /* Third level (megamenu) flies out to the inline-end side. Its containing block
+     is the inner `.sitenav__item--branch` (position: relative, above), which sits
+     INSIDE the parent submenu — so nothing between the two may clip. The
+     accordion's `overflow: hidden` used to leak in here at (0,2,0) and beat this
+     branch's (0,1,0) reset, and every megamenu was invisible at width. It is now
+     scoped to `style(--_sitenav-wide: 0)` and cannot. */
   .sitenav__submenu .sitenav__item--branch > .sitenav__submenu {
     inset-block-start: 0;
     inset-inline-start: 100%;
@@ -348,12 +401,12 @@
     pointer-events: auto;
     translate: 0 0;
   }
-  /* depth caps flip at the breakpoint: desktop-only branches reveal their caret +
-     dropdown; mobile-only branches collapse to a plain link. */
-  .sitenav__item--desktop-branch > .sitenav__disclosure,
-  .sitenav__item--desktop-branch > .sitenav__submenu {
-    display: block;
-  }
+  /* Depth cap (desktop side): a mobile-only branch collapses to a plain link. Its
+     mirror — hiding a DESKTOP-only branch below the breakpoint — lives in the
+     narrow branch, so there is nothing to undo here. A `display: block`
+     counter-rule used to sit alongside this one and, at (0,2,0), beat the base
+     `.sitenav__submenu`'s `display: flex` (0,1,0) — costing every desktop-only
+     dropdown its column direction and gap. */
   .sitenav__item--mobile-branch > .sitenav__disclosure,
   .sitenav__item--mobile-branch > .sitenav__submenu {
     display: none;

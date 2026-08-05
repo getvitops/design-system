@@ -226,6 +226,22 @@ describe('tailwind container-block strip', () => {
     for (const cls of ['.md-split-1-2', '.lg-flex-row', '.sm-items-center'])
       expect(css, `${cls} should be Tailwind's to generate`).not.toContain(cls);
   });
+
+  /**
+   * A style query is not a pre-expanded variant, and the strip's `(min-width:`
+   * prelude test is the only thing keeping it that way. sitenav states its drawer
+   * and its navbar as two mutually exclusive `style(--_sitenav-wide: …)` branches
+   * (see the header of core's `patterns/sitenav.css`), so dropping EITHER ships a
+   * nav that is half one and half the other — the narrow branch carries the drawer
+   * geometry, the wide branch the navbar reset.
+   */
+  it.skipIf(!hasAssets)('keeps both sitenav state branches', () => {
+    const css = tw();
+    for (const flag of [0, 1])
+      expect(css, `the --_sitenav-wide: ${flag} branch must survive`).toContain(
+        `style(--_sitenav-wide: ${flag})`,
+      );
+  });
 });
 
 /**

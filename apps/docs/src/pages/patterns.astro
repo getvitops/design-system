@@ -291,14 +291,59 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
 
   <h3>Sitenav</h3>
   <p>
-    One markup tree, two presentations, switched purely by container width: a toggle +
-    drawer below the breakpoint, an inline navbar with dropdowns above it. Resize the
-    window to cross <code>48rem</code>.
+    One markup tree, two presentations, switched purely by <em>container</em> width: a
+    toggle + drawer below the breakpoint, an inline navbar with dropdowns above it. These
+    demos use <code>sitenav--bp-sm</code> (<code>30rem</code>) rather than the
+    <code>md</code> default, because the measured container here is this prose column —
+    not the window. A <code>bp-md</code> sitenav in a column this narrow would stay a
+    drawer at every window size, which is the pattern working, not failing.
   </p>
-  <div class="sitenav sitenav--bp-md sitenav--drawer-start card">
+  <div class="sitenav sitenav--bp-sm sitenav--drawer-start card">
     <button class="sitenav__toggle" popovertarget="pt-sitenav" aria-label="Menu">☰</button>
     <div id="pt-sitenav" popover class="sitenav__panel">
       <button class="sitenav__close" popovertarget="pt-sitenav" popovertargetaction="hide" aria-label="Close">&times;</button>
+      <ul class="sitenav__list">
+        <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Home</a></li>
+        <li class="sitenav__item sitenav__item--branch">
+          <a class="sitenav__link split-link__link" href="#navigation">Products</a>
+          <details class="sitenav__disclosure"><summary class="sitenav__subtoggle"><span class="split-link__caret">▾</span></summary></details>
+          <ul class="sitenav__submenu">
+            <!-- Third level. At width this flies out to the inline-end side, which is
+                 what makes it the demo's canary for anything between it and its
+                 containing block clipping. -->
+            <li class="sitenav__item sitenav__item--branch">
+              <a class="sitenav__link split-link__link" href="#navigation">Toolchain</a>
+              <details class="sitenav__disclosure"><summary class="sitenav__subtoggle"><span class="split-link__caret">▾</span></summary></details>
+              <ul class="sitenav__submenu">
+                <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Generator</a></li>
+                <li class="sitenav__item"><a class="sitenav__link" href="#navigation">CLI</a></li>
+              </ul>
+            </li>
+            <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Components</a></li>
+          </ul>
+        </li>
+        <!-- Depth cap: the caret + dropdown exist only at width; below it, a plain link. -->
+        <li class="sitenav__item sitenav__item--branch sitenav__item--desktop-branch">
+          <a class="sitenav__link split-link__link" href="#navigation">Resources</a>
+          <details class="sitenav__disclosure"><summary class="sitenav__subtoggle"><span class="split-link__caret">▾</span></summary></details>
+          <ul class="sitenav__submenu">
+            <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Guides</a></li>
+            <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Changelog</a></li>
+          </ul>
+        </li>
+        <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Pricing</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <p>
+    The same tree with <code>sitenav--drawer-end</code>. Only the drawer's resting edge
+    differs; at width both must reach the identical navbar.
+  </p>
+  <div class="sitenav sitenav--bp-sm sitenav--drawer-end card">
+    <button class="sitenav__toggle" popovertarget="pt-sitenav-end" aria-label="Menu">☰</button>
+    <div id="pt-sitenav-end" popover class="sitenav__panel">
+      <button class="sitenav__close" popovertarget="pt-sitenav-end" popovertargetaction="hide" aria-label="Close">&times;</button>
       <ul class="sitenav__list">
         <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Home</a></li>
         <li class="sitenav__item sitenav__item--branch">
