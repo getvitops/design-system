@@ -9,8 +9,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createApexTxt, findZoneId, listApexTxt } from './cloudflare.ts';
 
-const res = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), { status });
+const res = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
 
 const stub = (fn: (url: string, init?: RequestInit) => Response) =>
   vi.fn(async (url: string | URL | Request, init?: RequestInit) =>
@@ -33,7 +32,11 @@ describe('findZoneId', () => {
   });
 
   it('is a named failure when no zone matches', async () => {
-    const r = await findZoneId('t', 'acme.ca', stub(() => res(200, ok([]))));
+    const r = await findZoneId(
+      't',
+      'acme.ca',
+      stub(() => res(200, ok([]))),
+    );
     expect(r.ok).toBe(false);
     expect(r.message).toMatch(/no Cloudflare zone named "acme\.ca"/);
   });
@@ -70,10 +73,20 @@ describe('createApexTxt', () => {
       expect(url).toContain('/zones/zone123/dns_records');
       expect(init?.method).toBe('POST');
       const body = JSON.parse(String(init?.body));
-      expect(body).toMatchObject({ type: 'TXT', name: 'acme.ca', content: 'google-site-verification=abc' });
+      expect(body).toMatchObject({
+        type: 'TXT',
+        name: 'acme.ca',
+        content: 'google-site-verification=abc',
+      });
       return res(200, ok({ id: 'rec1' }));
     });
-    const r = await createApexTxt('t', 'zone123', 'acme.ca', 'google-site-verification=abc', fetchImpl);
+    const r = await createApexTxt(
+      't',
+      'zone123',
+      'acme.ca',
+      'google-site-verification=abc',
+      fetchImpl,
+    );
     expect(r.ok).toBe(true);
   });
 });

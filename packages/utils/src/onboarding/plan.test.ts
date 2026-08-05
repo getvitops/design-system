@@ -10,6 +10,7 @@ import {
   backoffSchedule,
   formatSummary,
   hasDrift,
+  ownerUnion,
   plan,
   planDomain,
   siteUrlFor,
@@ -72,6 +73,47 @@ describe('planDomain', () => {
     expect(p.reminders.join(' ')).toMatch(/team@acme\.ca.*Full User/);
     // The reminder must not register as drift.
     expect(hasDrift({ domains: [p], notes: [] })).toBe(false);
+  });
+});
+
+/**
+ * `updateOwners` REPLACES the owner set, so this union is the only thing standing
+ * between delegating access and revoking your own.
+ *
+ * The first case is the one that shipped broken: on a first run the domain is not
+ * yet a web resource, so the pre-verification observation reports no owners at all
+ * and `planDomain` treats every delegated owner as still-to-add. Verification then
+ * creates the resource with the verifying account as its owner — and the caller
+ * has to fold that in, or the PUT removes the account that just proved ownership.
+ */
+describe('ownerUnion', () => {
+  it('keeps the verifying account when adding the first delegated owner', () => {
+    expect(ownerUnion(['verifier@acme.ca'], ['ops@acme.ca'])).toEqual([
+      'verifier@acme.ca',
+      'ops@acme.ca',
+    ]);
+  });
+
+  it('is a no-op when every delegated owner is already there', () => {
+    expect(ownerUnion(['a@acme.ca', 'b@acme.ca'], ['b@acme.ca'])).toEqual([
+      'a@acme.ca',
+      'b@acme.ca',
+    ]);
+  });
+
+  it('matches case-insensitively, keeping the API’s casing', () => {
+    // Google echoes an address in whatever case the account uses; a case-sensitive
+    // dedupe would send the same owner twice under two spellings.
+    expect(ownerUnion(['Ops@Acme.ca'], ['ops@acme.ca'])).toEqual(['Ops@Acme.ca']);
+  });
+
+  it('never returns fewer owners than it was given', () => {
+    // The property that actually matters: this function cannot drop anyone.
+    const current = ['a@acme.ca', 'B@acme.ca'];
+    for (const toAdd of [[], ['c@acme.ca'], ['A@acme.ca'], ['a@acme.ca', 'c@acme.ca']]) {
+      const out = ownerUnion(current, toAdd);
+      for (const o of current) expect(out.map((x) => x.toLowerCase())).toContain(o.toLowerCase());
+    }
   });
 });
 

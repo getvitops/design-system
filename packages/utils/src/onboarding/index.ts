@@ -14,19 +14,14 @@ export {
   formatPlan,
   formatSummary,
   hasDrift,
+  ownerUnion,
   plan,
   planDomain,
   siteUrlFor,
 } from './plan.ts';
-export type {
-  DomainPlan,
-  DomainResult,
-  OnboardingPlan,
-  StepAction,
-  StepPlan,
-} from './plan.ts';
+export type { DomainPlan, DomainResult, OnboardingPlan, StepAction, StepPlan } from './plan.ts';
 
-export { createApexTxt, findZoneId, GOOGLE_TXT_PREFIX, listApexTxt } from './cloudflare.ts';
+export { createApexTxt, findZoneId, listApexTxt } from './cloudflare.ts';
 
 export {
   addSite,

@@ -16,9 +16,6 @@
  */
 const API = 'https://api.cloudflare.com/client/v4';
 
-/** Prefix Google gives its DNS verification value; used to recognise our record. */
-export const GOOGLE_TXT_PREFIX = 'google-site-verification=';
-
 interface CfEnvelope<T> {
   success: boolean;
   errors?: { code: number; message: string }[];

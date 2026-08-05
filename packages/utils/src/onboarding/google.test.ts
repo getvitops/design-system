@@ -43,7 +43,10 @@ describe('getAccessToken', () => {
 
   it('throws, naming the status, when the refresh token is revoked', async () => {
     await expect(
-      getAccessToken(oauth, stub(() => res(400, 'invalid_grant'))),
+      getAccessToken(
+        oauth,
+        stub(() => res(400, 'invalid_grant')),
+      ),
     ).rejects.toThrow(/400/);
   });
 });
@@ -75,7 +78,11 @@ describe('getWebResource', () => {
       stub(() =>
         res(200, {
           items: [
-            { id: 'dns://acme.ca', site: { type: 'INET_DOMAIN', identifier: 'acme.ca' }, owners: ['a@acme.ca'] },
+            {
+              id: 'dns://acme.ca',
+              site: { type: 'INET_DOMAIN', identifier: 'acme.ca' },
+              owners: ['a@acme.ca'],
+            },
           ],
         }),
       ),
@@ -84,7 +91,11 @@ describe('getWebResource', () => {
   });
 
   it('reports not-verified when no resource matches the domain', async () => {
-    const r = await getWebResource('tok', 'acme.ca', stub(() => res(200, { items: [] })));
+    const r = await getWebResource(
+      'tok',
+      'acme.ca',
+      stub(() => res(200, { items: [] })),
+    );
     expect(r).toMatchObject({ exists: false, owners: [] });
   });
 });
@@ -104,7 +115,11 @@ describe('verifyWebResource', () => {
   });
 
   it('fails (not throws) while the TXT record is still propagating', async () => {
-    const r = await verifyWebResource('tok', 'acme.ca', stub(() => res(400, 'token not found in DNS')));
+    const r = await verifyWebResource(
+      'tok',
+      'acme.ca',
+      stub(() => res(400, 'token not found in DNS')),
+    );
     expect(r.ok).toBe(false);
   });
 });
@@ -129,12 +144,20 @@ describe('updateOwners', () => {
 
 describe('getSite / addSite', () => {
   it('reads a 404 as "does not exist", not an error', async () => {
-    const r = await getSite('tok', 'sc-domain:acme.ca', stub(() => res(404)));
+    const r = await getSite(
+      'tok',
+      'sc-domain:acme.ca',
+      stub(() => res(404)),
+    );
     expect(r).toMatchObject({ ok: true, exists: false });
   });
 
   it('names a 403 on addSite as not-yet-verified', async () => {
-    const r = await addSite('tok', 'sc-domain:acme.ca', stub(() => res(403, 'forbidden')));
+    const r = await addSite(
+      'tok',
+      'sc-domain:acme.ca',
+      stub(() => res(403, 'forbidden')),
+    );
     expect(r.ok).toBe(false);
     expect(r.message).toMatch(/not verified/);
   });

@@ -11,7 +11,7 @@
  * `skip`, so a re-run of a fully-onboarded domain is all skips — a no-op, by
  * construction rather than by the executors checking twice.
  */
-import type { DomainSetup, DomainState } from './types.ts';
+import type { DomainSetup, DomainState, OnboardingConfig } from './types.ts';
 
 /** A step's decision: do it, or skip it because it already holds. */
 export type StepAction = 'create' | 'update' | 'skip';
@@ -95,7 +95,10 @@ export function planDomain(setup: DomainSetup, state: DomainState): DomainPlan {
       ? { action: 'skip', detail: 'no delegated owners' }
       : ownersToAdd.length === 0
         ? { action: 'skip', detail: 'all delegated owners already present' }
-        : { action: 'update', detail: `add ${ownersToAdd.length} owner(s): ${ownersToAdd.join(', ')}` };
+        : {
+            action: 'update',
+            detail: `add ${ownersToAdd.length} owner(s): ${ownersToAdd.join(', ')}`,
+          };
 
   return {
     domain: setup.domain,
@@ -109,8 +112,34 @@ export function planDomain(setup: DomainSetup, state: DomainState): DomainPlan {
   };
 }
 
+/**
+ * The owner set to PUT: everyone already there, plus everyone being added.
+ *
+ * `updateOwners` REPLACES the owner list, so this is the one computation standing
+ * between a delegation and locking yourself out — pass a bare `ownersToAdd` and
+ * the account that just verified the domain is removed from it. It belongs here
+ * rather than at the call site for exactly that reason: it is a decision, it is
+ * the dangerous one, and the executor is not allowed to make it.
+ *
+ * `current` comes FIRST so the API's own casing survives dedupe; matching is
+ * case-insensitive, mirroring `planDomain`'s `present` check, because Google
+ * echoes back addresses in whatever case the account uses and a case-sensitive
+ * `Set` would re-add an owner who is already there.
+ */
+export function ownerUnion(current: string[], toAdd: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const o of [...current, ...toAdd]) {
+    const key = o.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(o);
+  }
+  return out;
+}
+
 /** Plan every domain. */
-export function plan(config: { domains: DomainSetup[] }, states: Map<string, DomainState>): OnboardingPlan {
+export function plan(config: OnboardingConfig, states: Map<string, DomainState>): OnboardingPlan {
   const notes: string[] = [];
   const domains = config.domains.map((setup) => {
     const state = states.get(setup.domain);
@@ -171,7 +200,11 @@ export function formatSummary(results: DomainResult[]): string {
   const widths = headers.map((h, i) =>
     Math.max(h.length, ...rows.map((row) => row[i]?.length ?? 0)),
   );
-  const line = (cells: string[]) => cells.map((c, i) => pad(c, widths[i] ?? 0)).join('  ').trimEnd();
+  const line = (cells: string[]) =>
+    cells
+      .map((c, i) => pad(c, widths[i] ?? 0))
+      .join('  ')
+      .trimEnd();
 
   const out = [line(headers), widths.map((w) => '─'.repeat(w)).join('  ')];
   for (const row of rows) out.push(line(row));

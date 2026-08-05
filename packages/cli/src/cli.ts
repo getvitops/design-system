@@ -92,6 +92,7 @@ import {
   getWebResource,
   hasDrift,
   listApexTxt,
+  ownerUnion,
   plan as planSetup,
   siteUrlFor,
   updateOwners,
@@ -1182,13 +1183,11 @@ async function cmdSearchSetup(argv: string[]) {
 
   // ── Observe live state per domain (the executors gather; the planner decides) ──
   const states = new Map<string, DomainState>();
-  const zoneIds = new Map<string, string>();
   const verifyTokens = new Map<string, string>();
   const webIds = new Map<string, string>();
   for (const d of domains) {
     const zone = await findZoneId(cfToken, d.domain);
     if (!zone.ok || !zone.zoneId) fail(`${d.domain}: ${zone.message}`);
-    zoneIds.set(d.domain, zone.zoneId);
 
     const vt = await getVerificationToken(token, d.domain);
     if (!vt.ok || !vt.token)
@@ -1269,6 +1268,12 @@ async function cmdSearchSetup(argv: string[]) {
         if (v.ok) {
           verified = true;
           if (v.id) webIds.set(d.domain, v.id);
+          // Verification is what CREATES the web resource, so this response is the
+          // first sight of its owner list — and it contains the verifying account.
+          // The pre-verification observation could only report `[]`. Dropping this
+          // makes the union below a bare `ownersToAdd`, and the PUT then removes
+          // the very account that just proved ownership.
+          state.currentOwners = v.owners;
           break;
         }
         if (attempt < delays.length - 1) {
@@ -1305,8 +1310,12 @@ async function cmdSearchSetup(argv: string[]) {
         console.error(`✖ ${d.domain} owners: no web-resource id (verify may be too fresh)`);
         failed = true;
       } else {
-        const union = Array.from(new Set([...state.currentOwners, ...dp.ownersToAdd]));
-        const r = await updateOwners(token, id, d.domain, union);
+        const r = await updateOwners(
+          token,
+          id,
+          d.domain,
+          ownerUnion(state.currentOwners, dp.ownersToAdd),
+        );
         if (!r.ok) {
           console.error(`✖ ${d.domain} owners: ${r.message}`);
           failed = true;
