@@ -34,8 +34,17 @@ export { SNAPSHOT_PATH, readSnapshot, toSnapshot, writeSnapshot } from './snapsh
 export { keyFileContents, newKey, submitBatch, verifyKeyFile } from './indexnow.ts';
 export type { SubmitResult } from './indexnow.ts';
 
-export { getAccessToken, inspectUrl, parseServiceAccount, submitSitemap } from './gsc.ts';
+export { inspectUrl, parseServiceAccount, serviceAccountToken, submitSitemap } from './gsc.ts';
 export type { InspectionResult, ServiceAccount } from './gsc.ts';
+
+/**
+ * The shared token exchange, surfaced here because `search notify` is what needs
+ * to choose between the two identities: Search Console accepts either, so a
+ * consumer who already minted an OAuth credential for `search setup` is not made
+ * to create a second, unrelated Google setup for the other half of the command.
+ */
+export { googleAccessToken, SCOPES } from '../google/token.ts';
+export type { GoogleCredential, GoogleOAuth } from '../google/token.ts';
 
 export type {
   IndexingConfig,

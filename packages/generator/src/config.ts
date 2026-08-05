@@ -544,7 +544,7 @@ const IndexingSchema = z.object({
   ),
   searchConsole: desc(
     z.optional(SearchConsoleSchema),
-    'Google Search Console property. Needs a service-account credential in `VITOPS_GSC_SERVICE_ACCOUNT` or `GOOGLE_APPLICATION_CREDENTIALS` at run time — never put the key in this file.',
+    'Google Search Console property. Needs a credential at run time — either a service account in `VITOPS_GSC_SERVICE_ACCOUNT` / `GOOGLE_APPLICATION_CREDENTIALS`, or the user OAuth credential `vitops search setup` uses (`VITOPS_GOOGLE_CLIENT_ID` / `_CLIENT_SECRET` / `_REFRESH_TOKEN`). The service account wins when both are set. Never put a key in this file.',
   ),
   priorityUrls: desc(
     z.optional(z.array(z.url())),

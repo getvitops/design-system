@@ -34,12 +34,12 @@ export interface OnboardingConfig {
   domains: DomainSetup[];
 }
 
-/** Google user-OAuth credential (refresh-token flow — never a service account). */
-export interface GoogleOAuth {
-  clientId: string;
-  clientSecret: string;
-  refreshToken: string;
-}
+/**
+ * Google user-OAuth credential (refresh-token flow — never a service account).
+ * Declared beside the token exchange that consumes it, and re-exported here so
+ * this module stays the one place onboarding's types are looked up.
+ */
+export type { GoogleOAuth } from '../google/token.ts';
 
 /**
  * One domain's observed live state, gathered by the executors before planning.

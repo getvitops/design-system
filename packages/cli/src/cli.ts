@@ -60,7 +60,8 @@ import {
   SNAPSHOT_PATH,
   collectEntries,
   formatPlan,
-  getAccessToken,
+  SCOPES,
+  googleAccessToken,
   inspectUrl,
   keyFileContents,
   newKey,
@@ -74,6 +75,7 @@ import {
   toSnapshot,
   verifyKeyFile,
   writeSnapshot,
+  type GoogleCredential,
   type IndexingConfig,
   type ServiceAccount,
 } from '@getvitops/utils/indexing';
@@ -86,7 +88,7 @@ import {
   findZoneId,
   formatPlan as formatSetupPlan,
   formatSummary,
-  getAccessToken as getGoogleToken,
+  refreshTokenGrant,
   getSite,
   getVerificationToken,
   getWebResource,
@@ -260,9 +262,12 @@ Search notify options:
   sitemap ping endpoint was removed in 2023 — so it resubmits your sitemap
   through the Search Console API and verifies the result with --check. IndexNow
   reaches Bing, Yandex, Naver, Seznam and Yep; Google does not participate.
-  Search Console needs a service account in VITOPS_GSC_SERVICE_ACCOUNT (inline
-  JSON) or GOOGLE_APPLICATION_CREDENTIALS (a path), added as an owner of the
-  property.
+  Search Console takes either credential, whichever you already have, added as an
+  owner of the property: a service account in VITOPS_GSC_SERVICE_ACCOUNT (inline
+  JSON) or GOOGLE_APPLICATION_CREDENTIALS (a path), or the same user OAuth
+  credential "search setup" uses (VITOPS_GOOGLE_CLIENT_ID / _CLIENT_SECRET /
+  _REFRESH_TOKEN). The service account is preferred when both are set — this runs
+  on every deploy, and it does not expire.
 
 Media options:
       --raw <dir>       Directory of unprocessed video, walked recursively
@@ -959,21 +964,18 @@ async function cmdSearchNotify(argv: string[]) {
     return;
   }
 
-  const account = loadServiceAccount();
+  const credential = loadSearchCredential();
   let failed = false;
 
   // ── --check: read-only, and nothing else runs ───────────────────────────────
   if (values.check) {
     if (!p.searchConsole.siteUrl)
       fail('--check needs seo.indexing.searchConsole.siteUrl (the Search Console property)');
-    if (!account)
-      fail(
-        '--check needs a Search Console service account in VITOPS_GSC_SERVICE_ACCOUNT or GOOGLE_APPLICATION_CREDENTIALS',
-      );
+    if (!credential) fail(`--check needs a Search Console credential — ${CREDENTIAL_HINT}`);
     if (p.check.length === 0)
       fail('--check needs seo.indexing.priorityUrls — the pages whose indexing matters');
 
-    const token = await getAccessToken(account);
+    const token = await googleAccessToken(credential);
     console.log(`\nInspecting ${p.check.length} priority URL(s):`);
     for (const url of p.check) {
       const r = await inspectUrl(token, p.searchConsole.siteUrl, url);
@@ -1023,12 +1025,10 @@ async function cmdSearchNotify(argv: string[]) {
 
   // ── Search Console ──────────────────────────────────────────────────────────
   if (p.searchConsole.enabled) {
-    if (!account) {
-      console.log(
-        '· Search Console: skipped — no VITOPS_GSC_SERVICE_ACCOUNT / GOOGLE_APPLICATION_CREDENTIALS',
-      );
+    if (!credential) {
+      console.log(`· Search Console: skipped — no credential (${CREDENTIAL_HINT})`);
     } else {
-      const token = await getAccessToken(account);
+      const token = await googleAccessToken(credential);
       const r = await submitSitemap(token, p.searchConsole.siteUrl!, sitemapUrl);
       if (r.ok) console.log(`✓ Search Console: sitemap resubmitted`);
       else {
@@ -1114,6 +1114,31 @@ function loadGoogleOAuth(): GoogleOAuth | undefined {
   return { clientId: clientId!, clientSecret: clientSecret!, refreshToken: refreshToken! };
 }
 
+/**
+ * The Google identity for `search notify`, preferring a service account.
+ *
+ * Search Console accepts either, and the preference is about *where this command
+ * runs*: it fires on every deploy, in CI, and a service account has no expiry,
+ * while a refresh token can be revoked — and for an OAuth client still in
+ * *Testing* publishing status Google expires it after 7 days, which is a bad
+ * property for a deploy step. So the robot wins when it is available.
+ *
+ * The fallback is the point, though. `search setup` needs user OAuth (verifying
+ * a site makes the caller an owner, which should be a person), so a consumer who
+ * ran setup already has a Google credential. Demanding a second, unrelated one
+ * for the other half of the same command bought nothing.
+ */
+function loadSearchCredential(): GoogleCredential | undefined {
+  const account = loadServiceAccount();
+  if (account) return { kind: 'service-account', account, scope: SCOPES.webmasters };
+  const oauth = loadGoogleOAuth();
+  return oauth ? { kind: 'oauth', oauth } : undefined;
+}
+
+/** Both spellings, for an error that has to tell you what to actually set. */
+const CREDENTIAL_HINT =
+  'a service account in VITOPS_GSC_SERVICE_ACCOUNT / GOOGLE_APPLICATION_CREDENTIALS, or a user OAuth credential in VITOPS_GOOGLE_CLIENT_ID / VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN';
+
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /**
@@ -1179,7 +1204,7 @@ async function cmdSearchSetup(argv: string[]) {
       'set VITOPS_GOOGLE_CLIENT_ID / VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN — a user OAuth token scoped to siteverification + webmasters',
     );
 
-  const token = await getGoogleToken(oauth);
+  const token = await refreshTokenGrant(oauth);
 
   // ── Observe live state per domain (the executors gather; the planner decides) ──
   const states = new Map<string, DomainState>();

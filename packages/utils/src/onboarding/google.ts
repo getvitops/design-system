@@ -9,39 +9,24 @@
  *   - `https://www.googleapis.com/auth/siteverification`  (Site Verification API)
  *   - `https://www.googleapis.com/auth/webmasters`        (Search Console API)
  *
- * As in `indexing/gsc.ts`, `getAccessToken` throws (nothing downstream can run
- * without a token) while every API call returns a structured result and lets the
- * caller decide per domain. `googleapis` is deliberately not a dependency — these
- * are a handful of REST endpoints in a CLI that installs into every consumer.
+ * The exchange itself lives in `../google/token.ts`, shared with `indexing/gsc.ts`
+ * — the grants differ, everything after building the form body did not. It throws
+ * (nothing downstream can run without a token) while every API call below returns
+ * a structured result and lets the caller decide per domain. `googleapis` is
+ * deliberately not a dependency — these are a handful of REST endpoints in a CLI
+ * that installs into every consumer.
  */
-import type { GoogleOAuth } from './types.ts';
+import { googleAccessToken, type GoogleOAuth } from '../google/token.ts';
 
-const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SITEVERIFICATION = 'https://www.googleapis.com/siteVerification/v1';
 const WEBMASTERS = 'https://www.googleapis.com/webmasters/v3';
 
 /** Exchange a user OAuth refresh token for a short-lived access token. */
-export async function getAccessToken(
+export function refreshTokenGrant(
   oauth: GoogleOAuth,
   fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
-  const res = await fetchImpl(TOKEN_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: oauth.clientId,
-      client_secret: oauth.clientSecret,
-      refresh_token: oauth.refreshToken,
-    }).toString(),
-  });
-  if (!res.ok)
-    // The body names the cause (invalid_grant when the refresh token was revoked,
-    // invalid_client for a bad id/secret) and carries no secret of ours.
-    throw new Error(`token exchange failed (${res.status}): ${await res.text()}`);
-  const { access_token } = (await res.json()) as { access_token?: string };
-  if (!access_token) throw new Error('token exchange returned no access_token');
-  return access_token;
+  return googleAccessToken({ kind: 'oauth', oauth }, fetchImpl);
 }
 
 const inetSite = (domain: string) => ({ type: 'INET_DOMAIN', identifier: domain });

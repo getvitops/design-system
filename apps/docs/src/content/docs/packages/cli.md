@@ -230,9 +230,11 @@ none, because Google stops trusting the field site-wide. Needs `fetch-depth: 0` 
 **Credentials.** The IndexNow key is public by design — it's served at `/<key>.txt` as the
 ownership proof — so it lives in your config, and the Astro integration writes the file into
 `public/` for you (`vitops search notify --new-key` generates one, `--write-key <dir>` writes it for
-non-Astro stacks). Search Console needs a service account in `VITOPS_GSC_SERVICE_ACCOUNT` or
-`GOOGLE_APPLICATION_CREDENTIALS`, added as an owner of the property; it's never read from the
-config file.
+non-Astro stacks). Search Console takes either credential, added as an owner of the property: a
+service account in `VITOPS_GSC_SERVICE_ACCOUNT` / `GOOGLE_APPLICATION_CREDENTIALS`, or the same
+user OAuth credential `search setup` uses. The service account is preferred when both are set,
+since `notify` runs on every deploy and a service account does not expire. Neither is ever read
+from the config file.
 
 ### `vitops search setup`
 

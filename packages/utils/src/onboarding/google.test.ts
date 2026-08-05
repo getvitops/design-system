@@ -10,10 +10,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   addSite,
-  getAccessToken,
   getSite,
   getVerificationToken,
   getWebResource,
+  refreshTokenGrant,
   updateOwners,
   verifyWebResource,
 } from './google.ts';
@@ -27,9 +27,9 @@ const stub = (fn: (url: string, init?: RequestInit) => Response) =>
 
 const oauth = { clientId: 'id', clientSecret: 'secret', refreshToken: 'rt' };
 
-describe('getAccessToken', () => {
+describe('refreshTokenGrant', () => {
   it('posts a refresh_token grant and returns the access token', async () => {
-    const token = await getAccessToken(
+    const token = await refreshTokenGrant(
       oauth,
       stub((url, init) => {
         expect(url).toBe('https://oauth2.googleapis.com/token');
@@ -43,7 +43,7 @@ describe('getAccessToken', () => {
 
   it('throws, naming the status, when the refresh token is revoked', async () => {
     await expect(
-      getAccessToken(
+      refreshTokenGrant(
         oauth,
         stub(() => res(400, 'invalid_grant')),
       ),

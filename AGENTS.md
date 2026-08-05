@@ -492,10 +492,26 @@ Five things are load-bearing:
   snapshot reads as "submit everything, and say so", never as "nothing changed".
 
 Credentials follow `lib/deploy.ts`'s env-var pattern; the toolchain has no secret store and
-should not grow one. The Search Console service account comes from
-`VITOPS_GSC_SERVICE_ACCOUNT` (inline JSON) or `GOOGLE_APPLICATION_CREDENTIALS` (a path), and the
-OAuth token is minted with ~30 lines of `node:crypto` — **do not add `googleapis`**, an enormous
-dependency for two endpoints in a CLI that installs into every consumer project.
+should not grow one. **There is one token exchange, `google/token.ts`, and two grants** — same
+endpoint, same response, same error rule, so only the form body ever differed. It is minted with
+~30 lines of `node:crypto`; **do not add `googleapis`**, an enormous dependency for a handful of
+endpoints in a CLI that installs into every consumer project.
+
+The two grants are not accidental duplication — they track _where each command runs_:
+
+- **service account** (RS256 JWT bearer), from `VITOPS_GSC_SERVICE_ACCOUNT` (inline JSON) or
+  `GOOGLE_APPLICATION_CREDENTIALS` (a path). It never expires, which is what `search notify`
+  needs — it fires on every deploy, in CI.
+- **user OAuth** (refresh-token grant), from `VITOPS_GOOGLE_CLIENT_ID` / `_CLIENT_SECRET` /
+  `_REFRESH_TOKEN`. `search setup` requires it, because verifying a site makes the caller an
+  **owner** of the property and that should be a person, not a project robot. A refresh token
+  can be revoked, and for an OAuth client still in _Testing_ publishing status Google expires it
+  after 7 days — fine for a one-time human setup, bad for a deploy step.
+
+**`search notify` accepts either**, preferring the service account when both are set. Search
+Console does not care which, and a consumer who ran `search setup` already holds a Google
+credential — making them provision a second, unrelated one for the other half of the same command
+bought nothing. `search setup` is the only thing that genuinely requires a specific grant.
 
 `@getvitops/utils` cannot import from `@getvitops/generator` (the generator already depends on
 it), so `IndexingConfig` mirrors the `site.seo.indexing` block structurally and the CLI adapts — the

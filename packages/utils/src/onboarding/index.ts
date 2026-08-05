@@ -25,7 +25,7 @@ export { createApexTxt, findZoneId, listApexTxt } from './cloudflare.ts';
 
 export {
   addSite,
-  getAccessToken,
+  refreshTokenGrant,
   getSite,
   getVerificationToken,
   getWebResource,

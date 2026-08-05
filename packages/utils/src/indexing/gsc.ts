@@ -12,23 +12,14 @@
  * general pages violates its terms with the consumer's own GCP project on the
  * line. A toolchain should not ship that as a documented path.
  *
- * Auth is minted by hand with `node:crypto` rather than through `googleapis`,
- * which would be an enormous dependency in a CLI that installs into every consumer
- * project, for two endpoints.
+ * Auth is minted by hand rather than through `googleapis`, which would be an
+ * enormous dependency in a CLI that installs into every consumer project, for two
+ * endpoints. The exchange itself lives in `../google/token.ts` — it is shared with
+ * the onboarding module, which needs the same token from a different grant.
  */
-import { createSign } from 'node:crypto';
+import { googleAccessToken, SCOPES, type ServiceAccount } from '../google/token.ts';
 
-const TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const SCOPE = 'https://www.googleapis.com/auth/webmasters';
-
-/** The fields this module needs from a service-account JSON key. */
-export interface ServiceAccount {
-  client_email: string;
-  private_key: string;
-}
-
-const b64url = (input: Buffer | string): string =>
-  Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+export type { ServiceAccount } from '../google/token.ts';
 
 /**
  * Parse a service-account credential from its two supported sources.
@@ -55,44 +46,16 @@ export function parseServiceAccount(raw: string): ServiceAccount {
  *
  * `now` is a parameter so this is testable without mocking the clock.
  */
-export async function getAccessToken(
+export function serviceAccountToken(
   account: ServiceAccount,
   fetchImpl: typeof fetch = fetch,
   now: number = Date.now(),
 ): Promise<string> {
-  const iat = Math.floor(now / 1000);
-  const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const claims = b64url(
-    JSON.stringify({
-      iss: account.client_email,
-      scope: SCOPE,
-      aud: TOKEN_URL,
-      iat,
-      exp: iat + 3600,
-    }),
+  return googleAccessToken(
+    { kind: 'service-account', account, scope: SCOPES.webmasters },
+    fetchImpl,
+    now,
   );
-  const signer = createSign('RSA-SHA256');
-  signer.update(`${header}.${claims}`);
-  // `\n` survives most secret stores as a literal; normalise so a pasted key works.
-  const pem = account.private_key.replace(/\\n/g, '\n');
-  const assertion = `${header}.${claims}.${b64url(signer.sign(pem))}`;
-
-  const res = await fetchImpl(TOKEN_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion,
-    }).toString(),
-  });
-  if (!res.ok) {
-    // The body names the cause (clock skew, wrong audience, revoked key) and
-    // contains no secret — the assertion is in the request, not the response.
-    throw new Error(`token exchange failed (${res.status}): ${await res.text()}`);
-  }
-  const { access_token } = (await res.json()) as { access_token?: string };
-  if (!access_token) throw new Error('token exchange returned no access_token');
-  return access_token;
 }
 
 const encodeSite = (siteUrl: string) => encodeURIComponent(siteUrl);
