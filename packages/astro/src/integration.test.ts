@@ -382,7 +382,7 @@ describe('vitops({ analytics, consent })', () => {
    */
   it('offers analytics and preferences by default, whatever is configured', async () => {
     // `analytics` covers consumer-authored `data-consent` markup no build-time
-    // scan can see; `preferences` covers core's own <color-scheme-toggle>.
+    // scan can see; `preferences` covers core's own <wc-color-scheme-toggle>.
     const h = harness({ consent: true }, scratch());
     await h.run();
     expect(headData(h.updates).consentCategories).toEqual(['analytics', 'preferences']);

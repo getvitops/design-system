@@ -136,7 +136,7 @@ export interface WCTypography {
  * Provides an interactive interface for configuring typography settings
  * including font selection, scale, and role-based styling.
  *
- * @element typography-config
+ * @element wc-typography-config
  *
  * @csspart container - The main container
  * @csspart controls - Left panel with controls
@@ -1277,12 +1277,12 @@ export class WCTypography extends BaseElement {
   }
 }
 
-if (!customElements.get('typography-config')) {
-  customElements.define('typography-config', WCTypography);
+if (!customElements.get('wc-typography-config')) {
+  customElements.define('wc-typography-config', WCTypography);
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'typography-config': WCTypography;
+    'wc-typography-config': WCTypography;
   }
 }

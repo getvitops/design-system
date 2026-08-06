@@ -3,9 +3,38 @@
  * Consumes the generated token cascade (src/css/generated/tokens.css).
  */
 
+/* An unregistered custom element is `display: inline`, and `<wc-tree>` wraps a
+   `<ul>` — a block child in an inline box, which forces an anonymous block and
+   leaves the element unable to take sizing or spacing. It must be block whether
+   or not `elements.js` ever loads, because the tag is in the SSR'd markup either
+   way. (Same gap exists on most other `wc-*` tags; see the note in
+   `src/js/elements.ts`.) */
+wc-tree {
+  display: block;
+}
+
 /* ── Tree — hierarchical view over nested lists / <details> ───────────────── */
 .tree {
   --_p: var(--p-tree, var(--p-tree-group, var(--p-default)));
+  /* Resolved once here so the indent and the `--lines` elbow that must align to
+     it cannot disagree. Read through `--tree-indent` rather than assigning it, so
+     a consumer setting `--tree-indent` on an ancestor still wins — assigning the
+     default directly to `--tree-indent` on `.tree` would out-specify the hook and
+     silently ignore it. */
+  --_indent: var(--tree-indent, clamp(0.75rem, 2.5vw, 1.5rem));
+
+  /* The toggle column. A branch spends this on its chevron before its label; a
+     leaf has no chevron, so without compensation a leaf label sits one whole
+     column to the INLINE-START of its branch siblings and nothing at a given
+     depth lines up. Measured: 24px of misalignment at every level.
+
+     Two vars rather than one because they answer different questions —
+     `--_node-indent` is how wide the toggle column is, `--_leaf-indent` is what a
+     row without a toggle owes to sit in the same label column. Anything that
+     needs to align to the label (the description, a future `.tree__actions`
+     offset) reads `--_leaf-indent` rather than re-deriving the sum. */
+  --_node-indent: var(--tree-icon-size, 1.25rem);
+  --_leaf-indent: calc(var(--_node-indent) + var(--tree-gap, 0.25rem));
 
   list-style: none;
   margin: 0;
@@ -15,14 +44,49 @@
     position: relative;
   }
 
-  .tree__item > .tree {
-    margin-inline-start: var(--tree-indent, 1.5rem);
-    padding-inline-start: var(--tree-indent, 1.5rem);
+  /* Nested list indent. Two shapes are supported: the item may BE the
+     `<details>`, or be an `<li>` wrapping one — the latter is what `<Tree />`
+     emits, because `<ul>`/`<li>` is what gives assistive tech list position and
+     depth. Keep both; the flat shape is the pattern's original contract.
+
+     Indent is ONE `--tree-indent` per level, not two. This used to set both
+     `margin-inline-start` and `padding-inline-start` to it, putting the guide
+     border between them and costing 2× per level — 3rem × 10 levels = 480px on
+     the config schema, which is wider than a 390px viewport, so the deepest
+     fields sat entirely off-screen. The border now hugs the parent's edge and
+     the padding alone carries the offset, which looks the same at one level and
+     stays on screen at ten.
+
+     Fluid, because a tree's depth is a property of the DATA and can't be known
+     when the pattern is written: `2ch`-ish on a narrow screen, the full step on
+     a wide one. Deep trees stay usable on a phone without flattening the
+     hierarchy visually on a desktop. */
+  .tree__item > .tree,
+  .tree__item > details > .tree {
+    /* Reset BOTH box axes before re-applying the one indent this level owes.
+       Two separate leaks compounded here, each adding ~16px per level and each
+       invisible in the CSS:
+
+       1. `.tree { padding: var(--_p) }` applies to every nested `.tree`, not just
+          the outermost, so the container padding was charged once per level — on
+          all four sides, narrowing from the end as well.
+       2. `patterns/details.css` gives every non-summary child of a `<details>`
+          `margin-inline: var(--_content-margin)`. Its selector is
+          `details, .details`, which under CSS nesting takes `:is()` specificity
+          (0-1-1), so `.tree { margin: 0 }` at 0-1-0 LOSES to it. A nested tree is
+          exactly such a child.
+
+       Measured before this: 41px per level against a 24px design, so a 9-deep
+       tree spent 382px on indent and left its deepest label 162px wide. */
+    margin-inline: 0;
+    padding: 0;
+    padding-inline-start: var(--_indent);
     border-inline-start: 1px solid var(--color-bg-surface-muted);
   }
 
   .tree__content,
-  details.tree__item > summary {
+  details.tree__item > summary,
+  .tree__item > details > summary {
     display: flex;
     align-items: center;
     gap: var(--tree-gap, 0.25rem);
@@ -31,9 +95,13 @@
 
   .tree__content {
     cursor: default;
+    /* Sit in the same label column as a branch sibling, which spends this much on
+       its chevron. Without it a leaf reads as out-dented by one toggle width. */
+    padding-inline-start: var(--_leaf-indent);
   }
 
-  details.tree__item > summary {
+  details.tree__item > summary,
+  .tree__item > details > summary {
     cursor: pointer;
     list-style: none;
 
@@ -59,7 +127,8 @@
     transition: transform 0.2s ease;
   }
 
-  details.tree__item[open] > summary .tree__toggle {
+  details.tree__item[open] > summary .tree__toggle,
+  .tree__item > details[open] > summary .tree__toggle {
     transform: rotate(90deg);
   }
 
@@ -111,10 +180,10 @@
     &::before {
       content: '';
       position: absolute;
-      inset-inline-start: calc(-1 * var(--tree-indent, 1.5rem) + 0.5rem);
+      inset-inline-start: calc(-1 * var(--_indent) + 0.5rem);
       inset-block-start: 0;
       block-size: 1rem;
-      inline-size: calc(var(--tree-indent, 1.5rem) - 0.5rem);
+      inline-size: calc(var(--_indent) - 0.5rem);
       border-inline-start: 1px solid var(--color-bg-surface-muted);
       border-block-end: 1px solid var(--color-bg-surface-muted);
     }
@@ -122,5 +191,46 @@
 
   &.tree--lines > .tree__item::before {
     display: none;
+  }
+
+  /* A node's own prose. `.tree__label` is `nowrap` + ellipsis for file-tree-style
+     single-line names, so a description can't live in it — it sits below the
+     summary row and wraps. Indented to the label, past the toggle. */
+  .tree__desc {
+    margin-block: 0.125rem 0.25rem;
+    margin-inline-start: var(--_leaf-indent);
+    color: var(--color-text-surface-muted);
+    text-wrap: pretty;
+  }
+}
+
+/* ── Tree toolbar — generated by <wc-tree>, never authored ─────────────────── */
+/*
+ * These controls only exist once the element upgrades, so they are styled but
+ * never present in a no-JS render. Kept out of the `.tree` block because the
+ * toolbar is a SIBLING of the tree, not a node in it — nesting it there would
+ * inherit `.tree`'s padding and the `.tree__item` positioning context.
+ */
+.tree__toolbar {
+  align-items: center;
+  margin-block-end: var(--p-tree, var(--p-tree-group, var(--p-default)));
+
+  /* The filter is wrapped in `.input-group` so forms.css styles it; the group is
+     what flexes, and the input fills it. */
+  .tree__filter-group {
+    flex: 1 1 12rem;
+    min-inline-size: 0;
+  }
+
+  .tree__filter {
+    inline-size: 100%;
+    min-inline-size: 0;
+  }
+
+  .tree__count {
+    color: var(--color-text-surface-muted);
+    /* Hold the row height whether or not a count is showing, so typing into the
+       filter doesn't reflow the tree by a line. */
+    min-inline-size: 6ch;
   }
 }

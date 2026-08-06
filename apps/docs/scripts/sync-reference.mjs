@@ -29,15 +29,17 @@ const require = createRequire(import.meta.url);
 
 /** Sidebar order + the human-facing title for each generated topic. */
 const PAGES = [
-  ['authoring.md', 'design-system.json reference', 10],
-  ['config.md', 'Config reference', 15],
   ['formats.md', 'Output formats', 20],
   ['concepts/color.md', 'Colour system', 30],
   ['concepts/scales.md', 'Type & space scales', 40],
   ['concepts/patterns.md', 'Component patterns', 50],
   ['concepts/icons.md', 'Icons', 55],
-  ['css/classes.md', 'CSS class vocabulary', 60],
-  ['bricks/elements.md', 'Bricks elements', 70],
+  ['concepts/consent.md', 'Consent gate', 60],
+  ['concepts/tracking.md', 'Conversion tracking', 65],
+  ['concepts/search.md', 'Search', 70],
+  ['concepts/legal.md', 'Legal documents', 75],
+  ['css/classes.md', 'CSS class vocabulary', 100],
+  ['bricks/elements.md', 'Bricks elements', 110],
 ];
 
 const { generateDocs } = await import('@getvitops/generator');
@@ -50,6 +52,49 @@ const ds = JSON.parse(readFileSync(configPath, 'utf8'));
 
 const docs = generateDocs(ds, assetsDir);
 
+/**
+ * Bundle docs the site deliberately does NOT carry as markdown.
+ *
+ * `concepts/components.md` is projected instead by the four pages under
+ * `src/pages/components/`, one per tier. That inverts deliberately: the bundle keeps
+ * all four tiers in ONE doc because an agent knows the pattern it needs and must be
+ * told how the tiers compose, while a human arrives already knowing their stack and
+ * wants only that tier's list. Carrying the combined doc here as well would publish
+ * a fifth page saying the same thing in a worse shape.
+ *
+ * `config.md` and `authoring.md` are both rendered instead by
+ * `src/pages/reference/config.astro`, which walks the same schema into a
+ * filterable `<wc-tree>`. They overlapped as markdown — `themes.<name>` in the
+ * config schema *is* a design system — and a 600-line flat bullet list is the
+ * worst shape for 370 fields. The agent bundle still ships both, because
+ * `vitops docs` prints to a terminal with no filter.
+ *
+ * Anything skipped must be reachable some other way; this is not a mute button.
+ */
+const RENDERED_ELSEWHERE = new Set(['config.md', 'authoring.md', 'concepts/components.md']);
+
+/**
+ * PAGES is an allowlist, so a doc the generator emits but nobody listed is simply
+ * absent from the site — and the loop below only warns the other way round (a
+ * listed page the generator dropped). That asymmetry silently cost the four
+ * subsystem concept docs their public pages, while the run still reported success.
+ *
+ * Carrying a new doc is a deliberate editorial choice (it needs a title and a
+ * sidebar position), so this can't be derived — but it must not be forgettable.
+ */
+const unlisted = Object.keys(docs).filter(
+  (p) =>
+    !p.endsWith('index.md') &&
+    !RENDERED_ELSEWHERE.has(p) &&
+    !PAGES.some(([listed]) => listed === p),
+);
+if (unlisted.length)
+  throw new Error(
+    `sync-reference: the generator emits ${unlisted.length} doc(s) this site does not carry:\n` +
+      unlisted.map((p) => `  • ${p}`).join('\n') +
+      `\n\nAdd each to PAGES (path, title, sidebar order) in ${'apps/docs/scripts/sync-reference.mjs'}.`,
+  );
+
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
@@ -61,13 +106,40 @@ function splitFrontmatter(md) {
   const meta = {};
   for (const line of md.slice(4, end).split('\n')) {
     const m = /^(\w+):\s*(.*)$/.exec(line);
-    if (m) meta[m[1]] = m[2].replace(/^"(.*)"$/, '$1');
+    // Unescape `\"` on the way in. The OKF frontmatter is a quoted YAML scalar, so
+    // a description containing a double quote arrives escaped; leaving it escaped
+    // meant `yaml()` re-escaped the backslash and the emitted string terminated
+    // early, failing the content sync with a YAML indentation error.
+    if (m) meta[m[1]] = m[2].replace(/^"(.*)"$/, '$1').replace(/\\"/g, '"');
   }
   return [meta, md.slice(end + 4).replace(/^\n+/, '')];
 }
 
 const yaml = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
 const SLUG = new Map(PAGES.map(([path]) => [path, `/reference/${path.replace(/\//g, '-').replace(/\.md$/, '')}/`]));
+
+/**
+ * The two schema references resolve into the one interactive page that replaced
+ * them — each at the section it actually documents, since the config tree carries
+ * all three as top-level anchors:
+ *
+ *   - `authoring.md` documented `design-system.json`, so it lands on
+ *     `#designSystem`. A link labelled "every design-system.json field" that
+ *     dropped a reader at the top of a 370-field tree would technically resolve
+ *     and still be wrong.
+ *   - `config.md` is the whole document, so it lands on the page.
+ *
+ * Without this, four carried pages (`concepts/color`, `concepts/scales`,
+ * `concepts/patterns`, `css/classes`) keep their `../authoring.md` href verbatim —
+ * a literal `.md` link that 404s, which is the silent breakage the rewriter exists
+ * to prevent.
+ */
+SLUG.set('authoring.md', '/reference/config/#designSystem');
+SLUG.set('config.md', '/reference/config/');
+// The combined tier doc lands on the section that projects it, since no single tier
+// page is the whole document. A carried page linking `components.md` gets the
+// overview, which is the only place all four tiers are named together.
+SLUG.set('concepts/components.md', '/components/');
 
 /**
  * Rewrite the bundle's internal cross-links to site URLs.
@@ -89,7 +161,12 @@ function rewriteLinks(md, fromPath) {
     const resolved = stack.join('/');
     if (resolved.endsWith('index.md')) return text; // listing page — no equivalent here
     const slug = SLUG.get(resolved);
-    return slug ? `[${text}](${slug}${hash})` : whole;
+    if (!slug) return whole;
+    // A slug may already carry an anchor (the schema references land on a section
+    // of the config tree). A source hash is more specific, so it wins; otherwise
+    // keep the slug's. Appending blindly would emit `#designSystem#colors`.
+    const href = hash ? `${slug.replace(/#.*$/, '')}${hash}` : slug;
+    return `[${text}](${href})`;
   });
 }
 

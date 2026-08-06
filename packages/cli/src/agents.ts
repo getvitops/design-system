@@ -56,6 +56,26 @@ export const TOPICS: Record<string, { path: string; summary: string }> = {
     path: 'concepts/patterns.md',
     summary: 'pattern CSS: token cascade, override hooks, states, role variants',
   },
+  components: {
+    path: 'concepts/components.md',
+    summary: 'which of the four tiers provides each pattern, and the call to make',
+  },
+  consent: {
+    path: 'concepts/consent.md',
+    summary: 'the consent gate: inert gated tags, demand-driven prompting, three-valued choices',
+  },
+  tracking: {
+    path: 'concepts/tracking.md',
+    summary: 'ad-click attribution, the `_ac` cookie, conversion notifications',
+  },
+  search: {
+    path: 'concepts/search.md',
+    summary: 'what search engines accept, Search Console onboarding, deploy notification',
+  },
+  legal: {
+    path: 'concepts/legal.md',
+    summary: 'privacy policy / terms / cookie notice derived from config facts',
+  },
   elements: {
     path: 'bricks/elements.md',
     summary: 'Bricks Builder custom elements, controls, defaults',

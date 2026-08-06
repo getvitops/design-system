@@ -46,7 +46,7 @@ const THEME_SCRIPT =
  * permission, and the real gate hasn't loaded yet."
  *
  * `consent.js` and `elements.js` are both deferred modules with no ordering
- * guarantee between them, so `<color-scheme-toggle>` can upgrade and be clicked
+ * guarantee between them, so `<wc-color-scheme-toggle>` can upgrade and be clicked
  * before the gate exists. Without this, a caller probing for
  * `window.vitopsConsent` in that window would see nothing, correctly conclude
  * that sites without the gate should just store — and store. The stub closes the
@@ -123,7 +123,7 @@ const CONSENT_STUB =
     {/*
       Apply the remembered colour scheme before first paint.
 
-      `<color-scheme-toggle>` persists the choice to localStorage, but it loads
+      `<wc-color-scheme-toggle>` persists the choice to localStorage, but it loads
       as a deferred module — so without this every navigation would paint the
       light token set and flip to dark once the element upgraded. Synchronous and
       inline on purpose: it has to run before the body renders.

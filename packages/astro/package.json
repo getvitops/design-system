@@ -26,7 +26,10 @@
     "CHANGELOG.md",
     "src/components/Tracking.astro",
     "src/scripts/tracking.ts",
-    "src/tracking.ts"
+    "src/tracking.ts",
+    "src/components/Tree.astro",
+    "src/components/TreeNode.astro",
+    "src/components/tree.ts"
   ],
   "type": "module",
   "types": "./dist/index.d.mts",
@@ -54,6 +57,8 @@
     "./components/Drawer.astro": "./src/components/Drawer.astro",
     "./components/NavShell.astro": "./src/components/NavShell.astro",
     "./components/NavShellToggle.astro": "./src/components/NavShellToggle.astro",
+    "./components/Tree.astro": "./src/components/Tree.astro",
+    "./components/tree.ts": "./src/components/tree.ts",
     "./schemas/*": "./src/schemas/*",
     "./package.json": "./package.json"
   },

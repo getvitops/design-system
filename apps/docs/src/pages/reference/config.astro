@@ -1,0 +1,78 @@
+---
+/**
+ * Config reference — every field, as two browsable trees.
+ *
+ * This replaced two generated markdown pages ("Config reference" and
+ * "design-system.json reference"), which overlapped: `themes.<name>` in the config
+ * schema *is* a design system, so the config walk re-emitted the whole token
+ * schema and the two pages documented the same fields twice.
+ *
+ * They are two trees rather than one for a reason that is easy to miss. The config
+ * declares `designSystem.themes` as a LOOSER shape than `DesignSystemSchema` —
+ * the full one is applied separately by `resolveTheme` — so its embedded copy is
+ * an approximation, measurably missing the descriptions for `colors`,
+ * `colors.palette`, `colors.roles` and `colors.utilities`. Rendering that copy as
+ * the token reference would document the colour system less well than the
+ * toolchain already does, silently. So the config tree is pruned at
+ * `designSystem.themes` and the authoritative `jsonSchema` is rendered beside it.
+ *
+ * That mirrors the agent-facing split exactly: `vitops docs config` stops at the
+ * wrapper and delegates the token fields to `vitops docs authoring`. Same two
+ * documents, one page.
+ *
+ * Ids are dotted paths and don't collide: the config tree's roots are
+ * `designSystem` / `organization` / `site`, the token tree's are `colors`,
+ * `patterns`, … — and a bare `design-system.json` is a valid input, so
+ * design-system-relative ids are the ones worth linking to.
+ *
+ * A standalone `.astro` route rather than a collection entry for the reason the
+ * preview pages are: it renders live markup from the schema, which Markdown can
+ * only express as hand-written HTML that drifts. Nav registration is the `PAGES`
+ * list in `layouts/Docs.astro`.
+ */
+import { configJsonSchema, jsonSchema } from '@getvitops/generator';
+import SchemaTree from '../../components/SchemaTree.astro';
+import Docs from '../../layouts/Docs.astro';
+
+const title = 'Config reference';
+const description =
+  'Every field of the three-section config — designSystem, organization and site — plus the full design-token schema. Browsable, filterable, and generated from the published JSON Schema.';
+---
+
+<Docs title={title} description={description} generated={true}>
+  <p>
+    Generated from <code>config.schema.json</code> and <code>schema.json</code>, the same schemas
+    <code>vitops validate</code> checks against — so they always match validation. Every field is
+    linkable by its dotted path: <code>#site.analytics.clarityId</code>, <code>#colors.palette</code>.
+  </p>
+  <p class="font-footnote">
+    For what belongs in each section and when you need a config at all, start with
+    <a class="link" href={`${import.meta.env.BASE_URL}guides/config`.replace(/\/\/+/g, '/')}
+      >Your config</a
+    >. Agents should read <code>vitops docs config</code> and <code>vitops docs authoring</code>
+    instead of this page.
+  </p>
+
+  <h2>Project config</h2>
+  <p>
+    The three sections of a project config. Token fields live under <code>designSystem</code> and are
+    listed in full below, so this tree stops at the wrapper.
+  </p>
+  <SchemaTree
+    schema={configJsonSchema}
+    prune={['designSystem.themes']}
+    label="Filter config fields"
+    ariaLabel="Project config fields"
+  />
+
+  <h2>Design tokens</h2>
+  <p>
+    Every field of a design system — what <code>designSystem.themes.&lt;name&gt;</code> holds, and
+    what a standalone <code>design-system.json</code> contains on its own.
+  </p>
+  <SchemaTree
+    schema={jsonSchema}
+    label="Filter token fields"
+    ariaLabel="Design token fields"
+  />
+</Docs>

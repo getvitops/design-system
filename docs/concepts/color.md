@@ -77,14 +77,14 @@ Raw hue steps (`--color-<hue>-<step>`) are the exception — they are fixed valu
 ignores the appearance.
 
 Two attributes, one flip: `data-brx-theme` is Bricks' own (Bricks sets it on the
-WordPress target), `data-theme` is what the shipped `<color-scheme-toggle>` writes on
+WordPress target), `data-theme` is what the shipped `<wc-color-scheme-toggle>` writes on
 `<html>`, so the toggle works on every other target. Set either.
 
 The OS preference is a **second, opt-in block**. Set
 `designSystem.defaultColorScheme: "system"` in your site config and the same delta is emitted again inside
 `@media (prefers-color-scheme: dark)`, under
 `:root:not([data-brx-theme="light"]):not([data-theme="light"])` — i.e. whenever no explicit choice has been made. That is what makes
-`<color-scheme-toggle>`'s "System" position resolve to the OS (it *removes* the attribute,
+`<wc-color-scheme-toggle>`'s "System" position resolve to the OS (it *removes* the attribute,
 so without this block it fell through to light), and it gives a no-JS page the OS
 appearance, which the toggle alone never could. An explicit light choice still wins.
 

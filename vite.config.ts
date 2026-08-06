@@ -11,6 +11,26 @@ export default defineConfig({
   // asset copy like the other bundles, so there's no root `pack` (and no need for
   // the `clean: false` that kept it from wiping build:theme's output).
 
+  // ── Test (Vitest, via `vp test`) ──
+  test: {
+    // `node` is the default and stays the default DELIBERATELY. Almost everything
+    // here is pure by design — the consent store, the indexing/onboarding/notify
+    // planners, the schema walks — and a global DOM would make ~830 pure tests pay
+    // for an environment three files need.
+    //
+    // A test that genuinely needs a DOM opts in per file with a docblock:
+    //
+    //   /** @vitest-environment happy-dom */
+    //
+    // Name those `*.dom.test.ts` so the split is visible in a directory listing.
+    // The bar for reaching for one is unchanged: if a decision can be expressed as
+    // a function over data, it belongs in a pure module with a pure test (see
+    // `consent/store.ts`, `web-components/utils/tree-filter.ts`). Use a DOM for the
+    // wiring that is genuinely about the DOM — upgrade timing, generated controls,
+    // `<details>` open state.
+    environment: 'node',
+  },
+
   // ── Lint / format (Oxlint / Oxfmt, via `vp check` / `vp fmt`) ──
   lint: {
     // apps/** is a self-contained playground with its own Astro toolchain — not

@@ -12,6 +12,7 @@ import { jsonSchema, SCHEMA_URL, type DesignSystem } from './schema.ts';
 import { configJsonSchema, CONFIG_SCHEMA_URL } from './config.ts';
 import { BASE_HOOK, DARK_SEL, REQUIRED_ROLES, SYSTEM_DARK_SEL, TW_CLASH } from './shared.ts';
 import { expandPalette } from './tokens.ts';
+import { TIERS, TIER_NAMES, tierPatterns } from './tiers.ts';
 
 const DS_PATH = 'design-system.json';
 /** The `resource` a config-reference doc points at. Consumers rename it freely. */
@@ -23,13 +24,13 @@ const ORDER = [
   'split',
   'centered',
   'carousel',
-  'color-scheme-toggle',
+  'wc-color-scheme-toggle',
   'wc-copy',
   'dismissable',
   'entries',
   'image-compare',
   'sitenav',
-  'wc-multifield',
+  'wc-multi-field',
   'split-link',
   'split-panel',
 ];
@@ -826,7 +827,7 @@ shortcuts — is explained in [/concepts/patterns.md](../concepts/patterns.md).)
 // Field docs are rendered from `jsonSchema`'s `description` metadata (authored
 // once in schema.ts via `desc()`), so this reference cannot drift from validation.
 
-interface JsonSchemaNode {
+export interface JsonSchemaNode {
   type?: string;
   description?: string;
   properties?: Record<string, JsonSchemaNode>;
@@ -882,20 +883,22 @@ function renderSchemaNode(
   required: boolean,
   depth: number,
   out: string[],
+  maxDepth = 3,
 ): void {
   const indent = '  '.repeat(depth);
   const meta = `(${typeLabel(node)}${required ? ', required' : ''})`;
   out.push(`${indent}- \`${label}\` ${meta}${node.description ? ` — ${node.description}` : ''}`);
-  if (depth >= 3) return;
+  if (depth >= maxDepth) return;
   if (node.anyOf && !node.anyOf.every(isPrimitive)) {
     for (const variant of node.anyOf) {
       out.push(`${indent}  - *one of*${variant.description ? ` — ${variant.description}` : ''}`);
       for (const c of childEntries(variant))
-        renderSchemaNode(c.label, c.node, c.required, depth + 2, out);
+        renderSchemaNode(c.label, c.node, c.required, depth + 2, out, maxDepth);
     }
     return;
   }
-  for (const c of childEntries(node)) renderSchemaNode(c.label, c.node, c.required, depth + 1, out);
+  for (const c of childEntries(node))
+    renderSchemaNode(c.label, c.node, c.required, depth + 1, out, maxDepth);
 }
 
 /**
@@ -903,7 +906,7 @@ function renderSchemaNode(
  * fields as a bullet tree. Shared by both references so the two cannot drift in
  * presentation — only in which schema they are pointed at.
  */
-function schemaSections(schema: JsonSchemaNode, heading = '##'): string[] {
+function schemaSections(schema: JsonSchemaNode, heading = '##', maxDepth = 3): string[] {
   const required = schema.required ?? [];
   const sections: string[] = [];
   for (const [key, node] of Object.entries(schema.properties ?? {})) {
@@ -913,11 +916,198 @@ function schemaSections(schema: JsonSchemaNode, heading = '##'): string[] {
     ];
     if (node.description) parts.push('', node.description);
     const bullets: string[] = [];
-    for (const c of childEntries(node)) renderSchemaNode(c.label, c.node, c.required, 0, bullets);
+    for (const c of childEntries(node))
+      renderSchemaNode(c.label, c.node, c.required, 0, bullets, maxDepth);
     if (bullets.length) parts.push('', ...bullets);
     sections.push(parts.join('\n'));
   }
   return sections;
+}
+
+/* ── Schema → tree DATA (the second consumer of the same walk) ─────────────── */
+
+const escapeHtml = (s: string): string =>
+  s.replace(
+    /[&<>"]/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string,
+  );
+
+/** Sentinel for a lifted code span. Cannot occur in authored schema prose. */
+const CODE_SLOT = ' ';
+
+/**
+ * The inline markdown the schema's `desc()` text actually uses, as HTML. Closed
+ * on purpose, exactly like the legal renderer's subset: these strings are
+ * authored in `schema.ts`, so the set is knowable rather than guessed at.
+ *
+ * Escaping happens before any markup is emitted, so a description containing `<`
+ * cannot inject tags — several do (`<canonical>/<key>.txt`). Exported because the
+ * only safe place for this is one tested function; a caller doing its own escaping
+ * is how one of them eventually doesn't.
+ *
+ * **Code spans are lifted out FIRST, and that is load-bearing rather than tidy.**
+ * `colors.utilities` describes the target families as `` `bg-*` ``, `` `text-*` ``,
+ * `` `border-*` `` — literal asterisk WILDCARDS. Run emphasis over the raw string
+ * and the `*` closing `bg-*` pairs with the one closing `text-*`, wrapping the
+ * text between two unrelated utilities in `<em>` and eating both asterisks. The
+ * prose then silently describes families that don't exist. Lifting code spans
+ * first makes emphasis structurally unable to see inside them.
+ */
+export const renderInlineMarkdown = (s: string): string => {
+  const spans: string[] = [];
+  const lifted = s.replace(/`([^`]+)`/g, (_, body: string) => {
+    spans.push(body);
+    return `${CODE_SLOT}${spans.length - 1}${CODE_SLOT}`;
+  });
+  return (
+    escapeHtml(lifted)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      // Single-asterisk emphasis, after strong so `**x**` is already consumed. The
+      // schema uses it (`*presentation*`, `*domain properties*`), so omitting it
+      // printed the asterisks literally on the page.
+      .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+      .replace(
+        new RegExp(`${CODE_SLOT}(\\d+)${CODE_SLOT}`, 'g'),
+        (_, i: string) => `<code>${escapeHtml(spans[Number(i)] ?? '')}</code>`,
+      )
+  );
+};
+
+export interface SchemaTreeOptions {
+  /** Dotted id prefix, so two trees on one page can't collide. */
+  idPrefix?: string;
+  /** Nesting cap. Unlike the markdown walk there is no reason to truncate. */
+  maxDepth?: number;
+  /**
+   * Dotted paths to render but not descend into.
+   *
+   * Exists for one real case: the project config declares `designSystem.themes`
+   * as a looser shape than `DesignSystemSchema`, because the full one is applied
+   * separately by `resolveTheme`. Its embedded copy is therefore an
+   * APPROXIMATION — measurably so, missing the descriptions for `colors`,
+   * `colors.palette`, `colors.roles` and `colors.utilities`. Rendering it as the
+   * token reference would quietly document the colour system less well than the
+   * design-system schema does, so a caller prunes it here and renders
+   * `jsonSchema` alongside instead.
+   */
+  prune?: readonly string[];
+}
+
+export interface SchemaTreeNode {
+  /** Field name, or `<name>` / `[items]` for a map value or array item. */
+  label: string;
+  /** Human type label — `object`, `map`, `string | number`, `one of`. */
+  type: string;
+  required: boolean;
+  /** Raw schema description (the closed inline-markdown subset), if any. */
+  description?: string;
+  /**
+   * Dotted config path (`site.analytics.clarityId`). Absent when the node is not
+   * addressable: a pseudo-label, or a path already claimed by an earlier node.
+   */
+  id?: string;
+  /** True for an `anyOf` branch, which has no name of its own. */
+  variant?: boolean;
+  children: SchemaTreeNode[];
+}
+
+/**
+ * Walk a JSON Schema into tree DATA.
+ *
+ * The same walk that produces the `authoring.md` / `config.md` bullet lists,
+ * returned as a node model instead of a string. Returning data rather than markup
+ * is deliberate and follows `roleColorUtilities()`: the *shape* of the tree is one
+ * decision, and each medium renders it — markdown for agents, an accessible
+ * `<details>` tree for the docs site. An HTML-emitting version here would be a
+ * second source of the markup contract for `<wc-tree>` to drift from.
+ *
+ * Ids are dotted paths so a field can be linked to directly. Map-value and
+ * array-item pseudo-labels are skipped in the path: `site.dns.records` reads
+ * better than `site.dns.<domain>.records`, and neither `<domain>` nor `[items]`
+ * is a real key.
+ */
+export function schemaTreeNodes(
+  schema: JsonSchemaNode,
+  opts: SchemaTreeOptions = {},
+): SchemaTreeNode[] {
+  const { idPrefix = '', maxDepth = 12, prune = [] } = opts;
+  const pruned = new Set(prune);
+
+  const isPseudo = (label: string) => label === '<name>' || label === '[items]';
+  const join = (a: string, b: string) => (a ? `${a}.${b}` : b);
+
+  /**
+   * Paths already claimed. An `anyOf` branch has no key of its own, so sibling
+   * branches sharing a field name resolve to the same dotted path
+   * (`site.templates.type` exists in all three template variants). Rather than
+   * invent a branch index that no real config document contains, the first
+   * occurrence keeps the id — which is what `getElementById` would have picked
+   * anyway, now true instead of accidental.
+   */
+  const seen = new Set<string>();
+
+  const build = (
+    label: string,
+    n: JsonSchemaNode,
+    required: boolean,
+    path: string,
+    depth: number,
+  ): SchemaTreeNode => {
+    const addressable = path !== '' && !isPseudo(label) && !seen.has(path);
+    if (addressable) seen.add(path);
+
+    // `anyOf` branches are children too: a union with object branches has to be
+    // explorable, or `notifications.email` (address | object) renders as a leaf
+    // with its six object fields simply absent from the page.
+    const variants = n.anyOf && !n.anyOf.every(isPrimitive) ? n.anyOf : [];
+    const children: SchemaTreeNode[] = [];
+
+    if (depth < maxDepth && !pruned.has(path)) {
+      for (const v of variants) {
+        children.push({
+          label: 'one of',
+          type: typeLabel(v),
+          required: false,
+          variant: true,
+          ...(v.description ? { description: v.description } : {}),
+          children: childEntries(v).map((c) =>
+            build(
+              c.label,
+              c.node,
+              c.required,
+              isPseudo(c.label) ? path : join(path, c.label),
+              depth + 2,
+            ),
+          ),
+        });
+      }
+      if (!variants.length)
+        for (const c of childEntries(n))
+          children.push(
+            build(
+              c.label,
+              c.node,
+              c.required,
+              isPseudo(c.label) ? path : join(path, c.label),
+              depth + 1,
+            ),
+          );
+    }
+
+    return {
+      label,
+      type: typeLabel(n),
+      required,
+      ...(n.description ? { description: n.description } : {}),
+      ...(addressable ? { id: path } : {}),
+      children,
+    };
+  };
+
+  const required = schema.required ?? [];
+  return Object.entries(schema.properties ?? {})
+    .filter(([key]) => key !== '$schema')
+    .map(([key, child]) => build(key, child, required.includes(key), join(idPrefix, key), 0));
 }
 
 function renderAuthoring(): string {
@@ -975,8 +1165,13 @@ function renderConfig(): string {
       ...(node.description ? ['', node.description] : []),
     ].join('\n');
     // `designSystem` is documented in full by authoring.md; here it needs only
-    // its own wrapper fields, not a second copy of the whole token schema.
-    const fields = schemaSections(node, '###').join('\n\n');
+    // its own wrapper fields, not a second copy of the whole token schema. The
+    // depth cap is what enforces that: `themes` is a map whose value node IS the
+    // design-system schema, so the default walk descended into every token field
+    // and re-emitted the ~57 field lines authoring.md already owns — directly
+    // under a sentence promising it hadn't. Stop at the `<name>` bullet and let
+    // the link carry the reader.
+    const fields = schemaSections(node, '###', key === 'designSystem' ? 0 : 3).join('\n\n');
     if (key === 'designSystem')
       return [
         head,
@@ -1286,14 +1481,14 @@ Raw hue steps (\`--color-<hue>-<step>\`) are the exception — they are fixed va
 ignores the appearance.
 
 Two attributes, one flip: \`data-brx-theme\` is Bricks' own (Bricks sets it on the
-WordPress target), \`data-theme\` is what the shipped \`<color-scheme-toggle>\` writes on
+WordPress target), \`data-theme\` is what the shipped \`<wc-color-scheme-toggle>\` writes on
 \`<html>\`, so the toggle works on every other target. Set either.
 
 The OS preference is a **second, opt-in block**. Set
 \`designSystem.defaultColorScheme: "system"\` in your site config and the same delta is emitted again inside
 \`@media (prefers-color-scheme: dark)\`, under
 \`${SYSTEM_DARK_SEL}\` — i.e. whenever no explicit choice has been made. That is what makes
-\`<color-scheme-toggle>\`'s "System" position resolve to the OS (it *removes* the attribute,
+\`<wc-color-scheme-toggle>\`'s "System" position resolve to the OS (it *removes* the attribute,
 so without this block it fell through to light), and it gives a no-JS page the OS
 appearance, which the toggle alone never could. An explicit light choice still wins.
 
@@ -1501,6 +1696,175 @@ bare, unsuffixed pattern. States re-apply per variant with the variant's role.
 `;
 }
 
+/**
+ * All four tiers in ONE doc — the agent-facing projection of `TIERS`.
+ *
+ * The docsite projects each tier as its own page, because a human arrives already
+ * knowing which stack they are in ("show me the Astro components"). An agent
+ * arrives the other way round: it knows the *pattern* it needs and has to be told
+ * which tiers offer it and which call to make. Four docs would mean an agent
+ * fetching `components/astro` learns `<Tree />` exists and never learns it must not
+ * wrap it in `<wc-tree>` — the composition only exists between the tiers, so the
+ * projection that serves agents is the one that keeps them together.
+ *
+ * `ds` is read for one thing: whether each config-authored pattern is actually
+ * declared in THIS consumer's `patterns.items`. `TIERS.css.generated` records that a
+ * pattern is *of that kind* against this repo's reference config; it cannot know
+ * that a given consumer dropped `card`. Reporting a class that this config emits no
+ * CSS for is the failure worth preventing here.
+ */
+function renderComponentsConcept(ds: DesignSystem): string {
+  const declared = new Set(Object.keys(ds.patterns?.items ?? {}));
+  // Table cells: a literal pipe would split the column, and `use` strings are prose.
+  const cell = (s: string) => s.replace(/\|/g, '\\|');
+  const code = (s: string) => `\`${s}\``;
+  const list = (xs: string[]) => xs.map(code).join(', ');
+
+  const tiersOf = (name: string): string[] =>
+    (['css', 'wc', 'astro', 'bricks'] as const).filter((t) =>
+      tierPatterns(t).some((p) => p.name === name),
+    );
+
+  const overview = TIER_NAMES.map((name) => {
+    const e = TIERS[name]!;
+    return `| ${code(name)} | ${tiersOf(name).join(' · ')} | ${cell(e.use)} |`;
+  }).join('\n');
+
+  const wc = tierPatterns('wc')
+    .map(({ name, entry }) => {
+      const w = entry.wc!;
+      const ships = w.registered ? code('elements.js') : w.bundle ? code(w.bundle) : 'nothing';
+      return `| ${code(`<${w.tag}>`)} | ${code(name)} | ${ships} | ${cell(w.adds)} |`;
+    })
+    .join('\n');
+
+  const astro = tierPatterns('astro')
+    .flatMap(({ name, entry }) =>
+      entry.astro!.map(
+        (a) =>
+          `| ${code(a.component)} | ${code(name)} | ${
+            a.wraps === 'wc'
+              ? `the ${code(`<${entry.wc!.tag}>`)} tag, fallback inside`
+              : 'tier-1 markup — no web component'
+          } |`,
+      ),
+    )
+    .join('\n');
+
+  const bricks = tierPatterns('bricks')
+    .map(({ name, entry }) => `| ${code(entry.bricks!)} | ${code(name)} |`)
+    .join('\n');
+
+  const css = tierPatterns('css')
+    .map(({ name, entry }) => {
+      const c = entry.css;
+      const config = !c.generated
+        ? '—'
+        : declared.has(name)
+          ? 'declared'
+          : '**absent from this config — no CSS emitted**';
+      return `| ${code(name)} | ${c.partial ? code(c.partial) : '—'} | ${
+        c.classes.length ? list(c.classes) : '—'
+      } | ${config} |`;
+    })
+    .join('\n');
+
+  // `BASE_HOOK` maps a CSS property to a var suffix, so it has no single spelling to
+  // quote — derive the distinct hooks rather than interpolating the object.
+  const hooks = [...new Set(Object.values(BASE_HOOK))]
+    .map((sfx) => code(`--${sfx}-<pattern>`))
+    .join(', ');
+
+  const unshipped = tierPatterns('wc')
+    .filter(({ entry }) => !entry.wc!.registered && entry.wc!.bundle?.startsWith('(none'))
+    .map(({ entry }) => code(`<${entry.wc!.tag}>`))
+    .join(', ');
+
+  return `${frontmatter({
+    type: 'Design Concept',
+    title: 'Vitops components — which tier provides a pattern, and what to write',
+    description:
+      'Every UI pattern across the four tiers (CSS classes, wc-* web components, Astro components, Bricks elements): which tiers provide it, which call to make, and how the tiers compose.',
+    resource: DS_PATH,
+    tags: ['components', 'web-components', 'astro', 'bricks', 'tiers', 'design-system'],
+  })}
+
+# Components
+
+A pattern is provided by up to four tiers, and they **compose** rather than compete:
+
+1. **CSS framework classes** — every pattern expressible in pure HTML/CSS. Reach here first.
+2. **Web components** (${code('<wc-*>')}, Lit) — only where a pattern genuinely benefits from
+   progressive enhancement. The slotted markup is the fallback and must be usable with no JS;
+   the element parses and augments it in place.
+3. **Astro components** — authoring conveniences that emit the correct markup. They must not
+   require runtime JS. Where a pattern has a web component, the Astro component emits that tag
+   **with the accessible fallback inside it**.
+4. **Bricks elements** — the same patterns as WordPress/Bricks Builder elements.
+
+## Choosing
+
+**Use the highest-numbered tier available for your stack, and write only its call.** In Astro
+that is the Astro component; in Bricks the element; anywhere else the classes, plus the
+${code('<wc-*>')} tag when one exists.
+
+The trap is composing two tiers by hand. When ${code('wraps')} below says the Astro component
+emits the tag, that one call is the whole composition —
+${code('<wc-tree><Tree /></wc-tree>')} nests two elements on one tree. A tier-3 component that
+would need runtime JS is in the wrong tier: build a web component instead and have the wrapper
+emit its tag.
+
+## Every pattern
+
+| Pattern | Tiers | What to write |
+| --- | --- | --- |
+${overview}
+
+## Web components
+
+Shipped as feature-detected, deferred ES-module bundles. ${code('elements.js')} carries the
+registered set; ${code('<wc-consent>')} and ${code('<wc-theme-editor>')} ship separately, the
+first so a site needing consent does not download a rendering framework, the second because it
+is tooling and opt-in per consumer.
+
+| Tag | Pattern | Ships in | What JS adds over the fallback |
+| --- | --- | --- | --- |
+${wc}
+
+${
+  unshipped
+    ? `${unshipped} are **registered but in no bundle** (the editor-v2 track). The tags are inert in a consumer project — they are listed so that "the tag does nothing" is documented rather than discovered.`
+    : ''
+}
+
+## Astro components
+
+| Component | Pattern | Emits |
+| --- | --- | --- |
+${astro}
+
+## Bricks elements
+
+Controls, defaults and seeded children for each are in [the elements reference](../bricks/elements.md).
+
+| Element | Pattern |
+| --- | --- |
+${bricks}
+
+## CSS
+
+${code('patterns.items')} patterns get the full token cascade — ${code('base')} declarations,
+${code('states')}, role variants and override hooks (${hooks}); see
+[component patterns](patterns.md). A structural partial has none of those. The class lists below
+are representative, not exhaustive — [the class vocabulary](../css/classes.md) states the naming
+rules that generate them all.
+
+| Pattern | Partial | Classes | ${code('patterns.items')} |
+| --- | --- | --- | --- |
+${css}
+`;
+}
+
 // ── Reserved index.md listings (no frontmatter) ──────────────────────────────
 function renderTopIndex(): string {
   return `${INDEX_NOTE}
@@ -1516,7 +1880,7 @@ variable-driven CSS framework plus progressively-enhanced web components, genera
 * [Authoring reference](authoring.md) - every design-system.json field, generated from the JSON Schema
 * [Config reference](config.md) - every field of the three-section config (designSystem / organization / site), generated from the JSON Schema
 * [Output formats](formats.md) - tailwind vs css vs bricks vs design: what's emitted, what the platform provides, which utilities Tailwind owns
-* [Concepts](concepts/) - the colour system, type/space scales, and pattern CSS architecture
+* [Concepts](concepts/) - the colour system, type/space scales, pattern CSS architecture, the four component tiers, icons, and the consent / tracking / search / legal subsystems
 * [CSS framework](css/) - the class vocabulary (colour, type, space, layout, animation, component patterns), stated as naming rules
 * [Bricks Builder](bricks/) - custom elements and how to style them
 `;
@@ -1574,7 +1938,7 @@ astro-icon is **zero-config on a static build**. Under \`output: 'server'\` it b
 *every icon in a set* unless given an \`include\` map — which is why projects end up
 hand-maintaining one.
 
-The \`icons\` option on \`getvitops()\` derives it by scanning your source, merged with
+The \`icons\` option on \`vitops()\` derives it by scanning your source, merged with
 whatever you declare. On a static build **no include is passed at all**: there is
 nothing to trim there, and a list could only drop a glyph the scan couldn't see.
 
@@ -1630,6 +1994,460 @@ is no markup to hang an \`<svg>\` on.
 `;
 }
 
+function renderConsentConcept(): string {
+  return `${frontmatter({
+    type: 'Design Concept',
+    title: 'Vitops consent — a demand-driven permission gate',
+    description:
+      'How the consent gate works: inert `type="text/plain"` tags, demand-driven prompting, three-valued choices, and the invariants that make the gate real rather than a promise.',
+    resource: CONFIG_PATH,
+    tags: ['consent', 'cookies', 'privacy', 'gdpr', 'analytics'],
+  })}
+
+# The consent gate
+
+\`@getvitops/core/consent\` is a **general permission gate, not an analytics feature**. Anything
+marked \`data-consent="<category>"\` waits on one visitor choice — a third-party tag, an A/B
+assignment, a personalisation cookie, an embedded map. It carries no Lit and is a separate
+bundle from \`elements.js\`, because consent is a legal requirement: a site that needs it must
+not be made to download a rendering framework first.
+
+Categories are \`necessary\`, \`analytics\`, \`marketing\`, \`preferences\`.
+
+## Gating something
+
+A gated script renders **inert**, with its URL parked on \`data-src\`:
+
+\`\`\`html
+<script
+  type="text/plain"
+  data-vitops-tag
+  data-consent="analytics"
+  data-consent-cookies="_ga,_ga_*"
+  data-src="https://example.com/analytics.js"
+></script>
+\`\`\`
+
+⚠️ **\`type="text/plain"\` is what makes the gate real. Never give a gated tag a live \`src\`.**
+The browser neither parses the body nor fetches the library, so an undecided visitor's page
+issues **no third-party request at all**. A gate that instead loads a script and politely asks
+it not to track is a promise, not a gate.
+
+\`data-consent-cookies\` is written by whoever emitted the tag, because that is who knows what
+the provider sets. It is what a revoke clears.
+
+## Demand-driven: two different ideas
+
+**Offered** categories are a build-time fact — which rows \`<CookieConsent />\` renders. The
+default is deliberately generous; a hidden row costs nothing.
+
+**Demanded** categories are a runtime fact — what something has actually asked for and the
+visitor hasn't answered. The banner appears only when a demand is outstanding, so **a site
+whose only provider is cookieless never interrupts anyone.**
+
+Demand is registered by:
+
+- a gated element **reaching its loading strategy** — so an \`idle\` tag asks after \`load\`, off
+  the LCP path, and an \`interaction\` tag asks only once the visitor acts; or
+- an explicit \`require()\` / \`request()\`.
+
+## The runtime API
+
+\`window.vitopsConsent\`, plus a \`vitops:consent\` \`CustomEvent\` on \`document\`.
+
+| Call | Does |
+| --- | --- |
+| \`granted(cat)\` | Is it granted? **Passive — does not prompt.** |
+| \`require(cat)\` | Declare a need *now* and report whether it's granted. **This is what raises the banner.** Synchronous. |
+| \`request(cat)\` | \`require()\`, but resolves once the visitor answers *this* category. |
+| \`needed()\` | Is a prompt warranted? True only if something demanded an unanswered category. |
+| \`demanded()\` | What has asked, this page view. |
+| \`set(patch)\` | Record a decision for exactly these categories. |
+| \`open()\` | Re-show the banner without discarding the current choice. |
+| \`reset()\` | Forget the choice and re-prompt. |
+
+⚠️ If you want a side effect to be *possible*, you must \`require()\` it. Calling \`granted()\`
+and doing nothing else is a **permanent no-op** on any site where nothing else demands that
+category: it is never offered, never granted, and your write never happens — silently.
+
+## An absent gate means "store freely"
+
+\`consent.js\` and \`elements.js\` are both deferred with no ordering between them, so a component
+can upgrade and be clicked before the gate exists. \`<Head />\` therefore emits a synchronous
+inline **stub** that answers \`false\` and queues; the runtime replays the queue on load.
+
+That makes the absence of \`window.vitopsConsent\` meaningful: it reliably means **this site has
+no gate**. Read it as *store freely* — never as *denied*.
+
+Because the stub is not the full API, listen for the \`vitops:consent\` event rather than calling
+\`subscribe()\`, which the stub does not have.
+
+## Three-valued, and why it matters
+
+The cookie (\`vitops_consent\`, v2) records each category as \`true\` / \`false\` / **\`null\`**.
+"Not asked" is a third value, not a synonym for "declined" — and only \`null\` can be
+re-prompted. That is what lets a \`preferences\` demand arrive *after* an \`analytics\` prompt was
+already answered.
+
+Three consequences:
+
+- **Nothing is stored until the visitor chooses.** Absence of the cookie is *undecided*, and
+  undecided denies everything but \`necessary\`. If merely showing the banner wrote state, the
+  banner would be the thing it asks permission for.
+- **A corrupt or wrong-version cookie re-prompts.** It does not read as "decided, all denied" —
+  that safe-looking read strands a visitor who wants to opt in with no way to say so.
+- **A patch must cover exactly the categories a showing put on screen.** \`<wc-consent>\` builds
+  its own patch rather than calling \`acceptAll()\`, because "Accept" on a preferences-only
+  prompt that also granted analytics would be consent nobody gave. \`acceptAll()\` /
+  \`rejectAll()\` mean *literally every* optional category — widening a patch to "all" is the
+  easy version of this bug.
+
+## Revoking reloads
+
+An already-executing tracker cannot be unloaded. Clearing its cookies only stops it identifying
+the visitor *next* time, while the running instance keeps reporting until the document goes
+away — so a revoke clears the named cookies and **reloads**. (\`reloadOnRevoke = false\` defers
+that to the next navigation.)
+
+## The notice must match what loads
+
+The same config facts drive the **generated cookie notice** — see
+[legal.md](legal.md). \`site.analytics.clarityId\` is what makes the notice name Clarity; the
+same provider in \`vitops({ analytics })\` is what makes the tag load. The Astro integration
+**warns when the two disagree**, because a site running a tag its own notice omits is a
+compliance defect, not a documentation gap.
+
+## Reference consumer
+
+\`<wc-color-scheme-toggle>\` applies the chosen scheme **immediately** and gates only the
+\`localStorage\` write. Nothing about honouring a visitor's click needs permission; remembering
+it does.
+`;
+}
+
+function renderTrackingConcept(): string {
+  return `${frontmatter({
+    type: 'Design Concept',
+    title: 'Vitops conversion tracking — ad attribution and notifications',
+    description:
+      'How an ad click becomes a notified conversion: the `_ac` cookie, consent-demanding capture, the pure notification planner, and the Cloudflare email channel.',
+    resource: CONFIG_PATH,
+    tags: ['tracking', 'attribution', 'conversions', 'notifications', 'consent'],
+  })}
+
+# Conversion tracking
+
+A visitor arrives on an ad carrying a click ID; \`<Tracking />\` captures it into the
+first-party **\`_ac\`** cookie; when they later submit a form or tap a \`tel:\` link,
+\`createConversionRoute()\` reads the cookie back and notifies whoever the config names.
+
+\`\`\`json
+{
+  "site": {
+    "tracking": { "enabled": true, "category": "marketing" },
+    "notifications": { "email": "leads@example.com" }
+  }
+}
+\`\`\`
+
+A bare address is shorthand for \`{ provider: "cloudflare", to }\`. The recipient otherwise
+falls back to the primary location's email, and the sender to \`noreply@<domains.canonical>\`.
+
+## Where each piece lives
+
+| Layer | Module | Why there |
+| --- | --- | --- |
+| Attribution vocabulary + cookie | \`@getvitops/utils/tracking\` | Needed on **both** sides of the wire |
+| Plan / render / send | \`@getvitops/utils/notify\` | Pure planner, I/O sender |
+| Capture script, \`<Tracking />\`, route factory | \`@getvitops/astro\` | Beside the analytics components |
+
+Both utils entries are **separate subpaths** because they are the only modules that run in a
+**Worker** rather than at build time. Keeping them off the package index is what stops a
+conversion endpoint pulling \`sharp\` into its bundle. Neither may use a Node builtin.
+
+## The capture demands consent
+
+\`_ac\` is a 90-day identifier tying a visitor to an ad, so it waits on \`marketing\` (override
+with \`site.tracking.category\`).
+
+⚠️ The script calls **\`require()\`**, not \`granted()\` — \`require()\` is what *raises the
+banner*. A passive \`granted()\` here is a permanent no-op: nothing else on a page demands
+\`marketing\`, so it is never offered, never granted, and \`_ac\` is never written — silently, on
+every gated site. The integration adds \`marketing\` to the offered categories when tracking is
+on, so there is a row for the category the script will ask about.
+
+**Only an arrival that carried something asks.** The demand is guarded on the URL actually
+holding a click ID or UTM, so an organic visitor — who has nothing to attribute — is never
+interrupted. That is demand-driven consent applied to attribution.
+
+**The capture is synchronous; only the write waits.** Reading the query string is not storage
+and needs no permission; *keeping* it does. The click ID is in the URL only on the landing
+page, so deferring the read would lose it outright.
+
+The marker element carries \`data-consent\` but deliberately **not** \`data-vitops-tag\`: the
+scan never tries to "activate" it (it is ungated by design), while the revoke path — which
+queries \`[data-consent="…"]\` — still finds it and clears \`_ac\`.
+
+## The event is the abstraction
+
+\`ConversionEvent\` is the *fact*; how it reads belongs to the channel. That is what lets an SMS
+channel render 160 characters from the same event an email renders in full.
+
+**The plan is pure and says why anything is skipped.** \`planNotifications\` touches no network
+and no binding, so a misconfigured site can be told exactly why no notification will arrive — a
+silently unsent conversion notification is indistinguishable from no conversion.
+
+## The email channel
+
+Cloudflare Email Sending's **current** binding — structured
+\`env.EMAIL.send({ to, from, subject, html, text })\`, not the legacy \`EmailMessage\` plus
+hand-built MIME. The binding is **passed in, never imported**, so utils takes no Cloudflare
+dependency.
+
+Only transient codes are retried. \`E_SENDER_NOT_VERIFIED\` and friends are surfaced
+**verbatim**, because nothing here can check whether the sending domain was onboarded — run:
+
+\`\`\`sh
+wrangler email sending enable <domain>
+\`\`\`
+
+A generic "send failed" would hide the one thing worth knowing.
+
+Only \`email\` is implemented. \`sms\` and \`persist\` are a planned seam
+(\`NotificationsConfig\` plus a sender with \`sendEmail\`'s signature); one channel is not enough
+to know what the abstraction should be.
+
+## Disclosure
+
+\`_ac\` is disclosed by the generated cookie notice as a first-party cookie. It has to be stated
+explicitly: no provider table would ever name a first-party cookie, so a site running
+attribution alongside a **cookieless** analytics provider would otherwise be described as
+setting no cookies at all. See [legal.md](legal.md).
+`;
+}
+
+function renderSearchConcept(): string {
+  return `${frontmatter({
+    type: 'Design Concept',
+    title: 'Vitops search — Search Console onboarding and deploy notification',
+    description:
+      'What search engines actually accept, why the Indexing API is deliberately not wired, and how `vitops search setup` and `vitops search notify` work.',
+    resource: CONFIG_PATH,
+    tags: ['seo', 'search-console', 'indexnow', 'sitemap', 'indexing'],
+  })}
+
+# Search
+
+Two commands, both anchored to a full config:
+
+- **\`vitops search notify\`** — tell search engines a deploy happened (from \`site.seo.indexing\`).
+- **\`vitops search setup\`** — onboard domains into Search Console (from \`site.searchConsole\`).
+
+## Start from what engines actually accept
+
+The obvious assumption is wrong, and every design decision here follows from that:
+
+- **Google exposes no "request indexing" API.** The button in the Search Console UI is not in
+  the Search Console API or anywhere else, and the **URL Inspection API is read-only**.
+- **The sitemap ping endpoint was removed in June 2023.** \`google.com/ping?sitemap=\` is a no-op.
+- **The Indexing API is scoped to \`JobPosting\` / \`BroadcastEvent\`.** It accepts other URLs and
+  discards them; general use violates its terms, with *your own* GCP project on the line.
+  ⚠️ **Deliberately not wired. Do not add it.**
+- **Google does not participate in IndexNow.** Bing, Yandex, Naver, Seznam and Yep do.
+
+So \`search notify\` does every sanctioned thing and then **verifies**: resubmit the sitemap,
+ping IndexNow, and \`--check\` inspects \`priorityUrls\` and exits non-zero on one Google hasn't
+indexed. That last part is what actually replaces the manual Search Console visit.
+
+⚠️ Never describe this as making Google re-index faster. It cannot.
+
+## \`search notify\`
+
+- **The pure/I-O split is the point.** The planner decides everything — which URLs, which
+  channels, why each was skipped — and touches no network, no filesystem, no clock. That is what
+  makes \`--dry\` a *complete* account of a run rather than an approximation.
+- **\`lastmod\` is not a nice-to-have, it is the mechanism.** The changed-URL diff compares each
+  sitemap entry's \`<lastmod>\` against a stored snapshot. With no lastmod the diff can see pages
+  appear and disappear but **never see one change** — so an edited page is never resubmitted, and
+  the command looks healthy while doing less than it appears to. It counts lastmod-less entries
+  and says so every run.
+
+  \`gitLastmod()\` in \`@getvitops/astro\` derives real dates from \`git log\`. It is an exported
+  helper rather than a \`sitemap\` option because it shells out to git and returns **nothing**
+  from a shallow CI clone (\`fetch-depth: 1\`). It leaves an unmatched URL alone rather than
+  stamping the build time: Google weighs lastmod only while it stays consistent with what
+  actually changed, so a site that stamps every page every deploy teaches it to distrust the
+  field site-wide.
+- **The \`noindex\` gate reads the environment, so the URLs must too.** The run is refused
+  entirely when the resolved environment's \`robots\` contains \`noindex\` — submitting a staging
+  host to IndexNow publishes it to several engines and invites them to crawl it, which a later
+  directive does not undo. Origins therefore derive from \`site.environments[env].url\` **before**
+  \`domains.canonical\`: the canonical is the *production* origin, so deriving from it while
+  notifying staging would submit production URLs the gate would not catch.
+- **Verify the IndexNow key file before submitting.** A submission whose key file is unreachable
+  returns \`403\`, but one whose key file is *reachable and stale* is accepted with \`202\` and then
+  silently discarded. Only a prior GET distinguishes "submitted" from "submitted and ignored".
+  The key is **not a secret** — the engine fetching it back is the ownership proof — so it lives
+  in the config, and the Astro integration writes \`public/<key>.txt\` from it.
+- **Write the snapshot last, and only on success.** Writing it eagerly records URLs as notified
+  that never were; because the next run diffs against it, one transient \`503\` would drop those
+  pages from every future run — silently and permanently. A corrupt or absent snapshot reads as
+  "submit everything, and say so", never as "nothing changed".
+
+## \`search setup\`
+
+Automates the otherwise-manual DNS-paste / wait / verify / add-property dance.
+\`site.searchConsole\` is keyed by bare hostname (mirroring \`site.dns\`):
+
+\`\`\`json
+{
+  "site": {
+    "searchConsole": {
+      "example.com": {
+        "delegatedOwners": ["dev@example.com"],
+        "fullUserGroup": "seo@example.com"
+      }
+    }
+  }
+}
+\`\`\`
+
+Per domain it ensures the apex verification TXT in Cloudflare, verifies ownership via the Site
+Verification API (\`DNS_TXT\`), adds the \`sc-domain:\` property, then adds any
+\`delegatedOwners\`. The verification token is fetched live and written to DNS — never stored in
+the config.
+
+- **Idempotency lives in the planner.** A step whose desired state already holds resolves to
+  \`skip\`, so re-running an onboarded domain is a no-op **by construction**, not because the
+  executors check twice. \`--check\` reports drift, exits non-zero and mutates nothing;
+  \`--dry\` prints the plan and stops.
+- **DNS is only ever created, never edited or deleted.** The command never removes a record, so
+  the Cloudflare executor simply has no update or delete verb.
+- **Verification retries with backoff, then reports PENDING — not failed.** \`DNS_TXT\`
+  verification fails until the record propagates, which is slow, not broken. A domain still
+  unverified after the last attempt is \`PENDING\`, and its property and owner steps are skipped
+  for that run. Re-run later.
+- **Search Console has no user/permission API.** Adding a Google Group as a **Full User** is
+  genuinely un-automatable, so \`fullUserGroup\` is surfaced as a **reminder** in the summary,
+  never attempted. That is distinct from \`delegatedOwners\`, which *are* automated — those are
+  Site Verification web-resource owners (an additive union, so an existing owner is never
+  dropped), a different concept from Search Console property users. Don't conflate them.
+
+## Credentials
+
+Always from the environment; never in the config. There is **one** token exchange and **two
+grants**, tracking where each command runs:
+
+| Grant | Env vars | Used by |
+| --- | --- | --- |
+| **Service account** (JWT bearer) | \`VITOPS_GSC_SERVICE_ACCOUNT\` (inline JSON) or \`GOOGLE_APPLICATION_CREDENTIALS\` (path) | \`search notify\` — never expires, right for CI |
+| **User OAuth** (refresh token) | \`VITOPS_GOOGLE_CLIENT_ID\` / \`_CLIENT_SECRET\` / \`_REFRESH_TOKEN\` | \`search setup\` — **required** |
+
+Cloudflare uses \`CLOUDFLARE_API_TOKEN\` (a \`Zone:DNS:Edit\` token; the standard "Edit zone DNS"
+template also carries the \`Zone:Read\` the zone-by-name lookup needs).
+
+\`search setup\` requires user OAuth because **verifying a site makes the caller an owner** of
+the property, and that should be a person, not a project robot. Note a refresh token can be
+revoked, and for an OAuth client still in *Testing* publishing status Google expires it after
+**7 days** — fine for a one-time human setup, bad for a deploy step.
+
+**\`search notify\` accepts either**, preferring the service account when both are set. Search
+Console does not care which identity calls it, and someone who has run \`search setup\` already
+holds a Google credential.
+
+⚠️ Do not add \`googleapis\` — an enormous dependency for a handful of REST endpoints in a CLI
+that installs into every consumer project. The JWT is minted with ~30 lines of \`node:crypto\`.
+`;
+}
+
+function renderLegalConcept(): string {
+  return `${frontmatter({
+    type: 'Design Concept',
+    title: 'Vitops legal documents — generated policy, terms and cookie notice',
+    description:
+      'How the privacy policy, terms of service and cookie notice are derived from config facts, why the provider table exists, and the four delivery paths.',
+    resource: CONFIG_PATH,
+    tags: ['legal', 'privacy', 'cookies', 'pipeda', 'compliance'],
+  })}
+
+# Legal documents
+
+A privacy policy, terms of service and cookie notice, rendered from a full config: the company
+from \`organization\`, what the site actually *does* from \`site\`.
+
+It is a **sibling of the docs generator, not a \`generate()\` format** — structurally, not
+stylistically. \`generate()\` is keyed to a design system, so a "legal format" would be a format
+that ignores its own input.
+
+## The governing rule
+
+**The config records facts; the template owns prose.**
+
+Nothing in the derivation writes a sentence a lawyer would review, and no template invents a
+fact. That is what lets wording be corrected without touching your config, and your provider
+change land without touching prose.
+
+⚠️ It also means **the fix for a wrong policy is a corrected config.** Hand-editing the output
+is overwritten by the next build.
+
+## What derives from what
+
+- **The provider table is what makes derivation possible.** A policy naming Plausible while the
+  site runs GA is a compliance defect, not a typo — so the provider comes from *which analytics
+  ID is set*, whether \`site.security.turnstile.siteKey\` exists, and what
+  \`site.deployment.platform\` says. Never from a hand-maintained string.
+
+  It covers only what the schema can imply. Everything else — payment, CRM, mail — is declared
+  in \`site.legal.privacyPolicy.processors\` and flows through the same pipeline.
+
+- **\`cookies: []\` is meaningfully different from \`undefined\`.** It *asserts* a provider is
+  cookieless (Plausible), which the cookie notice states **positively** rather than omitting.
+
+- **Form templates are the PII inventory.** \`site.templates\` entries of type \`form\` are the
+  only place the config says what personal information the site actually collects, so the
+  disclosed list derives from their fields. \`hidden\` fields and honeypots are **excluded** —
+  neither is visitor-supplied, and describing them as collected would be untrue.
+
+- **First-party cookies are declared, not detected.** The attribution cookie \`_ac\` is disclosed
+  this way; see [tracking.md](tracking.md).
+
+## The markdown subset is closed
+
+We author every template, so the renderer is exactly as capable as they are: \`#\`/\`##\`/\`###\`,
+\`- \` bullets, \`> \` quote, \`**strong**\`, \`\\\`code\\\`\`. **An unsupported construct is an error,
+not a silent degrade** — that is what stops a literal \`| --- |\` reaching a published page.
+
+Portable Text maps the \`> \` quote to a banner block and **drops the \`# \` heading**, which is
+EmDash's own title field.
+
+## Jurisdictions
+
+Adding one is: author three templates, add one enum member, add one registry key. The two are
+checked against each other at compile time, so skipping either **fails to compile** rather than
+rendering against the wrong body of law.
+
+⚠️ Only **\`ca\` (PIPEDA)** ships. Its prose names the Office of the Privacy Commissioner of
+Canada and frames transfers as "outside of Canada" — **do not reuse it for another
+jurisdiction.**
+
+## Delivery: one renderer, four consumers
+
+| Consumer | How |
+| --- | --- |
+| **any stack** | \`vitops legal [--doc <name>] [--format md\\|html\\|portable-text] [--out <dir>]\` — stdout without \`--out\`. Hugo, Eleventy or a hand-built WordPress theme need no integration code. |
+| **WordPress** | \`generate({ site })\` also emits \`dist/legal/*.html\`; \`[vitops_legal doc="privacy"]\` renders one. \`doc\` is matched against a fixed allowlist, because it lands in a filesystem read. |
+| **Astro** | \`vitops({ legal: { input, out } })\` — a sibling of \`css\`, not a widening of it. Regenerates on config change; writes markdown to a content collection. No route injection. |
+| **EmDash** | \`--format portable-text\`, pasted into the admin. |
+
+The CLI is the load-bearing one: it is the surface every consumer has regardless of stack.
+
+## The review banner
+
+Every document opens with a **non-optional** review banner. These are rendered from a template
+by a build tool; the one failure mode with real consequences is a consumer publishing one as-is.
+`;
+}
+
 function renderConceptsIndex(): string {
   return `${INDEX_NOTE}
 
@@ -1640,7 +2458,12 @@ function renderConceptsIndex(): string {
 * [Colour system](color.md) - seeded OKLCH scales on a shared lightness ladder, target-prefixed tokens, automatic dark mode
 * [Type & space scales](scales.md) - fluid modular scales and the tokens they emit
 * [Component patterns](patterns.md) - token cascade, override hooks, states, role variants
+* [Components](components.md) - which of the four tiers provides each pattern, and the call to make
 * [Icons](icons.md) - semantic names across icon sets, bundle derivation, sprite delivery
+* [Consent gate](consent.md) - inert gated tags, demand-driven prompting, three-valued choices
+* [Conversion tracking](tracking.md) - ad-click attribution, the \`_ac\` cookie, conversion notifications
+* [Search](search.md) - what engines accept, Search Console onboarding, deploy notification
+* [Legal documents](legal.md) - policy/terms/cookie notice derived from config facts
 `;
 }
 
@@ -1692,7 +2515,12 @@ export function generateDocs(ds: DesignSystem, assetsDir: string): Record<string
     'concepts/color.md': renderColorConcept(ds),
     'concepts/scales.md': renderScalesConcept(ds),
     'concepts/patterns.md': renderPatternsConcept(ds),
+    'concepts/components.md': renderComponentsConcept(ds),
     'concepts/icons.md': renderIconsConcept(),
+    'concepts/consent.md': renderConsentConcept(),
+    'concepts/tracking.md': renderTrackingConcept(),
+    'concepts/search.md': renderSearchConcept(),
+    'concepts/legal.md': renderLegalConcept(),
     'css/index.md': renderCssIndex(),
     'css/classes.md': renderCssClasses(ds),
     'bricks/index.md': renderBricksIndex(),

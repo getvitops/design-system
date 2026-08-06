@@ -29,7 +29,7 @@ type ColorScheme = 'system' | 'light' | 'dark';
  *
  * @example
  * ```html
- * <color-scheme-toggle></color-scheme-toggle>
+ * <wc-color-scheme-toggle></wc-color-scheme-toggle>
  * ```
  *
  * @fires scheme-change - When the color scheme changes, with detail: { scheme: 'system' | 'light' | 'dark' }
@@ -167,7 +167,7 @@ export class WCColorSchemeToggle extends BaseElement {
    * MUST match the key used by the pre-paint script in `@getvitops/astro`'s
    * `<Head />` — that script applies the stored value before first paint, so the
    * page doesn't render light and then flip once this component upgrades.
-   * `color-scheme-toggle.test.ts` asserts the two stay in step.
+   * `wc-color-scheme-toggle.test.ts` asserts the two stay in step.
    */
   static readonly STORAGE_KEY = 'vitops-color-scheme';
 
@@ -353,12 +353,12 @@ export class WCColorSchemeToggle extends BaseElement {
   }
 }
 
-if (!customElements.get('color-scheme-toggle')) {
-  customElements.define('color-scheme-toggle', WCColorSchemeToggle);
+if (!customElements.get('wc-color-scheme-toggle')) {
+  customElements.define('wc-color-scheme-toggle', WCColorSchemeToggle);
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'color-scheme-toggle': WCColorSchemeToggle;
+    'wc-color-scheme-toggle': WCColorSchemeToggle;
   }
 }

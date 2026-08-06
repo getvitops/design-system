@@ -873,12 +873,12 @@ export class WCOklchColorPicker extends BaseElement {
   }
 }
 
-if (!customElements.get('oklch-color-picker')) {
-  customElements.define('oklch-color-picker', WCOklchColorPicker);
+if (!customElements.get('wc-oklch-color-picker')) {
+  customElements.define('wc-oklch-color-picker', WCOklchColorPicker);
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'oklch-color-picker': WCOklchColorPicker;
+    'wc-oklch-color-picker': WCOklchColorPicker;
   }
 }

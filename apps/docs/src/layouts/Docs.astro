@@ -43,7 +43,14 @@ interface Props {
 }
 const { title, description, generated = false, headings = [] } = Astro.props;
 
-const SECTIONS = ['Start here', 'Live preview', 'Packages', 'Reference', 'Releases'] as const;
+const SECTIONS = [
+  'Start here',
+  'Live preview',
+  'Components',
+  'Packages',
+  'Reference',
+  'Releases',
+] as const;
 
 /**
  * Standalone `.astro` routes, folded into the collection-driven nav.
@@ -58,6 +65,17 @@ const PAGES = [
   { id: 'animation', data: { title: 'Animation library', section: 'Live preview', order: 20 } },
   { id: 'icons', data: { title: 'Icons', section: 'Live preview', order: 30 } },
   { id: 'patterns', data: { title: 'Patterns', section: 'Live preview', order: 40 } },
+  // Renders the config JSON Schema as a live `<wc-tree>`; see the page's own note
+  // on why it isn't a generated markdown entry like its Reference siblings.
+  { id: 'reference/config', data: { title: 'Config reference', section: 'Reference', order: 15 } },
+  // One page per tier, projected from the generator's TIERS manifest. The agent-facing
+  // bundle keeps all four in ONE doc (`vitops docs components`) — see the section
+  // overview for why the two shapes are opposite on purpose.
+  { id: 'components', data: { title: 'Overview', section: 'Components', order: 10 } },
+  { id: 'components/css', data: { title: 'CSS classes', section: 'Components', order: 20 } },
+  { id: 'components/elements', data: { title: 'Web components', section: 'Components', order: 30 } },
+  { id: 'components/astro', data: { title: 'Astro components', section: 'Components', order: 40 } },
+  { id: 'components/bricks', data: { title: 'Bricks elements', section: 'Components', order: 50 } },
 ];
 
 const all = [...(await getCollection('docs')), ...PAGES];
@@ -104,9 +122,10 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
 
         <nav class="cluster-start docs-header__links" style="gap: 1rem; align-items: center">
           <a class="link" href={href('guides/installation')}>Guides</a>
+          <a class="link" href={href('components')}>Components</a>
           <a class="link" href={href('packages/cli')}>Packages</a>
           <a class="link" href={href('theme')}>Theme</a>
-          <a class="link" href={href('reference/authoring')}>Reference</a>
+          <a class="link" href={href('reference/config')}>Reference</a>
           <a class="link" href={href('changelog')}>Changelog</a>
           <!-- Self-contained (shadow DOM, renders its own segmented control) and
                `display: none` until `:defined`, so with no JS it simply isn't
@@ -115,7 +134,7 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
                (`css.systemColorScheme`, or `designSystem.defaultColorScheme:
                "system"` in a site config). Without it both the no-JS case and
                the toggle's own "System" position resolve to light. -->
-          <color-scheme-toggle></color-scheme-toggle>
+          <wc-color-scheme-toggle></wc-color-scheme-toggle>
         </nav>
 
       </div></div>

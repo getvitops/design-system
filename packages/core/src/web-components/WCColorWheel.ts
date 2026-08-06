@@ -772,12 +772,12 @@ export class WCColorWheel extends BaseElement {
   }
 }
 
-if (!customElements.get('color-wheel')) {
-  customElements.define('color-wheel', WCColorWheel);
+if (!customElements.get('wc-color-wheel')) {
+  customElements.define('wc-color-wheel', WCColorWheel);
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'color-wheel': WCColorWheel;
+    'wc-color-wheel': WCColorWheel;
   }
 }

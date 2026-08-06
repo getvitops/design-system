@@ -548,7 +548,7 @@ export function build(
         // The same delta again, for "no explicit choice + a dark OS". Opt-in,
         // because switching it on flips a site dark for dark-OS users.
         //
-        // This is what makes <color-scheme-toggle>'s "System" position mean
+        // This is what makes <wc-color-scheme-toggle>'s "System" position mean
         // anything: System *removes* data-theme, so with only the block above it
         // fell through to light on every machine. It also gives a no-JS page the
         // OS appearance, which the toggle alone never could.

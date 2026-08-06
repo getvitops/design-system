@@ -9,7 +9,7 @@
  *
  * `data-brx-theme` is Bricks' own attribute — Bricks sets it, so it's what the
  * WordPress target needs. Nothing sets it anywhere else, which meant the dark
- * flip was unreachable outside Bricks: the shipped `<color-scheme-toggle>` web
+ * flip was unreachable outside Bricks: the shipped `<wc-color-scheme-toggle>` web
  * component writes `documentElement.dataset.theme` (i.e. `data-theme`), so
  * clicking "Dark" changed an attribute no rule matched. Matching both makes the
  * component work on every target without changing what Bricks already does.
@@ -28,7 +28,7 @@ export const DARK_SEL = ':root[data-brx-theme="dark"], :root[data-theme="dark"]'
  *
  * Derived from `DARK_SEL`'s attributes rather than written out a third time, and
  * inverted: this must apply when NO explicit choice has been made. That is
- * exactly what `<color-scheme-toggle>`'s "System" position produces — it removes
+ * exactly what `<wc-color-scheme-toggle>`'s "System" position produces — it removes
  * `data-theme` entirely — so with this block present System resolves to the OS
  * instead of silently falling through to light, and needs no JS to do it.
  *

@@ -23,6 +23,7 @@
  * the spacing right; it is never what makes the thing work.
  */
 import { BaseElement } from './BaseElement.js';
+import { initFromLightDom } from './utils/upgrade.js';
 
 export class WCMarquee extends BaseElement {
   /** Light DOM: the framework CSS has to reach the slotted content. */
@@ -36,8 +37,16 @@ export class WCMarquee extends BaseElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    this.#source = this.querySelector<HTMLElement>('.marquee__content');
-    if (!this.#source) return;
+    // `.marquee__content` may not be parsed yet — see initFromLightDom.
+    initFromLightDom(this, () => this.#setup());
+  }
+
+  /** Take over the CSS-only marquee if the content track is present. */
+  #setup(): boolean {
+    if (this.#source) return true;
+    const source = this.querySelector<HTMLElement>('.marquee__content');
+    if (!source) return false;
+    this.#source = source;
 
     // Release the 100% floor the CSS-only path needs: from here the copy is its
     // own width and we supply enough copies to cover the track.
@@ -46,6 +55,7 @@ export class WCMarquee extends BaseElement {
     this.#fill();
     this.#observer = new ResizeObserver(() => this.#fill());
     this.#observer.observe(this);
+    return true;
   }
 
   override disconnectedCallback() {

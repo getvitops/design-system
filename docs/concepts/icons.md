@@ -49,7 +49,7 @@ astro-icon is **zero-config on a static build**. Under `output: 'server'` it bun
 *every icon in a set* unless given an `include` map — which is why projects end up
 hand-maintaining one.
 
-The `icons` option on `getvitops()` derives it by scanning your source, merged with
+The `icons` option on `vitops()` derives it by scanning your source, merged with
 whatever you declare. On a static build **no include is passed at all**: there is
 nothing to trim there, and a list could only drop a glyph the scan couldn't see.
 

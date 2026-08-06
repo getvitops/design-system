@@ -276,7 +276,7 @@ export function derivePolicyVars(cfg: Config): PolicyVars {
 
   /**
    * A site offering the `preferences` category stores at least one setting the
-   * visitor chose — `<color-scheme-toggle>` writes `vitops-color-scheme` to local
+   * visitor chose — `<wc-color-scheme-toggle>` writes `vitops-color-scheme` to local
    * storage, gated on exactly this category. The banner asking about it while the
    * notice never mentions it is the disclosure gap `providers.ts` exists to
    * prevent, just on the browser-storage side rather than the third-party one.

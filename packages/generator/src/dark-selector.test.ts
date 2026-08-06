@@ -28,7 +28,7 @@ describe('dark-mode selector', () => {
   });
 
   it('covers both the Bricks attribute and the one the toggle writes', () => {
-    // Bricks sets data-brx-theme; <color-scheme-toggle> sets data-theme. Dropping
+    // Bricks sets data-brx-theme; <wc-color-scheme-toggle> sets data-theme. Dropping
     // either makes the flip unreachable on that target.
     expect(DARK_SEL).toContain('data-brx-theme');
     expect(DARK_SEL).toContain('data-theme');
@@ -36,7 +36,7 @@ describe('dark-mode selector', () => {
 });
 
 /**
- * The OS-preference block is what makes `<color-scheme-toggle>`'s "System"
+ * The OS-preference block is what makes `<wc-color-scheme-toggle>`'s "System"
  * position mean anything. System *removes* `data-theme`, so with only the
  * explicit-choice block the page fell through to light on every machine — the
  * component shipped a segment that could not do anything.

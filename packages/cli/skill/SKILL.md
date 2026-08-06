@@ -1,12 +1,16 @@
 ---
 name: vitops-design-system
 description: >-
-  Work with this project's Vitops design system. Use when styling or authoring
-  pages or components (choosing utility/pattern classes, colours, spacing,
-  typography), when editing design-system.json (tokens, palette, patterns,
-  scales, animations), when generating output (vitops generate --format
-  tailwind|css|bricks), or when asking what the design system provides on a
-  given platform (Tailwind vs Bricks vs standalone CSS).
+  Work with this project's Vitops design system and site toolchain. Use when
+  styling or authoring pages or components (choosing utility/pattern classes,
+  colours, spacing, typography), when editing design-system.json (tokens,
+  palette, patterns, scales, animations), when generating output (vitops
+  generate --format tailwind|css|bricks), when asking what the design system
+  provides on a given platform (Tailwind vs Bricks vs standalone CSS), and when
+  touching the site subsystems it generates or gates: the cookie-consent banner
+  and gating third-party tags, ad-click attribution and conversion
+  notifications, the generated privacy policy / terms / cookie notice, and
+  Google Search Console onboarding or post-deploy indexing.
 ---
 
 # Vitops design system
@@ -25,17 +29,22 @@ live from this project's `design-system.json` and the installed package version,
 never stale and always names the project's actual tokens. (If `vitops` isn't on PATH, use
 `pnpm exec vitops docs <topic>` or `npx vitops docs <topic>`.)
 
-| Run                     | When you need                                                          |
-| ----------------------- | ---------------------------------------------------------------------- |
-| `vitops docs classes`   | which class to apply — the full class vocabulary as naming rules       |
-| `vitops docs authoring` | what a `design-system.json` field means / what's valid                 |
-| `vitops docs config`    | the three-section config: `designSystem` / `organization` / `site`     |
-| `vitops docs formats`   | tailwind vs css vs bricks output — incl. which utilities Tailwind owns |
-| `vitops docs color`     | how the colour system works (seeded OKLCH scales, roles, dark mode)    |
-| `vitops docs scales`    | how the fluid type/space scales work                                   |
-| `vitops docs patterns`  | how pattern CSS is assembled (token cascade, override hooks, states)   |
-| `vitops docs icons`     | semantic icon names across sets, bundle derivation, sprite delivery    |
-| `vitops docs elements`  | the custom Bricks Builder elements and their controls                  |
+| Run                      | When you need                                                          |
+| ------------------------ | ---------------------------------------------------------------------- |
+| `vitops docs classes`    | which class to apply — the full class vocabulary as naming rules       |
+| `vitops docs authoring`  | what a `design-system.json` field means / what's valid                 |
+| `vitops docs config`     | the three-section config: `designSystem` / `organization` / `site`     |
+| `vitops docs formats`    | tailwind vs css vs bricks output — incl. which utilities Tailwind owns |
+| `vitops docs color`      | how the colour system works (seeded OKLCH scales, roles, dark mode)    |
+| `vitops docs scales`     | how the fluid type/space scales work                                   |
+| `vitops docs patterns`   | how pattern CSS is assembled (token cascade, override hooks, states)   |
+| `vitops docs components` | which tier provides a pattern (classes / `wc-*` / Astro / Bricks)      |
+| `vitops docs icons`      | semantic icon names across sets, bundle derivation, sprite delivery    |
+| `vitops docs consent`    | the consent gate — gating a tag, demand-driven prompting, the API      |
+| `vitops docs tracking`   | ad-click attribution, the `_ac` cookie, conversion notifications       |
+| `vitops docs search`     | what search engines accept, Search Console onboarding + notification   |
+| `vitops docs legal`      | how the policy / terms / cookie notice derive from config facts        |
+| `vitops docs elements`   | the custom Bricks Builder elements and their controls                  |
 
 `vitops docs` (no topic) lists the topics; `vitops docs --all` prints everything.
 
@@ -54,6 +63,25 @@ never stale and always names the project's actual tokens. (If `vitops` isn't on 
 config holds the design system at `designSystem.themes.<name>`, selected with `--theme`.
 If this project keeps its tokens inside a `company.json` / `site.json`, point `--input`
 there — do not create a second file for the tooling's sake.
+
+## Which tier provides a pattern
+
+A pattern (tree, carousel, dialog, card, …) may be provided by up to four tiers, and they
+**compose** rather than compete: CSS framework classes, a `<wc-*>` web component, an Astro
+component, a Bricks element. **Run `vitops docs components`** for the full table — which
+tiers each pattern has, and the exact call to write.
+
+Three things to know before you write markup:
+
+- **Prefer the highest tier your stack has, and write only its call.** In Astro that is the
+  Astro component; in Bricks the element; anywhere else the classes plus the `<wc-*>` tag if
+  one exists. Hand-writing markup a component already emits is the common miss.
+- **Do not compose two tiers yourself.** Where an Astro component wraps a web component it
+  emits that tag _with the accessible fallback inside_, so `<wc-tree><Tree /></wc-tree>`
+  nests two elements on one tree. The doc records which components wrap a tag.
+- **A `<wc-*>` element enhances markup you supply; it never renders from empty.** The slotted
+  HTML is the no-JS fallback and must be semantic and usable on its own. If you find yourself
+  wanting a component that renders from nothing, that pattern is in the wrong tier.
 
 ## Fonts: vitops names them, it does not load them
 
@@ -127,3 +155,52 @@ where no provider covers the family.
 - `vitops agents` — (re-)link this skill into `.agents/skills/` + `.claude/skills/` and
   refresh the AGENTS.md pointer block. The links point into the installed package and
   survive version bumps; re-run only if they were deleted.
+
+## Consent and third-party tags
+
+If the site has a consent gate, **every** non-essential third party goes through it. Run
+`vitops docs consent` before wiring one up — the failure modes here are silent and legal.
+The four that bite:
+
+- **A gated tag must render inert.** `type="text/plain"` + `data-consent="<category>"` +
+  the URL on `data-src` (never `src`), plus `data-consent-cookies` naming what it sets so
+  a revoke can clear them. Given a live `src` the browser fetches the library immediately
+  and the gate is decorative — an undecided visitor's page must issue **no** third-party
+  request.
+- **Use `require()`, not `granted()`, when you want permission.** `granted()` is passive:
+  it never raises the banner, so on a site where nothing else demands that category it is a
+  **permanent silent no-op** and your write never happens. `require()` registers the demand,
+  which is what makes the banner appear. `request()` is the promise form.
+- **No `window.vitopsConsent` means the site has no gate — store freely.** It does not mean
+  denied. (A synchronous stub in `<head>` covers the window before the runtime loads, so
+  absence is reliable. Listen for the `vitops:consent` event rather than calling
+  `subscribe()`, which the stub lacks.)
+- **Patch exactly the categories you put on screen.** `acceptAll()` / `rejectAll()` mean
+  literally every optional category — using one to answer a single-category prompt records
+  consent nobody gave. "Not asked" is a third value (`null`), distinct from declined, and
+  only it can be re-prompted.
+
+The banner is **demand-driven**: it appears when something actually asks, not on first visit.
+A site whose only analytics provider is cookieless never interrupts anyone. Don't "fix" a
+missing banner by forcing it to show — find out what should have demanded a category.
+
+Whatever loads must match what the **generated cookie notice** discloses; the Astro
+integration warns when they disagree, and that is a compliance defect, not a doc nit.
+
+## Conversion tracking
+
+`vitops docs tracking`. `site.tracking.enabled` captures ad click IDs and UTMs from the
+landing URL into the first-party `_ac` cookie; a conversion route reads it back and notifies
+via `site.notifications`. Points worth holding:
+
+- `_ac` is a 90-day identifier, so it waits on `marketing` (or `site.tracking.category`) and
+  the capture **`require()`s** it — see above.
+- Only an arrival actually carrying a click ID or UTM asks; organic visitors are never
+  interrupted.
+- The read is synchronous and the _write_ is what waits — the click ID exists only in the
+  landing URL, so it cannot be deferred.
+- Only the `email` channel (Cloudflare Email Sending) is implemented. Its sending domain must
+  be onboarded with `wrangler email sending enable <domain>` or every send fails; the tool
+  surfaces that error verbatim rather than as "send failed".
+- `--dry`-style planning is pure and reports **why** anything was skipped. A silently unsent
+  notification is indistinguishable from no conversion, so never leave one unexplained.

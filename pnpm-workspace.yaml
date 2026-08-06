@@ -21,6 +21,7 @@ catalog:
   colorjs.io: ^0.5.2
   construct-style-sheets-polyfill: ^3.1.0
   emdash: ^0.31.0
+  happy-dom: ^20.0.0
   parse5: ^7.3.0
   lightningcss: ^1.32.0
   lit: ^3.3.3

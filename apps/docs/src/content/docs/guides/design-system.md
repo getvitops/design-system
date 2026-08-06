@@ -27,8 +27,9 @@ and the JSON Schema is published so editors give you autocomplete and hover docs
 | `animations` | Effect and journey classes, layered over the hand-written animation engine |
 | `shadows` | `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities |
 
-The [reference section](/reference/authoring/) documents every field, rendered from the schema
-itself — so it can't fall out of step with what validation accepts.
+The [Config reference](/reference/config/) documents every field, rendered from the schema itself —
+so it can't fall out of step with what validation accepts. The token fields are under
+[`designSystem`](/reference/config/#designSystem); filter the tree to jump to one.
 
 ## Colours are seeded, not enumerated
 

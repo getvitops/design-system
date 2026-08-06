@@ -1,0 +1,58 @@
+---
+/**
+ * Tier 4 — the Bricks Builder elements.
+ *
+ * Deliberately thin: the per-element control reference is generated from the PHP
+ * itself (docblocks, class metadata, `set_controls()`), so restating controls here
+ * would be a second copy that goes stale silently. This page answers the question the
+ * generated reference doesn't — which framework pattern each element is, and where
+ * else that pattern is available — and links onward for the controls.
+ */
+import { tierPatterns } from '@getvitops/generator';
+import Docs from '../../layouts/Docs.astro';
+import TierEntries from '../../components/TierEntries.astro';
+import { alsoIn, code, href, md, type TierRow } from '../../components/tiers.ts';
+
+const base = import.meta.env.BASE_URL;
+
+const rows: TierRow[] = tierPatterns('bricks').map(({ name, entry }) => ({
+  id: `element-${entry.bricks!}`,
+  headingHtml: code(entry.bricks!),
+  cells: {
+    Pattern: code(name),
+    'Recommended call': md(entry.use),
+    'Also in': alsoIn(name, 'bricks', base),
+  },
+}));
+
+const title = 'Bricks elements';
+const description =
+  'Tier 4 — the custom Bricks Builder elements, and which framework pattern each one is.';
+---
+
+<Docs title={title} description={description}>
+  <p>
+    Tier 4 ships the same patterns as custom <strong>Bricks Builder</strong> elements, so a
+    WordPress site builds from the design system through the builder UI rather than by hand-writing
+    markup.
+  </p>
+  <p>
+    <strong>Prefer the framework's classes over hand-tuning Bricks' own property controls.</strong>
+    A class encodes the tokens, the spacing grammar and the interaction states, so it stays
+    consistent and reacts to theme and dark mode; a value typed into a property control is a one-off
+    that drifts from the system and doesn't. Reserve those for genuinely bespoke, one-element cases.
+  </p>
+  <p>
+    Bricks provides some of the system natively — its Color, Font, Spacing and Typography managers —
+    so those layers are delivered as JSON to import rather than as CSS. See
+    <a class="link" href={href('reference/formats', base)}>Output formats</a> for what the
+    <code>bricks</code> format emits.
+  </p>
+
+  <TierEntries rows={rows} />
+
+  <p class="font-footnote">
+    Controls, defaults, seeded children and keywords for each element are in the generated
+    <a class="link" href={href('reference/bricks-elements', base)}>Bricks elements reference</a>.
+  </p>
+</Docs>

@@ -1,0 +1,92 @@
+# Tests, types and generated-artifact freshness, on every push and PR.
+#
+# Until this existed the only workflow was the docs deploy, so nothing ran the
+# test suite on a pull request — and the `docs/` guard below is here because that
+# gap already cost something: the conversion-tracking and Google-token commits
+# changed the config schema without regenerating the tracked docs bundle, so the
+# committed reference (and the copy that ships to consumers in `dist/docs/`)
+# described the previous shape of `notifications` and claimed `search notify`
+# required a service account. Nothing failed, because nothing was checking.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A superseded run on the same ref has nothing to tell us.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Before setup-node, so its `cache: pnpm` can find the store. The version
+      # comes from the root package.json `packageManager` field.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Lint + format + typecheck. No `--fix`: in CI the question is whether the
+      # tree is already clean, and a fix would only hide that it wasn't.
+      - name: Check
+        run: pnpm exec vp check
+
+      - name: Test
+        run: pnpm exec vp test run
+
+  # `docs/` and `DESIGN.md` are generated but TRACKED, which makes them the one
+  # class of artifact that can silently disagree with its source. Everything else
+  # generated lands in gitignored `dist/`, where it is rebuilt on demand and can't
+  # go stale in the repository.
+  #
+  # Both regenerators are idempotent (verified), so this only fails when the
+  # committed copy genuinely differs from what the current source produces. The
+  # fix is always to run the named task and commit the result.
+  generated:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Writes dist/ (gitignored) and the tracked docs/ mirror.
+      - name: Regenerate the docs bundle
+        run: pnpm exec vp run build:theme
+
+      # Writes the tracked root DESIGN.md.
+      - name: Regenerate DESIGN.md
+        run: pnpm exec vp run build:design
+
+      - name: Generated artifacts are up to date
+        run: |
+          if ! git diff --quiet -- docs/ DESIGN.md; then
+            echo '::error::Generated artifacts are stale. Run `vp run build:theme` and `vp run build:design`, then commit.'
+            git --no-pager diff --stat -- docs/ DESIGN.md
+            git --no-pager diff -- docs/ DESIGN.md
+            exit 1
+          fi
+          echo 'docs/ and DESIGN.md match their source.'
+
+      # A doc the generator emits that the docs site does not carry is invisible
+      # to readers while `generateDocs` reports success — `sync-reference.mjs`
+      # throws on that, and this is where it gets caught before a deploy.
+      - name: The docs site carries every emitted doc
+        run: pnpm exec vp run docs:sync

@@ -1,0 +1,57 @@
+---
+/**
+ * A JSON Schema as a browsable tree.
+ *
+ * The walk comes from the generator's `schemaTreeNodes()` — the same walk that
+ * produces the `authoring.md` / `config.md` references for agents — so this page
+ * cannot describe fields the agent reference doesn't have. It returns *data*; the
+ * markup is `<Tree />`'s job, which is what keeps one accessible rendering
+ * contract instead of two sources of it.
+ *
+ * Descriptions are escaped by the generator's `renderInlineMarkdown()`, which also
+ * renders the closed inline subset the schema's `desc()` text uses (`` `code` ``,
+ * `**strong**`). They are passed as HTML, so nothing else may touch them.
+ */
+import { renderInlineMarkdown, schemaTreeNodes, type SchemaTreeNode } from '@getvitops/generator';
+// Imported through the package, not by relative path: this site is a consumer, and
+// consuming `<Tree />` the way a consumer must is what keeps the export honest.
+import Tree from '@getvitops/astro/components/Tree.astro';
+import type { TreeItem } from '@getvitops/astro/components/tree.ts';
+
+interface Props {
+  /** A JSON Schema object (`configJsonSchema`, `jsonSchema`, …). */
+  schema: unknown;
+  label?: string;
+  ariaLabel?: string;
+  /** Dotted id prefix, needed only if two trees share a page. */
+  idPrefix?: string;
+  openDepth?: number;
+  /** Dotted paths to render but not descend into. */
+  prune?: readonly string[];
+}
+const {
+  schema,
+  label = 'Filter fields',
+  ariaLabel = 'Configuration fields',
+  idPrefix,
+  openDepth = 0,
+  prune,
+} = Astro.props;
+
+const toItem = (n: SchemaTreeNode): TreeItem => ({
+  label: n.label,
+  badge: n.type,
+  ...(n.required ? { flag: 'required' } : {}),
+  ...(n.description ? { descriptionHtml: renderInlineMarkdown(n.description) } : {}),
+  ...(n.id ? { id: n.id } : {}),
+  ...(n.variant ? { unnamed: true } : {}),
+  ...(n.children.length ? { children: n.children.map(toItem) } : {}),
+});
+
+const items = schemaTreeNodes(schema as Parameters<typeof schemaTreeNodes>[0], {
+  idPrefix,
+  ...(prune ? { prune } : {}),
+}).map(toItem);
+---
+
+<Tree items={items} label={label} ariaLabel={ariaLabel} openDepth={openDepth} />

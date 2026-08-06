@@ -116,7 +116,7 @@ export interface GetvitopsCssOptions {
    *
    * Off by default: turning it on flips the site dark for dark-OS visitors, which
    * is a visible change to an existing site. Turning it **on** is what makes
-   * `<color-scheme-toggle>`'s "System" position do anything (System removes the
+   * `<wc-color-scheme-toggle>`'s "System" position do anything (System removes the
    * theme attribute, so without this block it falls through to light), and it is
    * the only way a no-JS page gets the OS appearance at all.
    *
@@ -710,7 +710,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         // deliberately wider than what we can detect. `analytics` covers
         // consumer-authored `data-consent` markup (an A/B split, an embed) that no
         // build-time scan can see; `preferences` covers core's own
-        // `<color-scheme-toggle>`, which demands it when a scheme is picked.
+        // `<wc-color-scheme-toggle>`, which demands it when a scheme is picked.
         //
         // This used to be a guess standing in for a fact — falling back to
         // `['analytics']` and then showing that banner to everyone. The runtime now

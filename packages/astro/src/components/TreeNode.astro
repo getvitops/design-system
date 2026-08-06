@@ -1,0 +1,63 @@
+---
+/**
+ * One node of a `<Tree />`, recursing through `Astro.self`.
+ *
+ * Two shapes, and the choice is semantic rather than cosmetic:
+ *
+ *   - a **branch** wraps its label in `<details>`/`<summary>` — a native
+ *     disclosure button, so expanded state is announced and keyboard operation
+ *     is free. The child `<ul>` lives inside the `<details>`, which is what makes
+ *     it collapse with no JS.
+ *   - a **leaf** is a plain `.tree__content` row. A `<details>` with nothing to
+ *     disclose would still render a control and announce as collapsible.
+ *
+ * The item class sits on the `<li>` in both cases, so `<wc-tree>`'s filter treats
+ * leaves and branches as one kind of thing and hiding one hides its whole row.
+ */
+import type { TreeItem } from './tree.ts';
+
+interface Props {
+  item: TreeItem;
+  depth: number;
+  /** Branches at a depth below this render open. */
+  openDepth: number;
+}
+const { item, depth, openDepth } = Astro.props;
+
+const kids = item.children ?? [];
+const isBranch = kids.length > 0;
+---
+
+<li class="tree__item" id={item.id}>
+  {
+    isBranch ? (
+      <details open={depth < openDepth}>
+        <summary>
+          <span class="tree__toggle" aria-hidden="true" />
+          <span class="tree__label">
+            {item.unnamed ? <em>{item.label}</em> : <code>{item.label}</code>}
+            {item.badge && <span class="badge">{item.badge}</span>}
+            {item.flag && <span class="badge badge-danger">{item.flag}</span>}
+          </span>
+        </summary>
+        {item.descriptionHtml && <p class="tree__desc" set:html={item.descriptionHtml} />}
+        <ul class="tree">
+          {kids.map((kid) => (
+            <Astro.self item={kid} depth={depth + 1} openDepth={openDepth} />
+          ))}
+        </ul>
+      </details>
+    ) : (
+      <Fragment>
+        <span class="tree__content">
+          <span class="tree__label">
+            {item.unnamed ? <em>{item.label}</em> : <code>{item.label}</code>}
+            {item.badge && <span class="badge">{item.badge}</span>}
+            {item.flag && <span class="badge badge-danger">{item.flag}</span>}
+          </span>
+        </span>
+        {item.descriptionHtml && <p class="tree__desc" set:html={item.descriptionHtml} />}
+      </Fragment>
+    )
+  }
+</li>

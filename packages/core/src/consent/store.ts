@@ -53,7 +53,7 @@ export interface ConsentState {
  *
  * Here rather than in `runtime.ts` so that a consumer can listen for it without
  * importing the runtime. That matters inside this package: `elements.js` and
- * `consent.js` are separate bundles, and `<color-scheme-toggle>` needs the name
+ * `consent.js` are separate bundles, and `<wc-color-scheme-toggle>` needs the name
  * to know when its `preferences` grant arrived. Importing it from `runtime.ts`
  * would drag the whole gate — and its top-level `scan()` — into every page with a
  * theme toggle. This module has no side effects, so the string tree-shakes out

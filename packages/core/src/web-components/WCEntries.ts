@@ -1,4 +1,5 @@
 import { BaseElement } from './BaseElement.js';
+import { initFromLightDom } from './utils/upgrade.js';
 
 /**
  * Adaptive data display that progressively enhances heading + <dl> pairs
@@ -93,9 +94,18 @@ export class WCEntries extends BaseElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
+    // The heading + <dl> pairs may not be parsed yet — see initFromLightDom.
+    // Without the retry, an element inserted via innerHTML kept its stacked
+    // fallback forever and never built its table, silently.
+    initFromLightDom(this, () => this.#setup());
+  }
+
+  /** Build the table if the slotted entries are present. Returns whether they were. */
+  #setup(): boolean {
+    if (this.#table) return true; // already built — never generate twice
 
     this.#parseContent();
-    if (this.#entries.length === 0) return;
+    if (this.#entries.length === 0) return false;
 
     this.#generateTable();
 
@@ -111,6 +121,7 @@ export class WCEntries extends BaseElement {
 
     this.#breakpointPx = this.#parseBreakpoint();
     this.#setupResizeObserver();
+    return true;
   }
 
   override disconnectedCallback(): void {

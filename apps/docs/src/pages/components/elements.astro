@@ -1,0 +1,84 @@
+---
+/**
+ * Tier 2 — the `<wc-*>` web components.
+ *
+ * "Ships in" is the column that matters most and is invisible everywhere else: a tag
+ * that is registered but in no bundle is inert in a consumer project, and a tag in
+ * its own bundle needs a different import than one in `elements.js`. The manifest
+ * records that per element, drift-guarded against what `js/elements.ts` actually
+ * imports, so this page cannot claim an element ships when it doesn't.
+ */
+import { tierPatterns } from '@getvitops/generator';
+import Docs from '../../layouts/Docs.astro';
+import TierEntries from '../../components/TierEntries.astro';
+import { alsoIn, code, href, md, type TierRow } from '../../components/tiers.ts';
+
+const base = import.meta.env.BASE_URL;
+
+const rows: TierRow[] = tierPatterns('wc').map(({ name, entry }) => {
+  const wc = entry.wc!;
+  const ships = wc.registered
+    ? code('elements.js')
+    : wc.bundle?.startsWith('(none')
+      ? '<strong>no bundle — inert</strong>'
+      : code(wc.bundle ?? '');
+  return {
+    id: `pattern-${name}`,
+    headingHtml: code(`<${wc.tag}>`),
+    cells: {
+      Pattern: code(name),
+      'Ships in': ships,
+      'What JS adds': md(wc.adds),
+      'Recommended call': md(entry.use),
+      'Also in': alsoIn(name, 'wc', base),
+    },
+  };
+});
+
+const unshipped = tierPatterns('wc').filter(
+  ({ entry }) => !entry.wc!.registered && entry.wc!.bundle?.startsWith('(none'),
+);
+
+const title = 'Web components';
+const description =
+  'Tier 2 — the wc-* elements: what each adds over its no-JS fallback, and which bundle it ships in.';
+---
+
+<Docs title={title} description={description}>
+  <p>
+    Tier 2 exists <strong>only</strong> where a pattern genuinely benefits from progressive
+    enhancement. The slotted markup <em>is</em> the fallback — semantic, accessible and usable with no
+    JavaScript — and the element parses it and augments it in place. None of these render from empty,
+    which is why the "what JS adds" column is the reason each one exists at all.
+  </p>
+  <p>
+    They use light DOM, so the framework CSS applies to both the fallback and the enhanced result, and
+    ship as feature-detected, deferred ES-module bundles. Polyfills load only when a native feature is
+    missing.
+  </p>
+
+  <h2 id="bundles">Which bundle</h2>
+  <p>
+    Most register in <code>elements.js</code>. Two ship separately and deliberately:
+    <code>&lt;wc-consent&gt;</code> in its own Lit-free bundle, so a site that needs a consent gate
+    isn't made to download a rendering framework and the gate can load ahead of the deferred Lit
+    bundle it gates; and <code>&lt;wc-theme-editor&gt;</code>, which is tooling rather than a page
+    pattern and is opt-in per consumer, so a production page that doesn't ask for it pays nothing.
+  </p>
+  {
+    unshipped.length > 0 && (
+      <p class="notification bg-warning-muted">
+        {unshipped.map(({ entry }) => entry.wc!.tag).join(', ')} are <strong>registered but in no
+        bundle</strong> (the editor-v2 track). The tags are inert in a consumer project — they are
+        listed so that "the tag does nothing" is documented rather than discovered.
+      </p>
+    )
+  }
+
+  <TierEntries rows={rows} />
+
+  <p class="font-footnote">
+    Live, interactive demos of each are on the
+    <a class="link" href={href('patterns', base)}>Patterns</a> page.
+  </p>
+</Docs>

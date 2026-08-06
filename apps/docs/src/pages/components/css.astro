@@ -1,0 +1,71 @@
+---
+/**
+ * Tier 1 — the CSS framework classes, per pattern.
+ *
+ * Membership is `tierPatterns('css')`, which is a predicate rather than a presence
+ * check: every manifest entry HAS a `css` field, but the editor-v2 entries carry no
+ * partial, no classes and no config pattern, and listing them here would promise
+ * classes that don't exist.
+ *
+ * The class lists are representative, not exhaustive — the framework's vocabulary is
+ * stated as naming rules, so enumerating it here would be a second, staler copy. The
+ * class reference is linked instead.
+ */
+import { tierPatterns } from '@getvitops/generator';
+import Docs from '../../layouts/Docs.astro';
+import TierEntries from '../../components/TierEntries.astro';
+import { alsoIn, code, href, md, NONE, type TierRow } from '../../components/tiers.ts';
+import ds from '../../../../../src/design-system.json';
+
+const base = import.meta.env.BASE_URL;
+
+// Which patterns THIS config declares. `css.generated` records that a pattern is of
+// the config-authored kind against the reference config; it cannot know that a given
+// consumer dropped one. Naming classes for a pattern the build emits nothing for is
+// the failure worth flagging.
+const declared = new Set(Object.keys(ds.patterns?.items ?? {}));
+
+const rows: TierRow[] = tierPatterns('css').map(({ name, entry }) => ({
+  id: `pattern-${name}`,
+  headingHtml: code(name),
+  cells: {
+    Partial: entry.css.partial ? code(entry.css.partial) : NONE,
+    Classes: entry.css.classes.length ? entry.css.classes.map(code).join(', ') : NONE,
+    'Config-authored': !entry.css.generated
+      ? NONE
+      : declared.has(name)
+        ? `<code>patterns.items.${name}</code>`
+        : `<strong>not in this config</strong>`,
+    'Recommended call': md(entry.use),
+    'Also in': alsoIn(name, 'css', base),
+  },
+}));
+
+const title = 'CSS framework classes';
+const description =
+  'Tier 1 — every pattern expressible in pure HTML and CSS: its partial, its representative classes, and whether it is config-authored.';
+---
+
+<Docs title={title} description={description}>
+  <p>
+    Tier 1 is every pattern expressible in <strong>pure HTML and CSS</strong>, built on modern
+    platform features — Anchor Positioning, Popover, Invoker Commands, <code>&lt;details&gt;</code>,
+    subgrid, container queries, scroll-driven animations. Reach here before anything else.
+  </p>
+  <p>
+    A <strong>config-authored</strong> pattern comes from <code>patterns.items</code> in your design
+    system, so it gets the full token cascade — <code>base</code> declarations, <code>states</code>,
+    role variants and <code>--&lt;prop&gt;-&lt;pattern&gt;</code> override hooks. Everything else is a
+    structural partial with none of those. See
+    <a class="link" href={href('reference/concepts-patterns', base)}>Component patterns</a> for how
+    that cascade resolves.
+  </p>
+  <p class="font-footnote">
+    Classes shown are representative. The framework's vocabulary is defined by naming rules, not a
+    list — see the
+    <a class="link" href={href('reference/css-classes', base)}>class vocabulary</a> for the full
+    grammar, and the <a class="link" href={href('patterns', base)}>Patterns</a> page for live demos.
+  </p>
+
+  <TierEntries rows={rows} />
+</Docs>

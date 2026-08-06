@@ -119,23 +119,6 @@ it applies in the canvas and the frontend. Add modifier classes there:
 
 ---
 
-## Color Scheme Toggle — `vitops-color-scheme-toggle` · not nestable
-
-Renders the <color-scheme-toggle> Lit component (src/web-components/WCColorSchemeToggle.ts):
-a segmented System / Light / Dark theme toggle, hidden until JS loads. Optionally seed
-the initial `scheme`.
-
-Non-nestable: PHP render() runs in the builder canvas too, so the toggle upgrades
-live while editing.
-
-**Controls**
-
-- **Initial scheme** (select, placeholder `System`) — Options: `System`, `Light`, `Dark`.
-
-**Keywords:** color, scheme, theme, dark, light, toggle.
-
----
-
 ## Dismissable — `vitops-dismissable` · nestable
 
 Renders the <wc-dismissable> Lit component (src/web-components/WCDismissable.ts): a
@@ -314,6 +297,23 @@ shows the two columns stacked (upgrade happens client-side via dist/elements.js)
 
 ---
 
+## Color Scheme Toggle — `vitops-color-scheme-toggle` · not nestable
+
+Renders the <wc-color-scheme-toggle> Lit component (src/web-components/WCColorSchemeToggle.ts):
+a segmented System / Light / Dark theme toggle, hidden until JS loads. Optionally seed
+the initial `scheme`.
+
+Non-nestable: PHP render() runs in the builder canvas too, so the toggle upgrades
+live while editing.
+
+**Controls**
+
+- **Initial scheme** (select, placeholder `System`) — Options: `System`, `Light`, `Dark`.
+
+**Keywords:** color, scheme, theme, dark, light, toggle.
+
+---
+
 ## Copy Button — `vitops-copy-button` · not nestable
 
 Renders the <wc-copy> Lit component (src/web-components/WCCopy.ts): a
@@ -364,7 +364,7 @@ live while editing.
 
 ## Multi Field — `vitops-multi-field` · not nestable
 
-Renders the <wc-multifield> Lit component (src/web-components/WCMultiField.ts): a
+Renders the <wc-multi-field> Lit component (src/web-components/WCMultiField.ts): a
 form-associated repeatable input group (add / remove entries, min / max). Default
 entries are supplied as slotted <input value="…"> children, which the component reads
 on connect.

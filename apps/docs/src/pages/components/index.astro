@@ -1,0 +1,86 @@
+---
+/**
+ * Components overview — the four tiers, and how they compose.
+ *
+ * The four pages under this one each project ONE tier, because a reader arrives
+ * already knowing their stack ("show me the Astro components"). What that split
+ * loses is the composition, which only exists between tiers — so it lives here, in
+ * prose, rather than being repeated on each page.
+ *
+ * The agent-facing projection is the opposite shape: `vitops docs components` keeps
+ * all four tiers in one document, because an agent arrives knowing the pattern it
+ * needs and has to be told which tiers offer it and which single call to make. Both
+ * render from the generator's `TIERS` manifest, so neither can drift.
+ */
+import { tierPatterns } from '@getvitops/generator';
+import Docs from '../../layouts/Docs.astro';
+import { href, TIER_ORDER, TIER_PAGES } from '../../components/tiers.ts';
+
+const base = import.meta.env.BASE_URL;
+const counts = Object.fromEntries(TIER_ORDER.map((t) => [t, tierPatterns(t).length]));
+
+const title = 'Components';
+const description =
+  'Every UI pattern across the four tiers — CSS framework classes, wc-* web components, Astro components and Bricks elements — which tiers provide it, and how they compose.';
+---
+
+<Docs title={title} description={description}>
+  <p>
+    A pattern — a tree, a carousel, a dialog, a card — is provided by up to four tiers, and they
+    <strong>compose</strong> rather than compete. Each page below lists one tier in full.
+  </p>
+
+  <ul class="grid-auto" style="--grid-min: 14rem">
+    {
+      TIER_ORDER.map((tier, i) => (
+        <li class="card rhythm">
+          <p class="font-eyebrow">Tier {i + 1}</p>
+          <p class="font-heading">
+            <a class="link" href={href(TIER_PAGES[tier].path, base)}>{TIER_PAGES[tier].label}</a>
+          </p>
+          <p class="font-caption text-surface-muted">
+            {counts[tier]} pattern{counts[tier] === 1 ? '' : 's'}
+          </p>
+        </li>
+      ))
+    }
+  </ul>
+
+  <h2 id="choosing">Choosing a tier</h2>
+  <p>
+    <strong>Use the highest-numbered tier your stack has, and write only its call.</strong> In Astro
+    that is the Astro component; in Bricks the element; anywhere else the classes, plus the
+    <code>&lt;wc-*&gt;</code> tag when one exists. Each page names the call to write per pattern — and
+    because that call names the highest tier available, a pattern's row on the
+    <a class="link" href={href(TIER_PAGES.css.path, base)}>CSS page</a> may well tell you to write an
+    Astro component instead. That is the recommendation, not a correction.
+  </p>
+
+  <h2 id="composing">Do not compose two tiers by hand</h2>
+  <p>
+    Where an Astro component wraps a web component it emits that tag <em>with the accessible
+    fallback inside it</em>, so that one call is the whole composition. Wrapping it again nests two
+    elements on one tree:
+  </p>
+  <pre><code>{'<!-- wrong: two elements, one tree -->\n<wc-tree><Tree items={…} /></wc-tree>\n\n<!-- right -->\n<Tree items={…} />'}</code></pre>
+  <p class="font-footnote">
+    The <a class="link" href={href(TIER_PAGES.astro.path, base)}>Astro components</a> page records
+    which components wrap a tag and which emit plain markup.
+  </p>
+
+  <h2 id="fallback">A web component enhances markup you supply</h2>
+  <p>
+    Tier 2 exists only where a pattern genuinely benefits from progressive enhancement. The slotted
+    markup <em>is</em> the fallback: it must be semantic and usable with no JavaScript, and the
+    element parses and augments it in place — it never renders from empty. Turn JavaScript off and
+    the carousel is a scroll-snap strip, the compare slider is two images, the entries are headings
+    and definition lists. If you want a component that renders from nothing, the pattern is in the
+    wrong tier.
+  </p>
+  <p class="font-footnote">
+    Working demos of every pattern are on the
+    <a class="link" href={href('patterns', base)}>Patterns</a> page. For how a pattern's CSS is
+    assembled — token cascade, states, role variants — see
+    <a class="link" href={href('reference/concepts-patterns', base)}>Component patterns</a>.
+  </p>
+</Docs>

@@ -68,7 +68,7 @@ export interface ConsentApi {
    * Declare that something needs this category *now*, and report whether it is
    * granted. Registering the demand is what reveals the banner if the visitor
    * hasn't answered yet, so this is the call that turns a page interaction into a
-   * prompt — `<color-scheme-toggle>` uses it when a scheme is picked.
+   * prompt — `<wc-color-scheme-toggle>` uses it when a scheme is picked.
    *
    * Synchronous: it answers about the state as it stands, not about the choice
    * the visitor is being asked to make. Use `request()` to wait for that.
@@ -376,7 +376,7 @@ const api: ConsentApi = {
  * The inline stub `<Head />` emits when the gate is enabled, and its queue.
  *
  * Both this module and `elements.js` are deferred, with no ordering guarantee
- * between them, so `<color-scheme-toggle>` can upgrade and be clicked before this
+ * between them, so `<wc-color-scheme-toggle>` can upgrade and be clicked before this
  * file evaluates. A caller probing for `window.vitopsConsent` in that window would
  * see nothing, conclude the site has no gate, and store — which is precisely the
  * leak the gate exists to prevent. The stub makes the gate's *existence* known

@@ -17,13 +17,18 @@ export abstract class BaseElement extends SignalWatcherLitElement {
   }
 }
 
-/** include for non-abstract classes: */
-// if (!customElements.get('base-element')) {
-//   customElements.define('base-element', BaseElement);
+/**
+ * Include for non-abstract classes. The tag MUST be `wc-*` prefixed — that is a
+ * rule, not a convention, and `tiers.test.ts` asserts it over every
+ * `customElements.define` in this directory. This block is the template people
+ * copy, so it shows the prefix.
+ */
+// if (!customElements.get('wc-base-element')) {
+//   customElements.define('wc-base-element', BaseElement);
 // }
 
 // declare global {
 //   interface HTMLElementTagNameMap {
-//     'base-element': BaseElement;
+//     'wc-base-element': BaseElement;
 //   }
 // }

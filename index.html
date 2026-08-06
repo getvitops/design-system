@@ -27,7 +27,7 @@
     <script type="module" src="./dist/polyfills.js"></script>
     <script defer src="./dist/deferred.js"></script>
     <!-- Lit custom elements (splitter, image-compare, dismissable, copy, carousel,
-         entries, color-scheme-toggle, wc-multifield). Progressive: markup degrades
+         entries, wc-color-scheme-toggle, wc-multi-field). Progressive: markup degrades
          without JS; these upgrade it on load. -->
     <script type="module" src="./dist/elements.js"></script>
     <!-- Consent gate (@getvitops/core/consent — its own Lit-free bundle, not part of
@@ -149,7 +149,7 @@
       /* Point the toggle's documented theming hooks at framework tokens so it
          follows the palette in both appearances (its own defaults are
          standalone hard-coded greys). */
-      color-scheme-toggle {
+      wc-color-scheme-toggle {
         --color-scheme-toggle-bg: var(--color-bg-surface-muted);
         --color-scheme-toggle-color: var(--color-text-surface);
         --color-scheme-toggle-hover-bg: var(--color-bg-surface-x-muted);
@@ -582,7 +582,7 @@
       <!-- Dogfoods the shipped web component (dist/elements.js) rather than a
            bespoke handler: it writes [data-theme] on <html>, one of the two
            attributes the generated dark block matches. -->
-      <color-scheme-toggle></color-scheme-toggle>
+      <wc-color-scheme-toggle></wc-color-scheme-toggle>
     </div>
 
     <!-- Scroll-progress bar (framework class, pure CSS) -->
@@ -3942,7 +3942,7 @@
         btn.addEventListener('click', () => target?.classList.toggle('is-open'));
       });
 
-      // Dark mode has no handler here on purpose: <color-scheme-toggle> in the
+      // Dark mode has no handler here on purpose: <wc-color-scheme-toggle> in the
       // topbar owns it (dist/elements.js), same as any consumer gets.
     </script>
 

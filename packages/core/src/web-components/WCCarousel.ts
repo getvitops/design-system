@@ -1,4 +1,5 @@
 import { BaseElement } from './BaseElement.js';
+import { initFromLightDom } from './utils/upgrade.js';
 
 /**
  * Infinite-loop carousel with optional autoplay.
@@ -69,8 +70,18 @@ export class WCCarousel extends BaseElement {
       this.setAttribute('aria-roledescription', 'carousel');
     }
 
+    // The slides may not be parsed yet — see initFromLightDom. The a11y
+    // attributes above are safe on connect and stay there; everything below
+    // depends on the slotted slides existing.
+    initFromLightDom(this, () => this.#setupSlides());
+  }
+
+  /** Wire up cloning/autoplay if the slotted slides are present. */
+  #setupSlides(): boolean {
+    if (this.#realSlides.length >= 2) return true; // already set up
+
     this.#realSlides = [...this.children].filter((el) => !el.hasAttribute('slot'));
-    if (this.#realSlides.length < 2) return;
+    if (this.#realSlides.length < 2) return false;
 
     /* Paged mode (CSS columns) — cloning individual items would just add
        more items to the column flow, not clone pages. Only autoplay applies. */
@@ -103,6 +114,7 @@ export class WCCarousel extends BaseElement {
       this.addEventListener('focusin', this.#pauseAutoplay);
       this.addEventListener('focusout', this.#resumeAutoplay);
     }
+    return true;
   }
 
   override disconnectedCallback(): void {

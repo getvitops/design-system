@@ -94,11 +94,11 @@ interface Manifest {
 }
 
 const STORAGE_KEY = 'vitops:ds-overrides';
-/** Shared with `<color-scheme-toggle>` — the two must not fight over the scheme. */
+/** Shared with `<wc-color-scheme-toggle>` — the two must not fight over the scheme. */
 const SCHEME_KEY = 'vitops-color-scheme';
 /**
  * Both attributes, matching the generator's own DARK_SEL: `data-brx-theme` is
- * Bricks', `data-theme` is what `<color-scheme-toggle>` writes. Overrides have to
+ * Bricks', `data-theme` is what `<wc-color-scheme-toggle>` writes. Overrides have to
  * match wherever the page's own dark block does.
  */
 const DARK_SELECTOR = ':root[data-brx-theme="dark"], :root[data-theme="dark"]';
@@ -273,7 +273,7 @@ export class WCThemeEditor extends HTMLElement {
       : 'light';
   }
 
-  /** Drive the *same* attribute + storage key as `<color-scheme-toggle>`. */
+  /** Drive the *same* attribute + storage key as `<wc-color-scheme-toggle>`. */
   private setScheme(next: Scheme): void {
     this.scheme = next;
     document.documentElement.dataset.theme = next;

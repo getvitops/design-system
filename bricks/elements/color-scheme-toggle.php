@@ -2,7 +2,7 @@
 /**
  * Vitops — Color Scheme Toggle element (Bricks Builder).
  *
- * Renders the <color-scheme-toggle> Lit component (src/web-components/WCColorSchemeToggle.ts):
+ * Renders the <wc-color-scheme-toggle> Lit component (src/web-components/WCColorSchemeToggle.ts):
  * a segmented System / Light / Dark theme toggle, hidden until JS loads. Optionally seed
  * the initial `scheme`.
  *
@@ -21,7 +21,7 @@ class Vitops_Element_Color_Scheme_Toggle extends \Bricks\Element {
 	public $category     = 'vitops';
 	public $name         = 'vitops-color-scheme-toggle';
 	public $icon         = 'ti-shine';
-	public $css_selector = 'color-scheme-toggle';
+	public $css_selector = 'wc-color-scheme-toggle';
 
 	public function get_label() {
 		return esc_html__( 'Color Scheme Toggle', 'bricks' );
@@ -56,6 +56,6 @@ class Vitops_Element_Color_Scheme_Toggle extends \Bricks\Element {
 
 		$attr_str = implode( ' ', $attrs );
 
-		echo "<color-scheme-toggle {$attr_str} {$this->render_attributes( '_root' )}></color-scheme-toggle>";
+		echo "<wc-color-scheme-toggle {$attr_str} {$this->render_attributes( '_root' )}></wc-color-scheme-toggle>";
 	}
 }

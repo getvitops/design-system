@@ -35,6 +35,7 @@
     "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
+    "happy-dom": "catalog:",
     "vitest": "^4.1.9"
   }
 }

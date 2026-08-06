@@ -19,7 +19,29 @@ export type {
 export { expandPalette, functionalRole } from './tokens.ts';
 export type { ExpandedHue, FunctionalRole } from './tokens.ts';
 
-export { generateDocs } from './docs.ts';
+export {
+  generateDocs,
+  renderInlineMarkdown,
+  schemaTreeNodes,
+  type JsonSchemaNode,
+  type SchemaTreeNode,
+  type SchemaTreeOptions,
+} from './docs.ts';
+
+// Which tiers provide each pattern, and the call to make. Authored + drift-guarded;
+// see tiers.ts for why it can't be derived from naming convention.
+export {
+  TIERS,
+  TIER_NAMES,
+  tierPatterns,
+  tierTags,
+  type Tier,
+  type TierAstro,
+  type TierCss,
+  type TierEntry,
+  type TierProjection,
+  type TierWc,
+} from './tiers.ts';
 /**
  * SVG sprite emitter. `spriteId` is the id grammar `<use href="…#id">` targets;
  * @getvitops/astro's Icon.astro mirrors it, so treat it as a shared contract.

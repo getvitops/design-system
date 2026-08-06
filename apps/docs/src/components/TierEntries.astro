@@ -1,0 +1,49 @@
+---
+/**
+ * One tier's patterns, as heading + `<dl>` pairs that become a table when there's
+ * room.
+ *
+ * `<wc-entries>` is the right shape here rather than a hand-written `.table`: these
+ * are reference tables of 4–5 columns that a phone cannot show as a table at all.
+ * With no JS they are semantic pairs, wide they are a table, and `projection` gives
+ * the narrow case a sticky first column with nav buttons instead of a horizontal
+ * scrollbar. It is also the tier-2 exemplar, so the components section demonstrates
+ * the thing it documents.
+ *
+ * Cells are HTML because the manifest's prose is markdown — `use` and `adds` name
+ * tags and classes in backticks. `<wc-entries>` copies `<dd>` content with
+ * `innerHTML` (not `textContent`), so markup survives into the generated table;
+ * render it through the generator's `renderInlineMarkdown()` and never hand-build it.
+ *
+ * Rows carry an `id`, but nothing cross-links to it on purpose. In table mode the
+ * `<h3>` is hidden, and a fragment pointing at a node with no layout box leaves the
+ * browser silently at the top of the page — the same trap `<wc-tree>` had to open
+ * ancestors to solve. Cross-tier links therefore address the page, not the row.
+ */
+import type { TierRow } from './tiers.ts';
+
+interface Props {
+  rows: TierRow[];
+  /** Container width at which the table replaces the stacked pairs. */
+  breakpoint?: string;
+}
+const { rows, breakpoint = '55rem' } = Astro.props;
+---
+
+<wc-entries projection breakpoint={breakpoint}>
+  {
+    rows.map((row) => (
+      <Fragment>
+        <h3 id={row.id} set:html={row.headingHtml} />
+        <dl>
+          {Object.entries(row.cells).map(([term, html]) => (
+            <Fragment>
+              <dt>{term}</dt>
+              <dd set:html={html} />
+            </Fragment>
+          ))}
+        </dl>
+      </Fragment>
+    ))
+  }
+</wc-entries>

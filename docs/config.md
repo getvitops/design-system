@@ -53,63 +53,6 @@ one is in [authoring.md](authoring.md). Only the wrapper is listed here.
 Named themes. `default` is the base; others may `extends` another and supply a partial patch. Light/dark is NOT a theme — the functional tokens flip per appearance within each one, so `default` already has both. Only the default theme is built today; multi-theme output and a picker are not wired yet.
 
 - `<name>` (object)
-  - `$schema` (string) — URL of the published JSON Schema (stamped by `vitops init`) so editors provide autocomplete + validation.
-  - `meta` (object) — Brand identity for agent-facing output. Consumed only by the `design` format (`DESIGN.md`); it emits no CSS and no tokens.
-    - `name` (string) — Brand/system name. Used as the `name` field and `<h1>` of the `design` format's `DESIGN.md`. Defaults to "Design System".
-    - `description` (string) — One or two sentences on the brand personality and the feeling the UI should evoke — what an agent needs when no token answers the question. Becomes the DESIGN.md `description` field and opens its Overview section; if omitted, a generic description of the system's mechanics is used instead.
-  - `colors` (object)
-    - `palette` (map)
-      - `<name>` (one of) — A palette hue, authored one of two ways: `{ seed, anchors? }` generates an 11-step numeric OKLCH scale (50…950) from the seed, or `{ tones }` supplies a fixed brand kit used verbatim.
-    - `roles` (map)
-      - `<name>` (one of)
-    - `utilities` (array of bg | text | icon | border | outline | fill | stroke)
-  - `shadows` (map) — Named shadows → `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Values are shadow parameter lists (offset/blur/colour). Each token feeds two consumers with different grammars — `box-shadow` (pattern geometry, via the `--ds-*` group aliases) and `filter: drop-shadow(…)` (the utilities and the `shadow:` state shortcut) — so values must stay in the intersection: **one layer, no spread radius, no `inset`**. `drop-shadow()` rejects all three, and rejecting them invalidates the whole filter, so the shadow vanishes rather than degrading.
-  - `fonts` (map) — Raw font stacks by name, emitted as `--font-<name>` tokens (referenced by `typography.families`). **Stacks only — vitops does not load webfonts.** A value here is a `font-family` list and nothing more: it emits no `@font-face`, no preload, and no metrics-matched fallback. If a family needs loading, declare it in Astro's `fonts:` config (`astro.config`, or the site config's `fonts` array) and point the token at the family's `cssVariable` — `"display": "var(--font-league-spartan), sans-serif"`. Installing a `@fontsource*` package and importing its CSS also works but gives up subsetting, preload and `size-adjust`/`ascent-override` fallbacks, so it regresses CLS.
-  - `typeScale` (object) — Fluid modular TYPE scale → `--text-<name>` tokens, consumed by typography roles and text-size utilities.
-    - `base` (string, required) — Anchor size (a CSS length, e.g. "1rem") — the value at `baseStep`.
-    - `ratio` (number, required) — Modular ratio between adjacent steps at large viewports.
-    - `steps` (number) — Token count when `names` is absent (steps are then named 1..steps).
-    - `names` (array of string) — Step names, smallest → largest (e.g. ["xs","sm","md",…]); each becomes a token suffix.
-    - `baseStep` (number) — 1-based index of the step whose value is `base`.
-    - `baseline` (string) — Named step used as the fluid pivot / GUI scale centre (defaults to `baseStep`).
-    - `fluid` (object) — Makes the scale fluid: each step compiles to a clamp() that interpolates from `minRatio` at `minVw` to `ratio` at `maxVw`.
-      - `minVw` (string, required) — Viewport width (CSS length) where fluid scaling bottoms out.
-      - `maxVw` (string, required) — Viewport width (CSS length) where fluid scaling tops out.
-      - `minRatio` (number, required) — Modular ratio at/below `minVw` (usually < `ratio`).
-  - `spaceScale` (object) — Fluid modular SPACE scale → `--space-<name>` tokens, consumed by spacing/gap utilities and vertical rhythm.
-    - `base` (string, required) — Anchor size (a CSS length, e.g. "1rem") — the value at `baseStep`.
-    - `ratio` (number, required) — Modular ratio between adjacent steps at large viewports.
-    - `steps` (number) — Token count when `names` is absent (steps are then named 1..steps).
-    - `names` (array of string) — Step names, smallest → largest (e.g. ["xs","sm","md",…]); each becomes a token suffix.
-    - `baseStep` (number) — 1-based index of the step whose value is `base`.
-    - `baseline` (string) — Named step used as the fluid pivot / GUI scale centre (defaults to `baseStep`).
-    - `fluid` (object) — Makes the scale fluid: each step compiles to a clamp() that interpolates from `minRatio` at `minVw` to `ratio` at `maxVw`.
-      - `minVw` (string, required) — Viewport width (CSS length) where fluid scaling bottoms out.
-      - `maxVw` (string, required) — Viewport width (CSS length) where fluid scaling tops out.
-      - `minRatio` (number, required) — Modular ratio at/below `minVw` (usually < `ratio`).
-  - `patterns` (object) — Component patterns and their token cascade: `defaults` → `groups` → per-pattern `overrides`, plus shape (`radii`) and z-index primitives.
-    - `defaults` (map) — Cascade-wide fallback tokens, emitted as `--<prop>-default`.
-    - `radii` (map) — Shape primitives, emitted as `--br-<name>` (referenced by pattern bases).
-    - `groups` (map) — Group-level tokens, emitted as `--<prop>-<group>`; patterns opt in via their `group` key.
-      - `<name>` (map) — A CSS declaration block: property → value. Values stay strings (they can be hex, var(), clamp(), keywords, …); the generator, not the schema, interprets them.
-    - `z` (map) — Z-index tiers → `--z-tier-<name>`.
-    - `items` (map) — The component patterns to emit, keyed by name.
-      - `<name>` (object) — One component pattern (button, link, badge, card, …): base declarations + interaction states + semantic role variants, resolved through the pattern token cascade.
-  - `typography` (object) — Typography: family aliases, semantic type roles (→ `font-<role>` classes), and the bare-element → role mapping.
-    - `families` (map) — Role-facing family aliases → CSS font values, usually referencing the top-level `fonts` tokens (e.g. "var(--font-display)").
-    - `roles` (map) — Semantic type roles (display, title, heading, body, quote, caption, eyebrow, code, lead, footnote, tag, …), each emitted as a `font-<role>` class.
-      - `<name>` (map) — A bag of CSS-ish keys, each mapped to a declaration plus a `--<role>-<sfx>` override hook. The recognised set is **closed**: `family`, `size`, `weight`, `style`, `line-height`, `tracking` (→ `letter-spacing`), `text-transform`, `text-decoration`, `text-wrap`, `color`. Note the last four are spelled with their full CSS property names — `transform` and `decoration` are NOT accepted. Anything unrecognised is **ignored**, not passed through, so the generator warns rather than emitting it: a silently-dropped `transform: uppercase` is how title-case navigation reaches production. Note also that `style`, `text-transform`, `text-decoration` and `text-wrap` are emitted on **every** role at their identity value (`normal`/`none`/`none`/`wrap`) whether declared or not, so applying one role class over another fully resets it — which means **omitting `text-wrap` is not "inherit"**: it emits `text-wrap: wrap` and cancels the `pretty` the role would otherwise inherit from a `pretty` ancestor such as a `body`-mapped role. Declare it on every role — `balance` for heading-like roles, `pretty` for copy, `wrap` for short single-line labels.
-    - `headings` (map) — Maps bare elements to type roles so unclassed markup picks up role styling — `{ "h1": "display", "h2": "heading" }`. The key is used verbatim as a selector, so it is not limited to h1…h6: **map `"body"` to your prose role** to bind base page typography to the role rather than hand-writing it. That binding is what makes the role editable — a stylesheet that re-states `font-family`/`line-height` as literals on `body` shadows `--<role>-ff`/`--<role>-lh`, and the live theme editor then appears to do nothing.
-  - `animations` (object) — Animation effect + journey classes (pure value layers). The animation engine itself — keyframes, drivers, floats, utilities — is static framework CSS, not configured here.
-    - `effects` (map) — Effect classes to emit (`.fade-in`, `.reveal-left`, …), keyed by class name.
-      - `<name>` (object) — A named animation effect class — a pure value layer (`--_anim` + `--<prop>-from/-to`) over the static keyframe engine.
-    - `journeys` (object) — Multi-part journey classes composed from `base` building blocks.
-      - `base` (map) — Named journey building blocks: part name → var map.
-      - `compose` (array of array) — Combinations of base parts, each emitted as a `.<parts>-journey` class.
-  - `displayName` (one of) — Human-readable theme name (localisable). The label a theme picker would show — nothing reads it yet, because nothing builds more than one theme (see `themes`).
-    - *one of*
-    - *one of*
-  - `extends` (string) — Another `themes` key to inherit from; this entry then only supplies what it overrides.
 
 ### `defaultTheme` *(optional)*
 
@@ -117,7 +60,7 @@ Which `themes` entry to use (convention: "default"). Validated against the map; 
 
 ### `defaultColorScheme` *(optional)*
 
-Initial appearance. `"system"` follows the OS via `prefers-color-scheme` and is what makes `<color-scheme-toggle>`'s "System" position resolve to anything — it removes the theme attribute, so without this the page falls through to light. It also gives a no-JS page the OS appearance. Defaults to `"light"`, because switching an existing site to `"system"` visibly flips it dark for dark-OS visitors.
+Initial appearance. `"system"` follows the OS via `prefers-color-scheme` and is what makes `<wc-color-scheme-toggle>`'s "System" position resolve to anything — it removes the theme attribute, so without this the page falls through to light. It also gives a no-JS page the OS appearance. Defaults to `"light"`, because switching an existing site to `"system"` visibly flips it dark for dark-OS visitors.
 
 ## `organization` *(optional)*
 
@@ -482,7 +425,7 @@ SEO defaults: title/description templates, robots policy, verification tokens, O
     - `key` (string, required) — IndexNow key (8–128 chars, hex is conventional). NOT a secret — it is served publicly at `keyLocation` so the engine can verify you own the host. Generate one with `vitops search notify --new-key`.
     - `keyLocation` (string) — Absolute URL of the key file. Defaults to `<canonical>/<key>.txt`; set it only when the file lives elsewhere.
     - `endpoint` (string) — IndexNow endpoint (default `https://api.indexnow.org/indexnow`). Any participating engine shares submissions with the rest, so one is normally enough.
-  - `searchConsole` (object) — Google Search Console property. Needs a service-account credential in `VITOPS_GSC_SERVICE_ACCOUNT` or `GOOGLE_APPLICATION_CREDENTIALS` at run time — never put the key in this file.
+  - `searchConsole` (object) — Google Search Console property. Needs a credential at run time — either a service account in `VITOPS_GSC_SERVICE_ACCOUNT` / `GOOGLE_APPLICATION_CREDENTIALS`, or the user OAuth credential `vitops search setup` uses (`VITOPS_GOOGLE_CLIENT_ID` / `_CLIENT_SECRET` / `_REFRESH_TOKEN`). The service account wins when both are set. Never put a key in this file.
     - `siteUrl` (string, required) — The property exactly as Search Console identifies it — `sc-domain:acme.ca` for a domain property, or the URL-prefix form `https://acme.ca/`. A mismatch here is a 403, not a "not found".
     - `resubmitSitemap` (boolean) — Re-submit the sitemap through the Search Console API on each notify (default true when `searchConsole` is set). This is the automated equivalent of the manual resubmit in the UI.
   - `priorityUrls` (array of string) — The pages whose indexing actually matters. `vitops search notify --check` inspects these and exits non-zero if Google has not indexed one. Kept explicit because URL Inspection is quota-bound (2000/day), so checking every page is neither affordable nor informative.
@@ -502,16 +445,25 @@ Analytics provider IDs (gated per environment via `environments.<env>.analytics`
 
 ### `notifications` *(optional)*
 
-Where site notifications (e.g. form submissions) are sent.
+Where site notifications (form submissions, tracked calls) are sent. TODO: `sms` and `persist` channels — only `email` is implemented.
 
-- `email` (string)
+- `email` (one of) — Where conversion notifications are e-mailed. A bare address is shorthand for `{ provider: "cloudflare", to }`.
+  - *one of*
+  - *one of*
+    - `provider` (string, required) — Delivery provider. Only Cloudflare Email Sending is implemented; the field is stated so adding another is additive.
+    - `to` (string) — Recipient. Defaults to the primary location’s `email`, then the first location that has one.
+    - `from` (string) — Sender. Defaults to `noreply@<domains.canonical>`. Its domain must be onboarded (`wrangler email sending enable <domain>`) or every send fails.
+    - `fromName` (string) — Display name on the From header. Defaults to `organization.name`.
+    - `replyTo` (string) — Reply-To header.
+    - `binding` (string) — Workers `send_email` binding name (default `EMAIL`). Set it when using a restricted binding.
 
 ### `tracking` *(optional)*
 
-Marketing/conversion tracking toggles per platform.
+Ad-click attribution for conversion tracking.
 
-- `enabled` (boolean)
-- `platforms` (array of string)
+- `enabled` (boolean) — Capture ad click IDs and UTMs from the landing URL into the `_ac` cookie, for attributing conversions.
+- `category` (marketing | analytics) — Consent category the `_ac` cookie waits on (default `marketing`). It is a 90-day identifier tying a visitor to the ad that brought them, so it is only written once this category is granted — and asking for it is what raises the banner.
+- `platforms` (array of string) — Informational list of ad platforms in use. Capture recognises every known click-ID parameter regardless.
 
 ### `security` *(optional)*
 

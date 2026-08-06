@@ -25,7 +25,7 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      (`createRenderRoot() → this`) so the framework CSS applies to both the fallback and the enhanced
      result.
    - Exemplar: **`WCEntries`** — with no JS it renders semantic `<h3>` + `<dl>` pairs; with JS on a
-     wide container it parses them into a table. (Others: carousel, image-compare, wc-multifield, …)
+     wide container it parses them into a table. (Others: carousel, image-compare, wc-multi-field, …)
    - Shipped as feature-detected, deferred ES-module bundles
      (`@getvitops/core/{polyfills,elements,deferred}`); polyfills load **only** when a native feature
      is missing (see `Polyfills.astro`).
@@ -56,6 +56,41 @@ on purpose. It is quarantined instead of excused: its own bundle entry (`src/js/
 (`vitops({ editor: true })`), and carrying no Lit, so a production page that doesn't ask for it
 pays nothing. Don't use it as precedent for putting behaviour JS in a `<wc-*>` element.
 
+### The tier manifest, and its two opposite projections
+
+**`TIERS` (`packages/generator/src/tiers.ts`) is the single source for which tiers provide each
+pattern** — CSS partial + representative classes, `wc-*` tag + which bundle it ships in, Astro
+component(s), Bricks element, and one `use` line saying what to write. `tierPatterns(tier)`
+projects one tier; every renderer goes through it so the surfaces can't disagree about membership.
+
+**Authored, not derived, and drift-guarded instead** (`tiers.test.ts`). Naming convention carries
+most of it and breaks where it matters — `splitter.css` hosts two components, `tag.css` serves
+three config patterns, `layout.css` provides `.split` and `.centered` — so a derivation needs an
+exceptions table longer than the rule, and a rename silently drops a link. The guards make omission
+a **build failure**: every hand-written partial, `customElements.define`, exported Astro component
+and Bricks element must be accounted for, `registered` must match what `js/elements.ts` imports,
+and every Astro specifier must be a real export of `@getvitops/astro` (that one caught
+`components/../CookieConsent.astro` — right basename, not importable).
+
+**The two projections are deliberately opposite shapes, and that is the whole design:**
+
+| Audience | Shape                                | Where                                               |
+| -------- | ------------------------------------ | --------------------------------------------------- |
+| agents   | **one** doc, all four tiers together | `concepts/components.md` → `vitops docs components` |
+| humans   | **four** pages, one per tier         | `apps/docs/src/pages/components/`                   |
+
+An agent arrives knowing the _pattern_ it needs and must be told which tiers offer it **and how
+they compose** — so splitting it would let an agent read the Astro page, learn `<Tree />` exists,
+and never learn it must not wrap it in `<wc-tree>`. A human arrives knowing their _stack_ and wants
+one tier's list, so the cross-tier rules live in that section's overview prose instead. Because
+both render from `TIERS`, neither can drift. `concepts/components.md` is therefore in
+`sync-reference.mjs`'s `RENDERED_ELSEWHERE`, not `PAGES` — carrying it as markdown too would
+publish a fifth page saying the same thing in a worse shape.
+
+Note `css.generated` is a fact about **this repo's reference config**, not a consumer's, so the
+docs check each config-authored pattern against the config being rendered and say when one is
+absent — naming classes a consumer's build emits nothing for is worse than omitting the row.
+
 ## The consent gate
 
 `@getvitops/core/consent` (`src/js/consent.ts` → `dist/consent.js`, ~2.8 KB gzipped, no Lit) is a
@@ -72,7 +107,7 @@ actually asked for and the visitor hasn't answered. `needed()` is a question abo
 register, never about the mere absence of a cookie, so a site whose only provider is cookieless
 never interrupts anyone. Demand is registered by a gated element **reaching its loading strategy**
 (so an `idle` tag asks after `load`, off the LCP path, and an `interaction` tag asks only once the
-visitor acts) or by an explicit `require()` / `request()`. `<color-scheme-toggle>` is the reference
+visitor acts) or by an explicit `require()` / `request()`. `<wc-color-scheme-toggle>` is the reference
 consumer: it applies the scheme immediately and gates only the `localStorage` write.
 
 Six things are load-bearing:
@@ -614,7 +649,7 @@ Other tools used:
 
   The kind decides the shape: a **surface** role has a bare `bg-<role>` (the card), `bg-<role>-muted` (the page), `bg-<role>-x-muted` (a well), the full text scale and `border-<role>-bold` as the guaranteed boundary. A **chromatic** role splits backgrounds into tints (`bg-<role>-x-muted`/`-muted`) and solids (`bg-<role>-solid[-bold|-x-bold]`) with **no bare `bg-<role>`**, plus `text-on-<role>` as the computed foreground. Also `--surface-glass`, `--overlay` and `--color-border-focus`.
 
-  Dark mode re-points which step each token reads under `DARK_SEL` (`shared.ts`) — `:root[data-brx-theme="dark"], :root[data-theme="dark"]`, Bricks' attribute plus the one `<color-scheme-toggle>` writes. The solid family and `text-on-<role>` stay mode-stable so a filled button keeps its identity. Raw hue steps never re-point. Contrast (text ≥ APCA Lc 75, secondary ≥ 60, icons/boundaries ≥ 45, both appearances) is enforced **at build time** — a violation throws out of `generate`. There is no per-appearance scheme grammar and no named steps.
+  Dark mode re-points which step each token reads under `DARK_SEL` (`shared.ts`) — `:root[data-brx-theme="dark"], :root[data-theme="dark"]`, Bricks' attribute plus the one `<wc-color-scheme-toggle>` writes. The solid family and `text-on-<role>` stay mode-stable so a filled button keeps its identity. Raw hue steps never re-point. Contrast (text ≥ APCA Lc 75, secondary ≥ 60, icons/boundaries ≥ 45, both appearances) is enforced **at build time** — a violation throws out of `generate`. There is no per-appearance scheme grammar and no named steps.
 
 - **shadows** (`shadows.css`) — `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Always emitted for the `css`/`bricks` formats.
 - **patterns** (`patterns.css`) — component CSS for entries under `patterns` in the JSON (cta, btn, link, badge, card). Each pattern has `base` declarations, `states` (hover/active/focus-visible) with shortcuts (`step`, `scale`, `lift`, `shadow`, `ring`, `css`), and `roles` (semantic colour variants). Always emitted.
@@ -844,7 +879,7 @@ drift from what the stylesheet formats build.
 
 It is published to GitHub Pages at <https://docs.vitops.ca> by `.github/workflows/docs.yml` — a static build uploaded as a Pages artifact, so `apps/docs/dist/` stays gitignored. The custom domain is load-bearing: served from the apex, the site needs no Astro `base`, and the absolute paths `@getvitops/astro` emits (`/vitops/icons.svg`, `/vitops/design-manifest.json`) resolve as-is. A project-pages URL would require making the integration base-aware first. The domain lives in `apps/docs/public/CNAME`, which Astro copies to `dist/CNAME` verbatim.
 
-**It is deliberately a plain Astro site, not a docs framework.** Starlight was tried and removed: a themed docs framework ships its own CSS layer and component library, which hides the very thing under test. The whole site — layout, nav, type, colour, controls — is built from the framework's own vocabulary (`.rhythm`, `.centered`, `.split-*`, `.font-<role>`, `.link`, `.card`, `.details`, `.btn`) via the `vitops()` integration at `css.format: 'css'`, plus the `color-scheme-toggle` web component. **If you find yourself adding hand-written CSS to `src/layouts/Docs.astro`, that's a signal the framework is missing a pattern — add it to `@getvitops/core` instead.** The `<style>` block there is meant to stay short; it's the site's honest scorecard. (Root `index.html` also exercises the css format, but as a static page — `apps/docs` is the only thing covering that format _through the Astro integration_.)
+**It is deliberately a plain Astro site, not a docs framework.** Starlight was tried and removed: a themed docs framework ships its own CSS layer and component library, which hides the very thing under test. The whole site — layout, nav, type, colour, controls — is built from the framework's own vocabulary (`.rhythm`, `.centered`, `.split-*`, `.font-<role>`, `.link`, `.card`, `.details`, `.btn`) via the `vitops()` integration at `css.format: 'css'`, plus the `wc-color-scheme-toggle` web component. **If you find yourself adding hand-written CSS to `src/layouts/Docs.astro`, that's a signal the framework is missing a pattern — add it to `@getvitops/core` instead.** The `<style>` block there is meant to stay short; it's the site's honest scorecard. (Root `index.html` also exercises the css format, but as a static page — `apps/docs` is the only thing covering that format _through the Astro integration_.)
 
 Its _Reference_ section is not written by hand: `apps/docs/scripts/sync-reference.mjs` calls the generator's `generateDocs()` and emits pages into `src/content/docs/reference/` (gitignored), so the site can't describe output the toolchain doesn't produce. The script flattens the OKF tree (`concepts/patterns.md` → `concepts-patterns`), drops the frontmatter-less `index.md` listings (the site builds nav from the collection), rewrites the bundle's relative `.md` cross-links to site slugs, and sets `generated: true` so the layout renders a "don't edit this" banner. Guides, package pages and the landing page **are** hand-written. Tasks: `docs:sync` (dependsOn `build:generator`), `docs:dev`, `docs:build`, `docs:preview`.
 

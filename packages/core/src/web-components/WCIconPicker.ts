@@ -794,12 +794,12 @@ export class WCIconPicker extends BaseElement {
   }
 }
 
-if (!customElements.get('icon-picker')) {
-  customElements.define('icon-picker', WCIconPicker);
+if (!customElements.get('wc-icon-picker')) {
+  customElements.define('wc-icon-picker', WCIconPicker);
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'icon-picker': WCIconPicker;
+    'wc-icon-picker': WCIconPicker;
   }
 }
