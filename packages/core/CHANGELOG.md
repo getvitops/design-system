@@ -1,5 +1,12 @@
 # @getvitops/core
 
+## 4.1.0
+
+### Patch Changes
+
+- Updated dependencies [2c890c0]
+  - @getvitops/utils@4.1.0
+
 ## 4.0.0
 
 ### Major Changes

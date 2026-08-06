@@ -1,5 +1,12 @@
 # @getvitops/emdash
 
+## 0.3.4
+
+### Patch Changes
+
+- Updated dependencies [2c890c0]
+  - @getvitops/utils@4.1.0
+
 ## 0.3.3
 
 ### Patch Changes

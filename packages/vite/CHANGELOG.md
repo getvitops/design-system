@@ -1,5 +1,14 @@
 # @getvitops/vite
 
+## 4.1.0
+
+### Patch Changes
+
+- Updated dependencies [2c890c0]
+- Updated dependencies [e764090]
+  - @getvitops/generator@4.1.0
+  - @getvitops/utils@4.1.0
+
 ## 4.0.0
 
 ### Patch Changes

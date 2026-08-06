@@ -11,6 +11,110 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 4.1.0 — 2026-08-06
+
+Ad platforms become something the toolchain can see: a `site.ads` block, a `vitops ads` command that
+verifies your domains and emits the pixels, an `<Ads />` component, and a cookie notice that
+discloses them. Plus a privacy-policy correction that separates **where** a provider stores
+information from **whose law** can reach it — read that section if you have already published a
+policy.
+
+### Added
+
+- **`site.ads` — the ad properties a site is linked to**, keyed by platform (`google`, `meta`,
+  `linkedin`, `reddit`, `tiktok`, `microsoft`, `pinterest`, `snapchat`). Account id, tag id,
+  domain-verification token, consent category. This is the gap the rest of the feature exists to
+  close: a pixel pasted into a template was invisible to the toolchain — it set `_fbp` on a site
+  whose generated cookie notice never mentioned it, whose consent gate never cleared it on revoke,
+  and whose attribution (for LinkedIn and Pinterest) never captured the click ID at all.
+
+  ```jsonc
+  {
+    "site": {
+      "ads": {
+        "meta": { "pixelId": "123456789", "domainVerification": "abc123" },
+        "google": { "accountId": "123-456-7890", "pixelId": "AW-987654321" },
+      },
+    },
+  }
+  ```
+
+- **`vitops ads setup`** ensures each platform's domain-verification DNS record, in Cloudflare via
+  `CLOUDFLARE_API_TOKEN` — created only, never edited or deleted. Idempotent: a re-run of a linked
+  property is all skips. `--dry` prints the plan; `--check` reports drift and exits non-zero.
+
+  Only four platforms verify a domain at all — Meta, TikTok, Pinterest and Snapchat, by apex DNS
+  TXT. **Google Ads, LinkedIn, Reddit and Microsoft Ads have none**: linking there is the tag and
+  the account id, and the run says so rather than skipping in silence. No platform Marketing API is
+  called — Meta's needs a system-user token, Google's an approved developer token with your own
+  account on the line — so the final "Verify" click is surfaced as a reminder.
+
+- **It prompts for the verification token.** The token does not exist until someone opens the
+  platform UI, so the first run asks for it, naming the exact UI path, and writes it to your config.
+  It is not a secret: it is published in DNS, and the platform fetching it back is the ownership
+  proof — the same reasoning that puts the IndexNow key in the config. Prompting needs a TTY; with
+  `--dry`, `--check`, `--no-prompt` or in CI you get a named error instead and the run never hangs.
+  `--no-write` keeps the answer out of the file.
+
+- **`vitops ads tags`** prints each pixel as an inert, consent-gated `<script>` — `type="text/plain"`
+  with the library URL on `data-src`, so an undecided visitor's page issues no third-party request.
+  For Bricks, WordPress, Eleventy: any stack without the Astro integration.
+
+- **`vitops ads lint`** reports what is invisible at runtime: a click ID the platform stamps that
+  attribution does not capture, a pixel while `site.tracking` is off, a property with no tag id.
+
+- **`<Ads />` in `@getvitops/astro`**, plus `environments.<env>.ads` (defaults to `analytics`, then
+  true). A sibling of `<Analytics />` rather than part of it: ad properties come from the site
+  config, state their own consent category (`marketing` unless said otherwise) rather than having
+  one derived, and switch per environment separately — a preview deployment sending pageviews is
+  survivable, one firing conversion pixels is not. Both components now render through a shared
+  `<GatedTags />`, so the inert markup has one implementation.
+
+- **`li_fat_id` (LinkedIn) and `epik` (Pinterest)** join the click-ID capture vocabulary.
+
+### Fixed
+
+- **A privacy policy no longer conflates storage with legal reach.** A processor carried one
+  `country`, flat-deduped into a single sentence claiming both — and privacy law turns on the
+  second: the OPC's concern is foreign _access_, not merely foreign storage. New `storage[]` (each
+  entry optionally `scope`d) and `operatorCountry`; `country` still works as shorthand asserting
+  both. Combining the shorthand with either explicit field is now rejected, because whether it
+  narrows or adds are two readings making contradictory legal claims. A country in the policy's own
+  jurisdiction is no longer a "transfer" — that is the incoherent _"outside of Canada, including
+  Canada"_ fix. A processor with no location at all is now reported on stderr instead of vanishing
+  from the disclosure in silence.
+
+### Changes to text you may have already published
+
+- **Adding `site.ads` changes your cookie notice.** Each configured pixel is now named with its
+  cookies and its opt-out, derived from the same table that writes `data-consent-cookies` — so the
+  notice and the revoke cannot disagree. Re-generate and re-read.
+- **Cloudflare, Cloudflare Turnstile, Vercel and Netlify now assert operator jurisdiction and no
+  storage.** They previously claimed "stored or processed in the United States", which is a claim
+  about the wrong fact — Cloudflare is anycast, and Workers/R2 have residency controls the config
+  cannot see. A site whose only foreign element is its host or Turnstile stops claiming foreign
+  storage and discloses foreign legal reach instead. **If you pin a US region, say so**: declare a
+  processor with `storage: [{ "country": "the United States" }]`.
+- **A site running LinkedIn or Pinterest ads starts attributing conversions** it previously recorded
+  as organic, because the click ID is captured now.
+- Everything else renders identically. Google Analytics, Tag Manager, Clarity, Plausible, Matomo
+  Cloud and any processor declared with `country` produce the same words as before.
+
+### Migration
+
+None required — `site.ads` is optional and `<Ads />` is opt-in. To adopt:
+
+1. Add your ad accounts under `site.ads`.
+2. `CLOUDFLARE_API_TOKEN=… npx vitops ads setup --dry`, then without `--dry` to create the records
+   (it will prompt for any verification token you have not fetched yet).
+3. Add `<Ads />` beside `<Analytics />` in your layout's `<head>`, or paste
+   `npx vitops ads tags` into your template.
+4. Re-generate your legal documents and re-read the cookie notice.
+
+New exports: `AD_PROVIDERS` + the `SiteAdProperty`/`AdProvider` types from `@getvitops/generator`,
+the whole `@getvitops/utils/ads` subpath, and `resolveAds` + the `GatedTag` type from
+`@getvitops/astro`.
+
 ## 4.0.0 — 2026-08-05
 
 Consent that only interrupts a visitor when something actually needs permission, Search Console
