@@ -120,6 +120,46 @@ export function googleAccessToken(
   return requestToken(body, fetchImpl);
 }
 
+/**
+ * A bearer token, plus the project its usage is attributed to.
+ *
+ * `quotaProject` becomes the `x-goog-user-project` header, and it is **required**
+ * for a user credential — an ADC login or a `VITOPS_GOOGLE_*` refresh token
+ * authenticates through a shared OAuth client that carries no project, so Google
+ * refuses the call with a 403 naming the missing quota project rather than
+ * guessing one. A service account already belongs to a project, so it needs none.
+ *
+ * It is deliberately per-call rather than baked into the token: one agency
+ * identity administers many sites, each with its own project, so the identity is
+ * shared and the attribution is not.
+ */
+export interface GoogleAuth {
+  token: string;
+  quotaProject?: string;
+}
+
+/**
+ * A bare token still works everywhere an auth does.
+ *
+ * The token-only form is what every caller passed before per-site projects
+ * existed, and a service-account caller never needs more, so widening the
+ * parameter beats a breaking signature change across seven exported functions.
+ */
+export type GoogleAuthLike = string | GoogleAuth;
+
+/** Auth headers for a Google REST call, with the quota project when there is one. */
+export function googleHeaders(
+  auth: GoogleAuthLike,
+  extra?: Record<string, string>,
+): Record<string, string> {
+  const { token, quotaProject } = typeof auth === 'string' ? { token: auth } : auth;
+  return {
+    authorization: `Bearer ${token}`,
+    ...(quotaProject ? { 'x-goog-user-project': quotaProject } : {}),
+    ...extra,
+  };
+}
+
 /** Scopes, named once so a caller never spells one out. */
 export const SCOPES = {
   /** Search Console (`sitemaps.submit`, `urlInspection`, `sites`). */

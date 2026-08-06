@@ -20,6 +20,7 @@
 import { parseArgs } from 'node:util';
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { resolve, join, dirname, relative, extname } from 'node:path';
+import { homedir } from 'node:os';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import {
@@ -79,6 +80,9 @@ import {
   toSnapshot,
   verifyKeyFile,
   writeSnapshot,
+  adcCredentialsPath,
+  parseAdcUser,
+  type GoogleAuthLike,
   type GoogleCredential,
   type IndexingConfig,
   type ServiceAccount,
@@ -735,6 +739,13 @@ function loadServiceAccount(): ServiceAccount | undefined {
   const path = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   const raw = inline ?? (path && existsSync(path) ? readFileSync(path, 'utf8') : undefined);
   if (!raw) return undefined;
+  // An ADC file is not a malformed service account, it is a different KIND of
+  // credential — and one this command already supports. `GOOGLE_APPLICATION_CREDENTIALS`
+  // is exactly where `gcloud auth application-default login` writes an
+  // `authorized_user` file, so parsing it as a service account died on "missing
+  // client_email or private_key" while holding a perfectly usable user credential.
+  // Hand it to the OAuth path rather than failing.
+  if (parseAdcUser(raw)) return undefined;
   try {
     return parseServiceAccount(raw);
   } catch (err) {
@@ -865,10 +876,10 @@ async function cmdSearchNotify(argv: string[]) {
     if (p.check.length === 0)
       fail('--check needs seo.indexing.priorityUrls — the pages whose indexing matters');
 
-    const token = await googleAccessToken(credential);
+    const auth = searchAuth(await googleAccessToken(credential), credential, site);
     console.log(`\nInspecting ${p.check.length} priority URL(s):`);
     for (const url of p.check) {
-      const r = await inspectUrl(token, p.searchConsole.siteUrl, url);
+      const r = await inspectUrl(auth, p.searchConsole.siteUrl, url);
       if (r.error) {
         console.log(`  ? ${url} — ${r.error}`);
         failed = true;
@@ -918,8 +929,8 @@ async function cmdSearchNotify(argv: string[]) {
     if (!credential) {
       console.log(`· Search Console: skipped — no credential (${CREDENTIAL_HINT})`);
     } else {
-      const token = await googleAccessToken(credential);
-      const r = await submitSitemap(token, p.searchConsole.siteUrl!, sitemapUrl);
+      const auth = searchAuth(await googleAccessToken(credential), credential, site);
+      const r = await submitSitemap(auth, p.searchConsole.siteUrl!, sitemapUrl);
       if (r.ok) console.log(`✓ Search Console: sitemap resubmitted`);
       else {
         console.error(`✖ Search Console: ${r.message}`);
@@ -992,7 +1003,20 @@ function loadGoogleOAuth(): GoogleOAuth | undefined {
   const clientId = process.env.VITOPS_GOOGLE_CLIENT_ID;
   const clientSecret = process.env.VITOPS_GOOGLE_CLIENT_SECRET;
   const refreshToken = process.env.VITOPS_GOOGLE_REFRESH_TOKEN;
-  if (!clientId && !clientSecret && !refreshToken) return undefined;
+  // Explicit vars win over ambient credentials: an operator who set them meant them,
+  // and a stale gcloud login silently overriding a deliberate CI secret is the worst
+  // available precedence. Fall back to ADC only when nothing was set at all — that is
+  // what makes "I'm logged in to gcloud" enough for a one-time human `search setup`.
+  if (!clientId && !clientSecret && !refreshToken) {
+    const path =
+      process.env.GOOGLE_APPLICATION_CREDENTIALS ??
+      adcCredentialsPath({ env: process.env, platform: process.platform, home: homedir(), join });
+    if (path && existsSync(path)) {
+      const adc = parseAdcUser(readFileSync(path, 'utf8'));
+      if (adc) return adc;
+    }
+    return undefined;
+  }
   const missing = [
     ['VITOPS_GOOGLE_CLIENT_ID', clientId],
     ['VITOPS_GOOGLE_CLIENT_SECRET', clientSecret],
@@ -1023,6 +1047,21 @@ function loadSearchCredential(): GoogleCredential | undefined {
   if (account) return { kind: 'service-account', account, scope: SCOPES.webmasters };
   const oauth = loadGoogleOAuth();
   return oauth ? { kind: 'oauth', oauth } : undefined;
+}
+
+/**
+ * Attach the site's Google project to a token — for a **user** credential only.
+ *
+ * A user credential (an ADC login, or `VITOPS_GOOGLE_*`) authenticates through a
+ * shared OAuth client that owns no project, so Google refuses the call outright
+ * without `x-goog-user-project`. A service account already belongs to a project, and
+ * pointing it at a *different* one would newly require `serviceusage.services.use`
+ * there — turning a working CI credential into a 403 for no benefit. So the header
+ * is sent exactly when it is needed, never as a default.
+ */
+function searchAuth(token: string, credential: GoogleCredential, cfg: Config): GoogleAuthLike {
+  const project = cfg.site?.google?.project;
+  return project && credential.kind === 'oauth' ? { token, quotaProject: project } : token;
 }
 
 /** Both spellings, for an error that has to tell you what to actually set. */
@@ -1062,6 +1101,8 @@ async function cmdSearch(argv: string[]) {
  * Idempotent by construction: the planner decides each step from the domain's live
  * state, so a re-run of a fully-onboarded domain is all skips. `--check` reports
  * drift and exits non-zero without mutating; `--dry` prints the plan and stops.
+ * Neither is offline: the state gather runs before the planner either way, so both
+ * read from Cloudflare and Google and both need credentials.
  * DNS is only ever *created* — the verification TXT — never edited or removed.
  *
  * Search Console has no user/permission API, so granting a Google Group Full-User
@@ -1129,6 +1170,12 @@ async function cmdSearchSetup(argv: string[]) {
     );
 
   const token = await refreshTokenGrant(oauth);
+  // Always a user credential here — `setup` requires one — so the site's project is
+  // what makes the calls attributable. Without it a shared-client credential (a gcloud
+  // ADC login) is refused outright; a credential from your own OAuth client carries its
+  // project in the client id and works either way, which is why this isn't required.
+  const project = cfg.site?.google?.project;
+  const auth: GoogleAuthLike = project ? { token, quotaProject: project } : token;
 
   // ── Observe live state per domain (the executors gather; the planner decides) ──
   const states = new Map<string, DomainState>();
@@ -1138,7 +1185,7 @@ async function cmdSearchSetup(argv: string[]) {
     const zone = await findZoneId(cfToken, d.domain);
     if (!zone.ok || !zone.zoneId) fail(`${d.domain}: ${zone.message}`);
 
-    const vt = await getVerificationToken(token, d.domain);
+    const vt = await getVerificationToken(auth, d.domain);
     if (!vt.ok || !vt.token)
       fail(`${d.domain}: could not obtain a verification token — ${vt.message}`);
     verifyTokens.set(d.domain, vt.token);
@@ -1146,11 +1193,11 @@ async function cmdSearchSetup(argv: string[]) {
     const txt = await listApexTxt(cfToken, zone.zoneId, d.domain);
     if (!txt.ok) fail(`${d.domain}: ${txt.message}`);
 
-    const wr = await getWebResource(token, d.domain);
+    const wr = await getWebResource(auth, d.domain);
     if (!wr.ok) fail(`${d.domain}: ${wr.message}`);
     if (wr.id) webIds.set(d.domain, wr.id);
 
-    const site = await getSite(token, siteUrlFor(d.domain));
+    const site = await getSite(auth, siteUrlFor(d.domain));
     if (!site.ok) fail(`${d.domain}: ${site.message}`);
 
     states.set(d.domain, {
@@ -1213,7 +1260,7 @@ async function cmdSearchSetup(argv: string[]) {
     if (verified) result.verified = 'yes';
     else {
       for (let attempt = 0; attempt < delays.length; attempt++) {
-        const v = await verifyWebResource(token, d.domain);
+        const v = await verifyWebResource(auth, d.domain);
         if (v.ok) {
           verified = true;
           if (v.id) webIds.set(d.domain, v.id);
@@ -1244,7 +1291,7 @@ async function cmdSearchSetup(argv: string[]) {
     // 3. Add the Search Console property.
     if (dp.property.action === 'skip') result.property = 'present';
     else {
-      const r = await addSite(token, dp.siteUrl);
+      const r = await addSite(auth, dp.siteUrl);
       if (!r.ok) {
         console.error(`✖ ${d.domain} property: ${r.message}`);
         result.property = 'failed';

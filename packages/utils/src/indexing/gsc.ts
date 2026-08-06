@@ -17,7 +17,13 @@
  * endpoints. The exchange itself lives in `../google/token.ts` — it is shared with
  * the onboarding module, which needs the same token from a different grant.
  */
-import { googleAccessToken, SCOPES, type ServiceAccount } from '../google/token.ts';
+import {
+  googleAccessToken,
+  googleHeaders,
+  SCOPES,
+  type GoogleAuthLike,
+  type ServiceAccount,
+} from '../google/token.ts';
 
 export type { ServiceAccount } from '../google/token.ts';
 
@@ -68,7 +74,7 @@ const encodeSite = (siteUrl: string) => encodeURIComponent(siteUrl);
  * owner of it, rather than that the sitemap is bad.
  */
 export async function submitSitemap(
-  token: string,
+  auth: GoogleAuthLike,
   siteUrl: string,
   sitemapUrl: string,
   fetchImpl: typeof fetch = fetch,
@@ -76,7 +82,7 @@ export async function submitSitemap(
   const url = `https://www.googleapis.com/webmasters/v3/sites/${encodeSite(siteUrl)}/sitemaps/${encodeURIComponent(sitemapUrl)}`;
   const res = await fetchImpl(url, {
     method: 'PUT',
-    headers: { authorization: `Bearer ${token}` },
+    headers: googleHeaders(auth),
   });
   if (res.ok) return { ok: true, status: res.status };
   const detail =
@@ -105,7 +111,7 @@ export interface InspectionResult {
  * from an explicit `priorityUrls` list rather than the whole sitemap.
  */
 export async function inspectUrl(
-  token: string,
+  auth: GoogleAuthLike,
   siteUrl: string,
   inspectionUrl: string,
   fetchImpl: typeof fetch = fetch,
@@ -114,10 +120,7 @@ export async function inspectUrl(
     'https://searchconsole.googleapis.com/v1/urlInspection/index:inspect',
     {
       method: 'POST',
-      headers: {
-        authorization: `Bearer ${token}`,
-        'content-type': 'application/json',
-      },
+      headers: googleHeaders(auth, { 'content-type': 'application/json' }),
       body: JSON.stringify({ inspectionUrl, siteUrl }),
     },
   );

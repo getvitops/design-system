@@ -43,7 +43,10 @@ export type { InspectionResult, ServiceAccount } from './gsc.ts';
  * consumer who already minted an OAuth credential for `search setup` is not made
  * to create a second, unrelated Google setup for the other half of the command.
  */
-export { googleAccessToken, SCOPES } from '../google/token.ts';
+export { googleAccessToken, googleHeaders, SCOPES } from '../google/token.ts';
+export type { GoogleAuth, GoogleAuthLike } from '../google/token.ts';
+// Recognising a gcloud ADC credential — pure, so the CLI keeps only the file read.
+export { adcCredentialsPath, adcQuotaProject, parseAdcUser } from '../google/adc.ts';
 export type { GoogleCredential, GoogleOAuth } from '../google/token.ts';
 
 export type {

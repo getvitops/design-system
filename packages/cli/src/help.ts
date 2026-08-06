@@ -146,6 +146,16 @@ Search setup options:
   scoped to siteverification + webmasters). Granting a Google Group Full-User
   access has no API and is surfaced as a reminder.
 
+  Or just be logged in: with no VITOPS_GOOGLE_* set, an Application Default
+  Credentials login is used —
+    gcloud auth application-default login \\
+      --scopes=openid,https://www.googleapis.com/auth/siteverification,\\
+  https://www.googleapis.com/auth/webmasters,https://www.googleapis.com/auth/cloud-platform
+  ADC authenticates through a shared OAuth client that owns no project, so it also
+  needs site.google.project in the config (sent as x-goog-user-project), both APIs
+  enabled on that project, and serviceusage.services.use on it. One project per site
+  is what keeps each site's API usage and billing separate.
+
 Search notify options:
   -i, --input <path>    Site config carrying seo.indexing (default: ./site.json)
       --site-env <env>  Environment to notify for (default: production). An

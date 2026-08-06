@@ -16,7 +16,12 @@
  * deliberately not a dependency — these are a handful of REST endpoints in a CLI
  * that installs into every consumer.
  */
-import { googleAccessToken, type GoogleOAuth } from '../google/token.ts';
+import {
+  googleAccessToken,
+  googleHeaders,
+  type GoogleAuthLike,
+  type GoogleOAuth,
+} from '../google/token.ts';
 
 const SITEVERIFICATION = 'https://www.googleapis.com/siteVerification/v1';
 const WEBMASTERS = 'https://www.googleapis.com/webmasters/v3';
@@ -39,13 +44,13 @@ const inetSite = (domain: string) => ({ type: 'INET_DOMAIN', identifier: domain 
  * against DNS is what makes the TXT step idempotent.
  */
 export async function getVerificationToken(
-  token: string,
+  auth: GoogleAuthLike,
   domain: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ ok: boolean; status: number; token?: string; message?: string }> {
   const res = await fetchImpl(`${SITEVERIFICATION}/token`, {
     method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    headers: googleHeaders(auth, { 'content-type': 'application/json' }),
     body: JSON.stringify({ verificationMethod: 'DNS_TXT', site: inetSite(domain) }),
   });
   if (!res.ok) return { ok: false, status: res.status, message: await res.text() };
@@ -63,7 +68,7 @@ export async function getVerificationToken(
  * carries the id and owners the later steps need.
  */
 export async function getWebResource(
-  token: string,
+  auth: GoogleAuthLike,
   domain: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<{
@@ -75,7 +80,7 @@ export async function getWebResource(
   message?: string;
 }> {
   const res = await fetchImpl(`${SITEVERIFICATION}/webResource`, {
-    headers: { authorization: `Bearer ${token}` },
+    headers: googleHeaders(auth),
   });
   if (!res.ok)
     return { ok: false, status: res.status, exists: false, owners: [], message: await res.text() };
@@ -97,13 +102,13 @@ export async function getWebResource(
 
 /** Verify ownership (DNS_TXT). Succeeds only once the TXT record has propagated. */
 export async function verifyWebResource(
-  token: string,
+  auth: GoogleAuthLike,
   domain: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ ok: boolean; status: number; id?: string; owners: string[]; message?: string }> {
   const res = await fetchImpl(`${SITEVERIFICATION}/webResource?verificationMethod=DNS_TXT`, {
     method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    headers: googleHeaders(auth, { 'content-type': 'application/json' }),
     body: JSON.stringify({ site: inetSite(domain), verificationMethod: 'DNS_TXT' }),
   });
   if (!res.ok) return { ok: false, status: res.status, owners: [], message: await res.text() };
@@ -124,7 +129,7 @@ export async function verifyWebResource(
  * would drop everyone already there.
  */
 export async function updateOwners(
-  token: string,
+  auth: GoogleAuthLike,
   id: string,
   domain: string,
   owners: string[],
@@ -132,7 +137,7 @@ export async function updateOwners(
 ): Promise<{ ok: boolean; status: number; message?: string }> {
   const res = await fetchImpl(`${SITEVERIFICATION}/webResource/${encodeURIComponent(id)}`, {
     method: 'PUT',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    headers: googleHeaders(auth, { 'content-type': 'application/json' }),
     body: JSON.stringify({ id, site: inetSite(domain), owners }),
   });
   if (!res.ok) return { ok: false, status: res.status, message: await res.text() };
@@ -143,12 +148,12 @@ const encodeSite = (siteUrl: string) => encodeURIComponent(siteUrl);
 
 /** Whether a Search Console property already exists (`GET sites/{siteUrl}`). */
 export async function getSite(
-  token: string,
+  auth: GoogleAuthLike,
   siteUrl: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ ok: boolean; status: number; exists: boolean; message?: string }> {
   const res = await fetchImpl(`${WEBMASTERS}/sites/${encodeSite(siteUrl)}`, {
-    headers: { authorization: `Bearer ${token}` },
+    headers: googleHeaders(auth),
   });
   if (res.ok) return { ok: true, status: res.status, exists: true };
   if (res.status === 404) return { ok: true, status: res.status, exists: false };
@@ -162,13 +167,13 @@ export async function getSite(
  * rather than a transient error — property creation is gated on ownership.
  */
 export async function addSite(
-  token: string,
+  auth: GoogleAuthLike,
   siteUrl: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ ok: boolean; status: number; message?: string }> {
   const res = await fetchImpl(`${WEBMASTERS}/sites/${encodeSite(siteUrl)}`, {
     method: 'PUT',
-    headers: { authorization: `Bearer ${token}` },
+    headers: googleHeaders(auth),
   });
   if (res.ok) return { ok: true, status: res.status };
   const detail =

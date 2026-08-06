@@ -257,9 +257,15 @@ Desired DNS state per domain (provider, nameservers, records) — declarative re
 
 Deliberate escape hatch for provider-specific Cloudflare settings — out of scope to model here.
 
+### `google` *(optional)*
+
+This site's Google Cloud project. Not a secret — the credentials stay in the environment.
+
+- `project` (string, required) — Google Cloud project id that API usage is attributed to (quota and billing). One project per site keeps usage separate — Search Console today, Maps and anything else later. Sent as `x-goog-user-project`, which is required when the credential is a *user* one (an ADC login from `gcloud auth application-default login`, or `VITOPS_GOOGLE_*`): those use a shared OAuth client that carries no project of its own. A service-account credential belongs to a project already, so this is not needed for it. The identity must hold `serviceusage.services.use` on the project, and the APIs being called must be enabled there.
+
 ### `searchConsole` *(optional)*
 
-Domains to onboard as Google Search Console *domain properties* via `vitops search setup`, keyed by bare hostname (mirrors `dns`). Credentials come from the environment (CLOUDFLARE_API_TOKEN + the Google OAuth vars) — never in this file.
+Domains to onboard as Google Search Console *domain properties* via `vitops search setup`, keyed by bare hostname (mirrors `dns`). Credentials come from the environment (CLOUDFLARE_API_TOKEN + the Google OAuth vars) — never in this file. Set `google.project` when using a user credential.
 
 - `<name>` (object)
   - `delegatedOwners` (array of string) — Emails added as verification owners on the Site Verification web resource. Automated via the API — additive and idempotent, never removes an existing owner.

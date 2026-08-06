@@ -2475,6 +2475,7 @@ grants**, tracking where each command runs:
 | --- | --- | --- |
 | **Service account** (JWT bearer) | \`VITOPS_GSC_SERVICE_ACCOUNT\` (inline JSON) or \`GOOGLE_APPLICATION_CREDENTIALS\` (path) | \`search notify\` — never expires, right for CI |
 | **User OAuth** (refresh token) | \`VITOPS_GOOGLE_CLIENT_ID\` / \`_CLIENT_SECRET\` / \`_REFRESH_TOKEN\` | \`search setup\` — **required** |
+| **User OAuth via ADC** (fallback) | none — a \`gcloud auth application-default login\` credential | either, when no \`VITOPS_GOOGLE_*\` is set |
 
 Cloudflare uses \`CLOUDFLARE_API_TOKEN\` (a \`Zone:DNS:Edit\` token; the standard "Edit zone DNS"
 template also carries the \`Zone:Read\` the zone-by-name lookup needs).
@@ -2487,6 +2488,33 @@ revoked, and for an OAuth client still in *Testing* publishing status Google exp
 **\`search notify\` accepts either**, preferring the service account when both are set. Search
 Console does not care which identity calls it, and someone who has run \`search setup\` already
 holds a Google credential.
+
+**Being logged in to gcloud is enough**, which also sidesteps the 7-day expiry above — the Cloud
+SDK client is published, so its refresh token doesn't rot. The Search Console scopes are not in
+the default ADC set, so ask for them:
+
+\`\`\`
+gcloud auth application-default login \\
+  --scopes=openid,https://www.googleapis.com/auth/siteverification,\\
+https://www.googleapis.com/auth/webmasters,https://www.googleapis.com/auth/cloud-platform
+\`\`\`
+
+Explicit \`VITOPS_GOOGLE_*\` vars win over it: a stale local login silently overriding a
+deliberate CI secret is the worst available precedence.
+
+Two things follow from ADC using a **shared** OAuth client, and both fail as a bare \`403\`:
+
+- **It owns no project, so \`site.google.project\` is required** — sent as \`x-goog-user-project\`.
+  Without it: *"requires a quota project, which is not set by default"*. A service account
+  belongs to a project already, so the header is **not** sent for one; attaching a different
+  project would newly require \`serviceusage.services.use\` there and break a working credential.
+- **That project needs the APIs enabled** (\`searchconsole.googleapis.com\`,
+  \`siteverification.googleapis.com\`) and \`serviceusage.services.use\` for the identity. One
+  project per site keeps usage and billing separate — one grant per site, one admin identity.
+
+\`GOOGLE_APPLICATION_CREDENTIALS\` carries **either kind**, since it is both Google's convention
+and where gcloud writes ADC. It is discriminated on the JSON's \`type\` field, never on which
+fields are present.
 
 ⚠️ Do not add \`googleapis\` — an enormous dependency for a handful of REST endpoints in a CLI
 that installs into every consumer project. The JWT is minted with ~30 lines of \`node:crypto\`.
