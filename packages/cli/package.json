@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/cli",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "CLI for the Vitops design-system generator: generate, init, and validate a design-system.json.",
   "license": "MIT",
   "bin": {

@@ -1,5 +1,242 @@
 # @getvitops/generator
 
+## 4.0.0
+
+### Major Changes
+
+- f7bc0a0: Add `vitops search setup` — onboard domains into Google Search Console as domain properties.
+
+  **Breaking:** the `vitops indexing` command has been renamed to **`vitops search notify`**. There is
+  no alias — update any scripts or CI that call `vitops indexing` to `vitops search notify` (same flags,
+  same behaviour).
+
+  **New: `vitops search setup`.** For each domain in a site config's new `site.searchConsole` block
+  (a record keyed by bare hostname), it:
+  - ensures the apex verification TXT record in Cloudflare,
+  - verifies ownership via the Site Verification API (DNS_TXT), retried with exponential backoff while
+    DNS propagates — a still-unverified domain is reported **PENDING**, not failed,
+  - adds the `sc-domain:` property via the Search Console API,
+  - adds any `delegatedOwners` to the verified Site Verification web resource.
+
+  It is idempotent (a re-run of an onboarded domain is a no-op), supports `--check` (report drift, exit
+  non-zero, mutate nothing) and `--dry` (print the plan, change nothing), and `--domain <name>` to
+  scope to one entry. DNS records are only ever created, never edited or deleted.
+
+  Credentials come from the environment, never the config: `CLOUDFLARE_API_TOKEN` (a `Zone:DNS:Edit`
+  token) and a Google **user OAuth refresh token** as `VITOPS_GOOGLE_CLIENT_ID` /
+  `VITOPS_GOOGLE_CLIENT_SECRET` / `VITOPS_GOOGLE_REFRESH_TOKEN` (scoped to `siteverification` +
+  `webmasters`). Granting a Google Group **Full-User** access has no Search Console API and is surfaced
+  as a reminder in the summary rather than automated.
+
+### Minor Changes
+
+- 14813fa: Document which tier provides each pattern — `vitops docs components`.
+
+  The toolkit ships four tiers that compose: CSS framework classes, `<wc-*>` web components, Astro
+  components, Bricks elements. Nothing said so. The class reference listed pattern names, the
+  elements reference listed Bricks controls, and the fact that `tree` is _also_ a web component
+  _and_ an Astro component existed only in the source layout. The cost is silent: you hand-write
+  the markup a component already emits, or you wrap a component that already emits its own tag.
+
+  `TIERS` in `@getvitops/generator` is the new manifest — per pattern, its CSS partial and
+  representative classes, its `wc-*` tag and which bundle that ships in, its Astro component(s),
+  its Bricks element, and one line saying what to actually write. `tierPatterns(tier)` projects one
+  tier. `vitops docs components` renders all four in one document, and the reference sections it
+  feeds render the same data per tier.
+
+  It is **authored rather than derived, and drift-guarded** instead. Naming convention carries most
+  of it and breaks exactly where it matters — `splitter.css` hosts two components, `tag.css` serves
+  three config patterns, `anchor-link.css` provides `.link`, `layout.css` provides `.split` and
+  `.centered` — so a derivation would need an exceptions table longer than the rule, and a rename
+  would silently drop a link. Instead, tests fail the build when a hand-written CSS partial, a
+  `customElements.define`, an exported Astro component or a Bricks element isn't accounted for.
+
+  Four things the manifest records that cannot be inferred, each a real failure mode:
+  - **Whether an Astro component wraps a web component.** `Tree` and `CookieConsent` emit the
+    `<wc-*>` tag with the fallback inside; `Details`, `Drawer`, `Popover`, `NavShell` and `Subgrid`
+    emit tier-1 markup with no web component at all. Reading the first group as the second gives
+    `<wc-tree><Tree /></wc-tree>` — two elements on one tree, which renders and misbehaves.
+  - **Where each element ships.** `elements.js` for the registered set, its own bundle for
+    `<wc-consent>` and `<wc-theme-editor>`, and **no bundle at all** for the four editor-v2 tags —
+    which are registered, importable-looking and inert in a consumer project. The guard checks this
+    against what `js/elements.ts` imports, so it can't claim an element ships when it doesn't.
+  - **Whether a pattern is config-authored.** `patterns.items` patterns get the token cascade,
+    states, role variants and override hooks; a structural partial gets none of them. The docs also
+    now say when a config-authored pattern is **absent from your config**, because naming its
+    classes while your build emits none of them is worse than omitting it.
+  - **The import specifier, verbatim.** These are published as the line to copy, so they are checked
+    against `@getvitops/astro`'s `exports`. That guard immediately caught
+    `@getvitops/astro/components/../CookieConsent.astro` — plausible-looking, right basename, not an
+    importable path (`CookieConsent.astro` ships from the package root).
+
+- c6b99e7: Ad-click attribution and conversion notifications ship as part of the toolchain.
+
+  A visitor arriving on an ad carries a click ID in the URL; `<Tracking />` captures it into a first-party `_ac` cookie, and when that visitor later submits a form or taps a `tel:` link, the conversion handler reads the cookie back and notifies whoever the config says. Previously this was per-site code.
+
+  **Added — `@getvitops/utils/tracking`.** The attribution vocabulary and cookie, as pure functions over a cookie _string_ so the browser capture and the server-side handler share one implementation: `parseTrackingCookie`, `serializeTrackingCookie`, `mergeTracking`, `identifyPlatform`, `getPrimaryClickId`, plus the click-ID/UTM tables. No DOM, no network, no clock — every function that needs "now" takes it as an argument, so it runs unchanged in a Worker.
+
+  **Added — `@getvitops/utils/notify`.** Conversion notifications, split the way `indexing/` is: `plan.ts` decides everything purely (which channels fire, who they reach, and **why anything is skipped**), `render.ts` turns the event into prose, `email.ts` executes and decides nothing. A misconfigured site can therefore be told exactly why no notification will arrive — a silently unsent one is indistinguishable from no conversion.
+
+  The `ConversionEvent` is the abstraction: the event is the _fact_, and how it reads is the channel's business.
+
+  **Added — the `email` channel, via Cloudflare Email Sending.** Uses the current structured binding (`env.EMAIL.send({ to, from, subject, html, text })`), not the legacy `EmailMessage` + hand-built MIME path. The binding is **passed in, never imported**, so `@getvitops/utils` takes no Cloudflare dependency and the sender is testable with a stub. Retries only the transient error codes; a configuration fault like `E_SENDER_NOT_VERIFIED` is surfaced verbatim rather than collapsed into "send failed". With no binding it prints the notification — the dev path.
+
+  Remember to onboard the sending domain (`wrangler email sending enable <domain>`) and add `"send_email": [{ "name": "EMAIL" }]` to `wrangler.jsonc`, or every send fails.
+
+  **Added — `<Tracking />` and `createConversionRoute()`** in `@getvitops/astro` (`@getvitops/astro/Tracking.astro`, `@getvitops/astro/routes`). The route factory handles both the `tel:` beacon and a form POST; validation and business rules stay the consumer's, because every site's form differs. A failed notification never fails the request — the visitor has already submitted, and refusing them because our mail didn't go out turns a lost notification into a lost conversion.
+
+  **Added — `site.tracking` and a widened `site.notifications`.** `notifications.email` now accepts a full channel object as well as a bare address (which still means what it did). `tracking` gains `category`.
+
+  **Fixed — the capture script now asks for consent instead of only reading it.** It previously checked `granted('marketing')` passively, which under the demand-driven banner is a permanent no-op: nothing else on a page demands `marketing`, so the banner never offered it, so it was never granted, so `_ac` was never written — silently, on every site with the gate enabled. It now calls `require()`, which is what raises the banner, and only when the URL actually carried a click ID or UTM. A visitor arriving organically has nothing to attribute and is never asked.
+
+  The integration adds `marketing` to the offered categories when tracking is on, so the banner has a row for the category the script will demand, and warns when tracking is enabled with `consent` off.
+
+  **Fixed — revoking consent now clears `_ac`.** The marker `<Tracking />` emits carries `data-consent-cookies`, which the consent runtime's cleanup reads. There was no cleanup path for this cookie before.
+
+  **Fixed — the cookie notice discloses `_ac`.** It is first-party, so no provider table would ever name it, and a site running attribution alongside a cookieless analytics provider was previously described as setting no cookies at all.
+
+- c6b99e7: Consent is now demand-driven: the banner appears when something actually needs permission, not on every first visit.
+
+  Previously, enabling the gate showed a banner to every new visitor regardless of what the site did — including sites whose only analytics provider was cookieless, where there was nothing to consent to. The build decided whether the machinery shipped and the runtime showed the banner because no cookie existed yet.
+
+  Now those are two separate facts. The build decides what the banner _can_ ask (rows in the markup); the runtime decides what it _does_ ask. A gated tag registers its demand when it reaches its loading strategy, and `<color-scheme-toggle>` registers `preferences` when a visitor picks a scheme. A site that gates nothing never interrupts anyone.
+
+  **Breaking — consent cookie schema (v1 → v2).** Consent is now recorded per category as granted / declined / **not yet asked**. The third state is what lets a later demand ask about a category an earlier prompt didn't cover: accepting an analytics banner no longer silently declines preferences. Every stored v1 choice is invalid and re-prompts once — a v1 cookie asserted a definite answer for categories the visitor was never shown.
+
+  **Breaking — `ConsentApi`.**
+  - `needed()` now means "something demanded a category the visitor hasn't answered", not "no cookie yet". A custom banner calling it will now stay hidden until something asks.
+  - `ConsentState.decided` (a single boolean) is gone. Use `decidedFor(state, category)`, or `undecidedCategories(state)`.
+  - New: `require(category)` registers a demand and reports whether it is granted; `request(category)` resolves once the visitor answers it; `demanded()` lists what has asked so far.
+  - `acceptAll()` / `rejectAll()` still mean every optional category. The banner no longer routes its buttons through them — "Accept" applies to the categories on screen.
+
+  **Breaking — `<color-scheme-toggle>` persistence.** The chosen scheme still applies immediately, but writing it to `localStorage` now waits on the `preferences` category **when the site has a consent gate**. Sites without `consent` enabled are unaffected and keep storing as before. If your site enables consent and offers a theme toggle, make sure `preferences` is among the offered categories (it is by default).
+
+  **Changed — offered categories.** `consent.categories` defaults to `['analytics', 'preferences']` (plus `marketing` when a configured tag needs it) rather than only what analytics detection could see. An unused row is hidden markup, so offering broadly costs nothing and covers `data-consent` markup no build-time scan can find. Pass `categories` explicitly to narrow it.
+
+  **Added — `<Head />` emits a small inline consent stub** when the gate is on. `consent.js` and `elements.js` are both deferred with no ordering between them, so without it a theme toggle could be clicked before the gate existed, read "no gate", and store. The stub answers `false` and queues, and the runtime replays the queue on load.
+
+  **Fixed — the generated cookie notice** now discloses the stored display preference when `preferences` is offered, and no longer promises a banner "shown when you first visit", which is no longer how the banner works.
+
+- 14813fa: Document the consent, conversion-tracking, search and legal subsystems for agents.
+
+  `vitops docs` gains four topics — `consent`, `tracking`, `search`, `legal` — and the docs
+  bundle gains the matching concept docs under `concepts/`. Until now these subsystems were
+  described only by their generated config-schema field descriptions, so an agent working in a
+  consumer project had no account of the rules that make them work, and every one of those rules
+  fails **silently** when broken:
+  - a gated tag given a live `src` instead of `type="text/plain"` fetches the third party anyway,
+    so the gate becomes decorative;
+  - a caller using `granted()` instead of `require()` never raises the banner, so on a site where
+    nothing else demands that category the permission is never offered, never granted, and the
+    write never happens;
+  - an absent `window.vitopsConsent` read as "denied" rather than "this site has no gate";
+  - a consent patch widened to every category records consent nobody gave;
+  - a sitemap with no `<lastmod>` makes edited pages undetectable, so `search notify` looks
+    healthy while never resubmitting anything;
+  - a stale IndexNow key file returns `202` and is then discarded;
+  - Google's Indexing API accepts ordinary URLs, discards them, and violates its own terms.
+
+  The packaged agent skill now covers consent and conversion tracking, and its description names
+  these subsystems so it is actually surfaced when they are the task.
+
+  Also fixed: the icons concept doc still called the Astro integration `getvitops()`, renamed to
+  `vitops()` in 3.0.
+
+- 14813fa: Add `<wc-tree>`, and a schema walker that feeds it.
+
+  `<wc-tree>` is progressive enhancement for the existing `.tree` pattern: given a nested
+  `<details>` disclosure tree it adds a filter, expand-all / collapse-all, and hash deep-linking.
+  It ships in `elements.js`.
+
+  `@getvitops/astro` gains `./components/Tree.astro` and `./components/tree.ts` (its `TreeItem`
+  type) to build that markup from data. As with every wrapper over a web component, `<Tree />`
+  emits the `<wc-tree>` tag itself with the accessible fallback inside — so `<Tree items={…} />`
+  is the whole call, and wrapping it in your own `<wc-tree>` nests two elements on one tree.
+
+  The slotted markup is the whole content and works without it — every node readable, expandable
+  and linkable — so the element only adds what CSS cannot do. Four things worth knowing:
+  - **The toolbar is generated, never authored.** A search field that does nothing is worse than
+    no search field, so the controls exist only once the element upgrades.
+  - **Deep-linking is the non-obvious one.** A node inside a closed `<details>` has no layout box,
+    so the browser's own fragment navigation finds nothing and silently stays at the top of the
+    page. `<wc-tree>` opens the target's ancestors — and the target's own disclosure — then scrolls.
+  - **Filtering matches a node's own label and description, never its subtree's text.** The obvious
+    `textContent` implementation makes every ancestor of a hit match, so the root matches any query
+    and the filter narrows nothing. That decision lives in a pure, tested module (`matchTree`)
+    rather than in the DOM wiring.
+  - **It initialises even when upgraded mid-insertion.** An element connected during an
+    `innerHTML` write — a view-transition swap, a client-side navigation — has no children yet
+    (measured: zero). Setup retries once the insertion completes, because the failure mode was
+    silent: no toolbar, no filter, no deep link, no error.
+
+  `patterns/tree.css` now supports two markup shapes: the item may be the `<details>` (the
+  pattern's original contract) or an `<li class="tree__item">` wrapping one, which is what gives
+  assistive tech list position and depth.
+
+  **`.tree` indent is fixed and now fluid**, which matters for any deep tree. Three separate leaks
+  compounded, each invisible in the CSS and each charging roughly one extra indent per level:
+  - the rule set both `margin-inline-start` and `padding-inline-start` to `--tree-indent`;
+  - `.tree { padding: var(--_p) }` applied to every nested `.tree`, not just the outermost — on all
+    four sides, so it narrowed from the end as well;
+  - `patterns/details.css` gives every non-summary child of a `<details>`
+    `margin-inline: var(--_content-margin)`, and its `details, .details` selector takes `:is()`
+    specificity under CSS nesting (**0-1-1**), so `.tree { margin: 0 }` at 0-1-0 _loses_ to it. A
+    nested tree is exactly such a child.
+
+  Measured in a browser: **41px per level against a 24px design**, so a 9-deep tree spent 382px on
+  indent and left its deepest label 162px wide. Now 24px per level, 198px total, and 653px of label.
+  The nested rule resets both box axes before applying the one indent it owes, and the default is
+  `clamp(0.75rem, 2.5vw, 1.5rem)` — 12px on a phone, 24px on a desktop — because a tree's depth is a
+  property of the data and cannot be known when the pattern is written. `--tree-indent` still
+  overrides it, and the `--lines` elbow derives from the same resolved value so the two cannot
+  disagree.
+
+  **Leaf rows now align with their branch siblings.** A branch spends a toggle column on its chevron
+  before its label; a leaf has none, so every leaf label sat one full column (24px, measured) to the
+  inline-start of its siblings and nothing at a given depth lined up. `.tree` exposes
+  `--_node-indent` (the toggle column) and `--_leaf-indent` (what a row without a toggle owes to
+  reach the same label column); `.tree__content` and `.tree__desc` both read the latter rather than
+  re-deriving the sum.
+
+  `<wc-tree>` also wraps its generated filter in `.input-group`, because `forms.css` styles text
+  controls as `.form-group > input` / `.input-group > input` — a bare `<input>` rendered with the
+  browser's 2px inset border and square corners next to the framework's own rounded controls.
+
+  `schemaTreeNodes(schema, { idPrefix, maxDepth, prune })` is new in `@getvitops/generator`: it walks
+  a JSON Schema — the same walk behind the `authoring.md` / `config.md` references — and returns tree
+  **data**, not markup, so each medium renders it (markdown for agents, an accessible `<details>`
+  tree for a site). Field ids are dotted config paths (`site.analytics.clarityId`), so any field can
+  be linked to directly.
+
+  `prune` exists for a specific hazard. The project config declares `designSystem.themes` as a
+  looser shape than `DesignSystemSchema`, because the full one is applied separately by
+  `resolveTheme` — so its embedded copy is an **approximation**, and measurably missing the
+  descriptions for `colors`, `colors.palette`, `colors.roles` and `colors.utilities`. Anything
+  rendering that copy as the token reference would silently document the colour system less well
+  than the toolchain already does; `prune` lets a caller stop at the wrapper and render `jsonSchema`
+  alongside instead.
+
+  `renderInlineMarkdown()` is exported for schema description text. It **lifts code spans out before
+  applying emphasis**, and that ordering is load-bearing rather than tidy: `colors.utilities`
+  describes its families as `` `bg-*` ``, `` `text-*` ``, `` `border-*` `` — literal asterisk
+  _wildcards_. Run emphasis over the raw string and the `*` closing `bg-*` pairs with the one
+  closing `text-*`, italicising the text between two unrelated utilities and eating both asterisks,
+  leaving prose that names families which don't exist. It also now renders single-asterisk emphasis,
+  which the schema does use (`*presentation*`, `*domain properties*`) and which previously printed
+  the asterisks literally.
+
+  Also fixed: `config.md` claimed "Only the wrapper is listed here" under `designSystem` and then
+  emitted the entire token schema anyway — `themes.<name>` _is_ a design system, so the walk
+  descended into it. It now stops at the wrapper and delegates to `authoring.md` as it always said
+  it did.
+
+### Patch Changes
+
+- Updated dependencies [c6b99e7]
+- Updated dependencies [f7bc0a0]
+- Updated dependencies [ceed51f]
+  - @getvitops/utils@4.0.0
+
 ## 3.0.0
 
 ### Major Changes

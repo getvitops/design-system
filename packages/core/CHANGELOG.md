@@ -1,5 +1,187 @@
 # @getvitops/core
 
+## 4.0.0
+
+### Major Changes
+
+- c6b99e7: Consent is now demand-driven: the banner appears when something actually needs permission, not on every first visit.
+
+  Previously, enabling the gate showed a banner to every new visitor regardless of what the site did — including sites whose only analytics provider was cookieless, where there was nothing to consent to. The build decided whether the machinery shipped and the runtime showed the banner because no cookie existed yet.
+
+  Now those are two separate facts. The build decides what the banner _can_ ask (rows in the markup); the runtime decides what it _does_ ask. A gated tag registers its demand when it reaches its loading strategy, and `<color-scheme-toggle>` registers `preferences` when a visitor picks a scheme. A site that gates nothing never interrupts anyone.
+
+  **Breaking — consent cookie schema (v1 → v2).** Consent is now recorded per category as granted / declined / **not yet asked**. The third state is what lets a later demand ask about a category an earlier prompt didn't cover: accepting an analytics banner no longer silently declines preferences. Every stored v1 choice is invalid and re-prompts once — a v1 cookie asserted a definite answer for categories the visitor was never shown.
+
+  **Breaking — `ConsentApi`.**
+  - `needed()` now means "something demanded a category the visitor hasn't answered", not "no cookie yet". A custom banner calling it will now stay hidden until something asks.
+  - `ConsentState.decided` (a single boolean) is gone. Use `decidedFor(state, category)`, or `undecidedCategories(state)`.
+  - New: `require(category)` registers a demand and reports whether it is granted; `request(category)` resolves once the visitor answers it; `demanded()` lists what has asked so far.
+  - `acceptAll()` / `rejectAll()` still mean every optional category. The banner no longer routes its buttons through them — "Accept" applies to the categories on screen.
+
+  **Breaking — `<color-scheme-toggle>` persistence.** The chosen scheme still applies immediately, but writing it to `localStorage` now waits on the `preferences` category **when the site has a consent gate**. Sites without `consent` enabled are unaffected and keep storing as before. If your site enables consent and offers a theme toggle, make sure `preferences` is among the offered categories (it is by default).
+
+  **Changed — offered categories.** `consent.categories` defaults to `['analytics', 'preferences']` (plus `marketing` when a configured tag needs it) rather than only what analytics detection could see. An unused row is hidden markup, so offering broadly costs nothing and covers `data-consent` markup no build-time scan can find. Pass `categories` explicitly to narrow it.
+
+  **Added — `<Head />` emits a small inline consent stub** when the gate is on. `consent.js` and `elements.js` are both deferred with no ordering between them, so without it a theme toggle could be clicked before the gate existed, read "no gate", and store. The stub answers `false` and queues, and the runtime replays the queue on load.
+
+  **Fixed — the generated cookie notice** now discloses the stored display preference when `preferences` is offered, and no longer promises a banner "shown when you first visit", which is no longer how the banner works.
+
+- Every custom element now carries the `wc-` prefix. **Two renames affect existing markup:**
+  - `<color-scheme-toggle>` → **`<wc-color-scheme-toggle>`**
+  - `<wc-multifield>` → **`<wc-multi-field>`**
+
+  Update your templates. An unknown element name is not an error — the browser treats it as an
+  inert `HTMLUnknownElement` — so a missed rename shows up as a control that renders and simply
+  never works, with nothing in the console.
+
+  `<wc-multifield>` was itself renamed in 3.0 (from `<multi-field>`), and hyphenating it now
+  means the tag matches its pattern name and its Bricks element everywhere else in the toolchain;
+  `3.0` shipped the inconsistency by accident.
+
+  **Unchanged:** the Bricks element keys (`vitops-color-scheme-toggle`, `vitops-multi-field`), so
+  elements already placed on a Bricks page keep working; the custom properties; and the events.
+
+  The remaining renames are prefix-only and reach no consumer: `<color-wheel>`, `<icon-picker>`,
+  `<oklch-color-picker>` and `<typography-config>` are registered but shipped in **no bundle** (the
+  editor-v2 track), so those tags were already inert in a consumer project — `vitops docs components`
+  now says so per element rather than leaving it to be discovered.
+
+### Minor Changes
+
+- 14813fa: Add `<wc-tree>`, and a schema walker that feeds it.
+
+  `<wc-tree>` is progressive enhancement for the existing `.tree` pattern: given a nested
+  `<details>` disclosure tree it adds a filter, expand-all / collapse-all, and hash deep-linking.
+  It ships in `elements.js`.
+
+  `@getvitops/astro` gains `./components/Tree.astro` and `./components/tree.ts` (its `TreeItem`
+  type) to build that markup from data. As with every wrapper over a web component, `<Tree />`
+  emits the `<wc-tree>` tag itself with the accessible fallback inside — so `<Tree items={…} />`
+  is the whole call, and wrapping it in your own `<wc-tree>` nests two elements on one tree.
+
+  The slotted markup is the whole content and works without it — every node readable, expandable
+  and linkable — so the element only adds what CSS cannot do. Four things worth knowing:
+  - **The toolbar is generated, never authored.** A search field that does nothing is worse than
+    no search field, so the controls exist only once the element upgrades.
+  - **Deep-linking is the non-obvious one.** A node inside a closed `<details>` has no layout box,
+    so the browser's own fragment navigation finds nothing and silently stays at the top of the
+    page. `<wc-tree>` opens the target's ancestors — and the target's own disclosure — then scrolls.
+  - **Filtering matches a node's own label and description, never its subtree's text.** The obvious
+    `textContent` implementation makes every ancestor of a hit match, so the root matches any query
+    and the filter narrows nothing. That decision lives in a pure, tested module (`matchTree`)
+    rather than in the DOM wiring.
+  - **It initialises even when upgraded mid-insertion.** An element connected during an
+    `innerHTML` write — a view-transition swap, a client-side navigation — has no children yet
+    (measured: zero). Setup retries once the insertion completes, because the failure mode was
+    silent: no toolbar, no filter, no deep link, no error.
+
+  `patterns/tree.css` now supports two markup shapes: the item may be the `<details>` (the
+  pattern's original contract) or an `<li class="tree__item">` wrapping one, which is what gives
+  assistive tech list position and depth.
+
+  **`.tree` indent is fixed and now fluid**, which matters for any deep tree. Three separate leaks
+  compounded, each invisible in the CSS and each charging roughly one extra indent per level:
+  - the rule set both `margin-inline-start` and `padding-inline-start` to `--tree-indent`;
+  - `.tree { padding: var(--_p) }` applied to every nested `.tree`, not just the outermost — on all
+    four sides, so it narrowed from the end as well;
+  - `patterns/details.css` gives every non-summary child of a `<details>`
+    `margin-inline: var(--_content-margin)`, and its `details, .details` selector takes `:is()`
+    specificity under CSS nesting (**0-1-1**), so `.tree { margin: 0 }` at 0-1-0 _loses_ to it. A
+    nested tree is exactly such a child.
+
+  Measured in a browser: **41px per level against a 24px design**, so a 9-deep tree spent 382px on
+  indent and left its deepest label 162px wide. Now 24px per level, 198px total, and 653px of label.
+  The nested rule resets both box axes before applying the one indent it owes, and the default is
+  `clamp(0.75rem, 2.5vw, 1.5rem)` — 12px on a phone, 24px on a desktop — because a tree's depth is a
+  property of the data and cannot be known when the pattern is written. `--tree-indent` still
+  overrides it, and the `--lines` elbow derives from the same resolved value so the two cannot
+  disagree.
+
+  **Leaf rows now align with their branch siblings.** A branch spends a toggle column on its chevron
+  before its label; a leaf has none, so every leaf label sat one full column (24px, measured) to the
+  inline-start of its siblings and nothing at a given depth lined up. `.tree` exposes
+  `--_node-indent` (the toggle column) and `--_leaf-indent` (what a row without a toggle owes to
+  reach the same label column); `.tree__content` and `.tree__desc` both read the latter rather than
+  re-deriving the sum.
+
+  `<wc-tree>` also wraps its generated filter in `.input-group`, because `forms.css` styles text
+  controls as `.form-group > input` / `.input-group > input` — a bare `<input>` rendered with the
+  browser's 2px inset border and square corners next to the framework's own rounded controls.
+
+  `schemaTreeNodes(schema, { idPrefix, maxDepth, prune })` is new in `@getvitops/generator`: it walks
+  a JSON Schema — the same walk behind the `authoring.md` / `config.md` references — and returns tree
+  **data**, not markup, so each medium renders it (markdown for agents, an accessible `<details>`
+  tree for a site). Field ids are dotted config paths (`site.analytics.clarityId`), so any field can
+  be linked to directly.
+
+  `prune` exists for a specific hazard. The project config declares `designSystem.themes` as a
+  looser shape than `DesignSystemSchema`, because the full one is applied separately by
+  `resolveTheme` — so its embedded copy is an **approximation**, and measurably missing the
+  descriptions for `colors`, `colors.palette`, `colors.roles` and `colors.utilities`. Anything
+  rendering that copy as the token reference would silently document the colour system less well
+  than the toolchain already does; `prune` lets a caller stop at the wrapper and render `jsonSchema`
+  alongside instead.
+
+  `renderInlineMarkdown()` is exported for schema description text. It **lifts code spans out before
+  applying emphasis**, and that ordering is load-bearing rather than tidy: `colors.utilities`
+  describes its families as `` `bg-*` ``, `` `text-*` ``, `` `border-*` `` — literal asterisk
+  _wildcards_. Run emphasis over the raw string and the `*` closing `bg-*` pairs with the one
+  closing `text-*`, italicising the text between two unrelated utilities and eating both asterisks,
+  leaving prose that names families which don't exist. It also now renders single-asterisk emphasis,
+  which the schema does use (`*presentation*`, `*domain properties*`) and which previously printed
+  the asterisks literally.
+
+  Also fixed: `config.md` claimed "Only the wrapper is listed here" under `designSystem` and then
+  emitted the entire token schema anyway — `themes.<name>` _is_ a design system, so the walk
+  descended into it. It now stops at the wrapper and delegates to `authoring.md` as it always said
+  it did.
+
+### Patch Changes
+
+- 14813fa: Fix `<wc-entries>`, `<wc-carousel>` and `<wc-marquee>` silently failing to enhance when inserted
+  dynamically.
+
+  All three parse their slotted markup in `connectedCallback` and return early when they find
+  nothing. That is fine when `elements.js` loads as a deferred module, because the document is
+  fully parsed before any definition registers. But an element upgraded _during_ insertion is
+  connected **before its children exist** — verified: an `innerHTML` write runs
+  `connectedCallback` with zero children.
+
+  So on an Astro view-transition swap, a client-side navigation, an `innerHTML` write or a cloned
+  template, `<wc-entries>` never built its table, `<wc-carousel>` never cloned its slides or
+  started autoplay, and `<wc-marquee>` never took over from the CSS-only path. Nothing errored;
+  the un-enhanced fallback just stayed on screen, which is why this went unnoticed.
+
+  Initialisation is now expressed as a function that reports whether it found its markup, and is
+  retried once the insertion completes (`initFromLightDom`). Setup is guarded so a retry after a
+  genuinely empty state can't double-apply — an `<wc-entries>` building its table twice would
+  have been the obvious way to fix this badly.
+
+  `<wc-tree>` uses the same helper. If you write a light-DOM component, use it too; the hazard is
+  documented in `web-components/utils/upgrade.ts`.
+
+- a9d7916: Fix `sitenav` shipping its drawer geometry into its navbar state.
+
+  A `.sitenav` carrying both a drawer-direction modifier and a breakpoint promotion rendered its navbar one full panel-width toward the inline-end at and above the promotion width — off the page, with a horizontal scrollbar and anything laid out after the panel pushed out of view. Reported downstream against `sitenav--bp-lg sitenav--drawer-end`; it affected every `--bp-*` value and both drawer directions.
+
+  One cause, three symptoms. `@container` contributes no specificity, so when the four per-breakpoint blocks were consolidated into a single style query in 3.0.0, the wide-state reset lost the `.sitenav--bp-*` class that had been winning it the tie. Every narrow-state rule with a heavier selector then won _inside the wide state_:
+  - `.sitenav--drawer-end .sitenav__panel` (0,2,0) beat the navbar's `translate: none` (0,1,0) — the reported bug.
+  - The mobile accordion's `.sitenav__item--branch > .sitenav__submenu { overflow: hidden }` (0,2,0) beat the dropdown's `overflow: visible`, which **clipped away every third-level megamenu** at width. Its `padding-inline-start: 1rem` leaked in the same way.
+  - The wide block's counter-rule for depth caps beat the base `.sitenav__submenu { display: flex }`, so a `sitenav__item--desktop-branch` dropdown lost its column direction and gap.
+
+  The drawer and the navbar are now mutually exclusive branches of the same style query — `@container style(--_sitenav-wide: 0)` alongside the existing `: 1` — so there is no cascade contest to lose rather than a contest that is currently being won. A new test in core asserts the invariant across every two-state pattern.
+
+  **Two visible changes at width, both intended:** dropdown padding is now symmetric `0.5rem` (it was `1rem` on the inline-start side only), and depth-capped dropdowns regain their `0.25rem` gap.
+
+  Also fixed in the same pattern: `.sitenav__panel` never undid the UA `[popover]` sheet's `margin: auto` and `height: fit-content`, so `inset-block: 0` bought nothing and the drawer rendered as a content-height card floating in the vertical centre instead of filling the edge. It is now a full-height drawer, and the auto margins no longer absorb free space when a promoted `.sitenav` is stretched rather than content-sized.
+
+  Note the narrow state now also depends on `@container style()` (Chrome 111 / Safari 18 / Firefox 128), which the wide state already required. On an older engine the sitenav degrades to a popover holding an expanded link list — usable and accessible, but neither drawer nor navbar.
+
+- Updated dependencies [c6b99e7]
+- Updated dependencies [f7bc0a0]
+- Updated dependencies [ceed51f]
+  - @getvitops/utils@4.0.0
+
 ## 3.0.0
 
 ### Major Changes

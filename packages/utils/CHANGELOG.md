@@ -1,5 +1,75 @@
 # @getvitops/utils
 
+## 4.0.0
+
+### Major Changes
+
+- f7bc0a0: Add `vitops search setup` — onboard domains into Google Search Console as domain properties.
+
+  **Breaking:** the `vitops indexing` command has been renamed to **`vitops search notify`**. There is
+  no alias — update any scripts or CI that call `vitops indexing` to `vitops search notify` (same flags,
+  same behaviour).
+
+  **New: `vitops search setup`.** For each domain in a site config's new `site.searchConsole` block
+  (a record keyed by bare hostname), it:
+  - ensures the apex verification TXT record in Cloudflare,
+  - verifies ownership via the Site Verification API (DNS_TXT), retried with exponential backoff while
+    DNS propagates — a still-unverified domain is reported **PENDING**, not failed,
+  - adds the `sc-domain:` property via the Search Console API,
+  - adds any `delegatedOwners` to the verified Site Verification web resource.
+
+  It is idempotent (a re-run of an onboarded domain is a no-op), supports `--check` (report drift, exit
+  non-zero, mutate nothing) and `--dry` (print the plan, change nothing), and `--domain <name>` to
+  scope to one entry. DNS records are only ever created, never edited or deleted.
+
+  Credentials come from the environment, never the config: `CLOUDFLARE_API_TOKEN` (a `Zone:DNS:Edit`
+  token) and a Google **user OAuth refresh token** as `VITOPS_GOOGLE_CLIENT_ID` /
+  `VITOPS_GOOGLE_CLIENT_SECRET` / `VITOPS_GOOGLE_REFRESH_TOKEN` (scoped to `siteverification` +
+  `webmasters`). Granting a Google Group **Full-User** access has no Search Console API and is surfaced
+  as a reminder in the summary rather than automated.
+
+- ceed51f: `vitops search notify` now accepts either Google credential, so most sites need only one.
+
+  The two halves of `vitops search` each demanded a different, unrelated Google setup — five environment variables between them. `search setup` requires a user OAuth credential (verifying a site makes the caller an **owner** of the property, and that should be a person, not a project robot), while `search notify` accepted only a service account. Search Console does not care which identity calls it, so a consumer who had already run `search setup` was being made to create a second credential for the other half of the same command.
+
+  `search notify` now takes whichever you have, preferring the service account when both are set — it runs on every deploy, in CI, and a service account does not expire, whereas a refresh token can be revoked and expires after 7 days for an OAuth client still in _Testing_ publishing status. `search setup` is unchanged and still requires user OAuth.
+
+  **Breaking — two renamed exports.** Both did the same job under the same name from different subpaths, which forced an alias at every call site:
+  - `@getvitops/utils/indexing`: `getAccessToken` → **`serviceAccountToken`**
+  - `@getvitops/utils/onboarding`: `getAccessToken` → **`refreshTokenGrant`**
+
+  New: `googleAccessToken(credential)` from `@getvitops/utils/indexing` takes a `GoogleCredential` union and is what both wrappers now call. If you were importing either `getAccessToken`, switch to the specific name, or to `googleAccessToken` if you want to accept either identity.
+
+  Internally the exchange is now one function. The two grants send different form bodies; everything after that — endpoint, content-type, error handling, `access_token` extraction — was duplicated verbatim in two modules. The service-account JWT signing had no test at all, because it was only reachable over the network; it now does, including the literal-`\n`-in-a-PEM case that secret stores produce.
+
+### Minor Changes
+
+- c6b99e7: Ad-click attribution and conversion notifications ship as part of the toolchain.
+
+  A visitor arriving on an ad carries a click ID in the URL; `<Tracking />` captures it into a first-party `_ac` cookie, and when that visitor later submits a form or taps a `tel:` link, the conversion handler reads the cookie back and notifies whoever the config says. Previously this was per-site code.
+
+  **Added — `@getvitops/utils/tracking`.** The attribution vocabulary and cookie, as pure functions over a cookie _string_ so the browser capture and the server-side handler share one implementation: `parseTrackingCookie`, `serializeTrackingCookie`, `mergeTracking`, `identifyPlatform`, `getPrimaryClickId`, plus the click-ID/UTM tables. No DOM, no network, no clock — every function that needs "now" takes it as an argument, so it runs unchanged in a Worker.
+
+  **Added — `@getvitops/utils/notify`.** Conversion notifications, split the way `indexing/` is: `plan.ts` decides everything purely (which channels fire, who they reach, and **why anything is skipped**), `render.ts` turns the event into prose, `email.ts` executes and decides nothing. A misconfigured site can therefore be told exactly why no notification will arrive — a silently unsent one is indistinguishable from no conversion.
+
+  The `ConversionEvent` is the abstraction: the event is the _fact_, and how it reads is the channel's business.
+
+  **Added — the `email` channel, via Cloudflare Email Sending.** Uses the current structured binding (`env.EMAIL.send({ to, from, subject, html, text })`), not the legacy `EmailMessage` + hand-built MIME path. The binding is **passed in, never imported**, so `@getvitops/utils` takes no Cloudflare dependency and the sender is testable with a stub. Retries only the transient error codes; a configuration fault like `E_SENDER_NOT_VERIFIED` is surfaced verbatim rather than collapsed into "send failed". With no binding it prints the notification — the dev path.
+
+  Remember to onboard the sending domain (`wrangler email sending enable <domain>`) and add `"send_email": [{ "name": "EMAIL" }]` to `wrangler.jsonc`, or every send fails.
+
+  **Added — `<Tracking />` and `createConversionRoute()`** in `@getvitops/astro` (`@getvitops/astro/Tracking.astro`, `@getvitops/astro/routes`). The route factory handles both the `tel:` beacon and a form POST; validation and business rules stay the consumer's, because every site's form differs. A failed notification never fails the request — the visitor has already submitted, and refusing them because our mail didn't go out turns a lost notification into a lost conversion.
+
+  **Added — `site.tracking` and a widened `site.notifications`.** `notifications.email` now accepts a full channel object as well as a bare address (which still means what it did). `tracking` gains `category`.
+
+  **Fixed — the capture script now asks for consent instead of only reading it.** It previously checked `granted('marketing')` passively, which under the demand-driven banner is a permanent no-op: nothing else on a page demands `marketing`, so the banner never offered it, so it was never granted, so `_ac` was never written — silently, on every site with the gate enabled. It now calls `require()`, which is what raises the banner, and only when the URL actually carried a click ID or UTM. A visitor arriving organically has nothing to attribute and is never asked.
+
+  The integration adds `marketing` to the offered categories when tracking is on, so the banner has a row for the category the script will demand, and warns when tracking is enabled with `consent` off.
+
+  **Fixed — revoking consent now clears `_ac`.** The marker `<Tracking />` emits carries `data-consent-cookies`, which the consent runtime's cleanup reads. There was no cleanup path for this cookie before.
+
+  **Fixed — the cookie notice discloses `_ac`.** It is first-party, so no provider table would ever name it, and a site running attribution alongside a cookieless analytics provider was previously described as setting no cookies at all.
+
 ## 3.0.0
 
 ### Major Changes

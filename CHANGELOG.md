@@ -11,6 +11,131 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 4.0.0 — 2026-08-05
+
+Consent that only interrupts a visitor when something actually needs permission, Search Console
+onboarding, a documented account of which tier provides each component, and a fix to three web
+components that silently never enhanced on a client-side navigation. Read the **Breaking** list:
+two element renames touch existing markup, the consent cookie is re-prompted once, and
+`vitops indexing` is now `vitops search notify` with no alias.
+
+### Breaking
+
+- **Consent is now demand-driven.** The banner appears when something actually needs permission,
+  not on every first visit. Enabling the gate used to interrupt every new visitor regardless of
+  what the site did — including sites whose only analytics provider was cookieless, where there was
+  genuinely nothing to consent to.
+
+  Those are now two separate facts: the build decides what the banner _can_ ask (which rows the
+  markup carries), the runtime decides what it _does_ ask. A gated tag registers its demand when it
+  reaches its loading strategy, so an `idle` tag asks after `load` and an `interaction` tag asks
+  only once the visitor acts.
+  - **The cookie schema is v1 → v2.** A choice is now recorded per category as granted / declined /
+    **not yet asked**. That third state is what lets a later demand ask about a category an earlier
+    prompt never showed — accepting an analytics banner no longer silently declines preferences.
+    Every stored v1 choice re-prompts once, because a v1 cookie asserted a definite answer for
+    categories the visitor was never asked about.
+  - **`ConsentApi`:** `needed()` now means "something demanded a category the visitor hasn't
+    answered", not "there is no cookie yet" — a custom banner calling it stays hidden until
+    something asks. `ConsentState.decided` is gone; use `decidedFor(state, category)` or
+    `undecidedCategories(state)`. New: `require()`, `request()`, `demanded()`.
+  - **If you gate anything yourself, call `require()`, not `granted()`.** `granted()` is a passive
+    read: on a site where nothing else demands that category, it is never offered, never granted,
+    and your write never happens — silently, forever. `require()` is what raises the banner.
+  - **Theme-toggle persistence waits on `preferences`** when the site has a consent gate. The
+    scheme still applies immediately; only the `localStorage` write waits. Sites without consent
+    enabled are unaffected.
+
+- **Every custom element now carries the `wc-` prefix**, and two renames affect existing markup:
+  `<color-scheme-toggle>` → **`<wc-color-scheme-toggle>`**, and `<wc-multifield>` →
+  **`<wc-multi-field>`** (3.0 shipped that inconsistency by accident). Update your templates.
+
+  An unknown element name is not an error — the browser treats it as an inert
+  `HTMLUnknownElement` — so a missed rename is a control that renders and never works, with
+  nothing in the console. The Bricks element keys, custom properties and events are unchanged, so
+  elements already placed on a Bricks page keep working.
+
+- **`vitops indexing` → `vitops search notify`.** No alias; same flags, same behaviour. Update any
+  CI or deploy scripts. It is grouped under `search` with the new `search setup`.
+
+- **Two renamed exports in `@getvitops/utils`.** Both did the same job under the same name from
+  different subpaths, which forced an alias at every call site: `indexing`'s `getAccessToken` →
+  **`serviceAccountToken`**, `onboarding`'s → **`refreshTokenGrant`**. New
+  `googleAccessToken(credential)` accepts either identity.
+
+### Added
+
+- **`vitops search setup`** onboards domains into Google Search Console as domain properties —
+  otherwise a manual DNS-paste / wait / verify / add-property dance. Per domain in the new
+  `site.searchConsole` block it ensures the apex verification TXT in Cloudflare, verifies ownership
+  (DNS_TXT, retried with backoff while DNS propagates — still-unverified is reported **PENDING**,
+  not failed), adds the `sc-domain:` property, and adds any `delegatedOwners`. Idempotent, with
+  `--check` and `--dry`. DNS records are only ever created, never edited or deleted.
+
+- **`vitops search notify` accepts either Google credential**, preferring the service account when
+  both are set. The two halves of `vitops search` previously demanded two unrelated Google setups —
+  five environment variables — when Search Console does not care which identity calls it.
+
+- **`vitops docs components`** — which of the four tiers provides each pattern, and the call to
+  write. The class reference listed pattern names and the elements reference listed Bricks
+  controls, but nothing said that `tree` is also a web component _and_ an Astro component. The cost
+  is silent: you hand-write markup a component already emits, or you wrap a component that already
+  emits its own tag. The docs site projects the same manifest as four per-tier pages under
+  **/components**.
+
+- **`<wc-tree>`** — filter, expand/collapse all and hash deep-linking over a nested `<details>`
+  tree. Deep-linking is the part worth knowing: a node inside a closed `<details>` has no layout
+  box, so the browser's own fragment navigation finds nothing and silently stays at the top of the
+  page; the element opens the target's ancestors first. `<Tree items={…} />` and its `TreeItem`
+  type are new in `@getvitops/astro`, and emit the tag themselves — don't add your own wrapper.
+
+- **`schemaTreeNodes()`** walks a JSON Schema into tree _data_, so agents get markdown and a site
+  gets an accessible disclosure tree from one walk. The config reference is now one filterable page
+  instead of two overlapping markdown ones.
+
+- **Concept docs for four subsystems** — `vitops docs consent | tracking | search | legal`. Each
+  documents rules that fail silently when broken: a gated tag given a live `src` fetches the third
+  party anyway; a sitemap with no `<lastmod>` makes edited pages undetectable, so `search notify`
+  looks healthy while resubmitting nothing; a stale IndexNow key file returns `202` and is then
+  discarded.
+
+### Fixed
+
+- **`<wc-entries>`, `<wc-carousel>` and `<wc-marquee>` silently never enhanced when inserted
+  dynamically.** All three parsed their slotted markup in `connectedCallback` and returned early
+  when they found nothing — but an element upgraded _during_ insertion is connected **before its
+  children exist** (measured: zero children on an `innerHTML` write). So on an Astro
+  view-transition swap, a client-side navigation or a cloned template, the carousel never cloned
+  its slides, the entries never built their table, and the marquee never took over from the
+  CSS-only path. Nothing errored; the un-enhanced fallback just stayed on screen, which is why it
+  went unnoticed. Initialisation now retries once the insertion completes, guarded so a retry
+  can't double-apply.
+
+- **`.tree` indent was 41px per level against a 24px design**, measured in a browser — three
+  compounding leaks, each invisible in the CSS. A 9-deep tree spent 382px on indent and left its
+  deepest label 162px wide; now 24px per level and 653px of label. The subtlest cause:
+  `details.css` gives every non-summary child of a `<details>` an inline margin, and its selector
+  takes `:is()` specificity under CSS nesting (**0-1-1**), so `.tree { margin: 0 }` at 0-1-0
+  _lost_ to it. The indent is also fluid now, since a tree's depth is a property of the data.
+
+- **Leaf rows now align with their branch siblings.** A branch spends a toggle column on its
+  chevron before its label; a leaf has none, so every leaf label sat one full column (24px) inside
+  its siblings and nothing at a given depth lined up.
+
+- **Schema descriptions no longer eat their own wildcards.** `renderInlineMarkdown()` lifts code
+  spans out before applying emphasis, which is load-bearing rather than tidy: `colors.utilities`
+  describes its families as `` `bg-*` ``, `` `text-*` ``, `` `border-*` `` — literal asterisk
+  wildcards. Run emphasis over the raw string and the `*` closing `bg-*` pairs with the one closing
+  `text-*`, italicising the text between two unrelated utilities and eating both asterisks, leaving
+  prose that names families which don't exist.
+
+- **`config.md` claimed "only the wrapper is listed here" under `designSystem` and then emitted the
+  entire token schema anyway** — `themes.<name>` _is_ a design system, so the walk descended into
+  it. It now stops at the wrapper and delegates to the authoring reference as it always said it did.
+
+- **`<wc-consent>` builds its own consent patch** rather than calling `acceptAll()`, so "Accept" on
+  a preferences-only prompt no longer grants analytics the visitor was never shown.
+
 ## 3.0.0 — 2026-08-04
 
 Navigation shells, a top-layer animation driver, and a run of fixes to things that had never

@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/core",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "The Vitops design-system framework — CSS partials, Lit web components, and browser polyfills.",
   "license": "MIT",
   "files": [

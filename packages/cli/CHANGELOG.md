@@ -1,5 +1,125 @@
 # @getvitops/cli
 
+## 4.0.0
+
+### Major Changes
+
+- f7bc0a0: Add `vitops search setup` — onboard domains into Google Search Console as domain properties.
+
+  **Breaking:** the `vitops indexing` command has been renamed to **`vitops search notify`**. There is
+  no alias — update any scripts or CI that call `vitops indexing` to `vitops search notify` (same flags,
+  same behaviour).
+
+  **New: `vitops search setup`.** For each domain in a site config's new `site.searchConsole` block
+  (a record keyed by bare hostname), it:
+  - ensures the apex verification TXT record in Cloudflare,
+  - verifies ownership via the Site Verification API (DNS_TXT), retried with exponential backoff while
+    DNS propagates — a still-unverified domain is reported **PENDING**, not failed,
+  - adds the `sc-domain:` property via the Search Console API,
+  - adds any `delegatedOwners` to the verified Site Verification web resource.
+
+  It is idempotent (a re-run of an onboarded domain is a no-op), supports `--check` (report drift, exit
+  non-zero, mutate nothing) and `--dry` (print the plan, change nothing), and `--domain <name>` to
+  scope to one entry. DNS records are only ever created, never edited or deleted.
+
+  Credentials come from the environment, never the config: `CLOUDFLARE_API_TOKEN` (a `Zone:DNS:Edit`
+  token) and a Google **user OAuth refresh token** as `VITOPS_GOOGLE_CLIENT_ID` /
+  `VITOPS_GOOGLE_CLIENT_SECRET` / `VITOPS_GOOGLE_REFRESH_TOKEN` (scoped to `siteverification` +
+  `webmasters`). Granting a Google Group **Full-User** access has no Search Console API and is surfaced
+  as a reminder in the summary rather than automated.
+
+- ceed51f: `vitops search notify` now accepts either Google credential, so most sites need only one.
+
+  The two halves of `vitops search` each demanded a different, unrelated Google setup — five environment variables between them. `search setup` requires a user OAuth credential (verifying a site makes the caller an **owner** of the property, and that should be a person, not a project robot), while `search notify` accepted only a service account. Search Console does not care which identity calls it, so a consumer who had already run `search setup` was being made to create a second credential for the other half of the same command.
+
+  `search notify` now takes whichever you have, preferring the service account when both are set — it runs on every deploy, in CI, and a service account does not expire, whereas a refresh token can be revoked and expires after 7 days for an OAuth client still in _Testing_ publishing status. `search setup` is unchanged and still requires user OAuth.
+
+  **Breaking — two renamed exports.** Both did the same job under the same name from different subpaths, which forced an alias at every call site:
+  - `@getvitops/utils/indexing`: `getAccessToken` → **`serviceAccountToken`**
+  - `@getvitops/utils/onboarding`: `getAccessToken` → **`refreshTokenGrant`**
+
+  New: `googleAccessToken(credential)` from `@getvitops/utils/indexing` takes a `GoogleCredential` union and is what both wrappers now call. If you were importing either `getAccessToken`, switch to the specific name, or to `googleAccessToken` if you want to accept either identity.
+
+  Internally the exchange is now one function. The two grants send different form bodies; everything after that — endpoint, content-type, error handling, `access_token` extraction — was duplicated verbatim in two modules. The service-account JWT signing had no test at all, because it was only reachable over the network; it now does, including the literal-`\n`-in-a-PEM case that secret stores produce.
+
+### Minor Changes
+
+- 14813fa: Document which tier provides each pattern — `vitops docs components`.
+
+  The toolkit ships four tiers that compose: CSS framework classes, `<wc-*>` web components, Astro
+  components, Bricks elements. Nothing said so. The class reference listed pattern names, the
+  elements reference listed Bricks controls, and the fact that `tree` is _also_ a web component
+  _and_ an Astro component existed only in the source layout. The cost is silent: you hand-write
+  the markup a component already emits, or you wrap a component that already emits its own tag.
+
+  `TIERS` in `@getvitops/generator` is the new manifest — per pattern, its CSS partial and
+  representative classes, its `wc-*` tag and which bundle that ships in, its Astro component(s),
+  its Bricks element, and one line saying what to actually write. `tierPatterns(tier)` projects one
+  tier. `vitops docs components` renders all four in one document, and the reference sections it
+  feeds render the same data per tier.
+
+  It is **authored rather than derived, and drift-guarded** instead. Naming convention carries most
+  of it and breaks exactly where it matters — `splitter.css` hosts two components, `tag.css` serves
+  three config patterns, `anchor-link.css` provides `.link`, `layout.css` provides `.split` and
+  `.centered` — so a derivation would need an exceptions table longer than the rule, and a rename
+  would silently drop a link. Instead, tests fail the build when a hand-written CSS partial, a
+  `customElements.define`, an exported Astro component or a Bricks element isn't accounted for.
+
+  Four things the manifest records that cannot be inferred, each a real failure mode:
+  - **Whether an Astro component wraps a web component.** `Tree` and `CookieConsent` emit the
+    `<wc-*>` tag with the fallback inside; `Details`, `Drawer`, `Popover`, `NavShell` and `Subgrid`
+    emit tier-1 markup with no web component at all. Reading the first group as the second gives
+    `<wc-tree><Tree /></wc-tree>` — two elements on one tree, which renders and misbehaves.
+  - **Where each element ships.** `elements.js` for the registered set, its own bundle for
+    `<wc-consent>` and `<wc-theme-editor>`, and **no bundle at all** for the four editor-v2 tags —
+    which are registered, importable-looking and inert in a consumer project. The guard checks this
+    against what `js/elements.ts` imports, so it can't claim an element ships when it doesn't.
+  - **Whether a pattern is config-authored.** `patterns.items` patterns get the token cascade,
+    states, role variants and override hooks; a structural partial gets none of them. The docs also
+    now say when a config-authored pattern is **absent from your config**, because naming its
+    classes while your build emits none of them is worse than omitting it.
+  - **The import specifier, verbatim.** These are published as the line to copy, so they are checked
+    against `@getvitops/astro`'s `exports`. That guard immediately caught
+    `@getvitops/astro/components/../CookieConsent.astro` — plausible-looking, right basename, not an
+    importable path (`CookieConsent.astro` ships from the package root).
+
+- 14813fa: Document the consent, conversion-tracking, search and legal subsystems for agents.
+
+  `vitops docs` gains four topics — `consent`, `tracking`, `search`, `legal` — and the docs
+  bundle gains the matching concept docs under `concepts/`. Until now these subsystems were
+  described only by their generated config-schema field descriptions, so an agent working in a
+  consumer project had no account of the rules that make them work, and every one of those rules
+  fails **silently** when broken:
+  - a gated tag given a live `src` instead of `type="text/plain"` fetches the third party anyway,
+    so the gate becomes decorative;
+  - a caller using `granted()` instead of `require()` never raises the banner, so on a site where
+    nothing else demands that category the permission is never offered, never granted, and the
+    write never happens;
+  - an absent `window.vitopsConsent` read as "denied" rather than "this site has no gate";
+  - a consent patch widened to every category records consent nobody gave;
+  - a sitemap with no `<lastmod>` makes edited pages undetectable, so `search notify` looks
+    healthy while never resubmitting anything;
+  - a stale IndexNow key file returns `202` and is then discarded;
+  - Google's Indexing API accepts ordinary URLs, discards them, and violates its own terms.
+
+  The packaged agent skill now covers consent and conversion tracking, and its description names
+  these subsystems so it is actually surfaced when they are the task.
+
+  Also fixed: the icons concept doc still called the Astro integration `getvitops()`, renamed to
+  `vitops()` in 3.0.
+
+### Patch Changes
+
+- Updated dependencies [14813fa]
+- Updated dependencies [c6b99e7]
+- Updated dependencies [c6b99e7]
+- Updated dependencies [f7bc0a0]
+- Updated dependencies [ceed51f]
+- Updated dependencies [14813fa]
+- Updated dependencies [14813fa]
+  - @getvitops/generator@4.0.0
+  - @getvitops/utils@4.0.0
+
 ## 3.0.0
 
 ### Major Changes
