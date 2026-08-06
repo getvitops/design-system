@@ -11,6 +11,7 @@
  *   vitops lint      [--input <json>] [--format <fmt>] [--src <dir>]
  *   vitops legal     [--input <site.json>] [--doc <name>] [--format <md|html|portable-text>] [--out <dir>]
  *   vitops search    setup [--domain <name>] [--dry] [--check]  |  notify [--dry] [--all] [--check]
+ *   vitops ads       setup [--provider <name>] [--dry] [--check]  |  tags  |  lint
  *   vitops media     [--raw <dir>] [--out <dir>] [--force] [--dry]
  *
  * Thin wrapper over @getvitops/generator (generation) and @getvitops/utils (favicons).
@@ -29,6 +30,8 @@ import {
   generateDocs,
   generateLegal,
   enabledDocs,
+  processorsMissingLocation,
+  JURISDICTION_COUNTRIES,
   isConfig,
   resolveInput,
   resolveConfig,
@@ -104,6 +107,27 @@ import {
   type DomainState,
   type GoogleOAuth,
 } from '@getvitops/utils/onboarding';
+// Its own subpath for the same reason: `ads` touches Cloudflare DNS. `plan`,
+// `formatPlan`, `hasDrift` and `formatSummary` are aliased — indexing and
+// onboarding export those names too.
+import {
+  AD_PLATFORMS,
+  AD_PROVIDER_KEYS,
+  formatPlan as formatPlanAds,
+  formatSummary as formatAdsSummary,
+  hasDrift as hasAdsDrift,
+  isAdProvider,
+  missingFields,
+  plan as planAds,
+  renderTag,
+  tagId,
+  type AdDomainState,
+  type AdPropertyResult,
+  type AdPropertySetup,
+  type AdProvider,
+  type MissingField,
+} from '@getvitops/utils/ads';
+import { PLATFORM_PARAMS } from '@getvitops/utils/tracking';
 // Its own subpath for the same reason: `media` shells out to ffmpeg, and no other
 // command should carry it. `formatPlan` is aliased — indexing exports one too.
 import {
@@ -114,6 +138,7 @@ import {
   type OutputKind,
 } from '@getvitops/utils/media';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
+import { ask, canPrompt, missingFieldMessage, questionFor, writeConfigPatch } from './prompt.ts';
 import { lintCss } from './lint-css.ts';
 import { lintSource, vocabulary } from './lint.ts';
 
@@ -146,6 +171,7 @@ Usage:
   vitops legal [options]        Render legal documents from a site config
   vitops icons [options]        Report which icons your source uses, and build the sprite
   vitops search <sub> [opts]    Search Console: onboard domains (setup) + notify deploys (notify)
+  vitops ads <sub> [opts]       Ad properties: verify domains (setup) + emit pixels (tags) + lint
   vitops media [options]       Encode raw video into web-ready WebM + MP4 + poster
 
 Generate options:
@@ -269,6 +295,53 @@ Search notify options:
   _REFRESH_TOKEN). The service account is preferred when both are set — this runs
   on every deploy, and it does not expire.
 
+Ads subcommands:
+  vitops ads setup [opts]       Ensure each platform's domain-verification DNS record
+  vitops ads tags [opts]        Print the consent-gated pixel snippets
+  vitops ads lint [opts]        Report ad properties the rest of the config can't see
+
+Ads setup options:
+  -i, --input <path>    Site config carrying site.ads (default: ./site.json)
+      --site-env <env>  Environment whose A/B variant applies (default: production)
+      --provider <name> Scope to one site.ads entry (google | meta | linkedin |
+                        reddit | tiktok | microsoft | pinterest | snapchat)
+      --dry             Print the plan and exit. Creates nothing — but it does READ
+                        live DNS first, so it needs CLOUDFLARE_API_TOKEN.
+      --check           Report drift and exit non-zero if any property is not
+                        linked. Mutates nothing, prompts for nothing.
+      --no-prompt       Never ask for a missing token; fail with the field name
+                        instead (the default when stdin is not a TTY, e.g. in CI)
+      --no-write        Don't persist an answered token back into the config
+
+  Four platforms verify a domain by DNS TXT — Meta, TikTok, Pinterest, Snapchat —
+  and that record is the one thing this creates for you (in Cloudflare, via
+  CLOUDFLARE_API_TOKEN; created only, never edited or deleted). Google Ads,
+  LinkedIn, Reddit and Microsoft Ads have no domain verification at all: linking
+  there is the tag and the account ID, and the run says so rather than skipping in
+  silence. No platform Marketing API is called — Meta's needs a system-user token
+  and Google's needs an approved developer token, so the final "Verify" click stays
+  a reminder. The verification token is not a secret (it is published in DNS, which
+  is the ownership proof), so it lives in the config and is prompted for on the
+  first run.
+
+Ads tags options:
+  -i, --input <path>    Site config carrying site.ads (default: ./site.json)
+      --provider <name> Print one platform's tag
+      --strategy <s>    idle | async | interaction (default: idle)
+
+  Prints each pixel as an INERT, consent-gated <script>: type="text/plain" with the
+  library URL on data-src, so an undecided visitor's page issues no third-party
+  request. For stacks with no Astro integration — Bricks, WordPress, Eleventy.
+  Paste into your template; @getvitops/core's consent runtime activates them.
+
+Ads lint options:
+  -i, --input <path>    Site config carrying site.ads (default: ./site.json)
+
+  Reports the gaps that are invisible at runtime: a click-ID parameter this
+  platform stamps that attribution doesn't capture, a pixel while site.tracking is
+  off (every conversion arrives unattributed), and a configured property with no
+  tag ID. Exits non-zero on a finding.
+
 Media options:
       --raw <dir>       Directory of unprocessed video, walked recursively
                         (default: ./raw)
@@ -302,6 +375,15 @@ const SEARCH_HELP = `vitops search — Google Search Console
 
   vitops search setup [opts]    Onboard site.searchConsole domains as GSC domain properties
   vitops search notify [opts]   Tell search engines a deploy happened (sitemap + IndexNow)
+
+Run \`vitops --help\` for the full option list for each subcommand.
+`;
+
+const ADS_HELP = `vitops ads — link this site to its ad properties
+
+  vitops ads setup [opts]       Ensure each platform's domain-verification DNS record
+  vitops ads tags [opts]        Print the consent-gated pixel snippets
+  vitops ads lint [opts]        Report ad properties the rest of the config can't see
 
 Run \`vitops --help\` for the full option list for each subcommand.
 `;
@@ -785,6 +867,20 @@ async function cmdLegal(argv: string[]) {
     );
 
   const files = generateLegal(site, { docs, output });
+
+  /**
+   * A processor placed nowhere cannot appear in the cross-border disclosure — there
+   * is nothing true to say about it — so it drops out of that section silently,
+   * which is the failure that looks tidy. Reported here rather than in the document:
+   * a policy must not editorialise about its own gaps.
+   *
+   * On **stderr** because stdout is the document and gets piped or redirected.
+   */
+  if (docs.includes('privacy'))
+    for (const name of processorsMissingLocation(site))
+      console.error(
+        `  ! ${name}: no country, storage or operatorCountry declared — it will not appear in the cross-border transfer disclosure. Add one, or state storage: [{ country: "${JURISDICTION_COUNTRIES[site.site.legal?.jurisdiction ?? 'ca']}" }] to say it does not leave the country.`,
+      );
 
   if (!values.out) {
     process.stdout.write(Object.values(files).join('\n'));
@@ -1355,6 +1451,347 @@ async function cmdSearchSetup(argv: string[]) {
   if (failed) process.exit(1);
 }
 
+/**
+ * Adapt a `Config` to the ads module's own option shape.
+ *
+ * The same flat field map as `toSearchConsoleSetup` and `toIndexingConfig`, for the
+ * same reason — utils cannot import the generator. The domain default is the one
+ * derived value: a platform verifies the host the site is published at, so
+ * `domains.canonical` answers it, and only an ad account verified against some
+ * other host needs `site.ads.<provider>.domain` stated.
+ */
+function toAdProperties(cfg: Config, providerFilter: string | undefined): AdPropertySetup[] {
+  const canonicalHost = (() => {
+    const url = cfg.site.domains?.canonical;
+    if (!url) return undefined;
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return undefined;
+    }
+  })();
+
+  const entries = cfg.site.ads ?? {};
+  const properties: AdPropertySetup[] = AD_PROVIDER_KEYS.filter((p) => entries[p] != null).map(
+    (provider) => {
+      const e = entries[provider]!;
+      const domain = e.domain ?? canonicalHost;
+      return {
+        provider,
+        ...(e.accountId ? { accountId: e.accountId } : {}),
+        ...(e.pixelId ? { pixelId: e.pixelId } : {}),
+        ...(e.conversionLabel ? { conversionLabel: e.conversionLabel } : {}),
+        ...(domain ? { domain } : {}),
+        ...(e.domainVerification ? { domainVerification: e.domainVerification } : {}),
+        ...(e.category ? { category: e.category } : {}),
+        ...(e.enabled != null ? { enabled: e.enabled } : {}),
+      };
+    },
+  );
+
+  if (providerFilter) {
+    if (!isAdProvider(providerFilter))
+      fail(
+        `--provider "${providerFilter}" is not a known ad platform (expected: ${AD_PROVIDER_KEYS.join(' | ')})`,
+      );
+    const one = properties.find((p) => p.provider === providerFilter);
+    if (!one)
+      fail(
+        `--provider "${providerFilter}" is not in site.ads (have: ${properties.map((p) => p.provider).join(', ') || 'none'})`,
+      );
+    return [one];
+  }
+  return properties;
+}
+
+/**
+ * `vitops ads` — everything that links this site to an ad platform.
+ *
+ * Three subcommands, split by what they touch: `setup` writes DNS, `tags` writes
+ * nothing and prints markup, `lint` reads and reports.
+ */
+async function cmdAds(argv: string[]) {
+  const [sub, ...rest] = argv;
+  switch (sub) {
+    case 'setup':
+      return cmdAdsSetup(rest);
+    case 'tags':
+      return cmdAdsTags(rest);
+    case 'lint':
+      return cmdAdsLint(rest);
+    case undefined:
+    case '-h':
+    case '--help':
+      console.log(ADS_HELP);
+      return;
+    default:
+      fail(`unknown "ads" subcommand "${sub}" (expected: setup | tags | lint). Try: vitops --help`);
+  }
+}
+
+/**
+ * Link each configured ad property: ensure the platform's domain-verification TXT,
+ * report what only a human can finish.
+ *
+ * Idempotent by construction — the planner decides each step from live DNS, so a
+ * re-run of a linked property is all skips. `--check` reports drift and exits
+ * non-zero without mutating; `--dry` prints the plan and stops. Neither is offline:
+ * the DNS observation runs before the planner either way.
+ *
+ * The one thing this does that `search setup` does not is **ask**. A first run has
+ * no verification token, because the token doesn't exist until someone fetches it
+ * from the platform UI — so a blocked step becomes a prompt, the answer is folded
+ * into the setup, and the planner runs again on it. That re-plan matters: what gets
+ * executed is always a plan the pure planner produced, never a special case built
+ * out of an answer.
+ */
+async function cmdAdsSetup(argv: string[]) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      input: { type: 'string', short: 'i', default: 'site.json' },
+      'site-env': { type: 'string', default: 'production' },
+      provider: { type: 'string' },
+      check: { type: 'boolean', default: false },
+      dry: { type: 'boolean', default: false },
+      'no-prompt': { type: 'boolean', default: false },
+      'no-write': { type: 'boolean', default: false },
+    },
+    allowPositionals: false,
+  });
+
+  const input = resolve(values.input as string);
+  const cfg = await loadConfig(input, values['site-env'] as string);
+  let properties = toAdProperties(cfg, values.provider as string | undefined);
+  if (properties.length === 0)
+    fail('no properties in site.ads — add the ad platforms this site is linked to');
+
+  const dry = values.dry as boolean;
+  const check = values.check as boolean;
+
+  // Only the DNS-verifying platforms need a Cloudflare token; a config of
+  // tag-only platforms (Google Ads, LinkedIn, Reddit, Microsoft) has no DNS work
+  // at all, and demanding a credential for a run that writes nothing would be an
+  // obstacle standing in front of an empty room.
+  const needsDns = properties.some(
+    (p) => AD_PLATFORMS[p.provider].verification.method === 'dns-txt',
+  );
+  const cfToken = loadCloudflareToken();
+  if (needsDns && !cfToken)
+    fail('set CLOUDFLARE_API_TOKEN (a Zone:DNS:Edit token) — reading and writing DNS needs it');
+
+  /** Observe live DNS per domain. Cached by domain: several platforms share one. */
+  const observe = async (): Promise<Map<string, AdDomainState>> => {
+    const states = new Map<string, AdDomainState>();
+    if (!cfToken) return states;
+    for (const p of properties) {
+      const domain = p.domain;
+      if (!domain || states.has(domain)) continue;
+      if (AD_PLATFORMS[p.provider].verification.method !== 'dns-txt') continue;
+      const zone = await findZoneId(cfToken, domain);
+      if (!zone.ok || !zone.zoneId) fail(`${domain}: ${zone.message}`);
+      const txt = await listApexTxt(cfToken, zone.zoneId, domain);
+      if (!txt.ok) fail(`${domain}: ${txt.message}`);
+      states.set(domain, { zoneId: zone.zoneId, txtContents: txt.contents });
+    }
+    return states;
+  };
+
+  let states = await observe();
+  let adsPlan = planAds({ properties }, states);
+
+  // ── Ask for what the config is missing, then re-plan on the answers ──────────
+  const interactive = canPrompt({
+    dry,
+    check,
+    noPrompt: values['no-prompt'] as boolean,
+  });
+  const gaps = missingFields(adsPlan);
+  if (gaps.length && interactive) {
+    const answers: { provider: AdProvider; needs: MissingField; value: string }[] = [];
+    for (const gap of gaps) {
+      const value = await ask(questionFor(gap.provider as AdProvider, gap.needs));
+      if (value) answers.push({ provider: gap.provider as AdProvider, needs: gap.needs, value });
+    }
+    if (answers.length) {
+      properties = properties.map((p) => {
+        const mine = answers.filter((a) => a.provider === p.provider);
+        return mine.reduce((acc, a) => ({ ...acc, [a.needs]: a.value }), p);
+      });
+      adsPlan = planAds({ properties }, states);
+      if (!(values['no-write'] as boolean)) {
+        for (const a of answers) {
+          const res = writeConfigPatch(input, a.provider, a.needs, a.value);
+          if (res.written) console.log(`✓ wrote site.ads.${a.provider}.${a.needs} to ${input}`);
+          else console.error(`! ${res.reason}`);
+        }
+      }
+    }
+    // A token answered now may name a record we haven't looked for yet.
+    states = await observe();
+    adsPlan = planAds({ properties }, states);
+  } else if (gaps.length && !dry && !check) {
+    for (const gap of gaps)
+      console.error(`! ${missingFieldMessage(gap.provider as AdProvider, gap.needs)}`);
+  }
+
+  if (dry || check) {
+    console.log(formatPlanAds(adsPlan));
+    if (check && hasAdsDrift(adsPlan)) {
+      console.error('\n✖ ad properties are not fully linked');
+      process.exit(1);
+    }
+    return;
+  }
+
+  // ── Apply ────────────────────────────────────────────────────────────────────
+  const results: AdPropertyResult[] = [];
+  let failed = false;
+  for (const p of adsPlan.properties) {
+    const result: AdPropertyResult = {
+      provider: p.provider,
+      domain: p.domain ?? '—',
+      txt: 'n/a',
+      tag: p.tag.action === 'skip' ? 'ready' : 'blocked',
+      reminders: p.reminders,
+    };
+    // A property still missing a field after the prompt round is not linked, and
+    // the exit code has to say so — a run that silently succeeds while a pixel has
+    // no id is the failure this command exists to make visible.
+    if (p.txt.action === 'blocked' || p.tag.action === 'blocked') failed = true;
+    if (p.txt.action === 'blocked') result.txt = 'blocked';
+    else if (p.txt.action === 'skip')
+      result.txt = AD_PLATFORMS[p.provider].verification.method === 'dns-txt' ? 'present' : 'n/a';
+    else {
+      const zoneId = p.domain ? states.get(p.domain)?.zoneId : undefined;
+      if (!cfToken || !zoneId || !p.domain || !p.txtContent) {
+        console.error(`✖ ${p.provider}: no Cloudflare zone for ${p.domain ?? '(no domain)'}`);
+        result.txt = 'failed';
+        failed = true;
+      } else {
+        const r = await createApexTxt(cfToken, zoneId, p.domain, p.txtContent);
+        if (!r.ok) {
+          console.error(`✖ ${p.provider} TXT: ${r.message}`);
+          result.txt = 'failed';
+          failed = true;
+        } else {
+          console.log(`✓ ${p.provider}: created TXT on ${p.domain}`);
+          result.txt = 'created';
+        }
+      }
+    }
+    results.push(result);
+  }
+
+  console.log(`\n${formatAdsSummary(results)}`);
+  if (results.some((r) => r.txt === 'created'))
+    console.log('\n  DNS takes minutes to propagate before a platform can see the record.');
+  if (results.some((r) => r.reminders.length))
+    console.log('  Finish the reminders above in the platform UI — no API covers those.');
+  if (failed) process.exit(1);
+}
+
+/**
+ * Print each configured pixel as an inert, consent-gated `<script>`.
+ *
+ * The universal delivery path, the same reasoning as `vitops legal`: every consumer
+ * has this CLI whatever their stack, so Bricks, WordPress and a hand-built site all
+ * get the correct gated markup without integration code.
+ */
+async function cmdAdsTags(argv: string[]) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      input: { type: 'string', short: 'i', default: 'site.json' },
+      'site-env': { type: 'string', default: 'production' },
+      provider: { type: 'string' },
+      strategy: { type: 'string', default: 'idle' },
+    },
+    allowPositionals: false,
+  });
+
+  const strategy = values.strategy as string;
+  if (!['idle', 'async', 'interaction'].includes(strategy))
+    fail(`--strategy "${strategy}" is not one of: idle | async | interaction`);
+
+  const cfg = await loadConfig(resolve(values.input as string), values['site-env'] as string);
+  const properties = toAdProperties(cfg, values.provider as string | undefined);
+  if (properties.length === 0) fail('no properties in site.ads — nothing to emit');
+
+  const out: string[] = [];
+  for (const p of properties) {
+    if (p.enabled === false) continue;
+    const tag = renderTag(p, strategy as 'idle' | 'async' | 'interaction');
+    if (!tag) {
+      console.error(
+        `! ${p.provider}: no ${AD_PLATFORMS[p.provider].tag.needs} — skipped (run \`vitops ads setup\` to be prompted for it)`,
+      );
+      continue;
+    }
+    out.push(tag);
+  }
+  if (out.length === 0) fail('no ad property has a tag id yet');
+  console.log(out.join('\n\n'));
+}
+
+/**
+ * Report the ad-property gaps that are invisible at runtime.
+ *
+ * Each finding is a silent failure, which is the bar for being here at all: an
+ * uncaptured click ID looks exactly like organic traffic, and a pixel on a site
+ * with tracking off produces conversions no campaign gets credit for.
+ */
+async function cmdAdsLint(argv: string[]) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      input: { type: 'string', short: 'i', default: 'site.json' },
+      'site-env': { type: 'string', default: 'production' },
+    },
+    allowPositionals: false,
+  });
+
+  const cfg = await loadConfig(resolve(values.input as string), values['site-env'] as string);
+  const properties = toAdProperties(cfg, undefined);
+  if (properties.length === 0) {
+    console.log('· no site.ads properties — nothing to check');
+    return;
+  }
+
+  const findings: string[] = [];
+  const trackingOn = cfg.site.tracking?.enabled === true;
+
+  for (const p of properties) {
+    const platform = AD_PLATFORMS[p.provider];
+    if (p.enabled === false) continue;
+
+    if (!tagId(p))
+      findings.push(
+        `${p.provider}: no ${platform.tag.needs} — the property is on record but no tag can be emitted`,
+      );
+
+    const uncaptured = platform.clickIdParams.filter((param) => !(param in PLATFORM_PARAMS));
+    if (uncaptured.length)
+      findings.push(
+        `${p.provider}: click ID ${uncaptured.join(', ')} is not in the capture vocabulary — every conversion from this platform will arrive unattributed`,
+      );
+
+    if (!trackingOn)
+      findings.push(
+        `${p.provider}: site.tracking.enabled is not true, so ${platform.clickIdParams.join('/')} is never captured — conversions will be unattributed`,
+      );
+  }
+
+  if (findings.length === 0) {
+    console.log(
+      `✓ ${properties.length} ad propert${properties.length === 1 ? 'y' : 'ies'} check out`,
+    );
+    return;
+  }
+  for (const f of findings) console.error(`✖ ${f}`);
+  process.exit(1);
+}
+
 // This CLI's own version (dist/cli.mjs → package-root package.json).
 function cliVersion(): string {
   try {
@@ -1621,11 +2058,13 @@ async function main() {
       return cmdIcons(rest);
     case 'search':
       return cmdSearch(rest);
+    case 'ads':
+      return cmdAds(rest);
     case 'media':
       return cmdMedia(rest);
     default:
       fail(
-        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint | legal | icons | search | media). Try: vitops --help`,
+        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint | legal | icons | search | ads | media). Try: vitops --help`,
       );
   }
 }

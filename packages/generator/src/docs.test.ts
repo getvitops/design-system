@@ -159,6 +159,8 @@ describe('generateDocs bundle', () => {
         'corrected config', // hand-edits are overwritten
         'meaningfully different from', // cookies: [] asserts cookieless
         'do not reuse it', // ca/PIPEDA prose is jurisdiction-specific
+        'is not the same fact as', // storage vs operator jurisdiction
+        'we don\'t know" is a fact', // hosts assert reach, not residency
       ],
     };
     // Collapse whitespace on both sides: these docs are prose the formatter reflows,

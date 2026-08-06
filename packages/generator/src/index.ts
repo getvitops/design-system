@@ -81,8 +81,12 @@ export {
   stripNulls,
   deepMerge,
   JURISDICTIONS,
+  JURISDICTION_COUNTRIES,
+  AD_PROVIDERS,
 } from './config.ts';
 export type {
+  AdProvider,
+  SiteAdProperty,
   ContactObject,
   Jurisdiction,
   PostalAddress,
@@ -106,6 +110,7 @@ export {
   renderNodes,
   derivePolicyVars,
   detectProcessorKeys,
+  processorsMissingLocation,
   resolveProcessors,
   KNOWN_PROCESSORS,
   parseMarkdown,
@@ -122,6 +127,7 @@ export type {
   LegalOutput,
   PolicyVars,
   Processor,
+  ProcessorStorage,
   KnownProcessorKey,
   Block,
   Span,

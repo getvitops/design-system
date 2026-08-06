@@ -27,6 +27,10 @@
  * thin loader (reading YAML, injecting `SITE_ENV`) lives outside this module.
  */
 import * as z from 'zod/mini';
+// The ad-platform capability table. Imported rather than mirrored: this direction is
+// the allowed one (the generator already depends on utils; utils may never import
+// the generator), and what a platform can do is one fact, not two.
+import { AD_PLATFORMS } from '@getvitops/utils/ads';
 import { desc, DesignSystemPatchSchema, type DesignSystem } from './schema.ts';
 
 // ── Primitives ────────────────────────────────────────────────────────────────
@@ -276,6 +280,10 @@ const EnvironmentSchema = z.object({
   url: desc(z.url(), 'Public origin of this environment.'),
   api: desc(z.optional(z.url()), 'API origin, when different from `url`.'),
   analytics: desc(z.optional(z.boolean()), 'Whether analytics fire in this environment.'),
+  ads: desc(
+    z.optional(z.boolean()),
+    'Whether `site.ads` pixels fire in this environment. Defaults to `analytics`, then true — a preview deployment sending pageviews is survivable, one firing conversion pixels is not, so this can be turned off on its own.',
+  ),
   robots: desc(z.optional(RobotsSchema), 'Robots policy (e.g. "noindex,nofollow" for dev).'),
   variant: desc(z.optional(z.string()), 'Active `abTesting.variants` key for this environment.'),
 });
@@ -552,6 +560,73 @@ const IndexingSchema = z.object({
   ),
 });
 
+// ── Ad properties ───────────────────────────────────────────────────────────────
+
+/**
+ * The ad platforms `vitops ads` can link a site to.
+ *
+ * A closed enum, mirroring `AD_PROVIDER_KEYS` in `@getvitops/utils/ads` — that
+ * module owns what each platform *can do* (whether it verifies a domain, what its
+ * tag is, which click ID it stamps), this owns what a config may *say*. Mirrored
+ * rather than derived because a `z.enum` needs literals to reach the published JSON
+ * Schema; `config.test.ts` asserts the two lists are the same set, so a provider
+ * added to one and not the other fails the build rather than silently getting no
+ * verification step and no tag.
+ */
+export const AD_PROVIDERS = [
+  'google',
+  'meta',
+  'linkedin',
+  'reddit',
+  'tiktok',
+  'microsoft',
+  'pinterest',
+  'snapchat',
+] as const;
+const AdProviderSchema = z.enum(AD_PROVIDERS);
+export type AdProvider = (typeof AD_PROVIDERS)[number];
+
+/**
+ * One ad property this site is linked to.
+ *
+ * Facts, not prose — the same rule the legal block follows. This records *which*
+ * account and *which* tag id, and the platform capability table decides what can be
+ * done about them. It is also what finally lets the rest of the toolchain see an ad
+ * pixel: the generated cookie notice discloses its cookies, `vitops ads lint`
+ * checks its click ID is captured, and the consent gate is handed the cookie names
+ * to clear on revoke. A pixel pasted into a template is invisible to all three.
+ */
+const AdPropertySchema = z.object({
+  accountId: desc(
+    z.optional(z.string()),
+    'The advertising account as the platform shows it — Google Ads customer ID, Meta ad account, LinkedIn partner ID, Reddit advertiser ID. For LinkedIn this is also the Insight Tag id; everywhere else the tag id is `pixelId`.',
+  ),
+  pixelId: desc(
+    z.optional(z.string()),
+    'The tag/pixel ID the browser snippet initialises — Meta pixel, TikTok pixel, Reddit pixel, Microsoft UET tag ID, Pinterest tag ID, Snap pixel, or the Google Ads conversion ID (`AW-…`, which is NOT the customer ID).',
+  ),
+  conversionLabel: desc(
+    z.optional(z.string()),
+    'Google Ads only: the conversion action label paired with the `AW-…` conversion ID.',
+  ),
+  domain: desc(
+    z.optional(z.string()),
+    'Bare hostname to verify with this platform. Defaults to the host of `domains.canonical` — set it only when the ad account is verified against a different domain.',
+  ),
+  domainVerification: desc(
+    z.optional(z.string()),
+    'The verification token from the platform UI, for the platforms that verify by DNS TXT (Meta, TikTok, Pinterest, Snapchat). `vitops ads setup` prompts for it and writes it here on first run. NOT a secret — it is published in DNS, and the platform fetching it back is the ownership proof, exactly like the IndexNow key. A value containing `=` is used as the whole record, which is the escape hatch if a platform changes its prefix.',
+  ),
+  category: desc(
+    z.optional(z.enum(['marketing', 'analytics'])),
+    'Consent category the tag waits on (default `marketing`). An ad pixel is advertising by default; `analytics` is for a site using one purely for its own measurement.',
+  ),
+  enabled: desc(
+    z.optional(z.boolean()),
+    'Set false to keep the property on record without emitting its tag.',
+  ),
+});
+
 // ── Legal ───────────────────────────────────────────────────────────────────────
 
 /**
@@ -566,6 +641,23 @@ const JurisdictionSchema = z.enum(JURISDICTIONS);
 export type Jurisdiction = (typeof JURISDICTIONS)[number];
 
 /**
+ * The country each template set frames cross-border transfers as *leaving*.
+ *
+ * A jurisdiction's own country is not a transfer, so this is what filters the
+ * disclosure lists — without it, `country: "Canada"` renders the incoherent
+ * "outside of Canada, including Canada".
+ *
+ * It belongs to the **jurisdiction**, not to `organization.address`: a `ca` policy
+ * says "outside of Canada" even for a business incorporated elsewhere. (The
+ * address drives a different sentence — the terms' governing-law clause, via
+ * `governingCountry`.) `satisfies` makes a new jurisdiction unable to forget it,
+ * the same guard style as `TEMPLATES`.
+ */
+export const JURISDICTION_COUNTRIES = {
+  ca: 'Canada',
+} satisfies Record<Jurisdiction, string>;
+
+/**
  * A third party that receives personal information. The generator derives the
  * ones it can see (analytics IDs, Turnstile, the deploy platform); this is for
  * the rest, which no other part of the config implies.
@@ -573,6 +665,17 @@ export type Jurisdiction = (typeof JURISDICTIONS)[number];
  * Deliberately facts, not prose: the config records *what is true*, the template
  * owns *how it is said*. That keeps a policy correct when the wording changes.
  */
+const ProcessorStorageSchema = z.object({
+  country: desc(
+    z.string(),
+    'A country or bloc where this provider stores or processes the information, as it should read in a sentence (e.g. "Canada", "the United States", "the European Union"). Naming the jurisdiction the policy is written for is meaningful: it says this information does not leave it.',
+  ),
+  scope: desc(
+    z.optional(z.string()),
+    'Which information is held there, as a noun phrase that reads after "in the case of" (e.g. "account and sign-in information", "mailbox contents"). Omit when this location holds everything the provider receives — a scoped entry claims LESS than an unscoped one, so omitting it is the safe default.',
+  ),
+});
+
 const ProcessorSchema = z.object({
   name: desc(z.string(), 'The provider, as a reader would recognise it (e.g. "Stripe").'),
   purpose: desc(
@@ -581,7 +684,15 @@ const ProcessorSchema = z.object({
   ),
   country: desc(
     z.optional(z.string()),
-    'Where they process it, as it should read in a sentence (e.g. "the United States"). Feeds the cross-border-transfer disclosure.',
+    'Shorthand for the common case where one country is both where they store it and whose laws reach it: asserts BOTH `storage: [{ country }]` AND `operatorCountry`. Reads inside a sentence (e.g. "the United States"). When the two differ — a Canadian region operated by a US company — state `storage` and `operatorCountry` instead; setting this alongside either is rejected.',
+  ),
+  storage: desc(
+    z.optional(z.array(ProcessorStorageSchema)),
+    'Where the information actually rests. Feeds the "stored or processed outside of <jurisdiction>" disclosure and nothing else. Several entries are allowed, each optionally scoped to a category of information — which is what makes a Canadian-region tenant holding identity data in the US expressible.',
+  ),
+  operatorCountry: desc(
+    z.optional(z.string()),
+    'The jurisdiction that can compel this provider to hand the information over — where it is established, or from which it is controlled. Reads after "the laws of" (e.g. "the United States"); a bloc is acceptable. A SEPARATE fact from `storage`, because privacy law cares about foreign *access*, not only foreign storage: a Canadian-region service run by a US company is `storage: [{ country: "Canada" }]` with `operatorCountry: "the United States"`.',
   ),
   privacyUrl: z.optional(z.url()),
 });
@@ -789,6 +900,10 @@ const SiteSectionSchema = z.object({
     ),
     'Ad-click attribution for conversion tracking.',
   ),
+  ads: desc(
+    z.optional(z.partialRecord(AdProviderSchema, AdPropertySchema)),
+    'Ad properties this site is linked to, keyed by platform. Read by `vitops ads setup` (ensure the DNS verification record), `vitops ads tags` (emit the consent-gated pixel), and the generated cookie notice (disclose what each pixel stores). Credentials never live here — the DNS write uses CLOUDFLARE_API_TOKEN from the environment.',
+  ),
   security: desc(
     z.optional(
       z.object({
@@ -985,6 +1100,8 @@ export type SiteIndexNow = z.infer<typeof IndexNowSchema>;
 export type SiteSearchConsole = z.infer<typeof SearchConsoleSchema>;
 /** One `site.searchConsole` entry — a domain to onboard via `vitops search setup`. */
 export type SiteSearchConsoleSetup = z.infer<typeof SearchConsoleSetupSchema>;
+/** One `site.ads` entry — an ad property to link via `vitops ads setup`. */
+export type SiteAdProperty = z.infer<typeof AdPropertySchema>;
 
 // ── JSON Schema + validation ────────────────────────────────────────────────────
 
@@ -1179,6 +1296,27 @@ export function validateConfig(input: unknown): ConfigValidationResult {
   // rather than allowed to render as a blank. `jurisdiction` needs no check:
   // the enum rejects an unregistered value at parse time.
   const privacy = site.legal?.privacyPolicy;
+  /**
+   * `country` is shorthand for BOTH `storage` and `operatorCountry`, so combining it
+   * with either is genuinely ambiguous — is the shorthand narrowing the explicit
+   * fact, or adding to it? Both readings are plausible and they make *contradictory
+   * legal claims*, so this is rejected rather than resolved by a silent rule.
+   *
+   * Checked unconditionally, not gated on `privacy.enabled`: the fact is wrong
+   * either way, and a document turned on later shouldn't surface it for the first
+   * time. Here rather than as a `z.refine` on the schema because parse-time
+   * rejection would make `resolveConfig` throw on the `vitops legal` path, which
+   * has no formatting for a zod issue — `validateConfig` is where every other
+   * cross-field legal requirement already lives, and it prints `path: message`.
+   */
+  for (const [i, p] of (privacy?.processors ?? []).entries())
+    if (p.country != null && (p.storage != null || p.operatorCountry != null))
+      errors.push(
+        issue(
+          ['site', 'legal', 'privacyPolicy', 'processors', i, 'country'],
+          `processor "${p.name}": \`country\` is shorthand for BOTH \`storage\` and \`operatorCountry\`, so combining it with either makes the narrower claim ambiguous — drop \`country\` and state the two facts, or drop the two and keep the shorthand`,
+        ),
+      );
   if (typeof privacy?.privacyOfficer === 'string' && !has(org?.locations, privacy.privacyOfficer))
     errors.push(
       issue(
@@ -1221,6 +1359,38 @@ export function validateConfig(input: unknown): ConfigValidationResult {
         issue(
           ['site', 'seo', 'indexing', 'indexNow', 'keyLocation'],
           'site.seo.indexing.indexNow needs site.domains.canonical to derive the key location — set one, or state keyLocation explicitly',
+        ),
+      );
+  }
+
+  // Ad properties. The capability table decides what is even askable of a platform,
+  // so a token set on a platform that has no domain verification is not a harmless
+  // extra field — it is a belief about what will happen on the next `ads setup`,
+  // and nothing will. Better said here than discovered by the record never being
+  // checked by anyone.
+  for (const [provider, entry] of Object.entries(site.ads ?? {})) {
+    if (entry == null) continue;
+    const platform = AD_PLATFORMS[provider as AdProvider];
+    const at = ['site', 'ads', provider];
+    if (entry.domainVerification != null && platform.verification.method === 'none')
+      errors.push(
+        issue(
+          [...at, 'domainVerification'],
+          `${platform.name} has no domain verification — ${platform.verification.reason ?? 'nothing verifies a domain there'}. Remove the token; linking is the tag and the account id.`,
+        ),
+      );
+    if (entry.domainVerification != null && entry.domain == null && site.domains?.canonical == null)
+      errors.push(
+        issue(
+          [...at, 'domain'],
+          `site.ads.${provider}.domainVerification needs a domain to put the record on — set site.domains.canonical, or state site.ads.${provider}.domain explicitly`,
+        ),
+      );
+    if (entry.accountId == null && entry.pixelId == null)
+      errors.push(
+        issue(
+          at,
+          `site.ads.${provider} identifies nothing — set accountId (the advertising account) and/or pixelId (the tag: ${platform.tag.needs} is what its snippet needs)`,
         ),
       );
   }

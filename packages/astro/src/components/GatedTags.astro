@@ -1,0 +1,46 @@
+---
+/**
+ * <GatedTags /> — the one place a third-party tag becomes markup.
+ *
+ * Shared by <Analytics /> and <Ads />, and shared deliberately: the gate is
+ * `type="text/plain"` with the URL on `data-src`, so the browser never parses the
+ * body as script and never fetches the library. An undecided or declining
+ * visitor's page issues no third-party request at all. Consent implemented by
+ * *asking a tracker not to track* is a promise; this is a fact about the document
+ * — and a fact with two implementations is one rewrite away from being neither.
+ *
+ * Decides nothing. Every tag arrives fully resolved from `analytics.ts` or
+ * `ads.ts`, both of which are pure and unit-tested.
+ *
+ * Emits no `preconnect` on purpose: warming a connection at parse time is exactly
+ * the critical-path cost the `idle` strategy exists to avoid.
+ */
+import type { GatedTag } from '../analytics.ts';
+
+interface Props {
+  tags: GatedTag[];
+}
+const { tags } = Astro.props;
+---
+
+{tags.map((tag) => tag.gated
+  ? (
+      <script
+        is:inline
+        type="text/plain"
+        data-vitops-tag
+        data-consent={tag.category}
+        data-strategy={tag.strategy}
+        data-src={tag.src}
+        data-consent-cookies={tag.cookies.length ? tag.cookies.join(',') : undefined}
+        {...tag.attrs}
+        set:html={tag.inline}
+      />
+    )
+  : (
+      <>
+        {tag.inline && <script is:inline set:html={tag.inline} />}
+        {tag.src && <script is:inline async src={tag.src} {...tag.attrs}></script>}
+      </>
+    )
+)}

@@ -16,7 +16,7 @@ import { DOC_SLUGS } from './templates/index.ts';
 import { resolveConfig, validateConfig, type Config, type OrganizationConfig } from '../config.ts';
 import { derivePolicyVars } from './derive.ts';
 import { enabledDocs, generateLegal, renderMarkdown } from './index.ts';
-import { detectProcessorKeys } from './providers.ts';
+import { detectProcessorKeys, processorsMissingLocation } from './providers.ts';
 import { parseMarkdown, toHtmlFragment, toPortableText } from './render.ts';
 
 /**
@@ -169,6 +169,9 @@ describe('processor derivation', () => {
     const md = privacyOf(site);
     expect(md).toContain('Stripe, for payment processing');
     expect(md).toContain('including the United States');
+    // `country` is shorthand for BOTH storage and operator jurisdiction, so the
+    // operator clause must be suppressed rather than naming the same country twice.
+    expect(md.match(/the United States/g)).toHaveLength(1);
   });
 
   test('say so plainly when there are no third parties at all', () => {
@@ -178,6 +181,141 @@ describe('processor derivation', () => {
     );
     // Claiming a cross-border transfer that does not happen is its own defect.
     expect(md).not.toContain('outside of Canada');
+  });
+});
+
+/**
+ * Where data rests and whose law reaches it are two facts. One string could not
+ * hold both, and the failures were quiet: an incoherent sentence, a silently
+ * dropped processor, or a residency claim the toolchain could not support.
+ */
+describe('cross-border transfer disclosure', () => {
+  const TRANSFER_HEADING = 'We May Transfer Personal Information to Other Countries';
+  const STORAGE_CLAUSE = 'stored or processed in jurisdictions outside of Canada';
+  const OPERATOR_CLAUSE = 'established in, or controlled from';
+  const declaring = (...processors: Record<string, unknown>[]) =>
+    fixture({
+      legal: { privacyPolicy: { enabled: true, processors: processors as never } },
+    });
+
+  test("a processor in the policy's own country is not a transfer", () => {
+    // Previously rendered "outside of Canada, including Canada" — incoherent, and
+    // untested. The comparison ignores case and a leading "the".
+    for (const country of ['Canada', 'canada', 'the Canada']) {
+      const md = privacyOf(declaring({ name: 'Acme', purpose: 'invoicing', country }));
+      expect(md, country).not.toContain(TRANSFER_HEADING);
+      expect(md, country).not.toContain('including Canada');
+    }
+  });
+
+  test('name the legal reach without claiming the data moved', () => {
+    // Azure: data-resident in Canada, US-controlled. The bytes never leave and US
+    // law still reaches them, which is the fact the OPC cares about.
+    const md = privacyOf(
+      declaring({
+        name: 'Microsoft Azure',
+        purpose: 'application hosting',
+        storage: [{ country: 'Canada' }],
+        operatorCountry: 'the United States',
+      }),
+    );
+    expect(md).toContain(OPERATOR_CLAUSE);
+    expect(md).toContain('the United States');
+    expect(md).not.toContain(STORAGE_CLAUSE);
+  });
+
+  test('a scoped location claims only the category it names', () => {
+    // M365/Zoho: a Canadian tenant whose identity data sits in the US. Folding the
+    // scoped country into the "including …" list would claim everything moved.
+    const md = privacyOf(
+      declaring({
+        name: 'Microsoft 365',
+        purpose: 'email and productivity',
+        storage: [
+          { country: 'Canada', scope: 'mailbox contents' },
+          { country: 'the United States', scope: 'account and sign-in information' },
+        ],
+        operatorCountry: 'the United States',
+      }),
+    );
+    expect(md).toContain('in the case of account and sign-in information');
+    // In-jurisdiction storage is not a transfer, so it is never disclosed as one.
+    expect(md).not.toContain('mailbox contents');
+    // A scoped storage claim must not suppress the operator clause — both are true.
+    expect(md).toContain(OPERATOR_CLAUSE);
+  });
+
+  test('do not restate legal reach for a country already named as storage', () => {
+    const md = privacyOf(
+      declaring({
+        name: 'Stripe',
+        purpose: 'payment processing',
+        storage: [{ country: 'the United States' }],
+        operatorCountry: 'the United States',
+      }),
+    );
+    expect(md).toContain(STORAGE_CLAUSE);
+    expect(md).not.toContain(OPERATOR_CLAUSE);
+  });
+
+  test('hosting alone no longer claims foreign storage', () => {
+    // Cloudflare is anycast: a request from Toronto is answered from a Toronto PoP,
+    // so the old `country: 'the United States'` asserted the wrong fact.
+    const md = privacyOf(fixture({ deployment: { platform: 'cloudflare-workers' } }));
+    expect(md).toContain(OPERATOR_CLAUSE);
+    expect(md).toContain('the United States');
+    expect(md).not.toContain(STORAGE_CLAUSE);
+  });
+
+  test('`countries` still names every country it ever named', () => {
+    // Deprecated, but public — a consumer's own template must keep rendering.
+    expect(derivePolicyVars(fixture({ deployment: { platform: 'vercel' } })).countries).toBe(
+      'the United States',
+    );
+    expect(
+      derivePolicyVars(declaring({ name: 'Acme', purpose: 'invoicing', country: 'Canada' }))
+        .countries,
+    ).toBe('Canada');
+  });
+
+  test('report a processor placed nowhere, which cannot be disclosed', () => {
+    const cfg = declaring(
+      { name: 'Stripe', purpose: 'payment processing' },
+      { name: 'Located', purpose: 'hosting', operatorCountry: 'the United States' },
+    );
+    expect(processorsMissingLocation(cfg)).toEqual(['Stripe']);
+    // It is still disclosed as a recipient — only the transfer sentence can't hold it.
+    expect(privacyOf(cfg)).toContain('Stripe, for payment processing');
+  });
+
+  test('reject the shorthand alongside either explicit fact', () => {
+    // Is `country` narrowing the explicit fact or adding to it? Both readings are
+    // plausible and they make contradictory legal claims, so neither is guessed.
+    for (const extra of [
+      { storage: [{ country: 'Canada' }] },
+      { operatorCountry: 'the United States' },
+    ]) {
+      const r = validateConfig(
+        declaring({ name: 'Zoho', purpose: 'email', country: 'the United States', ...extra }),
+      );
+      expect(r.ok).toBe(false);
+      expect(r.errors.some((e) => e.path.join('.').endsWith('processors.0.country'))).toBe(true);
+    }
+    // Each spelling alone is fine.
+    expect(
+      validateConfig(declaring({ name: 'Zoho', purpose: 'email', country: 'the United States' }))
+        .ok,
+    ).toBe(true);
+    expect(
+      validateConfig(
+        declaring({
+          name: 'Zoho',
+          purpose: 'email',
+          storage: [{ country: 'Canada' }],
+          operatorCountry: 'India',
+        }),
+      ).ok,
+    ).toBe(true);
   });
 });
 

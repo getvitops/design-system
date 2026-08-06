@@ -14,6 +14,12 @@
  * match, and a URL can legitimately carry more than one (a Google Ads link
  * retargeted through Meta arrives with both `gclid` and `fbclid`). Google first
  * because its click IDs are the ones that survive redirects intact.
+ *
+ * This table must cover every `clickIdParams` entry in `ads/providers.ts`, and
+ * `ads/providers.test.ts` asserts it does. A configured ad property whose click ID
+ * is not captured here means every conversion from that platform arrives
+ * unattributed — silently, since an unattributed conversion looks exactly like an
+ * organic one. `li_fat_id` and `epik` were missing for precisely that reason.
  */
 export const PLATFORM_PARAMS: Readonly<Record<string, string>> = {
   gclid: 'Google Ads',
@@ -24,6 +30,8 @@ export const PLATFORM_PARAMS: Readonly<Record<string, string>> = {
   rdt_cid: 'Reddit',
   ScCid: 'Snapchat',
   msclkid: 'Microsoft Ads',
+  li_fat_id: 'LinkedIn',
+  epik: 'Pinterest',
 };
 
 /** Just the parameter names, in the same precedence order. */

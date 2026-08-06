@@ -8,17 +8,14 @@
  * about which tag, which consent category and which cookies lives there and is
  * unit-tested. Nothing in this file chooses anything.
  *
- * The gated tags are `type="text/plain"`, which is the whole trick: the browser
- * never parses the body as script and never fetches the library, so an undecided
- * or declining visitor's page issues no third-party request at all. Consent
- * implemented by *asking a tracker not to track* is a promise; this is a fact
- * about the document. `@getvitops/core/consent` (loaded by <Head />) activates
- * them when their category is granted and their strategy has fired.
- *
- * Emits no `preconnect` on purpose: warming a connection at parse time is exactly
- * the critical-path cost the `idle` strategy exists to avoid.
+ * The markup itself is <GatedTags />, shared with <Ads />: the inert
+ * `type="text/plain"` + `data-src` shape is the whole gate, and it has exactly one
+ * implementation. <Ads /> is a sibling rather than part of this component because
+ * ad properties come from the site config, state their own consent category and
+ * switch per environment separately — see src/ads.ts.
  */
 import { type AnalyticsStrategy, resolveAnalytics } from '../analytics.ts';
+import GatedTags from './GatedTags.astro';
 // @ts-ignore — virtual module provided by the vitops() integration at build time
 import head from 'virtual:getvitops/head';
 
@@ -36,24 +33,4 @@ const { tags } = enabled
   : { tags: [] };
 ---
 
-{tags.map((tag) => tag.gated
-  ? (
-      <script
-        is:inline
-        type="text/plain"
-        data-vitops-tag
-        data-consent={tag.category}
-        data-strategy={tag.strategy}
-        data-src={tag.src}
-        data-consent-cookies={tag.cookies.length ? tag.cookies.join(',') : undefined}
-        {...tag.attrs}
-        set:html={tag.inline}
-      />
-    )
-  : (
-      <>
-        {tag.inline && <script is:inline set:html={tag.inline} />}
-        {tag.src && <script is:inline async src={tag.src} {...tag.attrs}></script>}
-      </>
-    )
-)}
+<GatedTags tags={tags} />

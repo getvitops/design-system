@@ -39,6 +39,8 @@ const CLICK_ID_PARAMS = [
   'rdt_cid', // Reddit
   'ScCid', // Snapchat
   'msclkid', // Microsoft/Bing
+  'li_fat_id', // LinkedIn
+  'epik', // Pinterest
 ] as const;
 
 const UTM_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;

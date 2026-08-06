@@ -2403,6 +2403,21 @@ is overwritten by the next build.
 - **\`cookies: []\` is meaningfully different from \`undefined\`.** It *asserts* a provider is
   cookieless (Plausible), which the cookie notice states **positively** rather than omitting.
 
+- **"Stored in" is not the same fact as "reachable by".** A processor's \`storage\` is where the
+  information rests; \`operatorCountry\` is the jurisdiction that can compel the provider to hand
+  it over. Privacy law turns on foreign **access**, not merely foreign storage, so the two get
+  separate sentences — an Azure tenant in a Canadian region never moves the data and is still
+  subject to US law. \`country\` is shorthand asserting both, and combining it with either is
+  **rejected** rather than resolved by a silent rule: whether it narrows or adds is a
+  contradiction between two legal claims, not a formatting choice.
+
+  A \`storage\` entry may be \`scope\`d to a category, which is what makes a Canadian tenant
+  holding identity data abroad expressible. A country in the policy's own jurisdiction is not a
+  transfer and is filtered out — that is what stopped \`country: "Canada"\` rendering "outside of
+  Canada, including Canada". Only what the config states is asserted: hosts like Cloudflare
+  declare an \`operatorCountry\` and **no** storage, because anycast means the config cannot know
+  which region served a request, and "we don't know" is a fact.
+
 - **Form templates are the PII inventory.** \`site.templates\` entries of type \`form\` are the
   only place the config says what personal information the site actually collects, so the
   disclosed list derives from their fields. \`hidden\` fields and honeypots are **excluded** —

@@ -30,6 +30,10 @@
       "types": "./dist/onboarding/index.d.mts",
       "import": "./dist/onboarding/index.mjs"
     },
+    "./ads": {
+      "types": "./dist/ads/index.d.mts",
+      "import": "./dist/ads/index.mjs"
+    },
     "./media": {
       "types": "./dist/media/index.d.mts",
       "import": "./dist/media/index.mjs"

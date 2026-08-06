@@ -4,42 +4,74 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Source-text invariants for `<Analytics />` and `<CookieConsent />`, in the style
- * of `seo.test.ts`.
+ * Source-text invariants for `<GatedTags />`, `<Analytics />` and
+ * `<CookieConsent />`, in the style of `seo.test.ts`.
  *
- * The resolution logic is unit-tested in `../analytics.test.ts`. What these guard
- * is the structural half a unit test can't reach — chiefly that the gated tags
- * really are inert, which is the one property that makes the consent gate a fact
- * about the document rather than a promise a third-party script might not keep.
+ * The resolution logic is unit-tested in `../analytics.test.ts` and `../ads.test.ts`.
+ * What these guard is the structural half a unit test can't reach — chiefly that
+ * the gated tags really are inert, which is the one property that makes the consent
+ * gate a fact about the document rather than a promise a third-party script might
+ * not keep.
+ *
+ * That markup now lives in `<GatedTags />`, shared by `<Analytics />` and
+ * `<Ads />`, so the inertness assertions moved with it: one implementation, one
+ * place it is guarded.
  */
 const HERE = dirname(fileURLToPath(import.meta.url));
 const analytics = readFileSync(join(HERE, './Analytics.astro'), 'utf8');
+const gatedTags = readFileSync(join(HERE, './GatedTags.astro'), 'utf8');
+const ads = readFileSync(join(HERE, './Ads.astro'), 'utf8');
 const consent = readFileSync(join(HERE, './CookieConsent.astro'), 'utf8');
 
-describe('<Analytics />', () => {
+describe('<GatedTags />', () => {
   it('emits gated tags as type="text/plain"', () => {
     // Without this the browser parses and runs the body immediately and the
     // "gate" does nothing at all.
-    expect(analytics).toContain('type="text/plain"');
-    expect(analytics).toContain('data-vitops-tag');
-    expect(analytics).toContain('data-consent={tag.category}');
+    expect(gatedTags).toContain('type="text/plain"');
+    expect(gatedTags).toContain('data-vitops-tag');
+    expect(gatedTags).toContain('data-consent={tag.category}');
   });
 
   it('never gives a gated tag a live `src`', () => {
     // A `src` on an inert script is still fetched by some preload scanners, and
     // the request itself is what consent is meant to prevent. The URL rides on
     // data-src and only becomes a src at activation.
-    expect(analytics).toContain('data-src={tag.src}');
+    expect(gatedTags).toContain('data-src={tag.src}');
     // The one `src=` in the file belongs to the ungated branch.
-    expect(analytics.match(/[^-]\bsrc=\{/g) ?? []).toHaveLength(1);
+    expect(gatedTags.match(/[^-]\bsrc=\{/g) ?? []).toHaveLength(1);
   });
 
   it('hands the runtime the cookies to clear on revoke', () => {
-    // Provider cookie names live in analytics.ts, not in @getvitops/core — one
-    // table, travelling with the tag that sets them.
-    expect(analytics).toContain('data-consent-cookies');
+    // Provider cookie names live beside the tag that sets them — analytics.ts for
+    // analytics, AD_PLATFORMS for pixels — never in @getvitops/core.
+    expect(gatedTags).toContain('data-consent-cookies');
   });
 
+  it('is the only renderer — neither caller writes tag markup of its own', () => {
+    // Matched as markup, not as a substring: both callers' header comments name
+    // the inert shape to explain where it went, so a bare text check would trip
+    // on its own documentation.
+    for (const source of [analytics, ads]) {
+      expect(source).toContain('<GatedTags tags={tags} />');
+      expect(source).not.toMatch(/<script[\s>]/);
+    }
+  });
+});
+
+describe('<Ads />', () => {
+  it('renders every tag from the resolver, hard-coding no platform', () => {
+    expect(ads).toContain('resolveAds');
+    for (const host of ['connect.facebook.net', 'bat.bing.com', 'analytics.tiktok.com']) {
+      expect(ads).not.toContain(host);
+    }
+  });
+
+  it('reads the per-environment switch rather than deciding one', () => {
+    expect(ads).toContain('head.ads?.enabled');
+  });
+});
+
+describe('<Analytics />', () => {
   it('renders every tag from the resolver, hard-coding no provider', () => {
     expect(analytics).toContain('resolveAnalytics');
     for (const provider of ['googletagmanager', 'clarity.ms', 'plausible.io', 'matomo.php']) {

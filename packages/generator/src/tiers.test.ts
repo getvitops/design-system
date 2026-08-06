@@ -127,6 +127,7 @@ describe('TIERS covers what is on disk', () => {
       'Head',
       'Seo',
       'Analytics',
+      'Ads',
       'Tracking',
       'NodeRenderer',
       'WebComponentLoader',

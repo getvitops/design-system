@@ -493,7 +493,9 @@ Legal pages: which documents exist, where they live, and the facts the generated
     - `[items]` (object)
       - `name` (string, required) — The provider, as a reader would recognise it (e.g. "Stripe").
       - `purpose` (string, required) — Why they receive it, as a noun phrase that reads after "for" (e.g. "payment processing").
-      - `country` (string) — Where they process it, as it should read in a sentence (e.g. "the United States"). Feeds the cross-border-transfer disclosure.
+      - `country` (string) — Shorthand for the common case where one country is both where they store it and whose laws reach it: asserts BOTH `storage: [{ country }]` AND `operatorCountry`. Reads inside a sentence (e.g. "the United States"). When the two differ — a Canadian region operated by a US company — state `storage` and `operatorCountry` instead; setting this alongside either is rejected.
+      - `storage` (array) — Where the information actually rests. Feeds the "stored or processed outside of <jurisdiction>" disclosure and nothing else. Several entries are allowed, each optionally scoped to a category of information — which is what makes a Canadian-region tenant holding identity data in the US expressible.
+      - `operatorCountry` (string) — The jurisdiction that can compel this provider to hand the information over — where it is established, or from which it is controlled. Reads after "the laws of" (e.g. "the United States"); a bloc is acceptable. A SEPARATE fact from `storage`, because privacy law cares about foreign *access*, not only foreign storage: a Canadian-region service run by a US company is `storage: [{ country: "Canada" }]` with `operatorCountry: "the United States"`.
       - `privacyUrl` (string)
 - `termsOfService` (object)
   - `enabled` (boolean, required)
