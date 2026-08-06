@@ -82,8 +82,11 @@ export {
   deepMerge,
   JURISDICTIONS,
   JURISDICTION_COUNTRIES,
+  AD_PROVIDERS,
 } from './config.ts';
 export type {
+  AdProvider,
+  SiteAdProperty,
   ContactObject,
   Jurisdiction,
   PostalAddress,

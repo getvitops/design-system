@@ -18,6 +18,7 @@
  * pipeline. This is not a directory of the web; it's the set of providers the
  * toolchain itself can vouch for.
  */
+import { AD_PLATFORMS, AD_PROVIDER_KEYS } from '@getvitops/utils/ads';
 import type { Config } from '../config.ts';
 
 /** One place a provider holds information, and which information if not all of it. */
@@ -227,7 +228,38 @@ export function resolveProcessors(cfg: Config): Processor[] {
     matomoLocation(KNOWN_PROCESSORS[k] as Processor, cfg.site),
   );
   const declared = cfg.site.legal?.privacyPolicy?.processors ?? [];
-  return [...detected, ...declared].map(desugarCountry);
+  return [...detected, ...adProcessors(cfg), ...declared].map(desugarCountry);
+}
+
+/**
+ * The ad platforms `site.ads` links this site to, as processors.
+ *
+ * Derived from `AD_PLATFORMS` rather than written out here, because the cookie
+ * names, the privacy URL and the opt-out are the *same facts* `vitops ads tags`
+ * writes into `data-consent-cookies` — and the one failure that matters is those
+ * two disagreeing. A pixel that sets `_fbp` while the notice omits it is a
+ * compliance defect, and a revoke that clears a cookie the notice never mentioned
+ * is the same defect seen from the other end.
+ *
+ * `enabled: false` keeps a property on record without emitting its tag, so nothing
+ * is set and nothing is disclosed. Everything else with an id is live.
+ */
+function adProcessors(cfg: Config): Processor[] {
+  const ads = cfg.site.ads ?? {};
+  return AD_PROVIDER_KEYS.filter((provider) => {
+    const entry = ads[provider];
+    return entry != null && entry.enabled !== false && (entry.pixelId ?? entry.accountId) != null;
+  }).map((provider) => {
+    const platform = AD_PLATFORMS[provider];
+    return {
+      name: platform.name,
+      purpose: 'advertising measurement and retargeting',
+      operatorCountry: platform.operatorCountry,
+      privacyUrl: platform.tag.privacyUrl,
+      cookies: platform.tag.cookies,
+      ...(platform.tag.optOut ? { optOut: platform.tag.optOut } : {}),
+    } satisfies Processor;
+  });
 }
 
 /**

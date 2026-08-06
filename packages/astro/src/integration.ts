@@ -35,6 +35,7 @@ import {
   type OptionalConsentCategory,
   resolveAnalytics,
 } from './analytics.ts';
+import { type GetvitopsAdsOptions, resolveAds } from './ads.ts';
 import { type HeadFont, resolveFonts } from './fonts.ts';
 import type { GetvitopsSeoOptions } from './seo.ts';
 import { type GetvitopsTrackingOptions, resolveTracking } from './tracking.ts';
@@ -493,6 +494,14 @@ interface HeadData {
    * offered consent categories it checks against are known only at this point.
    */
   tracking: { enabled: boolean; category: string; cookies: string[] } | null;
+  /**
+   * What `<Ads />` emits: the `site.ads` properties plus whether this environment
+   * fires them at all. Read from the site config here rather than in the component
+   * because that is where the config is already parsed, and because the offered
+   * consent categories must know a `marketing` demand exists before the banner is
+   * built.
+   */
+  ads: { enabled: boolean; properties: GetvitopsAdsOptions } | null;
 }
 
 /**
@@ -535,6 +544,38 @@ function undisclosedProviders(configPath: string, analytics: GetvitopsAnalyticsO
       analytics[key as keyof GetvitopsAnalyticsOptions] !== undefined &&
       !declared[SITE_CONFIG_KEYS[key] as string],
   );
+}
+
+/**
+ * Read `site.ads` and this environment's ads switch out of the site config.
+ *
+ * Best-effort, like `undisclosedProviders`: every other consumer of this file
+ * validates it loudly elsewhere in the same hook, and a second copy of that error
+ * helps nobody. `resolveConfig` is used rather than a bare `JSON.parse` so an A/B
+ * variant's `overrides` are applied first — a variant that changes which pixels
+ * run is exactly the kind of thing overrides exist for.
+ *
+ * The environment switch cascades `ads` → `analytics` → true. An environment that
+ * has already said "no analytics here" has said the interesting half of it; making
+ * a consumer repeat themselves to stop conversion pixels would mean a preview
+ * deploy fires them by default, which is the wrong way for this to fail.
+ */
+function readSiteAds(
+  configPath: string,
+  siteEnv: string,
+): { enabled: boolean; properties: GetvitopsAdsOptions } | null {
+  try {
+    const cfg = resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv);
+    const properties = cfg.site.ads;
+    if (!properties || Object.keys(properties).length === 0) return null;
+    const env = cfg.site.environments?.[siteEnv];
+    return {
+      enabled: env?.ads ?? env?.analytics ?? true,
+      properties: properties as GetvitopsAdsOptions,
+    };
+  } catch {
+    return null;
+  }
 }
 
 const VIRTUAL_ID = 'virtual:getvitops/head';
@@ -723,7 +764,18 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         // banner must have a row for the category the capture script will ask for.
         const trackingOpts: GetvitopsTrackingOptions | undefined =
           opts.tracking === true ? { enabled: true } : opts.tracking || undefined;
-        const detectedCategories = consentCategories(analytics.tags);
+        // Ad properties come from the site config, not an integration option — the
+        // ad account is a fact about the site, and `vitops ads setup`, `ads lint`
+        // and the cookie notice read the same block. Resolved before the categories
+        // are chosen, because a pixel is a `marketing` demand and the banner must
+        // have a row for it.
+        const adsConfig = siteInput
+          ? readSiteAds(resolve(root, siteInput), opts.site?.siteEnv ?? 'production')
+          : null;
+        const detectedCategories = consentCategories([
+          ...analytics.tags,
+          ...resolveAds(adsConfig?.properties, { consent: consentEnabled, enabled: true }).tags,
+        ]);
         const defaultCategories: OptionalConsentCategory[] = ['analytics', 'preferences'];
         const trackingCategory = trackingOpts?.enabled
           ? (trackingOpts.category ?? 'marketing')
@@ -739,6 +791,16 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
           consentCategories: offeredCategories,
         });
         for (const warning of tracking.warnings) logger.warn(warning);
+
+        // Resolved a second time, now against the categories the banner will
+        // actually offer and this environment's switch, so its warnings are about
+        // the build that ships rather than the probe above.
+        const ads = resolveAds(adsConfig?.properties, {
+          consent: consentEnabled,
+          consentCategories: offeredCategories,
+          enabled: adsConfig?.enabled ?? true,
+        });
+        for (const warning of ads.warnings) logger.warn(warning);
 
         // `legalInput`, not `opts.legal.input` — the path is now a cascade
         // (explicit legal input → `site.input` → a `css.input` that reads as a
@@ -1146,6 +1208,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
                       cookies: tracking.cookies,
                     }
                   : null,
+                ads: adsConfig,
               }),
             ],
           },

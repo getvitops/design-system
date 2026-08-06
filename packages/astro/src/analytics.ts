@@ -105,9 +105,22 @@ export interface GetvitopsConsentOptions {
   policyUrl?: string;
 }
 
-/** One tag, fully resolved. */
-export interface ResolvedTag {
-  key: 'googleAnalytics' | 'clarity' | 'matomo' | 'plausible';
+/**
+ * A third-party tag, fully resolved — everything `<GatedTags />` needs to render
+ * one, with nothing left to decide.
+ *
+ * Shared by `<Analytics />` and `<Ads />` on purpose: the inert-markup rule
+ * (`type="text/plain"`, the URL on `data-src`, never a live `src`) is the whole
+ * consent gate, and it must have exactly one implementation. What differs between
+ * the two is where the tag comes from and who decides its category, which is why
+ * they have separate resolvers over one shape rather than one resolver over two
+ * vocabularies.
+ *
+ * `key` is left to each resolver: analytics keys are its four providers, ads keys
+ * are `AdProvider`. Widening it into one union here would let a provider from
+ * either side satisfy a check meant for the other.
+ */
+export interface GatedTag {
   /** The provider as a reader would recognise it — used in warnings. */
   provider: string;
   category: ConsentCategory;
@@ -125,6 +138,11 @@ export interface ResolvedTag {
   inline: string;
   src: string | null;
   attrs: Record<string, string>;
+}
+
+/** One analytics tag. */
+export interface ResolvedTag extends GatedTag {
+  key: 'googleAnalytics' | 'clarity' | 'matomo' | 'plausible';
 }
 
 export interface ResolvedAnalytics {
@@ -316,7 +334,7 @@ export function resolveAnalytics(
 }
 
 /** Which optional categories a set of tags actually needs a visitor to decide. */
-export function consentCategories(tags: ResolvedTag[]): OptionalConsentCategory[] {
+export function consentCategories(tags: GatedTag[]): OptionalConsentCategory[] {
   const used = new Set<OptionalConsentCategory>();
   for (const tag of tags) {
     if (tag.category !== 'necessary') used.add(tag.category);

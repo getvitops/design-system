@@ -17,6 +17,14 @@ export type {
   GetvitopsSitemapOptions,
 } from './integration.ts';
 export { consentCategories, resolveAnalytics } from './analytics.ts';
+export { resolveAds } from './ads.ts';
+export type {
+  GetvitopsAdProperty,
+  GetvitopsAdsOptions,
+  ResolveAdsContext,
+  ResolvedAdTag,
+  ResolvedAds,
+} from './ads.ts';
 export { resolveTracking, TRACKING_COOKIE } from './tracking.ts';
 export type {
   GetvitopsTrackingOptions,
@@ -37,6 +45,7 @@ export type {
   ResolveAnalyticsContext,
   ResolvedAnalytics,
   ResolvedTag,
+  GatedTag,
 } from './analytics.ts';
 // Real per-page <lastmod> for the sitemap. A helper rather than a `sitemap`
 // option, because it shells out to git and returns nothing from a shallow clone —

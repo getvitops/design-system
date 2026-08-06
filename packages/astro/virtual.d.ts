@@ -52,6 +52,12 @@ declare module 'virtual:getvitops/head' {
     // the others, and the offered consent categories it checks against are known
     // only there.
     tracking: { enabled: boolean; category: string; cookies: string[] } | null;
+    // The site config's `site.ads` block plus this environment's switch —
+    // structurally `{ enabled, properties }` (src/ads.ts), re-typed by <Ads /> on
+    // the way into `resolveAds`. Read in the integration because that is where the
+    // site config is already parsed, and because a pixel is a `marketing` demand
+    // the banner must have a row for.
+    ads: { enabled: boolean; properties: Record<string, unknown> } | null;
   }
   const data: HeadData;
   export default data;
