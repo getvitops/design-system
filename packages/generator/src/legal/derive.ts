@@ -16,7 +16,12 @@
  * `Date.now()` so a rebuild produces a byte-identical document.
  */
 import { t } from '@getvitops/utils';
-import { resolvePrivacyContact, type ContactObject, type Config } from '../config.ts';
+import {
+  JURISDICTION_COUNTRIES,
+  resolvePrivacyContact,
+  type ContactObject,
+  type Config,
+} from '../config.ts';
 import { resolveProcessors, type Processor } from './providers.ts';
 
 /**
@@ -72,7 +77,39 @@ export interface PolicyVars {
    * set cookies" while `_ac` sits in the visitor's browser.
    */
   firstPartyCookies: { name: string; purpose: string; retention: string }[];
-  /** Reads after "including": "…the United States and the European Union". */
+  /**
+   * The country this document frames transfers as *leaving*, from the jurisdiction
+   * rather than the org's address — a `ca` policy says "outside of Canada" even for
+   * a business incorporated elsewhere. (`governingCountry` is the address, and
+   * drives a different sentence: the terms' governing-law clause.)
+   */
+  jurisdictionCountry: string;
+  /**
+   * Reads after "including": foreign countries where information rests, with no
+   * category attached — the broad claim.
+   */
+  storageCountries: string | undefined;
+  /**
+   * Foreign storage locations holding only SOME categories. Structured rather than
+   * pre-joined, because the connective ("in the case of") is the template's word,
+   * not a fact. Disjoint from `storageCountries`: a country already claimed
+   * unscoped is never repeated here, since the unscoped claim is the broader one.
+   */
+  scopedStorage: { country: string; scope: string }[];
+  /**
+   * Reads after "the laws of": foreign jurisdictions that can compel a provider to
+   * produce information, EXCLUDING any already named in `storageCountries` —
+   * saying US law reaches information already disclosed as stored in the US adds a
+   * sentence and no fact.
+   */
+  operatorCountries: string | undefined;
+  /**
+   * Reads after "including": "…the United States and the European Union".
+   *
+   * @deprecated Split into `storageCountries` and `operatorCountries`, which keep
+   * residency and legal reach apart. Retained, and still every country the field
+   * ever named, so a consumer's own template renders what it always rendered.
+   */
   countries: string | undefined;
   consentModel: 'opt-in' | 'opt-out' | 'none';
   cookieCategories: string[];
@@ -353,7 +390,59 @@ export function derivePolicyVars(cfg: Config): PolicyVars {
     ...cookieOptOutOptions,
   ]);
 
-  const countries = list(uniq(processors.map((p) => p.country)));
+  /**
+   * The cross-border disclosure, as two facts rather than one flattened list.
+   *
+   * Order matters here — each step narrows what the next may claim:
+   *
+   * 1. Anything in this jurisdiction is not a transfer at all, so it is filtered
+   *    out. Without this, `country: "Canada"` rendered "outside of Canada,
+   *    including Canada".
+   * 2. An unscoped storage country is the BROAD claim; a scoped one covering the
+   *    same country would only narrow it, so it is dropped as redundant.
+   * 3. An operator country already named as storage adds no fact — "US law reaches
+   *    information stored in the US" is a sentence, not information.
+   *
+   * Steps 2 and 3 are what make the rendered output byte-identical for every config
+   * that used `country` (which desugars to both facts).
+   *
+   * No geography is inferred — "France" is not resolved into "the European Union".
+   * Only what the config states is asserted, which is the `matomoLocation` rule.
+   */
+  const jurisdictionCountry = JURISDICTION_COUNTRIES[legal?.jurisdiction ?? 'ca'];
+  // Compare loosely: "the United States" and "United States" are one fact, and a
+  // template must never have to know that "canada" is "Canada".
+  const norm = (c: string) =>
+    c
+      .trim()
+      .toLowerCase()
+      .replace(/^the\s+/, '');
+  const foreign = (c: string) => norm(c) !== norm(jurisdictionCountry);
+
+  const allStorage = processors.flatMap((p) => p.storage ?? []);
+  const unscoped = uniq(
+    allStorage.filter((s) => !s.scope && foreign(s.country)).map((s) => s.country),
+  );
+  const storageCountries = list(unscoped);
+  const named = new Set(unscoped.map(norm));
+  const scopedStorage = [
+    ...new Map(
+      allStorage
+        .filter((s) => s.scope && foreign(s.country) && !named.has(norm(s.country)))
+        .map((s) => [`${norm(s.country)}|${s.scope!}`, { country: s.country, scope: s.scope! }]),
+    ).values(),
+  ];
+  const operatorCountries = list(
+    uniq(processors.map((p) => p.operatorCountry)).filter((c) => foreign(c) && !named.has(norm(c))),
+  );
+
+  // Back-compat: every country the old field ever named, unfiltered, in processor
+  // order — storage before operator, matching how `country` desugars.
+  const countries = list(
+    uniq(
+      processors.flatMap((p) => [...(p.storage ?? []).map((s) => s.country), p.operatorCountry]),
+    ),
+  );
 
   const address = contact?.address ?? org?.address;
 
@@ -387,6 +476,10 @@ export function derivePolicyVars(cfg: Config): PolicyVars {
           },
         ]
       : [],
+    jurisdictionCountry,
+    storageCountries: storageCountries || undefined,
+    scopedStorage,
+    operatorCountries: operatorCountries || undefined,
     countries: countries || undefined,
     consentModel: consent?.enabled ? (consent.type ?? 'opt-in') : 'none',
     cookieCategories: consent?.categories ?? [],

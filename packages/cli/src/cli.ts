@@ -29,6 +29,8 @@ import {
   generateDocs,
   generateLegal,
   enabledDocs,
+  processorsMissingLocation,
+  JURISDICTION_COUNTRIES,
   isConfig,
   resolveInput,
   resolveConfig,
@@ -785,6 +787,20 @@ async function cmdLegal(argv: string[]) {
     );
 
   const files = generateLegal(site, { docs, output });
+
+  /**
+   * A processor placed nowhere cannot appear in the cross-border disclosure — there
+   * is nothing true to say about it — so it drops out of that section silently,
+   * which is the failure that looks tidy. Reported here rather than in the document:
+   * a policy must not editorialise about its own gaps.
+   *
+   * On **stderr** because stdout is the document and gets piped or redirected.
+   */
+  if (docs.includes('privacy'))
+    for (const name of processorsMissingLocation(site))
+      console.error(
+        `  ! ${name}: no country, storage or operatorCountry declared — it will not appear in the cross-border transfer disclosure. Add one, or state storage: [{ country: "${JURISDICTION_COUNTRIES[site.site.legal?.jurisdiction ?? 'ca']}" }] to say it does not leave the country.`,
+      );
 
   if (!values.out) {
     process.stdout.write(Object.values(files).join('\n'));

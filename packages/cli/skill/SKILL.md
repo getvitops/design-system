@@ -123,7 +123,12 @@ where no provider covers the family.
   collect, the countries it names come from the providers in use. So the fix for a wrong
   policy is a corrected config, never hand-editing the output — the next build overwrites
   it. Declare processors the config cannot imply (payment, CRM, mail) under
-  `legal.privacyPolicy.processors`.
+  `legal.privacyPolicy.processors`. On each one, **where it stores data and whose law reaches
+  it are separate facts**: `storage: [{ country, scope? }]` is residency, `operatorCountry` is
+  the jurisdiction that can compel access, and `country` is shorthand for both — so a Canadian
+  region run by a US company is `storage: [{ country: "Canada" }]` with
+  `operatorCountry: "the United States"`, not one string. Combining `country` with either is
+  rejected.
   Generated from config, not legal advice — always tell the user to have it reviewed
   before publishing.
 - `vitops search notify` — tell search engines a deploy happened, from a **site config**'s

@@ -566,6 +566,23 @@ const JurisdictionSchema = z.enum(JURISDICTIONS);
 export type Jurisdiction = (typeof JURISDICTIONS)[number];
 
 /**
+ * The country each template set frames cross-border transfers as *leaving*.
+ *
+ * A jurisdiction's own country is not a transfer, so this is what filters the
+ * disclosure lists — without it, `country: "Canada"` renders the incoherent
+ * "outside of Canada, including Canada".
+ *
+ * It belongs to the **jurisdiction**, not to `organization.address`: a `ca` policy
+ * says "outside of Canada" even for a business incorporated elsewhere. (The
+ * address drives a different sentence — the terms' governing-law clause, via
+ * `governingCountry`.) `satisfies` makes a new jurisdiction unable to forget it,
+ * the same guard style as `TEMPLATES`.
+ */
+export const JURISDICTION_COUNTRIES = {
+  ca: 'Canada',
+} satisfies Record<Jurisdiction, string>;
+
+/**
  * A third party that receives personal information. The generator derives the
  * ones it can see (analytics IDs, Turnstile, the deploy platform); this is for
  * the rest, which no other part of the config implies.
@@ -573,6 +590,17 @@ export type Jurisdiction = (typeof JURISDICTIONS)[number];
  * Deliberately facts, not prose: the config records *what is true*, the template
  * owns *how it is said*. That keeps a policy correct when the wording changes.
  */
+const ProcessorStorageSchema = z.object({
+  country: desc(
+    z.string(),
+    'A country or bloc where this provider stores or processes the information, as it should read in a sentence (e.g. "Canada", "the United States", "the European Union"). Naming the jurisdiction the policy is written for is meaningful: it says this information does not leave it.',
+  ),
+  scope: desc(
+    z.optional(z.string()),
+    'Which information is held there, as a noun phrase that reads after "in the case of" (e.g. "account and sign-in information", "mailbox contents"). Omit when this location holds everything the provider receives — a scoped entry claims LESS than an unscoped one, so omitting it is the safe default.',
+  ),
+});
+
 const ProcessorSchema = z.object({
   name: desc(z.string(), 'The provider, as a reader would recognise it (e.g. "Stripe").'),
   purpose: desc(
@@ -581,7 +609,15 @@ const ProcessorSchema = z.object({
   ),
   country: desc(
     z.optional(z.string()),
-    'Where they process it, as it should read in a sentence (e.g. "the United States"). Feeds the cross-border-transfer disclosure.',
+    'Shorthand for the common case where one country is both where they store it and whose laws reach it: asserts BOTH `storage: [{ country }]` AND `operatorCountry`. Reads inside a sentence (e.g. "the United States"). When the two differ — a Canadian region operated by a US company — state `storage` and `operatorCountry` instead; setting this alongside either is rejected.',
+  ),
+  storage: desc(
+    z.optional(z.array(ProcessorStorageSchema)),
+    'Where the information actually rests. Feeds the "stored or processed outside of <jurisdiction>" disclosure and nothing else. Several entries are allowed, each optionally scoped to a category of information — which is what makes a Canadian-region tenant holding identity data in the US expressible.',
+  ),
+  operatorCountry: desc(
+    z.optional(z.string()),
+    'The jurisdiction that can compel this provider to hand the information over — where it is established, or from which it is controlled. Reads after "the laws of" (e.g. "the United States"); a bloc is acceptable. A SEPARATE fact from `storage`, because privacy law cares about foreign *access*, not only foreign storage: a Canadian-region service run by a US company is `storage: [{ country: "Canada" }]` with `operatorCountry: "the United States"`.',
   ),
   privacyUrl: z.optional(z.url()),
 });
@@ -1179,6 +1215,27 @@ export function validateConfig(input: unknown): ConfigValidationResult {
   // rather than allowed to render as a blank. `jurisdiction` needs no check:
   // the enum rejects an unregistered value at parse time.
   const privacy = site.legal?.privacyPolicy;
+  /**
+   * `country` is shorthand for BOTH `storage` and `operatorCountry`, so combining it
+   * with either is genuinely ambiguous — is the shorthand narrowing the explicit
+   * fact, or adding to it? Both readings are plausible and they make *contradictory
+   * legal claims*, so this is rejected rather than resolved by a silent rule.
+   *
+   * Checked unconditionally, not gated on `privacy.enabled`: the fact is wrong
+   * either way, and a document turned on later shouldn't surface it for the first
+   * time. Here rather than as a `z.refine` on the schema because parse-time
+   * rejection would make `resolveConfig` throw on the `vitops legal` path, which
+   * has no formatting for a zod issue — `validateConfig` is where every other
+   * cross-field legal requirement already lives, and it prints `path: message`.
+   */
+  for (const [i, p] of (privacy?.processors ?? []).entries())
+    if (p.country != null && (p.storage != null || p.operatorCountry != null))
+      errors.push(
+        issue(
+          ['site', 'legal', 'privacyPolicy', 'processors', i, 'country'],
+          `processor "${p.name}": \`country\` is shorthand for BOTH \`storage\` and \`operatorCountry\`, so combining it with either makes the narrower claim ambiguous — drop \`country\` and state the two facts, or drop the two and keep the shorthand`,
+        ),
+      );
   if (typeof privacy?.privacyOfficer === 'string' && !has(org?.locations, privacy.privacyOfficer))
     errors.push(
       issue(

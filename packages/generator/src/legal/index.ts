@@ -94,8 +94,13 @@ export function generateLegal(
 }
 
 export { derivePolicyVars, type PolicyVars } from './derive.ts';
-export { detectProcessorKeys, KNOWN_PROCESSORS, resolveProcessors } from './providers.ts';
-export type { KnownProcessorKey, Processor } from './providers.ts';
+export {
+  detectProcessorKeys,
+  KNOWN_PROCESSORS,
+  processorsMissingLocation,
+  resolveProcessors,
+} from './providers.ts';
+export type { KnownProcessorKey, Processor, ProcessorStorage } from './providers.ts';
 export { parseMarkdown, toContentNodes, toHtmlFragment, toPortableText } from './render.ts';
 export type { Block, Span } from './render.ts';
 export { DOC_ORDER, DOC_SLUGS, TEMPLATES } from './templates/index.ts';

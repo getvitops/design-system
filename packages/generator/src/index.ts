@@ -81,6 +81,7 @@ export {
   stripNulls,
   deepMerge,
   JURISDICTIONS,
+  JURISDICTION_COUNTRIES,
 } from './config.ts';
 export type {
   ContactObject,
@@ -106,6 +107,7 @@ export {
   renderNodes,
   derivePolicyVars,
   detectProcessorKeys,
+  processorsMissingLocation,
   resolveProcessors,
   KNOWN_PROCESSORS,
   parseMarkdown,
@@ -122,6 +124,7 @@ export type {
   LegalOutput,
   PolicyVars,
   Processor,
+  ProcessorStorage,
   KnownProcessorKey,
   Block,
   Span,

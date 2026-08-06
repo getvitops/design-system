@@ -15,7 +15,9 @@
  * Commissioner of Canada and frames transfers as "outside of Canada". Do not
  * reuse it for another jurisdiction — add a sibling template instead.
  */
-import type { PolicyVars } from '../derive.ts';
+// `list` is a formatting helper, the same class as `bullets` — the connectives
+// ("including", "in the case of") stay in the prose below, where they belong.
+import { list, type PolicyVars } from '../derive.ts';
 import { bullets, REVIEW_NOTICE, updatedLine } from './shared.ts';
 
 export function privacyCa(v: PolicyVars): string {
@@ -126,12 +128,51 @@ ${bullets(
 We remain responsible for personal information in the possession of our service providers.`;
 }
 
-/** Omitted entirely when nothing leaves the country — a false claim otherwise. */
+/**
+ * Omitted entirely when nothing leaves the country — a false claim otherwise.
+ *
+ * Two clauses, because storage and legal reach are two facts and the OPC's concern
+ * is foreign **access**, not merely foreign storage. A provider can hold data in
+ * Canada and still be compellable abroad (Azure in a Canadian region), and a
+ * provider can hold only one category of data abroad (a Canadian tenant whose
+ * identity data sits in the US). One sentence could state neither.
+ *
+ * The closer is shared: it is true of whichever clauses appear.
+ */
 function transferSection(v: PolicyVars): string {
-  if (!v.countries) return '';
+  const clauses = [storageClause(v), operatorClause(v)].filter(Boolean);
+  if (clauses.length === 0) return '';
   return `
 ### We May Transfer Personal Information to Other Countries
 
-Some or all of the personal information we collect may be stored or processed in jurisdictions outside of Canada, including ${v.countries}. As a result, this information may be subject to access requests from governments, courts or law enforcement in those jurisdictions according to laws in those jurisdictions.
+${clauses.join('\n\n')}
+
+As a result, this information may be subject to access requests from governments, courts or law enforcement in those jurisdictions according to laws in those jurisdictions.
 `;
+}
+
+/**
+ * Where the information rests.
+ *
+ * A scoped location gets its own sentence rather than joining the "including …"
+ * list: folded in, a reader would take it to cover everything the provider holds,
+ * which is a broader claim than the config made.
+ */
+function storageClause(v: PolicyVars): string {
+  const scoped = list(v.scopedStorage.map((s) => `${s.country}, in the case of ${s.scope}`));
+  if (v.storageCountries)
+    return `Some or all of the personal information we collect may be stored or processed in jurisdictions outside of Canada, including ${v.storageCountries}.${
+      scoped
+        ? ` Certain categories of personal information are held outside of Canada even where the rest is not: ${scoped}.`
+        : ''
+    }`;
+  if (scoped)
+    return `Certain categories of the personal information we collect are stored or processed outside of Canada: ${scoped}.`;
+  return '';
+}
+
+/** The Azure-in-Canada case: the information never moves, and foreign law still reaches it. */
+function operatorClause(v: PolicyVars): string {
+  if (!v.operatorCountries) return '';
+  return `Some of the service providers we use are established in, or controlled from, jurisdictions outside of Canada, including ${v.operatorCountries}. Personal information those providers handle on our behalf may be subject to the laws of those jurisdictions even when it is stored in Canada.`;
 }

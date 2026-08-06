@@ -20,13 +20,49 @@
  */
 import type { Config } from '../config.ts';
 
+/** One place a provider holds information, and which information if not all of it. */
+export interface ProcessorStorage {
+  /** Reads inside a sentence: "…including the United States". */
+  country: string;
+  /**
+   * Reads after "in the case of". Present means this location holds only SOME of
+   * what the provider receives, which is a narrower claim than an unscoped entry —
+   * so the template gives it its own sentence rather than folding it into the list,
+   * where a reader would take it to cover everything.
+   */
+  scope?: string | undefined;
+}
+
 export interface Processor {
   /** The provider as a reader would recognise it. */
   name: string;
   /** Reads after "for": "…to Stripe for payment processing". */
   purpose: string;
-  /** Reads inside a sentence: "…including the United States". */
+  /**
+   * Shorthand asserting BOTH `storage` and `operatorCountry` are this one country.
+   *
+   * Kept for the common case (and because it is public API), but note it is the
+   * field whose *meaning* was never defined — its old doc comment described how it
+   * READ, not what it asserted, which is how one string came to stand for two
+   * different facts. Prefer the explicit pair when they differ.
+   */
   country?: string | undefined;
+  /**
+   * Where the information actually rests. Feeds the "stored or processed outside
+   * of <jurisdiction>" disclosure and nothing else.
+   */
+  storage?: ProcessorStorage[] | undefined;
+  /**
+   * The jurisdiction that can compel this provider to produce the information —
+   * where it is established, or from which it is controlled. Reads after "the laws
+   * of".
+   *
+   * A separate fact from `storage`, and the one privacy law actually turns on: the
+   * OPC's concern is foreign *access*, not foreign storage. Azure in a Canadian
+   * region is `storage: [{ country: 'Canada' }]`, `operatorCountry: 'the United
+   * States'` — the bytes never move and US law still reaches them.
+   */
+  operatorCountry?: string | undefined;
   privacyUrl?: string | undefined;
   /**
    * Cookies this provider sets. An empty array is meaningful and not the same as
@@ -97,31 +133,44 @@ export const KNOWN_PROCESSORS = {
     // empty list is the assertion — see the Processor.cookies note above.
     cookies: [],
   },
+  // ── Edge / hosting: operator jurisdiction, NOT storage ──────────────────────
+  //
+  // These four asserted `country: 'the United States'` into a sentence that says
+  // "stored or processed in" — a claim about the wrong fact. Cloudflare is anycast:
+  // a request from Toronto is answered from a Toronto PoP, and Workers/R2 have
+  // residency controls the config cannot see. Vercel and Netlify are region-
+  // configurable in the same way.
+  //
+  // What is true regardless of which PoP or region served the request is that a US
+  // company can be compelled under US law. So that is what they now assert, and
+  // they assert nothing about where the bytes rest. This generalises the rule the
+  // Matomo note below already stated: "we don't know" is a fact. A consumer who
+  // pins a region should declare `storage` on a processor of their own.
   turnstile: {
     name: 'Cloudflare Turnstile',
     purpose: 'bot protection on forms',
-    country: 'the United States',
+    operatorCountry: 'the United States',
     privacyUrl: 'https://www.cloudflare.com/privacypolicy/',
     cookies: ['cf_clearance'],
   },
   cloudflare: {
     name: 'Cloudflare',
     purpose: 'website hosting and content delivery',
-    country: 'the United States',
+    operatorCountry: 'the United States',
     privacyUrl: 'https://www.cloudflare.com/privacypolicy/',
     cookies: [],
   },
   vercel: {
     name: 'Vercel',
     purpose: 'website hosting',
-    country: 'the United States',
+    operatorCountry: 'the United States',
     privacyUrl: 'https://vercel.com/legal/privacy-policy',
     cookies: [],
   },
   netlify: {
     name: 'Netlify',
     purpose: 'website hosting',
-    country: 'the United States',
+    operatorCountry: 'the United States',
     privacyUrl: 'https://www.netlify.com/privacy/',
     cookies: [],
   },
@@ -175,10 +224,52 @@ export function detectProcessorKeys(cfg: Config): KnownProcessorKey[] {
  */
 export function resolveProcessors(cfg: Config): Processor[] {
   const detected = detectProcessorKeys(cfg).map((k) =>
-    matomoCountry(KNOWN_PROCESSORS[k] as Processor, cfg.site),
+    matomoLocation(KNOWN_PROCESSORS[k] as Processor, cfg.site),
   );
   const declared = cfg.site.legal?.privacyPolicy?.processors ?? [];
-  return [...detected, ...declared];
+  return [...detected, ...declared].map(desugarCountry);
+}
+
+/**
+ * `country` → both facts it has always asserted.
+ *
+ * The sentence it fed claimed storage *and* legal reach in one breath ("may be
+ * stored or processed in … including X. As a result … access requests from
+ * governments … in those jurisdictions"). So expanding it to storage alone would
+ * silently retract half of a claim consumers have already published. Expanding to
+ * both is also what keeps the rendered output byte-identical for every config that
+ * used the shorthand.
+ *
+ * `country` is left in place — it is public API and `PolicyVars.countries` still
+ * reports it. When the explicit fields are present they win; `validateConfig`
+ * rejects that combination, so it is unreachable through a validated config, but
+ * `resolveProcessors` is exported and needs a defined answer regardless.
+ */
+function desugarCountry(p: Processor): Processor {
+  if (!p.country) return p;
+  return {
+    ...p,
+    storage: p.storage ?? [{ country: p.country }],
+    operatorCountry: p.operatorCountry ?? p.country,
+  };
+}
+
+/**
+ * Processors the config discloses but places nowhere.
+ *
+ * Such a processor cannot appear in the transfer disclosure — there is nothing true
+ * to say about it — and today it vanishes from that section in silence, which is the
+ * tidy-looking failure. Names only, and deliberately NOT on `PolicyVars`: that type
+ * is the facts a template renders from, and a document must not editorialise about
+ * its own gaps. The CLI reports these on stderr instead.
+ *
+ * Not a `validateConfig` error either: a bare `{ name, purpose }` validates today,
+ * so rejecting it would make this a breaking change.
+ */
+export function processorsMissingLocation(cfg: Config): string[] {
+  return resolveProcessors(cfg)
+    .filter((p) => !p.operatorCountry && !p.storage?.length)
+    .map((p) => p.name);
 }
 
 /**
@@ -189,9 +280,15 @@ export function resolveProcessors(cfg: Config): Processor[] {
  * country. So the cross-border transfer sentence is asserted only for the case we
  * can see. Naming a transfer that isn't happening is the same class of error as
  * omitting one that is — the config records facts, and "we don't know" is a fact.
+ *
+ * This sets `storage`, not `operatorCountry`: Matomo Cloud genuinely holds the data
+ * in the EU. InnoCraft is New Zealand-based, but nothing in the config sees that, so
+ * no operator jurisdiction is asserted — the same rule, applied to the other fact.
  */
-function matomoCountry(processor: Processor, site: Config['site']): Processor {
+function matomoLocation(processor: Processor, site: Config['site']): Processor {
   if (processor.name !== 'Matomo') return processor;
   const url = site.analytics?.matomo?.url ?? '';
-  return /\.matomo\.cloud/i.test(url) ? { ...processor, country: 'the European Union' } : processor;
+  return /\.matomo\.cloud/i.test(url)
+    ? { ...processor, storage: [{ country: 'the European Union' }] }
+    : processor;
 }
