@@ -39,6 +39,20 @@ Using it needs both APIs (`searchconsole.googleapis.com`, `siteverification.goog
 enabled on that project, and `serviceusage.services.use` for the identity — one grant per site,
 which suits an agency administering many sites from one admin identity.
 
+An ADC credential with no `site.google.project` is now **refused before any request is made**,
+naming the file the credential came from and the project gcloud recorded with it:
+
+```
+✖ this Google credential comes from ~/.config/gcloud/application_default_credentials.json,
+  which authenticates through a shared OAuth client that owns no project — so it needs
+  "site.google.project" in site.json to say which project the API usage belongs to.
+  gcloud recorded "acme-web" as the quota project for that login, so that is probably the value.
+```
+
+That is the mistake waiting for the _second_ site: the command gets copied from whatever
+onboarded the first one, the field is left out, and Google's own answer names neither the config
+field nor the credential.
+
 **Fixed: an ADC file in `GOOGLE_APPLICATION_CREDENTIALS` no longer hard-exits.** That variable is
 Google's own convention _and_ where gcloud writes ADC, so the same variable carries two kinds of
 credential. Parsing an `authorized_user` file as a service account failed with `service account

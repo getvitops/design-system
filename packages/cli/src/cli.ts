@@ -81,6 +81,7 @@ import {
   verifyKeyFile,
   writeSnapshot,
   adcCredentialsPath,
+  adcQuotaProject,
   parseAdcUser,
   type GoogleAuthLike,
   type GoogleCredential,
@@ -876,7 +877,12 @@ async function cmdSearchNotify(argv: string[]) {
     if (p.check.length === 0)
       fail('--check needs seo.indexing.priorityUrls — the pages whose indexing matters');
 
-    const auth = searchAuth(await googleAccessToken(credential), credential, site);
+    const auth = searchAuth(
+      await googleAccessToken(credential),
+      credential,
+      site,
+      values.input as string,
+    );
     console.log(`\nInspecting ${p.check.length} priority URL(s):`);
     for (const url of p.check) {
       const r = await inspectUrl(auth, p.searchConsole.siteUrl, url);
@@ -929,7 +935,12 @@ async function cmdSearchNotify(argv: string[]) {
     if (!credential) {
       console.log(`· Search Console: skipped — no credential (${CREDENTIAL_HINT})`);
     } else {
-      const auth = searchAuth(await googleAccessToken(credential), credential, site);
+      const auth = searchAuth(
+        await googleAccessToken(credential),
+        credential,
+        site,
+        values.input as string,
+      );
       const r = await submitSitemap(auth, p.searchConsole.siteUrl!, sitemapUrl);
       if (r.ok) console.log(`✓ Search Console: sitemap resubmitted`);
       else {
@@ -999,6 +1010,41 @@ function loadCloudflareToken(): string | undefined {
  * the sites. All-or-nothing — a partial set is a misconfiguration worth naming
  * rather than a reason to run degraded.
  */
+/**
+ * Set when the Google credential came from an ADC file rather than the env vars.
+ *
+ * Provenance matters for exactly one check: an ADC credential authenticates through
+ * a shared OAuth client that owns no project, so it CANNOT work without
+ * `site.google.project`, while a credential from your own OAuth client works fine
+ * without one. Knowing which we hold is what turns Google's "requires a quota
+ * project" 403 into an error that names the field and the likely value.
+ */
+let adcOrigin: { path: string; project?: string } | undefined;
+
+/**
+ * Refuse an ADC credential with no project, before spending a request on a 403.
+ *
+ * This is the mistake waiting for the *second* site: the command is copied from
+ * whatever onboarded the first one, `site.google.project` is left out, and Google
+ * answers with a message about quota projects that names neither the config field
+ * nor the file the credential came from.
+ */
+function requireAdcProject(project: string | undefined, input: string): void {
+  if (!adcOrigin || project) return;
+  fail(
+    `this Google credential comes from ${adcOrigin.path}, which authenticates through a shared ` +
+      `OAuth client that owns no project — so it needs "site.google.project" in ${input} to say ` +
+      `which project the API usage belongs to.` +
+      (adcOrigin.project
+        ? `\n  gcloud recorded "${adcOrigin.project}" as the quota project for that login, so that is probably the value.`
+        : '') +
+      `\n  One project per site keeps each site's usage and billing separate. That project also ` +
+      `needs searchconsole.googleapis.com and siteverification.googleapis.com enabled, and the ` +
+      `identity needs serviceusage.services.use on it.` +
+      `\n  Or set VITOPS_GOOGLE_CLIENT_ID / _CLIENT_SECRET / _REFRESH_TOKEN to use your own OAuth client instead.`,
+  );
+}
+
 function loadGoogleOAuth(): GoogleOAuth | undefined {
   const clientId = process.env.VITOPS_GOOGLE_CLIENT_ID;
   const clientSecret = process.env.VITOPS_GOOGLE_CLIENT_SECRET;
@@ -1012,8 +1058,16 @@ function loadGoogleOAuth(): GoogleOAuth | undefined {
       process.env.GOOGLE_APPLICATION_CREDENTIALS ??
       adcCredentialsPath({ env: process.env, platform: process.platform, home: homedir(), join });
     if (path && existsSync(path)) {
-      const adc = parseAdcUser(readFileSync(path, 'utf8'));
-      if (adc) return adc;
+      const raw = readFileSync(path, 'utf8');
+      const adc = parseAdcUser(raw);
+      if (adc) {
+        // Remember that this came from ADC, and what project gcloud recorded with it.
+        // A shared-client credential is refused outright without a project, so the
+        // preflight below can name the likely value instead of leaving a bare 403.
+        const recorded = adcQuotaProject(raw);
+        adcOrigin = recorded ? { path, project: recorded } : { path };
+        return adc;
+      }
     }
     return undefined;
   }
@@ -1059,8 +1113,15 @@ function loadSearchCredential(): GoogleCredential | undefined {
  * there — turning a working CI credential into a 403 for no benefit. So the header
  * is sent exactly when it is needed, never as a default.
  */
-function searchAuth(token: string, credential: GoogleCredential, cfg: Config): GoogleAuthLike {
+function searchAuth(
+  token: string,
+  credential: GoogleCredential,
+  cfg: Config,
+  input: string,
+): GoogleAuthLike {
   const project = cfg.site?.google?.project;
+  // Only a user credential can be an ADC one, so only it can be missing a project.
+  if (credential.kind === 'oauth') requireAdcProject(project, input);
   return project && credential.kind === 'oauth' ? { token, quotaProject: project } : token;
 }
 
@@ -1128,6 +1189,11 @@ async function cmdSearchSetup(argv: string[]) {
 
   const cfToken = loadCloudflareToken();
   const oauth = loadGoogleOAuth();
+  const project = cfg.site?.google?.project;
+  // An ADC credential with no project is refused outright (see requireAdcProject) —
+  // so for the purposes of "can this dry run read live state", it is not usable
+  // credentials, the same as no credential at all.
+  const usableOauth = oauth && !(adcOrigin && !project);
 
   // A dry run that mutates nothing should not demand the credentials to mutate.
   // It cannot READ live state without them either, so it plans from "nothing is
@@ -1135,7 +1201,7 @@ async function cmdSearchSetup(argv: string[]) {
   // run would do, and is what makes the plan showable before anyone has
   // provisioned anything. `--check` is different: reporting drift means
   // comparing against reality, so it keeps needing to see it.
-  if (values.dry && (!cfToken || !oauth)) {
+  if (values.dry && (!cfToken || !usableOauth)) {
     const blank: DomainState = {
       zoneId: '',
       txtPresent: false,
@@ -1148,9 +1214,13 @@ async function cmdSearchSetup(argv: string[]) {
     );
     const missing = [
       ...(cfToken ? [] : ['CLOUDFLARE_API_TOKEN (Zone:DNS:Edit + Zone:Read)']),
-      ...(oauth
+      ...(usableOauth
         ? []
-        : ['VITOPS_GOOGLE_CLIENT_ID / VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN']),
+        : oauth
+          ? [`site.google.project in ${values.input as string} (this ADC login has no project)`]
+          : [
+              'VITOPS_GOOGLE_CLIENT_ID / VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN',
+            ]),
     ];
     console.log(
       `\n(--dry, and no credentials set: planned from scratch rather than from live state, ` +
@@ -1166,15 +1236,18 @@ async function cmdSearchSetup(argv: string[]) {
     );
   if (!oauth)
     fail(
-      'set VITOPS_GOOGLE_CLIENT_ID / VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN — a user OAuth token scoped to siteverification + webmasters',
+      'set VITOPS_GOOGLE_CLIENT_ID / VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN — a user OAuth token scoped to siteverification + webmasters — or run ' +
+        '`gcloud auth application-default login` with the siteverification + webmasters + cloud-platform scopes (see --help)',
     );
 
-  const token = await refreshTokenGrant(oauth);
   // Always a user credential here — `setup` requires one — so the site's project is
   // what makes the calls attributable. Without it a shared-client credential (a gcloud
   // ADC login) is refused outright; a credential from your own OAuth client carries its
   // project in the client id and works either way, which is why this isn't required.
-  const project = cfg.site?.google?.project;
+  // Checked BEFORE the grant: a run that cannot succeed should spend no requests.
+  requireAdcProject(project, values.input as string);
+
+  const token = await refreshTokenGrant(oauth);
   const auth: GoogleAuthLike = project ? { token, quotaProject: project } : token;
 
   // ── Observe live state per domain (the executors gather; the planner decides) ──
