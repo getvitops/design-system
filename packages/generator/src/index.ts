@@ -60,9 +60,19 @@ export {
 } from './shared.ts';
 export type { RoleSpec } from './shared.ts';
 export { tokenVar, tokenClass, CONTRAST } from './tokens.ts';
+// The pre-1.0 colour-grammar rename, built from a config's own role names.
+// `vitops lint --fix` applies it to consumer source; `validate()` reports it
+// inside a design-system.json. One table, both surfaces.
+export { movedTokens } from './token-refs.ts';
 export type { RoleKind } from './tokens.ts';
 
-export { DesignSystemSchema, jsonSchema, SCHEMA_URL, validate } from './schema.ts';
+export {
+  DesignSystemSchema,
+  jsonSchema,
+  SCHEMA_URL,
+  SCHEMA_LOCAL_PATH,
+  validate,
+} from './schema.ts';
 export type { DesignSystem, ValidationResult } from './schema.ts';
 export {
   ConfigSchema,
@@ -134,7 +144,7 @@ export type {
   DocSet,
 } from './legal/index.ts';
 
-import { SCHEMA_URL, type DesignSystem } from './schema.ts';
+import { SCHEMA_LOCAL_PATH, type DesignSystem } from './schema.ts';
 
 /**
  * A minimal but complete starter design system, used by `vitops init`. It
@@ -143,7 +153,8 @@ import { SCHEMA_URL, type DesignSystem } from './schema.ts';
  */
 export function defaultConfig(): DesignSystem {
   return {
-    $schema: SCHEMA_URL,
+    // The installed copy, not the unpinned unpkg URL — see SCHEMA_LOCAL_PATH.
+    $schema: SCHEMA_LOCAL_PATH,
     colors: {
       // Each hue is generated as an 11-step OKLCH scale from its seed.
       palette: {

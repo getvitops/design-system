@@ -7,7 +7,7 @@
 * [Colour system](color.md) - seeded OKLCH scales on a shared lightness ladder, target-prefixed tokens, automatic dark mode
 * [Type & space scales](scales.md) - fluid modular scales and the tokens they emit
 * [Component patterns](patterns.md) - token cascade, override hooks, states, role variants
-* [Components](components.md) - which of the four tiers provides each pattern, and the call to make
+* [Components](components.md) - which of the three tiers provides each pattern, and the call to make
 * [Icons](icons.md) - semantic names across icon sets, bundle derivation, sprite delivery
 * [Consent gate](consent.md) - inert gated tags, demand-driven prompting, three-valued choices
 * [Conversion tracking](tracking.md) - ad-click attribution, the `_ac` cookie, conversion notifications

@@ -7,7 +7,7 @@ import {
   UTM_PARAMS,
 } from '@getvitops/utils/tracking';
 import { describe, expect, it } from 'vitest';
-import { resolveTracking, TRACKING_COOKIE } from './tracking.ts';
+import { resolveTracking, TRACKING_COOKIE, TRACKING_ENDPOINT } from './tracking.ts';
 
 describe('resolveTracking', () => {
   it('is off unless asked for', () => {
@@ -83,6 +83,13 @@ describe('capture script mirrors @getvitops/utils/tracking', () => {
 
   it('recognises every UTM parameter', () => {
     for (const param of UTM_PARAMS) expect(SRC).toContain(`'${param}'`);
+  });
+
+  it('beacons to the endpoint the exported constant names', () => {
+    // The route is the consumer's to write, so this constant is the only place
+    // the two halves agree on a path. A drift here is a silent 404 on every
+    // `tel:` beacon — conversions vanish with no error on either side.
+    expect(SRC).toContain(`const TRACK_ENDPOINT = '${TRACKING_ENDPOINT}'`);
   });
 
   it('writes the same cookie name both halves read', () => {

@@ -1,32 +1,50 @@
 ---
 /**
- * Subgrid — re-emits slotted children as `<li>` items of a `.subgrid` grid, so
- * the tranches inside each one align on shared row lines. Every declaration
- * lives in the framework's `subgrid` pattern (patterns/subgrid.css), which is
- * emitted in all three output formats; this file is markup only.
+ * Subgrid — a grid whose items re-declare the parent's row tracks, so the tranches
+ * inside every item (head, body, footer) land on the same row lines no matter how
+ * much content each one holds. Every declaration lives in the framework's `subgrid`
+ * pattern (patterns/subgrid.css); this file is markup only.
  *
- * Nothing here may reach for a Tailwind utility: Tailwind doesn't scan
- * node_modules, so a class only it can emit is silently never generated — and
- * classes in the generator's TW_CLASH list are stripped from the framework's
- * own tailwind bundle by design.
+ * **The slot is rendered verbatim — author the items yourself.** This used to parse
+ * the slotted HTML and replace each child with an `<li>`, carrying over its class
+ * and style. That existed only because a `<ul>` may contain nothing but `<li>`, and
+ * it cost more than it bought: the child's tag was discarded, and every attribute
+ * had to be copied by hand, so `id`, `data-*` and `aria-*` were silently dropped and
+ * `href` could not survive at all. Passing the slot through means there is nothing to
+ * copy and nothing to lose.
  *
- * Size it from the consumer's own CSS, which keeps media-query overrides
- * working: `--subgrid-cols`, `--subgrid-row-span`, `--subgrid-gap`,
- * `--subgrid-row-gap`. `--num-items` is set here for nth-child-style maths.
+ *   <Subgrid>
+ *     <li class="card subgrid-card">…</li>
+ *   </Subgrid>
+ *
+ * `as` picks the container. It defaults to `ul`, because a set of cards IS a list and
+ * that is what tells assistive tech how many there are and where you are among them.
+ * Use `as="div"` when the items are genuinely not a list.
+ *
+ * **`role="list"` is restored automatically for `ul`/`ol`.** `.subgrid` sets
+ * `list-style: none`, and that stops Safari + VoiceOver announcing a list at all — so
+ * the marker reset silently costs the semantics the `<ul>` was chosen for. Passing
+ * your own `role` wins.
+ *
+ * Size it from the consumer's own CSS, which keeps media-query overrides working:
+ * `--subgrid-cols`, `--subgrid-row-span`, `--subgrid-gap`, `--subgrid-row-gap`.
+ *
+ * For a card whose whole area should be clickable, see `<Cards />` (selectable text,
+ * needs JS) or `.stretched-link` (no JS, text not selectable).
  */
 import type { HTMLAttributes } from 'astro/types';
-import { parseRenderedSlots, getAttribute, serialize, styleList } from '@getvitops/utils';
 
-export interface Props extends HTMLAttributes<'ul'> {};
+export interface Props extends HTMLAttributes<'ul'> {
+  /** Container element. `ul`/`ol` also get `role="list"`. */
+  as?: 'ul' | 'ol' | 'div';
+}
 
-const { class: className, style } = Astro.props;
+const { as: Tag = 'ul', class: className, role, ...rest } = Astro.props;
 
-const nodes = parseRenderedSlots(await Astro.slots.render('default'));
-const slots = nodes.filter(node => 'tagName' in node).map(node  => ({ html: serialize(node), attrs: node.attrs }));
+// Only lists lose semantics to `list-style: none`, so only lists get the role back.
+const listRole = Tag === 'ul' || Tag === 'ol' ? 'list' : undefined;
 ---
 
-<ul class:list={["subgrid", className]} style={styleList({'--num-items': slots.length}, style)}>
-  {slots.map((slot) => (
-    <li class:list={[getAttribute(slot, 'class')]} style={styleList(getAttribute(slot, 'style'))} set:html={slot.html}></li>
-  ))}
-</ul>
+<Tag class:list={['subgrid', className]} role={role ?? listRole} {...rest}>
+  <slot />
+</Tag>

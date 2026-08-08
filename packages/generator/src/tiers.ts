@@ -1,9 +1,9 @@
 /**
  * Which tiers provide each pattern, and which call to make.
  *
- * The toolkit ships four tiers that COMPOSE — CSS framework classes, Lit web
- * components, Astro components, Bricks elements — and the composition is what a
- * consumer actually needs. For a tree: `.tree` styles it, `<Tree />` generates the
+ * The toolkit ships three tiers that COMPOSE — CSS framework classes, Lit web
+ * components, and the platform wrappers (Astro components, Bricks elements) — and
+ * the composition is what a consumer actually needs. For a tree: `.tree` styles it, `<Tree />` generates the
  * markup, `<wc-tree>` enhances it. This file is the single source for that, and
  * `tiers.test.ts` holds it to the files on disk.
  *
@@ -310,12 +310,17 @@ export const TIERS: Record<string, TierEntry> = {
   subgrid: {
     css: c(['subgrid', 'subgrid-card', 'pricing-grid'], 'patterns/subgrid.css'),
     astro: a('Subgrid', 'css'),
-    use: '`<Subgrid>` — emits `<ul class="grid">` with row-subgrid children so cards align across tracks.',
+    use: '`<Subgrid>` — emits `<ul class="subgrid" role="list">`; author `<li class="card subgrid-card">` items yourself, so tranches align across the set.',
   },
   card: {
-    css: c(['card'], undefined, true),
-    astro: a('Cards', 'css'),
-    use: '`<Cards>` for a list, or the `.card` class directly. Generated pattern: has roles and states.',
+    css: c(['card'], 'patterns/card.css', true),
+    wc: {
+      tag: 'wc-cards',
+      registered: true,
+      adds: 'whole-card click that keeps the card text selectable',
+    },
+    astro: a('Cards', 'wc'),
+    use: '`<Cards>` — it emits `<wc-cards>` itself, so do NOT add your own wrapper. `<Subgrid>` is the same grid without the click enhancement.',
   },
   icon: {
     css: c(['icon', 'icon-button', 'icon-mask'], 'patterns/icon.css'),
@@ -356,8 +361,8 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`.cta` on any element — usually `<a>`, since a CTA navigates. Filled, with role variants.',
   },
   link: {
-    css: c(['link', 'skip-link'], 'patterns/anchor-link.css', true),
-    use: '`<a>` gets it at zero specificity; `.link` for other tags.',
+    css: c(['link', 'skip-link', 'stretched-link', 'raised'], 'patterns/anchor-link.css', true),
+    use: '`<a>` gets it at zero specificity; `.link` for other tags. `.stretched-link` makes one link cover its positioned ancestor (whole-card click, no JS — but the card text stops being selectable); `.raised` lifts content back above that overlay.',
   },
   badge: {
     css: c(['badge', 'badge-indicator'], 'patterns/tag.css', true),
@@ -507,7 +512,15 @@ export function tierTags(): { tag: string; registered: boolean; pattern: string 
     .map(([pattern, e]) => ({ tag: e.wc!.tag, registered: e.wc!.registered, pattern }));
 }
 
-/** The four tiers, as a projection axis. */
+/**
+ * The projection axis: four keys, THREE tiers.
+ *
+ * `astro` and `bricks` are both the platform-wrapper tier — siblings chosen by
+ * platform, not levels 3 and 4. They are separate keys because they are separate
+ * packages with separate tables, and no project uses both. Anything rendering a
+ * tier NUMBER must map them to the same one; deriving it from this union's order
+ * is what put Bricks at "tier 4" on the docsite.
+ */
 export type Tier = 'css' | 'wc' | 'astro' | 'bricks';
 
 /** A pattern paired with its entry — what one tier's projection iterates. */
@@ -520,7 +533,7 @@ export interface TierProjection {
  * The patterns one tier provides, in `TIER_NAMES` order.
  *
  * Every renderer goes through this rather than filtering `TIERS` itself: the docs
- * bundle projects all four tiers into one table for agents, the docsite projects
+ * bundle projects every tier into one table for agents, the docsite projects
  * each tier as its own page for humans, and they must agree about which patterns
  * are in a tier. Five copies of `.filter(e => e.wc)` would agree until one of them
  * didn't.

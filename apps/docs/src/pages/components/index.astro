@@ -14,27 +14,37 @@
  */
 import { tierPatterns } from '@getvitops/generator';
 import Docs from '../../layouts/Docs.astro';
-import { href, TIER_ORDER, TIER_PAGES } from '../../components/tiers.ts';
+import { href, TIER_LEVEL, TIER_ORDER, TIER_PAGES } from '../../components/tiers.ts';
 
 const base = import.meta.env.BASE_URL;
 const counts = Object.fromEntries(TIER_ORDER.map((t) => [t, tierPatterns(t).length]));
 
 const title = 'Components';
 const description =
-  'Every UI pattern across the four tiers — CSS framework classes, wc-* web components, Astro components and Bricks elements — which tiers provide it, and how they compose.';
+  'Every UI pattern across the three tiers — CSS framework classes, wc-* web components, and the platform wrappers (Astro components, Bricks elements) — which tiers provide it, and how they compose.';
 ---
 
 <Docs title={title} description={description}>
   <p>
-    A pattern — a tree, a carousel, a dialog, a card — is provided by up to four tiers, and they
-    <strong>compose</strong> rather than compete. Each page below lists one tier in full.
+    A pattern — a tree, a carousel, a dialog, a card — is provided by up to <strong>three tiers</strong>,
+    and they <strong>compose</strong> rather than compete. Each page below lists one in full.
+  </p>
+  <p>
+    There are four pages but three tiers, because <strong>Astro and Bricks are both tier 3</strong>:
+    platform wrappers that generate HTML using the classes and elements of tiers 1 and 2. They are
+    siblings chosen by which platform you are on, not steps in a ladder — no project uses both, and
+    neither outranks the other. They get separate pages because you arrive knowing your stack and
+    want only its list.
   </p>
 
   <ul class="grid-auto" style="--grid-min: 14rem">
     {
-      TIER_ORDER.map((tier, i) => (
+      TIER_ORDER.map((tier) => (
         <li class="card rhythm">
-          <p class="font-eyebrow">Tier {i + 1}</p>
+          <p class="font-eyebrow">
+            Tier {TIER_LEVEL[tier]}
+            {TIER_LEVEL[tier] === 3 && <span class="text-surface-muted"> · by platform</span>}
+          </p>
           <p class="font-heading">
             <a class="link" href={href(TIER_PAGES[tier].path, base)}>{TIER_PAGES[tier].label}</a>
           </p>
@@ -48,7 +58,7 @@ const description =
 
   <h2 id="choosing">Choosing a tier</h2>
   <p>
-    <strong>Use the highest-numbered tier your stack has, and write only its call.</strong> In Astro
+    <strong>Use the highest tier your stack has, and write only its call.</strong> In Astro
     that is the Astro component; in Bricks the element; anywhere else the classes, plus the
     <code>&lt;wc-*&gt;</code> tag when one exists. Each page names the call to write per pattern — and
     because that call names the highest tier available, a pattern's row on the

@@ -13,6 +13,7 @@
     "init:hosting": "node scripts/init-hosting.mjs",
     "typecheck": "astro check",
     "build:css": "vitops generate -i design-system.json -f tailwind -o src/styles",
+    "lint:design": "vitops lint -i design-system.json -f tailwind --strict",
     "prepare": "vp config"
   },
   "dependencies": {

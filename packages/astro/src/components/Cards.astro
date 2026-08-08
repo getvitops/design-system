@@ -1,34 +1,48 @@
 ---
 /**
- * Cards — a `Subgrid` whose items are `card`s. The child's own class and style
- * ride along, so `<article class="bg-surface-muted">` becomes `<li class="card bg-surface-muted">`.
+ * Cards — a `Subgrid` whose cards are clickable across their whole area, with their
+ * text still selectable.
  *
- * The class has to be put on the `<li>` we hand to Subgrid rather than written
- * into the slotted element: `serialize()` returns a node's *inner* HTML, so the
- * element carrying the attribute is discarded on the way through.
+ * **This component emits its own `<wc-cards>`** — do NOT wrap it in one. That is the
+ * tier-3 rule ("the wrapper emits its `<wc-*>` tag with the accessible fallback
+ * inside"), and `Tree.astro` and `CookieConsent.astro` do the same.
+ * `<wc-cards><Cards /></wc-cards>` nests two elements governing the same cards; the
+ * inner one defers to the enclosing one so it degrades to a no-op rather than two
+ * forwarded clicks, but the single call is the intended shape.
+ *
+ *   <Cards>
+ *     <li class="card subgrid-card">
+ *       <p class="font-eyebrow">Service</p>
+ *       <p class="font-heading"><a class="link" href="/a">Title</a></p>
+ *       <p>Blurb…</p>
+ *     </li>
+ *   </Cards>
+ *
+ * The fallback is the card's own link, so with no JS every card is still reachable —
+ * only the click-anywhere convenience is missing, and the pointer cursor comes from
+ * the element too, so the affordance never appears without the behaviour.
+ *
+ * **`<Subgrid>` is the unenhanced form**, which is why there is no `enhance={false}`
+ * prop: a flag would be a second way to say the same thing. Reach for
+ * `.stretched-link` instead when you want whole-card clicking with no JS at all and
+ * can accept that the card's text stops being selectable.
+ *
+ * It no longer parses the slot to add `class="card"`. That was its only job, and it is
+ * what forced `Subgrid` to rebuild every child as an `<li>` — see that file. Write the
+ * class on the item.
  */
 import type { HTMLAttributes } from 'astro/types';
 import Subgrid from './Subgrid.astro';
-import { parseRenderedSlots, getAttribute, serialize } from '@getvitops/utils';
 
-export interface Props extends HTMLAttributes<'ul'> {}
+export interface Props extends HTMLAttributes<'ul'> {
+  as?: 'ul' | 'ol' | 'div';
+  /** Selector for the cards the element governs. Defaults to `.card`. */
+  item?: string;
+}
 
-const { class: className, ...rest } = Astro.props;
-
-const nodes = parseRenderedSlots(await Astro.slots.render('default'));
-const slots = nodes.filter(node => 'tagName' in node).map(node => ({
-  html: serialize(node),
-  class: getAttribute(node, 'class'),
-  style: getAttribute(node, 'style'),
-}));
+const { item, ...rest } = Astro.props;
 ---
 
-<Subgrid
-  role="list"
-  class={className}
-  {...rest}
->
-  {slots.map((slot) => (
-    <li class:list={["card", slot.class]} style={slot.style} set:html={slot.html}></li>
-  ))}
-</Subgrid>
+<wc-cards item={item}>
+  <Subgrid {...rest}><slot /></Subgrid>
+</wc-cards>

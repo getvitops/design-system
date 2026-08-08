@@ -63,7 +63,12 @@
   }
 
   /* Markerless when it's a list — a subgrid of cards is a list of things, and
-     the markers would sit in the gutter. */
+     the markers would sit in the gutter.
+
+     ADD `role="list"` to the element. Safari + VoiceOver stop announcing a
+     marker-less <ul> as a list, so this reset silently costs the semantics the <ul>
+     was chosen for — "3 items" becomes nothing at all. `<Subgrid>` does it for you;
+     hand-written markup must say it. */
   &:is(ul, ol) {
     list-style: none;
     margin: 0;
@@ -111,6 +116,16 @@
   display: grid;
   grid-template-rows: subgrid;
   grid-row: span var(--_card-rows);
+  /* The containing block for a `.stretched-link` inside it (utilities.css), so a
+     whole-card link needs no extra class here. Costs nothing otherwise.
+
+     This is the framework's answer to "the card IS a link", and the shape it
+     replaces is wrong in a way that looks fine: `<li><a class="card">` makes the
+     LI the grid item, so the anchor is an ordinary block and the tranches inside
+     it never land on the shared row lines — the alignment subgrid exists for
+     silently does not happen, and the anchor doesn't fill the cell either. Keep
+     the card as the grid item and stretch a link inside it. */
+  position: relative;
   padding: var(--_card-padding);
   border: var(--b-card, var(--b-card-group, var(--b-default)));
   border-radius: var(--br-card, var(--br-card-group, var(--br-default)));

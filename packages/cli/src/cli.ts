@@ -19,7 +19,7 @@
  */
 import { parseArgs } from 'node:util';
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
-import { resolve, join, dirname, relative } from 'node:path';
+import { resolve, join, dirname, relative, extname } from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import {
@@ -41,7 +41,8 @@ import {
   expandPalette,
   roleHue,
   roleKind,
-  SCHEMA_URL,
+  movedTokens,
+  SCHEMA_LOCAL_PATH,
   type Format,
   type StylesheetFormat,
   type DesignSystem,
@@ -138,8 +139,11 @@ import {
   type OutputKind,
 } from '@getvitops/utils/media';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
+import { ADS_HELP, COMMANDS, HELP, SEARCH_HELP, helpFor, wantsHelp } from './help.ts';
 import { ask, canPrompt, missingFieldMessage, questionFor, writeConfigPatch } from './prompt.ts';
 import { lintCss } from './lint-css.ts';
+import { lintMarkup } from './lint-markup.ts';
+import { applyRenames, lintTokens } from './lint-tokens.ts';
 import { lintSource, vocabulary } from './lint.ts';
 
 const FORMATS = new Set<Format>(['bricks', 'css', 'tailwind', 'design']);
@@ -152,241 +156,6 @@ const LINT_FORMATS = new Set<StylesheetFormat>(['bricks', 'css', 'tailwind']);
 // output set — it renders documents, not stylesheets.
 const LEGAL_DOCS = new Set<LegalDoc>(['privacy', 'terms', 'cookies']);
 const LEGAL_OUTPUTS = new Set<LegalOutput>(['md', 'html', 'portable-text']);
-
-const HELP = `vitops — generate design-system outputs from a design-system.json
-
-Anywhere a command takes --input, that file may be a design-system.json OR the
-larger site config that embeds one (company.json / site.json). The two are told
-apart by shape, and a site config also supplies the site-level facts generation
-reads — its default colour scheme, its legal documents, its icon sprite.
-
-Usage:
-  vitops generate [options]     Generate platform output from a config
-  vitops init [options]         Scaffold a starter design-system.json
-  vitops validate <file>        Validate a config against the schema it says it is
-  vitops favicon [options]      Generate a favicon set from a source image
-  vitops agents [options]       Link the design-system agent skill + AGENTS.md pointer
-  vitops docs [topic]           Print live design-system reference docs to stdout
-  vitops lint [options]         Report framework classes in your source that resolve to nothing
-  vitops legal [options]        Render legal documents from a site config
-  vitops icons [options]        Report which icons your source uses, and build the sprite
-  vitops search <sub> [opts]    Search Console: onboard domains (setup) + notify deploys (notify)
-  vitops ads <sub> [opts]       Ad properties: verify domains (setup) + emit pixels (tags) + lint
-  vitops media [options]       Encode raw video into web-ready WebM + MP4 + poster
-
-Generate options:
-  -i, --input <path>    design-system.json or site config (default: ./design-system.json)
-  -f, --format <list>   bricks | css | tailwind | design (comma-separated; default: bricks)
-                        design emits DESIGN.md only (the agent-facing brief) — pair it
-                        with --out . to write it beside AGENTS.md, or compose:
-                        --format css,design
-  -o, --out <dir>       Output directory (default: ./dist)
-      --theme <name>    Which designSystem.themes entry to build, when --input is
-                        a site config (default: its defaultTheme, else "default")
-      --site <path>     Site config, when it is a different file from --input.
-                        Emits legal/*.html into the output directory (see:
-                        vitops legal). Omitted with a plain design-system.json:
-                        no legal files.
-      --site-env <env>  Environment whose A/B variant applies (default: production)
-
-Init options:
-  -o, --out <path>      Where to write (default: ./design-system.json)
-      --force           Overwrite an existing file
-
-Favicon options:
-  -i, --input <path>    Source SVG or PNG (required)
-  -o, --out <dir>       Output directory (default: ./public)
-      --low-res <path>  Optional simplified source for the 16px icon
-      --background <hex>  Background under the maskable icons, which must be
-                        opaque (default: #ffffff)
-
-Agents options:
-  -i, --input <path>    design-system.json or site config (default: ./design-system.json;
-                        validated if present)
-      --theme <name>    Theme to read, when --input is a site config
-  -o, --out <path>      Doc file to update, idempotently (default: ./AGENTS.md)
-      --docs-dir <dir>  Legacy layout: write the docs bundle as files to this dir
-                        instead of linking the packaged skill
-
-Docs options:
-  <topic>               classes | authoring | formats | color | scales | patterns | elements
-                        (no topic: list topics with summaries)
-  -i, --input <path>    design-system.json or site config (default: ./design-system.json)
-      --theme <name>    Theme to render docs from, when --input is a site config
-      --all             Print every topic, concatenated
-
-Icons options:
-      --site <path>     Site config carrying the "icons" block (default: ./site.json)
-      --src <dir>       Source to scan for icon usage (default: ./src)
-      --sprite          Also build the SVG sprite
-  -o, --out <dir>       Where to write icons.svg with --sprite (default: ./dist)
-      --json            Machine-readable report on stdout
-
-Lint options:
-  -i, --input <path>    design-system.json or site config (default: ./design-system.json)
-      --theme <name>    Theme to judge classes against, when --input is a site config
-  -f, --format <fmt>    Format you build (bricks | css | tailwind; default: bricks).
-                        Responsive md-* classes are real in css/bricks, inert in tailwind.
-  -s, --src <dir>       Directory to scan (default: ./src)
-      --strict          Also fail on suggestions (reuse hints), not just on
-                        classes that resolve to nothing
-
-Legal options:
-  -i, --input <path>    Site config: .json, or a .js/.ts module with a default
-                        export (default: ./site.json)
-  -d, --doc <name>      privacy | terms | cookies (repeatable; default: those
-                        enabled in the config)
-  -f, --format <fmt>    md | html | portable-text (default: md)
-                        html suits WordPress/Bricks and plain sites;
-                        portable-text suits EmDash
-  -o, --out <dir>       Write files here (default: print to stdout)
-      --site-env <env>  Environment whose A/B variant applies (default: production)
-
-  Generated from your config — a starting point, not legal advice. Review before
-  publishing, and make sure the config describes what your site actually does.
-
-Search subcommands:
-  vitops search setup [opts]    Onboard site.searchConsole domains into GSC
-  vitops search notify [opts]   Tell search engines about a deploy (sitemap + IndexNow)
-
-Search setup options:
-  -i, --input <path>    Site config carrying site.searchConsole (default: ./site.json)
-      --site-env <env>  Environment whose A/B variant applies (default: production)
-      --domain <name>   Scope to a single site.searchConsole entry
-      --dry             Print the plan and exit. Changes nothing.
-      --check           Report drift and exit non-zero if any domain is not fully
-                        onboarded. Mutates nothing.
-
-  For each domain it ensures the apex verification TXT in Cloudflare, verifies
-  ownership (DNS_TXT, retried with backoff while DNS propagates — a still-
-  unverified domain is reported PENDING, not failed), adds the sc-domain: property,
-  and adds any delegatedOwners to the web resource. DNS is only ever created,
-  never edited or deleted. Credentials come from the environment:
-  CLOUDFLARE_API_TOKEN (Zone:DNS:Edit), and VITOPS_GOOGLE_CLIENT_ID /
-  VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN (a user OAuth token
-  scoped to siteverification + webmasters). Granting a Google Group Full-User
-  access has no API and is surfaced as a reminder.
-
-Search notify options:
-  -i, --input <path>    Site config carrying seo.indexing (default: ./site.json)
-      --site-env <env>  Environment to notify for (default: production). An
-                        environment whose robots policy says noindex is refused.
-      --sitemap <src>   Sitemap URL or local path (default: from the config)
-      --urls <list>     Comma-separated URLs to submit, skipping the diff
-      --all             Submit every URL in the sitemap, not just what changed
-      --dry             Print the plan and exit. Makes no requests.
-      --check           Read-only: ask Google whether seo.indexing.priorityUrls
-                        are indexed. Exits non-zero if one is not.
-      --new-key         Print a fresh IndexNow key and exit
-      --write-key <dir> Write the IndexNow key file into <dir> (for stacks with
-                        no Astro integration to do it — Bricks, WordPress)
-      --snapshot <path> Changed-URL state file (default: .vitops/sitemap-snapshot.json).
-                        Persist it between runs (a CI cache) or every run submits
-                        everything.
-
-  What notify can and cannot do: Google exposes no "request indexing" API, and its
-  sitemap ping endpoint was removed in 2023 — so it resubmits your sitemap
-  through the Search Console API and verifies the result with --check. IndexNow
-  reaches Bing, Yandex, Naver, Seznam and Yep; Google does not participate.
-  Search Console takes either credential, whichever you already have, added as an
-  owner of the property: a service account in VITOPS_GSC_SERVICE_ACCOUNT (inline
-  JSON) or GOOGLE_APPLICATION_CREDENTIALS (a path), or the same user OAuth
-  credential "search setup" uses (VITOPS_GOOGLE_CLIENT_ID / _CLIENT_SECRET /
-  _REFRESH_TOKEN). The service account is preferred when both are set — this runs
-  on every deploy, and it does not expire.
-
-Ads subcommands:
-  vitops ads setup [opts]       Ensure each platform's domain-verification DNS record
-  vitops ads tags [opts]        Print the consent-gated pixel snippets
-  vitops ads lint [opts]        Report ad properties the rest of the config can't see
-
-Ads setup options:
-  -i, --input <path>    Site config carrying site.ads (default: ./site.json)
-      --site-env <env>  Environment whose A/B variant applies (default: production)
-      --provider <name> Scope to one site.ads entry (google | meta | linkedin |
-                        reddit | tiktok | microsoft | pinterest | snapchat)
-      --dry             Print the plan and exit. Creates nothing — but it does READ
-                        live DNS first, so it needs CLOUDFLARE_API_TOKEN.
-      --check           Report drift and exit non-zero if any property is not
-                        linked. Mutates nothing, prompts for nothing.
-      --no-prompt       Never ask for a missing token; fail with the field name
-                        instead (the default when stdin is not a TTY, e.g. in CI)
-      --no-write        Don't persist an answered token back into the config
-
-  Four platforms verify a domain by DNS TXT — Meta, TikTok, Pinterest, Snapchat —
-  and that record is the one thing this creates for you (in Cloudflare, via
-  CLOUDFLARE_API_TOKEN; created only, never edited or deleted). Google Ads,
-  LinkedIn, Reddit and Microsoft Ads have no domain verification at all: linking
-  there is the tag and the account ID, and the run says so rather than skipping in
-  silence. No platform Marketing API is called — Meta's needs a system-user token
-  and Google's needs an approved developer token, so the final "Verify" click stays
-  a reminder. The verification token is not a secret (it is published in DNS, which
-  is the ownership proof), so it lives in the config and is prompted for on the
-  first run.
-
-Ads tags options:
-  -i, --input <path>    Site config carrying site.ads (default: ./site.json)
-      --provider <name> Print one platform's tag
-      --strategy <s>    idle | async | interaction (default: idle)
-
-  Prints each pixel as an INERT, consent-gated <script>: type="text/plain" with the
-  library URL on data-src, so an undecided visitor's page issues no third-party
-  request. For stacks with no Astro integration — Bricks, WordPress, Eleventy.
-  Paste into your template; @getvitops/core's consent runtime activates them.
-
-Ads lint options:
-  -i, --input <path>    Site config carrying site.ads (default: ./site.json)
-
-  Reports the gaps that are invisible at runtime: a click-ID parameter this
-  platform stamps that attribution doesn't capture, a pixel while site.tracking is
-  off (every conversion arrives unattributed), and a configured property with no
-  tag ID. Exits non-zero on a finding.
-
-Media options:
-      --raw <dir>       Directory of unprocessed video, walked recursively
-                        (default: ./raw)
-  -o, --out <dir>       Where the encoded outputs go (default: ./src/assets/processed).
-                        Subdirectories under --raw are preserved.
-      --max-width <px>  Cap the output width, keeping aspect ratio (default: 1920;
-                        0 disables scaling)
-      --crf <n>         Quality on VP9's scale, 0-63, lower is better (default: 32).
-                        The MP4 fallback uses the equivalent on H.264's scale.
-      --max-bitrate <r> Optional ceiling, e.g. 2M or 800k (default: none, which is
-                        constant quality rather than constrained)
-      --audio           Keep the audio track (default: dropped — the common case is
-                        a muted autoplay loop)
-      --poster-time <s> Timestamp the poster frame is taken from (default: 0, which
-                        is often black on a clip that fades in)
-      --outputs <list>  Comma-separated: webm | mp4 | poster (default: all three)
-      --manifest <path> Cache file (default: .vitops/media-manifest.json)
-      --force           Re-encode everything, ignoring the cache
-      --dry             Print the plan and exit. Encodes nothing.
-
-  Needs ffmpeg on PATH — it is an external tool, not an npm dependency, and this
-  command fails rather than quietly skipping. Commit the outputs and the manifest:
-  ffmpeg output is not reproducible across versions, so re-encoding in CI churns
-  the diff on every toolchain bump. Use --force when you mean to re-encode.
-
-Common:
-  -h, --help            Show this help
-`;
-
-const SEARCH_HELP = `vitops search — Google Search Console
-
-  vitops search setup [opts]    Onboard site.searchConsole domains as GSC domain properties
-  vitops search notify [opts]   Tell search engines a deploy happened (sitemap + IndexNow)
-
-Run \`vitops --help\` for the full option list for each subcommand.
-`;
-
-const ADS_HELP = `vitops ads — link this site to its ad properties
-
-  vitops ads setup [opts]       Ensure each platform's domain-verification DNS record
-  vitops ads tags [opts]        Print the consent-gated pixel snippets
-  vitops ads lint [opts]        Report ad properties the rest of the config can't see
-
-Run \`vitops --help\` for the full option list for each subcommand.
-`;
 
 function fail(msg: string): never {
   console.error(`✖ ${msg}`);
@@ -451,7 +220,10 @@ function cmdInit(argv: string[]) {
   console.log(
     `  Edit it, then: vitops generate --input ${values.out} --format tailwind --out src/styles`,
   );
-  console.log(`  Editors read the "$schema" (${SCHEMA_URL}) for autocomplete + validation.`);
+  console.log(
+    `  Editors read the "$schema" (${SCHEMA_LOCAL_PATH}) for autocomplete + validation — ` +
+      `the installed copy, so it matches the toolchain you build with.`,
+  );
 }
 
 /**
@@ -882,17 +654,39 @@ async function cmdLegal(argv: string[]) {
         `  ! ${name}: no country, storage or operatorCountry declared — it will not appear in the cross-border transfer disclosure. Add one, or state storage: [{ country: "${JURISDICTION_COUNTRIES[site.site.legal?.jurisdiction ?? 'ca']}" }] to say it does not leave the country.`,
       );
 
+  const REVIEW =
+    '  These are generated from your config and are not legal advice — review them before publishing.';
+
   if (!values.out) {
     process.stdout.write(Object.values(files).join('\n'));
+    // On stderr, so it survives a redirect of the document itself. It used to be
+    // omitted entirely on this path — the one path where the output is most
+    // likely being piped straight into a page.
+    console.error(REVIEW);
     return;
   }
   const outDir = resolve(values.out as string);
   mkdirSync(outDir, { recursive: true });
+  // Enabling a document is a config edit with consequences outside the config —
+  // a new file needs a page, a route, a menu link, a policyUrl. Flipping
+  // `cookieConsent.enabled` silently produced `cookie-notice.*` and said only
+  // "3 files", so nothing pointed at the work that had just appeared.
+  const isNew = (name: string) => !existsSync(join(outDir, name));
+  const added = Object.keys(files).filter(isNew);
   for (const [name, content] of Object.entries(files)) writeFileSync(join(outDir, name), content);
-  console.log(`✓ legal → ${outDir} (${Object.keys(files).length} files)`);
-  console.log(
-    '  These are generated from your config and are not legal advice — review them before publishing.',
-  );
+  console.log(`✓ legal → ${outDir}`);
+  for (const name of Object.keys(files))
+    console.log(`    ${name}${added.includes(name) ? '  (new)' : ''}`);
+  if (added.length)
+    console.log(
+      added.length === 1
+        ? `\n  That document is new. It needs somewhere to live: a page or route that renders it, ` +
+            `and a link to it${added[0]?.startsWith('cookie') ? ' — including the URL your consent banner points at' : ''}.`
+        : `\n  Those ${added.length} documents are new. Each needs somewhere to live: a page or ` +
+            `route that renders it, and a link to it — for a cookie notice, including the URL your ` +
+            `consent banner points at.`,
+    );
+  console.log(REVIEW);
 }
 
 /**
@@ -1293,8 +1087,42 @@ async function cmdSearchSetup(argv: string[]) {
 
   const cfToken = loadCloudflareToken();
   const oauth = loadGoogleOAuth();
+
+  // A dry run that mutates nothing should not demand the credentials to mutate.
+  // It cannot READ live state without them either, so it plans from "nothing is
+  // done yet" and says so — which is still the complete account of what a first
+  // run would do, and is what makes the plan showable before anyone has
+  // provisioned anything. `--check` is different: reporting drift means
+  // comparing against reality, so it keeps needing to see it.
+  if (values.dry && (!cfToken || !oauth)) {
+    const blank: DomainState = {
+      zoneId: '',
+      txtPresent: false,
+      verified: false,
+      currentOwners: [],
+      propertyExists: false,
+    };
+    console.log(
+      formatSetupPlan(planSetup({ domains }, new Map(domains.map((d) => [d.domain, blank])))),
+    );
+    const missing = [
+      ...(cfToken ? [] : ['CLOUDFLARE_API_TOKEN (Zone:DNS:Edit + Zone:Read)']),
+      ...(oauth
+        ? []
+        : ['VITOPS_GOOGLE_CLIENT_ID / VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN']),
+    ];
+    console.log(
+      `\n(--dry, and no credentials set: planned from scratch rather than from live state, ` +
+        `so nothing here is reported as already done.\n A real run needs ${missing.join(' and ')}.)`,
+    );
+    return;
+  }
+
   if (!cfToken)
-    fail('set CLOUDFLARE_API_TOKEN (a Zone:DNS:Edit token) — reading and writing DNS needs it');
+    fail(
+      'set CLOUDFLARE_API_TOKEN (a Zone:DNS:Edit token — the standard "Edit zone DNS" template, ' +
+        'which also carries the Zone:Read that the zone-by-name lookup needs)',
+    );
   if (!oauth)
     fail(
       'set VITOPS_GOOGLE_CLIENT_ID / VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN — a user OAuth token scoped to siteverification + webmasters',
@@ -1577,8 +1405,15 @@ async function cmdAdsSetup(argv: string[]) {
     (p) => AD_PLATFORMS[p.provider].verification.method === 'dns-txt',
   );
   const cfToken = loadCloudflareToken();
-  if (needsDns && !cfToken)
-    fail('set CLOUDFLARE_API_TOKEN (a Zone:DNS:Edit token) — reading and writing DNS needs it');
+  // As in `search setup`: a dry run mutates nothing, so it must not demand the
+  // credential to mutate. Without one it cannot read live DNS either, so
+  // `observe()` returns an empty map and the plan is "from scratch" — still the
+  // complete account of a first run, and showable before anything is provisioned.
+  if (needsDns && !cfToken && values.dry !== true)
+    fail(
+      'set CLOUDFLARE_API_TOKEN (a Zone:DNS:Edit token — the standard "Edit zone DNS" template, ' +
+        'which also carries the Zone:Read that the zone-by-name lookup needs)',
+    );
 
   /** Observe live DNS per domain. Cached by domain: several platforms share one. */
   const observe = async (): Promise<Map<string, AdDomainState>> => {
@@ -1846,7 +1681,7 @@ function cmdDocs(argv: string[]) {
 }
 
 function cmdLint(argv: string[]) {
-  const { values } = parseArgs({
+  const { values, positionals } = parseArgs({
     args: argv,
     options: {
       input: { type: 'string', short: 'i', default: 'design-system.json' },
@@ -1856,15 +1691,22 @@ function cmdLint(argv: string[]) {
       // Suggestions are advisory: a reuse rule that failed CI the day it shipped
       // would be a worse defect than the drift it reports.
       strict: { type: 'boolean', default: false },
+      fix: { type: 'boolean', default: false },
     },
-    allowPositionals: false,
+    // Positionals are explicit files to lint instead of scanning `--src`. This is
+    // what makes the command usable as a pre-commit hook: `vp`'s `staged` key
+    // appends the staged paths to whatever it runs, so a command that refused
+    // positionals could not be wired into the one place the feedback actually
+    // lands — at the moment the code is written, rather than whenever someone
+    // remembers to run a linter.
+    allowPositionals: true,
   });
   const format = values.format as StylesheetFormat;
   if (!LINT_FORMATS.has(format))
     fail(`unknown format "${format}" (expected: bricks | css | tailwind)`);
   const ds = loadDesignSystem(resolve(values.input as string), values.theme as string | undefined);
   const srcDir = resolve(values.src as string);
-  if (!existsSync(srcDir)) fail(`source directory not found: ${srcDir}`);
+  if (!positionals.length && !existsSync(srcDir)) fail(`source directory not found: ${srcDir}`);
 
   // Ask the generator what it actually emits rather than re-deriving the rules
   // here — a linter that models the vocabulary separately just drifts into
@@ -1877,21 +1719,87 @@ function cmdLint(argv: string[]) {
     ds.colors.utilities ?? ['bg', 'text', 'icon', 'border'],
   ).map((u) => u.cls);
 
-  const files = scanFiles(srcDir);
+  // Explicit paths win over the scan. A pre-commit hook is handed whatever was
+  // staged, which includes deletions and files of every kind, so unreadable and
+  // uninteresting paths are skipped rather than fatal — a hook that fails because
+  // someone staged a PNG is a hook that gets removed.
+  const LINTABLE = new Set(['.astro', '.html', '.js', '.jsx', '.ts', '.tsx', '.vue', '.svelte']);
+  const named = positionals
+    .filter((p) => LINTABLE.has(extname(p)) || extname(p) === '.css')
+    .flatMap((p) => {
+      try {
+        return [{ path: p, text: readFileSync(resolve(p), 'utf8') }];
+      } catch {
+        return [];
+      }
+    });
   // `.css` is not in the default extension set — the class linter reads markup,
   // not stylesheets — so the reuse rules get their own pass. Component files are
   // scanned twice on purpose: once for their class attributes, once for any
   // `<style>` block, which is where hand-rolled layout tends to accumulate.
-  const cssFiles = [...files, ...scanFiles(srcDir, { exts: ['.css'] })];
+  const files = positionals.length
+    ? named.filter((f) => extname(f.path) !== '.css')
+    : scanFiles(srcDir);
+  const cssFiles = positionals.length
+    ? named
+    : [...files, ...scanFiles(srcDir, { exts: ['.css'] })];
+  // Nothing staged that this command has an opinion about — say so and succeed,
+  // rather than reporting a clean run over zero files as if it had checked them.
+  if (positionals.length && !cssFiles.length) {
+    console.log('✓ no lintable files among the paths given');
+    return;
+  }
+  // The pre-1.0 colour grammar, built from this config's own role names. Read
+  // from CSS and <style> blocks — the half of a codebase that references the
+  // design system by token rather than by class, and the half nothing checked.
+  const renames = movedTokens(ds.colors.roles);
+  const tokenFindings = lintTokens(cssFiles, renames);
   const findings = [
     ...lintSource(files, vocabulary(ds, roleClasses), format),
     ...lintCss(cssFiles, format),
+    // Markup shape, which is the only one of the three that can see a repeated
+    // card set laid out with no bad class and no hand-written CSS — every class
+    // real, the pattern simply unused. Reads `files`, not `cssFiles`: a stylesheet
+    // has no markup, and passing the doubled list would report each component
+    // twice.
+    ...lintMarkup(files),
+    ...tokenFindings,
   ];
+
+  if (values.fix === true) {
+    // Only the token renames are rewritten. Everything else this command
+    // reports is a judgement call — `bg-navy-d`'s "suggestion" is the linter's
+    // best guess at what you meant, and silently writing a guess into source is
+    // worse than printing it.
+    const byFile = new Map<string, Set<string>>();
+    for (const f of tokenFindings)
+      (byFile.get(f.file) ?? byFile.set(f.file, new Set()).get(f.file)!).add(f.fix.from);
+    for (const [file, names] of byFile) {
+      const subset = Object.fromEntries([...names].map((n) => [n, renames[n] as string]));
+      writeFileSync(file, applyRenames(readFileSync(file, 'utf8'), subset));
+    }
+    const remaining = findings.length - tokenFindings.length;
+    console.log(
+      `✓ rewrote ${tokenFindings.length} token reference${tokenFindings.length === 1 ? '' : 's'} ` +
+        `in ${byFile.size} file${byFile.size === 1 ? '' : 's'}` +
+        (remaining
+          ? `\n! ${remaining} other finding${remaining === 1 ? '' : 's'} need a decision — ` +
+            `re-run without --fix to see ${remaining === 1 ? 'it' : 'them'}`
+          : ''),
+    );
+    if (remaining) process.exitCode = 1;
+    return;
+  }
+
+  // Name what was actually checked. With explicit paths `--src` was never read,
+  // and reporting it would claim a scan that did not happen.
+  const scope = positionals.length ? 'the files given' : (values.src as string);
+  const scanned = positionals.length ? cssFiles.length : files.length;
 
   if (!findings.length) {
     console.log(
-      `✓ no unresolvable framework classes in ${values.src} ` +
-        `(${files.length} file${files.length === 1 ? '' : 's'} scanned)`,
+      `✓ no unresolvable framework classes or missed primitives in ${scope} ` +
+        `(${scanned} file${scanned === 1 ? '' : 's'} checked)`,
     );
     return;
   }
@@ -1913,10 +1821,42 @@ function cmdLint(argv: string[]) {
   const failing = errors.length > 0 || (values.strict === true && suggestions.length > 0);
   console.error(
     `\n${failing ? '✖' : '!'} ${parts.join(', ')} in ` +
-      `${files.length} file${files.length === 1 ? '' : 's'}` +
+      `${scanned} file${scanned === 1 ? '' : 's'}` +
       (suggestions.length && !values.strict ? ' (suggestions do not fail; use --strict)' : ''),
   );
   if (failing) process.exit(1);
+}
+
+/**
+ * Find the config when `design-system.json` isn't there.
+ *
+ * Keyed to SHAPE, not just to the filename — `resolveInput` already tells a
+ * design system from the config that embeds one, and consumers name that file
+ * whatever they like (`company.json`, `site.json`). The candidate list is
+ * ordered, and a tie is resolved by taking the first: this only ever supplies a
+ * default that the run then prints, so a wrong guess is visible rather than
+ * silent, and `-i` overrides it.
+ */
+function discoverConfig(cwd: string): string | undefined {
+  const candidates = [
+    'design-system.json',
+    'vitops.json',
+    'site.json',
+    'company.json',
+    'organization.json',
+  ];
+  for (const name of candidates) {
+    const p = resolve(cwd, name);
+    if (!existsSync(p)) continue;
+    try {
+      const raw = JSON.parse(readFileSync(p, 'utf8'));
+      // Either kind counts: a bare design system, or a config that embeds one.
+      if (isConfig(raw) || (raw && typeof raw === 'object' && 'colors' in raw)) return name;
+    } catch {
+      // Unparseable: not a candidate, and the real error surfaces if -i names it.
+    }
+  }
+  return undefined;
 }
 
 function cmdAgents(argv: string[]) {
@@ -1930,9 +1870,29 @@ function cmdAgents(argv: string[]) {
     },
     allowPositionals: false,
   });
-  const inputRel = values.input as string;
-  // The command is pure wiring: validate the config when present (fail on an
-  // invalid one), but don't require it — docs are rendered live by `vitops docs`.
+  // This command WRITES documentation, so getting the input path wrong is not a
+  // missing feature, it is a false statement committed to the repo: it used to
+  // warn and then write "tokens live in design-system.json" into a project whose
+  // tokens are in company.json, with the emitted commands broken to match. So
+  // when the default path is absent, look for the config rather than assuming
+  // it — and fail if there is nothing to name.
+  const explicitInput = argv.includes('-i') || argv.includes('--input');
+  let inputRel = values.input as string;
+  if (!explicitInput && !existsSync(resolve(inputRel))) {
+    const found = discoverConfig(process.cwd());
+    if (found) {
+      inputRel = found;
+      console.warn(`  ⚠ no design-system.json here — using ${found} (pass -i to choose another)`);
+    } else {
+      fail(
+        `config not found: ${resolve(inputRel)}\n` +
+          `  This command writes the path into ${values.out}, so it will not guess one. ` +
+          `Pass -i <path> if your tokens live elsewhere (a site config works), or run \`vitops init\`.`,
+      );
+    }
+  }
+  // Validate the config (fail on an invalid one). Docs themselves are rendered
+  // live by `vitops docs`, so nothing is generated into the repo from it here.
   let ds: DesignSystem | null = null;
   if (existsSync(resolve(inputRel)))
     ds = loadDesignSystem(resolve(inputRel), values.theme as string | undefined);
@@ -1989,6 +1949,8 @@ function cmdAgents(argv: string[]) {
     ];
   }
 
+  // Only spelled out when it isn't the default the commands already assume.
+  const inputFlag = inputRel === 'design-system.json' ? '' : ` --input ${inputRel}`;
   const block = [
     AGENTS_START,
     '## Vitops design system',
@@ -1996,11 +1958,15 @@ function cmdAgents(argv: string[]) {
     `Styled with the Vitops design system (\`@getvitops/*\`); tokens live in \`${inputRel}\`.`,
     'Generate output with the CLI:',
     '',
-    '- `vitops generate --format tailwind --out src/styles` — Tailwind v4 / Astro',
-    '- `vitops generate --format css --out dist` — standalone CSS',
-    '- `vitops generate --format bricks --out <theme>/dist` — WordPress / Bricks',
-    '- `vitops generate --format design --out .` — `DESIGN.md`, the agent-facing brief',
-    '- `vitops init` · `vitops validate` · `vitops favicon`',
+    // Interpolated, not hard-coded: `generate` defaults --input to
+    // design-system.json and hard-fails when it is absent, so an emitted command
+    // without the flag is copy-paste-broken in exactly the projects that most
+    // need the block to be right.
+    `- \`vitops generate${inputFlag} --format tailwind --out src/styles\` — Tailwind v4 / Astro`,
+    `- \`vitops generate${inputFlag} --format css --out dist\` — standalone CSS`,
+    `- \`vitops generate${inputFlag} --format bricks --out <theme>/dist\` — WordPress / Bricks`,
+    `- \`vitops generate${inputFlag} --format design --out .\` — \`DESIGN.md\`, the agent-facing brief`,
+    `- \`vitops init\` · \`vitops validate${inputFlag}\` · \`vitops favicon\``,
     '',
     ...pointer,
     '',
@@ -2037,6 +2003,12 @@ async function main() {
     console.log(HELP);
     return;
   }
+  // Answered before dispatch, because `parseArgs` is strict and every
+  // subcommand would otherwise reject `--help` as an unknown option.
+  if (wantsHelp(rest)) {
+    console.log(helpFor(command, rest));
+    return;
+  }
   switch (command) {
     case 'generate':
       return cmdGenerate(rest);
@@ -2063,9 +2035,7 @@ async function main() {
     case 'media':
       return cmdMedia(rest);
     default:
-      fail(
-        `unknown command "${command}" (expected: generate | init | validate | favicon | agents | docs | lint | legal | icons | search | ads | media). Try: vitops --help`,
-      );
+      fail(`unknown command "${command}" (expected: ${COMMANDS.join(' | ')}). Try: vitops --help`);
   }
 }
 

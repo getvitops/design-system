@@ -1,5 +1,244 @@
 # @getvitops/cli
 
+## 5.0.0
+
+### Major Changes
+
+- **Dangling token references are now a build failure.** `validate()` resolves every `var(--…)` a
+  config authors — in `patterns.defaults` / `radii` / `groups` / `items.*.{base,overrides,states}`,
+  `typography.roles` and `shadows` — against the tokens that config actually emits. A reference to a
+  token that does not exist used to validate, generate, minify and ship, then resolve to nothing in
+  the browser: one downstream config shipped a `.cta` whose `color` fell back to `inherit` on a brand
+  fill (unreadable text on every filled button), and two of its four dead references had been dead for
+  several releases with nothing ever reporting them.
+
+  The check is deliberately anchored to the namespaces the generator owns — `--color-*`, `--shadow-*`,
+  `--z-tier-*`, `--surface-glass`, `--overlay` — the same discipline `vitops lint` follows. A pattern
+  may legitimately reference a framework token from `@getvitops/core` or a hook of your own, and
+  enumerating "every valid token" would make those false positives. A reference carrying a fallback
+  (`var(--x, 0.25rem)`) is never flagged: that is you saying what happens when the token is absent.
+  Errors name the config path and suggest the nearest token that does exist.
+
+  Two related diagnostics ship with it:
+  - **Pre-1.0 colour-grammar references are reported as one rename table**, not as a dozen separate
+    "no such token" errors — the shape the 3.0 flat-config detector uses, applied to the 1.0 colour
+    change. It is built from your own role names, and it says to apply the renames _simultaneously_,
+    because several of them rotate (`--surface-bg` → `--color-bg-surface-muted`,
+    `--surface-bg-bold` → `--color-bg-surface`) and sequential replacement compounds them.
+  - **A surface-shaped role declared chromatic now warns.** A bare hue string is shorthand for
+    `kind: "chromatic"`, which emits no bare `--color-bg-<role>` and no `.bg-<role>` — so writing
+    `"surface": "ink"` silently removed `--color-bg-surface` and the 36 references the framework's own
+    CSS makes to it. Relatedly, `--surface-glass`, `--overlay` and `.glass` are no longer emitted when
+    `surface` is chromatic: they read `--color-bg-surface`, so emitting them pointed at nothing.
+
+  **`vitops lint --fix` is now the migration tool.** It reads `var(--…)` out of CSS and `<style>`
+  blocks (not just `class` attributes) and rewrites pre-1.0 token references in a **single pass**, so
+  the rotating renames cannot compound. Nothing else is rewritten — every other finding it reports is
+  a judgement call. Run it after a major bump.
+
+  **`--help` works on every subcommand.** `vitops lint --help` used to exit non-zero with
+  `Unknown option '--help'`; every leaf subcommand parsed its own argv strictly and none declared the
+  option. It is now answered before dispatch, so no command can forget it, and a drift guard fails the
+  build if a command has no documented options. (`validate`'s options were genuinely undocumented and
+  now are.)
+
+  **The Astro integration reads `site.tracking` and `site.legal.cookieConsent`.** These drive the
+  generated cookie notice, while `vitops({ consent, tracking })` drove the runtime — two hand-synced
+  declarations of the same fact with nothing comparing them, so a site could ship a notice naming
+  categories its banner never offered, or disclosing an `_ac` cookie no capture script ever wrote, and
+  the build was clean. The config blocks are now defaults (as `css` / `fonts` / `favicon` / `ads`
+  already were) and a genuine contradiction — `true` against `false` on the same fact — **fails the
+  build**, naming both sides. An absent option is not a contradiction; it just takes the config's
+  value.
+
+  Also fixed, each from a downstream report:
+  - **`@getvitops/astro/tracking`** re-exports `@getvitops/utils/tracking` (plus `TRACKING_ENDPOINT`),
+    so the documented conversion flow works with one install. Under strict pnpm app code cannot
+    resolve a transitive dependency, and the obvious workaround — importing the same symbols from the
+    package index — is the one that drags the integration's Node builtins toward a Worker bundle. This
+    entry and `./routes` are both clean.
+  - **`createConversionRoute`'s example was broken on every supported Astro.** It read the binding off
+    `locals.runtime.env`, removed in Astro v6, while the package peers on `>= 7` — and because the
+    throw precedes the response, Astro re-reads the request and reports a misleading "Body has already
+    been used". It also called a `toNotifyContext()` helper that does not exist. The example now uses
+    `import { env } from 'cloudflare:workers'` and a plain `NotifyContext`.
+  - **`/api/track` is exported as `TRACKING_ENDPOINT`**, and the integration warns at build when
+    tracking is on and no route answers it. It was a bare literal inside the inlined capture script:
+    name the route file anything else and every `tel:` beacon 404s, conversions vanish, and nothing
+    errors anywhere.
+  - **`describeEvent` no longer reports "from Unknown"** for forms that don't have a field literally
+    named `name`. It now falls back through `first_name`/`last_name`, `full_name`, and finally the
+    email address.
+  - **`sendEmail` takes `timeoutMs` (default 10s).** `binding.send()` had no deadline, so one hung
+    attempt hung the request that produced it — indefinitely, in the one module otherwise built on
+    always saying why. A timeout is retried, like any other transient failure.
+  - **`vitops search notify` warns when the sitemap's URLs aren't on the configured origin.** A 404
+    fails loudly; a well-formed sitemap belonging to someone else did not — a route collision served a
+    valid document listing another site's pages and the run reported a healthy submission. Surfaces at
+    `--dry`.
+  - **`require()` warns when the page has no `<wc-consent>`.** The demand can never be granted, so
+    whatever waited on it never runs — silently. Hit by rendering `<Tracking />` on pages where
+    `<CookieConsent />` wasn't.
+  - **`vitops agents` no longer writes a path it guessed.** It used to warn and then write "tokens
+    live in `design-system.json`" into a project whose tokens are in `company.json`, with the four
+    emitted `vitops generate` commands hard-coded to match — copy-paste-broken in exactly the projects
+    that most need the block to be right. It now finds the config by shape, interpolates the resolved
+    path into every emitted command, and fails rather than guessing when there is nothing to name.
+  - **`vitops search setup --dry` and `vitops ads setup --dry` run without credentials.** A dry run
+    that mutates nothing should not demand the token to mutate; with none set it plans from scratch
+    and says so. (`--check` still needs them — drift is a comparison against live state.) Both now
+    also mention that the Cloudflare token needs `Zone:Read` alongside `Zone:DNS:Edit` — the
+    zone-by-name lookup uses it, and its absence read as "the zone isn't in this account".
+  - **`vitops legal` names the files it wrote and flags new ones.** Enabling `cookieConsent` silently
+    produced a `cookie-notice` document that then needs a page, a route, a link and a `policyUrl`; the
+    command said only "3 files". The review reminder is also printed on the stdout path, where it was
+    missing entirely.
+  - **`vitops init` writes a versioned `$schema`** — `./node_modules/@getvitops/generator/schema.json`,
+    following wrangler — instead of an unpinned unpkg URL that resolved to whatever was newest, so an
+    editor validated a pinned project against a schema it wasn't built with.
+  - **`favicon.backgroundColor` and `favicon.name` are described accurately.** `backgroundColor` is
+    not manifest-only: it fills the opaque `apple-touch-icon.png` and `icon-mask.png`, which are
+    written whether or not a manifest is. `name` documents that it and `themeColor` **together** are
+    what make a site installable. The missing-background warning now also fires for a dark opaque mark,
+    not only a transparent source — `apple-touch-icon` insets the logo and fills the surround either
+    way.
+
+- **The framework now says out loud which patterns are foundational, and reports it when you
+  reach past them.** From repeated downstream reports: sites were inventing a `.wrap` class and
+  using it everywhere instead of `.centered`, and `.subgrid` — the class for any set of cards —
+  was going essentially unused. Neither failure is visible in a build: every class involved is
+  real, nothing errors, and the page renders.
+
+  **`.subgrid` was missing from the generated class reference entirely.** So was `.cluster`, and
+  so was `.region`. `vitops docs classes` is the doc an agent is told to fetch for "which class
+  do I apply", and the framework's answer for a set of cards was not in it — which is most of why
+  it never got used. All three are now documented, along with `grid-auto`, and the reference opens
+  with a **Foundations** section that states the six substitutions as
+  _temptation → what to write instead_ rather than as a vocabulary list. The same table is now in
+  the shipped agent skill and in the `@getvitops/create` template's `AGENTS.md`, because a pointer
+  to a doc only helps someone who already suspects there is something to look up. (`css`/`bricks`
+  and `tailwind` alike — this is documentation and the `TIERS` manifest, not emitted CSS.)
+
+  **`vitops lint` gained three reuse rules and a markup pass.** The existing `.centered` rule only
+  fired when the hand-written CSS already referenced `--width-measure`, which is precisely the
+  author who was never going to hand-roll a container. It now also catches a page-scale
+  `max-width` (≥ 48rem, or a `ch` reading measure) with auto margins, and a
+  container-shaped class name — `wrap`, `wrapper`, `container`, `inner`, `shell`, … — carrying any
+  width cap at all. Reading the cap out of `min()` / `clamp()` too. New rules report a
+  hand-written `repeat()` grid as `.subgrid` (or `.grid-auto`), and a new **markup** pass reports a
+  repeated card set laid out without either — a loop that renders a card, or three or more cards
+  written out. That last one is the only check that can see this drift at all, since a card list
+  built from utility classes contains no bad class and no hand-written CSS.
+
+  All of these are `suggestion` severity, so they do not fail your build unless you pass
+  `--strict`. They found five real instances in this repo's own docs site.
+
+  **`vitops lint [files...]`** now takes explicit paths instead of scanning `--src`, so it can be
+  wired into a pre-commit hook — `vp`'s `staged` key appends the staged files to whatever it runs,
+  and a command that refused positionals could not be put in the one place the feedback lands at
+  the moment the code is written. Unreadable and non-source paths are skipped rather than fatal. The
+  `@getvitops/create` emdash template wires it up with `--strict` and adds a `lint:design` script.
+
+  **Two answers for "the whole card is a link", because one cannot exist.** Reported downstream:
+  agents dislike the `<li>` wrapper when a card is a link and write `<li><a class="card">` instead.
+  That shape is **wrong in a way that renders fine**, which is why it survives review — the `<li>`
+  is the grid item, so the anchor is an ordinary block inside it and the tranches within the anchor
+  never reach the parent's shared row lines. The alignment `.subgrid` exists for silently does not
+  happen, and the anchor does not fill the cell either. Putting the anchor in the grid's place
+  (`<ul><a></ul>`) is invalid HTML, so there was genuinely no correct shape to reach for.
+
+  There are now two, and they trade against each other because **no CSS-only technique can make a
+  whole card clickable and leave its text selectable** — a transparent overlay necessarily receives
+  the pointer-drag:
+
+  | Want                                     | Use                                         |
+  | ---------------------------------------- | ------------------------------------------- |
+  | zero JS, whole card clickable            | `.stretched-link` — **text not selectable** |
+  | selectable text **and** a clickable card | `<Cards>` / `<wc-cards>` — needs JS         |
+
+  `.stretched-link` goes on a link inside the card; its `::after` covers the card.
+  **`<wc-cards>` is a new tier-2 element** that adds no overlay and instead tells a click apart from
+  the end of a drag, so text selection survives. Its fallback is the card's own link, fully usable
+  with no JS, and the pointer cursor is applied by the element — so the affordance never appears
+  without the behaviour. `<Cards>` emits it for you. They are alternatives, never layered: with an
+  overlay present the JS has nothing to do, and `vitops lint` reports the combination. (All formats
+  — pattern partials, deliberately not `utilities.css`, which the tailwind format skips on the
+  invariant that everything left in it is a name Tailwind ships itself.)
+
+  ### Breaking
+  - **`<Subgrid />` renders its slot verbatim — author the `<li>` items yourself.**
+
+    ```diff
+      <Subgrid>
+    -   <article class="card">…</article>
+    +   <li class="card subgrid-card">…</li>
+      </Subgrid>
+    ```
+
+    It used to parse the slotted HTML and rebuild each child as an `<li>`, carrying over only
+    `class` and `style`. That existed solely because a `<ul>` may contain nothing else, and it cost
+    more than it bought: the child's tag was discarded, `id`/`data-*`/`aria-*` were silently
+    dropped, and `href` could not survive at all. Nothing is copied now, so nothing is lost. `as`
+    picks the container (`ul` by default, `ol`, `div`), and all other props are forwarded — they
+    were previously discarded, including `role`.
+
+  - **`<Subgrid />` and `<Tree />` now emit `role="list"`,** as does the Bricks `sitenav` element.
+    `list-style: none` stops Safari + VoiceOver announcing a `<ul>` as a list, so every marker-less
+    framework list was silently losing the semantics its `<ul>` was chosen for. If you hand-write
+    `.subgrid`, `.list`, `.facet-list`, `.nav-items`, `.collapse-menu` or `.tree` markup, add
+    `role="list"` yourself — the framework cannot add it to markup it does not render, and each
+    partial now says so at the `list-style` reset.
+  - **`<Cards />` no longer adds `class="card"` to slotted children,** because it no longer parses
+    them. Write the class on the item. It now emits `<wc-cards>` around a `<Subgrid>`, which is what
+    makes the whole card clickable — and like `<Tree />`, **it emits its own element, so do not wrap
+    it in `<wc-cards>` yourself.** It also previously passed a `role="list"` that `<Subgrid>` silently
+    discarded, so that never took effect.
+  - **`.subgrid-card` now sets `position: relative`**, so `stretched-link` inside it needs no extra
+    class. If you were absolutely positioning a descendant of a `.subgrid-card` against an ancestor
+    _outside_ that card, it will now resolve against the card. Move the positioning context
+    explicitly. (`css`/`bricks`/`tailwind` — the pattern partial is inlined into all three.) Not
+    reachable by `vitops lint --fix`: the fix depends on which ancestor you meant, which the
+    linter cannot know.
+
+  ### Fixed
+  - **`packages/generator/src/docs.ts` contained a literal NUL byte** (`CODE_SLOT`, written as the
+    raw character rather than an escape). libmagic classified the file as `data` rather than text, so
+    grep and ripgrep treated the largest doc emitter in the repo as **binary and silently skipped
+    it** — every search for a string in it returned nothing, with no error. It is now written as the `\u0000` escape.
+    Behaviour is identical; the file is searchable.
+  - **`.grid-auto` is documented.** It was a real framework class for auto-fit card grids with no
+    entry in the class reference, so the honest alternative to `subgrid` was as invisible as
+    `subgrid` itself.
+  - **`.raised` replaces the advice to use `.relative` above a `stretched-link` overlay**, which
+    could not work: a positioned element at `z-index: auto` does not rise above an explicit
+    `z-index` regardless of DOM order, so a second link or button in the card stayed underneath and
+    unclickable. `.raised` sets both, against the same `--z-tier-raised` token the overlay now uses
+    instead of a hard-coded `1`.
+
+### Patch Changes
+
+- **Astro and Bricks are documented as the same tier, because they are.** Both are platform
+  wrappers that generate HTML from the classes and elements of tiers 1 and 2 — siblings chosen by
+  which platform you are on, not steps in a ladder. No project uses both, and neither outranks the
+  other.
+
+  They were published as tier 3 and **tier 4**, in `vitops docs components`, the shipped agent
+  skill and the docs site. The cause was a projection axis being read as a hierarchy: `Tier` has
+  four keys (`css` `wc` `astro` `bricks`) because there are four tables to render, and the tier
+  number was being derived from that key order — so the last key became "tier 4". The advice next
+  to it inherited the error, telling readers to "use the highest-**numbered** tier your stack has",
+  which reads as Bricks outranking Astro.
+
+  Nothing about which patterns each tier provides has changed; this is the numbering and the prose
+  around it. `Tier` keeps its four keys — that part was never wrong — and now says in its own type
+  docs why four keys are three levels, so the next renderer cannot repeat the derivation.
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @getvitops/generator@5.0.0
+  - @getvitops/utils@5.0.0
+
 ## 4.1.0
 
 ### Minor Changes

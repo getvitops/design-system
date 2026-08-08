@@ -272,3 +272,15 @@
 .text-pretty {
   text-wrap: pretty;
 }
+
+/* ── position — a containing block for anything absolutely positioned inside, e.g.
+   a `.stretched-link` overlay on a bare `.card` (`.subgrid-card` already has one).
+   `relative` is in TW_CLASH: Tailwind ships it natively, so the tailwind format
+   drops this copy.
+
+   To lift content ABOVE a stretched-link overlay this is not enough — see `.raised`
+   in patterns/anchor-link.css, which has to live there because Tailwind has no
+   equivalent name and this file is in TAILWIND_SKIP. ── */
+.relative {
+  position: relative;
+}

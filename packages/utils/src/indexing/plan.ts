@@ -188,6 +188,30 @@ export function plan(input: PlanInput): IndexingPlan {
   }
 
   /*
+   * The foreign-sitemap check.
+   *
+   * A 404 fails loudly; a sitemap that is well-formed and *someone else's* does
+   * not. A downstream site's sitemap route collided with its CMS's, so the URL
+   * returned 200 with a valid document listing pages that were not theirs, and
+   * the run reported a healthy cold submission. Nothing downstream can catch
+   * this — the URLs parse, the diff works, the submission succeeds.
+   *
+   * Compared against the resolved environment origin rather than the canonical,
+   * for the same reason `toIndexingConfig` derives the origin that way: on a
+   * staging run the canonical IS the foreign host.
+   */
+  if (config.canonical && urls.length) {
+    const own = hostOf(`${trimSlash(config.canonical)}/`);
+    const foreign = [...new Set(urls.map(hostOf).filter((h): h is string => !!h && h !== own))];
+    if (foreign.length)
+      notes.push(
+        `sitemap contains ${urls.length - urls.filter((u) => hostOf(u) === own).length} URL(s) on ` +
+          `${foreign.join(', ')} rather than ${own} — check that ${sitemapUrl} is this site's own ` +
+          `sitemap and not another route answering that path.`,
+      );
+  }
+
+  /*
    * The lastmod warning.
    *
    * Without per-URL lastmod the diff can still see pages appear and disappear, but

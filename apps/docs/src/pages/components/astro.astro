@@ -15,7 +15,7 @@
 import { tierPatterns } from '@getvitops/generator';
 import Docs from '../../layouts/Docs.astro';
 import TierEntries from '../../components/TierEntries.astro';
-import { alsoIn, code, href, md, type TierRow } from '../../components/tiers.ts';
+import { alsoIn, code, href, md, TIER_PAGES, type TierRow } from '../../components/tiers.ts';
 
 const base = import.meta.env.BASE_URL;
 
@@ -49,6 +49,12 @@ const description =
     Popover API with Anchor Positioning, <code>Details</code>/<code>Drawer</code>/<code>NavShell</code>
     compose <code>&lt;details&gt;</code> with Invoker Commands. If a wrapper would need runtime JS it
     is the wrong tier: that becomes a web component, and the wrapper emits its tag instead.
+  </p>
+  <p class="font-footnote">
+    Tier 3 has two platforms and these are one of them — the
+    <a class="link" href={href(TIER_PAGES.bricks.path, base)}>Bricks elements</a> are the other,
+    at the same tier rather than above it. Both generate HTML from the classes and elements of
+    tiers 1 and 2; which you use is decided by your platform, and no project uses both.
   </p>
 
   <h2 id="wrapping">Read the "emits" column before you write markup</h2>

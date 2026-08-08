@@ -12,17 +12,35 @@
  * to fight rather than mount. The handler takes the parsed body and an optional
  * `validate`; everything else is the caller's.
  *
+ * The path matters: the capture script beacons `tel:` conversions at
+ * `TRACKING_ENDPOINT` (`/api/track`, exported from `@getvitops/astro/tracking`),
+ * and the integration warns at build if no route answers it.
+ *
  * ```ts
  * // src/pages/api/track.ts
  * export const prerender = false;
+ * import { env } from 'cloudflare:workers';
  * import { createConversionRoute } from '@getvitops/astro/routes';
- * import config from '../../site.config.json';
  *
  * export const POST = createConversionRoute({
- *   context: toNotifyContext(config),
- *   binding: (locals) => locals.runtime?.env?.EMAIL,
+ *   context: {
+ *     // A bare address is shorthand for `{ provider: 'cloudflare', to }`.
+ *     notifications: { email: 'sales@acme.ca' },
+ *     canonical: 'https://acme.ca',
+ *     organizationName: 'Acme',
+ *   },
+ *   binding: () => env.EMAIL,
  * });
  * ```
+ *
+ * Two things this example used to get wrong, both of which cost a consumer real
+ * time. It read the binding off `locals.runtime.env`, which Astro removed in v6
+ * — and because the resulting throw precedes the response, Astro re-reads the
+ * request and reports a misleading "Body has already been used" instead of the
+ * actual error. This package peers on `astro >= 7`, so that form could not work
+ * for any supported consumer; `import { env } from 'cloudflare:workers'` is the
+ * current one. It also called a `toNotifyContext(config)` helper that does not
+ * exist — `context` is a plain `NotifyContext`, built however you like.
  */
 import { type EmailBinding, notify, type NotifyContext } from '@getvitops/utils/notify';
 import { parseTrackingCookie } from '@getvitops/utils/tracking';
@@ -39,9 +57,12 @@ export interface ConversionRouteOptions {
   /** Where notifications go. Build it from your site config. */
   context: NotifyContext;
   /**
-   * The Workers `send_email` binding for this request, e.g.
-   * `(locals) => locals.runtime.env.EMAIL`. Omit it in dev and the notification
-   * is printed instead of sent.
+   * The Workers `send_email` binding for this request, e.g. `() => env.EMAIL`
+   * with `env` imported from `cloudflare:workers`. Omit it in dev and the
+   * notification is printed instead of sent.
+   *
+   * Not `(locals) => locals.runtime.env.EMAIL` — Astro removed `locals.runtime`
+   * in v6, and this package peers on `>= 7`.
    */
   binding?: (locals: unknown) => EmailBinding | undefined;
   /**

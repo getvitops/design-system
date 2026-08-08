@@ -122,3 +122,51 @@ describe('logEmail', () => {
     expect(lines.join('\n')).toContain('T');
   });
 });
+
+/**
+ * `binding.send()` is a network call with no deadline of its own, so before this
+ * a hung send hung the request that produced it — forever, in the one module
+ * otherwise built on always saying why. A consumer had to wrap the binding to
+ * bound it; that bound belongs here.
+ */
+describe('sendEmail timeout', () => {
+  const hanging: EmailBinding = { send: () => new Promise<void>(() => {}) };
+
+  it('gives up on a send that never settles, and says so', async () => {
+    const r = await sendEmail(plan, message, hanging, {
+      timeoutMs: 5,
+      attempts: 1,
+      sleep: noSleep,
+    });
+    expect(r.sent).toBe(false);
+    expect(r.reason).toContain('5ms');
+  });
+
+  it('retries a timeout — it is transient by definition', async () => {
+    let calls = 0;
+    const slowThenFast: EmailBinding = {
+      send: async () => {
+        calls++;
+        if (calls === 1) return new Promise<void>(() => {});
+        return undefined;
+      },
+    };
+    const r = await sendEmail(plan, message, slowThenFast, {
+      timeoutMs: 5,
+      attempts: 2,
+      sleep: noSleep,
+    });
+    expect(r.sent).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it('does not delay a send that answers in time', async () => {
+    const r = await sendEmail(plan, message, { send: async () => {} }, { timeoutMs: 50 });
+    expect(r.sent).toBe(true);
+  });
+
+  it('can be disabled with 0', async () => {
+    const r = await sendEmail(plan, message, { send: async () => {} }, { timeoutMs: 0 });
+    expect(r.sent).toBe(true);
+  });
+});

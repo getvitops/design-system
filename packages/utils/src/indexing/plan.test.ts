@@ -261,3 +261,37 @@ describe('check', () => {
     expect(plan({ config: config(), current: [] }).check).toEqual([]);
   });
 });
+
+/**
+ * A 404 fails loudly. A sitemap that is well-formed and *someone else's* does
+ * not: a downstream site's sitemap route collided with its CMS's, the URL
+ * returned 200 with a valid document listing pages that weren't theirs, and the
+ * run reported a healthy cold submission. Nothing downstream can catch it — the
+ * URLs parse, the diff works, the submission succeeds.
+ */
+describe('foreign sitemap', () => {
+  it('notes URLs that are not on the configured origin', () => {
+    const p = plan({
+      config: config(),
+      current: [
+        { loc: 'https://cms.example/pages/contact' },
+        { loc: 'https://cms.example/pages/pricing' },
+      ],
+    });
+    expect(p.notes.join(' ')).toMatch(/cms\.example/);
+    expect(p.notes.join(' ')).toMatch(/acme\.ca/);
+  });
+
+  it('says nothing when every URL is on the origin', () => {
+    const p = plan({ config: config(), current: [entry('/'), entry('/about')] });
+    expect(p.notes.join(' ')).not.toMatch(/rather than/);
+  });
+
+  it('notes a partially foreign sitemap', () => {
+    const p = plan({
+      config: config(),
+      current: [entry('/'), { loc: 'https://cms.example/pages/contact' }],
+    });
+    expect(p.notes.join(' ')).toMatch(/1 URL\(s\) on cms\.example/);
+  });
+});

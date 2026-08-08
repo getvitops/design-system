@@ -3,14 +3,14 @@
  *
  * Every light-DOM component initialises when upgraded MID-INSERTION.
  *
- * This is one bug in four places. Each of these elements parses its slotted markup
+ * This is one bug in five places. Each of these elements parses its slotted markup
  * in `connectedCallback` and early-returns when it finds nothing — which is exactly
  * what happens when the element is upgraded during an `innerHTML` write, because
  * children do not exist yet. The first assertion below pins that premise, so if a
  * future DOM implementation changes the timing this file explains itself rather
  * than looking like a pointless retry.
  *
- * The failure mode is silent in all four: the fallback markup stays on screen
+ * The failure mode is silent in all five: the fallback markup stays on screen
  * un-enhanced, with no error. So what is asserted is not "setup was called" but
  * the observable enhancement each component exists to produce.
  */
@@ -31,6 +31,7 @@ beforeAll(async () => {
     import('./WCMarquee.ts'),
     import('./WCCarousel.ts'),
     import('./WCTree.ts'),
+    import('./WCCards.ts'),
   ]);
 });
 
@@ -128,5 +129,33 @@ describe('<wc-tree>', () => {
   it('leaves a tree-less body alone', async () => {
     const el = await mount('<wc-tree><p>nothing to enhance</p></wc-tree>');
     expect(el.querySelector('.tree__toolbar')).toBeNull();
+  });
+});
+
+describe('<wc-cards>', () => {
+  it('marks the cards it governs', async () => {
+    const el = await mount(`
+      <wc-cards>
+        <ul class="subgrid" role="list">
+          <li class="card"><p><a class="link" href="/a">Alpha</a></p></li>
+          <li class="card"><p><a class="link" href="/b">Beta</a></p></li>
+        </ul>
+      </wc-cards>`);
+    // The stamp is the observable enhancement: it is what the pointer cursor keys
+    // off, so its absence is exactly the silent failure this file exists for.
+    expect(el.querySelectorAll('[data-card-link]')).toHaveLength(2);
+  });
+
+  it('leaves a card with no link unmarked', async () => {
+    // Nothing to forward to, so a pointer cursor would be a lie.
+    const el = await mount(
+      '<wc-cards><ul class="subgrid"><li class="card"><p>no link</p></li></ul></wc-cards>',
+    );
+    expect(el.querySelector('[data-card-link]')).toBeNull();
+  });
+
+  it('leaves a card-less body alone', async () => {
+    const el = await mount('<wc-cards><p>nothing to enhance</p></wc-cards>');
+    expect(el.querySelector('[data-card-link]')).toBeNull();
   });
 });

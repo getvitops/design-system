@@ -65,14 +65,14 @@ const {
   {
     enhance ? (
       <wc-tree label={label} {...rest}>
-        <ul class="tree tree--lines" aria-label={ariaLabel}>
+        <ul class="tree tree--lines" role="list" aria-label={ariaLabel}>
           {items.map((item) => (
             <TreeNode item={item} depth={0} openDepth={openDepth} />
           ))}
         </ul>
       </wc-tree>
     ) : (
-      <ul class="tree tree--lines" aria-label={ariaLabel}>
+      <ul class="tree tree--lines" role="list" aria-label={ariaLabel}>
         {items.map((item) => (
           <TreeNode item={item} depth={0} openDepth={openDepth} />
         ))}

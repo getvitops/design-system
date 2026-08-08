@@ -13,7 +13,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path' | xargs npx vp check --fix --no-error-on-unmatched-pattern"
+            "command": "jq -r '.tool_input.file_path' | { read -r f; npx vp check --fix --no-error-on-unmatched-pattern \"$f\"; } || true",
+            "statusMessage": "Formatting"
           }
         ]
       }

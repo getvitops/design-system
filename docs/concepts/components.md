@@ -1,7 +1,7 @@
 ---
 type: "Design Concept"
 title: "Vitops components — which tier provides a pattern, and what to write"
-description: "Every UI pattern across the four tiers (CSS classes, wc-* web components, Astro components, Bricks elements): which tiers provide it, which call to make, and how the tiers compose."
+description: "Every UI pattern across the three tiers (CSS classes, wc-* web components, and the platform wrappers: Astro components and Bricks elements): which tiers provide it, which call to make, and how the tiers compose."
 resource: "design-system.json"
 tags: [components, web-components, astro, bricks, tiers, design-system]
 generator: "@getvitops/generator"
@@ -9,20 +9,26 @@ generator: "@getvitops/generator"
 
 # Components
 
-A pattern is provided by up to four tiers, and they **compose** rather than compete:
+A pattern is provided by up to **three tiers**, and they **compose** rather than compete:
 
 1. **CSS framework classes** — every pattern expressible in pure HTML/CSS. Reach here first.
 2. **Web components** (`<wc-*>`, Lit) — only where a pattern genuinely benefits from
    progressive enhancement. The slotted markup is the fallback and must be usable with no JS;
    the element parses and augments it in place.
-3. **Astro components** — authoring conveniences that emit the correct markup. They must not
-   require runtime JS. Where a pattern has a web component, the Astro component emits that tag
-   **with the accessible fallback inside it**.
-4. **Bricks elements** — the same patterns as WordPress/Bricks Builder elements.
+3. **Platform wrappers** — authoring conveniences that generate the correct markup at build
+   time, using the classes and elements of tiers 1 and 2. They must not require runtime JS.
+   Where a pattern has a web component, the wrapper emits that tag **with the accessible
+   fallback inside it**. Two platforms:
+   - **Astro components** (`@getvitops/astro`)
+   - **Bricks elements** (WordPress / Bricks Builder)
+
+**Astro and Bricks are the same tier**, not tiers 3 and 4. They are siblings chosen by which
+platform you are on — no project uses both, and neither outranks the other. The tables below
+give them separate columns because they are separate packages, not separate levels.
 
 ## Choosing
 
-**Use the highest-numbered tier available for your stack, and write only its call.** In Astro
+**Use the highest tier available for your stack, and write only its call.** In Astro
 that is the Astro component; in Bricks the element; anywhere else the classes, plus the
 `<wc-*>` tag when one exists.
 
@@ -39,7 +45,7 @@ emit its tag.
 | `badge` | css | `.badge` — a STATIC label. Use `tag` if it is dismissable or editable. |
 | `banner` | css | `.banner`; wrap in `<wc-dismissable>` for a close button that works. |
 | `btn` | css | `<button>` gets it with no class; `.btn` carries it to other tags. `fill: false`, so states drive `color`. |
-| `card` | css · astro | `<Cards>` for a list, or the `.card` class directly. Generated pattern: has roles and states. |
+| `card` | css · wc · astro | `<Cards>` — it emits `<wc-cards>` itself, so do NOT add your own wrapper. `<Subgrid>` is the same grid without the click enhancement. |
 | `carousel` | css · wc · bricks | `<wc-carousel>` around your slides; each child is a slide. Works unenhanced as a scroll-snap strip. |
 | `centered` | css · bricks | `.centered` as a track grid. Children land in `measure` — give it a track child to lay out inside. |
 | `cluster` | css | `.cluster` plus an alignment variant. |
@@ -64,7 +70,7 @@ emit its tag.
 | `icon-picker` | css · wc | Not shipped. See `color-wheel`. |
 | `image-compare` | css · wc · bricks | `<wc-image-compare>` with two images. Both are visible without JS. |
 | `lightbox` | css | `.lightbox` thumbnails plus a `<dialog>`. |
-| `link` | css | `<a>` gets it at zero specificity; `.link` for other tags. |
+| `link` | css | `<a>` gets it at zero specificity; `.link` for other tags. `.stretched-link` makes one link cover its positioned ancestor (whole-card click, no JS — but the card text stops being selectable); `.raised` lifts content back above that overlay. |
 | `list` | css | `.facet-list` / `.filtered-list`. |
 | `marquee` | css · wc | `<wc-marquee>` around one `.marquee__content`. Scrolls via CSS alone; JS only removes the seam. |
 | `masonry` | css | `.masonry` — CSS columns based. |
@@ -89,7 +95,7 @@ emit its tag.
 | `stack` | css | `.stack` for overlapping cards. |
 | `status` | css | `.status` with a role variant. |
 | `sticky` | css | `.sticky-header` etc. Pure CSS. |
-| `subgrid` | css · astro | `<Subgrid>` — emits `<ul class="grid">` with row-subgrid children so cards align across tracks. |
+| `subgrid` | css · astro | `<Subgrid>` — emits `<ul class="subgrid" role="list">`; author `<li class="card subgrid-card">` items yourself, so tranches align across the set. |
 | `svg` | css | `.svg-*` helpers for inline SVG. |
 | `table` | css | `.table` inside `.table-wrapper`. See `entries` for the responsive-to-table pattern. |
 | `tabs` | css | Generated pattern only; no structural partial and no component yet. |
@@ -109,6 +115,7 @@ is tooling and opt-in per consumer.
 
 | Tag | Pattern | Ships in | What JS adds over the fallback |
 | --- | --- | --- | --- |
+| `<wc-cards>` | `card` | `elements.js` | whole-card click that keeps the card text selectable |
 | `<wc-carousel>` | `carousel` | `elements.js` | cloned slides for a seamless loop, autoplay, snap nav |
 | `<wc-color-scheme-toggle>` | `color-scheme-toggle` | `elements.js` | segmented light/dark/system control; persists the choice (consent-gated) |
 | `<wc-color-wheel>` | `color-wheel` | `(none — editor-v2 track, not yet bundled)` | hue/chroma wheel input |
@@ -132,7 +139,7 @@ is tooling and opt-in per consumer.
 
 | Component | Pattern | Emits |
 | --- | --- | --- |
-| `@getvitops/astro/components/Cards.astro` | `card` | tier-1 markup — no web component |
+| `@getvitops/astro/components/Cards.astro` | `card` | the `<wc-cards>` tag, fallback inside |
 | `@getvitops/astro/CookieConsent.astro` | `consent` | the `<wc-consent>` tag, fallback inside |
 | `@getvitops/astro/components/Details.astro` | `details` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Drawer.astro` | `drawer` | tier-1 markup — no web component |
@@ -176,7 +183,7 @@ rules that generate them all.
 | `badge` | `patterns/tag.css` | `badge`, `badge-indicator` | declared |
 | `banner` | `patterns/banner.css` | `banner`, `banner__content`, `banner__action` | declared |
 | `btn` | — | `btn` | declared |
-| `card` | — | `card` | declared |
+| `card` | `patterns/card.css` | `card` | declared |
 | `carousel` | `patterns/carousel.css` | `carousel` | declared |
 | `centered` | `layout.css` | `centered`, `spotlight`, `breakout`, `fullbleed` | — |
 | `cluster` | `patterns/cluster.css` | `cluster`, `cluster-between`, `cluster-start` | — |
@@ -200,7 +207,7 @@ rules that generate them all.
 | `icon-picker` | `patterns/icon.css` | — | — |
 | `image-compare` | `patterns/splitter.css` | `image-compare`, `image-compare__before`, `image-compare__handle` | — |
 | `lightbox` | `patterns/lightbox.css` | `lightbox`, `lightbox-dialog__content` | declared |
-| `link` | `patterns/anchor-link.css` | `link`, `skip-link` | declared |
+| `link` | `patterns/anchor-link.css` | `link`, `skip-link`, `stretched-link`, `raised` | declared |
 | `list` | `patterns/list.css` | `facet-list`, `filtered-list` | declared |
 | `marquee` | `patterns/marquee.css` | `marquee`, `marquee__content`, `marquee__item` | — |
 | `masonry` | `patterns/masonry.css` | `masonry`, `masonry__item` | — |

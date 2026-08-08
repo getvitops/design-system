@@ -1,5 +1,123 @@
 # @getvitops/vite
 
+## 5.0.0
+
+> **No consumer-facing change in this package.** `@getvitops/vite` has no source changes in 5.0.0 —
+> it is majored because `core` / `generator` / `utils` / `cli` / `astro` / `vite` share one version
+> and are only supported in matching sets. The notes below are the toolchain's, reproduced in every
+> member's changelog; the behaviour they describe lives in `@getvitops/generator`. Upgrading this
+> package needs no code edit of yours, but the generator changes it runs **do** apply — a config
+> with a dangling `var(--…)` will now fail your build through this plugin.
+
+### Major Changes
+
+- **Dangling token references are now a build failure.** `validate()` resolves every `var(--…)` a
+  config authors — in `patterns.defaults` / `radii` / `groups` / `items.*.{base,overrides,states}`,
+  `typography.roles` and `shadows` — against the tokens that config actually emits. A reference to a
+  token that does not exist used to validate, generate, minify and ship, then resolve to nothing in
+  the browser: one downstream config shipped a `.cta` whose `color` fell back to `inherit` on a brand
+  fill (unreadable text on every filled button), and two of its four dead references had been dead for
+  several releases with nothing ever reporting them.
+
+  The check is deliberately anchored to the namespaces the generator owns — `--color-*`, `--shadow-*`,
+  `--z-tier-*`, `--surface-glass`, `--overlay` — the same discipline `vitops lint` follows. A pattern
+  may legitimately reference a framework token from `@getvitops/core` or a hook of your own, and
+  enumerating "every valid token" would make those false positives. A reference carrying a fallback
+  (`var(--x, 0.25rem)`) is never flagged: that is you saying what happens when the token is absent.
+  Errors name the config path and suggest the nearest token that does exist.
+
+  Two related diagnostics ship with it:
+  - **Pre-1.0 colour-grammar references are reported as one rename table**, not as a dozen separate
+    "no such token" errors — the shape the 3.0 flat-config detector uses, applied to the 1.0 colour
+    change. It is built from your own role names, and it says to apply the renames _simultaneously_,
+    because several of them rotate (`--surface-bg` → `--color-bg-surface-muted`,
+    `--surface-bg-bold` → `--color-bg-surface`) and sequential replacement compounds them.
+  - **A surface-shaped role declared chromatic now warns.** A bare hue string is shorthand for
+    `kind: "chromatic"`, which emits no bare `--color-bg-<role>` and no `.bg-<role>` — so writing
+    `"surface": "ink"` silently removed `--color-bg-surface` and the 36 references the framework's own
+    CSS makes to it. Relatedly, `--surface-glass`, `--overlay` and `.glass` are no longer emitted when
+    `surface` is chromatic: they read `--color-bg-surface`, so emitting them pointed at nothing.
+
+  **`vitops lint --fix` is now the migration tool.** It reads `var(--…)` out of CSS and `<style>`
+  blocks (not just `class` attributes) and rewrites pre-1.0 token references in a **single pass**, so
+  the rotating renames cannot compound. Nothing else is rewritten — every other finding it reports is
+  a judgement call. Run it after a major bump.
+
+  **`--help` works on every subcommand.** `vitops lint --help` used to exit non-zero with
+  `Unknown option '--help'`; every leaf subcommand parsed its own argv strictly and none declared the
+  option. It is now answered before dispatch, so no command can forget it, and a drift guard fails the
+  build if a command has no documented options. (`validate`'s options were genuinely undocumented and
+  now are.)
+
+  **The Astro integration reads `site.tracking` and `site.legal.cookieConsent`.** These drive the
+  generated cookie notice, while `vitops({ consent, tracking })` drove the runtime — two hand-synced
+  declarations of the same fact with nothing comparing them, so a site could ship a notice naming
+  categories its banner never offered, or disclosing an `_ac` cookie no capture script ever wrote, and
+  the build was clean. The config blocks are now defaults (as `css` / `fonts` / `favicon` / `ads`
+  already were) and a genuine contradiction — `true` against `false` on the same fact — **fails the
+  build**, naming both sides. An absent option is not a contradiction; it just takes the config's
+  value.
+
+  Also fixed, each from a downstream report:
+  - **`@getvitops/astro/tracking`** re-exports `@getvitops/utils/tracking` (plus `TRACKING_ENDPOINT`),
+    so the documented conversion flow works with one install. Under strict pnpm app code cannot
+    resolve a transitive dependency, and the obvious workaround — importing the same symbols from the
+    package index — is the one that drags the integration's Node builtins toward a Worker bundle. This
+    entry and `./routes` are both clean.
+  - **`createConversionRoute`'s example was broken on every supported Astro.** It read the binding off
+    `locals.runtime.env`, removed in Astro v6, while the package peers on `>= 7` — and because the
+    throw precedes the response, Astro re-reads the request and reports a misleading "Body has already
+    been used". It also called a `toNotifyContext()` helper that does not exist. The example now uses
+    `import { env } from 'cloudflare:workers'` and a plain `NotifyContext`.
+  - **`/api/track` is exported as `TRACKING_ENDPOINT`**, and the integration warns at build when
+    tracking is on and no route answers it. It was a bare literal inside the inlined capture script:
+    name the route file anything else and every `tel:` beacon 404s, conversions vanish, and nothing
+    errors anywhere.
+  - **`describeEvent` no longer reports "from Unknown"** for forms that don't have a field literally
+    named `name`. It now falls back through `first_name`/`last_name`, `full_name`, and finally the
+    email address.
+  - **`sendEmail` takes `timeoutMs` (default 10s).** `binding.send()` had no deadline, so one hung
+    attempt hung the request that produced it — indefinitely, in the one module otherwise built on
+    always saying why. A timeout is retried, like any other transient failure.
+  - **`vitops search notify` warns when the sitemap's URLs aren't on the configured origin.** A 404
+    fails loudly; a well-formed sitemap belonging to someone else did not — a route collision served a
+    valid document listing another site's pages and the run reported a healthy submission. Surfaces at
+    `--dry`.
+  - **`require()` warns when the page has no `<wc-consent>`.** The demand can never be granted, so
+    whatever waited on it never runs — silently. Hit by rendering `<Tracking />` on pages where
+    `<CookieConsent />` wasn't.
+  - **`vitops agents` no longer writes a path it guessed.** It used to warn and then write "tokens
+    live in `design-system.json`" into a project whose tokens are in `company.json`, with the four
+    emitted `vitops generate` commands hard-coded to match — copy-paste-broken in exactly the projects
+    that most need the block to be right. It now finds the config by shape, interpolates the resolved
+    path into every emitted command, and fails rather than guessing when there is nothing to name.
+  - **`vitops search setup --dry` and `vitops ads setup --dry` run without credentials.** A dry run
+    that mutates nothing should not demand the token to mutate; with none set it plans from scratch
+    and says so. (`--check` still needs them — drift is a comparison against live state.) Both now
+    also mention that the Cloudflare token needs `Zone:Read` alongside `Zone:DNS:Edit` — the
+    zone-by-name lookup uses it, and its absence read as "the zone isn't in this account".
+  - **`vitops legal` names the files it wrote and flags new ones.** Enabling `cookieConsent` silently
+    produced a `cookie-notice` document that then needs a page, a route, a link and a `policyUrl`; the
+    command said only "3 files". The review reminder is also printed on the stdout path, where it was
+    missing entirely.
+  - **`vitops init` writes a versioned `$schema`** — `./node_modules/@getvitops/generator/schema.json`,
+    following wrangler — instead of an unpinned unpkg URL that resolved to whatever was newest, so an
+    editor validated a pinned project against a schema it wasn't built with.
+  - **`favicon.backgroundColor` and `favicon.name` are described accurately.** `backgroundColor` is
+    not manifest-only: it fills the opaque `apple-touch-icon.png` and `icon-mask.png`, which are
+    written whether or not a manifest is. `name` documents that it and `themeColor` **together** are
+    what make a site installable. The missing-background warning now also fires for a dark opaque mark,
+    not only a transparent source — `apple-touch-icon` insets the logo and fills the surround either
+    way.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @getvitops/generator@5.0.0
+  - @getvitops/utils@5.0.0
+
 ## 4.1.0
 
 ### Patch Changes

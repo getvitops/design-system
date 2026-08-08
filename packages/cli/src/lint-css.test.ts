@@ -88,6 +88,126 @@ describe('the centred-track rule', () => {
       [],
     );
   });
+
+  /**
+   * The reported failure, and the one the token-anchored rule above could never
+   * see: an agent inventing a container from scratch never references
+   * `--width-measure`, because knowing that token is knowing about `.centered`.
+   */
+  it('catches a plain pixel container, which is what agents actually write', () => {
+    const [f] = lintCss(at('a.css', '.wrap { max-width: 1200px; margin-inline: auto; }'), 'css');
+    expect(f?.severity).toBe('suggestion');
+    expect(f?.reason).toContain('`.centered`');
+  });
+
+  it('reads the cap out of a min() or clamp()', () => {
+    expect(
+      lintCss(at('a.css', '.c { width: min(100%, 75rem); margin-inline: auto; }'), 'css'),
+    ).toHaveLength(1);
+    expect(
+      lintCss(at('a.css', '.c { max-width: clamp(20rem, 90vw, 70rem); margin: 0 auto; }'), 'css'),
+    ).toHaveLength(1);
+  });
+
+  it('treats a ch cap as a reading measure', () => {
+    expect(
+      lintCss(at('a.css', '.prose { max-width: 65ch; margin-inline: auto; }'), 'css'),
+    ).toHaveLength(1);
+  });
+
+  it('fires on a container-shaped NAME even without auto margins', () => {
+    // The name is the stated intent, so the value no longer has to prove it — this
+    // is the `.wrap` inside a flex parent, which centres without auto margins.
+    const [f] = lintCss(at('a.css', '.page-wrapper { max-width: 1100px; }'), 'css');
+    expect(f?.reason).toContain('names a page container');
+  });
+
+  it('matches a container name inside a compound or BEM-ish selector', () => {
+    expect(lintCss(at('a.css', '.site-header__inner { max-width: 90rem; }'), 'css')).toHaveLength(
+      1,
+    );
+    expect(lintCss(at('a.css', '.l-container { max-width: 80rem; }'), 'css')).toHaveLength(1);
+  });
+
+  it('stays quiet on a container-shaped name with no width cap at all', () => {
+    // A `.wrapper` that only arranges its children is not this pattern.
+    expect(lintCss(at('a.css', '.wrapper { display: flex; gap: 1rem; }'), 'css')).toEqual([]);
+  });
+
+  it('stays quiet on a page-scale cap that does not centre', () => {
+    // A full-width band capped for safety is not a centred container.
+    expect(lintCss(at('a.css', '.band { max-width: 90rem; }'), 'css')).toEqual([]);
+  });
+
+  it('ignores viewport-relative widths, which are not a container cap', () => {
+    expect(lintCss(at('a.css', '.v { max-width: 90vw; margin-inline: auto; }'), 'css')).toEqual([]);
+  });
+
+  it('reports one finding when all three triggers apply at once', () => {
+    // A `.wrap` with a framework token and auto margins trips name, token and
+    // value. Three findings on one line would read as three problems.
+    expect(
+      lintCss(
+        at('a.css', '.wrap { max-inline-size: var(--width-measure); margin-inline: auto; }'),
+        'css',
+      ),
+    ).toHaveLength(1);
+  });
+});
+
+describe('the subgrid rule', () => {
+  it('catches a repeated-item grid', () => {
+    const [f] = lintCss(
+      at('a.css', '.cards { display: grid; grid-template-columns: repeat(3, 1fr); }'),
+      'css',
+    );
+    expect(f?.severity).toBe('suggestion');
+    expect(f?.reason).toContain('tranches');
+    expect(f?.suggestion).toContain('subgrid-cols-3');
+  });
+
+  it('suggests the responsive form for an auto-fit track', () => {
+    expect(
+      lintCss(
+        at(
+          'a.css',
+          '.g { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }',
+        ),
+        'css',
+      )[0]?.suggestion,
+    ).toContain('subgrid-responsive');
+  });
+
+  it('stays quiet on a single-column repeat, which is not a set', () => {
+    expect(
+      lintCss(at('a.css', '.g { display: grid; grid-template-columns: repeat(1, 1fr); }'), 'css'),
+    ).toEqual([]);
+  });
+
+  it('stays quiet on an explicit two-panel grid, which is a split not a set', () => {
+    expect(
+      lintCss(at('a.css', '.g { display: grid; grid-template-columns: 1fr 2fr; }'), 'css'),
+    ).toEqual([]);
+  });
+
+  it('stays quiet when the rule is already using subgrid', () => {
+    // Configuring or extending the framework pattern, not replacing it.
+    expect(
+      lintCss(
+        at(
+          'a.css',
+          '.g { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: subgrid; }',
+        ),
+        'css',
+      ),
+    ).toEqual([]);
+  });
+
+  it('stays quiet on a repeat without display:grid', () => {
+    expect(lintCss(at('a.css', '.g { grid-template-columns: repeat(3, 1fr); }'), 'css')).toEqual(
+      [],
+    );
+  });
 });
 
 describe('the split rule', () => {

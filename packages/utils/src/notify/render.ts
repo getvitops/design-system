@@ -43,6 +43,32 @@ interface Section {
 }
 
 /**
+ * Who submitted the form, for the subject line.
+ *
+ * `formData['name']` alone is the shape a form has when someone writes it that
+ * way, and most don't: a downstream site had `first_name`/`last_name` on five of
+ * six forms, so every notification read "from Unknown" and the renderer could
+ * not be adopted at all. The cascade is ordered most-specific first, and falls
+ * back to the email rather than to nothing — an address identifies the person
+ * even when no name field exists.
+ */
+function submitterName(formData: Record<string, string>): string {
+  const get = (...keys: string[]): string | undefined => {
+    for (const k of keys) {
+      const v = formData[k]?.trim();
+      if (v) return v;
+    }
+    return undefined;
+  };
+  const full = get('name', 'full_name', 'fullName', 'fullname', 'your-name');
+  if (full) return full;
+  const first = get('first_name', 'firstName', 'firstname', 'given_name');
+  const last = get('last_name', 'lastName', 'lastname', 'family_name', 'surname');
+  if (first || last) return [first, last].filter(Boolean).join(' ');
+  return get('email', 'email_address', 'emailAddress') ?? 'Unknown';
+}
+
+/**
  * The event as sections — the shared structure behind both renderings.
  *
  * Extracted so the text and HTML versions cannot disagree about content. They
@@ -57,7 +83,7 @@ export function describeEvent(event: ConversionEvent): { subject: string; sectio
   let subject: string;
 
   if (event.type === 'form' && event.formData) {
-    const name = event.formData['name'] ?? 'Unknown';
+    const name = submitterName(event.formData);
     subject = `[Contact Form] New submission from ${name}`;
     for (const [key, value] of Object.entries(event.formData)) {
       if (!OMIT_FIELDS.has(key) && value) contact.push([label(key), value]);

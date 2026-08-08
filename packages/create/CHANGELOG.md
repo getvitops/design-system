@@ -1,5 +1,121 @@
 # @getvitops/create
 
+## 0.5.0
+
+### Minor Changes
+
+- **The framework now says out loud which patterns are foundational, and reports it when you
+  reach past them.** From repeated downstream reports: sites were inventing a `.wrap` class and
+  using it everywhere instead of `.centered`, and `.subgrid` — the class for any set of cards —
+  was going essentially unused. Neither failure is visible in a build: every class involved is
+  real, nothing errors, and the page renders.
+
+  **`.subgrid` was missing from the generated class reference entirely.** So was `.cluster`, and
+  so was `.region`. `vitops docs classes` is the doc an agent is told to fetch for "which class
+  do I apply", and the framework's answer for a set of cards was not in it — which is most of why
+  it never got used. All three are now documented, along with `grid-auto`, and the reference opens
+  with a **Foundations** section that states the six substitutions as
+  _temptation → what to write instead_ rather than as a vocabulary list. The same table is now in
+  the shipped agent skill and in the `@getvitops/create` template's `AGENTS.md`, because a pointer
+  to a doc only helps someone who already suspects there is something to look up. (`css`/`bricks`
+  and `tailwind` alike — this is documentation and the `TIERS` manifest, not emitted CSS.)
+
+  **`vitops lint` gained three reuse rules and a markup pass.** The existing `.centered` rule only
+  fired when the hand-written CSS already referenced `--width-measure`, which is precisely the
+  author who was never going to hand-roll a container. It now also catches a page-scale
+  `max-width` (≥ 48rem, or a `ch` reading measure) with auto margins, and a
+  container-shaped class name — `wrap`, `wrapper`, `container`, `inner`, `shell`, … — carrying any
+  width cap at all. Reading the cap out of `min()` / `clamp()` too. New rules report a
+  hand-written `repeat()` grid as `.subgrid` (or `.grid-auto`), and a new **markup** pass reports a
+  repeated card set laid out without either — a loop that renders a card, or three or more cards
+  written out. That last one is the only check that can see this drift at all, since a card list
+  built from utility classes contains no bad class and no hand-written CSS.
+
+  All of these are `suggestion` severity, so they do not fail your build unless you pass
+  `--strict`. They found five real instances in this repo's own docs site.
+
+  **`vitops lint [files...]`** now takes explicit paths instead of scanning `--src`, so it can be
+  wired into a pre-commit hook — `vp`'s `staged` key appends the staged files to whatever it runs,
+  and a command that refused positionals could not be put in the one place the feedback lands at
+  the moment the code is written. Unreadable and non-source paths are skipped rather than fatal. The
+  `@getvitops/create` emdash template wires it up with `--strict` and adds a `lint:design` script.
+
+  **Two answers for "the whole card is a link", because one cannot exist.** Reported downstream:
+  agents dislike the `<li>` wrapper when a card is a link and write `<li><a class="card">` instead.
+  That shape is **wrong in a way that renders fine**, which is why it survives review — the `<li>`
+  is the grid item, so the anchor is an ordinary block inside it and the tranches within the anchor
+  never reach the parent's shared row lines. The alignment `.subgrid` exists for silently does not
+  happen, and the anchor does not fill the cell either. Putting the anchor in the grid's place
+  (`<ul><a></ul>`) is invalid HTML, so there was genuinely no correct shape to reach for.
+
+  There are now two, and they trade against each other because **no CSS-only technique can make a
+  whole card clickable and leave its text selectable** — a transparent overlay necessarily receives
+  the pointer-drag:
+
+  | Want                                     | Use                                         |
+  | ---------------------------------------- | ------------------------------------------- |
+  | zero JS, whole card clickable            | `.stretched-link` — **text not selectable** |
+  | selectable text **and** a clickable card | `<Cards>` / `<wc-cards>` — needs JS         |
+
+  `.stretched-link` goes on a link inside the card; its `::after` covers the card.
+  **`<wc-cards>` is a new tier-2 element** that adds no overlay and instead tells a click apart from
+  the end of a drag, so text selection survives. Its fallback is the card's own link, fully usable
+  with no JS, and the pointer cursor is applied by the element — so the affordance never appears
+  without the behaviour. `<Cards>` emits it for you. They are alternatives, never layered: with an
+  overlay present the JS has nothing to do, and `vitops lint` reports the combination. (All formats
+  — pattern partials, deliberately not `utilities.css`, which the tailwind format skips on the
+  invariant that everything left in it is a name Tailwind ships itself.)
+
+  ### Breaking
+  - **`<Subgrid />` renders its slot verbatim — author the `<li>` items yourself.**
+
+    ```diff
+      <Subgrid>
+    -   <article class="card">…</article>
+    +   <li class="card subgrid-card">…</li>
+      </Subgrid>
+    ```
+
+    It used to parse the slotted HTML and rebuild each child as an `<li>`, carrying over only
+    `class` and `style`. That existed solely because a `<ul>` may contain nothing else, and it cost
+    more than it bought: the child's tag was discarded, `id`/`data-*`/`aria-*` were silently
+    dropped, and `href` could not survive at all. Nothing is copied now, so nothing is lost. `as`
+    picks the container (`ul` by default, `ol`, `div`), and all other props are forwarded — they
+    were previously discarded, including `role`.
+
+  - **`<Subgrid />` and `<Tree />` now emit `role="list"`,** as does the Bricks `sitenav` element.
+    `list-style: none` stops Safari + VoiceOver announcing a `<ul>` as a list, so every marker-less
+    framework list was silently losing the semantics its `<ul>` was chosen for. If you hand-write
+    `.subgrid`, `.list`, `.facet-list`, `.nav-items`, `.collapse-menu` or `.tree` markup, add
+    `role="list"` yourself — the framework cannot add it to markup it does not render, and each
+    partial now says so at the `list-style` reset.
+  - **`<Cards />` no longer adds `class="card"` to slotted children,** because it no longer parses
+    them. Write the class on the item. It now emits `<wc-cards>` around a `<Subgrid>`, which is what
+    makes the whole card clickable — and like `<Tree />`, **it emits its own element, so do not wrap
+    it in `<wc-cards>` yourself.** It also previously passed a `role="list"` that `<Subgrid>` silently
+    discarded, so that never took effect.
+  - **`.subgrid-card` now sets `position: relative`**, so `stretched-link` inside it needs no extra
+    class. If you were absolutely positioning a descendant of a `.subgrid-card` against an ancestor
+    _outside_ that card, it will now resolve against the card. Move the positioning context
+    explicitly. (`css`/`bricks`/`tailwind` — the pattern partial is inlined into all three.) Not
+    reachable by `vitops lint --fix`: the fix depends on which ancestor you meant, which the
+    linter cannot know.
+
+  ### Fixed
+  - **`packages/generator/src/docs.ts` contained a literal NUL byte** (`CODE_SLOT`, written as the
+    raw character rather than an escape). libmagic classified the file as `data` rather than text, so
+    grep and ripgrep treated the largest doc emitter in the repo as **binary and silently skipped
+    it** — every search for a string in it returned nothing, with no error. It is now written as the `\u0000` escape.
+    Behaviour is identical; the file is searchable.
+  - **`.grid-auto` is documented.** It was a real framework class for auto-fit card grids with no
+    entry in the class reference, so the honest alternative to `subgrid` was as invisible as
+    `subgrid` itself.
+  - **`.raised` replaces the advice to use `.relative` above a `stretched-link` overlay**, which
+    could not work: a positioned element at `z-index: auto` does not rise above an explicit
+    `z-index` regardless of DOM order, so a second link or button in the card stayed underneath and
+    unclickable. `.raised` sets both, against the same `--z-tier-raised` token the overlay now uses
+    instead of a hard-coded `1`.
+
 ## 0.4.0
 
 ### Minor Changes

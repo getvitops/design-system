@@ -38,7 +38,7 @@ import {
 import { type GetvitopsAdsOptions, resolveAds } from './ads.ts';
 import { type HeadFont, resolveFonts } from './fonts.ts';
 import type { GetvitopsSeoOptions } from './seo.ts';
-import { type GetvitopsTrackingOptions, resolveTracking } from './tracking.ts';
+import { TRACKING_ENDPOINT, type GetvitopsTrackingOptions, resolveTracking } from './tracking.ts';
 
 export interface GetvitopsFaviconOptions {
   /** Source SVG or PNG. */
@@ -578,6 +578,107 @@ function readSiteAds(
   }
 }
 
+/**
+ * The consent + tracking facts a site config already states.
+ *
+ * These were the one pair the integration did not read. `site.tracking` and
+ * `site.legal.cookieConsent` drive the **generated cookie notice**, while
+ * `vitops({ consent, tracking })` drove the **runtime** — two hand-synced
+ * declarations of the same fact with nothing checking them against each other.
+ * The failure that produces is precisely the one the rest of the toolchain is
+ * fastidious about avoiding: a site can ship a cookie notice naming categories
+ * its banner never offers, or promising attribution that no capture script
+ * implements, and the build is clean. That is a compliance defect, not a
+ * documentation gap.
+ *
+ * Read as DEFAULTS, the same as `css` / `fonts` / `favicon` / `ads` — the
+ * config is where a site's facts live, and an integration option is how you
+ * override one. A genuine contradiction is an error rather than a warning; see
+ * `consentTrackingConflicts`.
+ */
+function readSiteConsentTracking(
+  configPath: string,
+  siteEnv: string,
+): { tracking?: GetvitopsTrackingOptions; consentEnabled?: boolean; categories?: string[] } | null {
+  try {
+    const cfg = resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv);
+    const t = cfg.site.tracking;
+    const cc = cfg.site.legal?.cookieConsent;
+    if (!t && !cc) return null;
+    return {
+      ...(t ? { tracking: t as GetvitopsTrackingOptions } : {}),
+      ...(cc ? { consentEnabled: cc.enabled } : {}),
+      ...(cc?.categories ? { categories: cc.categories } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Contradictions between the config and an explicit integration option.
+ *
+ * Absent-vs-present is a default and resolves silently. `true` vs `false` on the
+ * same fact is not resolvable — one of the two documents is wrong, and picking
+ * either quietly is how a notice and a banner get out of step. The message names
+ * both sides so the fix does not require guessing which one won.
+ */
+export function consentTrackingConflicts(
+  site: { tracking?: { enabled?: boolean | undefined } | undefined; consentEnabled?: boolean },
+  opts: { consent?: unknown; tracking?: unknown },
+  configPath: string,
+): string[] {
+  const out: string[] = [];
+  const optConsent = opts.consent === undefined ? undefined : !!opts.consent;
+  if (
+    site.consentEnabled !== undefined &&
+    optConsent !== undefined &&
+    site.consentEnabled !== optConsent
+  )
+    out.push(
+      `consent: ${configPath} sets site.legal.cookieConsent.enabled: ${site.consentEnabled}, ` +
+        `but vitops({ consent: ${optConsent} }) says the opposite. The generated cookie notice ` +
+        `follows the config and the banner follows the option, so one of them would describe a ` +
+        `site that does not exist. Set them the same, or drop the option and let the config decide.`,
+    );
+  const optTracking =
+    opts.tracking === undefined
+      ? undefined
+      : opts.tracking === true
+        ? true
+        : opts.tracking === false
+          ? false
+          : ((opts.tracking as { enabled?: boolean }).enabled ?? true);
+  if (
+    site.tracking?.enabled !== undefined &&
+    optTracking !== undefined &&
+    site.tracking.enabled !== optTracking
+  )
+    out.push(
+      `tracking: ${configPath} sets site.tracking.enabled: ${site.tracking.enabled}, but ` +
+        `vitops({ tracking: ${optTracking} }) says the opposite. The cookie notice discloses \`_ac\` ` +
+        `from the config while the capture script ships from the option — so the site would either ` +
+        `disclose a cookie it never sets, or set one it never discloses.`,
+    );
+  return out;
+}
+
+/**
+ * Does a route answer `TRACKING_ENDPOINT`?
+ *
+ * Checked by filename rather than through Astro's route manifest, because this
+ * runs in `astro:config:setup` — before routes are collected. The extension set
+ * covers the ways a consumer can author the same endpoint; a false negative
+ * costs a warning, a false positive costs the whole point of the check, so this
+ * errs toward looking in more places.
+ */
+function hasConversionRoute(root: string): boolean {
+  const base = resolve(root, 'src/pages', TRACKING_ENDPOINT.replace(/^\//, ''));
+  return ['.ts', '.js', '.mjs', '.astro'].some(
+    (ext) => existsSync(`${base}${ext}`) || existsSync(join(base, `index${ext}`)),
+  );
+}
+
 const VIRTUAL_ID = 'virtual:getvitops/head';
 const RESOLVED_ID = `\0${VIRTUAL_ID}`;
 
@@ -741,9 +842,31 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         // Analytics + consent are resolved here rather than in the component:
         // resolveAnalytics is pure, its warnings belong beside the others, and
         // step 2 needs to know whether the consent bundle has to be copied.
-        const consentEnabled = !!opts.consent;
+        //
+        // The site config supplies defaults for both, and a genuine
+        // contradiction fails the build — see `readSiteConsentTracking`.
+        const siteConsent = siteInput
+          ? readSiteConsentTracking(resolve(root, siteInput), opts.site?.siteEnv ?? 'production')
+          : null;
+        if (siteConsent) {
+          const conflicts = consentTrackingConflicts(siteConsent, opts, siteInput as string);
+          if (conflicts.length)
+            throw new Error(
+              `vitops: the site config and the integration options disagree about consent.\n\n` +
+                conflicts.map((c) => `  • ${c}`).join('\n\n'),
+            );
+        }
+        const consentEnabled =
+          opts.consent !== undefined ? !!opts.consent : !!siteConsent?.consentEnabled;
         const consentOpts: GetvitopsConsentOptions =
-          typeof opts.consent === 'object' ? opts.consent : {};
+          typeof opts.consent === 'object'
+            ? opts.consent
+            : // A `categories` list the notice already states is the banner's
+              // row set: the two must agree, and the notice is the document a
+              // regulator reads.
+              siteConsent?.categories
+              ? ({ categories: siteConsent.categories } as GetvitopsConsentOptions)
+              : {};
         const analytics = resolveAnalytics(opts.analytics, { consent: consentEnabled });
         // What the banner *can* ask, not what it will. Since `<wc-consent>` reveals
         // only the rows something has demanded and the visitor hasn't answered, an
@@ -763,7 +886,13 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         // arrives on an ad click. This is the build-time half of that pair: the
         // banner must have a row for the category the capture script will ask for.
         const trackingOpts: GetvitopsTrackingOptions | undefined =
-          opts.tracking === true ? { enabled: true } : opts.tracking || undefined;
+          opts.tracking === true
+            ? { enabled: true }
+            : opts.tracking ||
+              // `site.tracking` is what the cookie notice already discloses `_ac`
+              // from, so reading it here is what makes the two halves agree by
+              // default instead of by hand.
+              (siteConsent?.tracking?.enabled ? siteConsent.tracking : undefined);
         // Ad properties come from the site config, not an integration option — the
         // ad account is a fact about the site, and `vitops ads setup`, `ads lint`
         // and the cookie notice read the same block. Resolved before the categories
@@ -791,6 +920,19 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
           consentCategories: offeredCategories,
         });
         for (const warning of tracking.warnings) logger.warn(warning);
+        // The capture script beacons `tel:` conversions at a fixed path, but the
+        // route that answers it is the consumer's to write. Nothing connected
+        // the two: a missing or differently-named route means every beacon 404s
+        // and conversions vanish with no error on either side. The route file is
+        // a build-time fact, so this is checkable.
+        if (tracking.enabled && !hasConversionRoute(root)) {
+          logger.warn(
+            `tracking is on, so the capture script beacons \`tel:\` conversions to ` +
+              `${TRACKING_ENDPOINT}, but no route answers that path. Add ` +
+              `\`src/pages/api/track.ts\` exporting \`createConversionRoute(...)\` from ` +
+              `\`@getvitops/astro/routes\` — otherwise every call conversion is silently lost.`,
+          );
+        }
 
         // Resolved a second time, now against the categories the banner will
         // actually offer and this environment's switch, so its warnings are about

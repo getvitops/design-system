@@ -18,11 +18,12 @@
  * KNOWN GAP — element display. An unregistered custom element is `display: inline`,
  * and most of these wrap block content, so before upgrade (or with `elements.js`
  * absent entirely) the tag forms an inline box around a block child. Only
- * `wc-tree` (`patterns/tree.css`) and `wc-theme-editor`
- * (`patterns/theme-editor.css`) currently declare `display`; `wc-color-scheme-toggle`
- * and `wc-consent` manage their own visibility, so the remaining eight are
- * unaddressed. Fixing them means checking each pattern's intended flow rather than
- * blanket-setting `display: block`, since an element used inline would regress.
+ * `wc-tree` (`patterns/tree.css`), `wc-cards` (`patterns/card.css`) and
+ * `wc-theme-editor` (`patterns/theme-editor.css`) currently declare `display`;
+ * `wc-color-scheme-toggle` and `wc-consent` manage their own visibility, so the
+ * remaining eight are unaddressed. Fixing them means checking each pattern's
+ * intended flow rather than blanket-setting `display: block`, since an element used
+ * inline would regress — match the declaration to the content the element wraps.
  */
 import '../web-components/WCSplitPanel.js';
 import '../web-components/WCImageCompare.js';
@@ -34,3 +35,4 @@ import '../web-components/WCColorSchemeToggle.js';
 import '../web-components/WCMultiField.js';
 import '../web-components/WCMarquee.js';
 import '../web-components/WCTree.js';
+import '../web-components/WCCards.js';

@@ -37,6 +37,19 @@ Both utils entries are **separate subpaths** because they are the only modules t
 **Worker** rather than at build time. Keeping them off the package index is what stops a
 conversion endpoint pulling `sharp` into its bundle. Neither may use a Node builtin.
 
+**Import them from `@getvitops/astro` if that is your only direct dependency.**
+`@getvitops/astro/tracking` re-exports everything in `@getvitops/utils/tracking` (plus
+`TRACKING_ENDPOINT`), so the flow works with one install — under strict pnpm, app code cannot
+resolve a transitive dependency, and `@getvitops/utils` would otherwise have to be added by
+hand. Do **not** reach for the same symbols on `@getvitops/astro`'s index instead: that entry
+pulls the integration and its Node builtins, which is the import that drags `sharp` toward a
+Worker bundle. `@getvitops/astro/tracking` and `@getvitops/astro/routes` are both clean.
+
+⚠️ The route you mount must answer **`/api/track`** (`TRACKING_ENDPOINT`) — the capture
+script beacons `tel:` conversions there, and a route at any other path means every call
+conversion 404s silently. The integration warns at build when tracking is on and no such route
+exists.
+
 ## The capture demands consent
 
 `_ac` is a 90-day identifier tying a visitor to an ad, so it waits on `marketing` (override

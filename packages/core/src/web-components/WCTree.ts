@@ -107,7 +107,11 @@ export class WCTree extends BaseElement {
     // guesses `<wc-tree><Tree /></wc-tree>` nests two. `querySelector('.tree')`
     // descends, so both would bind the SAME tree and each build a toolbar — two
     // filters fighting over one set of nodes, with no error. Returning true stops
-    // the retry as well; the inner element does all the work.
+    // the retry as well.
+    //
+    // The test is on `parentElement`, not `this` (which `closest` would match), so
+    // it is the INNER element that finds an enclosing one and bails; the outer has
+    // none above it and does the work.
     if (this.parentElement?.closest('wc-tree')) return true;
 
     const root = this.querySelector<HTMLElement>('.tree');

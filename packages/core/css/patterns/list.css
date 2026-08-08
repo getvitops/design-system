@@ -11,6 +11,10 @@
   --_ds: var(--ds-list, var(--ds-list-group, var(--ds-default)));
   --_fs: var(--fs-list, var(--fs-list-group, var(--fs-default)));
 
+  /* Markerless — so ADD `role="list"` to the element. Safari + VoiceOver stop
+     announcing a marker-less <ul> as a list, so this reset silently costs the
+     semantics the <ul> was chosen for. Nothing in the framework emits this markup,
+     so only the author can restore it. */
   list-style: none;
   margin: 0;
   padding: var(--_p);
@@ -75,6 +79,10 @@
 }
 
 .facet-list {
+  /* Markerless — so ADD `role="list"` to the element. Safari + VoiceOver stop
+     announcing a marker-less <ul> as a list, so this reset silently costs the
+     semantics the <ul> was chosen for. Nothing in the framework emits this markup,
+     so only the author can restore it. */
   list-style: none;
   margin: 0;
   padding: 0;

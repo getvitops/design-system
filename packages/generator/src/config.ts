@@ -1007,12 +1007,18 @@ const SiteSectionSchema = z.object({
           z.optional(z.string()),
           'Alternate source for small raster sizes (16/32px) when the main source scales down poorly.',
         ),
-        name: desc(z.optional(z.string()), 'App name for the generated web manifest / PWA.'),
+        name: desc(
+          z.optional(z.string()),
+          'App name for the generated web manifest. Setting this AND `themeColor` is what makes the site installable: together they emit `site.webmanifest` (with `display: "standalone"`) and link it. Neither alone does anything. A marketing site that does not want a browser offering to install it should leave one of them unset.',
+        ),
         themeColor: desc(
           z.optional(z.string()),
-          'PWA theme color (also `<meta name="theme-color">`).',
+          'Browser UI colour, emitted as `<meta name="theme-color">` on every page — so it applies with or without a manifest. Note it is also half the manifest switch: see `name`.',
         ),
-        backgroundColor: desc(z.optional(z.string()), 'PWA background color.'),
+        backgroundColor: desc(
+          z.optional(z.string()),
+          'Background composited under the OPAQUE generated icons — `apple-touch-icon.png` and the maskable `icon-mask.png` — which are produced whether or not there is a manifest. Defaults to white, so a dark logo on a transparent source needs this set. It is also the manifest `background_color` when one is emitted, but it is not manifest-only.',
+        ),
       }),
     ),
     'Favicon/PWA asset generation (consumed by `@getvitops/utils` favicon tooling).',

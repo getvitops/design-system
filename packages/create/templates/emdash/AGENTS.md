@@ -20,6 +20,49 @@ styled by the Vitops design system.
 - Prefer framework CSS classes (utilities, patterns, type roles like
   `font-heading`) over bespoke CSS. Run `npx vitops agents` to append the
   full generated class-vocabulary reference to this file.
+- **Layout foundations — these are the answer, not a starting point.** Six
+  substitutions carry the structure of nearly every page:
+  | About to write… | Write instead |
+  | --- | --- |
+  | a `wrap`/`wrapper`/`container`/`inner` class | **`centered`** |
+  | `max-width` + `margin-inline: auto` | **`centered`** |
+  | `padding-block` on a section | **`region`** |
+  | margins between headings/paragraphs/lists | **`rhythm`** |
+  | `display: grid` + `grid-template-columns: repeat(n, …)` | **`subgrid`** |
+  | `repeat(auto-fit, minmax(…))` | **`grid-auto`** |
+  | `display: flex` + `gap` for a row of controls | **`cluster`** |
+
+  `centered` is a grid of _named tracks_, not a max-width box — a child widens
+  itself with `breakout`/`spotlight`/`fullbleed` without the parent knowing, which
+  is the thing a bespoke `.wrap` can never do. **More than one card means
+  `subgrid`**: a plain grid aligns the outer boxes but not the tranches inside
+  them, so headings and CTAs land at different heights across the set. Write
+  `<ul class="subgrid subgrid-cols-3" role="list">` with
+  `<li class="card subgrid-card">` items, or `<Subgrid />` (which renders the slot
+  verbatim — author the `<li>`s yourself; it adds `role="list"` for you, and a
+  hand-written one needs it because a marker-less `<ul>` stops being announced as a
+  list in Safari).
+
+  **When the whole card is a link the card is still the item**, and pick by whether
+  the card's text must stay selectable: `stretched-link` on a link inside it is
+  zero-JS but kills text selection, while `<Cards>` (which wraps the list in
+  `<wc-cards>`) keeps selection and falls back to that same link with no JS. Never
+  both — the overlay wins and the JS never runs. Never `<li><a class="card">`: the
+  `li` is the grid item, so the anchor's tranches never align and it does not fill
+  the cell; it renders fine, which is why it keeps getting written.
+
+  `npm run lint:design` reports all of these, and the pre-commit hook fails on them
+  — the fix is the class, not a justification for the CSS.
+
+- **Prerender by default.** `output: 'server'` is required (the admin, media/API
+  routes, preview and scheduled publishing need a server), so prerendering is
+  opt-in per route: put `export const prerender = true` on every page that
+  doesn't need per-request data, and give dynamic routes a `getStaticPaths()`
+  that queries the collection at build time. A route with no `prerender` export
+  is re-rendered for every visitor on every request. The cost is that a
+  prerendered page reflects the database as of the last build, so an admin
+  publish needs a redeploy — leave a route server-rendered only where that is
+  unacceptable (preview, personalised content, must-be-live-in-seconds).
 - The Worker cron trigger in `wrangler.jsonc` drives scheduled publishing —
   don't remove it.
 - Hosting (adapter + EmDash database/storage) comes from `vitopsHosting()`

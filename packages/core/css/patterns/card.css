@@ -1,0 +1,35 @@
+/**
+ * Card — the `<wc-cards>` host and the marker its enhancement applies.
+ *
+ * The `.card` pattern itself is CONFIG-GENERATED (`patterns.items.card` in
+ * design-system.json), so its border, padding, background and shadow are not here.
+ * This partial holds only what the framework owns: the custom element's box, and the
+ * affordance for a card the element has taken over.
+ */
+
+/* ── wc-cards — the whole-card click enhancement (src/web-components/WCCards.ts) ──
+   A custom element defaults to `display: inline`, and this one wraps a block
+   container — a `<ul class="subgrid">` in the documented shape — so an inline box
+   around a block child is exactly the KNOWN GAP recorded in `js/elements.ts`.
+
+   `block`, matched to the content it wraps, following the one precedent:
+   `patterns/tree.css` declares `wc-tree { display: block }` around a
+   `<ul class="tree">`. Deliberately NOT `display: contents`, whose support has been
+   uneven — the accessibility tree in particular — and this is not a place to depend
+   on it.
+
+   The cost of a real box: where the grid is nested in a parent flex/grid, `wc-cards`
+   rather than the `<ul>` becomes the item. Restyle the element in that case; it
+   carries no other styling to lose. ── */
+wc-cards {
+  display: block;
+}
+
+/* ── The card the element has taken over ──
+   Written by `WCCards` at upgrade, and only onto cards it found a link in — so the
+   pointer cursor cannot appear on a card with nothing to click, and cannot appear at
+   all when `elements.js` never loads. That is the point of stamping it from JS
+   rather than authoring it: the affordance and the behaviour arrive together. ── */
+[data-card-link] {
+  cursor: pointer;
+}

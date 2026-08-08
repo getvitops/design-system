@@ -1,6 +1,10 @@
 ---
 /**
- * Tier 4 — the Bricks Builder elements.
+ * Tier 3 (Bricks) — the Bricks Builder elements.
+ *
+ * Tier 3 is the platform-wrapper tier, and Bricks is one of its two platforms; the
+ * Astro components are the other. Siblings chosen by platform, NOT a rank above
+ * Astro — this page was numbered tier 4 purely because it sorted last.
  *
  * Deliberately thin: the per-element control reference is generated from the PHP
  * itself (docblocks, class metadata, `set_controls()`), so restating controls here
@@ -11,7 +15,7 @@
 import { tierPatterns } from '@getvitops/generator';
 import Docs from '../../layouts/Docs.astro';
 import TierEntries from '../../components/TierEntries.astro';
-import { alsoIn, code, href, md, type TierRow } from '../../components/tiers.ts';
+import { alsoIn, code, href, md, TIER_PAGES, type TierRow } from '../../components/tiers.ts';
 
 const base = import.meta.env.BASE_URL;
 
@@ -27,14 +31,20 @@ const rows: TierRow[] = tierPatterns('bricks').map(({ name, entry }) => ({
 
 const title = 'Bricks elements';
 const description =
-  'Tier 4 — the custom Bricks Builder elements, and which framework pattern each one is.';
+  'Tier 3 on Bricks — the custom Bricks Builder elements, and which framework pattern each one is.';
 ---
 
 <Docs title={title} description={description}>
   <p>
-    Tier 4 ships the same patterns as custom <strong>Bricks Builder</strong> elements, so a
+    Tier 3 ships the same patterns as custom <strong>Bricks Builder</strong> elements, so a
     WordPress site builds from the design system through the builder UI rather than by hand-writing
     markup.
+  </p>
+  <p class="font-footnote">
+    Tier 3 has two platforms and these are one of them — the
+    <a class="link" href={href(TIER_PAGES.astro.path, base)}>Astro components</a> are the other, at
+    the same tier rather than below it. Both generate HTML from the classes and elements of tiers 1
+    and 2; which you use is decided by your platform, and no project uses both.
   </p>
   <p>
     <strong>Prefer the framework's classes over hand-tuning Bricks' own property controls.</strong>

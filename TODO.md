@@ -106,6 +106,55 @@ page (border/hairline token, radii→token bricks-gating, button base, `.flex` f
   `diff` gate in CI. See the deferred DTCG/OKF plan in `PLAN.md` for the wider framing — its
   Phase 3 (OKF bundle) is already live as `docs/`.
 
+## `<wc-counter>` — animated value transition — todo
+
+A tier-2 element that animates a number from a start value to a final one — the stat/percentage
+figure in a media tile ("0 → 94%"), a KPI row, a metrics band.
+
+**Why it clears the tier-2 bar.** The fallback is the _finished_ figure in the light DOM, so with
+no JS a visitor reads the real number in semantic markup and nothing is missing. The element only
+replaces the text over a duration on the way to that same value. A CSS-only version is not
+portable: animating a registered `@property` and rendering it with `counter()` is Chromium-only,
+and it can't do locale grouping, currency or a suffix. Text content that changes over time is the
+kind of thing CSS genuinely cannot express here.
+
+**Shape.**
+
+```html
+<wc-counter class="counter" data-from="0" data-duration="1200">
+  <span class="counter__value">94%</span>
+</wc-counter>
+```
+
+- The **final value is parsed out of the fallback text**, not passed as an attribute. One source
+  of truth, and it keeps the no-JS reading and the animated reading identical by construction —
+  an attribute that disagreed with the text would be a silent lie in one of the two states.
+  Parsing must keep the prefix/suffix it finds (`$`, `%`, `+`, `×`) and re-emit them each frame.
+- `data-from` (default `0`), `data-duration` (ms), `data-easing` (a named curve from the
+  `animations` tokens), `data-decimals` (inferred from the fallback text when absent).
+- Format with `Intl.NumberFormat` seeded from the parsed text's separators, so a
+  grouped `1,284` doesn't animate through ungrouped intermediates.
+- Add `aria-live="off"` and animate a `aria-hidden` presentation span while the accessible name
+  stays the final value — a screen reader must not be read ~60 intermediate numbers.
+
+**Load-bearing details.**
+
+- **Trigger on intersection, not on upgrade.** A counter below the fold that finished animating
+  before the visitor scrolled to it has done nothing. One `IntersectionObserver`, unobserve after
+  the first run — it is not a loop.
+- **`prefers-reduced-motion: reduce` means don't animate at all** — leave the fallback text
+  untouched and skip the observer. Not "animate faster".
+- **Never write an intermediate value into the light DOM as the resting state.** If the element
+  is disconnected mid-animation, the last thing left on screen must be the final value.
+- Drive with `requestAnimationFrame` + a monotonic elapsed fraction, not a fixed per-frame step;
+  a step-based loop lands on the wrong value on a slow frame.
+
+**Also needs:** `patterns/counter.css` in `@getvitops/core` (wired into `css/index.css`, defaults
+to `vitops.components`), an entry in `TIERS` (`packages/generator/src/tiers.ts`) — omission is a
+`tiers.test.ts` failure, not a docs gap — the import in `src/js/elements.ts`, and a `display`
+declaration in its partial (see the KNOWN GAP note in `elements.ts`: an unregistered custom
+element is `display: inline`).
+
 ## Component auto-loader — todo
 
 Ship only the components a page actually uses, plus their dependencies, instead of the

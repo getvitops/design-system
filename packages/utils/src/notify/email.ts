@@ -43,11 +43,53 @@ function messageOf(error: unknown): string {
 export interface SendEmailOptions {
   /** Attempts for a retryable failure (default 3). */
   attempts?: number;
+  /**
+   * Per-attempt ceiling in milliseconds (default 10000; `0` disables).
+   *
+   * `binding.send()` is a network call with no deadline of its own, so without
+   * this one hung attempt hangs the request that produced it — forever, in the
+   * one module otherwise built on always saying why. A conversion endpoint
+   * cannot be the thing that makes a form submission time out, so the bound
+   * belongs here rather than in every consumer's wrapper.
+   *
+   * A timeout is treated as retryable: it is a transient condition by
+   * definition, unlike `E_SENDER_NOT_VERIFIED` and friends.
+   */
+  timeoutMs?: number;
   /** Injected for tests; real callers let it default to a real delay. */
   sleep?: (ms: number) => Promise<void>;
 }
 
 const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+/** Marker for a send that exceeded its deadline, so the retry rule can see it. */
+const TIMEOUT_CODE = 'E_SEND_TIMEOUT';
+
+/**
+ * Race a send against its deadline.
+ *
+ * The timer is always cleared — a pending `setTimeout` keeps a Worker's event
+ * loop alive past the response, which turns a bounded send into an unbounded
+ * invocation and bills for the difference.
+ */
+async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  if (ms <= 0) return work;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          const err = new Error(`Email send exceeded ${ms}ms.`) as Error & { code: string };
+          err.code = TIMEOUT_CODE;
+          reject(err);
+        }, ms);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
 
 /**
  * Send one rendered message according to a plan.
@@ -69,21 +111,25 @@ export async function sendEmail(
 
   const attempts = Math.max(1, options.attempts ?? 3);
   const sleep = options.sleep ?? wait;
+  const timeoutMs = options.timeoutMs ?? 10_000;
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
-      await binding.send({
-        to: plan.to,
-        from: plan.fromName ? { email: plan.from, name: plan.fromName } : { email: plan.from },
-        subject: message.subject,
-        text: message.text,
-        html: message.html,
-        ...(plan.replyTo ? { replyTo: plan.replyTo } : {}),
-      });
+      await withTimeout(
+        binding.send({
+          to: plan.to,
+          from: plan.fromName ? { email: plan.from, name: plan.fromName } : { email: plan.from },
+          subject: message.subject,
+          text: message.text,
+          html: message.html,
+          ...(plan.replyTo ? { replyTo: plan.replyTo } : {}),
+        }),
+        timeoutMs,
+      );
       return { channel: 'email', sent: true };
     } catch (error) {
       const code = codeOf(error);
-      if (attempt === attempts || !code || !RETRYABLE.has(code)) {
+      if (attempt === attempts || !code || !(RETRYABLE.has(code) || code === TIMEOUT_CODE)) {
         return {
           channel: 'email',
           sent: false,

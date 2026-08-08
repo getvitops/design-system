@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/@getvitops/generator/schema.json",
+  "$schema": "./node_modules/@getvitops/generator/schema.json",
   "colors": {
     "palette": {
       "brand": { "seed": "#2e9b73" },

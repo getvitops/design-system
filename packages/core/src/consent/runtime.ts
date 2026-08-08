@@ -126,9 +126,38 @@ const demanded = new Set<ConsentCategory>();
 /** Callers waiting on a specific category to be answered. */
 const waiting = new Map<ConsentCategory, ((granted: boolean) => void)[]>();
 
+/**
+ * Warn when something demands a category and no banner exists to answer it.
+ *
+ * This runtime being loaded at all means the site adopted the gate, so an
+ * absent `<wc-consent>` is not the documented "no gate here, store freely"
+ * case — that one is `window.vitopsConsent` being undefined entirely. It is a
+ * gated page with nothing on it that can grant permission, so `require()`
+ * returns `false` forever, silently, and whatever waited never runs. A
+ * downstream site hit exactly this by rendering `<Tracking />` on pages where
+ * `<CookieConsent />` wasn't.
+ *
+ * Deferred to the next task so an element still parsing or upgrading isn't
+ * reported as missing, and warned once per category rather than per call.
+ */
+const warnedMissing = new Set<ConsentCategory>();
+function warnIfNoGate(category: ConsentCategory): void {
+  if (warnedMissing.has(category)) return;
+  warnedMissing.add(category);
+  queueMicrotask(() => {
+    if (document.querySelector('wc-consent')) return;
+    console.warn(
+      `[vitops] something requested the "${category}" consent category, but this page has no ` +
+        `<wc-consent> element to ask with — so the request can never be granted and whatever ` +
+        `waited on it will not run. Render <CookieConsent /> on every page that gates anything.`,
+    );
+  });
+}
+
 function demand(category: ConsentCategory): void {
   if (demanded.has(category)) return;
   demanded.add(category);
+  warnIfNoGate(category);
   // Publish so `<wc-consent>`'s existing subscription re-evaluates `needed()`.
   // A new demand changes whether the banner should be up, and nothing else would
   // tell it.

@@ -86,6 +86,26 @@ async function hasTransparency(
 }
 
 /**
+ * Is the mark dark enough to disappear against a white default?
+ *
+ * Transparency is not the only way to lose a logo. `apple-touch-icon` insets the
+ * mark into a larger canvas and fills the surround with the mask background, so
+ * an **opaque** dark logo still gets a white frame — and the transparency-only
+ * check said nothing about it. Mean channel luminance over the rasterised
+ * source is a coarse signal, which is the right amount for a warning.
+ */
+async function isDarkMark(sharp: typeof import('sharp').default, source: string): Promise<boolean> {
+  try {
+    const { channels } = await sharp(source, { density: 384 }).stats();
+    const rgb = channels.slice(0, 3);
+    if (!rgb.length) return false;
+    return rgb.reduce((sum, c) => sum + c.mean, 0) / rgb.length < 128;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Generate the standard favicon set from an SVG/PNG source into `outputDir`:
  * `favicon.ico`, `icon-{16?,32,192,512}.png`, `apple-touch-icon.png`, `icon-mask.png`.
  * Returns the list of written file paths.
@@ -151,12 +171,19 @@ export async function generateFavicons(opts: FaviconOptions): Promise<string[]> 
   // OS crops them to its own shape, so transparency reads as a black frame rather
   // than as "no background". Warn when we're inventing that colour rather than
   // being told it, since white is a guess that a dark logo would lose against.
-  if (opts.backgroundColor == null && (await hasTransparency(sharp, source))) {
-    console.warn(
-      `favicon: ${source} has transparency, and the maskable outputs (icon-mask.png, ` +
-        'apple-touch-icon.png) must be opaque — the OS crops them to its own shape. ' +
-        'Defaulting their background to #ffffff; set backgroundColor to choose.',
-    );
+  if (opts.backgroundColor == null) {
+    const transparent = await hasTransparency(sharp, source);
+    // Even an opaque source is affected: apple-touch-icon insets the mark and
+    // fills the surround, so a dark logo gets a white frame it never asked for.
+    const dark = transparent ? false : await isDarkMark(sharp, source);
+    if (transparent || dark)
+      console.warn(
+        `favicon: ${source} ${transparent ? 'has transparency' : 'is a dark mark'}, and the ` +
+          'maskable outputs (icon-mask.png, apple-touch-icon.png) are composited onto an opaque ' +
+          'background — the OS crops them to its own shape. Defaulting that background to ' +
+          '#ffffff; set backgroundColor to choose. (It is not manifest-only: these two files ' +
+          'are written whether or not a web manifest is.)',
+      );
   }
 
   // apple-touch-icon: 140x140 logo centered on a 180x180 canvas.

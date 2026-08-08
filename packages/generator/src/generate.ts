@@ -433,7 +433,19 @@ export function build(
     if (hue == null) throw new Error(`role "${role}" references unknown palette hue "${hueName}"`);
     scaleRoles.push(functionalRole(role, hueName, hue, roleKind(spec)));
   }
-  const surfaceRole = scaleRoles.find((r) => r.role === 'surface');
+  // Found by name AND kind. Only a surface-kind role has a bare `bg` token, and
+  // `--surface-glass` / `.glass` / `--overlay` are written against
+  // `--color-bg-surface` — so matching on the name alone emitted three
+  // declarations pointing at a token that does not exist whenever `surface` was
+  // authored as a bare hue string (the shorthand for `chromatic`). Skipping them
+  // is the honest outcome: the config did not ask for a surface.
+  const surfaceRole = scaleRoles.find((r) => r.role === 'surface' && 'bg' in r.light);
+  if (!surfaceRole && roleMap['surface'] != null)
+    console.warn(
+      `[vitops] colors.roles.surface is chromatic, so no --color-bg-surface exists — ` +
+        `skipping --surface-glass, --overlay and .glass. Declare it as ` +
+        `{ "hue": "…", "kind": "surface" } if you meant a surface role.`,
+    );
   // The focus ring is role-less by default, so it needs one nominated source.
   // `ui-primary` is the interaction hue — a ring in the brand colour would drift
   // away from the buttons and links it appears on.
@@ -1327,7 +1339,9 @@ function emitTailwind(ctx: TwCtx): string {
       for (const [t, val] of Object.entries(fr.light)) fn += `  ${tokenVar(fr.role, t)}: ${val};\n`;
     const focus = scaleRoles.find((r) => r.role === 'ui-primary') ?? scaleRoles[0];
     if (focus) fn += `  --color-border-focus: ${focus.light['bg-solid']};\n`;
-    const surface = scaleRoles.find((r) => r.role === 'surface');
+    // Same precondition as the css path: only a surface-kind role has the bare
+    // `bg` token these two declarations read.
+    const surface = scaleRoles.find((r) => r.role === 'surface' && 'bg' in r.light);
     if (surface) {
       fn += `  --surface-glass: color-mix(in oklch, var(--color-bg-surface) 72%, transparent);\n`;
       fn += `  --overlay: color-mix(in oklch, var(--color-${surface.hue}-950) 45%, transparent);\n`;
@@ -1404,7 +1418,7 @@ function emitTailwind(ctx: TwCtx): string {
     // functional half. See roleColorUtilities().
     for (const { cls, prop, value } of roleColorUtilities(scaleRoles, utilities))
       util.push(`@utility ${cls} {\n  ${prop}: ${value};\n}`);
-    if (scaleRoles.some((r) => r.role === 'surface'))
+    if (scaleRoles.some((r) => r.role === 'surface' && 'bg' in r.light))
       util.push(
         `@utility glass {\n  background-color: var(--surface-glass);\n  backdrop-filter: blur(12px);\n  -webkit-backdrop-filter: blur(12px);\n}`,
       );

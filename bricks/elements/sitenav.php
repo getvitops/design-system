@@ -203,7 +203,10 @@ class Vitops_Element_Sitenav extends \Bricks\Element {
 		}
 
 		$list_class = $top ? 'sitenav__list' : 'sitenav__submenu';
-		$html       = '<ul class="' . $list_class . '">';
+		// `role="list"` restores what `list-style: none` takes away: Safari + VoiceOver
+		// stop announcing a marker-less <ul> as a list, so the reset silently costs the
+		// semantics the <ul> was chosen for. Both classes set it (sitenav.css).
+		$html = '<ul class="' . $list_class . '" role="list">';
 
 		foreach ( $by_parent[ $parent_id ] as $item ) {
 			$id          = (int) $item->ID;

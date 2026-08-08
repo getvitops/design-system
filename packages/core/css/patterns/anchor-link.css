@@ -100,3 +100,70 @@ a[target='_blank'].link--external::after {
   color: var(--color-text-surface);
   border-radius: var(--br-control, 0.375rem);
 }
+
+/* ── stretched-link — the whole card is a link ──
+   One link inside a container covers it, so the entire card is clickable while the
+   accessible name stays on real text. `.subgrid-card` already carries the
+   `position: relative` this resolves against; on a bare `.card`, add `relative`.
+
+     <li class="card subgrid-card">
+       <p class="font-eyebrow">Service</p>
+       <p class="font-heading"><a class="link stretched-link" href="/x">Title</a></p>
+       <p>Blurb…</p>
+     </li>
+
+   WHY THIS RATHER THAN MAKING THE ANCHOR THE CARD. `<li><a class="card">` is the
+   shape that gets reached for, and it is wrong in a way that renders fine: the LI is
+   the grid item, so the anchor is an ordinary block inside it — its tranches never
+   land on the parent's shared row lines, and the alignment `.subgrid` exists for
+   silently does not happen. (Nor does an inline anchor fill the cell.) Putting the
+   anchor in the grid's place instead means `<ul><a></ul>`, which is invalid.
+
+   THE COST, AND THE ALTERNATIVE. The overlay receives the pointer-drag over
+   everything it covers, so **the card's text can no longer be selected**. That is
+   inherent to the technique, not a bug to fix here — any transparent layer over text
+   takes the drag. Where selectable text matters, use `<wc-cards>`
+   (src/web-components/WCCards.ts) instead: no overlay, and JS tells a click apart
+   from the end of a drag. The two are alternatives, never layered — with this
+   overlay present, that element has nothing left to do.
+
+   It lives HERE, in a pattern partial, and not in `utilities.css`: that file is in
+   the generator's TAILWIND_SKIP on the stated invariant that everything left in it
+   is a TW_CLASH name Tailwind ships itself. `stretched-link` is ours, so putting it
+   there would emit it in css/bricks and silently not in tailwind — the exact
+   cross-format hole `format-parity.test.ts` exists to catch.
+
+   Another interactive element inside the same card must sit above the overlay: give
+   it `.raised`, NOT `.relative`. A positioned element at `z-index: auto` does not
+   rise above an explicit z-index no matter its DOM order, so `.relative` alone left
+   the control underneath and unclickable. ── */
+.stretched-link::after {
+  content: '';
+  position: absolute;
+  /* Covers the nearest positioned ancestor, which is the card. */
+  inset: 0;
+  /* The shared z-scale rather than a bare 1, so `.raised` can be defined in terms of
+     the same token instead of guessing a number that beats it. */
+  z-index: var(--z-tier-raised);
+  border-radius: inherit;
+}
+
+/* ── raised — lift content above a `.stretched-link` overlay ──
+   For the second link, the button, or the text you want selectable inside a card
+   whose whole area is otherwise clickable.
+
+   It carries `position: relative` AND a z-index, and both are required: z-index has
+   no effect on a static element, and a positioned element at `z-index: auto` does not
+   rise above an explicit z-index regardless of DOM order. That second half is why
+   telling people to use `.relative` here did not work.
+
+   Defined against the same token as the overlay, so the two cannot drift apart the
+   way two hand-picked numbers would.
+
+   Here rather than in `utilities.css` for the reason given above `.stretched-link`:
+   that file is in TAILWIND_SKIP on the invariant that everything left in it is a name
+   Tailwind ships itself, and Tailwind has no `raised`. ── */
+.raised {
+  position: relative;
+  z-index: calc(var(--z-tier-raised) + 1);
+}

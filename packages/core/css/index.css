@@ -16,6 +16,9 @@
 @import './patterns/cluster.css';
 @import './patterns/grouped.css';
 @import './patterns/subgrid.css';
+/* After subgrid: `.subgrid-card` is the usual card and this sets the `<wc-cards>`
+   host plus the upgraded-card affordance. */
+@import './patterns/card.css';
 @import './patterns/masonry.css';
 @import './patterns/media.css';
 @import './patterns/separator.css';

@@ -29,6 +29,68 @@ import type { LintFinding } from './lint.ts';
 const TRACK_WIDTHS = ['--width-measure', '--width-breakout', '--width-spotlight'];
 
 /**
+ * Class names that mean "the thing that constrains page width".
+ *
+ * The token-anchored rule below only fires once someone already knows about
+ * `--width-measure`, which is precisely the author who was never going to
+ * hand-roll a container. The reported failure was the other author: agents
+ * inventing a `.wrap` from scratch, with a plain pixel `max-width`, on site after
+ * site. `wrap` is also the more *available* name for the concept, so it wins the
+ * naming race against `.centered` every time unless something says otherwise.
+ *
+ * Matched on the name only in combination with a width-constraining declaration —
+ * a `.wrapper` that merely sets `display: flex` is not this pattern.
+ */
+const CONTAINER_NAMES = [
+  'wrap',
+  'wrapper',
+  'container',
+  'inner',
+  'outer',
+  'content-wrap',
+  'content-wrapper',
+  'page-wrap',
+  'page-wrapper',
+  'site-wrap',
+  'site-wrapper',
+  'shell',
+  'constrain',
+  'measure',
+];
+
+/**
+ * Page scale, as a rem-equivalent, above which a width cap is a *container*
+ * rather than an element.
+ *
+ * Keyed to the framework's own `md` breakpoint (48rem) rather than to a number
+ * picked for this rule, and it is what keeps a capped figure quiet — someone
+ * writing `max-width: 40rem` on an image is not reinventing `.centered`.
+ */
+const PAGE_SCALE_REM = 48;
+/** The same line in `ch`, where a width cap is a reading measure by construction. */
+const PAGE_SCALE_CH = 40;
+
+/**
+ * The largest length in a width value, as a rem-equivalent — so `min(100%,
+ * 1200px)` and `clamp(20rem, 90vw, 75rem)` are read at their cap rather than
+ * skipped for not being a bare length.
+ *
+ * Relative-to-viewport units (`%`, `vw`, `vmin`) are deliberately ignored: they
+ * express "as wide as there is", which is not a container cap.
+ */
+function widthScale(value: string): { rem: number; ch: number } {
+  let rem = 0;
+  let ch = 0;
+  for (const m of value.matchAll(/([\d.]+)(rem|px|em|ch)\b/g)) {
+    const n = Number(m[1]);
+    if (!Number.isFinite(n)) continue;
+    if (m[2] === 'ch') ch = Math.max(ch, n);
+    else rem = Math.max(rem, m[2] === 'px' ? n / 16 : n);
+  }
+  return { rem, ch };
+}
+
+/**
  * Column ratios that correspond to a `split-<a>-<b>` class.
  *
  * `.split` is FLEX, not grid — `display: flex` with `flex: 1` children, and a
@@ -75,20 +137,49 @@ type Verdict = Omit<LintFinding, 'file' | 'line'>;
  */
 const RULES: ((rule: CssRule, format: Format) => Verdict | null)[] = [
   // ── a centred track, written by hand ──────────────────────────────────────
+  //
+  // Three ways in, one verdict. They are one rule rather than three because they
+  // describe the same mistake and a rule reports once — a `.wrap` with a pixel cap
+  // and auto margins trips all three, and three findings on one line would read as
+  // three problems.
   (rule) => {
-    const token = TRACK_WIDTHS.find(
-      (t) => decl(rule, 'max-inline-size')?.includes(t) || decl(rule, 'max-width')?.includes(t),
-    );
+    const cap = decl(rule, 'max-inline-size') ?? decl(rule, 'max-width') ?? decl(rule, 'width');
     const centred = /\bauto\b/.test(decl(rule, 'margin-inline') ?? decl(rule, 'margin') ?? '');
-    if (!token || !centred) return null;
+    if (!cap) return null;
+
+    const token = TRACK_WIDTHS.find((t) => cap.includes(t));
+    const { rem, ch } = widthScale(cap);
+    const pageScale = rem >= PAGE_SCALE_REM || ch >= PAGE_SCALE_CH;
+    // A container-shaped NAME lowers the bar to any cap at all: the name is the
+    // stated intent, so the value no longer has to prove it.
+    const named = CONTAINER_NAMES.some((n) =>
+      // `[-_]+` rather than `[-_]`, so BEM's `__` separator is one boundary:
+      // `.site-header__inner` is the container here, and requiring a single
+      // separator missed every element-notation selector.
+      new RegExp(`[.#]([a-z0-9]+[-_]+)*${n}([-_]+[a-z0-9]+)*\\b`, 'i').test(rule.selector),
+    );
+
+    // What makes each trigger unambiguous. A framework track token or a
+    // container-shaped name is enough on its own; a bare length has to be both
+    // page-scale AND centred, or it is just a capped element.
+    const why = token
+      ? `it caps width at \`var(${token})\`, a framework track`
+      : named
+        ? `\`${rule.selector.trim()}\` names a page container`
+        : pageScale && centred
+          ? `it caps width at page scale and centres with auto margins`
+          : null;
+    if (!why) return null;
+    if (token && !centred) return null;
+
     return {
-      cls: `${rule.selector} { max-inline-size: var(${token}); margin-inline: auto }`,
+      cls: `${rule.selector} { ${cap.length > 40 ? 'width cap' : `max-width: ${cap}`} }`,
       severity: 'suggestion',
-      reason:
-        '`.centered` is this pattern — a grid of named tracks, not a max-width plus auto margins',
+      reason: `\`.centered\` is this pattern — ${why}`,
       suggestion:
-        'use `.centered`, and widen an individual child with `breakout`, `spotlight` or ' +
-        '`fullbleed` on that child rather than overriding the parent',
+        'use `.centered`. It is a grid of named tracks, not a max-width box, so a child ' +
+        'opts into a wider track with `breakout`, `spotlight` or `fullbleed` on itself — ' +
+        'a hand-rolled container has no answer for the full-bleed image except more CSS',
     };
   },
 
@@ -106,6 +197,43 @@ const RULES: ((rule: CssRule, format: Format) => Verdict | null)[] = [
       suggestion:
         `${responsive(bp, `split-${ratio}`, format)} on the container — the responsive form is ` +
         'equal below the breakpoint and takes the ratio above it, which is what the query is doing by hand',
+    };
+  },
+
+  // ── a repeated-item grid, which is what `.subgrid` is for ─────────────────
+  //
+  // Deliberately NOT gated on a media query, which is what keeps it off the split
+  // rule's territory: a `repeat()` is a set of like items, an explicit `1fr 2fr`
+  // is two different panels. The two cannot both fire on one rule anyway — this
+  // requires `repeat()` and the split requires a `min-width` condition.
+  (rule) => {
+    const cols = decl(rule, 'grid-template-columns');
+    if (!cols || !/^\s*repeat\(/i.test(cols)) return null;
+    if (!/\bgrid\b/.test(decl(rule, 'display') ?? '')) return null;
+    // `subgrid` in the same rule means this IS the framework pattern, being
+    // configured or extended rather than replaced.
+    if (rule.declarations.some((d) => /subgrid/.test(d.value))) return null;
+
+    const count = /^\s*repeat\(\s*(\d+)/i.exec(cols)?.[1];
+    const auto = /^\s*repeat\(\s*auto-(fit|fill)/i.test(cols);
+    if (!count && !auto) return null;
+    if (count && Number(count) < 2) return null;
+
+    return {
+      cls: `${rule.selector} { grid-template-columns: ${cols} }`,
+      severity: 'suggestion',
+      reason:
+        'a grid of repeated items is `.subgrid` — a plain grid aligns the outer boxes but ' +
+        'not the tranches inside them, so headings, bodies and footers land at different ' +
+        'heights across the set',
+      suggestion: auto
+        ? '`.subgrid subgrid-responsive` (2 columns under 60rem, 1 under 40rem) with ' +
+          '`--subgrid-row-span` set to the number of row bands each item contains — or ' +
+          '`.grid-auto` with `--grid-min`, which is the framework class for this exact ' +
+          'auto-fit track and the right answer when the items have no tranches to align'
+        : `\`.subgrid subgrid-cols-${count}\`, with \`--subgrid-row-span\` (or ` +
+          '`subgrid-rows-<n>`) set to the number of row bands each item contains — and ' +
+          '`.subgrid-card` on the items to get an edge-bled `__media` and a pinned `__footer`',
     };
   },
 

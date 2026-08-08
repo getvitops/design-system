@@ -27,6 +27,19 @@ export interface GetvitopsTrackingOptions {
 /** The cookie the capture script writes. Mirrors `TRACKING_COOKIE` in utils. */
 export const TRACKING_COOKIE = '_ac';
 
+/**
+ * Where the capture script sends its `tel:` conversion beacon.
+ *
+ * The route itself is the consumer's to write (`createConversionRoute()` in
+ * `@getvitops/astro/routes`), so this is the one place the two halves agree on
+ * a path. It was a bare literal inside the inlined script: a consumer who named
+ * the file anything else got a silent 404 on every beacon and lost conversions
+ * with no error anywhere to explain it. Exported so a consumer can assert
+ * against it, mirrored in `scripts/tracking.ts` because that file is inlined
+ * into the document and cannot import, and pinned by `tracking.test.ts`.
+ */
+export const TRACKING_ENDPOINT = '/api/track';
+
 export interface ResolvedTracking {
   enabled: boolean;
   category: TrackingCategory;

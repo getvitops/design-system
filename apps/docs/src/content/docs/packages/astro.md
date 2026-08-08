@@ -57,6 +57,28 @@ import Head from '@getvitops/astro/Head.astro';
 priority. It does **not** emit a stylesheet `<link>` — the integration imports the generated CSS into
 Astro's module graph and Astro emits that link itself.
 
+## Rendering mode
+
+**Prefer `output: 'static'`** (Astro's default). Nothing this integration produces needs a server:
+the CSS, favicons and web-component bundles are all build-time artifacts, and the components
+progressively enhance markup that is already complete in the HTML. A static build also gives the
+sitemap every route, since `@astrojs/sitemap` lists prerendered routes only.
+
+Opt individual routes out with `export const prerender = false` where a page genuinely needs
+per-request work — a form `POST` handler, an auth-gated page, per-visitor content. That needs an
+adapter, but leaves the rest of the site static.
+
+```astro
+---
+// src/pages/account.astro — server-rendered; every other page stays static
+export const prerender = false;
+---
+```
+
+**EmDash sites invert this**, because the CMS admin and API need a server: they run
+`output: 'server'` and opt _into_ prerendering per route. See
+[`@getvitops/emdash`](/packages/emdash/).
+
 ## Options
 
 | option          | default              | does                                                              |

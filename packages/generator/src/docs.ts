@@ -620,6 +620,44 @@ Every utility accepts a **container-breakpoint prefix**; animation utilities als
 - State prefixes (animation effects only): \`hover-\`, \`active-\`, \`focus-\`, and \`flip-<effect>\`
   (plays the effect in reverse on toggle). Effects require \`transition\` on the element.
 
+## Foundations — read this before writing any page markup
+
+Six classes carry the structure of almost every page. They are not a starting suggestion
+you refine into hand-written CSS; **they are the answer**, and reaching past them is the
+single most common way a page drifts off the design system. Each line below is the
+temptation followed by what to write instead.
+
+| If you are about to write…                                     | Write this instead                                     |
+| -------------------------------------------------------------- | ------------------------------------------------------ |
+| a \`wrap\` / \`wrapper\` / \`container\` / \`inner\` class              | **\`centered\`** — never invent a container class        |
+| \`max-width\` + \`margin-inline: auto\`                            | **\`centered\`**                                        |
+| \`padding-block\` on a section, to space it from the next        | **\`region\`**                                          |
+| margins between headings, paragraphs and lists                 | **\`rhythm\`** on the container                         |
+| \`display: grid\` + \`grid-template-columns: repeat(n, 1fr)\`      | **\`subgrid\`** — see below, this is the missed one     |
+| \`grid-template-columns: repeat(auto-fit, minmax(…))\`           | **\`grid-auto\`** (or \`subgrid\`, see below)             |
+| \`display: flex\` + \`gap\` for a row of buttons/badges/meta      | **\`cluster\`** (or \`flex\` + \`items-*\` utilities)      |
+
+**The container is \`centered\`, and it is not a max-width box.** It is a grid of *named
+tracks*, so a child opts into a wider track (\`breakout\`, \`spotlight\`, \`fullbleed\`) without
+the parent knowing. A hand-rolled \`.wrap\` renders the same on the happy path and then has
+no answer for the full-bleed image, which is why the escape from it is always more
+hand-written CSS. There is **no case** where a bespoke container class is the right call.
+
+**Multiple cards means \`subgrid\`, essentially always.** This is the most under-used class in
+the framework, and the reason is that a plain \`grid\` *looks* correct: it aligns the outer
+boxes. What it cannot do is align the tranches **inside** them — so across three cards the
+headings sit at three different heights, the bodies start at three different points, and the
+footers float wherever the copy ended. \`subgrid\` re-declares the parent's row tracks on every
+item, so head / body / footer land on shared row lines no matter how much content each card
+holds. If the answer to "is this a repeated set of things with internal structure" is yes,
+this is the class.
+
+**The one honest alternative is \`grid-auto\`** — an auto-fit track (\`--grid-min\`, \`--grid-gap\`)
+where the column count is content-driven. Use it when the items have **no internal tranches to
+align**: a bare image gallery, a logo wall, a row of icons. The moment an item has an eyebrow
+and a heading and a footer, \`subgrid\` is the one that makes them line up. Never hand-write
+\`repeat(auto-fit, minmax(…))\` — that is \`grid-auto\`.
+
 ## Layout & structure
 
 - **\`centered\`** — named-track grid centering content in the reading \`measure\` track.
@@ -628,6 +666,70 @@ Every utility accepts a **container-breakpoint prefix**; animation utilities als
   \`--width-breakout\` / \`--width-spotlight\` and \`--gutter\`.
 - **\`rhythm\`** — relationship-based vertical spacing (margins between headings, paragraphs,
   lists, media) driven by the space scale. Usually paired with \`centered\`.
+- **\`region\`** — vertical rhythm *between sections* (fluid \`padding-block\`, tunable with
+  \`--region-space\` / \`--region-space-min\` / \`--region-space-max\`). Goes on the section;
+  \`centered\` goes on the container inside it. \`rhythm\` handles flow **within** a region.
+- **\`subgrid\`** — the class for any repeated set of items with internal structure: cards,
+  pricing tiers, feature panels. Items share the parent's row tracks, so each item's
+  tranches (head / body / footer) align across the whole set — which a plain \`grid\`
+  cannot do. **Reach for this whenever there is more than one card.**
+  - Columns: \`--subgrid-cols\` (default 3) or \`subgrid-cols-{1,2,3,4}\`; tranches per item:
+    \`--subgrid-row-span\` (default 2) or \`subgrid-rows-{2,3,4}\` — this must match how many
+    row bands each item actually contains.
+  - \`subgrid-responsive\` collapses to 2 columns under 60rem and 1 under 40rem.
+  - Gaps: \`--subgrid-gap\` (between columns *and* between tranches) and \`--subgrid-row-gap\`
+    (extra space between wrapped rows of items only).
+  - \`subgrid-card\` is the matching item: \`--subgrid-card-rows\` tranches, with
+    \`subgrid-card__media\` (bleeds to the card edge) and \`subgrid-card__footer\`
+    (pinned to the last row band, so CTAs line up across the set).
+  - It is markerless when it is a \`ul\`/\`ol\` — and a set of cards **is** a list, so prefer
+    \`<ul class="subgrid" role="list">\` with \`<li>\` items over a stack of \`<div>\`s.
+    **\`role="list"\` is not optional here.** Safari + VoiceOver stop announcing a marker-less
+    \`<ul>\` as a list, so the marker reset silently costs the semantics the \`<ul>\` was chosen
+    for. \`<Subgrid>\` adds it for you; hand-written markup must say it.
+  - **When the whole card is a link, the card is still the item**, and there are two ways to
+    do it. Both keep the accessible name on real text rather than on a whole card of it.
+    | Want                                         | Use                                          |
+    | -------------------------------------------- | -------------------------------------------- |
+    | no JS at all                                 | \`stretched-link\` — **text not selectable**   |
+    | selectable text and a clickable card         | \`<Cards>\` / \`<wc-cards>\` — needs JS          |
+    - \`stretched-link\` goes on a link **inside** the card (usually the heading); its
+      \`::after\` covers the card. \`subgrid-card\` already carries the \`position: relative\` it
+      resolves against; on a bare \`card\`, add \`relative\`. Anything else interactive in the
+      card needs **\`raised\`** to sit above the overlay — \`relative\` alone is not enough,
+      because a positioned element at \`z-index: auto\` does not rise above an explicit one.
+      The cost is inherent: the overlay takes the pointer-drag, so the card's text can no
+      longer be selected.
+    - \`<Cards>\` wraps the list in \`<wc-cards>\`, which adds no overlay and instead tells a
+      click apart from the end of a drag. Text stays selectable; with no JS the card's own
+      link still works, and the pointer cursor only appears once the element has upgraded.
+    - **Never layer the two** — the overlay wins, so you lose selection and the JS never
+      runs. \`vitops lint\` reports the combination.
+    **\`<li><a class="card">\` is the wrong shape and it renders fine**, which is why it keeps
+    getting written: the \`<li>\` is the grid item, so the anchor is an ordinary block inside it
+    and the tranches within the anchor never reach the parent's shared row lines — the
+    alignment subgrid exists for silently does not happen, and the anchor does not fill the
+    cell either. Putting the anchor in the grid's place instead (\`<ul><a></ul>\`) is invalid
+    HTML. \`vitops lint\` reports this one.
+  - Related subgrid layouts: \`pricing-grid\` + \`pricing-card\` (with \`pricing-card--featured\`)
+    and \`comparison-table\`.
+- **\`grid-auto\`** — an auto-fit grid: items wrap into as many equal columns as fit, each at
+  least \`--grid-min\` wide (default 13rem), gap \`--grid-gap\`. The content-driven counterpart
+  to \`split\`'s explicit fractions. Prefer \`subgrid\` when the items have internal tranches to
+  align; this is the right class for a gallery, a logo wall, a row of icons.
+- **\`stretched-link\`** — makes one link cover its nearest positioned ancestor, so a whole
+  card is clickable while the accessible name stays on real text. Pair with \`relative\` on the
+  container (\`subgrid-card\` already has it). **The card's text stops being selectable** — the
+  overlay takes the pointer-drag — so where that matters use \`<Cards>\` instead.
+- **\`raised\`** — lifts content back above a \`stretched-link\` overlay, for a second link or a
+  button in the same card. Sets \`position: relative\` **and** a z-index, both of which are
+  required: \`relative\` on its own leaves the element underneath and unclickable.
+- **\`relative\`** — \`position: relative\`, the containing block \`stretched-link\` needs.
+- **\`cluster\`** — a wrapping row of related inline things (buttons, badges, tags, meta) with
+  a shared \`--cluster-gap\`. Alignment variants \`cluster-{start,center,end}\`,
+  \`cluster-{between,around,evenly}\`, and the two-axis form
+  \`cluster-<align>-<justify>\` over \`start\`/\`center\`/\`end\`. Prefer this over a hand-written
+  \`display: flex\` + \`gap\` for a group of controls.
 - **\`split\`** — a two-column pair. Ratio rule: **\`split-<a>-<b>\`** where \`<a>-<b>\` ∈
   \`1-2\`, \`2-1\`, \`1-3\`, \`3-1\`, \`1-4\`, \`4-1\`, \`2-3\`, \`3-2\` (breakpoint-prefixable); equal
   columns without one. The ratio is a flex **basis**, so a column's padding counts
@@ -932,8 +1034,17 @@ const escapeHtml = (s: string): string =>
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string,
   );
 
-/** Sentinel for a lifted code span. Cannot occur in authored schema prose. */
-const CODE_SLOT = ' ';
+/**
+ * Sentinel for a lifted code span. Cannot occur in authored schema prose.
+ *
+ * Written as an ESCAPE, never as the literal byte. A raw NUL here made this whole
+ * file `data` rather than `text` to libmagic, so grep and ripgrep classified it
+ * as binary and **silently skipped it** — every search for a string in the
+ * largest doc emitter in the repo returned nothing, with no error and nothing to
+ * notice. That is the failure mode this codebase is written against, aimed at the
+ * tool an agent uses to find anything.
+ */
+const CODE_SLOT = '\u0000';
 
 /**
  * The inline markdown the schema's `desc()` text actually uses, as HTML. Closed
@@ -1697,7 +1808,10 @@ bare, unsuffixed pattern. States re-apply per variant with the variant's role.
 }
 
 /**
- * All four tiers in ONE doc — the agent-facing projection of `TIERS`.
+ * All three tiers in ONE doc — the agent-facing projection of `TIERS`.
+ *
+ * Four columns, three tiers: Astro and Bricks are both the platform-wrapper tier,
+ * split by package rather than ranked.
  *
  * The docsite projects each tier as its own page, because a human arrives already
  * knowing which stack they are in ("show me the Astro components"). An agent
@@ -1784,27 +1898,33 @@ function renderComponentsConcept(ds: DesignSystem): string {
     type: 'Design Concept',
     title: 'Vitops components — which tier provides a pattern, and what to write',
     description:
-      'Every UI pattern across the four tiers (CSS classes, wc-* web components, Astro components, Bricks elements): which tiers provide it, which call to make, and how the tiers compose.',
+      'Every UI pattern across the three tiers (CSS classes, wc-* web components, and the platform wrappers: Astro components and Bricks elements): which tiers provide it, which call to make, and how the tiers compose.',
     resource: DS_PATH,
     tags: ['components', 'web-components', 'astro', 'bricks', 'tiers', 'design-system'],
   })}
 
 # Components
 
-A pattern is provided by up to four tiers, and they **compose** rather than compete:
+A pattern is provided by up to **three tiers**, and they **compose** rather than compete:
 
 1. **CSS framework classes** — every pattern expressible in pure HTML/CSS. Reach here first.
 2. **Web components** (${code('<wc-*>')}, Lit) — only where a pattern genuinely benefits from
    progressive enhancement. The slotted markup is the fallback and must be usable with no JS;
    the element parses and augments it in place.
-3. **Astro components** — authoring conveniences that emit the correct markup. They must not
-   require runtime JS. Where a pattern has a web component, the Astro component emits that tag
-   **with the accessible fallback inside it**.
-4. **Bricks elements** — the same patterns as WordPress/Bricks Builder elements.
+3. **Platform wrappers** — authoring conveniences that generate the correct markup at build
+   time, using the classes and elements of tiers 1 and 2. They must not require runtime JS.
+   Where a pattern has a web component, the wrapper emits that tag **with the accessible
+   fallback inside it**. Two platforms:
+   - **Astro components** (${code('@getvitops/astro')})
+   - **Bricks elements** (WordPress / Bricks Builder)
+
+**Astro and Bricks are the same tier**, not tiers 3 and 4. They are siblings chosen by which
+platform you are on — no project uses both, and neither outranks the other. The tables below
+give them separate columns because they are separate packages, not separate levels.
 
 ## Choosing
 
-**Use the highest-numbered tier available for your stack, and write only its call.** In Astro
+**Use the highest tier available for your stack, and write only its call.** In Astro
 that is the Astro component; in Bricks the element; anywhere else the classes, plus the
 ${code('<wc-*>')} tag when one exists.
 
@@ -2165,6 +2285,19 @@ Both utils entries are **separate subpaths** because they are the only modules t
 **Worker** rather than at build time. Keeping them off the package index is what stops a
 conversion endpoint pulling \`sharp\` into its bundle. Neither may use a Node builtin.
 
+**Import them from \`@getvitops/astro\` if that is your only direct dependency.**
+\`@getvitops/astro/tracking\` re-exports everything in \`@getvitops/utils/tracking\` (plus
+\`TRACKING_ENDPOINT\`), so the flow works with one install — under strict pnpm, app code cannot
+resolve a transitive dependency, and \`@getvitops/utils\` would otherwise have to be added by
+hand. Do **not** reach for the same symbols on \`@getvitops/astro\`'s index instead: that entry
+pulls the integration and its Node builtins, which is the import that drags \`sharp\` toward a
+Worker bundle. \`@getvitops/astro/tracking\` and \`@getvitops/astro/routes\` are both clean.
+
+⚠️ The route you mount must answer **\`/api/track\`** (\`TRACKING_ENDPOINT\`) — the capture
+script beacons \`tel:\` conversions there, and a route at any other path means every call
+conversion 404s silently. The integration warns at build when tracking is on and no such route
+exists.
+
 ## The capture demands consent
 
 \`_ac\` is a 90-day identifier tying a visitor to an ad, so it waits on \`marketing\` (override
@@ -2473,7 +2606,7 @@ function renderConceptsIndex(): string {
 * [Colour system](color.md) - seeded OKLCH scales on a shared lightness ladder, target-prefixed tokens, automatic dark mode
 * [Type & space scales](scales.md) - fluid modular scales and the tokens they emit
 * [Component patterns](patterns.md) - token cascade, override hooks, states, role variants
-* [Components](components.md) - which of the four tiers provides each pattern, and the call to make
+* [Components](components.md) - which of the three tiers provides each pattern, and the call to make
 * [Icons](icons.md) - semantic names across icon sets, bundle derivation, sprite delivery
 * [Consent gate](consent.md) - inert gated tags, demand-driven prompting, three-valued choices
 * [Conversion tracking](tracking.md) - ad-click attribution, the \`_ac\` cookie, conversion notifications

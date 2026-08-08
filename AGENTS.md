@@ -74,10 +74,19 @@ and every Astro specifier must be a real export of `@getvitops/astro` (that one 
 
 **The two projections are deliberately opposite shapes, and that is the whole design:**
 
-| Audience | Shape                                | Where                                               |
-| -------- | ------------------------------------ | --------------------------------------------------- |
-| agents   | **one** doc, all four tiers together | `concepts/components.md` → `vitops docs components` |
-| humans   | **four** pages, one per tier         | `apps/docs/src/pages/components/`                   |
+| Audience | Shape                             | Where                                               |
+| -------- | --------------------------------- | --------------------------------------------------- |
+| agents   | **one** doc, every tier together  | `concepts/components.md` → `vitops docs components` |
+| humans   | **four** pages, one per _surface_ | `apps/docs/src/pages/components/`                   |
+
+**Four pages, three tiers**, and the difference is load-bearing. `Tier` is a projection axis with
+four keys (`css` `wc` `astro` `bricks`) because there are four tables to render; that is not four
+levels. Astro and Bricks are both **tier 3** — platform wrappers that generate HTML from the
+classes and elements of tiers 1 and 2, siblings chosen by platform, never ranked against each
+other, and no project uses both. Anything that renders a tier _number_ must map them to the same
+one: the docsite derived it from array position and so published Astro as tier 3 and Bricks as
+tier 4, implying a rank and a fourth level to climb to. `TIER_LEVEL` in
+`apps/docs/src/components/tiers.ts` is now that mapping.
 
 An agent arrives knowing the _pattern_ it needs and must be told which tiers offer it **and how
 they compose** — so splitting it would let an agent read the Astro page, learn `<Tree />` exists,
@@ -132,11 +141,17 @@ Six things are load-bearing:
   way; clearing alone only stops it identifying the visitor _next_ time. Cookie names ride on
   `data-consent-cookies`, written by whoever emitted the tag — a provider table in core would be a
   second copy to keep in step with the generator's processor table.
-- **The store is pure and the DOM wiring is not tested.** `@getvitops/core` has no DOM test
-  environment, so everything legally decidable (what an absent cookie means, what a corrupt one
-  means, what a revoke covers, **whether a prompt is warranted** — `needed(state, demanded)`) lives
-  in `consent/store.ts` as functions over a cookie string and is asserted in `store.test.ts`. Keep
-  new decisions on that side of the line.
+- **The store is pure, and consent's DOM wiring is still untested.** Everything legally decidable
+  (what an absent cookie means, what a corrupt one means, what a revoke covers, **whether a prompt
+  is warranted** — `needed(state, demanded)`) lives in `consent/store.ts` as functions over a cookie
+  string and is asserted in `store.test.ts`. Keep new decisions on that side of the line. Note the
+  reason is no longer "core has no DOM environment" — it has one: `happy-dom` is a devDependency,
+  opted into **per file** with a `/** @vitest-environment happy-dom */` pragma and a `*.dom.test.ts`
+  name, because a global DOM would make ~830 pure tests pay for what a handful need. So the split is
+  a rule about where a decision belongs, not a limitation: pure decision in a pure module
+  (`consent/store.ts`, `web-components/utils/{tree-filter,card-click}.ts`), DOM test for the wiring
+  that is genuinely about the DOM (`WCTree.dom.test.ts`, `WCCards.dom.test.ts`,
+  `upgrade.dom.test.ts`). There is simply no `WCConsent.dom.test.ts` yet.
 - **`<Head />` emits an inline stub, and its absence is meaningful.** `consent.js` and `elements.js`
   are both deferred with no ordering between them, so a toggle can upgrade and be clicked before the
   gate exists. The stub makes the gate's _existence_ known synchronously in `<head>`; it answers
@@ -344,6 +359,23 @@ the group without solving that skew.
    dependency bumps. Every package ships its own `CHANGELOG.md` in its tarball via `files`, so both
    layers reach consumers.
 4. `npx vp run release` — `build:packages && changeset publish`.
+
+**Two rules for what those entries must say**, both from downstream reports of time lost
+reading changelogs that were accurate and still unanswerable:
+
+- **A package bumped only by the `fixed` group says so explicitly.** `@getvitops/astro`
+  shipped 1.0.0 and 2.0.0 with no Major Changes at all, and in 4.1.0 core/vite/emdash carried
+  only "Updated dependencies" — so establishing that 4.0 → 4.1 changed no CSS and needed no
+  code edits meant reading seven changelogs to conclude nothing. Write **"No consumer-facing
+  change in this package"** rather than leaving the absence to be inferred; a lockstep major
+  is otherwise indistinguishable from one whose notes were forgotten.
+- **Every pattern-CSS entry names the formats it reaches** — `css/bricks only`, `tailwind
+only`, `all formats`. The `.rhythm` heading-spacing change was written as a plain breaking
+  change and never reached the tailwind output; a consumer diffed builds to establish that.
+  One clause settles it.
+
+Anything renamed must be reachable by `vitops lint --fix` (see `lint-tokens.ts`) or the
+entry must say why it isn't — the migration table in prose is the fallback, not the plan.
 
 ## Legal documents
 
@@ -964,6 +996,22 @@ Two non-obvious caching/ordering gotchas:
   ```
 
   Check the served file before concluding a CSS change didn't land: `curl -s localhost:<port>/src/styles/styles.css`.
+
+- **A running `docs:dev` does NOT pick up a rebuilt `@getvitops/generator` either**, and this one
+  is easier to misread because the code is plainly correct. The site imports `tierPatterns` /
+  `generateDocs` from the package, so Vite pre-bundles it into `node_modules/.vite`; rebuilding
+  `packages/generator/dist/` leaves that cache untouched, and the page keeps rendering the old
+  `TIERS`. Adding `wc-cards` to the manifest and finding it absent from `/components/elements` is
+  the symptom — nothing errors, the entry simply isn't there. Restart `docs:dev` (or start it with
+  `--force` to drop the optimize cache). Verify against the server, not the source, before
+  concluding the manifest is wrong:
+
+  ```
+  curl -s localhost:4321/components/elements | grep -o 'wc-[a-z-]*' | sort -u
+  node -e "import('./packages/generator/dist/index.mjs').then(m => console.log(m.tierPatterns('wc').map(p => p.name)))"
+  ```
+
+  If the second prints it and the first doesn't, it is the cache, not the manifest.
 
 Formatting and mechanical lint fixes are applied automatically on save and via a `PostToolUse` hook on `Edit|Write` (`.claude/settings.json`) — don't invoke `vp fmt` to tidy a file you just wrote. The `staged` key wires `vp check --fix` into the pre-commit hook, which is the real gate.
 

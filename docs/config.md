@@ -257,6 +257,7 @@ Deploy environments (production, dev, …): URL, API origin, analytics toggle, r
   - `url` (string, required) — Public origin of this environment.
   - `api` (string) — API origin, when different from `url`.
   - `analytics` (boolean) — Whether analytics fire in this environment.
+  - `ads` (boolean) — Whether `site.ads` pixels fire in this environment. Defaults to `analytics`, then true — a preview deployment sending pageviews is survivable, one firing conversion pixels is not, so this can be turned off on its own.
   - `robots` (string) — Robots policy (e.g. "noindex,nofollow" for dev).
   - `variant` (string) — Active `abTesting.variants` key for this environment.
 
@@ -465,6 +466,19 @@ Ad-click attribution for conversion tracking.
 - `category` (marketing | analytics) — Consent category the `_ac` cookie waits on (default `marketing`). It is a 90-day identifier tying a visitor to the ad that brought them, so it is only written once this category is granted — and asking for it is what raises the banner.
 - `platforms` (array of string) — Informational list of ad platforms in use. Capture recognises every known click-ID parameter regardless.
 
+### `ads` *(optional)*
+
+Ad properties this site is linked to, keyed by platform. Read by `vitops ads setup` (ensure the DNS verification record), `vitops ads tags` (emit the consent-gated pixel), and the generated cookie notice (disclose what each pixel stores). Credentials never live here — the DNS write uses CLOUDFLARE_API_TOKEN from the environment.
+
+- `<name>` (object)
+  - `accountId` (string) — The advertising account as the platform shows it — Google Ads customer ID, Meta ad account, LinkedIn partner ID, Reddit advertiser ID. For LinkedIn this is also the Insight Tag id; everywhere else the tag id is `pixelId`.
+  - `pixelId` (string) — The tag/pixel ID the browser snippet initialises — Meta pixel, TikTok pixel, Reddit pixel, Microsoft UET tag ID, Pinterest tag ID, Snap pixel, or the Google Ads conversion ID (`AW-…`, which is NOT the customer ID).
+  - `conversionLabel` (string) — Google Ads only: the conversion action label paired with the `AW-…` conversion ID.
+  - `domain` (string) — Bare hostname to verify with this platform. Defaults to the host of `domains.canonical` — set it only when the ad account is verified against a different domain.
+  - `domainVerification` (string) — The verification token from the platform UI, for the platforms that verify by DNS TXT (Meta, TikTok, Pinterest, Snapchat). `vitops ads setup` prompts for it and writes it here on first run. NOT a secret — it is published in DNS, and the platform fetching it back is the ownership proof, exactly like the IndexNow key. A value containing `=` is used as the whole record, which is the escape hatch if a platform changes its prefix.
+  - `category` (marketing | analytics) — Consent category the tag waits on (default `marketing`). An ad pixel is advertising by default; `analytics` is for a site using one purely for its own measurement.
+  - `enabled` (boolean) — Set false to keep the property on record without emitting its tag.
+
 ### `security` *(optional)*
 
 Security integrations (bot protection).
@@ -533,9 +547,9 @@ Favicon/PWA asset generation (consumed by `@getvitops/utils` favicon tooling).
 
 - `source` (string, required) — Source image (SVG/PNG) the favicon set is generated from.
 - `lowResSource` (string) — Alternate source for small raster sizes (16/32px) when the main source scales down poorly.
-- `name` (string) — App name for the generated web manifest / PWA.
-- `themeColor` (string) — PWA theme color (also `<meta name="theme-color">`).
-- `backgroundColor` (string) — PWA background color.
+- `name` (string) — App name for the generated web manifest. Setting this AND `themeColor` is what makes the site installable: together they emit `site.webmanifest` (with `display: "standalone"`) and link it. Neither alone does anything. A marketing site that does not want a browser offering to install it should leave one of them unset.
+- `themeColor` (string) — Browser UI colour, emitted as `<meta name="theme-color">` on every page — so it applies with or without a manifest. Note it is also half the manifest switch: see `name`.
+- `backgroundColor` (string) — Background composited under the OPAQUE generated icons — `apple-touch-icon.png` and the maskable `icon-mask.png` — which are produced whether or not there is a manifest. Defaults to white, so a dark logo on a transparent source needs this set. It is also the manifest `background_color` when one is emitted, but it is not manifest-only.
 
 ### `deployment` *(optional)*
 

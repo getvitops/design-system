@@ -26,6 +26,16 @@ const COOKIE_NAME = '_ac';
 const COOKIE_DAYS = 90;
 const AB_COOKIE = '_ab';
 
+// Where the `tel:` conversion beacon goes. Mirrors TRACKING_ENDPOINT in
+// ../tracking.ts (pinned by `tracking.test.ts`), copied for the same reason as
+// the parameter lists below — this file is inlined into the document.
+//
+// It was previously a bare literal at the call site, which made the contract
+// between this script and the route the consumer writes invisible: name the
+// file anything else and every beacon 404s, conversions vanish, and nothing
+// errors anywhere. The integration now warns at build when the route is absent.
+const TRACK_ENDPOINT = '/api/track';
+
 // Mirrors CLICK_ID_PARAMS/UTM_PARAMS in @getvitops/utils/tracking, deliberately
 // copied rather than imported: this file is inlined into the document by
 // <Tracking />, so a bare import would either fail or drag a module graph into
@@ -144,6 +154,6 @@ document.addEventListener('click', (e) => {
 
   // Fire-and-forget beacon; don't block the tel: navigation
   if (navigator.sendBeacon) {
-    navigator.sendBeacon('/api/track', JSON.stringify({ event: 'call', phone: link.href }));
+    navigator.sendBeacon(TRACK_ENDPOINT, JSON.stringify({ event: 'call', phone: link.href }));
   }
 });

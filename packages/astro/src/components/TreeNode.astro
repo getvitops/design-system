@@ -41,7 +41,7 @@ const isBranch = kids.length > 0;
           </span>
         </summary>
         {item.descriptionHtml && <p class="tree__desc" set:html={item.descriptionHtml} />}
-        <ul class="tree">
+        <ul class="tree" role="list">
           {kids.map((kid) => (
             <Astro.self item={kid} depth={depth + 1} openDepth={openDepth} />
           ))}

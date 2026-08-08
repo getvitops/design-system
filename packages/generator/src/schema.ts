@@ -9,6 +9,7 @@
  */
 import * as z from 'zod/mini';
 import { REQUIRED_ROLES, type RoleSpec, roleHue } from './shared.ts';
+import { tokenRefIssues } from './token-refs.ts';
 
 /**
  * Attach a JSON-Schema `description`. zod/mini has no `.describe()` method; the
@@ -326,6 +327,20 @@ export type DesignSystemPatch = z.infer<typeof DesignSystemPatchSchema>;
  */
 export const SCHEMA_URL = 'https://unpkg.com/@getvitops/generator/schema.json';
 
+/**
+ * What `vitops init` actually stamps into a scaffolded config's `$schema`.
+ *
+ * A **local** path, following wrangler's `node_modules/wrangler/config-schema.json`.
+ * `SCHEMA_URL` has no version in it, so unpkg resolves it to whatever is newest
+ * — an editor validating a project pinned to generator 2.x silently checks it
+ * against the 3.x schema, reporting errors for valid config and accepting
+ * fields that do not exist yet. The installed copy is by definition the one
+ * that matches the toolchain doing the building.
+ *
+ * `SCHEMA_URL` remains the schema's `$id`, which is what it is for.
+ */
+export const SCHEMA_LOCAL_PATH = './node_modules/@getvitops/generator/schema.json';
+
 /** The published JSON Schema (draft-2020-12), derived from the zod schema. */
 export const jsonSchema = {
   $id: SCHEMA_URL,
@@ -496,5 +511,19 @@ export function validate(input: unknown): ValidationResult {
           `as a \`box-shadow\`). Use one layer of at most three lengths.`,
       );
   }
+  // Cross-layer: every `var()` an authored declaration points at must resolve to
+  // a token this config emits. Anchored to the namespaces the generator owns —
+  // see `token-refs.ts` for why enumerating "all valid tokens" would be wrong.
+  // These are errors: unlike the warnings above, the output is not merely
+  // surprising, it is inert, and it fails silently in the browser.
+  const refs = tokenRefIssues(result.data);
+  warnings.push(...refs.warnings);
+  if (refs.errors.length)
+    return {
+      ok: false,
+      data: undefined,
+      errors: refs.errors.map((e) => ({ code: 'custom', ...e }) as z.core.$ZodIssue),
+      warnings,
+    };
   return { ok: true, data: result.data, errors: [], warnings };
 }

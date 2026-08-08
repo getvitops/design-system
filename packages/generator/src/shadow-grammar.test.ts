@@ -25,9 +25,14 @@ const hasAssets = existsSync(join(ASSETS, 'css', 'index.css'));
 const tmp = mkdtempSync(join(tmpdir(), 'vitops-shadow-'));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
+// Shadows are ADDED to the scaffolded set, not substituted for it: the default
+// patterns reference `--shadow-sm` / `--shadow-md` through their `ds` hooks, so
+// replacing the map wholesale leaves those references dangling and `validate()`
+// (rightly) fails the config for a reason that has nothing to do with the
+// drop-shadow grammar under test here.
 const withShadows = (shadows: Record<string, string>): DesignSystem => ({
   ...defaultConfig(),
-  shadows,
+  shadows: { ...defaultConfig().shadows, ...shadows },
 });
 
 const warningsFor = (shadows: Record<string, string>) => {

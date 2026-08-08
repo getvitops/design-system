@@ -44,7 +44,11 @@ export async function findZoneId(
     return {
       ok: false,
       status: res.status,
-      message: `no Cloudflare zone named "${domain}" (is it in this account, and does the token cover it?)`,
+      // Name the scope: this lookup is a GET /zones?name=, which needs
+      // `Zone:Read` — a token carrying only `Zone:DNS:Edit` reaches here and
+      // reads as "the zone isn't in this account", which sends you to the
+      // wrong dashboard.
+      message: `no Cloudflare zone named "${domain}" (is it in this account, and does the token carry Zone:Read as well as Zone:DNS:Edit? The "Edit zone DNS" template covers both.)`,
     };
   return { ok: true, status: res.status, zoneId: zone.id };
 }

@@ -48,6 +48,56 @@ export default defineConfig({
 
 Tested against `emdash@0.31.x`.
 
+## Rendering mode
+
+An EmDash site **must** run `output: 'server'` with an adapter — the admin at `/_emdash/admin`,
+the media and API routes, preview tokens and scheduled publishing all need a server, and
+`vitopsHosting()` supplies the adapter. That makes prerendering **per-route and opt-in**, the
+opposite of a plain Astro site (which should stay `output: 'static'` and opt _out_ with
+`export const prerender = false` — see [`@getvitops/astro`](/packages/astro/)).
+
+So on an EmDash site:
+
+- **Put `export const prerender = true` on every page that doesn't need per-request data** — the
+  home page, legal pages, anything whose content is known at build time. A route with no
+  `prerender` export is rendered again for every visitor on every request.
+- **Give dynamic routes a `getStaticPaths()`** so database-backed pages build to static HTML too.
+  Query the collection at build time and return one entry per path:
+
+  ```astro
+  ---
+  // src/pages/[...slug].astro
+  import { getEmDashCollection, getEmDashEntry } from 'emdash';
+  import { PortableText } from 'emdash/ui';
+  import Layout from '../layouts/Layout.astro';
+
+  export const prerender = true;
+
+  export async function getStaticPaths() {
+    const { entries } = await getEmDashCollection('pages', { status: 'published' });
+    return entries.map((entry) => ({ params: { slug: entry.slug } }));
+  }
+
+  const { slug } = Astro.params;
+  const { entry: page } = await getEmDashEntry('pages', slug);
+  ---
+
+  <Layout title={page.data.title}>
+    <PortableText value={page.data.content} />
+  </Layout>
+  ```
+
+The trade-off is deliberate and worth stating: **a prerendered page reflects the database as of the
+last build**, so publishing from the admin only appears after a redeploy. Leave a route
+server-rendered when that is unacceptable — the preview route (draft content is served at request
+time via a signed token), a page that must go live within seconds, or anything personalised. That
+is the narrow case, not the default.
+
+One exception to the exception: if you are building a **distributable EmDash theme** rather than a
+site, EmDash's own guidance is that content pages must stay server-rendered, since a theme's users
+edit content through the admin and expect it live. The rule above is for a site you build and
+deploy yourself.
+
 ## Hosting seam: `vitopsHosting()`
 
 One call resolves the Astro adapter + EmDash database/storage for a hosting
