@@ -184,6 +184,18 @@ export const BLOCKS: PortableTextBlockDef[] = [
         label: 'Autoplay interval (ms, 0 = off)',
         initial_value: 0,
       },
+      {
+        type: 'toggle',
+        action_id: 'loop',
+        label: 'Loop (clones the slides — autoplay implies it)',
+        initial_value: false,
+      },
+      {
+        type: 'text_input',
+        action_id: 'aspect',
+        label: 'Slide aspect ratio',
+        initial_value: '16 / 9',
+      },
     ],
   },
 ];

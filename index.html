@@ -3170,14 +3170,19 @@
             <h2><span class="section-no">10</span>Carousel &amp; marquee</h2>
             <div class="demo rhythm">
               <div
-                class="carousel carousel--scroll-buttons carousel--scroll-markers"
-                style="--carousel-columns: 3"
+                class="carousel carousel--scroll-buttons carousel--scroll-markers carousel--markers-below"
+                role="group"
+                aria-roledescription="carousel"
+                aria-label="Slides"
               >
-                <div class="box" style="min-height: 5rem">Slide 1</div>
-                <div class="box b2" style="min-height: 5rem">Slide 2</div>
-                <div class="box b3" style="min-height: 5rem">Slide 3</div>
-                <div class="box" style="min-height: 5rem">Slide 4</div>
-                <div class="box b2" style="min-height: 5rem">Slide 5</div>
+                <ul class="carousel__track" role="list" tabindex="0">
+                  <li class="box" style="min-height: 5rem">Slide 1</li>
+                  <li class="box b2" style="min-height: 5rem">Slide 2</li>
+                  <li class="box b3" style="min-height: 5rem">Slide 3</li>
+                  <li class="box" style="min-height: 5rem">Slide 4</li>
+                  <li class="box b2" style="min-height: 5rem">Slide 5</li>
+                </ul>
+                <p class="carousel__hint font-footnote" aria-hidden="true">Scroll for more</p>
               </div>
               <div class="marquee marquee--pause-hover">
                 <div class="marquee__content">
@@ -3189,7 +3194,9 @@
                 </div>
               </div>
               <p class="swatch-note">
-                Both are pure CSS (scroll-snap / infinite loop); hover the marquee to pause.
+                Both are pure CSS (scroll-snap / infinite loop); hover the marquee to pause. The
+                carousel above has no <code>&lt;wc-carousel&gt;</code> wrapper — this is exactly
+                what a visitor with JavaScript off gets.
               </p>
             </div>
             <dl class="api-list">
@@ -3198,12 +3205,21 @@
                   <code>.carousel</code><span class="t t-state">state</span>
                 </div>
                 <div class="api-desc">
-                  CSS scroll-snap carousel using <code>::scroll-button</code> /
-                  <code>::scroll-marker-group</code> / <code>::column</code>.<span class="sub"
-                    ><strong>Modifiers:</strong> <code>--auto-pages</code>,
+                  Scroll-snap carousel. <code>.carousel</code> is the shell;
+                  <code>.carousel__track</code> is the scroller, so the hint and controls sit
+                  outside the scrollport. Uses <code>::scroll-button()</code> /
+                  <code>::scroll-marker-group</code> / <code>::column</code> where they exist and
+                  <code>&lt;wc-carousel&gt;</code> builds matching real controls where they
+                  don't.<span class="sub"
+                    ><strong>Parts:</strong> <code>__track</code>, <code>__slide</code>,
+                    <code>__media</code>, <code>__hint</code>, <code>__button</code>,
+                    <code>__markers</code>, <code>__marker</code>, <code>__autoplay</code>.
+                    <strong>Modifiers:</strong> <code>--auto-pages</code>,
                     <code>--scroll-buttons</code>, <code>--scroll-markers</code>,
-                    <code>--inert</code>, <code>--force-stop</code>; <code>[part=autoplay]</code>,
-                    <code>[data-carousel-clone]</code>.</span
+                    <code>--markers-below</code>, <code>--inert</code>, <code>--force-stop</code>,
+                    <code>--no-scrollbar</code>. <strong>Attributes:</strong> <code>loop</code>,
+                    <code>autoplay</code>, <code>[data-carousel-clone]</code>,
+                    <code>[data-scrolled]</code>.</span
                   >
                 </div>
               </div>

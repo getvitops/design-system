@@ -11,6 +11,111 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 6.0.0 — 2026-08-08
+
+The carousel, reworked so that it actually works outside Chromium.
+
+Only `@getvitops/core`, `generator` and `astro` changed. `utils`, `cli` and `vite` carry **no
+consumer-facing change** — they are bumped because the six share one version. `@getvitops/emdash`
+0.3.6 rewires its carousel block onto the new Astro component and raises its `@getvitops/astro`
+peer to `>=6.0.0`.
+
+`::scroll-button()`, `::scroll-marker` and `::scroll-marker-group` are still Chromium-only — not
+Baseline, Safari landing, Firefox flagged — and the pattern was written as though they were
+universal. In Firefox that meant a carousel with no arrows, no dots, and (because `.carousel` set
+`scrollbar-width: none`) nothing at all telling the visitor the strip scrolled. There is no usable
+polyfill: the only candidate is the spec author's `flackr/carousel` prototype, which is unpublished,
+targets the superseded syntax (`::scroll-left-button`, `:checked`) and only re-parses inline
+`<style>` elements, so it would never see a linked stylesheet.
+
+So the framework stops assuming, and states which branch is live **in the stylesheet**: one
+`@supports` sets `--carousel-native-nav: 1`, and `<wc-carousel>` reads that custom property back
+rather than re-running `CSS.supports`. The condition is therefore written once. It also answers the
+better question — not "does this engine know the pseudo-element" but "did my stylesheet's native
+branch apply" — so a page that loads `elements.js` without the framework CSS gets working controls
+instead of none.
+
+### Breaking
+
+- **`.carousel` is now a shell; `.carousel__track` is the scroller** (all formats). The hint and the
+  fallback controls need somewhere that isn't the scrollport, and the shell lets them be
+  `position: absolute` against it — replacing `position: fixed` + `anchor-name`/`position-area`,
+  which pinned the autoplay button to a **viewport corner** in any engine without anchor
+  positioning (the oddbird polyfill supports neither `position-area` nor pseudo-element anchors, so
+  it never rescued it). Migration: wrap the slides in `<ul class="carousel__track">`. The 5.x
+  single-element form still has a CSS path (`:not(:has(> .carousel__track))`) and the element
+  promotes it at runtime, but it is deprecated — it has nowhere to put the hint, and author CSS
+  matching `.carousel > .slide` breaks once the element promotes.
+- **Looping is opt-in: `<wc-carousel loop>`.** It was unconditional. Cloning triples the markup,
+  duplicates every image element and makes the scrollbar report 3× the real content, which is a bad
+  default for the majority of carousels that never wanted an infinite strip. `autoplay` implies
+  `loop`. Migration: add the attribute (or `loop` on `<Carousel />`).
+- **`[part='autoplay']` → `.carousel__autoplay`**, aliased for one release. `part` only crosses a
+  shadow boundary and this element is light DOM, so it was an arbitrary attribute selector wearing
+  a platform name. The button is also appended to the shell now, not into the grid track where it
+  formed a slide-width column.
+- **The host role is `group`, not `region`.** `region` is a landmark, so a page with four carousels
+  grew four landmark entries. `<Carousel landmark />` opts back in where the carousel really is a
+  page-level landmark.
+- **`carousel--auto-pages` degrades to a plain multicol strip** where `::column` is missing, rather
+  than being emulated. Reimplementing column fragmentation in JS is a layout engine; the strip still
+  scrolls and snaps.
+
+Not reachable by `vitops lint --fix`: `.carousel` → `.carousel__track` is a structural change, not
+a rename, so no token rewrite can express it. The migration is the wrapper element above.
+
+### Changed
+
+- **The scrollbar is visible by default** (`scrollbar-width: thin`, was `none`) and a
+  "Scroll for more" hint renders above the strip. Both dim once the visitor scrolls — via a named
+  scroll-progress timeline hoisted with `timeline-scope` where available, and a `data-scrolled`
+  attribute the element sets otherwise. (Not `scroll-state()`: its queries match _descendants_ of
+  the scroll container, and the hint is deliberately not one.) Opt out with
+  `.carousel--no-scrollbar` and `hint={false}`. This is a visual change on every existing carousel.
+- **`global.css` gains a narrow media reset** — `max-inline-size: 100%` on `img`/`svg`/`video`/
+  `canvas`/`iframe`/`embed`/`object` and `block-size: auto` on `img`/`video`, both in `:where()` and
+  in `vitops.base` so they lose to everything. Deliberately **without** `display: block` on `img`:
+  that is the half of the classic reset that breaks inline images in prose, `.icon > img`, marquee
+  logo runs and `.rhythm`'s sibling spacing.
+
+### Added
+
+- **`@getvitops/astro/components/Carousel.astro`** — the tier-3 wrapper, emitting semantic
+  `<ul>`/`<li>`/`<figure>` markup, a focusable scroller, and the right per-slide image priorities:
+  the first slide `eager`/`high` as the LCP candidate, the rest `lazy`/`low`/`async`.
+  `loading="lazy"` is honoured for images clipped by a horizontal scroll container, so off-screen
+  slides defer **with no JavaScript** — no `data-src` + IntersectionObserver to fail. The EmDash
+  `vitops.carousel` block is now a thin adapter over it.
+- **Real prev/next buttons and dot navigation** built by `<wc-carousel>` where the pseudo-elements
+  are absent, carrying the classes `carousel.css` styles with the same declarations as the native
+  path. A guard (`carousel-parity.test.ts`) asserts the two blocks stay identical — they cannot be
+  one selector list, because a list containing an unparseable pseudo-element is dropped wholesale.
+- `carousel--markers-below`, `carousel--no-scrollbar`, and `--carousel-slide-aspect` /
+  `--carousel-media-fit` / `--carousel-button-size` / `--carousel-hint-*`.
+
+### Fixed
+
+_All formats._
+
+- **`::scroll-button()` glyphs sat off-centre in their circles.** `global.css`'s reset is
+  `*, *::before, *::after`, which does not reach a `::scroll-button()` — so the pseudo was
+  `content-box` carrying Chrome's UA `padding: 1px 6px`, and `inline-size: 44px` + `aspect-ratio: 1`
+  sized a 56×46 ellipse. `line-height: normal` let the glyph ride its own half-leading on top of
+  that.
+- **The button hover state was a no-op**, setting the same `--color-bg-surface-muted` the base rule
+  set; the token migration had flattened two distinct oklch literals onto one variable.
+- **Slide heights varied with each image's aspect ratio** — `carousel.css` had no `img` rule and
+  `global.css` no media reset, so one portrait photo set the row height for a strip of landscapes.
+- **Navigation was physical, not logical.** `::scroll-button(left|right)` and `scrollLeft`/
+  `offsetLeft` arithmetic put "previous" on the wrong side in RTL and pointed the chevron the wrong
+  way; `hasScrolled` never fired there at all, because `scrollLeft` is negative in an RTL scroller.
+- **Cloned slides duplicated their `id`s**, and cloned images kept the LCP candidate's
+  `eager`/`fetchpriority="high"`.
+- **`scrollBy(clientWidth)` overshot** whenever `--carousel-slide-size` was not `100%`; stepping now
+  scrolls a specific slide into view, which also honours `scroll-padding-inline` and snap alignment.
+- `index.html`'s carousel demo set `--carousel-columns: 3` without `carousel--auto-pages`, so it did
+  nothing.
+
 ## 5.0.0 — 2026-08-08
 
 Two themes. **Dangling token references and contradictory config are now build failures** rather

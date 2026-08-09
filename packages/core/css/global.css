@@ -26,6 +26,30 @@
   box-sizing: border-box;
 }
 
+/* Media never overflows its container. `:where()` so it carries zero specificity
+   and this file's layer (`vitops.base`) so it loses to everything, including a
+   consumer's unlayered rule.
+
+   Deliberately NOT the classic `img { display: block }` half of this reset. That
+   is the part that breaks things here: inline images in prose lose baseline
+   alignment, `patterns/icon.css`'s `.icon > img` and marquee logo runs break onto
+   their own lines, and `layout.css`'s
+   `.rhythm > :where(p, h1…h6, ul, ol) + :where(figure, img, picture, video)`
+   rules start spacing images that were previously inline. Every framework pattern
+   that wants a block image already declares it (media.css, subgrid.css,
+   carousel.css), which is the right place for it.
+
+   `svg` is excluded from `block-size: auto` because `patterns/svg.css` ships a
+   bare `svg` rule and SVGs commonly size from presentation attributes;
+   `max-inline-size` alone is safe there. */
+:where(img, svg, video, canvas, iframe, embed, object) {
+  max-inline-size: 100%;
+}
+
+:where(img, video) {
+  block-size: auto;
+}
+
 /* Drop the UA's 8px body margin. The framework owns page gutters via `.centered`
    (--gutter), so the UA default just offsets every full-bleed surface — sticky
    headers and `bg-*` bands end up inset by 8px with a sliver of canvas showing

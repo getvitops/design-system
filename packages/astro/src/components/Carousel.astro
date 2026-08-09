@@ -1,0 +1,230 @@
+---
+/**
+ * A scroll-snap carousel that works with no JavaScript, in every engine.
+ *
+ * Tier-3 in the framework's terms — an authoring convenience that emits the right
+ * `.carousel` markup and requires **no runtime JS**. What it renders stands on its
+ * own:
+ *
+ *   - the slides are a real `<ul>`/`<li>`, so assistive tech announces list
+ *     position and count;
+ *   - the scroller carries `tabindex="0"`, so arrow keys scroll it — the keyboard
+ *     route the platform gives any focusable scroll container, and the reason
+ *     inclusive-components.design/a-content-slider/ focuses the scroller rather
+ *     than building a widget;
+ *   - `scroll-snap` and (in Chromium today) `::scroll-button()` / `::scroll-marker`
+ *     give buttons and dots with no script at all;
+ *   - a visible scrollbar and a "Scroll for more" hint say the strip scrolls, which
+ *     was the missing signal wherever those pseudo-elements are absent;
+ *   - off-screen images are lazy **without JS**: `loading="lazy"` is honoured for
+ *     images clipped by a horizontal scroll container, so there is no `data-src` +
+ *     IntersectionObserver dance to fail.
+ *
+ * **This component emits its own `<wc-carousel>`** — do NOT wrap it in one. That is
+ * the tier-3 rule ("the wrapper emits its `<wc-*>` tag with the accessible fallback
+ * inside"), and `Cards.astro`, `Tree.astro` and `CookieConsent.astro` all do the
+ * same. The element defers to an enclosing one, so a nested pair degrades to a
+ * no-op rather than cloning the same slides twice, but the single call is the
+ * intended shape.
+ *
+ * `<wc-carousel>` adds the opt-in cloned loop, autoplay, and — only where the
+ * browser lacks the scroll-marker pseudo-elements — real prev/next buttons and a
+ * real dot nav. If it never loads, that enhancement is all that is missing, which
+ * is why `enhance={false}` is a supported way to get the bare fragment.
+ *
+ * Three deliberate a11y choices:
+ *
+ *   - **The group role is on the shell, the list role stays on the `<ul>`.** The
+ *     inclusive-components article puts `role="region"` on the scroller because
+ *     there the scroller *is* the container; a shell lets us have real list
+ *     semantics *and* a named group. `group` rather than `region` because `region`
+ *     is a landmark and four carousels would grow four landmark entries — pass
+ *     `landmark` when the carousel really is a page-level landmark.
+ *   - **The visible hint is `aria-hidden`, and a separate `.sr-only` element is the
+ *     description.** The hint fades once the visitor scrolls, so as a description
+ *     it would go stale; and its text is about a pointer affordance, whereas what a
+ *     keyboard user needs described is the arrow keys. One string cannot honestly
+ *     be both.
+ *   - **`aria-describedby` sits on the `<ul>`**, which is the focusable thing, since
+ *     a description is announced on focus.
+ */
+import type { HTMLAttributes } from 'astro/types';
+
+export interface CarouselSlide {
+  src: string;
+  alt: string;
+  /**
+   * Intrinsic size. Emitted as `width`/`height` so the UA derives an aspect ratio
+   * and the slide reserves space before the image lands. When unknown,
+   * `--carousel-slide-aspect` still reserves the box, so CLS is covered either way.
+   */
+  width?: number;
+  height?: number;
+  srcset?: string;
+  sizes?: string;
+  caption?: string;
+}
+
+export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
+  /** Accessible name. Required — an unnamed group is unfindable. */
+  label: string;
+  /** Image slides. Omit and use the default slot for richer slides. */
+  slides?: CarouselSlide[];
+  /** Milliseconds between slides. Implies `loop`. */
+  autoplay?: number;
+  /**
+   * Clone the slides for a seamless infinite strip. **Off by default:** it triples
+   * the DOM and duplicates every image element, makes the scrollbar report 3× the
+   * real content, and most carousels do not want it.
+   */
+  loop?: boolean;
+  /** Prev/next controls. */
+  buttons?: boolean;
+  /** Dot navigation. */
+  markers?: boolean;
+  /** Dots below the strip rather than overlaid on it. */
+  markersBelow?: boolean;
+  /** CSS multicol paging. Chromium-only; degrades to a plain strip elsewhere. */
+  columns?: number;
+  /** Dim and inert the off-screen slides. */
+  inert?: boolean;
+  /** `scroll-snap-stop: always` — never skip a slide in one fling. */
+  forceStop?: boolean;
+  /** Hide the scrollbar. Costs the no-JS "this scrolls" signal; be deliberate. */
+  noScrollbar?: boolean;
+  /** `--carousel-slide-aspect`, the ratio every slide's media box takes. */
+  aspect?: string;
+  /** Visible affordance text. `false` removes it. */
+  hint?: string | false;
+  /** Expose as a landmark (`role="region"`) rather than `role="group"`. */
+  landmark?: boolean;
+  /**
+   * Emit the `<wc-carousel>` wrapper (default `true`).
+   *
+   * Set false where the element cannot run — an email, a PDF, a page that does not
+   * load `elements.js`. The carousel is unchanged; only the enhancement layer goes,
+   * so nothing is lost but the loop, autoplay and the non-Chromium control set.
+   */
+  enhance?: boolean;
+  /**
+   * Id prefix for the slide ids and the description. Defaults to a slug of
+   * `label`. Astro has no `useId`, and a random one would change on every build —
+   * so this is derived, deterministic and overridable when two carousels on a page
+   * share a label.
+   */
+  id?: string;
+}
+
+const {
+  label,
+  slides = [],
+  autoplay,
+  loop = false,
+  buttons = true,
+  markers = true,
+  markersBelow = false,
+  columns,
+  inert = false,
+  forceStop = false,
+  noScrollbar = false,
+  aspect = '16 / 9',
+  hint = 'Scroll for more',
+  landmark = false,
+  enhance = true,
+  id,
+  class: className,
+  role,
+  style,
+  ...rest
+} = Astro.props;
+
+const uid =
+  id ??
+  `carousel-${
+    label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'x'
+  }`;
+
+const classes = [
+  'carousel',
+  buttons && 'carousel--scroll-buttons',
+  markers && 'carousel--scroll-markers',
+  markersBelow && 'carousel--markers-below',
+  columns && 'carousel--auto-pages',
+  inert && 'carousel--inert',
+  forceStop && 'carousel--force-stop',
+  noScrollbar && 'carousel--no-scrollbar',
+  className,
+];
+
+const vars = [
+  `--carousel-slide-aspect:${aspect}`,
+  columns ? `--carousel-columns:${columns}` : '',
+  style ?? '',
+]
+  .filter(Boolean)
+  .join(';');
+
+const Shell = enhance ? 'wc-carousel' : 'div';
+---
+
+<Shell
+  class:list={classes}
+  role={role ?? (landmark ? 'region' : 'group')}
+  aria-roledescription="carousel"
+  aria-label={label}
+  loop={enhance && (loop || (autoplay ?? 0) > 0) ? '' : undefined}
+  autoplay={enhance && autoplay ? autoplay : undefined}
+  style={vars}
+  {...rest}
+>
+  <ul
+    class="carousel__track"
+    role="list"
+    tabindex="0"
+    aria-label={label}
+    aria-describedby={`${uid}-desc`}
+  >
+    {
+      slides.map((slide, i) => (
+        <li class="carousel__slide" id={`${uid}-slide-${i + 1}`}>
+          <figure class="carousel__media">
+            {/* The first slide is the LCP candidate, so it is eager and high
+                priority; every later one is lazy, low and async. A horizontal
+                scroll container clips them, and `loading="lazy"` is honoured for
+                that, so this is genuinely JS-free deferral. `decoding` is left
+                unset on the first: `sync` can block the main thread, and the UA's
+                own choice for an eager LCP image is better than ours. */}
+            <img
+              src={slide.src}
+              alt={slide.alt}
+              srcset={slide.srcset}
+              sizes={slide.sizes}
+              width={slide.width}
+              height={slide.height}
+              loading={i === 0 ? 'eager' : 'lazy'}
+              fetchpriority={i === 0 ? 'high' : 'low'}
+              decoding={i === 0 ? undefined : 'async'}
+            />
+            {slide.caption && (
+              <figcaption class="carousel__caption font-caption">{slide.caption}</figcaption>
+            )}
+          </figure>
+        </li>
+      ))
+    }
+    <slot />
+  </ul>
+  {
+    hint !== false && (
+      <p class="carousel__hint font-footnote" aria-hidden="true">
+        {hint}
+      </p>
+    )
+  }
+  <p id={`${uid}-desc`} class="sr-only">
+    Use the left and right arrow keys, or scroll sideways, to move between slides.
+  </p>
+</Shell>

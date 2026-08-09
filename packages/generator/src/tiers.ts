@@ -127,14 +127,19 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<Tree items={…} />` — it emits `<wc-tree>` itself, so do NOT add your own wrapper.',
   },
   carousel: {
-    css: c(['carousel'], 'patterns/carousel.css', true),
+    css: c(
+      ['carousel', 'carousel__track', 'carousel__slide', 'carousel__media', 'carousel__hint'],
+      'patterns/carousel.css',
+      true,
+    ),
     wc: {
       tag: 'wc-carousel',
       registered: true,
-      adds: 'cloned slides for a seamless loop, autoplay, snap nav',
+      adds: 'opt-in cloned loop, autoplay, and real prev/next + dot controls where `::scroll-button()`/`::scroll-marker` are missing',
     },
+    astro: a('Carousel', 'wc'),
     bricks: 'vitops-carousel',
-    use: '`<wc-carousel>` around your slides; each child is a slide. Works unenhanced as a scroll-snap strip.',
+    use: '`<Carousel slides={…} label="…" />` — it emits `<wc-carousel>` itself, so do NOT add your own wrapper. `.carousel` is the shell and `.carousel__track` the scroller; add `loop` for the cloned infinite strip (`autoplay` implies it).',
   },
   entries: {
     css: c(['entries__table', 'entries__scroll', 'entries__nav'], 'patterns/table.css'),

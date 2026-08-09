@@ -96,22 +96,35 @@ added only in render()/set_root_attributes() never appear there — _cssClasses 
 
 ## Carousel — `vitops-carousel` · nestable
 
-Renders the <wc-carousel> Lit component (src/web-components/WCCarousel.ts): an
-infinite-loop carousel that progressively enhances the CSS-only `.carousel`. Each
-direct child is a slide. Without JS the `.carousel` classes still yield a working
-(non-looping) scroll-snap carousel, so the builder canvas stays functional.
+Renders the <wc-carousel> Lit component (src/web-components/WCCarousel.ts) around a
+`.carousel__track` scroll container. Each direct child of the element is a slide.
+
+Without JS the `.carousel` classes still yield a working scroll-snap carousel with a
+visible scrollbar, a "scroll for more" hint and — in Chromium — native prev/next
+buttons and dot navigation, so the builder canvas stays functional. Where those
+pseudo-elements are missing (Firefox, older Safari) the component builds real
+buttons and dots styled to match.
 
 The `.carousel` base rides on the built-in "CSS classes" setting (defaulted below) so
 it applies in the canvas and the frontend. Add modifier classes there:
-`carousel--scroll-buttons`, `carousel--scroll-markers`, `carousel--auto-pages`.
+`carousel--scroll-buttons`, `carousel--scroll-markers`, `carousel--auto-pages`,
+`carousel--inert`, `carousel--force-stop`, `carousel--no-scrollbar`,
+`carousel--markers-below`.
+
+Note the slide track here is a <div>, not a <ul>: Bricks children are blocks, so the
+list semantics the Astro component emits are not available on this platform. The CSS
+targets `> *`, so everything else is identical.
 
 **Controls**
 
-- **Autoplay interval (ms)** (number, placeholder `0`) — Milliseconds between slides. Leave empty / 0 to disable.
+- **Autoplay interval (ms)** (number, placeholder `0`) — Milliseconds between slides. Leave empty / 0 to disable. Autoplay implies looping.
+- **Loop** (checkbox) — Clone the slides at both ends for a seamless infinite strip. Off by default: it triples the markup and duplicates every image.
 - **Accessible label (aria-label)** (text)
-- _Note:_ Add modifier classes in "CSS classes": carousel--scroll-buttons, carousel--scroll-markers, carousel--auto-pages. Each direct child is a slide.
+- **Slide media aspect ratio** (text, placeholder `16 / 9`) — Sets --carousel-slide-aspect, the ratio each slide's media box takes. Keeps slide heights equal whatever the image.
+- **Scroll hint** (text, placeholder `Scroll for more`) — Shown beside the strip and dimmed once the visitor scrolls. Clear to omit it.
+- _Note:_ Add modifier classes in "CSS classes": carousel--scroll-buttons, carousel--scroll-markers, carousel--auto-pages, carousel--inert, carousel--force-stop, carousel--no-scrollbar, carousel--markers-below. Each direct child is a slide.
 
-**Base CSS class:** `carousel` (applied automatically; add ratio/modifier classes alongside it in the element's "CSS classes" field).
+**Base CSS class:** `carousel carousel--scroll-buttons carousel--scroll-markers` (applied automatically; add ratio/modifier classes alongside it in the element's "CSS classes" field).
 
 **Seeded children:** Slide 1, Slide 2, Slide 3.
 

@@ -143,7 +143,7 @@ export default defineConfig({
 | Copy snippet     | `vitops.copyButton`   | `<wc-copy>` with code/inline fallback   |
 | Banner           | `vitops.banner`       | `<wc-dismissable>` banner with tone colours |
 | Disclosure       | `vitops.details`      | native `<details>`/`<summary>`              |
-| Carousel         | `vitops.carousel`     | `<wc-carousel>` scroll-snap carousel        |
+| Carousel         | `vitops.carousel`     | `@getvitops/astro`'s `<Carousel />`         |
 
 All blocks render accessible markup that works without JavaScript; the
 web components progressively enhance it.

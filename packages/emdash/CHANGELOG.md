@@ -1,5 +1,21 @@
 # @getvitops/emdash
 
+## 0.3.6
+
+**The `vitops.carousel` block now renders `@getvitops/astro`'s `<Carousel />`** instead of emitting
+`<wc-carousel>` markup of its own — one implementation, so the block cannot drift from the
+component. Two new fields: **Loop** (a toggle; cloning the slides is opt-in now, and `autoplay`
+implies it) and **Slide aspect ratio** (default `16 / 9`, which is what keeps slide heights equal
+whatever each image's proportions are). Existing carousel blocks keep working; they simply stop
+looping unless you tick Loop.
+
+**The `@getvitops/astro` peer range is now `>=6.0.0`**, because `Carousel.astro` does not exist
+before it. Upgrade the whole toolchain together — it ships as one version.
+
+### Patch Changes
+
+- @getvitops/utils@6.0.0
+
 ## 0.3.5
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @getvitops/vite
 
+## 6.0.0
+
+**No consumer-facing change in this package.** The major is the toolchain's shared version, bumped
+in lockstep for the carousel rework in `@getvitops/core` / `generator` / `astro`. The plugin's
+options, watch behaviour and dev-server endpoints are unchanged.
+
+### Patch Changes
+
+- Updated dependencies
+  - @getvitops/generator@6.0.0
+  - @getvitops/utils@6.0.0
+
 ## 5.0.0
 
 > **No consumer-facing change in this package.** `@getvitops/vite` has no source changes in 5.0.0 —

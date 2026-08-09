@@ -1,4 +1,13 @@
 ---
+/**
+ * Thin adapter over `@getvitops/astro`'s `<Carousel />`.
+ *
+ * The markup, the image priority matrix and the accessibility wiring all live
+ * there — this only maps the block's newline-separated fields onto its `slides`
+ * prop. Emitting the markup here too would be a second copy to keep in step, and
+ * the one that drifts is always the one nobody is looking at.
+ */
+import Carousel from '@getvitops/astro/components/Carousel.astro';
 import { resolveBlockValue, splitLines } from './value.ts';
 
 interface Value {
@@ -6,25 +15,24 @@ interface Value {
   alts?: string;
   label?: string;
   autoplay?: number;
+  loop?: boolean;
+  aspect?: string;
 }
 
 const value = resolveBlockValue<Value>(Astro.props);
 const images = splitLines(value.images);
 const alts = splitLines(value.alts);
-const label = value.label || 'Carousel';
 const autoplay = Number(value.autoplay) || 0;
 ---
 
-{images.length > 0 && (
-  <wc-carousel
-    class="carousel carousel--scroll-buttons carousel--scroll-markers"
-    role="region"
-    aria-roledescription="carousel"
-    aria-label={label}
-    autoplay={autoplay > 0 ? autoplay : undefined}
-  >
-    {images.map((src, i) => (
-      <div><img src={src} alt={alts[i] ?? ''} loading="lazy" /></div>
-    ))}
-  </wc-carousel>
-)}
+{
+  images.length > 0 && (
+    <Carousel
+      label={value.label || 'Carousel'}
+      autoplay={autoplay > 0 ? autoplay : undefined}
+      loop={Boolean(value.loop)}
+      aspect={value.aspect || '16 / 9'}
+      slides={images.map((src, i) => ({ src, alt: alts[i] ?? '' }))}
+    />
+  )
+}

@@ -96,19 +96,32 @@ describe('<wc-marquee>', () => {
 });
 
 describe('<wc-carousel>', () => {
+  const markup = (attrs = '') => `
+    <wc-carousel class="carousel carousel--scroll-buttons" ${attrs}>
+      <ul class="carousel__track"><li>one</li><li>two</li><li>three</li></ul>
+    </wc-carousel>`;
+
   it('sets its a11y roles and picks up its slides', async () => {
-    const el = await mount(
-      '<wc-carousel><div>one</div><div>two</div><div>three</div></wc-carousel>',
-    );
-    expect(el.getAttribute('role')).toBe('region');
+    const el = await mount(markup());
+    // `group`, not `region`: a landmark per carousel clutters the landmark list.
+    expect(el.getAttribute('role')).toBe('group');
     expect(el.getAttribute('aria-roledescription')).toBe('carousel');
-    // Clones are the observable result of having read the slides.
-    expect(el.children.length).toBeGreaterThan(3);
+    // Cloning is opt-in now, so the observable result of having READ the slides
+    // is the generated control set, not a changed child count.
+    expect(el.querySelectorAll('.carousel__button')).toHaveLength(2);
+  });
+
+  it('clones only when asked to loop', async () => {
+    const el = await mount(markup('loop'));
+    expect(el.querySelectorAll('[data-carousel-clone]')).toHaveLength(6);
   });
 
   it('leaves a single-slide carousel unenhanced', async () => {
-    const el = await mount('<wc-carousel><div>only</div></wc-carousel>');
-    expect(el.children.length).toBe(1);
+    const el = await mount(
+      '<wc-carousel class="carousel carousel--scroll-buttons">' +
+        '<ul class="carousel__track"><li>only</li></ul></wc-carousel>',
+    );
+    expect(el.querySelector('.carousel__button')).toBeNull();
   });
 });
 

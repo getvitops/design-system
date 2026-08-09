@@ -194,6 +194,24 @@ const headings = [
       <code>@media (scripting: enabled)</code> — pausing is safe only when something can un-pause it.
     </p>
 
+    <h3 class="font-heading">Scroll markers are not polyfilled either — they're replaced</h3>
+    <p class="font-body">
+      <code>::scroll-button()</code>, <code>::scroll-marker</code>,
+      <code>::scroll-marker-group</code> and <code>::column</code> are Chromium-only today. The one
+      candidate polyfill (the spec author's <code>flackr/carousel</code> prototype) is not
+      published, targets the superseded syntax, and only re-parses inline
+      <code>&lt;style&gt;</code> elements — so it would never see a linked stylesheet.
+    </p>
+    <p class="font-body">
+      So the carousel does not polyfill them: <code>&lt;wc-carousel&gt;</code> builds real
+      <code>&lt;button&gt;</code> controls and a real dot nav instead, carrying the same classes
+      <code>carousel.css</code> styles for the native path. Which branch is live is decided
+      <em>by the stylesheet</em> — one <code>@supports</code> sets
+      <code>--carousel-native-nav: 1</code> and the element reads it back, so the condition exists
+      once and the two can't disagree. Everything below it is CSS: the strip scrolls, snaps, shows
+      a scrollbar and a hint with no JavaScript at all.
+    </p>
+
     <h3 class="font-heading">What is polyfilled</h3>
     <p class="font-body text-surface-muted">
       Shipped as feature-detected, self-hosted ES-module chunks

@@ -17,6 +17,7 @@
  * Role names come from `design-system.json` so the colour variants can't drift
  * from what the generator emits.
  */
+import Carousel from '@getvitops/astro/components/Carousel.astro';
 import Docs from '../layouts/Docs.astro';
 import designSystem from '../../../../src/design-system.json';
 
@@ -457,14 +458,60 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   </p>
 
   <h3>Carousel</h3>
-  <wc-carousel class="carousel carousel--scroll-markers" aria-label="Demo carousel">
-    <div class="card"><p class="font-heading">One</p></div>
-    <div class="card"><p class="font-heading">Two</p></div>
-    <div class="card"><p class="font-heading">Three</p></div>
+  <wc-carousel
+    class="carousel carousel--scroll-buttons carousel--scroll-markers carousel--markers-below"
+    aria-label="Demo carousel"
+  >
+    <ul class="carousel__track" role="list">
+      <li class="card" id="carousel-demo-1"><p class="font-heading">One</p></li>
+      <li class="card" id="carousel-demo-2"><p class="font-heading">Two</p></li>
+      <li class="card" id="carousel-demo-3"><p class="font-heading">Three</p></li>
+    </ul>
+    <p class="carousel__hint font-footnote" aria-hidden="true">Scroll for more</p>
   </wc-carousel>
   <p class="font-caption text-surface-muted">
-    Scroll-snap and the marker dots are pure CSS (<code>::scroll-marker</code>); the element
-    adds infinite looping by cloning slides at both ends.
+    <code>.carousel</code> is the shell and <code>.carousel__track</code> the scroller, so the
+    hint and the controls sit outside the scrollport. Scroll-snap, the scrollbar and the hint
+    are pure CSS; where the browser has <code>::scroll-button()</code> and
+    <code>::scroll-marker</code> (Chromium today) so are the arrows and dots, and where it
+    doesn't the element builds matching real ones.
+  </p>
+
+  <h3>Carousel — looping</h3>
+  <wc-carousel
+    class="carousel carousel--scroll-buttons carousel--scroll-markers carousel--markers-below"
+    aria-label="Looping demo carousel"
+    loop
+  >
+    <ul class="carousel__track" role="list">
+      <li class="card" id="carousel-loop-1"><p class="font-heading">One</p></li>
+      <li class="card" id="carousel-loop-2"><p class="font-heading">Two</p></li>
+      <li class="card" id="carousel-loop-3"><p class="font-heading">Three</p></li>
+    </ul>
+  </wc-carousel>
+  <p class="font-caption text-surface-muted">
+    <code>loop</code> is opt-in: it clones the slides at both ends, which triples the markup and
+    duplicates every image, so the default is an honest finite strip whose scrollbar reflects
+    real content. <code>autoplay</code> implies it.
+  </p>
+
+  <h3>Carousel — the Astro wrapper</h3>
+  <Carousel
+    label="Placeholder gallery"
+    markersBelow
+    aspect="16 / 9"
+    slides={[
+      { src: '/demo/demo-wide.svg', alt: 'A wide placeholder', width: 1600, height: 900 },
+      { src: '/demo/demo-tall.svg', alt: 'A tall placeholder', width: 900, height: 1600 },
+      { src: '/demo/demo-square.svg', alt: 'A square placeholder', width: 1200, height: 1200 },
+    ]}
+  />
+  <p class="font-caption text-surface-muted">
+    Three images of three different aspect ratios, all the same height —
+    <code>--carousel-slide-aspect</code> gives each slide's media box a known ratio and the image
+    covers it. The first is <code>eager</code>/<code>fetchpriority="high"</code> as the LCP
+    candidate; the rest are <code>lazy</code>, which a horizontal scroll container honours, so they
+    defer with no JavaScript involved.
   </p>
 
   <h3>Split panel</h3>

@@ -1,5 +1,11 @@
 # @getvitops/utils
 
+## 6.0.0
+
+**No consumer-facing change in this package.** The major is the toolchain's shared version, bumped
+in lockstep for the carousel rework in `@getvitops/core` / `generator` / `astro`. Nothing exported
+here changed, and no code that imports `@getvitops/utils` needs editing.
+
 ## 5.0.0
 
 ### Major Changes

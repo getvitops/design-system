@@ -1,112 +1,418 @@
 /**
- * Carousel — CSS-only scroll-snap carousel migrated from old-css-lib. Uses
- * ::scroll-button(), ::scroll-marker-group, ::column, scroll-state() and
- * anchor positioning (all polyfilled). Fully operable as a scroll-snap strip
- * without JS; the Lit component adds autoplay + any marker fallback.
+ * Carousel — a scroll-snap strip that is fully operable, and *discoverable*, with
+ * no JavaScript in every engine, and that uses the native scroll-marker machinery
+ * (`::scroll-button()`, `::scroll-marker`, `::scroll-marker-group`, `::column`)
+ * wherever it exists.
+ *
+ * As of Aug 2026 that machinery is Chromium-135+ only — Safari is landing it,
+ * Firefox has it behind flags — and there is no usable polyfill: the only
+ * candidate (flackr/carousel's `polyfill/polyfill.js`) is a 2024 prototype on the
+ * superseded syntax that re-parses inline `<style>` elements and so never sees a
+ * linked stylesheet. So `WCCarousel` builds real `<button>`s and a real dot nav
+ * instead, and this file styles BOTH paths identically. See the `@supports` split
+ * below for why they can't be one selector list.
+ *
+ * ── Structure ────────────────────────────────────────────────────────────────
+ *   .carousel             shell. Not a scroller. The <wc-carousel> tag.
+ *   ├ .carousel__track    the scroll container (a <ul role="list"> from Astro).
+ *   │ └ .carousel__slide  a slide — rules apply to any direct child of the track.
+ *   │   └ .carousel__media  aspect-ratio box the image covers.
+ *   ├ .carousel__hint     "Scroll for more" — OUTSIDE the scroller, so it can't
+ *   │                     scroll away with the slides. That is the whole reason
+ *   │                     the shell exists.
+ *   ├ .carousel__button   JS-built prev/next (fallback path only).
+ *   ├ .carousel__markers  JS-built dot nav (fallback path only).
+ *   └ .carousel__autoplay play/pause toggle, built by the element.
+ *
+ * The shell also replaces the previous `position: fixed` + `anchor-name` /
+ * `position-area` placement of the controls. That was wrong three ways: an engine
+ * without anchor positioning pinned the real autoplay button to a VIEWPORT corner
+ * (the oddbird polyfill supports neither `position-area` nor a pseudo-element
+ * anchor, so the postrender polyfill never rescued it); `anchor-scope: --carousel`
+ * was one global name doing per-instance work; and the shell is already outside
+ * the scrollport, so `position: absolute` against it neither scrolls nor clips
+ * without any of that machinery.
+ *
+ * ── Modifiers ────────────────────────────────────────────────────────────────
+ *   carousel--scroll-buttons   prev/next
+ *   carousel--scroll-markers   dot nav
+ *   carousel--auto-pages       CSS multicol paging (`::column`) — Chromium-only,
+ *                              degrades to a plain multicol strip elsewhere
+ *   carousel--inert            dim + inert the off-screen slides
+ *   carousel--force-stop       `scroll-snap-stop: always`
+ *   carousel--no-scrollbar     opt out of the visible scrollbar
+ *   carousel--markers-below    dots below the strip instead of overlaid
  */
 
+/* An unregistered custom element is `display: inline`, and this one wraps a block
+   scroller — the KNOWN GAP recorded in js/elements.ts. The grid lives on
+   `.carousel`, which is what an author actually writes; the tag only needs to
+   stop being inline before the element upgrades. */
+wc-carousel {
+  display: block;
+}
+
+/* ── Feature probe ───────────────────────────────────────────────────────────
+   ONE declaration of each condition. `WCCarousel` does NOT re-run these with
+   `CSS.supports`; it reads the resolved custom property back off the element, so
+   the stylesheet and the component cannot disagree about which branch is live.
+   Two hand-synced condition strings — one here, one in JS — is the drift this
+   avoids, and its failure mode is silent duplicate controls sitting under working
+   native ones.
+
+   It also answers the harder question correctly. The real question is not "does
+   this engine support ::scroll-button()" but "did MY stylesheet's native branch
+   apply". A page that loads elements.js without the framework CSS has no
+   pseudo-elements to collide with — the probe reads empty and the fallback is
+   built. `CSS.supports` would have said yes and built nothing. */
 .carousel {
-  overflow-x: auto;
-  scroll-behavior: smooth;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-  scroll-snap-type: x mandatory;
-  scroll-padding: var(--carousel-scroll-padding, 1rem);
-  padding: var(--carousel-padding, 1rem);
+  --carousel-native-nav: 0;
+  --carousel-scroll-timeline: 0;
+}
+
+/* `(scroll-marker-group: after)` is ANDed in because `selector()` support for a
+   functional pseudo-element is the weaker signal of the two. */
+@supports selector(::scroll-marker) and selector(::scroll-button(inline-end)) and
+  (scroll-marker-group: after) {
+  .carousel {
+    --carousel-native-nav: 1;
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  .carousel {
+    --carousel-scroll-timeline: 1;
+  }
+}
+
+/* ── Shell ───────────────────────────────────────────────────────────────────*/
+
+.carousel {
+  position: relative; /* containing block for both control paths */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: var(--carousel-shell-gap, 0.5rem);
+
+  /* Hoist the track's scroll-progress timeline so the hint — a SIBLING of the
+     scroller, not a descendant — can read it. This is why the hint fade is not a
+     `scroll-state()` container query: a scroll-state query's rules apply to
+     descendants of the scroll container, and the hint deliberately isn't one.
+     `timeline-scope` also makes it order-independent, so the hint may precede the
+     track in source. */
+  timeline-scope: --carousel-scroll;
+}
+
+/* ── Track ───────────────────────────────────────────────────────────────────
+   The second selector is the deprecated 5.x single-element form, where
+   `.carousel` IS the scroller and the slides are its bare children. It has
+   nowhere to put the hint or the fallback controls, so it is kept only for one
+   major; migration is a single wrapper element. A selector list rather than a
+   `:is()` because `:has()` is Baseline and this stays readable. */
+.carousel__track,
+.carousel:not(:has(> .carousel__track)) {
+  margin: 0;
+  padding: var(--carousel-padding, 0);
+  list-style: none;
   max-inline-size: 100%;
-  anchor-name: --carousel;
-  anchor-scope: --carousel;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--carousel-scroll-padding, 0px);
 
-  /* Non-paged (default) — grid layout */
-  &:not(.carousel--auto-pages) {
+  /* The timeline the hint and the scrollbar fade read, declared here and
+     consumed on the shell's other children through `timeline-scope`. */
+  scroll-timeline: --carousel-scroll inline;
+
+  /* For `carousel--inert`, whose targets genuinely ARE descendants of the
+     scroller — the one place a scroll-state query is applicable here. */
+  container-type: scroll-state;
+
+  /* A thin, styled scrollbar is the default affordance. `scrollbar-width: none`
+     removed the only no-JS signal that the strip scrolls at all, on the
+     assumption the ::scroll-button()s were present — the exact assumption that
+     fails in every engine but one. `.carousel--no-scrollbar` opts out. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--carousel-scrollbar-thumb, var(--color-bg-surface-bold))
+    var(--carousel-scrollbar-track, transparent);
+}
+
+.carousel--no-scrollbar > .carousel__track,
+.carousel--no-scrollbar:not(:has(> .carousel__track)) {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Non-paged (default) — one grid column per slide. */
+.carousel:not(.carousel--auto-pages) > .carousel__track,
+.carousel:not(.carousel--auto-pages):not(:has(> .carousel__track)) {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: var(--carousel-slide-size, 100%);
+  gap: var(--carousel-gap, 1rem);
+  /* Equal-height slides whatever the media. */
+  align-items: stretch;
+
+  > * {
+    scroll-snap-align: center;
+    min-inline-size: 0;
+    /* A slide is a stretched grid item, so its media box has a definite
+       block-size for `object-fit: cover` to fill. */
     display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: var(--carousel-slide-size, 100%);
-    gap: var(--carousel-gap, 1rem);
+    grid-template-rows: auto;
+    align-content: start;
+  }
+}
 
-    > * {
-      scroll-snap-align: center;
-    }
+/* Paged — CSS multicol. `::column` is left ungated: an engine without it renders
+   a plain multicol strip, which still scrolls and snaps. */
+.carousel--auto-pages > .carousel__track,
+.carousel--auto-pages:not(:has(> .carousel__track)) {
+  columns: var(--carousel-columns, 1);
+  text-align: center;
 
-    > [part='autoplay'] {
-      scroll-snap-align: unset;
-    }
+  > * {
+    break-inside: avoid;
+    display: inline-grid;
   }
 
-  /* Paged — CSS columns */
-  &.carousel--auto-pages {
-    columns: var(--carousel-columns, 1);
-    text-align: center;
+  &::column {
+    scroll-snap-align: center;
+  }
+}
 
-    > * {
-      break-inside: avoid;
-      display: inline-grid;
-    }
+/* ── Slide media ─────────────────────────────────────────────────────────────
+   Equal-height slides regardless of image aspect ratio. This file previously had
+   no `img` rule at all and global.css no media reset, so a portrait photo in a
+   strip of landscapes set the row height for every slide and the rest floated in
+   it. The fix is the one `patterns/media.css` and `patterns/subgrid.css` already
+   use: give the media a box with a known ratio and let the image cover it. */
+.carousel__media {
+  aspect-ratio: var(--carousel-slide-aspect, 16 / 9);
+  overflow: hidden;
+  margin: 0;
+  border-radius: var(--br-carousel-group);
 
-    &::column {
-      scroll-snap-align: center;
-    }
+  > :is(img, picture, video, svg, canvas) {
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: var(--carousel-media-fit, cover);
+    object-position: var(--carousel-media-position, center);
+  }
+}
+
+/* Belt and braces for a slide that doesn't use the media wrapper. */
+.carousel__track img {
+  max-inline-size: 100%;
+}
+
+.carousel__caption {
+  margin-block-start: 0.5rem;
+  color: var(--color-text-surface-muted);
+}
+
+/* ── Scroll buttons ──────────────────────────────────────────────────────────
+   Two blocks declaring the same thing, and they cannot be merged into one
+   selector list: a selector list is NOT forgiving, so one unparseable complex
+   selector drops the WHOLE rule. `.carousel__button, …::scroll-button(*) { … }`
+   would take the fallback button's styling down with the pseudo-element Firefox
+   doesn't know. `:is()` is no rescue either — it cannot contain pseudo-elements.
+   `carousel-parity.test.ts` asserts the two blocks declare the same properties. */
+
+/* Fallback path — real <button>s built by WCCarousel when the probe reads 0. */
+.carousel__button {
+  position: absolute;
+  inset-block: 0;
+  block-size: fit-content;
+  margin-block: auto;
+  z-index: var(--z-tier-raised);
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  line-height: 1;
+  display: grid;
+  place-content: center;
+  place-items: center;
+  inline-size: var(--carousel-button-size, 2.75rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  font-size: var(--carousel-button-glyph, 1.5rem);
+  cursor: pointer;
+  color: var(--carousel-button-color, var(--color-text-surface));
+  background-color: var(--carousel-button-bg, var(--color-bg-surface-muted));
+  box-shadow: var(--ds-carousel-group);
+  transition:
+    background-color 0.2s ease,
+    opacity 0.2s ease;
+
+  &:hover {
+    /* A REAL hover step. The old rule set the same `--color-bg-surface-muted` the
+       base rule sets, so hover was a no-op — the token migration flattened two
+       distinct oklch literals onto one variable. `muted` → `bold` is one ordinal
+       step on the surface ladder and reads in both schemes. */
+    background-color: var(--carousel-button-bg-hover, var(--color-bg-surface-bold));
   }
 
-  /* Scroll buttons — anchor-positioned */
-  &.carousel--scroll-buttons {
+  &:focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.35;
+  }
+}
+
+.carousel__button--prev {
+  inset-inline-start: var(--carousel-button-inset, 0.5rem);
+}
+
+.carousel__button--next {
+  inset-inline-end: var(--carousel-button-inset, 0.5rem);
+}
+
+/* Native path. */
+@supports selector(::scroll-button(inline-end)) {
+  .carousel--scroll-buttons > .carousel__track,
+  .carousel--scroll-buttons:not(:has(> .carousel__track)) {
     &::scroll-button(*) {
-      position: fixed;
-      position-anchor: --carousel;
-      position-visibility: always;
-      cursor: pointer;
-      font-size: 1.5rem;
-      inline-size: 44px;
-      aspect-ratio: 1;
-      display: flex;
-      place-items: center;
+      position: absolute;
+      inset-block: 0;
+      block-size: fit-content;
+      margin-block: auto;
+      z-index: var(--z-tier-raised);
+      /* global.css's reset is `*, *::before, *::after` — it does NOT reach a
+         ::scroll-button(), so this pseudo is content-box carrying Chrome's UA
+         `padding: 1px 6px`. `inline-size: 44px` + `aspect-ratio: 1` therefore
+         sized the CONTENT box, giving a 56×46 border box: an ellipse with the
+         glyph off-centre. That, plus `line-height: normal` letting a 1.5rem
+         glyph ride its own half-leading, is the whole centring bug. `grid`
+         rather than `flex` because `place-items`' justify-items half is inert in
+         a flex container. */
+      box-sizing: border-box;
+      padding: 0;
+      border: 0;
+      line-height: 1;
+      display: grid;
       place-content: center;
-      border: none;
+      place-items: center;
+      inline-size: var(--carousel-button-size, 2.75rem);
+      aspect-ratio: 1;
       border-radius: 50%;
-      color: var(--carousel-button-color, currentColor);
-      background: var(--color-bg-surface-muted);
-      opacity: 0.9;
+      font-size: var(--carousel-button-glyph, 1.5rem);
+      cursor: pointer;
+      color: var(--carousel-button-color, var(--color-text-surface));
+      background-color: var(--carousel-button-bg, var(--color-bg-surface-muted));
+      box-shadow: var(--ds-carousel-group);
       transition:
-        opacity 0.2s ease,
-        background 0.2s ease;
+        background-color 0.2s ease,
+        opacity 0.2s ease;
     }
 
     &::scroll-button(*):hover {
-      opacity: 1;
-      background: var(--color-bg-surface-muted);
+      background-color: var(--carousel-button-bg-hover, var(--color-bg-surface-bold));
     }
 
     &::scroll-button(*):focus-visible {
-      outline: 2px solid currentColor;
+      outline: 2px solid var(--color-border-focus);
       outline-offset: 2px;
     }
 
     &::scroll-button(*):disabled {
       cursor: not-allowed;
-      opacity: 0.2;
+      opacity: 0.35;
     }
 
-    &::scroll-button(left) {
-      position-area: inline-start center;
-      content: '\2190' / 'Previous';
+    /* Logical, not physical. `(left)`/`(right)` put "previous" on the wrong side
+       in an RTL document and pointed the arrow the wrong way. Single guillemets
+       centre far better in a circle than `\2190`/`\2192`, whose side bearings are
+       asymmetric. The alt text takes a var() so it can be localised without
+       re-declaring `content`. */
+    &::scroll-button(inline-start) {
+      inset-inline-start: var(--carousel-button-inset, 0.5rem);
+      content: '\2039' / var(--carousel-label-prev, 'Previous');
     }
 
-    &::scroll-button(right) {
-      position-area: inline-end center;
-      content: '\2192' / 'Next';
+    &::scroll-button(inline-end) {
+      inset-inline-end: var(--carousel-button-inset, 0.5rem);
+      content: '\203A' / var(--carousel-label-next, 'Next');
+    }
+
+    &:dir(rtl)::scroll-button(inline-start) {
+      content: '\203A' / var(--carousel-label-prev, 'Previous');
+    }
+
+    &:dir(rtl)::scroll-button(inline-end) {
+      content: '\2039' / var(--carousel-label-next, 'Next');
     }
   }
+}
 
-  /* Scroll markers — anchor-positioned group */
-  &.carousel--scroll-markers {
+/* ── Scroll markers ──────────────────────────────────────────────────────────
+   Same two-block split, same reason. With the shell in place
+   `scroll-marker-group: after` generates the group box after the scroller in the
+   shell's flow — so unlike the previous version it needs no anchor and no
+   `position: fixed`, just an absolutely positioned flex row against the shell.
+   `.carousel--markers-below` flows them under the strip instead. */
+
+.carousel__markers {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: var(--carousel-marker-offset, 1rem);
+  z-index: var(--z-tier-raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding-block: 0.5rem;
+}
+
+.carousel--markers-below > .carousel__markers {
+  position: static;
+  inset: auto;
+}
+
+.carousel__marker {
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  inline-size: var(--carousel-marker-size, 0.75rem);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background-color: var(--carousel-marker-color, currentColor);
+  opacity: 0.4;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+
+  &[aria-selected='true'] {
+    opacity: 1;
+    background-color: var(
+      --carousel-marker-active-color,
+      var(--carousel-marker-color, currentColor)
+    );
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+  }
+}
+
+@supports selector(::scroll-marker) {
+  .carousel--scroll-markers > .carousel__track,
+  .carousel--scroll-markers:not(:has(> .carousel__track)) {
     scroll-marker-group: after;
 
     &::scroll-marker-group {
-      position: fixed;
-      position-anchor: --carousel;
-      position-area: block-end;
-      position-visibility: always;
-      margin-block-end: var(--carousel-marker-offset, 1rem);
+      position: absolute;
+      inset-inline: 0;
+      inset-block-end: var(--carousel-marker-offset, 1rem);
+      z-index: var(--z-tier-raised);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -114,156 +420,273 @@
       padding-block: 0.5rem;
     }
 
-    /* Non-paged: per-item markers */
-    &:not(.carousel--auto-pages) {
-      > *::scroll-marker {
-        content: '';
-        inline-size: 0.75rem;
-        block-size: 0.75rem;
-        border-radius: 50%;
-        background-color: var(--carousel-marker-color, currentColor);
-        opacity: 0.4;
-        cursor: pointer;
-        transition: opacity 0.2s ease;
-      }
-
-      > [data-carousel-clone]::scroll-marker,
-      > [part='autoplay']::scroll-marker {
-        content: none;
-      }
-
-      > *::scroll-marker:target-current {
-        opacity: 1;
-        background-color: var(
-          --carousel-marker-active-color,
-          var(--carousel-marker-color, currentColor)
-        );
-      }
-
-      > *::scroll-marker:focus-visible {
-        outline: 2px solid currentColor;
-        outline-offset: 2px;
-      }
+    /* Non-paged: one marker per slide. */
+    > *::scroll-marker {
+      content: '';
+      box-sizing: border-box;
+      padding: 0;
+      border: 0;
+      inline-size: var(--carousel-marker-size, 0.75rem);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background-color: var(--carousel-marker-color, currentColor);
+      opacity: 0.4;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
     }
 
-    /* Paged: per-column markers */
-    &.carousel--auto-pages {
-      &::column::scroll-marker {
-        content: '';
-        inline-size: 0.75rem;
-        block-size: 0.75rem;
-        border-radius: 50%;
-        background-color: var(--carousel-marker-color, currentColor);
-        opacity: 0.4;
-        cursor: pointer;
-        transition: opacity 0.2s ease;
-      }
-
-      &::column::scroll-marker:target-current {
-        opacity: 1;
-        background-color: var(
-          --carousel-marker-active-color,
-          var(--carousel-marker-color, currentColor)
-        );
-      }
-
-      &::column::scroll-marker:focus-visible {
-        outline: 2px solid currentColor;
-        outline-offset: 2px;
-      }
-    }
-  }
-
-  /* Inert — dim/disable off-screen content */
-  &.carousel--inert {
-    &:not(.carousel--auto-pages) > * {
-      container-type: scroll-state;
-
-      > * {
-        transition: opacity 0.5s ease;
-
-        @container not scroll-state(snapped) {
-          interactivity: inert;
-          opacity: var(--carousel-inert-opacity, 0.25);
-        }
-      }
+    /* A clone is a duplicate of a slide the visitor can already reach, so it must
+       not add a dot. The autoplay button now lives on the shell, not in the
+       track, so it no longer needs suppressing here. */
+    > [data-carousel-clone]::scroll-marker {
+      content: none;
     }
 
-    &.carousel--auto-pages > * {
-      animation: carousel-offscreen-inert linear both;
-      animation-timeline: view(x);
-    }
-  }
-
-  /* Autoplay — play/pause toggle (enhanced by the Lit component) */
-  & > [part='autoplay'] {
-    position: fixed;
-    position-anchor: --carousel;
-    position-area: block-end inline-end;
-    position-visibility: always;
-    margin-block-end: var(--carousel-marker-offset, 1rem);
-    margin-inline-end: 0.5rem;
-    z-index: var(--z-tier-raised);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    inline-size: 2rem;
-    block-size: 2rem;
-    border: none;
-    border-radius: 50%;
-    background: var(--color-bg-surface-muted);
-    color: var(--carousel-button-color, currentColor);
-    opacity: 0.7;
-    cursor: pointer;
-    font-size: 0.75rem;
-    transition: opacity 0.2s ease;
-
-    &:hover {
+    > *::scroll-marker:target-current {
       opacity: 1;
+      background-color: var(
+        --carousel-marker-active-color,
+        var(--carousel-marker-color, currentColor)
+      );
     }
 
-    &:focus-visible {
-      outline: 2px solid currentColor;
+    > *::scroll-marker:focus-visible {
+      outline: 2px solid var(--color-border-focus);
       outline-offset: 2px;
     }
   }
 
-  /* Force stop — always stop at each snap point */
-  &.carousel--force-stop {
-    &:not(.carousel--auto-pages) > * {
-      scroll-snap-stop: always;
+  /* Paged: one marker per column. Separate block because `::column::scroll-marker`
+     is a different origin and would otherwise double up with the `> *` rule. */
+  .carousel--scroll-markers.carousel--auto-pages > .carousel__track,
+  .carousel--scroll-markers.carousel--auto-pages:not(:has(> .carousel__track)) {
+    > *::scroll-marker {
+      content: none;
     }
 
-    &.carousel--auto-pages::column {
-      scroll-snap-stop: always;
+    &::column::scroll-marker {
+      content: '';
+      box-sizing: border-box;
+      inline-size: var(--carousel-marker-size, 0.75rem);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background-color: var(--carousel-marker-color, currentColor);
+      opacity: 0.4;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+
+    &::column::scroll-marker:target-current {
+      opacity: 1;
+      background-color: var(
+        --carousel-marker-active-color,
+        var(--carousel-marker-color, currentColor)
+      );
+    }
+
+    &::column::scroll-marker:focus-visible {
+      outline: 2px solid var(--color-border-focus);
+      outline-offset: 2px;
     }
   }
+
+  /* `--markers-below` has to reach the native group too, not just the fallback —
+     otherwise the modifier silently does nothing in the one browser that has the
+     pseudo-elements. */
+  .carousel--markers-below > .carousel__track::scroll-marker-group,
+  .carousel--markers-below:not(:has(> .carousel__track))::scroll-marker-group {
+    position: static;
+    inset: auto;
+  }
+
+  /* The native group replaces the JS one; if both somehow exist, the native one
+     wins and the fallback is hidden rather than stacked on top of it. */
+  .carousel--scroll-markers > .carousel__markers {
+    display: none;
+  }
+}
+
+.carousel--markers-below {
+  --carousel-marker-offset: 0px;
+}
+
+/* ── Scroll-for-more hint ────────────────────────────────────────────────────*/
+
+/* Above the strip and right-aligned, not overlaid on it: "Scroll for more" printed
+   across the first slide's image is frequently unreadable, and the shell exists so
+   the hint has somewhere to go that isn't the scrollport.
+
+   The row assignment is deliberate rather than incidental. Grid places explicitly
+   positioned items before auto-placed ones, so claiming row 1 here pushes the
+   track — which claims no row — to row 2. Omit the hint and nothing claims row 1,
+   the track auto-places there, and no empty track is left behind to collect
+   `row-gap`. That is why the track is NOT given `grid-row: 2` to match. */
+.carousel__hint {
+  grid-row: 1;
+  grid-column: 1;
+  justify-self: end;
+  align-self: start;
+  margin: var(--carousel-hint-inset, 0.5rem);
+  z-index: var(--z-tier-raised);
+  pointer-events: none;
+  color: var(--color-text-surface-x-muted);
+  transition: opacity 0.3s ease;
+}
+
+@keyframes carousel-hint-dim {
+  to {
+    opacity: var(--carousel-hint-dimmed, 0.2);
+  }
+}
+
+@keyframes carousel-scrollbar-dim {
+  to {
+    scrollbar-color: var(--carousel-scrollbar-thumb-dim, var(--color-bg-surface-muted)) transparent;
+  }
+}
+
+/* Pure CSS, no JS: both read the TRACK's scroll progress through the timeline the
+   shell hoisted with `timeline-scope`. */
+@supports (animation-timeline: scroll()) {
+  .carousel__hint {
+    animation: carousel-hint-dim linear both;
+    animation-timeline: --carousel-scroll;
+    animation-range: 0 var(--carousel-hint-range, 12%);
+  }
+
+  .carousel__track {
+    animation: carousel-scrollbar-dim linear both;
+    animation-timeline: --carousel-scroll;
+    animation-range: 0 var(--carousel-hint-range, 12%);
+  }
+}
+
+/* Engines with no scroll timelines get the same effect from the attribute
+   WCCarousel sets on first scroll — mirroring how animation.css cancels under
+   `@supports not (animation-timeline: view())`. */
+@supports not (animation-timeline: scroll()) {
+  .carousel[data-scrolled] .carousel__hint {
+    opacity: var(--carousel-hint-dimmed, 0.2);
+  }
+
+  .carousel[data-scrolled] > .carousel__track {
+    scrollbar-color: var(--carousel-scrollbar-thumb-dim, var(--color-bg-surface-muted)) transparent;
+  }
+}
+
+/* ── Autoplay toggle ─────────────────────────────────────────────────────────
+   A child of the SHELL, not the track. It used to be appended into the grid track
+   where it occupied a slide-width column, papered over with `scroll-snap-align:
+   unset` and a suppressed marker. `[part='autoplay']` is kept as a deprecated
+   alias for one release: `part` only crosses a shadow boundary and this element is
+   light DOM, so that was never a part — just an arbitrary attribute selector. */
+.carousel__autoplay,
+.carousel > [part='autoplay'] {
+  position: absolute;
+  inset-block-end: var(--carousel-marker-offset, 1rem);
+  inset-inline-end: 0.5rem;
+  z-index: var(--z-tier-raised);
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  line-height: 1;
+  display: grid;
+  place-content: center;
+  inline-size: 2rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background-color: var(--carousel-button-bg, var(--color-bg-surface-muted));
+  color: var(--carousel-button-color, var(--color-text-surface));
+  opacity: 0.7;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Inert off-screen slides ─────────────────────────────────────────────────
+   `interactivity: inert` is gated separately from the dimming: an engine without
+   it should dim only, rather than dim AND leave the content silently focusable in
+   a way the author didn't ask for. */
+
+.carousel--inert:not(.carousel--auto-pages) > .carousel__track > *,
+.carousel--inert:not(.carousel--auto-pages):not(:has(> .carousel__track)) > * {
+  container-type: scroll-state;
+
+  > * {
+    transition: opacity 0.5s ease;
+
+    @container not scroll-state(snapped) {
+      opacity: var(--carousel-inert-opacity, 0.25);
+    }
+  }
+}
+
+@supports (interactivity: inert) {
+  .carousel--inert:not(.carousel--auto-pages) > .carousel__track > * > *,
+  .carousel--inert:not(.carousel--auto-pages):not(:has(> .carousel__track)) > * > * {
+    @container not scroll-state(snapped) {
+      interactivity: inert;
+    }
+  }
+}
+
+.carousel--inert.carousel--auto-pages > .carousel__track > *,
+.carousel--inert.carousel--auto-pages:not(:has(> .carousel__track)) > * {
+  animation: carousel-offscreen-inert linear both;
+  animation-timeline: view(x);
 }
 
 @keyframes carousel-offscreen-inert {
   entry 0%,
   exit 100% {
-    interactivity: inert;
     opacity: var(--carousel-inert-opacity, 0.25);
   }
 
   entry 100%,
   exit 0% {
-    interactivity: auto;
     opacity: 1;
   }
 }
 
+/* ── Force stop ──────────────────────────────────────────────────────────────*/
+
+.carousel--force-stop:not(.carousel--auto-pages) > .carousel__track > *,
+.carousel--force-stop:not(.carousel--auto-pages):not(:has(> .carousel__track)) > * {
+  scroll-snap-stop: always;
+}
+
+.carousel--force-stop.carousel--auto-pages > .carousel__track::column,
+.carousel--force-stop.carousel--auto-pages:not(:has(> .carousel__track))::column {
+  scroll-snap-stop: always;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .carousel {
+  .carousel__track,
+  .carousel:not(:has(> .carousel__track)) {
     scroll-behavior: auto;
+  }
 
-    &.carousel--inert:not(.carousel--auto-pages) > * > * {
-      transition: none;
-    }
+  .carousel__hint,
+  .carousel__button,
+  .carousel__marker,
+  .carousel__autoplay {
+    transition: none;
+  }
 
-    &.carousel--inert.carousel--auto-pages > * {
-      animation: none;
-    }
+  .carousel--inert > .carousel__track > * > * {
+    transition: none;
+  }
+
+  .carousel--inert.carousel--auto-pages > .carousel__track > * {
+    animation: none;
   }
 }

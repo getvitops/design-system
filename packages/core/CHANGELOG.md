@@ -1,5 +1,63 @@
 # @getvitops/core
 
+## 6.0.0
+
+### Major Changes
+
+- Carousel rework: a scroll strip that is operable and discoverable with no JS in every engine, and
+  real controls where the scroll-marker pseudo-elements are missing.
+
+  `::scroll-button()`, `::scroll-marker` and `::scroll-marker-group` are still Chromium-only, and
+  there is no usable polyfill (the one prototype targets the superseded syntax and only re-parses
+  inline `<style>` elements). So the carousel no longer assumes them: `<wc-carousel>` builds real
+  prev/next `<button>`s and a real dot nav where they are absent, styled from the same declarations
+  as the native ones. Which branch is live is decided **by the stylesheet** — one `@supports` sets
+  `--carousel-native-nav: 1` and the element reads it back — so the condition is written once and
+  the two cannot disagree.
+
+  **Breaking — `.carousel` is now a shell and `.carousel__track` is the scroller** (all formats). The
+  hint and the controls need a home outside the scrollport, and absolute positioning against the
+  shell replaces `position: fixed` + `anchor-name`/`position-area`, which pinned controls to a
+  viewport corner in any engine without anchor positioning. The 5.x single-element form is still
+  styled via `:not(:has(> .carousel__track))` and is promoted by the element at runtime, but it is
+  deprecated: wrap your slides in `<ul class="carousel__track">`.
+
+  **Breaking — looping is opt-in.** `<wc-carousel loop>` clones the slides; the default no longer
+  does. Cloning triples the markup, duplicates every image element and makes the scrollbar report 3×
+  the real content. `autoplay` implies `loop`. Migration: add `loop`.
+
+  **Breaking — `[part='autoplay']` is now `.carousel__autoplay`** (aliased for one release; `part`
+  only crosses a shadow boundary and this element is light DOM, so it was never a part). The button
+  is also a child of the shell rather than the track, where it used to occupy a slide-width column.
+
+  **Breaking — the host role is `group`, not `region`.** `region` is a landmark, so every carousel
+  grew an entry in the landmark list. Pass `landmark` to `<Carousel />` where it really is one.
+
+  **Changed (visual)** — the scrollbar is visible by default (`scrollbar-width: thin`, was `none`)
+  and a "Scroll for more" hint renders above the strip; both dim once the visitor scrolls, via a
+  scroll-progress timeline where available and a `data-scrolled` attribute otherwise. Opt out with
+  `.carousel--no-scrollbar` and `hint={false}`. `@getvitops/core`'s `global.css` also gains a narrow
+  media reset (`max-inline-size: 100%` on replaced elements, `block-size: auto` on `img`/`video`) —
+  deliberately without `display: block`, which would change inline images in prose.
+
+  **Added** — `@getvitops/astro/components/Carousel.astro`, a tier-3 wrapper emitting semantic
+  `<ul>`/`<li>`/`<figure>` markup with the right per-slide image priorities: the first slide eager
+  and high (the LCP candidate), the rest `lazy`/`low`/`async`. `loading="lazy"` is honoured for
+  images clipped by a horizontal scroll container, so off-screen slides defer with no JavaScript at
+  all. Also new: `carousel--markers-below` and `carousel--no-scrollbar`, and
+  `--carousel-slide-aspect`, which keeps slide heights equal whatever each image's aspect ratio is.
+
+  **Fixed** — `::scroll-button()` glyphs sat off-centre in their circles (`global.css`'s `*` reset
+  does not reach a pseudo-element, so the button was `content-box` with the UA's `padding: 1px 6px`
+  and `inline-size` + `aspect-ratio` sized an ellipse); the hover state was a no-op (it set the same
+  token as the base rule); slide heights varied with each image's aspect ratio; navigation used
+  physical `left`/`right` and so put "previous" on the wrong side in RTL; cloned slides duplicated
+  their `id`s; and `scrollBy(clientWidth)` overshot whenever `--carousel-slide-size` was not `100%`.
+
+### Patch Changes
+
+- @getvitops/utils@6.0.0
+
 ## 5.0.0
 
 ### Major Changes

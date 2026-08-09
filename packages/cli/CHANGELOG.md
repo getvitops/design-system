@@ -1,5 +1,18 @@
 # @getvitops/cli
 
+## 6.0.0
+
+**No consumer-facing change in this package.** The major is the toolchain's shared version, bumped
+in lockstep for the carousel rework in `@getvitops/core` / `generator` / `astro`. Every command
+behaves as it did in 5.0.0; `vitops docs components` and `vitops docs css` will report the new
+carousel vocabulary, because they render live from the generator.
+
+### Patch Changes
+
+- Updated dependencies
+  - @getvitops/generator@6.0.0
+  - @getvitops/utils@6.0.0
+
 ## 5.0.0
 
 ### Major Changes

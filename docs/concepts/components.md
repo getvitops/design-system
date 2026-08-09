@@ -46,7 +46,7 @@ emit its tag.
 | `banner` | css | `.banner`; wrap in `<wc-dismissable>` for a close button that works. |
 | `btn` | css | `<button>` gets it with no class; `.btn` carries it to other tags. `fill: false`, so states drive `color`. |
 | `card` | css · wc · astro | `<Cards>` — it emits `<wc-cards>` itself, so do NOT add your own wrapper. `<Subgrid>` is the same grid without the click enhancement. |
-| `carousel` | css · wc · bricks | `<wc-carousel>` around your slides; each child is a slide. Works unenhanced as a scroll-snap strip. |
+| `carousel` | css · wc · astro · bricks | `<Carousel slides={…} label="…" />` — it emits `<wc-carousel>` itself, so do NOT add your own wrapper. `.carousel` is the shell and `.carousel__track` the scroller; add `loop` for the cloned infinite strip (`autoplay` implies it). |
 | `centered` | css · bricks | `.centered` as a track grid. Children land in `measure` — give it a track child to lay out inside. |
 | `cluster` | css | `.cluster` plus an alignment variant. |
 | `code` | css | Element selectors on `pre`/`code`; no class needed. |
@@ -116,7 +116,7 @@ is tooling and opt-in per consumer.
 | Tag | Pattern | Ships in | What JS adds over the fallback |
 | --- | --- | --- | --- |
 | `<wc-cards>` | `card` | `elements.js` | whole-card click that keeps the card text selectable |
-| `<wc-carousel>` | `carousel` | `elements.js` | cloned slides for a seamless loop, autoplay, snap nav |
+| `<wc-carousel>` | `carousel` | `elements.js` | opt-in cloned loop, autoplay, and real prev/next + dot controls where `::scroll-button()`/`::scroll-marker` are missing |
 | `<wc-color-scheme-toggle>` | `color-scheme-toggle` | `elements.js` | segmented light/dark/system control; persists the choice (consent-gated) |
 | `<wc-color-wheel>` | `color-wheel` | `(none — editor-v2 track, not yet bundled)` | hue/chroma wheel input |
 | `<wc-consent>` | `consent` | `@getvitops/core/consent` | the permission gate itself — activates `type="text/plain"` tags on grant |
@@ -140,6 +140,7 @@ is tooling and opt-in per consumer.
 | Component | Pattern | Emits |
 | --- | --- | --- |
 | `@getvitops/astro/components/Cards.astro` | `card` | the `<wc-cards>` tag, fallback inside |
+| `@getvitops/astro/components/Carousel.astro` | `carousel` | the `<wc-carousel>` tag, fallback inside |
 | `@getvitops/astro/CookieConsent.astro` | `consent` | the `<wc-consent>` tag, fallback inside |
 | `@getvitops/astro/components/Details.astro` | `details` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Drawer.astro` | `drawer` | tier-1 markup — no web component |
@@ -184,7 +185,7 @@ rules that generate them all.
 | `banner` | `patterns/banner.css` | `banner`, `banner__content`, `banner__action` | declared |
 | `btn` | — | `btn` | declared |
 | `card` | `patterns/card.css` | `card` | declared |
-| `carousel` | `patterns/carousel.css` | `carousel` | declared |
+| `carousel` | `patterns/carousel.css` | `carousel`, `carousel__track`, `carousel__slide`, `carousel__media`, `carousel__hint` | declared |
 | `centered` | `layout.css` | `centered`, `spotlight`, `breakout`, `fullbleed` | — |
 | `cluster` | `patterns/cluster.css` | `cluster`, `cluster-between`, `cluster-start` | — |
 | `code` | `patterns/code.css` | — | — |
