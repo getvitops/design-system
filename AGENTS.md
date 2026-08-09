@@ -6,6 +6,10 @@ It is composed of:
 - Variable-based lightweight CSS Framework for high level design patterns and common utilities (e.g. track-based centering of content, vertical rhythm, UI patterns)
 - Lit-based Web Components for patterns that benefit from progressive enhancement (they are styled via the CSS Framework, and are fully operable, although degraded, in non-JS environments)
 
+**This file is the _why_.** For the structural map — package matrix, key files, the `vp` task graph,
+the asset snapshot chain, what's generated vs hand-written — see [ARCHITECTURE.md](ARCHITECTURE.md).
+It's tables and diagrams, and it links back here for the reasoning behind each one.
+
 Prefer using modern CSS/HTML features (e.g. CSS Anchor Positioning API, Dialog, Invoker Commands API, Scroll Timelines, etc.) over JavaScript.
 
 ## Component architecture
@@ -1028,4 +1032,4 @@ Formatting and mechanical lint fixes are applied automatically on save and via a
 
 ## Note on README.md
 
-The `README.md` predates the current layout — it refers to `colors.json`, `src/color.css`, and `build.mjs`. Use this file and `AGENTS.md` as the authoritative description; update README if you touch user-facing docs.
+`README.md` is a one-line stub (`# Vitops Design System Generator`) — it says nothing, rather than saying something stale as it used to. The authoritative descriptions are this file for rationale and [ARCHITECTURE.md](ARCHITECTURE.md) for structure. Expanding the README is still open; if you touch user-facing docs, write it as a short landing page pointing at those two plus <https://docs.vitops.ca>, not as a third copy of either.
