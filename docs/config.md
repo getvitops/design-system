@@ -147,6 +147,12 @@ Physical locations (schema.org LocalBusiness): address, geo, opening hours, serv
       - `dayOfWeek` (array of Monday | Tuesday | Wednesday | Thursday | Friday | Saturday | Sunday, required)
       - `opens` (string, required)
       - `closes` (string, required)
+  - `hoursSpecial` (array) — Holiday/temporary hours, as dated deviations from the recurring `hours` — distinct from it because these carry a date range rather than a weekday.
+    - `[items]` (object)
+      - `validFrom` (string, required)
+      - `validThrough` (string)
+      - `opens` (string)
+      - `closes` (string)
   - `type` (LocalBusiness | Store | Restaurant | CafeOrCoffeeShop | ProfessionalService | MedicalBusiness | HealthAndBeautyBusiness | HomeAndConstructionBusiness | AutomotiveBusiness | FinancialService | LegalService | RealEstateAgent | Organization)
   - `description` (one of) — A string, or a per-locale map of strings (`{ en: "…", fr: "…" }`).
     - *one of*
@@ -156,6 +162,16 @@ Physical locations (schema.org LocalBusiness): address, geo, opening hours, serv
   - `paymentAccepted` (array of string)
   - `currenciesAccepted` (string)
   - `knowsLanguage` (array of string)
+  - `photos` (array) — Location photos (logo, storefront, interior, …) → JSON-LD `image`. Every listing platform (GBP, Bing Places, Apple Business Connect) wants these; none can derive them.
+    - `[items]` (one of)
+      - *one of*
+      - *one of*
+        - `src` (string, required)
+        - `alt` (string, required)
+        - `width` (number)
+        - `height` (number)
+  - `sameAs` (array of string) — This location's own profile URLs (its Google Business Profile, Bing Places listing, Apple Business Connect location, Facebook page, …) → JSON-LD `sameAs`. Distinct from `organization.sameAs`, which is the company overall — a multi-location org's locations do not share one GBP listing.
+  - `listings` (map) — External listing IDs for this location, keyed by platform — the Google Business Profile location id, the Bing Places business id, the Apple Business Connect location id. Not consumed by the generator today; recorded here so a future sync has a stable id to match against instead of risking a duplicate listing.
 
 ### `services` *(optional)*
 

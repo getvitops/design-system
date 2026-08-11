@@ -55,7 +55,8 @@ already is, not as new published API; `keynav.ts` and `tree-nav.ts` stay interna
 directly by path (as `RovingTabindex.ts` and `gallery.ts` already do) since neither is consumed
 outside the components that already import them directly.
 
-**No consumer-facing change in `@getvitops/generator` beyond documentation output.**
-`tiers.ts`'s `tree` entry gains `tree__summary` to its class list and describes the new keyboard
-navigation and ARIA semantics — this changes what `vitops docs components` / `concepts/components.md`
-render for the `tree` pattern, nothing else.
+**This changeset makes no consumer-facing change in `@getvitops/generator` beyond documentation
+output.** `tiers.ts`'s `tree` entry gains `tree__summary` to its class list and describes the new
+keyboard navigation and ARIA semantics — this changes what `vitops docs components` /
+`concepts/components.md` render for the `tree` pattern, nothing else. `generator`'s real change in
+this release is unrelated to `wc-tree` — see `localbusiness-schema.md`.

@@ -330,7 +330,7 @@ baked in; coloured patterns add role variants via rule **`<pattern>-<role>`**. (
 pattern CSS is assembled — token cascade, `--p-<pattern>`-style override hooks, state
 shortcuts — is explained in [/concepts/patterns.md](../concepts/patterns.md).)
 
-- Patterns: `btn`, `cta`, `link`, `badge`, `card`, `tag`, `status`, `tooltip`, `dialog`, `popover`, `dropdown`, `notification`, `lightbox`, `comment`, `tabs`, `drawer`, `carousel`, `nav`, `banner`, `details`, `table`, `list`, `tree`, `pull-quote`, `combobox`, `forms`.
+- Patterns: `btn`, `cta`, `link`, `badge`, `card`, `tag`, `status`, `tooltip`, `dialog`, `popover`, `dropdown`, `notification`, `lightbox`, `comment`, `tabs`, `drawer`, `carousel`, `gallery`, `nav`, `banner`, `details`, `table`, `list`, `tree`, `pull-quote`, `combobox`, `forms`.
 - Roles (for coloured patterns — `badge`, `tag`, `status`, `cta`, `btn`, …):
   `success`, `danger`, `warning`, `info`, `ui-primary`, `brand-primary`, `neutral` — e.g. `badge-success`, `cta-danger`. A pattern that also styles an
   element accepts the bare role class too (`<button class="danger">`). The default

@@ -175,6 +175,19 @@ const OpeningHoursSchema = z.object({
   closes: z.string().check(z.regex(/^\d{2}:\d{2}$/)),
 });
 
+/**
+ * A dated deviation from the recurring `hours` — holiday hours, a one-off
+ * closure, a temporary schedule. Same schema.org shape
+ * (`OpeningHoursSpecification`), distinguished by carrying `validFrom`. A
+ * full closure omits `opens`/`closes` rather than encoding an open interval.
+ */
+const SpecialHoursSchema = z.object({
+  validFrom: IsoDate,
+  validThrough: z.optional(IsoDate),
+  opens: z.optional(z.string().check(z.regex(/^\d{2}:\d{2}$/))),
+  closes: z.optional(z.string().check(z.regex(/^\d{2}:\d{2}$/))),
+});
+
 // Common schema.org LocalBusiness subtypes (extend as needed).
 const LocalBusinessType = z.enum([
   'LocalBusiness',
@@ -192,6 +205,10 @@ const LocalBusinessType = z.enum([
   'Organization',
 ]);
 
+// Platforms a location's listing can be pinned against. Mirrors the
+// record-keyed-by-platform shape of `site.searchConsole`/`site.ads`.
+const ListingPlatform = z.enum(['google', 'bing', 'apple']);
+
 const LocationSchema = z.object({
   slug: z.optional(LocalizableSchema),
   name: LocalizableSchema,
@@ -200,6 +217,10 @@ const LocationSchema = z.object({
   address: z.optional(PostalAddressSchema),
   geo: z.optional(GeoSchema),
   hours: z.optional(z.array(OpeningHoursSchema)),
+  hoursSpecial: desc(
+    z.optional(z.array(SpecialHoursSchema)),
+    'Holiday/temporary hours, as dated deviations from the recurring `hours` — distinct from it because these carry a date range rather than a weekday.',
+  ),
   type: z.optional(LocalBusinessType),
   description: z.optional(LocalizableSchema),
   areaServed: z.optional(z.array(z.string())),
@@ -207,6 +228,18 @@ const LocationSchema = z.object({
   paymentAccepted: z.optional(z.array(z.string())),
   currenciesAccepted: z.optional(Iso4217),
   knowsLanguage: z.optional(z.array(z.string())),
+  photos: desc(
+    z.optional(z.array(ImageRefSchema)),
+    'Location photos (logo, storefront, interior, …) → JSON-LD `image`. Every listing platform (GBP, Bing Places, Apple Business Connect) wants these; none can derive them.',
+  ),
+  sameAs: desc(
+    z.optional(z.array(z.url())),
+    "This location's own profile URLs (its Google Business Profile, Bing Places listing, Apple Business Connect location, Facebook page, …) → JSON-LD `sameAs`. Distinct from `organization.sameAs`, which is the company overall — a multi-location org's locations do not share one GBP listing.",
+  ),
+  listings: desc(
+    z.optional(z.partialRecord(ListingPlatform, z.string())),
+    'External listing IDs for this location, keyed by platform — the Google Business Profile location id, the Bing Places business id, the Apple Business Connect location id. Not consumed by the generator today; recorded here so a future sync has a stable id to match against instead of risking a duplicate listing.',
+  ),
 });
 
 // ── Organization (schema.org Organization) ──────────────────────────────────────

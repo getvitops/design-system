@@ -221,6 +221,46 @@ Whoever picks one of these up should give it the full `<wc-counter>`-style treat
 (why it clears the tier-2 bar, shape, load-bearing details, what else needs touching) rather
 than just the one-liners here.
 
+## GBP category → `LocalBusinessType` mapping — todo
+
+Follows from populating JBL Signs' `organization.locations.ottawa.type` by hand: Google's GBP
+category for that listing (`"Sign shop"`) has no counterpart in our `LocalBusinessType` enum
+(`packages/generator/src/config.ts`), so `HomeAndConstructionBusiness` was a one-off human guess
+made while wiring up `localBusinessGraph()`. That doesn't scale past a handful of clients.
+
+**Why a lookup table, not a bigger enum.** Google's category taxonomy
+(`mybusinessbusinessinformation.googleapis.com` `categories.list`) has ~4,000 entries; schema.org's
+`LocalBusiness` hierarchy has nowhere near that many, and **Google publishes no mapping between
+the two** — this stays a hand-curated decision regardless of data source. The right shape is a
+small table (GBP `categoryId` → `LocalBusinessType`), built incrementally as real client categories
+are encountered — not an attempt to pre-map all ~4,000 up front.
+
+**Data source, in order of preference:**
+
+1. **`categories.list`** (Business Information API) — canonical, current, `categoryId` +
+   `displayName`, region/language-filterable. Gated behind the pending agency-wide GBP API access
+   request (verified GBP 60+ days old, applicant email domain matching the website domain, 14-day
+   review) — the same approval that gates any future listings-sync work.
+2. **A static export** (the ~4,000-row CSV/gist third parties maintain, since Google itself
+   publishes no downloadable list) as a stopgap while API access is pending — enough to seed the
+   table now, though it can drift from Google's live list.
+
+**Shape**, following the `AD_PLATFORMS` capability-table pattern
+(`packages/utils/src/ads/providers.ts`): a `Record<string, LocalBusinessType>` keyed by GBP
+`categoryId` (stable across renames), with `displayName` carried alongside for readability, not
+used for matching. Lives beside `LocalBusinessType` in `packages/generator/src/config.ts`, or its
+own module if it grows past a few dozen entries.
+
+**Build it incrementally**: add an entry only when a real client's GBP category doesn't already map
+cleanly, the same way `HomeAndConstructionBusiness` got picked for JBL Signs — resolve it once,
+record it, move on. Don't cover categories with no client behind them yet.
+
+**Forward-looking**: this table is also what a future listings-push command (writing our
+`organization.locations.*` back out to GBP/Bing/Apple, not yet designed) needs in the other
+direction — going from our `type` back to a `categoryId` when _creating_ a listing that doesn't
+exist yet. Worth keying the table by `categoryId` now rather than `displayName` so that direction
+doesn't require re-deriving it later.
+
 ## `SiteConfig` → `Config`, with three sections — DONE
 
 Landed. `packages/generator/src/config.ts` (was `site.ts`) now exports `ConfigSchema` /

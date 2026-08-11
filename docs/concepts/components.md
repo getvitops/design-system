@@ -64,12 +64,13 @@ emit its tag.
 | `dropdown` | css | `.dropdown` — Popover API based. |
 | `entries` | css · wc · bricks | `<wc-entries>` around `<h3>` + `<dl>` pairs. The tier-2 exemplar: semantic pairs with no JS, a table with it. |
 | `forms` | css | Wrap text controls in `.form-group` or `.input-group` — a bare `<input>` gets browser defaults. |
+| `gallery` | css · wc · astro | `<Gallery images={…} label="…" />` — it emits `<wc-gallery>` itself, so do NOT add your own wrapper. Each thumbnail is a `command="show-modal"` invoker for its own `<dialog class="lightbox-dialog">` (see `lightbox`), so it is a working modal lightbox with no JS. |
 | `grouped` | css | `.group-inline` / `.group-block` to join adjacent controls. |
 | `horizontal-scroll` | css | `.horizontal-scroll` for a snap strip. |
 | `icon` | css · astro · bricks | `<Icon name="menu" />`. Names are semantic and resolve per configured set; a name containing `:` passes through. |
 | `icon-picker` | css · wc | Not shipped. See `color-wheel`. |
 | `image-compare` | css · wc · bricks | `<wc-image-compare>` with two images. Both are visible without JS. |
-| `lightbox` | css | `.lightbox` thumbnails plus a `<dialog>`. |
+| `lightbox` | css | The `<dialog class="lightbox-dialog">` half of a lightbox. Use `gallery` for the thumbnail grid that drives it — `<Gallery />` emits both. |
 | `link` | css | `<a>` gets it at zero specificity; `.link` for other tags. `.stretched-link` makes one link cover its positioned ancestor (whole-card click, no JS — but the card text stops being selectable); `.raised` lifts content back above that overlay. |
 | `list` | css | `.facet-list` / `.filtered-list`. |
 | `marquee` | css · wc | `<wc-marquee>` around one `.marquee__content`. Scrolls via CSS alone; JS only removes the seam. |
@@ -123,6 +124,7 @@ is tooling and opt-in per consumer.
 | `<wc-copy>` | `copy` | `elements.js` | clipboard write plus success feedback |
 | `<wc-dismissable>` | `dismissable` | `elements.js` | fade-out + removal, optional auto-dismiss |
 | `<wc-entries>` | `entries` | `elements.js` | parses heading + `<dl>` pairs into a table above a breakpoint |
+| `<wc-gallery>` | `gallery` | `elements.js` | prev/next, arrow keys, swipe, an image counter, neighbour preload and the view-transition morph |
 | `<wc-icon-picker>` | `icon-picker` | `(none — editor-v2 track, not yet bundled)` | browses the semantic icon map for the configured set |
 | `<wc-image-compare>` | `image-compare` | `elements.js` | drag handle revealing the before/after image |
 | `<wc-marquee>` | `marquee` | `elements.js` | fills the track with enough copies to scroll seamlessly |
@@ -130,7 +132,7 @@ is tooling and opt-in per consumer.
 | `<wc-oklch-color-picker>` | `oklch-color-picker` | `(none — editor-v2 track, not yet bundled)` | OKLCH L/C/H picker |
 | `<wc-split-panel>` | `split-panel` | `elements.js` | draggable divider between two panels |
 | `<wc-theme-editor>` | `theme-editor` | `@getvitops/core/editor` | live `:root` token overrides, export as CSS or a config patch |
-| `<wc-tree>` | `tree` | `elements.js` | filter, expand/collapse all, hash deep-linking |
+| `<wc-tree>` | `tree` | `elements.js` | WAI-ARIA tree semantics, roving-tabindex keyboard navigation, filter, expand/collapse all, hash deep-linking |
 | `<wc-typography-config>` | `typography-config` | `(none — editor-v2 track, not yet bundled)` | type role editor |
 
 `<wc-color-wheel>`, `<wc-icon-picker>`, `<wc-oklch-color-picker>`, `<wc-typography-config>` are **registered but in no bundle** (the editor-v2 track). The tags are inert in a consumer project — they are listed so that "the tag does nothing" is documented rather than discovered.
@@ -144,6 +146,7 @@ is tooling and opt-in per consumer.
 | `@getvitops/astro/CookieConsent.astro` | `consent` | the `<wc-consent>` tag, fallback inside |
 | `@getvitops/astro/components/Details.astro` | `details` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Drawer.astro` | `drawer` | tier-1 markup — no web component |
+| `@getvitops/astro/components/Gallery.astro` | `gallery` | the `<wc-gallery>` tag, fallback inside |
 | `@getvitops/astro/components/Icon.astro` | `icon` | tier-1 markup — no web component |
 | `@getvitops/astro/components/NavShell.astro` | `navshell` | tier-1 markup — no web component |
 | `@getvitops/astro/components/NavShellToggle.astro` | `navshell` | tier-1 markup — no web component |
@@ -202,12 +205,13 @@ rules that generate them all.
 | `dropdown` | `patterns/dropdown.css` | `dropdown--show-on-hover`, `dropdown-menu` | declared |
 | `entries` | `patterns/table.css` | `entries__table`, `entries__scroll`, `entries__nav` | — |
 | `forms` | `patterns/forms.css` | `form-group`, `input-group`, `fieldset`, `custom-check` | declared |
+| `gallery` | `patterns/gallery.css` | `gallery`, `gallery__item`, `gallery__trigger`, `gallery__thumb` | declared |
 | `grouped` | `patterns/grouped.css` | `group`, `group-inline`, `bordered` | — |
 | `horizontal-scroll` | `patterns/horizontal-scroll.css` | `horizontal-scroll` | — |
 | `icon` | `patterns/icon.css` | `icon`, `icon-button`, `icon-mask` | — |
 | `icon-picker` | `patterns/icon.css` | — | — |
 | `image-compare` | `patterns/splitter.css` | `image-compare`, `image-compare__before`, `image-compare__handle` | — |
-| `lightbox` | `patterns/lightbox.css` | `lightbox`, `lightbox-dialog__content` | declared |
+| `lightbox` | `patterns/lightbox.css` | `lightbox-dialog`, `lightbox-dialog__content`, `lightbox-dialog__image`, `lightbox-dialog__nav-button` | declared |
 | `link` | `patterns/anchor-link.css` | `link`, `skip-link`, `stretched-link`, `raised` | declared |
 | `list` | `patterns/list.css` | `facet-list`, `filtered-list` | declared |
 | `marquee` | `patterns/marquee.css` | `marquee`, `marquee__content`, `marquee__item` | — |
@@ -240,4 +244,4 @@ rules that generate them all.
 | `text-effects` | `patterns/text-effects.css` | `typing`, `text-highlight`, `text-gradient-animate`, `text-stagger` | — |
 | `theme-editor` | `patterns/theme-editor.css` | `ed-panel`, `ed-launch`, `ed-input` | — |
 | `tooltip` | `patterns/tooltip.css` | `tooltip-trigger` | declared |
-| `tree` | `patterns/tree.css` | `tree`, `tree__item`, `tree__content`, `tree__toggle`, `tree__label` | declared |
+| `tree` | `patterns/tree.css` | `tree`, `tree__item`, `tree__content`, `tree__summary`, `tree__toggle`, `tree__label` | declared |

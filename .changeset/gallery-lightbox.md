@@ -7,8 +7,10 @@
 A gallery/lightbox that is a fully working modal lightbox with **zero JavaScript**, plus
 `ImageMetadata` support in `<Carousel />`.
 
-Only `@getvitops/core`, `generator` and `astro` changed. `utils`, `cli` and `vite` carry **no
-consumer-facing change** in this release — they are bumped because the six share one version.
+Only `@getvitops/core`, `generator` and `astro` change here. This changeset makes **no
+consumer-facing change** to `utils`, `cli` or `vite` — they still ship in this release because
+the six share one version, but from a different changeset (`localbusiness-schema.md`) that
+touches `utils` and `generator` for an unrelated reason.
 
 **Breaking — `css`/`bricks`/`tailwind` (all formats):** the `.lightbox` thumbnail grid is now
 `.gallery`, so it composes with the dialog it opens (`.lightbox-dialog`, unchanged) rather than

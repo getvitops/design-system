@@ -9,7 +9,7 @@ generator: "@getvitops/generator"
 
 # Component patterns — the CSS chain
 
-Patterns (currently `btn`, `cta`, `link`, `badge`, `card`, `tag`, `status`, `tooltip`, `dialog`, `popover`, `dropdown`, `notification`, `lightbox`, `comment`, `tabs`, `drawer`, `carousel`, `nav`, `banner`, `details`, `table`, `list`, `tree`, `pull-quote`, `combobox`, `forms`) are authored declaratively under `patterns` in
+Patterns (currently `btn`, `cta`, `link`, `badge`, `card`, `tag`, `status`, `tooltip`, `dialog`, `popover`, `dropdown`, `notification`, `lightbox`, `comment`, `tabs`, `drawer`, `carousel`, `gallery`, `nav`, `banner`, `details`, `table`, `list`, `tree`, `pull-quote`, `combobox`, `forms`) are authored declaratively under `patterns` in
 `design-system.json` (see [authoring.md](../authoring.md)) and compiled to CSS in a
 **components cascade layer** — so utility classes, which live in a later layer, always win over
 pattern styling without specificity fights. `class="card bg-danger-muted"` tints the card.
