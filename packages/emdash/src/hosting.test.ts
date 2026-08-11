@@ -6,6 +6,11 @@ afterEach(() => {
 });
 
 describe('vitopsHosting', () => {
+  // Higher timeout: this is the first test to dynamically import()
+  // @astrojs/cloudflare / @emdash-cms/cloudflare, and under a full monorepo
+  // test run (many workers cold-loading modules at once) that first-import
+  // cost occasionally exceeds vitest's 5s default — every later test in this
+  // file reuses the warm module cache and stays fast.
   it('defaults to the cloudflare target with DB/MEDIA bindings', async () => {
     const hosting = await vitopsHosting();
     expect(hosting.target).toBe('cloudflare');
@@ -13,7 +18,7 @@ describe('vitopsHosting', () => {
     expect(hosting.adapter).toMatchObject({ name: '@astrojs/cloudflare' });
     expect(hosting.database).toBeTruthy();
     expect(hosting.storage).toBeTruthy();
-  });
+  }, 15000);
 
   it('passes cloudflare binding overrides through', async () => {
     const hosting = await vitopsHosting({
