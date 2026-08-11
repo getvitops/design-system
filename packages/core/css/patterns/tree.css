@@ -44,10 +44,16 @@ wc-tree {
     position: relative;
   }
 
-  /* Nested list indent. Two shapes are supported: the item may BE the
-     `<details>`, or be an `<li>` wrapping one — the latter is what `<Tree />`
-     emits, because `<ul>`/`<li>` is what gives assistive tech list position and
-     depth. Keep both; the flat shape is the pattern's original contract.
+  /* Nested list indent. Two shapes are supported IN THE NO-JS FALLBACK: the
+     item may BE the `<details>`, or be an `<li>` wrapping one — the latter is
+     what `<Tree />` emits, because `<ul>`/`<li>` is what gives assistive tech
+     list position and depth. `<wc-tree>` unwraps both shapes to one structure
+     on upgrade (`.tree__item` > `.tree__summary`/`.tree__content` + optional
+     nested `.tree`), which is why the first selector below already matches
+     the ENHANCED state for both former shapes with no changes — only the
+     second (`.tree__item > details > .tree`) is fallback-only now, kept for
+     the no-JS list shape. Same split applies to every other
+     `details`/`summary`-keyed selector in this file below.
 
      Indent is ONE `--tree-indent` per level, not two. This used to set both
      `margin-inline-start` and `padding-inline-start` to it, putting the guide
@@ -85,6 +91,7 @@ wc-tree {
   }
 
   .tree__content,
+  .tree__summary,
   details.tree__item > summary,
   .tree__item > details > summary {
     display: flex;
@@ -100,6 +107,26 @@ wc-tree {
     padding-inline-start: var(--_leaf-indent);
   }
 
+  /* `.tree__summary` — the enhanced-state row `<wc-tree>` builds on upgrade,
+     replacing `<summary>`. Not `.tree__content`: that class's
+     `padding-inline-start: var(--_leaf-indent)` exists specifically to make a
+     TOGGLE-LESS row line up with one that has a toggle — applying it to a row
+     that DOES have a toggle would double-indent every branch, the mirror
+     image of the 24px-misalignment bug the comment above this block
+     documents fixing. */
+  .tree__summary {
+    cursor: pointer;
+    /* Only source of this in the enhanced state — `<summary>`'s own
+       `user-select: none` came from `details.css`'s bare `details` selector,
+       which no longer matches once `<details>` is gone. Without it, a
+       drag-select across a label also fires a `click` and toggles the row. */
+    user-select: none;
+  }
+
+  /* Fallback-only from here: no-JS renders `<details>`/`<summary>`, which
+     `<wc-tree>` unwraps on upgrade (see the class docblock in `WCTree.ts`).
+     Kept for the two SSR'd shapes; nothing in the enhanced state matches
+     these. */
   details.tree__item > summary,
   .tree__item > details > summary {
     cursor: pointer;
@@ -127,6 +154,13 @@ wc-tree {
     transition: transform 0.2s ease;
   }
 
+  /* Enhanced state: `aria-expanded` is the mirror `#setExpanded` writes
+     alongside the group's `hidden`, kept in sync with it — see WCTree.ts. */
+  .tree__item[aria-expanded='true'] > .tree__summary .tree__toggle {
+    transform: rotate(90deg);
+  }
+
+  /* Fallback-only — see the note above `details.tree__item > summary`. */
   details.tree__item[open] > summary .tree__toggle,
   .tree__item > details[open] > summary .tree__toggle {
     transform: rotate(90deg);
@@ -165,13 +199,76 @@ wc-tree {
     transition: opacity 0.15s ease;
   }
 
-  .tree__item:hover .tree__actions,
-  .tree__item:focus-within .tree__actions {
+  /* `>`, not a descendant selector: `.tree__item` now carries the roving
+     tabindex directly, so arrow-keying to a deep item would otherwise light
+     up every ANCESTOR branch's own actions row too, not just the row hovered
+     or focused. */
+  .tree__item:hover > .tree__actions,
+  .tree__item:focus-within > .tree__actions {
     opacity: 1;
   }
 
   .tree__item.tree__item--dragging {
     opacity: 0.5;
+  }
+
+  /* Focus now lands on `.tree__item` itself (the roving tabindex target), a
+     block box that — for an expanded branch — wraps its entire subtree. An
+     outline on it would ring every descendant, so it's suppressed there and
+     drawn on the ROW instead. */
+  .tree__item:focus {
+    outline: none;
+  }
+
+  /* `:focus-visible` alone under-covers a real case: script-moved focus only
+     matches `:focus-visible` if the PREVIOUSLY focused element did, so a
+     mouse click (which doesn't match) followed immediately by an arrow key
+     shows no ring at all in Chrome/Safari until the visitor tabs fully out
+     and back in. `[data-tree-keyboard]` is `<wc-tree>`'s own signal — set on
+     any handled navigation keydown, cleared on `pointerdown` — and covers
+     exactly that gap; `happy-dom` implements neither `:focus-visible` nor
+     layout, so this needs a manual browser check, not a unit test. */
+  .tree__item:focus-visible > .tree__summary,
+  .tree__item:focus-visible > .tree__content,
+  &[data-tree-keyboard] .tree__item:focus > .tree__summary,
+  &[data-tree-keyboard] .tree__item:focus > .tree__content {
+    outline: 2px solid var(--tree-focus-color, currentColor);
+    /* Inset, not the pattern's usual positive offset: the nested group below
+       clips its content (`overflow: clip`, next rule), so a positive offset
+       on the first or last row of an expanded subtree would be cut off by
+       its own ancestor. */
+    outline-offset: -2px;
+  }
+
+  /* Animated collapse — the enhanced-state replacement for `details.css`'s
+     `::details-content` transition, which no longer applies once `<details>`
+     is gone. Keyed on `[hidden]` itself, NOT on `[aria-expanded]`: the
+     browser's own find-in-page / fragment-navigation reveal removes `hidden`
+     directly or CSS anchored to a JS-set `aria-expanded` mirror would leave a
+     UA-revealed branch visually still collapsed until a `beforematch` handler
+     caught up (see WCTree.ts). Same idiom `details.css` verified working, and
+     the same warning applies: the tell of a regression is a branch that
+     doesn't open on the FIRST click, not a syntax error — check a real
+     interaction. */
+  .tree__item > .tree {
+    /* `clip` + a small margin, not `hidden`: an `overflow: hidden` group
+       would clip the focus ring (`outline-offset: -2px` above still needs a
+       few px of headroom) of its own first/last child row. */
+    overflow: clip;
+    overflow-clip-margin: 3px;
+
+    @media (prefers-reduced-motion: no-preference) {
+      block-size: auto;
+      transition:
+        block-size var(--animation-duration) var(--custom-ease-out),
+        content-visibility var(--animation-duration) allow-discrete;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .tree__item > .tree[hidden] {
+      block-size: 0;
+    }
   }
 
   &.tree--lines .tree__item {
@@ -195,10 +292,16 @@ wc-tree {
 
   /* A node's own prose. `.tree__label` is `nowrap` + ellipsis for file-tree-style
      single-line names, so a description can't live in it — it sits below the
-     summary row and wraps. Indented to the label, past the toggle. */
+     summary row and wraps. Indented to the label, past the toggle.
+
+     `margin-inline-end` is set here rather than left to come from an
+     ancestor: a BRANCH description used to get it incidentally from
+     `details.css`'s `<details>` margins (now gone — see the class docblock in
+     `WCTree.ts`), while a LEAF description, never inside a `<details>`, never
+     got one at all. Self-contained now, and consistent between the two. */
   .tree__desc {
     margin-block: 0.125rem 0.25rem;
-    margin-inline-start: var(--_leaf-indent);
+    margin-inline: var(--_leaf-indent) 0.25rem;
     color: var(--color-text-surface-muted);
     text-wrap: pretty;
   }

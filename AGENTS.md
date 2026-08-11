@@ -30,6 +30,15 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      result.
    - Exemplar: **`WCEntries`** — with no JS it renders semantic `<h3>` + `<dl>` pairs; with JS on a
      wide container it parses them into a table. (Others: carousel, image-compare, wc-multi-field, …)
+   - **`<wc-tree>` is the one element that discards slotted nodes rather than only hiding or
+     appending alongside them** — the one deliberate exception to "augments... in place" above. On
+     upgrade it unwraps every branch's `<details>`/`<summary>` entirely (see that element's own
+     docblock for why: the alternative, an ARIA-attribute overlay left on top of the native
+     structure, was tried first and rejected for the permanent duplicate role it left behind). A
+     consumer script holding a reference to the original `<details>`/`<summary>` — including via
+     `getElementById`, captured before upgrade — loses it; `tree-toggle` (mirroring the existing
+     `tree-filter` event) is the replacement surface. Named here as a deliberate exception, not a
+     silent divergence — same treatment as `<wc-consent>` and `<wc-theme-editor>` below.
    - Shipped as feature-detected, deferred ES-module bundles
      (`@getvitops/core/{polyfills,elements,deferred}`); polyfills load **only** when a native feature
      is missing (see `Polyfills.astro`).
@@ -153,8 +162,8 @@ Six things are load-bearing:
   opted into **per file** with a `/** @vitest-environment happy-dom */` pragma and a `*.dom.test.ts`
   name, because a global DOM would make ~830 pure tests pay for what a handful need. So the split is
   a rule about where a decision belongs, not a limitation: pure decision in a pure module
-  (`consent/store.ts`, `web-components/utils/{tree-filter,card-click}.ts`), DOM test for the wiring
-  that is genuinely about the DOM (`WCTree.dom.test.ts`, `WCCards.dom.test.ts`,
+  (`consent/store.ts`, `web-components/utils/{tree-filter,tree-nav,keynav,card-click}.ts`), DOM test
+  for the wiring that is genuinely about the DOM (`WCTree.dom.test.ts`, `WCCards.dom.test.ts`,
   `upgrade.dom.test.ts`). There is simply no `WCConsent.dom.test.ts` yet.
 - **`<Head />` emits an inline stub, and its absence is meaningful.** `consent.js` and `elements.js`
   are both deferred with no ordering between them, so a toggle can upgrade and be clicked before the

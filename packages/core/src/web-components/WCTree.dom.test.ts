@@ -3,13 +3,17 @@
  *
  * `<wc-tree>`'s DOM wiring, against a real DOM.
  *
- * The filtering *decision* is pure and tested in `utils/tree-filter.test.ts`.
- * What is asserted here is everything that decision cannot reach and that only a
- * DOM can show: that the fallback is left intact, that the toolbar exists only
- * after upgrade, that a match nested in a closed `<details>` is actually opened,
- * that clearing the query restores the open state the visitor had, and that a
- * deep link opens its ancestors — the one behaviour the browser cannot do itself,
- * because a node inside a closed `<details>` has no layout box.
+ * The filtering *decision* is pure and tested in `utils/tree-filter.test.ts`;
+ * the keyboard-navigation and type-ahead *decisions* are pure and tested in
+ * `utils/tree-nav.test.ts` and `utils/keynav.test.ts`. What is asserted here is
+ * everything those decisions cannot reach and that only a DOM can show: that
+ * every branch's `<details>`/`<summary>` is unwrapped on upgrade with no content
+ * lost, that the WAI-ARIA tree roles land correctly in both markup shapes, that
+ * a real keypress moves the roving tabindex the way the pure decision says it
+ * should, that a match nested in a closed branch is actually opened, that
+ * clearing the query restores the open state the visitor had, that a
+ * `beforematch` reveal is mirrored onto `aria-expanded` without racing the
+ * browser's own `hidden` removal, and that a deep link opens its ancestors.
  *
  * Per-file environment rather than a global one: the other ~800 tests are pure
  * and have no reason to pay for a DOM.
@@ -17,16 +21,14 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 /**
- * The same tree in both markup shapes the pattern supports:
+ * The same tree in both no-JS markup shapes the pattern supports:
  *
  *  - **flat**: the item IS the `<details>` (the pattern's original contract);
  *  - **list**: an `<li class="tree__item">` wraps a `<details>`, which is what
  *    `<Tree />` emits so assistive tech gets list position and depth.
  *
- * Every behaviour is asserted against both, because the difference is exactly what
- * silently broke: `#ownText` read `:scope > summary` and the open-on-filter step
- * used `instanceof HTMLDetailsElement` — under the list shape the first made every
- * branch unsearchable by its own label and the second opened nothing at all.
+ * `<wc-tree>` unwraps both to the SAME structure on upgrade, so every
+ * behaviour below is asserted against both — the point is that they converge.
  *
  * Shape: `site` (open) → `analytics` (closed) → `clarityId` leaf, plus `organization`.
  */
@@ -94,11 +96,12 @@ const SHAPES = [
 const $ = <T extends Element = HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const item = (id: string) => document.getElementById(id) as HTMLElement;
 const visible = (id: string) => !item(id).hidden;
-/** The `<details>` an item opens with, in either shape. */
-const disc = (id: string): HTMLDetailsElement =>
-  (item(id) instanceof HTMLDetailsElement
-    ? item(id)
-    : item(id).querySelector(':scope > details')) as HTMLDetailsElement;
+/** The group an item owns post-transform — both shapes converge to this. */
+const group = (id: string): HTMLElement => item(id).querySelector(':scope > .tree') as HTMLElement;
+const expanded = (id: string): string | null => item(id).getAttribute('aria-expanded');
+/** The item currently holding the roving tabindex. */
+const activeId = (): string | undefined =>
+  [...document.querySelectorAll<HTMLElement>('.tree__item')].find((el) => el.tabIndex === 0)?.id;
 
 beforeAll(async () => {
   // Imported for its side effect (customElements.define), so it must come after
@@ -125,34 +128,244 @@ describe.each(SHAPES)('<wc-tree> (%s)', (_shape, MARKUP) => {
     [...document.querySelectorAll<HTMLButtonElement>('.tree__toolbar button')]
       .find((b) => b.textContent === label)!
       .click();
+  const press = (key: string) =>
+    $('.tree').dispatchEvent(
+      new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+    );
 
-  describe('fallback', () => {
-    it('leaves the slotted tree untouched', () => {
-      // Lit must never render over the light DOM: the tree IS the content.
+  describe('transform', () => {
+    it("unwraps every branch's <details>/<summary>, leaving none in the DOM", () => {
+      expect(document.querySelectorAll('details')).toHaveLength(0);
+      expect(document.querySelectorAll('summary')).toHaveLength(0);
+    });
+
+    it('preserves every item and its text content', () => {
       expect(document.querySelectorAll('.tree__item')).toHaveLength(4);
+      expect(item('site').textContent).toContain('site');
+      expect(item('site.analytics').textContent).toContain('analytics');
       expect(item('site.analytics.clarityId').textContent).toContain('clarityId');
+      expect(item('organization').textContent).toContain('organization');
     });
 
-    it('generates the toolbar rather than expecting it in the markup', () => {
-      // A search field that does nothing is worse than none, so it cannot be SSR'd.
-      expect(MARKUP).not.toContain('tree__toolbar');
-      const bar = $('.tree__toolbar');
-      expect(bar).toBeTruthy();
-      expect(bar.querySelector('input[type="search"]')).toBeTruthy();
-      expect([...bar.querySelectorAll('button')].map((b) => b.textContent)).toEqual([
-        'Expand all',
-        'Collapse all',
-      ]);
-      // Sibling of the tree, never inside it — it must not inherit `.tree` padding
-      // or become a node the filter walks.
-      expect(bar.nextElementSibling?.classList.contains('tree')).toBe(true);
-      expect($('.tree')?.querySelector('.tree__toolbar')).toBeNull();
+    it('sets WAI-ARIA tree roles: tree on the root, treeitem on every item, group on every nested list', () => {
+      expect($('.tree').getAttribute('role')).toBe('tree');
+      for (const id of ['site', 'site.analytics', 'site.analytics.clarityId', 'organization']) {
+        expect(item(id).getAttribute('role')).toBe('treeitem');
+      }
+      expect(group('site').getAttribute('role')).toBe('group');
+      expect(group('site.analytics').getAttribute('role')).toBe('group');
     });
 
-    it('announces filter results to assistive tech', () => {
-      const status = $('.tree__count');
-      expect(status.getAttribute('role')).toBe('status');
-      expect(status.getAttribute('aria-live')).toBe('polite');
+    it('gives the root an accessible name, falling back to the filter label', () => {
+      // FLAT has no ariaLabel prop; LIST's fixture sets one directly, mirroring
+      // what `<Tree ariaLabel="…" />` would render.
+      expect($('.tree').getAttribute('aria-label')).toBeTruthy();
+    });
+
+    it('sets aria-expanded on branches only, mirroring the original open state', () => {
+      expect(expanded('site')).toBe('true'); // was <details open>
+      expect(expanded('site.analytics')).toBe('false'); // was closed
+      expect(item('organization').hasAttribute('aria-expanded')).toBe(false); // leaf
+      expect(item('site.analytics.clarityId').hasAttribute('aria-expanded')).toBe(false); // leaf
+    });
+
+    it('toggles the nested group\'s hidden state to match: none when open, "until-found" when collapsed', () => {
+      expect(group('site').hasAttribute('hidden')).toBe(false);
+      expect(group('site.analytics').getAttribute('hidden')).toBe('until-found');
+    });
+
+    it('builds one .tree__summary per branch and none for a leaf', () => {
+      expect(document.querySelectorAll('.tree__summary')).toHaveLength(2);
+      expect(item('organization').querySelector(':scope > .tree__summary')).toBeNull();
+      expect(item('organization').querySelector(':scope > .tree__content')).toBeTruthy();
+    });
+
+    it('gives exactly one item the roving tabindex, and it is the first visible node', () => {
+      const items = [...document.querySelectorAll<HTMLElement>('.tree__item')];
+      expect(items.filter((el) => el.tabIndex === 0)).toHaveLength(1);
+      expect(activeId()).toBe('site');
+    });
+
+    it('is idempotent: a second #setup() run over already-transformed markup does not disturb it', () => {
+      // Simulates the one realistic disconnect→reconnect-same-nodes path (a
+      // consumer manually re-appending this element's subtree) without
+      // needing a live DOM move: disconnect, then reconnect.
+      const el = $('wc-tree');
+      const parent = el.parentElement!;
+      parent.removeChild(el);
+      parent.appendChild(el);
+      expect(document.querySelectorAll('details')).toHaveLength(0);
+      expect(expanded('site')).toBe('true');
+      expect(expanded('site.analytics')).toBe('false');
+    });
+  });
+
+  describe('keyboard navigation', () => {
+    it("Down moves to the next visible node, skipping a collapsed branch's children", () => {
+      press('ArrowDown');
+      expect(activeId()).toBe('site.analytics');
+      press('ArrowDown');
+      expect(activeId()).toBe('organization');
+    });
+
+    it('Up moves to the previous visible node', () => {
+      press('ArrowDown');
+      press('ArrowDown');
+      press('ArrowUp');
+      expect(activeId()).toBe('site.analytics');
+    });
+
+    it('does not move past the first or last visible node', () => {
+      press('ArrowUp');
+      expect(activeId()).toBe('site');
+      press('ArrowDown');
+      press('ArrowDown');
+      press('ArrowDown');
+      expect(activeId()).toBe('organization');
+    });
+
+    it('Right opens a closed branch without moving, then steps into it on a second press', () => {
+      press('ArrowDown'); // -> site.analytics (closed)
+      press('ArrowRight');
+      expect(expanded('site.analytics')).toBe('true');
+      expect(activeId()).toBe('site.analytics'); // did not move on the open
+      press('ArrowRight');
+      expect(activeId()).toBe('site.analytics.clarityId');
+    });
+
+    it('Right on an already-open branch steps directly into its first child', () => {
+      press('ArrowRight'); // site starts open
+      expect(activeId()).toBe('site.analytics');
+    });
+
+    it('Right does nothing on a leaf', () => {
+      press('ArrowDown');
+      press('ArrowDown'); // -> organization
+      press('ArrowRight');
+      expect(activeId()).toBe('organization');
+    });
+
+    it('Left collapses an open branch without moving, then does nothing at the root once closed', () => {
+      press('ArrowLeft'); // site starts open
+      expect(expanded('site')).toBe('false');
+      expect(activeId()).toBe('site');
+      press('ArrowLeft'); // closed, at the root — nowhere to go
+      expect(activeId()).toBe('site');
+    });
+
+    it('Left steps to the parent from a leaf', () => {
+      press('ArrowRight'); // site -> site.analytics (open branch, steps in)
+      press('ArrowRight'); // closed -> expand, stays
+      press('ArrowRight'); // now open -> clarityId
+      expect(activeId()).toBe('site.analytics.clarityId');
+      press('ArrowLeft');
+      expect(activeId()).toBe('site.analytics');
+    });
+
+    it('Home/End jump to the first/last visible node in depth-first order', () => {
+      press('ArrowDown');
+      press('End');
+      expect(activeId()).toBe('organization');
+      press('Home');
+      expect(activeId()).toBe('site');
+    });
+
+    it('Enter and Space both toggle a branch', () => {
+      press('Enter');
+      expect(expanded('site')).toBe('false');
+      press(' ');
+      expect(expanded('site')).toBe('true');
+    });
+
+    it("Space activates a leaf's link instead of doing nothing", () => {
+      item('organization').querySelector(':scope > .tree__content')!.innerHTML +=
+        '<a href="#organization-link">go</a>';
+      const link = item('organization').querySelector('a')!;
+      let clicked = false;
+      link.addEventListener('click', () => (clicked = true));
+      press('ArrowDown');
+      press('ArrowDown'); // -> organization
+      press(' ');
+      expect(clicked).toBe(true);
+    });
+
+    it('type-ahead jumps to the next visible node whose label starts with the typed character', () => {
+      press('o');
+      expect(activeId()).toBe('organization');
+    });
+
+    it('type-ahead skips a node hidden inside a collapsed branch', () => {
+      // "c" would match "clarityId", but it's inside the closed site.analytics
+      // branch and must not be reachable until that branch is open.
+      press('c');
+      expect(activeId()).not.toBe('site.analytics.clarityId');
+    });
+
+    it('flips Left/Right under rtl — Right becomes "collapse/climb out", Left becomes "expand/descend"', () => {
+      $('.tree').style.direction = 'rtl';
+      press('ArrowLeft'); // site starts open — in RTL this descends
+      expect(activeId()).toBe('site.analytics');
+    });
+
+    it('relocates the roving tabindex off a node the filter just hid', () => {
+      press('ArrowDown');
+      press('ArrowDown'); // -> organization
+      expect(activeId()).toBe('organization');
+
+      type('clarity'); // organization does not match — gets hidden
+
+      expect(visible('organization')).toBe(false);
+      const stops = [...document.querySelectorAll<HTMLElement>('.tree__item')].filter(
+        (el) => el.tabIndex === 0,
+      );
+      expect(stops).toHaveLength(1);
+      expect(stops[0]?.hidden).toBe(false);
+      expect(activeId()).not.toBe('organization');
+    });
+  });
+
+  describe('click', () => {
+    it('toggles a branch, replacing native summary-click-toggles-details', () => {
+      const summary = item('site').querySelector('.tree__summary') as HTMLElement;
+      expect(expanded('site')).toBe('true');
+      summary.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(expanded('site')).toBe('false');
+      expect(group('site').getAttribute('hidden')).toBe('until-found');
+    });
+
+    it('does not toggle when the click originates from a .tree__actions descendant', () => {
+      const summary = item('site').querySelector('.tree__summary') as HTMLElement;
+      const actions = document.createElement('span');
+      actions.className = 'tree__actions';
+      const button = document.createElement('button');
+      actions.appendChild(button);
+      summary.appendChild(actions);
+
+      button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(expanded('site')).toBe('true'); // unchanged
+    });
+  });
+
+  describe('beforematch (find-in-page / fragment-nav reveal)', () => {
+    it('mirrors a UA-driven reveal onto aria-expanded without writing hidden itself', () => {
+      const g = group('site.analytics');
+      expect(g.getAttribute('hidden')).toBe('until-found');
+      expect(expanded('site.analytics')).toBe('false');
+
+      // Simulates the event half of what the browser's reveal algorithm
+      // delivers to page script; it removes `hidden` itself, separately.
+      g.dispatchEvent(new Event('beforematch', { bubbles: true }));
+
+      expect(expanded('site.analytics')).toBe('true');
+    });
+
+    it("never fires from a script-driven change — only the UA's own reveal fires it", () => {
+      let fired = false;
+      $('.tree').addEventListener('beforematch', () => {
+        fired = true;
+      });
+      click('Expand all');
+      expect(fired).toBe(false);
     });
   });
 
@@ -165,7 +378,7 @@ describe.each(SHAPES)('<wc-tree> (%s)', (_shape, MARKUP) => {
       expect(visible('organization')).toBe(false);
     });
 
-    /** Reads a BRANCH's own label — the thing `:scope > summary` alone missed. */
+    /** Reads a BRANCH's own label — the thing a three-selector row query alone missed. */
     it('matches a branch on its own label and description', () => {
       type('analytics');
       expect(visible('site.analytics')).toBe(true);
@@ -180,23 +393,24 @@ describe.each(SHAPES)('<wc-tree> (%s)', (_shape, MARKUP) => {
     });
 
     it('opens a kept branch, so a match is not hidden inside a collapsed node', () => {
-      expect(disc('site.analytics').open).toBe(false);
+      expect(expanded('site.analytics')).toBe('false');
       type('clarity');
       // Without this the query "finds" a node the visitor cannot see.
-      expect(disc('site.analytics').open).toBe(true);
+      expect(expanded('site.analytics')).toBe('true');
+      expect(group('site.analytics').hasAttribute('hidden')).toBe(false);
     });
 
     it('restores the pre-filter open state when cleared', () => {
-      expect(disc('site.analytics').open).toBe(false);
-      expect(disc('site').open).toBe(true);
+      expect(expanded('site.analytics')).toBe('false');
+      expect(expanded('site')).toBe('true');
 
       type('clarity');
-      expect(disc('site.analytics').open).toBe(true);
+      expect(expanded('site.analytics')).toBe('true');
 
       type('');
       // Filtering is a view, not an edit.
-      expect(disc('site.analytics').open).toBe(false);
-      expect(disc('site').open).toBe(true);
+      expect(expanded('site.analytics')).toBe('false');
+      expect(expanded('site')).toBe('true');
       expect(visible('organization')).toBe(true);
     });
 
@@ -207,9 +421,9 @@ describe.each(SHAPES)('<wc-tree> (%s)', (_shape, MARKUP) => {
      */
     it('survives several keystrokes before clearing', () => {
       for (const q of ['c', 'cl', 'cla', 'clar']) type(q);
-      expect(disc('site.analytics').open).toBe(true);
+      expect(expanded('site.analytics')).toBe('true');
       type('');
-      expect(disc('site.analytics').open).toBe(false);
+      expect(expanded('site.analytics')).toBe('false');
     });
 
     it('reports the match count', () => {
@@ -228,39 +442,62 @@ describe.each(SHAPES)('<wc-tree> (%s)', (_shape, MARKUP) => {
       type('clarity');
       expect(seen).toEqual([{ query: 'clarity', matches: 1 }]);
     });
+
+    it('keeps its own hidden channel independent of expansion\'s "until-found" channel', () => {
+      type('clarity');
+      // Filtered-out item: plain boolean hidden.
+      expect(item('organization').getAttribute('hidden')).not.toBe('until-found');
+      expect(item('organization').hidden).toBe(true);
+      // Force-opened-by-filter branch: its GROUP has no hidden attribute at all.
+      expect(group('site.analytics').hasAttribute('hidden')).toBe(false);
+    });
   });
 
   describe('bulk toggle', () => {
-    it('expands and collapses every details', () => {
+    it('expands and collapses every branch', () => {
       click('Expand all');
-      for (const d of document.querySelectorAll('details')) expect(d.open).toBe(true);
+      expect(expanded('site')).toBe('true');
+      expect(expanded('site.analytics')).toBe('true');
       click('Collapse all');
-      for (const d of document.querySelectorAll('details')) expect(d.open).toBe(false);
+      expect(expanded('site')).toBe('false');
+      expect(expanded('site.analytics')).toBe('false');
+    });
+
+    it('does not silently no-op now that there are zero <details> left to iterate', () => {
+      // Guards the vacuous-pass failure mode: the old assertion iterated
+      // `document.querySelectorAll('details')`, which is empty post-transform,
+      // so a broken "Expand all" would have passed silently forever.
+      expect(document.querySelectorAll('details')).toHaveLength(0);
+      click('Expand all');
+      expect(expanded('site.analytics')).toBe('true');
     });
   });
 
   describe('deep linking', () => {
     /**
-     * The reason this element does hash handling at all: a `<details>` inside a
-     * closed `<details>` is not rendered, so the browser's own fragment navigation
-     * finds no box and silently stays where it was.
+     * The reason this element does hash handling at all: the transform runs
+     * asynchronously relative to the browser's own parse-time fragment reveal,
+     * so even with `hidden="until-found"` making that reveal reliable across
+     * engines, it cannot be relied on to have already run by the time this
+     * upgrades.
      */
     it('opens the ancestors of a hash target', () => {
-      disc('site').open = false;
-      disc('site.analytics').open = false;
+      click('Collapse all');
+      expect(expanded('site')).toBe('false');
+      expect(expanded('site.analytics')).toBe('false');
 
       location.hash = '#site.analytics.clarityId';
       window.dispatchEvent(new Event('hashchange'));
 
-      expect(disc('site').open).toBe(true);
-      expect(disc('site.analytics').open).toBe(true);
+      expect(expanded('site')).toBe('true');
+      expect(expanded('site.analytics')).toBe('true');
     });
 
     /** Ids are dotted config paths, which are not valid CSS selectors. */
     it('resolves a dotted id without treating it as a selector', () => {
       location.hash = '#site.analytics';
       window.dispatchEvent(new Event('hashchange'));
-      expect(disc('site.analytics').open).toBe(true);
+      expect(expanded('site.analytics')).toBe('true');
     });
 
     it('ignores a hash that is not in this tree', () => {
@@ -268,6 +505,12 @@ describe.each(SHAPES)('<wc-tree> (%s)', (_shape, MARKUP) => {
         location.hash = '#not-a-node';
         window.dispatchEvent(new Event('hashchange'));
       }).not.toThrow();
+    });
+
+    it('moves the roving tabindex to the revealed target', () => {
+      location.hash = '#site.analytics.clarityId';
+      window.dispatchEvent(new Event('hashchange'));
+      expect(activeId()).toBe('site.analytics.clarityId');
     });
   });
 });

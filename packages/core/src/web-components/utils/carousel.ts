@@ -142,9 +142,15 @@ export function twinIndex(childIndex: number, realCount: number): number {
   return real < 0 ? -1 : realCount + real;
 }
 
-/** Accessible name for a marker. `slideLabel(2, 7)` → `'Slide 3 of 7'`. */
-export function slideLabel(index: number, total: number): string {
-  return `Slide ${index + 1} of ${total}`;
+/**
+ * Accessible name for a marker. `slideLabel(2, 7)` → `'Slide 3 of 7'`.
+ *
+ * `noun` lets a caller with different items reuse the same phrasing —
+ * `slideLabel(2, 12, 'Image')` → `'Image 3 of 12'`, which is what `WCGallery` uses
+ * rather than duplicating this string.
+ */
+export function slideLabel(index: number, total: number, noun = 'Slide'): string {
+  return `${noun} ${index + 1} of ${total}`;
 }
 
 /**

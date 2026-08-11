@@ -9,6 +9,7 @@ import {
   type CarouselPlan,
 } from './utils/carousel.js';
 import { initFromLightDom } from './utils/upgrade.js';
+import { RovingTabindex } from './utils/RovingTabindex.js';
 
 /**
  * Scroll-snap carousel: an opt-in cloned loop, autoplay, and — where the browser
@@ -78,6 +79,7 @@ export class WCCarousel extends BaseElement {
   #markers: HTMLButtonElement[] = [];
   #autoplayBtn: HTMLButtonElement | null = null;
   #ownsAutoplayBtn = false;
+  #roving: RovingTabindex<HTMLButtonElement>;
 
   #observer: ResizeObserver | null = null;
   #timer: ReturnType<typeof setInterval> | null = null;
@@ -85,12 +87,27 @@ export class WCCarousel extends BaseElement {
   #paused = false;
   #reducedMotion = false;
   #jumping = false;
-  #current = 0;
 
   constructor() {
     super();
     this.autoplay = 0;
     this.loop = false;
+    // `orientation: 'both'` — the dot nav has always accepted Up/Down as well
+    // as Left/Right; `loop: true` — it has always wrapped unconditionally.
+    // Selection follows focus: a keyboard move clicks the marker it lands on,
+    // which is what actually scrolls the track (see the marker's own click
+    // listener in #buildMarkers). Only for `cause === 'key'` — `#syncControls`
+    // moves the active marker to match the track's real scroll position via
+    // `silent: true`, and the focus-in-by-mouse path is `cause: 'pointer'`;
+    // clicking either would re-trigger the scroll that's already happened.
+    this.#roving = new RovingTabindex<HTMLButtonElement>(this, {
+      items: () => this.#markers,
+      orientation: 'both',
+      loop: true,
+      onMove: (marker, _previous, cause) => {
+        if (cause === 'key') marker.click();
+      },
+    });
   }
 
   override connectedCallback(): void {
@@ -244,6 +261,7 @@ export class WCCarousel extends BaseElement {
 
     for (const button of this.#buttons) button.remove();
     this.#buttons = [];
+    this.#roving.detach();
     this.#markerGroup?.remove();
     this.#markerGroup = null;
     this.#markers = [];
@@ -413,15 +431,16 @@ export class WCCarousel extends BaseElement {
     if (!children.length) return;
     const index = this.#currentIndex();
     const real = this.#plan?.clone ? index % this.#slides.length : index;
-    this.#current = real;
 
-    this.#markers.forEach((marker, i) => {
-      const active = i === real;
-      marker.setAttribute('aria-selected', String(active));
-      // Roving tabindex: the group is one tab stop and the arrow keys move within
-      // it, which is what the native ::scroll-marker-group does.
-      marker.tabIndex = active ? 0 : -1;
-    });
+    this.#markers.forEach((marker, i) => marker.setAttribute('aria-selected', String(i === real)));
+    // `silent: true` — this is syncing the active dot FROM a scroll that
+    // already happened (dragging, autoplay, a button click); `RovingTabindex`
+    // still owns the tabindex bookkeeping (one tab stop, arrow keys move
+    // within it, matching the native `::scroll-marker-group`), but calling
+    // `onMove` here would re-click the marker and re-trigger the very scroll
+    // being synced from.
+    const activeMarker = this.#markers[real];
+    if (activeMarker) this.#roving.setActive(activeMarker, { focus: false, silent: true });
 
     if (this.#buttons.length && !this.#plan?.clone) {
       const [prev, next] = this.#buttons;
@@ -486,7 +505,6 @@ export class WCCarousel extends BaseElement {
       marker.setAttribute('role', 'tab');
       marker.setAttribute('aria-label', slideLabel(i, this.#slides.length));
       marker.setAttribute('aria-selected', String(i === 0));
-      marker.tabIndex = i === 0 ? 0 : -1;
       if (slide.id) marker.setAttribute('aria-controls', slide.id);
       marker.addEventListener('click', () => {
         slide.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
@@ -494,26 +512,16 @@ export class WCCarousel extends BaseElement {
       return marker;
     });
 
-    group.addEventListener('keydown', this.#onMarkerKeydown);
     group.append(...this.#markers);
     this.append(group);
     this.#markerGroup = group;
+    // Applies the initial tabindex (marker 0 = 0, the rest = -1) and wires the
+    // keydown handling — arrow keys (both axes, wrapping — the dot nav has
+    // always accepted Up/Down as well as Left/Right) and RTL-aware left/right
+    // flipping, via the built-in linear decoder (`orientation: 'both'` in the
+    // constructor).
+    this.#roving.attach(group);
   }
-
-  #onMarkerKeydown = (event: KeyboardEvent): void => {
-    const delta =
-      event.key === 'ArrowRight' || event.key === 'ArrowDown'
-        ? 1
-        : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
-          ? -1
-          : 0;
-    if (!delta) return;
-    event.preventDefault();
-    const count = this.#markers.length;
-    const next = this.#markers[(this.#current + delta + count) % count];
-    next?.focus();
-    next?.click();
-  };
 
   /**
    * Hide the hint when the strip does not overflow.

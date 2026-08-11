@@ -143,6 +143,33 @@ describe('<wc-carousel> fallback controls', () => {
     expect(markers.map((m) => (m as HTMLElement).tabIndex)).toEqual([0, -1, -1]);
   });
 
+  it('flips arrow-key direction under RTL, matching the visual dot order', async () => {
+    // `dir="rtl"` does not reach computed `direction` in happy-dom — the
+    // inline style does, same pattern WCGallery.dom.test.ts already uses.
+    const el = await mount(markup());
+    el.style.direction = 'rtl';
+    const group = el.querySelector('.carousel__markers') as HTMLElement;
+    const markers = [...el.querySelectorAll('.carousel__marker')] as HTMLElement[];
+
+    // In RTL, dot 0 sits at the visual right, so ArrowLeft — visually toward
+    // dot 1 — must move the roving tabindex forward, not backward.
+    group.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(markers.map((m) => m.tabIndex)).toEqual([-1, 0, -1]);
+
+    group.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(markers.map((m) => m.tabIndex)).toEqual([0, -1, -1]);
+  });
+
+  it('never flips vertical arrows under RTL — direction is a horizontal-axis property', async () => {
+    const el = await mount(markup());
+    el.style.direction = 'rtl';
+    const group = el.querySelector('.carousel__markers') as HTMLElement;
+    const markers = [...el.querySelectorAll('.carousel__marker')] as HTMLElement[];
+
+    group.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    expect(markers.map((m) => m.tabIndex)).toEqual([-1, 0, -1]);
+  });
+
   it('does not add a dot for a clone', async () => {
     const el = await mount(markup('loop'));
     expect(el.querySelectorAll('.carousel__marker')).toHaveLength(3);

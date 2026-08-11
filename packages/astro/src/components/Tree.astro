@@ -10,9 +10,12 @@
  *     position and depth. A `<div>` soup looks identical and tells a screen-reader
  *     user nothing about where they are;
  *   - every branch is a native `<details>`/`<summary>`, so expanded state and
- *     keyboard operation come from the platform. No `role="tree"`, no
- *     `aria-expanded` bookkeeping — a hand-rolled ARIA tree that loses its JS is
- *     worse than no ARIA at all;
+ *     keyboard operation come from the platform with no JS at all. This
+ *     fallback carries no `role="tree"` and no `aria-expanded` bookkeeping —
+ *     those aren't hand-rolled into markup that would be silently wrong the
+ *     instant JS failed to load; `<wc-tree>` applies them on upgrade, over a
+ *     DOM it unwraps for the purpose (branches lose their `<details>`/
+ *     `<summary>` entirely — see that element's own docblock for why and how);
  *   - nodes carry ids, so any node is linkable without JS.
  *
  * **This component emits its own `<wc-tree>`** — do NOT wrap it in one. That is the
@@ -22,9 +25,11 @@
  * element now defers to an enclosing one, so it degrades to a no-op rather than two
  * duelling toolbars, but the single call is the intended shape.
  *
- * `<wc-tree>` upgrades it with filter, expand/collapse-all and deep-linking. If
- * that never loads, only those three conveniences are missing — which is why
- * `enhance={false}` is a supported way to get the bare fragment.
+ * `<wc-tree>` upgrades it with WAI-ARIA tree semantics, roving-tabindex keyboard
+ * navigation, filter, expand/collapse-all and hash deep-linking. If that never
+ * loads, the fallback above — native nested `<details>`, Tab-and-Enter — is all
+ * that remains, which is why `enhance={false}` is a supported way to get the
+ * bare fragment on its own.
  */
 import type { TreeItem } from './tree.ts';
 import TreeNode from './TreeNode.astro';

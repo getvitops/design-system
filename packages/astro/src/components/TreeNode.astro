@@ -6,13 +6,23 @@
  *
  *   - a **branch** wraps its label in `<details>`/`<summary>` — a native
  *     disclosure button, so expanded state is announced and keyboard operation
- *     is free. The child `<ul>` lives inside the `<details>`, which is what makes
- *     it collapse with no JS.
+ *     is free with no JS. The child `<ul>` lives inside the `<details>`, which
+ *     is what makes it collapse with no JS.
  *   - a **leaf** is a plain `.tree__content` row. A `<details>` with nothing to
  *     disclose would still render a control and announce as collapsible.
  *
+ * That description is the NO-JS contract only. `<wc-tree>` unwraps every
+ * branch's `<details>`/`<summary>` on upgrade — see its own docblock — so once
+ * it loads, "keyboard operation is free" stops meaning native Tab-and-Enter and
+ * starts meaning that element's roving-tabindex arrow-key navigation instead,
+ * and `role="treeitem"`/`role="group"` replace the `<li>`'s and `<ul>`'s
+ * implicit `listitem`/`list` roles. The markup below never changes to reflect
+ * that — it's the fallback `<wc-tree>` reads and transforms, not two things to
+ * keep in sync.
+ *
  * The item class sits on the `<li>` in both cases, so `<wc-tree>`'s filter treats
- * leaves and branches as one kind of thing and hiding one hides its whole row.
+ * leaves and branches as one kind of thing and hiding one hides its whole row —
+ * true before and after upgrade, since the transform preserves the class.
  */
 import type { TreeItem } from './tree.ts';
 

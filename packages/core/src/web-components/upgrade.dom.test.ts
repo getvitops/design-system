@@ -32,6 +32,7 @@ beforeAll(async () => {
     import('./WCCarousel.ts'),
     import('./WCTree.ts'),
     import('./WCCards.ts'),
+    import('./WCGallery.ts'),
   ]);
 });
 
@@ -142,6 +143,48 @@ describe('<wc-tree>', () => {
   it('leaves a tree-less body alone', async () => {
     const el = await mount('<wc-tree><p>nothing to enhance</p></wc-tree>');
     expect(el.querySelector('.tree__toolbar')).toBeNull();
+  });
+});
+
+describe('<wc-gallery>', () => {
+  const markup = () => `
+    <wc-gallery>
+      <ul class="gallery" role="list">
+        <li class="gallery__item">
+          <button class="gallery__trigger" type="button" command="show-modal" commandfor="a">
+            <img class="gallery__thumb" src="a.jpg" alt="" />
+          </button>
+        </li>
+        <li class="gallery__item">
+          <button class="gallery__trigger" type="button" command="show-modal" commandfor="b">
+            <img class="gallery__thumb" src="b.jpg" alt="" />
+          </button>
+        </li>
+      </ul>
+      <dialog id="a" class="lightbox-dialog" aria-label="A">
+        <div class="lightbox-dialog__content"><img class="lightbox-dialog__image" src="fa.jpg" /></div>
+      </dialog>
+      <dialog id="b" class="lightbox-dialog" aria-label="B">
+        <div class="lightbox-dialog__content"><img class="lightbox-dialog__image" src="fb.jpg" /></div>
+      </dialog>
+    </wc-gallery>`;
+
+  it('builds prev/next nav for each dialog', async () => {
+    const el = await mount(markup());
+    // Two dialogs × two nav buttons each.
+    expect(el.querySelectorAll('.lightbox-dialog__nav-button')).toHaveLength(4);
+  });
+
+  it('builds it exactly once', async () => {
+    const el = await mount(markup());
+    // The retry must not re-run a successful setup, or nav is duplicated.
+    await new Promise((r) => requestAnimationFrame(r));
+    expect(el.querySelectorAll('.lightbox-dialog__nav-button')).toHaveLength(4);
+  });
+
+  it('leaves a trigger-less body alone', async () => {
+    const el = await mount('<wc-gallery><p>nothing to enhance</p></wc-gallery>');
+    expect(el.querySelector('.lightbox-dialog__nav-button')).toBeNull();
   });
 });
 

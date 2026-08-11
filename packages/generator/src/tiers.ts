@@ -114,14 +114,14 @@ export const TIERS: Record<string, TierEntry> = {
   // ── Patterns that span tiers: the composition actually matters here ────────
   tree: {
     css: c(
-      ['tree', 'tree__item', 'tree__content', 'tree__toggle', 'tree__label'],
+      ['tree', 'tree__item', 'tree__content', 'tree__summary', 'tree__toggle', 'tree__label'],
       'patterns/tree.css',
       true,
     ),
     wc: {
       tag: 'wc-tree',
       registered: true,
-      adds: 'filter, expand/collapse all, hash deep-linking',
+      adds: 'WAI-ARIA tree semantics, roving-tabindex keyboard navigation, filter, expand/collapse all, hash deep-linking',
     },
     astro: a('Tree', 'wc'),
     use: '`<Tree items={…} />` — it emits `<wc-tree>` itself, so do NOT add your own wrapper.',
