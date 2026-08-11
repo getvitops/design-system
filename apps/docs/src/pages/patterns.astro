@@ -18,6 +18,7 @@
  * from what the generator emits.
  */
 import Carousel from '@getvitops/astro/components/Carousel.astro';
+import Gallery from '@getvitops/astro/components/Gallery.astro';
 import Docs from '../layouts/Docs.astro';
 import designSystem from '../../../../src/design-system.json';
 
@@ -283,6 +284,41 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
     </span>
   </div>
 
+  <h3>Gallery, hand-authored</h3>
+  <ul class="gallery" style="--gallery-thumb-size: 100px">
+    <li class="gallery__item">
+      <button class="gallery__trigger" type="button" command="show-modal" commandfor="pt-gal-1">
+        <img class="gallery__thumb" src="/demo/demo-square.svg" alt="" />
+      </button>
+    </li>
+    <li class="gallery__item">
+      <button class="gallery__trigger" type="button" command="show-modal" commandfor="pt-gal-2">
+        <img class="gallery__thumb" src="/demo/demo-wide.svg" alt="" />
+      </button>
+    </li>
+  </ul>
+  <dialog id="pt-gal-1" class="lightbox-dialog" closedby="any" aria-label="A square placeholder">
+    <div class="lightbox-dialog__content">
+      <img class="lightbox-dialog__image" src="/demo/demo-square.svg" />
+    </div>
+    <button class="lightbox-dialog__close" type="button" command="close" commandfor="pt-gal-1" aria-label="Close">&times;</button>
+  </dialog>
+  <dialog id="pt-gal-2" class="lightbox-dialog" closedby="any" aria-label="A wide placeholder">
+    <div class="lightbox-dialog__content">
+      <img class="lightbox-dialog__image" src="/demo/demo-wide.svg" />
+    </div>
+    <button class="lightbox-dialog__close" type="button" command="close" commandfor="pt-gal-2" aria-label="Close">&times;</button>
+  </dialog>
+  <p class="font-caption text-surface-muted">
+    Hand-written — no <code>&lt;Gallery /&gt;</code>, no <code>&lt;wc-gallery&gt;</code>. Each
+    thumbnail is a <code>command="show-modal" commandfor="…"</code> invoker for its own
+    <code>&lt;dialog closedby="any"&gt;</code>, so open and close both work with no JavaScript at
+    all. What's missing this way is prev/next — a
+    <code>command="show-modal"</code> button inside an open dialog would stack a second modal on
+    top rather than replace the first, so that control only exists once
+    <code>&lt;wc-gallery&gt;</code> upgrades it. See <code>enhanced</code> below.
+  </p>
+
   <!-- ── Navigation ────────────────────────────────────────────────────────── -->
   <h2 id="navigation">Navigation</h2>
 
@@ -419,7 +455,7 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
 
 
   <h3>Masonry</h3>
-  <ul class="masonry" style="--masonry-cols: 3">
+  <ul class="masonry" style="--masonry-columns: 3">
     {[6, 3, 5, 2, 4, 3].map((n, i) => (
       <li class="masonry__item card"><p class="font-caption">Item {i + 1}</p><p class="font-footnote text-surface-muted">{'▪ '.repeat(n)}</p></li>
     ))}
@@ -512,6 +548,24 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
     covers it. The first is <code>eager</code>/<code>fetchpriority="high"</code> as the LCP
     candidate; the rest are <code>lazy</code>, which a horizontal scroll container honours, so they
     defer with no JavaScript involved.
+  </p>
+
+  <h3 id="enhanced-gallery">Gallery — the Astro wrapper</h3>
+  <Gallery
+    label="Placeholder gallery"
+    thumbSize="100px"
+    images={[
+      { src: '/demo/demo-square.svg', alt: 'A square placeholder', width: 1200, height: 1200 },
+      { src: '/demo/demo-wide.svg', alt: 'A wide placeholder', width: 1600, height: 900 },
+      { src: '/demo/demo-tall.svg', alt: 'A tall placeholder', width: 900, height: 1600 },
+    ]}
+  />
+  <p class="font-caption text-surface-muted">
+    Same fallback as the hand-authored gallery above — <code>&lt;Gallery /&gt;</code> just emits it
+    for you, inside its own <code>&lt;wc-gallery&gt;</code>. Once that loads: prev/next, arrow keys,
+    swipe to change images or swipe down to dismiss, an announced image counter, the next/previous
+    image warming in the background, and the thumbnail morphing into the full image via
+    <code>document.startViewTransition</code> where supported.
   </p>
 
   <h3>Split panel</h3>

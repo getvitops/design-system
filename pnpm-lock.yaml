@@ -60,6 +60,9 @@ catalogs:
     happy-dom:
       specifier: ^20.0.0
       version: 20.11.1
+    invokers-polyfill:
+      specifier: ^1.0.3
+      version: 1.0.3
     lightningcss:
       specifier: ^1.32.0
       version: 1.32.0
@@ -233,6 +236,9 @@ importers:
       construct-style-sheets-polyfill:
         specifier: 'catalog:'
         version: 3.1.0
+      invokers-polyfill:
+        specifier: 'catalog:'
+        version: 1.0.3
       lit:
         specifier: 'catalog:'
         version: 3.3.3
@@ -3950,6 +3956,9 @@ packages:
 
   ini@1.3.8:
     resolution: {integrity: sha512-JV/yugV2uzW5iMRSiZAyDtQd+nxtUnjeLt0acNdw98kKLrvuRVyB80tsREOE7yvGVgalhZ6RNXCmEHkUKBKxew==}
+
+  invokers-polyfill@1.0.3:
+    resolution: {integrity: sha512-T8zVavFQu5GlWlpkjghmaCaTx6Wk+9tWwJ2BC4oNsNAnar6AIrvSJQFZUcYDfrxzK9thBIyZvAkeLfdN9hTzGA==}
 
   ip-address@10.2.0:
     resolution: {integrity: sha512-/+S6j4E9AHvW9SWMSEY9Xfy66O5PWvVEJ08O0y5JGyEKQpojb0K0GKpz/v5HJ/G0vi3D2sjGK78119oXZeE0qA==}
@@ -9536,6 +9545,8 @@ snapshots:
   inherits@2.0.4: {}
 
   ini@1.3.8: {}
+
+  invokers-polyfill@1.0.3: {}
 
   ip-address@10.2.0: {}
 

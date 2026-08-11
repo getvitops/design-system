@@ -71,6 +71,15 @@
   animation-duration: var(--animation-duration-xslow);
 }
 
+/* The gallery/lightbox thumbnail → full-image morph (see patterns/lightbox.css)
+   needs a shorter duration than a whole-page navigation. Scoped to `*` because a
+   repo-wide `::view-transition-old/new` selector belongs at the engine layer, not
+   inside the one pattern partial that happens to use it first. */
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 0.3s;
+}
+
 /* ===========================================
  * Keyframes - Layout Stage (most expensive)
  * =========================================== */

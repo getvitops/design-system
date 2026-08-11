@@ -1,42 +1,14 @@
 /**
- * Lightbox — pattern partial migrated from old-css-lib.
+ * Lightbox — the full-screen `<dialog>` a gallery trigger opens.
  * Consumes the generated token cascade (src/css/generated/tokens.css).
+ *
+ * The thumbnail grid that drives this moved to `patterns/gallery.css`
+ * (`.gallery` / `.gallery__item` / `.gallery__trigger` / `.gallery__thumb`) — this
+ * partial owns only the dialog a trigger opens. `<Gallery />` emits both; this
+ * file has no opinion on what triggers it.
  */
 
-/* ── Lightbox — thumbnail grid + full-screen dialog w/ view transitions ────── */
-.lightbox {
-  --_br: var(--br-lightbox, var(--br-lightbox-group, var(--br-default)));
-
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--lightbox-thumb-size, 150px), 1fr));
-  gap: var(--lightbox-gap, 0.5rem);
-
-  .lightbox__item {
-    position: relative;
-    aspect-ratio: var(--lightbox-aspect, 1);
-    overflow: hidden;
-    border-radius: var(--_br);
-    cursor: pointer;
-
-    &:focus-visible {
-      outline: 2px solid var(--lightbox-focus-color, currentColor);
-      outline-offset: 2px;
-    }
-  }
-
-  .lightbox__thumb {
-    inline-size: 100%;
-    block-size: 100%;
-    object-fit: cover;
-    transition: scale 0.3s ease;
-    view-transition-name: match-element;
-  }
-
-  .lightbox__item:hover .lightbox__thumb {
-    scale: 1.05;
-  }
-}
-
+/* ── Lightbox dialog — full-screen, w/ view transitions ─────────────────────── */
 dialog.lightbox-dialog {
   position: fixed;
   inset: 0;
@@ -56,6 +28,14 @@ dialog.lightbox-dialog {
      ::backdrop rule, so it keeps the shared fade timing. */
   --scrim: transparent;
 
+  /* The entry, as effect vars rather than a keyframe — same approach as
+     dialog.css, and for the same reason: the top-layer driver in animation.css
+     then animates this OUT too, which an `animation:` on `[open]` never does
+     (it only ever plays once, on open). */
+  --opacity-from: 0;
+  --scale-x-from: 0.95;
+  --scale-y-from: 0.95;
+
   &[open] {
     display: grid;
   }
@@ -73,7 +53,13 @@ dialog.lightbox-dialog {
     max-inline-size: 100%;
     max-block-size: 90vh;
     object-fit: contain;
-    view-transition-name: match-element;
+
+    /* `<wc-gallery>` assigns `view-transition-name: lightbox-active` to this and
+       the originating thumbnail at the moment it opens, then clears it on close —
+       that shared, runtime-assigned name is what morphs one into the other.
+       `match-element` (the auto-generated per-element name) does NOT do this: it
+       names each element uniquely, so it can never morph a thumbnail into a
+       different `<img>`. Do not put a `view-transition-name` here statically. */
   }
 
   .lightbox-dialog__close {
@@ -148,9 +134,4 @@ dialog.lightbox-dialog {
     padding: 1rem 2rem;
     text-align: center;
   }
-}
-
-::view-transition-old(*),
-::view-transition-new(*) {
-  animation-duration: 0.3s;
 }

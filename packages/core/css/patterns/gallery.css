@@ -1,0 +1,60 @@
+/**
+ * Gallery — thumbnail grid whose triggers open a `.lightbox-dialog` (patterns/lightbox.css).
+ * Consumes the generated token cascade (src/css/generated/tokens.css).
+ *
+ * Split out of what used to be `.lightbox`'s grid half. The two are separate
+ * concerns — "a grid of images" and "view one full-screen" — and only the dialog
+ * half needs the `lightbox` name; the grid never was one.
+ *
+ * `<wc-gallery>` wraps this and augments the per-image `.lightbox-dialog`s it finds
+ * with prev/next, arrow keys, swipe and a counter. With no JS each `.gallery__trigger`
+ * is a real `command="show-modal" commandfor="…"` invoker for its own dialog, so the
+ * grid + dialogs already form a working modal lightbox before any script runs.
+ */
+
+wc-gallery {
+  /* Unregistered custom elements default to `display: inline`, which forms an
+     inline box around this grid's block content until `elements.js` upgrades it. */
+  display: block;
+}
+
+.gallery {
+  --_br: var(--br-gallery, var(--br-gallery-group, var(--br-default)));
+
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--gallery-thumb-size, 150px), 1fr));
+  gap: var(--gallery-gap, 0.5rem);
+}
+
+.gallery__item {
+  aspect-ratio: var(--gallery-aspect, 1);
+  overflow: hidden;
+  border-radius: var(--_br);
+}
+
+.gallery__trigger {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--gallery-focus-color, currentColor);
+    outline-offset: 2px;
+  }
+}
+
+.gallery__thumb {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  transition: scale 0.3s ease;
+}
+
+.gallery__trigger:hover .gallery__thumb {
+  scale: 1.05;
+}

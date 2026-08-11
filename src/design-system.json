@@ -350,6 +350,9 @@
       "carousel": {
         "group": "area"
       },
+      "gallery": {
+        "group": "area"
+      },
       "nav": {
         "group": "area"
       },

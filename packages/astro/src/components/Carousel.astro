@@ -49,17 +49,24 @@
  *     a description is announced on focus.
  */
 import type { HTMLAttributes } from 'astro/types';
+import ResponsiveImage from './ResponsiveImage.astro';
+import type { ImageFormat } from './ResponsiveImage.astro';
 
 export interface CarouselSlide {
-  src: string;
+  /** A plain string renders a raw `<img>`; an `astro:assets` import renders through
+   *  `<Picture />` for AVIF/WebP derivatives — see `ResponsiveImage.astro`. */
+  src: string | ImageMetadata;
   alt: string;
   /**
    * Intrinsic size. Emitted as `width`/`height` so the UA derives an aspect ratio
    * and the slide reserves space before the image lands. When unknown,
    * `--carousel-slide-aspect` still reserves the box, so CLS is covered either way.
+   * Only meaningful for a plain-string `src` — an `ImageMetadata` source's natural
+   * size is already known.
    */
   width?: number;
   height?: number;
+  /** Only meaningful for a plain-string `src` — see `ResponsiveImage.astro`. */
   srcset?: string;
   sizes?: string;
   caption?: string;
@@ -70,6 +77,8 @@ export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
   label: string;
   /** Image slides. Omit and use the default slot for richer slides. */
   slides?: CarouselSlide[];
+  /** Passed to every `<Picture formats>` for an `ImageMetadata` slide. Default `['avif', 'webp']`. */
+  formats?: ImageFormat[];
   /** Milliseconds between slides. Implies `loop`. */
   autoplay?: number;
   /**
@@ -118,6 +127,7 @@ export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
 const {
   label,
   slides = [],
+  formats = ['avif', 'webp'],
   autoplay,
   loop = false,
   buttons = true,
@@ -197,9 +207,10 @@ const Shell = enhance ? 'wc-carousel' : 'div';
                 that, so this is genuinely JS-free deferral. `decoding` is left
                 unset on the first: `sync` can block the main thread, and the UA's
                 own choice for an eager LCP image is better than ours. */}
-            <img
+            <ResponsiveImage
               src={slide.src}
               alt={slide.alt}
+              formats={formats}
               srcset={slide.srcset}
               sizes={slide.sizes}
               width={slide.width}

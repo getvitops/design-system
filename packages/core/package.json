@@ -30,6 +30,7 @@
     "@webcomponents/webcomponentsjs": "catalog:",
     "colorjs.io": "catalog:",
     "construct-style-sheets-polyfill": "catalog:",
+    "invokers-polyfill": "catalog:",
     "lit": "catalog:",
     "scroll-timeline-polyfill": "catalog:",
     "temporal-polyfill": "catalog:"

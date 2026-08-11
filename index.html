@@ -471,8 +471,11 @@
         opacity: 0.7;
       }
 
-      /* ── Animation + float galleries ── */
-      .gallery {
+      /* ── Animation + float galleries ──
+         Named `.fx-gallery`, not `.gallery`: the framework now owns that class
+         (patterns/gallery.css) for the thumbnail-grid pattern demoed in the
+         Overlays section above, and this page-local demo scaffold predates it. */
+      .fx-gallery {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
         gap: 1rem;
@@ -2737,6 +2740,73 @@
                   Slides in from the right; <code>[popover]</code> variant.
                 </p>
               </div>
+              <!-- Dogfoods the shipped web component (dist/elements.js): each
+                   trigger is a working command="show-modal" invoker with no JS
+                   at all; <wc-gallery> adds prev/next, swipe and the morph. -->
+              <ul class="gallery" style="--gallery-thumb-size: 72px; max-inline-size: 20rem">
+                <li class="gallery__item">
+                  <button
+                    class="gallery__trigger"
+                    type="button"
+                    command="show-modal"
+                    commandfor="d-gal-1"
+                  >
+                    <img
+                      class="gallery__thumb"
+                      alt=""
+                      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect width='400' height='400' fill='%234a9075'/%3E%3C/svg%3E"
+                    />
+                  </button>
+                </li>
+                <li class="gallery__item">
+                  <button
+                    class="gallery__trigger"
+                    type="button"
+                    command="show-modal"
+                    commandfor="d-gal-2"
+                  >
+                    <img
+                      class="gallery__thumb"
+                      alt=""
+                      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='360'%3E%3Crect width='640' height='360' fill='%232f6fb3'/%3E%3C/svg%3E"
+                    />
+                  </button>
+                </li>
+              </ul>
+              <dialog id="d-gal-1" class="lightbox-dialog" closedby="any" aria-label="Square demo">
+                <div class="lightbox-dialog__content">
+                  <img
+                    class="lightbox-dialog__image"
+                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect width='400' height='400' fill='%234a9075'/%3E%3C/svg%3E"
+                  />
+                </div>
+                <button
+                  class="lightbox-dialog__close"
+                  type="button"
+                  command="close"
+                  commandfor="d-gal-1"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </dialog>
+              <dialog id="d-gal-2" class="lightbox-dialog" closedby="any" aria-label="Wide demo">
+                <div class="lightbox-dialog__content">
+                  <img
+                    class="lightbox-dialog__image"
+                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='360'%3E%3Crect width='640' height='360' fill='%232f6fb3'/%3E%3C/svg%3E"
+                  />
+                </div>
+                <button
+                  class="lightbox-dialog__close"
+                  type="button"
+                  command="close"
+                  commandfor="d-gal-2"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </dialog>
             </div>
             <dl class="api-list">
               <div class="api-row">
@@ -2823,17 +2893,32 @@
                 </div>
               </div>
               <div class="api-row">
+                <div class="api-sig"><code>.gallery</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  Thumbnail grid whose triggers are
+                  <code>command="show-modal" commandfor="…"</code> invokers for their own
+                  <code>.lightbox-dialog</code> — a working modal lightbox with no JavaScript.<span
+                    class="sub"
+                    ><strong>Parts:</strong> <code>.gallery__item</code>, <code>__trigger</code>,
+                    <code>__thumb</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
                 <div class="api-sig">
-                  <code>.lightbox</code> · <code>.lightbox-dialog</code
-                  ><span class="t t-state">state</span>
+                  <code>.lightbox-dialog</code><span class="t t-state">state</span>
                 </div>
                 <div class="api-desc">
-                  Thumbnail grid + full-screen <code>&lt;dialog&gt;</code> with view
-                  transitions.<span class="sub"
-                    ><strong>Parts:</strong> <code>.lightbox__item</code>, <code>__thumb</code>;
-                    <code>.lightbox-dialog__content</code>, <code>__image</code>,
-                    <code>__close</code>, <code>__nav</code>, <code>__nav-button</code>,
-                    <code>__caption</code>.</span
+                  Full-screen <code>&lt;dialog&gt;</code> a <code>.gallery</code> trigger opens,
+                  with view transitions.<span class="sub"
+                    ><strong>Parts:</strong> <code>.lightbox-dialog__content</code>,
+                    <code>__image</code>, <code>__close</code>, <code>__nav</code>,
+                    <code>__nav-button</code>, <code>__caption</code>. <code>__nav</code>/<code
+                      >__nav-button</code
+                    >
+                    are generated by <code>&lt;wc-gallery&gt;</code> — never authored, since a
+                    second <code>show-modal</code> invoker inside an already-open dialog would stack
+                    a second modal rather than replace it.</span
                   >
                 </div>
               </div>
@@ -3253,11 +3338,11 @@
               <p class="swatch-note">
                 Effects (click a tile to replay via <code>.animate-trigger</code>):
               </p>
-              <div class="gallery" id="effects"></div>
+              <div class="fx-gallery" id="effects"></div>
               <p class="swatch-note" style="margin-top: 1rem">
                 Hover-flip drivers (<code>.transition.hover-*</code>):
               </p>
-              <div class="gallery">
+              <div class="fx-gallery">
                 <div class="fx-box transition hover-fade-in"><code>hover-fade-in</code></div>
                 <div class="fx-box transition hover-scale-up"><code>hover-scale-up</code></div>
                 <div class="fx-box transition hover-slide-up"><code>hover-slide-up</code></div>
@@ -3266,8 +3351,8 @@
               <p class="swatch-note" style="margin-top: 1rem">
                 Staggered trigger (click to replay), and float presets:
               </p>
-              <div class="gallery stagger" id="stagger-demo"></div>
-              <div class="gallery" id="floats" style="margin-top: 1rem"></div>
+              <div class="fx-gallery stagger" id="stagger-demo"></div>
+              <div class="fx-gallery" id="floats" style="margin-top: 1rem"></div>
             </div>
 
             <h3>Drivers</h3>

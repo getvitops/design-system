@@ -191,6 +191,36 @@ Notes for whoever picks this up:
 - Check it against the Bricks builder, where markup is injected and re-rendered
   constantly — that is the hardest case for an observer-driven loader.
 
+## Foundational components — todo
+
+Not built yet; tracked in full in `elements.ts`'s docblock (`packages/core/src/js/elements.ts`),
+this entry is the index into that list:
+
+- **Combobox** — CSS shell only (`patterns/combobox.css`); the Lit component that makes it
+  interactive doesn't exist.
+- **Dropdown / dropdown-item** — `.dropdown` (`patterns/dropdown.css`) is CSS/Popover-only,
+  hover-or-click; needs a component for the ARIA `menu`/`menuitem` pattern (roving-tabindex
+  arrow keys, type-ahead, Escape-returns-focus).
+- **Tabs / tab / tab-panel** — `tabs` is a generated pattern with no structural partial and
+  no component (see its `tiers.ts` entry); needs the WAI-ARIA tabs pattern (roving tabindex,
+  arrow keys, `aria-selected`, `aria-controls`).
+- **Breadcrumbs** — no pattern at all yet. (`schemas/Breadcrumb.astro` is unrelated —
+  Schema.org JSON-LD, not visual nav.) Likely CSS/astro only, no JS: a breadcrumb trail is
+  `<nav aria-label="Breadcrumb"><ol>…` and needs nothing dynamic.
+- **Markdown** — render/enhance markdown content client-side. Library unchosen.
+- **OTP** — segmented one-time-passcode input: auto-advance between digits, paste-splitting
+  a full code across them. Fallback is a plain `<input>`.
+- **QR** — QR code generation/display.
+- **Slider** — a range control, distinct from `<wc-split-panel>`'s drag divider (that
+  resizes two panes; this picks a value).
+- **Format** — reads a machine value and renders a presentation of it, e.g. a relative date
+  over `<time datetime>` (`"5 minutes ago"`), re-rendering as it goes stale. Fallback is the
+  value already in the markup.
+
+Whoever picks one of these up should give it the full `<wc-counter>`-style treatment above
+(why it clears the tier-2 bar, shape, load-bearing details, what else needs touching) rather
+than just the one-liners here.
+
 ## `SiteConfig` → `Config`, with three sections — DONE
 
 Landed. `packages/generator/src/config.ts` (was `site.ts`) now exports `ConfigSchema` /

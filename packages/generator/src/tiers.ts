@@ -141,6 +141,26 @@ export const TIERS: Record<string, TierEntry> = {
     bricks: 'vitops-carousel',
     use: '`<Carousel slides={…} label="…" />` — it emits `<wc-carousel>` itself, so do NOT add your own wrapper. `.carousel` is the shell and `.carousel__track` the scroller; add `loop` for the cloned infinite strip (`autoplay` implies it).',
   },
+  // TODO — no `bricks` element yet (contrast `carousel`, `entries`, `image-compare`
+  // above, which all have one). Not in the immediate plan; the css + wc + astro
+  // tiers are the complete, self-consistent deliverable on their own, and a
+  // `bricks/elements/gallery.php` + `bricks: 'vitops-gallery'` is a self-contained
+  // follow-up whenever it's needed — it only adds a field here, nothing above it
+  // has to change.
+  gallery: {
+    css: c(
+      ['gallery', 'gallery__item', 'gallery__trigger', 'gallery__thumb'],
+      'patterns/gallery.css',
+      true,
+    ),
+    wc: {
+      tag: 'wc-gallery',
+      registered: true,
+      adds: 'prev/next, arrow keys, swipe, an image counter, neighbour preload and the view-transition morph',
+    },
+    astro: a('Gallery', 'wc'),
+    use: '`<Gallery images={…} label="…" />` — it emits `<wc-gallery>` itself, so do NOT add your own wrapper. Each thumbnail is a `command="show-modal"` invoker for its own `<dialog class="lightbox-dialog">` (see `lightbox`), so it is a working modal lightbox with no JS.',
+  },
   entries: {
     css: c(['entries__table', 'entries__scroll', 'entries__nav'], 'patterns/table.css'),
     wc: {
@@ -402,8 +422,17 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`.notification` with a role variant; wrap in `<wc-dismissable>` to make it dismissable.',
   },
   lightbox: {
-    css: c(['lightbox', 'lightbox-dialog__content'], 'patterns/lightbox.css', true),
-    use: '`.lightbox` thumbnails plus a `<dialog>`.',
+    css: c(
+      [
+        'lightbox-dialog',
+        'lightbox-dialog__content',
+        'lightbox-dialog__image',
+        'lightbox-dialog__nav-button',
+      ],
+      'patterns/lightbox.css',
+      true,
+    ),
+    use: 'The `<dialog class="lightbox-dialog">` half of a lightbox. Use `gallery` for the thumbnail grid that drives it — `<Gallery />` emits both.',
   },
   comment: {
     css: c(['comment', 'comment__author', 'comment-thread'], 'patterns/comment.css', true),

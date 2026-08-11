@@ -128,6 +128,11 @@ const POLYFILLED = [
     label: 'Temporal',
     note: 'Polyfilled via <code>temporal-polyfill</code>.',
   },
+  {
+    id: 'invoker-commands',
+    label: '<button command commandfor>',
+    note: 'Polyfilled via <code>invokers-polyfill</code>. <code>&lt;wc-gallery&gt;</code>\'s no-JS fallback and <code>&lt;Drawer /&gt;</code> both depend on it.',
+  },
 ];
 
 const headings = [
@@ -222,8 +227,7 @@ const headings = [
     <p class="font-footnote text-surface-x-muted">
       Not polyfilled because they're universal across the framework's targets:
       <code>&lt;dialog&gt;</code>, <code>:has()</code>, container queries, CSS nesting,
-      <code>IntersectionObserver</code>. Invoker Commands (<code>command</code> /
-      <code>commandfor</code>) is not yet polyfilled or relied on.
+      <code>IntersectionObserver</code>.
     </p>
   </details>
 

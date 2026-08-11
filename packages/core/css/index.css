@@ -43,6 +43,7 @@
    panel surface navshell's desktop block has to undo. */
 @import './patterns/navshell.css';
 @import './patterns/notification.css';
+@import './patterns/gallery.css';
 @import './patterns/lightbox.css';
 @import './patterns/overlay.css';
 /* was forms.css */

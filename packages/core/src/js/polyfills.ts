@@ -79,11 +79,15 @@ export const prerenderPolyfills: Polyfill[] = [
     test: () => 'adoptedStyleSheets' in Document.prototype,
     load: () => import('construct-style-sheets-polyfill'),
   },
-  // TODO: Invoker Commands API — <button command commandfor>. AGENTS.md flags it
-  // as a preferred native primitive, but it's too new to actually rely on yet.
-  // Add an entry (test: () => 'command' in HTMLButtonElement.prototype,
-  // load: () => import('invokers-polyfill')) once we start using it.
-  //
+  {
+    // Invoker Commands API — <button command commandfor>. `<wc-gallery>`'s
+    // no-JS fallback is a working modal lightbox built entirely on this (see
+    // patterns/gallery.css), and `Drawer.astro` already emits `command="show-modal"`
+    // unconditionally — both need this covered rather than merely "preferred".
+    name: 'invoker-commands',
+    test: () => 'command' in HTMLButtonElement.prototype,
+    load: () => import('invokers-polyfill'),
+  },
   // Deliberately omitted — universally supported across the framework's targets,
   // so a polyfill would be dead weight:
   //   • <dialog> / showModal()      • :has()          • container queries

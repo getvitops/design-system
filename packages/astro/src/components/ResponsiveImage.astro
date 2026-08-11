@@ -1,0 +1,52 @@
+---
+/**
+ * Internal helper — turns `string | ImageMetadata` into markup, so `Gallery` and
+ * `Carousel` render images identically and cannot drift from each other.
+ *
+ * Not exported from `package.json`: it is packaging detail, not a pattern a
+ * consumer places on a page (same treatment as `TreeNode.astro`), so it carries
+ * no `TIERS` entry either — `tiers.test.ts` only scans `exports`.
+ *
+ * A plain `string` renders the raw `<img>` path every Astro component in this
+ * package already used before `ImageMetadata` support existed — unchanged, so
+ * every existing string-`src` call site keeps rendering byte-identical markup.
+ * An `ImageMetadata` (an `astro:assets` image import) renders through
+ * `<Picture />`, which is what gets a consumer AVIF/WebP derivatives instead of
+ * shipping whatever format the source file happens to be in.
+ *
+ * `formats` defaults to `['avif', 'webp']` and is passed straight through to
+ * `<Picture formats>` — including a value astro:assets doesn't recognise yet.
+ * That is deliberate: Astro's `VALID_OUTPUT_FORMATS` today is
+ * `avif/png/webp/jpeg/jpg/svg` (no JPEG-XL — the sharp service can't emit it), so
+ * hard-coding a closed format union here would need editing the day a service
+ * adds one. `ImageFormat` mirrors Astro's own `ImageOutputFormat`
+ * (`… | (string & {})`) for exactly that reason, defined locally rather than
+ * imported — `astro:assets`'s ambient module declaration doesn't export it, and
+ * reaching into `astro/dist/**` for a type is not a stable import.
+ */
+import { Picture } from 'astro:assets';
+import type { HTMLAttributes } from 'astro/types';
+
+export type ImageFormat = 'avif' | 'webp' | 'png' | 'jpeg' | 'jpg' | 'gif' | 'svg' | (string & {});
+
+export interface Props extends Omit<HTMLAttributes<'img'>, 'src' | 'alt'> {
+  src: string | ImageMetadata;
+  alt: string;
+  formats?: ImageFormat[];
+  /**
+   * Only meaningful when `src` is a plain `string` — Astro computes its own
+   * `srcset` for an `ImageMetadata` source and this is not merged with it.
+   */
+  srcset?: string;
+}
+
+const { src, alt, formats = ['avif', 'webp'], srcset, class: className, ...rest } = Astro.props;
+---
+
+{
+  typeof src === 'string' ? (
+    <img src={src} alt={alt} srcset={srcset} class={className} {...rest} />
+  ) : (
+    <Picture src={src} alt={alt} formats={formats} class={className} {...rest} />
+  )
+}
