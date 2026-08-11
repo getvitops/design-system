@@ -11,6 +11,76 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 7.0.0 — 2026-08-11
+
+A gallery/lightbox split, `<wc-tree>` gaining real keyboard navigation, and a backlog of
+smaller features (`<wc-counter>`, `itemListGraph()`, GBP location fields, an `ADC`/`gcloud`
+login path for `vitops search`) all landing in one release.
+
+Only `@getvitops/core`, `generator`, `utils` and `astro` carry consumer-facing change here.
+`@getvitops/cli` and `vite` ship with **no consumer-facing change in this release** — they are
+bumped because the six share one version.
+
+### Breaking
+
+- **`.lightbox` (the thumbnail grid) is now `.gallery`** (all formats), so it composes with the
+  dialog it opens (`.lightbox-dialog`, unchanged) instead of sharing its name. Not reachable by
+  `vitops lint --fix` (that renames colour tokens, not classes) — migrate by hand: `.lightbox` →
+  `.gallery`, `.lightbox__item` → `.gallery__item`, `.lightbox__thumb` → `.gallery__thumb`.
+  `<wc-gallery>` (`@getvitops/core/elements`) and `<Gallery />` (`@getvitops/astro`) are new,
+  adding prev/next, arrow keys, swipe, an announced counter, and a thumbnail →
+  full-image `startViewTransition` morph on top of a zero-JS native `<dialog>` fallback.
+  `<Carousel />`'s `CarouselSlide.src` also now accepts `ImageMetadata`, purely additively.
+- **`<wc-tree>` now unwraps every branch's `<details>`/`<summary>`** into a plain, JS-owned
+  structure with real `role="tree"`/`role="treeitem"` semantics and roving-tabindex keyboard
+  navigation (arrow keys, Home/End, type-ahead), replacing native tab-through-everything. The
+  no-JS fallback is unaffected — still native nested `<details>`. Two things break for a
+  consumer that reached into the enhanced DOM: a captured `<details>`/`<summary>` reference
+  (`tree-toggle` replaces it) and tab-order expectations (arrow keys replace tabbing between
+  rows). `patterns/tree.css` gains `.tree__summary` (all formats); visually unchanged.
+- **`radii.pill` / `--br-pill` is gone** (`css`/`bricks` only — tailwind never emitted it and
+  already ships its own). `999px` is a shape, not a config-editable design decision, so it's now
+  the `rounded-full` utility (plus a new `rounded-none`), matching Tailwind's naming. A consumer
+  overriding `--br-pill` directly should override the specific hook instead — `--br-switch-track`,
+  `--br-count` or `--br-badge-indicator` — each of which already existed and now falls back
+  straight to the literal. `.badge` is unaffected; it already resolved to `999px` and still does,
+  now through its own override. Not reachable by `vitops lint --fix`.
+
+### Added
+
+- **`vitops search` now works from a `gcloud` login** (Application Default Credentials), not just
+  the explicit `VITOPS_GOOGLE_*` vars — removes the footgun where a self-created OAuth client sits
+  in _Testing_ status and Google expires its refresh token after 7 days. Needs a new
+  **`site.google.project`** field (required for a user credential, refused for a service account)
+  so API usage attributes to the right Cloud project per site; an ADC credential missing it is now
+  refused before any request, naming the file and the project gcloud recorded for it.
+- **`<wc-counter>`** — animates a number from a start value to the value already in its own
+  fallback text, on intersection, formatted through `Intl.NumberFormat` so a grouped `1,284` never
+  animates through ungrouped intermediates. CSS drives the interpolation and easing curve
+  (`data-easing` maps onto the real `animation.css` tokens) so nothing duplicates them in JS.
+  `patterns/counter.css` (all formats); `<Counter />` in `@getvitops/astro`.
+- **`itemListGraph()`** (`@getvitops/utils`) — a pure schema.org `ItemList` JSON-LD builder,
+  extracted from `<Carousel />`'s inline object literal so any consumer can build a valid
+  `ItemList` for content outside the six Google carousel rich-result types. `<Carousel />`'s
+  `CarouselItem['type']` now accepts any string as a result — additive, existing callers unaffected.
+- **Four new `organization.locations.<slug>` fields** — `hoursSpecial`, `photos`, `sameAs` (the
+  location's own listing URLs) and `listings` (external ids keyed by platform: `google`/`bing`/
+  `apple`) — what GBP, Bing Places and Apple Business Connect actually need, surfaced through the
+  new `localBusinessGraph()` builder (`@getvitops/utils`, a sibling of `organizationGraph()` and
+  friends). `<LocalBusiness />`'s prop type is now that builder's options type, not a local
+  interface that had drifted from it.
+
+### Fixed
+
+- **`<wc-carousel>`'s dot-nav arrow keys now follow writing direction** — previously index-based
+  and backwards in RTL. Two fast arrow presses no longer land on the same dot twice.
+- **An `ADC` file in `GOOGLE_APPLICATION_CREDENTIALS` no longer hard-exits** `vitops search` —
+  that variable carries both service-account and gcloud-login credentials, and only the former was
+  handled; it's now discriminated on `type`, the field Google's own libraries switch on.
+- **`@getvitops/core`'s build now minifies the CSS/HTML inside its Lit `css`/`html` template
+  literals**, which a JS minifier can't see through — `elements.js` previously shipped that markup
+  and styling byte-for-byte unminified. No behaviour change, smaller bundle.
+
 ## 6.0.0 — 2026-08-08
 
 The carousel, reworked so that it actually works outside Chromium.

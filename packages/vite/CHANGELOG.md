@@ -1,5 +1,47 @@
 # @getvitops/vite
 
+## 7.0.0
+
+### Patch Changes
+
+- **Added — `utils`.** `itemListGraph()`, a pure schema.org `ItemList` JSON-LD builder — a sibling
+  of `breadcrumbGraph()`/`localBusinessGraph()`. Extracted from `@getvitops/astro`'s `<Carousel />`
+  so any consumer can build a valid `ItemList` (Google's "all-in-one page" carousel format:
+  `ListItem.item` carrying `@type`/`name`/`url`) for content that isn't one of the six Google
+  carousel rich-result types (`Article`/`Recipe`/`Movie`/`Course`/`Restaurant`/`Product`) — the
+  entity type is no longer constrained to that set.
+
+  **Changed — `astro`.** `<Carousel />`'s `CarouselItem['type']` now accepts any string, not just
+  the six carousel rich-result types — non-breaking, the union only widens. It's a thin wrapper
+  over `itemListGraph()` now; behaviour for existing callers is unchanged.
+
+  No consumer-facing change in this release outside `utils` and `astro` — `generator`, `cli` and
+  `vite` still ship in this release only because the six share one version.
+
+  **Fixed — `core` (`css`/`bricks`/`tailwind` build output, all formats).** The CSS and HTML
+  authored inside Lit's `css`/`html` tagged templates in `<wc-*>` component sources previously
+  survived JS minification verbatim — a JS minifier treats a template literal's cooked text as
+  opaque, so `elements.js` shipped ~690 lines of indented, unminified CSS (and the equivalent in
+  HTML) inside an otherwise-minified 886-line file. Two source-level build transforms now collapse
+  both before bundling: `postcss` + `postcss-lit` + `cssnano` for `css` templates, `minify-html-literals`
+  (`conservativeCollapse: true`, so whitespace between inline elements in light-DOM components never
+  collapses to zero) for `html` templates. `elements.js` drops from 886 lines / ~101 KB to 49 lines /
+  ~96 KB. A second build step deduplicates the 17 `@license` comment blocks (only 6 are textually
+  distinct) down to one verbatim copy of each — required by BSD-3/MIT/Apache-2.0's notice-retention
+  terms either way, just no longer repeated once per source file that carries it. No API change;
+  build-time only, and none of the added tooling (`postcss`, `postcss-lit`, `cssnano`,
+  `minify-html-literals`) is a runtime or published dependency.
+
+- Updated dependencies [c0c092b]
+- Updated dependencies
+- Updated dependencies [aad43b7]
+- Updated dependencies [2b50f9e]
+- Updated dependencies [a6a8b39]
+- Updated dependencies [7b391b3]
+- Updated dependencies [eb9ac79]
+  - @getvitops/utils@7.0.0
+  - @getvitops/generator@7.0.0
+
 ## 6.0.0
 
 **No consumer-facing change in this package.** The major is the toolchain's shared version, bumped

@@ -1,5 +1,122 @@
 # @getvitops/utils
 
+## 7.0.0
+
+### Minor Changes
+
+- c0c092b: `vitops search` now works from a `gcloud` login, and attributes API usage per site.
+
+  **Being logged in is enough.** With no `VITOPS_GOOGLE_*` set, an Application Default Credentials
+  login is used — the credential `gcloud auth application-default login` already wrote. It needs the
+  Search Console scopes, which are not in the default ADC set:
+
+  ```
+  gcloud auth application-default login \
+    --scopes=openid,https://www.googleapis.com/auth/siteverification,\
+  https://www.googleapis.com/auth/webmasters,https://www.googleapis.com/auth/cloud-platform
+  ```
+
+  Explicit `VITOPS_GOOGLE_*` vars still win. Ambient credentials are only a fallback, because a stale
+  local login silently overriding a deliberate CI secret is the worst available precedence.
+
+  Beyond convenience, this removes a documented footgun: an OAuth client you create yourself sits in
+  _Testing_ publishing status, where Google **expires the refresh token after 7 days**. The Cloud SDK
+  client is published, so an ADC credential doesn't rot between onboarding runs.
+
+  **New: `site.google.project`** — the Google Cloud project API usage is attributed to, sent as
+  `x-goog-user-project`. One project per site is what keeps each site's usage and billing separate,
+  and it is the same field Maps or anything else will read later, rather than a `quotaProject` here
+  and a `mapsProject` there.
+
+  It is **required for a user credential and wrong for a service account**, which is why it is not
+  sent unconditionally. A user credential authenticates through a shared OAuth client that owns no
+  project, so Google refuses the call outright — measured: `403 "requires a quota project, which is
+not set by default"`. A service account already belongs to a project, and pointing it at a
+  different one would newly require `serviceusage.services.use` there, turning a working CI
+  credential into a 403 for no benefit.
+
+  Using it needs both APIs (`searchconsole.googleapis.com`, `siteverification.googleapis.com`)
+  enabled on that project, and `serviceusage.services.use` for the identity — one grant per site,
+  which suits an agency administering many sites from one admin identity.
+
+  An ADC credential with no `site.google.project` is now **refused before any request is made**,
+  naming the file the credential came from and the project gcloud recorded with it:
+
+  ```
+  ✖ this Google credential comes from ~/.config/gcloud/application_default_credentials.json,
+    which authenticates through a shared OAuth client that owns no project — so it needs
+    "site.google.project" in site.json to say which project the API usage belongs to.
+    gcloud recorded "acme-web" as the quota project for that login, so that is probably the value.
+  ```
+
+  That is the mistake waiting for the _second_ site: the command gets copied from whatever
+  onboarded the first one, the field is left out, and Google's own answer names neither the config
+  field nor the credential.
+
+  **Fixed: an ADC file in `GOOGLE_APPLICATION_CREDENTIALS` no longer hard-exits.** That variable is
+  Google's own convention _and_ where gcloud writes ADC, so the same variable carries two kinds of
+  credential. Parsing an `authorized_user` file as a service account failed with `service account
+JSON is missing client_email or private_key` — while holding a credential the command already knew
+  how to use. It is now discriminated on `type`, the field Google's own libraries switch on.
+
+  **Also fixed — `search setup --dry` and `--check` are not offline.** The docs implied otherwise. The
+  state gather runs before the planner, so both read from Cloudflare and Google and both need
+  credentials. They still create and change nothing; `notify --dry` remains genuinely request-free.
+
+  New in `@getvitops/utils/indexing`: `parseAdcUser`, `adcQuotaProject`, `adcCredentialsPath` (pure,
+  so what is decidable is asserted without a filesystem), plus `googleHeaders` and the `GoogleAuth` /
+  `GoogleAuthLike` types. The seven exported Google request functions now take a token **or** a
+  `{ token, quotaProject }` — a bare string still works everywhere, so nothing needs changing.
+
+- **Added — `utils`.** `itemListGraph()`, a pure schema.org `ItemList` JSON-LD builder — a sibling
+  of `breadcrumbGraph()`/`localBusinessGraph()`. Extracted from `@getvitops/astro`'s `<Carousel />`
+  so any consumer can build a valid `ItemList` (Google's "all-in-one page" carousel format:
+  `ListItem.item` carrying `@type`/`name`/`url`) for content that isn't one of the six Google
+  carousel rich-result types (`Article`/`Recipe`/`Movie`/`Course`/`Restaurant`/`Product`) — the
+  entity type is no longer constrained to that set.
+
+  **Changed — `astro`.** `<Carousel />`'s `CarouselItem['type']` now accepts any string, not just
+  the six carousel rich-result types — non-breaking, the union only widens. It's a thin wrapper
+  over `itemListGraph()` now; behaviour for existing callers is unchanged.
+
+  No consumer-facing change in this release outside `utils` and `astro` — `generator`, `cli` and
+  `vite` still ship in this release only because the six share one version.
+
+  **Fixed — `core` (`css`/`bricks`/`tailwind` build output, all formats).** The CSS and HTML
+  authored inside Lit's `css`/`html` tagged templates in `<wc-*>` component sources previously
+  survived JS minification verbatim — a JS minifier treats a template literal's cooked text as
+  opaque, so `elements.js` shipped ~690 lines of indented, unminified CSS (and the equivalent in
+  HTML) inside an otherwise-minified 886-line file. Two source-level build transforms now collapse
+  both before bundling: `postcss` + `postcss-lit` + `cssnano` for `css` templates, `minify-html-literals`
+  (`conservativeCollapse: true`, so whitespace between inline elements in light-DOM components never
+  collapses to zero) for `html` templates. `elements.js` drops from 886 lines / ~101 KB to 49 lines /
+  ~96 KB. A second build step deduplicates the 17 `@license` comment blocks (only 6 are textually
+  distinct) down to one verbatim copy of each — required by BSD-3/MIT/Apache-2.0's notice-retention
+  terms either way, just no longer repeated once per source file that carries it. No API change;
+  build-time only, and none of the added tooling (`postcss`, `postcss-lit`, `cssnano`,
+  `minify-html-literals`) is a runtime or published dependency.
+
+- 2b50f9e: Extract the LocalBusiness JSON-LD builder out of `<LocalBusiness />` into a reusable
+  `localBusinessGraph()`, and add the location fields listing platforms (GBP, Bing Places, Apple
+  Business Connect) actually need.
+
+  **Added — `@getvitops/utils`.** `localBusinessGraph(options)` (+ its `LocalBusinessGraphOptions`,
+  `OpeningHoursSpecification` and `SpecialHoursSpecification` types) is now exported from
+  `@getvitops/utils`, alongside the existing `organizationGraph`/`articleGraph`/`breadcrumbGraph`/
+  `faqGraph` builders — same module, same shape, usable anywhere a JSON-LD graph is built outside an
+  Astro component.
+
+  **Added — `authoring`/`config` (`@getvitops/generator`).** Four new `organization.locations.<slug>`
+  fields: `hoursSpecial` (dated deviations from the recurring `hours` — holiday hours, a one-off
+  closure), `photos` (`ImageRefSchema[]` → JSON-LD `image`), `sameAs` (this location's own listing
+  URLs, distinct from `organization.sameAs`, which is the company overall), and `listings` (external
+  listing ids keyed by platform — `google` | `bing` | `apple` — not consumed by the generator today;
+  recorded so a future listings-sync command has a stable id to match against).
+
+  **Changed — `astro`.** `<LocalBusiness />`'s `Props` type is now `LocalBusinessGraphOptions`
+  (re-exported, not redefined) rather than a local interface that had drifted from what the builder
+  actually accepted. No markup or prop-name change for an existing consumer.
+
 ## 6.0.0
 
 **No consumer-facing change in this package.** The major is the toolchain's shared version, bumped

@@ -1,5 +1,14 @@
 # @getvitops/emdash
 
+## 0.3.7
+
+### Patch Changes
+
+- Updated dependencies [c0c092b]
+- Updated dependencies
+- Updated dependencies [2b50f9e]
+  - @getvitops/utils@7.0.0
+
 ## 0.3.6
 
 **The `vitops.carousel` block now renders `@getvitops/astro`'s `<Carousel />`** instead of emitting

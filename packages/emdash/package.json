@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/emdash",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "EmDash CMS native plugin for the Vitops design system — Portable Text block types editors can insert from the admin, rendered with the design-system web components and CSS framework.",
   "license": "MIT",
   "files": [
