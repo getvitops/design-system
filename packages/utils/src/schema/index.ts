@@ -9,6 +9,8 @@ export { breadcrumbGraph } from './breadcrumb.ts';
 export type { BreadcrumbGraphOptions, BreadcrumbItem } from './breadcrumb.ts';
 export { faqGraph } from './faq.ts';
 export type { FAQGraphOptions, FAQItem } from './faq.ts';
+export { itemListGraph } from './itemList.ts';
+export type { ItemListEntry, ItemListEntryType, ItemListGraphOptions } from './itemList.ts';
 export { localBusinessGraph } from './localBusiness.ts';
 export type {
   LocalBusinessGraphOptions,

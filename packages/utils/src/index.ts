@@ -42,6 +42,7 @@ export {
   articleGraph,
   breadcrumbGraph,
   faqGraph,
+  itemListGraph,
   localBusinessGraph,
   organizationGraph,
 } from './schema/index.ts';
@@ -52,6 +53,9 @@ export type {
   BreadcrumbItem,
   FAQGraphOptions,
   FAQItem,
+  ItemListEntry,
+  ItemListEntryType,
+  ItemListGraphOptions,
   LocalBusinessGraphOptions,
   OpeningHoursSpecification,
   OrganizationGraphOptions,

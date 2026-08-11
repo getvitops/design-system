@@ -94,7 +94,16 @@ export default defineConfig({
       'build:core': {
         command: 'cd packages/core && vp pack',
         dependsOn: ['build:utils'],
-        input: ['packages/core/src/**/*.ts', 'packages/core/vite.config.ts'],
+        input: [
+          'packages/core/src/**/*.ts',
+          'packages/core/vite.config.ts',
+          // The CSS/HTML-literal minifiers are build-time dependencies whose
+          // version changes the bytes written to dist/. vp hashes declared
+          // inputs, not node_modules, so both the manifest and the catalog
+          // entries pinning them must invalidate this task too.
+          'packages/core/package.json',
+          'pnpm-workspace.yaml',
+        ],
         output: ['packages/core/dist/**'],
       },
 

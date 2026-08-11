@@ -36,7 +36,11 @@
     "temporal-polyfill": "catalog:"
   },
   "devDependencies": {
+    "cssnano": "catalog:",
     "happy-dom": "catalog:",
+    "minify-html-literals": "catalog:",
+    "postcss": "catalog:",
+    "postcss-lit": "catalog:",
     "vitest": "^4.1.9"
   }
 }
