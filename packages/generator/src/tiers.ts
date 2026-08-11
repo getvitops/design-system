@@ -216,6 +216,20 @@ export const TIERS: Record<string, TierEntry> = {
     },
     use: '`<wc-marquee>` around one `.marquee__content`. Scrolls via CSS alone; JS only removes the seam.',
   },
+  // NOT generated: a counter is a bare text figure, not a bordered/padded box —
+  // none of the token-cascade groups (label/control/panel/area/content/pull)
+  // fit it, so it has no `patterns.items` entry, matching `multi-field` below.
+  // No `bricks` element yet either, same reasoning as `gallery` above.
+  counter: {
+    css: c(['counter', 'counter__value', 'counter__presentation'], 'patterns/counter.css'),
+    wc: {
+      tag: 'wc-counter',
+      registered: true,
+      adds: 'animates from a start value to the value already in the fallback text, on intersection',
+    },
+    astro: a('Counter', 'wc'),
+    use: '`<Counter value="94%" />` — it emits `<wc-counter>` itself, so do NOT add your own wrapper. The final value is parsed from the fallback text, never passed separately.',
+  },
   'multi-field': {
     // NOT generated: the config pattern here is `forms`. This component sits over
     // forms markup, so it has no `patterns.items` entry, no roles and no states.

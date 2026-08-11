@@ -1,0 +1,50 @@
+/**
+ * Counter — animates a number from a start value to the value already in its
+ * fallback text (`.counter__value`), e.g. the "0 → 94%" stat in a media tile.
+ * Consumes the generated token cascade (src/css/generated/tokens.css) only for
+ * `--custom-ease-out` (animation.css's engine layer).
+ *
+ * `<wc-counter>` owns the reading; this partial owns the interpolation. `--_n`
+ * is a registered custom property so the browser can smoothly animate it as a
+ * number — `counter()` cannot do decimals or locale grouping, so JS mirrors
+ * `--_n` into `.counter__presentation`'s text each frame via
+ * `Intl.NumberFormat`, formatted the same way the fallback text was. CSS still
+ * owns the interpolation, the easing curve and (as a second belt alongside the
+ * JS check) `prefers-reduced-motion`.
+ *
+ * `.counter__value` is toggled to the framework's `.sr-only` utility while
+ * running, not hidden — an element pulled out of the accessibility tree via
+ * `display: none`/`visibility: hidden` stops contributing to the accessible
+ * name, and that name must read the final value for the whole animation, not
+ * just at rest.
+ */
+@property --_n {
+  syntax: '<number>';
+  initial-value: 0;
+  inherits: false;
+}
+
+.counter__presentation {
+  display: none;
+}
+
+wc-counter[running] .counter__presentation {
+  display: inline;
+  animation: counter-run var(--counter-duration, 1.2s) var(--counter-easing, var(--custom-ease-out))
+    forwards;
+}
+
+@keyframes counter-run {
+  from {
+    --_n: var(--counter-from, 0);
+  }
+  to {
+    --_n: var(--counter-to);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  wc-counter[running] .counter__presentation {
+    animation: none;
+  }
+}

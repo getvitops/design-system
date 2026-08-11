@@ -56,6 +56,7 @@ emit its tag.
 | `comment` | css | `.comment` inside `.comment-thread`. |
 | `consent` | css · wc · astro | `<CookieConsent />`. Its own Lit-free bundle so a site needing consent does not download a rendering framework. |
 | `copy` | css · wc · bricks | `<wc-copy>` around the content and a `[data-copy]` button. |
+| `counter` | css · wc · astro | `<Counter value="94%" />` — it emits `<wc-counter>` itself, so do NOT add your own wrapper. The final value is parsed from the fallback text, never passed separately. |
 | `cta` | css | `.cta` on any element — usually `<a>`, since a CTA navigates. Filled, with role variants. |
 | `details` | css · astro | `<Details>` — or hand-write `<details>`. No JS at either tier; `::details-content` animates in CSS. |
 | `dialog` | css | Native `<dialog>` plus the `.dialog__*` parts. No JS beyond `showModal()`. |
@@ -122,6 +123,7 @@ is tooling and opt-in per consumer.
 | `<wc-color-wheel>` | `color-wheel` | `(none — editor-v2 track, not yet bundled)` | hue/chroma wheel input |
 | `<wc-consent>` | `consent` | `@getvitops/core/consent` | the permission gate itself — activates `type="text/plain"` tags on grant |
 | `<wc-copy>` | `copy` | `elements.js` | clipboard write plus success feedback |
+| `<wc-counter>` | `counter` | `elements.js` | animates from a start value to the value already in the fallback text, on intersection |
 | `<wc-dismissable>` | `dismissable` | `elements.js` | fade-out + removal, optional auto-dismiss |
 | `<wc-entries>` | `entries` | `elements.js` | parses heading + `<dl>` pairs into a table above a breakpoint |
 | `<wc-gallery>` | `gallery` | `elements.js` | prev/next, arrow keys, swipe, an image counter, neighbour preload and the view-transition morph |
@@ -144,6 +146,7 @@ is tooling and opt-in per consumer.
 | `@getvitops/astro/components/Cards.astro` | `card` | the `<wc-cards>` tag, fallback inside |
 | `@getvitops/astro/components/Carousel.astro` | `carousel` | the `<wc-carousel>` tag, fallback inside |
 | `@getvitops/astro/CookieConsent.astro` | `consent` | the `<wc-consent>` tag, fallback inside |
+| `@getvitops/astro/components/Counter.astro` | `counter` | the `<wc-counter>` tag, fallback inside |
 | `@getvitops/astro/components/Details.astro` | `details` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Drawer.astro` | `drawer` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Gallery.astro` | `gallery` | the `<wc-gallery>` tag, fallback inside |
@@ -197,6 +200,7 @@ rules that generate them all.
 | `comment` | `patterns/comment.css` | `comment`, `comment__author`, `comment-thread` | declared |
 | `consent` | `patterns/consent.css` | `consent`, `consent__body`, `consent__options`, `consent__actions` | — |
 | `copy` | `patterns/copy.css` | `copy`, `copy__button`, `copy__icon`, `copy__tooltip` | — |
+| `counter` | `patterns/counter.css` | `counter`, `counter__value`, `counter__presentation` | — |
 | `cta` | — | `cta`, `cta-danger` | declared |
 | `details` | `patterns/details.css` | `details`, `details-trigger`, `details-icon` | declared |
 | `dialog` | `patterns/dialog.css` | `dialog__header`, `dialog__body`, `dialog__footer` | declared |

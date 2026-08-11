@@ -1,0 +1,80 @@
+---
+/**
+ * A `.counter` figure that counts up from a start value to `value` once it
+ * scrolls into view — the stat/percentage figure in a media tile ("0 → 94%"),
+ * a KPI row, a metrics band.
+ *
+ * Tier-3 in the framework's terms — an authoring convenience that emits the
+ * right `.counter` markup and needs no runtime JS to be usable: with no JS,
+ * `value` is simply the number on the page, in plain semantic text. Nothing is
+ * missing, there is only no count-up.
+ *
+ * **This component emits its own `<wc-counter>`** — do NOT wrap it in one.
+ * That is the tier-3 rule ("the wrapper emits its `<wc-*>` tag with the
+ * accessible fallback inside"), and `Cards.astro`, `Carousel.astro`,
+ * `Tree.astro` and `Gallery.astro` all do the same. The element defers to an
+ * enclosing one, so a nested pair degrades to a no-op rather than
+ * double-enhancing, but the single call is the intended shape.
+ *
+ * `<wc-counter>` adds the count-up itself, triggered once the figure scrolls
+ * into view and skipped entirely under `prefers-reduced-motion: reduce`. If it
+ * never loads, that animation is all that's missing — set `enhance={false}`
+ * for the bare fragment (an email, a PDF, a page that doesn't load
+ * `elements.js`).
+ *
+ * `value` is the ONLY source of the final figure — there is no separate `to`
+ * prop. `<wc-counter>` parses it back out of the rendered text at runtime, so
+ * this component cannot render one number while claiming to animate to a
+ * different one.
+ */
+import type { HTMLAttributes } from 'astro/types';
+
+export interface Props extends Omit<HTMLAttributes<'span'>, 'slot'> {
+  /** The finished figure, e.g. `"94%"`, `"$1,234.50"`, `"1,284×"`. */
+  value: string | number;
+  /** Starting value the animation counts from. Default `0`. */
+  from?: number;
+  /** Animation duration in ms. Default `1200`. */
+  duration?: number;
+  /**
+   * A named curve from the framework's animation tokens — `--custom-ease-in`,
+   * `--custom-ease-out`, `--ease-float-sine`, `--ease-float-bounce` — or
+   * `"linear"`. Default `--custom-ease-out`. An unrecognised name is ignored.
+   */
+  easing?: 'linear' | 'ease-in' | 'ease-out' | 'float-sine' | 'float-bounce';
+  /** Decimal places to render. Inferred from `value`'s own text when absent. */
+  decimals?: number;
+  /**
+   * Emit the `<wc-counter>` wrapper (default `true`).
+   *
+   * Set false where the element cannot run — an email, a PDF, a page that
+   * does not load `elements.js`. `value` is unchanged; only the count-up
+   * animation goes.
+   */
+  enhance?: boolean;
+}
+
+const {
+  value,
+  from,
+  duration,
+  easing,
+  decimals,
+  enhance = true,
+  class: className,
+  ...rest
+} = Astro.props;
+
+const Shell = enhance ? 'wc-counter' : 'span';
+---
+
+<Shell
+  class:list={['counter', className]}
+  data-from={enhance ? from : undefined}
+  data-duration={enhance ? duration : undefined}
+  data-easing={enhance ? easing : undefined}
+  data-decimals={enhance ? decimals : undefined}
+  {...rest}
+>
+  <span class="counter__value">{value}</span>
+</Shell>

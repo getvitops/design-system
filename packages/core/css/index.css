@@ -70,6 +70,7 @@
 @import './patterns/text-effects.css';
 @import './patterns/svg.css';
 @import './patterns/marquee.css';
+@import './patterns/counter.css';
 @import './patterns/nav.css';
 @import './patterns/carousel.css';
 @import './patterns/copy.css';

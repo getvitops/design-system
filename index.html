@@ -3517,6 +3517,35 @@
                 </div>
               </div>
             </dl>
+
+            <h3>Counter</h3>
+            <div class="demo rhythm">
+              <!-- Dogfoods the shipped web component (dist/elements.js): the fallback is
+                   the real, final figure in plain text; <wc-counter> counts up to it once
+                   it scrolls into view, and skips the animation entirely under
+                   prefers-reduced-motion: reduce. -->
+              <wc-counter class="counter font-display" data-from="0" data-duration="1400">
+                <span class="counter__value">94%</span>
+              </wc-counter>
+              <p class="swatch-note">
+                Scroll this out of view and back to replay is not possible — it only counts up once.
+                Reload the page to see it again.
+              </p>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig"><code>.counter</code></div>
+                <div class="api-desc">
+                  Wraps a <code>.counter__value</code> fallback holding the finished figure — the
+                  only source of the final value, parsed rather than passed separately.
+                  <code>&lt;wc-counter&gt;</code> counts up to it on intersection.<span class="sub"
+                    ><strong>Attributes:</strong> <code>data-from</code>,
+                    <code>data-duration</code>, <code>data-easing</code>,
+                    <code>data-decimals</code>.</span
+                  >
+                </div>
+              </div>
+            </dl>
           </section>
 
           <hr class="measure" />

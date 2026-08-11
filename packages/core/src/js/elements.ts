@@ -63,3 +63,4 @@ import '../web-components/WCMarquee.js';
 import '../web-components/WCTree.js';
 import '../web-components/WCCards.js';
 import '../web-components/WCGallery.js';
+import '../web-components/WCCounter.js';

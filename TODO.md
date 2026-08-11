@@ -106,54 +106,25 @@ page (border/hairline token, radii→token bricks-gating, button base, `.flex` f
   `diff` gate in CI. See the deferred DTCG/OKF plan in `PLAN.md` for the wider framing — its
   Phase 3 (OKF bundle) is already live as `docs/`.
 
-## `<wc-counter>` — animated value transition — todo
+## `<wc-counter>` — animated value transition — ✅ done
 
-A tier-2 element that animates a number from a start value to a final one — the stat/percentage
-figure in a media tile ("0 → 94%"), a KPI row, a metrics band.
+Landed as `packages/core/src/web-components/WCCounter.ts` + `utils/counter.ts` +
+`patterns/counter.css` + `packages/astro/src/components/Counter.astro`, registered in
+`elements.ts` and `tiers.ts`. Shape, fallback-is-the-source-of-truth parsing, intersection
+trigger, reduced-motion handling and the accessible-name treatment all landed as planned below —
+two corrections worth recording against what was originally written here:
 
-**Why it clears the tier-2 bar.** The fallback is the _finished_ figure in the light DOM, so with
-no JS a visitor reads the real number in semantic markup and nothing is missing. The element only
-replaces the text over a duration on the way to that same value. A CSS-only version is not
-portable: animating a registered `@property` and rendering it with `counter()` is Chromium-only,
-and it can't do locale grouping, currency or a suffix. Text content that changes over time is the
-kind of thing CSS genuinely cannot express here.
-
-**Shape.**
-
-```html
-<wc-counter class="counter" data-from="0" data-duration="1200">
-  <span class="counter__value">94%</span>
-</wc-counter>
-```
-
-- The **final value is parsed out of the fallback text**, not passed as an attribute. One source
-  of truth, and it keeps the no-JS reading and the animated reading identical by construction —
-  an attribute that disagreed with the text would be a silent lie in one of the two states.
-  Parsing must keep the prefix/suffix it finds (`$`, `%`, `+`, `×`) and re-emit them each frame.
-- `data-from` (default `0`), `data-duration` (ms), `data-easing` (a named curve from the
-  `animations` tokens), `data-decimals` (inferred from the fallback text when absent).
-- Format with `Intl.NumberFormat` seeded from the parsed text's separators, so a
-  grouped `1,284` doesn't animate through ungrouped intermediates.
-- Add `aria-live="off"` and animate a `aria-hidden` presentation span while the accessible name
-  stays the final value — a screen reader must not be read ~60 intermediate numbers.
-
-**Load-bearing details.**
-
-- **Trigger on intersection, not on upgrade.** A counter below the fold that finished animating
-  before the visitor scrolled to it has done nothing. One `IntersectionObserver`, unobserve after
-  the first run — it is not a loop.
-- **`prefers-reduced-motion: reduce` means don't animate at all** — leave the fallback text
-  untouched and skip the observer. Not "animate faster".
-- **Never write an intermediate value into the light DOM as the resting state.** If the element
-  is disconnected mid-animation, the last thing left on screen must be the final value.
-- Drive with `requestAnimationFrame` + a monotonic elapsed fraction, not a fixed per-frame step;
-  a step-based loop lands on the wrong value on a slow frame.
-
-**Also needs:** `patterns/counter.css` in `@getvitops/core` (wired into `css/index.css`, defaults
-to `vitops.components`), an entry in `TIERS` (`packages/generator/src/tiers.ts`) — omission is a
-`tiers.test.ts` failure, not a docs gap — the import in `src/js/elements.ts`, and a `display`
-declaration in its partial (see the KNOWN GAP note in `elements.ts`: an unregistered custom
-element is `display: inline`).
+- **`@property` + `counter()` is no longer Chromium-only** (Baseline: Chrome 85+, Safari 16.4+,
+  Firefox 128+) — but a pure-CSS version is still wrong for two _other_ reasons: the intersection
+  trigger would need `animation-timeline: view()`, still flagged in stable Firefox as of writing,
+  and `counter()` still cannot do decimals or locale grouping.
+- **CSS drives the interpolation and the easing curve; JS only reads it back.** A registered
+  `--_n` custom property is animated by a plain `@keyframes` rule, so `data-easing` maps straight
+  onto the real `--custom-ease-*`/`--ease-float-*` tokens with no second, JS-side easing table to
+  drift out of step with `animation.css` — simpler than the `requestAnimationFrame` + manual
+  elapsed-fraction approach originally sketched below, and it can't disagree with the tokens by
+  construction. JS's job shrank to: parse the fallback, start on intersection, and format `--_n`
+  through `Intl.NumberFormat` each frame.
 
 ## Component auto-loader — todo
 
@@ -217,9 +188,10 @@ this entry is the index into that list:
   over `<time datetime>` (`"5 minutes ago"`), re-rendering as it goes stale. Fallback is the
   value already in the markup.
 
-Whoever picks one of these up should give it the full `<wc-counter>`-style treatment above
-(why it clears the tier-2 bar, shape, load-bearing details, what else needs touching) rather
-than just the one-liners here.
+Whoever picks one of these up should give it the full treatment `<wc-counter>` originally got
+here before it shipped (why it clears the tier-2 bar, shape, load-bearing details, what else
+needs touching — see its own class docblock, `WCCounter.ts`, for the shape that treatment landed
+in) rather than just the one-liners here.
 
 ## GBP category → `LocalBusinessType` mapping — todo
 

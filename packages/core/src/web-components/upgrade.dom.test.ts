@@ -33,6 +33,7 @@ beforeAll(async () => {
     import('./WCTree.ts'),
     import('./WCCards.ts'),
     import('./WCGallery.ts'),
+    import('./WCCounter.ts'),
   ]);
 });
 
@@ -185,6 +186,25 @@ describe('<wc-gallery>', () => {
   it('leaves a trigger-less body alone', async () => {
     const el = await mount('<wc-gallery><p>nothing to enhance</p></wc-gallery>');
     expect(el.querySelector('.lightbox-dialog__nav-button')).toBeNull();
+  });
+});
+
+describe('<wc-counter>', () => {
+  it('builds its presentation span', async () => {
+    const el = await mount('<wc-counter><span class="counter__value">94%</span></wc-counter>');
+    expect(el.querySelector('.counter__presentation')).toBeTruthy();
+  });
+
+  it('builds it exactly once', async () => {
+    const el = await mount('<wc-counter><span class="counter__value">94%</span></wc-counter>');
+    // The retry must not re-run a successful setup, or the span is duplicated.
+    await new Promise((r) => requestAnimationFrame(r));
+    expect(el.querySelectorAll('.counter__presentation')).toHaveLength(1);
+  });
+
+  it('leaves a body with no .counter__value alone', async () => {
+    const el = await mount('<wc-counter><p>nothing to enhance</p></wc-counter>');
+    expect(el.querySelector('.counter__presentation')).toBeNull();
   });
 });
 

@@ -18,6 +18,7 @@
  * from what the generator emits.
  */
 import Carousel from '@getvitops/astro/components/Carousel.astro';
+import Counter from '@getvitops/astro/components/Counter.astro';
 import Gallery from '@getvitops/astro/components/Gallery.astro';
 import Docs from '../layouts/Docs.astro';
 import designSystem from '../../../../src/design-system.json';
@@ -181,6 +182,16 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   <h3>Separator</h3>
   <hr class="separator" />
   <hr class="separator separator--dashed" />
+
+  <h3>Counter, hand-authored</h3>
+  <p>
+    Hand-written — no <code>&lt;Counter /&gt;</code>, no <code>&lt;wc-counter&gt;</code>. The
+    finished figure is the only markup; see <code>enhanced</code> below for the same figure
+    counting up to it.
+  </p>
+  <span class="counter font-display">
+    <span class="counter__value">94%</span>
+  </span>
 
   <!-- ── Disclosure ────────────────────────────────────────────────────────── -->
   <h2 id="disclosure">Disclosure</h2>
@@ -566,6 +577,14 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
     swipe to change images or swipe down to dismiss, an announced image counter, the next/previous
     image warming in the background, and the thumbnail morphing into the full image via
     <code>document.startViewTransition</code> where supported.
+  </p>
+
+  <h3 id="enhanced-counter">Counter — the Astro wrapper</h3>
+  <Counter value="94%" duration={1400} />
+  <p class="font-caption text-surface-muted">
+    Same fallback as the hand-authored counter above — <code>&lt;Counter /&gt;</code> just emits it
+    for you, inside its own <code>&lt;wc-counter&gt;</code>. Once that loads and this figure scrolls
+    into view, it counts up from 0. Reload to see it again — it only counts once.
   </p>
 
   <h3>Split panel</h3>
