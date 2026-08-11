@@ -84,7 +84,6 @@
       "fs": "1rem"
     },
     "radii": {
-      "pill": "999px",
       "circle": "50%"
     },
     "groups": {
@@ -246,7 +245,7 @@
         "default_role": "neutral",
         "overrides": {
           "p": "0.2em 0.6em",
-          "br": "var(--br-pill, 999px)",
+          "br": "999px",
           "fs": "0.85em"
         },
         "base": {

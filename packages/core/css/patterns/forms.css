@@ -287,7 +287,7 @@ input[type='color'] {
     position: relative;
     inline-size: var(--_switch-width);
     block-size: var(--_switch-height);
-    border-radius: var(--br-switch-track, var(--br-pill, 999px));
+    border-radius: var(--br-switch-track, 999px);
     background: var(--color-bg-surface-muted);
     transition: background-color 0.2s ease;
   }

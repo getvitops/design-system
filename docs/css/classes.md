@@ -176,6 +176,9 @@ and a heading and a footer, `subgrid` is the one that makes them line up. Never 
 - **Display** — `block`, `inline`, `inline-block`, `flex`, `grid`, `hidden`
   (breakpoint-prefixable, e.g. `md-hidden`).
 - **Accessibility** — `sr-only` / `not-sr-only` (breakpoint-prefixable).
+- **Shape** — `rounded-none`, `rounded-full` (the two radii with no design-token meaning of
+  their own; every other radius comes from the pattern token cascade, not a utility). Tailwind
+  ships its own `rounded-*` scale, so these are css/bricks only.
 - **State hooks** — `is-active`, `is-open` (styling flags toggled by JS / native state).
 
 ## Spacing
@@ -335,4 +338,4 @@ shortcuts — is explained in [/concepts/patterns.md](../concepts/patterns.md).)
   `success`, `danger`, `warning`, `info`, `ui-primary`, `brand-primary`, `neutral` — e.g. `badge-success`, `cta-danger`. A pattern that also styles an
   element accepts the bare role class too (`<button class="danger">`). The default
   (unsuffixed) variant uses the pattern's `default_role`.
-- Shape primitives: `--br-<name>` radii — `pill`, `circle`.
+- Shape primitives: `--br-<name>` radii — `circle`.

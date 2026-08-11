@@ -29,7 +29,6 @@
 /* ── Badge indicator — numeric notification bubble (distinct from .badge) ──── */
 .badge-indicator {
   --_size: var(--badge-size, 1.25rem);
-  --_br: var(--br-badge, var(--br-badge-group, var(--br-default)));
 
   display: inline-flex;
   align-items: center;
@@ -40,7 +39,7 @@
   font-size: var(--fs-badge, var(--fs-badge-group, var(--fs-default)));
   font-weight: 600;
   line-height: 1;
-  border-radius: var(--br-badge-indicator, var(--br-pill, 999px));
+  border-radius: var(--br-badge-indicator, 999px);
   background: var(--color-text-danger);
   color: #fff;
 

@@ -1693,6 +1693,39 @@
               </div>
             </dl>
 
+            <h3>Shape <span class="font-caption">(new)</span></h3>
+            <p class="font-caption">
+              The two radii with no design-token meaning of their own — everything else (a button's
+              corners, a card's, a badge's) comes from the pattern token cascade, not a utility.
+              Tailwind ships its own <code>rounded-*</code> scale, so these two are css/bricks only.
+            </p>
+            <div class="demo">
+              <div class="demo-frame" style="display: flex; gap: 0.75rem; align-items: center">
+                <span class="rounded-none viz-swatch" style="padding: 0.5rem 1rem"
+                  >.rounded-none</span
+                >
+                <span class="rounded-full viz-swatch" style="padding: 0.5rem 1rem"
+                  >.rounded-full</span
+                >
+              </div>
+            </div>
+            <dl class="api-list">
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.rounded-none</code><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc"><code>border-radius: 0</code>.</div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.rounded-full</code><span class="t t-tw">Tailwind</span>
+                </div>
+                <div class="api-desc">
+                  <code>border-radius: 999px</code> — a fully round pill/circle.
+                </div>
+              </div>
+            </dl>
+
             <h3>Disclosure <span class="font-caption">(new — animatable show/hide)</span></h3>
             <p class="font-caption">
               Layered by support: the grid <code>0fr↔1fr</code> hack (broad), native

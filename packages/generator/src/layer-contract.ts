@@ -62,5 +62,5 @@ export const LAYER_CONTRACT = {
    * `vitops.components` before the layout split — this row is the regression
    * guard that goes red on the old arrangement.
    */
-  tailwindOwns: ['flex-col', 'items-center', 'text-center', 'hidden', 'sr-only'],
+  tailwindOwns: ['flex-col', 'items-center', 'text-center', 'hidden', 'sr-only', 'rounded-full'],
 } as const;

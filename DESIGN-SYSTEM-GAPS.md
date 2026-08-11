@@ -99,6 +99,9 @@ Original dark values (the page is always dark):
   - Since superseded: `radii.chip` was removed with the chip → tag rename (it was only an
     alias of `--br-tag`), so `br-chip` is now a stale variable in Bricks — drop it on the next
     Variable Manager import.
+  - Also since superseded: `radii.pill` was removed in favour of a `rounded-full` utility
+    (999px has no per-consumer meaning), so `br-pill` joins `br-chip` as a stale variable to
+    drop on the next Variable Manager import.
 
 **Needs a Bricks re-import to take effect** (scales are Bricks-managed variables): the new
 `--text-4xl…7xl` / `--space-3xl…7xl` are in `dist/bricks-variables.json` but undefined on the

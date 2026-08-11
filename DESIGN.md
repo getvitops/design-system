@@ -286,7 +286,6 @@ typography:
     letterSpacing: "0.02em"
 rounded:
   DEFAULT: "0.375rem"
-  pill: "999px"
   label: "0.25rem"
   control: "{rounded.DEFAULT}"
   panel: "0.5rem"
@@ -325,7 +324,7 @@ components:
   badge:
     backgroundColor: "{colors.bg-neutral-solid}"
     textColor: "{colors.text-on-neutral}"
-    rounded: "{rounded.pill}"
+    rounded: "999px"
     padding: "0.2em 0.6em"
   card:
     backgroundColor: "{colors.bg-surface}"
@@ -481,7 +480,6 @@ Corner radii resolve through a cascade rather than being set per component:
 `--br-default`. Overriding one variable restyles every pattern in that tier.
 
 - `DEFAULT` — `0.375rem`
-- `pill` — `999px`
 - `label` — `0.25rem`
 - `control` — `{rounded.DEFAULT}`
 - `panel` — `0.5rem`

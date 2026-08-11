@@ -758,6 +758,9 @@ and a heading and a footer, \`subgrid\` is the one that makes them line up. Neve
 - **Display** — \`block\`, \`inline\`, \`inline-block\`, \`flex\`, \`grid\`, \`hidden\`
   (breakpoint-prefixable, e.g. \`md-hidden\`).
 - **Accessibility** — \`sr-only\` / \`not-sr-only\` (breakpoint-prefixable).
+- **Shape** — \`rounded-none\`, \`rounded-full\` (the two radii with no design-token meaning of
+  their own; every other radius comes from the pattern token cascade, not a utility). Tailwind
+  ships its own \`rounded-*\` scale, so these are css/bricks only.
 - **State hooks** — \`is-active\`, \`is-open\` (styling flags toggled by JS / native state).
 
 ## Spacing

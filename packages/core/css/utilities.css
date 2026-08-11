@@ -284,3 +284,20 @@
 .relative {
   position: relative;
 }
+
+/* ── Shape — the two geometric absolutes, Tailwind-named ──
+   Everything between "square" and "fully round" stays owned by the token
+   cascade (`patterns.radii`, group `br`, per-pattern `--br-<name>`) — these two
+   are the only radii with no design-token meaning of their own, which is why
+   they're utilities and not tokens. No responsive (`md-rounded-full`) variants:
+   a responsive radius is rare enough that Tailwind's own `@md:rounded-full`
+   covers it on that side.
+
+   Names + values are Tailwind-exact; Tailwind ships them natively, so they are
+   in TW_CLASH and the tailwind format drops these copies. */
+.rounded-none {
+  border-radius: 0;
+}
+.rounded-full {
+  border-radius: 999px;
+}

@@ -219,7 +219,7 @@ export function defaultConfig(): DesignSystem {
       // shadowing that pattern's override hook and leaving its `-group` alias unreachable
       // (validate() warns about exactly this). `card` is in the `panel` group, which already
       // carries the same 0.5rem, so dropping it is value-preserving.
-      radii: { pill: '999px', circle: '50%' },
+      radii: { circle: '50%' },
       groups: {
         control: {
           ds: 'var(--ds-default)',

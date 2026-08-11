@@ -200,4 +200,6 @@ export const TW_CLASH: ReadonlySet<string> = new Set<string>([
   'text-nowrap',
   'text-balance',
   'text-pretty',
+  'rounded-none',
+  'rounded-full',
 ]);

@@ -223,7 +223,7 @@ export function emitDesignMd(ctx: DesignMdCtx): string {
   if (pDefaults.br) pushRadius('DEFAULT', pDefaults.br);
   for (const [n, v] of Object.entries(pRadii)) pushRadius(n, v);
   const roundedNames = new Set(rounded.map(([k]) => k));
-  /** `var(--br-default)` → `{rounded.DEFAULT}`, `var(--br-pill, 999px)` → `{rounded.pill}`. */
+  /** `var(--br-default)` → `{rounded.DEFAULT}`, `var(--br-circle, 50%)` → `{rounded.circle}`. */
   const roundedRef = (value: string): string => {
     const v = varName(value);
     const bare = v?.startsWith('br-') ? v.slice('br-'.length) : undefined;

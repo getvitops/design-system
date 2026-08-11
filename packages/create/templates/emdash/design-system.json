@@ -54,7 +54,7 @@
       "p": "1rem",
       "fs": "1rem"
     },
-    "radii": { "pill": "999px", "circle": "50%" },
+    "radii": { "circle": "50%" },
     "groups": {
       "control": {
         "ds": "var(--ds-default)",

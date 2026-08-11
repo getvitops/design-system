@@ -215,7 +215,7 @@ describe('validate: token-namespace warnings', () => {
 
   it('stays quiet for a clean config', () => {
     const ds = defaultConfig();
-    ds.patterns!.radii = { pill: '999px' };
+    ds.patterns!.radii = { circle: '50%' };
     expect(validate(ds).warnings).toEqual([]);
   });
 });
