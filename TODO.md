@@ -45,13 +45,56 @@ v1 (native plugin, `admin.portableTextBlocks`, `componentsEntry`/`blockComponent
 
 ---
 
-See **`DESIGN-SYSTEM-GAPS.md`** for the token-level gaps found while reproducing the Home
-page (border/hairline token, radii→token bricks-gating, button base, `.flex` fix, etc.).
-
 Deferred from the `--format=design` (DESIGN.md) work: a **DESIGN.md → config importer**
 (`design.md` as an _input_, seeding `design-system.json` from a brand brief) and a `diff` gate
-in CI. See the deferred DTCG/OKF plan in `PLAN.md` for the wider framing — its Phase 3 (OKF
-bundle) is already live as `docs/`.
+in CI.
+
+## DTCG (`tokens.json`) export — todo
+
+No standards-format token export exists — what ships as `tokens.json`
+(`packages/generator/src/generate.ts`) is a bespoke flat mirror (six keys, no `$` metadata).
+Adding a **W3C DTCG** (`$type`/`$value`) export is the whole Figma / Tokens Studio / Style
+Dictionary interop story, and most of the hard design decisions were already made when this was
+scoped as a Google DESIGN.md/DTCG/OKF adoption (the OKF half of that plan already shipped as
+`docs/`; the per-client/framework config split it also proposed is superseded by
+`Config.designSystem` + `themes`/`extends`, which solve the same problem — don't re-propose it):
+
+- **Fluid `clamp()` sizes** have no DTCG `dimension` — emit the **max** rem as the canonical
+  `$value`, and stash the full fluid spec (min, vw, ratios) under
+  `$extensions.com.vitops.fluid`. Same resolution `design-md.ts` already uses for `--format=design`.
+- **Dark mode** has no first-class DTCG theming — put the per-step dark ref under
+  `$extensions.com.vitops.dark`, and also emit a resolved `tokens.dark.json` for tools that want
+  a second file rather than reading extensions.
+- **Pattern _behaviour_** (`step`/`scale`/`lift`/`ring` state shortcuts) isn't tokens — exclude
+  it. Only the static cascade values (radius/padding/border) and the role→colour bindings surface.
+- **Role steps** (`--color-<role>-<step>`) emit as refs (`{color.<hue>.<step>}`) into the named
+  ramp, preserving the role→ramp lineage — the same choice `design-md.ts` makes for
+  `--format=design`'s `{colors.<hue>-<step>}` refs.
+- **`text-on-<role>`** is a computed contrast literal with no ramp to reference — carry the same
+  exception `design-md.ts` already documents for it, rather than inventing a second one.
+- **`tokens.json` is a published output today**, so this can't just change its shape in place —
+  decide between a new `tokens.dtcg.json` file alongside it, or a new `Format` member (which
+  would also need excluding from `StylesheetFormat = Exclude<Format,'design'>`, same as
+  `'design'` is).
+
+## Translucent hairline/border token — todo
+
+There's a `border` colour target, but every value on it is an opaque ramp step. Most UI needs a
+subtle divider that composites over whatever surface it lands on (e.g.
+`rgba(255,255,255,.08)` dark / `rgba(0,0,0,.08)` light) rather than a flat colour — today patterns
+borrow `--color-surface-xl` as a stand-in. Two things to resolve when building it:
+
+- It must survive **`forced-colors` mode** (Windows High Contrast flattens `background-color`,
+  so a translucent divider needs a fallback there too).
+- APCA's `CONTRAST.NON_TEXT ≥ 45` check assumes a solid colour — decide whether a translucent
+  token is exempt from that gate or gets checked against a worst-case backdrop.
+
+## Webfont loading outside Astro — todo
+
+`site.fonts` delegates to Astro's Fonts API for loading; Bricks/WordPress and plain-HTML
+consumers only get the `--font-*` tokens and must hand-wire `@font-face`/preload themselves.
+Needs a loading path (self-hosted `@font-face` emission, or a documented preload snippet) for
+non-Astro consumers.
 
 ## Component auto-loader — todo
 
