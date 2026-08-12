@@ -29,6 +29,17 @@ export default defineConfig({
     // wiring that is genuinely about the DOM — upgrade timing, generated controls,
     // `<details>` open state.
     environment: 'node',
+
+    // `--coverage` could not run at all before this: no provider was
+    // installed. No threshold here on purpose — a floor is a policy decision
+    // about how much untested surface is acceptable, and this is only about
+    // making the number producible. `vp test run --coverage` (or `--coverage
+    // --coverage.reporter=html` for a browsable report) is the point; nothing
+    // wires this into CI as a gate.
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+    },
   },
 
   // ── Lint / format (Oxlint / Oxfmt, via `vp check` / `vp fmt`) ──

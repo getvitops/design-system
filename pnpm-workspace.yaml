@@ -14,6 +14,10 @@ catalog:
   '@oddbird/css-anchor-positioning': ^0.9.0
   '@oddbird/popover-polyfill': ^0.7.0
   '@playwright/test': ^1.62.1
+  # Pinned exact, not ^: vite-plus bundles vitest@4.1.9 internally and asserts
+  # the coverage provider matches it exactly — a caret range resolved
+  # 4.1.10 here and vite-plus refused to start rather than run mixed versions.
+  '@vitest/coverage-v8': 4.1.9
   '@tailwindcss/vite': ^4.3.3
   '@types/node': ^25.9.3
   '@webcomponents/template-shadowroot': ^0.2.1

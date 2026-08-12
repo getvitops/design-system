@@ -5,6 +5,9 @@ node_modules/
 dist/
 src/css/generated/
 
+# `vp test run --coverage` (@vitest/coverage-v8)
+coverage/
+
 # Workspace package build output + snapshotted framework assets (rebuilt from source)
 packages/*/dist/
 packages/generator/assets/
