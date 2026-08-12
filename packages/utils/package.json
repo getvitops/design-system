@@ -45,6 +45,10 @@
     "./tracking": {
       "types": "./dist/tracking/index.d.mts",
       "import": "./dist/tracking/index.mjs"
+    },
+    "./security": {
+      "types": "./dist/security/index.d.mts",
+      "import": "./dist/security/index.mjs"
     }
   },
   "publishConfig": {
