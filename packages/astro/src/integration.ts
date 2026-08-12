@@ -11,7 +11,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { LegalOutput, SiteFont, StylesheetFormat } from '@getvitops/generator';
-import { isConfig, resolveConfig } from '@getvitops/generator';
+import { isConfig, renderRobotsTxt, resolveConfig } from '@getvitops/generator';
 import {
   type FaviconLink,
   collectIconRefs,
@@ -1171,11 +1171,28 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
               writeFileSync(join(publicDir, `${key}.txt`), `${key}\n`);
               logger.info(`IndexNow key file → public/${key}.txt`);
             }
+
+            // 3c. robots.txt — the same environment.robots fact search notify's
+            // noindex gate already reads. Unlike the key file, this is written
+            // only if the consumer has not already placed one: today's
+            // `RobotsSchema` is a single directive string, with no way to
+            // express path-level rules (`Disallow: /admin`), so a hand-authored
+            // file may carry more than the config can express and must not be
+            // silently overwritten every build.
+            const robotsPath = join(publicDir, 'robots.txt');
+            if (!existsSync(robotsPath)) {
+              mkdirSync(publicDir, { recursive: true });
+              writeFileSync(
+                robotsPath,
+                renderRobotsTxt(cfg, { env: opts.site?.siteEnv ?? 'production' }),
+              );
+              logger.info('robots.txt → public/robots.txt');
+            }
           } catch (err) {
             // Never fatal. Every other consumer of this config validates it
             // loudly elsewhere in this hook; failing the build a second time,
             // here, would just bury the first message.
-            logger.warn(`IndexNow key file skipped: ${(err as Error).message}`);
+            logger.warn(`IndexNow key file / robots.txt skipped: ${(err as Error).message}`);
           }
         }
 

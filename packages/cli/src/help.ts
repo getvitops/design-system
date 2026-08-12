@@ -23,6 +23,7 @@ Usage:
   vitops docs [topic]           Print live design-system reference docs to stdout
   vitops lint [opts] [files]    Report classes that resolve to nothing + primitives you re-implemented
   vitops legal [options]        Render legal documents from a site config
+  vitops robots [options]       Render robots.txt from a site config's environment
   vitops icons [options]        Report which icons your source uses, and build the sprite
   vitops search <sub> [opts]    Search Console: onboard domains (setup) + notify deploys (notify)
   vitops ads <sub> [opts]       Ad properties: verify domains (setup) + emit pixels (tags) + lint
@@ -119,6 +120,18 @@ Legal options:
 
   Generated from your config — a starting point, not legal advice. Review before
   publishing, and make sure the config describes what your site actually does.
+
+Robots options:
+  -i, --input <path>    Site config: .json, or a .js/.ts module with a default
+                        export (default: ./site.json)
+  -o, --out <dir>       Write robots.txt here (default: print to stdout)
+      --site-env <env>  Which site.environments entry to render for (default: production)
+
+  Reads the resolved environment's robots directive (falling back to
+  site.seo.robots) — the same fact vitops search notify's noindex gate already
+  reads. A directive containing noindex disallows every user agent and emits
+  no Sitemap line; otherwise it allows everything and links
+  site.seo.indexing.sitemapUrl, or the derived <canonical>/sitemap-index.xml.
 
 Search subcommands:
   vitops search setup [opts]    Onboard site.searchConsole domains into GSC
@@ -293,6 +306,7 @@ export const COMMANDS = [
   'docs',
   'lint',
   'legal',
+  'robots',
   'icons',
   'search',
   'ads',

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -315,6 +315,51 @@ describe('a site config at css.input', () => {
     await expect(
       at({ css: { input: 'design-system.json', format: 'css' }, legal: {} }).run(),
     ).rejects.toThrow(/legal: needs/);
+  });
+
+  describe('robots.txt', () => {
+    // Real filesystem work (unlike the base harness's nonexistent publicDir),
+    // for the same reason `scratch()` exists further down.
+    const scratch = () => pathToFileURL(`${mkdtempSync(join(tmpdir(), 'vitops-'))}/`);
+
+    it('writes public/robots.txt from the site config', async () => {
+      const publicDir = scratch();
+      await harness(
+        { css: { input: 'company.json', format: 'css' } },
+        { root: rootUrl, publicDir },
+      ).run();
+      const written = readFileSync(join(fileURLToPath(publicDir), 'robots.txt'), 'utf8');
+      expect(written).toBe(
+        'User-agent: *\nAllow: /\n\nSitemap: https://acme.example/sitemap-index.xml\n',
+      );
+    });
+
+    it('never overwrites a robots.txt the consumer already placed', async () => {
+      // RobotsSchema is one directive string — it cannot express path rules
+      // (Disallow: /admin), so a hand-authored file may carry more than the
+      // config can, and clobbering it every build would be the destructive
+      // default this toolchain otherwise avoids.
+      const publicDir = scratch();
+      writeFileSync(
+        join(fileURLToPath(publicDir), 'robots.txt'),
+        'User-agent: *\nDisallow: /admin\n',
+      );
+      await harness(
+        { css: { input: 'company.json', format: 'css' } },
+        { root: rootUrl, publicDir },
+      ).run();
+      const content = readFileSync(join(fileURLToPath(publicDir), 'robots.txt'), 'utf8');
+      expect(content).toBe('User-agent: *\nDisallow: /admin\n');
+    });
+
+    it('does nothing when there is no site config to read', async () => {
+      const publicDir = scratch();
+      await harness(
+        { css: { input: 'design-system.json', format: 'css' } },
+        { root: rootUrl, publicDir },
+      ).run();
+      expect(existsSync(join(fileURLToPath(publicDir), 'robots.txt'))).toBe(false);
+    });
   });
 });
 

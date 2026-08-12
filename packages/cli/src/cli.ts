@@ -10,6 +10,7 @@
  *   vitops docs      [topic] [--input <json>] [--all]
  *   vitops lint      [--input <json>] [--format <fmt>] [--src <dir>]
  *   vitops legal     [--input <site.json>] [--doc <name>] [--format <md|html|portable-text>] [--out <dir>]
+ *   vitops robots    [--input <site.json>] [--site-env <name>] [--out <dir>]
  *   vitops search    setup [--domain <name>] [--dry] [--check]  |  notify [--dry] [--all] [--check]
  *   vitops ads       setup [--provider <name>] [--dry] [--check]  |  tags  |  lint
  *   vitops media     [--raw <dir>] [--out <dir>] [--force] [--dry]
@@ -43,6 +44,7 @@ import {
   roleHue,
   roleKind,
   movedTokens,
+  renderRobotsTxt,
   SCHEMA_LOCAL_PATH,
   type Format,
   type StylesheetFormat,
@@ -692,6 +694,36 @@ async function cmdLegal(argv: string[]) {
             `consent banner points at.`,
     );
   console.log(REVIEW);
+}
+
+/**
+ * `robots.txt` — anchored to a `Config` like `legal`/`icons`/`search`, because
+ * what it emits describes a site (which environment, which sitemap) rather
+ * than a token set.
+ */
+async function cmdRobots(argv: string[]) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      input: { type: 'string', short: 'i', default: 'site.json' },
+      out: { type: 'string', short: 'o' },
+      'site-env': { type: 'string', default: 'production' },
+    },
+    allowPositionals: false,
+  });
+
+  const siteEnv = values['site-env'] as string;
+  const site = await loadConfig(resolve(values.input as string), siteEnv);
+  const content = renderRobotsTxt(site, { env: siteEnv });
+
+  if (!values.out) {
+    process.stdout.write(content);
+    return;
+  }
+  const outDir = resolve(values.out as string);
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(join(outDir, 'robots.txt'), content);
+  console.log(`✓ robots.txt → ${join(outDir, 'robots.txt')}`);
 }
 
 /**
@@ -2146,6 +2178,8 @@ async function main() {
       return cmdLint(rest);
     case 'legal':
       return cmdLegal(rest);
+    case 'robots':
+      return cmdRobots(rest);
     case 'icons':
       return cmdIcons(rest);
     case 'search':

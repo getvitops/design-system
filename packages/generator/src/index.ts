@@ -144,6 +144,11 @@ export type {
   DocSet,
 } from './legal/index.ts';
 
+// robots.txt. A sibling of `generateLegal`: renders from a Config, not a
+// DesignSystem, so it is not a `generate()` format either.
+export { renderRobotsTxt } from './robots.ts';
+export type { RenderRobotsOptions } from './robots.ts';
+
 import { SCHEMA_LOCAL_PATH, type DesignSystem } from './schema.ts';
 
 /**
