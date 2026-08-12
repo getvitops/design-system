@@ -48,6 +48,30 @@ jobs:
       - name: Test
         run: pnpm exec vp test run
 
+  # `test` above never builds the publishable packages or the docs site — `vp
+  # check`/`vp test run` exercise source directly, and nothing before this job
+  # ran `build:packages` or `docs:build` on a PR. A break in any package's own
+  # `pack`/`build` config (an entry point that doesn't resolve, a peer that
+  # doesn't satisfy) or in apps/docs's build (which imports the *installed*
+  # @getvitops/astro, not source) would only surface at release time or on the
+  # docs deploy, both of which are further from the change that caused it.
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build every publishable package
+        run: pnpm exec vp run build:packages
+
+      - name: Build the docs site
+        run: pnpm exec vp run docs:build
+
   # `docs/` and `DESIGN.md` are generated but TRACKED, which makes them the one
   # class of artifact that can silently disagree with its source. Everything else
   # generated lands in gitignored `dist/`, where it is rebuilt on demand and can't
