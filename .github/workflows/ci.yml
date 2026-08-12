@@ -90,3 +90,36 @@ jobs:
       # throws on that, and this is where it gets caught before a deploy.
       - name: The docs site carries every emitted doc
         run: pnpm exec vp run docs:sync
+
+  # The one e2e layer in the repo: real Chromium, scripting disabled, against
+  # apps/docs — verifying the tier-2 `<wc-*>` no-JS-fallback promise
+  # (AGENTS.md's "Web components" section) that nothing checked before this.
+  # Separate job, not folded into `test`: it needs a browser binary the unit
+  # test job has no reason to carry.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # --with-deps needs the runner's system libraries a plain `npx playwright
+      # install` skips; ubuntu-latest has sudo, so this works here even though
+      # it doesn't in every sandbox.
+      - name: Install Playwright's Chromium
+        run: pnpm --filter docs exec playwright install --with-deps chromium
+
+      - name: No-JS fallback e2e
+        run: pnpm exec vp run docs:e2e
+
+      - name: Upload the Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/docs/playwright-report/
+          retention-days: 14

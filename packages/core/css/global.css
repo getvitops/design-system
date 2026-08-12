@@ -75,3 +75,31 @@ body {
     scroll-padding-block-start: var(--top-offset, 0);
   }
 }
+
+/* The focus ring must survive Windows High Contrast Mode, and as generated it
+   does not. Every pattern's `ring: true` state (`generate.ts`) emits `outline:
+   none; box-shadow: 0 0 0 3px <color>;` — a deliberate choice the rest of the
+   time, since a box-shadow ring can follow a border-radius where a native
+   outline cannot. But `forced-colors: active` forces `box-shadow` to `none`
+   unconditionally (CSS Color Adjust Module), and this framework already asked
+   for no native outline either — so a keyboard user in forced-colors mode gets
+   NO focus indicator at all, on every `:focus-visible` element in every
+   format. This is the single most severe instance of the class of bug
+   `forced-colors`/`prefers-contrast` coverage exists to catch (AGENTS.md's
+   design-system-gaps notes on `--surface-glass`/`--overlay`/role solids are
+   the same class, decorative rather than safety-critical).
+
+   `!important`, deliberately, for the same reason `:root`'s `font-size` above
+   gets it: this must win regardless of which pattern's `vitops.components`
+   rule set `outline: none`, and `!important` outranks a normal-priority
+   declaration regardless of cascade layer. The colour is the token every
+   other ring already uses (`--color-border-focus`, from `ui-primary`,
+   contrast-checked as a non-text boundary) — forced-colors mode remaps
+   `outline-color` to a system colour automatically, so this is really only
+   asserting THAT an outline renders, not which colour it renders in. */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid var(--color-border-focus) !important;
+    outline-offset: 2px !important;
+  }
+}

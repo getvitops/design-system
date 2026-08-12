@@ -8,7 +8,8 @@
     "sync": "node ./scripts/sync-reference.mjs",
     "dev": "node ./scripts/sync-reference.mjs && astro dev",
     "build": "node ./scripts/sync-reference.mjs && astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@getvitops/astro": "workspace:*",
@@ -24,6 +25,7 @@
     "@iconify-json/fa7-solid": "^1.2.5",
     "@iconify-json/lucide": "^1.2.121",
     "@iconify-json/material-symbols": "^1.2.88",
-    "@iconify-json/ph": "^1.2.2"
+    "@iconify-json/ph": "^1.2.2",
+    "@playwright/test": "catalog:"
   }
 }

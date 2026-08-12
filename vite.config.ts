@@ -16,7 +16,7 @@ export default defineConfig({
     // `node` is the default and stays the default DELIBERATELY. Almost everything
     // here is pure by design — the consent store, the indexing/onboarding/notify
     // planners, the schema walks — and a global DOM would make ~830 pure tests pay
-    // for an environment three files need.
+    // for an environment seven files need.
     //
     // A test that genuinely needs a DOM opts in per file with a docblock:
     //
@@ -310,6 +310,17 @@ export default defineConfig({
       },
       'docs:preview': {
         command: 'pnpm --filter docs exec astro preview',
+      },
+      // The one e2e layer in the repo, deliberately narrow: it verifies the
+      // tier-2 no-JS-fallback promise (AGENTS.md's "Web components" section)
+      // against apps/docs, real Playwright/Chromium with scripting disabled —
+      // not the JS-ON enhancement behaviour packages/core's *.dom.test.ts files
+      // already cover in happy-dom. `playwright.config.ts` builds + previews the
+      // site itself (on a dedicated port — see its own comment on why 4321 is
+      // the wrong choice), so this needs no separate `docs:build` dependency.
+      'docs:e2e': {
+        command: 'pnpm --filter docs exec playwright test',
+        dependsOn: ['docs:sync', 'build:astro'],
       },
 
       // apps/portal and its `portal:*` tasks were extracted to its own repo
