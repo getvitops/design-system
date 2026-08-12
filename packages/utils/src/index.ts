@@ -36,31 +36,15 @@ export {
 } from './html.ts';
 export type { ChildNode, El, StyleList, StyleValue } from './html.ts';
 
-// schema.org JSON-LD graph builders (shared by @getvitops/astro schema
-// components and platform metadata hooks).
-export {
-  articleGraph,
-  breadcrumbGraph,
-  faqGraph,
-  itemListGraph,
-  localBusinessGraph,
-  organizationGraph,
-} from './schema/index.ts';
-export type {
-  ArticleAuthor,
-  ArticleGraphOptions,
-  BreadcrumbGraphOptions,
-  BreadcrumbItem,
-  FAQGraphOptions,
-  FAQItem,
-  ItemListEntry,
-  ItemListEntryType,
-  ItemListGraphOptions,
-  LocalBusinessGraphOptions,
-  OpeningHoursSpecification,
-  OrganizationGraphOptions,
-  SpecialHoursSpecification,
-} from './schema/index.ts';
+/**
+ * schema.org JSON-LD graph builders moved to their own `./schema` subpath —
+ * pure, dependency-free, and consumed by `.astro` schema components that can
+ * run at request time under `output: 'server'` on a Cloudflare Worker, the
+ * same reason `notify`/`tracking`/`security` are split out rather than living
+ * here. This barrel pulls in `sharp`/`png-to-ico` for favicon generation,
+ * which is exactly what a Worker bundle must not carry. Import from
+ * `@getvitops/utils/schema` instead.
+ */
 
 /**
  * Semantic icon names → per-set icon names, plus the build-time `include` map.

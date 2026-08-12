@@ -49,6 +49,10 @@
     "./security": {
       "types": "./dist/security/index.d.mts",
       "import": "./dist/security/index.mjs"
+    },
+    "./schema": {
+      "types": "./dist/schema/index.d.mts",
+      "import": "./dist/schema/index.mjs"
     }
   },
   "publishConfig": {
