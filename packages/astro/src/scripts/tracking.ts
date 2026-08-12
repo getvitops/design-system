@@ -1,5 +1,8 @@
 // Ad conversion tracking: capture click IDs from the landing URL, track tel:
-// clicks. Form enhancement is in form-enhance.ts.
+// clicks. Form submission itself goes through `createConversionRoute()`
+// (`@getvitops/astro/routes`), which handles both the no-JS `<form
+// method="post">` path and a fetch-based one — there is no separate
+// form-enhancement script here.
 //
 // Runs early and ungated on purpose. Reading the query string is not storage and
 // needs nobody's permission; *keeping* it does. So the capture is synchronous —
