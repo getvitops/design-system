@@ -725,16 +725,33 @@ export function build(
     generated['tokens.css'] = tok;
   }
 
-  // ── typography.css (.font-* roles) ───────────────────────────────────────────
+  // ── typography.css (.font-* roles) + typography-headings.css (bare elements) ─
+  //
+  // Two chunks, not one, and it is load-bearing which layer each lands in.
+  // `.font-<role>` is a single-purpose utility (`vitops.utilities`); a bare
+  // `typography.headings` binding (`h1`, `h2`, `body`) is a DEFAULT for an
+  // element with no class at all, so it belongs in `vitops.base` — the lowest
+  // framework layer — same as the UA reset. Emitting both into one chunk
+  // mapped wholly to `vitops.utilities` (as this used to) put the bare-element
+  // rule in a LATER layer than every component pattern, so `<h2
+  // class="pull-quote">` kept its `h2` font-size and lost the pattern's,
+  // regardless of specificity — a layer always wins over specificity, and
+  // `.pull-quote` never had a chance. The tailwind format never had this bug
+  // (its `typography.headings` bindings are hand-emitted into `@layer base`
+  // below); this split makes css/bricks agree with it structurally instead of
+  // by accident of which format's bug got noticed first.
   {
     const roles = (typography?.roles ?? {}) as Record<string, TypographyRole>;
     const headings = typography?.headings ?? {};
     let typo = `/* GENERATED typography roles — do not edit by hand. */\n`;
     for (const [role, spec] of Object.entries(roles))
       typo += `.font-${role} {\n${decls(roleDecls(role, spec))}\n}\n`;
-    for (const [tag, role] of Object.entries(headings))
-      if (roles[role]) typo += `${tag} {\n${decls(roleDecls(role, roles[role]))}\n}\n`;
     generated['typography.css'] = typo;
+
+    let typoHeadings = `/* GENERATED typography.headings bare-element bindings — do not edit by hand. */\n`;
+    for (const [tag, role] of Object.entries(headings))
+      if (roles[role]) typoHeadings += `${tag} {\n${decls(roleDecls(role, roles[role]))}\n}\n`;
+    generated['typography-headings.css'] = typoHeadings;
   }
 
   // ── patterns.css (component interaction patterns) ────────────────────────────
@@ -1385,15 +1402,17 @@ function emitTailwind(ctx: TwCtx): string {
   );
 
   // `typography.headings` — the bare-element → role bindings, the same rules the
-  // css/bricks path emits into typography.css. This format used to emit only the
-  // `@utility font-<role>` half, so a Tailwind consumer's <h1> and <body> got no
-  // role styling at all: no family, no size, no text-wrap.
+  // css/bricks path emits into typography-headings.css. This format used to
+  // emit only the `@utility font-<role>` half, so a Tailwind consumer's <h1>
+  // and <body> got no role styling at all: no family, no size, no text-wrap.
   //
   // Tailwind's `base` layer, deliberately. It puts these behind BOTH `@utility
-  // font-<role>` (utilities layer) and the patterns (components layer), matching
-  // css/bricks — where typography.css sits in vitops.utilities and the bare tag
-  // selector loses to `.font-<role>` on specificity rather than on layer. Emitted
-  // unlayered, an `h1` rule here would beat every Tailwind utility.
+  // font-<role>` (utilities layer) and the patterns (components layer),
+  // matching css/bricks, where `typography-headings.css` is its own chunk
+  // mapped to `vitops.base` for exactly this reason — a DEFAULT for an
+  // unstyled element must outrank nothing, not even beat a pattern on
+  // specificity, since layers decide before specificity ever gets asked.
+  // Emitted unlayered, an `h1` rule here would beat every Tailwind utility.
   {
     const roles = (typography?.roles ?? {}) as Record<string, TypographyRole>;
     const bindings = Object.entries(typography?.headings ?? {}).filter(([, r]) => roles[r]);
@@ -1894,6 +1913,10 @@ export const CHUNK_LAYER: Record<string, (typeof CSS_LAYERS)[number]> = {
   'global.css': 'vitops.base',
   'generated/type-tokens.css': 'vitops.base',
   'generated/tokens.css': 'vitops.base',
+  // A DEFAULT for an unstyled element, not a utility — must outrank nothing,
+  // so a component pattern applied to that element (`<h2 class="pull-quote">`)
+  // still wins. See the comment at its emitter, above.
+  'generated/typography-headings.css': 'vitops.base',
   'generated/color.css': 'vitops.utilities',
   'generated/shadows.css': 'vitops.utilities',
   'generated/typography.css': 'vitops.utilities',

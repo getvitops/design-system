@@ -53,6 +53,15 @@ function classAt(css: string, cls: string): number {
   return css.search(new RegExp(`(?:^|[,{}])\\.${esc}(?=[,{:>\\s.])`, 'm'));
 }
 
+/**
+ * Where a bare-ELEMENT selector's rule sits, e.g. `typography.headings`'s
+ * `h1 {…}` — not preceded by `.` (that would match a class of the same name)
+ * and not followed by another identifier character (that would match `h1x`).
+ */
+function tagAt(css: string, tag: string): number {
+  return css.search(new RegExp(`(?:^|[,{}\\s])${tag}(?=[,{:>\\s])`, 'm'));
+}
+
 /** Which layer the given offset sits inside. */
 function layerAt(css: string, at: number): string | undefined {
   if (at === -1) return undefined;
@@ -69,6 +78,9 @@ const layerOf = (css: string, needle: string) => layerAt(css, css.indexOf(needle
 
 /** Which layer a CLASS's rule sits inside, matched on a selector boundary. */
 const layerOfClass = (css: string, cls: string) => layerAt(css, classAt(css, cls));
+
+/** Which layer a bare-ELEMENT selector's rule sits inside. */
+const layerOfTag = (css: string, tag: string) => layerAt(css, tagAt(css, tag));
 
 describe.skipIf(!hasAssets)('css bundle cascade layers', () => {
   it('emits the layers in precedence order', async () => {
@@ -115,6 +127,21 @@ describe.skipIf(!hasAssets)('css bundle cascade layers', () => {
     expect(order.indexOf(utility as string)).toBeGreaterThan(order.indexOf(pattern as string));
   });
 
+  it('puts a typography.headings bare-element binding in base, below every pattern', async () => {
+    // The regression this pair of chunks exists to fix: `<h2 class="pull-quote">`
+    // used to keep `h2`'s font-size and lose `.pull-quote`'s, because the binding
+    // sat in `vitops.utilities` — a LATER layer than `.pull-quote`'s
+    // `vitops.components` — so the layer decided before specificity was ever
+    // asked. `h1` is the default config's own binding (`typography.headings.h1
+    // = 'display'`), so this runs against the same data a real build would.
+    const css = await bundle();
+    const order = [...CSS_LAYERS] as string[];
+    expect(layerOfTag(css, 'h1')).toBe('vitops.base');
+    const binding = layerOfTag(css, 'h1');
+    const pattern = layerOf(css, '.card{');
+    expect(order.indexOf(binding as string)).toBeLessThan(order.indexOf(pattern as string));
+  });
+
   it('survives minification (the bricks output is minified)', async () => {
     await generate({ input: defaultConfig(), format: 'css', outDir: tmp, assetsDir: ASSETS });
     const css = readFileSync(join(tmp, 'styles.css'), 'utf8');
@@ -140,6 +167,12 @@ describe.skipIf(!hasAssets)('css bundle cascade layers', () => {
  * an ⇔ rather than two lists free to drift apart.
  */
 describe.skipIf(!hasAssets)('layer contract — css bundle', () => {
+  it('puts every base-classified element binding in vitops.base', async () => {
+    const css = await bundle();
+    for (const tag of LAYER_CONTRACT.base)
+      expect(layerOfTag(css, tag), `${tag} is a DEFAULT, not a utility`).toBe('vitops.base');
+  });
+
   it('puts every pattern in vitops.components', async () => {
     const css = await bundle();
     for (const cls of LAYER_CONTRACT.components)

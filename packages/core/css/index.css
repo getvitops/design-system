@@ -6,6 +6,7 @@
 @import './generated/type-tokens.css';
 @import './generated/tokens.css';
 @import './generated/typography.css';
+@import './generated/typography-headings.css';
 @import './layout.css';
 /* Must precede utilities.css: both are `vitops.utilities`, and utilities.css
    re-emits `.<bp>-flex` AFTER its own `.hidden` so `class="hidden md-flex"`

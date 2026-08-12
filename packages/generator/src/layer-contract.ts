@@ -6,6 +6,7 @@
  *
  * | classification | css / bricks         | tailwind                          |
  * | -------------- | -------------------- | --------------------------------- |
+ * | `base`         | `vitops.base`        | inside an `@layer base` block     |
  * | `components`   | `vitops.components`  | inside an `@layer components` block |
  * | `utilities`    | `vitops.utilities`   | `@utility <name>`                 |
  * | `tailwindOwns` | `vitops.utilities`   | omitted — it is in `TW_CLASH`     |
@@ -21,6 +22,17 @@
  * utility half of `layout.css` sat in `vitops.components` for months.
  */
 export const LAYER_CONTRACT = {
+  /**
+   * DEFAULTS for an unstyled element — `typography.headings` bare-element
+   * bindings (`h1`, `h2`, `body`, …). Element selectors, not classes: must
+   * outrank nothing, not even a component pattern applied to the same
+   * element on specificity, because a layer decides before specificity is
+   * ever asked. Before the css/bricks path split `typography-headings.css`
+   * out of `typography.css`, these sat in `vitops.utilities` — a LATER layer
+   * than every pattern — so `<h2 class="pull-quote">` kept the heading's
+   * font-size and lost the pattern's, in css/bricks only.
+   */
+  base: ['h1'],
   /** Patterns: multi-rule constructs other things compose into. */
   components: [
     'rhythm',

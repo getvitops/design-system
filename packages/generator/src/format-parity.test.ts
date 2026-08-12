@@ -178,27 +178,34 @@ describe('tailwind @theme boundary', () => {
 describe('css ↔ tailwind typography', () => {
   const twCss = () => build(ds(), 'tailwind', ASSETS).tailwind;
   const cssTypo = () => build(ds(), 'css', ASSETS).generated['typography.css'] ?? '';
+  const cssHeadings = () => build(ds(), 'css', ASSETS).generated['typography-headings.css'] ?? '';
 
   it('binds every typography.headings element in BOTH formats', () => {
     // The tailwind path emitted only the `@utility font-<role>` half of
     // typography.css and silently dropped the bare-element bindings, so a
     // Tailwind consumer's <h1> and <body> carried no role styling at all — no
-    // family, no size, no text-wrap — while css/bricks styled them.
+    // family, no size, no text-wrap — while css/bricks styled them. The
+    // bindings live in `typography-headings.css`, a separate chunk from
+    // `.font-<role>`'s `typography.css` (see CHUNK_LAYER's comment) — that split
+    // is what lets them sit in `vitops.base` instead of `vitops.utilities`.
     const bindings = Object.entries(ds().typography?.headings ?? {});
     expect(bindings.length).toBeGreaterThan(0); // the guard has something to guard
     const tw = twCss();
-    const css = cssTypo();
+    const css = cssHeadings();
     for (const [tag] of bindings) {
       expect(css, `css binds ${tag}`).toMatch(new RegExp(`(^|\\n)${tag}\\s*\\{`));
       expect(tw, `tailwind binds ${tag}`).toMatch(new RegExp(`\\n\\s*${tag}\\s*\\{`));
     }
   });
 
-  it('keeps those bindings in Tailwind’s base layer', () => {
-    // Load-bearing: unlayered, an `h1` rule beats every Tailwind utility, so
-    // `.font-body` on a heading would stop working. `base` also puts it behind
-    // the patterns, matching css/bricks where the bare tag loses to
-    // `.font-<role>` on specificity.
+  it('keeps those bindings in vitops.base / Tailwind’s base layer, both below every pattern', () => {
+    // Load-bearing, in both formats: unlayered, an `h1` rule beats every
+    // Tailwind utility, so `.font-body` on a heading would stop working. `base`
+    // also puts it BELOW the patterns layer — not "loses to `.font-<role>` on
+    // specificity", which is a same-layer story that doesn't apply across
+    // layers at all. A `<h2 class="pull-quote">` needs the bare `h2` binding to
+    // lose to `.pull-quote` regardless of specificity, and only ranking `base`
+    // below `components` achieves that.
     const tw = twCss();
     const base = /@layer base \{([\s\S]*?)\n\}/.exec(tw)?.[1] ?? '';
     for (const tag of Object.keys(ds().typography?.headings ?? {}))
@@ -315,6 +322,16 @@ describe('utility-over-pattern, in every format', () => {
       CSS_LAYERS.indexOf(layerForPartial('layout-utilities.css')),
       'the utility half must outrank the pattern half',
     ).toBeGreaterThan(CSS_LAYERS.indexOf(layerForPartial('layout.css')));
+
+    // The same split, in the opposite direction: `typography.headings`'
+    // bare-element bindings are a DEFAULT, not a utility, so they must sit
+    // BELOW every pattern rather than above — see LAYER_CONTRACT's `base`.
+    expect(layerForPartial('generated/typography.css')).toBe('vitops.utilities');
+    expect(layerForPartial('generated/typography-headings.css')).toBe('vitops.base');
+    expect(
+      CSS_LAYERS.indexOf(layerForPartial('generated/typography-headings.css')),
+      'a bare-element default must rank below every pattern',
+    ).toBeLessThan(CSS_LAYERS.indexOf(layerForPartial('patterns/reveal.css')));
   });
 
   it('skips every utilities-mapped partial in the tailwind build', () => {
@@ -370,6 +387,23 @@ describe('layer contract — tailwind output', () => {
     for (const cls of LAYER_CONTRACT.tailwindOwns) {
       expect(TW_CLASH.has(cls), `${cls} must be declared in TW_CLASH`).toBe(true);
       expect(util.has(cls), `${cls} is Tailwind's — we must not redefine it`).toBe(false);
+    }
+  });
+
+  it('puts a typography.headings bare-element binding in @layer base, unlayered nowhere', () => {
+    // The tailwind path already got this right (see the comment at its emitter
+    // in generate.ts) — this pins it as a contract so it can't regress quietly
+    // while the css/bricks half is fixed independently.
+    const css = tw();
+    for (const tag of LAYER_CONTRACT.base) {
+      const layerBlock = /@layer base\s*\{[\s\S]*?\n\}\n/.exec(css)?.[0] ?? '';
+      expect(layerBlock, `@layer base block exists`).not.toBe('');
+      expect(layerBlock.includes(`${tag} {`), `${tag} is inside @layer base`).toBe(true);
+      // Not unlayered: an unlayered `h1` would beat every Tailwind utility.
+      const beforeFirstLayer = css.slice(0, css.indexOf('@layer'));
+      expect(new RegExp(`(?:^|[,{}\\s])${tag}(?=[,{:>\\s])`, 'm').test(beforeFirstLayer)).toBe(
+        false,
+      );
     }
   });
 });

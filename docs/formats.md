@@ -110,11 +110,12 @@ split in two rather than shelved whole. `layout.css` (patterns) and `layout-util
 format reaches the same arrangement by its own route — patterns in `@layer components`,
 utilities as `@utility`.
 
-Known gap: the `typography.headings` bare-element bindings (`h1`, `h2`, `body`) are
-emitted alongside `.font-<role>` and so sit in `vitops.utilities`, where a tag rule
-outranks every pattern — `<h2 class="pull-quote">` keeps the heading's font-size in
-`css`/`bricks` and the pattern's in `tailwind`, which puts the bindings in `@layer base`.
-Give the element a `.font-<role>` class to pin it either way.
+The `typography.headings` bare-element bindings (`h1`, `h2`, `body`) are a DEFAULT for an
+unstyled element, not a utility, so they emit into their own chunk in `vitops.base` — below
+every pattern — rather than alongside `.font-<role>` in `vitops.utilities`. That is what lets
+`<h2 class="pull-quote">` keep the pattern's font-size in every format: the bare `h2` binding
+never outranks `.pull-quote`, regardless of specificity, because a layer decides before
+specificity is ever asked.
 
 ## `bricks` — WordPress / Bricks Builder payload
 
