@@ -69,6 +69,13 @@ jobs:
       - name: Build every publishable package
         run: pnpm exec vp run build:packages
 
+      # Does a consumer's install actually resolve every subpath, and does
+      # the JavaScript actually load? A break in the `exports` map (a
+      # typo'd path, a missing dist file, a broken cross-package import) is
+      # otherwise invisible until a real install fails on it.
+      - name: Verify published-package resolution (publint + attw + runtime import)
+        run: pnpm exec vp run verify:packages
+
       - name: Build the docs site
         run: pnpm exec vp run docs:build
 

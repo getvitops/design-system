@@ -261,6 +261,15 @@ export default defineConfig({
         command:
           'vp run build:generator && vp run build:utils && vp run build:cli && vp run build:vite-plugin && vp run build:astro && vp run build:emdash',
       },
+      // Does a consumer's install actually resolve every subpath? Nothing
+      // else checks this — `vp check`'s typecheck runs against SOURCE, not
+      // the published `exports` map, so a broken subpath (a typo'd path, a
+      // missing `dist/` file) is invisible until a real install fails on it.
+      // See lib/verify-packages.ts for why `attw` skips `astro`/`emdash`.
+      'verify:packages': {
+        command: 'node lib/verify-packages.ts',
+        dependsOn: ['build:packages'],
+      },
       // Apply pending changesets: bump every package + write the per-package
       // CHANGELOG.md files. Run BEFORE `release`, then hand-write the matching
       // entry in the root CHANGELOG.md (the curated, toolchain-level notes).

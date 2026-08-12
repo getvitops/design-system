@@ -4,6 +4,7 @@ packages:
 # Single source of truth for dependency versions. Every package.json references
 # these via the `catalog:` protocol so a version is bumped in exactly one place.
 catalog:
+  '@arethetypeswrong/cli': ^0.18.5
   '@astrojs/cloudflare': ^14.0.0
   '@astrojs/sitemap': ^3.7.3
   '@changesets/cli': ^2.27.0
@@ -36,6 +37,7 @@ catalog:
   png-to-ico: ^3.0.2
   postcss: ^8.5.26
   postcss-lit: ^1.4.1
+  publint: ^0.3.23
   scroll-timeline-polyfill: ^1.1.0
   sharp: ^0.35.3
   tailwindcss: ^4.3.3
