@@ -270,6 +270,14 @@ export default defineConfig({
         command: 'node lib/verify-packages.ts',
         dependsOn: ['build:packages'],
       },
+      // A gzipped-size ceiling on the 5 bundles @getvitops/core authors
+      // itself — see lib/verify-bundle-size.ts for why the docs' own byte
+      // counts ("~2.8 KB gzipped", "an extra 688-byte request") deserved a
+      // check that nothing ran before this.
+      'verify:bundle-size': {
+        command: 'node lib/verify-bundle-size.ts',
+        dependsOn: ['build:core'],
+      },
       // Apply pending changesets: bump every package + write the per-package
       // CHANGELOG.md files. Run BEFORE `release`, then hand-write the matching
       // entry in the root CHANGELOG.md (the curated, toolchain-level notes).

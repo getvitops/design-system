@@ -76,6 +76,11 @@ jobs:
       - name: Verify published-package resolution (publint + attw + runtime import)
         run: pnpm exec vp run verify:packages
 
+      # A ceiling on the bundles @getvitops/core authors itself, in the
+      # sizes the docs' own reasoning already depends on.
+      - name: Verify bundle-size budget
+        run: pnpm exec vp run verify:bundle-size
+
       - name: Build the docs site
         run: pnpm exec vp run docs:build
 
