@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # pnpm workspace — pins in pnpm-workspace.yaml's `catalog:` are still plain
+  # semver ranges Dependabot understands; it opens one PR per dependency,
+  # grouped weekly so a burst of patch releases doesn't become a burst of PRs.
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+    groups:
+      dependencies:
+        patterns:
+          - '*'
+    # workspace:* / catalog: protocol deps are internal — nothing external to
+    # bump, and Dependabot doesn't understand either protocol.
+    ignore:
+      - dependency-name: '@getvitops/*'
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
