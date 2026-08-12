@@ -56,8 +56,12 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    - e.g. `Subgrid.astro` just emits `<ul class="grid"><li class="grid-rows-subgrid">…</li></ul>` from
      slotted children; `Popover.astro` uses the native Popover API + Anchor Positioning;
      `Nav`/`Details`/`Drawer` compose `<details>` + Invoker Commands (`command`/`commandfor`) — all
-     no-JS. Renderers like `NodeRenderer`/`FormRenderer` turn a data model into that markup at
-     SSR time.
+     no-JS. Renderers like `NodeRenderer` turn a data model into that markup at SSR time. (A
+     `FormRenderer` once lived beside it as part of a broader site-model layer — `Nav`/`Submenu`/
+     `Template`/`ContentInfo`/`SEO`/`Layout` — deleted 2026-07-27 for binding to a `#site-config`
+     specifier defined nowhere; see `packages/astro/AGENTS.md`'s "no site-model layer" section for
+     the rules a rebuild would have to follow. `site.templates` entries of type `form` currently
+     have no renderer — their only consumer is the legal PII inventory, `legal/derive.ts`.)
    - **The rule:** if a wrapper would need runtime JS, it's the wrong tier — build a **web component**
      (tier 2) instead, and have the wrapper emit its `<wc-*>` tag with the accessible fallback inside.
      A feature-detected polyfill for a native CSS/HTML feature is fine; application/behaviour JS is not.
@@ -264,13 +268,21 @@ packages under `packages/` (a pnpm workspace), by layer:
 
 - **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
   `png-to-ico`, loaded lazily; `oxipng` crush optional). Consumed by cli/vite/astro.
-- **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint` (bin `vitops`), a
-  thin wrapper over the generator + utils. The package **ships a static `vitops-design-system` agent
-  skill** (`skill/SKILL.md`, in `files`); `agents` symlinks it into a consumer's
-  `.agents/skills/` + `.claude/skills/` (logical `node_modules/@getvitops/cli/skill` target — never
-  a pnpm realpath — so links survive version bumps) and writes a managed pointer block into their
-  `AGENTS.md`. `docs <topic>` prints a reference doc to stdout, rendered live from the consumer's
-  config (`--docs-dir` on `agents` keeps the legacy emit-files layout).
+- **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint|legal|robots|icons|
+search|ads|media` (bin `vitops`), a thin wrapper over the generator + utils. `legal`/`search`/`ads`
+  are covered in their own sections below; `robots` (`vitops robots [--input <site.json>]
+  [--site-env <name>] [--out <dir>]`) is `legal`'s sibling — same `Config`-anchoring, same
+  stdout-or-`--out` shape — rendering `robots.txt` from the resolved environment's robots
+  directive (falling back to `site.seo.robots`), the same fact `search notify`'s `noindex` gate
+  already reads; `media` (`vitops media [--raw <dir>] [--out <dir>]`) encodes raw video into WebM
+  - MP4 + poster via `ffmpeg`, caching runs on source content + encode settings in
+    `.vitops/media-manifest.json` (`@getvitops/utils/media`'s `processMedia()`; `@getvitops/vite`
+    has a matching `media` option). The package **ships a static `vitops-design-system` agent
+    skill** (`skill/SKILL.md`, in `files`); `agents` symlinks it into a consumer's
+    `.agents/skills/` + `.claude/skills/` (logical `node_modules/@getvitops/cli/skill` target — never
+    a pnpm realpath — so links survive version bumps) and writes a managed pointer block into their
+    `AGENTS.md`. `docs <topic>` prints a reference doc to stdout, rendered live from the consumer's
+    config (`--docs-dir` on `agents` keeps the legacy emit-files layout).
 
   `lint` (`src/lint.ts`) scans consumer source for framework classes that resolve to nothing —
   the failure mode where an unknown utility is indistinguishable from a working one. It is
@@ -347,7 +359,7 @@ are **fixed** together — one version for the whole toolchain; `@getvitops/emda
 
 Independent versioning does **not** mean unconstrained. `@getvitops/emdash` depends on
 `@getvitops/utils` (a hard dep — `SEMANTIC_ICON_OPTIONS` is derived from its `iconMap`) and peers on
-`@getvitops/astro` `>=2.0.0`. Both exist because its blocks render from the generated SVG sprite:
+`@getvitops/astro` `>=6.0.0`. Both exist because its blocks render from the generated SVG sprite:
 `<use href="…/icons.svg#icon-menu">` resolves to nothing if the site's toolchain built a different
 icon vocabulary, and an **empty box is the entire failure** — no error, nothing to grep. Depending
 on one member of a `fixed` group pins the whole generation, which is why one peer suffices. The
@@ -466,7 +478,7 @@ conversion endpoint pulling `sharp` into its bundle. Neither may use a Node buil
 `TrackingConfig`/`NotificationsConfig` mirror the `site.*` blocks structurally, since utils
 cannot import from the generator — the same arrangement as `IndexingConfig`.
 
-Six things are load-bearing:
+Eight things are load-bearing:
 
 - **The capture demands consent; it does not merely read it.** `_ac` is a 90-day identifier
   tying a visitor to an ad, so it waits on `marketing` (configurable — `site.tracking.category`).
@@ -492,6 +504,32 @@ Six things are load-bearing:
 - **The plan is pure and says why anything is skipped.** `planNotifications` touches no network
   and no binding, so a misconfigured site can be told exactly why no notification will arrive.
   A silently unsent conversion notification is indistinguishable from no conversion.
+- **`createConversionRoute()` is the one endpoint that has to answer a no-JS `<form method="post">`,
+  and it has to answer strangers.** It parses `application/x-www-form-urlencoded` /
+  `multipart/form-data` the same way it parses the fetch/beacon JSON path (`navigator.sendBeacon`
+  sends a bare string as `text/plain`, not `application/json` — the parser branches on
+  content-type, not on assuming JSON), and redirects a no-JS submission to
+  `redirectTo`/`errorRedirectTo` rather than handing that visitor's full-page navigation a raw
+  `{"success":true}` body. Being public and unauthenticated makes it a relay and a cost amplifier
+  by default, so four generic checks ship in the factory rather than being left to each consumer:
+  a honeypot (default field names mirror `render.ts`'s `OMIT_FIELDS`) that returns the same
+  success response a bot would get for real, so it learns nothing; a best-effort `Origin` check
+  against `context.canonical` (absence is never treated as a mismatch — plenty of legitimate
+  requests omit it); a `Content-Length` cap; and a per-IP rate limit backed by an injectable
+  `RateLimitStore` (an in-memory default, good for one Worker isolate, not a fleet — inject a
+  KV/Durable-Object store for real cross-instance limiting).
+- **Turnstile verification is a separate, opt-in layer, not one of the four generic checks.** Pass
+  `turnstile: { secretKey }` and a submitted `cf-turnstile-response` token gets verified against
+  Cloudflare's siteverify endpoint via `verifyTurnstileToken()` (`@getvitops/utils/security` — a
+  Worker-safe subpath for the same reason `notify`/`tracking` are). The **secret** key is an env
+  var, never config, mirroring every other credential in the toolchain; `site.security.turnstile
+.siteKey` stays public config and is what the legal templates read to name Turnstile in the
+  generated privacy policy (see the Legal documents section). Before this existed, that field made
+  the policy assert something nothing in the toolchain checked — a bare token in the submission
+  is, by default, treated as absent-because-no-JS rather than rejected (`required: true` opts a
+  specific form out of the no-JS promise deliberately, rather than by omission). The widget markup
+  itself is the consumer's own — there is no `FormRenderer` for it to hook into, matching how the
+  rest of the form is already hand-written.
 
 The `email` channel uses Cloudflare Email Sending's **current** binding — structured
 `env.EMAIL.send({ to, from, subject, html, text })`, not the legacy `EmailMessage` + hand-built
@@ -535,7 +573,7 @@ So the command does every sanctioned thing and then **verifies**: resubmit the s
 one Google hasn't indexed. That last part is what actually replaces the manual visit. Never
 describe this as making Google re-index faster.
 
-Five things are load-bearing:
+Six things are load-bearing:
 
 - **The pure/I-O split is the same one the consent store makes.** `indexing/plan.ts` decides
   everything — which URLs, which channels, why each was skipped — and touches no network, no
@@ -560,6 +598,24 @@ Five things are load-bearing:
   **before** `domains.canonical`: the canonical is the _production_ origin, so deriving from it
   while notifying staging would submit production URLs that the gate — reading the environment —
   would not catch.
+- **The same fact drives `robots.txt`, not just the notify gate.** `vitops robots`
+  (`packages/generator/src/robots.ts`) reads the identical directive — the resolved environment's
+  `robots`, falling back to `site.seo.robots` — and disallows every user agent when it contains
+  `noindex`, exactly `plan()`'s own check. Before this existed, a staging environment got a
+  `<meta name="robots">` tag and a blocked `search notify` run, but a crawler reading
+  `/robots.txt` directly saw nothing and was free to index it anyway — the gate caught the one
+  channel it could see and missed the one crawlers actually ask for first. An allowed environment
+  gets a `Sitemap:` line at the same URL `search notify` would submit (`resolveSitemapUrl`,
+  reused from `@getvitops/utils/indexing` rather than re-derived); a blocked one gets none, since
+  publishing a sitemap for a site asking not to be indexed hands a crawler every URL it is then
+  blocked from — the more damaging way to get this wrong. The Astro integration writes
+  `public/robots.txt` the first time one doesn't exist, but never overwrites a file already
+  there — unlike the IndexNow key file it sits beside in the same hook: today's `RobotsSchema` is
+  one directive string, with no way to express `Disallow: /admin`-style path rules, so a
+  hand-authored file may already carry more than the config can, and clobbering it every build
+  would be the destructive-by-default failure this toolchain otherwise avoids (see onboarding's
+  "never removes a record"). `vitops robots` covers every other stack, the same anchoring `legal`
+  uses.
 - **Verify the IndexNow key file before submitting.** A submission whose key file is unreachable
   returns `403`, but one whose key file is _reachable and stale_ is accepted with `202` and then
   silently discarded. Only a prior GET distinguishes "submitted" from "submitted and ignored",
@@ -729,7 +785,13 @@ They are all configured with their respective keys in `vite.config.ts`
 Other tools used:
 
 - `lightningcss` - css minification/bundling
-- `playwright` - e2e testing
+- `playwright` - e2e testing. One narrow suite exists (`apps/docs/e2e/no-js-fallback.spec.ts`,
+  `npx vp run docs:e2e`): real Chromium with `javaScriptEnabled: false`, against `apps/docs`,
+  proving the tier-2 no-JS-fallback promise above rather than assuming it — the promise
+  `*.dom.test.ts` files (happy-dom) never check, since those test JS-ON enhancement. Runs on a
+  dedicated port (`playwright.config.ts` explains why 4321, Astro's default, is the wrong one);
+  wired into CI as its own `e2e` job, separate from `test`, because it needs a browser binary
+  the unit-test job has no other reason to carry.
 
 ### Task Notes
 
@@ -851,18 +913,22 @@ can't drift. Three consequences that bite when adding CSS:
   sorts after the un-varianted utility, which is what `class="split flex-col md-split-1-2"` relies
   on. If two of our own utilities must be ordered, put both in the same css partial and say so.
 
-Known gap: `generated/typography.css` is mapped to `vitops.utilities` but emits the
-`typography.headings` bare-element bindings (`h1`, `h2`, `body`) alongside `.font-<role>` — so those
-tag rules beat every component pattern. `<h2 class="pull-quote">` loses its font-size in css/bricks
-and keeps it in tailwind, which puts the bindings in `@layer base`. Same shape of fix as the
-`layout.css` split: emit the role utilities and the element bindings as separate chunks and map the
-bindings to `vitops.base`.
+Fixed, same shape as the `layout.css` split: `typography.headings`' bare-element bindings (`h1`,
+`h2`, `body`) used to emit alongside `.font-<role>` into one `generated/typography.css` chunk
+mapped wholly to `vitops.utilities`, so those tag rules beat every component pattern —
+`<h2 class="pull-quote">` lost its font-size in css/bricks (kept it in tailwind, which put the
+bindings in `@layer base` from the start). The role utilities and the element bindings are now
+separate chunks: `.font-<role>` stays in `generated/typography.css` (`vitops.utilities`); the
+bindings moved to `generated/typography-headings.css`, mapped to `vitops.base` — a DEFAULT for an
+unstyled element, ranked below every pattern rather than above it. `LAYER_CONTRACT.base` (a new
+bucket, alongside `components`/`utilities`/`tailwindOwns`) pins this as a cross-format contract so
+a regression here fails a test rather than waiting to be noticed again.
 
 ### `--format` mode
 
 The generator takes `--format <css|bricks|tailwind|design>` (default `bricks`; `--bricks` is a back-compat alias for `--format=bricks`).
 
-- **`bricks`** — `color.css` and `type-tokens.css` are one-line stubs; Bricks provides the colour `:root` tokens, dark overrides, utility classes, fonts, and type/space scales live from the imported palette + Variables JSONs. `patterns.css`, `shadows.css`, `tokens.css`, `typography.css`, `animation-effects.css`, and the Bricks JSONs emit. Pattern `states` reference shadows via `"shadow": "<name>"`, compiled to `filter: drop-shadow(var(--shadow-<name>))`.
+- **`bricks`** — `color.css` and `type-tokens.css` are one-line stubs; Bricks provides the colour `:root` tokens, dark overrides, utility classes, fonts, and type/space scales live from the imported palette + Variables JSONs. `patterns.css`, `shadows.css`, `tokens.css`, `typography.css`, `typography-headings.css`, `animation-effects.css`, and the Bricks JSONs emit. Pattern `states` reference shadows via `"shadow": "<name>"`, compiled to `filter: drop-shadow(var(--shadow-<name>))`.
 - **`css`** — same set, but `color.css`/`type-tokens.css` emit the full standalone colour + font/scale layer (self-contained; used by the docs build and non-Bricks consumers).
 - **`tailwind`** — bypasses all the per-file outputs and emits **one** self-contained `dist/tailwind.css` for Tailwind v4 (Astro): `@import "tailwindcss"` + `@theme` tokens (colours, `--font-*`, `--text-*`, `--spacing-*`, `--shadow-*`, `--container-{sm,md,lg,xl}`), a dark block, `@custom-variant is-active`, and `@utility` for the bespoke families (type roles, animation effects + `flip-<fx>`, split ratios, track placement) with the animation engine + structural CSS + patterns inlined. Tailwind's own engine expands `@md:`/`hover:`/… on demand, so no pre-expanded per-breakpoint/pseudo classes are emitted; native families (`flex`/`items`/`justify`/`text`/`bg`/`p`/`gap`) come from Tailwind + `@theme`. Run via `npx vp run build:tailwind` (standalone; not in the default `build` chain, not piped through lightningcss).
 - **`design`** — emits **one** file, `DESIGN.md`, and no CSS: the agent-facing brief in [google-labs-code/design.md](https://github.com/google-labs-code/design.md) format (YAML token front matter — `colors`/`typography`/`rounded`/`spacing`/`components` with `{group.token}` refs — then a prose body). Emitter: `packages/generator/src/design-md.ts`. Meant to be run with `--out .`, since DESIGN.md conventionally sits at a repo root beside `AGENTS.md`; run via `npx vp run build:design`, which writes the **tracked root `DESIGN.md`** (the one `build:*` target that doesn't write to `dist/`).
