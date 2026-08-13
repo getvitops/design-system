@@ -34,6 +34,10 @@
       "types": "./dist/ads/index.d.mts",
       "import": "./dist/ads/index.mjs"
     },
+    "./domains": {
+      "types": "./dist/domains/index.d.mts",
+      "import": "./dist/domains/index.mjs"
+    },
     "./media": {
       "types": "./dist/media/index.d.mts",
       "import": "./dist/media/index.mjs"

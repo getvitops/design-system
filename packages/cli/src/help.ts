@@ -26,6 +26,7 @@ Usage:
   vitops icons [options]        Report which icons your source uses, and build the sprite
   vitops search <sub> [opts]    Search Console: onboard domains (setup) + notify deploys (notify)
   vitops ads <sub> [opts]       Ad properties: verify domains (setup) + emit pixels (tags) + lint
+  vitops domains <sub> [opts]   Canonical domain: HTTPS, HSTS + alias redirects (setup)
   vitops media [options]       Encode raw video into web-ready WebM + MP4 + poster
 
 Generate options:
@@ -233,6 +234,49 @@ Ads lint options:
   off (every conversion arrives unattributed), and a configured property with no
   tag ID. Exits non-zero on a finding.
 
+Domains subcommands:
+  vitops domains setup [opts]   Configure the canonical domain on Cloudflare
+
+Domains setup options:
+  -i, --input <path>    Site config carrying site.domains (default: ./site.json)
+      --site-env <env>  Environment whose A/B variant applies, and which scopes
+                        environment-specific aliases (default: production)
+      --dry             Print the plan and exit. Changes nothing. With
+                        CLOUDFLARE_API_TOKEN set it reads the live zone first, so
+                        the plan says what is already done; without one it plans
+                        from scratch and says so, rather than refusing to run.
+      --check           Report drift and exit non-zero if the canonical domain is
+                        not fully configured. Mutates nothing.
+
+  Makes site.domains true rather than decorative. Three things on the canonical
+  zone: Always Use HTTPS (which upgrades http://<canonical> — no redirect rule
+  covers that), HSTS, and one forwarding Page Rule per alias. The www <-> apex
+  counterpart of the canonical host is redirected without needing an aliases entry.
+
+  Gated on Cloudflare actually being the nameserver. A zone can sit in an account
+  with status "pending" — visible in the dashboard, serving nothing, because the
+  registrar still delegates elsewhere. Every write would then succeed and take
+  effect nowhere, so that case is reported with the nameservers to set rather than
+  as a clean run.
+
+  HSTS is applied only AFTER Always Use HTTPS is confirmed on, and is deferred (not
+  failed) otherwise: a browser holds the policy for its max-age no matter what the
+  zone says afterwards. preload additionally requires maxAge >= 1 year and
+  includeSubDomains — the preload list's own rules — and is reported as blocked
+  rather than submitted and rejected.
+
+  Page Rules are addressed individually, and identity is the target pattern: a rule
+  matching <alias>/* is updated, anything else on the zone is never read back,
+  rewritten or removed. There is no delete verb. Note the per-zone quota is low (3
+  on Free, 20 on Pro) and Cloudflare is steering new work toward Redirect Rules; a
+  run that would exceed the quota says so instead of failing opaquely.
+
+  Needs a wider token than the other Cloudflare commands: Zone:Read, Zone
+  Settings:Edit, Zone:Page Rules:Edit, plus Zone:DNS:Edit when an alias has no
+  record yet (an alias host gets a proxied AAAA 100:: placeholder so requests reach
+  Cloudflare at all — a rule on a host that doesn't resolve there is inert). No
+  dashboard template bundles all four; build a custom token.
+
 Media options:
       --raw <dir>       Directory of unprocessed video, walked recursively
                         (default: ./raw)
@@ -279,6 +323,15 @@ export const ADS_HELP = `vitops ads — link this site to its ad properties
 Run \`vitops --help\` for the full option list for each subcommand.
 `;
 
+export const DOMAINS_HELP = `vitops domains — make the declared canonical domain true
+
+  vitops domains setup [opts]   Configure the canonical domain on Cloudflare:
+                                Always Use HTTPS, HSTS, and one forwarding Page
+                                Rule per alias
+
+Run \`vitops --help\` for the full option list.
+`;
+
 /**
  * Every command `main()` dispatches. Exported so the unknown-command message
  * and the help drift guard read the same list — the message used to carry its
@@ -296,6 +349,7 @@ export const COMMANDS = [
   'icons',
   'search',
   'ads',
+  'domains',
   'media',
 ] as const;
 
@@ -303,6 +357,7 @@ export const COMMANDS = [
 export const SUBCOMMANDS: Record<string, readonly string[]> = {
   search: ['setup', 'notify'],
   ads: ['setup', 'tags', 'lint'],
+  domains: ['setup'],
 };
 
 /**
@@ -341,7 +396,13 @@ export function helpFor(command: string, argv: string[]): string {
   return (
     (sub ? helpSection(command, sub) : undefined) ??
     helpSection(command) ??
-    (command === 'search' ? SEARCH_HELP : command === 'ads' ? ADS_HELP : undefined) ??
+    (command === 'search'
+      ? SEARCH_HELP
+      : command === 'ads'
+        ? ADS_HELP
+        : command === 'domains'
+          ? DOMAINS_HELP
+          : undefined) ??
     HELP
   );
 }

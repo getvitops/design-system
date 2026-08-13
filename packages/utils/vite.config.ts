@@ -22,6 +22,7 @@ export default defineConfig({
       'src/indexing/index.ts',
       'src/onboarding/index.ts',
       'src/ads/index.ts',
+      'src/domains/index.ts',
       'src/media/index.ts',
       'src/notify/index.ts',
       'src/tracking/index.ts',

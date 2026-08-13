@@ -133,6 +133,37 @@ import {
   type AdProvider,
   type MissingField,
 } from '@getvitops/utils/ads';
+// Its own subpath for the same reason: `domains` touches Cloudflare zone settings,
+// Page Rules and DNS. `plan`, `formatPlan`, `hasDrift` and `formatSummary` are aliased
+// — indexing, onboarding and ads all export those names too.
+import {
+  REDIRECT_PLACEHOLDER,
+  canonicalHost,
+  createPageRule,
+  createRecord,
+  formatPlan as formatDomainsPlan,
+  formatSummary as formatDomainsSummary,
+  hasDrift as hasDomainsDrift,
+  hstsValue,
+  listPageRules,
+  listRecords,
+  lookupZone,
+  missingRequirements,
+  plan as planDomains,
+  readAlwaysUseHttps,
+  readHsts,
+  readNosniff,
+  resolveAliases,
+  resolveHsts,
+  getZoneSetting,
+  setZoneSetting,
+  updatePageRule,
+  zoneOf,
+  type AliasResult,
+  type DomainsResult,
+  type DomainsSetup,
+  type ZoneState,
+} from '@getvitops/utils/domains';
 import { PLATFORM_PARAMS } from '@getvitops/utils/tracking';
 // Its own subpath for the same reason: `media` shells out to ffmpeg, and no other
 // command should carry it. `formatPlan` is aliased — indexing exports one too.
@@ -144,7 +175,7 @@ import {
   type OutputKind,
 } from '@getvitops/utils/media';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
-import { ADS_HELP, COMMANDS, HELP, SEARCH_HELP, helpFor, wantsHelp } from './help.ts';
+import { ADS_HELP, COMMANDS, DOMAINS_HELP, HELP, SEARCH_HELP, helpFor, wantsHelp } from './help.ts';
 import { ask, canPrompt, missingFieldMessage, questionFor, writeConfigPatch } from './prompt.ts';
 import { lintCss } from './lint-css.ts';
 import { lintMarkup } from './lint-markup.ts';
@@ -1646,6 +1677,307 @@ async function cmdAdsSetup(argv: string[]) {
   if (failed) process.exit(1);
 }
 
+// ── vitops domains ───────────────────────────────────────────────────────────────
+
+/**
+ * `site.domains` → the domains module's option shape.
+ *
+ * `environmentOrigins` is the one derived value: the planner refuses
+ * `hsts.includeSubDomains` while a configured environment is still on plaintext http,
+ * and the environment list is the only place the toolchain can see that coming.
+ */
+function toDomainsSetup(cfg: Config, siteEnv: string): DomainsSetup {
+  const d = cfg.site.domains;
+  if (!d?.canonical)
+    fail('site.domains.canonical is not set — there is no canonical origin to redirect to');
+
+  const origins = Object.values(cfg.site.environments ?? {})
+    .map((e) => e.url)
+    .filter((u): u is string => typeof u === 'string');
+
+  return {
+    canonical: d.canonical,
+    ...(d.aliases ? { aliases: d.aliases } : {}),
+    ...(d.https?.enabled != null ? { httpsEnabled: d.https.enabled } : {}),
+    ...(d.https?.hsts ? { hsts: d.https.hsts } : {}),
+    environment: siteEnv,
+    environmentOrigins: origins,
+  };
+}
+
+/**
+ * `vitops domains` — making the declared canonical domain true.
+ *
+ * A subcommand group with one member today. `site.dns` is the obvious second
+ * (`vitops domains dns`), and grouping now matches the two adjacent planner commands
+ * rather than renaming this one later.
+ */
+async function cmdDomains(argv: string[]) {
+  const [sub, ...rest] = argv;
+  switch (sub) {
+    case 'setup':
+      return cmdDomainsSetup(rest);
+    case undefined:
+    case '-h':
+    case '--help':
+      console.log(DOMAINS_HELP);
+      return;
+    default:
+      fail(`unknown "domains" subcommand "${sub}" (expected: setup). Try: vitops --help`);
+  }
+}
+
+/**
+ * Configure the canonical domain on Cloudflare: Always Use HTTPS, HSTS, and one
+ * forwarding Page Rule per alias.
+ *
+ * The ordering here is the safety property. Always Use HTTPS is applied *before* HSTS,
+ * and HSTS is **deferred** — not failed — when that step didn't succeed. A browser holds
+ * an HSTS policy for its `max-age` no matter what the zone says afterwards, so sending it
+ * while HTTPS enforcement is unconfirmed is the one mistake here with a long tail.
+ */
+async function cmdDomainsSetup(argv: string[]) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      input: { type: 'string', short: 'i', default: 'site.json' },
+      'site-env': { type: 'string', default: 'production' },
+      check: { type: 'boolean', default: false },
+      dry: { type: 'boolean', default: false },
+    },
+    allowPositionals: false,
+  });
+
+  const input = resolve(values.input as string);
+  const cfg = await loadConfig(input, values['site-env'] as string);
+  const setup = toDomainsSetup(cfg, values['site-env'] as string);
+
+  const dry = values.dry as boolean;
+  const check = values.check as boolean;
+
+  const cfToken = loadCloudflareToken();
+  // Same policy as `search setup` and `ads setup`: a dry run mutates nothing, so it must
+  // not demand the credential to mutate. Without one it cannot read the zone either, so
+  // it plans from "nothing is configured yet" — still a complete account of a first run.
+  if (!cfToken && !dry)
+    fail(
+      'set CLOUDFLARE_API_TOKEN. This command needs a wider token than the others: ' +
+        'Zone:Read, Zone Settings:Edit, Zone:Page Rules:Edit, and Zone:DNS:Edit if an alias ' +
+        'needs its placeholder record. No dashboard template bundles all four — build a custom token.',
+    );
+
+  const host = canonicalHost(setup.canonical);
+  const hosts = [host, ...resolveAliases(setup).map((a) => a.domain)];
+
+  /** Observe each host's zone. Cached by zone: aliases usually share the canonical one. */
+  const observe = async (): Promise<Map<string, ZoneState>> => {
+    const states = new Map<string, ZoneState>();
+    if (!cfToken) return states;
+    const byZone = new Map<string, ZoneState>();
+
+    for (const h of hosts) {
+      const zoneName = zoneOf(h, { zoneId: 'probe' });
+      let zone = byZone.get(zoneName);
+      if (!zone) {
+        const look = await lookupZone(cfToken, zoneName);
+        if (!look.ok) fail(`${zoneName}: ${look.message}`);
+        zone = {
+          ...(look.zoneId ? { zoneId: look.zoneId } : {}),
+          ...(look.zoneStatus ? { status: look.zoneStatus } : {}),
+          ...(look.nameServers ? { nameServers: look.nameServers } : {}),
+          ...(look.pageRuleQuota != null ? { pageRuleQuota: look.pageRuleQuota } : {}),
+        };
+        // Rules and settings only matter on a zone Cloudflare is actually serving;
+        // reading them on a pending zone costs requests to describe a no-op.
+        if (look.zoneId && look.zoneStatus === 'active') {
+          const rules = await listPageRules(cfToken, look.zoneId);
+          if (!rules.ok) fail(`${zoneName}: ${rules.message}`);
+          zone.pageRules = rules.rules;
+        }
+        byZone.set(zoneName, zone);
+      }
+
+      const state: ZoneState = { ...zone };
+      if (zone.zoneId && zone.status === 'active') {
+        if (h === host) {
+          const https = await getZoneSetting(cfToken, zone.zoneId, 'always_use_https');
+          if (https.ok) state.alwaysUseHttps = readAlwaysUseHttps(https.value);
+          const sec = await getZoneSetting(cfToken, zone.zoneId, 'security_header');
+          if (sec.ok) {
+            const read = readHsts(sec.value);
+            if (read) state.hsts = read;
+          }
+        } else {
+          const recs = await listRecords(cfToken, zone.zoneId, h);
+          if (!recs.ok) fail(`${h}: ${recs.message}`);
+          state.aliasRecordTypes = recs.records.map((r) => r.type);
+          state.aliasProxied = recs.records.some((r) => r.proxied);
+        }
+      }
+      states.set(h, state);
+    }
+    return states;
+  };
+
+  const states = await observe();
+  const p = planDomains(setup, states);
+
+  if (dry || check) {
+    console.log(formatDomainsPlan(p));
+    if (!cfToken)
+      console.log(
+        '\n  Planned from scratch — no CLOUDFLARE_API_TOKEN, so nothing live was read.\n' +
+          '  A real run needs Zone:Read + Zone Settings:Edit + Zone:Page Rules:Edit (+ Zone:DNS:Edit for alias records).',
+      );
+    if (check && hasDomainsDrift(p)) {
+      const needs = missingRequirements(p);
+      console.error('\n✖ canonical domain is not fully configured');
+      if (needs.length) console.error(`  outstanding: ${needs.join(', ')}`);
+      process.exit(1);
+    }
+    return;
+  }
+
+  // ── Apply ────────────────────────────────────────────────────────────────────────
+  const canonicalState = states.get(host);
+  const zoneId = canonicalState?.zoneId;
+  const result: DomainsResult = {
+    zone: p.zone,
+    https: '—',
+    hsts: '—',
+    aliases: [],
+    reminders: p.reminders,
+  };
+  let failed = false;
+
+  if (p.reachable.action === 'blocked') {
+    console.error(`✖ ${p.zone}: ${p.reachable.detail}`);
+    result.https = 'blocked';
+    result.hsts = 'blocked';
+    failed = true;
+  } else if (!cfToken || !zoneId) {
+    console.error(`✖ ${p.zone}: no Cloudflare zone id`);
+    failed = true;
+  } else {
+    // 1. Always Use HTTPS.
+    let httpsOk = p.https.action === 'skip';
+    if (p.https.action === 'skip') result.https = 'on';
+    else if (p.https.action === 'blocked') {
+      result.https = 'blocked';
+      failed = true;
+    } else {
+      const r = await setZoneSetting(cfToken, zoneId, 'always_use_https', 'on');
+      if (!r.ok) {
+        console.error(`✖ always_use_https: ${r.message}`);
+        result.https = 'failed';
+        failed = true;
+      } else {
+        console.log(`✓ ${p.zone}: Always Use HTTPS on`);
+        result.https = 'set';
+        httpsOk = true;
+      }
+    }
+
+    // 2. HSTS — only once HTTPS enforcement is confirmed. This guard is the reason the
+    //    two are separate steps rather than one "enforce https" action.
+    if (p.hsts.action === 'skip') result.hsts = 'present';
+    else if (p.hsts.action === 'blocked') {
+      console.error(`✖ hsts: ${p.hsts.detail}`);
+      result.hsts = 'blocked';
+      failed = true;
+    } else if (!httpsOk) {
+      console.error(
+        '! hsts: deferred — Always Use HTTPS is not confirmed on, and an HSTS policy a ' +
+          'browser has cached cannot be withdrawn early. Re-run once that step succeeds.',
+      );
+      result.hsts = 'deferred';
+      failed = true;
+    } else {
+      const current = await getZoneSetting(cfToken, zoneId, 'security_header');
+      const r = await setZoneSetting(
+        cfToken,
+        zoneId,
+        'security_header',
+        // nosniff rides in the same setting but is a different header — pass through
+        // whatever the zone already has rather than turning off something nobody asked
+        // us to touch.
+        hstsValue(resolveHsts(setup.hsts), current.ok ? readNosniff(current.value) : false),
+      );
+      if (!r.ok) {
+        console.error(`✖ hsts: ${r.message}`);
+        result.hsts = 'failed';
+        failed = true;
+      } else {
+        console.log(`✓ ${p.zone}: ${p.hsts.detail}`);
+        result.hsts = 'set';
+      }
+    }
+  }
+
+  // 3. Aliases — DNS first, because a rule on a host that doesn't resolve to Cloudflare
+  //    is inert, and a run that created it would otherwise look clean.
+  for (const a of p.aliases) {
+    const row: AliasResult = { domain: a.domain, dns: '—', redirect: '—' };
+    const aState = states.get(a.domain);
+    const aZoneId = aState?.zoneId;
+
+    if (a.dns.action === 'blocked') {
+      console.error(`✖ ${a.domain}: ${a.dns.detail}`);
+      row.dns = 'blocked';
+      failed = true;
+    } else if (a.dns.action === 'skip') row.dns = 'present';
+    else if (!cfToken || !aZoneId) {
+      row.dns = 'failed';
+      failed = true;
+    } else {
+      const r = await createRecord(cfToken, aZoneId, {
+        type: REDIRECT_PLACEHOLDER.type,
+        name: a.domain,
+        content: REDIRECT_PLACEHOLDER.content,
+        proxied: REDIRECT_PLACEHOLDER.proxied,
+      });
+      if (!r.ok) {
+        console.error(`✖ ${a.domain} DNS: ${r.message}`);
+        row.dns = 'failed';
+        failed = true;
+      } else {
+        console.log(`✓ ${a.domain}: created proxied ${REDIRECT_PLACEHOLDER.type} placeholder`);
+        row.dns = 'created';
+      }
+    }
+
+    if (a.rule.action === 'blocked') {
+      console.error(`✖ ${a.domain}: ${a.rule.detail}`);
+      row.redirect = 'blocked';
+      failed = true;
+    } else if (a.rule.action === 'skip') row.redirect = 'present';
+    else if (!cfToken || !aZoneId) {
+      row.redirect = 'failed';
+      failed = true;
+    } else {
+      const r =
+        a.rule.action === 'update' && a.ruleId
+          ? await updatePageRule(cfToken, aZoneId, a.ruleId, a.target, a.forwardTo, a.status)
+          : await createPageRule(cfToken, aZoneId, a.target, a.forwardTo, a.status);
+      if (!r.ok) {
+        console.error(`✖ ${a.domain} page rule: ${r.message}`);
+        row.redirect = 'failed';
+        failed = true;
+      } else {
+        console.log(`✓ ${a.domain}: ${a.target} -> ${a.forwardTo} (${a.status})`);
+        row.redirect = a.rule.action === 'update' ? 'updated' : 'created';
+      }
+    }
+    result.aliases.push(row);
+  }
+
+  console.log(`\n${formatDomainsSummary(result)}`);
+  for (const n of p.notes) console.log(`  ! ${n}`);
+  if (result.aliases.some((a) => a.dns === 'created'))
+    console.log('\n  DNS takes minutes to propagate before a redirect answers.');
+  if (failed) process.exit(1);
+}
+
 /**
  * Print each configured pixel as an inert, consent-gated `<script>`.
  *
@@ -2152,6 +2484,8 @@ async function main() {
       return cmdSearch(rest);
     case 'ads':
       return cmdAds(rest);
+    case 'domains':
+      return cmdDomains(rest);
     case 'media':
       return cmdMedia(rest);
     default:

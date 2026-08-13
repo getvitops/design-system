@@ -264,7 +264,7 @@ packages under `packages/` (a pnpm workspace), by layer:
 
 - **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
   `png-to-ico`, loaded lazily; `oxipng` crush optional). Consumed by cli/vite/astro.
-- **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint` (bin `vitops`), a
+- **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint|domains` (bin `vitops`), a
   thin wrapper over the generator + utils. The package **ships a static `vitops-design-system` agent
   skill** (`skill/SKILL.md`, in `files`); `agents` symlinks it into a consumer's
   `.agents/skills/` + `.claude/skills/` (logical `node_modules/@getvitops/cli/skill` target — never
@@ -290,6 +290,12 @@ packages under `packages/` (a pnpm workspace), by layer:
   `indexing` command, renamed with no alias) — see the Search-engine indexing section below.
   `search setup` onboards `site.searchConsole` domains as Search Console domain properties —
   see the Search Console onboarding section below.
+
+  `domains setup` configures the canonical domain on Cloudflare — HTTPS enforcement, HSTS and one
+  forwarding Page Rule per alias, from `site.domains`. Also anchored to a `Config`, and a
+  subcommand group with one member on purpose: `site.dns` is the obvious second
+  (`vitops domains dns`), and grouping now beats renaming later. See the Canonical domain and
+  HTTPS section below.
 
 - **`@getvitops/vite`** — a Vite plugin (Astro/EmDash) that runs the generator on build/dev (+
   optional favicon generation) and hot-regenerates when the config changes.
@@ -708,6 +714,76 @@ answer for tags it doesn't govern; and the environment switch is its own — `en
 cascading to `analytics` then true, because a preview deployment sending pageviews is survivable and
 one firing conversion pixels is not. The integration resolves ads **before** choosing offered consent
 categories, since a pixel is a `marketing` demand and the banner must already have a row for it.
+
+## Canonical domain and HTTPS
+
+`vitops domains setup` (`packages/cli` → `@getvitops/utils/domains`) makes `site.domains`
+**true** rather than decorative. It reads a **`Config`**'s `site.domains` block and configures
+three things on Cloudflare: Always Use HTTPS, HSTS, and one forwarding Page Rule per alias — so
+`http(s)://<any non-canonical host>` and `http://<canonical>` all end at `https://<canonical>`.
+
+**`site.domains.canonical` and `.aliases` predate this command by a long way, and nothing applied
+them.** The block modelled a `redirectType` union and a `redirectTo` while the only code touching
+`aliases` was a validation check that its `environment` named a real environment; no redirect was
+emitted anywhere in the repo. A declared-and-ignored field is worse than a missing one — it is
+indistinguishable from a working one — which is why the fix was to execute the block rather than
+to grow a second one beside it.
+
+**The mechanism is Page Rules, and that was a deliberate choice over Redirect Rules.** Both work;
+Page Rules are addressed individually (`POST /zones/{id}/pagerules`, `PUT …/{ruleId}`), while the
+dynamic-redirect ruleset is a single entrypoint whose `PUT` **replaces the whole rule list** — the
+`ownerUnion` hazard again, where a naive write silently deletes every redirect a human made in the
+dashboard. Per-rule addressing removes that class of bug rather than guarding it. The costs are
+real and worth stating: Page Rules are a legacy product Cloudflare is steering away from, and the
+per-zone quota is low (3 on Free, 20 on Pro), so a run that would exceed it reports the numbers
+instead of letting a `POST` fail opaquely.
+
+Six things are load-bearing:
+
+- **The nameserver gate comes first, and it is a step in its own right.** A zone can sit in a
+  Cloudflare account with `status: "pending"` — visible in the dashboard, serving nothing, because
+  the registrar still delegates elsewhere. Every write below would then succeed and take effect
+  nowhere. A zone that isn't `active` blocks the rest and prints the nameservers to set, rather
+  than reporting a clean run against a domain Cloudflare does not answer for.
+- **"Not checked" is not "not there".** A `--dry` run with no credential never looked, so the plan
+  says so instead of claiming the zone is absent from the account. Asserting an unobserved fact
+  sends the reader to the dashboard to fix something that may already be right — and the two cases
+  are one `undefined` apart in the state map, which is exactly how they get conflated.
+- **Always Use HTTPS is a separate step from the redirects.** A Page Rule target is scheme-less, so
+  one rule already covers an alias on both `http` and `https` — but nothing in a rule upgrades the
+  _canonical_ host's own plaintext requests. Folding the two together leaves `http://<canonical>`
+  unhandled, which is the half most likely to be assumed working.
+- **HSTS is ordered after it, and deferred — not failed — when it doesn't succeed.** A browser
+  holds the policy for its `max-age` no matter what the zone says afterwards, so this is the one
+  setting here with a long tail. `preload` additionally requires a year and `includeSubDomains`
+  (the preload list's own rules) and is reported as `blocked` naming both fields rather than
+  submitted and rejected; `validateConfig` catches the same pair, so the config is wrong at
+  validation rather than at the end of a run. `includeSubDomains` is refused outright while a
+  configured environment is still on plaintext `http` — that is the one subdomain hazard the config
+  can see coming, and it carries a reminder for the ones it can't.
+- **A redirect needs DNS before it means anything.** A Page Rule fires only on a request that
+  reaches Cloudflare, which needs a _proxied_ record on the alias host; without one the rule is
+  inert and the run still looks clean. An alias host with no records gets a proxied `AAAA 100::`
+  (the IPv6 discard prefix — it routes nowhere, which is the point). A host with records that
+  aren't proxied is **blocked, never edited**: it may be a live site being retired.
+- **Identity is the target pattern, so there is no delete verb.** Page Rules carry no description
+  field, so ownership can't be stamped — it is inferred from the one thing both stable and ours,
+  `<alias>/*`. A rule on any other target is another job: never read back, never rewritten, never
+  removed. `cloudflare.test.ts` asserts the module exports nothing matching `/delete|remove/`,
+  because the cheapest way to keep that contract is for there to be no code that could break it.
+
+The pure/executor split is `onboarding`'s and `ads`' exactly — `domains/plan.ts` decides everything
+and touches nothing, `domains/cloudflare.ts` executes and decides nothing. The DNS verbs are
+re-exported from `onboarding/cloudflare.ts` rather than duplicated, for the reason `ads/index.ts`
+gives; the zone-settings and Page Rule verbs could **not** live there, because that file's header
+promises no update verb and this command's whole job is updates. Hence a second executor with its
+own contract, rather than quietly retiring the first one's.
+
+Credentials follow the same env-var pattern as everything else, but the token is **wider** than the
+other Cloudflare commands need: `Zone:Read`, `Zone Settings:Edit`, `Zone:Page Rules:Edit`, plus
+`Zone:DNS:Edit` when an alias needs its placeholder. No dashboard template bundles all four, so the
+403 paths name the missing scope — a permissions failure that reads as "the zone isn't there" sends
+you to the wrong dashboard, which is the mistake `findZoneId`'s message already exists to prevent.
 
 ## Development
 

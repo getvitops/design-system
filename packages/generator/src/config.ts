@@ -128,11 +128,56 @@ const LocaleSchema = z.object({
 
 const HttpRedirect = z.union([z.literal(301), z.literal(302), z.literal(307), z.literal(308)]);
 
+/**
+ * One alias host and where it goes.
+ *
+ * `redirectType` and `redirectTo` are optional because the overwhelmingly common case —
+ * "this domain redirects to the canonical one" — was three lines restating the block's
+ * own name. They default to `301` and `domains.canonical`, which is also the shape the
+ * implicit `www` ↔ apex alias needs. Both were required before; loosening them is
+ * backwards-compatible.
+ */
 const DomainAliasSchema = z.object({
-  domain: z.string(),
-  redirectType: HttpRedirect,
-  redirectTo: z.string(),
-  environment: z.optional(z.string()),
+  domain: desc(z.string(), 'The alias host, bare (e.g. "www.acme.ca").'),
+  redirectType: desc(z.optional(HttpRedirect), 'HTTP status for the redirect. Default 301.'),
+  redirectTo: desc(
+    z.optional(z.string()),
+    'Destination host, bare. Defaults to the host of `domains.canonical`.',
+  ),
+  environment: desc(
+    z.optional(z.string()),
+    'Restricts the alias to one environment. Omit for every environment.',
+  ),
+});
+
+/**
+ * HSTS. Off-by-default flags on purpose: `includeSubDomains` reaches hosts this config
+ * never names, and `preload` is close to irreversible — browsers hold the policy for
+ * `max-age` regardless of what the zone says afterwards, so neither should arrive by
+ * accident. The six-month default is Cloudflare's own starting recommendation.
+ */
+const HstsSchema = z.object({
+  enabled: desc(z.optional(z.boolean()), 'Send Strict-Transport-Security. Default true.'),
+  maxAge: desc(
+    z.optional(z.number().check(z.int(), z.positive())),
+    'Seconds the policy is held. Default 15552000 (6 months). Raise to 31536000 (1 year) before considering `preload`.',
+  ),
+  includeSubDomains: desc(
+    z.optional(z.boolean()),
+    'Extend the policy to every subdomain. Default false. `vitops domains setup` REFUSES this while any configured environment is still on plaintext http, because turning it on makes that environment unreachable — but it cannot see subdomains this config never names, so confirm those serve https first.',
+  ),
+  preload: desc(
+    z.optional(z.boolean()),
+    'Declare eligibility for the browser preload list. Default false. Requires `maxAge` >= 31536000 AND `includeSubDomains`; without both the submission is rejected, so the setup command reports it as blocked rather than sending it. Removal from the list takes months — treat this as one-way.',
+  ),
+});
+
+const DomainsHttpsSchema = z.object({
+  enabled: desc(
+    z.optional(z.boolean()),
+    'Turn on Cloudflare "Always Use HTTPS", which upgrades `http://<canonical>`. Default true. This is separate from the alias redirects: those match on host and already cover both schemes, but nothing in a redirect rule upgrades the canonical host itself.',
+  ),
+  hsts: z.optional(HstsSchema),
 });
 
 // ── Contact / address (schema.org-aligned) ──────────────────────────────────────
@@ -750,11 +795,15 @@ const SiteSectionSchema = z.object({
         canonical: desc(z.url(), 'The canonical origin used for absolute URLs and SEO.'),
         aliases: desc(
           z.optional(z.array(DomainAliasSchema)),
-          'Alias domains and how they redirect to the canonical one.',
+          'Alias domains and how they redirect to the canonical one. The `www` ↔ apex counterpart of the canonical host is redirected WITHOUT an entry here — list only the domains that convention does not cover (a retired brand domain, a second TLD). An entry for the counterpart still wins, which is how you give it a non-default status code.',
+        ),
+        https: desc(
+          z.optional(DomainsHttpsSchema),
+          'HTTPS enforcement and HSTS, applied by `vitops domains setup`. Omitting the block is the safe posture, not an opt-out: HTTPS enforcement and HSTS are both on by default, at a conservative six-month max-age with no subdomain or preload commitment.',
         ),
       }),
     ),
-    'Canonical domain + redirecting aliases.',
+    'Canonical domain, redirecting aliases and HTTPS enforcement. Read by `vitops domains setup`, which configures them on Cloudflare — the redirects as Page Rules, the rest as zone settings. Credentials never live here: the write uses CLOUDFLARE_API_TOKEN from the environment.',
   ),
   dns: desc(
     z.optional(z.record(z.string(), DnsDomainSchema)),
@@ -1322,6 +1371,27 @@ export function validateConfig(input: unknown): ConfigValidationResult {
           `environment "${a.environment}" is not in site.environments`,
         ),
       );
+
+  // HSTS preload has requirements the preload list enforces, not us: a submission
+  // without a year-long max-age and includeSubDomains is rejected. Catching it here
+  // means the config is wrong at validation rather than at the end of a setup run.
+  const hsts = site.domains?.https?.hsts;
+  if (hsts?.preload === true) {
+    if ((hsts.maxAge ?? 15552000) < 31536000)
+      errors.push(
+        issue(
+          ['site', 'domains', 'https', 'hsts', 'maxAge'],
+          'hsts.preload requires maxAge >= 31536000 (1 year) — the preload list rejects anything shorter',
+        ),
+      );
+    if (hsts.includeSubDomains !== true)
+      errors.push(
+        issue(
+          ['site', 'domains', 'https', 'hsts', 'includeSubDomains'],
+          'hsts.preload requires includeSubDomains — the preload list rejects a policy that omits it',
+        ),
+      );
+  }
 
   const templates = site.templates;
   const at = site.navigation?.activeTemplate;

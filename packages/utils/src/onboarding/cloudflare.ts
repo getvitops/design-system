@@ -73,6 +73,60 @@ export async function listApexTxt(
 }
 
 /**
+ * List every record on one hostname, whatever the type.
+ *
+ * Broader than `listApexTxt` because `vitops domains setup` asks a different question —
+ * not "is our TXT there" but "does this host resolve to Cloudflare at all", which any
+ * record type can answer and which the proxy flag completes. Still a read; the contract
+ * above is untouched.
+ */
+export async function listRecords(
+  token: string,
+  zoneId: string,
+  host: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{
+  ok: boolean;
+  status: number;
+  records: { type: string; proxied: boolean }[];
+  message?: string;
+}> {
+  const res = await fetchImpl(
+    `${API}/zones/${zoneId}/dns_records?name=${encodeURIComponent(host)}`,
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  const body = (await res.json()) as CfEnvelope<{ type: string; proxied?: boolean }[]>;
+  if (!res.ok || !body.success)
+    return { ok: false, status: res.status, records: [], message: cfError(res.status, body) };
+  return {
+    ok: true,
+    status: res.status,
+    records: (body.result ?? []).map((r) => ({ type: r.type, proxied: r.proxied === true })),
+  };
+}
+
+/**
+ * Create one DNS record of any type. **Create only**, like its TXT sibling — the planner
+ * decides it is absent first, and there is still nothing here that edits or removes.
+ */
+export async function createRecord(
+  token: string,
+  zoneId: string,
+  record: { type: string; name: string; content: string; proxied?: boolean; ttl?: number },
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ ok: boolean; status: number; message?: string }> {
+  const res = await fetchImpl(`${API}/zones/${zoneId}/dns_records`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify(record),
+  });
+  const body = (await res.json()) as CfEnvelope<{ id: string }>;
+  if (!res.ok || !body.success)
+    return { ok: false, status: res.status, message: cfError(res.status, body) };
+  return { ok: true, status: res.status };
+}
+
+/**
  * Create an apex TXT record. **Create only** — never called when one already
  * exists (the planner decides that), and there is no sibling that edits or removes.
  */

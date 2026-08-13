@@ -120,6 +120,40 @@ here before it shipped — see its own class docblock, `WCCounter.ts`, for the s
 treatment landed in (why it clears the tier-2 bar, shape, load-bearing details) — rather than
 just the one-liners here.
 
+## Per-page canonical + hreflang — todo
+
+Follows from `vitops domains setup`, which now enforces `site.domains.canonical` at the edge
+(see AGENTS.md's "Canonical domain and HTTPS"). **Both tags already ship** — this entry is not
+"add canonical/hreflang", it is the two gaps enforcing the canonical domain exposed:
+
+**1. Nothing checks that Astro's `site` and `site.domains.canonical` agree.** `Seo.astro:55`
+emits `<link rel="canonical">` built from `Astro.url.pathname` against the build's `site`
+(`packages/astro/src/seo.ts:254-258`), while `domains setup` redirects everything to
+`site.domains.canonical`. The two are set in different files and nothing compares them. If they
+disagree — Astro `site` on `https://www.acme.ca`, config canonical on `https://acme.ca` — every
+page publishes a canonical pointing at a host that now **301s**. That is strictly worse than
+before the redirects existed, so this is a regression the redirect work created rather than a
+pre-existing gap.
+
+A build-time warning in the integration is the shape of the fix, and it has a home and a
+precedent: `packages/astro/src/integration.ts:829-838` already warns when the CMS also renders
+canonical/og tags. Warn, don't throw — a preview deploy legitimately runs on another origin.
+
+**2. hreflang is explicit-only, deliberately, and the open question is narrower than it looks.**
+`Seo.astro:66` emits `<link rel="alternate" hreflang>` from `SeoProps.alternates`, and
+`Seo.astro:62-65` states the rule: _"Nothing is inferred from a locale list, because only the
+page knows where its own translations live."_ `seo.test.ts:296-298` pins it with the reason — a
+deleted component inferred them from the locale list and **pointed every page's alternates at
+the homepage**.
+
+So do **not** reopen "derive them from `site.locales`"; that was tried and reverted. The open
+question is whether there is a safe derivation given a page's _own_ translation set (a content
+collection's `translations` map, EmDash's locale siblings), and what surface would carry it.
+Note the two requirements a partial derivation fails silently: hreflang links must be
+**reciprocal** (every alternate must link back, or search engines discard the whole cluster),
+and a set needs an **`x-default`**. Getting either wrong is worse than emitting nothing, which
+is why the current explicit-only default is the right floor.
+
 ## GBP category → `LocalBusinessType` mapping — todo
 
 Follows from populating JBL Signs' `organization.locations.ottawa.type` by hand: Google's GBP
