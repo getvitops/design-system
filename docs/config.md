@@ -501,6 +501,22 @@ Ad properties this site is linked to, keyed by platform. Read by `vitops ads set
   - `category` (marketing | analytics) — Consent category the tag waits on (default `marketing`). An ad pixel is advertising by default; `analytics` is for a site using one purely for its own measurement.
   - `enabled` (boolean) — Set false to keep the property on record without emitting its tag.
 
+### `reviews` *(optional)*
+
+Google Business Profile reviews to cache and display, keyed by `organization.locations`. Read by `vitops reviews`. Credentials never live here — a Google OAuth credential comes from the environment, same as `site.searchConsole`.
+
+- `accountId` (string) — Default GBP account resource id (`accounts/…`) for locations that do not override it.
+- `locations` (map, required) — Which `organization.locations` to fetch Google reviews for, and how each one’s reviews are filtered/ordered. `vitops reviews` writes the result to `.vitops/reviews.json`.
+  - `<name>` (object)
+    - `accountId` (string) — GBP account resource id (`accounts/…`), overriding `site.reviews.accountId` for this location.
+    - `locationId` (string, required) — GBP location resource id (`locations/…`) to fetch reviews for.
+    - `featured` (array of string) — Review ids to always include, in this order, ahead of everything else automatically selected.
+    - `minRating` (number) — Drop reviews below this star rating (default 4) from the automatic (non-featured) selection.
+    - `limit` (number) — Keep at most this many reviews after filtering.
+    - `sort` (recent | rating) — Ordering for the non-featured remainder (default `recent`).
+- `schema` (boolean) — Emit `Review` JSON-LD for these reviews (default false). Off by default: Google’s structured-data policy treats a business marking up reviews of itself as ineligible for review rich results, and risks a manual action.
+- `avatars` (boolean) — Render the reviewer’s Google-hosted avatar photo (default false). Off by default: every visitor would otherwise issue a third-party request to googleusercontent.com, and the URLs are not guaranteed to stay live.
+
 ### `security` *(optional)*
 
 Security integrations (bot protection).

@@ -11,7 +11,6 @@ import {
   type PlainColorObject,
 } from 'colorjs.io/fn';
 
-// Register color spaces once for functional API
 ColorSpace.register(OKLCH_Space);
 ColorSpace.register(sRGB_Space);
 ColorSpace.register(P3_Space);
@@ -110,12 +109,8 @@ export function hexToOklch(hex: string): { l: number; c: number; h: number } {
   };
 }
 
-/**
- * Convert OKLCH components to hex color
- */
 export function oklchToHex(oklch: { l: number; c: number; h: number }): string {
   const color = new Color('oklch', [oklch.l, oklch.c, oklch.h]);
-  // Convert to sRGB and clamp to gamut, then format as hex
   const srgb = color.to('srgb');
   if (!srgb.inGamut()) {
     srgb.toGamut({ method: 'css' });
@@ -147,7 +142,6 @@ export function oklchStringToHex(oklchString: string): string {
 export function formatColorName(name: string): string {
   if (!name) return 'Unknown';
 
-  // Handle special cases with proper word separation
   const specialCases: Record<string, string> = {
     aliceblue: 'Alice Blue',
     antiquewhite: 'Antique White',

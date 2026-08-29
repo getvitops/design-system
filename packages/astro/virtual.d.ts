@@ -1,14 +1,3 @@
-/**
- * Astro generates the real types for `astro:env/*` into a consumer's
- * `.astro/` on `astro sync`, which never runs for this package — so the
- * import typechecks nowhere but a consumer project. Declared here at the
- * shape `plan-features.ts` actually uses; the runtime value comes from
- * Astro's env schema, and this file cannot import it.
- */
-declare module 'astro:env/server' {
-  export const SITE_PLAN: string | undefined;
-}
-
 /** Types for the virtual module the getvitops() integration provides to <Head />. */
 declare module 'virtual:getvitops/head' {
   interface FaviconLink {

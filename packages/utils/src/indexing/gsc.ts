@@ -18,6 +18,8 @@
  * the onboarding module, which needs the same token from a different grant.
  */
 import {
+  encodeSite,
+  errorDetail,
   googleAccessToken,
   googleHeaders,
   SCOPES,
@@ -64,8 +66,6 @@ export function serviceAccountToken(
   );
 }
 
-const encodeSite = (siteUrl: string) => encodeURIComponent(siteUrl);
-
 /**
  * Re-submit a sitemap — the automated form of the manual resubmit in the UI.
  *
@@ -85,11 +85,12 @@ export async function submitSitemap(
     headers: googleHeaders(auth),
   });
   if (res.ok) return { ok: true, status: res.status };
-  const detail =
-    res.status === 403
+  const message = await errorDetail(res, (status) =>
+    status === 403
       ? `403 — check that siteUrl "${siteUrl}" matches the Search Console property exactly and that the service account is an owner of it`
-      : `${res.status}: ${await res.text()}`;
-  return { ok: false, status: res.status, message: detail };
+      : undefined,
+  );
+  return { ok: false, status: res.status, message };
 }
 
 /** What the URL Inspection API said about one page. */

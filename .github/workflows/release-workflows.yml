@@ -1,0 +1,28 @@
+# Moves the `v1` tag to the current commit on `main`, so every client repo
+# and this repo's own site pinning `@v1` on the reusable workflows
+# (site-ci.yml, site-deploy-static.yml, site-deploy-emdash.yml, site-promote.yml)
+# picks up the change on their next run.
+#
+# Deliberately MANUAL, never automatic on push: `v1` is live in every scaffolded
+# client repo, so moving it is a decision, not a side effect of merging to main.
+# Run it once you've verified the workflow change is correct (see AGENTS.md's
+# CI/CD section for the verification steps).
+name: Release workflows
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Move v1 to HEAD
+        run: |
+          git tag -f v1
+          git push origin v1 --force

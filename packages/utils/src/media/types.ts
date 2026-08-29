@@ -74,7 +74,6 @@ export interface MediaConfig {
 
 /** A discovered source video. */
 export interface MediaSource {
-  /** Absolute path on disk. */
   path: string;
   /**
    * Path relative to the raw directory, POSIX-separated — the manifest key.
@@ -114,7 +113,6 @@ export interface MediaPlan {
 export interface MediaManifestEntry {
   /** `MediaSource.hash` at the time of encoding. */
   source: string;
-  /** Settings hash at the time of encoding. */
   settings: string;
   /** Output paths relative to the output directory. */
   outputs: string[];

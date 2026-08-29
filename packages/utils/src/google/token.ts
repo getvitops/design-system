@@ -160,10 +160,29 @@ export function googleHeaders(
   };
 }
 
+/** Percent-encode a Search Console `siteUrl` (e.g. `sc-domain:acme.ca`) for a path segment. */
+export const encodeSite = (siteUrl: string): string => encodeURIComponent(siteUrl);
+
+/**
+ * Render a failed response's detail: a caller-supplied hint on a specific status
+ * (e.g. what a `403` almost always means for this endpoint), or the raw body
+ * otherwise. Shared by every REST call here that follows the "PUT and report
+ * why" shape — `gsc.ts`'s `submitSitemap`, `onboarding/google.ts`'s `addSite`.
+ */
+export async function errorDetail(
+  res: Response,
+  hint?: (status: number) => string | undefined,
+): Promise<string> {
+  const named = hint?.(res.status);
+  return named ?? `${res.status}: ${await res.text()}`;
+}
+
 /** Scopes, named once so a caller never spells one out. */
 export const SCOPES = {
   /** Search Console (`sitemaps.submit`, `urlInspection`, `sites`). */
   webmasters: 'https://www.googleapis.com/auth/webmasters',
   /** Site Verification API. */
   siteVerification: 'https://www.googleapis.com/auth/siteverification',
+  /** Business Profile (reviews). The GCP project must be allowlisted by Google. */
+  businessProfile: 'https://www.googleapis.com/auth/business.manage',
 } as const;

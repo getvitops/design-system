@@ -65,7 +65,6 @@ export interface ConversionEvent {
   type: 'form' | 'call';
   /** Submitted fields, for `type: 'form'`. Honeypots are stripped before this. */
   formData?: Record<string, string> | undefined;
-  /** The dialled number, for `type: 'call'`. */
   phone?: string | undefined;
   /** Attribution from the `_ac` cookie, or null when the visitor arrived cold. */
   tracking: TrackingData | null;

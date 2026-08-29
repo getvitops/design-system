@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vitops-docs",
+  "compatibility_date": "2026-02-24",
+  // Pure static Astro output — Workers Static Assets, no adapter, no Worker
+  // script. This is the same shape the `static` template ships, so this site
+  // dogfoods the client deploy path rather than the GitHub Pages path it used
+  // to deploy through.
+  "assets": {
+    "directory": "./dist"
+  },
+  // Apex custom domain. Cloudflare provisions the DNS record + TLS cert on
+  // deploy (the zone must already exist in the account). The dev deploy
+  // (deploy-dev.yml) rewrites this to `dev.docs.vitops.ca` and the worker
+  // name to `vitops-docs-dev` before deploying — see that workflow.
+  "routes": [{ "pattern": "docs.vitops.ca", "custom_domain": true }],
+}

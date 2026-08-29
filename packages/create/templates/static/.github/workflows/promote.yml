@@ -1,0 +1,16 @@
+# Promote dev → main. Run manually after reviewing the dev site.
+# Opens a PR from dev into the protected `main` branch and enables auto-merge;
+# the merge triggers Deploy prod.
+#
+# Deploys via the vitops toolchain's reusable promote workflow — see
+# https://github.com/getvitops/design-system/blob/main/.github/workflows/site-promote.yml
+# for the branch-protection / PROMOTE_TOKEN options.
+name: Promote dev → main
+
+on:
+  workflow_dispatch:
+
+jobs:
+  promote:
+    uses: getvitops/design-system/.github/workflows/site-promote.yml@v1
+    secrets: inherit

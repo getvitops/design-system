@@ -12,6 +12,7 @@
  * construction rather than by the executors checking twice.
  */
 import type { DomainSetup, DomainState, OnboardingConfig } from './types.ts';
+import { table } from '../plan-format.ts';
 
 /** A step's decision: do it, or skip it because it already holds. */
 export type StepAction = 'create' | 'update' | 'skip';
@@ -191,27 +192,10 @@ export interface DomainResult {
   reminders: string[];
 }
 
-const pad = (s: string, n: number) => s.padEnd(n);
-
 /** Render the end-of-run summary: one row per domain, plus any reminders. */
 export function formatSummary(results: DomainResult[]): string {
   const headers = ['DOMAIN', 'TXT', 'VERIFIED', 'PROPERTY'];
   const rows = results.map((r) => [r.domain, r.txt, r.verified, r.property]);
-  const widths = headers.map((h, i) =>
-    Math.max(h.length, ...rows.map((row) => row[i]?.length ?? 0)),
-  );
-  const line = (cells: string[]) =>
-    cells
-      .map((c, i) => pad(c, widths[i] ?? 0))
-      .join('  ')
-      .trimEnd();
-
-  const out = [line(headers), widths.map((w) => '─'.repeat(w)).join('  ')];
-  for (const row of rows) out.push(line(row));
-
   const reminders = results.flatMap((r) => r.reminders.map((m) => `  ! ${r.domain}: ${m}`));
-  if (reminders.length) {
-    out.push('', 'Reminders (manual — no API):', ...reminders);
-  }
-  return out.join('\n');
+  return table(headers, rows, reminders);
 }

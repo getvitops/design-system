@@ -1,0 +1,12 @@
+# Runs on every PR: typecheck + design-lint + build. deploy-dev.yml /
+# deploy-prod.yml call the same reusable `site-ci.yml` themselves before they
+# deploy, so this is what gives a PR the identical signal before it's even
+# merged to `dev` — a broken build never reaches the dev worker.
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  ci:
+    uses: getvitops/design-system/.github/workflows/site-ci.yml@v1

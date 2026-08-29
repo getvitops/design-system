@@ -1,0 +1,41 @@
+{
+  "name": "my-static-site",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "deploy": "astro build && wrangler deploy",
+    "deploy:dev": "astro build && node scripts/dev-wrangler-config.mjs && wrangler deploy --config .wrangler.dev.json",
+    "init:github": "vitops setup repo",
+    "init:hosting": "vitops setup hosting --no-dev-resources",
+    "setup": "vitops setup repo && vitops setup hosting --no-dev-resources",
+    "typecheck": "astro check",
+    "build:css": "vitops generate -i site.json -f css -o src/styles",
+    "lint:design": "vitops lint -i site.json -f css --strict",
+    "sop": "vitops generate -i site.json -f css -o .vitops/sop",
+    "prepare": "vp config"
+  },
+  "dependencies": {
+    "@getvitops/astro": "latest",
+    "astro": "^7.1.2"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.7",
+    "@getvitops/cli": "latest",
+    "typescript": "^6.0.3",
+    "vite": "latest",
+    "vite-plus": "latest",
+    "wrangler": "^4.111.0"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24.18.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@11.17.0"
+}

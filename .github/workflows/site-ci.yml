@@ -1,0 +1,63 @@
+# Reusable CI for a scaffolded client site (`@getvitops/create` templates and this
+# repo's own docs site): typecheck + design-lint + build, nothing deploys.
+#
+# Consumers call this with a pinned major tag:
+#
+#   jobs:
+#     ci:
+#       uses: getvitops/design-system/.github/workflows/site-ci.yml@v1
+#
+# Kept separate from the deploy workflows (site-deploy-static.yml /
+# site-deploy-emdash.yml) rather than folded into them: a PR should get this
+# signal without ever touching Cloudflare, and both deploy workflows call this
+# one internally via `needs:` before they run `wrangler deploy`.
+name: Site CI
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory containing the site's package.json and .nvmrc.
+        type: string
+        default: '.'
+      run-lint-design:
+        description: Run `pnpm run lint:design` (requires the script to exist).
+        type: boolean
+        default: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      # Every template ships its own `.nvmrc` — see AGENTS.md's CI/CD section
+      # for why this reusable workflow requires one rather than taking a
+      # `node-version` input: a version input and a checked-in `.nvmrc` can
+      # silently disagree, and `local dev` already reads the file.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ${{ inputs.working-directory }}/.nvmrc
+          cache: pnpm
+          cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      # `vitops lint` against the site's own design-system.json — catches a
+      # class that resolves to nothing under the site's chosen format (css,
+      # tailwind, bricks). Optional because not every consumer wires the
+      # script up (see AGENTS.md's `lint` section).
+      - name: Design lint
+        if: inputs.run-lint-design
+        run: pnpm run lint:design
+
+      - name: Build
+        run: pnpm run build

@@ -293,3 +293,21 @@ describe('<wc-carousel> teardown', () => {
     expect(el.hasAttribute('aria-live')).toBe(false);
   });
 });
+
+describe('<wc-carousel> carousel-change', () => {
+  // happy-dom does no layout — every `getBoundingClientRect()` is zeroes, so
+  // `#currentIndex()`'s nearest-to-centre search always settles on the first
+  // slide for every scroll tick here. That still proves the dedup wiring
+  // `<wc-gallery>` depends on: a real detail shape, and one dispatch per
+  // distinct index rather than one per scroll event.
+  it('dedupes repeated scroll ticks that settle on the same index', async () => {
+    const el = await mount(markup());
+    const seen: unknown[] = [];
+    el.addEventListener('carousel-change', (e) => seen.push((e as CustomEvent).detail));
+    track(el).dispatchEvent(new Event('scroll'));
+    track(el).dispatchEvent(new Event('scroll'));
+    // Both ticks resolve to the same index (0, since every rect is zero here),
+    // so only the first is a distinct change — the second is a no-op dispatch.
+    expect(seen).toEqual([{ index: 0, total: 3 }]);
+  });
+});

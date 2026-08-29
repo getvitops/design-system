@@ -1,0 +1,91 @@
+/**
+ * Review — the `.review` card's structure only.
+ *
+ * Box chrome (border/padding/background/shadow) is CONFIG-GENERATED
+ * (`patterns.items.review` in design-system.json), the same split `card.css`
+ * documents. This partial holds what the framework owns: the internal layout —
+ * rating, identity, body, reply, source link.
+ */
+
+.review {
+  .review__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .review__avatar {
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  /* Shown instead of `.review__avatar` when `avatars` is off (the default) — see
+     the config-generated pattern's rationale in AGENTS.md's Reviews section. */
+  .review__initials {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    border-radius: 50%;
+    background: var(--color-bg-neutral-muted);
+    color: var(--color-text-neutral);
+    font-weight: 600;
+    font-size: 0.875em;
+  }
+
+  .review__identity {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+
+  .review__author {
+    font-weight: 600;
+  }
+
+  .review__date {
+    font-size: 0.875em;
+    opacity: 0.7;
+  }
+
+  .review__stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    margin-inline-start: auto;
+  }
+
+  .review__star--empty {
+    opacity: 0.35;
+  }
+
+  .review__body {
+    margin: 0;
+  }
+
+  .review__reply {
+    margin-inline-start: 1.5rem;
+    padding-inline-start: 1rem;
+    border-inline-start: 2px solid var(--color-bg-surface-muted);
+  }
+
+  .review__reply-author {
+    font-weight: 600;
+    font-size: 0.875em;
+  }
+
+  .review__source {
+    font-size: 0.875em;
+    align-self: start;
+  }
+}
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}

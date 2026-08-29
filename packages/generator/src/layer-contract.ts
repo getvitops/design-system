@@ -61,6 +61,7 @@ export const LAYER_CONTRACT = {
     'measure',
     'spotlight',
     'grid-auto',
+    'no-rhythm',
     'm-xs',
     'm-p-h',
     'gap-l',

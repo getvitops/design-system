@@ -62,3 +62,10 @@
     flex-shrink: 0;
   }
 }
+
+/* `.banner`'s own `display: flex` and the UA `[hidden] { display: none }` are
+   both 0-1-0 — a tie the author sheet wins on source order, so a hidden
+   banner would render anyway. Name `[hidden]` explicitly so it always wins. */
+.banner[hidden] {
+  display: none;
+}

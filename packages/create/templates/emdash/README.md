@@ -10,11 +10,15 @@ Scaffolded from `vp create @getvitops:emdash`.
 - **Astro** (SSR) on **Cloudflare Workers** — D1 database, R2 media storage
 - **EmDash** — the admin lives at `/_emdash/admin`; content is queried with
   `getEmDashCollection` / `getEmDashEntry` (Astro live content collections)
-- **`@getvitops/astro`** — generates the design-system CSS from
-  `design-system.json` (Tailwind v4 format), generates favicons/PWA assets
-  from `src/assets/logo.svg`, and serves the web-component runtime
+- **`@getvitops/astro`** — generates the design-system CSS from `site.json`
+  (Tailwind v4 format), generates favicons/PWA assets from
+  `src/assets/logo.svg`, and serves the web-component runtime
 - **`@getvitops/emdash`** — design-system Portable Text blocks in the editor
   slash menu: image compare, copy snippet, banner, disclosure, carousel
+
+`src/assets/placeholder/` ships neutral wireframe images for layout work
+before real imagery exists — delete once real assets land (separate from
+`src/assets/logo.svg`, the brand asset).
 
 ## Local development
 
@@ -38,7 +42,7 @@ Until then the home route shows a friendly empty state. Unknown paths render
 `src/pages/404.astro`.
 
 The two legal pages are placeholders. To generate real ones from what your site
-actually does, describe it in a site config and run:
+actually does, fill in `site.json`'s `organization`/`site.legal` fields and run:
 
 ```sh
 npx vitops legal --format portable-text --out ./legal
@@ -78,22 +82,18 @@ The repo ships a two-environment flow modeled on branch = environment:
   into `main` with auto-merge enabled. With required reviews on `main`, a
   human approves the PR; merging deploys prod.
 
-One-time setup:
+One-time setup — work through the checklist:
 
-1. `pnpm run init:github` — creates a GitHub repo named after this project
-   (via the `gh` CLI; `-- --public` for a public repo), commits if needed,
-   pushes `main` + `dev`, and makes `dev` the default branch. Idempotent;
-   `-- --dry-run` previews. Then branch-protect `main` (require the promotion
-   PR + review).
-2. `pnpm run init:hosting` — provisions the hosting platform (after
-   `npx wrangler login`): creates the isolated dev D1 + R2 and sets the
-   `DEV_D1_ID` / `CLOUDFLARE_ACCOUNT_ID` repo secrets. Idempotent;
-   `-- --dry-run` previews.
-3. Create a Cloudflare API token (Workers + D1 + R2 edit —
-   <https://dash.cloudflare.com/profile/api-tokens>; tokens can't be created
-   via CLI) and `gh secret set CLOUDFLARE_API_TOKEN`. Optionally
-   `PROMOTE_TOKEN` (a PAT allowed to bypass protection) for hands-off
-   promotion. The first workflow runs fail until the secrets exist.
+```bash
+pnpm run sop && open SETUP.html   # or: xdg-open SETUP.html
+```
+
+It covers host choice, GitHub + branch policy, hosting resources, going live
+safely on `*.workers.dev` before any custom-domain cutover, configuration,
+Search Console/GCP/ads connections, legal documents, and launch gates — one
+command per step. An AI agent can work the same list autonomously via
+`.agents/skills/setup/`; it stops at the steps that genuinely need a human
+(the Cloudflare API token, the domain cutover, publishing legal documents).
 
 `pnpm deploy:dev` reproduces the dev deploy locally: it rewrites the
 adapter-generated wrangler config (`scripts/build-dev-wrangler.mjs`) so the
@@ -142,8 +142,10 @@ and media in the storage backend (bucket/directory copy).
 
 ## The design system
 
-`design-system.json` is the single source of truth for colors, type, spacing,
-shadows, patterns, and animations. The `vitops()` integration regenerates
+`site.json`'s `designSystem.themes.default` is the single source of truth for
+colors, type, spacing, shadows, patterns, and animations — there is no
+separate `design-system.json`, since a scaffolded config can't merely
+reference a sibling file. The `vitops()` integration regenerates
 `src/styles/tailwind.css` from it on dev/build (the file is gitignored — edit
 the JSON, not the CSS). `Layout.astro` imports the stylesheet so the admin
 routes stay unstyled by it.
@@ -151,27 +153,27 @@ routes stay unstyled by it.
 Useful commands (via `@getvitops/cli`):
 
 ```bash
-npx vitops validate design-system.json   # check the config against the schema
-npx vitops agents                        # write the design-system reference into AGENTS.md
-pnpm build:css                           # regenerate the CSS manually
+npx vitops validate site.json   # check the config against the schema
+npx vitops agents               # write the design-system reference into AGENTS.md
+pnpm build:css                  # regenerate the CSS manually
 ```
 
 ## Project map
 
-| Path                             | Purpose                                                           |
-| -------------------------------- | ----------------------------------------------------------------- |
-| `design-system.json`             | Design tokens + patterns → generated CSS                          |
-| `seed/seed.json`                 | First-boot content model + starter content                        |
-| `src/worker.ts`                  | Worker entry (fetch + EmDash scheduled handler)                   |
-| `src/live.config.ts`             | Astro live content collections wiring for EmDash                  |
-| `src/layouts/Layout.astro`       | Site chrome: EmDash + Vitops head tags, nav from the CMS menu     |
-| `src/pages/index.astro`          | Home — renders the `home` page entry                              |
-| `src/pages/[...slug].astro`      | Catch-all — renders any `pages` entry at its slug                 |
-| `src/pages/404.astro`            | Not-found page (the catch-all rewrites here)                      |
-| `wrangler.jsonc`                 | Cloudflare bindings (D1/R2) + cron trigger                        |
-| `scripts/build-dev-wrangler.mjs` | Rewrites the built wrangler config for the isolated dev worker    |
-| `scripts/init-github.mjs`        | One-time: create + push the GitHub repo (`pnpm run init:github`)  |
-| `.github/workflows/`             | deploy-dev (push to `dev`), deploy-prod (push to `main`), promote |
-| `.agents/skills/promote/`        | Agent skill: dispatch the dev → main promotion                    |
-| `.mcp.json`                      | Astro + EmDash docs MCP servers for coding agents                 |
-| `.claude/hooks/`                 | Claude Code web: Node 24 + pnpm setup on session start            |
+| Path                             | Purpose                                                                                    |
+| -------------------------------- | ------------------------------------------------------------------------------------------ |
+| `site.json`                      | Org + site config; design tokens/patterns at `designSystem.themes.default` → generated CSS |
+| `seed/seed.json`                 | First-boot content model + starter content                                                 |
+| `src/worker.ts`                  | Worker entry (fetch + EmDash scheduled handler)                                            |
+| `src/live.config.ts`             | Astro live content collections wiring for EmDash                                           |
+| `src/layouts/Layout.astro`       | Site chrome: EmDash + Vitops head tags, nav from the CMS menu                              |
+| `src/pages/index.astro`          | Home — renders the `home` page entry                                                       |
+| `src/pages/[...slug].astro`      | Catch-all — renders any `pages` entry at its slug                                          |
+| `src/pages/404.astro`            | Not-found page (the catch-all rewrites here)                                               |
+| `wrangler.jsonc`                 | Cloudflare bindings (D1/R2) + cron trigger                                                 |
+| `scripts/build-dev-wrangler.mjs` | Rewrites the built wrangler config for the isolated dev worker                             |
+| `SETUP.html`                     | Client-onboarding checklist — run `pnpm run sop` first (see "One-time setup")              |
+| `.github/workflows/`             | deploy-dev (push to `dev`), deploy-prod (push to `main`), promote                          |
+| `.agents/skills/promote/`        | Agent skill: dispatch the dev → main promotion                                             |
+| `.mcp.json`                      | Astro + EmDash docs MCP servers for coding agents                                          |
+| `.claude/hooks/`                 | Claude Code web: Node 24 + pnpm setup on session start                                     |

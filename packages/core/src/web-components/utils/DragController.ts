@@ -56,7 +56,6 @@ export class DragController implements ReactiveController {
   }
 
   hostConnected() {
-    // Check reduced motion preference
     this.prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
@@ -80,7 +79,6 @@ export class DragController implements ReactiveController {
 
     if (newHandle === this.handleEl) return;
 
-    // Remove old listeners
     if (this.handleEl) {
       this.handleEl.removeEventListener('pointerdown', this.onPointerDown);
       this.handleEl.removeEventListener('keydown', this.onKeyDown);
@@ -92,7 +90,6 @@ export class DragController implements ReactiveController {
       this.handleEl.addEventListener('pointerdown', this.onPointerDown);
       this.handleEl.addEventListener('keydown', this.onKeyDown);
 
-      // Ensure handle is focusable and has ARIA role
       if (!this.handleEl.hasAttribute('tabindex')) {
         this.handleEl.setAttribute('tabindex', '0');
       }
@@ -118,17 +115,14 @@ export class DragController implements ReactiveController {
     const container = this.handleEl?.parentElement;
     this.containerRect = container?.getBoundingClientRect() ?? null;
 
-    // Add document-level listeners
     document.addEventListener('pointermove', this.onPointerMove);
     document.addEventListener('pointerup', this.onPointerUp);
     document.addEventListener('pointercancel', this.onPointerUp);
 
-    // Add visual feedback class
     this.handleEl?.classList.add('dragging');
 
     this.options.onDragStart();
 
-    // Process initial position
     this.processPointerEvent(e);
   };
 
@@ -185,12 +179,10 @@ export class DragController implements ReactiveController {
       this.rafId = null;
     }
 
-    // Get final position
     const finalPosition = this.pendingPosition ?? this.currentPosition;
     this.currentPosition = finalPosition;
     this.pendingPosition = null;
 
-    // Update ARIA and call onDragEnd
     this.updateAriaValue(finalPosition);
     this.options.onDragEnd(finalPosition);
 

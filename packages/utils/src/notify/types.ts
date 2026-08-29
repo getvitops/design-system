@@ -85,7 +85,6 @@ export interface NotificationPlan {
   empty: boolean;
 }
 
-/** What one channel's dispatch produced. */
 export interface ChannelResult {
   channel: 'email';
   sent: boolean;

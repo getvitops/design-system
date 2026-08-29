@@ -270,6 +270,19 @@
   }
 }
 
+/* Opt out of `.rhythm`'s ambient `li + li` sibling margin (layout.css) for a list
+   whose item spacing is already the layout's job — a custom `gap`-based grid or
+   flex wrap the framework has no pattern for. Wins by LAYER (this file is
+   `vitops.utilities`, later than `.rhythm`'s `vitops.components`), the same
+   guarantee `bg-danger-muted` uses to beat `.card` — no specificity trick
+   needed, unlike every pattern-local `:is(ul, ol) > li + li` neutraliser above
+   and in patterns/*.css. The five framework list patterns (gallery, tag-list,
+   cluster, masonry, comment-thread) already do this automatically and don't
+   need this class; reach for it on markup the framework doesn't own. */
+.no-rhythm > li + li {
+  margin-top: 0;
+}
+
 /* ── Flex direction (display + direction; tiered classes set both) ── */
 .flex {
   display: flex;

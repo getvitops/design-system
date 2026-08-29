@@ -17,6 +17,8 @@
  * that installs into every consumer.
  */
 import {
+  encodeSite,
+  errorDetail,
   googleAccessToken,
   googleHeaders,
   type GoogleAuthLike,
@@ -144,8 +146,6 @@ export async function updateOwners(
   return { ok: true, status: res.status };
 }
 
-const encodeSite = (siteUrl: string) => encodeURIComponent(siteUrl);
-
 /** Whether a Search Console property already exists (`GET sites/{siteUrl}`). */
 export async function getSite(
   auth: GoogleAuthLike,
@@ -176,9 +176,10 @@ export async function addSite(
     headers: googleHeaders(auth),
   });
   if (res.ok) return { ok: true, status: res.status };
-  const detail =
-    res.status === 403
+  const message = await errorDetail(res, (status) =>
+    status === 403
       ? `403 — "${siteUrl}" is not verified for this account yet, or the OAuth token lacks the webmasters scope`
-      : `${res.status}: ${await res.text()}`;
-  return { ok: false, status: res.status, message: detail };
+      : undefined,
+  );
+  return { ok: false, status: res.status, message };
 }

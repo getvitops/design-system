@@ -391,6 +391,10 @@ describe('tailwind vocabulary parity', () => {
     expect(tw()).toContain('@utility grid-auto');
   });
 
+  it('emits the no-rhythm escape hatch', () => {
+    expect(tw()).toContain('@utility no-rhythm');
+  });
+
   it('emits every rhythm override, pairs and steps alike', () => {
     const css = tw();
     for (const pair of [

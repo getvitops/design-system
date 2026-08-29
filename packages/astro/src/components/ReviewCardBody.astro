@@ -1,0 +1,67 @@
+---
+/**
+ * The `.review` markup itself — split out of `ReviewCard.astro` purely so it can
+ * be rendered twice (once bare, once wrapped in `../schemas/Review.astro`'s
+ * JSON-LD `<script>`) without duplicating the template. Not a public export;
+ * `ReviewCard.astro` is the tier-3 entry point.
+ */
+import type { HTMLAttributes } from 'astro/types';
+import type { Review } from '@getvitops/utils/reviews';
+import Icon from './Icon.astro';
+
+export interface Props extends Omit<HTMLAttributes<'article'>, 'slot'> {
+  review: Review;
+  avatar: boolean;
+}
+
+const { review, avatar, class: className, ...rest } = Astro.props;
+
+const initials = review.author
+  .split(/\s+/)
+  .filter(Boolean)
+  .slice(0, 2)
+  .map((w) => w[0]?.toUpperCase())
+  .join('');
+
+const full = Math.floor(review.rating);
+const hasHalf = review.rating - full >= 0.5;
+---
+
+<article class:list={['review', className]} {...rest}>
+  <header class="review__header">
+    {
+      avatar && review.authorPhoto ? (
+        <img class="review__avatar" src={review.authorPhoto} alt="" loading="lazy" />
+      ) : (
+        <span class="review__initials" aria-hidden="true">{initials}</span>
+      )
+    }
+    <div class="review__identity">
+      <cite class="review__author">{review.author}</cite>
+      <time class="review__date" datetime={review.publishedAt}>
+        {new Date(review.publishedAt).toLocaleDateString()}
+      </time>
+    </div>
+    <span class="review__stars" role="img" aria-label={`${review.rating} out of 5 stars`}>
+      {Array.from({ length: 5 }, (_, i) => {
+        const half = i === full && hasHalf;
+        const empty = i >= full && !half;
+        return (
+          <Icon
+            name={half ? 'star-half' : 'star'}
+            class:list={['review__star', empty && 'review__star--empty']}
+          />
+        );
+      })}
+    </span>
+  </header>
+  {review.text && <blockquote class="review__body">{review.text}</blockquote>}
+  {
+    review.reply && (
+      <footer class="review__reply">
+        <p class="review__reply-author">Response from the owner</p>
+        <p>{review.reply.text}</p>
+      </footer>
+    )
+  }
+</article>

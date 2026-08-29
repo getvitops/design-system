@@ -2774,71 +2774,54 @@
                 </p>
               </div>
               <!-- Dogfoods the shipped web component (dist/elements.js): each
-                   trigger is a working command="show-modal" invoker with no JS
-                   at all; <wc-gallery> adds prev/next, swipe and the morph. -->
+                   trigger is a plain <a href="#slide-id">, no JS required — the
+                   dialog is one <dialog> wrapping one .carousel (not one dialog
+                   per image); :has(:target) in lightbox.css reveals it on a
+                   plain fragment navigation. <wc-gallery> adds a real
+                   showModal() open, neighbour preload and the morph; the
+                   nested <wc-carousel> — not this element — owns prev/next. -->
               <ul class="gallery" style="--gallery-thumb-size: 72px; max-inline-size: 20rem">
                 <li class="gallery__item">
-                  <button
-                    class="gallery__trigger"
-                    type="button"
-                    command="show-modal"
-                    commandfor="d-gal-1"
-                  >
+                  <a class="gallery__trigger" href="#d-gal-square">
                     <img
                       class="gallery__thumb"
                       alt=""
                       src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect width='400' height='400' fill='%234a9075'/%3E%3C/svg%3E"
                     />
-                  </button>
+                  </a>
                 </li>
                 <li class="gallery__item">
-                  <button
-                    class="gallery__trigger"
-                    type="button"
-                    command="show-modal"
-                    commandfor="d-gal-2"
-                  >
+                  <a class="gallery__trigger" href="#d-gal-wide">
                     <img
                       class="gallery__thumb"
                       alt=""
                       src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='360'%3E%3Crect width='640' height='360' fill='%232f6fb3'/%3E%3C/svg%3E"
                     />
-                  </button>
+                  </a>
                 </li>
               </ul>
-              <dialog id="d-gal-1" class="lightbox-dialog" closedby="any" aria-label="Square demo">
-                <div class="lightbox-dialog__content">
-                  <img
-                    class="lightbox-dialog__image"
-                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect width='400' height='400' fill='%234a9075'/%3E%3C/svg%3E"
-                  />
+              <dialog id="d-gal" class="lightbox-dialog" closedby="any" aria-label="Gallery demo">
+                <div class="carousel lightbox-dialog__track">
+                  <ul class="carousel__track" role="list" tabindex="0">
+                    <li class="carousel__slide" id="d-gal-square">
+                      <figure class="carousel__media">
+                        <img
+                          alt="Square demo"
+                          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect width='400' height='400' fill='%234a9075'/%3E%3C/svg%3E"
+                        />
+                      </figure>
+                    </li>
+                    <li class="carousel__slide" id="d-gal-wide">
+                      <figure class="carousel__media">
+                        <img
+                          alt="Wide demo"
+                          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='360'%3E%3Crect width='640' height='360' fill='%232f6fb3'/%3E%3C/svg%3E"
+                        />
+                      </figure>
+                    </li>
+                  </ul>
                 </div>
-                <button
-                  class="lightbox-dialog__close"
-                  type="button"
-                  command="close"
-                  commandfor="d-gal-1"
-                  aria-label="Close"
-                >
-                  ✕
-                </button>
-              </dialog>
-              <dialog id="d-gal-2" class="lightbox-dialog" closedby="any" aria-label="Wide demo">
-                <div class="lightbox-dialog__content">
-                  <img
-                    class="lightbox-dialog__image"
-                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='360'%3E%3Crect width='640' height='360' fill='%232f6fb3'/%3E%3C/svg%3E"
-                  />
-                </div>
-                <button
-                  class="lightbox-dialog__close"
-                  type="button"
-                  command="close"
-                  commandfor="d-gal-2"
-                  aria-label="Close"
-                >
-                  ✕
-                </button>
+                <a class="lightbox-dialog__close" href="#" aria-label="Close">✕</a>
               </dialog>
             </div>
             <dl class="api-list">
@@ -2928,10 +2911,10 @@
               <div class="api-row">
                 <div class="api-sig"><code>.gallery</code><span class="t t-state">state</span></div>
                 <div class="api-desc">
-                  Thumbnail grid whose triggers are
-                  <code>command="show-modal" commandfor="…"</code> invokers for their own
-                  <code>.lightbox-dialog</code> — a working modal lightbox with no JavaScript.<span
-                    class="sub"
+                  Thumbnail grid whose triggers are plain
+                  <code>&lt;a href="#slide-id"&gt;</code>s into a single shared
+                  <code>.lightbox-dialog</code> — a working modal lightbox, WITH prev/next, with no
+                  JavaScript.<span class="sub"
                     ><strong>Parts:</strong> <code>.gallery__item</code>, <code>__trigger</code>,
                     <code>__thumb</code>.</span
                   >
@@ -2942,16 +2925,14 @@
                   <code>.lightbox-dialog</code><span class="t t-state">state</span>
                 </div>
                 <div class="api-desc">
-                  Full-screen <code>&lt;dialog&gt;</code> a <code>.gallery</code> trigger opens,
-                  with view transitions.<span class="sub"
-                    ><strong>Parts:</strong> <code>.lightbox-dialog__content</code>,
-                    <code>__image</code>, <code>__close</code>, <code>__nav</code>,
-                    <code>__nav-button</code>, <code>__caption</code>. <code>__nav</code>/<code
-                      >__nav-button</code
-                    >
-                    are generated by <code>&lt;wc-gallery&gt;</code> — never authored, since a
-                    second <code>show-modal</code> invoker inside an already-open dialog would stack
-                    a second modal rather than replace it.</span
+                  The single full-screen <code>&lt;dialog&gt;</code> a <code>.gallery</code> trigger
+                  opens — ONE dialog wrapping ONE <code>.carousel</code>, not one dialog per image.
+                  <span class="sub"
+                    ><strong>Parts:</strong> <code>.lightbox-dialog__track</code> (the nested
+                    <code>.carousel</code>), <code>__close</code>. Prev/next, dots, arrow keys and
+                    swipe are the carousel's — reused, not reimplemented — so stepping between
+                    images is a scroll inside an already-open dialog rather than a close/open
+                    sequence for the top-layer entry/exit transition to fight over.</span
                   >
                 </div>
               </div>

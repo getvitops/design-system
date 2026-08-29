@@ -103,7 +103,6 @@ function persist(): void {
     ts: existing?.['ts'] ?? Date.now(),
   };
 
-  // Remove undefined values before serializing
   const clean = Object.fromEntries(Object.entries(merged).filter(([, v]) => v !== undefined));
 
   const expires = new Date(Date.now() + COOKIE_DAYS * 864e5).toUTCString();

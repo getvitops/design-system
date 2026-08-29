@@ -3,6 +3,11 @@
 # `dev` is the integration branch — every push here refreshes the review site.
 # Promote to production with the "Promote dev → main" workflow (promote.yml).
 #
+# Deploys via the vitops toolchain's reusable EmDash deploy workflow — see
+# https://github.com/getvitops/design-system/blob/main/.github/workflows/site-deploy-emdash.yml
+# for what it does. Pinned to @v1 so a fix there reaches this repo without a
+# manual re-paste; bump the tag deliberately if you want to pick up a change.
+#
 # Required repo secrets:
 #   CLOUDFLARE_API_TOKEN   — token with Workers + D1 + R2 edit on this account
 #   CLOUDFLARE_ACCOUNT_ID  — the Cloudflare account id
@@ -14,28 +19,21 @@ on:
   push:
     branches: [dev]
 
-permissions:
-  contents: read
-
 concurrency:
   group: deploy-dev
   cancel-in-progress: true
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    environment: dev
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Build + deploy dev worker
-        run: pnpm run deploy:dev
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DEV_D1_ID: ${{ secrets.DEV_D1_ID }}
+    uses: getvitops/design-system/.github/workflows/site-deploy-emdash.yml@v1
+    with:
+      environment: dev
+      is-dev: true
+      # Set this to your dev worker's URL (or dev.<domain>) once known, so a
+      # bad migration fails the deploy instead of surfacing to the first
+      # visitor — see the reusable workflow's docblock.
+      health-check-url: ''
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DEV_D1_ID: ${{ secrets.DEV_D1_ID }}

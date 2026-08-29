@@ -1,0 +1,99 @@
+# Reusable deploy for the `emdash` template: an EmDash CMS site on Cloudflare
+# Workers (D1 + R2), via @astrojs/cloudflare.
+#
+# Consumers call this with a pinned major tag, once per environment:
+#
+#   jobs:
+#     deploy:
+#       uses: getvitops/design-system/.github/workflows/site-deploy-emdash.yml@v1
+#       with:
+#         environment: dev
+#         is-dev: true
+#       secrets:
+#         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+#         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+#         DEV_D1_ID: ${{ secrets.DEV_D1_ID }}   # dev only
+#
+# `is-dev: true` runs `scripts/build-dev-wrangler.mjs` (the adapter-generated
+# config rewrite documented in that script) and deploys the flat dev config
+# it emits; `is-dev: false` (the default, for prod) deploys straight from
+# `pnpm run deploy`. See AGENTS.md's "EmDash migrations" note: there is no
+# migration STEP here on purpose — EmDash applies migrations + the seed at
+# first boot of the worker — so the boot probe below is what actually catches
+# a bad migration, by forcing that first boot inside the deploy job instead of
+# leaving it for the first real visitor.
+name: Site deploy (EmDash)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      is-dev:
+        type: boolean
+        default: false
+      health-check-url:
+        description: URL to probe after deploy (forces first boot, so a bad migration fails here). Omit to skip.
+        type: string
+        default: ''
+      working-directory:
+        type: string
+        default: '.'
+      run-lint-design:
+        type: boolean
+        default: true
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+      DEV_D1_ID:
+        required: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/site-ci.yml
+    with:
+      working-directory: ${{ inputs.working-directory }}
+      run-lint-design: ${{ inputs.run-lint-design }}
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ${{ inputs.working-directory }}/.nvmrc
+          cache: pnpm
+          cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build + deploy (dev)
+        if: inputs.is-dev
+        run: pnpm run deploy:dev
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEV_D1_ID: ${{ secrets.DEV_D1_ID }}
+
+      - name: Build + deploy (prod)
+        if: ${{ !inputs.is-dev }}
+        run: pnpm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Forces first boot (EmDash's migrations + seed/seed.json run then, not
+      # before) so a broken migration fails the deploy instead of surfacing to
+      # the first real visitor. --retry-all-errors covers the worker needing a
+      # few seconds to come up after `wrangler deploy` returns.
+      - name: Boot probe
+        if: inputs.health-check-url != ''
+        run: curl -fsS --retry 5 --retry-all-errors --retry-delay 3 "${{ inputs.health-check-url }}"

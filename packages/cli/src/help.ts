@@ -24,9 +24,11 @@ Usage:
   vitops lint [opts] [files]    Report classes that resolve to nothing + primitives you re-implemented
   vitops legal [options]        Render legal documents from a site config
   vitops robots [options]       Render robots.txt from a site config's environment
+  vitops reviews [options]      Fetch + cache Google Business Profile reviews
   vitops icons [options]        Report which icons your source uses, and build the sprite
   vitops search <sub> [opts]    Search Console: onboard domains (setup) + notify deploys (notify)
   vitops ads <sub> [opts]       Ad properties: verify domains (setup) + emit pixels (tags) + lint
+  vitops setup <sub> [opts]     Scripted onboarding: repo, hosting, domain, search, ads, all
   vitops media [options]       Encode raw video into web-ready WebM + MP4 + poster
 
 Generate options:
@@ -45,8 +47,15 @@ Generate options:
       --site-env <env>  Environment whose A/B variant applies (default: production)
 
 Init options:
-  -o, --out <path>      Where to write (default: ./design-system.json)
+  -o, --out <path>      Where to write (default: ./design-system.json, or
+                        ./site.json with --site)
       --force           Overwrite an existing file
+      --site            Write a site config (Config) instead of a bare
+                        design-system.json — embeds a starter design system at
+                        designSystem.themes.default, since a Config can't
+                        merely reference a sibling file
+      --name <name>     organization.name, when --site is set
+      --url <url>       site.environments.{production,dev}.url, when --site is set
 
 Validate options:
   <file>                Config to check (default: ./design-system.json). Either
@@ -81,7 +90,8 @@ Docs options:
       --all             Print every topic, concatenated
 
 Icons options:
-      --site <path>     Site config carrying the "icons" block (default: ./site.json)
+  -i, --input <path>    Site config carrying the "icons" block (default: ./site.json)
+      --site-env <env>  Environment whose A/B variant applies (default: production)
       --src <dir>       Source to scan for icon usage (default: ./src)
       --sprite          Also build the SVG sprite
   -o, --out <dir>       Where to write icons.svg with --sprite (default: ./dist)
@@ -132,6 +142,27 @@ Robots options:
   reads. A directive containing noindex disallows every user agent and emits
   no Sitemap line; otherwise it allows everything and links
   site.seo.indexing.sitemapUrl, or the derived <canonical>/sitemap-index.xml.
+
+Reviews options:
+  -i, --input <path>    Site config carrying site.reviews (default: ./site.json)
+      --site-env <env>  Environment whose A/B variant applies (default: production)
+      --location <key>  Fetch only this site.reviews.locations key
+      --cache <path>    Where to read/write the cache (default: .vitops/reviews.json)
+      --out <dir>       Also write the selected reviews per location as JSON here
+      --dry             Print the plan and exit. Fetches nothing.
+      --check           Fetch and diff against the cache; exit non-zero on drift.
+                        Mutates nothing.
+
+  Reviews live only on the legacy Business Profile v4 API — there is no newer
+  replacement — and the calling GCP project must be allowlisted by Google before
+  any call succeeds (a one-time approval; a 403 says so rather than failing
+  opaquely). Auth is user OAuth, the same VITOPS_GOOGLE_CLIENT_ID /
+  VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN (or ADC login) that
+  vitops search setup uses, scoped to business.manage. The cache is meant to be
+  committed: reviews change slowly, and a build should not need a live Google
+  credential. Review JSON-LD is off by default (site.reviews.schema) — a business
+  marking up reviews of itself is not eligible for Google's rich results and
+  risks a manual action.
 
 Search subcommands:
   vitops search setup [opts]    Onboard site.searchConsole domains into GSC
@@ -246,6 +277,61 @@ Ads lint options:
   off (every conversion arrives unattributed), and a configured property with no
   tag ID. Exits non-zero on a finding.
 
+Setup repo options:
+      --dry             Print the plan and exit
+      --check           Report drift/blocked steps and exit non-zero, mutating nothing
+      --public          Create the repo public (default: private)
+      --platform <p>    cloudflare (default) | node — shown for parity with the hosting stage's plan
+      --no-dev-resources  Same — this stage never provisions D1/R2 either way
+
+  Creates the GitHub repo (via \`gh\`), pushes main + dev, makes dev the default
+  branch, and requests main branch protection + the production/dev environments.
+  Idempotent — a re-run of a fully set-up repo is all skips. Branch protection and
+  environment reviewers 403 on a private repo without GitHub Pro/Team; that is
+  reported as blocked, with the manual Settings path, never as a failure.
+
+Setup hosting options:
+      --dry             Print the plan and exit
+      --check           Report drift/blocked steps and exit non-zero, mutating nothing
+      --platform <p>    cloudflare (default) | node
+      --no-dev-resources  Skip D1/R2 — a pure static Workers Assets project has
+                        nothing to provision, just the account id + token
+
+  Provisions the isolated dev D1 database + R2 bucket (cloudflare) and sets the
+  DEV_D1_ID / CLOUDFLARE_ACCOUNT_ID repo secrets, once \`vitops setup repo\` has run.
+  CLOUDFLARE_API_TOKEN is always reported as blocked — no API can create one; see
+  the printed dashboard link. Requires \`npx wrangler login\` first.
+
+Setup domain options:
+  -i, --input <path>    Site config (default: ./site.json)
+      --site-env <env>  Environment to check (default: production)
+      --dry             Print the plan and exit
+      --check           Exit non-zero if the domain state is inconsistent
+      --domain <apex>   Print the manual cutover steps for this apex
+
+  Plans and checks the consistency between wrangler.jsonc's workers.dev/custom-domain
+  state and site.json's environments/domains/robots — it NEVER edits wrangler.jsonc
+  or deploys. Cutover overwrites the zone's DNS record and can take an existing live
+  site down; that step is manual, on purpose. See SETUP.html's "Domain strategy" stage.
+
+Setup search options:
+  Forwards every option to \`vitops search setup\` unchanged — see "Search setup
+  options:" above.
+
+Setup ads options:
+  Forwards every option to \`vitops ads setup\` unchanged — see "Ads setup options:"
+  above.
+
+Setup all options:
+      --dry             Print every stage's plan and exit
+      --check           Report drift across every stage and exit non-zero
+      --public          Create the repo public, for the repo stage
+      --platform <p>    cloudflare (default) | node, for the repo + hosting stages
+      --no-dev-resources  Skip D1/R2 in the hosting stage (repo stage never provisions them)
+
+  Runs repo, hosting, search, ads in order. Stops at the first stage that fails;
+  a blocked step (the API token, GitHub Pro/Team gating) is reported, not fatal.
+
 Media options:
       --raw <dir>       Directory of unprocessed video, walked recursively
                         (default: ./raw)
@@ -292,6 +378,19 @@ export const ADS_HELP = `vitops ads — link this site to its ad properties
 Run \`vitops --help\` for the full option list for each subcommand.
 `;
 
+export const SETUP_HELP = `vitops setup — the scripted path from an empty scaffold to a live site
+
+  vitops setup repo [opts]      GitHub repo + branch policy (main protected, dev open)
+  vitops setup hosting [opts]   Dev D1 + R2 + repo secrets (cloudflare) or a Node target
+  vitops setup domain [opts]    Plan/check the workers.dev-vs-custom-domain consistency
+                                 (never applies the cutover — see SETUP.html)
+  vitops setup search [opts]    Forwards to \`vitops search setup\`
+  vitops setup ads [opts]       Forwards to \`vitops ads setup\`
+  vitops setup all [opts]       Run repo, hosting, search, ads in order
+
+Run \`vitops --help\` for the full option list for each subcommand.
+`;
+
 /**
  * Every command `main()` dispatches. Exported so the unknown-command message
  * and the help drift guard read the same list — the message used to carry its
@@ -307,9 +406,11 @@ export const COMMANDS = [
   'lint',
   'legal',
   'robots',
+  'reviews',
   'icons',
   'search',
   'ads',
+  'setup',
   'media',
 ] as const;
 
@@ -317,6 +418,7 @@ export const COMMANDS = [
 export const SUBCOMMANDS: Record<string, readonly string[]> = {
   search: ['setup', 'notify'],
   ads: ['setup', 'tags', 'lint'],
+  setup: ['repo', 'hosting', 'domain', 'search', 'ads', 'all'],
 };
 
 /**
@@ -355,7 +457,13 @@ export function helpFor(command: string, argv: string[]): string {
   return (
     (sub ? helpSection(command, sub) : undefined) ??
     helpSection(command) ??
-    (command === 'search' ? SEARCH_HELP : command === 'ads' ? ADS_HELP : undefined) ??
+    (command === 'search'
+      ? SEARCH_HELP
+      : command === 'ads'
+        ? ADS_HELP
+        : command === 'setup'
+          ? SETUP_HELP
+          : undefined) ??
     HELP
   );
 }

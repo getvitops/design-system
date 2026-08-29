@@ -2,10 +2,17 @@
  * Lightbox — the full-screen `<dialog>` a gallery trigger opens.
  * Consumes the generated token cascade (src/css/generated/tokens.css).
  *
- * The thumbnail grid that drives this moved to `patterns/gallery.css`
+ * The thumbnail grid that drives this lives in `patterns/gallery.css`
  * (`.gallery` / `.gallery__item` / `.gallery__trigger` / `.gallery__thumb`) — this
  * partial owns only the dialog a trigger opens. `<Gallery />` emits both; this
  * file has no opinion on what triggers it.
+ *
+ * **One dialog, one carousel** — not one dialog per image. Stepping between
+ * images is a scroll inside an already-open dialog (`.carousel`, patterns/
+ * carousel.css), so there is no close-one/open-another sequence for the top-layer
+ * driver in animation.css to double-animate. `<wc-gallery>` only opens/closes;
+ * `<wc-carousel>` (nested inside, `<Gallery />` emits both tags) owns prev/next,
+ * dots, arrow keys and swipe — reused rather than re-implemented.
  */
 
 /* ── Lightbox dialog — full-screen, w/ view transitions ─────────────────────── */
@@ -22,7 +29,7 @@ dialog.lightbox-dialog {
   background: var(--lightbox-dialog-bg, oklch(0 0 0 / 0.92));
   color: #fff;
   display: grid;
-  place-items: center;
+  place-items: stretch;
 
   /* No scrim. Stated through popover.css's token rather than overriding its
      ::backdrop rule, so it keeps the shared fade timing. */
@@ -31,7 +38,8 @@ dialog.lightbox-dialog {
   /* The entry, as effect vars rather than a keyframe — same approach as
      dialog.css, and for the same reason: the top-layer driver in animation.css
      then animates this OUT too, which an `animation:` on `[open]` never does
-     (it only ever plays once, on open). */
+     (it only ever plays once, on open). Runs on real open/close ONLY — stepping
+     between slides never opens or closes this dialog, so it can never fire here. */
   --opacity-from: 0;
   --scale-x-from: 0.95;
   --scale-y-from: 0.95;
@@ -40,26 +48,138 @@ dialog.lightbox-dialog {
     display: grid;
   }
 
-  .lightbox-dialog__content {
-    position: relative;
-    max-inline-size: 90vw;
-    max-block-size: 90vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  /* ── No-JS fallback: `:target` + `:has()` ──────────────────────────────────
+     A `.gallery__trigger` is a real `<a href="#slide-id">`. Following it makes
+     that slide's `<li>` match `:target`, which this rule alone is what reveals
+     the dialog — no Invoker Commands, no polyfill, in every engine that has
+     `:has()` (Safari 15.4+, Chromium 105+, Firefox 121+). The browser's own
+     fragment-navigation scroll then lands the carousel on the right slide,
+     because the target lives inside `.carousel__track`.
+
+     `:not([open])` is load-bearing: once `<wc-gallery>` opens this for real via
+     `showModal()`, `[open]` is present and this rule must yield to it — a stale
+     `:target` from a previous no-JS visit must not fight the real modal, and
+     must not keep the dialog "open" by this rule alone once JS is stepping
+     between slides (which never changes the URL fragment). */
+  &:not([open]):has(:target) {
+    display: grid;
+    position: fixed;
+    inset: 0;
+    z-index: var(--lightbox-z, 100);
   }
 
-  .lightbox-dialog__image {
+  .lightbox-dialog__track {
     max-inline-size: 100%;
-    max-block-size: 90vh;
-    object-fit: contain;
+    /* Inert: `.carousel`'s implicit grid row is `auto`, so this percentage is
+       cyclic (CSS Sizing 3 §5.2) — it resolves against the row's own
+       content-derived size, i.e. against itself, and can never actually clamp
+       it. Kept only to state intent; the `<img>`/`<picture>` cap below is what
+       does the real work by capping the thing with an intrinsic size instead
+       of trying to cap a box that is sized BY that intrinsic size. */
+    max-block-size: 100%;
 
-    /* `<wc-gallery>` assigns `view-transition-name: lightbox-active` to this and
-       the originating thumbnail at the moment it opens, then clears it on close —
-       that shared, runtime-assigned name is what morphs one into the other.
-       `match-element` (the auto-generated per-element name) does NOT do this: it
-       names each element uniquely, so it can never morph a thumbnail into a
-       different `<img>`. Do not put a `view-transition-name` here statically. */
+    /* One source of truth for the slide's breathing room: the padding below
+       and the image's block cap both read these, so they cannot drift apart. */
+    --lightbox-pad-block: 5dvh;
+    --lightbox-pad-inline: 5dvw;
+
+    /* `.carousel__media`'s own rule reads this for its `object-fit` (default
+       `cover`, right for a thumbnail strip, wrong for a full image — nothing
+       here should be cropped). Nesting under `dialog.lightbox-dialog` gives
+       this whole block higher specificity than carousel.css's bare
+       `.carousel__media` rule regardless of import order, so it always wins.
+       Belt-and-braces only now: the image rule below sizes the box to the
+       image, so there's normally nothing left for `object-fit` to do. */
+    --carousel-media-fit: contain;
+
+    /* No `.carousel__track { max-block-size: 100% }` override here — same
+       cyclic-percentage trap as above, against `.carousel`'s own implicit
+       `auto` row. It has never applied. */
+
+    /* Breathing room against the edge-to-edge dialog, on the SLIDE rather than
+       the media box — a slide is the grid item `align-items: stretch` fills to
+       the track's full height, so padding here is what keeps the image off the
+       glass instead of the media box's aspect-ratio doing it. */
+    .carousel__slide {
+      box-sizing: border-box;
+      padding: var(--lightbox-pad-block) var(--lightbox-pad-inline);
+
+      /* carousel.css gives a slide `align-content: start` so a `cover`ed media
+         box (which fills the row) hugs the top. Here the media box is
+         deliberately SMALLER than the slide — it's sized to the image, not the
+         other way around — so it must be centred instead, or a 16/9 image
+         would hang from the top of a row sized by a 9/16 neighbour. */
+      align-content: center;
+    }
+
+    .carousel__media {
+      /* Full images vary wildly in ratio; drop carousel.css's fixed 16/9 box
+         (right for a thumbnail strip, wrong here) and let the image below
+         determine the box's size. carousel.css's `block-size: 100%` is
+         deliberately NOT reinstated here: against this slide's content-sized
+         `auto` row it's the same cyclic percentage as the caps above, and it
+         only ever resolved back to the content height it was meant to cap. */
+      aspect-ratio: unset;
+
+      /* Painted the instant a slide is visible, whether or not the full image
+         has loaded yet — the morph target is never an empty box. Set per-slide
+         by `<Gallery />` from the thumbnail URL; declared as a var rather than
+         a bare property so a slide that omits a thumb (no placeholder) simply
+         paints nothing extra. `contain` + `center` lands on the same rect the
+         image below resolves to, so the placeholder doesn't jump on load. */
+      background-image: var(--lightbox-placeholder, none);
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+
+      /* `<wc-gallery>` assigns `view-transition-name: lightbox-active` to the
+         slide's `<img>` and the originating thumbnail at the moment it opens,
+         then clears it on close — that shared, runtime-assigned name is what
+         morphs one into the other. `match-element` (the auto-generated
+         per-element name) does NOT do this: it names each element uniquely,
+         so it can never morph a thumbnail into a different `<img>`. Do not put
+         a `view-transition-name` on the image here statically. */
+    }
+
+    /* THE FIX. carousel.css sizes the media to fill its box
+       (`inline-size`/`block-size: 100%`) so `object-fit: cover` has something
+       to crop — right for a thumbnail strip, backwards for a lightbox, where
+       the BOX should instead be sized to the image. With both axes `auto` and
+       both maxes set, the browser's replaced-element min/max algorithm
+       (CSS 2.1 §10.4) does a ratio-preserving clamp against whichever axis
+       binds — so the element's border box IS the visible image, with no
+       cyclic percentages and no dependency on how many rows the grid above
+       ends up with. That also matters for two things beyond sizing: it's the
+       `view-transition-name` target (WCGallery.ts), so the morph must not
+       land on an oversized box; and it keeps the letterbox area click-through
+       for the dialog's `closedby="any"`.
+
+       A DESCENDANT selector, not a direct-child `>`: an `ImageMetadata` src
+       renders `<picture><img></picture>` (ResponsiveImage.astro), and
+       carousel.css's own rule only reaches the non-replaced `<picture>` via
+       `> :is(img, picture, …)` — `object-fit` is a no-op there, and the real
+       `<img>` inside gets no sizing at all. This selector covers both the
+       bare-`<img>` demo and the `<picture>`-wrapped case. */
+    .carousel__media :is(img, picture) {
+      /* Undo carousel.css's `inline-size/block-size: 100%` — a fixed size on
+         either axis would defeat the ratio-preserving clamp below. */
+      inline-size: auto;
+      block-size: auto;
+      max-inline-size: 100%; /* of the padded slide, i.e. ~90dvw */
+      /* The one cap that actually binds (not a percentage, so not cyclic).
+         `--lightbox-caption-space` is 0 by default — nothing here uses a
+         caption today, but `<figcaption>` stacks below the image inside this
+         same box (Gallery.astro), so a captioned gallery must set it to
+         reserve room or the slide can exceed the viewport by that height. */
+      max-block-size: calc(
+        100dvh - 2 * var(--lightbox-pad-block) - var(--lightbox-caption-space, 0px)
+      );
+      margin-inline: auto; /* centre in the full-width figure; vertical centring is the slide's align-content */
+    }
+
+    .carousel__caption {
+      color: inherit;
+    }
   }
 
   .lightbox-dialog__close {
@@ -77,6 +197,9 @@ dialog.lightbox-dialog {
     display: flex;
     align-items: center;
     justify-content: center;
+    text-decoration: none;
+    font-size: 1.5rem;
+    line-height: 1;
     transition: background-color 0.15s ease;
     z-index: 10;
 
@@ -87,51 +210,5 @@ dialog.lightbox-dialog {
       outline: 2px solid var(--lightbox-focus-color, currentColor);
       outline-offset: 2px;
     }
-  }
-
-  .lightbox-dialog__nav {
-    position: absolute;
-    inset-block: 0;
-    display: flex;
-    align-items: center;
-    padding: 1rem;
-
-    &[data-direction='prev'] {
-      inset-inline-start: 0;
-    }
-    &[data-direction='next'] {
-      inset-inline-end: 0;
-    }
-  }
-
-  .lightbox-dialog__nav-button {
-    inline-size: 3rem;
-    block-size: 3rem;
-    padding: 0;
-    background: var(--lightbox-nav-bg, transparent);
-    border: none;
-    border-radius: 50%;
-    color: inherit;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.15s ease;
-
-    &:hover {
-      background: var(--lightbox-nav-hover-bg, oklch(1 0 0 / 0.15));
-    }
-    &:disabled {
-      opacity: 0.3;
-      cursor: not-allowed;
-    }
-  }
-
-  .lightbox-dialog__caption {
-    position: absolute;
-    inset-block-end: 0;
-    inset-inline: 0;
-    padding: 1rem 2rem;
-    text-align: center;
   }
 }

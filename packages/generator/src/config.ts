@@ -660,6 +660,55 @@ const AdPropertySchema = z.object({
   ),
 });
 
+// ── Reviews ─────────────────────────────────────────────────────────────────────
+
+/**
+ * How one location's Google reviews are selected and ordered for display.
+ *
+ * Keyed by `organization.locations` key, mirroring `site.ads`/`site.searchConsole`
+ * — `vitops reviews` needs to know which physical location a fetched review set
+ * belongs to, and that record already exists.
+ */
+const ReviewLocationSchema = z.object({
+  accountId: desc(
+    z.optional(z.string()),
+    'GBP account resource id (`accounts/…`), overriding `site.reviews.accountId` for this location.',
+  ),
+  locationId: desc(z.string(), 'GBP location resource id (`locations/…`) to fetch reviews for.'),
+  featured: desc(
+    z.optional(z.array(z.string())),
+    'Review ids to always include, in this order, ahead of everything else automatically selected.',
+  ),
+  minRating: desc(
+    z.optional(z.number()),
+    'Drop reviews below this star rating (default 4) from the automatic (non-featured) selection.',
+  ),
+  limit: desc(z.optional(z.number()), 'Keep at most this many reviews after filtering.'),
+  sort: desc(
+    z.optional(z.enum(['recent', 'rating'])),
+    'Ordering for the non-featured remainder (default `recent`).',
+  ),
+});
+
+const ReviewsSchema = z.object({
+  accountId: desc(
+    z.optional(z.string()),
+    'Default GBP account resource id (`accounts/…`) for locations that do not override it.',
+  ),
+  locations: desc(
+    z.record(z.string(), ReviewLocationSchema),
+    'Which `organization.locations` to fetch Google reviews for, and how each one’s reviews are filtered/ordered. `vitops reviews` writes the result to `.vitops/reviews.json`.',
+  ),
+  schema: desc(
+    z.optional(z.boolean()),
+    'Emit `Review` JSON-LD for these reviews (default false). Off by default: Google’s structured-data policy treats a business marking up reviews of itself as ineligible for review rich results, and risks a manual action.',
+  ),
+  avatars: desc(
+    z.optional(z.boolean()),
+    'Render the reviewer’s Google-hosted avatar photo (default false). Off by default: every visitor would otherwise issue a third-party request to googleusercontent.com, and the URLs are not guaranteed to stay live.',
+  ),
+});
+
 // ── Legal ───────────────────────────────────────────────────────────────────────
 
 /**
@@ -948,6 +997,10 @@ const SiteSectionSchema = z.object({
     z.optional(z.partialRecord(AdProviderSchema, AdPropertySchema)),
     'Ad properties this site is linked to, keyed by platform. Read by `vitops ads setup` (ensure the DNS verification record), `vitops ads tags` (emit the consent-gated pixel), and the generated cookie notice (disclose what each pixel stores). Credentials never live here — the DNS write uses CLOUDFLARE_API_TOKEN from the environment.',
   ),
+  reviews: desc(
+    z.optional(ReviewsSchema),
+    'Google Business Profile reviews to cache and display, keyed by `organization.locations`. Read by `vitops reviews`. Credentials never live here — a Google OAuth credential comes from the environment, same as `site.searchConsole`.',
+  ),
   security: desc(
     z.optional(
       z.object({
@@ -1124,6 +1177,10 @@ const OrganizationSectionSchema = z.extend(OrganizationSchema, {
 // ── Top-level schema ────────────────────────────────────────────────────────────
 
 export const ConfigSchema = z.object({
+  $schema: desc(
+    z.optional(z.string()),
+    'URL of the published config JSON Schema (stamped by `vitops init --site`) so editors provide autocomplete + validation.',
+  ),
   designSystem: DesignSystemBlock,
   organization: desc(
     z.optional(OrganizationSectionSchema),
@@ -1152,10 +1209,17 @@ export type SiteSearchConsole = z.infer<typeof SearchConsoleSchema>;
 export type SiteSearchConsoleSetup = z.infer<typeof SearchConsoleSetupSchema>;
 /** One `site.ads` entry — an ad property to link via `vitops ads setup`. */
 export type SiteAdProperty = z.infer<typeof AdPropertySchema>;
+/** The `site.reviews` block — what `vitops reviews` reads. */
+export type SiteReviews = z.infer<typeof ReviewsSchema>;
+/** One `site.reviews.locations` entry. */
+export type SiteReviewLocation = z.infer<typeof ReviewLocationSchema>;
 
 // ── JSON Schema + validation ────────────────────────────────────────────────────
 
 export const CONFIG_SCHEMA_URL = 'https://unpkg.com/@getvitops/generator/config.schema.json';
+
+/** The installed copy, not the unpinned unpkg URL — see `SCHEMA_LOCAL_PATH`'s twin. */
+export const CONFIG_SCHEMA_LOCAL_PATH = './node_modules/@getvitops/generator/config.schema.json';
 
 /** The published JSON Schema (draft-2020-12), derived from the zod schema. */
 export const configJsonSchema = {
@@ -1441,6 +1505,30 @@ export function validateConfig(input: unknown): ConfigValidationResult {
         issue(
           at,
           `site.ads.${provider} identifies nothing — set accountId (the advertising account) and/or pixelId (the tag: ${platform.tag.needs} is what its snippet needs)`,
+        ),
+      );
+  }
+
+  // Review locations. Each key must name a real physical location, and one with
+  // a Google listing on record — `vitops reviews` has nothing to fetch otherwise,
+  // and a key that merely typos an `organization.locations` entry would silently
+  // fetch zero reviews rather than error.
+  for (const [key, entry] of Object.entries(site.reviews?.locations ?? {})) {
+    const at = ['site', 'reviews', 'locations', key];
+    if (!has(org?.locations, key))
+      errors.push(issue(at, `"${key}" is not an organization.locations key`));
+    else if (org?.locations?.[key]?.listings?.google == null)
+      errors.push(
+        issue(
+          at,
+          `organization.locations.${key} has no listings.google id — record the GBP location id there first`,
+        ),
+      );
+    if (entry.accountId == null && site.reviews?.accountId == null)
+      errors.push(
+        issue(
+          [...at, 'accountId'],
+          `no accountId — set site.reviews.accountId or site.reviews.locations.${key}.accountId`,
         ),
       );
   }

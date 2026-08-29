@@ -1,0 +1,34 @@
+{
+  "name": "site",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vitops documentation site — a plain Astro site built with the design system it documents.",
+  "type": "module",
+  "scripts": {
+    "sync": "node ./scripts/sync-reference.mjs",
+    "dev": "node ./scripts/sync-reference.mjs && astro dev",
+    "build": "node ./scripts/sync-reference.mjs && astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check",
+    "deploy": "wrangler deploy",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@astrojs/check": "catalog:",
+    "@astrojs/sitemap": "catalog:",
+    "@getvitops/astro": "workspace:*",
+    "@getvitops/generator": "workspace:*",
+    "@getvitops/utils": "workspace:*",
+    "@iconify-json/fa7-solid": "catalog:",
+    "@iconify-json/lucide": "catalog:",
+    "@iconify-json/material-symbols": "catalog:",
+    "@iconify-json/ph": "catalog:",
+    "@playwright/test": "catalog:",
+    "astro": "catalog:",
+    "astro-icon": "catalog:",
+    "baseline-status": "catalog:",
+    "sharp": "catalog:",
+    "typescript": "catalog:",
+    "wrangler": "catalog:"
+  }
+}

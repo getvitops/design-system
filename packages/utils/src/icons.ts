@@ -80,6 +80,7 @@ export const iconMap = {
     bookmark: 'bookmark',
     favorite: 'heart',
     star: 'star',
+    'star-half': 'star-half-stroke',
     login: 'right-to-bracket',
     logout: 'right-from-bracket',
 
@@ -295,6 +296,7 @@ export const iconMap = {
     bookmark: 'bookmark',
     favorite: 'favorite',
     star: 'star',
+    'star-half': 'star-half',
     login: 'login',
     logout: 'logout',
 
@@ -404,6 +406,7 @@ export const iconMap = {
     bookmark: 'bookmark',
     favorite: 'heart',
     star: 'star',
+    'star-half': 'star-half',
     login: 'log-in',
     logout: 'log-out',
 
@@ -517,6 +520,7 @@ export const iconMap = {
     bookmark: 'bookmark',
     favorite: 'heart',
     star: 'star',
+    'star-half': 'star-half',
     login: 'sign-in',
     logout: 'sign-out',
     // Communication
@@ -685,7 +689,6 @@ export function generateIconInclude(iconsConfig?: {
     }
   }
 
-  // Resolve semantic names through ui and brand prefix maps.
   const uiMapKey = prefixToMapKey[uiPrefix] as IconSet | undefined;
   const brandMapKey = prefixToMapKey[brandPrefix] as IconSet | undefined;
   const unknownPrefix: string[] = [];

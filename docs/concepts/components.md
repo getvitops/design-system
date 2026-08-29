@@ -65,16 +65,16 @@ emit its tag.
 | `dropdown` | css | `.dropdown` — Popover API based. |
 | `entries` | css · wc · bricks | `<wc-entries>` around `<h3>` + `<dl>` pairs. The tier-2 exemplar: semantic pairs with no JS, a table with it. |
 | `forms` | css | Wrap text controls in `.form-group` or `.input-group` — a bare `<input>` gets browser defaults. |
-| `gallery` | css · wc · astro | `<Gallery images={…} label="…" />` — it emits `<wc-gallery>` itself, so do NOT add your own wrapper. Each thumbnail is a `command="show-modal"` invoker for its own `<dialog class="lightbox-dialog">` (see `lightbox`), so it is a working modal lightbox with no JS. |
+| `gallery` | css · wc · astro | `<Gallery images={…} label="…" />` — it emits `<wc-gallery>` wrapping a `<Carousel />` (which emits its own `<wc-carousel>`) itself, so do NOT add your own wrapper around either. Each thumbnail is a plain `<a href="#slide-id">` into the carousel's own `<li id="slide-id">` inside a single `<dialog class="lightbox-dialog">` (see `lightbox`), so it is a working modal lightbox — WITH prev/next — before any script runs. Stepping between images is the carousel's job, not the gallery's. |
 | `grouped` | css | `.group-inline` / `.group-block` to join adjacent controls. |
 | `horizontal-scroll` | css | `.horizontal-scroll` for a snap strip. |
 | `icon` | css · astro · bricks | `<Icon name="menu" />`. Names are semantic and resolve per configured set; a name containing `:` passes through. |
 | `icon-picker` | css · wc | Not shipped. See `color-wheel`. |
 | `image-compare` | css · wc · bricks | `<wc-image-compare>` with two images. Both are visible without JS. |
-| `lightbox` | css | The `<dialog class="lightbox-dialog">` half of a lightbox. Use `gallery` for the thumbnail grid that drives it — `<Gallery />` emits both. |
+| `lightbox` | css | The single `<dialog class="lightbox-dialog">` a gallery opens — it wraps ONE `.carousel` (`lightbox-dialog__track`) of every image, not one dialog per image. Use `gallery` for the thumbnail grid that drives it — `<Gallery />` emits both, and the carousel inside already owns prev/next/dots/keys/swipe. |
 | `link` | css | `<a>` gets it at zero specificity; `.link` for other tags. `.stretched-link` makes one link cover its positioned ancestor (whole-card click, no JS — but the card text stops being selectable); `.raised` lifts content back above that overlay. |
 | `list` | css | `.facet-list` / `.filtered-list`. |
-| `marquee` | css · wc | `<wc-marquee>` around one `.marquee__content`. Scrolls via CSS alone; JS only removes the seam. |
+| `marquee` | css · wc · astro | `<Marquee>` around one `.marquee__content`, or `<wc-marquee>` by hand. Scrolls via CSS alone; JS only removes the seam. |
 | `masonry` | css | `.masonry` — CSS columns based. |
 | `media` | css | `.media` for a figure/body pair; `.tile` for the stacked form. |
 | `multi-field` | css · wc · bricks | `<wc-multi-field>` around a field template. One row submits fine with no JS. |
@@ -87,6 +87,7 @@ emit its tag.
 | `popover` | css · astro | `<Popover>` — native Popover API + CSS Anchor Positioning. No JS. |
 | `pull-quote` | css | `.pull-quote`. Note the type role `quote` is separate. |
 | `reveal` | css | `.reveal` — scroll-driven, no JS. Hosts the `interpolate-size` that `<details>` animation needs. |
+| `review` | css · astro | `<ReviewCard review={…} />` — one card, from `vitops reviews`' `.vitops/reviews.json` cache. Put several inside `<Carousel>` slides or `<Marquee>` items; there is no group component and no `wc-review`. |
 | `scroll-based` | css | Scroll-timeline driven; no JS. |
 | `scroll-target` | css | `.scroll-target-group` for `:target-current` highlighting. |
 | `separator` | css | `.separator`, optionally with text or an ornament. |
@@ -126,7 +127,7 @@ is tooling and opt-in per consumer.
 | `<wc-counter>` | `counter` | `elements.js` | animates from a start value to the value already in the fallback text, on intersection |
 | `<wc-dismissable>` | `dismissable` | `elements.js` | fade-out + removal, optional auto-dismiss |
 | `<wc-entries>` | `entries` | `elements.js` | parses heading + `<dl>` pairs into a table above a breakpoint |
-| `<wc-gallery>` | `gallery` | `elements.js` | prev/next, arrow keys, swipe, an image counter, neighbour preload and the view-transition morph |
+| `<wc-gallery>` | `gallery` | `elements.js` | a real `showModal()` open, neighbour preload and the thumbnail→full-image view-transition morph |
 | `<wc-icon-picker>` | `icon-picker` | `(none — editor-v2 track, not yet bundled)` | browses the semantic icon map for the configured set |
 | `<wc-image-compare>` | `image-compare` | `elements.js` | drag handle revealing the before/after image |
 | `<wc-marquee>` | `marquee` | `elements.js` | fills the track with enough copies to scroll seamlessly |
@@ -151,9 +152,11 @@ is tooling and opt-in per consumer.
 | `@getvitops/astro/components/Drawer.astro` | `drawer` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Gallery.astro` | `gallery` | the `<wc-gallery>` tag, fallback inside |
 | `@getvitops/astro/components/Icon.astro` | `icon` | tier-1 markup — no web component |
+| `@getvitops/astro/components/Marquee.astro` | `marquee` | the `<wc-marquee>` tag, fallback inside |
 | `@getvitops/astro/components/NavShell.astro` | `navshell` | tier-1 markup — no web component |
 | `@getvitops/astro/components/NavShellToggle.astro` | `navshell` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Popover.astro` | `popover` | tier-1 markup — no web component |
+| `@getvitops/astro/components/ReviewCard.astro` | `review` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Subgrid.astro` | `subgrid` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Tree.astro` | `tree` | the `<wc-tree>` tag, fallback inside |
 
@@ -215,7 +218,7 @@ rules that generate them all.
 | `icon` | `patterns/icon.css` | `icon`, `icon-button`, `icon-mask` | — |
 | `icon-picker` | `patterns/icon.css` | — | — |
 | `image-compare` | `patterns/splitter.css` | `image-compare`, `image-compare__before`, `image-compare__handle` | — |
-| `lightbox` | `patterns/lightbox.css` | `lightbox-dialog`, `lightbox-dialog__content`, `lightbox-dialog__image`, `lightbox-dialog__nav-button` | declared |
+| `lightbox` | `patterns/lightbox.css` | `lightbox-dialog`, `lightbox-dialog__track`, `lightbox-dialog__close` | declared |
 | `link` | `patterns/anchor-link.css` | `link`, `skip-link`, `stretched-link`, `raised` | declared |
 | `list` | `patterns/list.css` | `facet-list`, `filtered-list` | declared |
 | `marquee` | `patterns/marquee.css` | `marquee`, `marquee__content`, `marquee__item` | — |
@@ -230,6 +233,7 @@ rules that generate them all.
 | `popover` | `patterns/popover.css` | `popover`, `popover-trigger`, `popover-anchor` | declared |
 | `pull-quote` | `patterns/pull-quote.css` | `pull-quote`, `pull-quote__attribution` | declared |
 | `reveal` | `patterns/reveal.css` | `reveal`, `reveal-fade`, `reveal-h` | — |
+| `review` | `patterns/review.css` | `review`, `review__stars`, `review__body`, `review__reply`, `review__source` | declared |
 | `scroll-based` | `patterns/scroll-based.css` | `parallax`, `scroll-progress`, `scroll-spy` | — |
 | `scroll-target` | `patterns/scroll-target.css` | `scroll-target-group`, `toc-sidebar` | — |
 | `separator` | `patterns/separator.css` | `separator`, `separator__text`, `separator__ornament` | — |

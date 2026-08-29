@@ -17,6 +17,12 @@
  * `100% + gap`, because the seam between copies is one more gap that has to be
  * consumed for the loop to be seamless — translate by a bare `-100%` and the
  * items visibly bunch up once per revolution.
+ *
+ * `Marquee.astro` authors THREE `.marquee__content` copies (the slotted one
+ * plus two `aria-hidden`), not two — a very wide track under the 100% floor
+ * needs more than one duplicate to stay covered. `<wc-marquee>` treats the
+ * first as its source and discards the rest, replacing them with however many
+ * its own measurement calls for.
  */
 
 .marquee {

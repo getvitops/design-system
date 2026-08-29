@@ -14,9 +14,9 @@ packages/generator/assets/
 packages/generator/schema.json
 packages/generator/config.schema.json
 
-# apps/*
-apps/*/.dev.vars
-apps/*/.wrangler/
-apps/*/.astro/
+# site/ (docs site) — dist/ already covered by the generic rule above
+site/.dev.vars
+site/.wrangler/
+site/.astro/
 
 .npmrc

@@ -1,0 +1,60 @@
+---
+/**
+ * One `.review` card, from a `vitops reviews` cache entry
+ * (`@getvitops/utils/reviews`'s `Review`).
+ *
+ * Pure tier-3: `.review` is a config-generated pattern
+ * (`patterns.items.review`), so this needs no runtime JS, no `<wc-*>` tag, and
+ * therefore no `enhance` prop. Put several inside `<Carousel>` slides or
+ * `<Marquee>` items — there is no group component.
+ *
+ * **Named `ReviewCard`, not `Review`.** `../schemas/Review.astro` already owns
+ * that name for the JSON-LD builder this component composes when `schema` is
+ * true; two same-named components differing only by directory is a needless
+ * import trap.
+ *
+ * **`schema` defaults to false.** Google's structured-data policy treats a
+ * business marking up reviews of itself as ineligible for review rich results,
+ * and risks a manual action — see AGENTS.md's Reviews section. Pass
+ * `itemReviewed` (the business the review is of) only when you have deliberately
+ * decided to emit it anyway; without it, `schema` is a no-op.
+ *
+ * **`avatar` defaults to false.** A reviewer's photo is a Google-hosted URL —
+ * rendering it by default would put a third-party request on every page and
+ * depend on a link that isn't guaranteed to stay live. With it off,
+ * `.review__initials` carries the author's initials instead.
+ */
+import type { ComponentProps, HTMLAttributes } from 'astro/types';
+import type { Review } from '@getvitops/utils/reviews';
+import ReviewCardBody from './ReviewCardBody.astro';
+import SchemaReview from '../schemas/Review.astro';
+
+export interface Props extends Omit<HTMLAttributes<'article'>, 'slot'> {
+  review: Review;
+  /** Emit `Review` JSON-LD via `../schemas/Review.astro` (default false). */
+  schema?: boolean;
+  /** Required for `schema` to take effect — the business this review is of. */
+  itemReviewed?: ComponentProps<typeof SchemaReview>['itemReviewed'];
+  /** Render the reviewer's Google-hosted avatar photo (default false). */
+  avatar?: boolean;
+}
+
+const { review, schema = false, itemReviewed, avatar = false, ...rest } = Astro.props;
+---
+
+{
+  schema && itemReviewed ? (
+    <SchemaReview
+      itemReviewed={itemReviewed}
+      reviewRating={{ ratingValue: review.rating }}
+      author={{ name: review.author }}
+      datePublished={review.publishedAt}
+      reviewBody={review.text}
+      publisher={{ name: 'Google', type: 'Organization' }}
+    >
+      <ReviewCardBody review={review} avatar={avatar} {...rest} />
+    </SchemaReview>
+  ) : (
+    <ReviewCardBody review={review} avatar={avatar} {...rest} />
+  )
+}

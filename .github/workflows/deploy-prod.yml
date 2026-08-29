@@ -1,0 +1,53 @@
+# Deploys `site/` (this repo's own docs site) to production (docs.vitops.ca)
+# on push to `main`. `main` is branch-protected — it only advances via the
+# Promote workflow (promote.yml) — and the `production` GitHub Environment
+# below has required reviewers restricted to admins, so this job PAUSES for
+# approval before it runs. See deploy-dev.yml's docblock for why this isn't a
+# caller of site-deploy-static.yml.
+#
+# Required repo secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
+#
+# NOT gated on ci.yml, unlike the client path (site-deploy-static.yml's
+# `needs: ci`). It reaches `main` only via the Promote workflow, which opens
+# a `dev → main` PR gated by the required `ci` status check — so by the time
+# this job's trigger fires, CI has already passed on this exact code. The
+# admin-reviewer pause on the `production` environment is the second gate.
+name: Deploy prod (docs)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'src/design-system.json'
+      - 'packages/core/**'
+      - 'packages/generator/**'
+      - 'packages/astro/**'
+      - 'packages/utils/**'
+      - 'packages/vite/**'
+      - '.github/workflows/deploy-prod.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-prod-docs
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: ./.github/actions/setup
+
+      - name: Build the docs site
+        run: pnpm exec vp run docs:build
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: site
+          command: deploy

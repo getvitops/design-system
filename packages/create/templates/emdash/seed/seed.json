@@ -97,7 +97,7 @@
               "_type": "vitops.details",
               "_key": "next-steps",
               "summary": "Next steps",
-              "body": "Adjust design-system.json to your brand (colors, type, patterns), replace src/assets/logo.svg, then deploy with `pnpm deploy`.",
+              "body": "Adjust site.json (under designSystem.themes.default) to your brand (colors, type, patterns), replace src/assets/logo.svg, then deploy with `pnpm deploy`.",
               "open": false
             }
           ]

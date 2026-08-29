@@ -13,6 +13,25 @@
   gap: var(--cluster-gap, 0.5rem);
 }
 
+/* Markerless — so ADD `role="list"` to the element. Safari + VoiceOver stop
+   announcing a marker-less <ul> as a list, so this reset silently costs the
+   semantics the <ul> was chosen for. Nothing in the framework emits this markup,
+   so only the author can restore it. Conditional so `.cluster` on a `div` is
+   untouched; scoped to `.cluster` alone — the `cluster-*` attribute selectors above
+   are alignment modifiers, not the list itself. */
+.cluster:is(ul, ol) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Item spacing is the wrap's job, not the flow's — neutralise `.rhythm`'s
+   `li + li` margin (see layout.css for why this is local rather than
+   centralised). */
+.cluster:is(ul, ol) > li + li {
+  margin-block-start: 0;
+}
+
 .cluster-start-start {
   place-content: start start;
 }

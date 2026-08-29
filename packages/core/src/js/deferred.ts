@@ -4,8 +4,6 @@
 // there is nothing for this bundle to flag — and, more to the point, nothing that
 // breaks when this bundle never loads.
 
-// Apply stagger delays based on visual row position.
-//
 // This deliberately OVERRIDES the CSS `sibling-index()` path in animation.css:
 // an inline custom property wins, and row-relative is the better semantic for a
 // wrapping grid — otherwise the first item of row 2 inherits row 1's accumulated
@@ -30,7 +28,6 @@ function applyRowStagger(container: Element): void {
     row.items.push(item);
   });
 
-  // Apply stagger index based on position within each row
   rows.forEach(({ items: rowItems }) => {
     rowItems.forEach((item: HTMLElement, i: number) => {
       item.style.setProperty('--_stagger-index', String(i));
@@ -101,7 +98,6 @@ const triggerObserver = new IntersectionObserver(
   },
 );
 
-// Set horizontal-scroll track width to match its content
 function setHorizontalScrollTrackWidth(container: Element): void {
   const track = container.querySelector('.horizontal-scroll__track');
   if (!track) return;
@@ -126,19 +122,16 @@ document.addEventListener('click', (e) => {
 // these operations can cause forced reflows if done too early.
 window.addEventListener('load', () => {
   requestAnimationFrame(() => {
-    // Apply row-based stagger to all stagger containers (deferred to avoid forced reflow)
+    // deferred to avoid forced reflow
     document.querySelectorAll('.stagger').forEach(applyRowStagger);
     window.addEventListener('resize', handleResize);
 
-    // Set horizontal scroll track widths
     document.querySelectorAll('.horizontal-scroll').forEach(setHorizontalScrollTrackWidth);
 
-    // Observe .animate-trigger elements
     document.querySelectorAll('.animate-trigger').forEach((el) => {
       triggerObserver.observe(el);
     });
 
-    // Update all current year elements
     const currentYear = new Date().getFullYear();
     document.querySelectorAll('[data-current-year]').forEach((el) => {
       el.textContent = currentYear.toString();

@@ -36,16 +36,20 @@ npx vitops generate --format tailwind -o src/styles
 
 ## 1.2 Package matrix
 
-| Package                | Version | What it is                                                                 | Install when                            |
-| ---------------------- | ------- | -------------------------------------------------------------------------- | --------------------------------------- |
-| `@getvitops/core`      | 5.0.0   | The framework runtime: CSS partials, Lit web components, browser polyfills | Pulled in by `astro`; direct for Bricks |
-| `@getvitops/generator` | 5.0.0   | The generator as a library + the JSON Schemas                              | Building your own integration           |
-| `@getvitops/utils`     | 5.0.0   | Shared build-time + utilities (favicon, icons, tracking, notify)           | Pulled in by everything                 |
-| `@getvitops/cli`       | 5.0.0   | `vitops` binary — the surface every stack has                              | Always, in any stack                    |
-| `@getvitops/vite`      | 5.0.0   | Vite plugin: generate on build/dev, hot-regenerate on config change        | Vite without Astro                      |
-| `@getvitops/astro`     | 5.0.0   | The Astro integration + component library                                  | Astro sites (the main path)             |
-| `@getvitops/emdash`    | 0.3.5   | EmDash CMS plugin — Portable Text blocks + hosting seam                    | EmDash sites                            |
-| `@getvitops/create`    | 0.5.0   | `vp create @getvitops` scaffolds; templates only, no build                 | Starting a new project                  |
+| Package                | What it is                                                                 | Install when                            |
+| ---------------------- | -------------------------------------------------------------------------- | --------------------------------------- |
+| `@getvitops/core`      | The framework runtime: CSS partials, Lit web components, browser polyfills | Pulled in by `astro`; direct for Bricks |
+| `@getvitops/generator` | The generator as a library + the JSON Schemas                              | Building your own integration           |
+| `@getvitops/utils`     | Shared build-time + utilities (favicon, icons, tracking, notify)           | Pulled in by everything                 |
+| `@getvitops/cli`       | `vitops` binary — the surface every stack has                              | Always, in any stack                    |
+| `@getvitops/vite`      | Vite plugin: generate on build/dev, hot-regenerate on config change        | Vite without Astro                      |
+| `@getvitops/astro`     | The Astro integration + component library                                  | Astro sites (the main path)             |
+| `@getvitops/emdash`    | EmDash CMS plugin — Portable Text blocks + hosting seam                    | EmDash sites                            |
+| `@getvitops/create`    | `vp create @getvitops` scaffolds; templates only, no build                 | Starting a new project                  |
+
+Versions aren't listed here — six of the eight move together (see below) and a hand-maintained
+number rots on the first release after this doc is written. Check each package's own
+`package.json` for its current version.
 
 **The first six are one version, on purpose.** They're a Changesets `fixed` group, so a lockstep
 major can land in a package with no changes of its own. That's not cosmetic: `generator@X` ships a
@@ -72,22 +76,25 @@ Types: `DesignSystem`, `Config`, `Format`, `StylesheetFormat`, `Tier`, `RoleSpec
 
 ### `@getvitops/cli` — `vitops <command>`
 
-Twelve commands, dispatched in `packages/cli/src/cli.ts`.
+Fifteen commands, dispatched in `packages/cli/src/cli.ts`.
 
-| Command    | Function      | Input      | Purpose                                                            |
-| ---------- | ------------- | ---------- | ------------------------------------------------------------------ |
-| `generate` | `cmdGenerate` | either     | Emit the design-system output(s) for one or more `--format`s       |
-| `init`     | `cmdInit`     | —          | Scaffold a starter `design-system.json`                            |
-| `validate` | `cmdValidate` | either     | Validate a config against the schema                               |
-| `favicon`  | `cmdFavicon`  | either     | Rasterize a source SVG/PNG into the favicon set                    |
-| `media`    | `cmdMedia`    | **Config** | Raw video → WebM + MP4 fallback + poster                           |
-| `icons`    | `cmdIcons`    | **Config** | Build the SVG sprite from the site's icon vocabulary               |
-| `legal`    | `cmdLegal`    | **Config** | Render privacy / terms / cookie notice (`md\|html\|portable-text`) |
-| `agents`   | `cmdAgents`   | —          | Link the shipped agent skill into a consumer project               |
-| `docs`     | `cmdDocs`     | either     | Print one reference doc to stdout, rendered from your config       |
-| `lint`     | `cmdLint`     | either     | Find framework classes that resolve to nothing                     |
-| `search`   | `cmdSearch`   | **Config** | `setup` (onboard into Search Console) · `notify` (post-deploy)     |
-| `ads`      | `cmdAds`      | **Config** | `setup` (verification DNS) · `tags` (pixels) · `lint` (gaps)       |
+| Command    | Function      | Input      | Purpose                                                                               |
+| ---------- | ------------- | ---------- | ------------------------------------------------------------------------------------- |
+| `generate` | `cmdGenerate` | either     | Emit the design-system output(s) for one or more `--format`s                          |
+| `init`     | `cmdInit`     | —          | Scaffold a starter `design-system.json`, or a `site.json` with `--site`               |
+| `validate` | `cmdValidate` | either     | Validate a config against the schema                                                  |
+| `favicon`  | `cmdFavicon`  | either     | Rasterize a source SVG/PNG into the favicon set                                       |
+| `media`    | `cmdMedia`    | **Config** | Raw video → WebM + MP4 fallback + poster                                              |
+| `icons`    | `cmdIcons`    | **Config** | Build the SVG sprite from the site's icon vocabulary                                  |
+| `legal`    | `cmdLegal`    | **Config** | Render privacy / terms / cookie notice (`md\|html\|portable-text`)                    |
+| `robots`   | `cmdRobots`   | **Config** | Render `robots.txt` from the resolved environment's directive                         |
+| `reviews`  | `cmdReviews`  | **Config** | Fetch + cache Google Business Profile reviews                                         |
+| `agents`   | `cmdAgents`   | —          | Link the shipped agent skill into a consumer project                                  |
+| `docs`     | `cmdDocs`     | either     | Print one reference doc to stdout, rendered from your config                          |
+| `lint`     | `cmdLint`     | either     | Find framework classes that resolve to nothing                                        |
+| `search`   | `cmdSearch`   | **Config** | `setup` (onboard into Search Console) · `notify` (post-deploy)                        |
+| `ads`      | `cmdAds`      | **Config** | `setup` (verification DNS) · `tags` (pixels) · `lint` (gaps)                          |
+| `setup`    | `cmdSetup`    | **Config** | `repo`/`hosting`/`domain`/`search`/`ads`/`all` — see "Client onboarding" in AGENTS.md |
 
 "either" = a bare `design-system.json` or the umbrella `Config`. The **Config** rows describe a
 _site_ rather than a token set, so they can't take the bare form.
@@ -122,19 +129,23 @@ Two subpaths are built separately so a Worker route never bundles the integratio
 `@getvitops/astro/routes` (the conversion endpoint factory) and `@getvitops/astro/tracking`
 (the attribution vocabulary).
 
-### `@getvitops/utils` — nine subpaths
+### `@getvitops/utils` — thirteen subpaths
 
-| Subpath        | Runtime         | Purpose                                                               |
-| -------------- | --------------- | --------------------------------------------------------------------- |
-| `.`            | build           | Content model, HTML helpers, icons, source scanning, JSON-LD builders |
-| `./favicon`    | build           | Favicon set generation (lazy `sharp` + `png-to-ico`)                  |
-| `./color`      | isomorphic      | OKLCH engine + harmony strategies (colorjs.io)                        |
-| `./media`      | build           | Video discovery, ffmpeg encode, committed manifest cache              |
-| `./indexing`   | build (CI)      | `vitops search notify` — sitemap resubmit, IndexNow, verify           |
-| `./onboarding` | build (one-off) | `vitops search setup` — DNS TXT, verify, add property                 |
-| `./ads`        | build           | `vitops ads` — platform capability table, DNS plan                    |
-| `./notify`     | **Worker**      | Conversion notifications — plan, render, send                         |
-| `./tracking`   | **Worker**      | Attribution vocabulary + the `_ac` cookie                             |
+| Subpath        | Runtime         | Purpose                                                                                    |
+| -------------- | --------------- | ------------------------------------------------------------------------------------------ |
+| `.`            | build           | Content model, HTML helpers, icons, source scanning, JSON-LD builders                      |
+| `./favicon`    | build           | Favicon set generation (lazy `sharp` + `png-to-ico`)                                       |
+| `./color`      | isomorphic      | OKLCH engine + harmony strategies (colorjs.io)                                             |
+| `./media`      | build           | Video discovery, ffmpeg encode, committed manifest cache                                   |
+| `./indexing`   | build (CI)      | `vitops search notify` — sitemap resubmit, IndexNow, verify                                |
+| `./onboarding` | build (one-off) | `vitops search setup` — DNS TXT, verify, add property                                      |
+| `./ads`        | build           | `vitops ads` — platform capability table, DNS plan                                         |
+| `./hosting`    | build (one-off) | `vitops setup repo/hosting` — GitHub + Cloudflare dev resources, shells to `wrangler`/`gh` |
+| `./reviews`    | build (one-off) | `vitops reviews` — fetch + cache Google Business Profile reviews                           |
+| `./notify`     | **Worker**      | Conversion notifications — plan, render, send                                              |
+| `./tracking`   | **Worker**      | Attribution vocabulary + the `_ac` cookie                                                  |
+| `./security`   | **Worker**      | Turnstile token verification                                                               |
+| `./schema`     | build           | Schema.org JSON-LD builders (article, breadcrumb, FAQ, localBusiness)                      |
 
 The two Worker entries are separate subpaths precisely so a conversion endpoint doesn't pull
 `sharp` into its bundle. Neither may use a Node builtin.
@@ -204,20 +215,19 @@ each pattern is `packages/generator/src/tiers.ts` — see
 
 ## 2.1 Repo map
 
-| Path                 | What's in it                                                                  |
-| -------------------- | ----------------------------------------------------------------------------- |
-| `packages/`          | The eight workspace packages                                                  |
-| `apps/docs/`         | The public docs site (private, isolated from the release DAG)                 |
-| `lib/`               | `build-theme.ts` (dogfoods the generator), `deploy.ts` (rsync/symlink)        |
-| `src/`               | **Only** `design-system.json` — this repo's dev/example config                |
-| `bricks/`            | `load.php` + `elements/*.php` (13 Bricks elements). No `packages/bricks` yet. |
-| `docs/`              | The OKF documentation bundle — **generated and tracked**                      |
-| `dist/`              | The deployable Bricks payload — gitignored                                    |
-| `public/`            | The repo's own favicon set                                                    |
-| `index.html`         | Human/local-dev docsite; dogfoods the built `css` format                      |
-| `.changeset/`        | Changesets config (the `fixed` group lives here)                              |
-| `.github/workflows/` | `ci.yml`, `docs.yml`                                                          |
-| `old-css-lib/`       | Legacy CSS, not in any build                                                  |
+| Path                 | What's in it                                                                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/`          | The eight workspace packages                                                                                                                                                                                              |
+| `site/`              | The public docs site (private, isolated from the release DAG)                                                                                                                                                             |
+| `lib/`               | `build-theme.ts` (dogfoods the generator), `deploy.ts` (rsync/symlink)                                                                                                                                                    |
+| `src/`               | **Only** `design-system.json` — this repo's dev/example config                                                                                                                                                            |
+| `bricks/`            | `load.php` + `elements/*.php` (13 Bricks elements). No `packages/bricks` yet.                                                                                                                                             |
+| `docs/`              | The OKF documentation bundle — **generated and tracked**                                                                                                                                                                  |
+| `dist/`              | The deployable Bricks payload — gitignored                                                                                                                                                                                |
+| `public/`            | The repo's own favicon set                                                                                                                                                                                                |
+| `index.html`         | Human/local-dev docsite; dogfoods the built `css` format                                                                                                                                                                  |
+| `.changeset/`        | Changesets config (the `fixed` group lives here)                                                                                                                                                                          |
+| `.github/workflows/` | `ci.yml`; `site-{ci,deploy-static,deploy-emdash,promote}.yml` (reusable, `@v1`); `deploy-{dev,prod}.yml` + `promote.yml` (this repo's own docs deploy); `release-workflows.yml`; `docs.yml` (Pages, manual fallback only) |
 
 **The root `package.json` has no `scripts` block.** Everything goes through `npx vp run <task>`
 (`vite-plus`). The root depends on `@getvitops/generator` as a workspace dev dep — that's the
@@ -247,7 +257,7 @@ flowchart TD
   utils --> as
   vp --> as
   utils --> em
-  as -.->|"peer >=2"| em
+  as -.->|"peer >=6.0.0"| em
 ```
 
 **The one-way rule: `core` may never import the `generator`.** The generator snapshots core, not
@@ -295,18 +305,20 @@ Five independent browser bundles, each separate for a reason:
 | `src/js/consent.ts`   | The consent gate + `<wc-consent>`     | Must load **ahead** of elements and must not drag in Lit  |
 | `src/js/editor.ts`    | `<wc-theme-editor>` only              | Tooling, no no-JS fallback — quarantined, opt-in          |
 
-Seventeen elements under `src/web-components/`, all `wc-*`: `WCCards` `WCCarousel`
-`WCColorSchemeToggle` `WCColorWheel` `WCConsent` `WCCopy` `WCDismissable` `WCEntries`
-`WCIconPicker` `WCImageCompare` `WCMarquee` `WCMultiField` `WCOklchColorPicker` `WCSplitPanel`
-`WCThemeEditor` `WCTree` `WCTypography`. Support: `BaseElement.ts` (Lit + `SignalWatcher`),
-`utils/{upgrade,card-click,tree-filter,DragController}.ts` — the middle two are pure decisions
-extracted so they can be tested without a DOM.
+Nineteen elements under `src/web-components/`, all `wc-*`: `WCCards` `WCCarousel`
+`WCColorSchemeToggle` `WCColorWheel` `WCConsent` `WCCopy` `WCCounter` `WCDismissable`
+`WCEntries` `WCGallery` `WCIconPicker` `WCImageCompare` `WCMarquee` `WCMultiField`
+`WCOklchColorPicker` `WCSplitPanel` `WCThemeEditor` `WCTree` `WCTypography`. Support:
+`BaseElement.ts` (Lit + `SignalWatcher`),
+`utils/{upgrade,card-click,tree-filter,tree-nav,keynav,carousel,counter,gallery,RovingTabindex,DragController}.ts`
+— `card-click`, `tree-filter`, `tree-nav`, `keynav`, `carousel`, `counter` and `gallery` are pure
+decisions with their own `*.test.ts`, extracted so they can be tested without a DOM.
 
 `src/consent/` splits the same way: `store.ts` is pure and holds everything legally decidable;
 `runtime.ts` is the DOM wiring.
 
 `css/` is 5 root partials (`global` `animation` `layout` `layout-utilities` `utilities`) behind the
-`index.css` entry, plus 47 under `patterns/`. Import order in `index.css` is load-bearing in three
+`index.css` entry, plus 50 under `patterns/`. Import order in `index.css` is load-bearing in three
 places — `layout-utilities` before `utilities`, `subgrid` before `card`, `navbar` → `sitenav` →
 `navshell` — each annotated in the file. **Cascade-layer assignment is not in the CSS**: it's
 applied at bundle time by `CHUNK_LAYER` in `generate.ts`, and an unmapped partial defaults to
@@ -329,18 +341,18 @@ adding a component (notably: there is deliberately no site-model layer here).
 
 ### Other packages
 
-| Path                                   | Purpose                                                                                                                       |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `packages/vite/src/index.ts`           | The entire plugin: generate on build/dev, watch configs, the editor endpoint                                                  |
-| `packages/cli/src/cli.ts`              | Entry; `main()` runs at import, `parseArgs` then a command switch                                                             |
-| `packages/cli/src/help.ts`             | All help text — separate because `cli.ts` self-executes                                                                       |
-| `packages/cli/src/lint*.ts`            | Four linters: classes that resolve to nothing, CSS re-implementing a primitive, markup skipping a pattern, pre-1.0 token refs |
-| `packages/cli/skill/SKILL.md`          | The static agent skill `vitops agents` links into a project                                                                   |
-| `packages/utils/src/*/`                | Each network-touching area is `plan.ts` + executor(s) + `types.ts`                                                            |
-| `packages/emdash/src/`                 | `blocks.ts` (Portable Text types), `hosting.ts`, `icon-options.ts`, `astro/blocks/*.astro`                                    |
-| `packages/create/templates/`           | Verbatim scaffold payload — no `src/`, no build task                                                                          |
-| `bricks/load.php`                      | Registers the 13 elements, enqueues the bundles, adds the builder category                                                    |
-| `apps/docs/scripts/sync-reference.mjs` | Calls `generateDocs()` and writes the site's Reference section                                                                |
+| Path                              | Purpose                                                                                                                                                         |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/vite/src/index.ts`      | The entire plugin: generate on build/dev, watch configs, the editor endpoint                                                                                    |
+| `packages/cli/src/cli.ts`         | Entry; `main()` runs at import, `parseArgs` then a command switch                                                                                               |
+| `packages/cli/src/help.ts`        | All help text — separate because `cli.ts` self-executes                                                                                                         |
+| `packages/cli/src/lint*.ts`       | Four linters: classes that resolve to nothing, CSS re-implementing a primitive, markup skipping a pattern, pre-1.0 token refs                                   |
+| `packages/cli/skill/SKILL.md`     | The static agent skill `vitops agents` links into a project                                                                                                     |
+| `packages/utils/src/*/`           | Each network-touching area is `plan.ts` + executor(s) + `types.ts`                                                                                              |
+| `packages/emdash/src/`            | `blocks.ts` (Portable Text types), `hosting.ts`, `icon-options.ts`, `astro/blocks/*.astro`                                                                      |
+| `packages/create/templates/`      | Verbatim scaffold payload — no `src/`, no build task. Each ships `site.json` + `SETUP.html` (mirrored from `packages/create/assets/`) + `.agents/skills/setup/` |
+| `bricks/load.php`                 | Registers the 13 elements, enqueues the bundles, adds the builder category                                                                                      |
+| `site/scripts/sync-reference.mjs` | Calls `generateDocs()` and writes the site's Reference section                                                                                                  |
 
 ## 2.4 Build pipeline
 
@@ -365,9 +377,9 @@ Every task is `npx vp run <name>`, defined in [`vite.config.ts`](vite.config.ts)
 | `release:version`   | `changeset version`                                         | —                                                                   | per-package `CHANGELOG.md`                |
 | `release`           | `vp test run && vp run build:packages && changeset publish` | —                                                                   | published tarballs                        |
 | `deploy`            | `node --env-file=.env lib/deploy.ts`                        | `build`                                                             | the remote theme                          |
-| `docs:sync`         | `node apps/docs/scripts/sync-reference.mjs`                 | `build:generator`                                                   | `apps/docs/src/content/docs/reference/**` |
+| `docs:sync`         | `node site/scripts/sync-reference.mjs`                      | `build:generator`                                                   | `site/src/content/docs/reference/**`      |
 | `docs:dev`          | `pnpm --filter docs exec astro dev`                         | `docs:sync`, `build:astro`                                          | —                                         |
-| `docs:build`        | `pnpm --filter docs exec astro build`                       | `docs:sync`, `build:astro`                                          | `apps/docs/dist/**`                       |
+| `docs:build`        | `pnpm --filter docs exec astro build`                       | `docs:sync`, `build:astro`                                          | `site/dist/**`                            |
 | `docs:preview`      | `pnpm --filter docs exec astro preview`                     | —                                                                   | —                                         |
 
 Resolved order: `build:utils` → `build:core` → `build:generator` → everything else.
@@ -404,8 +416,8 @@ flowchart LR
   bricks["bricks/*.php"] -->|prepare.mjs| assets
   assets -->|lib/build-theme.ts| dist["dist/"]
   dist -->|lib/deploy.ts| wp["remote WP theme"]
-  assets -->|"@getvitops/vite"| docs["apps/docs/src/styles/"]
-  src -->|"@getvitops/astro"| pub["apps/docs/public/vitops/"]
+  assets -->|"@getvitops/vite"| docs["site/src/styles/"]
+  src -->|"@getvitops/astro"| pub["site/public/vitops/"]
 ```
 
 Note the split at the bottom: a consumer's **CSS** comes from the generator's snapshot, but its
@@ -425,8 +437,8 @@ than fail on a clean checkout.
 | `dist/**`                                     | `build:theme`         | no      | The deployable payload                |
 | `packages/*/dist/**`                          | each `vp pack`        | no      |                                       |
 | `packages/generator/assets/**`, `schema.json` | `prepare.mjs`         | no      | Shipped in the tarball                |
-| `apps/docs/src/content/docs/reference/**`     | `docs:sync`           | no      |                                       |
-| `apps/docs/{src/styles,public/vitops}/`       | the Astro integration | no      |                                       |
+| `site/src/content/docs/reference/**`          | `docs:sync`           | no      |                                       |
+| `site/{src/styles,public/vitops}/`            | the Astro integration | no      |                                       |
 | `AGENTS.md`, `index.html`, this file          | hand-written          | yes     |                                       |
 
 Never hand-edit a generated file: change the config, the generator's static strings, or the PHP,
@@ -434,19 +446,24 @@ then regenerate.
 
 ## 2.7 CI, release, versioning
 
-`.github/workflows/ci.yml` — push to `main`, all PRs. Two jobs:
+`.github/workflows/ci.yml` — push to `main`/`dev`, all PRs. Four jobs:
 
 | Job         | Does                                                                                                                                                                                 |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `test`      | `vp check` (lint + fmt + typecheck, deliberately no `--fix`) then `vp test run`                                                                                                      |
+| `build`     | `vp run build:packages` + `docs:build` — proves every package's own `pack`/`build` and the docs' Astro build actually succeed, not just typecheck against source                     |
 | `generated` | Runs `build:theme` + `build:design`, fails if `git diff` shows changes in `docs/` or `DESIGN.md`; then `docs:sync`, which throws if the generator emits a doc the site doesn't carry |
+| `e2e`       | Real Chromium, scripting disabled, against `site/` — verifies the tier-2 `<wc-*>` no-JS-fallback promise (see AGENTS.md's "Web components" section)                                  |
 
-`.github/workflows/docs.yml` — builds `apps/docs` and deploys to GitHub Pages at `docs.vitops.ca`
-(apex custom domain via `apps/docs/public/CNAME`, which is what lets the integration's absolute
-asset paths resolve with no Astro `base`).
+`.github/workflows/deploy-dev.yml` / `deploy-prod.yml` build `site/` and deploy to Cloudflare
+Workers static assets at `docs.vitops.ca` (apex custom domain configured in `site/wrangler.jsonc`,
+which is what lets the integration's absolute asset paths resolve with no Astro `base`).
+`.github/workflows/docs.yml` is the superseded GitHub Pages path — kept only as a manual
+`workflow_dispatch` fallback until the Cloudflare prod deploy has run at least once (see AGENTS.md's
+CI/CD section).
 
 Versioning is Changesets: one `fixed` group of six (`core` `generator` `utils` `cli` `vite`
-`astro`), `emdash`/`create` outside it, `ignore: ["docs"]`, root private. Dependency versions are
+`astro`), `emdash`/`create` outside it, `ignore: ["site"]`, root private. Dependency versions are
 centralized in `pnpm-workspace.yaml`'s `catalog:` (~30 entries) and rewritten to concrete versions
 on publish, as are `workspace:*` internal deps.
 
@@ -466,7 +483,7 @@ tests don't pay for an environment a handful need.
 | Cross-package drift | `dark-selector.test.ts`, `required-roles.test.ts`, `token-refs.test.ts`, `tiers.test.ts` | Constants duplicated across the one-way dep edge stay equal                 |
 | Schema & doc shape  | `schema.test.ts`, `schema-tree.test.ts`, `docs.test.ts`, `resolve-input.test.ts`         | Every field documented; the config discriminator is total                   |
 | Colour correctness  | `tokens.test.ts`, `manifest.test.ts`                                                     | Lightness ladder, contrast, the editor's manifest contract                  |
-| Pure planners       | `*/plan.test.ts` in `utils/{indexing,onboarding,ads,notify,media}`                       | Every decision, incl. why something was skipped                             |
+| Pure planners       | `*/plan.test.ts` in `utils/{indexing,onboarding,ads,notify,media,hosting}`               | Every decision, incl. why something was skipped                             |
 | Truthfulness        | `legal/legal.test.ts`                                                                    | The document describes the config it was given                              |
 
 ## 2.9 Recurring patterns

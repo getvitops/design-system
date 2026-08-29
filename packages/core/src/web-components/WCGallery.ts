@@ -1,83 +1,74 @@
 import { noChange } from 'lit';
 import { BaseElement } from './BaseElement.js';
-import {
-  keyToAction,
-  preloadTargets,
-  stepIndex,
-  swipeAction,
-  type SwipeAction,
-} from './utils/gallery.js';
-import { slideLabel } from './utils/carousel.js';
+import { preloadTargets } from './utils/gallery.js';
 import { initFromLightDom } from './utils/upgrade.js';
 
-/** How far a completed drag must travel before it counts as a swipe, in CSS pixels. */
-const SWIPE_THRESHOLD = 40;
-
-/** One `.gallery__trigger` + the `.lightbox-dialog` it opens, plus what this element built. */
+/** One `.gallery__trigger` anchor, the `.carousel__slide` its `href` targets. */
 interface GalleryItem {
-  trigger: HTMLElement;
-  dialog: HTMLDialogElement;
-  index: number;
-  /** The generated nav wrappers, so they can be removed on teardown. */
-  nav?: HTMLElement[];
-  /** `dialog`'s authored `aria-label`, restored on teardown. `null` if it had none. */
-  originalLabel: string | null;
+  trigger: HTMLAnchorElement;
+  slide: HTMLElement;
 }
 
 /**
- * Augments a `.gallery` grid of `command="show-modal"` triggers and their
- * `.lightbox-dialog`s (patterns/gallery.css, patterns/lightbox.css) with prev/next,
- * arrow keys, swipe, an image counter, neighbour preload and a thumbnail→full-image
+ * Augments a `.gallery` grid of `<a href="#slide-id">` triggers and the single
+ * `.lightbox-dialog` they point into (patterns/gallery.css, patterns/lightbox.css)
+ * with a real `showModal()` open, neighbour preload and a thumbnail → full-image
  * view-transition morph.
  *
- * **The fallback is the point.** With no JS, each `.gallery__trigger` is a real
- * `command="show-modal" commandfor="…"` invoker for its own `<dialog>` — a fully
- * working modal lightbox with zero JavaScript. Open and close both work; only
- * navigating between images requires this element, because it cannot exist in the
- * fallback at all: a `command="show-modal"` button inside an already-open dialog
- * opens a *second* modal on top of the first, stacking the top layer rather than
- * replacing what's shown. So prev/next is generated here, never authored — the
- * same rule `WCTree` states for its search field: a control that does nothing is
- * worse than no control.
+ * **Stepping between images is not this element's job.** The `<wc-carousel>`
+ * nested inside the dialog (patterns/carousel.css, `WCCarousel.ts`) owns
+ * prev/next, dots, arrow keys and swipe — reused rather than re-implemented. The
+ * previous version of this element hand-rolled all four across N per-image
+ * dialogs, and closing one dialog to open another made every step play a full
+ * exit-then-entry animation on the top-layer driver (animation.css) — a design
+ * that could not help flickering. One dialog containing one carousel makes that
+ * failure mode unrepresentable: stepping is a scroll, not a close/open pair.
  *
- * **The N authored dialogs are kept, not collapsed into one shared dialog.** That
- * is simpler, it cannot destroy the fallback if setup only half succeeds, and it
- * costs nothing: an image inside a closed `<dialog>` is `display: none`, so
- * `loading="lazy"` never fetches it until that dialog opens.
+ * **The fallback is the point, and it does not merely degrade gracefully.**
+ * With no JS, each `.gallery__trigger` is a real `<a href="#slide-id">` into the
+ * carousel's own `<li id="slide-id">` — ordinary fragment navigation, no
+ * Invoker Commands, no polyfill. `:has(:target)` in lightbox.css is what reveals
+ * the dialog once that navigation lands, and the browser's own fragment scroll
+ * already puts the carousel on the right slide. What JS adds on top is real
+ * top-layer placement (`showModal()`, so the overlay sits above other top-layer
+ * content a fixed-position `:has(:target)` box could not), the morph, and
+ * neighbour preload — never prev/next, which the fallback already has via the
+ * carousel underneath.
  *
- * **Stepping needs no manual focus bookkeeping.** `showModal()` records whatever
- * has focus at the moment it is called as the element to restore on `close()`, and
- * that restoration is synchronous. Closing the current dialog before opening the
- * next therefore always relays focus back through the chain to the trigger that
- * started it, however many images were visited in between — no tracking required.
+ * **`:target` is deliberately not kept in sync with the JS-driven open.** This
+ * element intercepts the trigger click and never lets the real fragment
+ * navigation happen, so the URL hash is simply not part of how the JS path
+ * decides visibility — only `dialog[open]` is, and lightbox.css's fallback rule
+ * is gated on `:not([open])` for exactly this reason: once JS has the dialog
+ * open, the fallback's condition is irrelevant regardless of what the URL says.
  *
+ * @fires gallery-open
+ * @fires gallery-change
  * @example
  * ```html
  * <wc-gallery>
  *   <ul class="gallery" role="list">
  *     <li class="gallery__item">
- *       <button class="gallery__trigger" type="button"
- *               command="show-modal" commandfor="img-1">
+ *       <a class="gallery__trigger" href="#img-1">
  *         <img class="gallery__thumb" src="…" alt="" />
- *       </button>
+ *       </a>
  *     </li>
  *   </ul>
- *   <dialog id="img-1" class="lightbox-dialog" closedby="any" aria-label="…">
- *     <div class="lightbox-dialog__content">
- *       <img class="lightbox-dialog__image" src="…" />
- *     </div>
- *     <button class="lightbox-dialog__close" type="button"
- *             command="close" commandfor="img-1" aria-label="Close">&times;</button>
+ *   <dialog id="lb" class="lightbox-dialog" closedby="any" aria-label="…">
+ *     <wc-carousel class="carousel lightbox-dialog__track" role="group"
+ *                  aria-roledescription="carousel" aria-label="…">
+ *       <ul class="carousel__track" role="list" tabindex="0">
+ *         <li class="carousel__slide" id="img-1">
+ *           <figure class="carousel__media"><img src="…" alt="…" /></figure>
+ *         </li>
+ *       </ul>
+ *     </wc-carousel>
+ *     <a class="lightbox-dialog__close" href="#" aria-label="Close">&times;</a>
  *   </dialog>
  * </wc-gallery>
  * ```
  */
 export class WCGallery extends BaseElement {
-  static properties = {
-    /** Wrap prev/next past the ends instead of stopping there. */
-    loop: { type: Boolean, reflect: true },
-  };
-
   /** Light DOM — the framework's `.gallery` / `.lightbox-dialog` CSS must style the slotted markup. */
   override createRenderRoot(): HTMLElement {
     return this;
@@ -88,39 +79,28 @@ export class WCGallery extends BaseElement {
     return noChange;
   }
 
-  declare loop: boolean;
-
   #ready = false;
+  #dialog: HTMLDialogElement | null = null;
+  #carousel: HTMLElement | null = null;
+  #closeLink: HTMLAnchorElement | null = null;
   #items: GalleryItem[] = [];
-  #currentIndex: number | null = null;
   #reducedMotion = false;
-  #dragStart: { x: number; y: number } | null = null;
-
-  constructor() {
-    super();
-    this.loop = false;
-  }
 
   override connectedCallback(): void {
     super.connectedCallback();
-    // The triggers/dialogs may not be parsed yet — see initFromLightDom.
+    // The triggers/dialog/carousel may not be parsed yet — see initFromLightDom.
     initFromLightDom(this, () => this.#setup());
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
-    for (const item of this.#items) {
-      item.dialog.removeEventListener('command', this.#onCommand);
-      item.dialog.removeEventListener('keydown', this.#onKeydown);
-      item.dialog.removeEventListener('close', this.#onDialogClose);
-      item.dialog.removeEventListener('pointerdown', this.#onPointerDown);
-      item.dialog.removeEventListener('pointerup', this.#onPointerUp);
-      for (const nav of item.nav ?? []) nav.remove();
-      if (item.originalLabel === null) item.dialog.removeAttribute('aria-label');
-      else item.dialog.setAttribute('aria-label', item.originalLabel);
-    }
+    for (const item of this.#items) item.trigger.removeEventListener('click', this.#onTriggerClick);
+    this.#closeLink?.removeEventListener('click', this.#onCloseClick);
+    this.#carousel?.removeEventListener('carousel-change', this.#onCarouselChange as EventListener);
     this.#items = [];
-    this.#currentIndex = null;
+    this.#dialog = null;
+    this.#carousel = null;
+    this.#closeLink = null;
     this.#ready = false;
   }
 
@@ -128,138 +108,102 @@ export class WCGallery extends BaseElement {
     // Defer entirely to an enclosing <wc-gallery>. `<Gallery />` emits its own
     // tag, so a consumer who reasonably guesses `<wc-gallery><Gallery /></wc-gallery>`
     // nests two. `parentElement` rather than `this`, since `this.closest()`
-    // matches self. Same trap WCCards and WCCarousel close.
+    // matches self. Same trap WCCarousel and WCTree close.
     if (this.parentElement?.closest('wc-gallery')) return true;
     if (this.#ready) return true;
 
-    const triggers = [...this.querySelectorAll<HTMLElement>('.gallery__trigger[commandfor]')];
-    // Fewer than one is the retry hook: mid-insertion the element can be
-    // connected with an empty or partial subtree.
-    if (!triggers.length) return false;
-
-    // Attribute fallback for upgrade timing — the Lit property may not have landed.
-    if (!this.loop && this.hasAttribute('loop')) this.loop = true;
+    const triggers = [...this.querySelectorAll<HTMLAnchorElement>('.gallery__trigger[href^="#"]')];
+    const dialog = this.querySelector<HTMLDialogElement>('dialog.lightbox-dialog');
+    // Fewer than one trigger, no dialog, or the nested carousel hasn't parsed
+    // yet: the retry hook. Mid-insertion the element can be connected with an
+    // empty or partial subtree.
+    if (!triggers.length || !dialog) return false;
+    const carousel = dialog.querySelector<HTMLElement>('.lightbox-dialog__track');
+    if (!carousel) return false;
 
     const items: GalleryItem[] = [];
     for (const trigger of triggers) {
-      const id = trigger.getAttribute('commandfor');
-      const dialog = id ? this.querySelector<HTMLDialogElement>(`#${CSS.escape(id)}`) : null;
-      // The dialog a trigger points to hasn't landed yet either — retry.
-      if (!dialog) return false;
-      items.push({ trigger, dialog, index: items.length, originalLabel: null });
+      const id = trigger.getAttribute('href')?.slice(1);
+      const slide = id ? this.querySelector<HTMLElement>(`#${CSS.escape(id)}`) : null;
+      // The slide a trigger points to hasn't landed yet either — retry.
+      if (!slide) return false;
+      items.push({ trigger, slide });
     }
-    this.#items = items;
-    this.#reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    for (const item of items) this.#enhance(item);
+    this.#reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.#dialog = dialog;
+    this.#carousel = carousel;
+    this.#closeLink = dialog.querySelector<HTMLAnchorElement>('.lightbox-dialog__close');
+    this.#items = items;
+
+    for (const item of items) item.trigger.addEventListener('click', this.#onTriggerClick);
+    this.#closeLink?.addEventListener('click', this.#onCloseClick);
+    carousel.addEventListener('carousel-change', this.#onCarouselChange as EventListener);
 
     this.#ready = true;
     return true;
   }
 
-  /** Wire one dialog's nav, counter and listeners. */
-  #enhance(item: GalleryItem): void {
-    const total = this.#items.length;
-    if (total > 1) this.#buildNav(item);
-
-    // The counter rides on the dialog's own accessible name, so it is announced
-    // the moment the dialog receives focus with no separate live region to keep
-    // in sync. Only added past one image — "Image 1 of 1" tells a single-image
-    // gallery's visitor nothing they didn't already know.
-    item.originalLabel = item.dialog.getAttribute('aria-label');
-    if (total > 1) {
-      const label = slideLabel(item.index, total, 'Image');
-      item.dialog.setAttribute(
-        'aria-label',
-        item.originalLabel ? `${item.originalLabel} — ${label}` : label,
-      );
-    }
-
-    item.dialog.addEventListener('command', this.#onCommand);
-    item.dialog.addEventListener('keydown', this.#onKeydown);
-    item.dialog.addEventListener('close', this.#onDialogClose);
-    item.dialog.addEventListener('pointerdown', this.#onPointerDown);
-    item.dialog.addEventListener('pointerup', this.#onPointerUp);
-  }
+  #onTriggerClick = (event: MouseEvent): void => {
+    const trigger = event.currentTarget as HTMLAnchorElement;
+    const item = this.#items.find((it) => it.trigger === trigger);
+    if (!item || !this.#dialog) return;
+    event.preventDefault();
+    this.#open(item);
+  };
 
   /**
-   * Real `<button>`s for `.lightbox-dialog__nav[data-direction]` — the parts
-   * `patterns/lightbox.css` already styles. Never authored: see the class
-   * docblock for why prev/next cannot exist in the no-JS fallback.
+   * Runs the thumbnail → full-image morph and opens the dialog.
    *
-   * Disabled state at either end is fixed once here rather than recomputed on
-   * every navigation: which dialog is first/last never changes, so there is
-   * nothing to resync.
+   * Unlike the previous per-dialog design, this never awaits a decode before
+   * starting the transition — `.carousel__media`'s `--lightbox-placeholder`
+   * background (set from the thumbnail URL by `<Gallery />`) is already painted,
+   * so the transition's "new" state is never an empty box even if the full
+   * image hasn't loaded. That wait was the entire cause of the stuttery open.
    */
-  #buildNav(item: GalleryItem): void {
+  #open(item: GalleryItem): void {
+    const index = this.#items.indexOf(item);
     const total = this.#items.length;
-    const rtl = getComputedStyle(item.dialog).direction === 'rtl';
-    const make = (
-      direction: 'prev' | 'next',
-      label: string,
-      glyph: string,
-      delta: number,
-      disabled: boolean,
-    ): HTMLElement => {
-      const wrap = document.createElement('div');
-      wrap.className = 'lightbox-dialog__nav';
-      wrap.dataset.direction = direction;
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'lightbox-dialog__nav-button';
-      button.setAttribute('aria-label', label);
-      button.disabled = disabled;
-      button.textContent = glyph;
-      button.addEventListener('click', () => this.#step(delta));
-      wrap.append(button);
-      return wrap;
+
+    const finish = (): void => {
+      this.#dialog!.showModal();
+      item.slide.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' });
+      this.#preload(index);
+      this.dispatchEvent(
+        new CustomEvent('gallery-open', {
+          bubbles: true,
+          composed: true,
+          detail: { index, total },
+        }),
+      );
     };
-    const atStart = !this.loop && item.index === 0;
-    const atEnd = !this.loop && item.index === total - 1;
-    const nav = [
-      make('prev', 'Previous image', rtl ? '›' : '‹', -1, atStart),
-      make('next', 'Next image', rtl ? '‹' : '›', 1, atEnd),
-    ];
-    item.dialog.append(...nav);
-    item.nav = nav;
-  }
 
-  /* ── Navigation ──────────────────────────────────────────────────────────── */
+    const thumb = item.trigger.querySelector<HTMLElement>('.gallery__thumb');
+    const full = item.slide.querySelector<HTMLElement>('img');
+    if (this.#reducedMotion || !('startViewTransition' in document) || !thumb || !full) {
+      finish();
+      return;
+    }
 
-  #step(delta: number): void {
-    if (this.#currentIndex === null) return;
-    this.#goto(
-      stepIndex({ index: this.#currentIndex, total: this.#items.length, delta, loop: this.loop }),
-    );
-  }
-
-  /** Close the current dialog and open `index`, relaying focus through the chain. */
-  #goto(index: number): void {
-    if (index === this.#currentIndex) return;
-    const from = this.#currentIndex !== null ? this.#items[this.#currentIndex] : undefined;
-    const to = this.#items[index];
-    if (!to) return;
-    from?.dialog.close();
-    to.dialog.showModal();
-    this.#afterOpen(index);
-    this.dispatchEvent(
-      new CustomEvent('gallery-change', {
-        bubbles: true,
-        composed: true,
-        detail: { index, total: this.#items.length },
-      }),
-    );
-  }
-
-  #afterOpen(index: number): void {
-    this.#currentIndex = index;
-    this.#preload(preloadTargets(index, this.#items.length, this.loop));
+    // The shared name is what morphs the thumbnail into the full image —
+    // `view-transition-name: match-element` (each element auto-named uniquely)
+    // cannot do this, which is why lightbox.css sets neither statically.
+    thumb.style.viewTransitionName = 'lightbox-active';
+    const transition = document.startViewTransition(() => {
+      thumb.style.viewTransitionName = '';
+      full.style.viewTransitionName = 'lightbox-active';
+      finish();
+    });
+    void transition.finished.finally(() => {
+      full.style.viewTransitionName = '';
+    });
   }
 
   /** Neighbours of a warm cache load instantly when the visitor actually steps there. */
-  #preload(indices: number[]): void {
-    for (const i of indices) {
-      const img = this.#items[i]?.dialog.querySelector<HTMLImageElement>('.lightbox-dialog__image');
+  #preload(index: number): void {
+    const loop = this.#carousel?.hasAttribute('loop') ?? false;
+    for (const i of preloadTargets(index, this.#items.length, loop)) {
+      const img = this.#items[i]?.slide.querySelector<HTMLImageElement>('img');
       // `currentSrc` may be empty for a still-lazy `<picture>` image whose format
       // negotiation hasn't run yet; `src` (the fallback format) is always a
       // usable URL to warm the cache with, even if not the exact chosen format.
@@ -268,112 +212,18 @@ export class WCGallery extends BaseElement {
     }
   }
 
-  /**
-   * Runs the thumbnail → full-image morph and opens the dialog.
-   *
-   * Always intercepts the `show-modal` command rather than only when a
-   * transition will run: letting the browser's default action fire `showModal()`
-   * on top of a manual call here would throw (a dialog cannot be shown modally
-   * twice), so bookkeeping and the transition share one path.
-   */
-  #openFromTrigger(item: GalleryItem): void {
-    const total = this.#items.length;
-    const finish = (): void => {
-      item.dialog.showModal();
-      this.#afterOpen(item.index);
-      this.dispatchEvent(
-        new CustomEvent('gallery-open', {
-          bubbles: true,
-          composed: true,
-          detail: { index: item.index, total },
-        }),
-      );
-    };
-
-    const thumb = item.trigger.querySelector<HTMLElement>('.gallery__thumb');
-    const full = item.dialog.querySelector<HTMLImageElement>('.lightbox-dialog__image');
-    if (this.#reducedMotion || !('startViewTransition' in document) || !thumb || !full) {
-      finish();
-      return;
-    }
-
-    // The full image is `loading="lazy"` inside a still-closed (`display: none`)
-    // dialog, so nothing has fetched it yet. Running the transition before it
-    // decodes captures an empty box as the "new" state, and the image then pops
-    // in once it finally loads — a flash that's most visible on the very first
-    // open, since every later one has a neighbour already warmed by #preload.
-    // Force the fetch now and hold the transition until it can actually paint.
-    // `.catch()` lets a broken/failed image still open rather than hang.
-    full.loading = 'eager';
-    void full
-      .decode()
-      .catch(() => {})
-      .then(() => {
-        // The shared name is what morphs the thumbnail into the full image —
-        // `view-transition-name: match-element` (each element auto-named
-        // uniquely) cannot do this, which is why lightbox.css sets neither
-        // statically.
-        thumb.style.viewTransitionName = 'lightbox-active';
-        const transition = document.startViewTransition(() => {
-          thumb.style.viewTransitionName = '';
-          full.style.viewTransitionName = 'lightbox-active';
-          finish();
-        });
-        void transition.finished.finally(() => {
-          full.style.viewTransitionName = '';
-        });
-      });
-  }
-
-  /* ── Listeners (shared references — same fn on every dialog, so add/remove match) ── */
-
-  #onCommand = (event: Event): void => {
-    const command = event as Event & { command?: string };
-    if (command.command !== 'show-modal') return;
-    // Always preventDefault: see #openFromTrigger's docblock for why this is
-    // unconditional rather than only when a transition is about to run.
+  #onCloseClick = (event: MouseEvent): void => {
+    // The href="#" is the no-JS close mechanism (clears the fragment so
+    // `:has(:target)` stops matching) — irrelevant once JS is driving via
+    // `showModal()`, so intercept it and close the real modal instead.
     event.preventDefault();
-    const dialog = event.currentTarget as HTMLDialogElement;
-    const item = this.#items.find((it) => it.dialog === dialog);
-    if (item) this.#openFromTrigger(item);
+    this.#dialog?.close();
   };
 
-  #onKeydown = (event: KeyboardEvent): void => {
-    if (this.#currentIndex === null) return;
-    const rtl = getComputedStyle(event.currentTarget as Element).direction === 'rtl';
-    const action = keyToAction(event.key, rtl);
-    if (!action) return; // Escape included — <dialog> already closes on it.
-    event.preventDefault();
-    if (action === 'first') this.#goto(0);
-    else if (action === 'last') this.#goto(this.#items.length - 1);
-    else this.#step(action.delta);
-  };
-
-  #onDialogClose = (event: Event): void => {
-    const dialog = event.currentTarget as HTMLDialogElement;
-    const item = this.#items.find((it) => it.dialog === dialog);
-    if (item && this.#currentIndex === item.index) this.#currentIndex = null;
-  };
-
-  #onPointerDown = (event: PointerEvent): void => {
-    // Dragging over a nav or close button is still a click on it; don't treat
-    // the resulting small travel as a swipe attempt.
-    if ((event.target as Element | null)?.closest('button')) return;
-    this.#dragStart = { x: event.clientX, y: event.clientY };
-  };
-
-  #onPointerUp = (event: PointerEvent): void => {
-    const start = this.#dragStart;
-    this.#dragStart = null;
-    if (!start) return;
-    const action: SwipeAction = swipeAction(
-      event.clientX - start.x,
-      event.clientY - start.y,
-      SWIPE_THRESHOLD,
+  #onCarouselChange = (event: CustomEvent<{ index: number; total: number }>): void => {
+    this.dispatchEvent(
+      new CustomEvent('gallery-change', { bubbles: true, composed: true, detail: event.detail }),
     );
-    if (!action) return;
-    if (action.type === 'dismiss') (event.currentTarget as HTMLDialogElement).close();
-    else this.#step(action.delta);
   };
 }
 

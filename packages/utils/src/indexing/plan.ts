@@ -65,9 +65,7 @@ export interface IndexingPlan {
 
 export interface PlanInput {
   config: IndexingConfig;
-  /** The sitemap as it stands now. */
   current: SitemapEntry[];
-  /** The previous run's state, if any. */
   previous?: Snapshot | undefined;
   /** `--urls`: submit exactly these, skipping the diff. */
   explicitUrls?: string[] | undefined;

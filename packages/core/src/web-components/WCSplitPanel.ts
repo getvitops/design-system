@@ -248,7 +248,6 @@ export class WCSplitPanel extends BaseElement {
   private applyConstraints(rawPosition: number): number {
     let position = rawPosition;
 
-    // Apply min/max constraints
     if (this.containerSize > 0) {
       const minPercent = this.minSize / this.containerSize;
       const maxPercent = this.maxSize > 0 ? this.maxSize / this.containerSize : 1 - minPercent;
@@ -257,7 +256,6 @@ export class WCSplitPanel extends BaseElement {
       position = Math.min(maxPercent, position);
     }
 
-    // Apply snap points
     if (this.snapPoints && this.containerSize > 0) {
       const points = this.snapPoints.split(',').map((p) => parseFloat(p.trim()) / 100);
       const snapDistPercent = this.snapDistance / this.containerSize;
@@ -270,7 +268,6 @@ export class WCSplitPanel extends BaseElement {
       }
     }
 
-    // Apply collapse threshold
     if (this.collapseThreshold > 0) {
       const threshold = this.collapseThreshold / 100;
       if (position < threshold) {

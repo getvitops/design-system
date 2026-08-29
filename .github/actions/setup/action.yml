@@ -1,0 +1,19 @@
+# checkout + pnpm + node + install, copy-pasted verbatim across ci.yml (4
+# jobs), docs.yml, deploy-dev.yml and deploy-prod.yml before this existed.
+# Not used by site-ci.yml / site-deploy-static.yml: those run in a consumer's
+# own scaffolded repo (no checkout of *this* repo), and site-ci.yml's install
+# step needs `working-directory`, which this action doesn't take.
+name: Setup (checkout + pnpm + node + install)
+description: actions/checkout, pnpm/action-setup, actions/setup-node (.nvmrc, pnpm cache), pnpm install --frozen-lockfile
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v7
+    - uses: pnpm/action-setup@v6
+    - uses: actions/setup-node@v7
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+      shell: bash

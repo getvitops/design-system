@@ -148,44 +148,56 @@ describe('<wc-tree>', () => {
 });
 
 describe('<wc-gallery>', () => {
+  // One dialog wrapping one carousel, not one dialog per image — see
+  // WCGallery.dom.test.ts's docblock for why.
   const markup = () => `
     <wc-gallery>
       <ul class="gallery" role="list">
         <li class="gallery__item">
-          <button class="gallery__trigger" type="button" command="show-modal" commandfor="a">
-            <img class="gallery__thumb" src="a.jpg" alt="" />
-          </button>
+          <a class="gallery__trigger" href="#a"><img class="gallery__thumb" src="a.jpg" alt="" /></a>
         </li>
         <li class="gallery__item">
-          <button class="gallery__trigger" type="button" command="show-modal" commandfor="b">
-            <img class="gallery__thumb" src="b.jpg" alt="" />
-          </button>
+          <a class="gallery__trigger" href="#b"><img class="gallery__thumb" src="b.jpg" alt="" /></a>
         </li>
       </ul>
-      <dialog id="a" class="lightbox-dialog" aria-label="A">
-        <div class="lightbox-dialog__content"><img class="lightbox-dialog__image" src="fa.jpg" /></div>
-      </dialog>
-      <dialog id="b" class="lightbox-dialog" aria-label="B">
-        <div class="lightbox-dialog__content"><img class="lightbox-dialog__image" src="fb.jpg" /></div>
+      <dialog class="lightbox-dialog" aria-label="Gallery">
+        <wc-carousel class="carousel lightbox-dialog__track" role="group" aria-label="Gallery">
+          <ul class="carousel__track" role="list" tabindex="0">
+            <li class="carousel__slide" id="a"><figure class="carousel__media"><img src="fa.jpg" alt="A" /></figure></li>
+            <li class="carousel__slide" id="b"><figure class="carousel__media"><img src="fb.jpg" alt="B" /></figure></li>
+          </ul>
+        </wc-carousel>
+        <a class="lightbox-dialog__close" href="#" aria-label="Close">&times;</a>
       </dialog>
     </wc-gallery>`;
 
-  it('builds prev/next nav for each dialog', async () => {
+  it('intercepts a trigger click and opens the dialog', async () => {
     const el = await mount(markup());
-    // Two dialogs × two nav buttons each.
-    expect(el.querySelectorAll('.lightbox-dialog__nav-button')).toHaveLength(4);
+    const dialog = el.querySelector<HTMLDialogElement>('dialog.lightbox-dialog')!;
+    el.querySelector<HTMLAnchorElement>('.gallery__trigger')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, cancelable: true }),
+    );
+    expect(dialog.open).toBe(true);
   });
 
-  it('builds it exactly once', async () => {
+  it('wires it exactly once', async () => {
     const el = await mount(markup());
-    // The retry must not re-run a successful setup, or nav is duplicated.
+    // The retry must not re-run a successful setup, or gallery-open would fire
+    // twice for one click.
     await new Promise((r) => requestAnimationFrame(r));
-    expect(el.querySelectorAll('.lightbox-dialog__nav-button')).toHaveLength(4);
+    const seen: unknown[] = [];
+    el.addEventListener('gallery-open', (e) => seen.push((e as CustomEvent).detail));
+    el.querySelector<HTMLAnchorElement>('.gallery__trigger')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, cancelable: true }),
+    );
+    expect(seen).toHaveLength(1);
   });
 
   it('leaves a trigger-less body alone', async () => {
     const el = await mount('<wc-gallery><p>nothing to enhance</p></wc-gallery>');
-    expect(el.querySelector('.lightbox-dialog__nav-button')).toBeNull();
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    el.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
   });
 });
 

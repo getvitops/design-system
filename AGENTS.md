@@ -50,6 +50,42 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      ships `hidden` — with no JS the gate never runs, no gated tag loads and no non-essential cookie
      is set, so there is genuinely nothing to consent to. That fallback isn't empty, it's _moot_.
 
+   **Not registered in `elements.js` yet:** `WCColorWheel`, `WCOklchColorPicker`, `WCIconPicker`,
+   `WCTypography` — they belong to the editor-v2 track.
+
+   **Foundational components not built yet** (`packages/core/src/js/elements.ts` used to carry this
+   as a TODO docblock; moved here so it's a backlog, not a comment):
+   - **Combobox** — CSS shell only (`patterns/combobox.css`); the Lit component that makes it
+     interactive doesn't exist.
+   - **Dropdown / dropdown-item** — `.dropdown` (`patterns/dropdown.css`) is CSS/Popover-only,
+     hover-or-click; a menu with roving-tabindex arrow keys, type-ahead and Escape-returns-focus
+     (the ARIA `menu`/`menuitem` pattern) needs a component over it.
+   - **Tabs / tab / tab-panel** — `tabs` is a generated pattern with no structural partial and no
+     component (see `tiers.ts`); needs the WAI-ARIA tabs pattern (roving tabindex, arrow keys,
+     `aria-selected`, `aria-controls`).
+   - **Breadcrumbs** — no pattern at all yet. (`schemas/Breadcrumb.astro` is unrelated — Schema.org
+     JSON-LD, not visual nav.) Likely CSS/astro only, no JS: a breadcrumb trail is
+     `<nav aria-label="Breadcrumb"><ol>…` and needs nothing dynamic.
+   - **Markdown** — render/enhance markdown content client-side. Library unchosen.
+   - **OTP** — segmented one-time-passcode input: auto-advance between digits, paste-splitting a
+     full code across them. Fallback is a plain `<input>`.
+   - **QR** — QR code generation/display.
+   - **Slider** — a range control, distinct from `<wc-split-panel>`'s drag divider (that resizes two
+     panes; this picks a value).
+   - **Format** — reads a machine value and renders a presentation of it, e.g. a relative date over
+     `<time datetime>` (`"5 minutes ago"`), re-rendering as it goes stale. Fallback is the value
+     already in the markup.
+
+   **Known gap — element display.** An unregistered custom element is `display: inline`, and most
+   of these wrap block content, so before upgrade (or with `elements.js` absent entirely) the tag
+   forms an inline box around a block child. Only `wc-tree` (`patterns/tree.css`), `wc-cards`
+   (`patterns/card.css`), `wc-carousel` (`patterns/carousel.css`), `wc-gallery`
+   (`patterns/gallery.css`) and `wc-theme-editor` (`patterns/theme-editor.css`) currently declare
+   `display`; `wc-color-scheme-toggle` and `wc-consent` manage their own visibility, so the
+   remaining seven are unaddressed. Fixing them means checking each pattern's intended flow rather
+   than blanket-setting `display: block`, since an element used inline would regress — match the
+   declaration to the content the element wraps.
+
 3. **Platform wrappers** (`@getvitops/astro` components; future `@getvitops/bricks`) — thin
    **authoring conveniences (DX)** for the pure-HTML/CSS patterns: they render the correct
    markup/classes so authors don't hand-write boilerplate, and they **must not require runtime JS**.
@@ -94,7 +130,7 @@ and every Astro specifier must be a real export of `@getvitops/astro` (that one 
 | Audience | Shape                             | Where                                               |
 | -------- | --------------------------------- | --------------------------------------------------- |
 | agents   | **one** doc, every tier together  | `concepts/components.md` → `vitops docs components` |
-| humans   | **four** pages, one per _surface_ | `apps/docs/src/pages/components/`                   |
+| humans   | **four** pages, one per _surface_ | `site/src/pages/components/`                        |
 
 **Four pages, three tiers**, and the difference is load-bearing. `Tier` is a projection axis with
 four keys (`css` `wc` `astro` `bricks`) because there are four tables to render; that is not four
@@ -103,7 +139,7 @@ classes and elements of tiers 1 and 2, siblings chosen by platform, never ranked
 other, and no project uses both. Anything that renders a tier _number_ must map them to the same
 one: the docsite derived it from array position and so published Astro as tier 3 and Bricks as
 tier 4, implying a rank and a fourth level to climb to. `TIER_LEVEL` in
-`apps/docs/src/components/tiers.ts` is now that mapping.
+`site/src/components/tiers.ts` is now that mapping.
 
 An agent arrives knowing the _pattern_ it needs and must be told which tiers offer it **and how
 they compose** — so splitting it would let an agent read the Astro page, learn `<Tree />` exists,
@@ -166,7 +202,8 @@ Six things are load-bearing:
   opted into **per file** with a `/** @vitest-environment happy-dom */` pragma and a `*.dom.test.ts`
   name, because a global DOM would make ~830 pure tests pay for what a handful need. So the split is
   a rule about where a decision belongs, not a limitation: pure decision in a pure module
-  (`consent/store.ts`, `web-components/utils/{tree-filter,tree-nav,keynav,card-click}.ts`), DOM test
+  (`consent/store.ts`,
+  `web-components/utils/{tree-filter,tree-nav,keynav,card-click,carousel,counter,gallery}.ts`), DOM test
   for the wiring that is genuinely about the DOM (`WCTree.dom.test.ts`, `WCCards.dom.test.ts`,
   `upgrade.dom.test.ts`). There is simply no `WCConsent.dom.test.ts` yet.
 - **`<Head />` emits an inline stub, and its absence is meaningful.** `consent.js` and `elements.js`
@@ -268,8 +305,8 @@ packages under `packages/` (a pnpm workspace), by layer:
 
 - **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
   `png-to-ico`, loaded lazily; `oxipng` crush optional). Consumed by cli/vite/astro.
-- **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint|legal|robots|icons|
-search|ads|media` (bin `vitops`), a thin wrapper over the generator + utils. `legal`/`search`/`ads`
+- **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint|legal|robots|reviews|
+icons|search|ads|media` (bin `vitops`), a thin wrapper over the generator + utils. `legal`/`search`/`ads`
   are covered in their own sections below; `robots` (`vitops robots [--input <site.json>]
   [--site-env <name>] [--out <dir>]`) is `legal`'s sibling — same `Config`-anchoring, same
   stdout-or-`--out` shape — rendering `robots.txt` from the resolved environment's robots
@@ -326,6 +363,11 @@ search|ads|media` (bin `vitops`), a thin wrapper over the generator + utils. `le
   from the root lint (imports resolve only in a scaffolded project). Ship `_gitignore` (renamed to
   `.gitignore` on scaffold).
 
+  Shared template content (e.g. placeholder wireframe images for pre-imagery layout work) lives in
+  `packages/create/assets/`, mirrored by hand into each template's `src/assets/placeholder/` and
+  drift-guarded by `templates.test.ts` — `vp create` copies only the one directory a template names,
+  so nothing can copy a sibling `assets/` for it at scaffold time.
+
 Dependency versions are centralized in `pnpm-workspace.yaml`'s `catalog:` (referenced via the
 `catalog:` protocol); internal deps use `workspace:*`. Both are rewritten to concrete versions on
 publish.
@@ -355,7 +397,7 @@ Build/publish: `npx vp run build:packages` (core → generator → utils → cli
 `dependsOn` the packages it imports) and `npx vp run release` (`build:packages && changeset publish`).
 Versioning is via Changesets (`.changeset/config.json`): `core`/`generator`/`utils`/`cli`/`vite`/`astro`
 are **fixed** together — one version for the whole toolchain; `@getvitops/emdash` and
-`@getvitops/create` version independently; the root and `apps/*` stay private/ignored.
+`@getvitops/create` version independently; the root and `site/` stay private/ignored.
 
 Independent versioning does **not** mean unconstrained. `@getvitops/emdash` depends on
 `@getvitops/utils` (a hard dep — `SEMANTIC_ICON_OPTIONS` is derived from its `iconMap`) and peers on
@@ -765,6 +807,146 @@ cascading to `analytics` then true, because a preview deployment sending pagevie
 one firing conversion pixels is not. The integration resolves ads **before** choosing offered consent
 categories, since a pixel is a `marketing` demand and the banner must already have a row for it.
 
+## Client onboarding
+
+Standing up a new client site is the one job every other subsystem above assumes has already
+happened — a `site.json`, a GitHub repo with the right branch policy, hosting resources, a domain
+decision. `SETUP.html` (`packages/create/assets/sop/`, mirrored byte-identically into both
+`@getvitops/create` templates) is the checklist; `vitops setup` (`packages/cli/src/commands/setup.ts`
+→ `@getvitops/utils/hosting`) is what most of it runs.
+
+**Every scaffolded template ships a `site.json`, not a bare `design-system.json`.**
+`ConfigSchema` requires `designSystem` and there is no file-level `extends`, so a config that
+merely referenced a sibling design-system file was never expressible — the token set has to be
+embedded, under `designSystem.themes.default`. `defaultSiteConfig()`
+(`packages/generator/src/index.ts`, beside `defaultConfig()`) is what `vitops init --site` writes.
+This is what turns on `legal`/`robots`/`search`/`ads`/`reviews`/`icons` for a fresh scaffold — all
+six default to reading `site.json` and previously had nothing to read.
+
+**`vitops setup` absorbs what used to be template-local `init-github.mjs`/`init-hosting.mjs`
+scripts**, so the capability reaches every consumer, not just a fresh `vp create` scaffold — the
+templates' own `pnpm run init:github`/`init:hosting`/`sop` scripts are now one-line callers.
+`repo`/`hosting` follow the same pure-planner/executor split as `onboarding/`, `ads/` and
+`indexing/`: `@getvitops/utils/hosting/plan.ts` decides everything (idempotent — a step whose
+desired state already holds resolves to `skip`, so a re-run is all skips by construction) and
+`wrangler.ts`/`github.ts` execute a plan and decide nothing, shelling out to `wrangler`/`gh` for
+the same reason `@getvitops/utils/media` shells to `ffmpeg` — an external tool, not an npm
+dependency, with no token-free API alternative. `search`/`ads` are **not** reimplemented inside
+`setup` — it forwards to the CLI's own `search setup`/`ads setup` as child processes, so there is
+exactly one implementation of each and no risk of the two drifting.
+
+**Never destructive, and one thing is permanently unautomatable.** No `setup` step deletes a
+database, bucket, branch, protection rule or DNS record — matching `onboarding/cloudflare.ts`'s
+DNS verbs, which have no update or delete either. `CLOUDFLARE_API_TOKEN` is always reported
+`blocked`: no Cloudflare API can mint a token, so this is a permanent manual step, not a gap to
+close later. Branch protection and the `production` environment 403 on a private repo without
+GitHub Pro/Team — also `blocked`, carrying the manual Settings path, never a failure.
+
+**The domain-strategy decision has no schema field, and that is deliberate.** The workers.dev-vs-
+custom-domain choice is already expressible twice over: during the workers.dev phase
+`site.environments.<env>.url` **is** the workers.dev URL and `site.domains` is absent (`domains`
+is optional; `canonical` is required only _within_ it); at cutover `domains.canonical` appears and
+the env URL changes. A `workersDev` boolean would be a second source of truth for something
+derivable, and `site.deployment` is documented as "informational for tooling" — it deliberately
+declines to model platform mechanics. Instead `vitops setup domain` plans and checks the
+_consistency_ between `wrangler.jsonc`'s `workers_dev`/`routes` state and the config
+(`planDomainConsistency`), catching two real launch defects: a live workers.dev site whose
+`<link rel=canonical>` still points at an old site the cutover hasn't happened for yet, and a
+cut-over site still advertising the workers.dev origin. Paired with **workers.dev URLs being
+indexable** — `site.environments.<env>.robots: "noindex,nofollow"` during the workers.dev phase is
+a launch gate `vitops robots` and `search notify`'s noindex gate already honour, at zero new
+schema cost.
+
+**`vitops setup domain` never performs the cutover itself** — it only plans and checks. Setting
+`routes[].custom_domain: true` in `wrangler.jsonc` makes Cloudflare create/overwrite the zone's DNS
+record on the next deploy, which is the instant an existing live site at that domain goes dark.
+That is the one irreversible-feeling step in the whole sequence, and it stays a human's call, made
+by working `SETUP.html`'s "Domain strategy" stage — never something a command applies as one part
+of a bigger batch. `vitops search setup` is safe to run _before_ cutover regardless: it only ever
+_creates_ an apex TXT record, never touching the zone's routing.
+
+**Two audiences read the same checklist.** `SETUP.html` is canonical — one copyable command per
+step in plain language, what it does, how to tell it worked. `.agents/skills/setup/SKILL.md`
+(mirrored into both templates, modelled on the existing `promote` skill) lets an agent work the
+same list autonomously; it adds only sequencing and the human-only stops (the API token, the
+domain cutover, publishing any generated legal document) and does not restate the steps — two
+copies of the same content would drift. `SETUP.html`'s checkbox state persists in `localStorage`
+today, behind one named seam (`window.__vitopsSopStore`) so a later EmDash-backed store is a
+swap, not a rewrite — that store does not exist yet; don't build it speculatively.
+
+## Google reviews
+
+`vitops reviews` (`packages/cli` → `@getvitops/utils/reviews`) fetches a client's Google Business
+Profile reviews and writes them to a committed `.vitops/reviews.json`, which a `<ReviewCard />`
+renders — typically several inside `<Carousel>` slides or `<Marquee>` items; there is no group
+component and no `wc-review`, because nothing about a review card benefits from progressive
+enhancement.
+
+**Start from what the API actually offers, because it settles most of the design:**
+
+- **Reviews live only on the legacy v4 Business Profile API**
+  (`mybusiness.googleapis.com/v4/accounts/{a}/locations/{l}/reviews`). The newer split APIs
+  (Account Management, Business Information) never grew a reviews resource, and Places API (New)
+  caps at 5 reviews, drops owner replies, and its ToS caps caching at 30 days — incompatible with a
+  committed cache. **TODO — re-check when Google migrates the Reviews endpoint off v4.** Endpoint,
+  auth and the review object's fields may all change; `@getvitops/utils/reviews`'s `gbp.ts` is the
+  one place that assumption lives.
+- **The calling GCP project must be allowlisted by Google before any call succeeds** — a one-time
+  access-request form, turnaround measured in days to weeks. `gbp.ts` treats a `403` as that known
+  state and says so, rather than surfacing a raw failure.
+- **Auth is always user OAuth**, the same `VITOPS_GOOGLE_CLIENT_ID` / `_CLIENT_SECRET` /
+  `_REFRESH_TOKEN` (or ADC login) `search setup` uses, scoped to `business.manage`
+  (`SCOPES.businessProfile`, `@getvitops/utils/google/token.ts`). Reading a client's own reviews is
+  a person acting with owner/manager rights, never a deploy robot.
+- **Review JSON-LD is opt-in and off by default** (`site.reviews.schema`). Google's structured-data
+  policy treats a business marking up reviews of itself as ineligible for review rich results and
+  risks a manual action — there is no markup for "duplicate content"; the honest handling is
+  `rel="nofollow"` to the source review, and `<ReviewCard>` only emits `Review` JSON-LD (via the
+  existing `schemas/Review.astro`) when both `schema` and `itemReviewed` are supplied.
+- **Reviewer avatars are Google-hosted URLs** and default off (`site.reviews.avatars` /
+  `<ReviewCard avatar>`). On, every visitor issues a third-party request to
+  `googleusercontent.com` for a URL that isn't guaranteed to stay live; off, `.review__initials`
+  renders the author's initials instead.
+
+**The pure/IO split mirrors `indexing/` and `onboarding/`.** `reviews/plan.ts` decides which
+locations to fetch and why one is skipped (no matching `organization.locations` entry, no
+`listings.google` id, no `accountId`, no credential); `selectReviews()` — featured ids first, then
+`minRating`/`sort`/`limit` — is the one place "which reviews a site actually shows" is decided, so
+`<ReviewCard>` and a future Bricks renderer read the same answer instead of each re-implementing it.
+`gbp.ts` and `cache.ts` execute a plan and decide nothing.
+
+`.vitops/reviews.json` is meant to be **committed**, like `media-manifest.json` and unlike
+`sitemap-snapshot.json`: reviews change slowly, and a build should not need a live Google credential
+to render them. `--check` fetches and diffs against the cache without writing, for CI to flag a
+stale commit; a real run **merges only the locations it fetched** (`mergeCache`), so one location's
+failure leaves every other location's cached reviews untouched — the same non-destructive-partial-
+failure shape `search notify`'s snapshot write follows.
+
+`site.reviews.locations` is keyed by `organization.locations`, and each key must name a real entry
+with a `listings.google` id already recorded there (`validateConfig` rejects a typo'd key rather
+than silently fetching nothing) — the same field that section's docblock already flagged as
+"recorded here so a future sync has a stable id to match against."
+
+**Wiring the cache into an Astro content collection needs no symlink.** Astro 5's `file()` loader
+takes a `parser` for nested JSON:
+
+```ts
+// src/content.config.ts
+import { defineCollection } from 'astro:content';
+import { file } from 'astro/loaders';
+
+const reviews = defineCollection({
+  loader: file('.vitops/reviews.json', {
+    parser: (text) => Object.values(JSON.parse(text).locations).flatMap((l: any) => l.reviews),
+  }),
+});
+export const collections = { reviews };
+```
+
+Each review already carries a unique `id` (the GBP review id) and a `location` key, so
+`getCollection('reviews', ({ data }) => data.location === 'ottawa')` works with no further plumbing.
+Non-Astro consumers read the same JSON directly.
+
 ## Development
 
 The build system uses `vite-plus` (`vp`), which is a wrapper for common tools for SDLC tasks:
@@ -785,13 +967,16 @@ They are all configured with their respective keys in `vite.config.ts`
 Other tools used:
 
 - `lightningcss` - css minification/bundling
-- `playwright` - e2e testing. One narrow suite exists (`apps/docs/e2e/no-js-fallback.spec.ts`,
-  `npx vp run docs:e2e`): real Chromium with `javaScriptEnabled: false`, against `apps/docs`,
-  proving the tier-2 no-JS-fallback promise above rather than assuming it — the promise
-  `*.dom.test.ts` files (happy-dom) never check, since those test JS-ON enhancement. Runs on a
-  dedicated port (`playwright.config.ts` explains why 4321, Astro's default, is the wrong one);
-  wired into CI as its own `e2e` job, separate from `test`, because it needs a browser binary
-  the unit-test job has no other reason to carry.
+- `playwright` - e2e testing. Two narrow suites exist (`npx vp run docs:e2e`, both `*.e2e.ts` —
+  not `*.spec.ts` — as two Playwright projects against `site/`):
+  `site/e2e/no-js-fallback.e2e.ts` (real Chromium with `javaScriptEnabled: false`, proving the
+  tier-2 no-JS-fallback promise above rather than assuming it — the promise `*.dom.test.ts` files
+  (happy-dom) never check, since those test JS-ON enhancement) and
+  `site/e2e/forced-colors.e2e.ts` (real forced-colors emulation, proving a keyboard focus ring
+  survives Windows High Contrast Mode — a real computed style, not a guess about the cascade).
+  Runs on a dedicated port (`playwright.config.ts` explains why 4321, Astro's default, is the
+  wrong one); wired into CI as its own `e2e` job, separate from `test`, because it needs a
+  browser binary the unit-test job has no other reason to carry.
 
 ### Task Notes
 
@@ -1047,31 +1232,31 @@ derives the guard from the emitted token names so it can't go vacuous when the g
 | `docs/` + `dist/docs/` (OKF bundle) | agents **with** the toolchain, via `vitops docs` | generated by `docs.ts`      |
 | `DESIGN.md` (repo root)             | agents/tools **without** it — one portable file  | generated by `design-md.ts` |
 | `index.html`                        | human/local dev, dogfoods the built CSS          | hand-written                |
-| `apps/docs` (plain Astro)           | public docs site                                 | hybrid — see below          |
+| `site/` (plain Astro)               | public docs site                                 | hybrid — see below          |
 
 `docs/` and `DESIGN.md` are not redundant: the OKF bundle is the richer, cross-linked reference a
 consumer fetches live per topic; `DESIGN.md` is the single self-contained artifact you hand to
 something that has never heard of `vitops`. Both are generated from the same config, so neither can
 drift from what the stylesheet formats build.
 
-`apps/docs` is private and **isolated from the release DAG** (not in `build`, `build:packages` or `deploy`). It is now the only app in `apps/` — `apps/portal` was the dogfood target before this site existed and has been extracted to its own repo, since `apps/docs` covers that job and covers it better (it exercises the `css` format through the Astro integration rather than a hand-maintained wireframe).
+`site/` is private and **isolated from the release DAG** (not in `build`, `build:packages` or `deploy`). It used to live at `apps/docs` — `apps/` was collapsed to root-level `site/` once it was the only member of that layer, and `apps/portal` (the dogfood target before this site existed) had already been extracted to its own repo.
 
-It is published to GitHub Pages at <https://docs.vitops.ca> by `.github/workflows/docs.yml` — a static build uploaded as a Pages artifact, so `apps/docs/dist/` stays gitignored. The custom domain is load-bearing: served from the apex, the site needs no Astro `base`, and the absolute paths `@getvitops/astro` emits (`/vitops/icons.svg`, `/vitops/design-manifest.json`) resolve as-is. A project-pages URL would require making the integration base-aware first. The domain lives in `apps/docs/public/CNAME`, which Astro copies to `dist/CNAME` verbatim.
+It is published at <https://docs.vitops.ca> on Cloudflare Workers static assets — `.github/workflows/deploy-dev.yml` / `deploy-prod.yml` calling the reusable `site-deploy-static.yml` (see the CI/CD section), the same path every scaffolded client site deploys through. `site/dist/` stays gitignored. The custom domain is load-bearing: served from the apex, the site needs no Astro `base`, and the absolute paths `@getvitops/astro` emits (`/vitops/icons.svg`, `/vitops/design-manifest.json`) resolve as-is. A project-pages URL would require making the integration base-aware first. The domain is declared as a route in `site/wrangler.jsonc`, not in a CNAME file — moved off GitHub Pages specifically so this site dogfoods the client deploy path instead of a path no client uses.
 
-**It is deliberately a plain Astro site, not a docs framework.** Starlight was tried and removed: a themed docs framework ships its own CSS layer and component library, which hides the very thing under test. The whole site — layout, nav, type, colour, controls — is built from the framework's own vocabulary (`.rhythm`, `.centered`, `.split-*`, `.font-<role>`, `.link`, `.card`, `.details`, `.btn`) via the `vitops()` integration at `css.format: 'css'`, plus the `wc-color-scheme-toggle` web component. **If you find yourself adding hand-written CSS to `src/layouts/Docs.astro`, that's a signal the framework is missing a pattern — add it to `@getvitops/core` instead.** The `<style>` block there is meant to stay short; it's the site's honest scorecard. (Root `index.html` also exercises the css format, but as a static page — `apps/docs` is the only thing covering that format _through the Astro integration_.)
+**It is deliberately a plain Astro site, not a docs framework.** Starlight was tried and removed: a themed docs framework ships its own CSS layer and component library, which hides the very thing under test. The whole site — layout, nav, type, colour, controls — is built from the framework's own vocabulary (`.rhythm`, `.centered`, `.split-*`, `.font-<role>`, `.link`, `.card`, `.details`, `.btn`) via the `vitops()` integration at `css.format: 'css'`, plus the `wc-color-scheme-toggle` web component. **If you find yourself adding hand-written CSS to `src/layouts/Docs.astro`, that's a signal the framework is missing a pattern — add it to `@getvitops/core` instead.** The `<style>` block there is meant to stay short; it's the site's honest scorecard. (Root `index.html` also exercises the css format, but as a static page — `site/` is the only thing covering that format _through the Astro integration_.)
 
-Its _Reference_ section is not written by hand: `apps/docs/scripts/sync-reference.mjs` calls the generator's `generateDocs()` and emits pages into `src/content/docs/reference/` (gitignored), so the site can't describe output the toolchain doesn't produce. The script flattens the OKF tree (`concepts/patterns.md` → `concepts-patterns`), drops the frontmatter-less `index.md` listings (the site builds nav from the collection), rewrites the bundle's relative `.md` cross-links to site slugs, and sets `generated: true` so the layout renders a "don't edit this" banner. Guides, package pages and the landing page **are** hand-written. Tasks: `docs:sync` (dependsOn `build:generator`), `docs:dev`, `docs:build`, `docs:preview`.
+Its _Reference_ section is not written by hand: `site/scripts/sync-reference.mjs` calls the generator's `generateDocs()` and emits pages into `src/content/docs/reference/` (gitignored), so the site can't describe output the toolchain doesn't produce. The script flattens the OKF tree (`concepts/patterns.md` → `concepts-patterns`), drops the frontmatter-less `index.md` listings (the site builds nav from the collection), rewrites the bundle's relative `.md` cross-links to site slugs, and sets `generated: true` so the layout renders a "don't edit this" banner. Guides, package pages and the landing page **are** hand-written. Tasks: `docs:sync` (dependsOn `build:generator`), `docs:dev`, `docs:build`, `docs:preview`.
 
-Note the app tasks shell out via `pnpm --filter <app> exec …`: vp resolves binaries itself and doesn't put `apps/*/node_modules/.bin` on `PATH`, so a bare `cd apps/docs && astro build` fails with "cannot find binary path".
+Note the site task shells out via `pnpm --filter docs exec …`: vp resolves binaries itself and doesn't put `site/node_modules/.bin` on `PATH`, so a bare `cd site && astro build` fails with "cannot find binary path".
 
 Two non-obvious caching/ordering gotchas:
 
 - **`build:theme`'s `input` is declared explicitly.** vp's auto file-tracker only sees files the task itself reads. `node lib/build-theme.ts` reads its script + `design-system.json` and imports the built generator _inside_ the spawned Node process, so without an explicit `input` list (covering `packages/generator/dist/**` + `packages/generator/assets/**` + the config), source edits hit the cache and the dist files appear "stuck" on stale content.
 
-- **A running `docs:dev` does NOT pick up edits to `packages/core/css/**`.** `@getvitops/vite` watches only the config files (`input`/`site.input`/`legal.input`— see`watched()`in`packages/vite/src/index.ts`), which is right for a consumer, where core arrives via `node_modules`and changes only on install. But this repo dogfoods: core's partials reach the generator through the`packages/generator/assets/`snapshot that`prepare.mjs`writes, so a framework CSS edit needs`build:generator`**and** a fresh`generate()`before the docs site sees it. A dev server started earlier will keep serving`apps/docs/src/styles/styles.css`from whenever it last ran, with no error and no reload — the change looks like it silently didn't work. Restart`docs:dev`, or regenerate that artifact directly:
+- **A running `docs:dev` does NOT pick up edits to `packages/core/css/**`.** `@getvitops/vite` watches only the config files (`input`/`site.input`/`legal.input`— see`watched()`in`packages/vite/src/index.ts`), which is right for a consumer, where core arrives via `node_modules`and changes only on install. But this repo dogfoods: core's partials reach the generator through the`packages/generator/assets/`snapshot that`prepare.mjs`writes, so a framework CSS edit needs`build:generator`**and** a fresh`generate()`before the docs site sees it. A dev server started earlier will keep serving`site/src/styles/styles.css`from whenever it last ran, with no error and no reload — the change looks like it silently didn't work. Restart`docs:dev`, or regenerate that artifact directly:
 
   ```
-  node -e "import('./packages/generator/dist/index.mjs').then(m => m.generate({ input: 'src/design-system.json', format: 'css', outDir: 'apps/docs/src/styles' }))"
+  node -e "import('./packages/generator/dist/index.mjs').then(m => m.generate({ input: 'src/design-system.json', format: 'css', outDir: 'site/src/styles' }))"
   ```
 
   Check the served file before concluding a CSS change didn't land: `curl -s localhost:<port>/src/styles/styles.css`.
@@ -1096,6 +1281,75 @@ Formatting and mechanical lint fixes are applied automatically on save and via a
 
 **The hook is not a typecheck gate, deliberately.** `vp check` always type-checks — `lint.options.typeCheck` drives it and no flag separates the two (`--no-lint` skips lint _rules_ only; verified) — but TypeScript is a project-wide analysis being run after a single edit, so any change spanning more than one edit is legitimately type-broken in between. That reported every correct intermediate state as a failure. The hook therefore ends in `|| true`: fixes are still applied and errors are still _printed_, they just don't fail the tool call. So **do** run `vp check` yourself at a verification point — after a change is complete, before committing — and read its output rather than trusting hook silence.
 
+## CI/CD
+
+Two unrelated deploy stories live in this repo, and they must not be confused:
+
+- **This repo's own theme deploy** (`lib/deploy.ts`, below) — rsync/symlink of the Bricks
+  theme `dist/`. Unrelated to everything in this section.
+- **The `dev → main` model** for every site this toolchain builds — this repo's own docs
+  site (`site/`) and every `@getvitops/create` template — described here. **Not yet adopted in
+  this repo's own remote as of this writing:** `origin/main` has no `dev` branch and carries
+  only `ci.yml` + `docs.yml`, so the reusable workflows and the `dev`/`main` split described below
+  are the intended model for a scaffolded site, still to be pushed here. Treat this section as
+  the target, and check `git branch -a` / `origin/main`'s own workflow files before assuming it's
+  live.
+
+**Branch model.** `dev` is the integration branch: unprotected, so an agent (or anyone
+with push access) commits and merges there directly, and every push auto-deploys the
+isolated `-dev` worker. `main` is production: branch-protected (PR + the `ci` status
+check required) and gated by a `production` GitHub Environment whose required reviewers
+are the repo's admin collaborators — so a merge to `main` starts the prod deploy but it
+**pauses for an admin's approval** before it runs. Promotion is manual and one-directional:
+the `promote` workflow opens a `dev → main` PR with auto-merge; nothing pushes to `main`
+directly. `scripts/init-github.mjs` in each template provisions all of this (branch
+protection, both environments) at scaffold time — see its docblock for what it sets and
+what it can't (branch protection / environment reviewers need GitHub Pro/Team on a
+private repo; the script prints the manual equivalent when it 403s).
+
+**Reusable workflows, not copy-pasted ones.** `.github/workflows/site-ci.yml`,
+`site-deploy-static.yml`, `site-deploy-emdash.yml` and `site-promote.yml` in _this_ repo
+are `workflow_call` workflows; every `@getvitops/create` template's own
+`.github/workflows/{ci,deploy-dev,deploy-prod,promote}.yml` are four-line callers pinned
+to `@v1` (e.g. `uses: getvitops/design-system/.github/workflows/site-ci.yml@v1`). A fix to
+shared deploy logic lands once here and reaches every scaffolded client repo the next time
+its workflow runs — no re-pasting. `v1` is a moving tag, moved deliberately via the
+`workflow_dispatch`-only `release-workflows.yml` (never on every push — it is live in every
+client repo, so moving it is a decision). Two deploy workflows, not one with a `platform`
+input: `site-deploy-emdash.yml` needs a `DEV_D1_ID` secret and a config rewrite
+(`scripts/build-dev-wrangler.mjs`, documented on that script) that make no sense for
+`site-deploy-static.yml`'s plain static-assets path.
+
+**EmDash has no migration step, on purpose — and that's not a gap left unaddressed.**
+EmDash applies its migrations and `seed/seed.json` at **first boot of the worker**, not at
+deploy time — there is no `.sql` file and no `wrangler d1 migrations apply` anywhere in this
+toolchain. `site-deploy-emdash.yml`'s optional `health-check-url` input is what turns that
+from a promise into a checked fact: it curls the deployed URL after `wrangler deploy`,
+forcing first boot inside the job, so a broken migration fails the deploy instead of
+surfacing to the first real visitor.
+
+**This repo's own docs site is the one exception to "thin caller."**
+`.github/workflows/deploy-dev.yml` / `deploy-prod.yml` at the repo root deploy `site/`
+directly through `site/wrangler.jsonc` rather than calling `site-deploy-static.yml` — see
+those files' docblocks: `site-deploy-static.yml` assumes a standalone site repo where
+`pnpm run build` alone is enough, but `site/`'s build depends on this monorepo's own `vp`
+task graph (`build:generator` → `build:astro` → …), so the job runs `vp run docs:build`
+from the repo root instead. It still deploys through the identical `wrangler.jsonc` +
+environment-gate mechanism every client site uses — that mechanism is what's being
+dogfooded, not the specific workflow file. `docs.vitops.ca` moved here from GitHub Pages
+for exactly that reason: Pages was a deploy path no client site used, so the toolchain's
+real deploy code was never exercised by its own docs build. `.github/workflows/docs.yml`
+(the old Pages workflow) is kept only as a manual `workflow_dispatch` fallback — never on
+`push`, since both would otherwise race to claim `docs.vitops.ca` on two different
+platforms — and should be deleted outright once the Cloudflare prod deploy has succeeded
+at least once.
+
+**Verifying a change to the reusable workflows**, before running `release-workflows.yml`:
+`vp check` / `vp test run` (covers `templates.test.ts`); scaffold each template fresh in a
+scratch dir and run `node scripts/init-github.mjs --dry-run`; push a no-op commit to `dev`
+and confirm the dev worker updates; run `promote` and confirm the prod job **pauses** for
+approval before publishing.
+
 ## Deploy
 
 `lib/deploy.ts` has two modes, switched on env vars:
@@ -1104,6 +1358,9 @@ Formatting and mechanical lint fixes are applied automatically on save and via a
 - **Local symlink:** set `DEPLOY_LOCAL_PATH` to a theme `dist/` directory (e.g. a WPLocal site) and the script idempotently symlinks it to this repo's `dist/`. One-time setup; subsequent builds are "auto-deployed" because the symlink follows them. The script refuses to clobber a non-symlink, so it's safe to point at an existing path.
 
 `npx vp run deploy` chains `build` first, so it always ships a fresh `dist/`.
+
+This deploy has nothing to do with the client-site CI/CD model above — it ships this
+repo's own Bricks theme output, not a scaffolded site.
 
 ## Note on README.md
 

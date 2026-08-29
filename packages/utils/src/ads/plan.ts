@@ -20,6 +20,7 @@
  */
 import { AD_PLATFORMS, tagId, txtRecord } from './providers.ts';
 import type { AdDomainState, AdPropertySetup, AdsConfig } from './types.ts';
+import { table } from '../plan-format.ts';
 
 /** A step's decision. `blocked` means the config is missing something. */
 export type StepAction = 'create' | 'skip' | 'blocked';
@@ -173,25 +174,10 @@ export interface AdPropertyResult {
   reminders: string[];
 }
 
-const pad = (s: string, n: number) => s.padEnd(n);
-
 /** Render the end-of-run summary: one row per property, plus any reminders. */
 export function formatSummary(results: AdPropertyResult[]): string {
   const headers = ['PROVIDER', 'DOMAIN', 'VERIFY', 'TAG'];
   const rows = results.map((r) => [r.provider, r.domain, r.txt, r.tag]);
-  const widths = headers.map((h, i) =>
-    Math.max(h.length, ...rows.map((row) => row[i]?.length ?? 0)),
-  );
-  const line = (cells: string[]) =>
-    cells
-      .map((c, i) => pad(c, widths[i] ?? 0))
-      .join('  ')
-      .trimEnd();
-
-  const out = [line(headers), widths.map((w) => '─'.repeat(w)).join('  ')];
-  for (const row of rows) out.push(line(row));
-
   const reminders = results.flatMap((r) => r.reminders.map((m) => `  ! ${r.provider}: ${m}`));
-  if (reminders.length) out.push('', 'Reminders (manual — no API):', ...reminders);
-  return out.join('\n');
+  return table(headers, rows, reminders);
 }

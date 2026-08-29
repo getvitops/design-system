@@ -1,0 +1,11 @@
+# Promote dev → main for this repo. Run manually after reviewing the dev docs
+# site (dev.docs.vitops.ca). See site-promote.yml for what this does and why.
+name: Promote dev → main
+
+on:
+  workflow_dispatch:
+
+jobs:
+  promote:
+    uses: ./.github/workflows/site-promote.yml
+    secrets: inherit

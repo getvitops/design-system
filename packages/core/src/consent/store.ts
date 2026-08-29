@@ -77,7 +77,7 @@ export const COOKIE_NAME = 'vitops_consent';
 export const COOKIE_VERSION = 2;
 
 /** 180 days. Longer than a year is hard to defend as "freely given". */
-export const COOKIE_MAX_AGE = 60 * 60 * 24 * 180;
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 180;
 
 export const OPTIONAL_CATEGORIES: readonly OptionalCategory[] = [
   'analytics',

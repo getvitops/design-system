@@ -76,7 +76,6 @@ export interface AdsConfig {
  * saying rather than silently adding a second record.
  */
 export interface AdDomainState {
-  /** The Cloudflare zone id for the domain, if one was found. */
   zoneId?: string | undefined;
   /** Every apex TXT record content, unquoted. */
   txtContents: string[];

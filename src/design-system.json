@@ -337,6 +337,21 @@
       "comment": {
         "group": "panel"
       },
+      "review": {
+        "group": "panel",
+        "class": "review",
+        "base": {
+          "display": "grid",
+          "gap": "0.75rem",
+          "border-radius": "var(--br-review-group)",
+          "padding": "var(--p-review-group)",
+          "background": "var(--color-bg-surface)",
+          "border": "var(--b-review-group)",
+          "box-shadow": "var(--ds-review-group)"
+        },
+        "states": {},
+        "roles": []
+      },
       "tabs": {
         "group": "panel"
       },

@@ -42,7 +42,13 @@ export default defineConfig({
       // inject: false — Layout.astro imports the generated stylesheet, so
       // EmDash's /_emdash/admin routes don't inherit the design system while
       // your pages (and EmDash previews rendered through the layout) do.
-      css: { format: 'tailwind', inject: false },
+      //
+      // site.json is the umbrella Config — organization + site facts plus the
+      // design system at designSystem.themes.default — so css.input points
+      // there instead of a bare design-system.json. legal/fonts/search/ads/
+      // reviews all read the same file (see AGENTS.md's "Client onboarding").
+      css: { format: 'tailwind', inject: false, input: 'site.json' },
+      site: { input: 'site.json' },
     }),
   ],
 });

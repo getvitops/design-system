@@ -124,7 +124,6 @@ export class WCCopy extends BaseElement {
       await navigator.clipboard.writeText(value);
       this._copied = true;
 
-      // Reset after 2 seconds
       this._timeoutId = setTimeout(() => {
         this._copied = false;
       }, 2000);

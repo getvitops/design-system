@@ -79,6 +79,7 @@ export {
   SiteFontSchema,
   configJsonSchema,
   CONFIG_SCHEMA_URL,
+  CONFIG_SCHEMA_LOCAL_PATH,
   validateConfig,
   resolveConfig,
   resolvePrivacyContact,
@@ -150,6 +151,7 @@ export { renderRobotsTxt } from './robots.ts';
 export type { RenderRobotsOptions } from './robots.ts';
 
 import { SCHEMA_LOCAL_PATH, type DesignSystem } from './schema.ts';
+import { CONFIG_SCHEMA_LOCAL_PATH, type Config } from './config.ts';
 
 /**
  * A minimal but complete starter design system, used by `vitops init`. It
@@ -383,6 +385,44 @@ export function defaultConfig(): DesignSystem {
           slide: { 'translate-y-from': 'var(--slide-distance, 2rem)' },
         },
         compose: [['fade'], ['slide'], ['fade', 'slide']],
+      },
+    },
+  };
+}
+
+/**
+ * A minimal but complete starter site config, used by `vitops init --site`.
+ *
+ * `designSystem.themes.default` embeds `defaultConfig()` directly — a scaffolded
+ * `Config` cannot reference a separate `design-system.json`: `ConfigSchema`
+ * requires `designSystem`, and there is no file-level `extends`, so the token set
+ * must live inside the document. `site.environments.dev` ships `noindex,nofollow`
+ * for free — it costs nothing and is the one fact a launch checklist most often
+ * forgets to flip back.
+ */
+export function defaultSiteConfig(opts?: {
+  name?: string | undefined;
+  url?: string | undefined;
+  locale?: string | undefined;
+}): Config {
+  const locale = opts?.locale ?? 'en';
+  const url = opts?.url ?? 'https://example.com';
+  return {
+    // The installed copy, not the unpinned unpkg URL — see CONFIG_SCHEMA_LOCAL_PATH.
+    $schema: CONFIG_SCHEMA_LOCAL_PATH,
+    designSystem: {
+      themes: { default: defaultConfig() },
+      defaultColorScheme: 'light',
+    },
+    organization: {
+      name: opts?.name ?? 'My Organization',
+    },
+    site: {
+      defaultLocale: locale,
+      locales: { [locale]: { name: 'English' } },
+      environments: {
+        production: { url },
+        dev: { url, robots: 'noindex,nofollow' },
       },
     },
   };

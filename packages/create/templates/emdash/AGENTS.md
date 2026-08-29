@@ -3,10 +3,18 @@ styled by the Vitops design system.
 
 ## Ground rules
 
-- `design-system.json` is the single source of truth for the design system
-  (colors, type, spacing, patterns, animations). Never edit
-  `src/styles/tailwind.css` — it is generated from the JSON by the
-  `vitops()` integration on every dev/build and is gitignored.
+- `site.json` is the single source of truth — organization + site facts, and
+  the design system (colors, type, spacing, patterns, animations) under
+  `designSystem.themes.default`. Never edit `src/styles/tailwind.css` — it is
+  generated from `site.json` by the `vitops()` integration on every dev/build
+  and is gitignored. (There is no separate `design-system.json`: a scaffolded
+  config can't merely reference a sibling file, so the token set lives inside
+  `site.json` — see `AGENTS.md`'s "Client onboarding" section in the toolchain
+  repo for why.)
+- `src/assets/placeholder/` holds neutral wireframe stand-ins (square,
+  portrait, landscape; SVG + PNG) for layout work before real imagery
+  exists. Delete the directory once real assets land — it's separate from
+  `src/assets/logo.svg`, the actual brand asset.
 - Content lives in the EmDash database, not in the repo. Query it with
   `getEmDashCollection` / `getEmDashEntry` from `emdash`; render Portable Text
   with `<PortableText />` from `emdash/ui` (the Vitops blocks from
@@ -70,6 +78,10 @@ styled by the Vitops design system.
   d1/r2/sqlite there. Switch targets via `vitopsHosting({ target })` or the
   `HOSTING` env var (see README "Hosting"); the `node` target needs
   `@astrojs/node` + `better-sqlite3` installed first.
+- **`SETUP.html` is the client-onboarding checklist.** When working it via the
+  `.agents/skills/setup/` skill, tick a box only for a step you actually
+  completed — never on the operator's behalf for a step marked human-only
+  (the Cloudflare API token, the domain cutover, publishing legal documents).
 
 ## Branch model
 
@@ -86,12 +98,12 @@ styled by the Vitops design system.
   and obviously unfinished; do not "improve" them into something that reads as
   a finished policy, because the risk here is a plausible-looking document
   getting shipped unread.
-  To replace them properly, write a site config and run
-  `npx vitops legal --format portable-text --out ./legal`, then paste each
-  document's blocks into the page in the admin. That renders a real policy from
-  what the site actually does — the analytics provider it uses, the fields its
-  forms collect, where it deploys — rather than from guesses. It still needs
-  review before launch.
+  To replace them properly, fill in `site.json`'s `organization`/`site.legal`
+  fields and run `npx vitops legal --format portable-text --out ./legal`, then
+  paste each document's blocks into the page in the admin. That renders a real
+  policy from what the site actually does — the analytics provider it uses,
+  the fields its forms collect, where it deploys — rather than from guesses.
+  It still needs review before launch.
 
 ## Docs MCP servers
 
@@ -108,4 +120,4 @@ searching them over pre-trained knowledge for Astro/EmDash questions.
   dev default). Only run when the user asks to set up GitHub.
 - `pnpm run init:hosting` — one-time: provision the hosting platform (dev
   D1/R2 + repo secrets on cloudflare). Only run when the user asks for it.
-- `npx vitops validate design-system.json` — schema-check the design config
+- `npx vitops validate site.json` — schema-check the site config

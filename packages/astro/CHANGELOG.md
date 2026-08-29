@@ -1,5 +1,164 @@
 # @getvitops/astro
 
+## 8.1.0
+
+### Patch Changes
+
+- **Added — `vitops init --site` and `vitops setup`, the scripted client-onboarding path.**
+
+  `vitops init --site [--name] [--url]` scaffolds a starter `site.json` (the umbrella `Config`,
+  embedding a starter design system at `designSystem.themes.default`) instead of a bare
+  `design-system.json` — exported as `defaultSiteConfig()` from `@getvitops/generator`, alongside a
+  new `CONFIG_SCHEMA_LOCAL_PATH` and an optional `$schema` field on `ConfigSchema` so a scaffolded
+  config gets editor autocomplete the same way `design-system.json` already does.
+
+  `vitops setup <repo|hosting|domain|search|ads|all>` (new `@getvitops/utils/hosting` subpath: a
+  pure planner + `wrangler`/`gh`-shelling executors, following the same idempotent
+  plan/observe/apply split as `onboarding`/`ads`) automates GitHub repo + branch policy and
+  Cloudflare dev D1/R2 + repo secrets, and plans/checks the workers.dev-vs-custom-domain
+  consistency without ever applying the cutover itself — see AGENTS.md's new "Client onboarding"
+  section for the full design rationale. `search`/`ads` forward to the existing `search setup`/
+  `ads setup` subcommands rather than reimplementing them.
+
+  No consumer-facing change in `@getvitops/vite` or `@getvitops/astro` in this release — bumped
+  only because they are in the `fixed` release group with `generator`/`utils`/`cli`.
+  `@getvitops/core` does have a real fix in this release; see the separate `banner-hidden-fix`
+  changeset.
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @getvitops/core@8.1.0
+  - @getvitops/generator@8.1.0
+  - @getvitops/utils@8.1.0
+  - @getvitops/vite@8.1.0
+
+## 8.0.1
+
+### Patch Changes
+
+- @getvitops/core@8.0.1
+- @getvitops/generator@8.0.1
+- @getvitops/utils@8.0.1
+- @getvitops/vite@8.0.1
+
+## 8.0.0
+
+### Major Changes
+
+- Rebuild the lightbox on one dialog + the existing carousel, fixing the flicker on
+  prev/next and the stutter on open.
+
+  **Breaking (`css`/`bricks` and `tailwind` formats — `.lightbox-dialog`'s markup
+  contract changed):**
+
+  - `<Gallery />` now emits ONE `<dialog class="lightbox-dialog">` per gallery,
+    wrapping a `<Carousel />`, instead of one dialog per image. A `.gallery__trigger`
+    is now a plain `<a href="#slide-id">`, not a `command="show-modal"` button.
+  - `.lightbox-dialog__content` / `__image` / `__nav` / `__nav-button` /
+    `__caption` are gone. The dialog's child is `.lightbox-dialog__track` (a
+    `.carousel`) — prev/next, dots, arrow keys and swipe are the carousel's,
+    reused rather than reimplemented. `.lightbox-dialog__close` is unchanged.
+  - `<wc-gallery>` no longer builds nav buttons or steps between images — the
+    nested `<wc-carousel>` does. It fires `gallery-open` (unchanged shape) and
+    re-emits the carousel's own stepping as `gallery-change`.
+  - `packages/core/src/web-components/utils/gallery.ts` dropped `keyToAction` and
+    `swipeAction` (the carousel's own key/swipe handling covers both now).
+    `stepIndex`/`preloadTargets` are unchanged.
+
+  **Why:** stepping used to close one `<dialog>` and open another, which made
+  `animation.css`'s top-layer driver play a full exit-then-entry transition on
+  every step — visible as a flicker on prev/next, by construction, not a bug to
+  tune away. Opening also awaited the full image's `decode()` before starting the
+  view-transition morph, so the dialog visibly stalled on a slow network. One
+  dialog containing one carousel makes the first failure mode unrepresentable
+  (stepping is a scroll, not a close/open pair) and removes the wait for the
+  second (the morph starts immediately, painting the thumbnail as a CSS
+  background placeholder until the full image arrives).
+
+  **Also improved, not just fixed:** the no-JS fallback is no longer a _stripped_
+  lightbox — it's a genuine one. Each trigger is ordinary fragment navigation
+  (`:has(:target)` in `lightbox.css` reveals the dialog), which needs no Invoker
+  Commands polyfill in any engine, and it now has working prev/next with no
+  JavaScript at all — the previous per-dialog fallback had no way to express that.
+
+  **Migration:** a consumer using `<Gallery />` needs no changes — the component's
+  props are unchanged. Anyone who hand-authored `.lightbox-dialog` markup (per
+  `docs/concepts/patterns.md` / `docs/css/classes.md`) must move to the new single-
+  dialog-wrapping-a-carousel shape; see `patterns.astro`'s "Gallery, hand-authored"
+  demo for the reference markup. `<wc-gallery>` consumers listening for
+  `gallery-change` keep the same event shape (`{ index, total }`).
+
+### Minor Changes
+
+- Add Google Business Profile reviews: fetch, cache, render.
+
+  - **`vitops reviews`** (new CLI command) fetches a client's GBP reviews (legacy v4 API — the only
+    one that has them) and writes them to `.vitops/reviews.json`, meant to be committed so a build
+    never needs a live Google credential. `--dry` prints the plan; `--check` diffs against the cache
+    without writing. Requires the same `VITOPS_GOOGLE_CLIENT_ID`/`_CLIENT_SECRET`/`_REFRESH_TOKEN` (or
+    ADC login) `search setup` uses, scoped to `business.manage` — **and the calling GCP project must
+    be allowlisted by Google first**, a separate one-time approval from every other Google API here.
+  - **`site.reviews`** (config): which `organization.locations` to fetch, and per-location
+    `featured`/`minRating`/`sort`/`limit` selection. `schema` (JSON-LD) and `avatars` both default to
+    **off** — see the migration notes below.
+  - **`@getvitops/utils/reviews`** (new subpath): the pure plan/select/merge functions plus the GBP
+    fetcher and cache reader/writer, mirroring `./indexing`'s pure/IO split.
+  - **`<ReviewCard>`** (new Astro component, `@getvitops/astro`): one review card from a cache entry.
+    No web component — nothing here needs progressive enhancement. Composes the existing
+    `schemas/Review.astro` for JSON-LD only when both `schema` and `itemReviewed` are passed.
+  - **`<Marquee>`** (new Astro component): the tier-3 wrapper `wc-marquee`/`marquee.css` was missing.
+  - **`.review` pattern** (`css`/`bricks` and `tailwind` formats): a new config-generated
+    `patterns.items.review` entry plus `packages/core/css/patterns/review.css` for the structural
+    parts (rating, identity, body, reply, source link). Two new semantic icon names, `star` and
+    `star-half`, across every icon set.
+
+  **Migration:** no breaking change. A site adding `site.reviews` should read the "Google reviews"
+  section in AGENTS.md before enabling `schema` — Google's structured-data policy treats a business
+  marking up reviews of itself as ineligible for review rich results and risks a manual action, which
+  is why it defaults off.
+
+- Repo-wide simplification pass: de-boilerplate the CLI, dedupe shared cache/plan
+  primitives in `@getvitops/utils`, drop dead code, and tighten dependency hygiene.
+
+  No breaking changes. (`vitops icons`'s `--site` flag was briefly going to be renamed to
+  `--input` for consistency with the other `Config`-anchored commands — deferred rather than
+  spending a major bump on a rename with no other breaking change riding along; it stays
+  `--site` for now.)
+
+  **Fixed:**
+
+  - `@getvitops/core`'s 12 runtime deps (`lit`, both `@oddbird` polyfills, both
+    `@webcomponents` packages, `colorjs.io`, etc.) were listed as `dependencies` despite
+    being bundled into `dist/elements.js`/`dist/polyfills.js`/`dist/deferred.js` — a
+    consumer installed them twice for nothing. Moved to `devDependencies`; no change to
+    what ships.
+  - Deleted `old-css-lib/` (59 files), superseded by `packages/core/css/` since the
+    in-memory bundling change — no consumer-facing effect, it was not part of any
+    published output.
+  - Deleted a dead Astro module (`packages/astro/src/scripts/deferred.ts`) that had
+    silently diverged from `packages/core/src/js/deferred.ts` and had zero importers.
+
+  **No consumer-facing change in `@getvitops/vite`** beyond the fixed-group version bump —
+  task-graph and caching fixes internal to this repo's own build.
+
+  Everything else (the `cli.ts` file split into `commands/{search,ads}.ts`, shared
+  `json-store.ts`/`plan-format.ts` helpers in `@getvitops/utils`, a `.github/actions/setup`
+  composite action, restatement-comment cleanup) is internal refactoring with no change to
+  any published API, CLI flag, or generated output.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies [a84839b]
+  - @getvitops/core@8.0.0
+  - @getvitops/generator@8.0.0
+  - @getvitops/utils@8.0.0
+  - @getvitops/vite@8.0.0
+
 ## 7.0.0
 
 ### Major Changes
@@ -719,28 +878,20 @@ hidden` would pull it out of the accessible-name computation along with the visu
   {
     "designSystem": {
       "themes": {
-        "default": {
-          /* … */
-        },
+        "default": {/* … */},
       },
     },
     "organization": {
       "name": "Acme",
       "contact": "hq",
       "locations": {
-        "hq": {
-          /* … */
-        },
+        "hq": {/* … */},
       },
     },
     "site": {
       "defaultLocale": "en",
-      "domains": {
-        /* … */
-      },
-      "analytics": {
-        /* … */
-      },
+      "domains": {/* … */},
+      "analytics": {/* … */},
     },
   }
   ```
@@ -909,7 +1060,7 @@ open-fade-in"` composes slide and fade. Applied at zero specificity with identit
   Also new, and worth wiring at the same time — **`gitLastmod()` for real sitemap dates**:
 
   ```js
-  import vitops, { gitLastmod } from '@getvitops/astro';
+  import vitops, { gitLastmod } from "@getvitops/astro";
   vitops({ sitemap: { serialize: await gitLastmod() } });
   ```
 
@@ -1009,8 +1160,8 @@ ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails 
 
   ```js
   vitops({
-    analytics: { googleAnalytics: 'G-XXXXXXXXXX', plausible: 'acme.com' },
-    consent: { policyUrl: '/legal/cookies' },
+    analytics: { googleAnalytics: "G-XXXXXXXXXX", plausible: "acme.com" },
+    consent: { policyUrl: "/legal/cookies" },
   });
   ```
 
@@ -1150,7 +1301,7 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
 
   ```js
   // astro.config.mjs
-  getvitops({ css: { input: 'company.json', format: 'css' } });
+  getvitops({ css: { input: "company.json", format: "css" } });
   ```
 
   ```
@@ -1249,11 +1400,11 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
   getvitops({
     fonts: [
       {
-        name: 'League Spartan',
-        provider: 'fontsource',
-        cssVariable: '--font-league-spartan',
-        weights: ['100 900'],
-        subsets: ['latin'],
+        name: "League Spartan",
+        provider: "fontsource",
+        cssVariable: "--font-league-spartan",
+        weights: ["100 900"],
+        subsets: ["latin"],
         preload: true,
       },
     ],
@@ -1481,14 +1632,14 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
   // astro.config.mjs
   vitops({
     seo: {
-      siteName: 'Acme',
-      titleTemplate: '%s · Acme',
-      defaultDescription: 'We make the thing.',
+      siteName: "Acme",
+      titleTemplate: "%s · Acme",
+      defaultDescription: "We make the thing.",
       openGraph: {
-        locale: 'en_CA',
-        image: { url: '/og.png', alt: 'Acme', width: 1200, height: 630 },
+        locale: "en_CA",
+        image: { url: "/og.png", alt: "Acme", width: 1200, height: 630 },
       },
-      twitter: { site: '@acme' },
+      twitter: { site: "@acme" },
     },
   });
   ```
@@ -1532,7 +1683,7 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
 
   ```js
   getvitops({ sitemap: true });
-  getvitops({ sitemap: { filter: (page) => !page.includes('/draft/') } });
+  getvitops({ sitemap: { filter: (page) => !page.includes("/draft/") } });
   ```
 
   `@astrojs/sitemap` is an **optional peer** — install it yourself (`pnpm add -D @astrojs/sitemap`) and
@@ -1767,15 +1918,15 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
   which `@getvitops/astro` re-exports wholesale. So from `astro.config.mjs`:
 
   ```js
-  import { generateIconInclude } from '@getvitops/astro';
-  import icon from 'astro-icon';
+  import { generateIconInclude } from "@getvitops/astro";
+  import icon from "astro-icon";
 
   integrations: [
     icon({
       include: generateIconInclude({
-        ui: 'fa7-solid',
-        brand: 'simple-icons',
-        semantic: ['menu', 'close', 'search', 'github'],
+        ui: "fa7-solid",
+        brand: "simple-icons",
+        semantic: ["menu", "close", "search", "github"],
       }),
     }),
   ];
@@ -1809,7 +1960,7 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
   ```js
   // astro.config.mjs
   getvitops({
-    css: { input: 'design-system.json', format: 'css', out: 'src/styles' },
+    css: { input: "design-system.json", format: "css", out: "src/styles" },
     editor: true,
   });
   ```

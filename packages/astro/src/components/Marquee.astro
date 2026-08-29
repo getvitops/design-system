@@ -1,0 +1,73 @@
+---
+/**
+ * A `.marquee` — content scrolling seamlessly along a track (a strip of
+ * testimonials, logos, a ticker).
+ *
+ * Tier-3 like `Counter.astro`: the pattern is pure CSS
+ * (`@getvitops/core/css/patterns/marquee.css`'s `@keyframes marquee-scroll`), and
+ * `<wc-marquee>` only fixes the seam gap by cloning `.marquee__content` enough
+ * times to cover the track — "how many copies cover this container" is a
+ * measurement CSS cannot make. With no JS (or `enhance={false}`), this still
+ * scrolls exactly as authored; it just isn't seamless with a short content run.
+ *
+ * **This component emits its own `<wc-marquee>`** — do NOT wrap it in one, same
+ * rule as `Counter.astro`/`Carousel.astro`.
+ *
+ * Put the items in the default slot — a list of `<ReviewCard>`s, logos,
+ * whatever scrolls. `marquee.css`'s CSS-only path needs more than one
+ * `.marquee__content` to loop seamlessly with no JS, so this renders the slot
+ * into **three** `aria-hidden`-on-the-extras copies (enough to cover a wide
+ * track under the `min-inline-size: 100%` floor). `<wc-marquee>` treats the
+ * first as its source and discards the other two as soon as it upgrades,
+ * replacing them with however many its own measurement calls for.
+ */
+import type { HTMLAttributes } from 'astro/types';
+
+export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
+  /** Pause the scroll on hover (default false). */
+  pauseOnHover?: boolean;
+  /** Scroll in the opposite direction (default false). */
+  reverse?: boolean;
+  /** Scroll along the block axis instead of inline (default false). */
+  vertical?: boolean;
+  /**
+   * Emit the `<wc-marquee>` wrapper (default `true`).
+   *
+   * Set false where the element cannot run. The scroll animation still works —
+   * only the seamless-loop fixup goes.
+   */
+  enhance?: boolean;
+}
+
+const {
+  pauseOnHover = false,
+  reverse = false,
+  vertical = false,
+  enhance = true,
+  class: className,
+  ...rest
+} = Astro.props;
+
+const Shell = enhance ? 'wc-marquee' : 'div';
+---
+
+<Shell
+  class:list={[
+    'marquee',
+    pauseOnHover && 'marquee--pause-hover',
+    reverse && 'marquee--reverse',
+    vertical && 'marquee--vertical',
+    className,
+  ]}
+  {...rest}
+>
+  <div class="marquee__content">
+    <slot />
+  </div>
+  <div class="marquee__content" aria-hidden="true">
+    <slot />
+  </div>
+  <div class="marquee__content" aria-hidden="true">
+    <slot />
+  </div>
+</Shell>

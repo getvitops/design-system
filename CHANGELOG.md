@@ -11,6 +11,76 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 8.0.1 — 2026-08-28
+
+One consumer-facing change, riding on 8.0.0's heels while it still has no adopters: the
+`--site` → `--input` CLI flag rename that 8.0.0's own notes said was "deferred rather than
+spending a major bump on a rename with no other breaking change riding along." That reasoning
+no longer applies once a major has already shipped, so it lands now as a patch instead of
+waiting for the next one.
+
+Only `@getvitops/cli` carries a real change here; `core`, `generator`, `utils`, `vite` and
+`astro` are bumped because the six share one version — **no consumer-facing change in this
+package** beyond the fixed-group version bump.
+
+### Fixed
+
+- **`vitops icons`'s `--site` flag is renamed to `--input`**, matching `legal`/`robots`/`reviews`
+  and every other `Config`-anchored command. Same default (`./site.json`), same short flag
+  (`-i`); only the long name changes. Migration: replace `vitops icons --site <path>` with
+  `vitops icons --input <path>` (or `-i`).
+
+## 8.0.0 — 2026-08-28
+
+A lightbox rebuild, GBP reviews, and a schema.org builders subpath move landing together — the
+subpath move is what forced this release to major, since the six packages release as one
+version; `vitops icons`'s own `--site` → `--input` rename was deliberately deferred out of this
+release for exactly that reason (see 8.0.1 above, where it landed instead).
+
+Only `@getvitops/core`, `generator`, `utils` and `astro` carry consumer-facing change here.
+`@getvitops/cli` and `vite` ship with **no consumer-facing change in this release** — they are
+bumped because the six share one version.
+
+### Breaking
+
+- **The lightbox is rebuilt on one `<dialog>` wrapping the existing carousel** (`css`/`bricks`
+  and `tailwind` formats — `.lightbox-dialog`'s markup contract changed), fixing a flicker on
+  prev/next and a stutter on open. `<Gallery />` now emits ONE `<dialog class="lightbox-dialog">`
+  per gallery instead of one dialog per image; `.gallery__trigger` is a plain
+  `<a href="#slide-id">`, not a `command="show-modal"` button. `.lightbox-dialog__content` /
+  `__image` / `__nav` / `__nav-button` / `__caption` are gone — the dialog's child is
+  `.lightbox-dialog__track` (a `.carousel`), reusing its prev/next, dots, arrow keys and swipe
+  rather than reimplementing them. `<wc-gallery>` fires the same `gallery-open`/`gallery-change`
+  event shapes. Migration: a consumer using `<Gallery />` needs no changes; anyone who
+  hand-authored `.lightbox-dialog` markup must move to the new single-dialog-wrapping-a-carousel
+  shape (see `patterns.astro`'s "Gallery, hand-authored" demo).
+- **schema.org JSON-LD graph builders moved to `@getvitops/utils/schema`** (`utils` only).
+  `articleGraph`, `breadcrumbGraph`, `faqGraph`, `itemListGraph`, `localBusinessGraph` and
+  `organizationGraph` are no longer exported from the bare `@getvitops/utils` entry point —
+  import them from `@getvitops/utils/schema` instead. The bare entry point pulls in
+  `sharp`/`png-to-ico` for favicon generation, which a server-rendered page must not carry into
+  its Worker bundle when it renders a schema component under `output: 'server'`.
+  `@getvitops/astro`'s own schema components already import from the new subpath, so a consumer
+  using only those needs no change.
+
+### Added
+
+- **Google Business Profile reviews: fetch, cache, render** (`vitops reviews`, `site.reviews`,
+  `@getvitops/utils/reviews`, `<ReviewCard>`, `<Marquee>`, the `.review` pattern in `css`/`bricks`
+  and `tailwind`). No breaking change; see AGENTS.md's "Google reviews" section before enabling
+  `schema` (JSON-LD) — it defaults off because Google's structured-data policy treats a business
+  marking up reviews of itself as ineligible for review rich results.
+
+### Fixed
+
+- Repo-wide simplification pass: de-boilerplate the CLI, dedupe shared cache/plan primitives in
+  `@getvitops/utils`, drop dead code, tighten dependency hygiene. No breaking changes.
+  `@getvitops/core`'s 12 runtime deps moved from `dependencies` to `devDependencies` (they were
+  already bundled into `dist/elements.js`/`dist/polyfills.js`/`dist/deferred.js`, so a consumer
+  was installing them twice for nothing — no change to what ships). Deleted `old-css-lib/` (59
+  files, superseded by `packages/core/css/`) and a dead, silently-diverged Astro module
+  (`packages/astro/src/scripts/deferred.ts`).
+
 ## 7.0.0 — 2026-08-11
 
 A gallery/lightbox split, `<wc-tree>` gaining real keyboard navigation, and a backlog of

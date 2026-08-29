@@ -1,8 +1,15 @@
 {
   "name": "@getvitops/emdash",
-  "version": "0.3.7",
+  "version": "0.3.10",
   "description": "EmDash CMS native plugin for the Vitops design system — Portable Text block types editors can insert from the admin, rendered with the design-system web components and CSS framework.",
+  "homepage": "https://docs.vitops.ca",
+  "bugs": "https://github.com/getvitops/design-system/issues",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/getvitops/design-system.git",
+    "directory": "packages/emdash"
+  },
   "files": [
     "dist",
     "src/astro",
@@ -30,7 +37,7 @@
     "@getvitops/astro": "workspace:*",
     "astro": "catalog:",
     "emdash": "catalog:",
-    "vitest": "^4.1.9"
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "@astrojs/cloudflare": ">=14",
@@ -46,5 +53,8 @@
     "@emdash-cms/cloudflare": {
       "optional": true
     }
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

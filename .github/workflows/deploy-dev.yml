@@ -1,0 +1,93 @@
+# Deploys `site/` (this repo's own docs site) to the isolated dev worker
+# (vitops-docs-dev, at dev.docs.vitops.ca) on every push to `dev` — the
+# integration branch. Promote to production with the "Promote dev → main"
+# workflow (promote.yml).
+#
+# NOT a caller of the reusable site-deploy-static.yml: that workflow assumes a
+# standalone site repo where `pnpm run build` alone is enough (the shape every
+# `@getvitops/create` template has). This repo is the monorepo the templates'
+# workflows are versioned from, and `site/`'s build depends on this repo's own
+# `vp` task graph (`build:generator`, `build:astro`, …) — so this job runs
+# `vp run docs:build` from the repo root instead. It still deploys through the
+# same `site/wrangler.jsonc` + environment-gate mechanism every client site
+# uses, which is the thing being dogfooded here — not the specific reusable
+# workflow file.
+#
+# Required repo secrets:
+#   CLOUDFLARE_API_TOKEN   — token with Workers edit on this account
+#   CLOUDFLARE_ACCOUNT_ID  — the Cloudflare account id
+#
+# NOT gated on ci.yml, unlike the client path: site-deploy-static.yml runs
+# `needs: ci` against its own site-ci.yml before deploying. This job and CI
+# both fire off the same `push` and run independently, so a `dev` push whose
+# tests are about to fail can still deploy in the seconds before CI reports
+# that — acceptable here because `dev` is the unprotected integration branch,
+# deploying to an isolated dev worker nobody depends on. `main` is where a
+# real gate would matter; see deploy-prod.yml.
+name: Deploy dev (docs)
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'site/**'
+      - 'src/design-system.json'
+      - 'packages/core/**'
+      - 'packages/generator/**'
+      - 'packages/astro/**'
+      - 'packages/utils/**'
+      - 'packages/vite/**'
+      - '.github/workflows/deploy-dev.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-dev-docs
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: ./.github/actions/setup
+
+      - name: Build the docs site
+        run: pnpm exec vp run docs:build
+
+      # Suffix the worker name + route in place. Kept byte-identical in intent
+      # to the equivalent step in site-deploy-static.yml, which cannot be
+      # factored into a shared script: that workflow runs inside a *caller*
+      # repo's checkout (a scaffolded template calling this repo's reusable
+      # workflow), so a script living in this repo's tree is unreachable from
+      # there. `routes` uses `Array.isArray` here too — the `?? []` this step
+      # used to have silently turned a non-array `routes` into `[]` instead of
+      # leaving it alone, diverging from the other copy. If you change one,
+      # change both.
+      - name: Point wrangler.jsonc at the dev worker
+        working-directory: site
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const cfg = JSON.parse(
+              fs.readFileSync("wrangler.jsonc", "utf8")
+                .replace(/\/\/.*$/gm, "")
+                .replace(/,(\s*[}\]])/g, "$1"),
+            );
+            cfg.name = `${cfg.name}-dev`;
+            if (Array.isArray(cfg.routes)) {
+              cfg.routes = cfg.routes.map((r) =>
+                r?.pattern ? { ...r, pattern: `dev.${r.pattern}` } : r,
+              );
+            }
+            fs.writeFileSync("wrangler.jsonc", JSON.stringify(cfg, null, 2));
+          '
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: site
+          command: deploy

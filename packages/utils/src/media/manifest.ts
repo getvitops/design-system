@@ -7,9 +7,8 @@
  * `writeManifest` sorts and carries no timestamp — an unchanged run has to produce
  * a byte-identical file, or every build shows up as a diff.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
 import type { MediaManifest, MediaManifestEntry } from './types.ts';
+import { readVersioned, writeVersioned } from '../json-store.ts';
 
 /** Default location, relative to the consumer's project root. */
 export const MEDIA_MANIFEST_PATH = '.vitops/media-manifest.json';
@@ -23,15 +22,7 @@ export const MEDIA_MANIFEST_PATH = '.vitops/media-manifest.json';
  * would encode, and the build would reference outputs that were never written.
  */
 export function readManifest(path: string): MediaManifest | undefined {
-  if (!existsSync(path)) return undefined;
-  try {
-    const raw = JSON.parse(readFileSync(path, 'utf8')) as MediaManifest;
-    if (raw?.version !== 1 || typeof raw.entries !== 'object' || raw.entries === null)
-      return undefined;
-    return raw;
-  } catch {
-    return undefined;
-  }
+  return readVersioned<MediaManifest, 'entries'>(path, 'entries');
 }
 
 /** Build a manifest with its keys and output lists in a stable order. */
@@ -52,6 +43,5 @@ export function toManifest(entries: Record<string, MediaManifestEntry>): MediaMa
  * result is a missing video that no rebuild ever fixes.
  */
 export function writeManifest(path: string, manifest: MediaManifest): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
+  writeVersioned(path, manifest);
 }

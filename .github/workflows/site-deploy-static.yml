@@ -1,0 +1,124 @@
+# Reusable deploy for a static-output site (the `static` template, and any
+# other `output: 'static'` Astro site built with @getvitops/astro) to a
+# Cloudflare Worker serving static assets (`wrangler.jsonc`'s `assets` block —
+# no adapter, no D1, no R2).
+#
+# Consumers call this with a pinned major tag, once per environment:
+#
+#   jobs:
+#     deploy:
+#       uses: getvitops/design-system/.github/workflows/site-deploy-static.yml@v1
+#       with:
+#         environment: dev
+#         worker-name-suffix: -dev
+#         route-prefix: dev.
+#       secrets:
+#         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+#         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+#
+# `environment:` is what makes the prod call PAUSE for approval: it targets a
+# GitHub Environment, and a `production` environment with required reviewers
+# restricted to admins (set up by `scripts/init-github.mjs`) blocks the job
+# until one approves — the same mechanism whether this fires from `push` or
+# `workflow_call`. Nothing here decides who those reviewers are; that is
+# entirely a repo-settings fact, checked once at bootstrap.
+name: Site deploy (static)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub Environment to deploy under (gates prod on required reviewers).
+        type: string
+        required: true
+      worker-name-suffix:
+        description: Appended to the wrangler.jsonc `name` for this environment (e.g. "-dev").
+        type: string
+        default: ''
+      route-prefix:
+        description: Prepended to each configured custom-domain route's pattern (e.g. "dev.").
+        type: string
+        default: ''
+      working-directory:
+        type: string
+        default: '.'
+      run-lint-design:
+        type: boolean
+        default: true
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+
+jobs:
+  ci:
+    uses: ./.github/workflows/site-ci.yml
+    with:
+      working-directory: ${{ inputs.working-directory }}
+      run-lint-design: ${{ inputs.run-lint-design }}
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ${{ inputs.working-directory }}/.nvmrc
+          cache: pnpm
+          cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run build
+
+      # Suffix the worker name and any custom-domain route pattern in place,
+      # rather than shipping a second wrangler config — one file stays the
+      # single source of truth and dev/prod only ever differ by these two
+      # strings. No-op when both inputs are empty (the prod call).
+      #
+      # Kept byte-identical in intent to deploy-dev.yml's equivalent step in
+      # this same repo (design-system's own docs site). Not factored into a
+      # shared script: this job runs inside the *caller's* checkout (a
+      # template invoking this reusable workflow from its own repo), so a
+      # script living in design-system's tree is unreachable from here. If
+      # you change one, change both.
+      - name: Apply environment suffix to wrangler.jsonc
+        if: inputs.worker-name-suffix != '' || inputs.route-prefix != ''
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const path = "wrangler.jsonc";
+            let cfg = fs.readFileSync(path, "utf8");
+            const suffix = process.env.WORKER_NAME_SUFFIX;
+            const prefix = process.env.ROUTE_PREFIX;
+            // JSONC: strip // comments and trailing commas before parsing, then
+            // write back plain JSON — the deployed config need not stay pretty.
+            const json = cfg
+              .replace(/\/\/.*$/gm, "")
+              .replace(/,(\s*[}\]])/g, "$1");
+            const parsed = JSON.parse(json);
+            parsed.name = `${parsed.name}${suffix}`;
+            if (Array.isArray(parsed.routes)) {
+              parsed.routes = parsed.routes.map((r) =>
+                r?.pattern ? { ...r, pattern: `${prefix}${r.pattern}` } : r,
+              );
+            }
+            fs.writeFileSync(path, JSON.stringify(parsed, null, 2));
+          '
+        env:
+          WORKER_NAME_SUFFIX: ${{ inputs.worker-name-suffix }}
+          ROUTE_PREFIX: ${{ inputs.route-prefix }}
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: ${{ inputs.working-directory }}
+          command: deploy

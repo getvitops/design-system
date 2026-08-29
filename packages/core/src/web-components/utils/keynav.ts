@@ -48,7 +48,7 @@ export function linearKeyToMove(key: string, options: LinearKeyOptions): LinearM
 }
 
 /** Default gap (ms) after which a new keypress starts a fresh type-ahead search. */
-export const TYPEAHEAD_TIMEOUT = 1000;
+const TYPEAHEAD_TIMEOUT = 1000;
 
 export interface TypeaheadState {
   /** Raw accumulated keys, used only to detect a same-character repeat. */

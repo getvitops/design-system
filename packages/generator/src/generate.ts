@@ -193,7 +193,7 @@ export const BREAKPOINTS: readonly (readonly [string, string])[] = [
  * step produces no rule and no error in either format, so a missing
  * `md-gap-x-2xl` would be indistinguishable from a working one.
  */
-export function gapUtilities(steps: { name: string }[]): ColorUtility[] {
+function gapUtilities(steps: { name: string }[]): ColorUtility[] {
   const FAMILIES: [string, string][] = [
     ['gap', 'gap'],
     ['gap-x', 'column-gap'],
@@ -1533,6 +1533,11 @@ function emitTailwind(ctx: TwCtx): string {
       // vertically offset — the exact symptom layout.css warns about.
       `  &:is(ul, ol) > li + li { margin-block-start: 0; }\n}`,
   );
+  // Public escape hatch (mirrors layout-utilities.css's `.no-rhythm`): a consumer's
+  // own gap-based list can opt out of `.rhythm`'s ambient `li + li` margin the same
+  // way `grid-auto` does above, without the framework needing to know its class name.
+  util.push(`\n/* Opt out of ambient .rhythm item spacing (mirrors layout-utilities.css) */`);
+  util.push(`@utility no-rhythm {\n  & > li + li { margin-top: 0; }\n}`);
   // Applied to the SECOND element of a pair, to override the rhythm it inherited.
   util.push(`\n/* Vertical-rhythm overrides (mirrors layout.css) */`);
   for (const pair of [

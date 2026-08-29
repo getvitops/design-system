@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Setup</title>
+    <!--
+      Opened straight from disk (file://) before anything is deployed, which is
+      when most of these steps happen — so it links a relative, pre-generated
+      stylesheet rather than the site's own build output. Run `pnpm run sop`
+      first (it's a one-line `vitops generate -f css` into .vitops/sop/); the
+      banner below explains this if the stylesheet 404s, and the markup stays
+      legible either way — every item here is a real checkbox in a real
+      <details>, readable and tickable with JS off.
+
+      This file is template DATA copied verbatim by `vp create`, not framework
+      code — see AGENTS.md's "Client onboarding" section for why it isn't a
+      <wc-*> element. Only class names from @getvitops/core's own vocabulary
+      are used here; if you need something this page can't express, that's a
+      missing framework pattern, not a reason to hand-write CSS.
+    -->
+    <link id="sop-stylesheet" rel="stylesheet" href=".vitops/sop/styles.css" />
+    <style>
+      /* Minimal fallback so the page is still legible before `pnpm run sop`
+         has run once — intentionally not framework CSS, since it only ever
+         applies in the narrow window before the real stylesheet exists. */
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        max-width: 64rem;
+        margin-inline: auto;
+        padding: 2rem 1.5rem 6rem;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body class="centered">
+    <div class="rhythm">
+      <header class="region rhythm">
+        <h1>Client onboarding checklist</h1>
+        <p id="no-stylesheet-notice" class="banner" hidden>
+          This page isn't styled yet — run <code>pnpm run sop</code> once (it generates
+          <code>.vitops/sop/styles.css</code>), then reload.
+        </p>
+        <p>
+          A local working document — it is never deployed, never committed to a build, and nothing
+          here is read by the site itself. Work top to bottom; each stage gates the next. Every
+          command is copy-pasteable as written. Progress is saved in this browser only
+          (<code>localStorage</code>), so it won't follow you to another machine.
+        </p>
+        <p>
+          <span class="badge" id="progress-badge">0 / 0 done</span>
+        </p>
+      </header>
+
+      <main class="rhythm">
+        <details class="details" open data-sop-stage="host">
+          <summary>1. Choose the host</summary>
+          <div class="rhythm">
+            <label class="custom-check">
+              <input type="checkbox" data-sop="host.decide" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Decide the hosting target — <strong>Cloudflare Workers</strong> is the default and
+                what the shipped deploy workflows target. A <code>node</code> target exists for the
+                EmDash template (VPS / docker-compose / k8s) but needs manual setup — see that
+                template's README "Hosting" section — and the deploy workflows here are
+                Cloudflare-specific either way.
+              </span>
+            </label>
+          </div>
+        </details>
+
+        <details class="details" data-sop-stage="repo">
+          <summary>2. GitHub repo + branch policy</summary>
+          <div class="rhythm">
+            <p>
+              <code>dev</code> is the unprotected integration branch — push and merge to it
+              directly. <code>main</code> is production: protected, gated by a
+              <code>production</code> environment that pauses for an admin's approval, and reachable
+              only through the <code>promote</code> workflow (never a direct push).
+            </p>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="repo.plan" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span> Preview it: <code>npx vitops setup repo --dry</code> </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="repo.run" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Run it: <code>npx vitops setup repo</code> — creates the GitHub repo, pushes
+                <code>main</code> + <code>dev</code>, makes <code>dev</code> default, and requests
+                branch protection + the <code>production</code>/<code>dev</code>
+                environments.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="repo.verify" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Verify by hand in GitHub → Settings → Branches / Environments. Branch protection and
+                environment reviewers need GitHub Pro/Team on a private repo — if the command
+                reported that as blocked, this is where you set it up manually.
+              </span>
+            </label>
+          </div>
+        </details>
+
+        <details class="details" data-sop-stage="hosting">
+          <summary>3. Hosting resources</summary>
+          <div class="rhythm">
+            <label class="custom-check">
+              <input type="checkbox" data-sop="hosting.plan" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span> Preview it: <code>npx vitops setup hosting --dry</code> </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="hosting.run" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Run it: <code>npx vitops setup hosting</code> — provisions the isolated dev D1
+                database + R2 bucket (EmDash template) and sets the <code>DEV_D1_ID</code> /
+                <code>CLOUDFLARE_ACCOUNT_ID</code> repo secrets. Requires
+                <code>npx wrangler login</code> first.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="hosting.token" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                <strong>Create a Cloudflare API token by hand</strong> — no API can mint one:
+                <a
+                  class="link"
+                  href="https://dash.cloudflare.com/profile/api-tokens"
+                  target="_blank"
+                  rel="noopener"
+                  >dash.cloudflare.com/profile/api-tokens</a
+                >
+                (Workers + D1 + R2 edit), then
+                <code>gh secret set CLOUDFLARE_API_TOKEN</code>. The first workflow runs fail until
+                this exists.
+              </span>
+            </label>
+          </div>
+        </details>
+
+        <details class="details" data-sop-stage="domain">
+          <summary>4. Domain strategy</summary>
+          <div class="rhythm">
+            <p>Two mutually exclusive tracks. Pick one — do not do both in the same deploy.</p>
+
+            <h3>4a. Go live on <code>*.workers.dev</code> (default, safe)</h3>
+            <p>
+              Leaves any existing live site untouched at its current domain. Do this first, always —
+              cutover is a separate, later step.
+            </p>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="domain.workersdev.leave" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Leave <code>workers_dev: true</code> and the <code>routes</code> block commented out
+                in <code>wrangler.jsonc</code> — this is the shipped default.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="domain.workersdev.url" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Deploy once (<code>pnpm deploy</code>), note the printed
+                <code>*.workers.dev</code> URL, and set
+                <code>site.environments.production.url</code> in <code>site.json</code> to it.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="domain.workersdev.noindex" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Set <code>site.environments.production.robots</code> to
+                <code>"noindex,nofollow"</code> — a workers.dev URL is indexable, and this is the
+                launch gate that stops search engines picking it up as a duplicate of the real site.
+              </span>
+            </label>
+
+            <h3>4b. Cut over to the custom domain</h3>
+            <p>
+              <strong>This step overwrites the zone's DNS record the moment you deploy</strong>
+              — it is the one irreversible-feeling moment in this whole checklist, and it takes an
+              existing live site down at that instant. Do it deliberately, not as part of a bigger
+              batch of changes. It is safe to complete stage 6 (Search Console / GCP / ads) before
+              this — <code>vitops search setup</code> only ever <em>creates</em> a verification TXT
+              record, it never touches the apex.
+            </p>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="domain.cutover.ttl" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span> If replacing a live site, lower that site's DNS TTL well ahead of time. </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="domain.cutover.plan" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Preview it: <code>npx vitops setup domain --domain &lt;apex&gt; --dry</code> — this
+                only plans and checks; it never applies the cutover itself.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="domain.cutover.uncomment" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Uncomment the <code>routes</code> block in <code>wrangler.jsonc</code>, set your
+                apex, and deploy: <code>pnpm deploy</code>.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="domain.cutover.config" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Set <code>site.domains.canonical</code> and
+                <code>site.environments.production.url</code> to the custom domain, and flip
+                <code>environments.production.robots</code> back to <code>"index,follow"</code> (or
+                remove it).
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="domain.cutover.notify" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Re-run <code>npx vitops robots</code> and <code>npx vitops search notify</code>.
+              </span>
+            </label>
+          </div>
+        </details>
+
+        <details class="details" data-sop-stage="config">
+          <summary>5. Configuration</summary>
+          <div class="rhythm">
+            <label class="custom-check">
+              <input type="checkbox" data-sop="config.fill" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Fill in <code>site.json</code>: <code>organization</code> (name, address, contact),
+                <code>site.locales</code>, <code>site.environments</code>, <code>site.seo</code>,
+                <code>site.analytics</code>, <code>site.legal.*.enabled</code>,
+                <code>site.favicon</code>, <code>site.icons</code>.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="config.validate" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span> Check it: <code>npx vitops validate site.json</code> </span>
+            </label>
+          </div>
+        </details>
+
+        <details class="details" data-sop-stage="connections">
+          <summary>6. Search Console / GCP / ads</summary>
+          <div class="rhythm">
+            <label class="custom-check">
+              <input type="checkbox" data-sop="connections.gcp" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Set <code>site.google.project</code>, and the environment variables:
+                <code>VITOPS_GOOGLE_CLIENT_ID</code>, <code>VITOPS_GOOGLE_CLIENT_SECRET</code>,
+                <code>VITOPS_GOOGLE_REFRESH_TOKEN</code>, <code>CLOUDFLARE_API_TOKEN</code>.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="connections.search" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Preview then run: <code>npx vitops setup search --dry</code>, then
+                <code>npx vitops setup search</code>. This is a <strong>user OAuth</strong>
+                action, deliberately — verifying a site makes the caller an owner, and that should
+                be a person, not a deploy robot.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="connections.ads" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Preview then run: <code>npx vitops setup ads --dry</code>, then
+                <code>npx vitops setup ads</code>.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="connections.manual" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Two things are never automated, by design: adding a Search Console
+                <strong>Full User</strong> (via a Google Group), and clicking each platform's own
+                "Verify" button. Both are named in the command output when they apply.
+              </span>
+            </label>
+          </div>
+        </details>
+
+        <details class="details" data-sop-stage="legal">
+          <summary>7. Legal</summary>
+          <div class="rhythm">
+            <label class="custom-check">
+              <input type="checkbox" data-sop="legal.generate" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Generate real documents from the filled-in config —
+                <code>npx vitops legal --format portable-text</code> (EmDash; paste into the admin)
+                or <code>npx vitops legal --format md</code> (static; commit the output). The seeded
+                <code>/terms</code> and <code>/privacy</code> pages are deliberately short,
+                obviously-unfinished placeholders.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="legal.review" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                <strong>Have it reviewed before publishing.</strong> Every generated document opens
+                with a non-optional review banner — it is a starting point from your config, not
+                legal advice, and a plausible-looking policy shipped unread is the one failure mode
+                here with real consequences.
+              </span>
+            </label>
+          </div>
+        </details>
+
+        <details class="details" data-sop-stage="launch">
+          <summary>8. Launch gates</summary>
+          <div class="rhythm">
+            <label class="custom-check">
+              <input type="checkbox" data-sop="launch.robots" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Robots directive matches the live origin's intent (blocked while on workers.dev,
+                open after cutover) — <code>npx vitops robots</code>.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="launch.canonical" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Canonical domain in <code>site.json</code> matches the actual live origin.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="launch.favicon" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span> Favicon / PWA assets present and correct. </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="launch.lint" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                <code>npx vitops lint --src</code> and <code>pnpm typecheck</code> both clean.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="launch.approve" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                Prod deploy approved by an admin in the <code>production</code> GitHub Environment
+                gate.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="launch.notify" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span> <code>npx vitops search notify</code> run once live. </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="launch.check" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                A day or two later: <code>npx vitops search notify --check</code> confirms Google
+                actually indexed it.
+              </span>
+            </label>
+          </div>
+        </details>
+      </main>
+
+      <footer class="region rhythm">
+        <div class="card">
+          <p><strong>Working alongside an AI agent?</strong></p>
+          <p>
+            Point it at <code>.agents/skills/setup/</code> — it works this same list autonomously
+            and only stops at the steps marked above as requiring a person (the Cloudflare API
+            token, the domain cutover, and publishing any generated legal document).
+          </p>
+        </div>
+      </footer>
+    </div>
+
+    <script type="module">
+      // The whole persistence contract. An admin portal that wants this same
+      // checklist backed by shared/server storage defines
+      // `window.__vitopsSopStore` before this script runs; everything below is
+      // DOM wiring against whichever store is present. Do not add a second
+      // storage backend inline here — swap the store, not this file.
+      //
+      //   { get(id): boolean, set(id, v): void|Promise<void>, all(): Record<string, boolean> }
+      function localStore(key) {
+        const read = () => {
+          try {
+            return JSON.parse(localStorage.getItem(key) ?? '{}');
+          } catch {
+            return {};
+          }
+        };
+        return {
+          get: (id) => Boolean(read()[id]),
+          set: (id, value) => {
+            const state = read();
+            state[id] = value;
+            localStorage.setItem(key, JSON.stringify(state));
+          },
+          all: () => read(),
+        };
+      }
+
+      const store = window.__vitopsSopStore ?? localStore('vitops.sop.v1');
+      const checkboxes = Array.from(document.querySelectorAll('input[data-sop]'));
+      const badge = document.getElementById('progress-badge');
+
+      // A <link> still loading (network/disk latency) reports zero cssRules just
+      // like a 404'd one — the check has to wait for the sheet to settle rather
+      // than sampling it once at parse time, or a real stylesheet that simply
+      // hasn't finished loading yet reads as "not styled".
+      function checkStylesheet() {
+        const link = document.getElementById('sop-stylesheet');
+        try {
+          if (link.sheet && link.sheet.cssRules.length > 0) return;
+        } catch {
+          // A cross-origin or 404'd sheet throws on `.cssRules` under `file://` —
+          // that failure IS the signal the stylesheet isn't there yet.
+        }
+        document.getElementById('no-stylesheet-notice').hidden = false;
+      }
+      const sopLink = document.getElementById('sop-stylesheet');
+      if (sopLink.sheet) checkStylesheet();
+      else {
+        sopLink.addEventListener('load', checkStylesheet);
+        sopLink.addEventListener('error', checkStylesheet);
+      }
+
+      function updateBadge() {
+        const done = checkboxes.filter((c) => c.checked).length;
+        badge.textContent = `${done} / ${checkboxes.length} done`;
+      }
+
+      const saved = store.all();
+      for (const box of checkboxes) {
+        box.checked = Boolean(saved[box.dataset.sop]);
+      }
+      updateBadge();
+
+      document.addEventListener('change', (event) => {
+        const box = event.target;
+        if (!(box instanceof HTMLInputElement) || !box.dataset.sop) return;
+        store.set(box.dataset.sop, box.checked);
+        updateBadge();
+      });
+    </script>
+  </body>
+</html>

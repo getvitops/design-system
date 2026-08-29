@@ -6,10 +6,13 @@
  * concerns — "a grid of images" and "view one full-screen" — and only the dialog
  * half needs the `lightbox` name; the grid never was one.
  *
- * `<wc-gallery>` wraps this and augments the per-image `.lightbox-dialog`s it finds
- * with prev/next, arrow keys, swipe and a counter. With no JS each `.gallery__trigger`
- * is a real `command="show-modal" commandfor="…"` invoker for its own dialog, so the
- * grid + dialogs already form a working modal lightbox before any script runs.
+ * `<wc-gallery>` wraps this and the single `.lightbox-dialog` it opens, running the
+ * thumbnail → full-image view-transition morph; stepping between images is a
+ * `<wc-carousel>` scroll inside that dialog, not a second dialog. With no JS each
+ * `.gallery__trigger` is a real `<a href="#slide-id">` into the carousel's own
+ * `<li id="slide-id">`, and `:has(:target)` in lightbox.css is what reveals the
+ * dialog — so the grid + dialog already form a working modal lightbox, with
+ * prev/next, before any script runs.
  */
 
 wc-gallery {
@@ -24,6 +27,22 @@ wc-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--gallery-thumb-size, 150px), 1fr));
   gap: var(--gallery-gap, 0.5rem);
+
+  /* Gallery.astro emits this as `<ul role="list">`, so the UA's list padding, block
+     margin and markers all apply. The pattern owns no outer spacing — the context it
+     sits in does. Conditional so `.gallery` on a `div` is untouched. */
+  &:is(ul, ol) {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Item spacing is the grid's job, not the flow's — neutralise `.rhythm`'s
+     `li + li` margin (see layout.css for why this is local rather than
+     centralised). */
+  &:is(ul, ol) > li + li {
+    margin-block-start: 0;
+  }
 }
 
 .gallery__item {
@@ -40,6 +59,7 @@ wc-gallery {
   padding: 0;
   background: none;
   border: none;
+  text-decoration: none;
   cursor: pointer;
 
   &:focus-visible {

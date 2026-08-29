@@ -1,5 +1,128 @@
 # @getvitops/vite
 
+## 8.1.0
+
+### Patch Changes
+
+- **Added — `vitops init --site` and `vitops setup`, the scripted client-onboarding path.**
+
+  `vitops init --site [--name] [--url]` scaffolds a starter `site.json` (the umbrella `Config`,
+  embedding a starter design system at `designSystem.themes.default`) instead of a bare
+  `design-system.json` — exported as `defaultSiteConfig()` from `@getvitops/generator`, alongside a
+  new `CONFIG_SCHEMA_LOCAL_PATH` and an optional `$schema` field on `ConfigSchema` so a scaffolded
+  config gets editor autocomplete the same way `design-system.json` already does.
+
+  `vitops setup <repo|hosting|domain|search|ads|all>` (new `@getvitops/utils/hosting` subpath: a
+  pure planner + `wrangler`/`gh`-shelling executors, following the same idempotent
+  plan/observe/apply split as `onboarding`/`ads`) automates GitHub repo + branch policy and
+  Cloudflare dev D1/R2 + repo secrets, and plans/checks the workers.dev-vs-custom-domain
+  consistency without ever applying the cutover itself — see AGENTS.md's new "Client onboarding"
+  section for the full design rationale. `search`/`ads` forward to the existing `search setup`/
+  `ads setup` subcommands rather than reimplementing them.
+
+  No consumer-facing change in `@getvitops/vite` or `@getvitops/astro` in this release — bumped
+  only because they are in the `fixed` release group with `generator`/`utils`/`cli`.
+  `@getvitops/core` does have a real fix in this release; see the separate `banner-hidden-fix`
+  changeset.
+
+- Updated dependencies
+  - @getvitops/generator@8.1.0
+  - @getvitops/utils@8.1.0
+
+## 8.0.1
+
+### Patch Changes
+
+- @getvitops/generator@8.0.1
+- @getvitops/utils@8.0.1
+
+## 8.0.0
+
+### Major Changes
+
+- Rebuild the lightbox on one dialog + the existing carousel, fixing the flicker on
+  prev/next and the stutter on open.
+
+  **Breaking (`css`/`bricks` and `tailwind` formats — `.lightbox-dialog`'s markup
+  contract changed):**
+
+  - `<Gallery />` now emits ONE `<dialog class="lightbox-dialog">` per gallery,
+    wrapping a `<Carousel />`, instead of one dialog per image. A `.gallery__trigger`
+    is now a plain `<a href="#slide-id">`, not a `command="show-modal"` button.
+  - `.lightbox-dialog__content` / `__image` / `__nav` / `__nav-button` /
+    `__caption` are gone. The dialog's child is `.lightbox-dialog__track` (a
+    `.carousel`) — prev/next, dots, arrow keys and swipe are the carousel's,
+    reused rather than reimplemented. `.lightbox-dialog__close` is unchanged.
+  - `<wc-gallery>` no longer builds nav buttons or steps between images — the
+    nested `<wc-carousel>` does. It fires `gallery-open` (unchanged shape) and
+    re-emits the carousel's own stepping as `gallery-change`.
+  - `packages/core/src/web-components/utils/gallery.ts` dropped `keyToAction` and
+    `swipeAction` (the carousel's own key/swipe handling covers both now).
+    `stepIndex`/`preloadTargets` are unchanged.
+
+  **Why:** stepping used to close one `<dialog>` and open another, which made
+  `animation.css`'s top-layer driver play a full exit-then-entry transition on
+  every step — visible as a flicker on prev/next, by construction, not a bug to
+  tune away. Opening also awaited the full image's `decode()` before starting the
+  view-transition morph, so the dialog visibly stalled on a slow network. One
+  dialog containing one carousel makes the first failure mode unrepresentable
+  (stepping is a scroll, not a close/open pair) and removes the wait for the
+  second (the morph starts immediately, painting the thumbnail as a CSS
+  background placeholder until the full image arrives).
+
+  **Also improved, not just fixed:** the no-JS fallback is no longer a _stripped_
+  lightbox — it's a genuine one. Each trigger is ordinary fragment navigation
+  (`:has(:target)` in `lightbox.css` reveals the dialog), which needs no Invoker
+  Commands polyfill in any engine, and it now has working prev/next with no
+  JavaScript at all — the previous per-dialog fallback had no way to express that.
+
+  **Migration:** a consumer using `<Gallery />` needs no changes — the component's
+  props are unchanged. Anyone who hand-authored `.lightbox-dialog` markup (per
+  `docs/concepts/patterns.md` / `docs/css/classes.md`) must move to the new single-
+  dialog-wrapping-a-carousel shape; see `patterns.astro`'s "Gallery, hand-authored"
+  demo for the reference markup. `<wc-gallery>` consumers listening for
+  `gallery-change` keep the same event shape (`{ index, total }`).
+
+### Minor Changes
+
+- Repo-wide simplification pass: de-boilerplate the CLI, dedupe shared cache/plan
+  primitives in `@getvitops/utils`, drop dead code, and tighten dependency hygiene.
+
+  No breaking changes. (`vitops icons`'s `--site` flag was briefly going to be renamed to
+  `--input` for consistency with the other `Config`-anchored commands — deferred rather than
+  spending a major bump on a rename with no other breaking change riding along; it stays
+  `--site` for now.)
+
+  **Fixed:**
+
+  - `@getvitops/core`'s 12 runtime deps (`lit`, both `@oddbird` polyfills, both
+    `@webcomponents` packages, `colorjs.io`, etc.) were listed as `dependencies` despite
+    being bundled into `dist/elements.js`/`dist/polyfills.js`/`dist/deferred.js` — a
+    consumer installed them twice for nothing. Moved to `devDependencies`; no change to
+    what ships.
+  - Deleted `old-css-lib/` (59 files), superseded by `packages/core/css/` since the
+    in-memory bundling change — no consumer-facing effect, it was not part of any
+    published output.
+  - Deleted a dead Astro module (`packages/astro/src/scripts/deferred.ts`) that had
+    silently diverged from `packages/core/src/js/deferred.ts` and had zero importers.
+
+  **No consumer-facing change in `@getvitops/vite`** beyond the fixed-group version bump —
+  task-graph and caching fixes internal to this repo's own build.
+
+  Everything else (the `cli.ts` file split into `commands/{search,ads}.ts`, shared
+  `json-store.ts`/`plan-format.ts` helpers in `@getvitops/utils`, a `.github/actions/setup`
+  composite action, restatement-comment cleanup) is internal refactoring with no change to
+  any published API, CLI flag, or generated output.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies [a84839b]
+  - @getvitops/generator@8.0.0
+  - @getvitops/utils@8.0.0
+
 ## 7.0.0
 
 ### Patch Changes
@@ -223,28 +346,20 @@ options, watch behaviour and dev-server endpoints are unchanged.
   {
     "designSystem": {
       "themes": {
-        "default": {
-          /* … */
-        },
+        "default": {/* … */},
       },
     },
     "organization": {
       "name": "Acme",
       "contact": "hq",
       "locations": {
-        "hq": {
-          /* … */
-        },
+        "hq": {/* … */},
       },
     },
     "site": {
       "defaultLocale": "en",
-      "domains": {
-        /* … */
-      },
-      "analytics": {
-        /* … */
-      },
+      "domains": {/* … */},
+      "analytics": {/* … */},
     },
   }
   ```
@@ -352,7 +467,7 @@ ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails 
 
   ```js
   // astro.config.mjs
-  getvitops({ css: { input: 'company.json', format: 'css' } });
+  getvitops({ css: { input: "company.json", format: "css" } });
   ```
 
   ```
@@ -663,7 +778,7 @@ ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails 
   ```js
   // astro.config.mjs
   getvitops({
-    css: { input: 'design-system.json', format: 'css', out: 'src/styles' },
+    css: { input: "design-system.json", format: "css", out: "src/styles" },
     editor: true,
   });
   ```

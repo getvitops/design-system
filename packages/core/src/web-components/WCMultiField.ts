@@ -276,7 +276,6 @@ export class WCMultiField extends BaseElement {
       });
     }
 
-    // Ensure minimum entries
     while (initialEntries.length < this.min) {
       initialEntries.push({
         id: this._generateId(),
@@ -304,7 +303,6 @@ export class WCMultiField extends BaseElement {
 
   willUpdate(changed: PropertyValues): void {
     if (changed.has('min') && this._initialized) {
-      // Ensure minimum entries when min changes
       while (this._entries.length < this.min) {
         this._entries = [
           ...this._entries,
@@ -397,11 +395,9 @@ export class WCMultiField extends BaseElement {
       // Keep default entries, remove non-defaults
       newEntries = this._entries.filter((e) => e.isDefault);
     } else {
-      // Remove all entries
       newEntries = [];
     }
 
-    // Ensure minimum entries
     while (newEntries.length < this.min) {
       newEntries.push({
         id: this._generateId(),

@@ -9,11 +9,13 @@
     "preview": "astro preview",
     "deploy": "astro build && wrangler deploy",
     "deploy:dev": "astro build && node scripts/build-dev-wrangler.mjs && wrangler deploy --config dist/server/wrangler.dev.json",
-    "init:github": "node scripts/init-github.mjs",
-    "init:hosting": "node scripts/init-hosting.mjs",
+    "init:github": "vitops setup repo",
+    "init:hosting": "vitops setup hosting",
+    "setup": "vitops setup all",
     "typecheck": "astro check",
-    "build:css": "vitops generate -i design-system.json -f tailwind -o src/styles",
-    "lint:design": "vitops lint -i design-system.json -f tailwind --strict",
+    "build:css": "vitops generate -i site.json -f tailwind -o src/styles",
+    "lint:design": "vitops lint -i site.json -f tailwind --strict",
+    "sop": "vitops generate -i site.json -f css -o .vitops/sop",
     "prepare": "vp config"
   },
   "dependencies": {

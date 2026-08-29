@@ -1,0 +1,33 @@
+# Deploys the `dev` branch to the isolated dev worker (<name>-dev, and
+# dev.<domain> if a custom domain is configured in wrangler.jsonc).
+# `dev` is the integration branch — every push here refreshes the review site.
+# Promote to production with the "Promote dev → main" workflow (promote.yml).
+#
+# Deploys via the vitops toolchain's reusable static-site deploy workflow — see
+# https://github.com/getvitops/design-system/blob/main/.github/workflows/site-deploy-static.yml
+# Pinned to @v1 so a fix there reaches this repo without a manual re-paste;
+# bump the tag deliberately if you want to pick up a change.
+#
+# Required repo secrets:
+#   CLOUDFLARE_API_TOKEN   — token with Workers edit on this account
+#   CLOUDFLARE_ACCOUNT_ID  — the Cloudflare account id
+name: Deploy dev
+
+on:
+  push:
+    branches: [dev]
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    uses: getvitops/design-system/.github/workflows/site-deploy-static.yml@v1
+    with:
+      environment: dev
+      worker-name-suffix: -dev
+      route-prefix: dev.
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

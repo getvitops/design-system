@@ -1,8 +1,15 @@
 {
   "name": "@getvitops/core",
-  "version": "7.0.0",
+  "version": "8.1.0",
   "description": "The Vitops design-system framework — CSS partials, Lit web components, and browser polyfills.",
+  "homepage": "https://docs.vitops.ca",
+  "bugs": "https://github.com/getvitops/design-system/issues",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/getvitops/design-system.git",
+    "directory": "packages/core"
+  },
   "files": [
     "dist",
     "css",
@@ -21,7 +28,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "dependencies": {
+  "devDependencies": {
     "@getvitops/utils": "workspace:*",
     "@lit-labs/signals": "catalog:",
     "@oddbird/css-anchor-positioning": "catalog:",
@@ -30,17 +37,18 @@
     "@webcomponents/webcomponentsjs": "catalog:",
     "colorjs.io": "catalog:",
     "construct-style-sheets-polyfill": "catalog:",
-    "invokers-polyfill": "catalog:",
-    "lit": "catalog:",
-    "scroll-timeline-polyfill": "catalog:",
-    "temporal-polyfill": "catalog:"
-  },
-  "devDependencies": {
     "cssnano": "catalog:",
     "happy-dom": "catalog:",
+    "invokers-polyfill": "catalog:",
+    "lit": "catalog:",
     "minify-html-literals": "catalog:",
     "postcss": "catalog:",
     "postcss-lit": "catalog:",
-    "vitest": "^4.1.9"
+    "scroll-timeline-polyfill": "catalog:",
+    "temporal-polyfill": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

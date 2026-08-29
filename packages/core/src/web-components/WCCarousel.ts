@@ -35,6 +35,12 @@ import { RovingTabindex } from './utils/RovingTabindex.js';
  * default is an honest finite strip whose scrollbar reflects real content and
  * whose dot count matches the slides.
  *
+ * Fires `carousel-change` (`{ index, total }`, bubbles + composed) whenever the
+ * settled slide changes, deduped so a consumer with no scroll-tracking of its own
+ * (`<wc-gallery>`) gets one event per slide rather than one per scroll frame.
+ *
+ * @fires carousel-change
+ *
  * @example
  * ```html
  * <wc-carousel class="carousel carousel--scroll-buttons carousel--scroll-markers"
@@ -87,6 +93,7 @@ export class WCCarousel extends BaseElement {
   #paused = false;
   #reducedMotion = false;
   #jumping = false;
+  #lastDispatchedIndex: number | null = null;
 
   constructor() {
     super();
@@ -274,6 +281,7 @@ export class WCCarousel extends BaseElement {
     this.#slides = [];
     this.#plan = null;
     this.#ready = false;
+    this.#lastDispatchedIndex = null;
   }
 
   /* ── Cloning ─────────────────────────────────────────────────────────────── */
@@ -446,6 +454,21 @@ export class WCCarousel extends BaseElement {
       const [prev, next] = this.#buttons;
       if (prev) prev.disabled = index <= 0;
       if (next) next.disabled = index >= children.length - 1;
+    }
+
+    // Deduped against the last-dispatched real index: #syncControls also runs
+    // on every scroll tick (#onScroll), and a consumer (e.g. `<wc-gallery>`,
+    // which has no scroll-tracking of its own) wants one event per settled
+    // slide, not one per frame.
+    if (real !== this.#lastDispatchedIndex) {
+      this.#lastDispatchedIndex = real;
+      this.dispatchEvent(
+        new CustomEvent('carousel-change', {
+          bubbles: true,
+          composed: true,
+          detail: { index: real, total: this.#slides.length },
+        }),
+      );
     }
   }
 

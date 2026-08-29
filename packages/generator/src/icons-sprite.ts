@@ -41,7 +41,6 @@ export interface IconSpriteOptions {
 
 export interface IconSpriteResult {
   svg: string;
-  /** Every `<symbol>` id emitted, in order. */
   ids: string[];
   /** `prefix:name` entries that were asked for but not found. */
   missing: string[];

@@ -156,10 +156,10 @@ export const TIERS: Record<string, TierEntry> = {
     wc: {
       tag: 'wc-gallery',
       registered: true,
-      adds: 'prev/next, arrow keys, swipe, an image counter, neighbour preload and the view-transition morph',
+      adds: 'a real `showModal()` open, neighbour preload and the thumbnail→full-image view-transition morph',
     },
     astro: a('Gallery', 'wc'),
-    use: '`<Gallery images={…} label="…" />` — it emits `<wc-gallery>` itself, so do NOT add your own wrapper. Each thumbnail is a `command="show-modal"` invoker for its own `<dialog class="lightbox-dialog">` (see `lightbox`), so it is a working modal lightbox with no JS.',
+    use: '`<Gallery images={…} label="…" />` — it emits `<wc-gallery>` wrapping a `<Carousel />` (which emits its own `<wc-carousel>`) itself, so do NOT add your own wrapper around either. Each thumbnail is a plain `<a href="#slide-id">` into the carousel\'s own `<li id="slide-id">` inside a single `<dialog class="lightbox-dialog">` (see `lightbox`), so it is a working modal lightbox — WITH prev/next — before any script runs. Stepping between images is the carousel\'s job, not the gallery\'s.',
   },
   entries: {
     css: c(['entries__table', 'entries__scroll', 'entries__nav'], 'patterns/table.css'),
@@ -214,7 +214,8 @@ export const TIERS: Record<string, TierEntry> = {
       registered: true,
       adds: 'fills the track with enough copies to scroll seamlessly',
     },
-    use: '`<wc-marquee>` around one `.marquee__content`. Scrolls via CSS alone; JS only removes the seam.',
+    astro: a('Marquee', 'wc'),
+    use: '`<Marquee>` around one `.marquee__content`, or `<wc-marquee>` by hand. Scrolls via CSS alone; JS only removes the seam.',
   },
   // NOT generated: a counter is a bare text figure, not a bordered/padded box —
   // none of the token-cascade groups (label/control/panel/area/content/pull)
@@ -437,20 +438,24 @@ export const TIERS: Record<string, TierEntry> = {
   },
   lightbox: {
     css: c(
-      [
-        'lightbox-dialog',
-        'lightbox-dialog__content',
-        'lightbox-dialog__image',
-        'lightbox-dialog__nav-button',
-      ],
+      ['lightbox-dialog', 'lightbox-dialog__track', 'lightbox-dialog__close'],
       'patterns/lightbox.css',
       true,
     ),
-    use: 'The `<dialog class="lightbox-dialog">` half of a lightbox. Use `gallery` for the thumbnail grid that drives it — `<Gallery />` emits both.',
+    use: 'The single `<dialog class="lightbox-dialog">` a gallery opens — it wraps ONE `.carousel` (`lightbox-dialog__track`) of every image, not one dialog per image. Use `gallery` for the thumbnail grid that drives it — `<Gallery />` emits both, and the carousel inside already owns prev/next/dots/keys/swipe.',
   },
   comment: {
     css: c(['comment', 'comment__author', 'comment-thread'], 'patterns/comment.css', true),
     use: '`.comment` inside `.comment-thread`.',
+  },
+  review: {
+    css: c(
+      ['review', 'review__stars', 'review__body', 'review__reply', 'review__source'],
+      'patterns/review.css',
+      true,
+    ),
+    astro: a('ReviewCard', 'css'),
+    use: "`<ReviewCard review={…} />` — one card, from `vitops reviews`' `.vitops/reviews.json` cache. Put several inside `<Carousel>` slides or `<Marquee>` items; there is no group component and no `wc-review`.",
   },
   tabs: {
     css: c(['tabs'], undefined, true),

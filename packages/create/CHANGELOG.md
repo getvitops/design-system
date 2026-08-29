@@ -1,5 +1,44 @@
 # @getvitops/create
 
+## 0.7.0
+
+### Minor Changes
+
+- **Breaking (for scaffolds) — both templates now ship `site.json` instead of `design-system.json`.**
+
+  `design-system.json` is deleted from the `static` and `emdash` templates; its contents move under
+  `designSystem.themes.default` inside a new `site.json` (the umbrella `Config`), because a
+  scaffolded config can't merely reference a sibling design-system file — `ConfigSchema` requires
+  `designSystem` and there is no file-level `extends`. `astro.config.mjs`'s `css.input` (and
+  `site.input`, for emdash) now point at `site.json`; so do the `build:css`/`lint:design` scripts.
+
+  **Migration** for a project already scaffolded from an older version of this template: create
+  `site.json` with your existing `design-system.json`'s content under
+  `designSystem.themes.default`, delete `design-system.json`, and update `css.input`/`site.input` in
+  `astro.config.mjs`. Not reachable by `vitops lint --fix` — this is the whole migration.
+
+  Also new in both templates:
+
+  - **`SETUP.html`** — a client-onboarding checklist (styled entirely with the framework's own
+    classes, checkbox state in `localStorage`), generated a stylesheet for via the new
+    `pnpm run sop` script.
+  - **`.agents/skills/setup/SKILL.md`** — lets an AI agent work the same checklist autonomously,
+    stopping only at the steps that genuinely need a human (the Cloudflare API token, the
+    domain cutover, publishing generated legal documents).
+  - `scripts/init-github.mjs` and `scripts/init-hosting.mjs` are deleted; `pnpm run init:github` /
+    `init:hosting` / the new `setup` script now call `vitops setup repo` / `vitops setup hosting`
+    (from `@getvitops/cli`, requires the `minor` release in the same batch as this one) instead of
+    a template-local script, so the same capability now reaches any existing project, not just a
+    fresh scaffold.
+
+## 0.6.0
+
+### Minor Changes
+
+- Scaffolded `static` and `emdash` projects now ship neutral placeholder wireframe images under
+  `src/assets/placeholder/` (square, portrait, landscape; SVG + PNG) for layout work before real
+  imagery exists. Delete the directory once real assets land.
+
 ## 0.5.0
 
 ### Minor Changes
@@ -227,15 +266,15 @@
   which `@getvitops/astro` re-exports wholesale. So from `astro.config.mjs`:
 
   ```js
-  import { generateIconInclude } from '@getvitops/astro';
-  import icon from 'astro-icon';
+  import { generateIconInclude } from "@getvitops/astro";
+  import icon from "astro-icon";
 
   integrations: [
     icon({
       include: generateIconInclude({
-        ui: 'fa7-solid',
-        brand: 'simple-icons',
-        semantic: ['menu', 'close', 'search', 'github'],
+        ui: "fa7-solid",
+        brand: "simple-icons",
+        semantic: ["menu", "close", "search", "github"],
       }),
     }),
   ];

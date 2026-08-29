@@ -182,7 +182,7 @@ const walkValue = (value: unknown, path: string, out: VarRef[]): void => {
  * same walk covers them. `patterns.items.*.states` is walked recursively — a
  * state's `css` shortcut is a nested declaration map.
  */
-export function collectVarRefs(ds: {
+function collectVarRefs(ds: {
   patterns?: unknown;
   typography?: unknown;
   shadows?: unknown;

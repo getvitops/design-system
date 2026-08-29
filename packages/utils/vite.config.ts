@@ -3,8 +3,9 @@ import { defineConfig } from 'vite-plus';
 // Node library build for @getvitops/utils. Externalises sharp + png-to-ico
 // (native/heavy — loaded lazily at runtime). One entry per published subpath —
 // `indexing`, `onboarding` and `ads` are separate because they are the
-// network-touching modules here, and `media` because it is the only one that shells
-// out to an external encoder.
+// network-touching modules here, `media` because it is the only one that shells
+// out to an external encoder (ffmpeg), and `hosting` because it shells out to
+// `wrangler`/`gh` for the same reason.
 //
 // `tracking`, `notify`, `security` and `schema` are separate for a third
 // reason: they are modules that can run in a **Worker** rather than only at
@@ -24,12 +25,14 @@ export default defineConfig({
       'src/color/index.ts',
       'src/indexing/index.ts',
       'src/onboarding/index.ts',
+      'src/reviews/index.ts',
       'src/ads/index.ts',
       'src/media/index.ts',
       'src/notify/index.ts',
       'src/tracking/index.ts',
       'src/security/index.ts',
       'src/schema/index.ts',
+      'src/hosting/index.ts',
     ],
     outDir: 'dist',
     format: ['es'],

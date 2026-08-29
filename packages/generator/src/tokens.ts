@@ -214,7 +214,7 @@ export function expandPalette(raw: Record<string, unknown>): Record<string, Expa
  * starts reading visibly heavier or lighter than its siblings at that step, and
  * that is the class of drift the fixed ladder exists to prevent.
  */
-export const LADDER_TOLERANCE = 0.03;
+const LADDER_TOLERANCE = 0.03;
 
 export function ladderWarnings(palette: Record<string, ExpandedHue>): string[] {
   const warnings: string[] = [];

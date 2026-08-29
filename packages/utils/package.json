@@ -1,13 +1,21 @@
 {
   "name": "@getvitops/utils",
-  "version": "7.0.0",
+  "version": "8.1.0",
   "description": "Shared build-time utilities for the Vitops toolchain — favicon generation and friends.",
+  "homepage": "https://docs.vitops.ca",
+  "bugs": "https://github.com/getvitops/design-system/issues",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/getvitops/design-system.git",
+    "directory": "packages/utils"
+  },
   "files": [
     "dist",
     "CHANGELOG.md"
   ],
   "type": "module",
+  "sideEffects": false,
   "types": "./dist/index.d.mts",
   "exports": {
     ".": {
@@ -29,6 +37,10 @@
     "./onboarding": {
       "types": "./dist/onboarding/index.d.mts",
       "import": "./dist/onboarding/index.mjs"
+    },
+    "./reviews": {
+      "types": "./dist/reviews/index.d.mts",
+      "import": "./dist/reviews/index.mjs"
     },
     "./ads": {
       "types": "./dist/ads/index.d.mts",
@@ -53,6 +65,10 @@
     "./schema": {
       "types": "./dist/schema/index.d.mts",
       "import": "./dist/schema/index.mjs"
+    },
+    "./hosting": {
+      "types": "./dist/hosting/index.d.mts",
+      "import": "./dist/hosting/index.mjs"
     }
   },
   "publishConfig": {
@@ -65,6 +81,9 @@
     "sharp": "catalog:"
   },
   "devDependencies": {
-    "vitest": "^4.1.9"
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

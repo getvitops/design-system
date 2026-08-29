@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "my-static-site",
+  "compatibility_date": "2026-02-24",
+  // Pure static Astro output — Workers Static Assets, no adapter and no
+  // Worker script. This is the whole config: nothing else to provision.
+  "assets": {
+    "directory": "./dist",
+  },
+  // Explicit rather than relying on wrangler's default: this is the fact that
+  // lets a first deploy go live at <name>.<account>.workers.dev without
+  // touching any existing site's DNS — see SETUP.html's "Domain strategy"
+  // stage and site.json's environments.production.url.
+  "workers_dev": true,
+  // Custom domain: uncomment and set your apex. Cloudflare provisions the DNS
+  // record + TLS cert on deploy (the zone must already exist in the account) —
+  // and OVERWRITES it, the moment an existing live site at that domain goes
+  // dark. `pnpm run deploy:dev` rewrites this to `dev.<domain>` automatically
+  // (see scripts/dev-wrangler-config.mjs) — nothing to change for the dev
+  // deploy.
+  // "routes": [{ "pattern": "example.com", "custom_domain": true }],
+}

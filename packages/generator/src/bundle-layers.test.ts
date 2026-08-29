@@ -203,3 +203,75 @@ describe.skipIf(!hasAssets)('layer contract — css bundle', () => {
     expect(order.indexOf(utility as string)).toBeGreaterThan(order.indexOf(pattern as string));
   });
 });
+
+/**
+ * Patterns that may render as `<ul>`/`<ol>` must reset the UA list styles
+ * (padding, block margin, markers) AND neutralise `.rhythm :where(ul, ol) > li +
+ * li` (layout.css), which is 0-1-2 in the same `vitops.components` layer and
+ * would otherwise offset every item but the first inside a prose container —
+ * exactly the symptom `.subgrid`/`.grid-auto` already guard against. Both rules
+ * are element-gated (`:is(ul, ol)`) so the class stays usable on a `div`.
+ */
+/**
+ * Every balanced-brace rule block whose selector matches at a class boundary —
+ * `.cluster,[class^='cluster-']{…}` and the later standalone `.cluster:is(ul,
+ * ol){…}` are two separate top-level rules sharing the class name, so a class
+ * can own more than one; a nested `&:is(ul, ol){…}` sub-rule is captured along
+ * with its parent instead of counting as a second.
+ */
+function classBlocks(css: string, cls: string): string[] {
+  const esc = cls.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
+  const re = new RegExp(`(?:^|[,{}])\\.${esc}(?=[,{:>\\s.])`, 'gm');
+  const blocks: string[] = [];
+  for (const m of css.matchAll(re)) {
+    const start = m.index! + m[0].length - 1; // back onto the `.`
+    const open = css.indexOf('{', start);
+    if (open === -1) continue;
+    let depth = 0;
+    for (let i = open; i < css.length; i++) {
+      if (css[i] === '{') depth++;
+      else if (css[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          blocks.push(css.slice(start, i + 1));
+          break;
+        }
+      }
+    }
+  }
+  return blocks;
+}
+
+describe.skipIf(!hasAssets)('list-rendering patterns reset UA list styles', () => {
+  it.each(['gallery', 'tag-list', 'cluster', 'masonry', 'comment-thread'])(
+    '.%s resets list-style/margin and neutralises the rhythm li+li margin',
+    async (cls) => {
+      const css = await bundle();
+      const blocks = classBlocks(css, cls);
+      expect(
+        blocks.some((b) => /:is\(ul,\s*ol\)\{margin:0;(?:padding:0;)?list-style:none\}/.test(b)),
+      ).toBe(true);
+      expect(blocks.some((b) => /:is\(ul,\s*ol\)>li\+li\{margin-block-start:0\}/.test(b))).toBe(
+        true,
+      );
+    },
+  );
+
+  it(".no-rhythm beats .rhythm's li+li margin by LAYER, not specificity", async () => {
+    // .no-rhythm > li + li is (0,1,2) — the SAME specificity as .rhythm :where(ul,
+    // ol) > li + li, a tie that would normally fall to source order. It must win
+    // anyway, because it sits in vitops.utilities, a later layer than .rhythm's
+    // vitops.components — proving the escape hatch doesn't depend on being a
+    // structural CSS trick (:is(ul, ol) boosting) the way every pattern-local
+    // neutraliser above does.
+    const css = await bundle();
+    const order = [...CSS_LAYERS] as string[];
+    const rhythmLayer = layerOf(css, '.rhythm :where(ul,ol)>li+li{');
+    const noRhythmLayer = layerOfClass(css, 'no-rhythm');
+    expect(rhythmLayer).toBe('vitops.components');
+    expect(noRhythmLayer).toBe('vitops.utilities');
+    expect(order.indexOf(noRhythmLayer as string)).toBeGreaterThan(
+      order.indexOf(rhythmLayer as string),
+    );
+  });
+});

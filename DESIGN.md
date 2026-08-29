@@ -336,6 +336,10 @@ components:
     padding: "0.25em 0.6em"
   status:
     backgroundColor: "{colors.bg-neutral-bold}"
+  review:
+    backgroundColor: "{colors.bg-surface}"
+    rounded: "{rounded.panel}"
+    padding: "1rem"
 ---
 
 # Vitops

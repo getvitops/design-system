@@ -3,7 +3,7 @@
  * `vitops` — CLI for the Vitops design-system generator.
  *
  *   vitops generate  --input <json> --format <bricks|css|tailwind|design[,…]> --out <dir>
- *   vitops init      [--out design-system.json] [--force]
+ *   vitops init      [--out design-system.json] [--force] [--site [--name <n>] [--url <u>]]
  *   vitops validate  <design-system.json|site.json>
  *   vitops favicon   --input <svg|png> --out <dir> [--low-res <svg|png>] [--background <hex>]
  *   vitops agents    [--input <json>] [--out AGENTS.md] [--docs-dir <dir>]
@@ -11,24 +11,29 @@
  *   vitops lint      [--input <json>] [--format <fmt>] [--src <dir>]
  *   vitops legal     [--input <site.json>] [--doc <name>] [--format <md|html|portable-text>] [--out <dir>]
  *   vitops robots    [--input <site.json>] [--site-env <name>] [--out <dir>]
+ *   vitops reviews   [--input <site.json>] [--location <key>] [--dry] [--check] [--out <dir>]
  *   vitops search    setup [--domain <name>] [--dry] [--check]  |  notify [--dry] [--all] [--check]
  *   vitops ads       setup [--provider <name>] [--dry] [--check]  |  tags  |  lint
+ *   vitops setup     repo | hosting | domain | search | ads | all [--dry] [--check]
  *   vitops media     [--raw <dir>] [--out <dir>] [--force] [--dry]
  *
  * Thin wrapper over @getvitops/generator (generation) and @getvitops/utils (favicons).
  * Every client brings their own consumer-editable design-system.json.
+ *
+ * `search`/`ads` live in commands/search.ts + commands/ads.ts — the only two
+ * command groups big enough, and self-contained enough, to earn their own file.
+ * Everything else stays here.
  */
 import { parseArgs } from 'node:util';
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { resolve, join, dirname, relative, extname } from 'node:path';
-import { homedir } from 'node:os';
 import { createRequire } from 'node:module';
-import { pathToFileURL } from 'node:url';
 import {
   buildIconSprite,
   generate,
   validate,
   defaultConfig,
+  defaultSiteConfig,
   generateDocs,
   generateLegal,
   enabledDocs,
@@ -46,6 +51,7 @@ import {
   movedTokens,
   renderRobotsTxt,
   SCHEMA_LOCAL_PATH,
+  CONFIG_SCHEMA_LOCAL_PATH,
   type Format,
   type StylesheetFormat,
   type DesignSystem,
@@ -62,82 +68,28 @@ import {
   scanFiles,
 } from '@getvitops/utils';
 // Its own subpath: `indexing` is the only network-touching module in utils, and the
-// other commands should not pull it in.
+// other commands should not pull it in. Only `googleAccessToken`/`GoogleAuthLike`
+// are needed here — everything else that used to be imported for `search notify`
+// now lives in commands/search.ts.
+import { googleAccessToken, type GoogleAuthLike } from '@getvitops/utils/indexing';
+// Its own subpath for the same reason: `reviews` is network-touching (Google
+// Business Profile). `formatPlan` is aliased against `@getvitops/utils/media`'s
+// own `formatPlan`, imported below.
 import {
-  SNAPSHOT_PATH,
-  collectEntries,
-  formatPlan,
-  SCOPES,
-  googleAccessToken,
-  inspectUrl,
-  keyFileContents,
-  newKey,
-  parseServiceAccount,
-  plan,
-  readSnapshot,
-  resolveKeyLocation,
-  resolveSitemapUrl,
-  submitBatch,
-  submitSitemap,
-  toSnapshot,
-  verifyKeyFile,
-  writeSnapshot,
-  adcCredentialsPath,
-  adcQuotaProject,
-  parseAdcUser,
-  type GoogleAuthLike,
-  type GoogleCredential,
-  type IndexingConfig,
-  type ServiceAccount,
-} from '@getvitops/utils/indexing';
-// Its own subpath for the same reason: `onboarding` is network-touching (Cloudflare
-// DNS + Google). `formatPlan`/`plan` are aliased — indexing exports the same names.
-import {
-  addSite,
-  backoffSchedule,
-  createApexTxt,
-  findZoneId,
-  formatPlan as formatSetupPlan,
-  formatSummary,
-  refreshTokenGrant,
-  getSite,
-  getVerificationToken,
-  getWebResource,
-  hasDrift,
-  listApexTxt,
-  ownerUnion,
-  plan as planSetup,
-  siteUrlFor,
-  updateOwners,
-  verifyWebResource,
-  type DomainResult,
-  type DomainSetup,
-  type DomainState,
-  type GoogleOAuth,
-} from '@getvitops/utils/onboarding';
-// Its own subpath for the same reason: `ads` touches Cloudflare DNS. `plan`,
-// `formatPlan`, `hasDrift` and `formatSummary` are aliased — indexing and
-// onboarding export those names too.
-import {
-  AD_PLATFORMS,
-  AD_PROVIDER_KEYS,
-  formatPlan as formatPlanAds,
-  formatSummary as formatAdsSummary,
-  hasDrift as hasAdsDrift,
-  isAdProvider,
-  missingFields,
-  plan as planAds,
-  renderTag,
-  tagId,
-  type AdDomainState,
-  type AdPropertyResult,
-  type AdPropertySetup,
-  type AdProvider,
-  type MissingField,
-} from '@getvitops/utils/ads';
-import { PLATFORM_PARAMS } from '@getvitops/utils/tracking';
+  REVIEWS_CACHE_PATH,
+  fetchReviews,
+  formatPlan as formatReviewsPlan,
+  mergeCache,
+  plan as planReviews,
+  readCache as readReviewsCache,
+  selectReviews,
+  toCache,
+  writeCache as writeReviewsCache,
+  type LocationReviews,
+  type ReviewsConfig,
+} from '@getvitops/utils/reviews';
 // Its own subpath for the same reason: `media` shells out to ffmpeg, and no other
-// command should carry it. `formatPlan` is aliased — indexing exports one too.
+// command should carry it.
 import {
   MEDIA_MANIFEST_PATH,
   formatPlan as formatMediaPlan,
@@ -145,9 +97,21 @@ import {
   type MediaConfig,
   type OutputKind,
 } from '@getvitops/utils/media';
+import { msg, parse } from './args.ts';
+import { loadGoogleOAuth, requireAdcProject } from './credentials.ts';
+import {
+  fail,
+  loadConfig,
+  readJsonOrFail,
+  siteConfig,
+  SITE_OPTS,
+  writeOut,
+} from './commands/shared.ts';
+import { cmdSearch } from './commands/search.ts';
+import { cmdAds } from './commands/ads.ts';
+import { cmdSetup } from './commands/setup.ts';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
-import { ADS_HELP, COMMANDS, HELP, SEARCH_HELP, helpFor, wantsHelp } from './help.ts';
-import { ask, canPrompt, missingFieldMessage, questionFor, writeConfigPatch } from './prompt.ts';
+import { COMMANDS, HELP, helpFor, wantsHelp } from './help.ts';
 import { lintCss } from './lint-css.ts';
 import { lintMarkup } from './lint-markup.ts';
 import { applyRenames, lintTokens } from './lint-tokens.ts';
@@ -163,11 +127,6 @@ const LINT_FORMATS = new Set<StylesheetFormat>(['bricks', 'css', 'tailwind']);
 // output set — it renders documents, not stylesheets.
 const LEGAL_DOCS = new Set<LegalDoc>(['privacy', 'terms', 'cookies']);
 const LEGAL_OUTPUTS = new Set<LegalOutput>(['md', 'html', 'portable-text']);
-
-function fail(msg: string): never {
-  console.error(`✖ ${msg}`);
-  process.exit(1);
-}
 
 async function cmdGenerate(argv: string[]) {
   const { values } = parseArgs({
@@ -206,26 +165,53 @@ async function cmdGenerate(argv: string[]) {
       });
       console.log(`✓ ${format} → ${res.outDir} (${res.written.length} paths)`);
     } catch (err) {
-      fail((err as Error).message);
+      fail(msg(err));
     }
   }
 }
 
+/**
+ * `vitops init` writes a starter `design-system.json`; `--site` writes a starter
+ * `site.json` instead — the umbrella `Config` that embeds the design system under
+ * `designSystem.themes.default`, since there is no file-level `extends` and a
+ * scaffolded config can't merely reference a sibling file (see `defaultSiteConfig`'s
+ * docblock in `@getvitops/generator`). `--name`/`--url` fill the two facts a
+ * consumer almost certainly has on hand; everything else stays the documented
+ * placeholder, edited by hand or via `vitops setup` (see AGENTS.md's "Client
+ * onboarding" section).
+ */
 function cmdInit(argv: string[]) {
   const { values } = parseArgs({
     args: argv,
     options: {
-      out: { type: 'string', short: 'o', default: 'design-system.json' },
+      out: { type: 'string', short: 'o' },
       force: { type: 'boolean', default: false },
+      site: { type: 'boolean', default: false },
+      name: { type: 'string' },
+      url: { type: 'string' },
     },
     allowPositionals: false,
   });
-  const out = resolve(values.out as string);
+  const out = resolve((values.out as string) ?? (values.site ? 'site.json' : 'design-system.json'));
   if (existsSync(out) && !values.force) fail(`${out} already exists (use --force to overwrite)`);
+  if (values.site) {
+    const config = defaultSiteConfig({
+      name: values.name as string | undefined,
+      url: values.url as string | undefined,
+    });
+    writeFileSync(out, JSON.stringify(config, null, 2) + '\n');
+    console.log(`✓ wrote ${out}`);
+    console.log(`  Edit it, then: vitops validate ${relative('.', out)}`);
+    console.log(
+      `  Editors read the "$schema" (${CONFIG_SCHEMA_LOCAL_PATH}) for autocomplete + validation — ` +
+        `the installed copy, so it matches the toolchain you build with.`,
+    );
+    return;
+  }
   writeFileSync(out, JSON.stringify(defaultConfig(), null, 2) + '\n');
   console.log(`✓ wrote ${out}`);
   console.log(
-    `  Edit it, then: vitops generate --input ${values.out} --format tailwind --out src/styles`,
+    `  Edit it, then: vitops generate --input ${relative('.', out)} --format tailwind --out src/styles`,
   );
   console.log(
     `  Editors read the "$schema" (${SCHEMA_LOCAL_PATH}) for autocomplete + validation — ` +
@@ -249,13 +235,7 @@ function cmdValidate(argv: string[]) {
     allowPositionals: true,
   });
   const path = resolve((positionals[0] ?? values.input ?? 'design-system.json') as string);
-  if (!existsSync(path)) fail(`config not found: ${path}`);
-  let raw: unknown;
-  try {
-    raw = JSON.parse(readFileSync(path, 'utf8'));
-  } catch (err) {
-    fail(`could not parse JSON: ${(err as Error).message}`);
-  }
+  const raw = readJsonOrFail(path, 'config');
 
   if (isConfig(raw)) {
     let site: Config;
@@ -264,7 +244,7 @@ function cmdValidate(argv: string[]) {
     } catch (err) {
       // Already formatted as one issue per line, with field paths.
       console.error(`✖ ${path} is invalid as a site config:`);
-      console.error((err as Error).message.replace(/^Invalid site config:\n/, ''));
+      console.error(msg(err).replace(/^Invalid site config:\n/, ''));
       process.exit(1);
     }
     // Each theme is validated in turn: `validateConfig` checks the `extends` chain
@@ -323,7 +303,7 @@ async function cmdFavicon(argv: string[]) {
     });
     console.log(`✓ favicons → ${values.out} (${written.length} files)`);
   } catch (err) {
-    fail((err as Error).message);
+    fail(msg(err));
   }
 }
 
@@ -408,7 +388,7 @@ async function cmdMedia(argv: string[]) {
     );
     for (const note of result.plan.notes) console.error(`  ! ${note}`);
   } catch (err) {
-    fail((err as Error).message);
+    fail(msg(err));
   }
 }
 
@@ -422,19 +402,13 @@ async function cmdMedia(argv: string[]) {
  * `resolveInput` tells them apart by shape and resolves the theme.
  */
 function loadDesignSystem(path: string, theme?: string): DesignSystem {
-  if (!existsSync(path)) fail(`config not found: ${path}`);
-  let raw: unknown;
-  try {
-    raw = JSON.parse(readFileSync(path, 'utf8'));
-  } catch (err) {
-    fail(`could not parse JSON: ${(err as Error).message}`);
-  }
+  const raw = readJsonOrFail(path, 'config');
   let resolved: ResolvedInput;
   try {
     resolved = resolveInput(raw, theme != null ? { theme } : {});
   } catch (err) {
     // resolveConfig formats one issue per line; a bad --theme is one line.
-    fail(`${path}: ${(err as Error).message}`);
+    fail(`${path}: ${msg(err)}`);
   }
   const result = validate(resolved.designSystem);
   if (!result.ok) {
@@ -453,47 +427,6 @@ function loadDesignSystem(path: string, theme?: string): DesignSystem {
 }
 
 /**
- * Read + resolve a site config, or exit with a message.
- *
- * Accepts JSON, or a JS/TS module with a default export — deliberately not YAML,
- * which would mean a parser dependency for one command. `resolveConfig` is
- * documented as taking an already-parsed object precisely so the loader is the
- * consumer's choice; anyone on YAML can convert it or export from a module.
- */
-async function loadConfig(path: string, siteEnv: string): Promise<Config> {
-  if (!existsSync(path)) fail(`site config not found: ${path}`);
-  let raw: unknown;
-  if (/\.(json)$/.test(path)) {
-    try {
-      raw = JSON.parse(readFileSync(path, 'utf8'));
-    } catch (err) {
-      fail(`could not parse JSON: ${(err as Error).message}`);
-    }
-  } else {
-    try {
-      raw = (await import(pathToFileURL(path).href)).default;
-    } catch (err) {
-      fail(`could not import ${path}: ${(err as Error).message}`);
-    }
-    if (raw == null) fail(`${path} has no default export`);
-  }
-  try {
-    return resolveConfig(raw, siteEnv);
-  } catch (err) {
-    // resolveConfig already formats one issue per line.
-    fail((err as Error).message);
-  }
-}
-
-/**
- * Render the site's legal documents.
- *
- * The universal delivery path: every consumer has this CLI regardless of stack,
- * so a WordPress theme, an Eleventy build or a hand-written HTML site all get
- * the same documents without any integration code. Prints to stdout like
- * `vitops docs`, or writes files when given `--out`.
- */
-/**
  * Report the icon vocabulary a project actually uses, and optionally build the
  * sprite from it.
  *
@@ -508,22 +441,17 @@ async function loadConfig(path: string, siteEnv: string): Promise<Config> {
  * guessed at.
  */
 async function cmdIcons(argv: string[]) {
-  const { values } = parseArgs({
-    args: argv,
-    options: {
-      site: { type: 'string', default: 'site.json' },
-      src: { type: 'string', default: 'src' },
-      sprite: { type: 'boolean', default: false },
-      out: { type: 'string', short: 'o', default: 'dist' },
-      json: { type: 'boolean', default: false },
-      'site-env': { type: 'string', default: 'production' },
-    },
-    allowPositionals: false,
+  const a = parse(argv, {
+    ...SITE_OPTS,
+    src: { type: 'string', default: 'src' },
+    sprite: { type: 'boolean', default: false },
+    out: { type: 'string', short: 'o', default: 'dist' },
+    json: { type: 'boolean', default: false },
   });
 
-  const sitePath = resolve(values.site as string);
+  const sitePath = a.path('input');
   const icons = existsSync(sitePath)
-    ? (((await loadConfig(sitePath, values['site-env'] as string)).site.icons ?? {}) as Record<
+    ? (((await loadConfig(sitePath, a.str('site-env'))).site.icons ?? {}) as Record<
         string,
         unknown
       >)
@@ -540,14 +468,14 @@ async function cmdIcons(argv: string[]) {
       typeof generateIconInclude
     >[0]);
   } catch (e) {
-    fail((e as Error).message);
+    fail(msg(e));
   }
   const add = (prefix: string, name: string) => {
     const list = (include[prefix] ??= []);
     if (!list.includes(name)) list.push(name);
   };
 
-  const srcDir = resolve(values.src as string);
+  const srcDir = a.path('src');
   const scanned = existsSync(srcDir) ? collectIconRefs(scanFiles(srcDir)) : null;
   const unmapped: string[] = [];
   for (const name of scanned?.names ?? []) {
@@ -572,7 +500,7 @@ async function cmdIcons(argv: string[]) {
   const total = Object.values(include).flat().length;
 
   let sprite: { ids: string[]; missing: string[] } | null = null;
-  if (values.sprite) {
+  if (a.flag('sprite')) {
     const aliases: Record<string, string> = {};
     for (const name of (icons.semantic as string[]) ?? []) {
       try {
@@ -582,13 +510,11 @@ async function cmdIcons(argv: string[]) {
       }
     }
     const built = await buildIconSprite({ include, aliases });
-    const outDir = resolve(values.out as string);
-    mkdirSync(outDir, { recursive: true });
-    writeFileSync(join(outDir, 'icons.svg'), built.svg);
+    writeOut(join(a.path('out'), 'icons.svg'), built.svg);
     sprite = { ids: built.ids, missing: built.missing };
   }
 
-  if (values.json) {
+  if (a.flag('json')) {
     process.stdout.write(
       `${JSON.stringify({ ui, brand, weight: weight ?? null, include, unmapped, dynamic, sprite }, null, 2)}\n`,
     );
@@ -597,10 +523,7 @@ async function cmdIcons(argv: string[]) {
     for (const [prefix, names] of Object.entries(include))
       console.log(`  ${prefix}: ${names.length} — ${names.join(', ')}`);
     console.log(`✓ ${total} icon(s) across ${Object.keys(include).length} set(s)`);
-    if (sprite)
-      console.log(
-        `✓ sprite → ${resolve(values.out as string)}/icons.svg (${sprite.ids.length} symbols)`,
-      );
+    if (sprite) console.log(`✓ sprite → ${a.path('out')}/icons.svg (${sprite.ids.length} symbols)`);
     for (const d of dynamic)
       console.log(`  ! ${d.file}:${d.line}  ${d.expr} — computed at runtime, declare it in icons`);
     if (unmapped.length)
@@ -617,28 +540,23 @@ async function cmdIcons(argv: string[]) {
 }
 
 async function cmdLegal(argv: string[]) {
-  const { values } = parseArgs({
-    args: argv,
-    options: {
-      input: { type: 'string', short: 'i', default: 'site.json' },
-      doc: { type: 'string', short: 'd', multiple: true },
-      format: { type: 'string', short: 'f', default: 'md' },
-      out: { type: 'string', short: 'o' },
-      'site-env': { type: 'string', default: 'production' },
-    },
-    allowPositionals: false,
+  const a = parse(argv, {
+    ...SITE_OPTS,
+    doc: { type: 'string', short: 'd', multiple: true },
+    format: { type: 'string', short: 'f', default: 'md' },
+    out: { type: 'string', short: 'o' },
   });
 
-  const output = values.format as LegalOutput;
+  const output = a.str('format') as LegalOutput;
   if (!LEGAL_OUTPUTS.has(output))
     fail(`unknown format "${output}" (expected: ${[...LEGAL_OUTPUTS].join(' | ')})`);
 
-  const requested = (values.doc ?? []) as string[];
+  const requested = a.list('doc');
   for (const d of requested)
     if (!LEGAL_DOCS.has(d as LegalDoc))
       fail(`unknown doc "${d}" (expected: ${[...LEGAL_DOCS].join(' | ')})`);
 
-  const site = await loadConfig(resolve(values.input as string), values['site-env'] as string);
+  const site = await siteConfig(a);
   const docs = requested.length ? (requested as LegalDoc[]) : enabledDocs(site);
   if (docs.length === 0)
     fail(
@@ -664,7 +582,7 @@ async function cmdLegal(argv: string[]) {
   const REVIEW =
     '  These are generated from your config and are not legal advice — review them before publishing.';
 
-  if (!values.out) {
+  if (!a.opt('out')) {
     process.stdout.write(Object.values(files).join('\n'));
     // On stderr, so it survives a redirect of the document itself. It used to be
     // omitted entirely on this path — the one path where the output is most
@@ -672,7 +590,7 @@ async function cmdLegal(argv: string[]) {
     console.error(REVIEW);
     return;
   }
-  const outDir = resolve(values.out as string);
+  const outDir = a.path('out');
   mkdirSync(outDir, { recursive: true });
   // Enabling a document is a config edit with consequences outside the config —
   // a new file needs a page, a route, a menu link, a policyUrl. Flipping
@@ -702,1081 +620,146 @@ async function cmdLegal(argv: string[]) {
  * than a token set.
  */
 async function cmdRobots(argv: string[]) {
-  const { values } = parseArgs({
-    args: argv,
-    options: {
-      input: { type: 'string', short: 'i', default: 'site.json' },
-      out: { type: 'string', short: 'o' },
-      'site-env': { type: 'string', default: 'production' },
-    },
-    allowPositionals: false,
+  const a = parse(argv, {
+    ...SITE_OPTS,
+    out: { type: 'string', short: 'o' },
   });
 
-  const siteEnv = values['site-env'] as string;
-  const site = await loadConfig(resolve(values.input as string), siteEnv);
+  const siteEnv = a.str('site-env');
+  const site = await loadConfig(a.path('input'), siteEnv);
   const content = renderRobotsTxt(site, { env: siteEnv });
 
-  if (!values.out) {
+  if (!a.opt('out')) {
     process.stdout.write(content);
     return;
   }
-  const outDir = resolve(values.out as string);
-  mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, 'robots.txt'), content);
-  console.log(`✓ robots.txt → ${join(outDir, 'robots.txt')}`);
+  const file = join(a.path('out'), 'robots.txt');
+  writeOut(file, content);
+  console.log(`✓ robots.txt → ${file}`);
 }
 
 /**
- * Adapt a `Config` to the indexing module's own option shape.
+ * Fetch and cache a client's Google Business Profile reviews.
  *
- * A flat field map, as intended: `@getvitops/utils` cannot import from the
- * generator (the generator already depends on it), so `IndexingConfig` mirrors the
- * `seo.indexing` block rather than being it. The one piece of judgment here is the
- * origin — see below.
+ * Reviews live only on the legacy v4 Business Profile API, and the calling GCP
+ * project must be allowlisted by Google before any call succeeds — see
+ * `@getvitops/utils/reviews`'s `gbp.ts`. Auth is always user OAuth (the same
+ * VITOPS_GOOGLE_* / ADC credential `search setup` uses): reading a client's own
+ * reviews is a person acting with owner/manager rights, not a deploy robot.
+ *
+ * The cache (`.vitops/reviews.json` by default) is meant to be committed — a
+ * build should not need a live Google credential to render reviews that change
+ * slowly. `--check` fetches and diffs against it without writing, for CI to flag
+ * a stale commit; a real run merges only the locations it fetched, so one
+ * location's failure leaves every other location's cached reviews untouched.
  */
-function toIndexingConfig(cfg: Config, siteEnv: string): IndexingConfig {
-  const site = cfg.site;
-  const indexing = site.seo?.indexing ?? {};
-  const env = site.environments?.[siteEnv];
-  /*
-   * The environment's own URL wins over `domains.canonical`.
-   *
-   * `domains.canonical` is the production origin — it is what absolute URLs and
-   * SEO tags resolve against. Notifying a non-production environment while
-   * deriving URLs from the canonical origin would submit *production* URLs under
-   * the belief they were staging's, which the noindex gate below would then not
-   * catch, because the gate reads the environment and the URLs would not.
-   */
-  const canonical = env?.url ?? site.domains?.canonical;
-  return {
-    ...(canonical ? { canonical } : {}),
-    ...(indexing.sitemapUrl ? { sitemapUrl: indexing.sitemapUrl } : {}),
-    ...(indexing.indexNow ? { indexNow: indexing.indexNow } : {}),
-    ...(indexing.searchConsole ? { searchConsole: indexing.searchConsole } : {}),
-    ...(indexing.priorityUrls ? { priorityUrls: indexing.priorityUrls } : {}),
-    // Fall back to the site-wide policy so a site that states `noindex` once,
-    // globally, is still protected.
-    ...((env?.robots ?? site.seo?.robots) ? { robots: env?.robots ?? site.seo?.robots } : {}),
+async function cmdReviews(argv: string[]) {
+  const a = parse(argv, {
+    ...SITE_OPTS,
+    location: { type: 'string' },
+    cache: { type: 'string', default: REVIEWS_CACHE_PATH },
+    out: { type: 'string', short: 'o' },
+    dry: { type: 'boolean', default: false },
+    check: { type: 'boolean', default: false },
+  });
+
+  const site = await siteConfig(a);
+  const reviewsConfig = site.site.reviews as ReviewsConfig | undefined;
+  const knownLocations = new Set(
+    Object.entries(site.organization?.locations ?? {})
+      .filter(([, loc]) => loc.listings?.google)
+      .map(([key]) => key),
+  );
+
+  // Env-only, no network — safe to resolve before the --dry check, the same way
+  // `search setup`'s credential presence shapes its own plan.
+  const oauth = loadGoogleOAuth();
+
+  const p = planReviews({
+    config: reviewsConfig,
+    knownLocations,
+    hasCredential: !!oauth,
+    ...(a.opt('location') ? { onlyLocation: a.str('location') } : {}),
+  });
+
+  console.log(formatReviewsPlan(p));
+  if (p.blocked) return;
+
+  const active = p.locations.filter((l) => !l.skip);
+  if (a.flag('dry')) {
+    console.log('\n(--dry: nothing was fetched)');
+    return;
+  }
+
+  const cachePath = a.path('cache');
+  const existing = readReviewsCache(cachePath);
+
+  const project = site.site?.google?.project;
+  requireAdcProject(project, a.str('input'));
+  const auth: GoogleAuthLike = {
+    token: await googleAccessToken({ kind: 'oauth', oauth: oauth! }),
+    ...(project ? { quotaProject: project } : {}),
   };
-}
 
-/**
- * The Search Console credential, from either supported source.
- *
- * Never from the config file: it is the one genuine secret in this command, and a
- * `site.json` is committed. Returns `undefined` rather than failing, so a site
- * running IndexNow alone doesn't need a GCP project at all.
- */
-function loadServiceAccount(): ServiceAccount | undefined {
-  const inline = process.env.VITOPS_GSC_SERVICE_ACCOUNT;
-  const path = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  const raw = inline ?? (path && existsSync(path) ? readFileSync(path, 'utf8') : undefined);
-  if (!raw) return undefined;
-  // An ADC file is not a malformed service account, it is a different KIND of
-  // credential — and one this command already supports. `GOOGLE_APPLICATION_CREDENTIALS`
-  // is exactly where `gcloud auth application-default login` writes an
-  // `authorized_user` file, so parsing it as a service account died on "missing
-  // client_email or private_key" while holding a perfectly usable user credential.
-  // Hand it to the OAuth path rather than failing.
-  if (parseAdcUser(raw)) return undefined;
-  try {
-    return parseServiceAccount(raw);
-  } catch (err) {
-    fail(
-      `${inline ? 'VITOPS_GSC_SERVICE_ACCOUNT' : `GOOGLE_APPLICATION_CREDENTIALS (${path})`}: ${(err as Error).message}`,
-    );
-  }
-}
-
-/** Read a sitemap from a URL or a local path. */
-const readSitemap = async (source: string): Promise<string> => {
-  if (/^https?:\/\//i.test(source)) {
-    const res = await fetch(source);
-    if (!res.ok) fail(`could not fetch ${source}: ${res.status}`);
-    return res.text();
-  }
-  if (!existsSync(source)) fail(`sitemap not found: ${source}`);
-  return readFileSync(source, 'utf8');
-};
-
-/**
- * Tell search engines a deploy happened.
- *
- * Worth being precise about what this is, because the obvious expectation is
- * wrong: **Google has no API that requests indexing.** The Search Console button
- * is not exposed anywhere, URL Inspection is read-only, and the sitemap ping
- * endpoint was removed in 2023. So the Google half of this command resubmits the
- * sitemap and then *verifies* the outcome with `--check`; the immediate-push half
- * is IndexNow, which Google does not participate in.
- *
- * The Indexing API is deliberately absent — see `@getvitops/utils/indexing`'s
- * `gsc.ts`.
- */
-async function cmdSearchNotify(argv: string[]) {
-  const { values } = parseArgs({
-    args: argv,
-    options: {
-      input: { type: 'string', short: 'i', default: 'site.json' },
-      'site-env': { type: 'string', default: 'production' },
-      sitemap: { type: 'string' },
-      urls: { type: 'string' },
-      all: { type: 'boolean', default: false },
-      dry: { type: 'boolean', default: false },
-      check: { type: 'boolean', default: false },
-      'new-key': { type: 'boolean', default: false },
-      'write-key': { type: 'string' },
-      snapshot: { type: 'string', default: SNAPSHOT_PATH },
-    },
-    allowPositionals: false,
-  });
-
-  // Stands alone: generating a key is what you do *before* there is a config to
-  // put it in.
-  if (values['new-key']) {
-    const key = newKey();
-    console.log(key);
-    console.log(
-      `\n  Add to your site config:\n    "seo": { "indexing": { "indexNow": { "key": "${key}" } } }`,
-    );
-    console.log(`  Then serve it at /${key}.txt — \`vitops search notify --write-key public\`.`);
-    return;
-  }
-
-  const site = await loadConfig(resolve(values.input as string), values['site-env'] as string);
-  const config = toIndexingConfig(site, values['site-env'] as string);
-
-  if (values['write-key'] !== undefined) {
-    const key = config.indexNow?.key;
-    if (!key) fail('no site.seo.indexing.indexNow.key in the config — generate one with --new-key');
-    const dir = resolve(values['write-key']);
-    mkdirSync(dir, { recursive: true });
-    const file = join(dir, `${key}.txt`);
-    writeFileSync(file, keyFileContents(key));
-    console.log(`✓ IndexNow key file → ${file}`);
-    console.log(`  It must be served at ${resolveKeyLocation(config) ?? `/${key}.txt`}`);
-    return;
-  }
-
-  const sitemapUrl = (values.sitemap as string | undefined) ?? resolveSitemapUrl(config);
-  if (!sitemapUrl)
-    fail(
-      'no sitemap to read — set seo.indexing.sitemapUrl or domains.canonical, or pass --sitemap',
-    );
-
-  const explicitUrls = values.urls
-    ? (values.urls as string)
-        .split(',')
-        .map((u) => u.trim())
-        .filter(Boolean)
-    : undefined;
-
-  // The sitemap is only needed when the URL set comes from it.
-  const current =
-    explicitUrls?.length && !values.check
-      ? []
-      : (await collectEntries(sitemapUrl, readSitemap)).entries;
-
-  const snapshotPath = resolve(values.snapshot as string);
-  const p = plan({
-    config: { ...config, sitemapUrl },
-    current,
-    previous: readSnapshot(snapshotPath),
-    explicitUrls,
-    all: values.all as boolean,
-  });
-
-  console.log(formatPlan(p));
-
-  if (p.blocked) {
-    // Not a failure. Running this against a `noindex` environment is a coherent
-    // thing for a deploy script to do — the config said not to index it, and the
-    // command honoured that. Failing the build would punish the correct setup.
-    return;
-  }
-  if (values.dry) {
-    console.log('\n(--dry: nothing was submitted)');
-    return;
-  }
-
-  const credential = loadSearchCredential();
+  const fetched: Record<string, LocationReviews> = {};
   let failed = false;
-
-  // ── --check: read-only, and nothing else runs ───────────────────────────────
-  if (values.check) {
-    if (!p.searchConsole.siteUrl)
-      fail('--check needs seo.indexing.searchConsole.siteUrl (the Search Console property)');
-    if (!credential) fail(`--check needs a Search Console credential — ${CREDENTIAL_HINT}`);
-    if (p.check.length === 0)
-      fail('--check needs seo.indexing.priorityUrls — the pages whose indexing matters');
-
-    const auth = searchAuth(
-      await googleAccessToken(credential),
-      credential,
-      site,
-      values.input as string,
-    );
-    console.log(`\nInspecting ${p.check.length} priority URL(s):`);
-    for (const url of p.check) {
-      const r = await inspectUrl(auth, p.searchConsole.siteUrl, url);
-      if (r.error) {
-        console.log(`  ? ${url} — ${r.error}`);
-        failed = true;
-      } else {
-        console.log(
-          `  ${r.indexed ? '✓' : '✗'} ${url} — ${r.coverageState ?? r.verdict ?? 'unknown'}`,
-        );
-        if (!r.indexed) failed = true;
-      }
-    }
-    if (failed) {
-      console.error('\n✖ one or more priority URLs are not indexed');
-      process.exit(1);
-    }
-    console.log('\n✓ every priority URL is indexed');
-    return;
-  }
-
-  // ── IndexNow ────────────────────────────────────────────────────────────────
-  if (p.indexNow.enabled) {
-    const { key, keyLocation } = p.indexNow;
-    const check = await verifyKeyFile(keyLocation!, key!);
-    if (!check.ok) {
-      // Hard stop rather than "submit and hope": IndexNow answers 202 and then
-      // discards the batch when the key doesn't verify, so submitting anyway
-      // would print a success it did not earn.
-      console.error(`✖ IndexNow key file check failed — ${check.reason}`);
-      console.error(`  Write it with: vitops search notify --write-key <public dir>`);
+  for (const loc of active) {
+    const r = await fetchReviews(auth, loc.accountId!, loc.locationId!);
+    if (!r.ok) {
+      console.error(`✖ ${loc.key}: ${r.message}`);
       failed = true;
-    } else {
-      let sent = 0;
-      for (const batch of p.indexNow.batches) {
-        const r = await submitBatch(p.indexNow, batch);
-        if (!r.ok) {
-          console.error(`✖ IndexNow: ${r.message ?? r.status}`);
-          failed = true;
-          break;
-        }
-        sent += r.urls;
-      }
-      if (!failed) console.log(`✓ IndexNow: ${sent} URL(s) submitted`);
-    }
-  }
-
-  // ── Search Console ──────────────────────────────────────────────────────────
-  if (p.searchConsole.enabled) {
-    if (!credential) {
-      console.log(`· Search Console: skipped — no credential (${CREDENTIAL_HINT})`);
-    } else {
-      const auth = searchAuth(
-        await googleAccessToken(credential),
-        credential,
-        site,
-        values.input as string,
-      );
-      const r = await submitSitemap(auth, p.searchConsole.siteUrl!, sitemapUrl);
-      if (r.ok) console.log(`✓ Search Console: sitemap resubmitted`);
-      else {
-        console.error(`✖ Search Console: ${r.message}`);
-        failed = true;
-      }
-    }
-  }
-
-  if (failed) process.exit(1);
-
-  /*
-   * The snapshot is written last, and only on success.
-   *
-   * Writing it eagerly would record URLs as notified that never were — and since
-   * the next run diffs against it, a single transient 503 would drop those pages
-   * from every future run, silently and permanently.
-   */
-  if (current.length > 0) {
-    writeSnapshot(snapshotPath, toSnapshot(sitemapUrl, current, new Date().toISOString()));
-    console.log(`  state → ${relative(process.cwd(), snapshotPath)}`);
-  }
-  if (p.check.length > 0)
-    console.log(
-      `\n  Indexing is not instant. Run \`vitops search notify --check\` in a day or two to see what Google actually did.`,
-    );
-}
-
-/**
- * Adapt a `Config` to the onboarding module's own option shape.
- *
- * The same flat field map as `toIndexingConfig`, and for the same reason — utils
- * cannot import the generator. `--domain` scopes to a single `site.searchConsole`
- * entry, and a name that isn't there is an error, not an empty run.
- */
-function toSearchConsoleSetup(cfg: Config, domainFilter: string | undefined): DomainSetup[] {
-  const entries = cfg.site.searchConsole ?? {};
-  const setups: DomainSetup[] = Object.entries(entries).map(([domain, e]) => ({
-    domain,
-    ...(e.delegatedOwners ? { delegatedOwners: e.delegatedOwners } : {}),
-    ...(e.fullUserGroup ? { fullUserGroup: e.fullUserGroup } : {}),
-  }));
-  if (domainFilter) {
-    const one = setups.find((s) => s.domain === domainFilter);
-    if (!one)
-      fail(
-        `--domain "${domainFilter}" is not in site.searchConsole (have: ${setups.map((s) => s.domain).join(', ') || 'none'})`,
-      );
-    return [one];
-  }
-  return setups;
-}
-
-/**
- * The Cloudflare DNS credential. From the environment only — a `site.json` is
- * committed, and this is a real secret. A `Zone:DNS:Edit` token (the standard
- * "Edit zone DNS" template, which also carries `Zone:Read`).
- */
-function loadCloudflareToken(): string | undefined {
-  return process.env.CLOUDFLARE_API_TOKEN || undefined;
-}
-
-/**
- * The Google user-OAuth credential (refresh-token flow), from the environment.
- *
- * A user token, not a service account: onboarding acts *as a person* who can own
- * the sites. All-or-nothing — a partial set is a misconfiguration worth naming
- * rather than a reason to run degraded.
- */
-/**
- * Set when the Google credential came from an ADC file rather than the env vars.
- *
- * Provenance matters for exactly one check: an ADC credential authenticates through
- * a shared OAuth client that owns no project, so it CANNOT work without
- * `site.google.project`, while a credential from your own OAuth client works fine
- * without one. Knowing which we hold is what turns Google's "requires a quota
- * project" 403 into an error that names the field and the likely value.
- */
-let adcOrigin: { path: string; project?: string } | undefined;
-
-/**
- * Refuse an ADC credential with no project, before spending a request on a 403.
- *
- * This is the mistake waiting for the *second* site: the command is copied from
- * whatever onboarded the first one, `site.google.project` is left out, and Google
- * answers with a message about quota projects that names neither the config field
- * nor the file the credential came from.
- */
-function requireAdcProject(project: string | undefined, input: string): void {
-  if (!adcOrigin || project) return;
-  fail(
-    `this Google credential comes from ${adcOrigin.path}, which authenticates through a shared ` +
-      `OAuth client that owns no project — so it needs "site.google.project" in ${input} to say ` +
-      `which project the API usage belongs to.` +
-      (adcOrigin.project
-        ? `\n  gcloud recorded "${adcOrigin.project}" as the quota project for that login, so that is probably the value.`
-        : '') +
-      `\n  One project per site keeps each site's usage and billing separate. That project also ` +
-      `needs searchconsole.googleapis.com and siteverification.googleapis.com enabled, and the ` +
-      `identity needs serviceusage.services.use on it.` +
-      `\n  Or set VITOPS_GOOGLE_CLIENT_ID / _CLIENT_SECRET / _REFRESH_TOKEN to use your own OAuth client instead.`,
-  );
-}
-
-function loadGoogleOAuth(): GoogleOAuth | undefined {
-  const clientId = process.env.VITOPS_GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.VITOPS_GOOGLE_CLIENT_SECRET;
-  const refreshToken = process.env.VITOPS_GOOGLE_REFRESH_TOKEN;
-  // Explicit vars win over ambient credentials: an operator who set them meant them,
-  // and a stale gcloud login silently overriding a deliberate CI secret is the worst
-  // available precedence. Fall back to ADC only when nothing was set at all — that is
-  // what makes "I'm logged in to gcloud" enough for a one-time human `search setup`.
-  if (!clientId && !clientSecret && !refreshToken) {
-    const path =
-      process.env.GOOGLE_APPLICATION_CREDENTIALS ??
-      adcCredentialsPath({ env: process.env, platform: process.platform, home: homedir(), join });
-    if (path && existsSync(path)) {
-      const raw = readFileSync(path, 'utf8');
-      const adc = parseAdcUser(raw);
-      if (adc) {
-        // Remember that this came from ADC, and what project gcloud recorded with it.
-        // A shared-client credential is refused outright without a project, so the
-        // preflight below can name the likely value instead of leaving a bare 403.
-        const recorded = adcQuotaProject(raw);
-        adcOrigin = recorded ? { path, project: recorded } : { path };
-        return adc;
-      }
-    }
-    return undefined;
-  }
-  const missing = [
-    ['VITOPS_GOOGLE_CLIENT_ID', clientId],
-    ['VITOPS_GOOGLE_CLIENT_SECRET', clientSecret],
-    ['VITOPS_GOOGLE_REFRESH_TOKEN', refreshToken],
-  ]
-    .filter(([, v]) => !v)
-    .map(([k]) => k);
-  if (missing.length) fail(`incomplete Google OAuth credential — missing ${missing.join(', ')}`);
-  return { clientId: clientId!, clientSecret: clientSecret!, refreshToken: refreshToken! };
-}
-
-/**
- * The Google identity for `search notify`, preferring a service account.
- *
- * Search Console accepts either, and the preference is about *where this command
- * runs*: it fires on every deploy, in CI, and a service account has no expiry,
- * while a refresh token can be revoked — and for an OAuth client still in
- * *Testing* publishing status Google expires it after 7 days, which is a bad
- * property for a deploy step. So the robot wins when it is available.
- *
- * The fallback is the point, though. `search setup` needs user OAuth (verifying
- * a site makes the caller an owner, which should be a person), so a consumer who
- * ran setup already has a Google credential. Demanding a second, unrelated one
- * for the other half of the same command bought nothing.
- */
-function loadSearchCredential(): GoogleCredential | undefined {
-  const account = loadServiceAccount();
-  if (account) return { kind: 'service-account', account, scope: SCOPES.webmasters };
-  const oauth = loadGoogleOAuth();
-  return oauth ? { kind: 'oauth', oauth } : undefined;
-}
-
-/**
- * Attach the site's Google project to a token — for a **user** credential only.
- *
- * A user credential (an ADC login, or `VITOPS_GOOGLE_*`) authenticates through a
- * shared OAuth client that owns no project, so Google refuses the call outright
- * without `x-goog-user-project`. A service account already belongs to a project, and
- * pointing it at a *different* one would newly require `serviceusage.services.use`
- * there — turning a working CI credential into a 403 for no benefit. So the header
- * is sent exactly when it is needed, never as a default.
- */
-function searchAuth(
-  token: string,
-  credential: GoogleCredential,
-  cfg: Config,
-  input: string,
-): GoogleAuthLike {
-  const project = cfg.site?.google?.project;
-  // Only a user credential can be an ADC one, so only it can be missing a project.
-  if (credential.kind === 'oauth') requireAdcProject(project, input);
-  return project && credential.kind === 'oauth' ? { token, quotaProject: project } : token;
-}
-
-/** Both spellings, for an error that has to tell you what to actually set. */
-const CREDENTIAL_HINT =
-  'a service account in VITOPS_GSC_SERVICE_ACCOUNT / GOOGLE_APPLICATION_CREDENTIALS, or a user OAuth credential in VITOPS_GOOGLE_CLIENT_ID / VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN';
-
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
-/**
- * `vitops search` — everything that talks to search engines.
- *
- * Two subcommands, split by what they touch: `setup` onboards a domain into
- * Search Console (DNS + verification + property), `notify` tells the engines a
- * deploy happened (sitemap + IndexNow). `notify` is the former top-level
- * `vitops indexing`.
- */
-async function cmdSearch(argv: string[]) {
-  const [sub, ...rest] = argv;
-  switch (sub) {
-    case 'setup':
-      return cmdSearchSetup(rest);
-    case 'notify':
-      return cmdSearchNotify(rest);
-    case undefined:
-    case '-h':
-    case '--help':
-      console.log(SEARCH_HELP);
-      return;
-    default:
-      fail(`unknown "search" subcommand "${sub}" (expected: setup | notify). Try: vitops --help`);
-  }
-}
-
-/**
- * Onboard domains into Google Search Console as domain properties.
- *
- * Idempotent by construction: the planner decides each step from the domain's live
- * state, so a re-run of a fully-onboarded domain is all skips. `--check` reports
- * drift and exits non-zero without mutating; `--dry` prints the plan and stops.
- * Neither is offline: the state gather runs before the planner either way, so both
- * read from Cloudflare and Google and both need credentials.
- * DNS is only ever *created* — the verification TXT — never edited or removed.
- *
- * Search Console has no user/permission API, so granting a Google Group Full-User
- * access stays manual and is surfaced as a reminder, not attempted.
- */
-async function cmdSearchSetup(argv: string[]) {
-  const { values } = parseArgs({
-    args: argv,
-    options: {
-      input: { type: 'string', short: 'i', default: 'site.json' },
-      'site-env': { type: 'string', default: 'production' },
-      domain: { type: 'string' },
-      check: { type: 'boolean', default: false },
-      dry: { type: 'boolean', default: false },
-    },
-    allowPositionals: false,
-  });
-
-  const cfg = await loadConfig(resolve(values.input as string), values['site-env'] as string);
-  const domains = toSearchConsoleSetup(cfg, values.domain as string | undefined);
-  if (domains.length === 0)
-    fail('no domains in site.searchConsole — add domains to onboard (keyed by bare hostname)');
-
-  const cfToken = loadCloudflareToken();
-  const oauth = loadGoogleOAuth();
-  const project = cfg.site?.google?.project;
-  // An ADC credential with no project is refused outright (see requireAdcProject) —
-  // so for the purposes of "can this dry run read live state", it is not usable
-  // credentials, the same as no credential at all.
-  const usableOauth = oauth && !(adcOrigin && !project);
-
-  // A dry run that mutates nothing should not demand the credentials to mutate.
-  // It cannot READ live state without them either, so it plans from "nothing is
-  // done yet" and says so — which is still the complete account of what a first
-  // run would do, and is what makes the plan showable before anyone has
-  // provisioned anything. `--check` is different: reporting drift means
-  // comparing against reality, so it keeps needing to see it.
-  if (values.dry && (!cfToken || !usableOauth)) {
-    const blank: DomainState = {
-      zoneId: '',
-      txtPresent: false,
-      verified: false,
-      currentOwners: [],
-      propertyExists: false,
-    };
-    console.log(
-      formatSetupPlan(planSetup({ domains }, new Map(domains.map((d) => [d.domain, blank])))),
-    );
-    const missing = [
-      ...(cfToken ? [] : ['CLOUDFLARE_API_TOKEN (Zone:DNS:Edit + Zone:Read)']),
-      ...(usableOauth
-        ? []
-        : oauth
-          ? [`site.google.project in ${values.input as string} (this ADC login has no project)`]
-          : [
-              'VITOPS_GOOGLE_CLIENT_ID / VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN',
-            ]),
-    ];
-    console.log(
-      `\n(--dry, and no credentials set: planned from scratch rather than from live state, ` +
-        `so nothing here is reported as already done.\n A real run needs ${missing.join(' and ')}.)`,
-    );
-    return;
-  }
-
-  if (!cfToken)
-    fail(
-      'set CLOUDFLARE_API_TOKEN (a Zone:DNS:Edit token — the standard "Edit zone DNS" template, ' +
-        'which also carries the Zone:Read that the zone-by-name lookup needs)',
-    );
-  if (!oauth)
-    fail(
-      'set VITOPS_GOOGLE_CLIENT_ID / VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN — a user OAuth token scoped to siteverification + webmasters — or run ' +
-        '`gcloud auth application-default login` with the siteverification + webmasters + cloud-platform scopes (see --help)',
-    );
-
-  // Always a user credential here — `setup` requires one — so the site's project is
-  // what makes the calls attributable. Without it a shared-client credential (a gcloud
-  // ADC login) is refused outright; a credential from your own OAuth client carries its
-  // project in the client id and works either way, which is why this isn't required.
-  // Checked BEFORE the grant: a run that cannot succeed should spend no requests.
-  requireAdcProject(project, values.input as string);
-
-  const token = await refreshTokenGrant(oauth);
-  const auth: GoogleAuthLike = project ? { token, quotaProject: project } : token;
-
-  // ── Observe live state per domain (the executors gather; the planner decides) ──
-  const states = new Map<string, DomainState>();
-  const verifyTokens = new Map<string, string>();
-  const webIds = new Map<string, string>();
-  for (const d of domains) {
-    const zone = await findZoneId(cfToken, d.domain);
-    if (!zone.ok || !zone.zoneId) fail(`${d.domain}: ${zone.message}`);
-
-    const vt = await getVerificationToken(auth, d.domain);
-    if (!vt.ok || !vt.token)
-      fail(`${d.domain}: could not obtain a verification token — ${vt.message}`);
-    verifyTokens.set(d.domain, vt.token);
-
-    const txt = await listApexTxt(cfToken, zone.zoneId, d.domain);
-    if (!txt.ok) fail(`${d.domain}: ${txt.message}`);
-
-    const wr = await getWebResource(auth, d.domain);
-    if (!wr.ok) fail(`${d.domain}: ${wr.message}`);
-    if (wr.id) webIds.set(d.domain, wr.id);
-
-    const site = await getSite(auth, siteUrlFor(d.domain));
-    if (!site.ok) fail(`${d.domain}: ${site.message}`);
-
-    states.set(d.domain, {
-      zoneId: zone.zoneId,
-      txtPresent: txt.contents.includes(vt.token),
-      verified: wr.exists,
-      currentOwners: wr.owners,
-      propertyExists: site.exists,
-    });
-  }
-
-  const p = planSetup({ domains }, states);
-  console.log(formatSetupPlan(p));
-
-  if (values.check) {
-    if (hasDrift(p)) {
-      console.error('\n✖ drift — one or more domains are not fully onboarded');
-      process.exit(1);
-    }
-    console.log('\n✓ every domain is onboarded');
-    return;
-  }
-  if (values.dry) {
-    console.log('\n(--dry: nothing was changed)');
-    return;
-  }
-
-  // ── Execute ─────────────────────────────────────────────────────────────────
-  const results: DomainResult[] = [];
-  let failed = false;
-  const delays = backoffSchedule();
-
-  for (const d of domains) {
-    const dp = p.domains.find((x) => x.domain === d.domain)!;
-    const state = states.get(d.domain)!;
-    const result: DomainResult = {
-      domain: d.domain,
-      txt: '—',
-      verified: '—',
-      property: '—',
-      reminders: dp.reminders,
-    };
-
-    // 1. Ensure the apex TXT record (create only).
-    if (dp.txt.action === 'skip') result.txt = 'present';
-    else {
-      const r = await createApexTxt(cfToken, state.zoneId!, d.domain, verifyTokens.get(d.domain)!);
-      if (!r.ok) {
-        console.error(`✖ ${d.domain} TXT: ${r.message}`);
-        result.txt = 'failed';
-        failed = true;
-        results.push(result);
-        continue;
-      }
-      result.txt = 'created';
-    }
-
-    // 2. Verify ownership, retrying with backoff while DNS propagates.
-    let verified = state.verified;
-    if (verified) result.verified = 'yes';
-    else {
-      for (let attempt = 0; attempt < delays.length; attempt++) {
-        const v = await verifyWebResource(auth, d.domain);
-        if (v.ok) {
-          verified = true;
-          if (v.id) webIds.set(d.domain, v.id);
-          // Verification is what CREATES the web resource, so this response is the
-          // first sight of its owner list — and it contains the verifying account.
-          // The pre-verification observation could only report `[]`. Dropping this
-          // makes the union below a bare `ownersToAdd`, and the PUT then removes
-          // the very account that just proved ownership.
-          state.currentOwners = v.owners;
-          break;
-        }
-        if (attempt < delays.length - 1) {
-          const wait = delays[attempt]!;
-          console.log(
-            `  … ${d.domain}: not verified yet (attempt ${attempt + 1}/${delays.length}); retrying in ${wait / 1000}s`,
-          );
-          await sleep(wait);
-        }
-      }
-      // PENDING, not failed: propagation is slow, not broken. Re-run later.
-      result.verified = verified ? 'yes' : 'pending';
-    }
-    if (!verified) {
-      results.push(result);
       continue;
     }
+    console.log(`✓ ${loc.key}: ${r.reviews.length} review(s)`);
+    fetched[loc.key] = {
+      locationId: loc.locationId!,
+      accountId: loc.accountId!,
+      fetchedAt: new Date().toISOString(),
+      ...(r.averageRating !== undefined ? { averageRating: r.averageRating } : {}),
+      ...(r.totalReviewCount !== undefined ? { totalReviewCount: r.totalReviewCount } : {}),
+      reviews: r.reviews,
+    };
+  }
 
-    // 3. Add the Search Console property.
-    if (dp.property.action === 'skip') result.property = 'present';
-    else {
-      const r = await addSite(auth, dp.siteUrl);
-      if (!r.ok) {
-        console.error(`✖ ${d.domain} property: ${r.message}`);
-        result.property = 'failed';
-        failed = true;
-      } else result.property = 'added';
-    }
-
-    // 4. Add delegated owners to the verified web resource (additive union).
-    if (dp.owners.action === 'update' && dp.ownersToAdd.length) {
-      const id = webIds.get(d.domain);
-      if (!id) {
-        console.error(`✖ ${d.domain} owners: no web-resource id (verify may be too fresh)`);
-        failed = true;
-      } else {
-        const r = await updateOwners(
-          token,
-          id,
-          d.domain,
-          ownerUnion(state.currentOwners, dp.ownersToAdd),
+  // ── --check: read-only, and nothing is written ──────────────────────────────
+  if (a.flag('check')) {
+    let drift = false;
+    for (const [key, loc] of Object.entries(fetched)) {
+      const before = existing?.locations[key];
+      const beforeIds = new Set((before?.reviews ?? []).map((rv) => rv.id));
+      const afterIds = loc.reviews.map((rv) => rv.id);
+      const changed =
+        beforeIds.size !== afterIds.length || afterIds.some((id) => !beforeIds.has(id));
+      if (changed) {
+        drift = true;
+        console.log(
+          `  ~ ${key}: cache is stale (${before?.reviews.length ?? 0} → ${loc.reviews.length})`,
         );
-        if (!r.ok) {
-          console.error(`✖ ${d.domain} owners: ${r.message}`);
-          failed = true;
-        } else console.log(`✓ ${d.domain}: added ${dp.ownersToAdd.length} owner(s)`);
       }
     }
-
-    results.push(result);
+    if (drift || failed) process.exit(1);
+    console.log('\n✓ cache matches live reviews');
+    return;
   }
 
-  console.log(`\n${formatSummary(results)}`);
+  if (Object.keys(fetched).length) {
+    const merged = toCache(mergeCache(existing, fetched).locations);
+    writeReviewsCache(cachePath, merged);
+    console.log(`  cache → ${relative(process.cwd(), cachePath)}`);
+
+    if (a.opt('out')) {
+      const outDir = a.path('out');
+      mkdirSync(outDir, { recursive: true });
+      for (const [key, loc] of Object.entries(merged.locations)) {
+        const locConfig = reviewsConfig?.locations[key];
+        const selected = locConfig ? selectReviews(loc.reviews, locConfig) : loc.reviews;
+        writeFileSync(join(outDir, `${key}.json`), `${JSON.stringify(selected, null, 2)}\n`);
+      }
+      console.log(`  selected reviews → ${outDir}`);
+    }
+  }
+
   if (failed) process.exit(1);
-}
-
-/**
- * Adapt a `Config` to the ads module's own option shape.
- *
- * The same flat field map as `toSearchConsoleSetup` and `toIndexingConfig`, for the
- * same reason — utils cannot import the generator. The domain default is the one
- * derived value: a platform verifies the host the site is published at, so
- * `domains.canonical` answers it, and only an ad account verified against some
- * other host needs `site.ads.<provider>.domain` stated.
- */
-function toAdProperties(cfg: Config, providerFilter: string | undefined): AdPropertySetup[] {
-  const canonicalHost = (() => {
-    const url = cfg.site.domains?.canonical;
-    if (!url) return undefined;
-    try {
-      return new URL(url).hostname;
-    } catch {
-      return undefined;
-    }
-  })();
-
-  const entries = cfg.site.ads ?? {};
-  const properties: AdPropertySetup[] = AD_PROVIDER_KEYS.filter((p) => entries[p] != null).map(
-    (provider) => {
-      const e = entries[provider]!;
-      const domain = e.domain ?? canonicalHost;
-      return {
-        provider,
-        ...(e.accountId ? { accountId: e.accountId } : {}),
-        ...(e.pixelId ? { pixelId: e.pixelId } : {}),
-        ...(e.conversionLabel ? { conversionLabel: e.conversionLabel } : {}),
-        ...(domain ? { domain } : {}),
-        ...(e.domainVerification ? { domainVerification: e.domainVerification } : {}),
-        ...(e.category ? { category: e.category } : {}),
-        ...(e.enabled != null ? { enabled: e.enabled } : {}),
-      };
-    },
-  );
-
-  if (providerFilter) {
-    if (!isAdProvider(providerFilter))
-      fail(
-        `--provider "${providerFilter}" is not a known ad platform (expected: ${AD_PROVIDER_KEYS.join(' | ')})`,
-      );
-    const one = properties.find((p) => p.provider === providerFilter);
-    if (!one)
-      fail(
-        `--provider "${providerFilter}" is not in site.ads (have: ${properties.map((p) => p.provider).join(', ') || 'none'})`,
-      );
-    return [one];
-  }
-  return properties;
-}
-
-/**
- * `vitops ads` — everything that links this site to an ad platform.
- *
- * Three subcommands, split by what they touch: `setup` writes DNS, `tags` writes
- * nothing and prints markup, `lint` reads and reports.
- */
-async function cmdAds(argv: string[]) {
-  const [sub, ...rest] = argv;
-  switch (sub) {
-    case 'setup':
-      return cmdAdsSetup(rest);
-    case 'tags':
-      return cmdAdsTags(rest);
-    case 'lint':
-      return cmdAdsLint(rest);
-    case undefined:
-    case '-h':
-    case '--help':
-      console.log(ADS_HELP);
-      return;
-    default:
-      fail(`unknown "ads" subcommand "${sub}" (expected: setup | tags | lint). Try: vitops --help`);
-  }
-}
-
-/**
- * Link each configured ad property: ensure the platform's domain-verification TXT,
- * report what only a human can finish.
- *
- * Idempotent by construction — the planner decides each step from live DNS, so a
- * re-run of a linked property is all skips. `--check` reports drift and exits
- * non-zero without mutating; `--dry` prints the plan and stops. Neither is offline:
- * the DNS observation runs before the planner either way.
- *
- * The one thing this does that `search setup` does not is **ask**. A first run has
- * no verification token, because the token doesn't exist until someone fetches it
- * from the platform UI — so a blocked step becomes a prompt, the answer is folded
- * into the setup, and the planner runs again on it. That re-plan matters: what gets
- * executed is always a plan the pure planner produced, never a special case built
- * out of an answer.
- */
-async function cmdAdsSetup(argv: string[]) {
-  const { values } = parseArgs({
-    args: argv,
-    options: {
-      input: { type: 'string', short: 'i', default: 'site.json' },
-      'site-env': { type: 'string', default: 'production' },
-      provider: { type: 'string' },
-      check: { type: 'boolean', default: false },
-      dry: { type: 'boolean', default: false },
-      'no-prompt': { type: 'boolean', default: false },
-      'no-write': { type: 'boolean', default: false },
-    },
-    allowPositionals: false,
-  });
-
-  const input = resolve(values.input as string);
-  const cfg = await loadConfig(input, values['site-env'] as string);
-  let properties = toAdProperties(cfg, values.provider as string | undefined);
-  if (properties.length === 0)
-    fail('no properties in site.ads — add the ad platforms this site is linked to');
-
-  const dry = values.dry as boolean;
-  const check = values.check as boolean;
-
-  // Only the DNS-verifying platforms need a Cloudflare token; a config of
-  // tag-only platforms (Google Ads, LinkedIn, Reddit, Microsoft) has no DNS work
-  // at all, and demanding a credential for a run that writes nothing would be an
-  // obstacle standing in front of an empty room.
-  const needsDns = properties.some(
-    (p) => AD_PLATFORMS[p.provider].verification.method === 'dns-txt',
-  );
-  const cfToken = loadCloudflareToken();
-  // As in `search setup`: a dry run mutates nothing, so it must not demand the
-  // credential to mutate. Without one it cannot read live DNS either, so
-  // `observe()` returns an empty map and the plan is "from scratch" — still the
-  // complete account of a first run, and showable before anything is provisioned.
-  if (needsDns && !cfToken && values.dry !== true)
-    fail(
-      'set CLOUDFLARE_API_TOKEN (a Zone:DNS:Edit token — the standard "Edit zone DNS" template, ' +
-        'which also carries the Zone:Read that the zone-by-name lookup needs)',
-    );
-
-  /** Observe live DNS per domain. Cached by domain: several platforms share one. */
-  const observe = async (): Promise<Map<string, AdDomainState>> => {
-    const states = new Map<string, AdDomainState>();
-    if (!cfToken) return states;
-    for (const p of properties) {
-      const domain = p.domain;
-      if (!domain || states.has(domain)) continue;
-      if (AD_PLATFORMS[p.provider].verification.method !== 'dns-txt') continue;
-      const zone = await findZoneId(cfToken, domain);
-      if (!zone.ok || !zone.zoneId) fail(`${domain}: ${zone.message}`);
-      const txt = await listApexTxt(cfToken, zone.zoneId, domain);
-      if (!txt.ok) fail(`${domain}: ${txt.message}`);
-      states.set(domain, { zoneId: zone.zoneId, txtContents: txt.contents });
-    }
-    return states;
-  };
-
-  let states = await observe();
-  let adsPlan = planAds({ properties }, states);
-
-  // ── Ask for what the config is missing, then re-plan on the answers ──────────
-  const interactive = canPrompt({
-    dry,
-    check,
-    noPrompt: values['no-prompt'] as boolean,
-  });
-  const gaps = missingFields(adsPlan);
-  if (gaps.length && interactive) {
-    const answers: { provider: AdProvider; needs: MissingField; value: string }[] = [];
-    for (const gap of gaps) {
-      const value = await ask(questionFor(gap.provider as AdProvider, gap.needs));
-      if (value) answers.push({ provider: gap.provider as AdProvider, needs: gap.needs, value });
-    }
-    if (answers.length) {
-      properties = properties.map((p) => {
-        const mine = answers.filter((a) => a.provider === p.provider);
-        return mine.reduce((acc, a) => ({ ...acc, [a.needs]: a.value }), p);
-      });
-      adsPlan = planAds({ properties }, states);
-      if (!(values['no-write'] as boolean)) {
-        for (const a of answers) {
-          const res = writeConfigPatch(input, a.provider, a.needs, a.value);
-          if (res.written) console.log(`✓ wrote site.ads.${a.provider}.${a.needs} to ${input}`);
-          else console.error(`! ${res.reason}`);
-        }
-      }
-    }
-    // A token answered now may name a record we haven't looked for yet.
-    states = await observe();
-    adsPlan = planAds({ properties }, states);
-  } else if (gaps.length && !dry && !check) {
-    for (const gap of gaps)
-      console.error(`! ${missingFieldMessage(gap.provider as AdProvider, gap.needs)}`);
-  }
-
-  if (dry || check) {
-    console.log(formatPlanAds(adsPlan));
-    if (check && hasAdsDrift(adsPlan)) {
-      console.error('\n✖ ad properties are not fully linked');
-      process.exit(1);
-    }
-    return;
-  }
-
-  // ── Apply ────────────────────────────────────────────────────────────────────
-  const results: AdPropertyResult[] = [];
-  let failed = false;
-  for (const p of adsPlan.properties) {
-    const result: AdPropertyResult = {
-      provider: p.provider,
-      domain: p.domain ?? '—',
-      txt: 'n/a',
-      tag: p.tag.action === 'skip' ? 'ready' : 'blocked',
-      reminders: p.reminders,
-    };
-    // A property still missing a field after the prompt round is not linked, and
-    // the exit code has to say so — a run that silently succeeds while a pixel has
-    // no id is the failure this command exists to make visible.
-    if (p.txt.action === 'blocked' || p.tag.action === 'blocked') failed = true;
-    if (p.txt.action === 'blocked') result.txt = 'blocked';
-    else if (p.txt.action === 'skip')
-      result.txt = AD_PLATFORMS[p.provider].verification.method === 'dns-txt' ? 'present' : 'n/a';
-    else {
-      const zoneId = p.domain ? states.get(p.domain)?.zoneId : undefined;
-      if (!cfToken || !zoneId || !p.domain || !p.txtContent) {
-        console.error(`✖ ${p.provider}: no Cloudflare zone for ${p.domain ?? '(no domain)'}`);
-        result.txt = 'failed';
-        failed = true;
-      } else {
-        const r = await createApexTxt(cfToken, zoneId, p.domain, p.txtContent);
-        if (!r.ok) {
-          console.error(`✖ ${p.provider} TXT: ${r.message}`);
-          result.txt = 'failed';
-          failed = true;
-        } else {
-          console.log(`✓ ${p.provider}: created TXT on ${p.domain}`);
-          result.txt = 'created';
-        }
-      }
-    }
-    results.push(result);
-  }
-
-  console.log(`\n${formatAdsSummary(results)}`);
-  if (results.some((r) => r.txt === 'created'))
-    console.log('\n  DNS takes minutes to propagate before a platform can see the record.');
-  if (results.some((r) => r.reminders.length))
-    console.log('  Finish the reminders above in the platform UI — no API covers those.');
-  if (failed) process.exit(1);
-}
-
-/**
- * Print each configured pixel as an inert, consent-gated `<script>`.
- *
- * The universal delivery path, the same reasoning as `vitops legal`: every consumer
- * has this CLI whatever their stack, so Bricks, WordPress and a hand-built site all
- * get the correct gated markup without integration code.
- */
-async function cmdAdsTags(argv: string[]) {
-  const { values } = parseArgs({
-    args: argv,
-    options: {
-      input: { type: 'string', short: 'i', default: 'site.json' },
-      'site-env': { type: 'string', default: 'production' },
-      provider: { type: 'string' },
-      strategy: { type: 'string', default: 'idle' },
-    },
-    allowPositionals: false,
-  });
-
-  const strategy = values.strategy as string;
-  if (!['idle', 'async', 'interaction'].includes(strategy))
-    fail(`--strategy "${strategy}" is not one of: idle | async | interaction`);
-
-  const cfg = await loadConfig(resolve(values.input as string), values['site-env'] as string);
-  const properties = toAdProperties(cfg, values.provider as string | undefined);
-  if (properties.length === 0) fail('no properties in site.ads — nothing to emit');
-
-  const out: string[] = [];
-  for (const p of properties) {
-    if (p.enabled === false) continue;
-    const tag = renderTag(p, strategy as 'idle' | 'async' | 'interaction');
-    if (!tag) {
-      console.error(
-        `! ${p.provider}: no ${AD_PLATFORMS[p.provider].tag.needs} — skipped (run \`vitops ads setup\` to be prompted for it)`,
-      );
-      continue;
-    }
-    out.push(tag);
-  }
-  if (out.length === 0) fail('no ad property has a tag id yet');
-  console.log(out.join('\n\n'));
-}
-
-/**
- * Report the ad-property gaps that are invisible at runtime.
- *
- * Each finding is a silent failure, which is the bar for being here at all: an
- * uncaptured click ID looks exactly like organic traffic, and a pixel on a site
- * with tracking off produces conversions no campaign gets credit for.
- */
-async function cmdAdsLint(argv: string[]) {
-  const { values } = parseArgs({
-    args: argv,
-    options: {
-      input: { type: 'string', short: 'i', default: 'site.json' },
-      'site-env': { type: 'string', default: 'production' },
-    },
-    allowPositionals: false,
-  });
-
-  const cfg = await loadConfig(resolve(values.input as string), values['site-env'] as string);
-  const properties = toAdProperties(cfg, undefined);
-  if (properties.length === 0) {
-    console.log('· no site.ads properties — nothing to check');
-    return;
-  }
-
-  const findings: string[] = [];
-  const trackingOn = cfg.site.tracking?.enabled === true;
-
-  for (const p of properties) {
-    const platform = AD_PLATFORMS[p.provider];
-    if (p.enabled === false) continue;
-
-    if (!tagId(p))
-      findings.push(
-        `${p.provider}: no ${platform.tag.needs} — the property is on record but no tag can be emitted`,
-      );
-
-    const uncaptured = platform.clickIdParams.filter((param) => !(param in PLATFORM_PARAMS));
-    if (uncaptured.length)
-      findings.push(
-        `${p.provider}: click ID ${uncaptured.join(', ')} is not in the capture vocabulary — every conversion from this platform will arrive unattributed`,
-      );
-
-    if (!trackingOn)
-      findings.push(
-        `${p.provider}: site.tracking.enabled is not true, so ${platform.clickIdParams.join('/')} is never captured — conversions will be unattributed`,
-      );
-  }
-
-  if (findings.length === 0) {
-    console.log(
-      `✓ ${properties.length} ad propert${properties.length === 1 ? 'y' : 'ies'} check out`,
-    );
-    return;
-  }
-  for (const f of findings) console.error(`✖ ${f}`);
-  process.exit(1);
 }
 
 // This CLI's own version (dist/cli.mjs → package-root package.json).
@@ -2061,7 +1044,7 @@ function cmdAgents(argv: string[]) {
     try {
       docs = generateDocs(ds, generatorAssetsDir());
     } catch (err) {
-      fail(`could not generate docs: ${(err as Error).message}`);
+      fail(`could not generate docs: ${msg(err)}`);
     }
     for (const [rel, content] of Object.entries(docs)) {
       const p = resolve(legacyDocsDir, rel);
@@ -2180,12 +1163,16 @@ async function main() {
       return cmdLegal(rest);
     case 'robots':
       return cmdRobots(rest);
+    case 'reviews':
+      return cmdReviews(rest);
     case 'icons':
       return cmdIcons(rest);
     case 'search':
       return cmdSearch(rest);
     case 'ads':
       return cmdAds(rest);
+    case 'setup':
+      return cmdSetup(rest);
     case 'media':
       return cmdMedia(rest);
     default:
@@ -2193,4 +1180,4 @@ async function main() {
   }
 }
 
-main().catch((err) => fail((err as Error).message));
+main().catch((err) => fail(msg(err)));

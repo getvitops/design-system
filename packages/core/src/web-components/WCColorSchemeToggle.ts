@@ -251,7 +251,6 @@ export class WCColorSchemeToggle extends BaseElement {
     // Fires on the gate's startup publish and on every change thereafter.
     document.addEventListener(CONSENT_EVENT, this._onConsent);
 
-    // Apply initial scheme
     this._applyColorScheme();
   }
 

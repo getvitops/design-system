@@ -1,8 +1,15 @@
 {
   "name": "@getvitops/create",
-  "version": "0.5.0",
+  "version": "0.7.0",
   "description": "Project templates for the Vitops design system — scaffold wired-up sites with `vp create @getvitops`.",
+  "homepage": "https://docs.vitops.ca",
+  "bugs": "https://github.com/getvitops/design-system/issues",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/getvitops/design-system.git",
+    "directory": "packages/create"
+  },
   "files": [
     "templates",
     "CHANGELOG.md"
@@ -12,10 +19,19 @@
     "access": "public"
   },
   "devDependencies": {
-    "vitest": "^4.1.9"
+    "@getvitops/generator": "workspace:*",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
   },
   "createConfig": {
     "templates": [
+      {
+        "name": "static",
+        "description": "Static Astro website on Cloudflare Workers static assets with the Vitops design system pre-wired",
+        "template": "./templates/static"
+      },
       {
         "name": "emdash",
         "description": "EmDash CMS website on Cloudflare Workers (D1 + R2) with the Vitops design system pre-wired",

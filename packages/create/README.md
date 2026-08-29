@@ -73,6 +73,13 @@ provisions the D1/R2 resources on first deploy).
 Template dependencies must use concrete npm ranges (no `workspace:*` /
 `catalog:` — the scaffolded project lives outside this monorepo).
 
+`assets/` (this package root, unpublished) is the source of truth for
+placeholder imagery shared across templates — `vp create` copies only the
+one directory a template names, so there's no step that could copy a
+sibling `assets/` for you. Mirror any new file into each template's
+`src/assets/placeholder/` by hand; `templates.test.ts` asserts every mirror
+stays byte-identical to the source.
+
 ## Changelog
 
 This package's history: [`CHANGELOG.md`](./CHANGELOG.md) (shipped in the npm tarball, so it

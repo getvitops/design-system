@@ -106,7 +106,7 @@ export function planCarousel(config: CarouselConfig, features: CarouselFeatures)
  * offset, and treating that as "they scrolled" would dismiss the hint before it
  * was read.
  */
-export const SCROLLED_EPSILON = 4;
+const SCROLLED_EPSILON = 4;
 
 /**
  * Has the visitor scrolled the track?

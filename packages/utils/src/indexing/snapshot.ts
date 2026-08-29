@@ -8,9 +8,8 @@
  * returns `undefined` there and `plan()` treats that as "submit everything, and
  * say so".
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
 import type { SitemapEntry, Snapshot } from './types.ts';
+import { readVersioned, writeVersioned } from '../json-store.ts';
 
 /** Default location, relative to the consumer's project root. */
 export const SNAPSHOT_PATH = '.vitops/sitemap-snapshot.json';
@@ -24,15 +23,7 @@ export const SNAPSHOT_PATH = '.vitops/sitemap-snapshot.json';
  * failure this whole command exists to remove.
  */
 export function readSnapshot(path: string): Snapshot | undefined {
-  if (!existsSync(path)) return undefined;
-  try {
-    const raw = JSON.parse(readFileSync(path, 'utf8')) as Snapshot;
-    if (raw?.version !== 1 || typeof raw.entries !== 'object' || raw.entries === null)
-      return undefined;
-    return raw;
-  } catch {
-    return undefined;
-  }
+  return readVersioned<Snapshot, 'entries'>(path, 'entries');
 }
 
 /** Build a snapshot from the entries just read. */
@@ -51,6 +42,5 @@ export function toSnapshot(sitemapUrl: string, entries: SitemapEntry[], takenAt:
  * silently drop a page from every future run.
  */
 export function writeSnapshot(path: string, snapshot: Snapshot): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(snapshot, null, 2)}\n`);
+  writeVersioned(path, snapshot);
 }

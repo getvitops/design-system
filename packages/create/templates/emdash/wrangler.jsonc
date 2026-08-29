@@ -4,11 +4,16 @@
   "main": "./src/worker.ts",
   "compatibility_date": "2026-02-24",
   "compatibility_flags": ["nodejs_compat"],
+  // Explicit rather than relying on wrangler's default: this is the fact that
+  // lets a first deploy go live at <name>.<account>.workers.dev without
+  // touching any existing site's DNS — see SETUP.html's "Domain strategy"
+  // stage and site.json's environments.production.url.
   "workers_dev": true,
   // Custom domain: uncomment and set your apex. Cloudflare provisions the DNS
-  // record + TLS cert on deploy (the zone must already exist in the account).
-  // The dev deploy (scripts/build-dev-wrangler.mjs) automatically serves the
-  // dev worker from dev.<domain> when this is set.
+  // record + TLS cert on deploy (the zone must already exist in the account) —
+  // and OVERWRITES it, the moment an existing live site at that domain goes
+  // dark. The dev deploy (scripts/build-dev-wrangler.mjs) automatically serves
+  // the dev worker from dev.<domain> when this is set.
   // "routes": [{ "pattern": "example.com", "custom_domain": true }],
   // No database_id / bucket ids needed up front: wrangler provisions the D1
   // database and R2 bucket on the first `pnpm deploy` if they don't exist.

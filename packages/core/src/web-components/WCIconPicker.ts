@@ -20,7 +20,6 @@ function buildSvg(body: string, width = 24, height = 24): string {
 
 /** Fetch SVGs for a batch of icons (max ~50 per call). */
 async function fetchSvgBatch(prefix: string, names: string[], signal?: AbortSignal): Promise<void> {
-  // Filter out already-cached icons
   const needed = names.filter((n) => !svgCache.has(`${prefix}:${n}`));
   if (needed.length === 0) return;
 
