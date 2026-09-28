@@ -15,7 +15,7 @@
  * Per-file environment rather than a global one: the other ~800 tests are pure and
  * have no reason to pay for a DOM.
  */
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test';
 
 /** A gallery grid of `count` anchors + the single dialog wrapping their carousel. */
 function markup(count: number, wrapAttrs = ''): string {

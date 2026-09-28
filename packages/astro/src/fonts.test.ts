@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SiteFontSchema } from '@getvitops/generator';
 import { fontProviders } from 'astro/config';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { resolveFonts } from './fonts.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));

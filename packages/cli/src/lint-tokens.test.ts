@@ -8,7 +8,7 @@
  * so; the tool should not require anyone to notice it again.
  */
 import { defaultConfig, movedTokens } from '@getvitops/generator';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { applyRenames, lintTokens } from './lint-tokens.ts';
 
 const renames = movedTokens(defaultConfig().colors.roles);

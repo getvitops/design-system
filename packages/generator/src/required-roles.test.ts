@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { defaultConfig } from './index.ts';
 import { validate } from './schema.ts';
 import { REQUIRED_ROLES, ROLE_TOKEN_KEYS } from './shared.ts';

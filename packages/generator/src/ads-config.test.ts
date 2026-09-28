@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 import { AD_PLATFORMS, AD_PROVIDER_KEYS } from '@getvitops/utils/ads';
 import { AD_PROVIDERS, validateConfig, type Config } from './config.ts';
 import { defaultConfig } from './index.ts';

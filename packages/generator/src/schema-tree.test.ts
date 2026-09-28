@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { renderInlineMarkdown, schemaTreeNodes, type JsonSchemaNode } from './docs.ts';
 import { configJsonSchema } from './config.ts';
 import { jsonSchema } from './schema.ts';

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { generateDocs } from './docs.ts';
 import { defaultConfig } from './index.ts';
 import { BASE_HOOK, TW_CLASH } from './shared.ts';

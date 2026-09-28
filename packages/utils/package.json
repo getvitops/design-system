@@ -54,6 +54,10 @@
       "types": "./dist/notify/index.d.mts",
       "import": "./dist/notify/index.mjs"
     },
+    "./crm": {
+      "types": "./dist/crm/index.d.mts",
+      "import": "./dist/crm/index.mjs"
+    },
     "./tracking": {
       "types": "./dist/tracking/index.d.mts",
       "import": "./dist/tracking/index.mjs"
@@ -69,6 +73,10 @@
     "./hosting": {
       "types": "./dist/hosting/index.d.mts",
       "import": "./dist/hosting/index.mjs"
+    },
+    "./email": {
+      "types": "./dist/email/index.d.mts",
+      "import": "./dist/email/index.mjs"
     }
   },
   "publishConfig": {
@@ -80,9 +88,7 @@
     "png-to-ico": "catalog:",
     "sharp": "catalog:"
   },
-  "devDependencies": {
-    "vitest": "catalog:"
-  },
+  "devDependencies": {},
   "engines": {
     "node": ">=24"
   }

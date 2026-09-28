@@ -159,6 +159,24 @@
                 this exists.
               </span>
             </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="hosting.emdash-fingerprint" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                <strong>(EmDash template)</strong> After the first deploy to each environment, run
+                <code>npx emdash migrate --status</code> locally against that environment's real
+                database, review the printed account/database identity, and set the reviewed
+                fingerprint:
+                <code
+                  >gh variable set EMDASH_TARGET_FINGERPRINT --env dev --body &lt;value&gt;</code
+                >
+                and again with <code>--env production</code>. No command can do this for you — it's
+                the human review the fingerprint guard exists for. Deploys fail clearly on the
+                migration-apply step until it's set for that environment.
+              </span>
+            </label>
           </div>
         </details>
 
@@ -324,6 +342,21 @@
               <span>
                 Preview then run: <code>npx vitops setup ads --dry</code>, then
                 <code>npx vitops setup ads</code>.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="connections.email" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                If <code>site.notifications.email</code> sends mail, onboard its sender domain:
+                <code>npx vitops email setup --dry</code>, then <code>npx vitops email setup</code>.
+                Cloudflare onboards an exact name — usually a subdomain like
+                <code>send.&lt;domain&gt;</code>, not the apex — so a mismatch here is silent at
+                build time and only fails when a form is actually submitted in production. Both
+                templates' <code>deploy</code> script already runs
+                <code>vitops email check</code> first as a non-blocking warning.
               </span>
             </label>
             <label class="custom-check">

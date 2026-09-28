@@ -45,7 +45,6 @@
 
   **Breaking (`css`/`bricks` and `tailwind` formats — `.lightbox-dialog`'s markup
   contract changed):**
-
   - `<Gallery />` now emits ONE `<dialog class="lightbox-dialog">` per gallery,
     wrapping a `<Carousel />`, instead of one dialog per image. A `.gallery__trigger`
     is now a plain `<a href="#slide-id">`, not a `command="show-modal"` button.
@@ -94,7 +93,6 @@
   `--site` for now.)
 
   **Fixed:**
-
   - `@getvitops/core`'s 12 runtime deps (`lit`, both `@oddbird` polyfills, both
     `@webcomponents` packages, `colorjs.io`, etc.) were listed as `dependencies` despite
     being bundled into `dist/elements.js`/`dist/polyfills.js`/`dist/deferred.js` — a
@@ -346,20 +344,28 @@ options, watch behaviour and dev-server endpoints are unchanged.
   {
     "designSystem": {
       "themes": {
-        "default": {/* … */},
+        "default": {
+          /* … */
+        },
       },
     },
     "organization": {
       "name": "Acme",
       "contact": "hq",
       "locations": {
-        "hq": {/* … */},
+        "hq": {
+          /* … */
+        },
       },
     },
     "site": {
       "defaultLocale": "en",
-      "domains": {/* … */},
-      "analytics": {/* … */},
+      "domains": {
+        /* … */
+      },
+      "analytics": {
+        /* … */
+      },
     },
   }
   ```
@@ -467,7 +473,7 @@ ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails 
 
   ```js
   // astro.config.mjs
-  getvitops({ css: { input: "company.json", format: "css" } });
+  getvitops({ css: { input: 'company.json', format: 'css' } });
   ```
 
   ```
@@ -778,7 +784,7 @@ ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails 
   ```js
   // astro.config.mjs
   getvitops({
-    css: { input: "design-system.json", format: "css", out: "src/styles" },
+    css: { input: 'design-system.json', format: 'css', out: 'src/styles' },
     editor: true,
   });
   ```

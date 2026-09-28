@@ -45,8 +45,7 @@
     "postcss": "catalog:",
     "postcss-lit": "catalog:",
     "scroll-timeline-polyfill": "catalog:",
-    "temporal-polyfill": "catalog:",
-    "vitest": "catalog:"
+    "temporal-polyfill": "catalog:"
   },
   "engines": {
     "node": ">=24"

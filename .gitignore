@@ -19,4 +19,13 @@ site/.dev.vars
 site/.wrangler/
 site/.astro/
 
+# The emdash template's own `.astro/` — the template ships `_gitignore`
+# (renamed to `.gitignore` on scaffold, per AGENTS.md), which doesn't apply
+# to files sitting inside it while it's still template source in THIS repo.
+# `scripts/link-template-deps.mjs` writes an `astro:content` ambient shim
+# here (astro's own real path for that, via `astro sync`, which this
+# monorepo's own `vp check` can't run) — never tracked, never scaffolded.
+packages/create/templates/*/.astro/
+
 .npmrc
+.vitest/

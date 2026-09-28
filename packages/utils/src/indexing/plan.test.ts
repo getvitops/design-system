@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { INDEXNOW_BATCH, plan, resolveKeyLocation, resolveSitemapUrl } from './plan.ts';
 import { toSnapshot } from './snapshot.ts';
 import type { IndexingConfig, SitemapEntry } from './types.ts';

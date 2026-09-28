@@ -7,7 +7,7 @@
  * yet", and `getWebResource` matches on the site identifier because the resource
  * id is awkward to construct by hand.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   addSite,
   getSite,

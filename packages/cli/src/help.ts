@@ -29,6 +29,7 @@ Usage:
   vitops search <sub> [opts]    Search Console: onboard domains (setup) + notify deploys (notify)
   vitops ads <sub> [opts]       Ad properties: verify domains (setup) + emit pixels (tags) + lint
   vitops setup <sub> [opts]     Scripted onboarding: repo, hosting, domain, search, ads, all
+  vitops email <sub> [opts]     Sender-domain onboarding: check (setup) + deploy guard (check)
   vitops media [options]       Encode raw video into web-ready WebM + MP4 + poster
 
 Generate options:
@@ -277,6 +278,33 @@ Ads lint options:
   off (every conversion arrives unattributed), and a configured property with no
   tag ID. Exits non-zero on a finding.
 
+Crm check options:
+  -i, --input <path>    Site config carrying site.crm (default: ./site.json)
+      --site-env <env>  Environment to resolve (default: production)
+
+  Fetches the live field/property list (HubSpot: crm/v3/properties/contacts;
+  Bigin: bigin/v2/settings/fields) and reports every fieldMap/trackingFields
+  target that doesn't exist there. HubSpot rejects a submission naming an
+  unrecognised property; Bigin silently ignores it — this is the only way to
+  see a broken mapping before a real submission finds it. Needs
+  VITOPS_HUBSPOT_ACCESS_TOKEN, VITOPS_ZOHO_CLIENT_ID/_CLIENT_SECRET/
+  _REFRESH_TOKEN, or (unused for now) VITOPS_JOBBER_CLIENT_ID/_CLIENT_SECRET/
+  _REFRESH_TOKEN, matching whichever provider site.crm names. Jobber currently
+  renders fieldMap/trackingFields as note-text lines rather than app-configured
+  custom fields, so there is nothing live to check there yet. Exits non-zero
+  on any missing target.
+
+Crm setup options:
+  -i, --input <path>    Site config carrying site.crm (default: ./site.json)
+      --site-env <env>  Environment to resolve (default: production)
+      --dry             Print what would be created and exit. Creates nothing.
+
+  HubSpot: creates missing contact properties named by fieldMap/trackingFields.
+  Bigin: no such API exists, so this always prints a manual reminder listing
+  the fields to add in Zoho Bigin's field editor, then re-run "crm check".
+  Jobber: app-configured custom fields aren't wired up yet, so this prints a
+  reminder instead of creating anything.
+
 Setup repo options:
       --dry             Print the plan and exit
       --check           Report drift/blocked steps and exit non-zero, mutating nothing
@@ -332,6 +360,46 @@ Setup all options:
   Runs repo, hosting, search, ads in order. Stops at the first stage that fails;
   a blocked step (the API token, GitHub Pro/Team gating) is reported, not fatal.
 
+Email subcommands:
+  vitops email setup [domain]  Onboard a from-address domain, waiting for its DNS to resolve
+  vitops email check [opts]    Non-blocking deploy guard: warn if a from domain isn't onboarded
+
+Email setup options:
+  -i, --input <path>    Site config carrying site.notifications.email (default: ./site.json)
+      --site-env <env>  Environment whose A/B variant applies (default: production)
+  [domain]              Onboard this exact name instead of deriving candidates from
+                        config + a source scan
+      --src <dir>       Source to scan for from: literals as a supplement to config
+                        (default: ./src)
+      --dry             Print the plan and exit. Needs no credential — plans from
+                        scratch and says so.
+      --check           Report drift and exit non-zero. Mutates nothing.
+      --no-prompt       Never ask before enabling a domain (the default when
+                        stdin is not a TTY, e.g. in CI — it just enables)
+      --timeout <s>     Cap on each DNS-propagation poll wait, in seconds (default: 5)
+
+  The onboarded entity is an EXACT name, and it is usually a subdomain
+  (send.example.com), never the apex a from address names. When the exact
+  domain is absent but a sibling in the same zone is already onboarded, this
+  is reported blocked rather than silently enabling the apex too — enabling
+  it rewrites _dmarc.<domain>, which can tighten policy on every OTHER mail
+  sent from that domain. Sending from the onboarded sibling is the
+  recommended fix. Needs CLOUDFLARE_API_TOKEN (Zone:Read + an Email Sending
+  scope — broader than the "Edit zone DNS" template other commands use).
+
+Email check options:
+  -i, --input <path>    Site config carrying site.notifications.email (default: ./site.json)
+      --site-env <env>  Environment whose A/B variant applies (default: production)
+      --src <dir>       Source to scan for from: literals (default: ./src)
+      --strict          Exit non-zero on drift (the default just warns and exits 0)
+      --skip            Skip the check entirely (same as VITOPS_SKIP_EMAIL_CHECK)
+
+  Meant to run before a deploy. With no CLOUDFLARE_API_TOKEN it reports "not
+  checked" and exits 0, so a CI job without the secret never fails on the
+  check itself. Skip per-site with site.notifications.email.verifySender: false
+  when the scan can't see the real from address and the warning would be a
+  false positive.
+
 Media options:
       --raw <dir>       Directory of unprocessed video, walked recursively
                         (default: ./raw)
@@ -378,6 +446,22 @@ export const ADS_HELP = `vitops ads — link this site to its ad properties
 Run \`vitops --help\` for the full option list for each subcommand.
 `;
 
+export const CRM_HELP = `vitops crm — push form submissions into a client CRM
+
+  vitops crm check [opts]       Compare site.crm's fieldMap/trackingFields against the live CRM
+  vitops crm setup [opts]       Create missing HubSpot properties (Bigin/Jobber have no such API)
+
+Run \`vitops --help\` for the full option list for each subcommand.
+`;
+
+export const EMAIL_HELP = `vitops email — sender-domain onboarding checks
+
+  vitops email setup [domain]  Onboard a from-address domain, waiting for its DNS to resolve
+  vitops email check [opts]    Non-blocking deploy guard: warn if a from domain isn't onboarded
+
+Run \`vitops --help\` for the full option list for each subcommand.
+`;
+
 export const SETUP_HELP = `vitops setup — the scripted path from an empty scaffold to a live site
 
   vitops setup repo [opts]      GitHub repo + branch policy (main protected, dev open)
@@ -410,7 +494,9 @@ export const COMMANDS = [
   'icons',
   'search',
   'ads',
+  'crm',
   'setup',
+  'email',
   'media',
 ] as const;
 
@@ -418,7 +504,9 @@ export const COMMANDS = [
 export const SUBCOMMANDS: Record<string, readonly string[]> = {
   search: ['setup', 'notify'],
   ads: ['setup', 'tags', 'lint'],
+  crm: ['check', 'setup'],
   setup: ['repo', 'hosting', 'domain', 'search', 'ads', 'all'],
+  email: ['setup', 'check'],
 };
 
 /**
@@ -461,9 +549,13 @@ export function helpFor(command: string, argv: string[]): string {
       ? SEARCH_HELP
       : command === 'ads'
         ? ADS_HELP
-        : command === 'setup'
-          ? SETUP_HELP
-          : undefined) ??
+        : command === 'crm'
+          ? CRM_HELP
+          : command === 'setup'
+            ? SETUP_HELP
+            : command === 'email'
+              ? EMAIL_HELP
+              : undefined) ??
     HELP
   );
 }

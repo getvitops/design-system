@@ -56,12 +56,13 @@ export async function notify(
   event: ConversionEvent,
   ctx: NotifyContext,
   deps: NotifyDeps = {},
+  extra: { notes?: string[] | undefined } = {},
 ): Promise<NotifyResult> {
   const plan = planNotifications(ctx);
   const results: ChannelResult[] = [];
 
   if (plan.email.enabled) {
-    const message = renderEmail(event);
+    const message = renderEmail(event, extra);
     results.push(
       deps.email ? await sendEmail(plan.email, message, deps.email) : logEmail(plan.email, message),
     );

@@ -1,8 +1,8 @@
 // Ad conversion tracking: capture click IDs from the landing URL, track tel:
-// clicks. Form submission itself goes through `createConversionRoute()`
-// (`@getvitops/astro/routes`), which handles both the no-JS `<form
-// method="post">` path and a fetch-based one — there is no separate
-// form-enhancement script here.
+// and mailto: clicks. Form submission itself goes through
+// `createConversionRoute()` (`@getvitops/astro/routes`), which handles both
+// the no-JS `<form method="post">` path and a fetch-based one — there is no
+// separate form-enhancement script here.
 //
 // Runs early and ungated on purpose. Reading the query string is not storage and
 // needs nobody's permission; *keeping* it does. So the capture is synchronous —
@@ -29,7 +29,7 @@ const COOKIE_NAME = '_ac';
 const COOKIE_DAYS = 90;
 const AB_COOKIE = '_ab';
 
-// Where the `tel:` conversion beacon goes. Mirrors TRACKING_ENDPOINT in
+// Where the `tel:`/`mailto:` conversion beacons go. Mirrors TRACKING_ENDPOINT in
 // ../tracking.ts (pinned by `tracking.test.ts`), copied for the same reason as
 // the parameter lists below — this file is inlined into the document.
 //
@@ -147,15 +147,48 @@ if (Object.keys(trackingData).length > 0) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Tel: click tracking via sendBeacon
+// 2. Tel:/mailto: click tracking via sendBeacon, plus a Google Ads conversion
 // ---------------------------------------------------------------------------
 
+/**
+ * Typed locally, matching `ConsentLike` above: a global augmentation here
+ * would widen `Window` package-wide for a shape only this file uses.
+ *
+ * `gtag` is a plain function global — it's declared inside the classic
+ * (non-module) inline `<script>` `gtagBootstrap` emits (`@getvitops/utils/ads`),
+ * which attaches it to `window`. This file runs as a module (`<Tracking />`
+ * imports it), so it must go through `window.gtag`, not a bare `gtag(...)` call.
+ * `vitopsAdsConversions` is the same bootstrap's `send_to` target, keyed by
+ * platform — only `google` is populated today.
+ */
+interface AdsGlobal {
+  gtag?: (...args: unknown[]) => void;
+  vitopsAdsConversions?: Record<string, string>;
+}
+const adsGlobal = (): AdsGlobal => window as unknown as AdsGlobal;
+
 document.addEventListener('click', (e) => {
-  const link = (e.target as Element).closest?.('a[href^="tel:"]') as HTMLAnchorElement | null;
+  const link = (e.target as Element).closest?.(
+    'a[href^="tel:"], a[href^="mailto:"]',
+  ) as HTMLAnchorElement | null;
   if (!link) return;
 
-  // Fire-and-forget beacon; don't block the tel: navigation
+  const isEmail = link.href.startsWith('mailto:');
+
+  // Fire-and-forget beacon; don't block the tel:/mailto: navigation.
   if (navigator.sendBeacon) {
-    navigator.sendBeacon(TRACK_ENDPOINT, JSON.stringify({ event: 'call', phone: link.href }));
+    const body = isEmail
+      ? { event: 'email', email: link.href }
+      : { event: 'call', phone: link.href };
+    navigator.sendBeacon(TRACK_ENDPOINT, JSON.stringify(body));
+  }
+
+  // Report the same click as a Google Ads conversion, when a `conversionLabel`
+  // is configured. `sendTo` is absent whenever the tag never loaded (gated and
+  // undecided, or `site.ads.google` unset) — silently skipped, same as every
+  // other optional-runtime check in this file.
+  const sendTo = adsGlobal().vitopsAdsConversions?.['google'];
+  if (sendTo && typeof adsGlobal().gtag === 'function') {
+    adsGlobal().gtag!('event', 'conversion', { send_to: sendTo });
   }
 });

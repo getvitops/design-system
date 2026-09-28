@@ -1,13 +1,16 @@
 /**
  * Canonical `design-system.json` schema — the single source of truth.
  *
- * Authored with `zod/mini` (tree-shakeable Zod v4). Everything else derives from it:
+ * Authored with `@zod/mini` (tree-shakeable Zod v4's mini API, as its own
+ * lockstep-versioned package since zod 4.5 — was the `zod/mini` subpath
+ * import prior to that; same API, no rewrite needed beyond the import
+ * itself). Everything else derives from it:
  *   • the `DesignSystem` TS type (`z.infer`), used throughout the generator,
  *   • the published JSON Schema (`toJSONSchema`), emitted to `schema.json` for `$schema` refs,
  *   • runtime validation (`validate`) for the CLI and to gate `generate`,
  *   • the generated `authoring.md` reference doc (walks `jsonSchema`'s descriptions).
  */
-import * as z from 'zod/mini';
+import * as z from '@zod/mini';
 import { REQUIRED_ROLES, type RoleSpec, roleHue } from './shared.ts';
 import { tokenRefIssues } from './token-refs.ts';
 

@@ -13,10 +13,14 @@
  * (provider identity is implied by which ID is set, not by an enum).
  *
  * This table is deliberately small and covers only what the schema can imply.
- * Everything else — payment processors, CRMs, mail senders — is declared by the
- * consumer in `legal.privacyPolicy.processors`, which flows through the same
- * pipeline. This is not a directory of the web; it's the set of providers the
- * toolchain itself can vouch for.
+ * Everything else — payment processors, mail senders, and any CRM outside the
+ * three `site.crm` knows about — is declared by the consumer in
+ * `legal.privacyPolicy.processors`, which flows through the same pipeline.
+ * This is not a directory of the web; it's the set of providers the toolchain
+ * itself can vouch for. HubSpot, Zoho Bigin and Jobber moved into that set
+ * once `site.crm` existed to make the toolchain the thing deciding whether a
+ * submission reaches any of them — the same reasoning `site.ads` already
+ * established for ad platforms.
  */
 import { AD_PLATFORMS, AD_PROVIDER_KEYS } from '@getvitops/utils/ads';
 import type { Config } from '../config.ts';
@@ -175,6 +179,54 @@ export const KNOWN_PROCESSORS = {
     privacyUrl: 'https://www.netlify.com/privacy/',
     cookies: [],
   },
+  // ── CRM ──────────────────────────────────────────────────────────────────────
+  //
+  // `site.crm` makes the toolchain the thing deciding whether a form submission
+  // reaches a third party — the same reasoning that put ad platforms here. A site
+  // pushing leads to HubSpot in the US whose PIPEDA policy never mentions the
+  // transfer is the same class of defect as a policy naming Plausible while the
+  // site runs GA.
+  hubspot: {
+    name: 'HubSpot',
+    purpose: 'CRM and marketing automation',
+    // HubSpot, Inc. is a Delaware corporation headquartered in Cambridge,
+    // Massachusetts — verified against its own public filings, not inferred.
+    operatorCountry: 'the United States',
+    privacyUrl: 'https://legal.hubspot.com/privacy-policy',
+    // Set by the secure forms submission this integration uses, once a visitor
+    // has HubSpot tracking active on the same site (`hubspotutk`). No cookie is
+    // set by this integration's own write, which never runs in the browser.
+    cookies: ['hubspotutk'],
+  },
+  zohoBigin: {
+    name: 'Zoho Bigin',
+    purpose: 'CRM',
+    // TODO — operatorCountry unconfirmed. Zoho Corporation has both an Indian
+    // entity (Zoho Corporation Pvt. Ltd., Chennai) and a US one (Zoho
+    // Corporation, California); which one is the data controller for a given
+    // account depends on the signup entity, and CRM.md flags this as needing
+    // verification before this policy sentence is trusted. Do not guess.
+    privacyUrl: 'https://www.zoho.com/privacy.html',
+    // No cookie is set by this integration's own server-side write, which
+    // never runs in the browser.
+    cookies: [],
+  },
+  jobber: {
+    name: 'Jobber',
+    purpose: 'CRM and field-service management',
+    // Octopusapp Inc. d/b/a Jobber, 10130 103 St NW Suite 300, Edmonton,
+    // Alberta — verified against Jobber's own published privacy policy, not
+    // inferred. NOTE: this is the operator's jurisdiction, not a storage
+    // claim — see `storage` below and `jobberLocation`'s docblock. Don't
+    // "simplify" this into Canada-only storage; that policy explicitly names
+    // the United States as a processing location too.
+    operatorCountry: 'Canada',
+    storage: [{ country: 'the United States' }, { country: 'Canada' }],
+    privacyUrl: 'https://www.getjobber.com/privacy-policy/',
+    // No cookie is set by this integration's own server-side write, which
+    // never runs in the browser.
+    cookies: [],
+  },
 } satisfies Record<string, Processor>;
 
 export type KnownProcessorKey = keyof typeof KNOWN_PROCESSORS;
@@ -207,6 +259,9 @@ export function detectProcessorKeys(cfg: Config): KnownProcessorKey[] {
   // table exists to prevent.
   if (analytics?.matomo) keys.push(analytics.matomo.cookies ? 'matomo' : 'matomoCookieless');
   if (site.security?.turnstile?.siteKey) keys.push('turnstile');
+  if (site.crm?.provider === 'hubspot') keys.push('hubspot');
+  if (site.crm?.provider === 'bigin') keys.push('zohoBigin');
+  if (site.crm?.provider === 'jobber') keys.push('jobber');
 
   const platform = site.deployment?.platform;
   const hosting = platform && HOSTING_PATTERNS.find(([re]) => re.test(platform))?.[1];
@@ -223,9 +278,21 @@ export function detectProcessorKeys(cfg: Config): KnownProcessorKey[] {
  * Consumer entries come last and are never deduplicated against the built-ins —
  * an explicit declaration is a statement of fact we have no grounds to drop.
  */
+/**
+ * Refiners that turn a config field into a processor's actual location,
+ * chained by `reduce` rather than hand-nested — adding one is an array entry,
+ * not another nesting level. Each refiner checks the processor's own name and
+ * passes every other processor through unchanged, so order between them
+ * never matters.
+ */
+const LOCATION_REFINERS: ((processor: Processor, site: Config['site']) => Processor)[] = [
+  matomoLocation,
+  biginLocation,
+];
+
 export function resolveProcessors(cfg: Config): Processor[] {
   const detected = detectProcessorKeys(cfg).map((k) =>
-    matomoLocation(KNOWN_PROCESSORS[k] as Processor, cfg.site),
+    LOCATION_REFINERS.reduce((p, refine) => refine(p, cfg.site), KNOWN_PROCESSORS[k] as Processor),
   );
   const declared = cfg.site.legal?.privacyPolicy?.processors ?? [];
   return [...detected, ...adProcessors(cfg), ...declared].map(desugarCountry);
@@ -323,4 +390,29 @@ function matomoLocation(processor: Processor, site: Config['site']): Processor {
   return /\.matomo\.cloud/i.test(url)
     ? { ...processor, storage: [{ country: 'the European Union' }] }
     : processor;
+}
+
+/**
+ * Where the self-client's Bigin data actually rests — Zoho's own published
+ * data-centre-to-country mapping, derived exactly as `matomoLocation` derives
+ * Matomo Cloud's: from a config field, not a guess. `derive.ts`'s `foreign()`
+ * then correctly omits a cross-border-transfer sentence when `dataCenter` is
+ * `ca`, which is a real win for an Ontario client running Bigin's Canadian
+ * data centre. This sets `storage`, never `operatorCountry` — see the note on
+ * `zohoBigin` above for why the operator's own jurisdiction stays unset.
+ */
+const BIGIN_DATA_CENTER_COUNTRY: Record<string, string> = {
+  com: 'the United States',
+  ca: 'Canada',
+  eu: 'the European Union',
+  in: 'India',
+  'com.au': 'Australia',
+  jp: 'Japan',
+};
+
+function biginLocation(processor: Processor, site: Config['site']): Processor {
+  if (processor.name !== 'Zoho Bigin') return processor;
+  const dataCenter = site.crm?.bigin?.dataCenter;
+  const country = dataCenter && BIGIN_DATA_CENTER_COUNTRY[dataCenter];
+  return country ? { ...processor, storage: [{ country }] } : processor;
 }

@@ -579,6 +579,23 @@ function readSiteAds(
 }
 
 /**
+ * Is `site.crm` configured and not explicitly disabled?
+ *
+ * Mirrors `readSiteAds`'s "read the config, decide nothing else" shape — this
+ * only answers the one question `hasConversionRoute`'s warning needs, not the
+ * whole `CrmConfig`, which the consumer's own route file builds from the same
+ * config however it likes.
+ */
+function siteCrmEnabled(configPath: string, siteEnv: string): boolean {
+  try {
+    const cfg = resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv);
+    return Boolean(cfg.site.crm && cfg.site.crm.enabled !== false);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * The consent + tracking facts a site config already states.
  *
  * These were the one pair the integration did not read. `site.tracking` and
@@ -931,6 +948,20 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
               `${TRACKING_ENDPOINT}, but no route answers that path. Add ` +
               `\`src/pages/api/track.ts\` exporting \`createConversionRoute(...)\` from ` +
               `\`@getvitops/astro/routes\` — otherwise every call conversion is silently lost.`,
+          );
+        }
+        // The same "config asserts a fact nothing implements" gap Turnstile hit:
+        // `site.crm` names a provider, but nothing writes to it unless a route
+        // passes the `crm` option to `createConversionRoute()`.
+        if (
+          siteInput &&
+          siteCrmEnabled(resolve(root, siteInput), opts.site?.siteEnv ?? 'production') &&
+          !hasConversionRoute(root)
+        ) {
+          logger.warn(
+            `site.crm is configured, but no route answers ${TRACKING_ENDPOINT}. Add ` +
+              `\`src/pages/api/track.ts\` exporting \`createConversionRoute({ crm: {...}, ... })\` ` +
+              `from \`@getvitops/astro/routes\` — otherwise submissions never reach the CRM.`,
           );
         }
 

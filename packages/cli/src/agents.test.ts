@@ -11,7 +11,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 // NOTE: never import ./cli.ts here — it runs main() on import.
 import { findSkillTarget, GENERATED_MARKER, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
 

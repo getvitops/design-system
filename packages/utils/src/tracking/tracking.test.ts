@@ -5,7 +5,7 @@
  * capture and the server-side conversion handler share one implementation — and
  * what makes this testable with no DOM and no Worker.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   cookieAttributes,
   mergeTracking,

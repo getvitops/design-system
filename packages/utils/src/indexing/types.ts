@@ -12,7 +12,7 @@
  * Optional fields are written `?: T | undefined` throughout.
  *
  * `exactOptionalPropertyTypes` is on, and these types describe a *parsed JSON
- * config* — the shape `zod/mini` infers for the site-config `seo.indexing` block,
+ * config* — the shape `@zod/mini` infers for the site-config `seo.indexing` block,
  * where an absent key and an explicit `undefined` are the same thing. Writing
  * `?: T` here would make the CLI's adapter unassignable for no gain in safety.
  */

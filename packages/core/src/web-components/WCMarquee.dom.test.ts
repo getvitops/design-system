@@ -16,7 +16,7 @@
  * Per-file environment rather than a global one: the other ~800 tests are pure and
  * have no reason to pay for a DOM.
  */
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 type ROCallback = () => void;
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { formatPlan, mergeCache, plan, selectReviews } from './plan.ts';
 import type { LocationReviews, Review, ReviewsConfig } from './types.ts';
 

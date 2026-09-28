@@ -62,10 +62,12 @@ export interface TrackingData {
  * and their tests need no fake timers.
  */
 export interface ConversionEvent {
-  type: 'form' | 'call';
+  type: 'form' | 'call' | 'email';
   /** Submitted fields, for `type: 'form'`. Honeypots are stripped before this. */
   formData?: Record<string, string> | undefined;
   phone?: string | undefined;
+  /** The `mailto:` address, for `type: 'email'`. */
+  email?: string | undefined;
   /** Attribution from the `_ac` cookie, or null when the visitor arrived cold. */
   tracking: TrackingData | null;
   userAgent?: string | undefined;

@@ -31,6 +31,14 @@ export default defineConfig({
       // script delivery: Layout.astro renders <Head /> from @getvitops/astro,
       // which emits the web-component runtime tags.
       plugins: [vitopsEmdash()],
+      // 1.0's runtime migration mode defaults to 'auto' (apply pending core
+      // migrations on first request) — fine for local dev, but a deploy
+      // should have already migrated before traffic arrives. 'check' 503s a
+      // request instead of migrating behind it if the explicit `emdash
+      // migrate` step in site-deploy-emdash.yml (see AGENTS.md's CI/CD
+      // section) was skipped or failed. `dev: 'auto'` keeps the convenient
+      // first-run behaviour for `pnpm dev`.
+      migrations: { runtime: 'check', dev: 'auto' },
     }),
     vitops({
       favicon: {

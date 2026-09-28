@@ -36,15 +36,14 @@
     "@emdash-cms/cloudflare": "catalog:",
     "@getvitops/astro": "workspace:*",
     "astro": "catalog:",
-    "emdash": "catalog:",
-    "vitest": "catalog:"
+    "emdash": "catalog:"
   },
   "peerDependencies": {
     "@astrojs/cloudflare": ">=14",
-    "@emdash-cms/cloudflare": ">=0.31.0",
+    "@emdash-cms/cloudflare": ">=1.0.0 <2",
     "@getvitops/astro": ">=6.0.0",
     "astro": ">=7",
-    "emdash": ">=0.31.0"
+    "emdash": ">=1.0.0 <2"
   },
   "peerDependenciesMeta": {
     "@astrojs/cloudflare": {

@@ -10,7 +10,7 @@
  *     is otherwise never exercised.
  */
 import type { AstroIntegration, HookParameters } from 'astro';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import type { GetvitopsOptions } from './integration.ts';
 
 type Params = HookParameters<'astro:config:setup'>;

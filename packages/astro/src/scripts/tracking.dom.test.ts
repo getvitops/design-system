@@ -12,10 +12,10 @@
  * `querySelector`, `addEventListener` — and asserts only the sequence, never the
  * cookie's contents (that is `@getvitops/utils/tracking`'s job, tested purely).
  */
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vite-plus/test';
 
 interface Listener {
-  (): void;
+  (event?: unknown): void;
 }
 
 /** Enough document/window for the script to run. */
@@ -70,7 +70,7 @@ function stubDom(search: string, gate?: Record<string, unknown>) {
     get jar() {
       return jar;
     },
-    fire: (type: string) => (listeners.get(type) ?? []).forEach((fn) => fn()),
+    fire: (type: string, event?: unknown) => (listeners.get(type) ?? []).forEach((fn) => fn(event)),
     listening: (type: string) => (listeners.get(type) ?? []).length > 0,
   };
 }
@@ -160,5 +160,99 @@ describe('an organic visitor', () => {
     });
     await run();
     expect(asked).toEqual([]);
+  });
+});
+
+describe('tel:/mailto: click beacons', () => {
+  /**
+   * Enough of a click event for the handler's `closest()` call to resolve to a
+   * fake anchor carrying `href` — a crude selector match on the link's own
+   * scheme, since the stub has no real CSS engine behind it.
+   */
+  function clickOn(href: string) {
+    const anchor = { href };
+    const target = {
+      closest: (sel: string) => (sel.includes(`${href.split(':')[0]}:`) ? anchor : null),
+    };
+    return { target };
+  }
+
+  function captureBeacons(): [string, string][] {
+    const sent: [string, string][] = [];
+    (globalThis.navigator as { sendBeacon: (url: string, body: string) => boolean }).sendBeacon = (
+      url,
+      body,
+    ) => (sent.push([url, body]), true);
+    return sent;
+  }
+
+  it('beacons a call event for a tel: link', async () => {
+    const dom = stubDom('');
+    const sent = captureBeacons();
+    await run();
+    dom.fire('click', clickOn('tel:+15551234567'));
+    expect(sent).toHaveLength(1);
+    expect(JSON.parse(sent[0]![1])).toEqual({ event: 'call', phone: 'tel:+15551234567' });
+  });
+
+  it('beacons an email event for a mailto: link', async () => {
+    const dom = stubDom('');
+    const sent = captureBeacons();
+    await run();
+    dom.fire('click', clickOn('mailto:sales@acme.ca'));
+    expect(sent).toHaveLength(1);
+    expect(JSON.parse(sent[0]![1])).toEqual({ event: 'email', email: 'mailto:sales@acme.ca' });
+  });
+
+  it('ignores a click on an unrelated link', async () => {
+    const dom = stubDom('');
+    const sent = captureBeacons();
+    await run();
+    dom.fire('click', clickOn('https://example.com'));
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe('Google Ads conversion firing on a tel:/mailto: click', () => {
+  function clickOn(href: string) {
+    const anchor = { href };
+    return {
+      target: {
+        closest: (sel: string) => (sel.includes(`${href.split(':')[0]}:`) ? anchor : null),
+      },
+    };
+  }
+
+  it('fires gtag(event, conversion, …) when a send_to target is configured', async () => {
+    const dom = stubDom('');
+    await run();
+    const calls: unknown[][] = [];
+    Object.assign(globalThis.window as object, {
+      gtag: (...args: unknown[]) => calls.push(args),
+      vitopsAdsConversions: { google: 'AW-123/abcDEF' },
+    });
+    dom.fire('click', clickOn('tel:+15551234567'));
+    expect(calls).toEqual([['event', 'conversion', { send_to: 'AW-123/abcDEF' }]]);
+  });
+
+  it('does nothing when no conversion label is configured — the bootstrap never ran', async () => {
+    const dom = stubDom('');
+    await run();
+    // No `gtag`, no `vitopsAdsConversions` on `window` — the ads tag was never
+    // configured, or `site.ads.google` has no `conversionLabel`.
+    dom.fire('click', clickOn('mailto:sales@acme.ca'));
+    // Nothing to assert on gtag (it doesn't exist); the click must not throw.
+  });
+
+  it('does nothing while the tag is still gated and undecided', async () => {
+    const dom = stubDom('');
+    await run();
+    const calls: unknown[][] = [];
+    // `vitopsAdsConversions` present with no `gtag` global — the exact state
+    // before a gated tag's inline body has run: the bootstrap script that sets
+    // both exists on the page as inert `type="text/plain"`, unexecuted.
+    Object.assign(globalThis.window as object, { vitopsAdsConversions: { google: 'AW-1/L' } });
+    dom.fire('click', clickOn('tel:+15551234567'));
+    expect(calls).toEqual([]);
   });
 });

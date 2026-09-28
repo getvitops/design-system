@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { build } from './generate.ts';
 import { defaultConfig, validate } from './index.ts';
 import type { DesignSystem } from './schema.ts';

@@ -27,6 +27,11 @@ pnpm install
 pnpm dev
 ```
 
+Once this is its own repo (not sitting inside the `getvitops/design-system`
+monorepo), uncomment `lint.options` in `vite.config.ts` for type-aware
+`vp check`/`vp lint` — it ships commented out because vite-plus 1.0 only
+honours that option at a project's actual root, and errors on it otherwise.
+
 No Cloudflare account needed: `astro dev` runs the Worker locally with local
 D1/R2 emulation (state in `.wrangler/`). On first boot EmDash runs its
 migrations and applies the structure from `seed/seed.json` — a `pages`

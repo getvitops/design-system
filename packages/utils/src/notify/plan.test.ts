@@ -6,7 +6,7 @@
  * indistinguishable from no conversion, which is the failure this split exists to
  * make impossible.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { DEFAULT_EMAIL_BINDING, normalizeEmailChannel, planNotifications } from './plan.ts';
 import { describeEvent, renderEmail } from './render.ts';
 import type { ConversionEvent } from '../tracking/types.ts';

@@ -6,7 +6,7 @@ import {
   TRACKING_COOKIE as UTILS_COOKIE,
   UTM_PARAMS,
 } from '@getvitops/utils/tracking';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { resolveTracking, TRACKING_COOKIE, TRACKING_ENDPOINT } from './tracking.ts';
 
 describe('resolveTracking', () => {

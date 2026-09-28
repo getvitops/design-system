@@ -32,9 +32,7 @@
     "@getvitops/generator": "workspace:*",
     "@getvitops/utils": "workspace:*"
   },
-  "devDependencies": {
-    "vitest": "catalog:"
-  },
+  "devDependencies": {},
   "engines": {
     "node": ">=24"
   }

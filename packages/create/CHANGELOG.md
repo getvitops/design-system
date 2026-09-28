@@ -18,7 +18,6 @@
   `astro.config.mjs`. Not reachable by `vitops lint --fix` — this is the whole migration.
 
   Also new in both templates:
-
   - **`SETUP.html`** — a client-onboarding checklist (styled entirely with the framework's own
     classes, checkbox state in `localStorage`), generated a stylesheet for via the new
     `pnpm run sop` script.
@@ -266,15 +265,15 @@
   which `@getvitops/astro` re-exports wholesale. So from `astro.config.mjs`:
 
   ```js
-  import { generateIconInclude } from "@getvitops/astro";
-  import icon from "astro-icon";
+  import { generateIconInclude } from '@getvitops/astro';
+  import icon from 'astro-icon';
 
   integrations: [
     icon({
       include: generateIconInclude({
-        ui: "fa7-solid",
-        brand: "simple-icons",
-        semantic: ["menu", "close", "search", "github"],
+        ui: 'fa7-solid',
+        brand: 'simple-icons',
+        semantic: ['menu', 'close', 'search', 'github'],
       }),
     }),
   ];

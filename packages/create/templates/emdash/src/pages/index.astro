@@ -6,6 +6,13 @@ import Layout from '../layouts/Layout.astro';
 // The seeded home page (seed/seed.json → pages/home). Edit it in the admin;
 // the Vitops blocks from @getvitops/emdash render automatically — EmDash
 // merges the plugin's block components into <PortableText>.
+//
+// Deliberately NOT prerendered, unlike AGENTS.md's general "prerender by
+// default" rule: this is the one route where the tradeoff that rule names
+// (prerendered = fast, but reflects the database as of the last build) is
+// unacceptable — the whole point of editing in EmDash is that a publish
+// shows up without a redeploy. Add `getStaticPaths()` + `prerender = true`
+// here only if this site's home page genuinely doesn't need that.
 const { entry: page } = await getEmDashEntry('pages', 'home');
 ---
 

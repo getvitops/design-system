@@ -54,7 +54,6 @@
 
   **Breaking (`css`/`bricks` and `tailwind` formats — `.lightbox-dialog`'s markup
   contract changed):**
-
   - `<Gallery />` now emits ONE `<dialog class="lightbox-dialog">` per gallery,
     wrapping a `<Carousel />`, instead of one dialog per image. A `.gallery__trigger`
     is now a plain `<a href="#slide-id">`, not a `command="show-modal"` button.
@@ -95,7 +94,6 @@
 ### Minor Changes
 
 - Add Google Business Profile reviews: fetch, cache, render.
-
   - **`vitops reviews`** (new CLI command) fetches a client's GBP reviews (legacy v4 API — the only
     one that has them) and writes them to `.vitops/reviews.json`, meant to be committed so a build
     never needs a live Google credential. `--dry` prints the plan; `--check` diffs against the cache
@@ -130,7 +128,6 @@
   `--site` for now.)
 
   **Fixed:**
-
   - `@getvitops/core`'s 12 runtime deps (`lit`, both `@oddbird` polyfills, both
     `@webcomponents` packages, `colorjs.io`, etc.) were listed as `dependencies` despite
     being bundled into `dist/elements.js`/`dist/polyfills.js`/`dist/deferred.js` — a
@@ -817,20 +814,28 @@ carousel vocabulary, because they render live from the generator.
   {
     "designSystem": {
       "themes": {
-        "default": {/* … */},
+        "default": {
+          /* … */
+        },
       },
     },
     "organization": {
       "name": "Acme",
       "contact": "hq",
       "locations": {
-        "hq": {/* … */},
+        "hq": {
+          /* … */
+        },
       },
     },
     "site": {
       "defaultLocale": "en",
-      "domains": {/* … */},
-      "analytics": {/* … */},
+      "domains": {
+        /* … */
+      },
+      "analytics": {
+        /* … */
+      },
     },
   }
   ```
@@ -906,7 +911,7 @@ carousel vocabulary, because they render live from the generator.
   Also new, and worth wiring at the same time — **`gitLastmod()` for real sitemap dates**:
 
   ```js
-  import vitops, { gitLastmod } from "@getvitops/astro";
+  import vitops, { gitLastmod } from '@getvitops/astro';
   vitops({ sitemap: { serialize: await gitLastmod() } });
   ```
 
@@ -1000,7 +1005,7 @@ ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails 
 
   ```js
   // astro.config.mjs
-  getvitops({ css: { input: "company.json", format: "css" } });
+  getvitops({ css: { input: 'company.json', format: 'css' } });
   ```
 
   ```
@@ -1487,15 +1492,15 @@ ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails 
   which `@getvitops/astro` re-exports wholesale. So from `astro.config.mjs`:
 
   ```js
-  import { generateIconInclude } from "@getvitops/astro";
-  import icon from "astro-icon";
+  import { generateIconInclude } from '@getvitops/astro';
+  import icon from 'astro-icon';
 
   integrations: [
     icon({
       include: generateIconInclude({
-        ui: "fa7-solid",
-        brand: "simple-icons",
-        semantic: ["menu", "close", "search", "github"],
+        ui: 'fa7-solid',
+        brand: 'simple-icons',
+        semantic: ['menu', 'close', 'search', 'github'],
       }),
     }),
   ];

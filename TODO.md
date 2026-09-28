@@ -163,6 +163,62 @@ here before it shipped — see its own class docblock, `WCCounter.ts`, for the s
 treatment landed in (why it clears the tier-2 bar, shape, load-bearing details) — rather than
 just the one-liners here.
 
+## Ad conversion tracking — offline-upload + gtag gap — todo
+
+Filed against a downstream site's gap report (client-side Google Ads conversion tracking) while
+`@getvitops/astro`/`@getvitops/utils` were at 8.1.0. **Done:** `mailto:` click tracking —
+`scripts/tracking.ts`'s click listener now beacons `{ event: 'email', email }` for a `mailto:`
+link the same way it already did `{ event: 'call', phone }` for `tel:`; `ConversionEvent['type']`
+gained an `'email'` member; `createConversionRoute()` treats it exactly like a call (no honeypot/
+Turnstile/CRM, 204 response); `describeEvent()` renders an `[Email Click]` subject. Covered by
+`tracking.dom.test.ts`, `conversion.test.ts`, `render.test.ts`.
+
+**Also done: `conversionLabel` is no longer a dead field.** `gtagBootstrap()`
+(`packages/utils/src/ads/providers.ts`) now takes the full `entry` it was always handed (the
+signature already accepted it — the function just ignored the parameter) and, when
+`conversionLabel` is set, exposes the `AW-…/label` `send_to` target on
+`window.vitopsAdsConversions.google`. `scripts/tracking.ts`'s tel:/mailto: click handler reads
+that global and fires `gtag('event', 'conversion', { send_to })` at the moment of the click —
+bootstrap-time firing would have double-counted every pageview as a conversion. `resolveAds()`
+validates `conversionLabel` against the same `SAFE_ID` check `id` already gets (it lands in the
+same inline `<script>`); an invalid label warns and is dropped, without sinking the tag itself.
+Covered by `providers.test.ts`, `ads.test.ts`, `tracking.dom.test.ts`.
+
+**Deliberately still single-label, single-action** — a real site usually wants a distinct
+conversion per interaction (call vs email vs form), and today's schema has exactly one
+`conversionLabel` string per platform. Widening to a per-action map (`{ call?, email?, form? }`)
+is real schema/CLI/docs surface, left for whoever needs it rather than speculatively built. Also
+still open: firing a conversion on a **form** submit — the tel:/mailto: click handler is the one
+piece of client JS this toolchain already ships, so hooking into it was free; a form's success
+path is either a no-JS full-page redirect (nothing to hook) or a consumer's own fetch call (no
+existing client API to fire through), and inventing one wasn't in scope here.
+
+Also fixed in passing: the conversion route's rate limiter (`createConversionRoute()`,
+`packages/astro/src/routes/conversion.ts`) keyed on IP alone, so a visitor's `tel:` beacon and a
+later `mailto:` beacon from the same IP competed for one window — the second could silently 429.
+Now keyed on `ip:event` (`call`/`email`/`form`), so distinct conversion types never starve each
+other while repeats of the same type are still throttled. Covered by `conversion.test.ts`.
+
+**Still open**, in the order that blocks a premium "offline conversion upload" flow:
+
+- **No offline-conversion primitive at all.** Nothing under `@getvitops/utils` talks to the
+  Google Ads API (`ConversionActionService`/click-conversion upload) — no `developer_token`, no
+  request builder. Would need a `googleAdsOfflineUpload` sender under `@getvitops/utils/notify`,
+  structurally typed against the Ads API shape the way `EmailBinding` is typed against
+  Cloudflare's, keeping the Ads client SDK out of the dependency tree.
+- **The notification email has no action link.** `describeEvent()` renders fixed sections with no
+  URL slot — needed so a notification can point back at an operator system to record the
+  conversion (mirrors how `policyUrl` is threaded into `<CookieConsent />`).
+- **No on/off relationship between client-side `gtag` firing and an offline-upload channel.**
+  Once both exist, a site using one presumably wants the other suppressed to avoid double-counting
+  in Google Ads. `resolveAds()`/`resolveTracking()` are independent by design today; that's right
+  for pixels-with-no-attribution but not for two systems reporting the same conversion.
+- **Provisioning the conversion actions themselves is a separate, un-scoped command
+  candidate** (`vitops ads provision` or similar) — creating the standard call/email/form actions
+  in a client's Ads account via `ConversionActionService.MutateConversionActions`, once a
+  developer token + OAuth client for a Google Ads manager account exists (none does yet). Not
+  built; no Ads API credentials were available to test against.
+
 ## GBP category → `LocalBusinessType` mapping — todo
 
 Follows from populating JBL Signs' `organization.locations.ottawa.type` by hand: Google's GBP

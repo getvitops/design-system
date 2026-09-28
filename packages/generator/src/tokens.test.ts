@@ -1,5 +1,5 @@
 import { LIGHTNESS_LADDER, contrastLc, hexToOklch } from '@getvitops/utils/color';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { build } from './generate.ts';
 import { defaultConfig } from './index.ts';
 import { roleHue, roleKind } from './shared.ts';

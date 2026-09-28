@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 import { formatPlan, hasDrift, missingFields, plan, planProperty } from './plan.ts';
 import { txtRecord } from './providers.ts';
 import type { AdDomainState, AdPropertySetup } from './types.ts';

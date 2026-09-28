@@ -11,7 +11,7 @@
  * moves from "a command forgets the option" to "a command has no section in
  * HELP to print". That is what these guard.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { COMMANDS, HELP, SUBCOMMANDS, helpFor, helpSection, wantsHelp } from './help.ts';
 
 describe('every command is documented', () => {

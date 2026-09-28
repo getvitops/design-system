@@ -16,7 +16,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 import { generate } from './generate.ts';
 import { defaultConfig } from './index.ts';
 import { isConfig, resolveInput, type Config } from './config.ts';

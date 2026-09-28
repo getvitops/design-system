@@ -10,7 +10,7 @@
  * renderer cannot express fails loudly rather than degrading.
  */
 import { readFileSync } from 'node:fs';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 import { defaultConfig } from '../index.ts';
 import { DOC_SLUGS } from './templates/index.ts';
 import { resolveConfig, validateConfig, type Config, type OrganizationConfig } from '../config.ts';
@@ -145,6 +145,46 @@ describe('processor derivation', () => {
       fixture({ analytics: { matomo: { url: 'https://stats.acme.example', siteId: '1' } } }),
     );
     expect(own).not.toContain('the European Union');
+  });
+
+  test('names HubSpot when site.crm.provider is hubspot', () => {
+    const site = fixture({
+      crm: { provider: 'hubspot', hubspot: { portalId: '1', formGuid: 'g' } },
+    });
+    expect(detectProcessorKeys(site)).toEqual(['hubspot']);
+    expect(privacyOf(site)).toContain('HubSpot');
+  });
+
+  test('names Zoho Bigin when site.crm.provider is bigin', () => {
+    const site = fixture({ crm: { provider: 'bigin', bigin: { dataCenter: 'ca' } } });
+    expect(detectProcessorKeys(site)).toEqual(['zohoBigin']);
+    expect(privacyOf(site)).toContain('Zoho Bigin');
+  });
+
+  test('a Canadian-hosted Bigin asserts no cross-border transfer', () => {
+    // The real win for an Ontario client: the data centre is a config field,
+    // and the policy must derive from it rather than assume a transfer.
+    const md = privacyOf(fixture({ crm: { provider: 'bigin', bigin: { dataCenter: 'ca' } } }));
+    expect(md).not.toContain('outside of Canada');
+  });
+
+  test('a US-hosted Bigin does assert a cross-border transfer', () => {
+    const md = privacyOf(fixture({ crm: { provider: 'bigin', bigin: { dataCenter: 'com' } } }));
+    expect(md).toContain('outside of Canada');
+  });
+
+  test('names Jobber when site.crm.provider is jobber', () => {
+    const site = fixture({ crm: { provider: 'jobber', jobber: {} } });
+    expect(detectProcessorKeys(site)).toEqual(['jobber']);
+    expect(privacyOf(site)).toContain('Jobber');
+  });
+
+  test('a Canadian-operated Jobber still asserts a cross-border transfer', () => {
+    // Jobber's operator is Canadian, but its own privacy policy names the
+    // United States as a processing location too — a Canadian operator must
+    // not be read as Canadian-only storage.
+    const md = privacyOf(fixture({ crm: { provider: 'jobber', jobber: {} } }));
+    expect(md).toContain('outside of Canada');
   });
 
   test('do not name Cloudflare twice when Turnstile already implies it', () => {

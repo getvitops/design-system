@@ -1,5 +1,5 @@
 import { AD_PLATFORMS } from '@getvitops/utils/ads';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { resolveAds } from './ads.ts';
 import { consentCategories } from './analytics.ts';
 
@@ -48,6 +48,25 @@ describe('resolveAds', () => {
     const r = resolveAds({ meta: { pixelId: "1');</script><script>alert(1)" } }, gated);
     expect(r.tags).toEqual([]);
     expect(r.warnings[0]).toMatch(/not a valid ID/);
+  });
+
+  it('threads a valid conversionLabel into the bootstrap', () => {
+    const { tags } = resolveAds(
+      { google: { pixelId: 'AW-123', conversionLabel: 'abcDEF' } },
+      gated,
+    );
+    expect(tags[0]?.inline).toContain("window.vitopsAdsConversions.google='AW-123/abcDEF';");
+  });
+
+  it('strips a conversionLabel that could break out of the inline script — tag still emits', () => {
+    const r = resolveAds(
+      { google: { pixelId: 'AW-123', conversionLabel: "x');</script><script>alert(1)" } },
+      gated,
+    );
+    // The tag itself isn't sunk by a bad label — only conversion firing is.
+    expect(r.tags).toHaveLength(1);
+    expect(r.tags[0]?.inline).not.toContain('vitopsAdsConversions');
+    expect(r.warnings[0]).toMatch(/conversionLabel .* not a valid label/);
   });
 
   it('honours the per-property switch', () => {

@@ -38,6 +38,12 @@ import type { AnalyticsStrategy, ConsentCategory, GatedTag } from './analytics.t
 export interface GetvitopsAdProperty {
   accountId?: string;
   pixelId?: string;
+  /**
+   * Google Ads only: the conversion action label paired with `pixelId` (the
+   * `AW-…` conversion id). When set, the tel:/mailto: click tracker in
+   * `<Tracking />` fires `gtag('event', 'conversion', …)` for that action at
+   * the moment of the click — see `gtagBootstrap` in `@getvitops/utils/ads`.
+   */
   conversionLabel?: string;
   /** Default `marketing`. `analytics` for a property used purely for measurement. */
   category?: 'marketing' | 'analytics';
@@ -113,6 +119,23 @@ export function resolveAds(
       continue;
     }
 
+    // `conversionLabel` lands inside the same inline `<script>` as `id` (Google's
+    // bootstrap embeds it to expose a conversion `send_to` target) — same
+    // injection surface, so it gets the same check. Unlike an invalid `id`, an
+    // invalid label doesn't sink the whole tag: it just means no conversion
+    // fires, which is worth a warning rather than a skip.
+    let safeEntry = entry;
+    if (entry.conversionLabel && !SAFE_ID.test(entry.conversionLabel)) {
+      warnings.push(
+        `ads: ${provider} conversionLabel "${entry.conversionLabel}" is not a valid label. ` +
+          'Conversion firing skipped.',
+      );
+      // Omit the key entirely rather than setting it `undefined` —
+      // `exactOptionalPropertyTypes` treats the two differently.
+      const { conversionLabel: _drop, ...rest } = entry;
+      safeEntry = rest;
+    }
+
     const category: ConsentCategory = entry.category ?? 'marketing';
     tags.push({
       key: provider,
@@ -125,7 +148,7 @@ export function resolveAds(
       cookies: platform.tag.cookies,
       strategy,
       gated: ctx.consent === true,
-      inline: platform.tag.bootstrap(id, { provider, ...entry }),
+      inline: platform.tag.bootstrap(id, { provider, ...safeEntry }),
       src: platform.tag.src ? platform.tag.src(id) : null,
       attrs: {},
     });

@@ -36,7 +36,7 @@ export default defineConfig({
 });
 ```
 
-Tested against `emdash@0.31.x`.
+Tested against `emdash@1.0.x`.
 
 ## Rendering mode
 
@@ -127,13 +127,14 @@ export default defineConfig({
 
 ## Editor blocks (v1)
 
-| Slash-menu entry | `_type`               | Renders                                     |
-| ---------------- | --------------------- | ------------------------------------------- |
-| Image compare    | `vitops.imageCompare` | `<wc-image-compare>` before/after slider    |
-| Copy snippet     | `vitops.copyButton`   | `<wc-copy>` with code/inline fallback       |
-| Banner           | `vitops.banner`       | `<wc-dismissable>` banner with tone colours |
-| Disclosure       | `vitops.details`      | native `<details>`/`<summary>`              |
-| Carousel         | `vitops.carousel`     | `@getvitops/astro`'s `<Carousel />`         |
+| Slash-menu entry | `_type`               | Renders                                         |
+| ---------------- | --------------------- | ----------------------------------------------- |
+| Link or button   | `vitops.actionLink`   | sprite-icon `<a>`, styled `.link`/`.btn`/`.cta` |
+| Image compare    | `vitops.imageCompare` | `<wc-image-compare>` before/after slider        |
+| Copy snippet     | `vitops.copyButton`   | `<wc-copy>` with code/inline fallback           |
+| Banner           | `vitops.banner`       | `<wc-dismissable>` banner with tone colours     |
+| Disclosure       | `vitops.details`      | native `<details>`/`<summary>`                  |
+| Carousel         | `vitops.carousel`     | `@getvitops/astro`'s `<Carousel />`             |
 
 All blocks render accessible markup that works without JavaScript; the
 web components progressively enhance it.

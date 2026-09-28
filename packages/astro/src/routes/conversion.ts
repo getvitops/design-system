@@ -1,10 +1,11 @@
 /**
  * The conversion endpoint, as a factory.
  *
- * A site's contact form and its `tel:` beacon both mean the same thing — someone
- * got in touch — and both want the same treatment: read the attribution cookie
- * off the request, build the event, notify whoever the config says. That is the
- * same three lines in every project, so it ships here.
+ * A site's contact form and its `tel:`/`mailto:` beacons all mean the same
+ * thing — someone got in touch — and all want the same treatment: read the
+ * attribution cookie off the request, build the event, notify whoever the
+ * config says. That is the same three lines in every project, so it ships
+ * here.
  *
  * What deliberately does **not** ship here is field-level validation and business
  * rules — a consumer's form has its own required fields and its own response
@@ -15,7 +16,7 @@
  * unauthenticated endpoint that sends email, so leaving it wide open makes it a
  * relay and a cost amplifier regardless of whose form is behind it.
  *
- * The path matters: the capture script beacons `tel:` conversions at
+ * The path matters: the capture script beacons `tel:`/`mailto:` conversions at
  * `TRACKING_ENDPOINT` (`/api/track`, exported from `@getvitops/astro/tracking`),
  * and the integration warns at build if no route answers it.
  *
@@ -60,9 +61,11 @@
  * current one. It also called a `toNotifyContext(config)` helper that does not
  * exist — `context` is a plain `NotifyContext`, built however you like.
  */
+import { deliverToCrm, describeCrmResult } from '@getvitops/utils/crm';
+import type { CrmConfig, CrmCredentials, CrmResult } from '@getvitops/utils/crm';
 import { type EmailBinding, notify, type NotifyContext } from '@getvitops/utils/notify';
 import { verifyTurnstileToken } from '@getvitops/utils/security';
-import { parseTrackingCookie } from '@getvitops/utils/tracking';
+import { parseTrackingCookie, readCookie } from '@getvitops/utils/tracking';
 import type { ConversionEvent } from '@getvitops/utils/tracking';
 
 /** The subset of Astro's `APIContext` this needs — typed structurally so the
@@ -109,12 +112,30 @@ export interface ConversionRouteOptions {
    */
   binding?: (locals: unknown) => EmailBinding | undefined;
   /**
+   * Push the submission into a CRM (HubSpot, Zoho Bigin or Jobber) before notifying.
+   * Credentials arrive as a function of `locals`, exactly like `binding` above
+   * — the consumer reads them from `import { env } from 'cloudflare:workers'`.
+   * Credentials are never config; that rule is absolute in this toolchain.
+   *
+   * A failed CRM write never fails the request and never blocks the honeypot/
+   * Turnstile gates above it — those run first, so a bot never reaches the
+   * CRM. The outcome is folded into the notification email's "Delivery"
+   * section (via `describeCrmResult`) so a failed write is never silent.
+   */
+  crm?: {
+    config: CrmConfig;
+    credentials?: (locals: unknown) => CrmCredentials | undefined;
+    fetch?: typeof fetch;
+    timeoutMs?: number;
+  };
+  /**
    * Reject a submission before anything is sent. Return a message to refuse.
    * This is where a consumer puts required-field checks.
    */
   validate?: (body: Record<string, unknown>) => string | null;
-  /** Called with every channel outcome, delivered or not. Defaults to console. */
-  onResult?: (result: Awaited<ReturnType<typeof notify>>) => void;
+  /** Called with every channel outcome, delivered or not, plus the CRM
+   * outcome when `crm` is configured. Defaults to console. */
+  onResult?: (result: ConversionResult) => void;
   /** Injected in tests. */
   now?: () => number;
   /**
@@ -186,6 +207,13 @@ export interface ConversionRouteOptions {
      */
     required?: boolean;
   };
+}
+
+/** `notify()`'s own result, plus the CRM outcome when `crm` is configured.
+ * Additive over `Awaited<ReturnType<typeof notify>>` — a consumer's existing
+ * `onResult` reading `.results`/`.delivered` keeps compiling unchanged. */
+export interface ConversionResult extends Awaited<ReturnType<typeof notify>> {
+  crm?: CrmResult | undefined;
 }
 
 /** Fields that are never part of a submission's meaning. `cf-turnstile-response`
@@ -317,8 +345,14 @@ export function createConversionRoute(options: ConversionRouteOptions) {
       request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
       undefined;
 
+    // Keyed on IP *and* event type: a call beacon and an email-click beacon from
+    // the same visitor are two distinct, legitimate conversions, not a repeat of
+    // one. Keying on IP alone made them compete for the same window — a visitor
+    // who tapped `tel:`, got no answer, then tapped `mailto:` seconds later had
+    // the second beacon silently 429 and drop.
     if (rateLimit && ip) {
-      const sinceLastHit = await rateLimit.store.hit(ip, now());
+      const rlKey = `${ip}:${typeof body['event'] === 'string' ? body['event'] : 'form'}`;
+      const sinceLastHit = await rateLimit.store.hit(rlKey, now());
       if (sinceLastHit !== null && sinceLastHit < rateLimit.windowMs) {
         return respondError('Too many requests.', 429);
       }
@@ -329,9 +363,19 @@ export function createConversionRoute(options: ConversionRouteOptions) {
       return respondError('Missing phone.', 400);
     }
 
-    const spam = !isCall && hasHoneypot(body, honeypotFields);
+    const isEmailClick = body['event'] === 'email';
+    if (isEmailClick && typeof body['email'] !== 'string') {
+      return respondError('Missing email.', 400);
+    }
 
-    if (!isCall && !spam && options.turnstile) {
+    // A call and an email-click beacon are the same shape of thing: a fire-and-
+    // forget ping with no form fields to validate, honeypot, verify or map into
+    // a CRM — both skip every check below that exists for a form submission.
+    const isBeacon = isCall || isEmailClick;
+
+    const spam = !isBeacon && hasHoneypot(body, honeypotFields);
+
+    if (!isBeacon && !spam && options.turnstile) {
       const {
         secretKey,
         fieldName = 'cf-turnstile-response',
@@ -350,7 +394,7 @@ export function createConversionRoute(options: ConversionRouteOptions) {
     if (refusal) return respondError(refusal, 400);
 
     const respondSuccess = (): Response =>
-      isCall
+      isBeacon
         ? new Response(null, { status: 204 })
         : isFormPost && successRedirect
           ? redirectTo(successRedirect)
@@ -372,23 +416,61 @@ export function createConversionRoute(options: ConversionRouteOptions) {
       : honeypotFields;
 
     const event: ConversionEvent = {
-      type: isCall ? 'call' : 'form',
+      type: isCall ? 'call' : isEmailClick ? 'email' : 'form',
       ...(isCall
         ? { phone: String(body['phone']).replace(/^tel:/, '') }
-        : { formData: toFormData(body, excludedFields) }),
+        : isEmailClick
+          ? { email: String(body['email']).replace(/^mailto:/, '') }
+          : { formData: toFormData(body, excludedFields) }),
       tracking: parseTrackingCookie(request.headers.get('cookie')),
       userAgent: request.headers.get('user-agent') ?? undefined,
       ip,
       at: now(),
     };
 
-    const result = await notify(event, context, { email: binding?.(locals) });
+    // CRM before notify: the notification email states the CRM outcome, which
+    // is only possible once it's known. Never attempted for a `tel:`/`mailto:`
+    // beacon — a CRM contact comes from submitted form fields, and neither
+    // event has any to map.
+    let crmResult: CrmResult | null = null;
+    if (!isBeacon && options.crm) {
+      crmResult = await deliverToCrm(event, options.crm.config, {
+        credentials: options.crm.credentials?.(locals),
+        fetch: options.crm.fetch,
+        timeoutMs: options.crm.timeoutMs,
+        // Provider-neutral: HubSpot reads `hutk` to stitch the submission to
+        // its own tracking; Jobber reads `pageUri` for its note body. Neither
+        // is HubSpot-specific to build, so this is passed unconditionally
+        // rather than gated on `options.crm.config.provider`.
+        pageContext: {
+          hutk: readCookie(request.headers.get('cookie'), 'hubspotutk') ?? undefined,
+          pageUri: request.headers.get('referer') ?? undefined,
+        },
+      });
+    }
+    const crmNote = describeCrmResult(crmResult);
+
+    const result: ConversionResult = {
+      ...(await notify(
+        event,
+        context,
+        { email: binding?.(locals) },
+        crmNote ? { notes: [crmNote] } : {},
+      )),
+      ...(crmResult ? { crm: crmResult } : {}),
+    };
 
     if (onResult) onResult(result);
-    else
+    else {
       for (const r of result.results) {
         if (!r.sent) console.warn(`[vitops] notification not sent (${r.channel}): ${r.reason}`);
       }
+      if (crmResult && !crmResult.ok) {
+        console.warn(
+          `[vitops] CRM write not delivered (${crmResult.provider}): ${crmResult.reason}`,
+        );
+      }
+    }
 
     return respondSuccess();
   };

@@ -11,6 +11,7 @@
  * The contact details are the point; attribution is why it matters; the visitor
  * context is for when something looks wrong.
  */
+import { identifySubmitter } from '../tracking/identity.ts';
 import { getPrimaryClickId, identifyPlatform } from '../tracking/platform.ts';
 import type { ConversionEvent } from '../tracking/types.ts';
 import type { RenderedMessage } from './types.ts';
@@ -53,19 +54,7 @@ interface Section {
  * even when no name field exists.
  */
 function submitterName(formData: Record<string, string>): string {
-  const get = (...keys: string[]): string | undefined => {
-    for (const k of keys) {
-      const v = formData[k]?.trim();
-      if (v) return v;
-    }
-    return undefined;
-  };
-  const full = get('name', 'full_name', 'fullName', 'fullname', 'your-name');
-  if (full) return full;
-  const first = get('first_name', 'firstName', 'firstname', 'given_name');
-  const last = get('last_name', 'lastName', 'lastname', 'family_name', 'surname');
-  if (first || last) return [first, last].filter(Boolean).join(' ');
-  return get('email', 'email_address', 'emailAddress') ?? 'Unknown';
+  return identifySubmitter(formData).fullName;
 }
 
 /**
@@ -88,6 +77,10 @@ export function describeEvent(event: ConversionEvent): { subject: string; sectio
     for (const [key, value] of Object.entries(event.formData)) {
       if (!OMIT_FIELDS.has(key) && value) contact.push([label(key), value]);
     }
+  } else if (event.type === 'email') {
+    const email = event.email ?? 'unknown';
+    subject = `[Email Click] Visitor emailing ${email}`;
+    contact.push(['Email', email]);
   } else {
     const phone = event.phone ?? 'unknown';
     subject = `[Phone Call] Visitor calling ${phone}`;
@@ -130,8 +123,21 @@ export function describeEvent(event: ConversionEvent): { subject: string; sectio
 }
 
 /** Render for e-mail. Both halves, always — see `RenderedMessage`. */
-export function renderEmail(event: ConversionEvent): RenderedMessage {
-  const { subject, sections } = describeEvent(event);
+export function renderEmail(
+  event: ConversionEvent,
+  extra: { notes?: string[] | undefined } = {},
+): RenderedMessage {
+  const { subject, sections: eventSections } = describeEvent(event);
+  // Deliberately a channel-neutral `string[]` rather than a typed CRM result —
+  // this module gains no dependency on `crm`, and the seam serves any future
+  // sink the same way.
+  const sections =
+    extra.notes && extra.notes.length
+      ? [
+          ...eventSections,
+          { heading: 'Delivery', lines: extra.notes.map((n) => ['CRM', n] as [string, string]) },
+        ]
+      : eventSections;
 
   const text = sections
     .map((s) => [`--- ${s.heading} ---`, ...s.lines.map(([k, v]) => `${k}: ${v}`)].join('\n'))

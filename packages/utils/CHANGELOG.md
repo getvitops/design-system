@@ -36,7 +36,6 @@
 
   **Breaking (`css`/`bricks` and `tailwind` formats — `.lightbox-dialog`'s markup
   contract changed):**
-
   - `<Gallery />` now emits ONE `<dialog class="lightbox-dialog">` per gallery,
     wrapping a `<Carousel />`, instead of one dialog per image. A `.gallery__trigger`
     is now a plain `<a href="#slide-id">`, not a `command="show-modal"` button.
@@ -98,7 +97,6 @@
 ### Minor Changes
 
 - Add Google Business Profile reviews: fetch, cache, render.
-
   - **`vitops reviews`** (new CLI command) fetches a client's GBP reviews (legacy v4 API — the only
     one that has them) and writes them to `.vitops/reviews.json`, meant to be committed so a build
     never needs a live Google credential. `--dry` prints the plan; `--check` diffs against the cache
@@ -133,7 +131,6 @@
   `--site` for now.)
 
   **Fixed:**
-
   - `@getvitops/core`'s 12 runtime deps (`lit`, both `@oddbird` polyfills, both
     `@webcomponents` packages, `colorjs.io`, etc.) were listed as `dependencies` despite
     being bundled into `dist/elements.js`/`dist/polyfills.js`/`dist/deferred.js` — a
@@ -546,20 +543,28 @@ here changed, and no code that imports `@getvitops/utils` needs editing.
   {
     "designSystem": {
       "themes": {
-        "default": {/* … */},
+        "default": {
+          /* … */
+        },
       },
     },
     "organization": {
       "name": "Acme",
       "contact": "hq",
       "locations": {
-        "hq": {/* … */},
+        "hq": {
+          /* … */
+        },
       },
     },
     "site": {
       "defaultLocale": "en",
-      "domains": {/* … */},
-      "analytics": {/* … */},
+      "domains": {
+        /* … */
+      },
+      "analytics": {
+        /* … */
+      },
     },
   }
   ```
@@ -628,7 +633,7 @@ here changed, and no code that imports `@getvitops/utils` needs editing.
   Also new, and worth wiring at the same time — **`gitLastmod()` for real sitemap dates**:
 
   ```js
-  import vitops, { gitLastmod } from "@getvitops/astro";
+  import vitops, { gitLastmod } from '@getvitops/astro';
   vitops({ sitemap: { serialize: await gitLastmod() } });
   ```
 

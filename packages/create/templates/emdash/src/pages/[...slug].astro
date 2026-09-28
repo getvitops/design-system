@@ -4,6 +4,13 @@ import { PortableText } from 'emdash/ui';
 import Layout from '../layouts/Layout.astro';
 
 // Catch-all: any entry in the `pages` collection renders at its slug.
+//
+// Deliberately NOT prerendered, unlike AGENTS.md's general "prerender by
+// default" rule — see index.astro's comment for why: a live EmDash publish
+// should reach visitors without a redeploy. A page that's known ahead of
+// time and doesn't need that (rarely edited, or fine to lag a build) can
+// move to its own prerendered route with `getStaticPaths()` over the
+// `pages` collection instead of relying on this catch-all.
 const { slug } = Astro.params;
 const { entry: page } = slug ? await getEmDashEntry('pages', slug) : { entry: null };
 

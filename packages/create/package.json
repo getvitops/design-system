@@ -19,8 +19,7 @@
     "access": "public"
   },
   "devDependencies": {
-    "@getvitops/generator": "workspace:*",
-    "vitest": "catalog:"
+    "@getvitops/generator": "workspace:*"
   },
   "engines": {
     "node": ">=24"

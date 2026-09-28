@@ -43,7 +43,11 @@ export interface AdPropertySetup {
   accountId?: string | undefined;
   /** The tag/pixel id, when the platform issues one distinct from the account. */
   pixelId?: string | undefined;
-  /** Google Ads only: the conversion label paired with the conversion id. */
+  /**
+   * Google Ads only: the conversion label paired with the conversion id. Fires
+   * a `gtag('event', 'conversion', …)` on a tel:/mailto: click — see
+   * `gtagBootstrap` below.
+   */
   conversionLabel?: string | undefined;
   /** The host to verify, bare (`acme.ca`). The CLI defaults it from the canonical domain. */
   domain?: string | undefined;

@@ -28,7 +28,7 @@ export interface GetvitopsTrackingOptions {
 export const TRACKING_COOKIE = '_ac';
 
 /**
- * Where the capture script sends its `tel:` conversion beacon.
+ * Where the capture script sends its `tel:`/`mailto:` conversion beacons.
  *
  * The route itself is the consumer's to write (`createConversionRoute()` in
  * `@getvitops/astro/routes`), so this is the one place the two halves agree on

@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import pkg from '../package.json' with { type: 'json' };
 import { BLOCKS } from './blocks.ts';
 import { SEMANTIC_ICON_OPTIONS } from './icon-options.ts';

@@ -17,7 +17,7 @@
  * multi-site case was inexpressible. With three sections, several sites can share
  * one `organization` and override only `site`.
  *
- * Authored with `zod/mini` (same instance the design-system schema uses), so the
+ * Authored with `@zod/mini` (same instance the design-system schema uses), so the
  * two compose: `DesignSystemSchema` is embedded as `designSystem.themes.<theme>` and the
  * whole thing serialises to one JSON Schema via `z.toJSONSchema`. Everything a
  * generator needs derives from here: the `Config` type (`z.infer`), the
@@ -26,11 +26,12 @@
  * Pure: no YAML/env/fs. `resolveConfig` takes an already-parsed object; a
  * thin loader (reading YAML, injecting `SITE_ENV`) lives outside this module.
  */
-import * as z from 'zod/mini';
+import * as z from '@zod/mini';
 // The ad-platform capability table. Imported rather than mirrored: this direction is
 // the allowed one (the generator already depends on utils; utils may never import
 // the generator), and what a platform can do is one fact, not two.
 import { AD_PLATFORMS } from '@getvitops/utils/ads';
+import { TRACKED_PARAMS } from '@getvitops/utils/tracking';
 import { desc, DesignSystemPatchSchema, type DesignSystem } from './schema.ts';
 
 // ── Primitives ────────────────────────────────────────────────────────────────
@@ -640,7 +641,8 @@ const AdPropertySchema = z.object({
   ),
   conversionLabel: desc(
     z.optional(z.string()),
-    'Google Ads only: the conversion action label paired with the `AW-…` conversion ID.',
+    'Google Ads only: the conversion action label paired with the `AW-…` conversion ID. When ' +
+      'set, a tel:/mailto: click fires a Google Ads conversion for that action.',
   ),
   domain: desc(
     z.optional(z.string()),
@@ -706,6 +708,100 @@ const ReviewsSchema = z.object({
   avatars: desc(
     z.optional(z.boolean()),
     'Render the reviewer’s Google-hosted avatar photo (default false). Off by default: every visitor would otherwise issue a third-party request to googleusercontent.com, and the URLs are not guaranteed to stay live.',
+  ),
+});
+
+// ── CRM ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * The CRMs this toolchain can push a form submission into.
+ *
+ * A closed enum, mirroring `CrmProvider` in `@getvitops/utils/crm` — that module
+ * owns what each provider's API needs, this owns what a config may say.
+ * Mirrored rather than derived for the same reason `AD_PROVIDERS` is: a
+ * `z.enum` needs literals to reach the published JSON Schema.
+ */
+export const CRM_PROVIDERS = ['hubspot', 'bigin', 'jobber'] as const;
+const CrmProviderSchema = z.enum(CRM_PROVIDERS);
+export type CrmProviderConfig = (typeof CRM_PROVIDERS)[number];
+
+export const BIGIN_DATA_CENTERS = ['com', 'ca', 'eu', 'in', 'com.au', 'jp'] as const;
+
+const HubSpotConfigSchema = z.object({
+  portalId: desc(z.string(), 'The HubSpot portal (hub) ID the form belongs to.'),
+  formGuid: desc(z.string(), 'The HubSpot form GUID to submit against.'),
+  dataCenter: desc(
+    z.optional(z.enum(['na', 'eu'])),
+    'Which regional submissions API to post to (default `na`).',
+  ),
+});
+
+const BiginPipelineConfigSchema = z.object({
+  enabled: desc(z.boolean(), 'Also open a Pipelines record for the new/updated contact.'),
+  subPipeline: desc(z.optional(z.string()), 'Sub-pipeline to file the record under.'),
+  stage: desc(z.optional(z.string()), 'Starting stage for the pipeline record.'),
+});
+
+const BiginConfigSchema = z.object({
+  dataCenter: desc(
+    z.enum(BIGIN_DATA_CENTERS),
+    "The self-client's data centre — determines both the OAuth accounts host and the API host (`www.zohoapis.<dc>`).",
+  ),
+  duplicateCheckField: desc(
+    z.optional(z.string()),
+    "Bigin field the upsert dedupes on (default `Email`, Bigin's own unique field).",
+  ),
+  pipeline: desc(
+    z.optional(BiginPipelineConfigSchema),
+    'Also open a Pipelines record alongside the Contact.',
+  ),
+});
+
+const JobberNoteConfigSchema = z.object({
+  enabled: desc(
+    z.optional(z.boolean()),
+    'Attach a best-effort note carrying the message and unmapped attribution (default true). A failure here never loses the client record itself.',
+  ),
+});
+
+const JobberConfigSchema = z.object({
+  apiVersion: desc(
+    z.optional(z.string()),
+    "Override the pinned `X-JOBBER-GRAPHQL-VERSION` date this integration is tested against. An escape hatch for an app pinned to a different version — Jobber's schema can change field names between versions.",
+  ),
+  dedupe: desc(
+    z.optional(z.boolean()),
+    "Look up an existing client by email before creating one (default false pending verification of Jobber's search API against a live schema — see AGENTS.md). Jobber's `clientCreate` has no upsert, so without this a resubmitting visitor creates a second client.",
+  ),
+  note: desc(
+    z.optional(JobberNoteConfigSchema),
+    'Attach a best-effort note carrying the submitted message and any attribution/extra fields with no dedicated Jobber field.',
+  ),
+});
+
+/**
+ * A client's CRM, wired to the same conversion route `site.notifications`
+ * already reaches — see AGENTS.md's "CRM submissions" section for why this is
+ * server-side-only and hung off `createConversionRoute()` rather than a
+ * client-side embed. Credentials never live here — the toolchain has no
+ * secret store, matching every other integration.
+ */
+const CrmSchema = z.object({
+  provider: desc(CrmProviderSchema, 'Which CRM this site pushes form submissions into.'),
+  enabled: desc(
+    z.optional(z.boolean()),
+    'Set false to keep the block on record without writing to the CRM.',
+  ),
+  hubspot: desc(z.optional(HubSpotConfigSchema), 'Required when `provider` is `hubspot`.'),
+  bigin: desc(z.optional(BiginConfigSchema), 'Required when `provider` is `bigin`.'),
+  jobber: desc(z.optional(JobberConfigSchema), 'Required when `provider` is `jobber`.'),
+  fieldMap: desc(
+    z.optional(z.record(z.string(), z.string())),
+    'Submitted form field name → CRM property name. A field with no entry here is dropped, not guessed — an unmapped field never reaches the CRM.',
+  ),
+  trackingFields: desc(
+    z.optional(z.record(z.string(), z.string())),
+    '`_ac` attribution key (a click-ID param, a UTM param, `landingPage`, `referrer`, or `ab_variant`) → CRM property name. Same drop-if-unmapped rule as `fieldMap`; a visitor with no `_ac` cookie maps to no attribution fields at all, never an error.',
   ),
 });
 
@@ -965,6 +1061,10 @@ const SiteSectionSchema = z.object({
                   z.optional(z.string()),
                   'Workers `send_email` binding name (default `EMAIL`). Set it when using a restricted binding.',
                 ),
+                verifySender: desc(
+                  z.optional(z.boolean()),
+                  "Set false to skip `vitops email check`'s deploy-time onboarding warning for this site — for a `from` domain the scan cannot see is correct (e.g. built dynamically), which would otherwise be a false positive.",
+                ),
               }),
             ]),
           ),
@@ -1000,6 +1100,10 @@ const SiteSectionSchema = z.object({
   reviews: desc(
     z.optional(ReviewsSchema),
     'Google Business Profile reviews to cache and display, keyed by `organization.locations`. Read by `vitops reviews`. Credentials never live here — a Google OAuth credential comes from the environment, same as `site.searchConsole`.',
+  ),
+  crm: desc(
+    z.optional(CrmSchema),
+    "Push form submissions into a client CRM (HubSpot, Zoho Bigin, or Jobber) alongside the notification email. Read by `createConversionRoute()`'s `crm` option and `vitops crm check`/`vitops crm setup`. Credentials never live here.",
   ),
   security: desc(
     z.optional(
@@ -1302,6 +1406,28 @@ function migrationIssues(raw: unknown): Issue[] {
 }
 
 /**
+ * `unrecognized_keys` reports the offending keys structurally (`issue.keys`)
+ * but zod's default message is a bare "Invalid input" — the same gap
+ * `schema.ts`'s `explainRamp` works around for the design-system schema.
+ * Config hits this on every keyed-record field (`site.ads`, `site.crm`'s
+ * `fieldMap`, …), so it's a general post-processing step here rather than a
+ * one-off. Not the same helper as `explainRamp`'s: that one also claims the
+ * key was "ignored at generate time", which is true for a loose object's
+ * silently-dropped extras but wrong here — a `partialRecord`'s key schema
+ * (e.g. `AdProviderSchema`) genuinely rejects the config rather than
+ * dropping the field, so this says "rejected", not "ignored".
+ */
+const explainUnrecognizedKeys = (issue: Issue): Issue => {
+  if (issue.code !== 'unrecognized_keys') return issue;
+  const keys = (issue as { keys?: string[] }).keys ?? [];
+  if (!keys.length) return issue;
+  return {
+    ...issue,
+    message: `unknown key${keys.length > 1 ? 's' : ''} ${keys.map((k) => `"${k}"`).join(', ')} — not part of the schema, rejected.`,
+  };
+};
+
+/**
  * Validate a raw (already parsed) config: shape via zod, then the cross-field
  * integrity that JSON Schema can't express (referential keys, extends acyclicity).
  * These live only here — the published JSON Schema enforces shape, not integrity.
@@ -1311,7 +1437,12 @@ export function validateConfig(input: unknown): ConfigValidationResult {
   if (migration.length) return { ok: false, data: undefined, errors: migration };
 
   const parsed = z.safeParse(ConfigSchema, input);
-  if (!parsed.success) return { ok: false, data: undefined, errors: parsed.error.issues };
+  if (!parsed.success)
+    return {
+      ok: false,
+      data: undefined,
+      errors: parsed.error.issues.map(explainUnrecognizedKeys),
+    };
   const cfg = parsed.data;
   const site = cfg.site;
   const org = cfg.organization;
@@ -1531,6 +1662,40 @@ export function validateConfig(input: unknown): ConfigValidationResult {
           `no accountId — set site.reviews.accountId or site.reviews.locations.${key}.accountId`,
         ),
       );
+  }
+
+  // CRM. `provider` decides which block is required — a config naming a
+  // provider with no matching block is a config `planCrm` in
+  // `@getvitops/utils/crm` would report as off with a reason, but stopping it
+  // at validation is louder than discovering it at first submission. One
+  // table rather than a hand-written `if` per provider, so a fourth provider
+  // added to `CRM_PROVIDERS` with no matching entry here is a type error
+  // (`Record<CrmProviderConfig, …>`) instead of a silently unchecked block.
+  if (site.crm) {
+    const at = ['site', 'crm'];
+    const CRM_PROVIDER_BLOCKS: Record<CrmProviderConfig, 'hubspot' | 'bigin' | 'jobber'> = {
+      hubspot: 'hubspot',
+      bigin: 'bigin',
+      jobber: 'jobber',
+    };
+    const block = CRM_PROVIDER_BLOCKS[site.crm.provider];
+    if (site.crm[block] == null)
+      errors.push(
+        issue(
+          [...at, block],
+          `site.crm.provider is "${site.crm.provider}" but site.crm.${block} is missing`,
+        ),
+      );
+    const knownTrackingKeys = new Set([...TRACKED_PARAMS, 'landingPage', 'referrer', 'ab_variant']);
+    for (const key of Object.keys(site.crm.trackingFields ?? {})) {
+      if (!knownTrackingKeys.has(key))
+        errors.push(
+          issue(
+            [...at, 'trackingFields', key],
+            `"${key}" is not a recognised _ac attribution key — a typo'd key silently maps nothing`,
+          ),
+        );
+    }
   }
 
   if (errors.length) return { ok: false, data: undefined, errors };

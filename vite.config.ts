@@ -62,6 +62,20 @@ export default defineConfig({
       'packages/generator/assets/**',
       // Scaffold sources for `vp create @getvitops:*` — they import deps that
       // only exist in a scaffolded project, so type-aware lint can't see them.
+      //
+      // NOTE (oxlint 1.85 / vite-plus 1.0): this pattern excludes matched files
+      // from being LINTED, but not from oxlint's tsconfig-discovery walk —
+      // confirmed neither this (file-level) nor `.oxlintignore` (also
+      // file-level) reaches that. `packages/create/templates/emdash/tsconfig
+      // .json` (`extends: "astro/tsconfigs/strict"`) would otherwise fail to
+      // resolve here, since the template has no `node_modules` of its own
+      // inside this monorepo — fixed instead by `scripts/link-template-deps
+      // .mjs` (root `postinstall`), which symlinks what that tsconfig and the
+      // template's own `.ts` sources need to resolve, gitignored and
+      // invisible to a real scaffold. See that script's docblock for why a
+      // symlink, not inlining the preset (drift risk) or a real pnpm
+      // workspace member (would change how `@getvitops/*: "latest"` deps
+      // resolve locally, which `templates.test.ts` exists to protect).
       'packages/create/templates/**',
       'site/**',
     ],
@@ -113,17 +127,19 @@ export default defineConfig({
       'build:core': {
         command: 'cd packages/core && vp pack',
         dependsOn: ['build:utils'],
-        input: [
-          'packages/core/src/**/*.ts',
-          'packages/core/vite.config.ts',
-          // The CSS/HTML-literal minifiers are build-time dependencies whose
-          // version changes the bytes written to dist/. vp hashes declared
-          // inputs, not node_modules, so both the manifest and the catalog
-          // entries pinning them must invalidate this task too.
-          'packages/core/package.json',
-          'pnpm-workspace.yaml',
-        ],
-        output: ['packages/core/dist/**'],
+        cache: {
+          input: [
+            'packages/core/src/**/*.ts',
+            'packages/core/vite.config.ts',
+            // The CSS/HTML-literal minifiers are build-time dependencies whose
+            // version changes the bytes written to dist/. vp hashes declared
+            // inputs, not node_modules, so both the manifest and the catalog
+            // entries pinning them must invalidate this task too.
+            'packages/core/package.json',
+            'pnpm-workspace.yaml',
+          ],
+          output: ['packages/core/dist/**'],
+        },
       },
 
       // Theme dist via @getvitops/generator (dogfood). Emits styles.min.css (bundled by
@@ -138,19 +154,21 @@ export default defineConfig({
       'build:theme': {
         command: 'node lib/build-theme.ts',
         dependsOn: ['build:generator'],
-        input: THEME_INPUT,
-        output: [
-          'dist/styles.min.css*',
-          'dist/bricks*.json',
-          // dist/tokens.json is also written by build:docs/build:tailwind, but only
-          // declared here: `dev` runs build and build:docs concurrently, and vp's
-          // cache restore is order-dependent when two tasks claim the same output.
-          'dist/tokens.json',
-          'dist/bricks/**',
-          'dist/docs/**',
-          // The tracked mirror of the docs bundle (dist/ is gitignored).
-          'docs/**',
-        ],
+        cache: {
+          input: THEME_INPUT,
+          output: [
+            'dist/styles.min.css*',
+            'dist/bricks*.json',
+            // dist/tokens.json is also written by build:docs/build:tailwind, but only
+            // declared here: `dev` runs build and build:docs concurrently, and vp's
+            // cache restore is order-dependent when two tasks claim the same output.
+            'dist/tokens.json',
+            'dist/bricks/**',
+            'dist/docs/**',
+            // The tracked mirror of the docs bundle (dist/ is gitignored).
+            'docs/**',
+          ],
+        },
       },
 
       // Standalone CSS bundle for the docsite (index.html) via core's css format:
@@ -158,8 +176,10 @@ export default defineConfig({
       'build:docs': {
         command: 'node lib/build-theme.ts --format css',
         dependsOn: ['build:generator'],
-        input: THEME_INPUT,
-        output: ['dist/styles.css', 'dist/design-manifest.json'],
+        cache: {
+          input: THEME_INPUT,
+          output: ['dist/styles.css', 'dist/design-manifest.json'],
+        },
       },
 
       // Tailwind v4 bundle for Astro/EmDash consumers via core's tailwind format:
@@ -167,8 +187,10 @@ export default defineConfig({
       'build:tailwind': {
         command: 'node lib/build-theme.ts --format tailwind',
         dependsOn: ['build:generator'],
-        input: THEME_INPUT,
-        output: ['dist/tailwind.css'],
+        cache: {
+          input: THEME_INPUT,
+          output: ['dist/tailwind.css'],
+        },
       },
 
       // The agent-facing brief (google-labs-code/design.md format) via core's
@@ -178,8 +200,10 @@ export default defineConfig({
       'build:design': {
         command: 'node lib/build-theme.ts --format design',
         dependsOn: ['build:generator'],
-        input: THEME_INPUT,
-        output: ['DESIGN.md'],
+        cache: {
+          input: THEME_INPUT,
+          output: ['DESIGN.md'],
+        },
       },
 
       // ── Publishable packages (@getvitops/{core,generator,utils,cli,vite}) ──
@@ -191,46 +215,56 @@ export default defineConfig({
       'build:generator': {
         command: 'node packages/generator/scripts/prepare.mjs && cd packages/generator && vp pack',
         dependsOn: ['build:core'],
-        input: [
-          'packages/generator/src/**/*.ts',
-          'packages/generator/scripts/prepare.mjs',
-          'packages/generator/vite.config.ts',
-          'packages/core/css/**',
-          'packages/core/dist/**',
-          'bricks/**/*.php',
-        ],
-        output: [
-          'packages/generator/dist/**',
-          'packages/generator/assets/**',
-          'packages/generator/schema.json',
-          'packages/generator/config.schema.json',
-        ],
+        cache: {
+          input: [
+            'packages/generator/src/**/*.ts',
+            'packages/generator/scripts/prepare.mjs',
+            'packages/generator/vite.config.ts',
+            'packages/core/css/**',
+            'packages/core/dist/**',
+            'bricks/**/*.php',
+          ],
+          output: [
+            'packages/generator/dist/**',
+            'packages/generator/assets/**',
+            'packages/generator/schema.json',
+            'packages/generator/config.schema.json',
+          ],
+        },
       },
       // Shared build-time utilities (favicon generation, …). No workspace deps.
       'build:utils': {
         command: 'cd packages/utils && vp pack',
-        input: ['packages/utils/src/**/*.ts', 'packages/utils/vite.config.ts'],
-        output: ['packages/utils/dist/**'],
+        cache: {
+          input: ['packages/utils/src/**/*.ts', 'packages/utils/vite.config.ts'],
+          output: ['packages/utils/dist/**'],
+        },
       },
       'build:cli': {
         command: 'cd packages/cli && vp pack',
         dependsOn: ['build:generator', 'build:utils'],
-        input: ['packages/cli/src/**/*.ts', 'packages/cli/vite.config.ts'],
-        output: ['packages/cli/dist/**'],
+        cache: {
+          input: ['packages/cli/src/**/*.ts', 'packages/cli/vite.config.ts'],
+          output: ['packages/cli/dist/**'],
+        },
       },
       'build:vite-plugin': {
         command: 'cd packages/vite && vp pack',
         dependsOn: ['build:generator', 'build:utils'],
-        input: ['packages/vite/src/**/*.ts', 'packages/vite/vite.config.ts'],
-        output: ['packages/vite/dist/**'],
+        cache: {
+          input: ['packages/vite/src/**/*.ts', 'packages/vite/vite.config.ts'],
+          output: ['packages/vite/dist/**'],
+        },
       },
       // Astro integration: composes vite-plugin + utils (favicons) + core (the JS
       // bundles it copies into a consumer's public/). build:core provides those.
       'build:astro': {
         command: 'cd packages/astro && vp pack',
         dependsOn: ['build:core', 'build:generator', 'build:utils', 'build:vite-plugin'],
-        input: ['packages/astro/src/**/*.ts', 'packages/astro/vite.config.ts'],
-        output: ['packages/astro/dist/**'],
+        cache: {
+          input: ['packages/astro/src/**/*.ts', 'packages/astro/vite.config.ts'],
+          output: ['packages/astro/dist/**'],
+        },
       },
       // EmDash CMS plugin: descriptor/runtime only (the ./astro entry ships as source).
       'build:emdash': {
@@ -239,17 +273,19 @@ export default defineConfig({
         // rather than copied, so the dts pass needs utils' types built. The
         // module itself stays external (it is a real `dependencies` entry).
         dependsOn: ['build:utils'],
-        input: [
-          'packages/emdash/src/**/*.ts',
-          'packages/emdash/vite.config.ts',
-          // The descriptor's `version` is imported from package.json and inlined
-          // at build time, so a version-only bump MUST invalidate this task —
-          // otherwise `changeset version` bumps the manifest, the cached dist
-          // keeps the old number, and the descriptor ships stale. That is exactly
-          // how 0.2.1 published a descriptor reading 0.2.0.
-          'packages/emdash/package.json',
-        ],
-        output: ['packages/emdash/dist/**'],
+        cache: {
+          input: [
+            'packages/emdash/src/**/*.ts',
+            'packages/emdash/vite.config.ts',
+            // The descriptor's `version` is imported from package.json and inlined
+            // at build time, so a version-only bump MUST invalidate this task —
+            // otherwise `changeset version` bumps the manifest, the cached dist
+            // keeps the old number, and the descriptor ships stale. That is exactly
+            // how 0.2.1 published a descriptor reading 0.2.0.
+            'packages/emdash/package.json',
+          ],
+          output: ['packages/emdash/dist/**'],
+        },
       },
       // Build all publishable packages (cli/vite need core + utils; astro needs all).
       'build:packages': {
@@ -310,14 +346,16 @@ export default defineConfig({
       'docs:sync': {
         command: 'node site/scripts/sync-reference.mjs',
         dependsOn: ['build:generator'],
-        input: [
-          'site/scripts/sync-reference.mjs',
-          'src/design-system.json',
-          'CHANGELOG.md',
-          'packages/generator/dist/index.mjs',
-          'packages/generator/assets/**',
-        ],
-        output: ['site/src/content/docs/reference/**', 'site/src/content/docs/changelog.md'],
+        cache: {
+          input: [
+            'site/scripts/sync-reference.mjs',
+            'src/design-system.json',
+            'CHANGELOG.md',
+            'packages/generator/dist/index.mjs',
+            'packages/generator/assets/**',
+          ],
+          output: ['site/src/content/docs/reference/**', 'site/src/content/docs/changelog.md'],
+        },
       },
       // `build:astro` is a dependency of both, not just `docs:sync`'s generator:
       // the site *renders* through @getvitops/astro, so it needs that package's
@@ -331,7 +369,9 @@ export default defineConfig({
       'docs:build': {
         command: 'pnpm --filter site exec astro build',
         dependsOn: ['docs:sync', 'build:astro'],
-        output: ['site/dist/**'],
+        cache: {
+          output: ['site/dist/**'],
+        },
       },
       'docs:preview': {
         command: 'pnpm --filter site exec astro preview',

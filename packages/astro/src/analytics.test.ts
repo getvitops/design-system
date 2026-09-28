@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { consentCategories, resolveAnalytics, type ResolvedTag } from './analytics.ts';
 
 const tag = (result: ReturnType<typeof resolveAnalytics>, key: ResolvedTag['key']) =>

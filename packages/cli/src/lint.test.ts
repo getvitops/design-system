@@ -6,7 +6,7 @@ import {
   roleHue,
   roleKind,
 } from '@getvitops/generator';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { extractClasses, judge, lintSource, vocabulary } from './lint.ts';
 
 /**

@@ -30,8 +30,7 @@
     "@getvitops/utils": "workspace:*"
   },
   "devDependencies": {
-    "vite": "catalog:",
-    "vitest": "catalog:"
+    "vite": "catalog:"
   },
   "peerDependencies": {
     "vite": ">=5"

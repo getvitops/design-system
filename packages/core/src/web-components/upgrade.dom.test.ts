@@ -14,7 +14,7 @@
  * un-enhanced, with no error. So what is asserted is not "setup was called" but
  * the observable enhancement each component exists to produce.
  */
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vite-plus/test';
 
 /** Insert markup the way a view-transition swap or client-side nav does. */
 async function mount(html: string): Promise<HTMLElement> {

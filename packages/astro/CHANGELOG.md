@@ -52,7 +52,6 @@
 
   **Breaking (`css`/`bricks` and `tailwind` formats — `.lightbox-dialog`'s markup
   contract changed):**
-
   - `<Gallery />` now emits ONE `<dialog class="lightbox-dialog">` per gallery,
     wrapping a `<Carousel />`, instead of one dialog per image. A `.gallery__trigger`
     is now a plain `<a href="#slide-id">`, not a `command="show-modal"` button.
@@ -93,7 +92,6 @@
 ### Minor Changes
 
 - Add Google Business Profile reviews: fetch, cache, render.
-
   - **`vitops reviews`** (new CLI command) fetches a client's GBP reviews (legacy v4 API — the only
     one that has them) and writes them to `.vitops/reviews.json`, meant to be committed so a build
     never needs a live Google credential. `--dry` prints the plan; `--check` diffs against the cache
@@ -128,7 +126,6 @@
   `--site` for now.)
 
   **Fixed:**
-
   - `@getvitops/core`'s 12 runtime deps (`lit`, both `@oddbird` polyfills, both
     `@webcomponents` packages, `colorjs.io`, etc.) were listed as `dependencies` despite
     being bundled into `dist/elements.js`/`dist/polyfills.js`/`dist/deferred.js` — a
@@ -878,20 +875,28 @@ hidden` would pull it out of the accessible-name computation along with the visu
   {
     "designSystem": {
       "themes": {
-        "default": {/* … */},
+        "default": {
+          /* … */
+        },
       },
     },
     "organization": {
       "name": "Acme",
       "contact": "hq",
       "locations": {
-        "hq": {/* … */},
+        "hq": {
+          /* … */
+        },
       },
     },
     "site": {
       "defaultLocale": "en",
-      "domains": {/* … */},
-      "analytics": {/* … */},
+      "domains": {
+        /* … */
+      },
+      "analytics": {
+        /* … */
+      },
     },
   }
   ```
@@ -1060,7 +1065,7 @@ open-fade-in"` composes slide and fade. Applied at zero specificity with identit
   Also new, and worth wiring at the same time — **`gitLastmod()` for real sitemap dates**:
 
   ```js
-  import vitops, { gitLastmod } from "@getvitops/astro";
+  import vitops, { gitLastmod } from '@getvitops/astro';
   vitops({ sitemap: { serialize: await gitLastmod() } });
   ```
 
@@ -1160,8 +1165,8 @@ ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails 
 
   ```js
   vitops({
-    analytics: { googleAnalytics: "G-XXXXXXXXXX", plausible: "acme.com" },
-    consent: { policyUrl: "/legal/cookies" },
+    analytics: { googleAnalytics: 'G-XXXXXXXXXX', plausible: 'acme.com' },
+    consent: { policyUrl: '/legal/cookies' },
   });
   ```
 
@@ -1301,7 +1306,7 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
 
   ```js
   // astro.config.mjs
-  getvitops({ css: { input: "company.json", format: "css" } });
+  getvitops({ css: { input: 'company.json', format: 'css' } });
   ```
 
   ```
@@ -1400,11 +1405,11 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
   getvitops({
     fonts: [
       {
-        name: "League Spartan",
-        provider: "fontsource",
-        cssVariable: "--font-league-spartan",
-        weights: ["100 900"],
-        subsets: ["latin"],
+        name: 'League Spartan',
+        provider: 'fontsource',
+        cssVariable: '--font-league-spartan',
+        weights: ['100 900'],
+        subsets: ['latin'],
         preload: true,
       },
     ],
@@ -1632,14 +1637,14 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
   // astro.config.mjs
   vitops({
     seo: {
-      siteName: "Acme",
-      titleTemplate: "%s · Acme",
-      defaultDescription: "We make the thing.",
+      siteName: 'Acme',
+      titleTemplate: '%s · Acme',
+      defaultDescription: 'We make the thing.',
       openGraph: {
-        locale: "en_CA",
-        image: { url: "/og.png", alt: "Acme", width: 1200, height: 630 },
+        locale: 'en_CA',
+        image: { url: '/og.png', alt: 'Acme', width: 1200, height: 630 },
       },
-      twitter: { site: "@acme" },
+      twitter: { site: '@acme' },
     },
   });
   ```
@@ -1683,7 +1688,7 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
 
   ```js
   getvitops({ sitemap: true });
-  getvitops({ sitemap: { filter: (page) => !page.includes("/draft/") } });
+  getvitops({ sitemap: { filter: (page) => !page.includes('/draft/') } });
   ```
 
   `@astrojs/sitemap` is an **optional peer** — install it yourself (`pnpm add -D @astrojs/sitemap`) and
@@ -1918,15 +1923,15 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
   which `@getvitops/astro` re-exports wholesale. So from `astro.config.mjs`:
 
   ```js
-  import { generateIconInclude } from "@getvitops/astro";
-  import icon from "astro-icon";
+  import { generateIconInclude } from '@getvitops/astro';
+  import icon from 'astro-icon';
 
   integrations: [
     icon({
       include: generateIconInclude({
-        ui: "fa7-solid",
-        brand: "simple-icons",
-        semantic: ["menu", "close", "search", "github"],
+        ui: 'fa7-solid',
+        brand: 'simple-icons',
+        semantic: ['menu', 'close', 'search', 'github'],
       }),
     }),
   ];
@@ -1960,7 +1965,7 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
   ```js
   // astro.config.mjs
   getvitops({
-    css: { input: "design-system.json", format: "css", out: "src/styles" },
+    css: { input: 'design-system.json', format: 'css', out: 'src/styles' },
     editor: true,
   });
   ```

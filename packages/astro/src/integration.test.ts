@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { AstroIntegration, HookParameters } from 'astro';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import vitops, { type GetvitopsOptions } from './integration.ts';
 
 type Params = HookParameters<'astro:config:setup'>;

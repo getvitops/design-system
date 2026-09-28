@@ -13,7 +13,7 @@
  * Per-file environment rather than a global one: the other ~800 tests are pure and
  * have no reason to pay for a DOM.
  */
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vite-plus/test';
 
 const SLIDES = ['one', 'two', 'three']
   .map((t, i) => `<li class="carousel__slide" id="slide-${i + 1}">${t}</li>`)

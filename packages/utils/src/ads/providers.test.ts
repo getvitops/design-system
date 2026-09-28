@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 import { PLATFORM_PARAMS } from '../tracking/params.ts';
 import { AD_PLATFORMS, AD_PROVIDER_KEYS, categoryOf, renderTag } from './providers.ts';
 
@@ -75,5 +75,16 @@ describe('renderTag', () => {
   test('honours an explicit consent category', () => {
     expect(categoryOf({ provider: 'meta', category: 'analytics' })).toBe('analytics');
     expect(renderTag({ ...meta, category: 'analytics' })).toContain('data-consent="analytics"');
+  });
+
+  test('google with a conversionLabel exposes the send_to target for the click tracker', () => {
+    const html = renderTag({ provider: 'google', pixelId: 'AW-123', conversionLabel: 'abcDEF' })!;
+    expect(html).toContain("window.vitopsAdsConversions.google='AW-123/abcDEF';");
+  });
+
+  test('google with no conversionLabel exposes nothing — gtag still bootstraps', () => {
+    const html = renderTag({ provider: 'google', pixelId: 'AW-123' })!;
+    expect(html).toContain("gtag('config','AW-123');");
+    expect(html).not.toContain('vitopsAdsConversions');
   });
 });

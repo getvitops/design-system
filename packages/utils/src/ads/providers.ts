@@ -89,10 +89,26 @@ export interface AdPlatform {
   manualSteps: (entry: AdPropertySetup) => string[];
 }
 
-/** `gtag` is shared by every Google tag; the id shape (`AW-…`) is what differs. */
-const gtagBootstrap = (id: string): string =>
+/**
+ * `gtag` is shared by every Google tag; the id shape (`AW-…`) is what differs.
+ *
+ * `gtag('config', id)` only loads the tag — it never reports a conversion. When
+ * `entry.conversionLabel` is set, this also exposes the `send_to` target on
+ * `window.vitopsAdsConversions.google`, which `scripts/tracking.ts`'s tel:/
+ * mailto: click handler reads to fire `gtag('event', 'conversion', …)` at the
+ * moment of the actual interaction. Bootstrap-time firing would count every
+ * pageview as a conversion; this fires it, once, from the click.
+ *
+ * `entry` is trusted here — `resolveAds()` validates `conversionLabel` against
+ * `SAFE_ID` before it reaches this function, the same guard `id` already gets.
+ */
+const gtagBootstrap = (id: string, entry: AdPropertySetup): string =>
   `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}` +
-  `gtag('js',new Date());gtag('config','${id}');`;
+  `gtag('js',new Date());gtag('config','${id}');` +
+  (entry.conversionLabel
+    ? `window.vitopsAdsConversions=window.vitopsAdsConversions||{};` +
+      `window.vitopsAdsConversions.google='${id}/${entry.conversionLabel}';`
+    : '');
 
 /** The queue-stub shape shared by fbq/ttq/rdt/snaptr/pintrk. */
 const queueStub = (global: string, methods: string): string =>

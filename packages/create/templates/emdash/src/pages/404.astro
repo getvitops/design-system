@@ -1,5 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
+
+// No per-request data — safe to prerender per AGENTS.md's "Prerender by
+// default" rule. [...slug].astro reaches this via Astro.rewrite('/404'),
+// which resolves a prerendered destination the same as a server-rendered one.
+export const prerender = true;
 ---
 
 <Layout title="Page not found">

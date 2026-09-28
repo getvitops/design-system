@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { easingToken, formatterFor, parseFigure } from './counter.ts';
 
 describe('parseFigure', () => {
@@ -76,6 +76,16 @@ describe('parseFigure', () => {
 
   it('falls back to zero for text with no digits', () => {
     expect(parseFigure('—').value).toBe(0);
+  });
+
+  it('keeps the space between the number and a word suffix', () => {
+    expect(parseFigure('5 months')).toEqual({
+      prefix: '',
+      suffix: ' months',
+      value: 5,
+      decimals: 0,
+      grouping: false,
+    });
   });
 });
 

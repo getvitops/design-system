@@ -17,11 +17,26 @@
 # `is-dev: true` runs `scripts/build-dev-wrangler.mjs` (the adapter-generated
 # config rewrite documented in that script) and deploys the flat dev config
 # it emits; `is-dev: false` (the default, for prod) deploys straight from
-# `pnpm run deploy`. See AGENTS.md's "EmDash migrations" note: there is no
-# migration STEP here on purpose — EmDash applies migrations + the seed at
-# first boot of the worker — so the boot probe below is what actually catches
-# a bad migration, by forcing that first boot inside the deploy job instead of
-# leaving it for the first real visitor.
+# `pnpm run build` + `wrangler deploy`.
+#
+# EmDash migrations (see AGENTS.md's "EmDash 1.0 migrations run before
+# traffic" note): this runs the documented build → status → apply → deploy →
+# check sequence explicitly, rather than relying on `migrations.runtime:
+# 'auto'` to migrate behind the first real visitor's request. It uses
+# `--wrangler-config` (reading D1 binding metadata from the same config file
+# `wrangler deploy` already targets) rather than separate `--account-id`/`--d1`
+# variables, since this repo already commits a wrangler config with the D1
+# database name/id for both dev and prod — one fewer set of secrets to keep
+# in sync with `wrangler.jsonc`/`build-dev-wrangler.mjs`'s output.
+#
+# `vars.EMDASH_TARGET_FINGERPRINT` (a GitHub Environment variable, one per
+# environment — "dev" and "production") is NOT something this workflow or
+# any command can produce automatically: it must be set once, by a human,
+# after running `emdash migrate --status` locally against the real database
+# and reviewing the printed account/database identity. See SETUP.html and
+# the `setup` agent skill's manual-steps list. Until it's set, the apply
+# step below fails with a clear "fingerprint mismatch" error rather than
+# migrating an unreviewed target.
 name: Site deploy (EmDash)
 
 on:
@@ -34,7 +49,7 @@ on:
         type: boolean
         default: false
       health-check-url:
-        description: URL to probe after deploy (forces first boot, so a bad migration fails here). Omit to skip.
+        description: URL to probe after deploy (defence-in-depth first-boot check). Omit to skip.
         type: string
         default: ''
       working-directory:
@@ -50,6 +65,13 @@ on:
         required: true
       DEV_D1_ID:
         required: false
+
+# One migration job at a time per environment, per EmDash's own guidance
+# (a second run that starts while the D1 migration lock is held waits up to
+# 10s, then fails without applying anything rather than racing the first).
+concurrency:
+  group: emdash-migrate-${{ github.repository }}-${{ inputs.environment }}
+  cancel-in-progress: false
 
 jobs:
   ci:
@@ -75,25 +97,85 @@ jobs:
           cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
 
-      - name: Build + deploy (dev)
+      # ── dev ──────────────────────────────────────────────────────────────
+      - name: Build (dev)
         if: inputs.is-dev
-        run: pnpm run deploy:dev
+        run: pnpm run build && node scripts/build-dev-wrangler.mjs
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           DEV_D1_ID: ${{ secrets.DEV_D1_ID }}
 
-      - name: Build + deploy (prod)
-        if: ${{ !inputs.is-dev }}
-        run: pnpm run deploy
+      - name: Inspect EmDash migration target (dev)
+        if: inputs.is-dev
+        run: pnpm exec emdash migrate --status --json --wrangler-config dist/server/wrangler.dev.json
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Forces first boot (EmDash's migrations + seed/seed.json run then, not
-      # before) so a broken migration fails the deploy instead of surfacing to
-      # the first real visitor. --retry-all-errors covers the worker needing a
-      # few seconds to come up after `wrangler deploy` returns.
+      - name: Apply EmDash migrations (dev)
+        if: inputs.is-dev
+        run: >
+          pnpm exec emdash migrate --wrangler-config dist/server/wrangler.dev.json
+          --expected-target-fingerprint "$EMDASH_TARGET_FINGERPRINT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          EMDASH_TARGET_FINGERPRINT: ${{ vars.EMDASH_TARGET_FINGERPRINT }}
+
+      - name: Deploy (dev)
+        if: inputs.is-dev
+        run: pnpm exec vitops email check && pnpm exec wrangler deploy --config dist/server/wrangler.dev.json
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Check EmDash migrations (dev)
+        if: inputs.is-dev
+        run: pnpm exec emdash migrate --check --wrangler-config dist/server/wrangler.dev.json
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # ── prod ─────────────────────────────────────────────────────────────
+      - name: Build (prod)
+        if: ${{ !inputs.is-dev }}
+        run: pnpm run build
+
+      - name: Inspect EmDash migration target (prod)
+        if: ${{ !inputs.is-dev }}
+        run: pnpm exec emdash migrate --status --json --wrangler-config wrangler.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Apply EmDash migrations (prod)
+        if: ${{ !inputs.is-dev }}
+        run: >
+          pnpm exec emdash migrate --wrangler-config wrangler.jsonc
+          --expected-target-fingerprint "$EMDASH_TARGET_FINGERPRINT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          EMDASH_TARGET_FINGERPRINT: ${{ vars.EMDASH_TARGET_FINGERPRINT }}
+
+      - name: Deploy (prod)
+        if: ${{ !inputs.is-dev }}
+        run: pnpm exec vitops email check && pnpm exec wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Check EmDash migrations (prod)
+        if: ${{ !inputs.is-dev }}
+        run: pnpm exec emdash migrate --check --wrangler-config wrangler.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Defence-in-depth, not the primary guard anymore (the explicit
+      # migrate steps above are): forces first boot so anything the check
+      # step couldn't catch still fails the deploy instead of surfacing to
+      # the first real visitor. --retry-all-errors covers the worker
+      # needing a few seconds to come up after `wrangler deploy` returns.
       - name: Boot probe
         if: inputs.health-check-url != ''
         run: curl -fsS --retry 5 --retry-all-errors --retry-delay 3 "${{ inputs.health-check-url }}"

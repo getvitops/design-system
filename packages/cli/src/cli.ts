@@ -15,6 +15,7 @@
  *   vitops search    setup [--domain <name>] [--dry] [--check]  |  notify [--dry] [--all] [--check]
  *   vitops ads       setup [--provider <name>] [--dry] [--check]  |  tags  |  lint
  *   vitops setup     repo | hosting | domain | search | ads | all [--dry] [--check]
+ *   vitops email     setup [domain] [--dry] [--check]  |  check [--strict] [--skip]
  *   vitops media     [--raw <dir>] [--out <dir>] [--force] [--dry]
  *
  * Thin wrapper over @getvitops/generator (generation) and @getvitops/utils (favicons).
@@ -109,6 +110,8 @@ import {
 } from './commands/shared.ts';
 import { cmdSearch } from './commands/search.ts';
 import { cmdAds } from './commands/ads.ts';
+import { cmdCrm } from './commands/crm.ts';
+import { cmdEmail } from './commands/email.ts';
 import { cmdSetup } from './commands/setup.ts';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
 import { COMMANDS, HELP, helpFor, wantsHelp } from './help.ts';
@@ -1171,6 +1174,10 @@ async function main() {
       return cmdSearch(rest);
     case 'ads':
       return cmdAds(rest);
+    case 'crm':
+      return cmdCrm(rest);
+    case 'email':
+      return cmdEmail(rest);
     case 'setup':
       return cmdSetup(rest);
     case 'media':

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { defaultConfig } from './index.ts';
 import { jsonSchema, validate } from './schema.ts';
 import { configJsonSchema } from './config.ts';

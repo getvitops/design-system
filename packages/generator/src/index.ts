@@ -2,7 +2,7 @@
  * @getvitops/generator — public API.
  *
  * Turn a `design-system.json` into platform outputs (Bricks, standalone CSS,
- * Tailwind v4). The `zod/mini` schema is the single source of truth: types,
+ * Tailwind v4). The `@zod/mini` schema is the single source of truth: types,
  * validation, and the published JSON Schema all derive from it.
  */
 export { generate, roleColorUtilities } from './generate.ts';
