@@ -80,6 +80,7 @@ export {
   configJsonSchema,
   CONFIG_SCHEMA_URL,
   CONFIG_SCHEMA_LOCAL_PATH,
+  CONFIG_VERSION,
   validateConfig,
   resolveConfig,
   resolvePrivacyContact,
@@ -94,6 +95,8 @@ export {
   JURISDICTIONS,
   JURISDICTION_COUNTRIES,
   AD_PROVIDERS,
+  CRM_PROVIDERS,
+  BIGIN_DATA_CENTERS,
 } from './config.ts';
 export type {
   AdProvider,
@@ -109,7 +112,11 @@ export type {
   SiteIndexNow,
   SiteIndexing,
   SiteSearchConsole,
+  SiteSearchConsoleSetup,
+  SiteReviews,
+  SiteReviewLocation,
   ConfigValidationResult,
+  CrmProviderConfig,
 } from './config.ts';
 
 // Legal documents. A sibling of `generateDocs`, not a `generate()` format:
@@ -151,7 +158,7 @@ export { renderRobotsTxt } from './robots.ts';
 export type { RenderRobotsOptions } from './robots.ts';
 
 import { SCHEMA_LOCAL_PATH, type DesignSystem } from './schema.ts';
-import { CONFIG_SCHEMA_LOCAL_PATH, type Config } from './config.ts';
+import { CONFIG_SCHEMA_LOCAL_PATH, CONFIG_VERSION, type Config } from './config.ts';
 
 /**
  * A minimal but complete starter design system, used by `vitops init`. It
@@ -410,6 +417,7 @@ export function defaultSiteConfig(opts?: {
   return {
     // The installed copy, not the unpinned unpkg URL — see CONFIG_SCHEMA_LOCAL_PATH.
     $schema: CONFIG_SCHEMA_LOCAL_PATH,
+    configVersion: CONFIG_VERSION,
     designSystem: {
       themes: { default: defaultConfig() },
       defaultColorScheme: 'light',

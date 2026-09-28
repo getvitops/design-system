@@ -25,6 +25,16 @@
  *
  * Pure: no YAML/env/fs. `resolveConfig` takes an already-parsed object; a
  * thin loader (reading YAML, injecting `SITE_ENV`) lives outside this module.
+ *
+ * **This module is also its own package entry**, published as
+ * `@getvitops/generator/config` (see `vite.config.ts`'s `pack.entry`) — the
+ * `Config` schema, validator and resolvers on their own, importable without
+ * pulling in `generate.ts`/`docs.ts`/`legal/`'s `node:fs`/`node:crypto`/
+ * lightningcss, which `src/index.ts` (the main entry) also re-exports. This is
+ * what makes `Config` bundleable in a Worker — an EmDash plugin's own admin
+ * route, or anywhere else — without dragging in code that only ever runs at
+ * build time. Keep this module's own import graph clean of those Node
+ * builtins; that guarantee is the entire point of it existing separately.
  */
 import * as z from '@zod/mini';
 // The ad-platform capability table. Imported rather than mirrored: this direction is
@@ -43,7 +53,7 @@ const LocalizableSchema = desc(
 
 const ImageRefSchema = z.union([
   z.string(),
-  z.object({
+  z.strictObject({
     src: z.string(),
     alt: z.string(),
     width: z.optional(z.number()),
@@ -119,7 +129,7 @@ const DesignSystemBlock = desc(
 
 // ── Locales ─────────────────────────────────────────────────────────────────────
 
-const LocaleSchema = z.object({
+const LocaleSchema = z.strictObject({
   name: desc(z.string(), 'Display name of the locale (e.g. "English").'),
   tagline: desc(z.optional(z.string()), 'Site tagline in this locale.'),
   basePath: desc(z.optional(z.string()), 'URL prefix for this locale (e.g. "/fr").'),
@@ -129,7 +139,7 @@ const LocaleSchema = z.object({
 
 const HttpRedirect = z.union([z.literal(301), z.literal(302), z.literal(307), z.literal(308)]);
 
-const DomainAliasSchema = z.object({
+const DomainAliasSchema = z.strictObject({
   domain: z.string(),
   redirectType: HttpRedirect,
   redirectTo: z.string(),
@@ -139,7 +149,7 @@ const DomainAliasSchema = z.object({
 // ── Contact / address (schema.org-aligned) ──────────────────────────────────────
 
 const PostalAddressSchema = desc(
-  z.object({
+  z.strictObject({
     streetAddress: z.string(),
     addressLocality: desc(z.string(), 'City.'),
     addressRegion: desc(z.optional(z.string()), 'State / province.'),
@@ -149,7 +159,7 @@ const PostalAddressSchema = desc(
   'schema.org `PostalAddress` field names, so JSON-LD generation is lossless.',
 );
 
-const ContactObjectSchema = z.object({
+const ContactObjectSchema = z.strictObject({
   name: z.optional(z.string()),
   email: z.optional(z.email()),
   phone: z.optional(z.string()),
@@ -164,13 +174,13 @@ export type ContactObject = z.infer<typeof ContactObjectSchema>;
 
 // ── Locations (schema.org LocalBusiness) ────────────────────────────────────────
 
-const GeoSchema = z.object({
+const GeoSchema = z.strictObject({
   latitude: z.number().check(z.gte(-90), z.lte(90)),
   longitude: z.number().check(z.gte(-180), z.lte(180)),
 });
 
 /** schema.org `OpeningHoursSpecification` — per-day open/close (24h `HH:MM`). */
-const OpeningHoursSchema = z.object({
+const OpeningHoursSchema = z.strictObject({
   dayOfWeek: z.array(DayOfWeek),
   opens: z.string().check(z.regex(/^\d{2}:\d{2}$/)),
   closes: z.string().check(z.regex(/^\d{2}:\d{2}$/)),
@@ -182,7 +192,7 @@ const OpeningHoursSchema = z.object({
  * (`OpeningHoursSpecification`), distinguished by carrying `validFrom`. A
  * full closure omits `opens`/`closes` rather than encoding an open interval.
  */
-const SpecialHoursSchema = z.object({
+const SpecialHoursSchema = z.strictObject({
   validFrom: IsoDate,
   validThrough: z.optional(IsoDate),
   opens: z.optional(z.string().check(z.regex(/^\d{2}:\d{2}$/))),
@@ -210,7 +220,7 @@ const LocalBusinessType = z.enum([
 // record-keyed-by-platform shape of `site.searchConsole`/`site.ads`.
 const ListingPlatform = z.enum(['google', 'bing', 'apple']);
 
-const LocationSchema = z.object({
+const LocationSchema = z.strictObject({
   slug: z.optional(LocalizableSchema),
   name: LocalizableSchema,
   email: z.optional(z.email()),
@@ -245,7 +255,7 @@ const LocationSchema = z.object({
 
 // ── Organization (schema.org Organization) ──────────────────────────────────────
 
-const OrganizationSchema = z.object({
+const OrganizationSchema = z.strictObject({
   name: desc(
     z.optional(LocalizableSchema),
     'Trading name, as a reader would recognise it (e.g. "Acme"). Localisable.',
@@ -274,7 +284,7 @@ const OrganizationSchema = z.object({
 
 const DnsRecordType = z.enum(['A', 'AAAA', 'CNAME', 'TXT', 'MX', 'NS', 'SRV', 'CAA', 'PTR', 'SOA']);
 
-const DnsRecordSchema = z.object({
+const DnsRecordSchema = z.strictObject({
   type: DnsRecordType,
   name: z.optional(z.string()),
   value: z.string(),
@@ -282,7 +292,7 @@ const DnsRecordSchema = z.object({
   proxied: z.optional(z.boolean()),
 });
 
-const DnsDomainSchema = z.object({
+const DnsDomainSchema = z.strictObject({
   provider: z.optional(z.string()),
   nameservers: z.optional(z.array(z.string())),
   records: z.optional(z.array(DnsRecordSchema)),
@@ -295,7 +305,7 @@ const DnsDomainSchema = z.object({
  * time and written to DNS — it is never stored here. What the config records is
  * the *intent*: which domains to onboard, and who should co-own them.
  */
-const SearchConsoleSetupSchema = z.object({
+const SearchConsoleSetupSchema = z.strictObject({
   delegatedOwners: desc(
     z.optional(z.array(z.email())),
     'Emails added as verification owners on the Site Verification web resource. Automated via the API — additive and idempotent, never removes an existing owner.',
@@ -310,7 +320,7 @@ const SearchConsoleSetupSchema = z.object({
 
 const RobotsSchema = z.string(); // e.g. "index,follow" / "noindex,nofollow"
 
-const EnvironmentSchema = z.object({
+const EnvironmentSchema = z.strictObject({
   url: desc(z.url(), 'Public origin of this environment.'),
   api: desc(z.optional(z.url()), 'API origin, when different from `url`.'),
   analytics: desc(z.optional(z.boolean()), 'Whether analytics fire in this environment.'),
@@ -324,7 +334,7 @@ const EnvironmentSchema = z.object({
 
 // ── A/B testing ─────────────────────────────────────────────────────────────────
 
-const AbVariantSchema = z.object({
+const AbVariantSchema = z.strictObject({
   environment: z.string(),
   description: z.optional(z.string()),
   // Deliberate escape hatch: overrides are deep-merged into the raw config
@@ -353,7 +363,7 @@ const FontDisplay = z.enum(['auto', 'block', 'swap', 'fallback', 'optional']);
 const FontWeight = z.union([z.number(), z.string()]); // discrete, or a variable range like "100 900"
 
 /** A local-font face (`provider: 'local'`). */
-const FontVariantSchema = z.object({
+const FontVariantSchema = z.strictObject({
   src: z.array(z.string()),
   weight: z.optional(FontWeight),
   style: z.optional(FontStyle),
@@ -361,7 +371,7 @@ const FontVariantSchema = z.object({
   display: z.optional(FontDisplay),
 });
 
-export const SiteFontSchema = z.object({
+export const SiteFontSchema = z.strictObject({
   name: z.string(),
   provider: FontProvider,
   cssVariable: z.string().check(z.regex(/^--/)),
@@ -378,7 +388,7 @@ export const SiteFontSchema = z.object({
     z.optional(
       z.union([
         z.boolean(),
-        z.array(z.object({ weight: FontWeight, style: z.optional(FontStyle) })),
+        z.array(z.strictObject({ weight: FontWeight, style: z.optional(FontStyle) })),
       ]),
     ),
     'Emit `<Font preload />` for this family (true, or a list of weight/style faces).',
@@ -389,7 +399,7 @@ export const SiteFontSchema = z.object({
 
 const PresentSchema = z.optional(z.record(z.string(), z.unknown()));
 
-const NavItemSchema: z.ZodMiniType = z.object({
+const NavItemSchema: z.ZodMiniType = z.strictObject({
   label: z.optional(LocalizableSchema),
   image: z.optional(ImageRefSchema),
   href: z.optional(z.string()),
@@ -397,7 +407,7 @@ const NavItemSchema: z.ZodMiniType = z.object({
   attrs: AttrsSchema,
   itemAttrs: AttrsSchema,
   submenu: z.optional(
-    z.object({
+    z.strictObject({
       present: PresentSchema,
       get items() {
         return z.optional(z.array(NavItemSchema));
@@ -422,19 +432,19 @@ const FormFieldType = z.enum([
   'hidden',
 ]);
 
-const FormFieldSchema = z.object({
+const FormFieldSchema = z.strictObject({
   name: z.string(),
   type: FormFieldType,
   label: z.optional(LocalizableSchema),
   required: z.optional(z.boolean()),
   validation: z.optional(z.string()), // regex source or named rule
   options: z.optional(
-    z.union([z.string(), z.array(z.object({ label: z.string(), value: z.string() }))]),
+    z.union([z.string(), z.array(z.strictObject({ label: z.string(), value: z.string() }))]),
   ),
   attrs: AttrsSchema,
 });
 
-const ContentNodeSchema: z.ZodMiniType = z.object({
+const ContentNodeSchema: z.ZodMiniType = z.strictObject({
   tag: z.string(),
   attrs: AttrsSchema,
   text: z.optional(z.string()),
@@ -444,13 +454,13 @@ const ContentNodeSchema: z.ZodMiniType = z.object({
 });
 
 const TemplateSchema = z.union([
-  z.object({
+  z.strictObject({
     type: z.literal('nav'),
     tags: z.optional(z.array(z.string())),
     present: PresentSchema,
     items: z.optional(z.array(NavItemSchema)),
   }),
-  z.object({
+  z.strictObject({
     type: z.literal('form'),
     tags: z.optional(z.array(z.string())),
     present: PresentSchema,
@@ -460,7 +470,7 @@ const TemplateSchema = z.union([
     submit: z.optional(z.record(z.string(), AttrValue)),
     honeypot: z.optional(z.boolean()),
   }),
-  z.object({
+  z.strictObject({
     type: z.literal('nodes'),
     tags: z.optional(z.array(z.string())),
     nodes: z.optional(z.array(ContentNodeSchema)),
@@ -469,19 +479,19 @@ const TemplateSchema = z.union([
 
 // ── Galleries / testimonials ────────────────────────────────────────────────────
 
-const GalleryImageSchema = z.object({
+const GalleryImageSchema = z.strictObject({
   src: z.string(),
   alt: LocalizableSchema,
   caption: z.optional(LocalizableSchema),
 });
 
-const GallerySchema = z.object({
+const GallerySchema = z.strictObject({
   title: z.optional(LocalizableSchema),
   tags: z.optional(z.array(z.string())),
   images: z.array(GalleryImageSchema),
 });
 
-const TestimonialItemSchema = z.object({
+const TestimonialItemSchema = z.strictObject({
   quote: LocalizableSchema,
   name: z.string(),
   role: z.optional(z.string()),
@@ -489,14 +499,14 @@ const TestimonialItemSchema = z.object({
   date: z.optional(IsoDate),
 });
 
-const TestimonialGroupSchema = z.object({
+const TestimonialGroupSchema = z.strictObject({
   title: z.optional(LocalizableSchema),
   items: z.array(TestimonialItemSchema),
 });
 
 // ── Services (schema.org Offer) ─────────────────────────────────────────────────
 
-const OfferSchema = z.object({
+const OfferSchema = z.strictObject({
   name: z.optional(LocalizableSchema),
   price: z.optional(z.union([z.string(), z.number()])),
   priceCurrency: z.optional(Iso4217),
@@ -506,7 +516,7 @@ const OfferSchema = z.object({
   priceValidUntil: z.optional(IsoDate),
 });
 
-const ServiceSchema = z.object({
+const ServiceSchema = z.strictObject({
   name: LocalizableSchema,
   description: z.optional(LocalizableSchema),
   slug: z.optional(LocalizableSchema),
@@ -515,7 +525,7 @@ const ServiceSchema = z.object({
 
 // ── SEO / social ─────────────────────────────────────────────────────────────
 
-const OpenGraphSchema = z.object({
+const OpenGraphSchema = z.strictObject({
   type: z.optional(z.string()),
   siteName: z.optional(z.string()),
   title: z.optional(LocalizableSchema),
@@ -524,7 +534,7 @@ const OpenGraphSchema = z.object({
   locale: z.optional(z.string()),
 });
 
-const TwitterSchema = z.object({
+const TwitterSchema = z.strictObject({
   card: z.optional(z.enum(['summary', 'summary_large_image', 'app', 'player'])),
   site: z.optional(z.string()),
   creator: z.optional(z.string()),
@@ -549,7 +559,7 @@ const TwitterSchema = z.object({
  * Facts only, the same rule the legal block follows: this records what the site has
  * (a key, a property, which pages matter), never what to say about it.
  */
-const IndexNowSchema = z.object({
+const IndexNowSchema = z.strictObject({
   key: desc(
     z.string().check(z.regex(/^[a-zA-Z0-9-]{8,128}$/)),
     'IndexNow key (8–128 chars, hex is conventional). NOT a secret — it is served publicly at `keyLocation` so the engine can verify you own the host. Generate one with `vitops search notify --new-key`.',
@@ -564,7 +574,7 @@ const IndexNowSchema = z.object({
   ),
 });
 
-const SearchConsoleSchema = z.object({
+const SearchConsoleSchema = z.strictObject({
   siteUrl: desc(
     z.string(),
     'The property exactly as Search Console identifies it — `sc-domain:acme.ca` for a domain property, or the URL-prefix form `https://acme.ca/`. A mismatch here is a 403, not a "not found".',
@@ -575,7 +585,7 @@ const SearchConsoleSchema = z.object({
   ),
 });
 
-const IndexingSchema = z.object({
+const IndexingSchema = z.strictObject({
   sitemapUrl: desc(
     z.optional(z.url()),
     'The sitemap to submit and to diff for changed URLs. Defaults to `<canonical>/sitemap-index.xml`.',
@@ -630,7 +640,7 @@ export type AdProvider = (typeof AD_PROVIDERS)[number];
  * checks its click ID is captured, and the consent gate is handed the cookie names
  * to clear on revoke. A pixel pasted into a template is invisible to all three.
  */
-const AdPropertySchema = z.object({
+const AdPropertySchema = z.strictObject({
   accountId: desc(
     z.optional(z.string()),
     'The advertising account as the platform shows it — Google Ads customer ID, Meta ad account, LinkedIn partner ID, Reddit advertiser ID. For LinkedIn this is also the Insight Tag id; everywhere else the tag id is `pixelId`.',
@@ -671,7 +681,7 @@ const AdPropertySchema = z.object({
  * — `vitops reviews` needs to know which physical location a fetched review set
  * belongs to, and that record already exists.
  */
-const ReviewLocationSchema = z.object({
+const ReviewLocationSchema = z.strictObject({
   accountId: desc(
     z.optional(z.string()),
     'GBP account resource id (`accounts/…`), overriding `site.reviews.accountId` for this location.',
@@ -692,7 +702,7 @@ const ReviewLocationSchema = z.object({
   ),
 });
 
-const ReviewsSchema = z.object({
+const ReviewsSchema = z.strictObject({
   accountId: desc(
     z.optional(z.string()),
     'Default GBP account resource id (`accounts/…`) for locations that do not override it.',
@@ -727,7 +737,7 @@ export type CrmProviderConfig = (typeof CRM_PROVIDERS)[number];
 
 export const BIGIN_DATA_CENTERS = ['com', 'ca', 'eu', 'in', 'com.au', 'jp'] as const;
 
-const HubSpotConfigSchema = z.object({
+const HubSpotConfigSchema = z.strictObject({
   portalId: desc(z.string(), 'The HubSpot portal (hub) ID the form belongs to.'),
   formGuid: desc(z.string(), 'The HubSpot form GUID to submit against.'),
   dataCenter: desc(
@@ -736,13 +746,13 @@ const HubSpotConfigSchema = z.object({
   ),
 });
 
-const BiginPipelineConfigSchema = z.object({
+const BiginPipelineConfigSchema = z.strictObject({
   enabled: desc(z.boolean(), 'Also open a Pipelines record for the new/updated contact.'),
   subPipeline: desc(z.optional(z.string()), 'Sub-pipeline to file the record under.'),
   stage: desc(z.optional(z.string()), 'Starting stage for the pipeline record.'),
 });
 
-const BiginConfigSchema = z.object({
+const BiginConfigSchema = z.strictObject({
   dataCenter: desc(
     z.enum(BIGIN_DATA_CENTERS),
     "The self-client's data centre — determines both the OAuth accounts host and the API host (`www.zohoapis.<dc>`).",
@@ -757,14 +767,14 @@ const BiginConfigSchema = z.object({
   ),
 });
 
-const JobberNoteConfigSchema = z.object({
+const JobberNoteConfigSchema = z.strictObject({
   enabled: desc(
     z.optional(z.boolean()),
     'Attach a best-effort note carrying the message and unmapped attribution (default true). A failure here never loses the client record itself.',
   ),
 });
 
-const JobberConfigSchema = z.object({
+const JobberConfigSchema = z.strictObject({
   apiVersion: desc(
     z.optional(z.string()),
     "Override the pinned `X-JOBBER-GRAPHQL-VERSION` date this integration is tested against. An escape hatch for an app pinned to a different version — Jobber's schema can change field names between versions.",
@@ -786,7 +796,7 @@ const JobberConfigSchema = z.object({
  * client-side embed. Credentials never live here — the toolchain has no
  * secret store, matching every other integration.
  */
-const CrmSchema = z.object({
+const CrmSchema = z.strictObject({
   provider: desc(CrmProviderSchema, 'Which CRM this site pushes form submissions into.'),
   enabled: desc(
     z.optional(z.boolean()),
@@ -843,7 +853,7 @@ export const JURISDICTION_COUNTRIES = {
  * Deliberately facts, not prose: the config records *what is true*, the template
  * owns *how it is said*. That keeps a policy correct when the wording changes.
  */
-const ProcessorStorageSchema = z.object({
+const ProcessorStorageSchema = z.strictObject({
   country: desc(
     z.string(),
     'A country or bloc where this provider stores or processes the information, as it should read in a sentence (e.g. "Canada", "the United States", "the European Union"). Naming the jurisdiction the policy is written for is meaningful: it says this information does not leave it.',
@@ -854,7 +864,7 @@ const ProcessorStorageSchema = z.object({
   ),
 });
 
-const ProcessorSchema = z.object({
+const ProcessorSchema = z.strictObject({
   name: desc(z.string(), 'The provider, as a reader would recognise it (e.g. "Stripe").'),
   purpose: desc(
     z.string(),
@@ -880,7 +890,7 @@ const ProcessorSchema = z.object({
 // here is a fact about a *presentation* of the organization — swap the site and
 // these change while `organization` does not.
 
-const SiteSectionSchema = z.object({
+const SiteSectionSchema = z.strictObject({
   defaultLocale: desc(
     z.string(),
     'The locale used when none is specified; must be a `locales` key.',
@@ -891,7 +901,7 @@ const SiteSectionSchema = z.object({
   ),
   domains: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         canonical: desc(z.url(), 'The canonical origin used for absolute URLs and SEO.'),
         aliases: desc(
           z.optional(z.array(DomainAliasSchema)),
@@ -911,7 +921,7 @@ const SiteSectionSchema = z.object({
   ),
   google: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         project: desc(
           z.string(),
           'Google Cloud project id that API usage is attributed to (quota and billing). One project per site keeps usage separate — Search Console today, Maps and anything else later. Sent as `x-goog-user-project`, which is required when the credential is a *user* one (an ADC login from `gcloud auth application-default login`, or `VITOPS_GOOGLE_*`): those use a shared OAuth client that carries no project of its own. A service-account credential belongs to a project already, so this is not needed for it. The identity must hold `serviceusage.services.use` on the project, and the APIs being called must be enabled there.',
@@ -930,7 +940,7 @@ const SiteSectionSchema = z.object({
   ),
   abTesting: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         enabled: z.boolean(),
         cookieName: z.optional(z.string()),
         cookieMaxAge: desc(z.optional(z.number().check(z.int(), z.positive())), 'Seconds.'),
@@ -973,10 +983,10 @@ const SiteSectionSchema = z.object({
   ),
   navigation: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         activeTemplate: desc(
           z.optional(
-            z.object({
+            z.strictObject({
               default: desc(z.optional(z.string()), 'A `templates` key.'),
               breakpoints: desc(
                 z.optional(z.record(z.string(), z.string())),
@@ -992,7 +1002,7 @@ const SiteSectionSchema = z.object({
   ),
   seo: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         titleTemplate: desc(z.optional(z.string()), 'Page-title pattern (e.g. "%s · Acme").'),
         descriptionTemplate: z.optional(z.string()),
         robots: desc(z.optional(RobotsSchema), 'e.g. "index,follow" / "noindex,nofollow".'),
@@ -1010,14 +1020,14 @@ const SiteSectionSchema = z.object({
   ),
   analytics: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         googleAnalyticsId: z.optional(z.string()),
         plausibleDomain: z.optional(z.string()),
         googleTagManagerId: z.optional(z.string()),
         clarityId: desc(z.optional(z.string()), 'Microsoft Clarity project ID.'),
         matomo: desc(
           z.optional(
-            z.object({
+            z.strictObject({
               url: desc(z.string(), 'Instance base URL (self-hosted, or `*.matomo.cloud`).'),
               siteId: desc(z.string(), 'Site ID within that instance.'),
               cookies: desc(
@@ -1034,12 +1044,12 @@ const SiteSectionSchema = z.object({
   ),
   notifications: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         email: desc(
           z.optional(
             z.union([
               z.email(),
-              z.object({
+              z.strictObject({
                 provider: desc(
                   z.literal('cloudflare'),
                   'Delivery provider. Only Cloudflare Email Sending is implemented; the field is stated so adding another is additive.',
@@ -1076,7 +1086,7 @@ const SiteSectionSchema = z.object({
   ),
   tracking: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         enabled: desc(
           z.optional(z.boolean()),
           'Capture ad click IDs and UTMs from the landing URL into the `_ac` cookie, for attributing conversions.',
@@ -1107,9 +1117,9 @@ const SiteSectionSchema = z.object({
   ),
   security: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         turnstile: z.optional(
-          z.object({
+          z.strictObject({
             siteKey: desc(z.optional(z.string()), 'Cloudflare Turnstile site key (public).'),
           }),
         ),
@@ -1119,13 +1129,13 @@ const SiteSectionSchema = z.object({
   ),
   legal: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         jurisdiction: desc(
           z.optional(JurisdictionSchema),
           'Which legal template set the generated documents use. Default `ca`.',
         ),
         privacyPolicy: z.optional(
-          z.object({
+          z.strictObject({
             enabled: z.boolean(),
             url: z.optional(z.url()),
             lastUpdated: z.optional(IsoDate),
@@ -1144,7 +1154,7 @@ const SiteSectionSchema = z.object({
           }),
         ),
         termsOfService: z.optional(
-          z.object({
+          z.strictObject({
             enabled: z.boolean(),
             url: z.optional(z.url()),
             lastUpdated: z.optional(z.nullable(IsoDate)),
@@ -1155,7 +1165,7 @@ const SiteSectionSchema = z.object({
           }),
         ),
         cookieConsent: z.optional(
-          z.object({
+          z.strictObject({
             enabled: z.boolean(),
             type: desc(z.optional(z.enum(['opt-in', 'opt-out'])), 'Consent model.'),
             position: z.optional(z.enum(['top', 'bottom', 'center'])),
@@ -1202,7 +1212,7 @@ const SiteSectionSchema = z.object({
   ),
   favicon: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         source: desc(z.string(), 'Source image (SVG/PNG) the favicon set is generated from.'),
         lowResSource: desc(
           z.optional(z.string()),
@@ -1226,7 +1236,7 @@ const SiteSectionSchema = z.object({
   ),
   deployment: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         platform: z.optional(z.string()),
         buildCommand: z.optional(z.string()),
         deployCommand: z.optional(z.string()),
@@ -1264,7 +1274,7 @@ const OrganizationSectionSchema = z.extend(OrganizationSchema, {
   ),
   links: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         googleMaps: z.optional(z.url()),
         instagram: z.optional(z.url()),
         facebook: z.optional(z.url()),
@@ -1280,10 +1290,26 @@ const OrganizationSectionSchema = z.extend(OrganizationSchema, {
 
 // ── Top-level schema ────────────────────────────────────────────────────────────
 
-export const ConfigSchema = z.object({
+/**
+ * The `Config` document's own SHAPE version — distinct from `@getvitops/generator`'s
+ * package version, which is CSS-release-driven (bumps on every design-system/CSS
+ * change) and says nothing about whether `Config`'s shape moved. Bump this constant,
+ * and add a new literal to `configVersion`'s union below, only when a future shape
+ * change is disruptive enough to warrant a migration note — the same bar the
+ * pre-3.0 flat-config migration (`MOVED_KEYS`) already set, now with a real field
+ * to check instead of pattern-matching which keys are present after the fact.
+ * Most releases add optional fields and need no bump at all.
+ */
+export const CONFIG_VERSION = 1;
+
+export const ConfigSchema = z.strictObject({
   $schema: desc(
     z.optional(z.string()),
     'URL of the published config JSON Schema (stamped by `vitops init --site`) so editors provide autocomplete + validation.',
+  ),
+  configVersion: desc(
+    z.optional(z.literal(CONFIG_VERSION)),
+    'The config shape version (see `CONFIG_VERSION`) — absent reads as version 1, which is every config validated by this schema so far.',
   ),
   designSystem: DesignSystemBlock,
   organization: desc(

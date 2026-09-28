@@ -1219,9 +1219,13 @@ export function schemaTreeNodes(
   };
 
   const required = schema.required ?? [];
-  return Object.entries(schema.properties ?? {})
-    .filter(([key]) => key !== '$schema')
-    .map(([key, child]) => build(key, child, required.includes(key), join(idPrefix, key), 0));
+  return (
+    Object.entries(schema.properties ?? {})
+      // `$schema`/`configVersion` describe the DOCUMENT, not the site — envelope
+      // metadata, not one of the three sections this tree is meant to walk.
+      .filter(([key]) => key !== '$schema' && key !== 'configVersion')
+      .map(([key, child]) => build(key, child, required.includes(key), join(idPrefix, key), 0))
+  );
 }
 
 function renderAuthoring(): string {
