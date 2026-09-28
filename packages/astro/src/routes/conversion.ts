@@ -58,8 +58,22 @@
  * request and reports a misleading "Body has already been used" instead of the
  * actual error. This package peers on `astro >= 7`, so that form could not work
  * for any supported consumer; `import { env } from 'cloudflare:workers'` is the
- * current one. It also called a `toNotifyContext(config)` helper that does not
- * exist — `context` is a plain `NotifyContext`, built however you like.
+ * current one. It also called a `toNotifyContext(config)` helper that used to
+ * not exist — `context` can now be built with `toNotifyContext(config)` (also
+ * exported from this module), rather than every consumer hand-writing a
+ * `NotifyContext` literal:
+ *
+ * ```ts
+ * import config from '../../site.json' with { type: 'json' };
+ * import { createConversionRoute, toNotifyContext, toCrmConfig } from '@getvitops/astro/routes';
+ *
+ * export const POST = createConversionRoute({
+ *   context: toNotifyContext(config),
+ *   crm: toCrmConfig(config) && { config: toCrmConfig(config)!, credentials: () => ({ ... }) },
+ *   binding: () => env.EMAIL,
+ *   redirectTo: '/thanks',
+ * });
+ * ```
  */
 import { deliverToCrm, describeCrmResult } from '@getvitops/utils/crm';
 import type { CrmConfig, CrmCredentials, CrmResult } from '@getvitops/utils/crm';
@@ -67,6 +81,7 @@ import { type EmailBinding, notify, type NotifyContext } from '@getvitops/utils/
 import { verifyTurnstileToken } from '@getvitops/utils/security';
 import { parseTrackingCookie, readCookie } from '@getvitops/utils/tracking';
 import type { ConversionEvent } from '@getvitops/utils/tracking';
+export { toCrmConfig, toNotifyContext } from './config-adapters.ts';
 
 /** The subset of Astro's `APIContext` this needs — typed structurally so the
  * factory does not pin an Astro version. */
