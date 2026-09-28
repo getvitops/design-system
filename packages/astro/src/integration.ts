@@ -37,6 +37,7 @@ import {
 } from './analytics.ts';
 import { type GetvitopsAdsOptions, resolveAds } from './ads.ts';
 import { type HeadFont, resolveFonts } from './fonts.ts';
+import { localeConsistencyWarnings } from './i18n.ts';
 import type { GetvitopsSeoOptions } from './seo.ts';
 import { TRACKING_ENDPOINT, type GetvitopsTrackingOptions, resolveTracking } from './tracking.ts';
 
@@ -547,6 +548,26 @@ function undisclosedProviders(configPath: string, analytics: GetvitopsAnalyticsO
 }
 
 /**
+ * Read `site.locales`/`site.defaultLocale` out of the site config, for
+ * `localeConsistencyWarnings` to check against Astro's own `i18n` block.
+ *
+ * Best-effort, matching `readSiteAds`'s shape exactly: a malformed or missing
+ * config is silence here, since every other consumer of this file already
+ * validates it loudly elsewhere in the same hook.
+ */
+function readSiteLocales(
+  configPath: string,
+  siteEnv: string,
+): { locales: Record<string, unknown>; defaultLocale: string } | null {
+  try {
+    const cfg = resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv);
+    return { locales: cfg.site.locales, defaultLocale: cfg.site.defaultLocale };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Read `site.ads` and this environment's ads switch out of the site config.
  *
  * Best-effort, like `undisclosedProviders`: every other consumer of this file
@@ -841,6 +862,17 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
             '[vitops] legal: needs `legal.input` (a site config path), the top-level `site` ' +
               'option, or a `css.input` that is itself a site config.',
           );
+        // See i18n.ts's own docblock for why this is a warning, not the hard
+        // error a consent contradiction gets: either side can legitimately be
+        // configured without the other.
+        if (siteInput) {
+          const siteLocales = readSiteLocales(
+            resolve(root, siteInput),
+            opts.site?.siteEnv ?? 'production',
+          );
+          for (const warning of localeConsistencyWarnings(siteLocales, config.i18n))
+            logger.warn(warning);
+        }
         if (opts.seo) {
           // Warn once here rather than letting every page silently drop its
           // canonical — a missing absolute URL is invisible in the output.
