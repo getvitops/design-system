@@ -41,6 +41,7 @@ import {
   pickOn,
   tintedEndpoints,
 } from '@getvitops/utils/color';
+import { type RoleSpec, roleHue, roleKind } from './shared.ts';
 
 export const NUMERIC_STEPS = [
   '50',
@@ -551,4 +552,96 @@ export function checkContrast(
     }
   }
   return failures;
+}
+
+/**
+ * Runs the same monotonicity + contrast contract `generate()`'s `build()`
+ * enforces at build time (by throwing), standalone and non-throwing — for a
+ * caller that needs to validate a `colors` subtree *before* handing it to
+ * `generate()`, most notably the EmDash design-system-editor's save route
+ * (see AGENTS.md's "live theme editor" section): a client's edit gets the
+ * exact same accessibility gate a real build would apply, synchronously, at
+ * save time, rather than only discovering a violation at the next deploy.
+ *
+ * Deliberately re-derives `expandPalette`/`functionalRole` independently
+ * rather than sharing state with `build()` — both are cheap, pure
+ * computations, and keeping this standalone means it has no dependency on
+ * `generate.ts`'s CSS-bundling half (which needs lightningcss/node:fs) and so
+ * stays reachable from a Worker.
+ */
+export function validateColorContract(colors: {
+  palette: Record<string, unknown>;
+  roles: Record<string, RoleSpec>;
+}): string[] {
+  const expandedPalette = expandPalette(colors.palette);
+  const scaleRoles: FunctionalRole[] = [];
+  for (const [role, spec] of Object.entries(colors.roles)) {
+    const hueName = roleHue(spec);
+    const hue = expandedPalette[hueName];
+    if (hue == null) return [`role "${role}" references unknown palette hue "${hueName}"`];
+    scaleRoles.push(functionalRole(role, hueName, hue, roleKind(spec)));
+  }
+
+  const monotonicity = monotonicityErrors(expandedPalette);
+  if (monotonicity.length) return monotonicity;
+
+  const surfaceRole = scaleRoles.find((r) => r.role === 'surface' && 'bg' in r.light);
+  const numericOf = (hueName: string) => expandedPalette[hueName]?.numeric ?? {};
+  const resolve = (val: string): string => {
+    const m = /^var\(--color-([a-z0-9-]+)-(\d+)\)$/.exec(val);
+    return m ? (numericOf(m[1] as string)[m[2] as never] ?? val) : val;
+  };
+  const planeKeys = ['bg', 'bg-muted', 'bg-x-muted'] as const;
+  const surfaceBg = surfaceRole
+    ? {
+        light: planeKeys.flatMap((k) =>
+          surfaceRole.light[k] ? [resolve(surfaceRole.light[k] as string)] : [],
+        ),
+        dark: planeKeys.flatMap((k) =>
+          surfaceRole.dark[k] ? [resolve(surfaceRole.dark[k] as string)] : [],
+        ),
+      }
+    : undefined;
+  return scaleRoles.flatMap((fr) => checkContrast(fr, numericOf, surfaceBg));
+}
+
+/**
+ * Turns a design-system PATCH (paths matching `manifest.reverseIndex`'s own
+ * config-path values, e.g. `colors.palette.navy.anchors.500`) into the runtime
+ * `:root` override `<wc-theme-editor>` already injects client-side for its own
+ * live preview — server-rendered instead, for the EmDash design-system-editor
+ * plugin route to serve site-wide via a `page:fragments` `html` contribution
+ * (see AGENTS.md's "live theme editor" + "EmDash plugin as the design-system
+ * editing surface" sections). `''` (no matching var, or an empty patch) means
+ * "nothing to override" — the caller should serve no fragment at all rather
+ * than an empty `<style>` tag.
+ *
+ * Inverts `reverseIndex` (`cssVar → configPath`) once into `configPath →
+ * cssVar`, so it costs one pass regardless of how deep the patch nests. A
+ * patched leaf with no matching var (a `reverseIndex` miss — the same case
+ * `<wc-theme-editor>`'s own `buildPatch()` calls "skipped") is silently
+ * omitted here too, for the same reason: a value with nothing to preview is
+ * not an error, just nothing to show yet.
+ */
+export function patchToOverrideCss(
+  patch: Record<string, unknown>,
+  reverseIndex: Record<string, string>,
+): string {
+  const byPath = new Map<string, string>();
+  for (const [cssVar, path] of Object.entries(reverseIndex)) byPath.set(path, cssVar);
+
+  const lines: string[] = [];
+  const walk = (node: unknown, path: string): void => {
+    if (node == null || typeof node !== 'object') {
+      const cssVar = byPath.get(path);
+      if (cssVar && (typeof node === 'string' || typeof node === 'number'))
+        lines.push(`  ${cssVar}: ${node};`);
+      return;
+    }
+    for (const [key, value] of Object.entries(node as Record<string, unknown>))
+      walk(value, path ? `${path}.${key}` : key);
+  };
+  walk(patch, '');
+
+  return lines.length ? `:root {\n${lines.join('\n')}\n}` : '';
 }

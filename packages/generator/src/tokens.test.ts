@@ -10,8 +10,10 @@ import {
   ladderWarnings,
   monotonicityErrors,
   NUMERIC_STEPS,
+  patchToOverrideCss,
   tokenClass,
   tokenVar,
+  validateColorContract,
 } from './tokens.ts';
 
 const SEEDS = { pine: '#4A9075', slate: '#5B6472', rust: '#B23A32', cobalt: '#3B5BB5' };
@@ -359,5 +361,73 @@ describe('ramp monotonicity', () => {
         '/nonexistent-assets',
       ),
     ).toThrow(/LIGHTER/);
+  });
+});
+
+describe('validateColorContract', () => {
+  it('passes the shipped config, standalone (no generate()/build() involved)', () => {
+    expect(validateColorContract(defaultConfig().colors)).toEqual([]);
+  });
+
+  it('reports a role referencing an unknown hue', () => {
+    const errors = validateColorContract({
+      palette: { pine: { seed: SEEDS.pine } },
+      roles: { danger: 'ruby' },
+    });
+    expect(errors).toEqual(['role "danger" references unknown palette hue "ruby"']);
+  });
+
+  it('reports the same monotonicity break build() would refuse', () => {
+    const errors = validateColorContract({
+      palette: {
+        navy: { seed: '#1A2230', anchors: { 600: '#2c3b4e' } },
+        pine: { seed: SEEDS.pine },
+      },
+      roles: { neutral: 'pine' },
+    });
+    expect(errors.join('\n')).toContain('colors.palette.navy');
+  });
+
+  it('reports the same contrast failure build() would refuse', () => {
+    // Mirrors the "fixed-tone kits" thin-kit case above — two tones is thin
+    // enough to fail the non-text tier.
+    const errors = validateColorContract({
+      palette: { brand: { tones: ['#29634D', '#4A9075'] } },
+      roles: { 'brand-primary': { hue: 'brand', kind: 'chromatic' } },
+    });
+    expect(errors.join('\n')).toMatch(/icon Lc .* < 45/);
+  });
+});
+
+describe('patchToOverrideCss', () => {
+  const reverseIndex = {
+    '--color-navy-500': 'colors.palette.navy.anchors.500',
+    '--space-m': 'spaceScale.baseStep',
+  };
+
+  it('emits nothing for an empty patch', () => {
+    expect(patchToOverrideCss({}, reverseIndex)).toBe('');
+  });
+
+  it('maps a nested patch path to its CSS var', () => {
+    const patch = { colors: { palette: { navy: { anchors: { 500: '#123456' } } } } };
+    expect(patchToOverrideCss(patch, reverseIndex)).toBe(
+      ':root {\n  --color-navy-500: #123456;\n}',
+    );
+  });
+
+  it('emits one line per matched leaf, in patch order', () => {
+    const patch = {
+      colors: { palette: { navy: { anchors: { 500: '#123456' } } } },
+      spaceScale: { baseStep: 5 },
+    };
+    expect(patchToOverrideCss(patch, reverseIndex)).toBe(
+      ':root {\n  --color-navy-500: #123456;\n  --space-m: 5;\n}',
+    );
+  });
+
+  it('silently drops a leaf with no matching reverseIndex entry', () => {
+    const patch = { colors: { roles: { danger: { hue: 'rust', kind: 'chromatic' } } } };
+    expect(patchToOverrideCss(patch, reverseIndex)).toBe('');
   });
 });

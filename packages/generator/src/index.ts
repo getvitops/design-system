@@ -18,6 +18,7 @@ export type {
 // re-deriving the vocabulary and drifting from it.
 export { expandPalette, functionalRole } from './tokens.ts';
 export type { ExpandedHue, FunctionalRole } from './tokens.ts';
+export { checkContrast, patchToOverrideCss, validateColorContract } from './tokens.ts';
 
 export {
   generateDocs,
@@ -97,6 +98,13 @@ export {
   AD_PROVIDERS,
   CRM_PROVIDERS,
   BIGIN_DATA_CENTERS,
+  // Design-system patch write-back — shared by @getvitops/vite's dev endpoint
+  // and the EmDash design-system-editor plugin route.
+  designSystemPath,
+  getAt,
+  setAt,
+  mergePatch,
+  formatConfig,
 } from './config.ts';
 export type {
   AdProvider,

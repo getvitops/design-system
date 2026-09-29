@@ -1242,6 +1242,14 @@ const SiteSectionSchema = z.strictObject({
         deployCommand: z.optional(z.string()),
         outputDirectory: z.optional(z.string()),
         type: z.optional(z.string()),
+        repo: desc(
+          z.optional(z.string()),
+          "`owner/name` of this site's GitHub repository. Read by the EmDash design-system-editor plugin route to auto-commit a client's admin edit back to `branch` — see AGENTS.md's \"EmDash plugin as the design-system editing surface\" section. Absent means that sync is skipped (the live override still applies); nothing else in this toolchain reads it today.",
+        ),
+        branch: desc(
+          z.optional(z.string()),
+          'Branch the design-system-editor sync commits to. Default `"dev"` — never `main`/production directly; a commit here still needs this repo\'s own `promote` PR + admin approval to reach production, the same gate every other change goes through.',
+        ),
       }),
     ),
     'How the site is built and deployed (platform, commands, output directory) — informational for tooling.',
@@ -1966,4 +1974,98 @@ export function deepMerge(target: Record<string, unknown>, source: Record<string
       target[key] = s;
     }
   }
+}
+
+// ── Design-system patch write-back ──────────────────────────────────────────
+// Shared by @getvitops/vite's dev-only `/__vitops/design-system` endpoint and
+// the EmDash design-system-editor plugin route (see AGENTS.md's "live theme
+// editor" and "EmDash plugin as the design-system editing surface" sections)
+// — one place "patch a config file's design-system subtree" lives, rather
+// than each consumer inventing its own copy.
+
+/**
+ * Where the design system lives inside a config file on disk.
+ *
+ * `[]` for a `design-system.json` — the file *is* the design system. For a
+ * site config it is under `designSystem`, and this reads the **raw** object
+ * rather than the resolved one because a write-back has to land where the
+ * author actually put it. `resolveConfig` normalises the two shorthands in
+ * memory; a writer that assumed the canonical shape would grow a second
+ * `themes` key beside the author's bare map and silently stop editing
+ * anything.
+ */
+export function designSystemPath(raw: unknown, theme = 'default'): string[] {
+  if (!isConfig(raw)) return [];
+  const ds = (raw as Record<string, unknown>).designSystem as Record<string, unknown>;
+  if (ds != null && typeof ds === 'object') {
+    if ('themes' in ds) return ['designSystem', 'themes', theme];
+    // A bare `DesignSystem` written inline — one theme, and it is `default`.
+    if ('colors' in ds) return ['designSystem'];
+  }
+  return ['designSystem', theme]; // the legacy bare theme map
+}
+
+export const getAt = (obj: unknown, path: string[]): unknown =>
+  path.reduce<unknown>((cur, k) => (cur as Record<string, unknown>)?.[k], obj);
+
+/** Return a copy of `obj` with `path` replaced by `value`. Creates missing objects. */
+export function setAt(obj: unknown, path: string[], value: unknown): unknown {
+  if (!path.length) return value;
+  const [head, ...rest] = path as [string, ...string[]];
+  const base = (typeof obj === 'object' && obj !== null ? obj : {}) as Record<string, unknown>;
+  return { ...base, [head]: setAt(base[head], rest, value) };
+}
+
+/**
+ * Recursively merge a patch into a config, returning a new value rather than
+ * mutating either argument. Plain objects merge key-wise; everything else
+ * (scalars, and arrays — a token list is replaced, not appended) is
+ * overwritten by the patch. Distinct from `deepMerge` above (which mutates
+ * `target` in place and requires both sides to already be objects) — this one
+ * has to handle `base` being `undefined` (a patch targeting a path that
+ * doesn't exist yet) and a patch that is itself a scalar or array.
+ */
+export function mergePatch(base: unknown, patch: unknown): unknown {
+  const isPlain = (v: unknown): v is Record<string, unknown> =>
+    typeof v === 'object' && v !== null && !Array.isArray(v);
+  if (!isPlain(base) || !isPlain(patch)) return patch;
+  const out: Record<string, unknown> = { ...base };
+  for (const [k, v] of Object.entries(patch)) out[k] = mergePatch(base[k], v);
+  return out;
+}
+
+/** Printed width a rewritten config file is wrapped to — matches the repo formatter's default. */
+const PRINT_WIDTH = 100;
+
+/**
+ * Serialize a config the way a formatter would: 2-space indent, but arrays of
+ * scalars kept on one line when they fit.
+ *
+ * `JSON.stringify(v, null, 2)` explodes every array onto its own lines, so
+ * writing back a two-key patch would reflow a whole `design-system.json` — a
+ * diff nobody can review, for a change of two values. Matching the
+ * prevailing style keeps the write surgical, which is the whole point of
+ * saving to source rather than copying a patch by hand.
+ */
+export function formatConfig(value: unknown, col = 0, indent = 0): string {
+  const pad = ' '.repeat(indent);
+  if (Array.isArray(value)) {
+    if (!value.length) return '[]';
+    if (value.every((v) => v === null || typeof v !== 'object')) {
+      const inline = `[${value.map((v) => JSON.stringify(v)).join(', ')}]`;
+      if (col + inline.length <= PRINT_WIDTH) return inline;
+    }
+    const items = value.map((v) => `${pad}  ${formatConfig(v, indent + 2, indent + 2)}`);
+    return `[\n${items.join(',\n')}\n${pad}]`;
+  }
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (!entries.length) return '{}';
+    const items = entries.map(([k, v]) => {
+      const head = `${pad}  ${JSON.stringify(k)}: `;
+      return head + formatConfig(v, head.length, indent + 2);
+    });
+    return `{\n${items.join(',\n')}\n${pad}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
 }

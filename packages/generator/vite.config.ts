@@ -20,7 +20,16 @@ export default defineConfig({
     // do use those Node builtins — pulling them into any bundle that imports
     // the root entry at all. Published as `@getvitops/generator/config`; see
     // that export's docblock in `config.ts` for what it's for.
-    entry: ['src/index.ts', 'src/config.ts'],
+    //
+    // `src/tokens.ts` is a third, sibling entry for the same reason: the
+    // palette/contrast pipeline (expandPalette, checkContrast,
+    // validateColorContract, patchToOverrideCss) only reaches @zod/mini-free,
+    // colorjs.io-only code (@getvitops/utils/color) - no CSS bundling, no
+    // lightningcss. Published as @getvitops/generator/tokens, for the EmDash
+    // design-system-editor plugin route to run the exact same accessibility
+    // gate generate() enforces at build time, synchronously, in a Worker,
+    // before persisting an edit.
+    entry: ['src/index.ts', 'src/config.ts', 'src/tokens.ts'],
     outDir: 'dist',
     format: ['es'],
     platform: 'node',

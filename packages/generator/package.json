@@ -29,6 +29,10 @@
       "types": "./dist/config.d.mts",
       "import": "./dist/config.mjs"
     },
+    "./tokens": {
+      "types": "./dist/tokens.d.mts",
+      "import": "./dist/tokens.mjs"
+    },
     "./schema.json": "./schema.json",
     "./config.schema.json": "./config.schema.json",
     "./package.json": "./package.json"
