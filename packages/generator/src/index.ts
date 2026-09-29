@@ -104,6 +104,7 @@ export {
   AD_PROVIDERS,
   CRM_PROVIDERS,
   BIGIN_DATA_CENTERS,
+  PLAN_CAPABILITIES,
   // Design-system patch write-back — shared by @getvitops/vite's dev endpoint
   // and the EmDash design-system-editor plugin route.
   designSystemPath,
@@ -129,6 +130,8 @@ export type {
   SiteSearchConsoleSetup,
   SiteReviews,
   SiteReviewLocation,
+  SitePlan,
+  PlanCapability,
   ConfigValidationResult,
   CrmProviderConfig,
 } from './config.ts';

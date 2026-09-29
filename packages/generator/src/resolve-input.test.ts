@@ -135,6 +135,7 @@ describe('resolveInput', () => {
           },
         },
       },
+      plan: { key: 'test', addons: ['ab_testing'] },
     });
     expect(resolveInput(raw).designSystem.meta?.name).not.toBe('Variant B');
     expect(resolveInput(raw, { siteEnv: 'staging' }).designSystem.meta?.name).toBe('Variant B');

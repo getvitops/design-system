@@ -721,6 +721,30 @@ const ReviewsSchema = z.strictObject({
   ),
 });
 
+// ── Plans & entitlements ───────────────────────────────────────────────────────
+
+/**
+ * The commercial plan/add-on a site is entitled to — distinct from a `Config`
+ * section's own `enabled` flag. `enabled` answers "does this site do X at
+ * all" (a capability switch); `plan` answers "is this client entitled to turn
+ * X on" (a commercial switch one layer above). Absence means unrestricted,
+ * matching every other opt-in block in `Config`. `key` is an open string, not
+ * a closed enum, so a client-specific plan needs no schema change; `addons`
+ * is checked against `PLAN_CAPABILITIES` below. The commercial catalogue
+ * itself (plan names, pricing, which add-ons a plan bundles) stays
+ * Portal-side — this only records which one a site has.
+ */
+const PlanSchema = z.strictObject({
+  key: desc(
+    z.string(),
+    'Commercial plan identifier (e.g. "essentials", "growth") — open string, not a closed enum.',
+  ),
+  addons: desc(
+    z.optional(z.array(z.string())),
+    'Add-on keys this site is entitled to (e.g. "ab_testing", "server_side_tracking") — checked against PLAN_CAPABILITIES.',
+  ),
+});
+
 // ── CRM ─────────────────────────────────────────────────────────────────────────
 
 /**
@@ -937,6 +961,10 @@ const SiteSectionSchema = z.strictObject({
   environments: desc(
     z.record(z.string(), EnvironmentSchema),
     'Deploy environments (production, dev, …): URL, API origin, analytics toggle, robots policy, active A/B variant.',
+  ),
+  plan: desc(
+    z.optional(PlanSchema),
+    'Commercial plan/add-on entitlement, gating which capability fields below may be turned on. Absence means unrestricted.',
   ),
   abTesting: desc(
     z.optional(
@@ -1351,6 +1379,7 @@ export type SiteAdProperty = z.infer<typeof AdPropertySchema>;
 export type SiteReviews = z.infer<typeof ReviewsSchema>;
 /** One `site.reviews.locations` entry. */
 export type SiteReviewLocation = z.infer<typeof ReviewLocationSchema>;
+export type SitePlan = z.infer<typeof PlanSchema>;
 
 // ── JSON Schema + validation ────────────────────────────────────────────────────
 
@@ -1372,6 +1401,37 @@ export type ConfigValidationResult =
 type Issue = z.core.$ZodIssue;
 const issue = (path: (string | number)[], message: string): Issue =>
   ({ code: 'custom', path, message }) as Issue;
+
+/**
+ * One entry per add-on key `site.plan.addons` can name: `label` is the human
+ * name used in the validation error, `gates` answers whether the config
+ * actually has the gated feature turned on. Kept beside `Config`/`validateConfig`
+ * (not in `shared.ts`, despite that file's own small-lookup-table pattern —
+ * `shared.ts` exists specifically to let `generate.ts` and `docs.ts` share data
+ * without one importing the other, and neither of those needs this table;
+ * `CRM_PROVIDER_BLOCKS` below is the closer precedent for "small map local to
+ * `validateConfig`'s own concerns").
+ *
+ * `bookkeeping`/`support`/`software_licenses` — the Portal's other `feature_key`
+ * values — intentionally have no entry here: they're pure Portal/billing
+ * features with no `Config` counterpart, not a gap to fill in later.
+ */
+export interface PlanCapability {
+  label: string;
+  gates: (cfg: Config) => boolean;
+}
+export const PLAN_CAPABILITIES: Record<string, PlanCapability> = {
+  ab_testing: {
+    label: 'A/B testing',
+    gates: (cfg) =>
+      !!cfg.site.abTesting?.enabled ||
+      Object.values(cfg.site.environments).some((e) => e.variant != null),
+  },
+  server_side_tracking: {
+    label: 'server-side conversion tracking',
+    gates: (cfg) => !!cfg.site.tracking?.enabled,
+  },
+};
 
 // ── Migration from the flat `SiteConfig` ────────────────────────────────────────
 
@@ -1730,6 +1790,19 @@ export function validateConfig(input: unknown): ConfigValidationResult {
           ),
         );
     }
+  }
+
+  // Plan entitlement. A gated feature turned on with no matching add-on is
+  // rejected here rather than silently allowed — the toolchain enforcement
+  // `site.plan` exists for in the first place (see PLAN_CAPABILITIES' docblock).
+  for (const [key, cap] of Object.entries(PLAN_CAPABILITIES)) {
+    if (cap.gates(cfg) && !(site.plan?.addons ?? []).includes(key))
+      errors.push(
+        issue(
+          ['site', 'plan', 'addons'],
+          `${cap.label} is enabled but site.plan doesn't list the "${key}" add-on`,
+        ),
+      );
   }
 
   if (errors.length) return { ok: false, data: undefined, errors };
