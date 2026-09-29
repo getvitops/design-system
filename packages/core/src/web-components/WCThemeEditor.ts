@@ -102,7 +102,8 @@ const SCHEME_KEY = 'vitops-color-scheme';
  * match wherever the page's own dark block does.
  */
 const DARK_SELECTOR = ':root[data-brx-theme="dark"], :root[data-theme="dark"]';
-const SAVE_URL = '/__vitops/design-system';
+/** Default save target — `@getvitops/vite`'s dev-only endpoint. */
+const DEFAULT_SAVE_URL = '/__vitops/design-system';
 
 /**
  * Role-token var name — mirrors the generator's `tokenVar()`.
@@ -124,8 +125,17 @@ const fnVar = (role: string, token: string): string => {
 const stepVar = (hue: string, step: string): string => `--color-${hue}-${step}`;
 
 export class WCThemeEditor extends HTMLElement {
-  /** URL of the generator's design-manifest.json. */
-  static observedAttributes = ['manifest'];
+  /**
+   * `manifest` — URL of the generator's design-manifest.json.
+   * `save-endpoint` — where "Save to source" POSTs its patch, and what the
+   * probe GETs on boot. Default `/__vitops/design-system` (the dev-only Vite
+   * endpoint) — set it to an EmDash plugin route (e.g.
+   * `/_emdash/api/plugins/vitops/design-system`) when this element is mounted
+   * inside an EmDash admin page instead of a `vite dev` server. Both targets
+   * share the same `{ writable }` probe / `{ patch }` POST / `{ errors? }`
+   * contract, so no other change is needed here to point at either.
+   */
+  static observedAttributes = ['manifest', 'save-endpoint'];
 
   // ── override store ────────────────────────────────────────────────────────
   // Two maps (one per scheme) → one <style> block. Light writes `:root`, dark the
@@ -176,10 +186,15 @@ export class WCThemeEditor extends HTMLElement {
     this.build(this.manifest);
   }
 
-  /** Is a `@getvitops/vite` dev server listening? Absent on any static build. */
+  /** See `save-endpoint` in the `observedAttributes` docblock above. */
+  private get saveUrl(): string {
+    return this.getAttribute('save-endpoint') ?? DEFAULT_SAVE_URL;
+  }
+
+  /** Is a save endpoint listening? Absent on any static build with no plugin route. */
   private async probeSave(): Promise<boolean> {
     try {
-      const res = await fetch(SAVE_URL);
+      const res = await fetch(this.saveUrl);
       if (!res.ok) return false;
       return ((await res.json()) as { writable?: boolean }).writable === true;
     } catch {
@@ -717,7 +732,7 @@ export class WCThemeEditor extends HTMLElement {
     const { patch } = this.buildPatch(m);
     if (!Object.keys(patch).length) return void this.flash(btn, 'Nothing to save');
     try {
-      const res = await fetch(SAVE_URL, {
+      const res = await fetch(this.saveUrl, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ patch }),
