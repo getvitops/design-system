@@ -3,6 +3,7 @@ import vitops from '@getvitops/astro';
 import { vitopsEmdash, vitopsHosting } from '@getvitops/emdash';
 import { defineConfig } from 'astro/config';
 import emdash from 'emdash/astro';
+import config from './site.json' with { type: 'json' };
 
 // Hosting seam: adapter + EmDash database/storage for the configured target.
 // Default 'cloudflare' (Workers + D1 + R2 — see wrangler.jsonc / src/worker.ts).
@@ -30,7 +31,14 @@ export default defineConfig({
       // disclosure, carousel) in the editor slash menu. Default 'integration'
       // script delivery: Layout.astro renders <Head /> from @getvitops/astro,
       // which emits the web-component runtime tags.
-      plugins: [vitopsEmdash()],
+      //
+      // designSystemEditor mounts a live <wc-theme-editor> admin page at
+      // /design-system — edits are visible site-wide immediately (no
+      // rebuild) and auto-sync back to source once site.deployment.repo and
+      // a VITOPS_GITHUB_TOKEN secret are set (see SETUP.html) — see
+      // AGENTS.md's "EmDash plugin as the design-system editing surface".
+      // Until then the live half still works; only the sync half is skipped.
+      plugins: [vitopsEmdash({ designSystemEditor: { config } })],
       // 1.0's runtime migration mode defaults to 'auto' (apply pending core
       // migrations on first request) — fine for local dev, but a deploy
       // should have already migrated before traffic arrives. 'check' 503s a

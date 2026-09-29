@@ -23,6 +23,7 @@
     "@astrojs/react": "^6.0.0",
     "@emdash-cms/cloudflare": "^1.0.1",
     "@getvitops/astro": "latest",
+    "@getvitops/core": "latest",
     "@getvitops/emdash": "latest",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.1.2",

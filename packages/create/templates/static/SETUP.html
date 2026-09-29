@@ -177,6 +177,23 @@
                 migration-apply step until it's set for that environment.
               </span>
             </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="hosting.design-system-editor-token" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                <strong>(EmDash template, only if <code>designSystemEditor</code> is on)</strong>
+                Create a fine-grained GitHub PAT scoped to this one repository,
+                <code>Contents: Read and write</code> only — no <code>admin</code> scope, no access
+                to any other repo — then <code>gh secret set VITOPS_GITHUB_TOKEN</code>. Also set
+                <code>site.deployment.repo</code> (<code>"owner/name"</code>) and
+                <code>site.deployment.branch</code> (default <code>"dev"</code>) in
+                <code>site.json</code>. Without these the live design-system editor still works —
+                only the auto-commit-to-source half is skipped, and the admin page's response says
+                so.
+              </span>
+            </label>
           </div>
         </details>
 
