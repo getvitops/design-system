@@ -5,7 +5,44 @@ build — WordPress/Bricks **and** Cloudflare EmDash (Astro/Tailwind). Keep toke
 names platform-agnostic so the same schema round-trips through both the Bricks generators and
 the Tailwind (`--format=tailwind`) output.
 
-## Patterns: `badge` + `tag` — still open
+## vNext release scope
+
+Full design detail for each of these lives in the vNext release plan
+(`~/.claude/plans/both-emdash-https-emdashcms-com-and-piped-hoare.md` as of 2026-09-28 — copy
+the relevant section into this repo's own docs if that plan file location is ephemeral).
+Everything below is scoped, not built.
+
+1. **Location and service page generation** — render `organization.locations`/`services` into
+   real pages (JSON-LD + routes), for both static/Bricks sites (a new `@getvitops/astro`
+   `<LocationPage>`/`<ServicePage>` wrapper) and EmDash sites (a seeded `locations` collection +
+   template route). Includes the GBP category → `LocalBusinessType` lookup table (see the old
+   "GBP category mapping" entry this absorbs — a `Record<categoryId, LocalBusinessType>`, seeded
+   incrementally as real client categories are hit).
+2. **Plans, add-ons, and entitlements schema** — a `site.plan` section in `Config` plus a
+   `PLAN_CAPABILITIES` table so an add-on (e.g. `ab_testing`, `server_side_tracking`) actually
+   gates the `Config` fields it's supposed to unlock, closing the gap where the Portal's plan
+   catalogue has nothing real to enforce.
+3. **Runtime A/B traffic-splitting** — an Astro middleware (`vitopsAbTesting()`) that actually
+   assigns and pins a variant per visitor, replacing today's "one deploy per variant" build-time-
+   only model and the nonexistent "router Worker" the current code comments assume.
+4. **Server-side ad-platform conversion reporting** — widen `conversionLabel` to a per-action map,
+   fire conversions on form submit, add an action link to the conversion-notification email, and
+   build a Google-Ads-offline-conversion-upload sender (blocked on obtaining a developer token +
+   MCC OAuth access — the credential acquisition, not the engineering, is the critical path). This
+   absorbs the old "ad conversion tracking" entry in full — see git history for that entry's
+   already-shipped half (`mailto:` click tracking, `conversionLabel` wiring, the `ip:event`
+   rate-limit key).
+
+Also not yet scoped in detail: the organization-name/tagline single-source-of-truth decision
+(EmDash's own `getSiteSettings()` vs `Config`'s `organization.name`/`site.seo.*`) — unblocked now
+that the EmDash design-system-editor plugin (item that used to be "§12") exists, but needs its
+own short design pass (which EmDash-side hook exposes site settings to a build-time read, whether
+`organization.name` becomes a read-only mirror for non-EmDash sites only or all sites) before
+picking it up.
+
+## Unrelated backlog (not part of the vNext release)
+
+### Patterns: `badge` + `tag` — still open
 
 The `badge`/`tag`/`chip` split (see AGENTS.md's "Small-label patterns split by behaviour") is
 done. Left:
@@ -13,7 +50,7 @@ done. Left:
 - `typography.roles` has a `tag` type role, unrelated to the `tag` pattern — worth
   disambiguating.
 
-## Typography: fully fluid, Utopia-style
+### Typography: fully fluid, Utopia-style
 
 - Move the type scale to a proper **Utopia** (utopia.fyi) fluid model: a min type scale +
   ratio at a min viewport and a max type scale + ratio at a max viewport, interpolated with
@@ -25,10 +62,11 @@ done. Left:
   The Utopia model must express cleanly in both — verify the clamp math matches what Bricks'
   Scale Generator produces so imports round-trip.
 
-## EmDash editing portal (`@getvitops/emdash`) — v2 backlog
+### EmDash editing portal (`@getvitops/emdash`) — v2 backlog
 
 v1 (native plugin, `admin.portableTextBlocks`, `componentsEntry`/`blockComponents`, dogfooded in
-`apps/portal`) is done. Left:
+`apps/portal`) is done, and the `emdash`/`@emdash-cms/cloudflare` peer range is now pinned to the
+tested `>=1.0.0 <2` line. Left:
 
 - `page:metadata` hook emitting JSON-LD from the shared builders now in
   `packages/utils/src/schema/` (`articleGraph`/`organizationGraph`/`breadcrumbGraph`/`faqGraph`;
@@ -41,7 +79,6 @@ v1 (native plugin, `admin.portableTextBlocks`, `componentsEntry`/`blockComponent
   deleted in `201bfb9`; `NavShell.astro` is a markup-only layout primitive, not that adapter).
 - Carousel field UX: replace the newline-separated-URLs workaround if EmDash grows
   media-picker/repeater PT block fields.
-- Pin the `emdash` peer range per tested version (currently `>=0.31.0`, verified on 0.31.0).
 
 ---
 
@@ -49,7 +86,7 @@ Deferred from the `--format=design` (DESIGN.md) work: a **DESIGN.md → config i
 (`design.md` as an _input_, seeding `design-system.json` from a brand brief) and a `diff` gate
 in CI.
 
-## DTCG (`tokens.json`) export — todo
+### DTCG (`tokens.json`) export — todo
 
 No standards-format token export exists — what ships as `tokens.json`
 (`packages/generator/src/generate.ts`) is a bespoke flat mirror (six keys, no `$` metadata).
@@ -77,7 +114,7 @@ scoped as a Google DESIGN.md/DTCG/OKF adoption (the OKF half of that plan alread
   would also need excluding from `StylesheetFormat = Exclude<Format,'design'>`, same as
   `'design'` is).
 
-## Translucent hairline/border token — todo
+### Translucent hairline/border token — todo
 
 There's a `border` colour target, but every value on it is an opaque ramp step. Most UI needs a
 subtle divider that composites over whatever surface it lands on (e.g.
@@ -89,14 +126,14 @@ borrow `--color-surface-xl` as a stand-in. Two things to resolve when building i
 - APCA's `CONTRAST.NON_TEXT ≥ 45` check assumes a solid colour — decide whether a translucent
   token is exempt from that gate or gets checked against a worst-case backdrop.
 
-## Webfont loading outside Astro — todo
+### Webfont loading outside Astro — todo
 
 `site.fonts` delegates to Astro's Fonts API for loading; Bricks/WordPress and plain-HTML
 consumers only get the `--font-*` tokens and must hand-wire `@font-face`/preload themselves.
 Needs a loading path (self-hosted `@font-face` emission, or a documented preload snippet) for
 non-Astro consumers.
 
-## Component auto-loader — todo
+### Component auto-loader — todo
 
 Ship only the components a page actually uses, plus their dependencies, instead of the
 whole `elements.js` bundle. Modelled on Web Awesome's autoloader.
@@ -132,7 +169,7 @@ Notes for whoever picks this up:
 - Check it against the Bricks builder, where markup is injected and re-rendered
   constantly — that is the hardest case for an observer-driven loader.
 
-## Foundational components — todo
+### Foundational components — todo
 
 Not built yet; tracked in full in `elements.ts`'s docblock (`packages/core/src/js/elements.ts`),
 this entry is the index into that list:
@@ -162,99 +199,3 @@ Whoever picks one of these up should give it the full treatment `<wc-counter>` o
 here before it shipped — see its own class docblock, `WCCounter.ts`, for the shape that
 treatment landed in (why it clears the tier-2 bar, shape, load-bearing details) — rather than
 just the one-liners here.
-
-## Ad conversion tracking — offline-upload + gtag gap — todo
-
-Filed against a downstream site's gap report (client-side Google Ads conversion tracking) while
-`@getvitops/astro`/`@getvitops/utils` were at 8.1.0. **Done:** `mailto:` click tracking —
-`scripts/tracking.ts`'s click listener now beacons `{ event: 'email', email }` for a `mailto:`
-link the same way it already did `{ event: 'call', phone }` for `tel:`; `ConversionEvent['type']`
-gained an `'email'` member; `createConversionRoute()` treats it exactly like a call (no honeypot/
-Turnstile/CRM, 204 response); `describeEvent()` renders an `[Email Click]` subject. Covered by
-`tracking.dom.test.ts`, `conversion.test.ts`, `render.test.ts`.
-
-**Also done: `conversionLabel` is no longer a dead field.** `gtagBootstrap()`
-(`packages/utils/src/ads/providers.ts`) now takes the full `entry` it was always handed (the
-signature already accepted it — the function just ignored the parameter) and, when
-`conversionLabel` is set, exposes the `AW-…/label` `send_to` target on
-`window.vitopsAdsConversions.google`. `scripts/tracking.ts`'s tel:/mailto: click handler reads
-that global and fires `gtag('event', 'conversion', { send_to })` at the moment of the click —
-bootstrap-time firing would have double-counted every pageview as a conversion. `resolveAds()`
-validates `conversionLabel` against the same `SAFE_ID` check `id` already gets (it lands in the
-same inline `<script>`); an invalid label warns and is dropped, without sinking the tag itself.
-Covered by `providers.test.ts`, `ads.test.ts`, `tracking.dom.test.ts`.
-
-**Deliberately still single-label, single-action** — a real site usually wants a distinct
-conversion per interaction (call vs email vs form), and today's schema has exactly one
-`conversionLabel` string per platform. Widening to a per-action map (`{ call?, email?, form? }`)
-is real schema/CLI/docs surface, left for whoever needs it rather than speculatively built. Also
-still open: firing a conversion on a **form** submit — the tel:/mailto: click handler is the one
-piece of client JS this toolchain already ships, so hooking into it was free; a form's success
-path is either a no-JS full-page redirect (nothing to hook) or a consumer's own fetch call (no
-existing client API to fire through), and inventing one wasn't in scope here.
-
-Also fixed in passing: the conversion route's rate limiter (`createConversionRoute()`,
-`packages/astro/src/routes/conversion.ts`) keyed on IP alone, so a visitor's `tel:` beacon and a
-later `mailto:` beacon from the same IP competed for one window — the second could silently 429.
-Now keyed on `ip:event` (`call`/`email`/`form`), so distinct conversion types never starve each
-other while repeats of the same type are still throttled. Covered by `conversion.test.ts`.
-
-**Still open**, in the order that blocks a premium "offline conversion upload" flow:
-
-- **No offline-conversion primitive at all.** Nothing under `@getvitops/utils` talks to the
-  Google Ads API (`ConversionActionService`/click-conversion upload) — no `developer_token`, no
-  request builder. Would need a `googleAdsOfflineUpload` sender under `@getvitops/utils/notify`,
-  structurally typed against the Ads API shape the way `EmailBinding` is typed against
-  Cloudflare's, keeping the Ads client SDK out of the dependency tree.
-- **The notification email has no action link.** `describeEvent()` renders fixed sections with no
-  URL slot — needed so a notification can point back at an operator system to record the
-  conversion (mirrors how `policyUrl` is threaded into `<CookieConsent />`).
-- **No on/off relationship between client-side `gtag` firing and an offline-upload channel.**
-  Once both exist, a site using one presumably wants the other suppressed to avoid double-counting
-  in Google Ads. `resolveAds()`/`resolveTracking()` are independent by design today; that's right
-  for pixels-with-no-attribution but not for two systems reporting the same conversion.
-- **Provisioning the conversion actions themselves is a separate, un-scoped command
-  candidate** (`vitops ads provision` or similar) — creating the standard call/email/form actions
-  in a client's Ads account via `ConversionActionService.MutateConversionActions`, once a
-  developer token + OAuth client for a Google Ads manager account exists (none does yet). Not
-  built; no Ads API credentials were available to test against.
-
-## GBP category → `LocalBusinessType` mapping — todo
-
-Follows from populating JBL Signs' `organization.locations.ottawa.type` by hand: Google's GBP
-category for that listing (`"Sign shop"`) has no counterpart in our `LocalBusinessType` enum
-(`packages/generator/src/config.ts`), so `HomeAndConstructionBusiness` was a one-off human guess
-made while wiring up `localBusinessGraph()`. That doesn't scale past a handful of clients.
-
-**Why a lookup table, not a bigger enum.** Google's category taxonomy
-(`mybusinessbusinessinformation.googleapis.com` `categories.list`) has ~4,000 entries; schema.org's
-`LocalBusiness` hierarchy has nowhere near that many, and **Google publishes no mapping between
-the two** — this stays a hand-curated decision regardless of data source. The right shape is a
-small table (GBP `categoryId` → `LocalBusinessType`), built incrementally as real client categories
-are encountered — not an attempt to pre-map all ~4,000 up front.
-
-**Data source, in order of preference:**
-
-1. **`categories.list`** (Business Information API) — canonical, current, `categoryId` +
-   `displayName`, region/language-filterable. Gated behind the pending agency-wide GBP API access
-   request (verified GBP 60+ days old, applicant email domain matching the website domain, 14-day
-   review) — the same approval that gates any future listings-sync work.
-2. **A static export** (the ~4,000-row CSV/gist third parties maintain, since Google itself
-   publishes no downloadable list) as a stopgap while API access is pending — enough to seed the
-   table now, though it can drift from Google's live list.
-
-**Shape**, following the `AD_PLATFORMS` capability-table pattern
-(`packages/utils/src/ads/providers.ts`): a `Record<string, LocalBusinessType>` keyed by GBP
-`categoryId` (stable across renames), with `displayName` carried alongside for readability, not
-used for matching. Lives beside `LocalBusinessType` in `packages/generator/src/config.ts`, or its
-own module if it grows past a few dozen entries.
-
-**Build it incrementally**: add an entry only when a real client's GBP category doesn't already map
-cleanly, the same way `HomeAndConstructionBusiness` got picked for JBL Signs — resolve it once,
-record it, move on. Don't cover categories with no client behind them yet.
-
-**Forward-looking**: this table is also what a future listings-push command (writing our
-`organization.locations.*` back out to GBP/Bing/Apple, not yet designed) needs in the other
-direction — going from our `type` back to a `categoryId` when _creating_ a listing that doesn't
-exist yet. Worth keying the table by `categoryId` now rather than `displayName` so that direction
-doesn't require re-deriving it later.
