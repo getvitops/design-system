@@ -1,9 +1,17 @@
 import react from '@astrojs/react';
 import vitops from '@getvitops/astro';
+import { resolveOrganizationName } from '@getvitops/astro/routes';
 import { vitopsEmdash, vitopsHosting } from '@getvitops/emdash';
 import { defineConfig } from 'astro/config';
 import emdash from 'emdash/astro';
 import config from './site.json' with { type: 'json' };
+
+// site.json's organization.name is the one build-time-readable source for a
+// display name — EmDash's own getSiteSettings() only resolves inside a live
+// Worker request (AsyncLocalStorage + a DB binding), so it can't be read here
+// even though it's what Layout.astro shows on rendered pages. See AGENTS.md's
+// "EmDash plugin as the design-system editing surface".
+const organizationName = resolveOrganizationName(config) ?? 'My EmDash Site';
 
 // Hosting seam: adapter + EmDash database/storage for the configured target.
 // Default 'cloudflare' (Workers + D1 + R2 — see wrangler.jsonc / src/worker.ts).
@@ -51,7 +59,7 @@ export default defineConfig({
     vitops({
       favicon: {
         source: 'src/assets/logo.svg',
-        name: 'My EmDash Site',
+        name: organizationName,
         themeColor: '#2e9b73',
         backgroundColor: '#ffffff',
       },

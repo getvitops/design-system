@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 import type { Config } from '@getvitops/generator';
-import { toCrmConfig, toNotifyContext } from './config-adapters.ts';
+import { resolveOrganizationName, toCrmConfig, toNotifyContext } from './config-adapters.ts';
 
 function config(overrides: {
   organization?: Config['organization'];
@@ -78,6 +78,13 @@ describe('toNotifyContext', () => {
       organizationName: undefined,
       locationEmails: [],
     });
+  });
+});
+
+describe('resolveOrganizationName', () => {
+  it('is what toNotifyContext.organizationName delegates to', () => {
+    const cfg = config({ organization: { name: { en: 'Acme' } } });
+    expect(resolveOrganizationName(cfg)).toBe(toNotifyContext(cfg).organizationName);
   });
 });
 

@@ -81,7 +81,7 @@ import { type EmailBinding, notify, type NotifyContext } from '@getvitops/utils/
 import { verifyTurnstileToken } from '@getvitops/utils/security';
 import { parseTrackingCookie, readCookie } from '@getvitops/utils/tracking';
 import type { ConversionEvent } from '@getvitops/utils/tracking';
-export { toCrmConfig, toNotifyContext } from './config-adapters.ts';
+export { resolveOrganizationName, toCrmConfig, toNotifyContext } from './config-adapters.ts';
 
 /** The subset of Astro's `APIContext` this needs — typed structurally so the
  * factory does not pin an Astro version. */
