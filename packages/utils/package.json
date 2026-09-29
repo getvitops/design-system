@@ -77,6 +77,10 @@
     "./email": {
       "types": "./dist/email/index.d.mts",
       "import": "./dist/email/index.mjs"
+    },
+    "./git": {
+      "types": "./dist/git/index.d.mts",
+      "import": "./dist/git/index.mjs"
     }
   },
   "publishConfig": {

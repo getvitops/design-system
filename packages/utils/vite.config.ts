@@ -42,6 +42,7 @@ export default defineConfig({
       'src/schema/index.ts',
       'src/hosting/index.ts',
       'src/email/index.ts',
+      'src/git/index.ts',
     ],
     outDir: 'dist',
     format: ['es'],
