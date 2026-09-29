@@ -28,6 +28,7 @@ import {
   DARK_SEL,
   SYSTEM_DARK_SEL,
   TW_CLASH,
+  TYPO_KEYMAP,
   type RoleSpec,
   roleHue,
   roleKind,
@@ -306,18 +307,6 @@ interface TypographyRole {
   family?: string;
   [key: string]: string | number | undefined;
 }
-const TYPO_KEYMAP: Record<string, [string, string]> = {
-  family: ['font-family', 'ff'],
-  size: ['font-size', 'fs'],
-  weight: ['font-weight', 'fw'],
-  style: ['font-style', 'fst'],
-  'line-height': ['line-height', 'lh'],
-  tracking: ['letter-spacing', 'ls'],
-  'text-decoration': ['text-decoration', 'td'],
-  'text-transform': ['text-transform', 'tt'],
-  'text-wrap': ['text-wrap', 'tw'],
-  color: ['color', 'color'],
-};
 /**
  * Wrong spellings worth naming explicitly, because each is a plausible reading of
  * the key it isn't. `transform`/`decoration` were documented in the schema for a

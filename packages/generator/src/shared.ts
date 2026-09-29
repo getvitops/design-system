@@ -135,6 +135,29 @@ export const BASE_HOOK: Record<string, string> = {
 };
 
 /**
+ * A typography role's declared key → [CSS property, var-name suffix]. The
+ * recognised key set is CLOSED (an unrecognised key is a config error, see
+ * `generate.ts`'s `ALSO_MEANT`) — shared here (rather than living only in
+ * `generate.ts`) because `tokens.ts`'s `buildReverseIndex` needs the exact
+ * same key → suffix mapping to stay in step with what `generate()` itself
+ * builds, and `tokens.ts` can't import from `generate.ts` (the CSS-bundling
+ * half, which needs lightningcss/node:fs) without losing its own
+ * Worker-safety.
+ */
+export const TYPO_KEYMAP: Record<string, [string, string]> = {
+  family: ['font-family', 'ff'],
+  size: ['font-size', 'fs'],
+  weight: ['font-weight', 'fw'],
+  style: ['font-style', 'fst'],
+  'line-height': ['line-height', 'lh'],
+  tracking: ['letter-spacing', 'ls'],
+  'text-decoration': ['text-decoration', 'td'],
+  'text-transform': ['text-transform', 'tt'],
+  'text-wrap': ['text-wrap', 'tw'],
+  color: ['color', 'color'],
+};
+
+/**
  * Framework utility classes whose names collide with Tailwind's own defaults.
  * The `tailwind` format strips any rule targeting these — Tailwind provides
  * them, so consumers use Tailwind's utilities for these names instead.

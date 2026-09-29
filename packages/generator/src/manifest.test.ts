@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 import { build } from './generate.ts';
-import { defaultConfig, validate } from './index.ts';
+import { buildReverseIndex, defaultConfig, validate } from './index.ts';
 import type { DesignSystem } from './schema.ts';
 
 /**
@@ -217,5 +217,19 @@ describe('validate: token-namespace warnings', () => {
     const ds = defaultConfig();
     ds.patterns!.radii = { circle: '50%' };
     expect(validate(ds).warnings).toEqual([]);
+  });
+});
+
+describe('buildReverseIndex (standalone, Worker-safe)', () => {
+  it("matches generate()/build()'s own reverseIndex exactly, for the shipped config", () => {
+    const ds = defaultConfig();
+    expect(buildReverseIndex(ds)).toEqual(manifestOf(ds).reverseIndex);
+  });
+
+  it('still matches after a role/pattern/typography edit', () => {
+    const ds = defaultConfig();
+    ds.patterns!.radii = { ...ds.patterns?.radii, pill: '999px' };
+    ds.typography!.roles = { ...ds.typography?.roles, caption: { size: '0.8rem' } };
+    expect(buildReverseIndex(ds)).toEqual(manifestOf(ds).reverseIndex);
   });
 });

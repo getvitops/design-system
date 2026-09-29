@@ -41,7 +41,8 @@ import {
   pickOn,
   tintedEndpoints,
 } from '@getvitops/utils/color';
-import { type RoleSpec, roleHue, roleKind } from './shared.ts';
+import { BASE_HOOK, TYPO_KEYMAP, type RoleSpec, roleHue, roleKind } from './shared.ts';
+import type { DesignSystem } from './schema.ts';
 
 export const NUMERIC_STEPS = [
   '50',
@@ -603,6 +604,59 @@ export function validateColorContract(colors: {
       }
     : undefined;
   return scaleRoles.flatMap((fr) => checkContrast(fr, numericOf, surfaceBg));
+}
+
+/**
+ * The `reverseIndex` half of `generate()`'s `design-manifest.json` (css
+ * format), standalone — a CSS var name → the config path that produced it
+ * (e.g. `--color-navy-500` → `colors.palette.navy.anchors.500`). Kept in exact
+ * step with the block inside `generate.ts`'s `build()` that builds the same
+ * map (both read `TYPO_KEYMAP`/`BASE_HOOK` from `shared.ts`, never duplicated
+ * inline) — this is the standalone half for a caller that has a
+ * `DesignSystem` but no built `design-manifest.json` to fetch, most notably
+ * the EmDash design-system-editor plugin route: a deployed Worker has no
+ * filesystem to read a manifest asset from over HTTP without adding a
+ * `network:request` capability + a hostname declared in `allowedHosts` for
+ * *the site's own, deployment-specific* origin — recomputing this from the
+ * `DesignSystem` the site's own build already bundles avoids that entirely.
+ */
+export function buildReverseIndex(ds: Pick<DesignSystem, 'colors' | 'typography' | 'patterns'>) {
+  const expandedPalette = expandPalette(ds.colors.palette as Record<string, unknown>);
+  const reverseIndex: Record<string, string> = {};
+
+  // Same reasoning as generate.ts's own comment: a numeric step maps back to
+  // that step's `anchors` entry, never to the hue's `seed` (which regenerates
+  // the whole ramp).
+  for (const [name, hue] of Object.entries(expandedPalette))
+    for (const n of Object.keys(hue.numeric))
+      reverseIndex[`--color-${name}-${n}`] = `colors.palette.${name}.anchors.${n}`;
+
+  const typoRoles = ds.typography?.roles ?? {};
+  for (const role of Object.keys(typoRoles))
+    for (const [key, [, sfx]] of Object.entries(TYPO_KEYMAP))
+      reverseIndex[`--${role}-${sfx}`] = `typography.roles.${role}.${key}`;
+
+  const pDefaults = ds.patterns?.defaults ?? {};
+  const pRadii = ds.patterns?.radii ?? {};
+  const pGroups = ds.patterns?.groups ?? {};
+  const pItems = ds.patterns?.items ?? {};
+  for (const prop of Object.keys(pDefaults))
+    reverseIndex[`--${prop}-default`] = `patterns.defaults.${prop}`;
+  for (const [group, props] of Object.entries(pGroups))
+    for (const prop of Object.keys(props))
+      reverseIndex[`--${prop}-${group}`] = `patterns.groups.${group}.${prop}`;
+  for (const [name, item] of Object.entries(pItems)) {
+    const base = item.base ?? {};
+    for (const prop of Object.keys(base))
+      if (prop in BASE_HOOK)
+        reverseIndex[`--${BASE_HOOK[prop]}-${name}`] = `patterns.items.${name}.base.${prop}`;
+  }
+  // Radii last, and only where a pattern hasn't already claimed the var —
+  // same collision rule as generate.ts.
+  for (const name of Object.keys(pRadii))
+    if (!(`--br-${name}` in reverseIndex)) reverseIndex[`--br-${name}`] = `patterns.radii.${name}`;
+
+  return reverseIndex;
 }
 
 /**

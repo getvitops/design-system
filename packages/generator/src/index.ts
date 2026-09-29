@@ -18,7 +18,12 @@ export type {
 // re-deriving the vocabulary and drifting from it.
 export { expandPalette, functionalRole } from './tokens.ts';
 export type { ExpandedHue, FunctionalRole } from './tokens.ts';
-export { checkContrast, patchToOverrideCss, validateColorContract } from './tokens.ts';
+export {
+  buildReverseIndex,
+  checkContrast,
+  patchToOverrideCss,
+  validateColorContract,
+} from './tokens.ts';
 
 export {
   generateDocs,
@@ -56,6 +61,7 @@ export {
   DARK_SEL,
   REQUIRED_ROLES,
   ROLE_TOKEN_KEYS,
+  TYPO_KEYMAP,
   roleHue,
   roleKind,
 } from './shared.ts';
