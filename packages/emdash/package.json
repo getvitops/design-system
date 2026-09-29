@@ -13,6 +13,7 @@
   "files": [
     "dist",
     "src/astro",
+    "src/admin",
     "CHANGELOG.md"
   ],
   "type": "module",
@@ -23,33 +24,57 @@
       "import": "./dist/index.mjs"
     },
     "./astro": "./src/astro/index.ts",
+    "./admin": "./src/admin/index.tsx",
     "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
+    "@getvitops/generator": "workspace:*",
     "@getvitops/utils": "workspace:*"
   },
   "devDependencies": {
     "@astrojs/cloudflare": "catalog:",
+    "@astrojs/react": "catalog:",
     "@emdash-cms/cloudflare": "catalog:",
     "@getvitops/astro": "workspace:*",
+    "@getvitops/core": "workspace:*",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "astro": "catalog:",
-    "emdash": "catalog:"
+    "emdash": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "peerDependencies": {
     "@astrojs/cloudflare": ">=14",
+    "@astrojs/react": ">=7",
     "@emdash-cms/cloudflare": ">=1.0.0 <2",
     "@getvitops/astro": ">=6.0.0",
+    "@getvitops/core": ">=8.0.0",
     "astro": ">=7",
-    "emdash": ">=1.0.0 <2"
+    "emdash": ">=1.0.0 <2",
+    "react": ">=19",
+    "react-dom": ">=19"
   },
   "peerDependenciesMeta": {
     "@astrojs/cloudflare": {
       "optional": true
     },
+    "@astrojs/react": {
+      "optional": true
+    },
     "@emdash-cms/cloudflare": {
+      "optional": true
+    },
+    "@getvitops/core": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
       "optional": true
     }
   },

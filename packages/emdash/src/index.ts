@@ -12,21 +12,35 @@
  *
  * ```js
  * // astro.config.mjs
+ * import config from './site.json' with { type: 'json' };
+ *
  * integrations: [
  *   react(),
  *   vitops({ css: {...} }),
- *   emdash({ database, storage, plugins: [vitopsEmdash()] }),
+ *   emdash({ database, storage, plugins: [vitopsEmdash({ designSystemEditor: { config } })] }),
  * ]
  * ```
  */
 import { definePlugin } from 'emdash';
-import type { PluginDescriptor } from 'emdash';
+import type {
+  PageFragmentContribution,
+  PageFragmentEvent,
+  PluginCapability,
+  PluginContext,
+  PluginDescriptor,
+} from 'emdash';
 import { BLOCKS } from './blocks.ts';
+import {
+  createDesignSystemRoute,
+  designSystemOverrideFragment,
+  type DesignSystemEditorOptions,
+} from './design-system-route.ts';
 
 export { BLOCKS } from './blocks.ts';
 export type { BlockKitFieldDef, PortableTextBlockDef } from './blocks.ts';
 export { vitopsHosting } from './hosting.ts';
 export type { HostingTarget, VitopsHosting, VitopsHostingOptions } from './hosting.ts';
+export type { DesignSystemEditorOptions } from './design-system-route.ts';
 
 /**
  * Read from package.json rather than hand-maintained.
@@ -41,7 +55,9 @@ import pkg from '../package.json' with { type: 'json' };
 
 const VERSION = pkg.version;
 const PLUGIN_ID = 'vitops';
-const FRAGMENTS_CAPABILITY = 'hooks.page-fragments:register';
+const FRAGMENTS_CAPABILITY: PluginCapability = 'hooks.page-fragments:register';
+/** For the design-system-editor's GitHub auto-commit — see design-system-route.ts. */
+const NETWORK_CAPABILITY: PluginCapability = 'network:request';
 
 export interface VitopsEmdashOptions {
   /**
@@ -57,6 +73,15 @@ export interface VitopsEmdashOptions {
   scripts?: 'integration' | 'fragments';
   /** Public base path of the web-component bundles (default '/vitops'). */
   wcBase?: string;
+  /**
+   * Mounts a `<wc-theme-editor>` admin page at `/design-system`, backed by a
+   * plugin API route — see AGENTS.md's "EmDash plugin as the design-system
+   * editing surface" section and `design-system-route.ts`'s own docblock.
+   * Off by default. Requires the `network:request` capability (declared
+   * automatically when this is set) for the GitHub auto-commit half —
+   * reviewed once at plugin-install time, same as any other capability.
+   */
+  designSystemEditor?: DesignSystemEditorOptions | false;
 }
 
 /**
@@ -70,8 +95,14 @@ export function vitopsEmdash(options: VitopsEmdashOptions = {}): PluginDescripto
     format: 'native',
     entrypoint: '@getvitops/emdash',
     componentsEntry: '@getvitops/emdash/astro',
+    ...(options.designSystemEditor ? { adminEntry: '@getvitops/emdash/admin' } : {}),
     options,
-    capabilities: options.scripts === 'fragments' ? [FRAGMENTS_CAPABILITY] : [],
+    capabilities: [
+      ...(options.scripts === 'fragments' || options.designSystemEditor
+        ? [FRAGMENTS_CAPABILITY]
+        : []),
+      ...(options.designSystemEditor ? [NETWORK_CAPABILITY] : []),
+    ] as PluginCapability[],
   } as PluginDescriptor;
 }
 
@@ -79,41 +110,72 @@ export function vitopsEmdash(options: VitopsEmdashOptions = {}): PluginDescripto
 export function createPlugin(options: VitopsEmdashOptions = {}) {
   const scripts = options.scripts ?? 'integration';
   const wcBase = options.wcBase ?? '/vitops';
+  const editor = options.designSystemEditor || undefined;
+  const fragmentsEnabled = scripts === 'fragments' || !!editor;
+
+  // Mirrors @getvitops/astro Head.astro: module polyfills + elements in
+  // head, deferred enhancements at end of body. Composed with the
+  // design-system-editor's override fragment below — either half can be on
+  // independently of the other.
+  const pageFragments = async (
+    _event: PageFragmentEvent,
+    ctx: PluginContext,
+  ): Promise<PageFragmentContribution[]> => {
+    const contributions: PageFragmentContribution[] = [];
+    if (scripts === 'fragments') {
+      contributions.push(
+        {
+          kind: 'html',
+          placement: 'head',
+          html:
+            `<link rel="modulepreload" href="${wcBase}/polyfills.js">` +
+            `<script type="module" src="${wcBase}/polyfills.js"></script>` +
+            `<script type="module" src="${wcBase}/elements.js"></script>`,
+          key: 'vitops-wc',
+        },
+        {
+          kind: 'external-script',
+          placement: 'body:end',
+          src: `${wcBase}/deferred.js`,
+          defer: true,
+          key: 'vitops-deferred',
+        },
+      );
+    }
+    if (editor) {
+      const fragment = await designSystemOverrideFragment(ctx, editor);
+      if (fragment) contributions.push(fragment);
+    }
+    return contributions;
+  };
 
   return definePlugin({
     id: PLUGIN_ID,
     version: VERSION,
-    capabilities: scripts === 'fragments' ? [FRAGMENTS_CAPABILITY] : [],
-
-    hooks:
-      scripts === 'fragments'
-        ? {
-            // Mirrors @getvitops/astro Head.astro: module polyfills + elements
-            // in head, deferred enhancements at end of body.
-            'page:fragments': async () => [
-              {
-                kind: 'html',
-                placement: 'head',
-                html:
-                  `<link rel="modulepreload" href="${wcBase}/polyfills.js">` +
-                  `<script type="module" src="${wcBase}/polyfills.js"></script>` +
-                  `<script type="module" src="${wcBase}/elements.js"></script>`,
-                key: 'vitops-wc',
-              },
-              {
-                kind: 'external-script',
-                placement: 'body:end',
-                src: `${wcBase}/deferred.js`,
-                defer: true,
-                key: 'vitops-deferred',
-              },
-            ],
-          }
-        : {},
+    capabilities: [
+      ...(fragmentsEnabled ? [FRAGMENTS_CAPABILITY] : []),
+      ...(editor ? [NETWORK_CAPABILITY] : []),
+    ],
+    ...(editor ? { allowedHosts: ['api.github.com'] } : {}),
+    ...(fragmentsEnabled ? { hooks: { 'page:fragments': pageFragments } } : {}),
 
     admin: {
       portableTextBlocks: BLOCKS,
+      ...(editor
+        ? {
+            entry: '@getvitops/emdash/admin',
+            pages: [{ path: '/design-system', label: 'Design System', icon: 'palette' }],
+          }
+        : {}),
     },
+
+    ...(editor
+      ? {
+          routes: {
+            'design-system': createDesignSystemRoute(editor),
+          },
+        }
+      : {}),
   });
 }
 

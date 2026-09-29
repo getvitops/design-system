@@ -7,6 +7,10 @@ catalog:
   '@arethetypeswrong/cli': ^0.18.5
   '@astrojs/check': ^0.9.7
   '@astrojs/cloudflare': ^14.0.0
+  # Only for @getvitops/emdash's opt-in `designSystemEditor` admin page —
+  # EmDash's own docs require @astrojs/react + react + react-dom for any
+  # native plugin's React admin surface.
+  '@astrojs/react': ^7.0.0
   '@astrojs/sitemap': ^3.7.3
   '@changesets/cli': ^2.27.0
   '@emdash-cms/cloudflare': ^1.0.1
@@ -49,11 +53,15 @@ catalog:
   postcss: ^8.5.26
   postcss-lit: ^1.4.1
   publint: ^0.3.23
+  react: ^19.3.0
+  react-dom: ^19.3.0
   scroll-timeline-polyfill: ^1.1.0
   sharp: ^0.35.3
   tailwindcss: ^4.3.3
   temporal-polyfill: ^1.0.1
   typescript: ^6.0.3
+  '@types/react': ^19.3.0
+  '@types/react-dom': ^19.3.0
   vite: npm:@voidzero-dev/vite-plus-core@1.0.0
   # Pinned exact, not ^, for the same reason as @vitest/coverage-v8 above: vite-plus
   # bundles this version internally and refuses to start on a mismatch.

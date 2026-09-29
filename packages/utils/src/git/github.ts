@@ -36,7 +36,14 @@ export interface CommitFileOptions {
   message: string;
   /** Fine-grained PAT, `Contents: Read and write` on this repo only. */
   token: string;
-  fetchImpl?: typeof fetch;
+  /**
+   * Narrower than `typeof fetch` on purpose — every call site here only ever
+   * passes a string URL, never a `Request`/`URL` object, which is also
+   * exactly the shape EmDash's own `ctx.http.fetch` (a capability-gated
+   * external-fetch helper) exposes. Typing this as the wider `typeof fetch`
+   * would make passing `ctx.http.fetch` a type error for no real benefit.
+   */
+  fetchImpl?: ((url: string, init?: RequestInit) => Promise<Response>) | undefined;
 }
 
 export interface CommitFileResult {
