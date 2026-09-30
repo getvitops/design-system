@@ -109,4 +109,40 @@ describe('renderTag', () => {
     expect(html).toContain("gtag('config','AW-123');");
     expect(html).not.toContain('vitopsAdsConversions');
   });
+
+  describe('reporting: "server" suppresses only the actions with a matching conversionActionId', () => {
+    test('an action with both reporting=server and a conversionActionId is suppressed client-side', () => {
+      const html = renderTag({
+        provider: 'google',
+        pixelId: 'AW-123',
+        conversionLabel: { call: 'callLbl', email: 'emailLbl' },
+        conversionActionId: { call: '999' },
+        reporting: 'server',
+      })!;
+      expect(html).not.toContain('"call"');
+      // `email` has no conversionActionId, so it keeps firing client-side
+      // rather than silently dropping the conversion.
+      expect(html).toContain('"email":"AW-123/emailLbl"');
+    });
+
+    test('reporting=server with no conversionActionId at all changes nothing', () => {
+      const html = renderTag({
+        provider: 'google',
+        pixelId: 'AW-123',
+        conversionLabel: { call: 'callLbl' },
+        reporting: 'server',
+      })!;
+      expect(html).toContain('"call":"AW-123/callLbl"');
+    });
+
+    test('a conversionActionId with reporting left at the default (client) changes nothing', () => {
+      const html = renderTag({
+        provider: 'google',
+        pixelId: 'AW-123',
+        conversionLabel: { call: 'callLbl' },
+        conversionActionId: { call: '999' },
+      })!;
+      expect(html).toContain('"call":"AW-123/callLbl"');
+    });
+  });
 });

@@ -185,4 +185,6 @@ export const SCOPES = {
   siteVerification: 'https://www.googleapis.com/auth/siteverification',
   /** Business Profile (reviews). The GCP project must be allowlisted by Google. */
   businessProfile: 'https://www.googleapis.com/auth/business.manage',
+  /** Google Ads API (offline conversion upload). Needs an approved developer token too. */
+  adwords: 'https://www.googleapis.com/auth/adwords',
 } as const;

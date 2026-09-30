@@ -10,6 +10,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import { deliverToCrm } from '@getvitops/utils/crm';
+import { uploadClickConversion } from '@getvitops/utils/notify';
 import { verifyTurnstileToken } from '@getvitops/utils/security';
 import { createConversionRoute, type RateLimitStore } from './conversion.ts';
 
@@ -19,11 +20,21 @@ vi.mock('@getvitops/utils/crm', async () => {
     await vi.importActual<typeof import('@getvitops/utils/crm')>('@getvitops/utils/crm');
   return { ...actual, deliverToCrm: vi.fn() };
 });
+vi.mock('@getvitops/utils/notify', async () => {
+  const actual =
+    await vi.importActual<typeof import('@getvitops/utils/notify')>('@getvitops/utils/notify');
+  return { ...actual, uploadClickConversion: vi.fn() };
+});
 
 beforeEach(() => {
   vi.mocked(verifyTurnstileToken).mockReset();
   vi.mocked(deliverToCrm).mockReset();
+  vi.mocked(uploadClickConversion).mockReset();
 });
+
+/** A request carrying a `_ac` cookie with the given attribution data. */
+const acCookie = (data: Record<string, unknown>) =>
+  `_ac=${encodeURIComponent(JSON.stringify(data))}`;
 
 const ctx = () => ({
   notifications: { email: 'owner@acme.ca' },
@@ -604,5 +615,154 @@ describe('createConversionRoute: CRM delivery', () => {
     const handler = createConversionRoute({ context: ctx() });
     await handler({ request: jsonRequest({ name: 'Ada' }) });
     expect(deliverToCrm).not.toHaveBeenCalled();
+  });
+});
+
+describe('createConversionRoute: Google Ads offline conversion upload', () => {
+  const adsCredentials = {
+    developerToken: 'dev',
+    oauth: { clientId: 'i', clientSecret: 's', refreshToken: 'r' },
+  };
+
+  it('uploads a form conversion when reporting=server, a conversionActionId is set, and a gclid was captured', async () => {
+    vi.mocked(uploadClickConversion).mockResolvedValue({ ok: true });
+    const onResult = vi.fn();
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        config: {
+          accountId: '123-456-7890',
+          conversionActionId: { form: '999' },
+          reporting: 'server',
+        },
+        credentials: () => adsCredentials,
+      },
+      onResult,
+    });
+    const res = await handler({
+      request: jsonRequest(
+        { name: 'Ada', email: 'ada@example.com' },
+        { cookie: acCookie({ gclid: 'abc123' }) },
+      ),
+    });
+    expect(res.status).toBe(200);
+    expect(uploadClickConversion).toHaveBeenCalledTimes(1);
+    expect(uploadClickConversion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerId: '123-456-7890',
+        conversionActionId: '999',
+        clickId: { param: 'gclid', value: 'abc123' },
+      }),
+      adsCredentials,
+      undefined,
+    );
+    expect(onResult).toHaveBeenCalledWith(expect.objectContaining({ googleAds: { ok: true } }));
+  });
+
+  it('also runs for a call beacon — unlike CRM, which skips beacons entirely', async () => {
+    vi.mocked(uploadClickConversion).mockResolvedValue({ ok: true });
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        config: { accountId: '123', conversionActionId: { call: '111' }, reporting: 'server' },
+        credentials: () => adsCredentials,
+      },
+    });
+    const res = await handler({
+      request: jsonRequest(
+        { event: 'call', phone: '+15550100' },
+        { cookie: acCookie({ gclid: 'abc123' }) },
+      ),
+    });
+    expect(res.status).toBe(204);
+    expect(uploadClickConversion).toHaveBeenCalledWith(
+      expect.objectContaining({ conversionActionId: '111' }),
+      adsCredentials,
+      undefined,
+    );
+  });
+
+  it('is skipped, not failed, when the visitor carries no click id', async () => {
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        config: { accountId: '123', conversionActionId: { form: '999' }, reporting: 'server' },
+        credentials: () => adsCredentials,
+      },
+    });
+    const res = await handler({ request: jsonRequest({ name: 'Ada' }) });
+    expect(res.status).toBe(200);
+    expect(uploadClickConversion).not.toHaveBeenCalled();
+  });
+
+  it('is skipped when no conversionActionId is configured for this action', async () => {
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        // Only `call` has an id — a form submission has none configured.
+        config: { accountId: '123', conversionActionId: { call: '111' }, reporting: 'server' },
+        credentials: () => adsCredentials,
+      },
+    });
+    await handler({
+      request: jsonRequest({ name: 'Ada' }, { cookie: acCookie({ gclid: 'abc123' }) }),
+    });
+    expect(uploadClickConversion).not.toHaveBeenCalled();
+  });
+
+  it('is skipped when reporting is left at the default (client)', async () => {
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        config: { accountId: '123', conversionActionId: { form: '999' } },
+        credentials: () => adsCredentials,
+      },
+    });
+    await handler({
+      request: jsonRequest({ name: 'Ada' }, { cookie: acCookie({ gclid: 'abc123' }) }),
+    });
+    expect(uploadClickConversion).not.toHaveBeenCalled();
+  });
+
+  it('is skipped when credentials resolve to undefined for this environment', async () => {
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        config: { accountId: '123', conversionActionId: { form: '999' }, reporting: 'server' },
+        credentials: () => undefined,
+      },
+    });
+    await handler({
+      request: jsonRequest({ name: 'Ada' }, { cookie: acCookie({ gclid: 'abc123' }) }),
+    });
+    expect(uploadClickConversion).not.toHaveBeenCalled();
+  });
+
+  it('a failed upload does not fail the request, and folds into onResult', async () => {
+    vi.mocked(uploadClickConversion).mockResolvedValue({ ok: false, reason: 'boom' });
+    const onResult = vi.fn();
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        config: { accountId: '123', conversionActionId: { form: '999' }, reporting: 'server' },
+        credentials: () => adsCredentials,
+      },
+      onResult,
+    });
+    const res = await handler({
+      request: jsonRequest({ name: 'Ada' }, { cookie: acCookie({ gclid: 'abc123' }) }),
+    });
+    expect(res.status).toBe(200);
+    expect(onResult).toHaveBeenCalledWith(
+      expect.objectContaining({ googleAds: { ok: false, reason: 'boom' } }),
+    );
+  });
+
+  it('does not call uploadClickConversion at all when no googleAdsOffline option is passed', async () => {
+    const handler = createConversionRoute({ context: ctx() });
+    await handler({
+      request: jsonRequest({ name: 'Ada' }, { cookie: acCookie({ gclid: 'abc123' }) }),
+    });
+    expect(uploadClickConversion).not.toHaveBeenCalled();
   });
 });

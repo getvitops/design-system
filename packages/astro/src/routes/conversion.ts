@@ -75,13 +75,28 @@
  * });
  * ```
  */
+import { AD_PLATFORMS, normalizeConversionActionIds } from '@getvitops/utils/ads';
+import type { AdPropertySetup } from '@getvitops/utils/ads';
 import { deliverToCrm, describeCrmResult } from '@getvitops/utils/crm';
 import type { CrmConfig, CrmCredentials, CrmResult } from '@getvitops/utils/crm';
-import { type EmailBinding, notify, type NotifyContext } from '@getvitops/utils/notify';
+import {
+  describeGoogleAdsOfflineResult,
+  type EmailBinding,
+  notify,
+  type NotifyContext,
+  uploadClickConversion,
+  type GoogleAdsCredentials,
+  type GoogleAdsUploadResult,
+} from '@getvitops/utils/notify';
 import { verifyTurnstileToken } from '@getvitops/utils/security';
 import { parseTrackingCookie, readCookie } from '@getvitops/utils/tracking';
-import type { ConversionEvent } from '@getvitops/utils/tracking';
-export { resolveOrganizationName, toCrmConfig, toNotifyContext } from './config-adapters.ts';
+import type { ConversionEvent, TrackingData } from '@getvitops/utils/tracking';
+export {
+  resolveOrganizationName,
+  toCrmConfig,
+  toGoogleAdsConfig,
+  toNotifyContext,
+} from './config-adapters.ts';
 
 /** The subset of Astro's `APIContext` this needs — typed structurally so the
  * factory does not pin an Astro version. */
@@ -142,6 +157,25 @@ export interface ConversionRouteOptions {
     credentials?: (locals: unknown) => CrmCredentials | undefined;
     fetch?: typeof fetch;
     timeoutMs?: number;
+  };
+  /**
+   * Upload the conversion to Google Ads server-side instead of relying on the
+   * visitor's browser to fire `gtag.js` — see `site.ads.google.reporting` and
+   * `conversionActionId`. Credentials arrive as a function of `locals`, same
+   * shape as `crm.credentials` and `binding` above.
+   *
+   * Only fires for an action whose `conversionActionId` is actually set (via
+   * `toGoogleAdsConfig(config)`, or hand-built the same shape) **and** whose
+   * event carries a Google click id (`gclid`/`gbraid`/`wbraid` on `_ac`) —
+   * an organic conversion has nothing for the Ads API to attribute, so it's
+   * silently skipped rather than reported as a failure. A failed upload never
+   * fails the request, matching `crm` above; the outcome folds into the same
+   * "Delivery" section via `describeGoogleAdsOfflineResult`.
+   */
+  googleAdsOffline?: {
+    config: Pick<AdPropertySetup, 'accountId' | 'conversionActionId' | 'reporting'>;
+    credentials?: (locals: unknown) => GoogleAdsCredentials | undefined;
+    fetch?: typeof fetch;
   };
   /**
    * Reject a submission before anything is sent. Return a message to refuse.
@@ -224,11 +258,27 @@ export interface ConversionRouteOptions {
   };
 }
 
-/** `notify()`'s own result, plus the CRM outcome when `crm` is configured.
- * Additive over `Awaited<ReturnType<typeof notify>>` — a consumer's existing
- * `onResult` reading `.results`/`.delivered` keeps compiling unchanged. */
+/** `notify()`'s own result, plus the CRM and Google Ads offline-upload
+ * outcomes when those are configured. Additive over
+ * `Awaited<ReturnType<typeof notify>>` — a consumer's existing `onResult`
+ * reading `.results`/`.delivered` keeps compiling unchanged. */
 export interface ConversionResult extends Awaited<ReturnType<typeof notify>> {
   crm?: CrmResult | undefined;
+  googleAds?: GoogleAdsUploadResult | undefined;
+}
+
+/** The click id to report to Google Ads, checked in the same order as
+ * `AD_PLATFORMS.google.clickIdParams` rather than `getPrimaryClickId()` —
+ * that helper returns whichever platform's click id happens to appear first
+ * in the *cross-platform* precedence table, which may not be Google's even
+ * when a `gclid` is present. */
+function googleClickId(tracking: TrackingData | null): { param: string; value: string } | null {
+  if (!tracking) return null;
+  for (const param of AD_PLATFORMS.google.clickIdParams) {
+    const value = tracking[param];
+    if (value) return { param, value: String(value) };
+  }
+  return null;
 }
 
 /** Fields that are never part of a submission's meaning. `cf-turnstile-response`
@@ -472,14 +522,38 @@ export function createConversionRoute(options: ConversionRouteOptions) {
     }
     const crmNote = describeCrmResult(crmResult);
 
+    // Unlike CRM, this runs for a `tel:`/`mailto:` beacon too — those are
+    // exactly the actions the client-side gtag handler would otherwise fire
+    // for. Skipped, not failed, when there's no click id to attribute, no
+    // `conversionActionId` configured for this action, or no credentials for
+    // this environment (e.g. local dev) — none of those is a real failure.
+    let googleAdsResult: GoogleAdsUploadResult | null = null;
+    const adsCfg = options.googleAdsOffline?.config;
+    if (adsCfg?.reporting === 'server' && adsCfg.accountId) {
+      const actionId = normalizeConversionActionIds(adsCfg.conversionActionId)[event.type];
+      const clickId = googleClickId(event.tracking);
+      const credentials = options.googleAdsOffline?.credentials?.(locals);
+      if (actionId && clickId && credentials) {
+        googleAdsResult = await uploadClickConversion(
+          { customerId: adsCfg.accountId, conversionActionId: actionId, clickId, at: event.at },
+          credentials,
+          options.googleAdsOffline?.fetch,
+        );
+      }
+    }
+    const googleAdsNote = describeGoogleAdsOfflineResult(googleAdsResult);
+
     const result: ConversionResult = {
       ...(await notify(
         event,
         context,
         { email: binding?.(locals) },
-        crmNote ? { notes: [crmNote] } : {},
+        {
+          notes: [crmNote, googleAdsNote].filter((n): n is string => n != null),
+        },
       )),
       ...(crmResult ? { crm: crmResult } : {}),
+      ...(googleAdsResult ? { googleAds: googleAdsResult } : {}),
     };
 
     if (onResult) onResult(result);
@@ -491,6 +565,9 @@ export function createConversionRoute(options: ConversionRouteOptions) {
         console.warn(
           `[vitops] CRM write not delivered (${crmResult.provider}): ${crmResult.reason}`,
         );
+      }
+      if (googleAdsResult && !googleAdsResult.ok) {
+        console.warn(`[vitops] Google Ads offline upload not delivered: ${googleAdsResult.reason}`);
       }
     }
 

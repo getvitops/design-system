@@ -83,6 +83,32 @@ describe('validateConfig on site.ads', () => {
       errorsFor(fixture({ google: { pixelId: 'AW-1', conversionLabel: { sms: 'x' } } })).join(),
     ).toMatch(/conversionLabel/);
   });
+
+  test('accepts a bare-string conversionActionId — back-compat shape', () => {
+    expect(errorsFor(fixture({ google: { pixelId: 'AW-1', conversionActionId: '999' } }))).toEqual(
+      [],
+    );
+  });
+
+  test('accepts a per-action conversionActionId map alongside reporting', () => {
+    expect(
+      errorsFor(
+        fixture({
+          google: {
+            pixelId: 'AW-1',
+            conversionActionId: { call: '111', form: '999' },
+            reporting: 'server',
+          },
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  test('rejects an unrecognized reporting value', () => {
+    expect(errorsFor(fixture({ google: { pixelId: 'AW-1', reporting: 'both' } })).join()).toMatch(
+      /reporting/,
+    );
+  });
 });
 
 describe('ad pixels reach the generated documents', () => {

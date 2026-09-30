@@ -695,6 +695,31 @@ const AdPropertySchema = z.strictObject({
       'action → label, so a call, an email click and a form submission each fire their own ' +
       'Google Ads conversion action instead of all three reporting as the same one.',
   ),
+  conversionActionId: desc(
+    z.optional(
+      z.union([
+        z.string(),
+        z.strictObject({
+          call: desc(z.optional(z.string()), 'Fired on a tel: link click.'),
+          email: desc(z.optional(z.string()), 'Fired on a mailto: link click.'),
+          form: desc(z.optional(z.string()), 'Fired on a form submission.'),
+        }),
+      ]),
+    ),
+    'Google Ads only: the conversion action **resource id(s)** (a numeric id, or a full ' +
+      '`customers/…/conversionActions/…` resource name) used for server-side offline ' +
+      'conversion upload — NOT the same value as `conversionLabel`, which is the opaque ' +
+      "label the web tag uses and which the Ads API's upload endpoint does not accept. " +
+      'Only meaningful when `reporting: "server"`.',
+  ),
+  reporting: desc(
+    z.optional(z.enum(['client', 'server'])),
+    'Google Ads only: `"client"` (default) fires the conversion via `gtag.js` in the ' +
+      'browser at click/submit time; `"server"` uploads it via the Ads API from the ' +
+      'conversion endpoint instead (see `conversionActionId`). An action with no matching ' +
+      '`conversionActionId` keeps firing client-side regardless of this setting, so setting ' +
+      'it before `conversionActionId` is filled in never silently drops a conversion.',
+  ),
   domain: desc(
     z.optional(z.string()),
     'Bare hostname to verify with this platform. Defaults to the host of `domains.canonical` — set it only when the ad account is verified against a different domain.',

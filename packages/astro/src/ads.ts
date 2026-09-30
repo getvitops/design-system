@@ -30,6 +30,7 @@ import {
   AD_PROVIDER_KEYS,
   normalizeConversionLabels,
   type AdProvider,
+  type ConversionActionIdMap,
   type ConversionLabelMap,
 } from '@getvitops/utils/ads';
 import type { AnalyticsStrategy, ConsentCategory, GatedTag } from './analytics.ts';
@@ -53,6 +54,19 @@ export interface GetvitopsAdProperty {
    * `@getvitops/utils/ads`.
    */
   conversionLabel?: string | ConversionLabelMap;
+  /**
+   * Google Ads only: the conversion action resource id(s) for server-side
+   * offline upload — a different identifier than `conversionLabel`, see that
+   * field's own docblock. Only meaningful with `reporting: 'server'`.
+   */
+  conversionActionId?: string | ConversionActionIdMap;
+  /**
+   * Google Ads only: `'server'` uploads the conversion via the Ads API
+   * (`createConversionRoute`'s `googleAdsOffline` option) instead of firing
+   * `gtag.js` in the browser, for whichever actions have a matching
+   * `conversionActionId`. Default `'client'`.
+   */
+  reporting?: 'client' | 'server';
   /** Default `marketing`. `analytics` for a property used purely for measurement. */
   category?: 'marketing' | 'analytics';
   /** False keeps the property on record without emitting its tag. */

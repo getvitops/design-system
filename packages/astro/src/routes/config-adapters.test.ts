@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vite-plus/test';
 import type { Config } from '@getvitops/generator';
-import { resolveOrganizationName, toCrmConfig, toNotifyContext } from './config-adapters.ts';
+import {
+  resolveOrganizationName,
+  toCrmConfig,
+  toGoogleAdsConfig,
+  toNotifyContext,
+} from './config-adapters.ts';
 
 function config(overrides: {
   organization?: Config['organization'];
@@ -99,5 +104,23 @@ describe('toCrmConfig', () => {
 
   it('returns undefined when crm is unset', () => {
     expect(toCrmConfig(config({}))).toBeUndefined();
+  });
+});
+
+describe('toGoogleAdsConfig', () => {
+  it('passes site.ads.google through unchanged', () => {
+    const google = {
+      accountId: '123-456-7890',
+      conversionActionId: '999',
+      reporting: 'server' as const,
+    };
+    expect(toGoogleAdsConfig(config({ site: { ads: { google } } }))).toEqual(google);
+  });
+
+  it('returns undefined when there is no Google Ads property configured', () => {
+    expect(toGoogleAdsConfig(config({}))).toBeUndefined();
+    expect(
+      toGoogleAdsConfig(config({ site: { ads: { meta: { pixelId: '1' } } } })),
+    ).toBeUndefined();
   });
 });

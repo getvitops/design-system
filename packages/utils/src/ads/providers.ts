@@ -30,7 +30,7 @@
  * snippet that creates its own `<script>`; those declare no `src`, and their body
  * stays inert until activation, so an undecided visitor still issues no request.
  */
-import { normalizeConversionLabels } from './types.ts';
+import { normalizeConversionActionIds, normalizeConversionLabels } from './types.ts';
 import type { AdConsentCategory, AdProvider, AdPropertySetup } from './types.ts';
 
 /** How a platform proves you own the domain. */
@@ -108,10 +108,24 @@ export interface AdPlatform {
  * `entry` is trusted here — `resolveAds()` validates every configured label
  * against `SAFE_ID` before it reaches this function, the same guard `id`
  * already gets.
+ *
+ * **`entry.reporting === 'server'` suppresses an action here, never
+ * silently.** An action fires client-side unless reporting is `'server'`
+ * *and* that same action has a `conversionActionId` configured — so turning
+ * reporting to `'server'` before the id is filled in leaves the action firing
+ * client-side rather than dropping the conversion. Once both are set, the
+ * server-side upload (`@getvitops/utils/notify`'s `uploadClickConversion`,
+ * wired in by `createConversionRoute`'s `googleAdsOffline` option) is the one
+ * place that action reports from — this is what avoids double-counting.
  */
 const gtagBootstrap = (id: string, entry: AdPropertySetup): string => {
   const labels = normalizeConversionLabels(entry.conversionLabel);
-  const actions = Object.entries(labels).filter((pair): pair is [string, string] => !!pair[1]);
+  const actionIds = normalizeConversionActionIds(entry.conversionActionId);
+  const actions = Object.entries(labels).filter(
+    (pair): pair is [string, string] =>
+      !!pair[1] &&
+      !(entry.reporting === 'server' && !!actionIds[pair[0] as keyof typeof actionIds]),
+  );
   return (
     `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}` +
     `gtag('js',new Date());gtag('config','${id}');` +

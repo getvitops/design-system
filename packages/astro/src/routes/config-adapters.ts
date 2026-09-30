@@ -14,6 +14,7 @@
  */
 import type { Config } from '@getvitops/generator';
 import { t } from '@getvitops/utils';
+import type { AdPropertySetup } from '@getvitops/utils/ads';
 import type { CrmConfig } from '@getvitops/utils/crm';
 import type { NotifyContext } from '@getvitops/utils/notify';
 
@@ -78,4 +79,18 @@ export function toNotifyContext(config: Config, locale?: string): NotifyContext 
  */
 export function toCrmConfig(config: Config): CrmConfig | undefined {
   return config.site.crm;
+}
+
+/**
+ * `site.ads.google`'s three server-side-relevant fields, for
+ * `createConversionRoute`'s `googleAdsOffline.config` — a type-narrowing
+ * pass-through like `toCrmConfig` above, not a remap. Undefined when the site
+ * has no Google Ads property configured at all, which
+ * `createConversionRoute` reads the same way `crm` being omitted does: the
+ * upload never runs.
+ */
+export function toGoogleAdsConfig(
+  config: Config,
+): Pick<AdPropertySetup, 'accountId' | 'conversionActionId' | 'reporting'> | undefined {
+  return config.site.ads?.google;
 }

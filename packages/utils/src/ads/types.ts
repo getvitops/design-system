@@ -69,6 +69,38 @@ export function normalizeConversionLabels(
   return typeof label === 'string' ? { call: label } : label;
 }
 
+/**
+ * One Google Ads conversion action **resource id** per action this site
+ * uploads server-side — a numeric id (`"123456789"`) or a full resource name
+ * (`"customers/123/conversionActions/456"`), never the `conversionLabel`
+ * string. Written out field by field for the same `exactOptionalPropertyTypes`
+ * reason as `ConversionLabelMap` above.
+ *
+ * **This is a genuinely different identifier from `conversionLabel`, not an
+ * alternate spelling of it.** `conversionLabel` is the opaque label the web
+ * tag embeds in `send_to: "AW-…/label"` — it identifies the conversion action
+ * to `gtag.js`, not to the Ads API. The API's click-conversion upload
+ * (`ConversionUploadService.UploadClickConversions`) addresses the action by
+ * `conversion_action` **resource name**, a value the label cannot be turned
+ * into locally — Google returns both when a conversion action is created, but
+ * only the label ships to the browser today. Until something in this
+ * toolchain calls `ConversionActionService` to create/list actions and print
+ * both back, this field has to be copied in by hand from the Ads UI/API.
+ */
+export interface ConversionActionIdMap {
+  call?: string | undefined;
+  email?: string | undefined;
+  form?: string | undefined;
+}
+
+/** Same back-compat shorthand as `normalizeConversionLabels`, for ids. */
+export function normalizeConversionActionIds(
+  id: string | ConversionActionIdMap | undefined,
+): ConversionActionIdMap {
+  if (id == null) return {};
+  return typeof id === 'string' ? { call: id } : id;
+}
+
 /** One ad property to link, as the config declares it. */
 export interface AdPropertySetup {
   provider: AdProvider;
@@ -87,6 +119,25 @@ export interface AdPropertySetup {
    * `gtagBootstrap`/`normalizeConversionLabels` below.
    */
   conversionLabel?: string | ConversionLabelMap | undefined;
+  /**
+   * Google Ads only: the conversion action resource id(s) used for
+   * **server-side** offline conversion upload — see `ConversionActionIdMap`'s
+   * docblock for why this is not the same value as `conversionLabel`. Only
+   * meaningful when `reporting: 'server'`.
+   */
+  conversionActionId?: string | ConversionActionIdMap | undefined;
+  /**
+   * Google Ads only: `'client'` (default) fires the conversion via `gtag.js`
+   * in the browser at click/submit time; `'server'` uploads it via the Ads
+   * API from the conversion endpoint instead
+   * (`@getvitops/utils/notify`'s `uploadClickConversion`), suppressing the
+   * client-side fire for whichever actions have a matching
+   * `conversionActionId` — an action with no id configured keeps firing
+   * client-side regardless of this setting, so switching to `'server'`
+   * before `conversionActionId` is filled in never silently drops a
+   * conversion.
+   */
+  reporting?: 'client' | 'server' | undefined;
   /** The host to verify, bare (`acme.ca`). The CLI defaults it from the canonical domain. */
   domain?: string | undefined;
   /**

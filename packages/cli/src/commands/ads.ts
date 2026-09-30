@@ -11,6 +11,8 @@ import {
   hasDrift as hasAdsDrift,
   isAdProvider,
   missingFields,
+  normalizeConversionActionIds,
+  normalizeConversionLabels,
   plan as planAds,
   renderTag,
   tagId,
@@ -314,6 +316,24 @@ async function cmdAdsLint(argv: string[]) {
       findings.push(
         `${p.provider}: site.tracking.enabled is not true, so ${platform.clickIdParams.join('/')} is never captured — conversions will be unattributed`,
       );
+
+    // `reporting: 'server'` with no matching `conversionActionId` isn't a bug —
+    // `gtagBootstrap` keeps that action firing client-side rather than
+    // dropping it — but it does mean the setting is a no-op today, worth
+    // surfacing rather than leaving someone to wonder why nothing changed.
+    if (p.provider === 'google' && p.reporting === 'server') {
+      const labels = normalizeConversionLabels(p.conversionLabel);
+      const actionIds = normalizeConversionActionIds(p.conversionActionId);
+      const configuredNoId = (Object.keys(labels) as (keyof typeof labels)[]).filter(
+        (action) => labels[action] && !actionIds[action],
+      );
+      if (configuredNoId.length)
+        findings.push(
+          `google: reporting is "server" but conversionActionId.${configuredNoId.join(', .')} ` +
+            `is not set — ${configuredNoId.length === 1 ? 'that action' : 'those actions'} still ` +
+            `fire client-side, not a failure but not what "server" asked for either`,
+        );
+    }
   }
 
   if (findings.length === 0) {
