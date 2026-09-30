@@ -49,6 +49,23 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
     },
+
+    // `container.test.ts` needs Astro's own Vite plugin (`getViteConfig`, in its
+    // sibling `vitest.container.config.ts`) to parse `.astro` syntax at all — this
+    // root config has no reason to carry that for ~1660 other, plain-TS tests, so
+    // picking the file up here means it hits `vite:import-analysis` on raw Astro
+    // template syntax and fails to even load. Excluded rather than fixed here: its
+    // own config currently throws inside Astro 7.1.2's `getViteConfig` internals
+    // (`resolveConfig`/`createVite`, unrelated to anything in this package) before
+    // a single test runs — an upstream/experimental-API problem
+    // (`experimental_AstroContainer`), not a regression in this toolchain. Re-run
+    // via `cd packages/astro && npx vitest --config vitest.container.config.ts run`
+    // once that's sorted, and fold this exclusion's revert into that fix.
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'packages/astro/src/components/container.test.ts',
+    ],
   },
 
   // ── Lint / format (Oxlint / Oxfmt, via `vp check` / `vp fmt`) ──
