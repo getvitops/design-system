@@ -11,6 +11,68 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 8.2.0-alpha.0 (+ `@getvitops/emdash` 1.0.0-alpha.0, `@getvitops/create` 0.8.0-alpha.0) — 2026-09-30
+
+**Published on the `alpha` npm dist-tag, not `latest`** — this bundles a large amount of work
+that accumulated since 8.1.0 without a release in between (EmDash 1.0/Vite+ 1.0 realignment,
+the vNext plans/entitlements + A/B-experiments + conversion-tracking work, and more). Install
+explicitly (`@getvitops/astro@alpha`, etc.) to pick this up; `latest` is untouched. Expect a
+real, non-prerelease version once this has been exercised by at least one downstream consumer.
+
+### Breaking
+
+- **Config validation now rejects unknown keys instead of silently stripping them.** Every
+  object in `ConfigSchema` switched from `z.object` to `z.strictObject`, matching what the
+  published JSON Schema always asserted but the runtime validator never enforced. A typo'd
+  field now fails `validateConfig()`/`vitops validate` with an `unrecognized_keys` error
+  instead of silently doing nothing.
+- **New `site.plan` entitlement gate.** An existing config using `site.abTesting.enabled`,
+  any `environments.*.variant`, an enabled `site.experiments` entry, or
+  `site.tracking.enabled` now needs a matching `site.plan.addons` entry (`ab_testing` and/or
+  `server_side_tracking`), or `validateConfig` rejects it. Add
+  `site.plan: { key: '<your-plan>', addons: [...] }`.
+
+### Added
+
+- **`site.plan`/`PLAN_CAPABILITIES`** — commercial plan/add-on entitlements, gating which
+  capability fields a config may turn on (see Breaking above).
+- **`site.experiments` + `vitopsAbTesting()`** (`@getvitops/astro/middleware`, the first Astro
+  middleware this toolchain ships) — runtime, per-visitor A/B content experiments for a page
+  that must stay at one URL, distinct from `site.abTesting`'s existing build-time variant
+  merge. `<Analytics />` gained a matching reporting hook for Plausible/Matomo/GA4.
+- **`site.ads.<platform>.conversionLabel` widened to a per-action map**
+  (`{ call?, email?, form? }`, bare string still means `call`) — a call, an email click and a
+  form submission (via the new `vitopsFormConversion()` client helper) now report as distinct
+  Google Ads conversion actions instead of sharing one. Also fixes a rate-limit bypass in
+  `createConversionRoute()` (the key used to trust the client's raw `event` field).
+- **`site.notifications.actionUrl`** — an optional `{clickId}`-templated link rendered as an
+  "Actions" section in the conversion-notification email.
+- **`mailto:` link click tracking**, alongside the existing `tel:` tracking — both now also
+  fire a Google Ads conversion when a `conversionLabel` is configured.
+- **`site.crm`** — push form submissions into HubSpot, Zoho Bigin, or Jobber server-side,
+  hung off the same `createConversionRoute()` every conversion already reaches.
+- **`vitops email setup|check`** — connects `site.notifications.email.from` to whether its
+  sending domain is actually onboarded, instead of failing silently in production.
+- **`toNotifyContext(config)`/`toCrmConfig(config)`/`resolveOrganizationName(config, locale?)`**
+  (`@getvitops/astro/routes`) — build `createConversionRoute()`'s options straight from a
+  resolved `Config` instead of hand-writing them.
+- **The EmDash design-system-editor plugin** (`@getvitops/emdash`, part of its 1.0.0 bump) —
+  live-editing a site's design system from inside EmDash's admin.
+- A build warning when `site.locales`/`site.defaultLocale` disagree with `astro.config.mjs`'s
+  own `i18n` block.
+
+### Fixed
+
+- **`<Icon />` no longer 500s a Cloudflare Workers SSR page.** It statically imported from
+  `@getvitops/generator`'s root entry, which reaches lightningcss — a native binary Workers
+  can't `require()`. Fixed via a new Worker-safe `@getvitops/generator/icons-sprite` subpath.
+- `PLAN_CAPABILITIES.ab_testing.gates` now also checks `site.experiments` (it previously
+  missed the newer runtime mechanism entirely).
+- A stale `tracking.ts` cookie-parsing bug (truncated at the first `=`, never URL-decoded).
+
+No consumer-facing change in `@getvitops/vite`; bumped only because it shares the fixed
+version group.
+
 ## 8.0.1 — 2026-08-28
 
 One consumer-facing change, riding on 8.0.0's heels while it still has no adopters: the

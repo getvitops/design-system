@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/generator",
-  "version": "8.1.0",
+  "version": "8.2.0-alpha.0",
   "description": "Generate design-system outputs (Bricks, standalone CSS, Tailwind v4) from a design-system.json.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",

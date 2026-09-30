@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/cli",
-  "version": "8.1.0",
+  "version": "8.2.0-alpha.0",
   "description": "CLI for the Vitops design-system generator: generate, init, and validate a design-system.json.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",

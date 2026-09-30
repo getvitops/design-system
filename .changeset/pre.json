@@ -1,0 +1,31 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "@getvitops/astro": "8.1.0",
+    "@getvitops/cli": "8.1.0",
+    "@getvitops/core": "8.1.0",
+    "@getvitops/create": "0.7.0",
+    "@getvitops/emdash": "0.3.10",
+    "@getvitops/generator": "8.1.0",
+    "@getvitops/utils": "8.1.0",
+    "@getvitops/vite": "8.1.0",
+    "site": "0.0.0"
+  },
+  "changesets": [
+    "ab-testing-experiments",
+    "config-contract-hardening",
+    "crm-form-submissions",
+    "design-system-editor",
+    "email-sender-onboarding",
+    "emdash-vite-plus-1.0",
+    "gtag-conversion-firing",
+    "icon-worker-safe-import",
+    "locale-consistency-check",
+    "mailto-conversion-tracking",
+    "per-action-conversion-labels",
+    "plan-entitlements",
+    "resolve-organization-name",
+    "to-notify-context"
+  ]
+}

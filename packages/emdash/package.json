@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/emdash",
-  "version": "0.3.10",
+  "version": "1.0.0-alpha.0",
   "description": "EmDash CMS native plugin for the Vitops design system — Portable Text block types editors can insert from the admin, rendered with the design-system web components and CSS framework.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",
@@ -51,8 +51,8 @@
     "@astrojs/cloudflare": ">=14",
     "@astrojs/react": ">=7",
     "@emdash-cms/cloudflare": ">=1.0.0 <2",
-    "@getvitops/astro": ">=6.0.0",
-    "@getvitops/core": ">=8.0.0",
+    "@getvitops/astro": ">=8.2.0-alpha.0",
+    "@getvitops/core": ">=8.2.0-alpha.0",
     "astro": ">=7",
     "emdash": ">=1.0.0 <2",
     "react": ">=19",

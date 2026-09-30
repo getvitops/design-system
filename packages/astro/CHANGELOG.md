@@ -1,5 +1,332 @@
 # @getvitops/astro
 
+## 8.2.0-alpha.0
+
+### Minor Changes
+
+- 65a13cc: **New: `site.experiments`** — runtime, per-visitor A/B content experiments for a page that
+  must stay at one URL (unlike `site.abTesting`'s existing build-time variant merge, which is
+  for a full design-system/CSS-level test via two manual deploys — `site.experiments` is the
+  opposite granularity: one page, one cookie, content branched in the page itself). Keyed by
+  an open experiment name, so more than one can run at once, each with its own consent
+  category, cookie name/lifetime, split ratio and pair of variant names.
+
+  **New `vitopsAbTesting()` middleware** (`@getvitops/astro/middleware`) — the first Astro
+  middleware this toolchain ships. Wire it into your own `src/middleware.ts`:
+
+  ```ts
+  import { vitopsAbTesting } from '@getvitops/astro/middleware';
+  import config from '../site.json' with { type: 'json' };
+
+  export const onRequest = vitopsAbTesting({
+    experiments: config.site.experiments ?? {},
+  });
+  ```
+
+  It assigns and cookie-pins a visitor to one of an experiment's two variants on first visit,
+  by weighted random (`splitRatio`) — and never touches an already-set cookie, so a recognized
+  query parameter named after the cookie itself (`?_ab_<key>=<variant>`) reliably forces that
+  variant, even overriding an existing assignment. Combined with `splitRatio: 0`, this is a
+  blue/green-style "100% on control, but a shared link reveals the other variant" mode with no
+  special-cased logic.
+
+  A page reads its own experiment's cookie (`Astro.cookies.get(cookieName)?.value`) and
+  renders whichever of its two hand-written blocks matches — there's no config-schema
+  representation of "the variant content," which is what keeps this lightweight regardless of
+  how many experiments are configured.
+
+  **`<Analytics />` gained a reporting hook**: each configured provider's bootstrap now
+  attaches an enabled experiment's assignment to the real pageview via that provider's own
+  mechanism — Plausible via `plausible.init({customProperties})`, Matomo via
+  `setCustomDimension` (needs a new `site.analytics.matomo.abVariantDimensions` entry — the
+  dimension must exist in your Matomo instance first), GA4 via a runtime-merged
+  `gtag('config', …)` call. A no-op when `site.experiments` is unset — zero behavior change
+  for every existing site.
+
+  Also new: `experimentDimensionWarnings(site)` (`@getvitops/generator`) — a build-time warning
+  (not a hard error) when an enabled experiment's site also configures Matomo but has no
+  matching `abVariantDimensions` entry.
+
+  **Not included in this pass, deliberately**: a mechanism for a fully prerendered
+  (`output: 'static'`) page — this needs a genuinely separate Cloudflare Worker Route + two
+  pre-built static variants, real but bounded follow-up work. Everything above applies to an
+  on-demand-rendered page (the current EmDash templates' default), which needs zero new
+  deploy infrastructure.
+
+- 0574388: Add `site.crm` — push form submissions into HubSpot, Zoho Bigin, or Jobber.
+
+  Client sites need form submissions to land in the client's CRM. The options available before this
+  — a HubSpot/Bigin/Jobber iframe or JS embed — fail on three counts: the markup can't be
+  white-labelled against this design system, nothing can operate on the submission before it leaves
+  the page, and the submission never touched `createConversionRoute()`, so `_ac` ad-click attribution
+  was lost and no conversion notification was planned.
+
+  This adds one server-side path for all three CRMs, hung off the conversion route that already
+  exists. `createConversionRoute()` gets a new `crm` option (`{ config, credentials, fetch?,
+timeoutMs? }`); credentials arrive as a function of `locals`, exactly like the existing `binding`
+  option, and are never config. A failed CRM write never fails the request and is folded into the
+  notification email's new "Delivery" section, so a broken CRM token is never silent.
+
+  New `@getvitops/utils/crm` subpath: `deliverToCrm()`, `mapSubmission()`, `deriveLastName()` (Bigin
+  requires a last name; this derives one from an explicit field, a full name, or an email address,
+  refusing rather than fabricating one), `submitToHubSpot()`, `submitToBigin()`, `submitToJobber()`.
+  `identifySubmitter()` was promoted out of `notify`'s private name-guessing cascade into
+  `@getvitops/utils/tracking`, since the CRM mapper needed the whole identity (first/last name,
+  email, phone, company), not just a display name.
+
+  Jobber is GraphQL, not REST, and answers `200 OK` for failures — a rejected `clientCreate` returns
+  `userErrors[]`, a malformed request returns top-level `errors[]`. `submitToJobber()` classifies on
+  the response body, not just the status. Its refresh tokens also rotate by default: **Refresh Token
+  Rotation must be turned off** in the app's Developer Center settings, since a Worker reading a
+  static `VITOPS_JOBBER_REFRESH_TOKEN` cannot persist a rotated one — a rotated token is detected at
+  exchange time and reported with the fix, rather than surfacing an hour later as an opaque 401.
+  Attribution and unmapped extra fields render into a best-effort note by default (works on every
+  Jobber plan); a resubmitting visitor creates a second Jobber client unless `crm.jobber.dedupe: true`
+  is set once its lookup query has been verified against a live account (defaults `false` pending
+  that verification — see `jobber.ts`'s docblock).
+
+  New `site.crm` config block (`provider`, `hubspot`/`bigin`/`jobber`, `fieldMap`, `trackingFields`)
+  and two CLI commands: `vitops crm check` (fetches the live HubSpot property list or Bigin field
+  list and reports every mapped name that doesn't exist there — HubSpot rejects an unknown field
+  outright, Bigin silently drops it; Jobber has nothing live to check yet, since its mapped values
+  currently render as note text) and `vitops crm setup` (creates missing HubSpot properties; Bigin
+  and Jobber have no such API, so both always print a manual reminder).
+
+  The generated privacy policy now names HubSpot, Zoho Bigin, or Jobber when `site.crm` configures
+  one. Bigin gets the same cross-border-transfer derivation Matomo Cloud already gets: a
+  `dataCenter: 'ca'` asserts no transfer outside Canada, any other data centre does. Jobber's
+  operator (Octopusapp Inc. d/b/a Jobber) is Canadian, but its own privacy policy names the United
+  States as a processing location too, so the policy always asserts a cross-border transfer for
+  Jobber regardless of config — a Canadian operator is not read as Canadian-only storage.
+
+  Credentials: `VITOPS_HUBSPOT_ACCESS_TOKEN` for HubSpot; `VITOPS_ZOHO_CLIENT_ID` /
+  `VITOPS_ZOHO_CLIENT_SECRET` / `VITOPS_ZOHO_REFRESH_TOKEN` for Bigin; `VITOPS_JOBBER_CLIENT_ID` /
+  `VITOPS_JOBBER_CLIENT_SECRET` / `VITOPS_JOBBER_REFRESH_TOKEN` for Jobber. Never config.
+
+  No consumer-facing change in `@getvitops/astro` beyond the new `crm` route option and a build
+  warning when `site.crm` is configured with no route answering `TRACKING_ENDPOINT` — CSS/Bricks/
+  tailwind outputs are unaffected.
+
+- 0574388: Fire a Google Ads conversion on a tel:/mailto: click, and fix a rate-limit bug on the conversion
+  route that could silently drop one of the two.
+
+  `site.ads.google.conversionLabel` used to be accepted by the config schema and typed all the way
+  through to the rendered tag, but nothing actually read it — no `gtag('event', 'conversion', …)`
+  was ever emitted. When set, the click tracker `<Tracking />` inlines now fires the conversion at
+  the moment a visitor taps a `tel:` or `mailto:` link, using the `AW-…/label` target Google Ads
+  expects. A `conversionLabel` that can't safely land inside the inline bootstrap script (the same
+  check `pixelId`/`accountId` already get) is dropped with a warning rather than firing something
+  malformed — the ad tag itself still loads.
+
+  Also: `createConversionRoute()`'s rate limiter previously keyed on IP address alone, so a call
+  beacon and an email-click beacon from the same visitor, seconds apart, competed for one window —
+  the second could 429 and vanish with no error anywhere. It's now keyed on IP _and_ event type, so
+  distinct conversion types never starve each other; repeats of the same type are still throttled
+  exactly as before.
+
+  No config changes — a site with `site.ads.google.conversionLabel` already set picks this up
+  automatically on the next build.
+
+- 2a0a559: The Astro integration now warns when `site.locales`/`site.defaultLocale` disagree with
+  `astro.config.mjs`'s own `i18n` block — naming which locale codes are missing from each side, and
+  when the two `defaultLocale`s differ. EmDash reads its locale list straight from `i18n`, while our
+  own SEO/legal code reads `site.locales`, so the two had no way to notice they'd drifted apart. A
+  warning, not a build error — like the existing ads/analytics/consent consistency checks, either
+  side can legitimately be configured without the other, so only a genuine disagreement is flagged.
+- 0574388: Track `mailto:` link clicks as conversions, alongside the existing `tel:` link tracking.
+
+  Before this, the capture script only beaconed `tel:` clicks; a `mailto:` link on the same page was
+  invisible to attribution — a visitor who emailed the business instead of calling generated no
+  conversion event at all. `<Tracking />`'s inlined script now listens for both, sending `{ event:
+'email', email }` via `navigator.sendBeacon` the same way it already sends `{ event: 'call', phone
+}`.
+
+  `ConversionEvent['type']` gains an `'email'` member alongside `'form'`/`'call'`, with a new
+  `email` field. `createConversionRoute()` handles it exactly like a call: no honeypot, Turnstile or
+  CRM checks (there are no form fields to validate or map), a 204 response, and a notification email
+  subject reading `[Email Click] Visitor emailing ...`.
+
+  No config changes and no new options — a site with `<Tracking />` already mounted picks this up
+  automatically the next time it rebuilds.
+
+- dde3df3: **`site.ads.google.conversionLabel` now accepts a per-action map** —
+  `{ call?, email?, form? }` — instead of one bare string shared by every
+  interaction. A bare string still works (back-compat, treated as `call`), but a
+  call and an email click used to report as the **same** Google Ads conversion
+  action, indistinguishable in the account; each action now gets its own
+  `send_to` target.
+
+  **New: `vitopsFormConversion(formEl)`**, exposed as `window.vitopsFormConversion`
+  by `<Tracking />`'s capture script — call it from your own fetch-based form
+  submit handler once the POST to `createConversionRoute()` succeeds, to fire the
+  `form` Google Ads conversion action client-side (mirroring the existing
+  tel:/mailto: click handler, which now fires `call`/`email` instead of sharing
+  one label). Idempotent per form element. There's deliberately no server-side
+  equivalent for a no-JS `<form method="post">` submission — that's a full-page
+  redirect with no script to fire from, and a real server-side Google Ads
+  conversion needs the Ads API's click-conversion upload (developer token + MCC
+  access), tracked separately in the vNext backlog.
+
+  **Fixed: the conversion route's rate limiter no longer trusts the client's
+  raw `event` field.** It used to key on whatever string a client sent
+  (`` `${ip}:${body.event}` ``), so varying that value on every request let a
+  form submission dodge the per-IP rate limit entirely — only `'call'`/`'email'`
+  were ever recognized, and anything else got its own fresh bucket. The key now
+  uses the server's own classification (`call` | `email` | `form`), closing that
+  bypass without changing the existing call-vs-email-don't-compete behavior.
+
+  **New: `site.notifications.actionUrl`** — an optional action-link template
+  added to the conversion-notification email as an "Actions" section.
+  `{clickId}` is replaced with the ad click ID captured on `_ac` (gclid, fbclid,
+  etc.); the section is omitted when the event has no click ID to interpolate,
+  rather than emailing a broken link.
+
+- 3bbb8c3: Add `toNotifyContext(config, locale?)` and `toCrmConfig(config)`, exported from
+  `@getvitops/astro/routes` beside `createConversionRoute()`. Builds the `context`/`crm.config`
+  options straight from a resolved `Config` instead of hand-writing a `NotifyContext` literal —
+  `conversion.ts`'s own docblock used to state this helper "does not exist."
+
+  `organization.name` is localizable; `toNotifyContext` resolves it for a given locale (default
+  `site.defaultLocale`), falling back to `legalName` when neither locale nor default resolves to
+  anything. `locationEmails` is ordered primary location first, then every other location with an
+  `email` set, in `organization.locations`' own key order.
+
+### Patch Changes
+
+- c3c1bcb: **New: the design-system editor, mounted inside the EmDash admin.** `vitopsEmdash({
+designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import config from
+'./site.json' with { type: 'json' }`) adds a `/design-system` admin page mounting
+  `<wc-theme-editor>` — the same live token editor `@getvitops/vite`'s dev server has always
+  offered, now usable by the client directly, no dev server required. An edit is visible
+  site-wide immediately (a runtime `:root` override, served via a new plugin API route and
+  `page:fragments`) and — once `site.deployment.repo`/`branch` and a `VITOPS_GITHUB_TOKEN`
+  secret are set (see the scaffold's `SETUP.html`) — auto-commits to your `dev` branch, so it
+  reaches the git-tracked `site.json` through your repo's normal review path rather than
+  becoming a second, unreviewed source of truth. Until that's configured, the live half still
+  works; only the auto-commit half is skipped (and says so in the admin page). The save route
+  runs the exact same accessibility (APCA contrast) gate `generate()` enforces at build time,
+  synchronously, before persisting — nothing non-compliant ever goes live even momentarily.
+
+  Requires `@astrojs/react` + `react` + `react-dom` (already scaffold dependencies, for
+  EmDash's own admin) and `@getvitops/core` (added as a new scaffold dependency this release).
+  Declares two new plugin capabilities when enabled: `network:request` (for the GitHub
+  auto-commit) and `hooks.page-fragments:register` (for the live override) — reviewed once at
+  plugin-install time.
+
+  **Breaking for `@getvitops/emdash`**: `vitopsEmdash()`'s `hooks.page-fragments:register`
+  capability is now also granted whenever `designSystemEditor` is set, independent of the
+  existing `scripts: 'fragments'` option (which governs something unrelated — web-component
+  script delivery). No change if you don't use `designSystemEditor`.
+
+  Also new, supporting the above:
+  - `@getvitops/generator`: `validateColorContract()` and `buildReverseIndex()` (both
+    `/tokens` subpath, Worker-safe) — the monotonicity/contrast gate and the
+    `design-manifest.json` reverse-index, each extracted from `generate()`'s `build()` into
+    standalone, non-throwing functions. `patchToOverrideCss()` turns a design-system patch
+    into the `:root` override `<style>` block. `designSystemPath`/`getAt`/`setAt`/
+    `mergePatch`/`formatConfig` moved from `@getvitops/vite` into `@getvitops/generator/config`
+    (re-exported from `@getvitops/vite` unchanged) — one "patch a config file's design-system
+    subtree" implementation shared by the dev endpoint and the new plugin route. New
+    `site.deployment.repo`/`branch` config fields.
+  - `@getvitops/utils`: new `/git` subpath — `commitFile()`, a Worker-safe (fetch-only)
+    wrapper over GitHub's Contents API.
+  - `@getvitops/core`: `<wc-theme-editor>` gains a `save-endpoint` attribute (default
+    unchanged — `/__vitops/design-system`) so the same element can target the new plugin
+    route instead of the dev-only Vite endpoint.
+
+- 0574388: Bump `emdash`/`@emdash-cms/cloudflare` peers to `>=1.0.0 <2` and `vite-plus` to `^1.0.0`, following
+  both projects' GA releases.
+
+  **Breaking for `@getvitops/emdash` consumers on EmDash 0.x**: the peer range no longer admits
+  `emdash@0.31.x`/`@emdash-cms/cloudflare@0.31.x`. Upgrade `emdash` and `@emdash-cms/cloudflare` to
+  `^1.0.1` first — nothing in `@getvitops/emdash`'s own plugin surface (`admin.portableTextBlocks`,
+  the `hooks.page-fragments:register` capability, `definePlugin()`) changed against EmDash 1.0, so no
+  code here needed to change, only the declared range.
+
+  The `emdash` scaffold template (`vp create @getvitops:emdash`) picks up several fixes alongside
+  the version bump:
+  - `tailwindcss`/`@tailwindcss/vite` are now real dependencies — the template selected
+    `css.format: 'tailwind'` without installing either, which threw on build.
+  - `site.json` now sets `site.icons.sprite: true` plus the full `semantic` list the
+    `vitops.actionLink` block's icon picker offers — previously its sprite icons pointed at a file
+    the build never generated.
+  - `astro.config.mjs` sets `migrations: { runtime: 'check', dev: 'auto' }`, and
+    `site-deploy-emdash.yml` runs EmDash 1.0's documented `build → status → apply → deploy → check`
+    migration sequence explicitly, rather than relying solely on first-request auto-migration. This
+    needs a new GitHub Environment variable, `EMDASH_TARGET_FINGERPRINT` (one per environment),
+    which only a human can set — run `emdash migrate --status` against the real deployed database,
+    review the printed identity, then `gh variable set EMDASH_TARGET_FINGERPRINT --env <env> --body
+<value>`. Deploys fail clearly on the migration-apply step until it's set.
+  - `lint.options.typeAware`/`typeCheck` in the template's own `vite.config.ts` are commented out,
+    not deleted: vite-plus 1.0 only honours that option in a project's actual root config, and hard
+    errors on it in a nested one (which this file is, sitting inside the `design-system` monorepo).
+    Uncomment it once scaffolded into its own repo.
+
+  No config schema changes. `@getvitops/generator` also switches from the `zod/mini` subpath import
+  to the standalone `@zod/mini` package (zod 4.5+; same API) and fixes `validateConfig()` silently
+  losing the offending key name on an `unrecognized_keys` error (e.g. a typo'd `site.ads` platform
+  now names the bad key instead of reporting a bare "Invalid input").
+
+  Also fixed: `vp check`'s `tsconfig-error` for `packages/create/templates/emdash/tsconfig.json`
+  (`extends: "astro/tsconfigs/strict"`, unresolvable from inside this monorepo since the template
+  has no `node_modules` of its own — a pre-existing, structural gap, newly surfaced as a hard error
+  by oxlint 1.85's deeper config discovery, and blocking on every commit since this repo's pre-commit
+  hook runs `vp check --fix`). Fixed with a new `scripts/link-template-deps.mjs`, wired as the root
+  `postinstall` script: symlinks `astro`/`emdash`/`@emdash-cms/cloudflare` into the template's own
+  `node_modules/` (resolved fresh from sibling packages that already depend on them for real, not a
+  hardcoded `.pnpm` hash) and writes a minimal `astro:content` ambient shim at `.astro/types.d.ts`
+  (the same path `astro sync` would generate for real). Both are gitignored and only ever exist
+  inside this monorepo's copy of the template — a real scaffold installs its own real copies instead.
+  Considered and rejected first: inlining astro's strict preset (drift risk against astro's own
+  evolving default) and making the template a real pnpm workspace member (would change how its
+  `@getvitops/*: "latest"` deps resolve locally, which `templates.test.ts` exists to protect).
+
+  **Known gap, not fixed here**: `packages/astro/src/components/container.test.ts` (the
+  `AstroContainer`-based render tests) fails to even load under vite-plus 1.0's Vite 8 — direct
+  `.astro` imports in a Vitest file need the Astro Vite plugin registered, which nothing in this
+  repo's test config actually does (Astro's own docs call for `getViteConfig()`, which doesn't
+  compose with vite-plus's own `defineConfig`). A type-level shim
+  (`packages/astro/src/components/astro-modules.d.ts`) fixes `vp check`'s type-aware pass, but the
+  runtime `vp test` failure for this one file is still open.
+
+- 1a3e811: **Fixed: `<Icon />` no longer crashes a Cloudflare Workers SSR page.** It statically imported
+  `loadIconSvg`/`spriteId` from `@getvitops/generator`'s root entry, which also re-exports
+  `generate.ts` — reaching lightningcss, whose native binary Workers cannot `require()`.
+  Rendering `<Icon>` anywhere in an SSR project 500'd every request, regardless of
+  `icons.engine`, since the import itself (not just calling the function) pulled lightningcss
+  into the bundle. Fixed by publishing a new Worker-safe `@getvitops/generator/icons-sprite`
+  subpath (`buildIconSprite`/`loadIconSvg`/`spriteId`, no lightningcss in its import graph) and
+  switching `<Icon />` to import from there.
+- 0f8c018: **New: `resolveOrganizationName(config, locale?)`**, exported from `@getvitops/astro/routes`
+  alongside `toNotifyContext`/`toCrmConfig` — the same `organization.name` → `legalName` →
+  `undefined` fallback chain `toNotifyContext` already used for its `organizationName` field,
+  now usable standalone anywhere a build-time-only display name is needed (favicon generation,
+  a scaffold's `astro.config.mjs`, a `Layout.astro` fallback). `toNotifyContext` is unchanged —
+  it now delegates to this helper internally.
+
+  The emdash scaffold uses it to remove a three-way duplicated `'My EmDash Site'` string:
+  `astro.config.mjs`'s favicon `name` and `Layout.astro`'s title fallback both previously
+  hardcoded it independently of `site.json`'s `organization.name`. EmDash's own
+  `getSiteSettings().title` (set in the admin) still wins at render time when it's set — it's a
+  runtime-only fact that can't be read at build time at all — this only replaces the two
+  hardcoded _fallback_ strings.
+
+- Updated dependencies [65a13cc]
+- Updated dependencies [67e2088]
+- Updated dependencies [0574388]
+- Updated dependencies [c3c1bcb]
+- Updated dependencies [0574388]
+- Updated dependencies [0574388]
+- Updated dependencies [0574388]
+- Updated dependencies [1a3e811]
+- Updated dependencies [0574388]
+- Updated dependencies [dde3df3]
+- Updated dependencies [d9f213b]
+  - @getvitops/generator@8.2.0-alpha.0
+  - @getvitops/utils@8.2.0-alpha.0
+  - @getvitops/core@8.2.0-alpha.0
+  - @getvitops/vite@8.2.0-alpha.0
+
 ## 8.1.0
 
 ### Patch Changes

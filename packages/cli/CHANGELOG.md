@@ -1,5 +1,202 @@
 # @getvitops/cli
 
+## 8.2.0-alpha.0
+
+### Minor Changes
+
+- 0574388: Add `site.crm` — push form submissions into HubSpot, Zoho Bigin, or Jobber.
+
+  Client sites need form submissions to land in the client's CRM. The options available before this
+  — a HubSpot/Bigin/Jobber iframe or JS embed — fail on three counts: the markup can't be
+  white-labelled against this design system, nothing can operate on the submission before it leaves
+  the page, and the submission never touched `createConversionRoute()`, so `_ac` ad-click attribution
+  was lost and no conversion notification was planned.
+
+  This adds one server-side path for all three CRMs, hung off the conversion route that already
+  exists. `createConversionRoute()` gets a new `crm` option (`{ config, credentials, fetch?,
+timeoutMs? }`); credentials arrive as a function of `locals`, exactly like the existing `binding`
+  option, and are never config. A failed CRM write never fails the request and is folded into the
+  notification email's new "Delivery" section, so a broken CRM token is never silent.
+
+  New `@getvitops/utils/crm` subpath: `deliverToCrm()`, `mapSubmission()`, `deriveLastName()` (Bigin
+  requires a last name; this derives one from an explicit field, a full name, or an email address,
+  refusing rather than fabricating one), `submitToHubSpot()`, `submitToBigin()`, `submitToJobber()`.
+  `identifySubmitter()` was promoted out of `notify`'s private name-guessing cascade into
+  `@getvitops/utils/tracking`, since the CRM mapper needed the whole identity (first/last name,
+  email, phone, company), not just a display name.
+
+  Jobber is GraphQL, not REST, and answers `200 OK` for failures — a rejected `clientCreate` returns
+  `userErrors[]`, a malformed request returns top-level `errors[]`. `submitToJobber()` classifies on
+  the response body, not just the status. Its refresh tokens also rotate by default: **Refresh Token
+  Rotation must be turned off** in the app's Developer Center settings, since a Worker reading a
+  static `VITOPS_JOBBER_REFRESH_TOKEN` cannot persist a rotated one — a rotated token is detected at
+  exchange time and reported with the fix, rather than surfacing an hour later as an opaque 401.
+  Attribution and unmapped extra fields render into a best-effort note by default (works on every
+  Jobber plan); a resubmitting visitor creates a second Jobber client unless `crm.jobber.dedupe: true`
+  is set once its lookup query has been verified against a live account (defaults `false` pending
+  that verification — see `jobber.ts`'s docblock).
+
+  New `site.crm` config block (`provider`, `hubspot`/`bigin`/`jobber`, `fieldMap`, `trackingFields`)
+  and two CLI commands: `vitops crm check` (fetches the live HubSpot property list or Bigin field
+  list and reports every mapped name that doesn't exist there — HubSpot rejects an unknown field
+  outright, Bigin silently drops it; Jobber has nothing live to check yet, since its mapped values
+  currently render as note text) and `vitops crm setup` (creates missing HubSpot properties; Bigin
+  and Jobber have no such API, so both always print a manual reminder).
+
+  The generated privacy policy now names HubSpot, Zoho Bigin, or Jobber when `site.crm` configures
+  one. Bigin gets the same cross-border-transfer derivation Matomo Cloud already gets: a
+  `dataCenter: 'ca'` asserts no transfer outside Canada, any other data centre does. Jobber's
+  operator (Octopusapp Inc. d/b/a Jobber) is Canadian, but its own privacy policy names the United
+  States as a processing location too, so the policy always asserts a cross-border transfer for
+  Jobber regardless of config — a Canadian operator is not read as Canadian-only storage.
+
+  Credentials: `VITOPS_HUBSPOT_ACCESS_TOKEN` for HubSpot; `VITOPS_ZOHO_CLIENT_ID` /
+  `VITOPS_ZOHO_CLIENT_SECRET` / `VITOPS_ZOHO_REFRESH_TOKEN` for Bigin; `VITOPS_JOBBER_CLIENT_ID` /
+  `VITOPS_JOBBER_CLIENT_SECRET` / `VITOPS_JOBBER_REFRESH_TOKEN` for Jobber. Never config.
+
+  No consumer-facing change in `@getvitops/astro` beyond the new `crm` route option and a build
+  warning when `site.crm` is configured with no route answering `TRACKING_ENDPOINT` — CSS/Bricks/
+  tailwind outputs are unaffected.
+
+- 0574388: Add `vitops email setup|check` — connect `site.notifications.email.from` to whether its domain is
+  actually onboarded onto an outbound email provider.
+
+  Before this, nothing checked that. `EMAIL.send()` throws `E_SENDER_NOT_VERIFIED` at runtime with no
+  build or deploy-time warning — the failure mode is silent and production-only.
+
+  `vitops email setup [domain]` onboards a sending domain (currently Cloudflare Email Sending only)
+  and polls DNS until its SPF/DKIM/DMARC records resolve or a timeout is reached; `vitops email
+check` is the non-blocking deploy guard both `@getvitops/create` templates' `deploy`/`deploy:dev`
+  scripts now run first (`--strict` makes it a real gate; opt out per-site with
+  `site.notifications.email.verifySender: false`, or globally with `--skip` /
+  `VITOPS_SKIP_EMAIL_CHECK`).
+
+  Two things worth knowing before running it:
+  - **The onboarded entity is an exact name, and it is usually a subdomain**
+    (`send.yourdomain.com`), never the apex your `from` address names. When the exact domain isn't
+    onboarded but a sibling in the same zone already is, the command reports that as the fix — send
+    from the onboarded subdomain — rather than silently trying to onboard the apex, which rewrites
+    `_dmarc.<domain>` and can tighten DMARC policy on every other mail your domain sends.
+  - Candidates come from `site.notifications.email.from` (or its derived `noreply@<domains
+.canonical>` default) first; a best-effort scan of `--src` only supplements it, and never guesses
+    at a computed `from` value.
+
+  New `@getvitops/utils/email` subpath and `site.notifications.email.verifySender` config field.
+  Needs `CLOUDFLARE_API_TOKEN` with an Email Sending scope in addition to the `Zone:Read` other
+  commands already use.
+
+### Patch Changes
+
+- c3c1bcb: **New: the design-system editor, mounted inside the EmDash admin.** `vitopsEmdash({
+designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import config from
+'./site.json' with { type: 'json' }`) adds a `/design-system` admin page mounting
+  `<wc-theme-editor>` — the same live token editor `@getvitops/vite`'s dev server has always
+  offered, now usable by the client directly, no dev server required. An edit is visible
+  site-wide immediately (a runtime `:root` override, served via a new plugin API route and
+  `page:fragments`) and — once `site.deployment.repo`/`branch` and a `VITOPS_GITHUB_TOKEN`
+  secret are set (see the scaffold's `SETUP.html`) — auto-commits to your `dev` branch, so it
+  reaches the git-tracked `site.json` through your repo's normal review path rather than
+  becoming a second, unreviewed source of truth. Until that's configured, the live half still
+  works; only the auto-commit half is skipped (and says so in the admin page). The save route
+  runs the exact same accessibility (APCA contrast) gate `generate()` enforces at build time,
+  synchronously, before persisting — nothing non-compliant ever goes live even momentarily.
+
+  Requires `@astrojs/react` + `react` + `react-dom` (already scaffold dependencies, for
+  EmDash's own admin) and `@getvitops/core` (added as a new scaffold dependency this release).
+  Declares two new plugin capabilities when enabled: `network:request` (for the GitHub
+  auto-commit) and `hooks.page-fragments:register` (for the live override) — reviewed once at
+  plugin-install time.
+
+  **Breaking for `@getvitops/emdash`**: `vitopsEmdash()`'s `hooks.page-fragments:register`
+  capability is now also granted whenever `designSystemEditor` is set, independent of the
+  existing `scripts: 'fragments'` option (which governs something unrelated — web-component
+  script delivery). No change if you don't use `designSystemEditor`.
+
+  Also new, supporting the above:
+  - `@getvitops/generator`: `validateColorContract()` and `buildReverseIndex()` (both
+    `/tokens` subpath, Worker-safe) — the monotonicity/contrast gate and the
+    `design-manifest.json` reverse-index, each extracted from `generate()`'s `build()` into
+    standalone, non-throwing functions. `patchToOverrideCss()` turns a design-system patch
+    into the `:root` override `<style>` block. `designSystemPath`/`getAt`/`setAt`/
+    `mergePatch`/`formatConfig` moved from `@getvitops/vite` into `@getvitops/generator/config`
+    (re-exported from `@getvitops/vite` unchanged) — one "patch a config file's design-system
+    subtree" implementation shared by the dev endpoint and the new plugin route. New
+    `site.deployment.repo`/`branch` config fields.
+  - `@getvitops/utils`: new `/git` subpath — `commitFile()`, a Worker-safe (fetch-only)
+    wrapper over GitHub's Contents API.
+  - `@getvitops/core`: `<wc-theme-editor>` gains a `save-endpoint` attribute (default
+    unchanged — `/__vitops/design-system`) so the same element can target the new plugin
+    route instead of the dev-only Vite endpoint.
+
+- 0574388: Bump `emdash`/`@emdash-cms/cloudflare` peers to `>=1.0.0 <2` and `vite-plus` to `^1.0.0`, following
+  both projects' GA releases.
+
+  **Breaking for `@getvitops/emdash` consumers on EmDash 0.x**: the peer range no longer admits
+  `emdash@0.31.x`/`@emdash-cms/cloudflare@0.31.x`. Upgrade `emdash` and `@emdash-cms/cloudflare` to
+  `^1.0.1` first — nothing in `@getvitops/emdash`'s own plugin surface (`admin.portableTextBlocks`,
+  the `hooks.page-fragments:register` capability, `definePlugin()`) changed against EmDash 1.0, so no
+  code here needed to change, only the declared range.
+
+  The `emdash` scaffold template (`vp create @getvitops:emdash`) picks up several fixes alongside
+  the version bump:
+  - `tailwindcss`/`@tailwindcss/vite` are now real dependencies — the template selected
+    `css.format: 'tailwind'` without installing either, which threw on build.
+  - `site.json` now sets `site.icons.sprite: true` plus the full `semantic` list the
+    `vitops.actionLink` block's icon picker offers — previously its sprite icons pointed at a file
+    the build never generated.
+  - `astro.config.mjs` sets `migrations: { runtime: 'check', dev: 'auto' }`, and
+    `site-deploy-emdash.yml` runs EmDash 1.0's documented `build → status → apply → deploy → check`
+    migration sequence explicitly, rather than relying solely on first-request auto-migration. This
+    needs a new GitHub Environment variable, `EMDASH_TARGET_FINGERPRINT` (one per environment),
+    which only a human can set — run `emdash migrate --status` against the real deployed database,
+    review the printed identity, then `gh variable set EMDASH_TARGET_FINGERPRINT --env <env> --body
+<value>`. Deploys fail clearly on the migration-apply step until it's set.
+  - `lint.options.typeAware`/`typeCheck` in the template's own `vite.config.ts` are commented out,
+    not deleted: vite-plus 1.0 only honours that option in a project's actual root config, and hard
+    errors on it in a nested one (which this file is, sitting inside the `design-system` monorepo).
+    Uncomment it once scaffolded into its own repo.
+
+  No config schema changes. `@getvitops/generator` also switches from the `zod/mini` subpath import
+  to the standalone `@zod/mini` package (zod 4.5+; same API) and fixes `validateConfig()` silently
+  losing the offending key name on an `unrecognized_keys` error (e.g. a typo'd `site.ads` platform
+  now names the bad key instead of reporting a bare "Invalid input").
+
+  Also fixed: `vp check`'s `tsconfig-error` for `packages/create/templates/emdash/tsconfig.json`
+  (`extends: "astro/tsconfigs/strict"`, unresolvable from inside this monorepo since the template
+  has no `node_modules` of its own — a pre-existing, structural gap, newly surfaced as a hard error
+  by oxlint 1.85's deeper config discovery, and blocking on every commit since this repo's pre-commit
+  hook runs `vp check --fix`). Fixed with a new `scripts/link-template-deps.mjs`, wired as the root
+  `postinstall` script: symlinks `astro`/`emdash`/`@emdash-cms/cloudflare` into the template's own
+  `node_modules/` (resolved fresh from sibling packages that already depend on them for real, not a
+  hardcoded `.pnpm` hash) and writes a minimal `astro:content` ambient shim at `.astro/types.d.ts`
+  (the same path `astro sync` would generate for real). Both are gitignored and only ever exist
+  inside this monorepo's copy of the template — a real scaffold installs its own real copies instead.
+  Considered and rejected first: inlining astro's strict preset (drift risk against astro's own
+  evolving default) and making the template a real pnpm workspace member (would change how its
+  `@getvitops/*: "latest"` deps resolve locally, which `templates.test.ts` exists to protect).
+
+  **Known gap, not fixed here**: `packages/astro/src/components/container.test.ts` (the
+  `AstroContainer`-based render tests) fails to even load under vite-plus 1.0's Vite 8 — direct
+  `.astro` imports in a Vitest file need the Astro Vite plugin registered, which nothing in this
+  repo's test config actually does (Astro's own docs call for `getViteConfig()`, which doesn't
+  compose with vite-plus's own `defineConfig`). A type-level shim
+  (`packages/astro/src/components/astro-modules.d.ts`) fixes `vp check`'s type-aware pass, but the
+  runtime `vp test` failure for this one file is still open.
+
+- Updated dependencies [65a13cc]
+- Updated dependencies [67e2088]
+- Updated dependencies [0574388]
+- Updated dependencies [c3c1bcb]
+- Updated dependencies [0574388]
+- Updated dependencies [0574388]
+- Updated dependencies [0574388]
+- Updated dependencies [1a3e811]
+- Updated dependencies [0574388]
+- Updated dependencies [dde3df3]
+- Updated dependencies [d9f213b]
+  - @getvitops/generator@8.2.0-alpha.0
+  - @getvitops/utils@8.2.0-alpha.0
+
 ## 8.1.0
 
 ### Minor Changes
