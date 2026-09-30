@@ -64,6 +64,10 @@
       "types": "./dist/exports/tracking.d.mts",
       "import": "./dist/exports/tracking.mjs"
     },
+    "./middleware": {
+      "types": "./dist/middleware.d.mts",
+      "import": "./dist/middleware.mjs"
+    },
     "./Head.astro": "./src/components/Head.astro",
     "./Seo.astro": "./src/components/Seo.astro",
     "./Analytics.astro": "./src/components/Analytics.astro",

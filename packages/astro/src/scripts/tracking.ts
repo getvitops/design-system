@@ -27,7 +27,10 @@
 
 const COOKIE_NAME = '_ac';
 const COOKIE_DAYS = 90;
-const AB_COOKIE = '_ab';
+// Default when no experiment is configured, or the marker (below) carries no
+// `data-ab-cookie` override — kept as a literal fallback so a site with no
+// `site.experiments` behaves exactly as before.
+const DEFAULT_AB_COOKIE = '_ab';
 
 // Where the `tel:`/`mailto:` conversion beacons go. Mirrors TRACKING_ENDPOINT in
 // ../tracking.ts (pinned by `tracking.test.ts`), copied for the same reason as
@@ -70,17 +73,35 @@ for (const key of [...CLICK_ID_PARAMS, ...UTM_PARAMS]) {
   if (value) trackingData[key] = value;
 }
 
-// Include A/B variant if assigned by the router Worker. A cookie present but
-// valueless yields undefined, which must not be written into the record.
-const abMatch = document.cookie.split(';').find((c) => c.trim().startsWith(`${AB_COOKIE}=`));
-const abVariant = abMatch?.split('=')[1]?.trim();
+/**
+ * Reads a raw cookie value by name. Splits on the *first* `=` only (a prior
+ * version split on every `=`, silently truncating any value containing one)
+ * and URL-decodes the result — a prior version didn't, so a variant name or
+ * attribution value containing a reserved character came back mangled.
+ */
+function rawCookie(name: string): string | undefined {
+  const match = document.cookie.split(';').find((c) => c.trim().startsWith(`${name}=`));
+  if (!match) return undefined;
+  const eq = match.indexOf('=');
+  const value = match.slice(eq + 1).trim();
+  return value ? decodeURIComponent(value) : undefined;
+}
+
+// <Tracking /> writes the experiment cookie name onto this marker (the first
+// *enabled* `site.experiments` entry — see `readSiteExperiments`'s own
+// docblock for why only one reaches the lead-attribution pipeline), so a
+// site with no experiments configured falls back to the same default this
+// always used.
+const trackingMarker = document.querySelector('[data-vitops-tracking]');
+const abCookieName = trackingMarker?.getAttribute('data-ab-cookie') || DEFAULT_AB_COOKIE;
+const abVariant = rawCookie(abCookieName);
 if (abVariant) trackingData['ab_variant'] = abVariant;
 
 function readCookie(): Record<string, unknown> | null {
-  const match = document.cookie.split(';').find((c) => c.trim().startsWith(`${COOKIE_NAME}=`));
-  if (!match) return null;
+  const raw = rawCookie(COOKIE_NAME);
+  if (!raw) return null;
   try {
-    const data: unknown = JSON.parse(decodeURIComponent(match.split('=').slice(1).join('=')));
+    const data: unknown = JSON.parse(raw);
     return typeof data === 'object' && data !== null && !Array.isArray(data)
       ? (data as Record<string, unknown>)
       : null;
@@ -121,10 +142,9 @@ const gate = (): ConsentLike | undefined =>
   (window as unknown as { vitopsConsent?: ConsentLike }).vitopsConsent;
 
 if (Object.keys(trackingData).length > 0) {
-  // <Tracking /> writes the category onto this marker, which also carries
-  // `data-consent-cookies` so revoking clears `_ac`.
-  const marker = document.querySelector('[data-vitops-tracking]');
-  const category = marker?.getAttribute('data-consent') ?? 'marketing';
+  // <Tracking /> writes the category onto this marker (looked up once,
+  // above), which also carries `data-consent-cookies` so revoking clears `_ac`.
+  const category = trackingMarker?.getAttribute('data-consent') ?? 'marketing';
 
   if (!gate()) {
     // No gate on this site: behave as it always has.

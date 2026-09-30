@@ -342,6 +342,33 @@ const AbVariantSchema = z.strictObject({
   overrides: z.optional(z.record(z.string(), z.unknown())),
 });
 
+/**
+ * A runtime, per-visitor content experiment — deliberately separate from
+ * `abTesting.variants` above, which targets a whole build/environment via
+ * `overrides`. This is the opposite granularity: one page, cookie-pinned per
+ * visitor, with the two variants written directly in the page itself (no
+ * config-schema representation of "the content"). `site.experiments` is a
+ * record so running more than one experiment on different pages at once is
+ * just another key — nothing here assumes only one is active.
+ */
+const ExperimentSchema = z.strictObject({
+  enabled: z.boolean(),
+  category: desc(
+    z.optional(z.enum(['analytics', 'marketing'])),
+    "Consent category this experiment's assignment cookie waits on (default `analytics`) — independent of `site.tracking.category`, so an experiment never piggybacks on ad-attribution consent.",
+  ),
+  cookieName: desc(z.optional(z.string()), 'Default `_ab_<experiment key>`.'),
+  cookieMaxAge: desc(z.optional(z.number().check(z.int(), z.positive())), 'Seconds.'),
+  splitRatio: desc(
+    z.optional(z.number().check(z.gte(0), z.lte(1))),
+    'Fraction of new visitors auto-assigned to `variants[1]` (default 0.5). 0 means nobody is auto-assigned — a manually or query-param-set cookie still pins a visitor to `variants[1]`, which is what makes 0 a real blue/green-preview mode rather than a no-op.',
+  ),
+  variants: desc(
+    z.tuple([z.string(), z.string()]),
+    'Exactly two variant names, e.g. ["control", "new-form"]. `variants[0]` is the default a visitor with no assignment yet effectively sees.',
+  ),
+});
+
 // ── Fonts (Astro Fonts API projection) ──────────────────────────────────────────
 // Font *loading* — a serialisable projection of Astro's `fonts:[…]` config. A
 // loader maps `provider` (string) → `fontProviders.<name>()`. Distinct from the
@@ -984,6 +1011,10 @@ const SiteSectionSchema = z.strictObject({
     ),
     'A/B testing: cookie-based split plus named variants whose `overrides` patch the config per environment.',
   ),
+  experiments: desc(
+    z.optional(z.record(z.string(), ExperimentSchema)),
+    'Runtime, per-visitor content experiments — one config-schema-free page branches on a cookie the vitopsAbTesting() middleware assigns. Distinct from `abTesting`, which merges a whole build/environment variant at resolve time; this instead lets one page (e.g. a real, nav-linked /contact) run a copy test without a second URL or a second deploy. Keyed by an open experiment name so more than one can run at once.',
+  ),
   fonts: desc(
     z.optional(z.array(SiteFontSchema)),
     'Font LOADING (a serialisable projection of the Astro Fonts API: provider, weights, subsets, preload). Font TOKENS live in `designSystem.themes.<theme>.fonts` and reference the same `cssVariable`.',
@@ -1061,6 +1092,10 @@ const SiteSectionSchema = z.strictObject({
               cookies: desc(
                 z.optional(z.boolean()),
                 'Default false — Matomo runs cookieless (`disableCookies`), which is what lets the cookie notice state positively that it sets none.',
+              ),
+              abVariantDimensions: desc(
+                z.optional(z.record(z.string(), z.number())),
+                'Pre-created Matomo custom-dimension index per `site.experiments` key — Matomo requires the dimension to exist in the instance before a value can be pushed for it.',
               ),
             }),
           ),
@@ -1380,6 +1415,7 @@ export type SiteReviews = z.infer<typeof ReviewsSchema>;
 /** One `site.reviews.locations` entry. */
 export type SiteReviewLocation = z.infer<typeof ReviewLocationSchema>;
 export type SitePlan = z.infer<typeof PlanSchema>;
+export type SiteExperiment = z.infer<typeof ExperimentSchema>;
 
 // ── JSON Schema + validation ────────────────────────────────────────────────────
 
@@ -1807,6 +1843,40 @@ export function validateConfig(input: unknown): ConfigValidationResult {
 
   if (errors.length) return { ok: false, data: undefined, errors };
   return { ok: true, data: cfg, errors: [] };
+}
+
+/**
+ * Warning strings for an enabled `site.experiments` entry whose site also
+ * configures Matomo but has no matching `abVariantDimensions` index — the
+ * Matomo custom-dimension push for that experiment is silently skipped
+ * without one, since Matomo requires the dimension to exist in the instance
+ * first. A warning, not a `validateConfig` error, the same way
+ * `localeConsistencyWarnings` (`@getvitops/astro/i18n.ts`) is: the pageview
+ * still ships correctly, just without that one dimension, so this shouldn't
+ * block a build — mirrors that function's shape (pure, `[]` when nothing to
+ * warn about) rather than adding a `warnings` field to `ConfigValidationResult`.
+ */
+export function experimentDimensionWarnings(
+  site:
+    | {
+        experiments?: Record<string, { enabled: boolean }>;
+        analytics?: { matomo?: { abVariantDimensions?: Record<string, number> } };
+      }
+    | null
+    | undefined,
+): string[] {
+  if (!site?.experiments || !site.analytics?.matomo) return [];
+  const dimensions = site.analytics.matomo.abVariantDimensions ?? {};
+  const warnings: string[] = [];
+  for (const [key, experiment] of Object.entries(site.experiments)) {
+    if (experiment.enabled && dimensions[key] == null)
+      warnings.push(
+        `experiments.${key}: Matomo is configured but site.analytics.matomo.abVariantDimensions.${key} ` +
+          `isn't set — this experiment's variant won't reach Matomo as a custom dimension until you ` +
+          `create the dimension in your Matomo instance and record its index here.`,
+      );
+  }
+  return warnings;
 }
 
 /**

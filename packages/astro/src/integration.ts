@@ -456,6 +456,20 @@ export interface GetvitopsIconsOptions {
 }
 
 /**
+ * What `<Tracking />` emits — pulled out to its own named type (rather than
+ * inline in `HeadData`, which `head.test.ts`'s regex-based drift guard reads
+ * line-by-line) purely so the formatter's line-wrapping doesn't turn each of
+ * its fields into a false top-level `HeadData` key match.
+ */
+interface HeadTrackingData {
+  enabled: boolean;
+  category: string;
+  cookies: string[];
+  /** First enabled `site.experiments` entry's cookie name — see tracking.ts. */
+  abVariantCookie: string | null;
+}
+
+/**
  * Serialised into the virtual module with `JSON.stringify`, so every field here
  * must be JSON-representable — no functions. (That is why the sitemap's *href*
  * lives here and its options, which carry `filter`/`serialize`, do not.)
@@ -494,7 +508,12 @@ interface HeadData {
    * than in the component because its warnings belong beside the others, and the
    * offered consent categories it checks against are known only at this point.
    */
-  tracking: { enabled: boolean; category: string; cookies: string[] } | null;
+  /** `abVariantCookie` is the first enabled `site.experiments` entry's cookie name — see tracking.ts. */
+  tracking: HeadTrackingData | null;
+  /** Enabled `site.experiments`, keyed the same way, each resolved to its cookie name — for `<Analytics />`'s reporting hook. */
+  experiments: Record<string, { cookieName: string }>;
+  /** `site.analytics.matomo.abVariantDimensions` — passed through for the same reporting hook. */
+  matomoAbVariantDimensions: Record<string, number>;
   /**
    * What `<Ads />` emits: the `site.ads` properties plus whether this environment
    * fires them at all. Read from the site config here rather than in the component
@@ -593,6 +612,48 @@ function readSiteAds(
     return {
       enabled: env?.ads ?? env?.analytics ?? true,
       properties: properties as GetvitopsAdsOptions,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read `site.experiments` + `site.analytics.matomo.abVariantDimensions` out of
+ * the site config, resolving each experiment's cookie name (default
+ * `_ab_<key>`, matching `vitopsAbTesting()`'s own default) so `<Analytics />`
+ * doesn't need to know the fallback rule itself.
+ *
+ * Mirrors `readSiteAds`'s shape: best-effort, only enabled experiments
+ * (a disabled one has no cookie to read and shouldn't cost every provider's
+ * bootstrap a no-op check), `null` when nothing's configured.
+ */
+function readSiteExperiments(
+  configPath: string,
+  siteEnv: string,
+): {
+  experiments: Record<string, { cookieName: string }>;
+  matomoAbVariantDimensions: Record<string, number>;
+  /** The first enabled experiment's cookie name — see tracking.ts's own docblock for why only one. */
+  primaryCookie: string | null;
+} | null {
+  try {
+    const cfg = resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv);
+    const configured = cfg.site.experiments;
+    if (!configured || Object.keys(configured).length === 0) return null;
+    const experiments: Record<string, { cookieName: string }> = {};
+    let primaryCookie: string | null = null;
+    for (const [key, experiment] of Object.entries(configured)) {
+      if (!experiment.enabled) continue;
+      const cookieName = experiment.cookieName ?? `_ab_${key}`;
+      experiments[key] = { cookieName };
+      primaryCookie ??= cookieName;
+    }
+    if (Object.keys(experiments).length === 0) return null;
+    return {
+      experiments,
+      matomoAbVariantDimensions: cfg.site.analytics?.matomo?.abVariantDimensions ?? {},
+      primaryCookie,
     };
   } catch {
     return null;
@@ -949,6 +1010,9 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         // have a row for it.
         const adsConfig = siteInput
           ? readSiteAds(resolve(root, siteInput), opts.site?.siteEnv ?? 'production')
+          : null;
+        const experimentsConfig = siteInput
+          ? readSiteExperiments(resolve(root, siteInput), opts.site?.siteEnv ?? 'production')
           : null;
         const detectedCategories = consentCategories([
           ...analytics.tags,
@@ -1428,8 +1492,11 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
                       enabled: true,
                       category: tracking.category,
                       cookies: tracking.cookies,
+                      abVariantCookie: experimentsConfig?.primaryCookie ?? null,
                     }
                   : null,
+                experiments: experimentsConfig?.experiments ?? {},
+                matomoAbVariantDimensions: experimentsConfig?.matomoAbVariantDimensions ?? {},
                 ads: adsConfig,
               }),
             ],

@@ -254,3 +254,96 @@ describe('consentCategories', () => {
     expect(consentCategories(tags)).toEqual(['analytics', 'marketing']);
   });
 });
+
+/**
+ * The A/B-testing reporting hook: each provider's bootstrap reads its
+ * experiment cookies client-side and reports the assignment via that
+ * provider's own mechanism. No experiments configured must be a total no-op
+ * — the `resolveAnalytics.test.ts` suite above already pins the
+ * no-experiments byte-for-byte output for all three providers, so these
+ * only cover what changes once `ctx.experiments` is non-empty.
+ */
+describe('experiment reporting hook', () => {
+  const experiments = { 'contact-form-v2': { cookieName: '_ab_contact-form-v2' } };
+
+  it('is a no-op for all three providers when no experiments are configured', () => {
+    const withCtx = resolveAnalytics(
+      {
+        googleAnalytics: 'G-ABC',
+        matomo: { url: 'https://x.matomo.cloud', siteId: '1' },
+        plausible: 'example.com',
+      },
+      { consent: true },
+    );
+    const withoutCtx = resolveAnalytics(
+      {
+        googleAnalytics: 'G-ABC',
+        matomo: { url: 'https://x.matomo.cloud', siteId: '1' },
+        plausible: 'example.com',
+      },
+      { consent: true, experiments: {} },
+    );
+    expect(withCtx.tags).toEqual(withoutCtx.tags);
+  });
+
+  it('Plausible: adds a plausible.init(customProperties) call reading the cookie', () => {
+    const p = tag(resolveAnalytics({ plausible: 'example.com' }, { experiments }), 'plausible');
+    expect(p?.inline).toContain('plausible.init({customProperties:function()');
+    expect(p?.inline).toContain('_ab_contact-form-v2');
+    expect(p?.inline).toContain('"contact-form-v2"');
+  });
+
+  it('Plausible: unchanged src/attrs, no manual-pageview attribute added', () => {
+    const p = tag(resolveAnalytics({ plausible: 'example.com' }, { experiments }), 'plausible');
+    expect(p?.src).toBe('https://plausible.io/js/script.js');
+    expect(p?.attrs).toEqual({ 'data-domain': 'example.com' });
+  });
+
+  it('Matomo: pushes setCustomDimension before trackPageView, only for experiments with a recorded index', () => {
+    const m = tag(
+      resolveAnalytics(
+        { matomo: { url: 'https://x.matomo.cloud', siteId: '1' } },
+        { experiments, matomoAbVariantDimensions: { 'contact-form-v2': 3 } },
+      ),
+      'matomo',
+    );
+    const dimensionIndex = m?.inline.indexOf('setCustomDimension') ?? -1;
+    const pageviewIndex = m?.inline.indexOf('trackPageView') ?? -1;
+    expect(dimensionIndex).toBeGreaterThan(-1);
+    expect(dimensionIndex).toBeLessThan(pageviewIndex);
+    expect(m?.inline).toContain("'setCustomDimension',3");
+  });
+
+  it('Matomo: an experiment with no recorded dimension index pushes nothing', () => {
+    const m = tag(
+      resolveAnalytics(
+        { matomo: { url: 'https://x.matomo.cloud', siteId: '1' } },
+        { experiments, matomoAbVariantDimensions: {} },
+      ),
+      'matomo',
+    );
+    expect(m?.inline).not.toContain('setCustomDimension');
+  });
+
+  it('GA4: merges the variant into the runtime gtag config call, not a static one', () => {
+    const ga = tag(
+      resolveAnalytics({ googleAnalytics: 'G-ABC123' }, { experiments }),
+      'googleAnalytics',
+    );
+    expect(ga?.inline).toContain('Object.assign(');
+    expect(ga?.inline).toContain('_ab_contact-form-v2');
+  });
+
+  it('reports two concurrent experiments as distinct keys, not one overwriting another', () => {
+    const twoExperiments = {
+      'contact-form-v2': { cookieName: '_ab_contact-form-v2' },
+      'pricing-layout': { cookieName: '_ab_pricing-layout' },
+    };
+    const p = tag(
+      resolveAnalytics({ plausible: 'example.com' }, { experiments: twoExperiments }),
+      'plausible',
+    );
+    expect(p?.inline).toContain('contact-form-v2');
+    expect(p?.inline).toContain('pricing-layout');
+  });
+});

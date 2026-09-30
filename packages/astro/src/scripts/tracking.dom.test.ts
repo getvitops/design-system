@@ -19,8 +19,12 @@ interface Listener {
 }
 
 /** Enough document/window for the script to run. */
-function stubDom(search: string, gate?: Record<string, unknown>) {
-  let jar = '';
+function stubDom(
+  search: string,
+  gate?: Record<string, unknown>,
+  marker: { abCookie?: string; initialCookie?: string } = {},
+) {
+  let jar = marker.initialCookie ?? '';
   const listeners = new Map<string, Listener[]>();
 
   const doc = {
@@ -47,7 +51,14 @@ function stubDom(search: string, gate?: Record<string, unknown>) {
     referrer: '',
     querySelector: (sel: string) =>
       sel === '[data-vitops-tracking]'
-        ? { getAttribute: (a: string) => (a === 'data-consent' ? 'marketing' : null) }
+        ? {
+            getAttribute: (a: string) =>
+              a === 'data-consent'
+                ? 'marketing'
+                : a === 'data-ab-cookie'
+                  ? (marker.abCookie ?? null)
+                  : null,
+          }
         : null,
     addEventListener: (type: string, fn: Listener) => {
       listeners.set(type, [...(listeners.get(type) ?? []), fn]);
@@ -135,6 +146,50 @@ describe('capture with the gate present', () => {
     const dom = stubDom('?gclid=G1', stub);
     await run();
     expect(dom.listening('vitops:consent')).toBe(true);
+  });
+});
+
+describe('A/B variant cookie read', () => {
+  it('reads the default `_ab` cookie when the marker carries no override', async () => {
+    const dom = stubDom(
+      '?gclid=G1',
+      { require: () => true, granted: () => true },
+      {
+        initialCookie: '_ab=control',
+      },
+    );
+    await run();
+    expect(dom.jar).toContain('ab_variant%22%3A%22control');
+  });
+
+  it('reads a per-experiment cookie named on the marker instead of the default', async () => {
+    const dom = stubDom(
+      '?gclid=G1',
+      { require: () => true, granted: () => true },
+      { abCookie: '_ab_contact-form-v2', initialCookie: '_ab_contact-form-v2=new-form' },
+    );
+    await run();
+    expect(dom.jar).toContain('ab_variant%22%3A%22new-form');
+  });
+
+  it('URL-decodes the cookie value, and does not truncate at an internal `=`', async () => {
+    // The bug this replaced: `split('=')[1]` truncated at the FIRST `=` inside
+    // the whole `name=value` pair rather than only the separator, and never
+    // decoded — a value containing `=` or a reserved character came back
+    // mangled or dropped one hop earlier than this cookie.
+    const dom = stubDom(
+      '?gclid=G1',
+      { require: () => true, granted: () => true },
+      { initialCookie: `_ab=${encodeURIComponent('a=b')}` },
+    );
+    await run();
+    expect(dom.jar).toContain(`ab_variant%22%3A%22${encodeURIComponent('a=b')}`);
+  });
+
+  it('is absent from the record when no A/B cookie is set', async () => {
+    const dom = stubDom('?gclid=G1', { require: () => true, granted: () => true });
+    await run();
+    expect(dom.jar).not.toContain('ab_variant');
   });
 });
 
