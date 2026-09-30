@@ -33,6 +33,10 @@
       "types": "./dist/tokens.d.mts",
       "import": "./dist/tokens.mjs"
     },
+    "./icons-sprite": {
+      "types": "./dist/icons-sprite.d.mts",
+      "import": "./dist/icons-sprite.mjs"
+    },
     "./schema.json": "./schema.json",
     "./config.schema.json": "./config.schema.json",
     "./package.json": "./package.json"

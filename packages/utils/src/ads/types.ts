@@ -41,8 +41,22 @@ export type AdConsentCategory = 'marketing' | 'analytics';
  */
 export type ConversionAction = 'call' | 'email' | 'form';
 
-/** One label per action this site wants Google Ads to tell apart. */
-export type ConversionLabelMap = Partial<Record<ConversionAction, string>>;
+/**
+ * One label per action this site wants Google Ads to tell apart.
+ *
+ * Written out field by field, `?: string | undefined` — not
+ * `Partial<Record<ConversionAction, string>>` — matching this file's own
+ * convention above: `exactOptionalPropertyTypes` treats `{ email?: string }`
+ * (present-or-absent) and `{ email?: string | undefined }` (present,
+ * absent, or explicitly `undefined`) as different types, and a parsed JSON
+ * config's optional field is the latter. `Partial<Record<...>>` produces the
+ * former, which rejected the zod-inferred shape config.ts actually produces.
+ */
+export interface ConversionLabelMap {
+  call?: string | undefined;
+  email?: string | undefined;
+  form?: string | undefined;
+}
 
 /**
  * A bare string is back-compat shorthand for `{ call: label }` — the only

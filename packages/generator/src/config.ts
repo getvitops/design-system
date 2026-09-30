@@ -1482,7 +1482,16 @@ export const PLAN_CAPABILITIES: Record<string, PlanCapability> = {
     label: 'A/B testing',
     gates: (cfg) =>
       !!cfg.site.abTesting?.enabled ||
-      Object.values(cfg.site.environments).some((e) => e.variant != null),
+      Object.values(cfg.site.environments).some((e) => e.variant != null) ||
+      // `site.experiments` (runtime, per-visitor — see ExperimentSchema) is a
+      // separate mechanism from `abTesting` (build-time, whole-config
+      // variants), added after this gate was first written, and was missed
+      // here until found during downstream adoption planning: a site could
+      // turn on a runtime experiment with no `ab_testing` add-on and this
+      // check wouldn't catch it. Both mechanisms answer the same commercial
+      // question — "is this site entitled to run an A/B test" — so both gate
+      // the same add-on.
+      Object.values(cfg.site.experiments ?? {}).some((e) => e.enabled),
   },
   server_side_tracking: {
     label: 'server-side conversion tracking',

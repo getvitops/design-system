@@ -85,7 +85,17 @@ describe('rendering contract', () => {
     // `ph:caret-down` → `ph--caret-down`. Sharing the generator's spriteId()
     // removes the drift entirely; a local copy would resolve <use> to nothing
     // the moment the grammar moved, and render as an empty box, not an error.
-    expect(icon).toMatch(/import \{[^}]*spriteId[^}]*\} from '@getvitops\/generator'/);
+    expect(icon).toMatch(
+      /import \{[^}]*spriteId[^}]*\} from '@getvitops\/generator\/icons-sprite'/,
+    );
     expect(icon).toContain('spriteId(qualified)');
+  });
+
+  it('imports from the icons-sprite subpath, never the root entry', () => {
+    // The root entry also re-exports generate.ts, which reaches lightningcss —
+    // a native binary Cloudflare Workers cannot require(). A static import of
+    // the root here previously 500'd every request on a real SSR consumer,
+    // regardless of icons.engine, because the import itself is unconditional.
+    expect(icon).not.toMatch(/from '@getvitops\/generator'/);
   });
 });

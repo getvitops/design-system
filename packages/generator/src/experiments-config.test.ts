@@ -33,6 +33,7 @@ describe('validateConfig on site.experiments', () => {
               variants: ['control', 'new-form'],
             },
           },
+          plan: { key: 'test', addons: ['ab_testing'] },
         }),
       ),
     ).toEqual([]);
@@ -81,6 +82,7 @@ describe('validateConfig on site.experiments', () => {
               variants: ['grid', 'table'],
             },
           },
+          plan: { key: 'test', addons: ['ab_testing'] },
         }),
       ),
     ).toEqual([]);

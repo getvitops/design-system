@@ -27,8 +27,15 @@
  *   `inline-flex` with a `gap` — is a matter of child order, not a new class.
  *   Don't confuse this with `.icon-mask`, the CSS-only adornment path (see
  *   `.link--icon::before` in anchor-link.css).
+ *
+ * **Imports from `@getvitops/generator/icons-sprite`, never the root entry.**
+ * The root entry also re-exports `generate.ts`, which reaches lightningcss —
+ * a native binary Cloudflare Workers cannot `require()`. A *static* import of
+ * the root here dragged that into every SSR bundle rendering this component,
+ * regardless of `icons.engine`, and 500'd every request on a real consumer.
+ * The `icons-sprite` subpath has no such dependency — see its own docblock.
  */
-import { loadIconSvg, spriteId } from '@getvitops/generator';
+import { loadIconSvg, spriteId } from '@getvitops/generator/icons-sprite';
 import { resolveIcon } from '@getvitops/utils';
 import icons from 'virtual:getvitops/icons';
 

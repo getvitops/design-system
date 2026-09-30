@@ -29,7 +29,21 @@ export default defineConfig({
     // design-system-editor plugin route to run the exact same accessibility
     // gate generate() enforces at build time, synchronously, in a Worker,
     // before persisting an edit.
-    entry: ['src/index.ts', 'src/config.ts', 'src/tokens.ts'],
+    //
+    // `src/icons-sprite.ts` is a fourth, sibling entry for the same reason,
+    // added after a real production 500 in a consumer: `buildIconSprite` /
+    // `loadIconSvg` / `spriteId` only reach `node:module`/`node:path`/
+    // `node:url` and `@iconify/utils` — no lightningcss — but `@getvitops/
+    // astro`'s `Icon.astro` used to import them from the root entry, which
+    // *also* re-exports `generate.ts`, so a static `import … from
+    // '@getvitops/generator'` dragged lightningcss's native binary into any
+    // SSR bundle that rendered `<Icon>`, regardless of `icons.engine` (the
+    // import itself is unconditional even when the sprite/inline branches
+    // never execute). Cloudflare Workers has no `require()` for a native
+    // `.node` binary, so every request 500'd. Published as
+    // `@getvitops/generator/icons-sprite`; `Icon.astro` imports from there
+    // now, not the root.
+    entry: ['src/index.ts', 'src/config.ts', 'src/tokens.ts', 'src/icons-sprite.ts'],
     outDir: 'dist',
     format: ['es'],
     platform: 'node',

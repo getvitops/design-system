@@ -46,6 +46,24 @@ describe('PLAN_CAPABILITIES', () => {
       }) as never;
       expect(PLAN_CAPABILITIES['ab_testing']!.gates(cfg)).toBe(true);
     });
+
+    test('is true when a site.experiments entry is enabled — the runtime mechanism, distinct from abTesting', () => {
+      const cfg = fixture({
+        experiments: {
+          'contact-form-v2': { enabled: true, variants: ['control', 'new-form'] },
+        },
+      }) as never;
+      expect(PLAN_CAPABILITIES['ab_testing']!.gates(cfg)).toBe(true);
+    });
+
+    test('is false when every site.experiments entry is disabled', () => {
+      const cfg = fixture({
+        experiments: {
+          'contact-form-v2': { enabled: false, variants: ['control', 'new-form'] },
+        },
+      }) as never;
+      expect(PLAN_CAPABILITIES['ab_testing']!.gates(cfg)).toBe(false);
+    });
   });
 
   describe('server_side_tracking.gates', () => {
@@ -77,6 +95,25 @@ describe('validateConfig on site.plan', () => {
     const errors = errorsFor(
       fixture({
         abTesting: { enabled: true },
+        plan: { key: 'growth', addons: ['ab_testing'] },
+      }),
+    );
+    expect(errors).toEqual([]);
+  });
+
+  test('rejects an enabled site.experiments entry with no site.plan at all', () => {
+    const errors = errorsFor(
+      fixture({
+        experiments: { 'contact-form-v2': { enabled: true, variants: ['control', 'new-form'] } },
+      }),
+    );
+    expect(errors.join()).toMatch(/site\.plan\.addons.*ab_testing/);
+  });
+
+  test('accepts an enabled site.experiments entry when site.plan.addons lists ab_testing', () => {
+    const errors = errorsFor(
+      fixture({
+        experiments: { 'contact-form-v2': { enabled: true, variants: ['control', 'new-form'] } },
         plan: { key: 'growth', addons: ['ab_testing'] },
       }),
     );
