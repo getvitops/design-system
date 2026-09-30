@@ -360,25 +360,32 @@ export function createConversionRoute(options: ConversionRouteOptions) {
       request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
       undefined;
 
-    // Keyed on IP *and* event type: a call beacon and an email-click beacon from
-    // the same visitor are two distinct, legitimate conversions, not a repeat of
-    // one. Keying on IP alone made them compete for the same window — a visitor
-    // who tapped `tel:`, got no answer, then tapped `mailto:` seconds later had
-    // the second beacon silently 429 and drop.
+    // Classified before rate limiting, not read raw off the client — see the key
+    // below. `phone`/`email` presence is still checked after limiting, since that
+    // check just rejects a malformed beacon rather than deciding the bucket.
+    const isCall = body['event'] === 'call';
+    const isEmailClick = body['event'] === 'email';
+
+    // Keyed on IP *and* the server's own classification (`call` | `email` |
+    // `form`), never the raw `event` string the client sent. A call beacon and an
+    // email-click beacon from the same visitor are two distinct, legitimate
+    // conversions, not a repeat of one, so they need separate buckets — but
+    // trusting the raw string for that also let a client dodge the form rate
+    // limit entirely by varying `event` on every request (any value other than
+    // exactly `'call'`/`'email'` used to get its own bucket). Collapsing
+    // everything else to `'form'` closes that without losing the call/email split.
     if (rateLimit && ip) {
-      const rlKey = `${ip}:${typeof body['event'] === 'string' ? body['event'] : 'form'}`;
+      const rlKey = `${ip}:${isCall ? 'call' : isEmailClick ? 'email' : 'form'}`;
       const sinceLastHit = await rateLimit.store.hit(rlKey, now());
       if (sinceLastHit !== null && sinceLastHit < rateLimit.windowMs) {
         return respondError('Too many requests.', 429);
       }
     }
 
-    const isCall = body['event'] === 'call';
     if (isCall && typeof body['phone'] !== 'string') {
       return respondError('Missing phone.', 400);
     }
 
-    const isEmailClick = body['event'] === 'email';
     if (isEmailClick && typeof body['email'] !== 'string') {
       return respondError('Missing email.', 400);
     }

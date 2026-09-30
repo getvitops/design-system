@@ -346,6 +346,29 @@ describe('createConversionRoute: rate limit (1.5)', () => {
     });
     expect(second.status).toBe(429);
   });
+
+  it("normalises the rate-limit key to the server's own classification, closing the bypass where varying a bogus `event` value dodged the form limit", async () => {
+    let time = 1_000_000;
+    const handler = createConversionRoute({
+      context: ctx(),
+      now: () => time,
+      rateLimit: { windowMs: 10_000 },
+    });
+    const headers = { 'cf-connecting-ip': '203.0.113.10' };
+
+    const first = await handler({
+      request: jsonRequest({ event: 'not-call-or-email-1', name: 'Ada' }, headers),
+    });
+    expect(first.status).toBe(200);
+
+    time += 1_000; // still inside the window
+    // A different bogus `event` value used to land in its own bucket, dodging
+    // the limit entirely. Both now classify as `form` and share one bucket.
+    const second = await handler({
+      request: jsonRequest({ event: 'not-call-or-email-2', name: 'Bea' }, headers),
+    });
+    expect(second.status).toBe(429);
+  });
 });
 
 describe('createConversionRoute: Turnstile verification (1.3)', () => {

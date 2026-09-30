@@ -44,6 +44,13 @@ export interface EmailChannelConfig {
 export interface NotificationsConfig {
   /** A bare address is shorthand for `{ provider: 'cloudflare', to }`. */
   email?: string | EmailChannelConfig | undefined;
+  /**
+   * Optional action-link template added to the conversion email as an
+   * "Actions" section — `{clickId}` is replaced with the ad click ID captured
+   * on `_ac` (gclid, fbclid, …). Omitted from the email when the event carries
+   * no click ID, rather than rendering a broken link — see `renderEmail`.
+   */
+  actionUrl?: string | undefined;
   // TODO: `sms` and `persist` channels. Adding one should be a new sender file
   // and a schema variant — `planNotifications` gains a branch, `ConversionEvent`
   // and the recipient cascade do not change.

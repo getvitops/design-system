@@ -278,16 +278,40 @@ describe('Google Ads conversion firing on a tel:/mailto: click', () => {
     };
   }
 
-  it('fires gtag(event, conversion, …) when a send_to target is configured', async () => {
+  it('fires gtag(event, conversion, …) with the call action for a tel: click', async () => {
     const dom = stubDom('');
     await run();
     const calls: unknown[][] = [];
     Object.assign(globalThis.window as object, {
       gtag: (...args: unknown[]) => calls.push(args),
-      vitopsAdsConversions: { google: 'AW-123/abcDEF' },
+      vitopsAdsConversions: { google: { call: 'AW-123/callLbl', email: 'AW-123/emailLbl' } },
     });
     dom.fire('click', clickOn('tel:+15551234567'));
-    expect(calls).toEqual([['event', 'conversion', { send_to: 'AW-123/abcDEF' }]]);
+    expect(calls).toEqual([['event', 'conversion', { send_to: 'AW-123/callLbl' }]]);
+  });
+
+  it('fires the email action, not call, for a mailto: click — the two used to share one target', async () => {
+    const dom = stubDom('');
+    await run();
+    const calls: unknown[][] = [];
+    Object.assign(globalThis.window as object, {
+      gtag: (...args: unknown[]) => calls.push(args),
+      vitopsAdsConversions: { google: { call: 'AW-123/callLbl', email: 'AW-123/emailLbl' } },
+    });
+    dom.fire('click', clickOn('mailto:sales@acme.ca'));
+    expect(calls).toEqual([['event', 'conversion', { send_to: 'AW-123/emailLbl' }]]);
+  });
+
+  it('does nothing when that action has no label, even if another action does', async () => {
+    const dom = stubDom('');
+    await run();
+    const calls: unknown[][] = [];
+    Object.assign(globalThis.window as object, {
+      gtag: (...args: unknown[]) => calls.push(args),
+      vitopsAdsConversions: { google: { call: 'AW-123/callLbl' } }, // no `email` entry
+    });
+    dom.fire('click', clickOn('mailto:sales@acme.ca'));
+    expect(calls).toEqual([]);
   });
 
   it('does nothing when no conversion label is configured — the bootstrap never ran', async () => {
@@ -306,8 +330,74 @@ describe('Google Ads conversion firing on a tel:/mailto: click', () => {
     // `vitopsAdsConversions` present with no `gtag` global — the exact state
     // before a gated tag's inline body has run: the bootstrap script that sets
     // both exists on the page as inert `type="text/plain"`, unexecuted.
-    Object.assign(globalThis.window as object, { vitopsAdsConversions: { google: 'AW-1/L' } });
+    Object.assign(globalThis.window as object, {
+      vitopsAdsConversions: { google: { call: 'AW-1/L' } },
+    });
     dom.fire('click', clickOn('tel:+15551234567'));
     expect(calls).toEqual([]);
+  });
+});
+
+describe('vitopsFormConversion — the form conversion action', () => {
+  function fakeForm(): HTMLFormElement {
+    const attrs = new Map<string, string>();
+    return {
+      hasAttribute: (name: string) => attrs.has(name),
+      setAttribute: (name: string, value: string) => void attrs.set(name, value),
+    } as unknown as HTMLFormElement;
+  }
+
+  it('is exposed on window after the script runs', async () => {
+    const dom = stubDom('');
+    void dom;
+    await run();
+    expect(
+      typeof (globalThis.window as { vitopsFormConversion?: unknown }).vitopsFormConversion,
+    ).toBe('function');
+  });
+
+  it('fires gtag(event, conversion, …) with the form action', async () => {
+    const dom = stubDom('');
+    void dom;
+    await run();
+    const calls: unknown[][] = [];
+    Object.assign(globalThis.window as object, {
+      gtag: (...args: unknown[]) => calls.push(args),
+      vitopsAdsConversions: { google: { form: 'AW-123/formLbl' } },
+    });
+    const { vitopsFormConversion } = globalThis.window as unknown as {
+      vitopsFormConversion: (form: HTMLFormElement) => void;
+    };
+    vitopsFormConversion(fakeForm());
+    expect(calls).toEqual([['event', 'conversion', { send_to: 'AW-123/formLbl' }]]);
+  });
+
+  it('fires once per form element — a second call is a no-op', async () => {
+    const dom = stubDom('');
+    void dom;
+    await run();
+    const calls: unknown[][] = [];
+    Object.assign(globalThis.window as object, {
+      gtag: (...args: unknown[]) => calls.push(args),
+      vitopsAdsConversions: { google: { form: 'AW-123/formLbl' } },
+    });
+    const { vitopsFormConversion } = globalThis.window as unknown as {
+      vitopsFormConversion: (form: HTMLFormElement) => void;
+    };
+    const form = fakeForm();
+    vitopsFormConversion(form);
+    vitopsFormConversion(form);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('does nothing when no form label is configured', async () => {
+    const dom = stubDom('');
+    void dom;
+    await run();
+    const { vitopsFormConversion } = globalThis.window as unknown as {
+      vitopsFormConversion: (form: HTMLFormElement) => void;
+    };
+    // No gtag, no vitopsAdsConversions — must not throw.
+    vitopsFormConversion(fakeForm());
   });
 });

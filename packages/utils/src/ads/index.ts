@@ -37,10 +37,13 @@ export type { AdPlatform, AdTagSpec, AdVerificationSpec } from './providers.ts';
 // The DNS verbs, re-exported rather than reimplemented — see the note above.
 export { createApexTxt, findZoneId, listApexTxt } from '../onboarding/cloudflare.ts';
 
+export { normalizeConversionLabels } from './types.ts';
 export type {
   AdConsentCategory,
   AdDomainState,
   AdProvider,
   AdPropertySetup,
   AdsConfig,
+  ConversionAction,
+  ConversionLabelMap,
 } from './types.ts';

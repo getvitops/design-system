@@ -25,7 +25,13 @@
  * Everything decidable is here and unit-tested; `Ads.astro` renders what this
  * returns and chooses nothing.
  */
-import { AD_PLATFORMS, AD_PROVIDER_KEYS, type AdProvider } from '@getvitops/utils/ads';
+import {
+  AD_PLATFORMS,
+  AD_PROVIDER_KEYS,
+  normalizeConversionLabels,
+  type AdProvider,
+  type ConversionLabelMap,
+} from '@getvitops/utils/ads';
 import type { AnalyticsStrategy, ConsentCategory, GatedTag } from './analytics.ts';
 
 /**
@@ -39,12 +45,14 @@ export interface GetvitopsAdProperty {
   accountId?: string;
   pixelId?: string;
   /**
-   * Google Ads only: the conversion action label paired with `pixelId` (the
-   * `AW-…` conversion id). When set, the tel:/mailto: click tracker in
-   * `<Tracking />` fires `gtag('event', 'conversion', …)` for that action at
-   * the moment of the click — see `gtagBootstrap` in `@getvitops/utils/ads`.
+   * Google Ads only: the conversion action label(s) paired with `pixelId` (the
+   * `AW-…` conversion id) — a bare string (back-compat, treated as `call`) or a
+   * map of action → label. `<Tracking />`'s tel:/mailto: click handler and
+   * `vitopsFormConversion()` each fire `gtag('event', 'conversion', …)` for
+   * their own action at the moment of the interaction — see `gtagBootstrap` in
+   * `@getvitops/utils/ads`.
    */
-  conversionLabel?: string;
+  conversionLabel?: string | ConversionLabelMap;
   /** Default `marketing`. `analytics` for a property used purely for measurement. */
   category?: 'marketing' | 'analytics';
   /** False keeps the property on record without emitting its tag. */
@@ -120,20 +128,32 @@ export function resolveAds(
     }
 
     // `conversionLabel` lands inside the same inline `<script>` as `id` (Google's
-    // bootstrap embeds it to expose a conversion `send_to` target) — same
-    // injection surface, so it gets the same check. Unlike an invalid `id`, an
-    // invalid label doesn't sink the whole tag: it just means no conversion
-    // fires, which is worth a warning rather than a skip.
+    // bootstrap embeds it to expose a conversion `send_to` target per action) —
+    // same injection surface, so every configured label gets the same check.
+    // Unlike an invalid `id`, an invalid label doesn't sink the whole tag: it
+    // just means that one action's conversion doesn't fire, which is worth a
+    // warning rather than dropping every other configured action too.
     let safeEntry = entry;
-    if (entry.conversionLabel && !SAFE_ID.test(entry.conversionLabel)) {
-      warnings.push(
-        `ads: ${provider} conversionLabel "${entry.conversionLabel}" is not a valid label. ` +
-          'Conversion firing skipped.',
+    const labels = normalizeConversionLabels(entry.conversionLabel);
+    const invalidActions = Object.entries(labels)
+      .filter(([, label]) => label && !SAFE_ID.test(label))
+      .map(([action]) => action);
+    if (invalidActions.length) {
+      for (const action of invalidActions) {
+        warnings.push(
+          `ads: ${provider} conversionLabel.${action} "${labels[action as keyof ConversionLabelMap]}" ` +
+            'is not a valid label. Conversion firing skipped for that action.',
+        );
+      }
+      const cleanLabels = Object.fromEntries(
+        Object.entries(labels).filter(([action]) => !invalidActions.includes(action)),
       );
       // Omit the key entirely rather than setting it `undefined` —
       // `exactOptionalPropertyTypes` treats the two differently.
       const { conversionLabel: _drop, ...rest } = entry;
-      safeEntry = rest;
+      safeEntry = Object.keys(cleanLabels).length
+        ? { ...rest, conversionLabel: cleanLabels }
+        : rest;
     }
 
     const category: ConsentCategory = entry.category ?? 'marketing';

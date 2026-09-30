@@ -677,9 +677,23 @@ const AdPropertySchema = z.strictObject({
     'The tag/pixel ID the browser snippet initialises — Meta pixel, TikTok pixel, Reddit pixel, Microsoft UET tag ID, Pinterest tag ID, Snap pixel, or the Google Ads conversion ID (`AW-…`, which is NOT the customer ID).',
   ),
   conversionLabel: desc(
-    z.optional(z.string()),
-    'Google Ads only: the conversion action label paired with the `AW-…` conversion ID. When ' +
-      'set, a tel:/mailto: click fires a Google Ads conversion for that action.',
+    z.optional(
+      z.union([
+        z.string(),
+        z.strictObject({
+          call: desc(z.optional(z.string()), 'Fired on a tel: link click.'),
+          email: desc(z.optional(z.string()), 'Fired on a mailto: link click.'),
+          form: desc(
+            z.optional(z.string()),
+            "Fired client-side by `vitopsFormConversion()` — the consumer's own submit handler calls it once a form POST succeeds.",
+          ),
+        }),
+      ]),
+    ),
+    'Google Ads only: the conversion action label(s) paired with the `AW-…` conversion ID — ' +
+      'either one bare label (back-compat, treated as the `call` action) or a map of ' +
+      'action → label, so a call, an email click and a form submission each fire their own ' +
+      'Google Ads conversion action instead of all three reporting as the same one.',
   ),
   domain: desc(
     z.optional(z.string()),
@@ -1142,6 +1156,13 @@ const SiteSectionSchema = z.strictObject({
             ]),
           ),
           'Where conversion notifications are e-mailed. A bare address is shorthand for `{ provider: "cloudflare", to }`.',
+        ),
+        actionUrl: desc(
+          z.optional(z.string()),
+          'Optional action-link template added to the conversion email (e.g. a link into your ' +
+            'ad platform or your own CRM/portal). `{clickId}` is replaced with the ad click ID ' +
+            'captured on `_ac` (gclid, fbclid, …). Omitted from the email when the event carries ' +
+            'no click ID to interpolate, rather than rendering a broken link.',
         ),
       }),
     ),

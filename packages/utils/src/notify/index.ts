@@ -62,7 +62,7 @@ export async function notify(
   const results: ChannelResult[] = [];
 
   if (plan.email.enabled) {
-    const message = renderEmail(event, extra);
+    const message = renderEmail(event, { ...extra, actionUrl: ctx.notifications?.actionUrl });
     results.push(
       deps.email ? await sendEmail(plan.email, message, deps.email) : logEmail(plan.email, message),
     );

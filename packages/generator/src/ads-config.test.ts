@@ -63,6 +63,26 @@ describe('validateConfig on site.ads', () => {
   test('rejects an entry that identifies nothing', () => {
     expect(errorsFor(fixture({ reddit: {} })).join()).toMatch(/identifies nothing/);
   });
+
+  test('accepts a bare-string conversionLabel — back-compat shape', () => {
+    expect(errorsFor(fixture({ google: { pixelId: 'AW-1', conversionLabel: 'lbl' } }))).toEqual([]);
+  });
+
+  test('accepts a per-action conversionLabel map', () => {
+    expect(
+      errorsFor(
+        fixture({
+          google: { pixelId: 'AW-1', conversionLabel: { call: 'c', email: 'e', form: 'f' } },
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  test('rejects an unrecognized key inside a conversionLabel map', () => {
+    expect(
+      errorsFor(fixture({ google: { pixelId: 'AW-1', conversionLabel: { sms: 'x' } } })).join(),
+    ).toMatch(/conversionLabel/);
+  });
 });
 
 describe('ad pixels reach the generated documents', () => {

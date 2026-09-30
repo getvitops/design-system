@@ -77,9 +77,31 @@ describe('renderTag', () => {
     expect(renderTag({ ...meta, category: 'analytics' })).toContain('data-consent="analytics"');
   });
 
-  test('google with a conversionLabel exposes the send_to target for the click tracker', () => {
+  test('google with a bare-string conversionLabel exposes it as the call action', () => {
     const html = renderTag({ provider: 'google', pixelId: 'AW-123', conversionLabel: 'abcDEF' })!;
-    expect(html).toContain("window.vitopsAdsConversions.google='AW-123/abcDEF';");
+    expect(html).toContain('window.vitopsAdsConversions.google={"call":"AW-123/abcDEF"};');
+  });
+
+  test('google with a conversionLabel map exposes one send_to target per action', () => {
+    const html = renderTag({
+      provider: 'google',
+      pixelId: 'AW-123',
+      conversionLabel: { call: 'callLbl', email: 'emailLbl', form: 'formLbl' },
+    })!;
+    expect(html).toContain(
+      'window.vitopsAdsConversions.google=' +
+        '{"call":"AW-123/callLbl","email":"AW-123/emailLbl","form":"AW-123/formLbl"};',
+    );
+  });
+
+  test('a partial conversionLabel map exposes only the actions it names', () => {
+    const html = renderTag({
+      provider: 'google',
+      pixelId: 'AW-123',
+      conversionLabel: { form: 'formLbl' },
+    })!;
+    expect(html).toContain('window.vitopsAdsConversions.google={"form":"AW-123/formLbl"};');
+    expect(html).not.toContain('"call"');
   });
 
   test('google with no conversionLabel exposes nothing — gtag still bootstraps', () => {

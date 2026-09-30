@@ -2,7 +2,9 @@
 // and mailto: clicks. Form submission itself goes through
 // `createConversionRoute()` (`@getvitops/astro/routes`), which handles both
 // the no-JS `<form method="post">` path and a fetch-based one — there is no
-// separate form-enhancement script here.
+// form-enhancement script here, only `window.vitopsFormConversion()` (below),
+// which a consumer's own fetch-based submit handler may call once that POST
+// succeeds, to report the `form` Google Ads conversion action client-side.
 //
 // Runs early and ungated on purpose. Reading the query string is not storage and
 // needs nobody's permission; *keeping* it does. So the capture is synchronous —
@@ -178,12 +180,14 @@ if (Object.keys(trackingData).length > 0) {
  * (non-module) inline `<script>` `gtagBootstrap` emits (`@getvitops/utils/ads`),
  * which attaches it to `window`. This file runs as a module (`<Tracking />`
  * imports it), so it must go through `window.gtag`, not a bare `gtag(...)` call.
- * `vitopsAdsConversions` is the same bootstrap's `send_to` target, keyed by
- * platform — only `google` is populated today.
+ * `vitopsAdsConversions.google` is the same bootstrap's per-action `send_to`
+ * map (`{call?, email?, form?}`) — each action carries its own target, so a
+ * call, an email click and a form submission report as distinct Google Ads
+ * conversion actions instead of all three sharing one.
  */
 interface AdsGlobal {
   gtag?: (...args: unknown[]) => void;
-  vitopsAdsConversions?: Record<string, string>;
+  vitopsAdsConversions?: Record<string, Partial<Record<'call' | 'email' | 'form', string>>>;
 }
 const adsGlobal = (): AdsGlobal => window as unknown as AdsGlobal;
 
@@ -203,12 +207,48 @@ document.addEventListener('click', (e) => {
     navigator.sendBeacon(TRACK_ENDPOINT, JSON.stringify(body));
   }
 
-  // Report the same click as a Google Ads conversion, when a `conversionLabel`
-  // is configured. `sendTo` is absent whenever the tag never loaded (gated and
-  // undecided, or `site.ads.google` unset) — silently skipped, same as every
-  // other optional-runtime check in this file.
-  const sendTo = adsGlobal().vitopsAdsConversions?.['google'];
+  // Report the same click as a Google Ads conversion, when that action's
+  // `conversionLabel` is configured. `sendTo` is absent whenever the tag never
+  // loaded (gated and undecided, or `site.ads.google` unset) or that specific
+  // action has no label — silently skipped, same as every other
+  // optional-runtime check in this file.
+  const sendTo = adsGlobal().vitopsAdsConversions?.['google']?.[isEmail ? 'email' : 'call'];
   if (sendTo && typeof adsGlobal().gtag === 'function') {
     adsGlobal().gtag!('event', 'conversion', { send_to: sendTo });
   }
 });
+
+// ---------------------------------------------------------------------------
+// 3. Form-submission conversion, for a consumer's own fetch-based submit handler
+// ---------------------------------------------------------------------------
+
+const CONVERTED_ATTR = 'data-vitops-converted';
+
+/**
+ * Fires the Google Ads `form` conversion action (see `AdsGlobal` above) for a
+ * consumer's own fetch-based submit handler to call once its own POST to
+ * `createConversionRoute()` has succeeded — mirroring the tel:/mailto: click
+ * handler above, but for a form, which has no click to hook.
+ *
+ * Idempotent per element (`data-vitops-converted`): a handler that fires this
+ * more than once for the same submission (a retried network call, a
+ * double-invoked effect) reports the conversion once, not twice.
+ *
+ * There is deliberately no server-side equivalent for a no-JS
+ * `<form method="post">` submission — that path is a full-page redirect with no
+ * script execution to fire from, and reporting a Google-Ads-labelled
+ * conversion from the server needs the Google Ads API's click-conversion
+ * upload (developer token + MCC access), not a client-side pixel call. See the
+ * vNext backlog's §16 for that follow-up.
+ */
+function vitopsFormConversion(formEl: HTMLFormElement): void {
+  if (formEl.hasAttribute(CONVERTED_ATTR)) return;
+  formEl.setAttribute(CONVERTED_ATTR, '');
+  const sendTo = adsGlobal().vitopsAdsConversions?.['google']?.['form'];
+  if (sendTo && typeof adsGlobal().gtag === 'function') {
+    adsGlobal().gtag!('event', 'conversion', { send_to: sendTo });
+  }
+}
+
+(window as unknown as { vitopsFormConversion?: typeof vitopsFormConversion }).vitopsFormConversion =
+  vitopsFormConversion;

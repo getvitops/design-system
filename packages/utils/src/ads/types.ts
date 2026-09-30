@@ -33,6 +33,28 @@ export type AdProvider =
 /** Which consent category gates a provider's tag. */
 export type AdConsentCategory = 'marketing' | 'analytics';
 
+/**
+ * The three interactions Google Ads can report a distinct conversion action
+ * for. `form` is fired client-side via `vitopsFormConversion()`
+ * (`@getvitops/astro`'s tracking script), the other two from the tel:/mailto:
+ * click handler.
+ */
+export type ConversionAction = 'call' | 'email' | 'form';
+
+/** One label per action this site wants Google Ads to tell apart. */
+export type ConversionLabelMap = Partial<Record<ConversionAction, string>>;
+
+/**
+ * A bare string is back-compat shorthand for `{ call: label }` — the only
+ * action that existed before this was a map. Absent input normalises to `{}`.
+ */
+export function normalizeConversionLabels(
+  label: string | ConversionLabelMap | undefined,
+): ConversionLabelMap {
+  if (label == null) return {};
+  return typeof label === 'string' ? { call: label } : label;
+}
+
 /** One ad property to link, as the config declares it. */
 export interface AdPropertySetup {
   provider: AdProvider;
@@ -44,11 +66,13 @@ export interface AdPropertySetup {
   /** The tag/pixel id, when the platform issues one distinct from the account. */
   pixelId?: string | undefined;
   /**
-   * Google Ads only: the conversion label paired with the conversion id. Fires
-   * a `gtag('event', 'conversion', …)` on a tel:/mailto: click — see
-   * `gtagBootstrap` below.
+   * Google Ads only: the conversion label(s) paired with the conversion id —
+   * either one bare label (back-compat, treated as the `call` action) or a map
+   * of action → label, so a call, an email click and a form submission each
+   * fire their own Google Ads conversion action instead of sharing one. See
+   * `gtagBootstrap`/`normalizeConversionLabels` below.
    */
-  conversionLabel?: string | undefined;
+  conversionLabel?: string | ConversionLabelMap | undefined;
   /** The host to verify, bare (`acme.ca`). The CLI defaults it from the canonical domain. */
   domain?: string | undefined;
   /**
