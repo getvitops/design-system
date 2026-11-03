@@ -1,4 +1,5 @@
 ---
+import { jsonLdScript } from '../json-ld.ts';
 /**
  * FAQ Schema Component
  *
@@ -14,5 +15,5 @@ export type Props = FAQGraphOptions;
 const jsonLd = faqGraph(Astro.props);
 ---
 
-<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<script is:inline type="application/ld+json" set:html={jsonLdScript(jsonLd)} />
 <slot />

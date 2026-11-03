@@ -244,6 +244,38 @@ describe('createConversionRoute: body size cap (1.5)', () => {
     expect(res.status).toBe(413);
   });
 
+  it('rejects a chunked body over the cap that sends no Content-Length', async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('{"name":"'));
+        controller.enqueue(encoder.encode('x'.repeat(50)));
+        controller.enqueue(encoder.encode('"}'));
+        controller.close();
+      },
+    });
+    const request = new Request('https://acme.ca/api/track', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: stream,
+      duplex: 'half',
+    } as RequestInit);
+    const handler = createConversionRoute({ context: ctx(), maxBodyBytes: 20 });
+    const res = await handler({ request });
+    expect(res.status).toBe(413);
+  });
+
+  it('still parses a form post under the cap', async () => {
+    const handler = createConversionRoute({ context: ctx() });
+    const request = new Request('https://acme.ca/api/track', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'name=Ada',
+    });
+    const res = await handler({ request });
+    expect(res.status).toBe(200);
+  });
+
   it('accepts a request under the default cap', async () => {
     const handler = createConversionRoute({ context: ctx() });
     const res = await handler({ request: jsonRequest({ name: 'Ada' }) });
@@ -294,6 +326,27 @@ describe('createConversionRoute: rate limit (1.5)', () => {
     });
     expect(a.status).toBe(200);
     expect(b.status).toBe(200);
+  });
+
+  it('ignores X-Forwarded-For unless trustForwardedFor is set', async () => {
+    const hits: string[] = [];
+    const store = {
+      hit: async (key: string) => {
+        hits.push(key);
+        return null;
+      },
+    };
+    const req = () => jsonRequest({ name: 'Ada' }, { 'x-forwarded-for': '198.51.100.9' });
+
+    await createConversionRoute({ context: ctx(), rateLimit: { store } })({ request: req() });
+    expect(hits).toEqual([]);
+
+    await createConversionRoute({
+      context: ctx(),
+      rateLimit: { store },
+      trustForwardedFor: true,
+    })({ request: req() });
+    expect(hits).toEqual(['198.51.100.9:form']);
   });
 
   it('rateLimit: false disables the check entirely', async () => {

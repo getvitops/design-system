@@ -213,10 +213,19 @@ export interface ConversionRouteOptions {
   /**
    * Reject a submission whose `Content-Length` exceeds this many bytes. Default
    * 25_000 — generous for a contact form with no file upload, tiny for anything
-   * meant to relay large payloads. Best-effort: `Content-Length` can be absent
-   * or spoofed, same caveat as the origin check below.
+   * meant to relay large payloads. The header is only a fast path: a chunked
+   * request carries none, so the body is also read through a byte-capped
+   * reader and refused the moment it passes the cap.
    */
   maxBodyBytes?: number;
+  /**
+   * Fall back to the first `X-Forwarded-For` hop as the client IP when
+   * `CF-Connecting-IP` is absent. Default `false`: off Cloudflare the header is
+   * whatever the client sent, so honouring it lets a script mint a fresh
+   * rate-limit bucket per request. Turn on only behind a proxy that overwrites
+   * it. With neither header trusted there is no IP, and rate limiting is skipped.
+   */
+  trustForwardedFor?: boolean;
   /**
    * Reject a submission whose `Origin` header doesn't match this origin.
    * Defaults to `context.canonical`'s origin. Pass `false` to disable.
@@ -287,6 +296,34 @@ function googleClickId(tracking: TrackingData | null): { param: string; value: s
 const CONTROL_FIELDS = new Set(['event', 'phone', 'cf-turnstile-response']);
 const DEFAULT_HONEYPOT_FIELDS = ['website', '_honeypot', 'honeypot'];
 const DEFAULT_MAX_BODY_BYTES = 25_000;
+
+/**
+ * Read a request body, giving up as soon as it exceeds `max` bytes. Returns `null` when over
+ * the cap. `Content-Length` is optional on chunked requests, so it cannot be the only guard.
+ */
+async function readCapped(request: Request, max: number): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (!request.body) return new Uint8Array();
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 10_000;
 
 function toFormData(
@@ -348,6 +385,7 @@ export function createConversionRoute(options: ConversionRouteOptions) {
     errorRedirectTo = successRedirect,
     honeypotFields = DEFAULT_HONEYPOT_FIELDS,
     maxBodyBytes = DEFAULT_MAX_BODY_BYTES,
+    trustForwardedFor = false,
   } = options;
 
   const allowedOrigin =
@@ -384,10 +422,16 @@ export function createConversionRoute(options: ConversionRouteOptions) {
       }
     }
 
+    // A chunked request has no Content-Length to check above, so cap the stream itself.
+    const bytes = await readCapped(request, maxBodyBytes);
+    if (!bytes) return respondError('Request too large.', 413);
+
     let body: Record<string, unknown>;
     try {
       if (isFormPost) {
-        const formData = await request.formData();
+        const formData = await new Response(bytes, {
+          headers: { 'content-type': contentType },
+        }).formData();
         body = {};
         for (const [key, value] of formData.entries()) {
           if (typeof value === 'string') body[key] = value;
@@ -395,7 +439,7 @@ export function createConversionRoute(options: ConversionRouteOptions) {
       } else {
         // Not just `application/json`: `navigator.sendBeacon` sends a bare
         // string as `text/plain`, and this must keep accepting that body.
-        const parsed: unknown = await request.json();
+        const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
         if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
           return respondError('Malformed request.', 400);
         }
@@ -407,7 +451,7 @@ export function createConversionRoute(options: ConversionRouteOptions) {
 
     const ip =
       request.headers.get('cf-connecting-ip') ??
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+      (trustForwardedFor ? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() : null) ??
       undefined;
 
     // Classified before rate limiting, not read raw off the client — see the key
