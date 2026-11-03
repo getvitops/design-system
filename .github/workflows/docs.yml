@@ -28,6 +28,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
 
       # `docs:build` pulls in the whole chain it needs: build:core →

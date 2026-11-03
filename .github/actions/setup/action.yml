@@ -1,15 +1,17 @@
-# checkout + pnpm + node + install, copy-pasted verbatim across ci.yml (4
+# pnpm + node + install, copy-pasted verbatim across ci.yml (4
 # jobs), docs.yml, deploy-dev.yml and deploy-prod.yml before this existed.
 # Not used by site-ci.yml / site-deploy-static.yml: those run in a consumer's
 # own scaffolded repo (no checkout of *this* repo), and site-ci.yml's install
 # step needs `working-directory`, which this action doesn't take.
-name: Setup (checkout + pnpm + node + install)
-description: actions/checkout, pnpm/action-setup, actions/setup-node (.nvmrc, pnpm cache), pnpm install --frozen-lockfile
+# The caller must run `actions/checkout` FIRST. A local composite action is loaded from the checked-out
+# repository, so one that performs the checkout itself can never be found — every workflow using it
+# failed in seconds with "Can't find 'action.yml'" until the checkout moved out of here.
+name: Setup (pnpm + node + install)
+description: pnpm/action-setup, actions/setup-node (.nvmrc, pnpm cache), pnpm install --frozen-lockfile
 
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v7
     - uses: pnpm/action-setup@v6
     - uses: actions/setup-node@v7
       with:
