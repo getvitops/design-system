@@ -1,9 +1,9 @@
 ---
 type: "Design Concept"
 title: "Vitops components — which tier provides a pattern, and what to write"
-description: "Every UI pattern across the three tiers (CSS classes, wc-* web components, and the platform wrappers: Astro components and Bricks elements): which tiers provide it, which call to make, and how the tiers compose."
+description: "Every UI pattern across the three tiers (CSS classes, wc-* web components, and the platform wrappers: Astro components, Bricks elements and EmDash blocks): which tiers provide it, which call to make, and how the tiers compose."
 resource: "design-system.json"
-tags: [components, web-components, astro, bricks, tiers, design-system]
+tags: [components, web-components, astro, bricks, emdash, tiers, design-system]
 generator: "@getvitops/generator"
 ---
 
@@ -18,13 +18,17 @@ A pattern is provided by up to **three tiers**, and they **compose** rather than
 3. **Platform wrappers** — authoring conveniences that generate the correct markup at build
    time, using the classes and elements of tiers 1 and 2. They must not require runtime JS.
    Where a pattern has a web component, the wrapper emits that tag **with the accessible
-   fallback inside it**. Two platforms:
+   fallback inside it**. Three platforms:
    - **Astro components** (`@getvitops/astro`)
    - **Bricks elements** (WordPress / Bricks Builder)
+   - **EmDash blocks** (`@getvitops/emdash`) — Portable Text blocks an editor inserts;
+     each is an adapter over the pattern's Astro component
 
-**Astro and Bricks are the same tier**, not tiers 3 and 4. They are siblings chosen by which
-platform you are on — no project uses both, and neither outranks the other. The tables below
-give them separate columns because they are separate packages, not separate levels.
+**Astro, Bricks and EmDash are the same tier**, not tiers 3, 4 and 5. They are siblings chosen
+by which platform you are on — neither outranks the others. (An EmDash site is an Astro site,
+so it uses the Astro components directly in templates and the blocks inside editor content.)
+The tables below give them separate columns because they are separate packages, not separate
+levels.
 
 ## Choosing
 
@@ -43,10 +47,10 @@ emit its tag.
 | Pattern | Tiers | What to write |
 | --- | --- | --- |
 | `badge` | css | `.badge` — a STATIC label. Use `tag` if it is dismissable or editable. |
-| `banner` | css | `.banner`; wrap in `<wc-dismissable>` for a close button that works. |
-| `btn` | css | `<button>` gets it with no class; `.btn` carries it to other tags. `fill: false`, so states drive `color`. |
-| `card` | css · wc · astro | `<Cards>` — it emits `<wc-cards>` itself, so do NOT add your own wrapper. `<Subgrid>` is the same grid without the click enhancement. |
-| `carousel` | css · wc · astro · bricks | `<Carousel slides={…} label="…" />` — it emits `<wc-carousel>` itself, so do NOT add your own wrapper. `.carousel` is the shell and `.carousel__track` the scroller; add `loop` for the cloned infinite strip (`autoplay` implies it). |
+| `banner` | css · emdash | `.banner`; wrap in `<wc-dismissable>` for a close button that works. |
+| `btn` | css · emdash | `<button>` gets it with no class; `.btn` carries it to other tags. `fill: false`, so states drive `color`. |
+| `card` | css · wc · astro · emdash | `<Cards>` — it emits `<wc-cards>` itself, so do NOT add your own wrapper. `<Subgrid>` is the same grid without the click enhancement. |
+| `carousel` | css · wc · astro · bricks · emdash | `<Carousel slides={…} label="…" />` — it emits `<wc-carousel>` itself, so do NOT add your own wrapper. `.carousel` is the shell and `.carousel__track` the scroller; add `loop` for the cloned infinite strip (`autoplay` implies it). |
 | `centered` | css · bricks | `.centered` as a track grid. Children land in `measure` — give it a track child to lay out inside. |
 | `cluster` | css | `.cluster` plus an alignment variant. |
 | `code` | css | Element selectors on `pre`/`code`; no class needed. |
@@ -55,26 +59,26 @@ emit its tag.
 | `combobox` | css | CSS shell only — the Lit component is a TODO, so it is not interactive yet. |
 | `comment` | css | `.comment` inside `.comment-thread`. |
 | `consent` | css · wc · astro | `<CookieConsent />`. Its own Lit-free bundle so a site needing consent does not download a rendering framework. |
-| `copy` | css · wc · bricks | `<wc-copy>` around the content and a `[data-copy]` button. |
+| `copy` | css · wc · bricks · emdash | `<wc-copy>` around the content and a `[data-copy]` button. |
 | `counter` | css · wc · astro | `<Counter value="94%" />` — it emits `<wc-counter>` itself, so do NOT add your own wrapper. The final value is parsed from the fallback text, never passed separately. |
-| `cta` | css | `.cta` on any element — usually `<a>`, since a CTA navigates. Filled, with role variants. |
-| `details` | css · astro | `<Details>` — or hand-write `<details>`. No JS at either tier; `::details-content` animates in CSS. |
+| `cta` | css · emdash | `.cta` on any element — usually `<a>`, since a CTA navigates. Filled, with role variants. |
+| `details` | css · astro · emdash | `<Details>` — or hand-write `<details>`. No JS at either tier; `::details-content` animates in CSS. |
 | `dialog` | css | Native `<dialog>` plus the `.dialog__*` parts. No JS beyond `showModal()`. |
 | `dismissable` | css · wc · bricks | `<wc-dismissable>` around any banner/notification containing a `[data-dismiss]` control. |
 | `drawer` | css · astro | `<Drawer>` — `<dialog class="drawer">` plus an Invoker Commands trigger. No JS. |
 | `dropdown` | css | `.dropdown` — Popover API based. |
 | `entries` | css · wc · bricks | `<wc-entries>` around `<h3>` + `<dl>` pairs. The tier-2 exemplar: semantic pairs with no JS, a table with it. |
 | `forms` | css | Wrap text controls in `.form-group` or `.input-group` — a bare `<input>` gets browser defaults. |
-| `gallery` | css · wc · astro | `<Gallery images={…} label="…" />` — it emits `<wc-gallery>` wrapping a `<Carousel />` (which emits its own `<wc-carousel>`) itself, so do NOT add your own wrapper around either. Each thumbnail is a plain `<a href="#slide-id">` into the carousel's own `<li id="slide-id">` inside a single `<dialog class="lightbox-dialog">` (see `lightbox`), so it is a working modal lightbox — WITH prev/next — before any script runs. Stepping between images is the carousel's job, not the gallery's. |
+| `gallery` | css · wc · astro · emdash | `<Gallery images={…} label="…" />` — it emits `<wc-gallery>` wrapping a `<Carousel />` (which emits its own `<wc-carousel>`) itself, so do NOT add your own wrapper around either. Each thumbnail is a plain `<a href="#slide-id">` into the carousel's own `<li id="slide-id">` inside a single `<dialog class="lightbox-dialog">` (see `lightbox`), so it is a working modal lightbox — WITH prev/next — before any script runs. Stepping between images is the carousel's job, not the gallery's. |
 | `grouped` | css | `.group-inline` / `.group-block` to join adjacent controls. |
 | `horizontal-scroll` | css | `.horizontal-scroll` for a snap strip. |
 | `icon` | css · astro · bricks | `<Icon name="menu" />`. Names are semantic and resolve per configured set; a name containing `:` passes through. |
 | `icon-picker` | css · wc | Not shipped. See `color-wheel`. |
-| `image-compare` | css · wc · bricks | `<wc-image-compare>` with two images. Both are visible without JS. |
+| `image-compare` | css · wc · bricks · emdash | `<wc-image-compare>` with two images. Both are visible without JS. |
 | `lightbox` | css | The single `<dialog class="lightbox-dialog">` a gallery opens — it wraps ONE `.carousel` (`lightbox-dialog__track`) of every image, not one dialog per image. Use `gallery` for the thumbnail grid that drives it — `<Gallery />` emits both, and the carousel inside already owns prev/next/dots/keys/swipe. |
-| `link` | css | `<a>` gets it at zero specificity; `.link` for other tags. `.stretched-link` makes one link cover its positioned ancestor (whole-card click, no JS — but the card text stops being selectable); `.raised` lifts content back above that overlay. |
+| `link` | css · emdash | `<a>` gets it at zero specificity; `.link` for other tags. `.stretched-link` makes one link cover its positioned ancestor (whole-card click, no JS — but the card text stops being selectable); `.raised` lifts content back above that overlay. |
 | `list` | css | `.facet-list` / `.filtered-list`. |
-| `marquee` | css · wc · astro | `<Marquee>` around one `.marquee__content`, or `<wc-marquee>` by hand. Scrolls via CSS alone; JS only removes the seam. |
+| `marquee` | css · wc · astro · emdash | `<Marquee>` around one `.marquee__content`, or `<wc-marquee>` by hand. Scrolls via CSS alone; JS only removes the seam. |
 | `masonry` | css | `.masonry` — CSS columns based. |
 | `media` | css | `.media` for a figure/body pair; `.tile` for the stacked form. |
 | `multi-field` | css · wc · bricks | `<wc-multi-field>` around a field template. One row submits fine with no JS. |
@@ -179,6 +183,27 @@ Controls, defaults and seeded children for each are in [the elements reference](
 | `vitops-split` | `split` |
 | `vitops-split-link` | `split-link` |
 | `vitops-split-panel` | `split-panel` |
+
+## EmDash blocks
+
+Portable Text block `_type`s from `@getvitops/emdash`. Repeating patterns are
+repeater fields. A block cannot contain other blocks — a section holding a card and a button is a
+`blocks` field in the EmDash schema, not a Portable Text block.
+
+| Block | Pattern | Renders via |
+| --- | --- | --- |
+| `vitops.banner` | `banner` | tier-1 markup |
+| `vitops.actionLink` | `btn` | tier-1 markup |
+| `vitops.cards` | `card` | `<Cards />` |
+| `vitops.carousel` | `carousel` | `<Carousel />` |
+| `vitops.copyButton` | `copy` | tier-1 markup |
+| `vitops.actionLink` | `cta` | tier-1 markup |
+| `vitops.details` | `details` | `<Details />` |
+| `vitops.accordion` | `details` | `<Details />` |
+| `vitops.gallery` | `gallery` | `<Gallery />` |
+| `vitops.imageCompare` | `image-compare` | tier-1 markup |
+| `vitops.actionLink` | `link` | tier-1 markup |
+| `vitops.marquee` | `marquee` | `<Marquee />` |
 
 ## CSS
 

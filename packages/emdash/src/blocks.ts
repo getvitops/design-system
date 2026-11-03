@@ -1,10 +1,16 @@
 /**
  * Portable Text block-type declarations for the EmDash editor.
  *
- * v1 exposes only Vitops patterns whose data model fits EmDash's flat Block Kit
- * fields (text_input / number_input / select / toggle). Repeating structured
- * patterns (Cards, wc-entries, FAQ, forms) go through EmDash Sections or
- * Field Kit `list` widgets on json collection fields instead — see the README.
+ * Fields are EmDash Block Kit elements. Scalars (text_input / number_input / select /
+ * toggle / combobox) cover single-valued patterns; `repeater` (rows of scalar
+ * sub-fields) covers the repeating ones — cards, gallery, accordion, marquee, carousel
+ * slides — and `media_picker` picks one asset from the media library. Both are
+ * supported by the Portable Text block editor but not by Block Kit admin pages, which
+ * is why the type below names them explicitly rather than accepting any `Element`.
+ *
+ * Patterns that need other blocks INSIDE them (a section with columns, a card holding a
+ * button) cannot be a Portable Text block — a repeater holds scalars only. Those belong in
+ * an EmDash `blocks` field; see the README.
  *
  * Every `action_id` here must have a matching prop consumed by the block's
  * .astro component in `src/astro/blocks/` (enforced by blocks.test.ts).
@@ -13,10 +19,19 @@
 import type { PortableTextBlockConfig } from 'emdash';
 import { SEMANTIC_ICON_OPTIONS } from './icon-options.ts';
 
-/** The v1 subset of EmDash Block Kit field elements used by these blocks. */
+/** The subset of EmDash Block Kit field elements these blocks use. */
 export type BlockKitFieldDef = Extract<
   NonNullable<PortableTextBlockConfig['fields']>[number],
-  { type: 'text_input' | 'number_input' | 'select' | 'toggle' | 'combobox' }
+  {
+    type:
+      | 'text_input'
+      | 'number_input'
+      | 'select'
+      | 'toggle'
+      | 'combobox'
+      | 'repeater'
+      | 'media_picker';
+  }
 >;
 
 export type PortableTextBlockDef = Omit<PortableTextBlockConfig, 'fields'> & {
@@ -159,17 +174,29 @@ export const BLOCKS: PortableTextBlockDef[] = [
     type: 'vitops.carousel',
     label: 'Carousel',
     placeholder: 'Image carousel',
+    category: 'Media',
     fields: [
+      {
+        type: 'repeater',
+        action_id: 'slides',
+        label: 'Slides',
+        item_label: 'slide',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'src', label: 'Image URL' },
+          { type: 'text_input', action_id: 'alt', label: 'Alt text' },
+        ],
+      },
       {
         type: 'text_input',
         action_id: 'images',
-        label: 'Image URLs (one per line)',
+        label: 'Image URLs, one per line (legacy — use Slides)',
         multiline: true,
       },
       {
         type: 'text_input',
         action_id: 'alts',
-        label: 'Alt texts (one per line, same order)',
+        label: 'Alt texts, one per line (legacy — use Slides)',
         multiline: true,
       },
       {
@@ -198,4 +225,176 @@ export const BLOCKS: PortableTextBlockDef[] = [
       },
     ],
   },
+  {
+    type: 'vitops.gallery',
+    label: 'Gallery',
+    placeholder: 'Thumbnail grid that opens a lightbox carousel',
+    category: 'Media',
+    fields: [
+      {
+        type: 'text_input',
+        action_id: 'label',
+        label: 'Accessible name',
+        initial_value: 'Gallery',
+      },
+      {
+        type: 'repeater',
+        action_id: 'images',
+        label: 'Images',
+        item_label: 'image',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'src', label: 'Image URL' },
+          { type: 'text_input', action_id: 'alt', label: 'Alt text' },
+          { type: 'text_input', action_id: 'caption', label: 'Caption' },
+        ],
+      },
+      {
+        type: 'text_input',
+        action_id: 'aspect',
+        label: 'Thumbnail aspect ratio',
+        initial_value: '1',
+      },
+      { type: 'toggle', action_id: 'loop', label: 'Wrap around at the ends', initial_value: false },
+    ],
+  },
+  {
+    type: 'vitops.cards',
+    label: 'Cards',
+    placeholder: 'A grid of cards',
+    category: 'Sections',
+    fields: [
+      {
+        type: 'repeater',
+        action_id: 'cards',
+        label: 'Cards',
+        item_label: 'card',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'title', label: 'Title' },
+          { type: 'text_input', action_id: 'body', label: 'Text', multiline: true },
+          { type: 'text_input', action_id: 'image', label: 'Image URL' },
+          { type: 'text_input', action_id: 'imageAlt', label: 'Image alt text' },
+          {
+            type: 'text_input',
+            action_id: 'href',
+            label: 'Link URL (makes the whole card clickable)',
+          },
+          {
+            type: 'text_input',
+            action_id: 'linkLabel',
+            label: 'Link text',
+            initial_value: 'Read more',
+          },
+        ],
+      },
+      {
+        type: 'select',
+        action_id: 'columns',
+        label: 'Columns',
+        initial_value: '3',
+        options: [
+          { label: '1', value: '1' },
+          { label: '2', value: '2' },
+          { label: '3', value: '3' },
+          { label: '4', value: '4' },
+        ],
+      },
+    ],
+  },
+  {
+    type: 'vitops.accordion',
+    label: 'Accordion',
+    placeholder: 'A group of collapsible sections',
+    category: 'Sections',
+    fields: [
+      {
+        type: 'repeater',
+        action_id: 'items',
+        label: 'Items',
+        item_label: 'item',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'summary', label: 'Summary (always visible)' },
+          { type: 'text_input', action_id: 'body', label: 'Body (revealed)', multiline: true },
+          { type: 'toggle', action_id: 'open', label: 'Open by default', initial_value: false },
+        ],
+      },
+      {
+        type: 'toggle',
+        action_id: 'exclusive',
+        label: 'Only one open at a time',
+        initial_value: false,
+      },
+    ],
+  },
+  {
+    type: 'vitops.marquee',
+    label: 'Marquee',
+    placeholder: 'A continuously scrolling row (logos, quotes, badges)',
+    category: 'Media',
+    fields: [
+      {
+        type: 'repeater',
+        action_id: 'items',
+        label: 'Items',
+        item_label: 'item',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'text', label: 'Text' },
+          { type: 'text_input', action_id: 'image', label: 'Image URL (shown instead of text)' },
+          { type: 'text_input', action_id: 'alt', label: 'Image alt text' },
+        ],
+      },
+      { type: 'toggle', action_id: 'pauseOnHover', label: 'Pause on hover', initial_value: true },
+      { type: 'toggle', action_id: 'reverse', label: 'Scroll the other way', initial_value: false },
+    ],
+  },
 ];
+
+/** Which Vitops blocks a site's editor offers, and any it adds of its own. */
+export interface BlockSelection {
+  /** Offer only these `vitops.*` types. Unknown names throw — a typo must not silently offer nothing. */
+  include?: string[];
+  /** Drop these `vitops.*` types. Applied after `include`. */
+  exclude?: string[];
+  /**
+   * The site's own blocks. These are EDITOR definitions only: the plugin cannot render a
+   * block it has never heard of, so the site maps each `type` to a component with
+   * `<PortableText components={{ type: { … } }} />`. A type that collides with an existing
+   * one throws, since the later definition would silently replace the earlier one's fields.
+   */
+  extra?: PortableTextBlockDef[];
+}
+
+/**
+ * Resolve {@link BlockSelection} against {@link BLOCKS}.
+ *
+ * Pure so a misconfiguration fails at plugin construction, with the offending name in the
+ * message, rather than as an editor menu that is quietly missing something.
+ */
+export function selectBlocks(selection: BlockSelection = {}): PortableTextBlockDef[] {
+  const known = new Set(BLOCKS.map((b) => b.type));
+  const check = (names: string[] | undefined, option: string): void => {
+    for (const name of names ?? [])
+      if (!known.has(name))
+        throw new Error(
+          `[vitops] blocks.${option}: unknown block '${name}'. Known: ${[...known].join(', ')}.`,
+        );
+  };
+  check(selection.include, 'include');
+  check(selection.exclude, 'exclude');
+
+  const include = selection.include ? new Set(selection.include) : null;
+  const exclude = new Set(selection.exclude);
+  const base = BLOCKS.filter((b) => (!include || include.has(b.type)) && !exclude.has(b.type));
+
+  const extra = selection.extra ?? [];
+  const taken = new Set(BLOCKS.map((b) => b.type));
+  for (const block of extra) {
+    if (taken.has(block.type))
+      throw new Error(`[vitops] blocks.extra: type '${block.type}' is already defined.`);
+    taken.add(block.type);
+  }
+  return [...base, ...extra];
+}

@@ -32,13 +32,14 @@ export const TIER_PAGES: Record<Tier, { path: string; label: string; short: stri
   wc: { path: 'components/elements', label: 'Web components', short: 'Web component' },
   astro: { path: 'components/astro', label: 'Astro components', short: 'Astro' },
   bricks: { path: 'components/bricks', label: 'Bricks elements', short: 'Bricks' },
+  emdash: { path: 'components/emdash', label: 'EmDash blocks', short: 'EmDash' },
 };
 
 /**
  * The ARCHITECTURAL tier each surface belongs to. There are three, not four.
  *
- * `Tier` is a projection axis with four keys because there are four pages to
- * render; that is not the same thing as four levels. **Astro and Bricks are both
+ * `Tier` is a projection axis with five keys because there are five pages to
+ * render; that is not the same thing as five levels. **Astro, Bricks and EmDash are all
  * tier 3** — platform wrappers that generate HTML using the classes and elements of
  * tiers 1 and 2. They are siblings chosen by platform, never ranked against each
  * other, and no project uses both.
@@ -47,9 +48,9 @@ export const TIER_PAGES: Record<Tier, { path: string; label: string; short: stri
  * tier 3 and Bricks as tier 4 — implying Bricks outranked Astro and that there was a
  * fourth level to climb to.
  */
-export const TIER_LEVEL: Record<Tier, number> = { css: 1, wc: 2, astro: 3, bricks: 3 };
+export const TIER_LEVEL: Record<Tier, number> = { css: 1, wc: 2, astro: 3, bricks: 3, emdash: 3 };
 
-export const TIER_ORDER: readonly Tier[] = ['css', 'wc', 'astro', 'bricks'];
+export const TIER_ORDER: readonly Tier[] = ['css', 'wc', 'astro', 'bricks', 'emdash'];
 
 /** Site-absolute href, base-aware and free of double slashes. */
 export const href = (path: string, base: string) => `${base}${path}`.replace(/\/{2,}/g, '/');

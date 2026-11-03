@@ -69,13 +69,14 @@ const PAGES = [
   // on why it isn't a generated markdown entry like its Reference siblings.
   { id: 'reference/config', data: { title: 'Config reference', section: 'Reference', order: 15 } },
   // One page per tier, projected from the generator's TIERS manifest. The agent-facing
-  // bundle keeps all four in ONE doc (`vitops docs components`) — see the section
+  // bundle keeps every tier in ONE doc (`vitops docs components`) — see the section
   // overview for why the two shapes are opposite on purpose.
   { id: 'components', data: { title: 'Overview', section: 'Components', order: 10 } },
   { id: 'components/css', data: { title: 'CSS classes', section: 'Components', order: 20 } },
   { id: 'components/elements', data: { title: 'Web components', section: 'Components', order: 30 } },
   { id: 'components/astro', data: { title: 'Astro components', section: 'Components', order: 40 } },
   { id: 'components/bricks', data: { title: 'Bricks elements', section: 'Components', order: 50 } },
+  { id: 'components/emdash', data: { title: 'EmDash blocks', section: 'Components', order: 60 } },
 ];
 
 const all = [...(await getCollection('docs')), ...PAGES];

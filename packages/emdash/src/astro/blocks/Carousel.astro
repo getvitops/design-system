@@ -3,14 +3,19 @@
  * Thin adapter over `@getvitops/astro`'s `<Carousel />`.
  *
  * The markup, the image priority matrix and the accessibility wiring all live
- * there — this only maps the block's newline-separated fields onto its `slides`
- * prop. Emitting the markup here too would be a second copy to keep in step, and
- * the one that drifts is always the one nobody is looking at.
+ * there — this only maps the block's fields onto its `slides` prop. Emitting the
+ * markup here too would be a second copy to keep in step, and the one that drifts
+ * is always the one nobody is looking at.
+ *
+ * `slides` (a repeater) is the editing surface. `images`/`alts` are the newline-
+ * separated fields every block saved before the repeater existed carries; they are
+ * still read when there are no `slides`, so existing content keeps rendering.
  */
 import Carousel from '@getvitops/astro/components/Carousel.astro';
-import { resolveBlockValue, splitLines } from './value.ts';
+import { resolveBlockValue, rows, safeHref, splitLines, text } from './value.ts';
 
 interface Value {
+  slides?: unknown;
   images?: string;
   alts?: string;
   label?: string;
@@ -20,19 +25,27 @@ interface Value {
 }
 
 const value = resolveBlockValue<Value>(Astro.props);
-const images = splitLines(value.images);
-const alts = splitLines(value.alts);
+const fromRepeater = rows<{ src?: unknown; alt?: unknown }>(value.slides).flatMap((row) => {
+  const src = safeHref(row.src);
+  return src ? [{ src, alt: text(row.alt) }] : [];
+});
+const legacyAlts = splitLines(value.alts);
+const fromLegacy = splitLines(value.images).flatMap((raw, i) => {
+  const src = safeHref(raw);
+  return src ? [{ src, alt: legacyAlts[i] ?? '' }] : [];
+});
+const slides = fromRepeater.length > 0 ? fromRepeater : fromLegacy;
 const autoplay = Number(value.autoplay) || 0;
 ---
 
 {
-  images.length > 0 && (
+  slides.length > 0 && (
     <Carousel
       label={value.label || 'Carousel'}
       autoplay={autoplay > 0 ? autoplay : undefined}
       loop={Boolean(value.loop)}
       aspect={value.aspect || '16 / 9'}
-      slides={images.map((src, i) => ({ src, alt: alts[i] ?? '' }))}
+      slides={slides}
     />
   )
 }

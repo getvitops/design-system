@@ -87,6 +87,19 @@ export interface TierEntry {
   astro?: TierAstro[];
   /** Bricks element `$name`, e.g. `vitops-carousel`. */
   bricks?: string;
+  /**
+   * `@getvitops/emdash` Portable Text block `_type`s that render this pattern, e.g.
+   * `vitops.carousel`. An array because one pattern can have several blocks
+   * (`details` has a single disclosure and an accordion group) and one block can span
+   * patterns (`vitops.actionLink` is `link`, `btn` and `cta`).
+   *
+   * Tier 3, a sibling of `astro` and `bricks`: a block is a platform wrapper that an
+   * editor drops into a page, and each one is an adapter over this entry's Astro
+   * component. `@getvitops/emdash`'s `blocks.test.ts` is the drift guard — it lives
+   * there because the generator cannot import the plugin (the plugin imports the
+   * generator), so the check runs from the side that can see both.
+   */
+  emdash?: string[];
   /** The one line an agent needs: what to actually write. */
   use: string;
 }
@@ -127,6 +140,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<Tree items={…} />` — it emits `<wc-tree>` itself, so do NOT add your own wrapper.',
   },
   carousel: {
+    emdash: ['vitops.carousel'],
     css: c(
       ['carousel', 'carousel__track', 'carousel__slide', 'carousel__media', 'carousel__hint'],
       'patterns/carousel.css',
@@ -148,6 +162,7 @@ export const TIERS: Record<string, TierEntry> = {
   // follow-up whenever it's needed — it only adds a field here, nothing above it
   // has to change.
   gallery: {
+    emdash: ['vitops.gallery'],
     css: c(
       ['gallery', 'gallery__item', 'gallery__trigger', 'gallery__thumb'],
       'patterns/gallery.css',
@@ -172,6 +187,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<wc-entries>` around `<h3>` + `<dl>` pairs. The tier-2 exemplar: semantic pairs with no JS, a table with it.',
   },
   copy: {
+    emdash: ['vitops.copyButton'],
     css: c(['copy', 'copy__button', 'copy__icon', 'copy__tooltip'], 'patterns/copy.css'),
     wc: { tag: 'wc-copy', registered: true, adds: 'clipboard write plus success feedback' },
     bricks: 'vitops-copy-button',
@@ -194,6 +210,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<wc-split-panel>` with two children. Unenhanced they simply stack.',
   },
   'image-compare': {
+    emdash: ['vitops.imageCompare'],
     // Same partial as split-panel — one of the reasons this file is authored.
     css: c(
       ['image-compare', 'image-compare__before', 'image-compare__handle'],
@@ -208,6 +225,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<wc-image-compare>` with two images. Both are visible without JS.',
   },
   marquee: {
+    emdash: ['vitops.marquee'],
     css: c(['marquee', 'marquee__content', 'marquee__item'], 'patterns/marquee.css'),
     wc: {
       tag: 'wc-marquee',
@@ -325,6 +343,7 @@ export const TIERS: Record<string, TierEntry> = {
 
   // ── Astro-only conveniences over tier-1 markup (no web component) ──────────
   details: {
+    emdash: ['vitops.details', 'vitops.accordion'],
     css: c(['details', 'details-trigger', 'details-icon'], 'patterns/details.css', true),
     astro: a('Details', 'css'),
     use: '`<Details>` — or hand-write `<details>`. No JS at either tier; `::details-content` animates in CSS.',
@@ -353,6 +372,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<Subgrid>` — emits `<ul class="subgrid" role="list">`; author `<li class="card subgrid-card">` items yourself, so tranches align across the set.',
   },
   card: {
+    emdash: ['vitops.cards'],
     css: c(['card'], 'patterns/card.css', true),
     wc: {
       tag: 'wc-cards',
@@ -393,14 +413,17 @@ export const TIERS: Record<string, TierEntry> = {
 
   // ── CSS-only patterns ─────────────────────────────────────────────────────
   btn: {
+    emdash: ['vitops.actionLink'],
     css: c(['btn'], undefined, true),
     use: '`<button>` gets it with no class; `.btn` carries it to other tags. `fill: false`, so states drive `color`.',
   },
   cta: {
+    emdash: ['vitops.actionLink'],
     css: c(['cta', 'cta-danger'], undefined, true),
     use: '`.cta` on any element — usually `<a>`, since a CTA navigates. Filled, with role variants.',
   },
   link: {
+    emdash: ['vitops.actionLink'],
     css: c(['link', 'skip-link', 'stretched-link', 'raised'], 'patterns/anchor-link.css', true),
     use: '`<a>` gets it at zero specificity; `.link` for other tags. `.stretched-link` makes one link cover its positioned ancestor (whole-card click, no JS — but the card text stops being selectable); `.raised` lifts content back above that overlay.',
   },
@@ -470,6 +493,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`.navbar` with `--start/--center/--end`.',
   },
   banner: {
+    emdash: ['vitops.banner'],
     css: c(['banner', 'banner__content', 'banner__action'], 'patterns/banner.css', true),
     use: '`.banner`; wrap in `<wc-dismissable>` for a close button that works.',
   },
@@ -568,13 +592,13 @@ export function tierTags(): { tag: string; registered: boolean; pattern: string 
 /**
  * The projection axis: four keys, THREE tiers.
  *
- * `astro` and `bricks` are both the platform-wrapper tier — siblings chosen by
- * platform, not levels 3 and 4. They are separate keys because they are separate
+ * `astro`, `bricks` and `emdash` are all the platform-wrapper tier — siblings chosen by
+ * platform, not levels 3, 4 and 5. They are separate keys because they are separate
  * packages with separate tables, and no project uses both. Anything rendering a
  * tier NUMBER must map them to the same one; deriving it from this union's order
  * is what put Bricks at "tier 4" on the docsite.
  */
-export type Tier = 'css' | 'wc' | 'astro' | 'bricks';
+export type Tier = 'css' | 'wc' | 'astro' | 'bricks' | 'emdash';
 
 /** A pattern paired with its entry — what one tier's projection iterates. */
 export interface TierProjection {
@@ -609,6 +633,8 @@ export function tierPatterns(tier: Tier): TierProjection[] {
         return !!e.astro?.length;
       case 'bricks':
         return !!e.bricks;
+      case 'emdash':
+        return !!e.emdash?.length;
     }
   };
   return TIER_NAMES.filter((name) => has(TIERS[name]!)).map((name) => ({

@@ -19,6 +19,16 @@ styled by the Vitops design system.
   `getEmDashCollection` / `getEmDashEntry` from `emdash`; render Portable Text
   with `<PortableText />` from `emdash/ui` (the Vitops blocks from
   `@getvitops/emdash` are merged in automatically).
+- **Building pages from patterns:** the editor's insert menu offers the `vitops.*` blocks —
+  link/button, image compare, copy snippet, banner, disclosure, accordion, carousel, gallery,
+  cards, marquee. Repeating content (cards, gallery images, accordion items, carousel slides) is
+  a repeater field. A block cannot contain other blocks, and a `vitops.*` block inside EmDash's
+  built-in `columns` does not render — for layout (a section, a split, a hero) use a `blocks`
+  field, or hand-write the page template with `@getvitops/astro` components
+  (`Subgrid`, `Cards`, `Carousel`, …). `npx vitops docs components` lists every pattern, which
+  tiers provide it, and which block renders it. Override a block's rendering per site with
+  `<PortableText components={{ type: { 'vitops.cards': MyCards } }} />`; hide one with
+  `vitopsEmdash({ blocks: { exclude: [...] } })` in `astro.config.mjs`.
 - `seed/seed.json` only applies against an empty database: structure
   (collections, menus, settings) on first boot; the `content` entries only
   when the setup wizard's "include sample content" option is chosen. Changing

@@ -253,11 +253,17 @@ describe('TIERS entries are usable', () => {
 
 describe('tierPatterns projects one tier at a time', () => {
   it('agrees with the optional fields for the three component tiers', () => {
-    for (const tier of ['wc', 'astro', 'bricks'] as const) {
+    for (const tier of ['wc', 'astro', 'bricks', 'emdash'] as const) {
       const projected = new Set(tierPatterns(tier).map((p) => p.name));
       const expected = TIER_NAMES.filter((n) => {
         const e = TIERS[n]!;
-        return tier === 'wc' ? !!e.wc : tier === 'astro' ? !!e.astro?.length : !!e.bricks;
+        return tier === 'wc'
+          ? !!e.wc
+          : tier === 'astro'
+            ? !!e.astro?.length
+            : tier === 'bricks'
+              ? !!e.bricks
+              : !!e.emdash?.length;
       });
       expect([...projected], `tierPatterns('${tier}')`).toEqual(expected);
     }
@@ -284,7 +290,7 @@ describe('tierPatterns projects one tier at a time', () => {
     // A pattern in no projection is in the manifest and on no page — the silent
     // omission the guards above exist to prevent, one level up.
     const seen = new Set(
-      (['css', 'wc', 'astro', 'bricks'] as const).flatMap((t) =>
+      (['css', 'wc', 'astro', 'bricks', 'emdash'] as const).flatMap((t) =>
         tierPatterns(t).map((p) => p.name),
       ),
     );

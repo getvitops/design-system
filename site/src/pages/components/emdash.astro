@@ -1,0 +1,59 @@
+---
+/**
+ * Tier 3 (EmDash) — the Portable Text blocks `@getvitops/emdash` adds to the editor.
+ *
+ * A third platform at the same tier as Astro and Bricks, not a level above them. A block
+ * is an adapter an editor can drop into a page: it renders through the Astro component
+ * for the same pattern (so the markup exists once), and the editor sees a form instead of
+ * markup. Membership is `tierPatterns('emdash')`, held to `@getvitops/emdash`'s real block
+ * list by that package's own `blocks.test.ts`.
+ */
+import { tierPatterns } from '@getvitops/generator';
+import Docs from '../../layouts/Docs.astro';
+import TierEntries from '../../components/TierEntries.astro';
+import { alsoIn, code, href, md, TIER_PAGES, type TierRow } from '../../components/tiers.ts';
+
+const base = import.meta.env.BASE_URL;
+
+const rows: TierRow[] = tierPatterns('emdash').flatMap(({ name, entry }) =>
+  entry.emdash!.map((type) => ({
+    id: `block-${type.replace(/\W+/g, '-')}`,
+    headingHtml: code(type),
+    cells: {
+      Pattern: code(name),
+      Renders: entry.astro?.length
+        ? entry.astro.map((a) => code(`<${a.component.split('/').pop()!.replace('.astro', '')} />`)).join(', ')
+        : 'tier-1 markup',
+      'Recommended call': md(entry.use),
+      'Also in': alsoIn(name, 'emdash', base),
+    },
+  })),
+);
+
+const title = 'EmDash blocks';
+const description =
+  'Tier 3 on EmDash — the Portable Text blocks an editor or agent can insert, and which framework pattern each one renders.';
+---
+
+<Docs title={title} description={description}>
+  <p>
+    Tier 3 on <strong>EmDash</strong> ships the patterns as blocks in the editor's insert menu, so
+    a non-technical author builds a page from the design system without touching markup. Each block
+    is a thin adapter over the matching
+    <a class="link" href={href(TIER_PAGES.astro.path, base)}>Astro component</a>, so the HTML and the
+    no-JS fallback are written once.
+  </p>
+  <p class="font-footnote">
+    Siblings of the <a class="link" href={href(TIER_PAGES.bricks.path, base)}>Bricks elements</a>
+    and the Astro components — chosen by platform, never ranked against each other.
+  </p>
+
+  <TierEntries rows={rows} />
+
+  <p class="font-footnote">
+    Repeating patterns (cards, gallery, accordion, marquee, carousel slides) are repeater fields.
+    A pattern that must contain other blocks cannot be a Portable Text block — see
+    <a class="link" href={href('packages/emdash', base)}>@getvitops/emdash</a> for the
+    <code>blocks</code> field route.
+  </p>
+</Docs>

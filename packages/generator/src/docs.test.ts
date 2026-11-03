@@ -197,7 +197,7 @@ describe('generateDocs bundle', () => {
         expect(md, `pattern \`${name}\` missing`).toContain(`\`${name}\``);
     });
 
-    it('carries all four tiers, not just the one a reader asked about', () => {
+    it('carries every tier, not just the one a reader asked about', () => {
       const md = doc();
       // Each tier's own detail table, keyed on something only that table emits.
       for (const { entry } of tierPatterns('wc'))
@@ -207,6 +207,8 @@ describe('generateDocs bundle', () => {
           expect(md, `component missing`).toContain(`\`${a.component}\``);
       for (const { entry } of tierPatterns('bricks'))
         expect(md, `element missing`).toContain(`\`${entry.bricks!}\``);
+      for (const { entry } of tierPatterns('emdash'))
+        for (const type of entry.emdash!) expect(md, `block missing`).toContain(`\`${type}\``);
       for (const { entry } of tierPatterns('css'))
         if (entry.css.partial) expect(md, `partial missing`).toContain(`\`${entry.css.partial}\``);
     });

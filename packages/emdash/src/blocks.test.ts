@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vite-plus/test';
 import pkg from '../package.json' with { type: 'json' };
-import { BLOCKS } from './blocks.ts';
+import { TIERS } from '@getvitops/generator';
+import { BLOCKS, selectBlocks } from './blocks.ts';
 import { SEMANTIC_ICON_OPTIONS } from './icon-options.ts';
 import { createPlugin, vitopsEmdash } from './index.ts';
 
@@ -12,7 +13,19 @@ const componentFiles: Record<string, string> = {
   'vitops.banner': 'src/astro/blocks/Banner.astro',
   'vitops.details': 'src/astro/blocks/Details.astro',
   'vitops.carousel': 'src/astro/blocks/Carousel.astro',
+  'vitops.gallery': 'src/astro/blocks/Gallery.astro',
+  'vitops.cards': 'src/astro/blocks/Cards.astro',
+  'vitops.accordion': 'src/astro/blocks/Accordion.astro',
+  'vitops.marquee': 'src/astro/blocks/Marquee.astro',
 };
+
+/** Every `action_id` a block saves, including the sub-fields of a repeater's rows. */
+function actionIds(fields: NonNullable<(typeof BLOCKS)[number]['fields']>): string[] {
+  return fields.flatMap((f) => [
+    f.action_id,
+    ...(f.type === 'repeater' ? f.fields.map((sub) => sub.action_id) : []),
+  ]);
+}
 
 describe('descriptor + runtime', () => {
   it('descriptor version matches package.json', () => {
@@ -66,10 +79,8 @@ describe('block ↔ component agreement', () => {
     '%s: every field action_id is consumed by its component',
     async (type, block) => {
       const source = await readFile(new URL(`../${componentFiles[type]}`, import.meta.url), 'utf8');
-      for (const field of block.fields ?? []) {
-        expect(source, `${componentFiles[type]} missing field '${field.action_id}'`).toContain(
-          field.action_id,
-        );
+      for (const id of actionIds(block.fields ?? [])) {
+        expect(source, `${componentFiles[type]} missing field '${id}'`).toContain(id);
       }
     },
   );
@@ -80,6 +91,48 @@ describe('block ↔ component agreement', () => {
       expect(source).toContain(`'${block.type}'`);
     }
   });
+});
+
+describe('blocks ↔ the TIERS manifest', () => {
+  // The generator cannot import this package (this one imports it), so the check that
+  // blocks and the manifest agree runs from here, where both are visible.
+  const entries = Object.entries(TIERS);
+  const claimed = (type: string) => entries.filter(([, e]) => e.emdash?.includes(type));
+
+  it.each(BLOCKS.map((b) => b.type))('%s is claimed by at least one TIERS pattern', (type) => {
+    expect(
+      claimed(type).map(([name]) => name),
+      `no TIERS entry lists '${type}'`,
+    ).not.toEqual([]);
+  });
+
+  it('TIERS lists no block this package does not define', () => {
+    const defined = new Set(BLOCKS.map((b) => b.type));
+    const phantom = entries.flatMap(([name, e]) =>
+      (e.emdash ?? []).filter((t) => !defined.has(t)).map((t) => `${name}: ${t}`),
+    );
+    expect(phantom).toEqual([]);
+  });
+
+  it.each(BLOCKS.map((b) => b.type))(
+    '%s renders through the pattern it is listed under',
+    async (type) => {
+      const source = await readFile(new URL(`../${componentFiles[type]}`, import.meta.url), 'utf8');
+      // The adapter must reach its pattern by something the manifest names: the Astro
+      // component it wraps, the web component's tag, or one of the pattern's classes.
+      // A block that hand-writes unrelated markup would fail all three.
+      const markers = (e: (typeof TIERS)[string]): string[] => [
+        ...(e.astro ?? []).map((a) => a.component.split('/').pop()!),
+        ...(e.wc ? [e.wc.tag] : []),
+        ...e.css.classes.map((c) => `class="${c}`),
+        ...e.css.classes.filter((c) => !c.includes('__')),
+      ];
+      const reachable = claimed(type).some(([, e]) => markers(e).some((m) => source.includes(m)));
+      expect(reachable, `${componentFiles[type]} references none of its pattern's markers`).toBe(
+        true,
+      );
+    },
+  );
 });
 
 describe('semantic icon options', () => {
@@ -104,5 +157,50 @@ describe('semantic icon options', () => {
     expect(combos.map((f) => f.action_id)).toEqual(['startIcon', 'endIcon']);
     for (const f of combos)
       expect((f as { options: unknown[] }).options).toBe(SEMANTIC_ICON_OPTIONS);
+  });
+});
+
+describe('selectBlocks', () => {
+  const types = (blocks: { type: string }[]) => blocks.map((b) => b.type);
+
+  it('offers every block by default', () => {
+    expect(types(selectBlocks())).toEqual(types(BLOCKS));
+  });
+
+  it('include is an allowlist, in the library order', () => {
+    expect(types(selectBlocks({ include: ['vitops.cards', 'vitops.banner'] }))).toEqual([
+      'vitops.banner',
+      'vitops.cards',
+    ]);
+  });
+
+  it('exclude drops blocks, and wins over include', () => {
+    const out = types(
+      selectBlocks({ include: ['vitops.cards', 'vitops.banner'], exclude: ['vitops.cards'] }),
+    );
+    expect(out).toEqual(['vitops.banner']);
+  });
+
+  it('throws on an unknown name rather than offering nothing', () => {
+    expect(() => selectBlocks({ include: ['vitops.cardz'] })).toThrow(
+      /unknown block 'vitops.cardz'/,
+    );
+    expect(() => selectBlocks({ exclude: ['nope'] })).toThrow(/blocks.exclude/);
+  });
+
+  it("appends the site's own blocks and refuses a colliding type", () => {
+    const mine = { type: 'acme.hero', label: 'Hero' };
+    expect(types(selectBlocks({ extra: [mine] })).at(-1)).toBe('acme.hero');
+    expect(() => selectBlocks({ extra: [{ type: 'vitops.cards', label: 'Dup' }] })).toThrow(
+      /already defined/,
+    );
+    expect(() => selectBlocks({ extra: [mine, mine] })).toThrow(/already defined/);
+  });
+
+  it('createPlugin applies the selection to the editor menu', () => {
+    const plugin = createPlugin({ blocks: { include: ['vitops.cards'] } }) as unknown as {
+      admin: { portableTextBlocks: { type: string }[] };
+    };
+    expect(types(plugin.admin.portableTextBlocks)).toEqual(['vitops.cards']);
   });
 });

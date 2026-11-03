@@ -1,0 +1,50 @@
+---
+/**
+ * Thin adapter over `@getvitops/astro`'s `<Cards />`, which emits `<wc-cards>` itself —
+ * so this must not add its own wrapper. With JS a card holding a link becomes clickable
+ * as a whole while its text stays selectable; without JS the stretched link does the
+ * same job. The card CSS is the framework's `.card` pattern.
+ *
+ * The title is a styled paragraph rather than a fixed heading element: the block can
+ * sit at any depth in a document, and a hard-coded `<h3>` would skip or repeat levels.
+ */
+import Cards from '@getvitops/astro/components/Cards.astro';
+import { resolveBlockValue, rows, safeHref, text } from './value.ts';
+
+interface Value {
+  cards?: unknown;
+  columns?: string | number;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const cards = rows<Record<string, unknown>>(value.cards)
+  .map((row) => ({
+    title: text(row.title),
+    body: text(row.body),
+    image: safeHref(row.image),
+    imageAlt: text(row.imageAlt),
+    href: safeHref(row.href),
+    linkLabel: text(row.linkLabel) || 'Read more',
+  }))
+  .filter((card) => card.title || card.body || card.image);
+const columns = Math.min(4, Math.max(1, Math.round(Number(value.columns) || 3)));
+---
+
+{
+  cards.length > 0 && (
+    <Cards style={`--subgrid-cols: ${columns}`}>
+      {cards.map((card) => (
+        <li class="card subgrid-card">
+          {card.image && <img src={card.image} alt={card.imageAlt} loading="lazy" />}
+          {card.title && <p class="font-heading">{card.title}</p>}
+          {card.body && <p>{card.body}</p>}
+          {card.href && (
+            <a class="link stretched-link" href={card.href}>
+              {card.linkLabel}
+            </a>
+          )}
+        </li>
+      ))}
+    </Cards>
+  )
+}

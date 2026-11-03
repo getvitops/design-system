@@ -29,7 +29,7 @@ import type {
   PluginContext,
   PluginDescriptor,
 } from 'emdash';
-import { BLOCKS } from './blocks.ts';
+import { BLOCKS, selectBlocks, type BlockSelection } from './blocks.ts';
 import {
   createDesignSystemRoute,
   designSystemOverrideFragment,
@@ -37,7 +37,8 @@ import {
 } from './design-system-route.ts';
 
 export { BLOCKS } from './blocks.ts';
-export type { BlockKitFieldDef, PortableTextBlockDef } from './blocks.ts';
+export { selectBlocks } from './blocks.ts';
+export type { BlockKitFieldDef, BlockSelection, PortableTextBlockDef } from './blocks.ts';
 export { vitopsHosting } from './hosting.ts';
 export type { HostingTarget, VitopsHosting, VitopsHostingOptions } from './hosting.ts';
 export type { DesignSystemEditorOptions } from './design-system-route.ts';
@@ -82,6 +83,12 @@ export interface VitopsEmdashOptions {
    * reviewed once at plugin-install time, same as any other capability.
    */
   designSystemEditor?: DesignSystemEditorOptions | false;
+  /**
+   * Which blocks the editor offers. All of the `vitops.*` blocks by default. Use `exclude` to
+   * drop one a client should not see, `include` for an allowlist, and `extra` to add the
+   * site's own — whose renderers the site supplies, see {@link BlockSelection}.
+   */
+  blocks?: BlockSelection;
 }
 
 /**
@@ -160,7 +167,7 @@ export function createPlugin(options: VitopsEmdashOptions = {}) {
     ...(fragmentsEnabled ? { hooks: { 'page:fragments': pageFragments } } : {}),
 
     admin: {
-      portableTextBlocks: BLOCKS,
+      portableTextBlocks: selectBlocks(options.blocks),
       ...(editor
         ? {
             entry: '@getvitops/emdash/admin',

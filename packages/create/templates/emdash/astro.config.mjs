@@ -35,8 +35,9 @@ export default defineConfig({
     emdash({
       database,
       storage,
-      // Vitops design-system blocks (image compare, copy snippet, banner,
-      // disclosure, carousel) in the editor slash menu. Default 'integration'
+      // Vitops design-system blocks (link/button, image compare, copy snippet,
+      // banner, disclosure, accordion, carousel, gallery, cards, marquee) in the
+      // editor slash menu. Narrow them with `vitopsEmdash({ blocks: { exclude } })`. Default 'integration'
       // script delivery: Layout.astro renders <Head /> from @getvitops/astro,
       // which emits the web-component runtime tags.
       //
