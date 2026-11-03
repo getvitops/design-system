@@ -289,7 +289,9 @@ export default defineConfig({
         // The Block Kit icon options are derived from @getvitops/utils' iconMap
         // rather than copied, so the dts pass needs utils' types built. The
         // module itself stays external (it is a real `dependencies` entry).
-        dependsOn: ['build:utils'],
+        // It also imports the design-system config + token types from
+        // @getvitops/generator (design-system-route.ts), hence both.
+        dependsOn: ['build:utils', 'build:generator'],
         cache: {
           input: [
             'packages/emdash/src/**/*.ts',

@@ -129,7 +129,7 @@ Two subpaths are built separately so a Worker route never bundles the integratio
 `@getvitops/astro/routes` (the conversion endpoint factory) and `@getvitops/astro/tracking`
 (the attribution vocabulary).
 
-### `@getvitops/utils` — thirteen subpaths
+### `@getvitops/utils` — sixteen subpaths
 
 | Subpath        | Runtime         | Purpose                                                                                    |
 | -------------- | --------------- | ------------------------------------------------------------------------------------------ |
@@ -142,13 +142,19 @@ Two subpaths are built separately so a Worker route never bundles the integratio
 | `./ads`        | build           | `vitops ads` — platform capability table, DNS plan                                         |
 | `./hosting`    | build (one-off) | `vitops setup repo/hosting` — GitHub + Cloudflare dev resources, shells to `wrangler`/`gh` |
 | `./reviews`    | build (one-off) | `vitops reviews` — fetch + cache Google Business Profile reviews                           |
+| `./email`      | build (one-off) | `vitops email` — sender-domain onboarding, DNS propagation probe, source scan              |
 | `./notify`     | **Worker**      | Conversion notifications — plan, render, send                                              |
 | `./tracking`   | **Worker**      | Attribution vocabulary + the `_ac` cookie                                                  |
 | `./security`   | **Worker**      | Turnstile token verification                                                               |
+| `./crm`        | **Worker**      | CRM submissions — HubSpot, Zoho Bigin, Jobber (plan, map, send)                            |
+| `./git`        | **Worker**      | Git-derived metadata (`lastmod`) for the EmDash plugin                                     |
 | `./schema`     | build           | Schema.org JSON-LD builders (article, breadcrumb, FAQ, localBusiness)                      |
 
-The two Worker entries are separate subpaths precisely so a conversion endpoint doesn't pull
-`sharp` into its bundle. Neither may use a Node builtin.
+The Worker entries (`notify`, `tracking`, `security`, `crm`, `schema`, `git`) are separate subpaths
+precisely so a conversion endpoint doesn't pull `sharp` into its bundle. **None may reach a Node
+builtin through any local import** — `worker-safe.test.ts` walks each entry's real import graph and
+fails on a `node:` specifier. (`notify` once re-exported the Google Ads upload, which reached
+`node:crypto` through `google/token.ts`; that file now signs with Web Crypto.)
 
 ## 1.4 Config anatomy
 
@@ -257,7 +263,9 @@ flowchart TD
   utils --> as
   vp --> as
   utils --> em
-  as -.->|"peer >=6.0.0"| em
+  gen --> em
+  as -.->|"peer >=8.2.0-alpha.0"| em
+  core -.->|"optional peer"| em
 ```
 
 **The one-way rule: `core` may never import the `generator`.** The generator snapshots core, not
@@ -368,7 +376,7 @@ Every task is `npx vp run <name>`, defined in [`vite.config.ts`](vite.config.ts)
 | `build:cli`         | `cd packages/cli && vp pack`                                | `build:generator`, `build:utils`                                    | `packages/cli/dist/**`                    |
 | `build:vite-plugin` | `cd packages/vite && vp pack`                               | `build:generator`, `build:utils`                                    | `packages/vite/dist/**`                   |
 | `build:astro`       | `cd packages/astro && vp pack`                              | `build:core`, `build:generator`, `build:utils`, `build:vite-plugin` | `packages/astro/dist/**`                  |
-| `build:emdash`      | `cd packages/emdash && vp pack`                             | `build:utils`                                                       | `packages/emdash/dist/**`                 |
+| `build:emdash`      | `cd packages/emdash && vp pack`                             | `build:utils`, `build:generator`                                    | `packages/emdash/dist/**`                 |
 | `build:theme`       | `node lib/build-theme.ts`                                   | `build:generator`                                                   | `dist/**` + **`docs/**`\*\* (tracked)     |
 | `build:docs`        | `… --format css`                                            | `build:generator`                                                   | `dist/styles.css`, `design-manifest.json` |
 | `build:tailwind`    | `… --format tailwind`                                       | `build:generator`                                                   | `dist/tailwind.css`                       |

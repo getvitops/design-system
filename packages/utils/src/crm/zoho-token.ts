@@ -1,10 +1,10 @@
 /**
  * Zoho OAuth2 refresh-token exchange, for Bigin.
  *
- * Not `google/token.ts`: that module imports `node:crypto` to sign the
- * service-account JWT assertion, which makes it unusable in a Worker. Zoho's
- * self-client grant is a plain `application/x-www-form-urlencoded` POST, so
- * this module has no such dependency and can run on every submission.
+ * Not `google/token.ts`: that one signs a service-account JWT assertion, which
+ * Zoho's grant has no need of. Zoho's self-client grant is a plain
+ * `application/x-www-form-urlencoded` POST, so this module is a few lines of
+ * fetch and can run on every submission.
  *
  * Cached per isolate, keyed on the refresh token, with an expiry margin — a
  * Worker isolate can field many submissions before it's recycled, and minting

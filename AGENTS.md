@@ -82,7 +82,8 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    (`patterns/card.css`), `wc-carousel` (`patterns/carousel.css`), `wc-gallery`
    (`patterns/gallery.css`) and `wc-theme-editor` (`patterns/theme-editor.css`) currently declare
    `display`; `wc-color-scheme-toggle` and `wc-consent` manage their own visibility, so the
-   remaining seven are unaddressed. Fixing them means checking each pattern's intended flow rather
+   remaining eight (`wc-entries`, `wc-image-compare`, `wc-copy`, `wc-marquee`, `wc-split-panel`,
+   `wc-multi-field`, `wc-dismissable`, `wc-counter`) are unaddressed. Fixing them means checking each pattern's intended flow rather
    than blanket-setting `display: block`, since an element used inline would regress — match the
    declaration to the content the element wraps.
 
