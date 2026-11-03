@@ -14,11 +14,17 @@ import Layout from '../layouts/Layout.astro';
 // shows up without a redeploy. Add `getStaticPaths()` + `prerender = true`
 // here only if this site's home page genuinely doesn't need that.
 const { entry: page } = await getEmDashEntry('pages', 'home');
+
+// `page.data` is typed `unknown` until `.emdash/types.ts` is generated from a
+// running site (`pnpm dev`, then `emdash types`), so a fresh scaffold would fail
+// `astro check`; the cast keeps it passing both before and after, where the
+// generated type is already `string`.
+const title = page?.data.title as string | undefined;
 ---
 
-<Layout description={page?.data.title}>
+<Layout description={title}>
   <section class="rhythm">
-    <h1>{page?.data.title ?? 'Welcome'}</h1>
+    <h1>{title ?? 'Welcome'}</h1>
     {
       page?.data.content ? (
         <PortableText value={page.data.content} />

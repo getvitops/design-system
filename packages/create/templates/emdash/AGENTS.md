@@ -105,6 +105,22 @@ styled by the Vitops design system.
   the fields its forms collect, where it deploys — rather than from guesses.
   It still needs review before launch.
 
+## EmDash 1.x behaviours worth knowing
+
+- **Passkeys are bound to the hostname they were created on.** After the
+  workers.dev → custom-domain cutover, use **Settings → General → Change
+  domain**, then **Continue on** to add a passkey at the new address.
+- **HTML blocks created in the admin run JavaScript** in a sandboxed iframe
+  (Contributor and up can add it). Astro's `security.csp` blocks their styles
+  and scripts, so don't turn CSP on without allowing for that.
+- **Link entries by `entry.data.slug`, never `entry.id`** — on multilingual
+  sites `id` carries a locale prefix.
+- **Submit `/sitemap.xml`** to search engines, not a per-collection sitemap;
+  collection sitemaps now split into pages of 2,000 entries.
+- **A stuck D1 migration lock** is cleared with
+  `pnpm exec emdash migrate --take-over-lock <id>` (confirms the target, or
+  needs `--expected-target-fingerprint` non-interactively).
+
 ## Docs MCP servers
 
 `.mcp.json` preconfigures the Astro docs and EmDash docs MCP servers — prefer

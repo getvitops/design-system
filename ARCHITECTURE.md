@@ -374,6 +374,7 @@ Every task is `npx vp run <name>`, defined in [`vite.config.ts`](vite.config.ts)
 | `build:tailwind`    | `… --format tailwind`                                       | `build:generator`                                                   | `dist/tailwind.css`                       |
 | `build:design`      | `… --format design`                                         | `build:generator`                                                   | **`DESIGN.md`** (repo root, tracked)      |
 | `build:packages`    | the six package builds in sequence                          | —                                                                   | —                                         |
+| `verify:scaffold`   | `node scripts/scaffold-check.mjs emdash && … static`        | `build:packages`                                                    | — (temp dir; uncached, hits the registry) |
 | `release:version`   | `changeset version`                                         | —                                                                   | per-package `CHANGELOG.md`                |
 | `release`           | `vp test run && vp run build:packages && changeset publish` | —                                                                   | published tarballs                        |
 | `deploy`            | `node --env-file=.env lib/deploy.ts`                        | `build`                                                             | the remote theme                          |
@@ -446,14 +447,15 @@ then regenerate.
 
 ## 2.7 CI, release, versioning
 
-`.github/workflows/ci.yml` — push to `main`/`dev`, all PRs. Four jobs:
+`.github/workflows/ci.yml` — push to `main`/`dev`, all PRs. Five jobs:
 
-| Job         | Does                                                                                                                                                                                 |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `test`      | `vp check` (lint + fmt + typecheck, deliberately no `--fix`) then `vp test run`                                                                                                      |
-| `build`     | `vp run build:packages` + `docs:build` — proves every package's own `pack`/`build` and the docs' Astro build actually succeed, not just typecheck against source                     |
-| `generated` | Runs `build:theme` + `build:design`, fails if `git diff` shows changes in `docs/` or `DESIGN.md`; then `docs:sync`, which throws if the generator emits a doc the site doesn't carry |
-| `e2e`       | Real Chromium, scripting disabled, against `site/` — verifies the tier-2 `<wc-*>` no-JS-fallback promise (see AGENTS.md's "Web components" section)                                  |
+| Job         | Does                                                                                                                                                                                                                                                                     |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `test`      | `vp check` (lint + fmt + typecheck, deliberately no `--fix`) then `vp test run`                                                                                                                                                                                          |
+| `build`     | `vp run build:packages` + `docs:build` — proves every package's own `pack`/`build` and the docs' Astro build actually succeed, not just typecheck against source                                                                                                         |
+| `scaffold`  | Matrix over `emdash`/`static`: copies the template, points its `@getvitops/*` at this checkout's packed tarballs, then installs, typechecks, builds and `vitops lint --strict`s it — the install-and-build a client gets from `vp create`, which nothing else reproduces |
+| `generated` | Runs `build:theme` + `build:design`, fails if `git diff` shows changes in `docs/` or `DESIGN.md`; then `docs:sync`, which throws if the generator emits a doc the site doesn't carry                                                                                     |
+| `e2e`       | Real Chromium, scripting disabled, against `site/` — verifies the tier-2 `<wc-*>` no-JS-fallback promise (see AGENTS.md's "Web components" section)                                                                                                                      |
 
 `.github/workflows/deploy-dev.yml` / `deploy-prod.yml` build `site/` and deploy to Cloudflare
 Workers static assets at `docs.vitops.ca` (apex custom domain configured in `site/wrangler.jsonc`,

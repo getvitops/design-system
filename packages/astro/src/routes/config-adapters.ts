@@ -13,10 +13,22 @@
  * entry point into a Worker bundle.
  */
 import type { Config } from '@getvitops/generator';
-import { t } from '@getvitops/utils';
+import { t, type Localizable } from '@getvitops/utils';
 import type { AdPropertySetup } from '@getvitops/utils/ads';
 import type { CrmConfig } from '@getvitops/utils/crm';
 import type { NotifyContext } from '@getvitops/utils/notify';
+
+/**
+ * The slice of a `Config` that `resolveOrganizationName` reads. Structural on
+ * purpose: `import config from './site.json'` types its literals widened
+ * (`colors.utilities` becomes `string[]`, not the schema's union), so it is not
+ * assignable to the full `Config`, and every scaffolded site calls this with
+ * exactly such an import. A resolved `Config` still satisfies it.
+ */
+export interface OrganizationNameSource {
+  organization?: { name?: Localizable | undefined; legalName?: string | undefined } | undefined;
+  site: { defaultLocale: string };
+}
 
 /**
  * Resolves the one display name for a site's organization — `organization.name`
@@ -36,7 +48,10 @@ import type { NotifyContext } from '@getvitops/utils/notify';
  * needing a name in `astro.config.mjs` has one real source instead of a third
  * hardcoded string.
  */
-export function resolveOrganizationName(config: Config, locale?: string): string | undefined {
+export function resolveOrganizationName(
+  config: OrganizationNameSource,
+  locale?: string,
+): string | undefined {
   const org = config.organization;
   const resolvedLocale = locale ?? config.site.defaultLocale;
   const name =

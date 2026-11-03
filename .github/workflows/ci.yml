@@ -67,6 +67,29 @@ jobs:
       - name: Build the docs site
         run: pnpm exec vp run docs:build
 
+  # Install-and-build what a client gets from `vp create @getvitops:<template>`,
+  # against THIS checkout's packed `@getvitops/*` rather than the last release
+  # (a template's deps are `latest`, so a plain scaffold would test nothing new).
+  # Nothing else here installs a template the way a client does: it is the one
+  # job that fails when the template, `@getvitops/emdash`'s plugin surface, or a
+  # bump of EmDash / Vite+ breaks a fresh project. See scripts/scaffold-check.mjs
+  # for exactly where it differs from a real `vp create`. Registry-dependent, so
+  # it is a separate job rather than part of `build`.
+  scaffold:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        template: [emdash, static]
+    steps:
+      - uses: ./.github/actions/setup
+
+      - name: Build every publishable package
+        run: pnpm exec vp run build:packages
+
+      - name: Scaffold and build the ${{ matrix.template }} template
+        run: node scripts/scaffold-check.mjs ${{ matrix.template }}
+
   # `docs/` and `DESIGN.md` are generated but TRACKED, which makes them the one
   # class of artifact that can silently disagree with its source. Everything else
   # generated lands in gitignored `dist/`, where it is rebuilt on demand and can't

@@ -23,8 +23,8 @@
             }
           },
           "roles": {
-            "neutral": "ink",
-            "surface": "ink",
+            "neutral": { "hue": "ink", "kind": "surface" },
+            "surface": { "hue": "ink", "kind": "surface" },
             "ui-primary": "brand",
             "brand-primary": "brand",
             "info": "sky",

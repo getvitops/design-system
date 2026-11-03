@@ -30,6 +30,13 @@ describe('vitopsHosting', () => {
     expect(JSON.stringify(hosting.storage)).toContain('MY_MEDIA');
   });
 
+  it('coalesces D1 reads by default, and lets a site opt out', async () => {
+    const on = await vitopsHosting();
+    const off = await vitopsHosting({ cloudflare: { coalesce: false } });
+    expect(JSON.stringify(on.database)).toContain('"coalesce":true');
+    expect(JSON.stringify(off.database)).toContain('"coalesce":false');
+  });
+
   it('node target fails with install instructions while @astrojs/node is absent', async () => {
     await expect(vitopsHosting({ target: 'node' })).rejects.toThrow(
       /needs @astrojs\/node[\s\S]*pnpm add @astrojs\/node better-sqlite3/,

@@ -91,6 +91,17 @@ describe('resolveOrganizationName', () => {
     const cfg = config({ organization: { name: { en: 'Acme' } } });
     expect(resolveOrganizationName(cfg)).toBe(toNotifyContext(cfg).organizationName);
   });
+
+  it('accepts the loosely-typed object a `import site from "./site.json"` produces', () => {
+    // A JSON import is not assignable to `Config` (its literals widen to
+    // `string`), so this is the shape every scaffolded Layout.astro passes.
+    const imported = {
+      organization: { name: { en: 'Acme', fr: 'Acme FR' }, legalName: 'Acme Inc.' },
+      site: { defaultLocale: 'en', locales: { en: { name: 'English' } } },
+    };
+    expect(resolveOrganizationName(imported)).toBe('Acme');
+    expect(resolveOrganizationName(imported, 'fr')).toBe('Acme FR');
+  });
 });
 
 describe('toCrmConfig', () => {

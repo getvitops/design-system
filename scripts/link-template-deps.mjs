@@ -54,15 +54,7 @@
  * than hardcoding a `.pnpm/astro@<hash>` path, since that hash changes
  * whenever astro's version or its own peer resolution set does.
  */
-import {
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  realpathSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs';
+import { lstatSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = process.cwd();
@@ -96,7 +88,10 @@ for (const { pkg, from } of LINKS) {
   const nodeModulesDir = join(root, TEMPLATE, 'node_modules', ...pkg.split('/').slice(0, -1));
   const linkPath = join(root, TEMPLATE, 'node_modules', pkg);
 
-  if (existsSync(linkPath)) {
+  // `lstatSync`, not `existsSync`: the latter follows the link, so a dangling
+  // one (its pnpm store dir removed by a version bump) reads as absent and the
+  // `symlinkSync` below dies with EEXIST.
+  if (lstatSync(linkPath, { throwIfNoEntry: false })) {
     const isCurrent = (() => {
       try {
         return lstatSync(linkPath).isSymbolicLink() && realpathSync(linkPath) === pkgDir;

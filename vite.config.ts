@@ -326,6 +326,16 @@ export default defineConfig({
         command: 'node lib/verify-bundle-size.ts',
         dependsOn: ['build:core'],
       },
+      // Scaffold each template (`emdash`, `static`) into a temp dir against THIS
+      // checkout's packed `@getvitops/*` and build it — the install-and-build a client does
+      // after `vp create`, which nothing else here reproduces. See
+      // scripts/scaffold-check.mjs. Uncached: it installs from the registry, so
+      // a cache hit would mean "it passed once", not "it passes now".
+      'verify:scaffold': {
+        command: 'node scripts/scaffold-check.mjs emdash && node scripts/scaffold-check.mjs static',
+        dependsOn: ['build:packages'],
+        cache: false,
+      },
       // Apply pending changesets: bump every package + write the per-package
       // CHANGELOG.md files. Run BEFORE `release`, then hand-write the matching
       // entry in the root CHANGELOG.md (the curated, toolchain-level notes).
