@@ -100,3 +100,12 @@
     translate: 0 calc(-1 * var(--_marquee-distance, calc(100% + var(--marquee-gap, 1rem))));
   }
 }
+
+/*
+ * The `.marquee` class carries `display: flex` when present (the Astro component always sets
+ * it). This is the fallback for a hand-written `<wc-marquee>` without the class, and it is
+ * zero specificity so `.marquee` still wins.
+ */
+:where(wc-marquee) {
+  display: block;
+}

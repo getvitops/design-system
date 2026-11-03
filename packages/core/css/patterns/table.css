@@ -104,3 +104,13 @@ table,
     min-inline-size: var(--table-min-inline-size, 100%);
   }
 }
+
+/*
+ * Before upgrade (or with elements.js absent) an unregistered custom element is
+ * `display: inline`, forming an inline box around block content. The default-view
+ * `<h3>` + `<dl>` pairs are block content, as is the table the element builds.
+ * Zero specificity, so any consumer rule wins.
+ */
+:where(wc-entries) {
+  display: block;
+}

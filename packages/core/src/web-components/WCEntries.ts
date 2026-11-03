@@ -259,7 +259,10 @@ export class WCEntries extends BaseElement {
     const nav = document.createElement('nav');
     nav.classList.add('entries__nav');
     nav.setAttribute('aria-label', 'Column selector');
-    nav.setAttribute('aria-hidden', 'true');
+    // Not `aria-hidden`: these are real, focusable buttons, and hiding a focusable element
+    // from assistive tech leaves a keyboard user on a control nothing announces. The table
+    // they steer stays `aria-hidden` (it duplicates the `<dl>`, which is what AT reads) and
+    // holds nothing focusable.
 
     this.#navButtons = this.#columnHeaders.map((header, i) => {
       const btn = document.createElement('button');

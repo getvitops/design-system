@@ -76,16 +76,18 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      `<time datetime>` (`"5 minutes ago"`), re-rendering as it goes stale. Fallback is the value
      already in the markup.
 
-   **Known gap — element display.** An unregistered custom element is `display: inline`, and most
-   of these wrap block content, so before upgrade (or with `elements.js` absent entirely) the tag
-   forms an inline box around a block child. Only `wc-tree` (`patterns/tree.css`), `wc-cards`
-   (`patterns/card.css`), `wc-carousel` (`patterns/carousel.css`), `wc-gallery`
-   (`patterns/gallery.css`) and `wc-theme-editor` (`patterns/theme-editor.css`) currently declare
-   `display`; `wc-color-scheme-toggle` and `wc-consent` manage their own visibility, so the
-   remaining eight (`wc-entries`, `wc-image-compare`, `wc-copy`, `wc-marquee`, `wc-split-panel`,
-   `wc-multi-field`, `wc-dismissable`, `wc-counter`) are unaddressed. Fixing them means checking each pattern's intended flow rather
-   than blanket-setting `display: block`, since an element used inline would regress — match the
-   declaration to the content the element wraps.
+   **Element display.** An unregistered custom element is `display: inline`, and most of these wrap
+   block content, so before upgrade (or with `elements.js` absent entirely) the tag would form an
+   inline box around a block child — and, where the upgraded `:host` declares a different display,
+   registering would shift the layout. Each pattern's partial now declares `display` for its element
+   inside `:where()`, matched to the content it wraps and to its upgraded `:host`: `block` for
+   `wc-entries`, `wc-image-compare`, `wc-split-panel`, `wc-multi-field`, `wc-dismissable` (which
+   animates its own box, so `display: contents` is out) and `wc-marquee`; `inline-flex` for `wc-copy`.
+   **`wc-counter` is deliberately left `inline`**: it wraps one inline `.counter__value` `<span>`
+   (its docblock's example), so the default display is already right for what it holds.
+   `wc-color-scheme-toggle` and `wc-consent` manage their own visibility. A new element must declare
+   its display in its pattern's partial — an element used inline would regress under a blanket
+   `display: block`, so match the declaration to the content it wraps.
 
 3. **Platform wrappers** (`@getvitops/astro` components; future `@getvitops/bricks`) — thin
    **authoring conveniences (DX)** for the pure-HTML/CSS patterns: they render the correct

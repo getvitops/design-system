@@ -80,3 +80,8 @@
     visibility: visible;
   }
 }
+
+/* Matches `<wc-copy>`'s upgraded `:host` (inline-flex) so registering causes no reflow. */
+:where(wc-copy) {
+  display: inline-flex;
+}
