@@ -72,6 +72,18 @@ describe.each(templateNames)('template %s', (name) => {
     expect(major).toBe(read('.node-version'));
   });
 
+  it("applies the repo's release cooldown and exempts the toolchain from it", () => {
+    // Every client install is held to the same cooldown this repo uses, so a template that ships
+    // a shorter one (or none, which falls back to pnpm's one-day default) is a quieter supply-chain
+    // posture than the repo that scaffolds it. `@getvitops/*` is exempt because releases land together.
+    const root = readFileSync(join(import.meta.dirname, '..', '..', 'pnpm-workspace.yaml'), 'utf8');
+    const age = /^minimumReleaseAge: (\d+)$/m.exec(root)?.[1];
+    expect(age).toBe('4320');
+    const ws = readFileSync(join(TEMPLATES, name, 'pnpm-workspace.yaml'), 'utf8');
+    expect(/^minimumReleaseAge: (\d+)$/m.exec(ws)?.[1]).toBe(age);
+    expect(ws).toMatch(/^\s+- '@getvitops\/\*'$/m);
+  });
+
   it("uses the same astro range as this repo's catalog", () => {
     // One bump place. A template left on an older range scaffolds a project a release behind the
     // Astro this repo builds and tests against.

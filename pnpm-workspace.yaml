@@ -77,7 +77,22 @@ allowBuilds:
   lightningcss: true
   sharp: false
   workerd: true
+# Supply-chain cooldown: nothing is installed within 3 days of its publish. Every scaffolded
+# template carries the same value (templates.test.ts asserts they agree).
+minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
+  # Transitive, resolved before the 3-day policy: Astro 7.4.4 -> shiki, Vitest -> tinybench. They
+  # clear the cooldown on 2026-11-05, so delete these exact-version lines then (exact on purpose —
+  # a range here would also exempt every later release).
+  - '@shikijs/core@4.6.0'
+  - '@shikijs/engine-javascript@4.6.0'
+  - '@shikijs/engine-oniguruma@4.6.0'
+  - '@shikijs/langs@4.6.0'
+  - '@shikijs/primitive@4.6.0'
+  - '@shikijs/themes@4.6.0'
+  - '@shikijs/types@4.6.0'
+  - shiki@4.6.0
+  - tinybench@6.2.3
   - '@emdash-cms/admin@1.4.0'
   - '@emdash-cms/auth@1.4.0'
   - '@emdash-cms/blocks@1.4.0'

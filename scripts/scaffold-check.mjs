@@ -279,11 +279,9 @@ try {
   writeFileSync(join(site, '.npmrc'), `registry=${registry.url}/\n`);
 
   const wsPath = join(site, 'pnpm-workspace.yaml');
-  // The static template ships no pnpm-workspace.yaml; give it the minimum, plus
-  // the build approvals `vp create --approve-builds` would have granted.
-  let ws = existsSync(wsPath)
-    ? readFileSync(wsPath, 'utf8')
-    : "allowBuilds:\n  esbuild: true\n  workerd: true\n  sharp: false\nminimumReleaseAgeExclude:\n  - '@getvitops/*'\n";
+  // Every template ships one (`templates.test.ts` asserts it), carrying the cooldown and the
+  // build approvals `vp create --approve-builds` would otherwise grant.
+  const ws = readFileSync(wsPath, 'utf8');
   // Published seconds ago, so the cooldown would reject the toolchain under test unless the
   // template exempts it — which a real scaffold must do too, since releases land the same way.
   if (!/^\s+- '@getvitops\/\*'$/m.test(ws)) {
