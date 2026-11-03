@@ -1531,13 +1531,18 @@ at least once.
 **The `scaffold` CI job is the only thing that installs a template the way a client does.** A
 template's `@getvitops/*` deps are `latest` (see `templates.test.ts` for why), so a plain scaffold
 resolves the last _release_ and would test nothing new; `scripts/scaffold-check.mjs` (`vp run
-verify:scaffold`) instead `pnpm pack`s this checkout's packages and overrides the scaffold's deps to
-the tarballs, then installs, typechecks, builds and `vitops lint --strict`s it. It copies the
-template directory rather than calling `vp create`, because `vp create @getvitops:<name>` resolves
-the _published_ `@getvitops/create` from npm and refuses `--directory` for a local path. It also
-turns off three things that concern the runner, not the template — `blockExoticSubdeps` (the
-tarballs are exactly what it blocks), `packageManager` and `devEngines` (they make pnpm/Node try to
-download other versions) — and fails on EmDash's adapter-version-mismatch warning, which is how an
+verify:scaffold`) instead `pnpm pack`s this checkout's packages, **publishes them to a throwaway
+Verdaccio registry** under `latest`, and installs the scaffold from it, then typechecks, builds and
+`vitops lint --strict`s it. `@getvitops/*` is served from that registry only (no uplink, so it cannot
+fall back to a release) and everything else proxies to npmjs. It replaced `overrides` pointing at
+`file:` tarballs, which never resolved the scaffold's own `latest` specifiers and needed
+`blockExoticSubdeps` switched off. The template's release cooldown is left in force — the script
+throws if a template stops exempting `@getvitops/*` from it — so the install resolves what a client
+would today, Astro included. It copies the template directory rather than calling `vp create`,
+because `vp create @getvitops:<name>` resolves the _published_ `@getvitops/create` from npm and
+refuses `--directory` for a local path. It also drops `packageManager` and `devEngines` (they make
+pnpm/Node try to download other versions than the runner has) and fails on EmDash's
+adapter-version-mismatch warning, which is how an
 upgrade of `emdash` without `@emdash-cms/cloudflare` shows up. It exists because it found real
 defects the first time it ran: `resolveOrganizationName` demanded the full `Config`, which a plain
 `import site from './site.json'` cannot satisfy; `page.data` was `unknown` before `emdash types`

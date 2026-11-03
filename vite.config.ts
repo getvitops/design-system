@@ -55,7 +55,7 @@ export default defineConfig({
     // root config has no reason to carry that for ~1660 other, plain-TS tests, so
     // picking the file up here means it hits `vite:import-analysis` on raw Astro
     // template syntax and fails to even load. Excluded rather than fixed here: its
-    // own config currently throws inside Astro 7.1.2's `getViteConfig` internals
+    // own config currently throws inside Astro's `getViteConfig` internals (still true on 7.4.4)
     // (`resolveConfig`/`createVite`, unrelated to anything in this package) before
     // a single test runs — an upstream/experimental-API problem
     // (`experimental_AstroContainer`), not a regression in this toolchain. Re-run

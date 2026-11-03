@@ -36,7 +36,7 @@ catalog:
   '@types/node': ^25.9.3
   '@webcomponents/template-shadowroot': ^0.2.1
   '@webcomponents/webcomponentsjs': ^2.8.0
-  astro: ^7.1.2
+  astro: ^7.4.4
   astro-icon: ^1.1.5
   baseline-status: ^1.1.1
   colorjs.io: ^0.5.2
@@ -78,7 +78,6 @@ allowBuilds:
   sharp: false
   workerd: true
 minimumReleaseAgeExclude:
-  - astro@7.1.2
   - '@emdash-cms/admin@1.4.0'
   - '@emdash-cms/auth@1.4.0'
   - '@emdash-cms/blocks@1.4.0'

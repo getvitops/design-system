@@ -61,6 +61,29 @@ describe.each(templateNames)('template %s', (name) => {
     for (const [, range] of ours) expect(range).toBe('latest');
   });
 
+  it('pins Node in .node-version, agreeing with .nvmrc and devEngines', () => {
+    // Version managers read `.node-version` (fnm, mise, asdf, Volta), the reusable CI workflows
+    // read `.nvmrc`, and pnpm reads `devEngines`. Three spellings of one fact: a scaffold that
+    // disagrees with itself gets a different Node locally than it builds with in CI.
+    const read = (file: string) => readFileSync(join(TEMPLATES, name, file), 'utf8').trim();
+    const major = String(pkg.devEngines?.runtime?.version).split('.')[0];
+    expect(read('.node-version')).toBe('24');
+    expect(read('.nvmrc')).toBe(read('.node-version'));
+    expect(major).toBe(read('.node-version'));
+  });
+
+  it("uses the same astro range as this repo's catalog", () => {
+    // One bump place. A template left on an older range scaffolds a project a release behind the
+    // Astro this repo builds and tests against.
+    const catalog = readFileSync(
+      join(import.meta.dirname, '..', '..', 'pnpm-workspace.yaml'),
+      'utf8',
+    );
+    const range = /^ {2}astro: (\S+)$/m.exec(catalog)?.[1];
+    expect(range).toBeDefined();
+    expect(pkg.dependencies?.astro).toBe(range);
+  });
+
   it('ships a site.json that validates as a Config', () => {
     // A shipped config that fails validation is a scaffold that can run no
     // site-anchored command (legal/robots/search/ads/reviews/icons all default
