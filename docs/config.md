@@ -41,6 +41,18 @@ those two are separately true.
 pre-3.0 flat config, `vitops validate` names every move rather than reporting a dozen
 unknown keys.
 
+## `$schema` *(optional)*
+
+URL of the published config JSON Schema (stamped by `vitops init --site`) so editors provide autocomplete + validation.
+
+
+
+## `configVersion` *(optional)*
+
+The config shape version (see `CONFIG_VERSION`) — absent reads as version 1, which is every config validated by this schema so far.
+
+
+
 ## `designSystem`
 
 The design system: named themes plus the system-wide facts (which theme, which appearance). A bare design system, or a bare theme map, is accepted as shorthand for `{ themes: … }`.
@@ -190,7 +202,7 @@ Services offered (schema.org Service/Offer): name, description, slug, price offe
   - `offers` (array)
     - `[items]` (object)
       - `name` (one of) — A string, or a per-locale map of strings (`{ en: "…", fr: "…" }`).
-      - `price` (string | number)
+      - `price` (string,number)
       - `priceCurrency` (string)
       - `availability` (string)
       - `url` (string)
@@ -283,6 +295,13 @@ Deploy environments (production, dev, …): URL, API origin, analytics toggle, r
   - `robots` (string) — Robots policy (e.g. "noindex,nofollow" for dev).
   - `variant` (string) — Active `abTesting.variants` key for this environment.
 
+### `plan` *(optional)*
+
+Commercial plan/add-on entitlement, gating which capability fields below may be turned on. Absence means unrestricted.
+
+- `key` (string, required) — Commercial plan identifier (e.g. "essentials", "growth") — open string, not a closed enum.
+- `addons` (array of string) — Add-on keys this site is entitled to (e.g. "ab_testing", "server_side_tracking") — checked against PLAN_CAPABILITIES.
+
 ### `abTesting` *(optional)*
 
 A/B testing: cookie-based split plus named variants whose `overrides` patch the config per environment.
@@ -297,6 +316,18 @@ A/B testing: cookie-based split plus named variants whose `overrides` patch the 
     - `description` (string)
     - `overrides` (map)
 
+### `experiments` *(optional)*
+
+Runtime, per-visitor content experiments — one config-schema-free page branches on a cookie the vitopsAbTesting() middleware assigns. Distinct from `abTesting`, which merges a whole build/environment variant at resolve time; this instead lets one page (e.g. a real, nav-linked /contact) run a copy test without a second URL or a second deploy. Keyed by an open experiment name so more than one can run at once.
+
+- `<name>` (object)
+  - `enabled` (boolean, required)
+  - `category` (analytics | marketing) — Consent category this experiment's assignment cookie waits on (default `analytics`) — independent of `site.tracking.category`, so an experiment never piggybacks on ad-attribution consent.
+  - `cookieName` (string) — Default `_ab_<experiment key>`.
+  - `cookieMaxAge` (integer) — Seconds.
+  - `splitRatio` (number) — Fraction of new visitors auto-assigned to `variants[1]` (default 0.5). 0 means nobody is auto-assigned — a manually or query-param-set cookie still pins a visitor to `variants[1]`, which is what makes 0 a real blue/green-preview mode rather than a no-op.
+  - `variants` (array, required) — Exactly two variant names, e.g. ["control", "new-form"]. `variants[0]` is the default a visitor with no assignment yet effectively sees.
+
 ### `fonts` *(optional)*
 
 Font LOADING (a serialisable projection of the Astro Fonts API: provider, weights, subsets, preload). Font TOKENS live in `designSystem.themes.<theme>.fonts` and reference the same `cssVariable`.
@@ -305,8 +336,7 @@ Font LOADING (a serialisable projection of the Astro Fonts API: provider, weight
   - `name` (string, required)
   - `provider` (google | fontsource | adobe | bunny | fontshare | googleicons | npm | local, required)
   - `cssVariable` (string, required)
-  - `weights` (array)
-    - `[items]` (number | string)
+  - `weights` (array of number,string)
   - `styles` (array of normal | italic)
   - `subsets` (array of string)
   - `fallbacks` (array of string)
@@ -317,7 +347,7 @@ Font LOADING (a serialisable projection of the Astro Fonts API: provider, weight
   - `variants` (array)
     - `[items]` (object)
       - `src` (array of string, required)
-      - `weight` (number | string)
+      - `weight` (number,string)
       - `style` (normal | italic)
       - `unicodeRange` (array of string)
       - `display` (auto | block | swap | fallback | optional)
@@ -384,7 +414,6 @@ Named content templates rendered at SSR time: `nav` (menu trees), `form` (field 
     - `fields` (array)
       - `[items]` (object)
     - `submit` (map)
-      - `<name>` (string | number | boolean)
     - `honeypot` (boolean)
   - *one of*
     - `type` (string, required)
@@ -465,6 +494,7 @@ Analytics provider IDs (gated per environment via `environments.<env>.analytics`
   - `url` (string, required) — Instance base URL (self-hosted, or `*.matomo.cloud`).
   - `siteId` (string, required) — Site ID within that instance.
   - `cookies` (boolean) — Default false — Matomo runs cookieless (`disableCookies`), which is what lets the cookie notice state positively that it sets none.
+  - `abVariantDimensions` (map) — Pre-created Matomo custom-dimension index per `site.experiments` key — Matomo requires the dimension to exist in the instance before a value can be pushed for it.
 
 ### `notifications` *(optional)*
 
@@ -479,6 +509,8 @@ Where site notifications (form submissions, tracked calls) are sent. TODO: `sms`
     - `fromName` (string) — Display name on the From header. Defaults to `organization.name`.
     - `replyTo` (string) — Reply-To header.
     - `binding` (string) — Workers `send_email` binding name (default `EMAIL`). Set it when using a restricted binding.
+    - `verifySender` (boolean) — Set false to skip `vitops email check`'s deploy-time onboarding warning for this site — for a `from` domain the scan cannot see is correct (e.g. built dynamically), which would otherwise be a false positive.
+- `actionUrl` (string) — Optional action-link template added to the conversion email (e.g. a link into your ad platform or your own CRM/portal). `{clickId}` is replaced with the ad click ID captured on `_ac` (gclid, fbclid, …). Omitted from the email when the event carries no click ID to interpolate, rather than rendering a broken link.
 
 ### `tracking` *(optional)*
 
@@ -495,7 +527,19 @@ Ad properties this site is linked to, keyed by platform. Read by `vitops ads set
 - `<name>` (object)
   - `accountId` (string) — The advertising account as the platform shows it — Google Ads customer ID, Meta ad account, LinkedIn partner ID, Reddit advertiser ID. For LinkedIn this is also the Insight Tag id; everywhere else the tag id is `pixelId`.
   - `pixelId` (string) — The tag/pixel ID the browser snippet initialises — Meta pixel, TikTok pixel, Reddit pixel, Microsoft UET tag ID, Pinterest tag ID, Snap pixel, or the Google Ads conversion ID (`AW-…`, which is NOT the customer ID).
-  - `conversionLabel` (string) — Google Ads only: the conversion action label paired with the `AW-…` conversion ID.
+  - `conversionLabel` (one of) — Google Ads only: the conversion action label(s) paired with the `AW-…` conversion ID — either one bare label (back-compat, treated as the `call` action) or a map of action → label, so a call, an email click and a form submission each fire their own Google Ads conversion action instead of all three reporting as the same one.
+    - *one of*
+    - *one of*
+      - `call` (string) — Fired on a tel: link click.
+      - `email` (string) — Fired on a mailto: link click.
+      - `form` (string) — Fired client-side by `vitopsFormConversion()` — the consumer's own submit handler calls it once a form POST succeeds.
+  - `conversionActionId` (one of) — Google Ads only: the conversion action **resource id(s)** (a numeric id, or a full `customers/…/conversionActions/…` resource name) used for server-side offline conversion upload — NOT the same value as `conversionLabel`, which is the opaque label the web tag uses and which the Ads API's upload endpoint does not accept. Only meaningful when `reporting: "server"`.
+    - *one of*
+    - *one of*
+      - `call` (string) — Fired on a tel: link click.
+      - `email` (string) — Fired on a mailto: link click.
+      - `form` (string) — Fired on a form submission.
+  - `reporting` (client | server) — Google Ads only: `"client"` (default) fires the conversion via `gtag.js` in the browser at click/submit time; `"server"` uploads it via the Ads API from the conversion endpoint instead (see `conversionActionId`). An action with no matching `conversionActionId` keeps firing client-side regardless of this setting, so setting it before `conversionActionId` is filled in never silently drops a conversion.
   - `domain` (string) — Bare hostname to verify with this platform. Defaults to the host of `domains.canonical` — set it only when the ad account is verified against a different domain.
   - `domainVerification` (string) — The verification token from the platform UI, for the platforms that verify by DNS TXT (Meta, TikTok, Pinterest, Snapchat). `vitops ads setup` prompts for it and writes it here on first run. NOT a secret — it is published in DNS, and the platform fetching it back is the ownership proof, exactly like the IndexNow key. A value containing `=` is used as the whole record, which is the escape hatch if a platform changes its prefix.
   - `category` (marketing | analytics) — Consent category the tag waits on (default `marketing`). An ad pixel is advertising by default; `analytics` is for a site using one purely for its own measurement.
@@ -516,6 +560,31 @@ Google Business Profile reviews to cache and display, keyed by `organization.loc
     - `sort` (recent | rating) — Ordering for the non-featured remainder (default `recent`).
 - `schema` (boolean) — Emit `Review` JSON-LD for these reviews (default false). Off by default: Google’s structured-data policy treats a business marking up reviews of itself as ineligible for review rich results, and risks a manual action.
 - `avatars` (boolean) — Render the reviewer’s Google-hosted avatar photo (default false). Off by default: every visitor would otherwise issue a third-party request to googleusercontent.com, and the URLs are not guaranteed to stay live.
+
+### `crm` *(optional)*
+
+Push form submissions into a client CRM (HubSpot, Zoho Bigin, or Jobber) alongside the notification email. Read by `createConversionRoute()`'s `crm` option and `vitops crm check`/`vitops crm setup`. Credentials never live here.
+
+- `provider` (hubspot | bigin | jobber, required) — Which CRM this site pushes form submissions into.
+- `enabled` (boolean) — Set false to keep the block on record without writing to the CRM.
+- `hubspot` (object) — Required when `provider` is `hubspot`.
+  - `portalId` (string, required) — The HubSpot portal (hub) ID the form belongs to.
+  - `formGuid` (string, required) — The HubSpot form GUID to submit against.
+  - `dataCenter` (na | eu) — Which regional submissions API to post to (default `na`).
+- `bigin` (object) — Required when `provider` is `bigin`.
+  - `dataCenter` (com | ca | eu | in | com.au | jp, required) — The self-client's data centre — determines both the OAuth accounts host and the API host (`www.zohoapis.<dc>`).
+  - `duplicateCheckField` (string) — Bigin field the upsert dedupes on (default `Email`, Bigin's own unique field).
+  - `pipeline` (object) — Also open a Pipelines record alongside the Contact.
+    - `enabled` (boolean, required) — Also open a Pipelines record for the new/updated contact.
+    - `subPipeline` (string) — Sub-pipeline to file the record under.
+    - `stage` (string) — Starting stage for the pipeline record.
+- `jobber` (object) — Required when `provider` is `jobber`.
+  - `apiVersion` (string) — Override the pinned `X-JOBBER-GRAPHQL-VERSION` date this integration is tested against. An escape hatch for an app pinned to a different version — Jobber's schema can change field names between versions.
+  - `dedupe` (boolean) — Look up an existing client by email before creating one (default false pending verification of Jobber's search API against a live schema — see AGENTS.md). Jobber's `clientCreate` has no upsert, so without this a resubmitting visitor creates a second client.
+  - `note` (object) — Attach a best-effort note carrying the submitted message and any attribution/extra fields with no dedicated Jobber field.
+    - `enabled` (boolean) — Attach a best-effort note carrying the message and unmapped attribution (default true). A failure here never loses the client record itself.
+- `fieldMap` (map) — Submitted form field name → CRM property name. A field with no entry here is dropped, not guessed — an unmapped field never reaches the CRM.
+- `trackingFields` (map) — `_ac` attribution key (a click-ID param, a UTM param, `landingPage`, `referrer`, or `ab_variant`) → CRM property name. Same drop-if-unmapped rule as `fieldMap`; a visitor with no `_ac` cookie maps to no attribution fields at all, never an error.
 
 ### `security` *(optional)*
 
@@ -598,3 +667,5 @@ How the site is built and deployed (platform, commands, output directory) — in
 - `deployCommand` (string)
 - `outputDirectory` (string)
 - `type` (string)
+- `repo` (string) — `owner/name` of this site's GitHub repository. Read by the EmDash design-system-editor plugin route to auto-commit a client's admin edit back to `branch` — see AGENTS.md's "EmDash plugin as the design-system editing surface" section. Absent means that sync is skipped (the live override still applies); nothing else in this toolchain reads it today.
+- `branch` (string) — Branch the design-system-editor sync commits to. Default `"dev"` — never `main`/production directly; a commit here still needs this repo's own `promote` PR + admin approval to reach production, the same gate every other change goes through.

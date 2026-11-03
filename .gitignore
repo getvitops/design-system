@@ -29,3 +29,5 @@ packages/create/templates/*/.astro/
 
 .npmrc
 .vitest/
+
+.dev*
