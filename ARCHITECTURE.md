@@ -268,6 +268,11 @@ flowchart TD
   core -.->|"optional peer"| em
 ```
 
+Decisions and the architecture review behind this layering are in [`adr/`](adr/):
+[ADR-0000](adr/0000-architecture-review-2026-11.md) records the review and what it fixed or deferred;
+[ADR-0001](adr/0001-site-config-and-providers-packages.md) proposes moving the site config schema below
+the provider code. (`adr/` is at the repo root because `docs/` is regenerated and wiped on every build.)
+
 **The one-way rule: `core` may never import the `generator`.** The generator snapshots core, not
 the reverse. That's why several constants exist in two places with a test holding them together —
 `dark-selector.test.ts`, `required-roles.test.ts`, `token-refs.test.ts`, `tiers.test.ts` are all
