@@ -30,48 +30,27 @@ import {
   AD_PROVIDER_KEYS,
   normalizeConversionLabels,
   type AdProvider,
-  type ConversionActionIdMap,
   type ConversionLabelMap,
 } from '@getvitops/utils/ads';
+import type { AdPropertyConfig } from '@getvitops/config';
 import type { AnalyticsStrategy, ConsentCategory, GatedTag } from './analytics.ts';
 
 /**
- * One ad property, mirroring a `site.ads` entry field for field.
- *
- * Structural rather than `SiteAdProperty` imported from the generator, matching
- * how `GetvitopsSeoOptions` and `GetvitopsTrackingOptions` already work: the
- * component surface must stay usable by a consumer who passes a plain object.
+ * One ad property, as `<Ads />` reads it: the fields of a `site.ads` entry that decide what is
+ * emitted. A subset of `AdPropertyConfig` from `@getvitops/config` — the schema's own inferred
+ * type, not a copy — so a plain object is still enough for a consumer to pass, and a field the
+ * schema renames fails here instead of silently reading `undefined`.
  */
-export interface GetvitopsAdProperty {
-  accountId?: string;
-  pixelId?: string;
-  /**
-   * Google Ads only: the conversion action label(s) paired with `pixelId` (the
-   * `AW-…` conversion id) — a bare string (back-compat, treated as `call`) or a
-   * map of action → label. `<Tracking />`'s tel:/mailto: click handler and
-   * `vitopsFormConversion()` each fire `gtag('event', 'conversion', …)` for
-   * their own action at the moment of the interaction — see `gtagBootstrap` in
-   * `@getvitops/utils/ads`.
-   */
-  conversionLabel?: string | ConversionLabelMap;
-  /**
-   * Google Ads only: the conversion action resource id(s) for server-side
-   * offline upload — a different identifier than `conversionLabel`, see that
-   * field's own docblock. Only meaningful with `reporting: 'server'`.
-   */
-  conversionActionId?: string | ConversionActionIdMap;
-  /**
-   * Google Ads only: `'server'` uploads the conversion via the Ads API
-   * (`createConversionRoute`'s `googleAdsOffline` option) instead of firing
-   * `gtag.js` in the browser, for whichever actions have a matching
-   * `conversionActionId`. Default `'client'`.
-   */
-  reporting?: 'client' | 'server';
-  /** Default `marketing`. `analytics` for a property used purely for measurement. */
-  category?: 'marketing' | 'analytics';
-  /** False keeps the property on record without emitting its tag. */
-  enabled?: boolean;
-}
+export type GetvitopsAdProperty = Pick<
+  AdPropertyConfig,
+  | 'accountId'
+  | 'pixelId'
+  | 'conversionLabel'
+  | 'conversionActionId'
+  | 'reporting'
+  | 'category'
+  | 'enabled'
+>;
 
 export type GetvitopsAdsOptions = Partial<Record<AdProvider, GetvitopsAdProperty>>;
 

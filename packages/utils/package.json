@@ -87,6 +87,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@getvitops/config": "workspace:*",
     "colorjs.io": "catalog:",
     "parse5": "catalog:",
     "png-to-ico": "catalog:",

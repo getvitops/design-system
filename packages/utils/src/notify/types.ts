@@ -19,42 +19,12 @@ export interface RenderedMessage {
   html: string;
 }
 
-/**
- * Cloudflare Email Sending — the only provider implemented this pass.
- *
- * A `z.literal` on the schema side rather than an enum with one member, so
- * widening it later is additive.
- */
-export interface EmailChannelConfig {
-  provider: 'cloudflare';
-  /** Falls back to the location cascade — see `resolveRecipient`. */
-  to?: string | undefined;
-  /** Falls back to `noreply@<canonical>`. */
-  from?: string | undefined;
-  /** Display name on the From header. Defaults to the organization name. */
-  fromName?: string | undefined;
-  replyTo?: string | undefined;
-  /**
-   * Workers binding name (default `EMAIL`). Configurable because a consumer may
-   * use a restricted binding with `allowed_sender_addresses`.
-   */
-  binding?: string | undefined;
-}
+import type { NotificationsConfig } from '@getvitops/config';
 
-export interface NotificationsConfig {
-  /** A bare address is shorthand for `{ provider: 'cloudflare', to }`. */
-  email?: string | EmailChannelConfig | undefined;
-  /**
-   * Optional action-link template added to the conversion email as an
-   * "Actions" section — `{clickId}` is replaced with the ad click ID captured
-   * on `_ac` (gclid, fbclid, …). Omitted from the email when the event carries
-   * no click ID, rather than rendering a broken link — see `renderEmail`.
-   */
-  actionUrl?: string | undefined;
-  // TODO: `sms` and `persist` channels. Adding one should be a new sender file
-  // and a schema variant — `planNotifications` gains a branch, `ConversionEvent`
-  // and the recipient cascade do not change.
-}
+// The `site.notifications` block, inferred from `@getvitops/config`. `EmailChannelConfig` is the
+// object form of its `email` field — Cloudflare Email Sending, the only provider implemented.
+export type { NotificationsConfig };
+export type EmailChannelConfig = Exclude<NonNullable<NotificationsConfig['email']>, string>;
 
 /** Everything `planNotifications` needs. Assembled by the caller from the config. */
 export interface NotifyContext {

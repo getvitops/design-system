@@ -10,6 +10,7 @@
  *   • runtime validation (`validate`) for the CLI and to gate `generate`,
  *   • the generated `authoring.md` reference doc (walks `jsonSchema`'s descriptions).
  */
+import { desc } from '@getvitops/config';
 import * as z from '@zod/mini';
 import { REQUIRED_ROLES, type RoleSpec, roleHue } from './shared.ts';
 import { tokenRefIssues } from './token-refs.ts';
@@ -20,8 +21,7 @@ import { tokenRefIssues } from './token-refs.ts';
  * shared sub-schema (`Scale`, `CssDecls`, …) can carry a different description
  * per use-site without mutating the original.
  */
-export const desc = <T extends { check(...checks: never[]): T }>(schema: T, text: string): T =>
-  schema.check(z.describe(text) as never);
+export { desc };
 
 const CssDecls = desc(
   z.record(z.string(), z.string()),

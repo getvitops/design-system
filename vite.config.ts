@@ -231,7 +231,7 @@ export default defineConfig({
       // Each package's `vp pack` reads its own packages/*/vite.config.ts.
       'build:generator': {
         command: 'node packages/generator/scripts/prepare.mjs && cd packages/generator && vp pack',
-        dependsOn: ['build:core'],
+        dependsOn: ['build:core', 'build:config'],
         cache: {
           input: [
             'packages/generator/src/**/*.ts',
@@ -250,8 +250,18 @@ export default defineConfig({
         },
       },
       // Shared build-time utilities (favicon generation, …). No workspace deps.
+      // The leaf of the workspace: the site-config provider blocks. `utils` and `generator` import it,
+      // so it builds first and nothing builds before it.
+      'build:config': {
+        command: 'cd packages/config && vp pack',
+        cache: {
+          input: ['packages/config/src/**/*.ts', 'packages/config/vite.config.ts'],
+          output: ['packages/config/dist/**'],
+        },
+      },
       'build:utils': {
         command: 'cd packages/utils && vp pack',
+        dependsOn: ['build:config'],
         cache: {
           input: ['packages/utils/src/**/*.ts', 'packages/utils/vite.config.ts'],
           output: ['packages/utils/dist/**'],
@@ -309,7 +319,7 @@ export default defineConfig({
       // Build all publishable packages (cli/vite need core + utils; astro needs all).
       'build:packages': {
         command:
-          'vp run build:generator && vp run build:utils && vp run build:cli && vp run build:vite-plugin && vp run build:astro && vp run build:emdash',
+          'vp run build:config && vp run build:generator && vp run build:utils && vp run build:cli && vp run build:vite-plugin && vp run build:astro && vp run build:emdash',
       },
       // Does a consumer's install actually resolve every subpath? Nothing
       // else checks this — `vp check`'s typecheck runs against SOURCE, not

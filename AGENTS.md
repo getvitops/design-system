@@ -306,6 +306,20 @@ packages under `packages/` (a pnpm workspace), by layer:
   (`MOVED_KEYS` in `config.ts`), short-circuiting before zod would report a dozen
   `unrecognized_keys`; that error is the migration.
 
+- **`@getvitops/config`** — the **site-config provider blocks** as zod schemas and inferred types:
+  `site.crm`, `site.ads`, `site.reviews`, `site.seo.indexing`, `site.searchConsole`,
+  `site.notifications`, `site.tracking`, `site.security`, `site.deployment`. A **leaf** — it imports
+  `@zod/mini` and nothing else in the workspace — which is the whole point: `@getvitops/utils` (the
+  provider code) can import its own configuration types instead of keeping a hand-copied mirror beside
+  each module, so the type an executor accepts and the document `validateConfig` accepts cannot drift.
+  Two entries, and the split is load-bearing: `.` carries the schemas (zod), `./providers` carries the
+  closed lists (`AD_PROVIDERS`, `CRM_PROVIDERS`, `BIGIN_DATA_CENTERS`) as bare literals, because Worker
+  code needs them as runtime values and must not pull zod along — `worker-safe.test.ts` fails a Worker
+  subpath that takes a value from the root. **The umbrella `Config` is NOT here**: it embeds the
+  design-system schema, whose `tokenRefIssues` calls the token engine, so moving it would have dragged
+  most of the generator down. `generator` re-exports the moved names, so no import path changed. Declare
+  `zod` here too: leaving `@zod/mini`'s peer to auto-install gave this package zod 4.6.7 beside the
+  generator's 4.6.5, and the two copies made the generator's declaration emit fail with TS2883.
 - **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
   `png-to-ico`, loaded lazily; `oxipng` crush optional). Consumed by cli/vite/astro.
 - **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint|legal|robots|reviews|
@@ -399,7 +413,7 @@ the Build system section.
 
 Build/publish: `npx vp run build:packages` (core → generator → utils → cli → vite → astro; each task
 `dependsOn` the packages it imports) and `npx vp run release` (`build:packages && changeset publish`).
-Versioning is via Changesets (`.changeset/config.json`): `core`/`generator`/`utils`/`cli`/`vite`/`astro`
+Versioning is via Changesets (`.changeset/config.json`): `config`/`core`/`generator`/`utils`/`cli`/`vite`/`astro`
 are **fixed** together — one version for the whole toolchain; `@getvitops/emdash` and
 `@getvitops/create` version independently; the root and `site/` stay private/ignored.
 

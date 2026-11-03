@@ -1571,7 +1571,10 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
             }
             plugins.push(...(tailwindcss() as unknown as typeof plugins));
           }
-          updateConfig({ vite: { plugins } });
+          // `never`: with Astro 7.4's `DeepPartial<AstroConfig>`, comparing the plugin array against
+          // Vite's `PluginOption` blows TypeScript's instantiation depth (TS2321). The array is
+          // built from real Vite plugins above, so the cast loses nothing a check would catch.
+          updateConfig({ vite: { plugins: plugins as never } });
           const cssFile = format === 'tailwind' ? 'tailwind.css' : 'styles.css';
           if (opts.css.inject !== false) {
             const cssPath = resolve(root, out, cssFile);

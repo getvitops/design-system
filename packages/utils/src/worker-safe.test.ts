@@ -43,7 +43,37 @@ function nodeImportsReachableFrom(entry: string): string[] {
   return offenders;
 }
 
+/**
+ * `@getvitops/config`'s root entry carries zod; its `./providers` entry is bare literals. Worker code
+ * may import TYPES from the root (erased at build) but a runtime value must come from `./providers`,
+ * or a conversion route's bundle gains a schema library it never runs.
+ */
+const VALUE_IMPORT_OF_CONFIG_ROOT =
+  /(?:^|\n)\s*(?:import|export)\s+(?!type\b)[^;]*?from\s+['"]@getvitops\/config['"]/;
+
+function configRootValueImportsReachableFrom(entry: string): string[] {
+  const seen = new Set<string>();
+  const offenders: string[] = [];
+  const visit = (file: string): void => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const source = readFileSync(file, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    if (VALUE_IMPORT_OF_CONFIG_ROOT.test(source)) offenders.push(file);
+    for (const spec of specifiersOf(file))
+      if (spec.startsWith('.')) visit(resolve(dirname(file), spec));
+  };
+  visit(entry);
+  return offenders;
+}
+
 describe('Worker-safe subpaths', () => {
+  it.each(WORKER_ENTRIES)('%s takes no runtime value from the config package root', (entry) => {
+    const root = resolve(import.meta.dirname, entry);
+    expect(configRootValueImportsReachableFrom(root)).toEqual([]);
+  });
+
   it.each(WORKER_ENTRIES)('%s reaches no node: builtin', (entry) => {
     const root = resolve(import.meta.dirname, entry);
     expect(nodeImportsReachableFrom(root)).toEqual([]);

@@ -66,10 +66,9 @@ import type { Config } from '@getvitops/generator';
 /**
  * Adapt a `Config` to the indexing module's own option shape.
  *
- * A flat field map, as intended: `@getvitops/utils` cannot import from the
- * generator (the generator already depends on it), so `IndexingConfig` mirrors the
- * `seo.indexing` block rather than being it. The one piece of judgment here is the
- * origin — see below.
+ * `IndexNowConfig` and `SearchConsoleConfig` are the schema's own types now, so those blocks pass
+ * straight through. What this adapter still does is genuine resolution — the origin and the
+ * robots policy come from the resolved environment, not from the `seo.indexing` block — see below.
  */
 function toIndexingConfig(cfg: Config, siteEnv: string): IndexingConfig {
   const site = cfg.site;
@@ -100,17 +99,13 @@ function toIndexingConfig(cfg: Config, siteEnv: string): IndexingConfig {
 /**
  * Adapt a `Config` to the onboarding module's own option shape.
  *
- * The same flat field map as `toIndexingConfig`, and for the same reason — utils
- * cannot import the generator. `--domain` scopes to a single `site.searchConsole`
- * entry, and a name that isn't there is an error, not an empty run.
+ * `DomainSetup` is the `site.searchConsole.<domain>` block plus its key, so this is a spread and a
+ * filter. `--domain` scopes to a single entry, and a name that isn't there is an error, not an
+ * empty run.
  */
 function toSearchConsoleSetup(cfg: Config, domainFilter: string | undefined): DomainSetup[] {
   const entries = cfg.site.searchConsole ?? {};
-  const setups: DomainSetup[] = Object.entries(entries).map(([domain, e]) => ({
-    domain,
-    ...(e.delegatedOwners ? { delegatedOwners: e.delegatedOwners } : {}),
-    ...(e.fullUserGroup ? { fullUserGroup: e.fullUserGroup } : {}),
-  }));
+  const setups: DomainSetup[] = Object.entries(entries).map(([domain, e]) => ({ ...e, domain }));
   return pickOne(setups, domainFilter, (s) => s.domain, {
     flag: 'domain',
     source: 'site.searchConsole',

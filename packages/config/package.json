@@ -1,0 +1,41 @@
+{
+  "name": "@getvitops/config",
+  "version": "8.2.0-alpha.0",
+  "description": "The site-config schema blocks the Vitops toolchain's provider integrations read — CRM, ads, reviews, indexing, notifications, tracking — as zod schemas and inferred types. A leaf package: it imports nothing else in the toolchain.",
+  "homepage": "https://docs.vitops.ca",
+  "bugs": "https://github.com/getvitops/design-system/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/getvitops/design-system.git",
+    "directory": "packages/config"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./providers": {
+      "types": "./dist/providers.d.mts",
+      "import": "./dist/providers.mjs"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@zod/mini": "catalog:",
+    "zod": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

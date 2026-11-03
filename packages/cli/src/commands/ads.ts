@@ -34,9 +34,10 @@ import { ADS_HELP } from '../help.ts';
 /**
  * Adapt a `Config` to the ads module's own option shape.
  *
- * The same flat field map as `toSearchConsoleSetup` and `toIndexingConfig`, for the
- * same reason — utils cannot import the generator. The domain default is the one
- * derived value: a platform verifies the host the site is published at, so
+ * `AdPropertySetup` is the `site.ads.<provider>` block plus its key, so this spreads the block.
+ * (It used to copy a hand-picked subset of fields, which silently dropped `conversionActionId` and
+ * `reporting` on the way to the planner.) The domain default is the one derived value: a platform
+ * verifies the host the site is published at, so
  * `domains.canonical` answers it, and only an ad account verified against some
  * other host needs `site.ads.<provider>.domain` stated.
  */
@@ -56,16 +57,7 @@ function toAdProperties(cfg: Config, providerFilter: string | undefined): AdProp
     (provider) => {
       const e = entries[provider]!;
       const domain = e.domain ?? canonicalHost;
-      return {
-        provider,
-        ...(e.accountId ? { accountId: e.accountId } : {}),
-        ...(e.pixelId ? { pixelId: e.pixelId } : {}),
-        ...(e.conversionLabel ? { conversionLabel: e.conversionLabel } : {}),
-        ...(domain ? { domain } : {}),
-        ...(e.domainVerification ? { domainVerification: e.domainVerification } : {}),
-        ...(e.category ? { category: e.category } : {}),
-        ...(e.enabled != null ? { enabled: e.enabled } : {}),
-      };
+      return { ...e, provider, ...(domain ? { domain } : {}) };
     },
   );
 

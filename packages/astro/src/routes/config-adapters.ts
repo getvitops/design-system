@@ -87,10 +87,11 @@ export function toNotifyContext(config: Config, locale?: string): NotifyContext 
 }
 
 /**
- * `site.crm` is already field-for-field identical to `CrmConfig` (see that
- * interface's own docblock — it's deliberately kept in lockstep) — this is a
- * type-narrowing pass-through, not a remap. Named rather than inlined at each
- * call site so a future divergence between the two shapes has one place to fix.
+ * `site.crm` IS `CrmConfig` — both are the schema's inferred type from `@getvitops/config` — so
+ * this returns its argument's field unchanged.
+ *
+ * @deprecated Pass `config.site.crm` directly. Kept so existing callers keep compiling; it
+ * stopped being an adapter when the type stopped being a copy.
  */
 export function toCrmConfig(config: Config): CrmConfig | undefined {
   return config.site.crm;
@@ -98,11 +99,12 @@ export function toCrmConfig(config: Config): CrmConfig | undefined {
 
 /**
  * `site.ads.google`'s three server-side-relevant fields, for
- * `createConversionRoute`'s `googleAdsOffline.config` — a type-narrowing
- * pass-through like `toCrmConfig` above, not a remap. Undefined when the site
- * has no Google Ads property configured at all, which
- * `createConversionRoute` reads the same way `crm` being omitted does: the
- * upload never runs.
+ * `createConversionRoute`'s `googleAdsOffline.config`. Undefined when the site has no Google Ads
+ * property configured at all, which `createConversionRoute` reads the same way `crm` being
+ * omitted does: the upload never runs.
+ *
+ * @deprecated Pass `config.site.ads?.google` directly — it is already assignable. Kept so existing
+ * callers keep compiling.
  */
 export function toGoogleAdsConfig(
   config: Config,

@@ -14,20 +14,13 @@
  * same thing.
  */
 
-/** Which consent category the `_ac` cookie waits on. */
-export type TrackingCategory = 'marketing' | 'analytics';
+import type { TrackingConfig } from '@getvitops/config';
 
-export interface TrackingConfig {
-  enabled?: boolean | undefined;
-  /**
-   * Default `marketing`. `_ac` is a 90-day identifier tying a visitor to the ad
-   * that brought them, which is what advertising consent covers — but a site
-   * using click IDs purely for its own campaign reporting may reasonably file it
-   * under `analytics`, so this is stated rather than assumed.
-   */
-  category?: TrackingCategory | undefined;
-  platforms?: string[] | undefined;
-}
+// The `site.tracking` block, inferred from `@getvitops/config` rather than re-declared.
+export type { TrackingConfig };
+
+/** Which consent category the `_ac` cookie waits on. */
+export type TrackingCategory = NonNullable<TrackingConfig['category']>;
 
 /**
  * What the `_ac` cookie holds: where a visitor came from, captured once on the

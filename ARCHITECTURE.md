@@ -36,18 +36,19 @@ npx vitops generate --format tailwind -o src/styles
 
 ## 1.2 Package matrix
 
-| Package                | What it is                                                                 | Install when                            |
-| ---------------------- | -------------------------------------------------------------------------- | --------------------------------------- |
-| `@getvitops/core`      | The framework runtime: CSS partials, Lit web components, browser polyfills | Pulled in by `astro`; direct for Bricks |
-| `@getvitops/generator` | The generator as a library + the JSON Schemas                              | Building your own integration           |
-| `@getvitops/utils`     | Shared build-time + utilities (favicon, icons, tracking, notify)           | Pulled in by everything                 |
-| `@getvitops/cli`       | `vitops` binary — the surface every stack has                              | Always, in any stack                    |
-| `@getvitops/vite`      | Vite plugin: generate on build/dev, hot-regenerate on config change        | Vite without Astro                      |
-| `@getvitops/astro`     | The Astro integration + component library                                  | Astro sites (the main path)             |
-| `@getvitops/emdash`    | EmDash CMS plugin — Portable Text blocks + hosting seam                    | EmDash sites                            |
-| `@getvitops/create`    | `vp create @getvitops` scaffolds; templates only, no build                 | Starting a new project                  |
+| Package                | What it is                                                                 | Install when                             |
+| ---------------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
+| `@getvitops/core`      | The framework runtime: CSS partials, Lit web components, browser polyfills | Pulled in by `astro`; direct for Bricks  |
+| `@getvitops/config`    | Site-config blocks the provider integrations read (zod schemas + types)    | Pulled in by `utils`/`generator`/`astro` |
+| `@getvitops/generator` | The generator as a library + the JSON Schemas                              | Building your own integration            |
+| `@getvitops/utils`     | Shared build-time + utilities (favicon, icons, tracking, notify)           | Pulled in by everything                  |
+| `@getvitops/cli`       | `vitops` binary — the surface every stack has                              | Always, in any stack                     |
+| `@getvitops/vite`      | Vite plugin: generate on build/dev, hot-regenerate on config change        | Vite without Astro                       |
+| `@getvitops/astro`     | The Astro integration + component library                                  | Astro sites (the main path)              |
+| `@getvitops/emdash`    | EmDash CMS plugin — Portable Text blocks + hosting seam                    | EmDash sites                             |
+| `@getvitops/create`    | `vp create @getvitops` scaffolds; templates only, no build                 | Starting a new project                   |
 
-Versions aren't listed here — six of the eight move together (see below) and a hand-maintained
+Versions aren't listed here — seven of the nine move together (see below) and a hand-maintained
 number rots on the first release after this doc is written. Check each package's own
 `package.json` for its current version.
 
@@ -243,7 +244,8 @@ dogfooding link `lib/build-theme.ts` uses.
 
 ```mermaid
 flowchart TD
-  utils["@getvitops/utils<br/>(graph root — no workspace deps)"]
+  cfg["@getvitops/config<br/>(graph root — zod only)"]
+  utils["@getvitops/utils"]
   core["@getvitops/core"]
   gen["@getvitops/generator"]
   cli["@getvitops/cli"]
@@ -252,6 +254,9 @@ flowchart TD
   em["@getvitops/emdash"]
   cr["@getvitops/create<br/>(templates only, no build)"]
 
+  cfg --> utils
+  cfg --> gen
+  cfg --> as
   utils --> core --> gen
   utils --> gen
   gen --> cli

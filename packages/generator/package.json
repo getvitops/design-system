@@ -45,6 +45,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@getvitops/config": "workspace:*",
     "@getvitops/utils": "workspace:*",
     "@iconify/utils": "catalog:",
     "@zod/mini": "catalog:",

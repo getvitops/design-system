@@ -1,18 +1,25 @@
 /**
  * The CRM module's own option surface.
  *
- * Deliberately structural rather than `Config['site']['crm']` imported from
- * `@getvitops/generator`: the generator already depends on this package, so
- * importing back would be a cycle. The vocabulary mirrors that block field for
- * field — the same arrangement, and for the same reason, as `IndexingConfig`
- * and `NotifyContext` beside it.
- *
- * Optional fields are written `?: T | undefined` throughout: `exactOptionalPropertyTypes`
- * is on, and these describe a *parsed JSON config* where an absent key and an
- * explicit `undefined` are the same thing.
+ * The config shapes are NOT declared here. They are inferred from the schema in
+ * `@getvitops/config` — the same one `validateConfig` runs — so the type a CRM executor
+ * accepts and the document the validator accepts cannot drift. This module used to keep a
+ * field-for-field copy, because the schema lived in a package above this one; moving the
+ * provider blocks into a leaf package is what removed the copy, the adapter that converted
+ * into it, and the test that held the two together.
  */
+import type {
+  BiginConfig,
+  BiginPipelineConfig,
+  CrmConfig,
+  HubSpotConfig,
+  JobberConfig,
+} from '@getvitops/config';
+import type { BIGIN_DATA_CENTERS, CrmProviderConfig } from '@getvitops/config/providers';
 
-export type CrmProvider = 'hubspot' | 'bigin' | 'jobber';
+export type { BiginConfig, BiginPipelineConfig, CrmConfig, HubSpotConfig, JobberConfig };
+
+export type CrmProvider = CrmProviderConfig;
 
 /** Human-readable label per provider, for the notification email's Delivery
  * line (`describeCrmResult`) and anywhere else a provider must be named
@@ -25,67 +32,7 @@ export const PROVIDER_LABELS: Record<CrmProvider, string> = {
 };
 
 /** Bigin's data centre — the region a self-client's tokens and API host belong to. */
-export type BiginDataCenter = 'com' | 'ca' | 'eu' | 'in' | 'com.au' | 'jp';
-
-export interface HubSpotConfig {
-  portalId: string;
-  formGuid: string;
-  /** Default `na`. Only affects the submissions API host. */
-  dataCenter?: 'na' | 'eu' | undefined;
-}
-
-export interface BiginPipelineConfig {
-  enabled: boolean;
-  subPipeline?: string | undefined;
-  stage?: string | undefined;
-}
-
-export interface BiginConfig {
-  dataCenter: BiginDataCenter;
-  /** Default `Email` — Bigin's own unique field, used for `upsert`'s dedupe. */
-  duplicateCheckField?: string | undefined;
-  pipeline?: BiginPipelineConfig | undefined;
-}
-
-export interface JobberConfig {
-  /**
-   * The pinned `X-JOBBER-GRAPHQL-VERSION` date this integration was built and
-   * tested against. Overriding it is an escape hatch for a client's app
-   * pinned to a different version — not something to reach for casually,
-   * since Jobber's schema can change field names between versions.
-   */
-  apiVersion?: string | undefined;
-  /**
-   * Look up an existing client by email before creating one (default
-   * **false**). Jobber's `clientCreate` has no upsert, so a resubmitting
-   * visitor creates a second client unless this runs — but the lookup query's
-   * filter shape is not yet verified against a live Jobber schema (see
-   * `jobber.ts`'s docblock), so it defaults off rather than risk a wrong
-   * query silently blocking a real submission. Set `true` once verified for
-   * your account.
-   */
-  dedupe?: boolean | undefined;
-  note?:
-    | {
-        /** Attach a best-effort note carrying the message + unmapped
-         * attribution (default true). A failure here never downgrades the
-         * client write's own success — see `jobber.ts`. */
-        enabled?: boolean | undefined;
-      }
-    | undefined;
-}
-
-export interface CrmConfig {
-  provider: CrmProvider;
-  enabled?: boolean | undefined;
-  hubspot?: HubSpotConfig | undefined;
-  bigin?: BiginConfig | undefined;
-  jobber?: JobberConfig | undefined;
-  /** Submitted field name → CRM property name. Unmapped fields are dropped, not guessed. */
-  fieldMap?: Record<string, string> | undefined;
-  /** `_ac` tracking key → CRM property name. Same drop-if-unmapped rule. */
-  trackingFields?: Record<string, string> | undefined;
-}
+export type BiginDataCenter = (typeof BIGIN_DATA_CENTERS)[number];
 
 /** Credentials, never config — always injected by the caller from env vars. */
 export interface HubSpotCredentials {

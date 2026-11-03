@@ -98,6 +98,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@getvitops/config": "workspace:*",
     "@getvitops/core": "workspace:*",
     "@getvitops/generator": "workspace:*",
     "@getvitops/utils": "workspace:*",

@@ -42,7 +42,32 @@ import * as z from '@zod/mini';
 // the generator), and what a platform can do is one fact, not two.
 import { AD_PLATFORMS } from '@getvitops/utils/ads';
 import { TRACKED_PARAMS } from '@getvitops/utils/tracking';
+import {
+  AD_PROVIDERS,
+  AdPropertySchema,
+  AdProviderSchema,
+  BIGIN_DATA_CENTERS,
+  CRM_PROVIDERS,
+  CrmProviderSchema,
+  CrmSchema,
+  DeploymentSchema,
+  IndexNowSchema,
+  IndexingSchema,
+  NotificationsSchema,
+  ReviewLocationSchema,
+  ReviewsSchema,
+  SearchConsoleSchema,
+  SearchConsoleSetupSchema,
+  SecuritySchema,
+  TrackingSchema,
+  type AdProvider,
+  type CrmProviderConfig,
+} from '@getvitops/config';
 import { desc, DesignSystemPatchSchema, type DesignSystem } from './schema.ts';
+
+// Re-exported so the generator's public API is unchanged: these moved to `@getvitops/config`.
+export { AD_PROVIDERS, BIGIN_DATA_CENTERS, CRM_PROVIDERS };
+export type { AdProvider, CrmProviderConfig };
 
 // ── Primitives ────────────────────────────────────────────────────────────────
 
@@ -296,24 +321,6 @@ const DnsDomainSchema = z.strictObject({
   provider: z.optional(z.string()),
   nameservers: z.optional(z.array(z.string())),
   records: z.optional(z.array(DnsRecordSchema)),
-});
-
-/**
- * One domain to onboard into Google Search Console via `vitops search setup`.
- *
- * The verification token is fetched live from the Site Verification API at run
- * time and written to DNS — it is never stored here. What the config records is
- * the *intent*: which domains to onboard, and who should co-own them.
- */
-const SearchConsoleSetupSchema = z.strictObject({
-  delegatedOwners: desc(
-    z.optional(z.array(z.email())),
-    'Emails added as verification owners on the Site Verification web resource. Automated via the API — additive and idempotent, never removes an existing owner.',
-  ),
-  fullUserGroup: desc(
-    z.optional(z.email()),
-    'A Google Group to grant Full-User access in Search Console. SURFACED AS A REMINDER only: Search Console exposes no user/permission API, so this step stays manual by design.',
-  ),
 });
 
 // ── Environments ──────────────────────────────────────────────────────────────
@@ -572,220 +579,9 @@ const TwitterSchema = z.strictObject({
 
 // ── Indexing ────────────────────────────────────────────────────────────────────
 
-/**
- * What `vitops search notify` needs to tell search engines a deploy happened.
- *
- * Scoped by what search engines actually accept, which is narrower than it looks:
- * Google exposes **no** "request indexing" API (the Search Console button is not in
- * its API, and URL Inspection is read-only), and it removed the sitemap ping
- * endpoint in 2023. So the sanctioned set is: an accurate sitemap, a Search Console
- * sitemap resubmit, an IndexNow ping — which Google does *not* honour but Bing,
- * Yandex, Naver, Seznam and Yep do — and a read-only inspection pass to find out
- * what Google actually did.
- *
- * Facts only, the same rule the legal block follows: this records what the site has
- * (a key, a property, which pages matter), never what to say about it.
- */
-const IndexNowSchema = z.strictObject({
-  key: desc(
-    z.string().check(z.regex(/^[a-zA-Z0-9-]{8,128}$/)),
-    'IndexNow key (8–128 chars, hex is conventional). NOT a secret — it is served publicly at `keyLocation` so the engine can verify you own the host. Generate one with `vitops search notify --new-key`.',
-  ),
-  keyLocation: desc(
-    z.optional(z.url()),
-    'Absolute URL of the key file. Defaults to `<canonical>/<key>.txt`; set it only when the file lives elsewhere.',
-  ),
-  endpoint: desc(
-    z.optional(z.url()),
-    'IndexNow endpoint (default `https://api.indexnow.org/indexnow`). Any participating engine shares submissions with the rest, so one is normally enough.',
-  ),
-});
-
-const SearchConsoleSchema = z.strictObject({
-  siteUrl: desc(
-    z.string(),
-    'The property exactly as Search Console identifies it — `sc-domain:acme.ca` for a domain property, or the URL-prefix form `https://acme.ca/`. A mismatch here is a 403, not a "not found".',
-  ),
-  resubmitSitemap: desc(
-    z.optional(z.boolean()),
-    'Re-submit the sitemap through the Search Console API on each notify (default true when `searchConsole` is set). This is the automated equivalent of the manual resubmit in the UI.',
-  ),
-});
-
-const IndexingSchema = z.strictObject({
-  sitemapUrl: desc(
-    z.optional(z.url()),
-    'The sitemap to submit and to diff for changed URLs. Defaults to `<canonical>/sitemap-index.xml`.',
-  ),
-  indexNow: desc(
-    z.optional(IndexNowSchema),
-    'IndexNow submission (Bing, Yandex, Naver, Seznam, Yep — not Google). Omit to skip the channel.',
-  ),
-  searchConsole: desc(
-    z.optional(SearchConsoleSchema),
-    'Google Search Console property. Needs a credential at run time — either a service account in `VITOPS_GSC_SERVICE_ACCOUNT` / `GOOGLE_APPLICATION_CREDENTIALS`, or the user OAuth credential `vitops search setup` uses (`VITOPS_GOOGLE_CLIENT_ID` / `_CLIENT_SECRET` / `_REFRESH_TOKEN`). The service account wins when both are set. Never put a key in this file.',
-  ),
-  priorityUrls: desc(
-    z.optional(z.array(z.url())),
-    'The pages whose indexing actually matters. `vitops search notify --check` inspects these and exits non-zero if Google has not indexed one. Kept explicit because URL Inspection is quota-bound (2000/day), so checking every page is neither affordable nor informative.',
-  ),
-});
-
 // ── Ad properties ───────────────────────────────────────────────────────────────
 
-/**
- * The ad platforms `vitops ads` can link a site to.
- *
- * A closed enum, mirroring `AD_PROVIDER_KEYS` in `@getvitops/utils/ads` — that
- * module owns what each platform *can do* (whether it verifies a domain, what its
- * tag is, which click ID it stamps), this owns what a config may *say*. Mirrored
- * rather than derived because a `z.enum` needs literals to reach the published JSON
- * Schema; `config.test.ts` asserts the two lists are the same set, so a provider
- * added to one and not the other fails the build rather than silently getting no
- * verification step and no tag.
- */
-export const AD_PROVIDERS = [
-  'google',
-  'meta',
-  'linkedin',
-  'reddit',
-  'tiktok',
-  'microsoft',
-  'pinterest',
-  'snapchat',
-] as const;
-const AdProviderSchema = z.enum(AD_PROVIDERS);
-export type AdProvider = (typeof AD_PROVIDERS)[number];
-
-/**
- * One ad property this site is linked to.
- *
- * Facts, not prose — the same rule the legal block follows. This records *which*
- * account and *which* tag id, and the platform capability table decides what can be
- * done about them. It is also what finally lets the rest of the toolchain see an ad
- * pixel: the generated cookie notice discloses its cookies, `vitops ads lint`
- * checks its click ID is captured, and the consent gate is handed the cookie names
- * to clear on revoke. A pixel pasted into a template is invisible to all three.
- */
-const AdPropertySchema = z.strictObject({
-  accountId: desc(
-    z.optional(z.string()),
-    'The advertising account as the platform shows it — Google Ads customer ID, Meta ad account, LinkedIn partner ID, Reddit advertiser ID. For LinkedIn this is also the Insight Tag id; everywhere else the tag id is `pixelId`.',
-  ),
-  pixelId: desc(
-    z.optional(z.string()),
-    'The tag/pixel ID the browser snippet initialises — Meta pixel, TikTok pixel, Reddit pixel, Microsoft UET tag ID, Pinterest tag ID, Snap pixel, or the Google Ads conversion ID (`AW-…`, which is NOT the customer ID).',
-  ),
-  conversionLabel: desc(
-    z.optional(
-      z.union([
-        z.string(),
-        z.strictObject({
-          call: desc(z.optional(z.string()), 'Fired on a tel: link click.'),
-          email: desc(z.optional(z.string()), 'Fired on a mailto: link click.'),
-          form: desc(
-            z.optional(z.string()),
-            "Fired client-side by `vitopsFormConversion()` — the consumer's own submit handler calls it once a form POST succeeds.",
-          ),
-        }),
-      ]),
-    ),
-    'Google Ads only: the conversion action label(s) paired with the `AW-…` conversion ID — ' +
-      'either one bare label (back-compat, treated as the `call` action) or a map of ' +
-      'action → label, so a call, an email click and a form submission each fire their own ' +
-      'Google Ads conversion action instead of all three reporting as the same one.',
-  ),
-  conversionActionId: desc(
-    z.optional(
-      z.union([
-        z.string(),
-        z.strictObject({
-          call: desc(z.optional(z.string()), 'Fired on a tel: link click.'),
-          email: desc(z.optional(z.string()), 'Fired on a mailto: link click.'),
-          form: desc(z.optional(z.string()), 'Fired on a form submission.'),
-        }),
-      ]),
-    ),
-    'Google Ads only: the conversion action **resource id(s)** (a numeric id, or a full ' +
-      '`customers/…/conversionActions/…` resource name) used for server-side offline ' +
-      'conversion upload — NOT the same value as `conversionLabel`, which is the opaque ' +
-      "label the web tag uses and which the Ads API's upload endpoint does not accept. " +
-      'Only meaningful when `reporting: "server"`.',
-  ),
-  reporting: desc(
-    z.optional(z.enum(['client', 'server'])),
-    'Google Ads only: `"client"` (default) fires the conversion via `gtag.js` in the ' +
-      'browser at click/submit time; `"server"` uploads it via the Ads API from the ' +
-      'conversion endpoint instead (see `conversionActionId`). An action with no matching ' +
-      '`conversionActionId` keeps firing client-side regardless of this setting, so setting ' +
-      'it before `conversionActionId` is filled in never silently drops a conversion.',
-  ),
-  domain: desc(
-    z.optional(z.string()),
-    'Bare hostname to verify with this platform. Defaults to the host of `domains.canonical` — set it only when the ad account is verified against a different domain.',
-  ),
-  domainVerification: desc(
-    z.optional(z.string()),
-    'The verification token from the platform UI, for the platforms that verify by DNS TXT (Meta, TikTok, Pinterest, Snapchat). `vitops ads setup` prompts for it and writes it here on first run. NOT a secret — it is published in DNS, and the platform fetching it back is the ownership proof, exactly like the IndexNow key. A value containing `=` is used as the whole record, which is the escape hatch if a platform changes its prefix.',
-  ),
-  category: desc(
-    z.optional(z.enum(['marketing', 'analytics'])),
-    'Consent category the tag waits on (default `marketing`). An ad pixel is advertising by default; `analytics` is for a site using one purely for its own measurement.',
-  ),
-  enabled: desc(
-    z.optional(z.boolean()),
-    'Set false to keep the property on record without emitting its tag.',
-  ),
-});
-
 // ── Reviews ─────────────────────────────────────────────────────────────────────
-
-/**
- * How one location's Google reviews are selected and ordered for display.
- *
- * Keyed by `organization.locations` key, mirroring `site.ads`/`site.searchConsole`
- * — `vitops reviews` needs to know which physical location a fetched review set
- * belongs to, and that record already exists.
- */
-const ReviewLocationSchema = z.strictObject({
-  accountId: desc(
-    z.optional(z.string()),
-    'GBP account resource id (`accounts/…`), overriding `site.reviews.accountId` for this location.',
-  ),
-  locationId: desc(z.string(), 'GBP location resource id (`locations/…`) to fetch reviews for.'),
-  featured: desc(
-    z.optional(z.array(z.string())),
-    'Review ids to always include, in this order, ahead of everything else automatically selected.',
-  ),
-  minRating: desc(
-    z.optional(z.number()),
-    'Drop reviews below this star rating (default 4) from the automatic (non-featured) selection.',
-  ),
-  limit: desc(z.optional(z.number()), 'Keep at most this many reviews after filtering.'),
-  sort: desc(
-    z.optional(z.enum(['recent', 'rating'])),
-    'Ordering for the non-featured remainder (default `recent`).',
-  ),
-});
-
-const ReviewsSchema = z.strictObject({
-  accountId: desc(
-    z.optional(z.string()),
-    'Default GBP account resource id (`accounts/…`) for locations that do not override it.',
-  ),
-  locations: desc(
-    z.record(z.string(), ReviewLocationSchema),
-    'Which `organization.locations` to fetch Google reviews for, and how each one’s reviews are filtered/ordered. `vitops reviews` writes the result to `.vitops/reviews.json`.',
-  ),
-  schema: desc(
-    z.optional(z.boolean()),
-    'Emit `Review` JSON-LD for these reviews (default false). Off by default: Google’s structured-data policy treats a business marking up reviews of itself as ineligible for review rich results, and risks a manual action.',
-  ),
-  avatars: desc(
-    z.optional(z.boolean()),
-    'Render the reviewer’s Google-hosted avatar photo (default false). Off by default: every visitor would otherwise issue a third-party request to googleusercontent.com, and the URLs are not guaranteed to stay live.',
-  ),
-});
 
 // ── Plans & entitlements ───────────────────────────────────────────────────────
 
@@ -812,98 +608,6 @@ const PlanSchema = z.strictObject({
 });
 
 // ── CRM ─────────────────────────────────────────────────────────────────────────
-
-/**
- * The CRMs this toolchain can push a form submission into.
- *
- * A closed enum, mirroring `CrmProvider` in `@getvitops/utils/crm` — that module
- * owns what each provider's API needs, this owns what a config may say.
- * Mirrored rather than derived for the same reason `AD_PROVIDERS` is: a
- * `z.enum` needs literals to reach the published JSON Schema.
- */
-export const CRM_PROVIDERS = ['hubspot', 'bigin', 'jobber'] as const;
-const CrmProviderSchema = z.enum(CRM_PROVIDERS);
-export type CrmProviderConfig = (typeof CRM_PROVIDERS)[number];
-
-export const BIGIN_DATA_CENTERS = ['com', 'ca', 'eu', 'in', 'com.au', 'jp'] as const;
-
-const HubSpotConfigSchema = z.strictObject({
-  portalId: desc(z.string(), 'The HubSpot portal (hub) ID the form belongs to.'),
-  formGuid: desc(z.string(), 'The HubSpot form GUID to submit against.'),
-  dataCenter: desc(
-    z.optional(z.enum(['na', 'eu'])),
-    'Which regional submissions API to post to (default `na`).',
-  ),
-});
-
-const BiginPipelineConfigSchema = z.strictObject({
-  enabled: desc(z.boolean(), 'Also open a Pipelines record for the new/updated contact.'),
-  subPipeline: desc(z.optional(z.string()), 'Sub-pipeline to file the record under.'),
-  stage: desc(z.optional(z.string()), 'Starting stage for the pipeline record.'),
-});
-
-const BiginConfigSchema = z.strictObject({
-  dataCenter: desc(
-    z.enum(BIGIN_DATA_CENTERS),
-    "The self-client's data centre — determines both the OAuth accounts host and the API host (`www.zohoapis.<dc>`).",
-  ),
-  duplicateCheckField: desc(
-    z.optional(z.string()),
-    "Bigin field the upsert dedupes on (default `Email`, Bigin's own unique field).",
-  ),
-  pipeline: desc(
-    z.optional(BiginPipelineConfigSchema),
-    'Also open a Pipelines record alongside the Contact.',
-  ),
-});
-
-const JobberNoteConfigSchema = z.strictObject({
-  enabled: desc(
-    z.optional(z.boolean()),
-    'Attach a best-effort note carrying the message and unmapped attribution (default true). A failure here never loses the client record itself.',
-  ),
-});
-
-const JobberConfigSchema = z.strictObject({
-  apiVersion: desc(
-    z.optional(z.string()),
-    "Override the pinned `X-JOBBER-GRAPHQL-VERSION` date this integration is tested against. An escape hatch for an app pinned to a different version — Jobber's schema can change field names between versions.",
-  ),
-  dedupe: desc(
-    z.optional(z.boolean()),
-    "Look up an existing client by email before creating one (default false pending verification of Jobber's search API against a live schema — see AGENTS.md). Jobber's `clientCreate` has no upsert, so without this a resubmitting visitor creates a second client.",
-  ),
-  note: desc(
-    z.optional(JobberNoteConfigSchema),
-    'Attach a best-effort note carrying the submitted message and any attribution/extra fields with no dedicated Jobber field.',
-  ),
-});
-
-/**
- * A client's CRM, wired to the same conversion route `site.notifications`
- * already reaches — see AGENTS.md's "CRM submissions" section for why this is
- * server-side-only and hung off `createConversionRoute()` rather than a
- * client-side embed. Credentials never live here — the toolchain has no
- * secret store, matching every other integration.
- */
-const CrmSchema = z.strictObject({
-  provider: desc(CrmProviderSchema, 'Which CRM this site pushes form submissions into.'),
-  enabled: desc(
-    z.optional(z.boolean()),
-    'Set false to keep the block on record without writing to the CRM.',
-  ),
-  hubspot: desc(z.optional(HubSpotConfigSchema), 'Required when `provider` is `hubspot`.'),
-  bigin: desc(z.optional(BiginConfigSchema), 'Required when `provider` is `bigin`.'),
-  jobber: desc(z.optional(JobberConfigSchema), 'Required when `provider` is `jobber`.'),
-  fieldMap: desc(
-    z.optional(z.record(z.string(), z.string())),
-    'Submitted form field name → CRM property name. A field with no entry here is dropped, not guessed — an unmapped field never reaches the CRM.',
-  ),
-  trackingFields: desc(
-    z.optional(z.record(z.string(), z.string())),
-    '`_ac` attribution key (a click-ID param, a UTM param, `landingPage`, `referrer`, or `ab_variant`) → CRM property name. Same drop-if-unmapped rule as `fieldMap`; a visitor with no `_ac` cookie maps to no attribution fields at all, never an error.',
-  ),
-});
 
 // ── Legal ───────────────────────────────────────────────────────────────────────
 
@@ -1145,73 +849,10 @@ const SiteSectionSchema = z.strictObject({
     'Analytics provider IDs (gated per environment via `environments.<env>.analytics`). Which provider is set is also what the generated privacy policy and cookie notice disclose — see `legal`.',
   ),
   notifications: desc(
-    z.optional(
-      z.strictObject({
-        email: desc(
-          z.optional(
-            z.union([
-              z.email(),
-              z.strictObject({
-                provider: desc(
-                  z.literal('cloudflare'),
-                  'Delivery provider. Only Cloudflare Email Sending is implemented; the field is stated so adding another is additive.',
-                ),
-                to: desc(
-                  z.optional(z.email()),
-                  'Recipient. Defaults to the primary location’s `email`, then the first location that has one.',
-                ),
-                from: desc(
-                  z.optional(z.email()),
-                  'Sender. Defaults to `noreply@<domains.canonical>`. Its domain must be onboarded (`wrangler email sending enable <domain>`) or every send fails.',
-                ),
-                fromName: desc(
-                  z.optional(z.string()),
-                  'Display name on the From header. Defaults to `organization.name`.',
-                ),
-                replyTo: desc(z.optional(z.email()), 'Reply-To header.'),
-                binding: desc(
-                  z.optional(z.string()),
-                  'Workers `send_email` binding name (default `EMAIL`). Set it when using a restricted binding.',
-                ),
-                verifySender: desc(
-                  z.optional(z.boolean()),
-                  "Set false to skip `vitops email check`'s deploy-time onboarding warning for this site — for a `from` domain the scan cannot see is correct (e.g. built dynamically), which would otherwise be a false positive.",
-                ),
-              }),
-            ]),
-          ),
-          'Where conversion notifications are e-mailed. A bare address is shorthand for `{ provider: "cloudflare", to }`.',
-        ),
-        actionUrl: desc(
-          z.optional(z.string()),
-          'Optional action-link template added to the conversion email (e.g. a link into your ' +
-            'ad platform or your own CRM/portal). `{clickId}` is replaced with the ad click ID ' +
-            'captured on `_ac` (gclid, fbclid, …). Omitted from the email when the event carries ' +
-            'no click ID to interpolate, rather than rendering a broken link.',
-        ),
-      }),
-    ),
+    NotificationsSchema,
     'Where site notifications (form submissions, tracked calls) are sent. TODO: `sms` and `persist` channels — only `email` is implemented.',
   ),
-  tracking: desc(
-    z.optional(
-      z.strictObject({
-        enabled: desc(
-          z.optional(z.boolean()),
-          'Capture ad click IDs and UTMs from the landing URL into the `_ac` cookie, for attributing conversions.',
-        ),
-        category: desc(
-          z.optional(z.enum(['marketing', 'analytics'])),
-          'Consent category the `_ac` cookie waits on (default `marketing`). It is a 90-day identifier tying a visitor to the ad that brought them, so it is only written once this category is granted — and asking for it is what raises the banner.',
-        ),
-        platforms: desc(
-          z.optional(z.array(z.string())),
-          'Informational list of ad platforms in use. Capture recognises every known click-ID parameter regardless.',
-        ),
-      }),
-    ),
-    'Ad-click attribution for conversion tracking.',
-  ),
+  tracking: desc(TrackingSchema, 'Ad-click attribution for conversion tracking.'),
   ads: desc(
     z.optional(z.partialRecord(AdProviderSchema, AdPropertySchema)),
     'Ad properties this site is linked to, keyed by platform. Read by `vitops ads setup` (ensure the DNS verification record), `vitops ads tags` (emit the consent-gated pixel), and the generated cookie notice (disclose what each pixel stores). Credentials never live here — the DNS write uses CLOUDFLARE_API_TOKEN from the environment.',
@@ -1224,18 +865,7 @@ const SiteSectionSchema = z.strictObject({
     z.optional(CrmSchema),
     "Push form submissions into a client CRM (HubSpot, Zoho Bigin, or Jobber) alongside the notification email. Read by `createConversionRoute()`'s `crm` option and `vitops crm check`/`vitops crm setup`. Credentials never live here.",
   ),
-  security: desc(
-    z.optional(
-      z.strictObject({
-        turnstile: z.optional(
-          z.strictObject({
-            siteKey: desc(z.optional(z.string()), 'Cloudflare Turnstile site key (public).'),
-          }),
-        ),
-      }),
-    ),
-    'Security integrations (bot protection).',
-  ),
+  security: desc(SecuritySchema, 'Security integrations (bot protection).'),
   legal: desc(
     z.optional(
       z.strictObject({
@@ -1344,23 +974,7 @@ const SiteSectionSchema = z.strictObject({
     'Favicon/PWA asset generation (consumed by `@getvitops/utils` favicon tooling).',
   ),
   deployment: desc(
-    z.optional(
-      z.strictObject({
-        platform: z.optional(z.string()),
-        buildCommand: z.optional(z.string()),
-        deployCommand: z.optional(z.string()),
-        outputDirectory: z.optional(z.string()),
-        type: z.optional(z.string()),
-        repo: desc(
-          z.optional(z.string()),
-          "`owner/name` of this site's GitHub repository. Read by the EmDash design-system-editor plugin route to auto-commit a client's admin edit back to `branch` — see AGENTS.md's \"EmDash plugin as the design-system editing surface\" section. Absent means that sync is skipped (the live override still applies); nothing else in this toolchain reads it today.",
-        ),
-        branch: desc(
-          z.optional(z.string()),
-          'Branch the design-system-editor sync commits to. Default `"dev"` — never `main`/production directly; a commit here still needs this repo\'s own `promote` PR + admin approval to reach production, the same gate every other change goes through.',
-        ),
-      }),
-    ),
+    DeploymentSchema,
     'How the site is built and deployed (platform, commands, output directory) — informational for tooling.',
   ),
 });

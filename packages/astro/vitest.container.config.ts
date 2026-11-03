@@ -13,9 +13,12 @@ import { getViteConfig } from 'astro/config';
  *
  * Run via `vp run test:container` (packages/astro), not the root `vp test`.
  */
+// `getViteConfig` is typed over Vite's `UserConfig`, which has no `test` key — Vitest augments that
+// type only where it is imported, and this file deliberately does not import it. The cast is the
+// whole bridge; Vitest reads `test` off the resolved config at runtime.
 export default getViteConfig({
   test: {
     include: ['src/components/container.test.ts'],
     environment: 'node',
   },
-});
+} as Parameters<typeof getViteConfig>[0]);

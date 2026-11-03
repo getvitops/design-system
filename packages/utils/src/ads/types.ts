@@ -1,34 +1,23 @@
 /**
  * The ads module's own option surface.
  *
- * Deliberately structural rather than `Config['site']['ads']` imported from
- * `@getvitops/generator`: the generator already depends on this package, so
- * importing back would be a cycle. The vocabulary mirrors that block field for
- * field, so the CLI's adapter is a flat map — the same arrangement, and for the
- * same reason, as `IndexingConfig` and `DomainSetup` beside it.
- *
- * Optional fields are written `?: T | undefined` throughout: `exactOptionalPropertyTypes`
- * is on, and these describe a *parsed JSON config* where an absent key and an explicit
- * `undefined` are the same thing.
+ * `AdPropertySetup` is the `site.ads.<platform>` block from `@getvitops/config` plus the platform it
+ * is keyed by — inferred from the schema `validateConfig` runs, not re-declared here.
  */
+
+import type { AdPropertyConfig } from '@getvitops/config';
+import type { AdProvider as AdProviderConfig } from '@getvitops/config/providers';
 
 /**
  * The ad platforms this toolchain knows how to link a site to.
  *
- * A closed set, mirroring `AD_PROVIDERS` in the generator's `config.ts` — the
- * capability table in `providers.ts` has one entry per member, and a test in the
- * generator asserts the two lists agree. An open string would mean a typo'd
- * provider silently getting no verification step and no tag.
+ * A closed set, and `AD_PROVIDERS` in `@getvitops/config` is its single source: the capability
+ * table in `providers.ts` is a `Record<AdProvider, …>`, so a provider added there without an entry
+ * here is a compile error. (This was a hand-copied union held to the schema's enum by a test in the
+ * generator; the schema now lives below this package, so the copy and the test are gone.) An open
+ * string would mean a typo'd provider silently getting no verification step and no tag.
  */
-export type AdProvider =
-  | 'google'
-  | 'meta'
-  | 'linkedin'
-  | 'reddit'
-  | 'tiktok'
-  | 'microsoft'
-  | 'pinterest'
-  | 'snapchat';
+export type AdProvider = AdProviderConfig;
 
 /** Which consent category gates a provider's tag. */
 export type AdConsentCategory = 'marketing' | 'analytics';
@@ -101,57 +90,10 @@ export function normalizeConversionActionIds(
   return typeof id === 'string' ? { call: id } : id;
 }
 
-/** One ad property to link, as the config declares it. */
-export interface AdPropertySetup {
+/** One ad property to link: the config block, plus the platform it is keyed by. */
+export type AdPropertySetup = AdPropertyConfig & {
   provider: AdProvider;
-  /**
-   * The account as the platform shows it — Google Ads customer id, Meta ad
-   * account, LinkedIn partner id, Reddit advertiser id.
-   */
-  accountId?: string | undefined;
-  /** The tag/pixel id, when the platform issues one distinct from the account. */
-  pixelId?: string | undefined;
-  /**
-   * Google Ads only: the conversion label(s) paired with the conversion id —
-   * either one bare label (back-compat, treated as the `call` action) or a map
-   * of action → label, so a call, an email click and a form submission each
-   * fire their own Google Ads conversion action instead of sharing one. See
-   * `gtagBootstrap`/`normalizeConversionLabels` below.
-   */
-  conversionLabel?: string | ConversionLabelMap | undefined;
-  /**
-   * Google Ads only: the conversion action resource id(s) used for
-   * **server-side** offline conversion upload — see `ConversionActionIdMap`'s
-   * docblock for why this is not the same value as `conversionLabel`. Only
-   * meaningful when `reporting: 'server'`.
-   */
-  conversionActionId?: string | ConversionActionIdMap | undefined;
-  /**
-   * Google Ads only: `'client'` (default) fires the conversion via `gtag.js`
-   * in the browser at click/submit time; `'server'` uploads it via the Ads
-   * API from the conversion endpoint instead
-   * (`@getvitops/utils/notify`'s `uploadClickConversion`), suppressing the
-   * client-side fire for whichever actions have a matching
-   * `conversionActionId` — an action with no id configured keeps firing
-   * client-side regardless of this setting, so switching to `'server'`
-   * before `conversionActionId` is filled in never silently drops a
-   * conversion.
-   */
-  reporting?: 'client' | 'server' | undefined;
-  /** The host to verify, bare (`acme.ca`). The CLI defaults it from the canonical domain. */
-  domain?: string | undefined;
-  /**
-   * The verification token from the platform UI.
-   *
-   * A bare token gets the provider's TXT prefix applied; a value already
-   * containing `=` is used as the whole record content, which is the escape hatch
-   * for a platform changing its prefix without waiting on a toolchain release.
-   */
-  domainVerification?: string | undefined;
-  /** Category the tag waits on. Defaults to `marketing`. */
-  category?: AdConsentCategory | undefined;
-  enabled?: boolean | undefined;
-}
+};
 
 /** Everything `plan()` needs, once the CLI has read the config. */
 export interface AdsConfig {

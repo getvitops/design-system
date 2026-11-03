@@ -58,7 +58,7 @@ const keep = args.includes('--keep');
 const name = args.find((a) => !a.startsWith('--')) ?? 'emdash';
 
 /** The publishable toolchain a scaffold depends on (`create` itself is not one). */
-const PACKAGES = ['core', 'generator', 'utils', 'cli', 'vite', 'astro', 'emdash'];
+const PACKAGES = ['config', 'core', 'generator', 'utils', 'cli', 'vite', 'astro', 'emdash'];
 
 /**
  * Pinned, and chosen to be older than the 3-day release cooldown this repo applies to
