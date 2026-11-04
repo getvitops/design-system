@@ -14,7 +14,8 @@ Scaffolded from `vp create @getvitops:emdash`.
   (Tailwind v4 format), generates favicons/PWA assets from
   `src/assets/logo.svg`, and serves the web-component runtime
 - **`@getvitops/emdash`** — design-system Portable Text blocks in the editor
-  slash menu: image compare, copy snippet, banner, disclosure, carousel
+  slash menu (hero, cards, accordion, carousel, gallery, marquee, banner, …);
+  `npx vitops docs blocks` lists every block and field
 
 `src/assets/placeholder/` ships neutral wireframe images for layout work
 before real imagery exists — delete once real assets land (separate from
@@ -139,6 +140,10 @@ and media in the storage backend (bucket/directory copy).
 - **Skills** (`.agents/skills/`): `promote` dispatches the dev → main
   promotion workflow. Run `npx vitops agents` to also write the design-system
   class reference into `AGENTS.md`.
+- **EmDash skills** are installed per project so they match the pinned `emdash`
+  version: `npx skills add emdash-cms/skills --skill '*' -a claude-code -y`,
+  then commit `.agents/skills/` and `skills-lock.json`. Update with
+  `npx skills update` after an `emdash` bump.
 - **Claude Code on the web**: the SessionStart hook
   (`.claude/hooks/session-start.sh`) installs Node 24 (matching
   `devEngines`), activates the pinned pnpm, and installs dependencies in the

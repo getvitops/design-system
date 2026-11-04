@@ -20,8 +20,8 @@ styled by the Vitops design system.
   with `<PortableText />` from `emdash/ui` (the Vitops blocks from
   `@getvitops/emdash` are merged in automatically).
 - **Building pages from patterns:** the editor's insert menu offers the `vitops.*` blocks —
-  link/button, image compare, copy snippet, banner, disclosure, accordion, carousel, gallery,
-  cards, marquee. Repeating content (cards, gallery images, accordion items, carousel slides) is
+  link/button, image compare, copy snippet, banner, disclosure, accordion, hero, carousel, gallery,
+  cards, marquee (`npx vitops docs blocks` lists them with every field). Repeating content (cards, gallery images, accordion items, carousel slides) is
   a repeater field. A block cannot contain other blocks, and a `vitops.*` block inside EmDash's
   built-in `columns` does not render — for layout (a section, a split, a hero) use a `blocks`
   field, or hand-write the page template with `@getvitops/astro` components
@@ -136,6 +136,21 @@ styled by the Vitops design system.
 
 `.mcp.json` preconfigures the Astro docs and EmDash docs MCP servers — prefer
 searching them over pre-trained knowledge for Astro/EmDash questions.
+
+## EmDash agent skills
+
+The EmDash skills (`building-emdash-site`, `creating-plugins`, `emdash-cli`,
+`upgrading-emdash` and the two WordPress porting skills) are installed per
+project, not globally, so they match the `emdash` version this repo pins. If
+`.agents/skills/building-emdash-site/` is missing, install them (the setup guide
+and `SETUP.html` have the full step):
+
+```bash
+npx skills add emdash-cms/skills --skill '*' -a claude-code -y
+```
+
+Refresh them with `npx skills update` after bumping `emdash` — the
+`upgrading-emdash` skill covers the rest of the upgrade.
 
 ## Commands
 
