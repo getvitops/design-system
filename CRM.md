@@ -86,7 +86,7 @@ Follows the pure-planner / executor split used by `indexing/`, `onboarding/`, `a
   `notify/plan.ts`'s `ChannelPlan { enabled, skip }` shape so `--dry` is a complete account.
 - **`map.ts`** — pure, decides everything about _one submission_. `mapSubmission(event, config)`
   → a provider-neutral `CrmRecord { firstName?, lastName?, email?, phone?, company?, message?,
-extra, attribution }`. This is where the two subtle rules live, and both get pinned tests:
+  extra, attribution }`. This is where the two subtle rules live, and both get pinned tests:
   - **Bigin last-name fallback**: explicit `last_name` field → split the full name on its last
     space → email local-part → refuse with a stated reason. Never let Bigin 400.
   - **Attribution**: `event.tracking` keys mapped through `config.trackingFields`; a `null`
@@ -94,7 +94,7 @@ extra, attribution }`. This is where the two subtle rules live, and both get pin
 - **`identity` extraction** — promote `render.ts`'s private `submitterName()` cascade into
   `packages/utils/src/tracking/identity.ts` (exported from `@getvitops/utils/tracking`) as
   `identifySubmitter(formData)`, returning the whole `{ firstName, lastName, fullName, email,
-phone, company }` set. It belongs beside `ConversionEvent`, which already lives in
+  phone, company }` set. It belongs beside `ConversionEvent`, which already lives in
   `tracking/`, and both `notify/render.ts` and `crm/map.ts` already import that subpath — so no
   new coupling. `render.ts`'s `submitterName()` becomes a one-line delegate. Its existing
   comment records a real downstream failure from having two copies of this cascade; do not
@@ -104,7 +104,7 @@ phone, company }` set. It belongs beside `ConversionEvent`, which already lives 
   and POSTs to the secure endpoint with `Authorization: Bearer`. Classifies: 401 → credential,
   400 with `MISSING_REQUIRED_FIELDS`/unknown-field → mapping, 429 → rate limit.
 - **`bigin.ts`** — executor. `POST .../bigin/v2/Contacts/upsert`, `Authorization:
-Zoho-oauthtoken <token>`, body `{ data: [record], duplicate_check_fields: ['Email'] }`.
+  Zoho-oauthtoken <token>`, body `{ data: [record], duplicate_check_fields: ['Email'] }`.
   Data-centre host derived from `config.bigin.dataCenter` (`ca` → `www.zohoapis.ca`).
   Optionally opens a `Pipelines` record when `bigin.pipeline.enabled`.
 - **`zoho-token.ts`** — the refresh-token grant against
@@ -139,7 +139,7 @@ array in `packages/utils/vite.config.ts` — a subpath missing from either is un
 The insertion point is the single `await notify(...)` call at line 385.
 
 - New option `crm?: { config: CrmConfig; credentials?: (locals: unknown) => CrmCredentials |
-undefined; fetch?: typeof fetch; timeoutMs?: number }`. Credentials arrive as a **function of
+  undefined; fetch?: typeof fetch; timeoutMs?: number }`. Credentials arrive as a **function of
   `locals`**, exactly like `binding?: (locals) => EmailBinding` — the consumer reads them from
   `import { env } from 'cloudflare:workers'`. Credentials are never config; that rule is
   absolute in this toolchain.

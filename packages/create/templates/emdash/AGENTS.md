@@ -40,15 +40,16 @@ styled by the Vitops design system.
   full generated class-vocabulary reference to this file.
 - **Layout foundations — these are the answer, not a starting point.** Six
   substitutions carry the structure of nearly every page:
-  | About to write… | Write instead |
-  | --- | --- |
-  | a `wrap`/`wrapper`/`container`/`inner` class | **`centered`** |
-  | `max-width` + `margin-inline: auto` | **`centered`** |
-  | `padding-block` on a section | **`region`** |
-  | margins between headings/paragraphs/lists | **`rhythm`** |
-  | `display: grid` + `grid-template-columns: repeat(n, …)` | **`subgrid`** |
-  | `repeat(auto-fit, minmax(…))` | **`grid-auto`** |
-  | `display: flex` + `gap` for a row of controls | **`cluster`** |
+
+  | About to write…                                         | Write instead   |
+  | ------------------------------------------------------- | --------------- |
+  | a `wrap`/`wrapper`/`container`/`inner` class            | **`centered`**  |
+  | `max-width` + `margin-inline: auto`                     | **`centered`**  |
+  | `padding-block` on a section                            | **`region`**    |
+  | margins between headings/paragraphs/lists               | **`rhythm`**    |
+  | `display: grid` + `grid-template-columns: repeat(n, …)` | **`subgrid`**   |
+  | `repeat(auto-fit, minmax(…))`                           | **`grid-auto`** |
+  | `display: flex` + `gap` for a row of controls           | **`cluster`**   |
 
   `centered` is a grid of _named tracks_, not a max-width box — a child widens
   itself with `breakout`/`spotlight`/`fullbleed` without the parent knowing, which

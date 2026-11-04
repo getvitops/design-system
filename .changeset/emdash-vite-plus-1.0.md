@@ -32,7 +32,7 @@ the version bump:
   needs a new GitHub Environment variable, `EMDASH_TARGET_FINGERPRINT` (one per environment),
   which only a human can set — run `emdash migrate --status` against the real deployed database,
   review the printed identity, then `gh variable set EMDASH_TARGET_FINGERPRINT --env <env> --body
-<value>`. Deploys fail clearly on the migration-apply step until it's set.
+  <value>`. Deploys fail clearly on the migration-apply step until it's set.
 - `lint.options.typeAware`/`typeCheck` in the template's own `vite.config.ts` are commented out,
   not deleted: vite-plus 1.0 only honours that option in a project's actual root config, and hard
   errors on it in a nested one (which this file is, sitting inside the `design-system` monorepo).

@@ -91,19 +91,19 @@ work is smaller than the original sketch assumed):
    import consumer global state) applied here exactly the way `routes/config-adapters.ts` already
    applies it to `toNotifyContext`:
    - `resolveSlug(key: string, slug: Localizable | undefined, locale: string, defaultLocale:
-string): string` — `t(slug, locale, defaultLocale) || key`. The **object key**
+     string): string` — `t(slug, locale, defaultLocale) || key`. The **object key**
      (`organization.locations`'s own record key, e.g. `'ottawa'`) is the stable identity already
      used everywhere else in this codebase (`toNotifyContext`'s `primaryLocation` sort,
      `validateConfig`'s membership check) — `slug` is an optional, per-locale URL override, not a
      replacement identity.
    - `locationToLocalBusiness(location: LocationEntry, opts: {locale, defaultLocale}):
-LocalBusinessGraphOptions` — resolves `name`/`description` via `t()`, flattens `photos`
+     LocalBusinessGraphOptions` — resolves `name`/`description` via `t()`, flattens `photos`
      (`ImageRef[]`) to `image: string[]` (`typeof ref === 'string' ? ref : ref.src`), passes
      `address`/`geo`/`hours`/`hoursSpecial`/`type`/`areaServed`/`priceRange`/`paymentAccepted`/
      `currenciesAccepted`/`knowsLanguage`/`sameAs` straight through (confirmed shape-identical
      above), drops `listings`.
    - `serviceToGraph(service: ServiceEntry, opts: {locale, defaultLocale, providerName?}):
-ServiceGraphOptions` — resolves `name`/`description` via `t()`, passes `offers` straight
+     ServiceGraphOptions` — resolves `name`/`description` via `t()`, passes `offers` straight
      through, sets `provider: providerName` when given (the caller passes
      `resolveOrganizationName(config)` — direct reuse of the existing helper).
    - Unit-tested in `graph-adapters.test.ts` the same way `config-adapters.test.ts` already tests
@@ -122,8 +122,8 @@ ServiceGraphOptions` — resolves `name`/`description` via `t()`, passes `offers
      `<slot name="photos">` defaulting to a plain `<ul class="gallery">` of `<img>`s (not a new
      gallery component — a consumer who wants `<Carousel>`/`<Gallery>` overrides the slot; inventing
      photo-display logic here would be scope creep this plan doesn't need), a `<LocalBusiness
-{...locationToLocalBusiness(location, {locale, defaultLocale})} />` (or `<Service
-{...serviceToGraph(...)} />`) schema island, and a bare `<slot />` for the surrounding page
+     {...locationToLocalBusiness(location, {locale, defaultLocale})} />` (or `<Service
+     {...serviceToGraph(...)} />`) schema island, and a bare `<slot />` for the surrounding page
      copy the content author still writes.
    - Registered in `packages/astro/package.json`'s `exports` + `files` the same way
      `Head.astro`/`Subgrid.astro` already are (mirror the existing entry shape — don't invent a new
@@ -344,3 +344,14 @@ Whoever picks one of these up should give it the full treatment `<wc-counter>` o
 here before it shipped — see its own class docblock, `WCCounter.ts`, for the shape that
 treatment landed in (why it clears the tier-2 bar, shape, load-bearing details) — rather than
 just the one-liners here.
+
+### Test and a11y coverage gaps — todo
+
+From the 2026-11 architecture audit; each is a known gap, not a regression.
+
+- **DOM tests** (`*.dom.test.ts`) missing for `wc-image-compare`, `wc-entries`, `wc-consent`, `wc-copy`,
+  `wc-dismissable`, `wc-multi-field` and `wc-split-panel`. (`wc-marquee` has one.)
+- **e2e no-JS fallback coverage** (`site/e2e/no-js-fallback.e2e.ts`) missing for cards, consent and the other
+  elements without a spec.
+- **`WCEntries.ts`**: the `aria-hidden` column nav contains focusable buttons — hidden from AT but still in the
+  tab order. Re-check against the current markup, then either drop `aria-hidden` or make the buttons inert.

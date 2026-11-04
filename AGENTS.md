@@ -323,7 +323,7 @@ packages under `packages/` (a pnpm workspace), by layer:
 - **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
   `png-to-ico`, loaded lazily; `oxipng` crush optional). Consumed by cli/vite/astro.
 - **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint|legal|robots|reviews|
-icons|search|ads|crm|email|setup|media` (bin `vitops`), a thin wrapper over the generator + utils.
+  icons|search|ads|crm|email|setup|media` (bin `vitops`), a thin wrapper over the generator + utils.
   `legal`/`search`/`ads`/`crm`/`email`
   are covered in their own sections below; `robots` (`vitops robots [--input <site.json>]
   [--site-env <name>] [--out <dir>]`) is `legal`'s sibling — same `Config`-anchoring, same
@@ -455,7 +455,7 @@ reading changelogs that were accurate and still unanswerable:
   change in this package"** rather than leaving the absence to be inferred; a lockstep major
   is otherwise indistinguishable from one whose notes were forgotten.
 - **Every pattern-CSS entry names the formats it reaches** — `css/bricks only`, `tailwind
-only`, `all formats`. The `.rhythm` heading-spacing change was written as a plain breaking
+  only`, `all formats`. The `.rhythm` heading-spacing change was written as a plain breaking
   change and never reached the tailwind output; a consumer diffed builds to establish that.
   One clause settles it.
 
@@ -584,7 +584,7 @@ Eight things are load-bearing:
   Cloudflare's siteverify endpoint via `verifyTurnstileToken()` (`@getvitops/utils/security` — a
   Worker-safe subpath for the same reason `notify`/`tracking` are). The **secret** key is an env
   var, never config, mirroring every other credential in the toolchain; `site.security.turnstile
-.siteKey` stays public config and is what the legal templates read to name Turnstile in the
+  .siteKey` stays public config and is what the legal templates read to name Turnstile in the
   generated privacy policy (see the Legal documents section). Before this existed, that field made
   the policy assert something nothing in the toolchain checked — a bare token in the submission
   is, by default, treated as absent-because-no-JS rather than rejected (`required: true` opts a
@@ -848,7 +848,7 @@ Three things here are load-bearing:
   exact name + an onboarded sibling in the same zone → `blocked`, not `create`.
 - **Why `send.<domain>` rather than the apex is NOT about MX conflict** — checked live: every
   record Cloudflare adds sits under its own label (`cf-bounce.<sending>`, `cf-bounce._domainkey
-.<sending>`), which collides with neither an apex MX nor `mail.<domain>`. What actually recommends
+  .<sending>`), which collides with neither an apex MX nor `mail.<domain>`. What actually recommends
   a subdomain is the DMARC record: `_dmarc.<sending>` sets `p=reject`, and onboarding the apex
   would overwrite the domain's real `_dmarc.<domain>` — for `vitops.ca` that would replace an
   existing `p=none` policy covering Zoho-hosted mail with `p=reject`, which fails every message
@@ -923,7 +923,7 @@ Seven things are load-bearing:
   otherwise return.
 - **Credentials are a function of `locals`, never config** — `createConversionRoute()`'s `crm`
   option takes `credentials?: (locals) => CrmCredentials`, matching `binding?: (locals) =>
-EmailBinding` exactly, so a consumer reads `VITOPS_HUBSPOT_ACCESS_TOKEN` /
+  EmailBinding` exactly, so a consumer reads `VITOPS_HUBSPOT_ACCESS_TOKEN` /
   `VITOPS_ZOHO_CLIENT_ID`/`_CLIENT_SECRET`/`_REFRESH_TOKEN` /
   `VITOPS_JOBBER_CLIENT_ID`/`_CLIENT_SECRET`/`_REFRESH_TOKEN` from `cloudflare:workers`'s `env`.
   That rule is absolute in this toolchain.
@@ -1170,6 +1170,10 @@ Other tools used:
 ### Task Notes
 
 - do not run format or lint as verifications, these are done automatically on save and PostToolUse hooks.
+- if `vp check` passes locally but CI's `vp check` reports formatting issues, suspect a stale hoisted `node_modules/oxfmt`
+  (or `oxlint`/`vite`) left by an old `npm install`: `vp` resolves the formatter from the project root, so it shadows
+  the version pnpm pinned. `ls node_modules/oxfmt` should not exist — `node_modules` is pnpm-owned; reinstall with
+  `pnpm install --frozen-lockfile`.
 - `index.html` is the evergreen docsite that should dogfood the output of the build. Make sure it's kept up to date
 
 ## Output
@@ -1205,7 +1209,7 @@ Other tools used:
 
   **Geometry must resolve through the group alias layer — never hard-code the group token.** For
   every grouped pattern the generator emits `--<prop>-<name>-group` aliases (`--br-btn-group:
-var(--br-control)`), and `overrides` replace an alias with a literal. So a pattern's `base` writes
+  var(--br-control)`), and `overrides` replace an alias with a literal. So a pattern's `base` writes
   `"border-radius": "var(--br-btn-group)"`, **not** `"var(--br-control, 0.25rem)"`. Both render the
   same, but only the first keeps the pattern → group mapping in CSS, where it is inspectable and
   editable in devtools; a hard-coded fallback bakes it into the rule and is unreachable. The full

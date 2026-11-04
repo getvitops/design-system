@@ -26,7 +26,7 @@ Two things worth knowing before running it:
   from the onboarded subdomain — rather than silently trying to onboard the apex, which rewrites
   `_dmarc.<domain>` and can tighten DMARC policy on every other mail your domain sends.
 - Candidates come from `site.notifications.email.from` (or its derived `noreply@<domains
-.canonical>` default) first; a best-effort scan of `--src` only supplements it, and never guesses
+  .canonical>` default) first; a best-effort scan of `--src` only supplements it, and never guesses
   at a computed `from` value.
 
 New `@getvitops/utils/email` subpath and `site.notifications.email.verifySender` config field.

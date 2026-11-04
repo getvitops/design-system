@@ -63,7 +63,7 @@
 
   This adds one server-side path for all three CRMs, hung off the conversion route that already
   exists. `createConversionRoute()` gets a new `crm` option (`{ config, credentials, fetch?,
-timeoutMs? }`); credentials arrive as a function of `locals`, exactly like the existing `binding`
+  timeoutMs? }`); credentials arrive as a function of `locals`, exactly like the existing `binding`
   option, and are never config. A failed CRM write never fails the request and is folded into the
   notification email's new "Delivery" section, so a broken CRM token is never silent.
 
@@ -138,8 +138,8 @@ timeoutMs? }`); credentials arrive as a function of `locals`, exactly like the e
   Before this, the capture script only beaconed `tel:` clicks; a `mailto:` link on the same page was
   invisible to attribution — a visitor who emailed the business instead of calling generated no
   conversion event at all. `<Tracking />`'s inlined script now listens for both, sending `{ event:
-'email', email }` via `navigator.sendBeacon` the same way it already sends `{ event: 'call', phone
-}`.
+  'email', email }` via `navigator.sendBeacon` the same way it already sends `{ event: 'call', phone
+  }`.
 
   `ConversionEvent['type']` gains an `'email'` member alongside `'form'`/`'call'`, with a new
   `email` field. `createConversionRoute()` handles it exactly like a call: no honeypot, Turnstile or
@@ -194,8 +194,8 @@ timeoutMs? }`); credentials arrive as a function of `locals`, exactly like the e
 ### Patch Changes
 
 - c3c1bcb: **New: the design-system editor, mounted inside the EmDash admin.** `vitopsEmdash({
-designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import config from
-'./site.json' with { type: 'json' }`) adds a `/design-system` admin page mounting
+  designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import config from
+  './site.json' with { type: 'json' }`) adds a `/design-system` admin page mounting
   `<wc-theme-editor>` — the same live token editor `@getvitops/vite`'s dev server has always
   offered, now usable by the client directly, no dev server required. An edit is visible
   site-wide immediately (a runtime `:root` override, served via a new plugin API route and
@@ -256,7 +256,7 @@ designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import c
     needs a new GitHub Environment variable, `EMDASH_TARGET_FINGERPRINT` (one per environment),
     which only a human can set — run `emdash migrate --status` against the real deployed database,
     review the printed identity, then `gh variable set EMDASH_TARGET_FINGERPRINT --env <env> --body
-<value>`. Deploys fail clearly on the migration-apply step until it's set.
+    <value>`. Deploys fail clearly on the migration-apply step until it's set.
   - `lint.options.typeAware`/`typeCheck` in the template's own `vite.config.ts` are commented out,
     not deleted: vite-plus 1.0 only honours that option in a project's actual root config, and hard
     errors on it in a nested one (which this file is, sitting inside the `design-system` monorepo).
@@ -598,7 +598,7 @@ designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import c
     created, with `patterns/counter.css`'s own reduced-motion query as a second belt.
   - The accessible name stays the final value for the whole animation: `.counter__value` is toggled
     to the framework's `.sr-only` utility while running, never hidden — `display: none`/`visibility:
-hidden` would pull it out of the accessible-name computation along with the visual hiding, and a
+    hidden` would pull it out of the accessible-name computation along with the visual hiding, and a
     screen reader must never be read ~60 intermediate numbers. The animated text lives in a separate
     `aria-hidden` presentation span it never reaches.
   - `data-from` (default `0`), `data-duration` (ms, default `1200`), `data-easing` (`linear` |
@@ -1202,28 +1202,20 @@ hidden` would pull it out of the accessible-name computation along with the visu
   {
     "designSystem": {
       "themes": {
-        "default": {
-          /* … */
-        },
+        "default": {/* … */},
       },
     },
     "organization": {
       "name": "Acme",
       "contact": "hq",
       "locations": {
-        "hq": {
-          /* … */
-        },
+        "hq": {/* … */},
       },
     },
     "site": {
       "defaultLocale": "en",
-      "domains": {
-        /* … */
-      },
-      "analytics": {
-        /* … */
-      },
+      "domains": {/* … */},
+      "analytics": {/* … */},
     },
   }
   ```
@@ -1317,7 +1309,7 @@ hidden` would pull it out of the accessible-name computation along with the visu
     `animate-view` / `animate-scroll` / `animate-trigger` / `transition`, and every effect
     gained an `open-<fx>` state variant. Overlays now state _where they start_
     (`--translate-x-from`) instead of owning a keyframe: `class="drawer drawer--right
-open-fade-in"` composes slide and fade. Applied at zero specificity with identity
+    open-fade-in"` composes slide and fade. Applied at zero specificity with identity
     defaults, so a popover that sets no effect vars is unchanged.
   - **One scrim.** `--scrim` / `--scrim-filter` tokens and `.no-scrim` in `popover.css`,
     replacing 18 `::backdrop` blocks across seven partials. `.drawer--modeless` is aliased.
@@ -1458,7 +1450,7 @@ open-fade-in"` composes slide and fade. Applied at zero specificity with identit
   toolchain bump. Use `--force` when you mean to re-encode.
 
   **`ffmpeg` is an external tool, not an npm dependency** — install it yourself (`brew install
-ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails without it rather
+  ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails without it rather
   than skipping: a page referencing a video that was never encoded is broken, not degraded.
 
   Two defaults worth knowing about. The MP4 exists because older iOS and the in-app webviews inside
@@ -1551,8 +1543,8 @@ ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails 
   replace it with `--anim-range`. `--stagger-range-step` is now a viewport length (`5vh`) to match.
 
   **Fixed: every journey ran on a truncated range.** The generator emitted `animation-range: entry
-exit`; lightningcss parsed the end of that shorthand as `exit 0%` rather than the spec's `exit
-100%`, so the bundle shipped `entry exit 0%`. Journeys reach their `100%` keyframe — the hidden
+  exit`; lightningcss parsed the end of that shorthand as `exit 0%` rather than the spec's `exit
+  100%`, so the bundle shipped `entry exit 0%`. Journeys reach their `100%` keyframe — the hidden
   `from` state — as the element hits the top of the viewport, which is to say they faded out while
   still fully on screen. Journeys now run `entry calc(50% + 10vh) → exit 100%`: they start on the same
   midpoint pivot as everything else and keep the full entry → hold → exit arc, so the hold sits in the
@@ -1565,7 +1557,7 @@ exit`; lightningcss parsed the end of that shorthand as `exit 0%` rather than th
   so one knob tunes both. If your own config has an empty `slide` base, add the same line.
 
   **Fixed: `reveal-*` on hover was unreachable.** A `hover-reveal-left` element rests at `clip-path:
-inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting — so it had zero
+  inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting — so it had zero
   hittable area and could never receive the hover that would reveal it. The state variants now match
   the element **or its direct parent**, mirroring what `animation.css` already did for the trigger
   driver (`:is(.is-active, [data-active]) > .animate-trigger`):
@@ -1916,7 +1908,7 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
 - bf453b0: Fixed: a site on `css.format: 'css'` failed to build because of Tailwind.
 
   `getvitops()` loads `@tailwindcss/vite` lazily, so a project that never sets `css.format:
-'tailwind'` should never touch it. But the specifier was a literal, which makes it statically
+  'tailwind'` should never touch it. But the specifier was a literal, which makes it statically
   analysable — so the bundler **followed** the import regardless of the branch ever running, down
   through `@tailwindcss/node` to `@tailwindcss/oxide`'s native `.node` binding, which it cannot parse.
   The build died on `[UNLOADABLE_DEPENDENCY] … stream did not contain valid UTF-8`, naming a package
@@ -2403,7 +2395,7 @@ inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting �
   - `.chip-list__chip` and `.chip-list__chip-remove` are **removed**. A tag list is a list of tags, so
     its items are now the existing `.tag` / `.tag__remove` — which also means they pick up tag role
     variants. **Migration:** replace `<span class="chip-list__chip">x <button
-class="chip-list__chip-remove">` with `<span class="tag">x <button class="tag__remove">`. Note the
+    class="chip-list__chip-remove">` with `<span class="tag">x <button class="tag__remove">`. Note the
     items change appearance: `.tag` is outlined (border + neutral text) where the old chip was filled
     with `--color-surface-muted`.
   - The `radii.chip` primitive is **removed** from the example config; it was only ever an alias of

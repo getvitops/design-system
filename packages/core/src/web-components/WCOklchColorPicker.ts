@@ -802,9 +802,11 @@ export class WCOklchColorPicker extends BaseElement {
           step="0.01"
           class="${this._isDragging ? 'dragging' : ''}"
           .value=${String(this.lightness)}
-          style="${this._isDragging
-            ? ''
-            : `background: linear-gradient(to right, oklch(0 ${this.chroma} ${this.hue}), oklch(0.5 ${this.chroma} ${this.hue}), oklch(1 ${this.chroma} ${this.hue}))`}"
+          style="${
+            this._isDragging
+              ? ''
+              : `background: linear-gradient(to right, oklch(0 ${this.chroma} ${this.hue}), oklch(0.5 ${this.chroma} ${this.hue}), oklch(1 ${this.chroma} ${this.hue}))`
+          }"
           @input=${this._onLightnessInput}
           @change=${this._onLightnessChange}
           ?disabled=${this.disabled}
@@ -821,25 +823,27 @@ export class WCOklchColorPicker extends BaseElement {
           @click=${this._onModeToggle}
           ?disabled=${this.disabled}
         >
-          ${this.mode === 'rectangle'
-            ? html`<svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-              >
-                <circle cx="12" cy="12" r="9" />
-              </svg>`
-            : html`<svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                aria-hidden="true"
-              >
-                <rect x="4" y="4" width="16" height="16" rx="1" />
-              </svg>`}
+          ${
+            this.mode === 'rectangle'
+              ? html`<svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="9" />
+                </svg>`
+              : html`<svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <rect x="4" y="4" width="16" height="16" rx="1" />
+                </svg>`
+          }
         </button>
 
         <div

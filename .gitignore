@@ -31,3 +31,5 @@ packages/create/templates/*/.astro/
 .vitest/
 
 .dev*
+# Agent worktrees: whole checkouts, never tracked
+.claude/worktrees/

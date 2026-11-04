@@ -96,7 +96,7 @@ emit its tag.
 | `scroll-target` | css | `.scroll-target-group` for `:target-current` highlighting. |
 | `separator` | css | `.separator`, optionally with text or an ornament. |
 | `sitenav` | css · bricks | `.sitenav` with `--bp-*` and a drawer direction. `<details>` + Invoker Commands, no JS. |
-| `split` | css · bricks | `.split` plus a ratio class. Pure CSS; `md-split-1-2` for the responsive form. |
+| `split` | css · bricks · emdash | `.split` plus a ratio class. Pure CSS; `md-split-1-2` for the responsive form. |
 | `split-link` | css · bricks | `.split-link` — a link plus a disclosure toggle. No JS. |
 | `split-panel` | css · wc · bricks | `<wc-split-panel>` with two children. Unenhanced they simply stack. |
 | `stack` | css | `.stack` for overlapping cards. |
@@ -204,6 +204,7 @@ repeater fields. A block cannot contain other blocks — a section holding a car
 | `vitops.imageCompare` | `image-compare` | tier-1 markup |
 | `vitops.actionLink` | `link` | tier-1 markup |
 | `vitops.marquee` | `marquee` | `<Marquee />` |
+| `vitops.hero` | `split` | tier-1 markup |
 
 ## CSS
 

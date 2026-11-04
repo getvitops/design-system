@@ -665,27 +665,29 @@ export class WCColorWheel extends BaseElement {
     return html`
       <div class="container" part="container">
         <div class="controls" part="controls">
-          ${this.harmonies
-            ? html`
-                <div class="harmony-select" part="harmony-select">
-                  <label for="harmony-type">Harmony</label>
-                  <select
-                    id="harmony-type"
-                    part="select"
-                    .value=${this.harmony}
-                    @change=${this.#onHarmonyChange}
-                  >
-                    ${this.harmonies.map(
-                      (key) => html`
-                        <option value=${key} ?selected=${this.harmony === key}>
-                          ${HARMONY_DEFINITIONS[key].label}
-                        </option>
-                      `,
-                    )}
-                  </select>
-                </div>
-              `
-            : ''}
+          ${
+            this.harmonies
+              ? html`
+                  <div class="harmony-select" part="harmony-select">
+                    <label for="harmony-type">Harmony</label>
+                    <select
+                      id="harmony-type"
+                      part="select"
+                      .value=${this.harmony}
+                      @change=${this.#onHarmonyChange}
+                    >
+                      ${this.harmonies.map(
+                        (key) => html`
+                          <option value=${key} ?selected=${this.harmony === key}>
+                            ${HARMONY_DEFINITIONS[key].label}
+                          </option>
+                        `,
+                      )}
+                    </select>
+                  </div>
+                `
+              : ''
+          }
         </div>
 
         <div class="wheel-container" part="wheel-container">
@@ -704,65 +706,73 @@ export class WCColorWheel extends BaseElement {
           </div>
         </div>
 
-        ${this.showSwatches
-          ? html`
-              <div class="swatches" part="swatches">
-                <div class="swatch-group swatch-group--primary">
-                  <div class="swatch-wrapper swatch-wrapper--primary picker-trigger">
-                    <div
-                      class="swatch swatch--primary"
-                      part="swatch swatch-primary"
-                      style="background: ${primaryColor.oklch}"
-                      @click=${this.showPicker
-                        ? this.#togglePicker
-                        : () => this.#onSwatchClick(primaryColor)}
-                      title="${this.showPicker ? 'Click to edit' : 'Click to copy'}"
-                      role="button"
-                      tabindex="0"
-                    ></div>
-                    <span class="swatch__label">Primary</span>
-                    <span class="swatch__hex">${primaryColor.hex}</span>
-                    ${this.showPicker
+        ${
+          this.showSwatches
+            ? html`
+                <div class="swatches" part="swatches">
+                  <div class="swatch-group swatch-group--primary">
+                    <div class="swatch-wrapper swatch-wrapper--primary picker-trigger">
+                      <div
+                        class="swatch swatch--primary"
+                        part="swatch swatch-primary"
+                        style="background: ${primaryColor.oklch}"
+                        @click=${
+                          this.showPicker
+                            ? this.#togglePicker
+                            : () => this.#onSwatchClick(primaryColor)
+                        }
+                        title="${this.showPicker ? 'Click to edit' : 'Click to copy'}"
+                        role="button"
+                        tabindex="0"
+                      ></div>
+                      <span class="swatch__label">Primary</span>
+                      <span class="swatch__hex">${primaryColor.hex}</span>
+                      ${
+                        this.showPicker
+                          ? html`
+                              <div class="picker-popover" part="picker" ?open=${this._pickerOpen}>
+                                <input
+                                  type="color"
+                                  .value=${primaryColor.hex}
+                                  @input=${this.#onPickerColorChange}
+                                  aria-label="Pick primary color"
+                                />
+                              </div>
+                            `
+                          : ''
+                      }
+                    </div>
+                  </div>
+
+                  ${
+                    computedColors.length > 0
                       ? html`
-                          <div class="picker-popover" part="picker" ?open=${this._pickerOpen}>
-                            <input
-                              type="color"
-                              .value=${primaryColor.hex}
-                              @input=${this.#onPickerColorChange}
-                              aria-label="Pick primary color"
-                            />
+                          <div class="swatch-separator" part="separator"></div>
+                          <div class="swatch-group swatch-group--computed">
+                            ${computedColors.map(
+                              (color) => html`
+                                <div class="swatch-wrapper">
+                                  <div
+                                    class="swatch"
+                                    part="swatch"
+                                    style="background: ${color.oklch}"
+                                    @click=${() => this.#onSwatchClick(color)}
+                                    title="Click to copy"
+                                    role="button"
+                                    tabindex="0"
+                                  ></div>
+                                  <span class="swatch__hex">${color.hex}</span>
+                                </div>
+                              `,
+                            )}
                           </div>
                         `
-                      : ''}
-                  </div>
+                      : ''
+                  }
                 </div>
-
-                ${computedColors.length > 0
-                  ? html`
-                      <div class="swatch-separator" part="separator"></div>
-                      <div class="swatch-group swatch-group--computed">
-                        ${computedColors.map(
-                          (color) => html`
-                            <div class="swatch-wrapper">
-                              <div
-                                class="swatch"
-                                part="swatch"
-                                style="background: ${color.oklch}"
-                                @click=${() => this.#onSwatchClick(color)}
-                                title="Click to copy"
-                                role="button"
-                                tabindex="0"
-                              ></div>
-                              <span class="swatch__hex">${color.hex}</span>
-                            </div>
-                          `,
-                        )}
-                      </div>
-                    `
-                  : ''}
-              </div>
-            `
-          : ''}
+              `
+            : ''
+        }
 
         <div class="visually-hidden" role="status" aria-live="polite">
           ${this.#getAccessibleDescription()}

@@ -5,8 +5,8 @@
 ### Minor Changes
 
 - c3c1bcb: **New: the design-system editor, mounted inside the EmDash admin.** `vitopsEmdash({
-designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import config from
-'./site.json' with { type: 'json' }`) adds a `/design-system` admin page mounting
+  designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import config from
+  './site.json' with { type: 'json' }`) adds a `/design-system` admin page mounting
   `<wc-theme-editor>` — the same live token editor `@getvitops/vite`'s dev server has always
   offered, now usable by the client directly, no dev server required. An edit is visible
   site-wide immediately (a runtime `:root` override, served via a new plugin API route and
@@ -55,7 +55,7 @@ designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import c
 
   `vitops email setup [domain]` onboards a sending domain (currently Cloudflare Email Sending only)
   and polls DNS until its SPF/DKIM/DMARC records resolve or a timeout is reached; `vitops email
-check` is the non-blocking deploy guard both `@getvitops/create` templates' `deploy`/`deploy:dev`
+  check` is the non-blocking deploy guard both `@getvitops/create` templates' `deploy`/`deploy:dev`
   scripts now run first (`--strict` makes it a real gate; opt out per-site with
   `site.notifications.email.verifySender: false`, or globally with `--skip` /
   `VITOPS_SKIP_EMAIL_CHECK`).
@@ -67,7 +67,7 @@ check` is the non-blocking deploy guard both `@getvitops/create` templates' `dep
     from the onboarded subdomain — rather than silently trying to onboard the apex, which rewrites
     `_dmarc.<domain>` and can tighten DMARC policy on every other mail your domain sends.
   - Candidates come from `site.notifications.email.from` (or its derived `noreply@<domains
-.canonical>` default) first; a best-effort scan of `--src` only supplements it, and never guesses
+    .canonical>` default) first; a best-effort scan of `--src` only supplements it, and never guesses
     at a computed `from` value.
 
   New `@getvitops/utils/email` subpath and `site.notifications.email.verifySender` config field.
@@ -96,7 +96,7 @@ check` is the non-blocking deploy guard both `@getvitops/create` templates' `dep
     needs a new GitHub Environment variable, `EMDASH_TARGET_FINGERPRINT` (one per environment),
     which only a human can set — run `emdash migrate --status` against the real deployed database,
     review the printed identity, then `gh variable set EMDASH_TARGET_FINGERPRINT --env <env> --body
-<value>`. Deploys fail clearly on the migration-apply step until it's set.
+    <value>`. Deploys fail clearly on the migration-apply step until it's set.
   - `lint.options.typeAware`/`typeCheck` in the template's own `vite.config.ts` are commented out,
     not deleted: vite-plus 1.0 only honours that option in a project's actual root config, and hard
     errors on it in a nested one (which this file is, sitting inside the `design-system` monorepo).

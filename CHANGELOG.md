@@ -1076,7 +1076,7 @@ markup renders, and neither announces itself.
   content, and animation families that never animated now do.
 - **`validate()` rejects what the published JSON Schema already rejected** — it was lenient where
   the schema was strict, so a config could pass `vitops validate` and fail in an editor. `vitops
-validate` also routes on the file's shape: pointed at a site config it used to report one
+  validate` also routes on the file's shape: pointed at a site config it used to report one
   `unrecognized_keys` and nothing about the file's real contents.
 - **A chroma-0 seed produces an actual neutral** instead of a pink one, and non-monotonic ramps are
   now rejected rather than silently producing a scale that doesn't darken.
@@ -1417,7 +1417,7 @@ outside this repo.
 
   **Migration:** `.chip-list` → `.tag-list`. Its `__chip` / `__chip-remove` sub-parts are removed —
   replace `<span class="chip-list__chip">x <button class="chip-list__chip-remove">` with `<span
-class="tag">x <button class="tag__remove">`, since a tag list is a list of tags. Items change
+  class="tag">x <button class="tag__remove">`, since a tag list is a list of tags. Items change
   appearance: `.tag` is outlined where the old chip was filled with `--color-surface-muted`. Tokens
   `--*-chip-list` → `--*-tag-list`; the redundant `radii.chip` primitive is gone (use `--br-tag`).
 

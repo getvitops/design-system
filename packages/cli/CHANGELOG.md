@@ -14,7 +14,7 @@
 
   This adds one server-side path for all three CRMs, hung off the conversion route that already
   exists. `createConversionRoute()` gets a new `crm` option (`{ config, credentials, fetch?,
-timeoutMs? }`); credentials arrive as a function of `locals`, exactly like the existing `binding`
+  timeoutMs? }`); credentials arrive as a function of `locals`, exactly like the existing `binding`
   option, and are never config. A failed CRM write never fails the request and is folded into the
   notification email's new "Delivery" section, so a broken CRM token is never silent.
 
@@ -66,7 +66,7 @@ timeoutMs? }`); credentials arrive as a function of `locals`, exactly like the e
 
   `vitops email setup [domain]` onboards a sending domain (currently Cloudflare Email Sending only)
   and polls DNS until its SPF/DKIM/DMARC records resolve or a timeout is reached; `vitops email
-check` is the non-blocking deploy guard both `@getvitops/create` templates' `deploy`/`deploy:dev`
+  check` is the non-blocking deploy guard both `@getvitops/create` templates' `deploy`/`deploy:dev`
   scripts now run first (`--strict` makes it a real gate; opt out per-site with
   `site.notifications.email.verifySender: false`, or globally with `--skip` /
   `VITOPS_SKIP_EMAIL_CHECK`).
@@ -78,7 +78,7 @@ check` is the non-blocking deploy guard both `@getvitops/create` templates' `dep
     from the onboarded subdomain — rather than silently trying to onboard the apex, which rewrites
     `_dmarc.<domain>` and can tighten DMARC policy on every other mail your domain sends.
   - Candidates come from `site.notifications.email.from` (or its derived `noreply@<domains
-.canonical>` default) first; a best-effort scan of `--src` only supplements it, and never guesses
+    .canonical>` default) first; a best-effort scan of `--src` only supplements it, and never guesses
     at a computed `from` value.
 
   New `@getvitops/utils/email` subpath and `site.notifications.email.verifySender` config field.
@@ -88,8 +88,8 @@ check` is the non-blocking deploy guard both `@getvitops/create` templates' `dep
 ### Patch Changes
 
 - c3c1bcb: **New: the design-system editor, mounted inside the EmDash admin.** `vitopsEmdash({
-designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import config from
-'./site.json' with { type: 'json' }`) adds a `/design-system` admin page mounting
+  designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import config from
+  './site.json' with { type: 'json' }`) adds a `/design-system` admin page mounting
   `<wc-theme-editor>` — the same live token editor `@getvitops/vite`'s dev server has always
   offered, now usable by the client directly, no dev server required. An edit is visible
   site-wide immediately (a runtime `:root` override, served via a new plugin API route and
@@ -150,7 +150,7 @@ designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import c
     needs a new GitHub Environment variable, `EMDASH_TARGET_FINGERPRINT` (one per environment),
     which only a human can set — run `emdash migrate --status` against the real deployed database,
     review the printed identity, then `gh variable set EMDASH_TARGET_FINGERPRINT --env <env> --body
-<value>`. Deploys fail clearly on the migration-apply step until it's set.
+    <value>`. Deploys fail clearly on the migration-apply step until it's set.
   - `lint.options.typeAware`/`typeCheck` in the template's own `vite.config.ts` are commented out,
     not deleted: vite-plus 1.0 only honours that option in a project's actual root config, and hard
     errors on it in a nested one (which this file is, sitting inside the `design-system` monorepo).
@@ -384,7 +384,7 @@ designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import c
   It is **required for a user credential and wrong for a service account**, which is why it is not
   sent unconditionally. A user credential authenticates through a shared OAuth client that owns no
   project, so Google refuses the call outright — measured: `403 "requires a quota project, which is
-not set by default"`. A service account already belongs to a project, and pointing it at a
+  not set by default"`. A service account already belongs to a project, and pointing it at a
   different one would newly require `serviceusage.services.use` there, turning a working CI
   credential into a 403 for no benefit.
 
@@ -409,7 +409,7 @@ not set by default"`. A service account already belongs to a project, and pointi
   **Fixed: an ADC file in `GOOGLE_APPLICATION_CREDENTIALS` no longer hard-exits.** That variable is
   Google's own convention _and_ where gcloud writes ADC, so the same variable carries two kinds of
   credential. Parsing an `authorized_user` file as a service account failed with `service account
-JSON is missing client_email or private_key` — while holding a credential the command already knew
+  JSON is missing client_email or private_key` — while holding a credential the command already knew
   how to use. It is now discriminated on `type`, the field Google's own libraries switch on.
 
   **Also fixed — `search setup --dry` and `--check` are not offline.** The docs implied otherwise. The
@@ -1011,28 +1011,20 @@ carousel vocabulary, because they render live from the generator.
   {
     "designSystem": {
       "themes": {
-        "default": {
-          /* … */
-        },
+        "default": {/* … */},
       },
     },
     "organization": {
       "name": "Acme",
       "contact": "hq",
       "locations": {
-        "hq": {
-          /* … */
-        },
+        "hq": {/* … */},
       },
     },
     "site": {
       "defaultLocale": "en",
-      "domains": {
-        /* … */
-      },
-      "analytics": {
-        /* … */
-      },
+      "domains": {/* … */},
+      "analytics": {/* … */},
     },
   }
   ```
@@ -1174,7 +1166,7 @@ carousel vocabulary, because they render live from the generator.
   toolchain bump. Use `--force` when you mean to re-encode.
 
   **`ffmpeg` is an external tool, not an npm dependency** — install it yourself (`brew install
-ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails without it rather
+  ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails without it rather
   than skipping: a page referencing a video that was never encoded is broken, not degraded.
 
   Two defaults worth knowing about. The MP4 exists because older iOS and the in-app webviews inside
@@ -1842,7 +1834,7 @@ ffmpeg`, `apt install ffmpeg`, `winget install Gyan.FFmpeg`). The command fails 
   - `.chip-list__chip` and `.chip-list__chip-remove` are **removed**. A tag list is a list of tags, so
     its items are now the existing `.tag` / `.tag__remove` — which also means they pick up tag role
     variants. **Migration:** replace `<span class="chip-list__chip">x <button
-class="chip-list__chip-remove">` with `<span class="tag">x <button class="tag__remove">`. Note the
+    class="chip-list__chip-remove">` with `<span class="tag">x <button class="tag__remove">`. Note the
     items change appearance: `.tag` is outlined (border + neutral text) where the old chip was filled
     with `--color-surface-muted`.
   - The `radii.chip` primitive is **removed** from the example config; it was only ever an alias of

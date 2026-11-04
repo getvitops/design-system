@@ -93,7 +93,7 @@
 
   This adds one server-side path for all three CRMs, hung off the conversion route that already
   exists. `createConversionRoute()` gets a new `crm` option (`{ config, credentials, fetch?,
-timeoutMs? }`); credentials arrive as a function of `locals`, exactly like the existing `binding`
+  timeoutMs? }`); credentials arrive as a function of `locals`, exactly like the existing `binding`
   option, and are never config. A failed CRM write never fails the request and is folded into the
   notification email's new "Delivery" section, so a broken CRM token is never silent.
 
@@ -138,8 +138,8 @@ timeoutMs? }`); credentials arrive as a function of `locals`, exactly like the e
   tailwind outputs are unaffected.
 
 - c3c1bcb: **New: the design-system editor, mounted inside the EmDash admin.** `vitopsEmdash({
-designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import config from
-'./site.json' with { type: 'json' }`) adds a `/design-system` admin page mounting
+  designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import config from
+  './site.json' with { type: 'json' }`) adds a `/design-system` admin page mounting
   `<wc-theme-editor>` — the same live token editor `@getvitops/vite`'s dev server has always
   offered, now usable by the client directly, no dev server required. An edit is visible
   site-wide immediately (a runtime `:root` override, served via a new plugin API route and
@@ -186,7 +186,7 @@ designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import c
 
   `vitops email setup [domain]` onboards a sending domain (currently Cloudflare Email Sending only)
   and polls DNS until its SPF/DKIM/DMARC records resolve or a timeout is reached; `vitops email
-check` is the non-blocking deploy guard both `@getvitops/create` templates' `deploy`/`deploy:dev`
+  check` is the non-blocking deploy guard both `@getvitops/create` templates' `deploy`/`deploy:dev`
   scripts now run first (`--strict` makes it a real gate; opt out per-site with
   `site.notifications.email.verifySender: false`, or globally with `--skip` /
   `VITOPS_SKIP_EMAIL_CHECK`).
@@ -198,7 +198,7 @@ check` is the non-blocking deploy guard both `@getvitops/create` templates' `dep
     from the onboarded subdomain — rather than silently trying to onboard the apex, which rewrites
     `_dmarc.<domain>` and can tighten DMARC policy on every other mail your domain sends.
   - Candidates come from `site.notifications.email.from` (or its derived `noreply@<domains
-.canonical>` default) first; a best-effort scan of `--src` only supplements it, and never guesses
+    .canonical>` default) first; a best-effort scan of `--src` only supplements it, and never guesses
     at a computed `from` value.
 
   New `@getvitops/utils/email` subpath and `site.notifications.email.verifySender` config field.
@@ -280,7 +280,7 @@ check` is the non-blocking deploy guard both `@getvitops/create` templates' `dep
     needs a new GitHub Environment variable, `EMDASH_TARGET_FINGERPRINT` (one per environment),
     which only a human can set — run `emdash migrate --status` against the real deployed database,
     review the printed identity, then `gh variable set EMDASH_TARGET_FINGERPRINT --env <env> --body
-<value>`. Deploys fail clearly on the migration-apply step until it's set.
+    <value>`. Deploys fail clearly on the migration-apply step until it's set.
   - `lint.options.typeAware`/`typeCheck` in the template's own `vite.config.ts` are commented out,
     not deleted: vite-plus 1.0 only honours that option in a project's actual root config, and hard
     errors on it in a nested one (which this file is, sitting inside the `design-system` monorepo).
@@ -623,7 +623,7 @@ check` is the non-blocking deploy guard both `@getvitops/create` templates' `dep
   It is **required for a user credential and wrong for a service account**, which is why it is not
   sent unconditionally. A user credential authenticates through a shared OAuth client that owns no
   project, so Google refuses the call outright — measured: `403 "requires a quota project, which is
-not set by default"`. A service account already belongs to a project, and pointing it at a
+  not set by default"`. A service account already belongs to a project, and pointing it at a
   different one would newly require `serviceusage.services.use` there, turning a working CI
   credential into a 403 for no benefit.
 
@@ -648,7 +648,7 @@ not set by default"`. A service account already belongs to a project, and pointi
   **Fixed: an ADC file in `GOOGLE_APPLICATION_CREDENTIALS` no longer hard-exits.** That variable is
   Google's own convention _and_ where gcloud writes ADC, so the same variable carries two kinds of
   credential. Parsing an `authorized_user` file as a service account failed with `service account
-JSON is missing client_email or private_key` — while holding a credential the command already knew
+  JSON is missing client_email or private_key` — while holding a credential the command already knew
   how to use. It is now discriminated on `type`, the field Google's own libraries switch on.
 
   **Also fixed — `search setup --dry` and `--check` are not offline.** The docs implied otherwise. The
@@ -729,7 +729,7 @@ JSON is missing client_email or private_key` — while holding a credential the 
     created, with `patterns/counter.css`'s own reduced-motion query as a second belt.
   - The accessible name stays the final value for the whole animation: `.counter__value` is toggled
     to the framework's `.sr-only` utility while running, never hidden — `display: none`/`visibility:
-hidden` would pull it out of the accessible-name computation along with the visual hiding, and a
+    hidden` would pull it out of the accessible-name computation along with the visual hiding, and a
     screen reader must never be read ~60 intermediate numbers. The animated text lives in a separate
     `aria-hidden` presentation span it never reaches.
   - `data-from` (default `0`), `data-duration` (ms, default `1200`), `data-easing` (`linear` |
@@ -1488,28 +1488,20 @@ hidden` would pull it out of the accessible-name computation along with the visu
   {
     "designSystem": {
       "themes": {
-        "default": {
-          /* … */
-        },
+        "default": {/* … */},
       },
     },
     "organization": {
       "name": "Acme",
       "contact": "hq",
       "locations": {
-        "hq": {
-          /* … */
-        },
+        "hq": {/* … */},
       },
     },
     "site": {
       "defaultLocale": "en",
-      "domains": {
-        /* … */
-      },
-      "analytics": {
-        /* … */
-      },
+      "domains": {/* … */},
+      "analytics": {/* … */},
     },
   }
   ```
@@ -1603,7 +1595,7 @@ hidden` would pull it out of the accessible-name computation along with the visu
     `animate-view` / `animate-scroll` / `animate-trigger` / `transition`, and every effect
     gained an `open-<fx>` state variant. Overlays now state _where they start_
     (`--translate-x-from`) instead of owning a keyframe: `class="drawer drawer--right
-open-fade-in"` composes slide and fade. Applied at zero specificity with identity
+    open-fade-in"` composes slide and fade. Applied at zero specificity with identity
     defaults, so a popover that sets no effect vars is unchanged.
   - **One scrim.** `--scrim` / `--scrim-filter` tokens and `.no-scrim` in `popover.css`,
     replacing 18 `::backdrop` blocks across seven partials. `.drawer--modeless` is aliased.
@@ -1918,8 +1910,8 @@ open-fade-in"` composes slide and fade. Applied at zero specificity with identit
   replace it with `--anim-range`. `--stagger-range-step` is now a viewport length (`5vh`) to match.
 
   **Fixed: every journey ran on a truncated range.** The generator emitted `animation-range: entry
-exit`; lightningcss parsed the end of that shorthand as `exit 0%` rather than the spec's `exit
-100%`, so the bundle shipped `entry exit 0%`. Journeys reach their `100%` keyframe — the hidden
+  exit`; lightningcss parsed the end of that shorthand as `exit 0%` rather than the spec's `exit
+  100%`, so the bundle shipped `entry exit 0%`. Journeys reach their `100%` keyframe — the hidden
   `from` state — as the element hits the top of the viewport, which is to say they faded out while
   still fully on screen. Journeys now run `entry calc(50% + 10vh) → exit 100%`: they start on the same
   midpoint pivot as everything else and keep the full entry → hold → exit arc, so the hold sits in the
@@ -1932,7 +1924,7 @@ exit`; lightningcss parsed the end of that shorthand as `exit 0%` rather than th
   so one knob tunes both. If your own config has an empty `slide` base, add the same line.
 
   **Fixed: `reveal-*` on hover was unreachable.** A `hover-reveal-left` element rests at `clip-path:
-inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting — so it had zero
+  inset(0 100% 0 0)`, and `clip-path` clips **hit-testing** as well as painting — so it had zero
   hittable area and could never receive the hover that would reveal it. The state variants now match
   the element **or its direct parent**, mirroring what `animation.css` already did for the trigger
   driver (`:is(.is-active, [data-active]) > .animate-trigger`):

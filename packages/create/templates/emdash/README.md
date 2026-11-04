@@ -118,12 +118,12 @@ is a configurable dimension of the project, not a rewrite:
 - **`node`** — `@astrojs/node` (standalone) + SQLite file + local uploads,
   for a VPS / docker-compose / k8s host. Not installed by default; to switch:
   `pnpm add @astrojs/node better-sqlite3`, then `vitopsHosting({ target:
-'node' })` (or set `HOSTING=node` — the env var wins). Run the built site
+  'node' })` (or set `HOSTING=node` — the env var wins). Run the built site
   with `node ./dist/server/entry.mjs`; data lives in `./data/` (gitignored) —
   persist it as a volume. Scheduled publishing runs in-process on Node, so
   the worker/cron pieces aren't needed. For production, move storage to
   S3-compatible and/or the database to Postgres via `vitopsHosting({ node:
-{ database, storage } })`. CI deploy for Node hosts is TBD — the shipped
+  { database, storage } })`. CI deploy for Node hosts is TBD — the shipped
   workflows are Cloudflare-specific.
 
 Moving an existing site between targets (either direction) is a data

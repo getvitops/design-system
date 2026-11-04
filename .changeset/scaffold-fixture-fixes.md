@@ -16,7 +16,7 @@ CI job (it installs each template against this checkout's packed packages):
 - `site.json` declares `neutral` and `surface` as `{ "hue": "ink", "kind": "surface" }`. As bare
   hue strings they were chromatic roles, which emit no bare `bg-neutral` and no
   `text-neutral-muted`, so the template's own footer class resolved to nothing and `vitops lint
---strict` (run by the template's pre-commit hook) failed. **Existing sites are unaffected** —
+  --strict` (run by the template's pre-commit hook) failed. **Existing sites are unaffected** —
   this changes only what a new scaffold starts with; if your own `site.json` has the same two
   lines and uses `text-neutral-*` or `bg-surface*`, change them the same way.
 - The `emdash` template's `index.astro` and `[...slug].astro` cast `page.data.title`, which is

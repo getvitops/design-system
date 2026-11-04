@@ -160,9 +160,7 @@ vitopsEmdash({
       {
         type: 'acme.pricing',
         label: 'Pricing table',
-        fields: [
-          /* Block Kit */
-        ],
+        fields: [/* Block Kit */],
       },
     ],
   },
