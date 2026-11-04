@@ -194,6 +194,59 @@
                 so.
               </span>
             </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="hosting.content-in-prod" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                <strong>Know where content is edited (EmDash template).</strong> Editors work on the
+                <em>production</em> site — drafts, "Publish changes" and preview links are the
+                staging step. The dev site holds a disposable copy of production's database; it is
+                refreshed from prod and never promoted back. Code, pages and
+                <code>site.json</code> still go dev → main.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="hosting.refresh-dev" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                EmDash template: run <strong>Refresh dev from prod</strong> (Actions tab) once the
+                prod site has content, and again before rehearsing a schema change. It runs weekly
+                on its own. To copy media as well, set <code>R2_ACCESS_KEY_ID</code> and
+                <code>R2_SECRET_ACCESS_KEY</code> (an R2 API token's S3 credentials) as repo
+                secrets; without them only the database is refreshed.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="hosting.github-login" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                <strong>EmDash template: create a GitHub OAuth app per site by hand</strong> — one
+                for prod, one for dev, because each takes a single callback URL
+                (<code>https://&lt;origin&gt;/_emdash/api/auth/oauth/github/callback</code>). Set
+                <code>GITHUB_CLIENT_ID</code> / <code>GITHUB_CLIENT_SECRET</code> on each worker
+                with <code>wrangler secret put</code>. Passkeys only work at the origin they were
+                created on, so without this a refreshed dev site has no way in. Editors sign in with
+                the GitHub account whose verified email matches their EmDash user.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="hosting.preview-secret" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                EmDash template: set a different <code>EMDASH_PREVIEW_SECRET</code> on the dev
+                worker (<code>wrangler secret put EMDASH_PREVIEW_SECRET</code>). The secret lives in
+                the database, so a refresh copies prod's — and prod preview links would then open
+                drafts on dev.
+              </span>
+            </label>
           </div>
         </details>
 

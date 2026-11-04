@@ -21,10 +21,11 @@
 # reviews the PR waits for a human — which is usually what you want for a
 # prod promotion.
 #
-# Schema/content promotion is deliberately NOT here — for the emdash
-# template, the content model lives in the EmDash database, not git. Apply
-# schema changes to prod via the admin or the site's MCP server, additive
-# changes before the code deploy that uses them, removals after.
+# Content and schema promotion are deliberately NOT here — for the emdash
+# template, content lives in production (edited there; dev is a refreshed copy,
+# see site-refresh-dev.yml) and the content model lives in the EmDash database,
+# not git. Apply schema changes to prod via the admin or the site's MCP server,
+# additive changes before the code deploy that uses them, removals after.
 name: Site promote
 
 on:

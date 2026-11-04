@@ -149,3 +149,73 @@ it('every template ships the same public/_headers security baseline', () => {
     expect(file).toBe(files[0]);
   }
 });
+
+/**
+ * Every workflow in a template is a thin caller of this repo's reusable `site-*.yml` (see AGENTS.md's
+ * CI/CD section). A caller naming a reusable workflow that doesn't exist, or one pinned to anything but the
+ * moving `@v1` tag, fails only when it first runs — in the client's repo, on a push to `main`.
+ */
+describe.each(templateNames)('template %s workflows', (name) => {
+  const dir = join(TEMPLATES, name, '.github', 'workflows');
+  const reusable = join(import.meta.dirname, '..', '..', '.github', 'workflows');
+
+  it.each(readdirSync(dir))('%s calls an existing reusable workflow pinned to @v1', (file) => {
+    const uses = /uses: getvitops\/design-system\/\.github\/workflows\/(\S+)@(\S+)/.exec(
+      readFileSync(join(dir, file), 'utf8'),
+    );
+    expect(uses, `${file} is not a thin caller`).not.toBeNull();
+    expect(uses![2]).toBe('v1');
+    expect(readdirSync(reusable)).toContain(uses![1]);
+  });
+
+  it('carries the main → dev back-merge caller', () => {
+    expect(readdirSync(dir)).toContain('backmerge.yml');
+  });
+});
+
+/**
+ * `scripts/refresh-dev.mjs` DROPS every table in its target, so the checks between it and production are
+ * asserted rather than trusted. Its pure halves are imported (the file only runs `main` when invoked directly).
+ */
+describe('emdash scripts/refresh-dev.mjs', async () => {
+  const { assertSafeTarget, dropStatements, parseBindingNames } = await import(
+    join(TEMPLATES, 'emdash', 'scripts', 'refresh-dev.mjs')
+  );
+  const ok = { devName: 'site-dev', devId: 'dev-id', devReportedId: 'dev-id', prodId: 'prod-id' };
+
+  it('refuses a target that is production, unset, misnamed or mismatched', () => {
+    expect(() => assertSafeTarget(ok)).not.toThrow();
+    expect(() => assertSafeTarget({ ...ok, devId: 'prod-id', devReportedId: 'prod-id' })).toThrow(
+      /production/,
+    );
+    expect(() => assertSafeTarget({ ...ok, devId: undefined })).toThrow(/not set/);
+    expect(() => assertSafeTarget({ ...ok, devName: 'site' })).toThrow(/-dev/);
+    expect(() => assertSafeTarget({ ...ok, devReportedId: 'other' })).toThrow(/stale/);
+  });
+
+  it('reads names from wrangler.jsonc and ignores commented-out examples', () => {
+    const src = readFileSync(join(TEMPLATES, 'emdash', 'wrangler.jsonc'), 'utf8');
+    expect(parseBindingNames(src)).toEqual({
+      database: 'my-emdash-site',
+      bucket: 'my-emdash-site-media',
+    });
+    expect(parseBindingNames('// "database_name": "nope"\n"database_name": "yes"').database).toBe(
+      'yes',
+    );
+  });
+
+  it("drops views, virtual tables and tables, but not a virtual table's shadow tables", () => {
+    const sql = dropStatements([
+      { name: 'posts', type: 'table', sql: 'CREATE TABLE posts (id)' },
+      { name: 'recent', type: 'view', sql: 'CREATE VIEW recent AS SELECT 1' },
+      { name: 'search', type: 'table', sql: 'CREATE VIRTUAL TABLE search USING fts5(a)' },
+      { name: 'search_data', type: 'table', sql: 'CREATE TABLE search_data (id)' },
+    ]);
+    expect(sql).toEqual([
+      'PRAGMA defer_foreign_keys = true;',
+      'DROP VIEW IF EXISTS "recent";',
+      'DROP TABLE IF EXISTS "search";',
+      'DROP TABLE IF EXISTS "posts";',
+    ]);
+  });
+});

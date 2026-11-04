@@ -1,0 +1,82 @@
+# Reusable "back-merge main → dev" for a site repo using the dev/main branch
+# model (see AGENTS.md's CI/CD section). A hotfix goes branch-off-main → PR to
+# main → production; this is what carries it back so `dev` doesn't silently
+# drift from what is live.
+#
+# Consumers call this on every push to `main`, with a pinned major tag:
+#
+#   on: { push: { branches: [main] } }
+#   jobs:
+#     backmerge:
+#       uses: getvitops/design-system/.github/workflows/site-backmerge.yml@v1
+#       secrets: inherit
+#
+# Opens a `main → dev` PR only when merging main into dev would CHANGE dev. That
+# is a tree comparison, not an ancestry check, on purpose: promotion merges
+# `dev` into `main` with a merge commit, so main is never an ancestor of dev
+# right after a promote even though the two have identical content. Checking
+# ancestry would open a no-op PR after every release.
+#
+# Merging is automatic only when BACKMERGE_TOKEN (a PAT / GitHub App token) is
+# set. A merge made with the default GITHUB_TOKEN does not trigger other
+# workflows, so dev would take the hotfix without Deploy dev running and the
+# dev site would be silently stale. Without the token the PR is left for a
+# human, whose merge does trigger the deploy. A PR with conflicts is always
+# left open.
+name: Site back-merge
+
+on:
+  workflow_call:
+    secrets:
+      BACKMERGE_TOKEN:
+        required: false
+
+jobs:
+  backmerge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Open back-merge PR when main has changes dev lacks
+        env:
+          GH_TOKEN: ${{ secrets.BACKMERGE_TOKEN || github.token }}
+          AUTO_MERGE: ${{ secrets.BACKMERGE_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+
+          # merge-tree exits non-zero on conflicts; that case still needs a PR.
+          if merged=$(git merge-tree --write-tree origin/dev origin/main); then
+            if [ "$(echo "$merged" | head -n1)" = "$(git rev-parse 'origin/dev^{tree}')" ]; then
+              echo "dev already contains everything on main; nothing to back-merge."
+              exit 0
+            fi
+          fi
+
+          if [ -n "$(gh pr list --head main --base dev --state open --json number --jq '.[].number')" ]; then
+            echo "Back-merge PR already open."
+          else
+            gh pr create --base dev --head main \
+              --title "Back-merge main → dev" \
+              --body "Carries changes made directly on \`main\` (e.g. a hotfix) back into \`dev\` so the integration branch doesn't drift from production."
+          fi
+
+          if [ "$AUTO_MERGE" != "true" ]; then
+            echo "No BACKMERGE_TOKEN: leaving the PR for a human so the merge triggers Deploy dev."
+            exit 0
+          fi
+
+          # mergeability is computed asynchronously and reads UNKNOWN at first.
+          for _ in 1 2 3 4 5 6; do
+            state=$(gh pr view main --json mergeable --jq .mergeable)
+            [ "$state" != "UNKNOWN" ] && break
+            sleep 5
+          done
+          if [ "$state" = "MERGEABLE" ]; then
+            gh pr merge main --merge
+          else
+            echo "PR is $state; leaving it open for a human to resolve."
+          fi

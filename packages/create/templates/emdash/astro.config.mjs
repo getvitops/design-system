@@ -4,6 +4,7 @@ import { resolveOrganizationName } from '@getvitops/astro/routes';
 import { vitopsEmdash, vitopsHosting } from '@getvitops/emdash';
 import { defineConfig } from 'astro/config';
 import emdash from 'emdash/astro';
+import { github } from 'emdash/auth/providers/github';
 import config from './site.json' with { type: 'json' };
 
 // site.json's organization.name is the one build-time-readable source for a
@@ -56,6 +57,14 @@ export default defineConfig({
       // section) was skipped or failed. `dev: 'auto'` keeps the convenient
       // first-run behaviour for `pnpm dev`.
       migrations: { runtime: 'check', dev: 'auto' },
+      // GitHub sign-in alongside passkeys. A passkey only works at the origin
+      // it was registered on, so a dev database refreshed from prod
+      // (scripts/refresh-dev.mjs) would lock every editor out of dev. GitHub
+      // links an existing user by VERIFIED EMAIL, so the same account signs in
+      // on both origins with no re-invite. Each origin needs its own GitHub
+      // OAuth app (one callback URL each, .../_emdash/api/auth/oauth/github/callback)
+      // and its own GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET — see SETUP.html.
+      authProviders: [github()],
     }),
     vitops({
       favicon: {
