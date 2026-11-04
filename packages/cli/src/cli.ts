@@ -26,6 +26,7 @@
  * Everything else stays here.
  */
 import { parseArgs } from 'node:util';
+import { pathToFileURL } from 'node:url';
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { resolve, join, dirname, relative, extname } from 'node:path';
 import { createRequire } from 'node:module';
@@ -788,7 +789,7 @@ const AGENTS_START = '<!-- vitops:start -->';
 const AGENTS_END = '<!-- vitops:end -->';
 
 /** Print a live reference doc (rendered from the project's config) to stdout. */
-function cmdDocs(argv: string[]) {
+async function cmdDocs(argv: string[]) {
   const { values, positionals } = parseArgs({
     args: argv,
     options: {
@@ -810,12 +811,49 @@ function cmdDocs(argv: string[]) {
     return;
   }
   if (topic && !TOPICS[topic]) fail(`unknown topic "${topic}". Valid topics:\n${topicList()}`);
-  const ds = loadDesignSystem(resolve(values.input as string), values.theme as string | undefined);
-  const docs = generateDocs(ds, generatorAssetsDir());
-  const paths = values.all
-    ? Object.values(TOPICS).map((t) => t.path)
-    : [TOPICS[topic as string]!.path];
-  process.stdout.write(paths.map((p) => docs[p]).join('\n'));
+  const names = values.all ? Object.keys(TOPICS) : [topic as string];
+  // An external topic (blocks) needs no design system, so don't demand a config for it.
+  const docs = names.every((n) => TOPICS[n]!.external)
+    ? {}
+    : generateDocs(
+        loadDesignSystem(resolve(values.input as string), values.theme as string | undefined),
+        generatorAssetsDir(),
+      );
+  const parts: string[] = [];
+  for (const name of names) {
+    const t = TOPICS[name]!;
+    if (!t.external) {
+      parts.push((docs as Record<string, string>)[t.path]!);
+      continue;
+    }
+    // Rendered by the plugin that owns the data; the generator cannot import it.
+    const doc = await externalDoc(t.external);
+    if (doc) parts.push(doc);
+    else if (!values.all)
+      fail(`topic "${name}" needs @getvitops/${t.external} installed in this project`);
+  }
+  process.stdout.write(parts.join('\n'));
+}
+
+/** Render a topic owned by an optional package, resolved from the project, not from the CLI. */
+async function externalDoc(pkg: 'emdash'): Promise<string | null> {
+  try {
+    // `require.resolve` rejects an ESM-only `exports` map, but `./package.json` is exported
+    // for exactly this: find the package, then read its `import` entry from the manifest.
+    const manifest = createRequire(join(process.cwd(), 'package.json')).resolve(
+      `@getvitops/${pkg}/package.json`,
+    );
+    const exp = (
+      JSON.parse(readFileSync(manifest, 'utf8')) as {
+        exports: Record<string, { import: string }>;
+      }
+    ).exports['.']!.import;
+    const entry = join(dirname(manifest), exp);
+    const mod = (await import(pathToFileURL(entry).href)) as { renderBlocksDoc?: () => string };
+    return mod.renderBlocksDoc?.() ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function cmdLint(argv: string[]) {

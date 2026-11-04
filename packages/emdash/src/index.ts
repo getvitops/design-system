@@ -38,6 +38,7 @@ import {
 
 export { BLOCKS } from './blocks.ts';
 export { selectBlocks } from './blocks.ts';
+export { renderBlocksDoc } from './blocks-doc.ts';
 export type { BlockKitFieldDef, BlockSelection, PortableTextBlockDef } from './blocks.ts';
 export { vitopsHosting } from './hosting.ts';
 export type { HostingTarget, VitopsHosting, VitopsHostingOptions } from './hosting.ts';

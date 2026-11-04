@@ -18,7 +18,7 @@ import { findSkillTarget, GENERATED_MARKER, linkSkill, SKILL_NAME, TOPICS } from
 describe('TOPICS', () => {
   it('every topic path exists in the generateDocs bundle (no-drift guard)', () => {
     const paths = new Set(Object.keys(generateDocs(defaultConfig(), '/nonexistent-assets')));
-    for (const [name, t] of Object.entries(TOPICS))
+    for (const [name, t] of Object.entries(TOPICS).filter(([, t]) => !t.external))
       expect(paths.has(t.path), `topic "${name}" → ${t.path}`).toBe(true);
   });
 });
