@@ -26,6 +26,10 @@
       "types": "./dist/favicon.d.mts",
       "import": "./dist/favicon.mjs"
     },
+    "./url": {
+      "types": "./dist/url/index.d.mts",
+      "import": "./dist/url/index.mjs"
+    },
     "./color": {
       "types": "./dist/color/index.d.mts",
       "import": "./dist/color/index.mjs"

@@ -30,6 +30,7 @@ export default defineConfig({
       'src/index.ts',
       'src/favicon.ts',
       'src/color/index.ts',
+      'src/url/index.ts',
       'src/indexing/index.ts',
       'src/onboarding/index.ts',
       'src/reviews/index.ts',

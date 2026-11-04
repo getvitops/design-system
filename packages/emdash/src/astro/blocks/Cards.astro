@@ -41,6 +41,8 @@ const columns = Math.min(4, Math.max(1, Math.round(Number(value.columns) || 3)))
           {card.href && (
             <a class="link stretched-link" href={card.href}>
               {card.linkLabel}
+              {/* "Read more" alone is meaningless in a list of links; name the card for AT. */}
+              {card.title && <span class="sr-only">: {card.title}</span>}
             </a>
           )}
         </li>
