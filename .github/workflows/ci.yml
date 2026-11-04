@@ -34,15 +34,15 @@ jobs:
       # package's built `dist/` (their `exports` point there), so build before checking. A clean
       # clone has no dist; without this the typecheck fails with TS2307 on `@getvitops/utils/color`.
       - name: Build packages
-        run: pnpm exec vp run build:packages
+        run: vp run build:packages
 
       # Lint + format + typecheck. No `--fix`: in CI the question is whether the
       # tree is already clean, and a fix would only hide that it wasn't.
       - name: Check
-        run: pnpm exec vp check
+        run: vp check
 
       - name: Test
-        run: pnpm exec vp test run
+        run: vp test run
 
   # `test` above never builds the publishable packages or the docs site — `vp
   # check`/`vp test run` exercise source directly, and nothing before this job
@@ -58,22 +58,22 @@ jobs:
       - uses: ./.github/actions/setup
 
       - name: Build every publishable package
-        run: pnpm exec vp run build:packages
+        run: vp run build:packages
 
       # Does a consumer's install actually resolve every subpath, and does
       # the JavaScript actually load? A break in the `exports` map (a
       # typo'd path, a missing dist file, a broken cross-package import) is
       # otherwise invisible until a real install fails on it.
       - name: Verify published-package resolution (publint + attw + runtime import)
-        run: pnpm exec vp run verify:packages
+        run: vp run verify:packages
 
       # A ceiling on the bundles @getvitops/core authors itself, in the
       # sizes the docs' own reasoning already depends on.
       - name: Verify bundle-size budget
-        run: pnpm exec vp run verify:bundle-size
+        run: vp run verify:bundle-size
 
       - name: Build the docs site
-        run: pnpm exec vp run docs:build
+        run: vp run docs:build
 
   # Install-and-build what a client gets from `vp create @getvitops:<template>`,
   # against THIS checkout's `@getvitops/*`, published to a throwaway Verdaccio
@@ -95,7 +95,7 @@ jobs:
       - uses: ./.github/actions/setup
 
       - name: Build every publishable package
-        run: pnpm exec vp run build:packages
+        run: vp run build:packages
 
       - name: Scaffold and build the ${{ matrix.template }} template
         run: node scripts/scaffold-check.mjs ${{ matrix.template }}
@@ -116,11 +116,11 @@ jobs:
 
       # Writes dist/ (gitignored) and the tracked docs/ mirror.
       - name: Regenerate the docs bundle
-        run: pnpm exec vp run build:theme
+        run: vp run build:theme
 
       # Writes the tracked root DESIGN.md.
       - name: Regenerate DESIGN.md
-        run: pnpm exec vp run build:design
+        run: vp run build:design
 
       - name: Generated artifacts are up to date
         run: |
@@ -136,7 +136,7 @@ jobs:
       # to readers while `generateDocs` reports success — `sync-reference.mjs`
       # throws on that, and this is where it gets caught before a deploy.
       - name: The docs site carries every emitted doc
-        run: pnpm exec vp run docs:sync
+        run: vp run docs:sync
 
   # The one e2e layer in the repo: real Chromium, scripting disabled, against
   # site/ — verifying the tier-2 `<wc-*>` no-JS-fallback promise
@@ -153,10 +153,10 @@ jobs:
       # install` skips; ubuntu-latest has sudo, so this works here even though
       # it doesn't in every sandbox.
       - name: Install Playwright's Chromium
-        run: pnpm --filter site exec playwright install --with-deps chromium
+        run: vp exec --filter site playwright install --with-deps chromium
 
       - name: No-JS fallback e2e
-        run: pnpm exec vp run docs:e2e
+        run: vp run docs:e2e
 
       - name: Upload the Playwright report on failure
         if: failure()
