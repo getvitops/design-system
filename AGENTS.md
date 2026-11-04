@@ -1530,6 +1530,56 @@ instead of implicit: `migrations.runtime` in `emdash()`'s config defaults to `'a
 --check` after. `site-deploy-emdash.yml` runs this sequence explicitly now; the
 `health-check-url` boot probe remains as a defence-in-depth check, not the only guard.
 
+**The `dev → main` flow is for code, not content: truth runs a different direction per kind of
+data.** Code, Astro pages, `site.json` and the design system live in git, so `dev` is their truth
+and they promote `dev → main`. EmDash content (entries, media, menus, settings) lives in D1/R2 and
+**production is its truth** — editors work there, and drafts, "Publish changes" on a live entry,
+signed preview links and scheduling _are_ the staging step. The dev database is therefore a
+disposable copy refreshed from prod (`site-refresh-dev.yml` → the template's
+`scripts/refresh-dev.mjs`), never promoted back. This is EmDash's own "rehearse on a preview
+environment" pattern; the earlier arrangement (a long-lived dev database content was edited in)
+drifted from prod permanently and gave a prod edit no path back.
+
+Five things are load-bearing:
+
+- **Refresh is one-way and guarded, because it drops every table in its target.**
+  `assertSafeTarget` refuses a database that isn't named `*-dev`, whose id isn't `$DEV_D1_ID`, or
+  whose id is production's — the same instinct as `build-dev-wrangler.mjs` refusing to run without
+  `DEV_D1_ID`. It runs in the `dev` GitHub Environment, not `production`: it only reads prod, and a
+  refresh waiting on an admin's approval would never get run.
+- **The back-merge compares trees, not ancestry.** Promotion merges `dev` into `main` with a merge
+  commit, so `main` is never an ancestor of `dev` right after a release even though the content is
+  identical; an ancestry check would open a no-op PR on every promote. `git merge-tree
+  --write-tree` says whether merging would change `dev`. A merge made with the default
+  `GITHUB_TOKEN` triggers no workflows, so without `BACKMERGE_TOKEN` the PR is left for a human —
+  otherwise `dev` would take the fix without Deploy dev running and sit silently stale.
+- **Sign-in must work on both origins, so the template ships magic link, not just passkeys.** A
+  passkey only works at the origin it was registered on, so a refreshed dev site would lock every
+  editor out. Magic link needs only a working email provider — the template registers
+  `cloudflareEmail()` and an `EMAIL` `send_email` binding — and the cloned users already exist, so
+  the same address signs in on both origins with nothing per-origin to create. It was chosen over
+  EmDash's GitHub provider, which needs a separate OAuth app and two secrets for each origin (one
+  callback URL each), all by hand. The `from` must be on a domain onboarded with Cloudflare Email
+  Sending (`vitops email setup`, and usually the `send.` subdomain — see "Sender-domain
+  onboarding"); until it is, magic link answers "Email is not configured" and the only way in on a
+  refreshed dev site is a passkey registered there.
+- **No PII scrub on refresh.** Dev is the same organisation, platform and access as prod, so the
+  copy carries the same handling obligations; it must stay gated like prod and `noindex`. Sessions
+  are in the Astro session store (KV), not D1, so none are carried over.
+- **Two things in D1 would leak across.** The preview-link secret is stored in the database, so a
+  refresh copies prod's and prod preview links would open drafts on dev — set
+  `EMDASH_PREVIEW_SECRET` on the dev worker. Scheduled publishes and plugin jobs are copied too, so
+  `build-dev-wrangler.mjs` drops the cron trigger from the dev config; the cost is that scheduled
+  publishing can't be exercised on dev.
+
+`<wc-theme-editor>`'s "Save to source" is the sanctioned prod → git path for design tokens: it
+commits to `site.deployment.branch` (default `dev`), so it rides the next promote. Keep that off
+`main`, or a prod edit becomes a hotfix that skips review.
+
+Not built: per-PR preview environments. Static sites could have them cheaply (`wrangler versions
+upload`), but an EmDash preview needs a database each; a persistent dev plus refresh covers the
+need until contention on `dev` is real.
+
 **This repo's own docs site is the one exception to "thin caller."**
 `.github/workflows/deploy-dev.yml` / `deploy-prod.yml` at the repo root deploy `site/`
 directly through `site/wrangler.jsonc` rather than calling `site-deploy-static.yml` — see

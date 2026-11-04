@@ -30,6 +30,10 @@
       "bucket_name": "my-emdash-site-media",
     },
   ],
+  // Outbound mail for EmDash's magic-link sign-in, invites and recovery
+  // (cloudflareEmail() in astro.config.mjs). The binding does nothing until the
+  // sender domain is onboarded: `npx vitops email setup send.<your-domain>`.
+  "send_email": [{ "name": "EMAIL" }],
   // Drives scheduled publishing, plugin cron, and maintenance (see
   // src/worker.ts). Without it, content scheduled in the admin never
   // publishes on Cloudflare Workers. Local `astro dev` doesn't need it.
