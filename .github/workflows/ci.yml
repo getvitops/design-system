@@ -30,6 +30,12 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
 
+      # Type-aware lint and several test files resolve `@getvitops/*` subpaths through each
+      # package's built `dist/` (their `exports` point there), so build before checking. A clean
+      # clone has no dist; without this the typecheck fails with TS2307 on `@getvitops/utils/color`.
+      - name: Build packages
+        run: pnpm exec vp run build:packages
+
       # Lint + format + typecheck. No `--fix`: in CI the question is whether the
       # tree is already clean, and a fix would only hide that it wasn't.
       - name: Check
