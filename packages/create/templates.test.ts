@@ -70,6 +70,9 @@ describe.each(templateNames)('template %s', (name) => {
     expect(read('.node-version')).toBe('24');
     expect(read('.nvmrc')).toBe(read('.node-version'));
     expect(major).toBe(read('.node-version'));
+    // Major only: an exact pin disagrees with the floating `.node-version` (24 resolves to the
+    // latest 24.x) and made `vp` warn on every command in a fresh scaffold.
+    expect(pkg.devEngines?.runtime?.version).toBe(major);
   });
 
   it("applies the repo's release cooldown and exempts the toolchain from it", () => {

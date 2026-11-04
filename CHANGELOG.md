@@ -11,7 +11,7 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
-## 8.2.0 (+ `@getvitops/emdash` 1.0.0, `@getvitops/create` 0.8.0, new `@getvitops/config` 8.2.0) — 2026-11-04
+## 8.2.0 (+ `@getvitops/emdash` 1.0.0, `@getvitops/create` 0.8.1, new `@getvitops/config` 8.2.0) — 2026-11-04
 
 The first non-prerelease since 8.1.0. **It includes everything in the 8.2.0-alpha.0 notes below**
 (the alpha never reached `latest`), plus the work since: EmDash blocks as a real tier, a security
@@ -19,7 +19,7 @@ and accessibility pass, `site.seo` as one source, and the scaffold changes. `@ge
 `generator`, `utils`, `cli`, `vite`, `astro` and the new `config` share this version.
 
 `@getvitops/emdash` jumps 0.3.10 → **1.0.0** (it now needs `emdash`/`@emdash-cms/cloudflare` `^1.4`
-and peers on `@getvitops/astro` / `@getvitops/core` `>=8.2.0`). `@getvitops/create` 0.7.0 → 0.8.0.
+and peers on `@getvitops/astro` / `@getvitops/core` `>=8.2.0`). `@getvitops/create` 0.7.0 → 0.8.1.
 
 ### Breaking
 

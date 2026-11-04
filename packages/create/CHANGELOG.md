@@ -1,5 +1,11 @@
 # @getvitops/create
 
+## 0.8.1
+
+### Patch Changes
+
+- Both templates pin Node by major only (`devEngines.runtime.version: "24"`), matching `.node-version`. The exact `24.18.0` pin disagreed with the floating `.node-version`, so `vp` warned in every fresh scaffold.
+
 ## 0.8.0
 
 ### Minor Changes
