@@ -1,0 +1,10 @@
+# Cloudflare Workers static assets apply this file to every asset response.
+#
+# A baseline that cannot break a page. No Content-Security-Policy on purpose: <Head /> emits
+# inline scripts (the consent stub, the colour-scheme bootstrap), so a strict policy needs
+# per-site nonces or hashes — add one deliberately once you know which third-party tags you load.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  X-Frame-Options: SAMEORIGIN

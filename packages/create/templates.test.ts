@@ -133,3 +133,19 @@ it('.agents/skills/setup/SKILL.md is identical across templates', () => {
   );
   for (const other of rest) expect(other.equals(first!)).toBe(true);
 });
+
+/**
+ * `public/_headers` is the one place a scaffolded site gets security headers, so it is held
+ * identical across templates and must carry the baseline (and no CSP — see the file's comment).
+ */
+it('every template ships the same public/_headers security baseline', () => {
+  const files = templateNames.map((name) =>
+    readFileSync(join(TEMPLATES, name, 'public', '_headers'), 'utf8'),
+  );
+  for (const file of files) {
+    expect(file).toContain('X-Content-Type-Options: nosniff');
+    expect(file).toContain('Referrer-Policy:');
+    expect(file).not.toMatch(/^\s*Content-Security-Policy/m);
+    expect(file).toBe(files[0]);
+  }
+});
