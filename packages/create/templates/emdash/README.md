@@ -88,7 +88,8 @@ The repo ships a two-environment flow modeled on branch = environment:
   into `main` with auto-merge enabled. With required reviews on `main`, a
   human approves the PR; merging deploys prod.
 
-One-time setup — work through the checklist:
+One-time setup — see [Start a new EmDash site](https://docs.vitops.ca/guides/new-emdash-site) for the whole
+procedure, then work through the checklist:
 
 ```bash
 pnpm run sop && open SETUP.html   # or: xdg-open SETUP.html
