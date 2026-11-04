@@ -15,6 +15,7 @@ import Carousel from '@getvitops/astro/components/Carousel.astro';
 import { resolveBlockValue, rows, safeHref, splitLines, text } from './value.ts';
 
 interface Value {
+  _key?: string;
   slides?: unknown;
   images?: string;
   alts?: string;
@@ -35,6 +36,8 @@ const fromLegacy = splitLines(value.images).flatMap((raw, i) => {
   return src ? [{ src, alt: legacyAlts[i] ?? '' }] : [];
 });
 const slides = fromRepeater.length > 0 ? fromRepeater : fromLegacy;
+// Two blocks with the same label would derive the same id; `_key` is unique per block.
+const id = value._key ? `carousel-${value._key.replace(/[^a-z0-9_-]/gi, '')}` : undefined;
 const autoplay = Number(value.autoplay) || 0;
 ---
 
@@ -46,6 +49,7 @@ const autoplay = Number(value.autoplay) || 0;
       loop={Boolean(value.loop)}
       aspect={value.aspect || '16 / 9'}
       slides={slides}
+      id={id}
     />
   )
 }

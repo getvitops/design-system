@@ -535,8 +535,9 @@ toolchain already uses:
 Both `utils` entries are separate subpaths because they are the only modules that run in a
 **Worker** rather than at build time — keeping them off `src/index.ts` is what stops a
 conversion endpoint pulling `sharp` into its bundle. Neither may use a Node builtin.
-`TrackingConfig`/`NotificationsConfig` mirror the `site.*` blocks structurally, since utils
-cannot import from the generator — the same arrangement as `IndexingConfig`.
+`TrackingConfig`/`NotificationsConfig` are the inferred types of `@getvitops/config`'s
+`TrackingSchema`/`NotificationsSchema` — utils imports its own configuration types rather than
+mirroring them (see `@getvitops/config` above).
 
 Eight things are load-bearing:
 
@@ -709,9 +710,10 @@ Console does not care which, and a consumer who ran `search setup` already holds
 credential — making them provision a second, unrelated one for the other half of the same command
 bought nothing. `search setup` is the only thing that genuinely requires a specific grant.
 
-`@getvitops/utils` cannot import from `@getvitops/generator` (the generator already depends on
-it), so `IndexingConfig` mirrors the `site.seo.indexing` block structurally and the CLI adapts — the
-same arrangement, for the same reason, as `GetvitopsSeoOptions` in `@getvitops/astro`.
+`IndexingConfig` is the inferred type of `@getvitops/config`'s `IndexingSchema`, so the type the
+executor accepts and the document `validateConfig` accepts cannot drift. The one remaining hand-kept
+mirror in this area is `GetvitopsSeoOptions` in `@getvitops/astro`, a copy of `site.seo` still to be
+moved into config (ADR-0001 action item).
 
 ## Search Console onboarding
 
@@ -754,8 +756,8 @@ Credentials follow the same env-var pattern as `lib/deploy.ts` and never live in
 Cloudflare via `CLOUDFLARE_API_TOKEN` (a `Zone:DNS:Edit` token — the standard "Edit zone DNS"
 template also carries the `Zone:Read` that the zone-by-name lookup needs), Google via
 `VITOPS_GOOGLE_CLIENT_ID` / `VITOPS_GOOGLE_CLIENT_SECRET` / `VITOPS_GOOGLE_REFRESH_TOKEN`. As with
-`IndexingConfig`, the util-side `DomainSetup`/`DomainState` types are structural mirrors (utils
-cannot import the generator) and the CLI's `toSearchConsoleSetup` adapts.
+`IndexingConfig`, the util-side onboarding types derive from `@getvitops/config`; the CLI's
+`toSearchConsoleSetup` only reshapes the config for the planner.
 
 ## Ad-platform linking
 
@@ -804,11 +806,9 @@ Five things are load-bearing:
 - **`AD_PLATFORMS` is the single source, and it feeds three surfaces that must agree.** The cookie
   list reaches `data-consent-cookies` (what a revoke clears) _and_ the generated cookie notice via
   `adProcessors()` in `legal/providers.ts`; the click-ID list is checked against `PLATFORM_PARAMS`;
-  the tag is emitted inert (`type="text/plain"` + `data-src`, never a live `src`). The generator
-  mirrors the provider list as the `AD_PROVIDERS` enum — a `z.enum` needs literals to reach the
-  published JSON Schema — and `ads-config.test.ts` asserts the two are the same set. Note the
-  generator **imports** the capability table (that direction is allowed); only `utils`-side types
-  are structural mirrors.
+  the tag is emitted inert (`type="text/plain"` + `data-src`, never a live `src`). `AD_PROVIDERS`
+  lives in `@getvitops/config/providers` as bare literals (a `z.enum` needs literals to reach the
+  published JSON Schema), and `ads-config.test.ts` asserts it matches the capability table.
 
 Credentials follow the same env-var pattern as everything else: `CLOUDFLARE_API_TOKEN` for the DNS
 write, and nothing else — no platform API is called, so no ad-platform credential exists to leak.

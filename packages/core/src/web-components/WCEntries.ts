@@ -1,5 +1,6 @@
 import { BaseElement } from './BaseElement.js';
 import { initFromLightDom } from './utils/upgrade.js';
+import { scrollBehavior } from './utils/motion.js';
 
 /**
  * Adaptive data display that progressively enhances heading + <dl> pairs
@@ -294,7 +295,7 @@ export class WCEntries extends BaseElement {
       /* Scroll the column header into view within the scroll container */
       const th = this.#headerCells[index];
       if (th && this.#tableWrapper) {
-        th.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+        th.scrollIntoView({ behavior: scrollBehavior(), block: 'nearest', inline: 'start' });
       }
     }
 

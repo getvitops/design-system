@@ -283,10 +283,10 @@ the reverse. That's why several constants exist in two places with a test holdin
 `dark-selector.test.ts`, `required-roles.test.ts`, `token-refs.test.ts`, `tiers.test.ts` are all
 drift guards for a dependency edge that can't exist.
 
-The same rule shapes `utils`: it cannot import the generator (the generator already depends on it),
-so `IndexingConfig`, `TrackingConfig`, `NotificationsConfig` and `DomainSetup` **structurally
-mirror** the matching `site.*` blocks, and the CLI adapts between them. The generator _importing_
-the utils capability table (`AD_PLATFORMS`) is the allowed direction.
+The same rule once shaped `utils`: it cannot import the generator, so it kept structural mirrors of
+the `site.*` blocks. The provider blocks now live in the leaf `@getvitops/config`, which both import,
+so `IndexingConfig`, `TrackingConfig`, `NotificationsConfig` and friends are inferred types, not
+copies. `GetvitopsSeoOptions` in astro is the remaining mirror.
 
 ## 2.3 Key files
 
@@ -520,10 +520,9 @@ These five shapes repeat everywhere. Knowing them makes an unfamiliar file predi
    output; the tests target the `.ts`.
    → `packages/astro/src/components/Analytics.astro` over `src/analytics.ts`.
 
-3. **Structural type mirrors.** Where the dependency edge runs the wrong way, the type is mirrored
-   by shape and adapted at the boundary — never imported.
-   → `IndexingConfig` in `packages/utils/src/indexing/types.ts`, adapted by the CLI's
-   `toIndexingConfig`.
+3. **Shared leaf for config types.** Where the dependency edge runs the wrong way, the type moves
+   to a leaf both sides import — not a hand-kept mirror.
+   → `@getvitops/config` (`IndexingSchema` → `IndexingConfig` in `packages/utils`).
 
 4. **Worker-vs-build-time entry splitting.** Anything that runs in a Worker gets its own build
    entry so it can't pull a build-time dependency in.
