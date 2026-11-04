@@ -143,7 +143,7 @@ and media in the storage backend (bucket/directory copy).
   class reference into `AGENTS.md`.
 - **EmDash skills** are installed per project so they match the pinned `emdash`
   version: `npx skills add emdash-cms/skills --skill '*' -a claude-code -y`,
-  then commit `.agents/skills/` and `skills-lock.json`. Update with
+  then commit `.claude/skills/` and `skills-lock.json`. Update with
   `npx skills update` after an `emdash` bump.
 - **Claude Code on the web**: the SessionStart hook
   (`.claude/hooks/session-start.sh`) installs Node 24 (matching

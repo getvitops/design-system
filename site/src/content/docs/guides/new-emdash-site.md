@@ -31,13 +31,8 @@ cd acme-site
 Add `--agent claude-code` if you want `vp` to write agent instructions too; the template already ships an
 `AGENTS.md` and a `.claude/` setup, so you usually don't.
 
-Then install:
-
-```sh
-vp install
-```
-
-The scaffold's `@getvitops/*` dependencies are `latest`, and `@getvitops/*` is exempt from the template's
+`vp create` installs dependencies as part of scaffolding, so there is no separate `vp install` step (run
+`vp install` yourself after pulling someone else's changes). The scaffold's `@getvitops/*` dependencies are `latest`, and `@getvitops/*` is exempt from the template's
 3-day release cooldown, so you get the current toolchain release. Everything else holds new releases back
 for three days.
 
@@ -58,15 +53,16 @@ npx skills add emdash-cms/skills --skill '*' -a claude-code -y
 ```
 
 That is `building-emdash-site`, `creating-plugins`, `emdash-cli`, `upgrading-emdash` and the two
-WordPress porting skills (useful when you migrate an existing client site). Commit `.agents/skills/` and
-`skills-lock.json`. After you bump `emdash`, run `npx skills update` — the `upgrading-emdash` skill covers
+WordPress porting skills (useful when you migrate an existing client site). `-a claude-code` copies them
+into `.claude/skills/`; add `-a codex` (or another agent) to cover that agent too. Commit
+`.claude/skills/` and `skills-lock.json`. After you bump `emdash`, run `npx skills update` — the `upgrading-emdash` skill covers
 the rest of the upgrade. See [EmDash's agent skills page](https://docs.emdashcms.com/agent-skills/) for
 the other install routes (Codex, a Claude Code plugin marketplace).
 
 **The Vitops design-system skill.**
 
 ```sh
-vpx vitops agents
+vpx vitops agents -i site.json
 ```
 
 Links the `vitops-design-system` skill into `.agents/skills/` and `.claude/skills/` and writes a managed
@@ -105,8 +101,12 @@ verification tokens). The site name defaults to `organization.name`.
 ## 4. First run
 
 ```sh
-vp dev
+vp run dev
 ```
+
+(`vp run dev` runs the project's `dev` script, which is `astro dev`. Bare `vp dev` starts plain Vite, which
+does not serve this site.) Astro 7 runs the dev server in the background: stop it with
+`vp exec astro dev stop`.
 
 - Site: <http://localhost:4321>
 - Admin: <http://localhost:4321/_emdash/admin> — complete the setup wizard. Choose **include sample

@@ -142,7 +142,7 @@ searching them over pre-trained knowledge for Astro/EmDash questions.
 The EmDash skills (`building-emdash-site`, `creating-plugins`, `emdash-cli`,
 `upgrading-emdash` and the two WordPress porting skills) are installed per
 project, not globally, so they match the `emdash` version this repo pins. If
-`.agents/skills/building-emdash-site/` is missing, install them (the setup guide
+`.claude/skills/building-emdash-site/` is missing, install them (the setup guide
 and `SETUP.html` have the full step):
 
 ```bash
