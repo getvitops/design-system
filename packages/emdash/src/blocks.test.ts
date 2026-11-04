@@ -6,18 +6,33 @@ import { BLOCKS, selectBlocks } from './blocks.ts';
 import { SEMANTIC_ICON_OPTIONS } from './icon-options.ts';
 import { createPlugin, vitopsEmdash } from './index.ts';
 
-const componentFiles: Record<string, string> = {
-  'vitops.actionLink': 'src/astro/blocks/ActionLink.astro',
-  'vitops.imageCompare': 'src/astro/blocks/ImageCompare.astro',
-  'vitops.copyButton': 'src/astro/blocks/CopyButton.astro',
-  'vitops.banner': 'src/astro/blocks/Banner.astro',
-  'vitops.details': 'src/astro/blocks/Details.astro',
-  'vitops.carousel': 'src/astro/blocks/Carousel.astro',
-  'vitops.gallery': 'src/astro/blocks/Gallery.astro',
-  'vitops.cards': 'src/astro/blocks/Cards.astro',
-  'vitops.accordion': 'src/astro/blocks/Accordion.astro',
-  'vitops.marquee': 'src/astro/blocks/Marquee.astro',
-};
+/**
+ * Block type → component file, derived from the `blockComponents` map in `astro/index.ts`
+ * rather than listed here, so a block wired to the wrong component (or not wired) fails.
+ */
+async function componentFilesFromIndex(): Promise<Record<string, string>> {
+  const source = await readFile(new URL('./astro/index.ts', import.meta.url), 'utf8');
+  const imports = Object.fromEntries(
+    [...source.matchAll(/import (\w+) from '\.\/(blocks\/[\w.]+\.astro)'/g)].map((m) => [
+      m[1]!,
+      `src/astro/${m[2]}`,
+    ]),
+  );
+  return Object.fromEntries(
+    [...source.matchAll(/'([\w.]+)':\s*(\w+)/g)].map((m) => [m[1]!, imports[m[2]!] ?? '']),
+  );
+}
+
+/** Component source with comments removed, so a docblock naming a field can't satisfy a check. */
+async function codeOf(file: string): Promise<string> {
+  const source = await readFile(new URL(`../${file}`, import.meta.url), 'utf8');
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
+const componentFiles = await componentFilesFromIndex();
 
 /** Every `action_id` a block saves, including the sub-fields of a repeater's rows. */
 function actionIds(fields: NonNullable<(typeof BLOCKS)[number]['fields']>): string[] {
@@ -71,16 +86,21 @@ describe('descriptor + runtime', () => {
 });
 
 describe('block ↔ component agreement', () => {
-  it('every declared block has a rendering component', () => {
+  it('every declared block has a rendering component, and the file exists', async () => {
     expect(Object.keys(componentFiles).sort()).toEqual(BLOCKS.map((b) => b.type).sort());
+    for (const file of Object.values(componentFiles)) {
+      await expect(readFile(new URL(`../${file}`, import.meta.url), 'utf8')).resolves.toBeTruthy();
+    }
   });
 
   it.each(BLOCKS.map((b) => [b.type, b] as const))(
     '%s: every field action_id is consumed by its component',
     async (type, block) => {
-      const source = await readFile(new URL(`../${componentFiles[type]}`, import.meta.url), 'utf8');
+      const source = await codeOf(componentFiles[type]!);
       for (const id of actionIds(block.fields ?? [])) {
-        expect(source, `${componentFiles[type]} missing field '${id}'`).toContain(id);
+        expect(source, `${componentFiles[type]} missing field '${id}'`).toMatch(
+          new RegExp(`\\b${id}\\b`),
+        );
       }
     },
   );
@@ -117,7 +137,7 @@ describe('blocks ↔ the TIERS manifest', () => {
   it.each(BLOCKS.map((b) => b.type))(
     '%s renders through the pattern it is listed under',
     async (type) => {
-      const source = await readFile(new URL(`../${componentFiles[type]}`, import.meta.url), 'utf8');
+      const source = await codeOf(componentFiles[type]!);
       // The adapter must reach its pattern by something the manifest names: the Astro
       // component it wraps, the web component's tag, or one of the pattern's classes.
       // A block that hand-writes unrelated markup would fail all three.

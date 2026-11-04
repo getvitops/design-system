@@ -329,6 +329,33 @@ export const BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
+    type: 'vitops.hero',
+    label: 'Hero',
+    placeholder: 'Page opener: heading, text, buttons and an optional image',
+    category: 'Sections',
+    fields: [
+      { type: 'text_input', action_id: 'eyebrow', label: 'Eyebrow (small line above)' },
+      { type: 'text_input', action_id: 'heading', label: 'Heading' },
+      { type: 'text_input', action_id: 'body', label: 'Text', multiline: true },
+      { type: 'text_input', action_id: 'primaryLabel', label: 'Main button text' },
+      { type: 'text_input', action_id: 'primaryHref', label: 'Main button URL' },
+      { type: 'text_input', action_id: 'secondaryLabel', label: 'Second link text' },
+      { type: 'text_input', action_id: 'secondaryHref', label: 'Second link URL' },
+      { type: 'text_input', action_id: 'image', label: 'Image URL (split layout)' },
+      { type: 'text_input', action_id: 'imageAlt', label: 'Image alt text' },
+      {
+        type: 'select',
+        action_id: 'layout',
+        label: 'Layout',
+        initial_value: 'centered',
+        options: [
+          { label: 'Centered', value: 'centered' },
+          { label: 'Text and image side by side', value: 'split' },
+        ],
+      },
+    ],
+  },
+  {
     type: 'vitops.marquee',
     label: 'Marquee',
     placeholder: 'A continuously scrolling row (logos, quotes, badges)',

@@ -391,6 +391,7 @@ export const TIERS: Record<string, TierEntry> = {
 
   // ── Bricks + CSS, no web component ────────────────────────────────────────
   split: {
+    emdash: ['vitops.hero'],
     css: c(['split', 'split-1-2', 'split-reverse'], 'layout.css'),
     bricks: 'vitops-split',
     use: '`.split` plus a ratio class. Pure CSS; `md-split-1-2` for the responsive form.',

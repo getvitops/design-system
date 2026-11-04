@@ -11,6 +11,7 @@ import Carousel from './blocks/Carousel.astro';
 import CopyButton from './blocks/CopyButton.astro';
 import Details from './blocks/Details.astro';
 import Gallery from './blocks/Gallery.astro';
+import Hero from './blocks/Hero.astro';
 import ImageCompare from './blocks/ImageCompare.astro';
 import Marquee from './blocks/Marquee.astro';
 
@@ -24,5 +25,6 @@ export const blockComponents = {
   'vitops.gallery': Gallery,
   'vitops.cards': Cards,
   'vitops.accordion': Accordion,
+  'vitops.hero': Hero,
   'vitops.marquee': Marquee,
 };

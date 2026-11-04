@@ -1,0 +1,61 @@
+---
+/**
+ * A page opener built from the layout primitives: `.centered` for a single column, `.split`
+ * for text beside an image. The heading is a real `<h1>` only when the editor chooses nothing
+ * else — a page has one, and EmDash renders the page title elsewhere, so this uses `<h2>`.
+ * Flat fields, because a block cannot contain other blocks.
+ */
+import { resolveBlockValue, safeHref, text } from './value.ts';
+
+interface Value {
+  eyebrow?: string;
+  heading?: string;
+  body?: string;
+  primaryLabel?: string;
+  primaryHref?: string;
+  secondaryLabel?: string;
+  secondaryHref?: string;
+  image?: string;
+  imageAlt?: string;
+  layout?: string;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const eyebrow = text(value.eyebrow);
+const heading = text(value.heading);
+const body = text(value.body);
+const primaryLabel = text(value.primaryLabel);
+const primaryHref = safeHref(value.primaryHref);
+const secondaryLabel = text(value.secondaryLabel);
+const secondaryHref = safeHref(value.secondaryHref);
+const image = safeHref(value.image);
+const imageAlt = text(value.imageAlt);
+const split = value.layout === 'split' && Boolean(image);
+---
+
+{
+  (heading || body) && (
+    <section class={split ? 'split split-1-2' : 'centered'}>
+      <div class="rhythm">
+        {eyebrow && <p class="font-eyebrow">{eyebrow}</p>}
+        {heading && <h2 class="font-display">{heading}</h2>}
+        {body && <p class="font-lead">{body}</p>}
+        {(primaryLabel && primaryHref) || (secondaryLabel && secondaryHref) ? (
+          <p class="cluster">
+            {primaryLabel && primaryHref && (
+              <a class="cta" href={primaryHref}>
+                {primaryLabel}
+              </a>
+            )}
+            {secondaryLabel && secondaryHref && (
+              <a class="link" href={secondaryHref}>
+                {secondaryLabel}
+              </a>
+            )}
+          </p>
+        ) : null}
+      </div>
+      {split && <img src={image} alt={imageAlt} loading="eager" />}
+    </section>
+  )
+}

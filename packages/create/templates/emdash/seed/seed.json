@@ -36,16 +36,32 @@
       "name": "primary",
       "label": "Primary Navigation",
       "items": [
-        { "type": "custom", "label": "Home", "url": "/" },
-        { "type": "custom", "label": "About", "url": "/about" }
+        {
+          "type": "custom",
+          "label": "Home",
+          "url": "/"
+        },
+        {
+          "type": "custom",
+          "label": "About",
+          "url": "/about"
+        }
       ]
     },
     {
       "name": "footer",
       "label": "Footer",
       "items": [
-        { "type": "custom", "label": "Terms & Conditions", "url": "/terms" },
-        { "type": "custom", "label": "Privacy Policy", "url": "/privacy" }
+        {
+          "type": "custom",
+          "label": "Terms & Conditions",
+          "url": "/terms"
+        },
+        {
+          "type": "custom",
+          "label": "Privacy Policy",
+          "url": "/privacy"
+        }
       ]
     }
   ],
@@ -83,6 +99,84 @@
                   "_key": "intro-body-1",
                   "text": "This page is served from the EmDash database. Edit it in the admin at /_emdash/admin — the Vitops design-system blocks are available from the editor's slash menu.",
                   "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "vitops.hero",
+              "_key": "demo-hero",
+              "eyebrow": "Vitops blocks",
+              "heading": "Build pages from design-system patterns",
+              "body": "Every block below renders a framework pattern, so it follows your tokens and works without JavaScript.",
+              "primaryLabel": "Open the admin",
+              "primaryHref": "/_emdash/admin",
+              "secondaryLabel": "Docs",
+              "secondaryHref": "https://docs.vitops.ca",
+              "layout": "centered"
+            },
+            {
+              "_type": "vitops.cards",
+              "_key": "demo-cards",
+              "columns": "3",
+              "cards": [
+                {
+                  "_key": "c1",
+                  "title": "Tokens",
+                  "body": "Colour, type and spacing come from site.json.",
+                  "href": "https://docs.vitops.ca",
+                  "linkLabel": "Read more"
+                },
+                {
+                  "_key": "c2",
+                  "title": "Patterns",
+                  "body": "Cards, carousels and dialogs share one vocabulary."
+                },
+                {
+                  "_key": "c3",
+                  "title": "Accessible",
+                  "body": "Semantic HTML first, enhanced when JavaScript loads."
+                }
+              ]
+            },
+            {
+              "_type": "vitops.accordion",
+              "_key": "demo-accordion",
+              "exclusive": true,
+              "items": [
+                {
+                  "_key": "a1",
+                  "summary": "What is a block?",
+                  "body": "A reusable section an editor inserts from the slash menu.",
+                  "open": true
+                },
+                {
+                  "_key": "a2",
+                  "summary": "Can I add my own?",
+                  "body": "Yes. Pass blocks.extra to the plugin and map a component for it."
+                }
+              ]
+            },
+            {
+              "_type": "vitops.marquee",
+              "_key": "demo-marquee",
+              "pauseOnHover": true,
+              "reverse": false,
+              "items": [
+                {
+                  "_key": "m1",
+                  "text": "Fast"
+                },
+                {
+                  "_key": "m2",
+                  "text": "Accessible"
+                },
+                {
+                  "_key": "m3",
+                  "text": "Editable"
+                },
+                {
+                  "_key": "m4",
+                  "text": "Yours"
                 }
               ]
             },
@@ -161,7 +255,12 @@
               "style": "h2",
               "markDefs": [],
               "children": [
-                { "_type": "span", "_key": "terms-use-h-1", "text": "Use of the site", "marks": [] }
+                {
+                  "_type": "span",
+                  "_key": "terms-use-h-1",
+                  "text": "Use of the site",
+                  "marks": []
+                }
               ]
             },
             {
