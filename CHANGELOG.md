@@ -11,6 +11,63 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 8.2.0 (+ `@getvitops/emdash` 1.0.0, `@getvitops/create` 0.8.0, new `@getvitops/config` 8.2.0) — 2026-11-04
+
+The first non-prerelease since 8.1.0. **It includes everything in the 8.2.0-alpha.0 notes below**
+(the alpha never reached `latest`), plus the work since: EmDash blocks as a real tier, a security
+and accessibility pass, `site.seo` as one source, and the scaffold changes. `@getvitops/core`,
+`generator`, `utils`, `cli`, `vite`, `astro` and the new `config` share this version.
+
+`@getvitops/emdash` jumps 0.3.10 → **1.0.0** (it now needs `emdash`/`@emdash-cms/cloudflare` `^1.4`
+and peers on `@getvitops/astro` / `@getvitops/core` `>=8.2.0`). `@getvitops/create` 0.7.0 → 0.8.0.
+
+### Breaking
+
+- **EmDash 1.x and Vite+ 1.x only** (`@getvitops/emdash`). Peers are `emdash` /
+  `@emdash-cms/cloudflare` `>=1.0.0 <2`; a site on EmDash 0.x must upgrade EmDash first.
+- **Config validation rejects unknown keys** — carried from the alpha notes below; a typo'd field now
+  fails `vitops validate`.
+- **`site.seo`'s dead fields are removed** (nothing read them, so a config using them was already
+  ineffective): `descriptionTemplate` → `defaultDescription`; `openGraph.siteName|title|description`
+  and `twitter.title|description|image` → set per page on `<Seo />`, or use the site-wide fields
+  below. `openGraph.type` is now `website | article | profile`. A config still carrying one fails
+  validation with an unrecognised-key error.
+
+### Added
+
+- **`@getvitops/config`** — the `site.crm` / `ads` / `reviews` / `seo` / `searchConsole` /
+  `notifications` / `tracking` / `security` / `deployment` schemas as a leaf package, so the provider
+  code in `@getvitops/utils` imports its own config types instead of hand-copied mirrors. The
+  generator re-exports every moved name; no import path changes. First published in this release.
+- **`site.seo` is the single source of `<Seo />` defaults.** It gains `siteName` (falls back to
+  `organization.name`), `defaultTitle`, `defaultDescription`, `openGraph.localeAlternates` and a
+  structured `openGraph.image`; text fields are localisable; the environment's `robots` wins, the
+  same fact `vitops robots` and `search notify` read. `vitops({ seo })` still works as an override.
+  New export: `resolveSeoDefaults()`.
+- **EmDash blocks are a tier of the component manifest** (`TIERS[].emdash`) with new `vitops.hero`,
+  `cards`, `gallery`, `accordion`, `marquee` blocks alongside the originals, and
+  **`vitops docs blocks`** prints every block and field for agents.
+- **`@getvitops/utils/url` — `safeHref()`**, a Worker-safe scheme allowlist, and `@getvitops/utils/content`
+  (`t()`), both Worker-safe subpaths.
+- **Scaffolds:** `public/_headers` security baseline (static assets only — Worker-rendered EmDash
+  pages are not covered), dev refreshed from prod (content lives in production), magic-link sign-in,
+  a 3-day release cooldown, a pinned Astro 7.4 and `.node-version`, and `pnpm@12.16.1`.
+  Documents installing the EmDash agent skills per project.
+
+### Fixed
+
+- **Security.** JSON-LD can no longer break out of its `<script>` tag (all 24 `schemas/*.astro`);
+  editor-supplied `href`s in EmDash blocks and `nodesToHtml` attributes are scheme-checked; the
+  conversion route validates beacon `call`/`email` values.
+- **Accessibility.** `<wc-marquee>` gets a pause control (WCAG 2.2.2) and pauses on focus;
+  `<wc-consent>` moves and restores focus; `<wc-image-compare>` regions are labelled;
+  `<wc-entries>` column nav is no longer `aria-hidden`; reduced-motion is honoured by smooth
+  scrolling. Pattern CSS reaches **all formats**.
+- `@getvitops/utils/notify` is Worker-safe again (the Google Ads offline upload no longer pulls
+  `node:crypto` in), and a CI formatting drift traced to a stale hoisted `oxfmt`.
+
+No consumer-facing change in `@getvitops/vite` beyond the fixed-group version bump.
+
 ## 8.2.0-alpha.0 (+ `@getvitops/emdash` 1.0.0-alpha.0, `@getvitops/create` 0.8.0-alpha.0) — 2026-09-30
 
 **Published on the `alpha` npm dist-tag, not `latest`** — this bundles a large amount of work
