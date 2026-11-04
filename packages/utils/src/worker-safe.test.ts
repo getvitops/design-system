@@ -16,6 +16,7 @@ const WORKER_ENTRIES = [
   'schema/index.ts',
   'git/index.ts',
   'url/index.ts',
+  'content.ts',
 ];
 
 const IMPORT = /(?:^|\n)\s*(?:import|export)\s[^;]*?from\s+['"]([^'"]+)['"]/g;

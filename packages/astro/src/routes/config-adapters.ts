@@ -13,7 +13,9 @@
  * entry point into a Worker bundle.
  */
 import type { Config } from '@getvitops/generator';
-import { t, type Localizable } from '@getvitops/utils';
+// The `/content` subpath, not the root barrel: the root re-exports `favicon` (sharp), and a
+// Worker route should not depend on tree-shaking to keep it out.
+import { t, type Localizable } from '@getvitops/utils/content';
 import type { AdPropertySetup } from '@getvitops/utils/ads';
 import type { CrmConfig } from '@getvitops/utils/crm';
 import type { NotifyContext } from '@getvitops/utils/notify';

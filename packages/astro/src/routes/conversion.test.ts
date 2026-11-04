@@ -819,3 +819,34 @@ describe('createConversionRoute: Google Ads offline conversion upload', () => {
     expect(uploadClickConversion).not.toHaveBeenCalled();
   });
 });
+
+describe('beacon payload validation', () => {
+  const handler = createConversionRoute({ context: { canonical: 'https://example.com' } } as never);
+  const post = (body: unknown) =>
+    handler({
+      request: new Request('https://example.com/api/track', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+      locals: {},
+    } as never);
+
+  it.each([
+    { event: 'call', phone: 'Click here: https://evil.example' },
+    { event: 'call', phone: '<script>alert(1)</script>' },
+    { event: 'email', email: 'not an address' },
+    { event: 'email', email: 'a@b.c<script>' },
+  ])('rejects %j', async (body) => {
+    expect((await post(body)).status).toBe(400);
+  });
+
+  it.each([
+    { event: 'call', phone: 'tel:+15551234567' },
+    { event: 'call', phone: 'tel:+1%20555%20123%204567' },
+    { event: 'email', email: 'mailto:hi@example.com' },
+    { event: 'email', email: 'mailto:hi@example.com?subject=Quote%20request' },
+  ])('accepts %j', async (body) => {
+    expect((await post(body)).status).toBe(204);
+  });
+});

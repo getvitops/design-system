@@ -294,6 +294,12 @@ function googleClickId(tracking: TrackingData | null): { param: string; value: s
  * is excluded unconditionally, matching `render.ts`'s `OMIT_FIELDS` — the field
  * carries a verification token, not something the visitor wrote. */
 const CONTROL_FIELDS = new Set(['event', 'phone', 'cf-turnstile-response']);
+/** The capture script sends `link.href` as-is: `tel:` + digits and the punctuation people type
+ * (a space arrives as `%20`). Not free text. */
+const PHONE_RE = /^(?:tel:)?\+?[\d\s().%-]{3,40}$/i;
+/** `mailto:` + an address, with an optional `?subject=…` query. A shape check, not deliverability. */
+const EMAIL_RE = /^(?:mailto:)?[^\s@<>"?]{1,64}@[^\s@<>"?]{1,255}(?:\?[^\s<>"]{0,256})?$/i;
+
 const DEFAULT_HONEYPOT_FIELDS = ['website', '_honeypot', 'honeypot'];
 const DEFAULT_MAX_BODY_BYTES = 25_000;
 
@@ -476,11 +482,14 @@ export function createConversionRoute(options: ConversionRouteOptions) {
       }
     }
 
-    if (isCall && typeof body['phone'] !== 'string') {
+    // A beacon skips every form check, so its one payload field is format-checked instead:
+    // the value is interpolated into a notification someone reads, and an unauthenticated
+    // caller should not be able to put arbitrary text there.
+    if (isCall && !(typeof body['phone'] === 'string' && PHONE_RE.test(body['phone']))) {
       return respondError('Missing phone.', 400);
     }
 
-    if (isEmailClick && typeof body['email'] !== 'string') {
+    if (isEmailClick && !(typeof body['email'] === 'string' && EMAIL_RE.test(body['email']))) {
       return respondError('Missing email.', 400);
     }
 
