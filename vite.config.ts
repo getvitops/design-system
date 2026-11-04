@@ -346,9 +346,20 @@ export default defineConfig({
       // after `vp create`, which nothing else here reproduces. See
       // scripts/scaffold-check.mjs. Uncached: it installs from the registry, so
       // a cache hit would mean "it passed once", not "it passes now".
-      'verify:scaffold': {
-        command: 'node scripts/scaffold-check.mjs emdash && node scripts/scaffold-check.mjs static',
+      // One task per template (not a forwarded argument: vp appends forwarded args to the
+      // command tail) so CI can run each as its own matrix leg.
+      'verify:scaffold:emdash': {
+        command: 'node scripts/scaffold-check.mjs emdash',
         dependsOn: ['build:packages'],
+        cache: false,
+      },
+      'verify:scaffold:static': {
+        command: 'node scripts/scaffold-check.mjs static',
+        dependsOn: ['build:packages'],
+        cache: false,
+      },
+      'verify:scaffold': {
+        command: 'vp run verify:scaffold:emdash && vp run verify:scaffold:static',
         cache: false,
       },
       // Apply pending changesets: bump every package + write the per-package
