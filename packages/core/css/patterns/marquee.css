@@ -56,6 +56,13 @@
     animation-play-state: paused;
   }
 
+  /* Keyboard users can't hover; focusing anything inside (a link in an item) also pauses, and
+     `<wc-marquee>`'s pause button sets `data-paused` (WCAG 2.2.2). */
+  &:focus-within .marquee__content,
+  &[data-paused] .marquee__content {
+    animation-play-state: paused;
+  }
+
   &.marquee--reverse {
     --_marquee-direction: reverse;
   }

@@ -168,12 +168,27 @@ export class WCConsent extends HTMLElement {
     // Already-open is not an error worth surfacing: `open()` may fire while the
     // banner is up, and showPopover() throws on a second call.
     if (panel?.isConnected && !panel.matches(':popover-open')) panel.showPopover();
+    // An unprompted banner must not steal focus from what the visitor is doing. One they asked
+    // for (the "cookie settings" control) is an interaction, so move into it and remember where
+    // to return — otherwise keyboard focus is left on a control the banner now covers.
+    if (mode === 'settings' && panel) {
+      this.#returnFocus =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      panel.tabIndex = -1;
+      panel.focus({ preventScroll: true });
+    }
   }
+
+  /** Where focus was when a visitor-requested showing opened; restored on close. */
+  #returnFocus: HTMLElement | null = null;
 
   #hide(): void {
     this.#open = false;
     this.#panel?.hidePopover?.();
     this.hidden = true;
+    const back = this.#returnFocus;
+    this.#returnFocus = null;
+    if (back?.isConnected) back.focus({ preventScroll: true });
   }
 
   /**

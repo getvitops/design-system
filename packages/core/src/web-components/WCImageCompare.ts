@@ -307,10 +307,10 @@ export class WCImageCompare extends BaseElement {
   render() {
     return html`
       <div class="container" part="container" style="--_offset: ${this._offset}">
-        <div class="after" part="after" aria-label="${this.afterLabel}">
+        <div class="after" part="after" role="group" aria-label="${this.afterLabel}">
           <slot name="after"></slot>
         </div>
-        <div class="before" part="before" aria-label="${this.beforeLabel}">
+        <div class="before" part="before" role="group" aria-label="${this.beforeLabel}">
           <slot name="before"></slot>
         </div>
         <div
