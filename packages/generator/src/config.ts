@@ -53,12 +53,14 @@ import {
   DeploymentSchema,
   IndexNowSchema,
   IndexingSchema,
+  LocalizableSchema,
   NotificationsSchema,
   ReviewLocationSchema,
   ReviewsSchema,
   SearchConsoleSchema,
   SearchConsoleSetupSchema,
   SecuritySchema,
+  SeoSchema,
   TrackingSchema,
   type AdProvider,
   type CrmProviderConfig,
@@ -70,11 +72,6 @@ export { AD_PROVIDERS, BIGIN_DATA_CENTERS, CRM_PROVIDERS };
 export type { AdProvider, CrmProviderConfig };
 
 // ── Primitives ────────────────────────────────────────────────────────────────
-
-const LocalizableSchema = desc(
-  z.union([z.string(), z.record(z.string(), z.string())]),
-  'A string, or a per-locale map of strings (`{ en: "…", fr: "…" }`).',
-);
 
 const ImageRefSchema = z.union([
   z.string(),
@@ -559,24 +556,6 @@ const ServiceSchema = z.strictObject({
 
 // ── SEO / social ─────────────────────────────────────────────────────────────
 
-const OpenGraphSchema = z.strictObject({
-  type: z.optional(z.string()),
-  siteName: z.optional(z.string()),
-  title: z.optional(LocalizableSchema),
-  description: z.optional(LocalizableSchema),
-  image: z.optional(ImageRefSchema),
-  locale: z.optional(z.string()),
-});
-
-const TwitterSchema = z.strictObject({
-  card: z.optional(z.enum(['summary', 'summary_large_image', 'app', 'player'])),
-  site: z.optional(z.string()),
-  creator: z.optional(z.string()),
-  title: z.optional(LocalizableSchema),
-  description: z.optional(LocalizableSchema),
-  image: z.optional(ImageRefSchema),
-});
-
 // ── Indexing ────────────────────────────────────────────────────────────────────
 
 // ── Ad properties ───────────────────────────────────────────────────────────────
@@ -803,22 +782,8 @@ const SiteSectionSchema = z.strictObject({
     'Site navigation settings (which nav template renders where).',
   ),
   seo: desc(
-    z.optional(
-      z.strictObject({
-        titleTemplate: desc(z.optional(z.string()), 'Page-title pattern (e.g. "%s · Acme").'),
-        descriptionTemplate: z.optional(z.string()),
-        robots: desc(z.optional(RobotsSchema), 'e.g. "index,follow" / "noindex,nofollow".'),
-        googleSiteVerification: z.optional(z.string()),
-        bingSiteVerification: z.optional(z.string()),
-        openGraph: z.optional(OpenGraphSchema),
-        twitter: z.optional(TwitterSchema),
-        indexing: desc(
-          z.optional(IndexingSchema),
-          'How `vitops search notify` tells search engines about a deploy: which sitemap, IndexNow key, Search Console property, and which pages to verify afterwards.',
-        ),
-      }),
-    ),
-    'SEO defaults: title/description templates, robots policy, verification tokens, Open Graph + Twitter cards, and post-deploy indexing notification.',
+    z.optional(SeoSchema),
+    'SEO defaults: site name, title/description defaults, robots policy, verification tokens, Open Graph + Twitter cards, and post-deploy indexing notification. Read by `<Seo />`, `vitops robots` and `vitops search notify`.',
   ),
   analytics: desc(
     z.optional(

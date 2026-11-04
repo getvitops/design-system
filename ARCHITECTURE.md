@@ -287,7 +287,8 @@ drift guards for a dependency edge that can't exist.
 The same rule once shaped `utils`: it cannot import the generator, so it kept structural mirrors of
 the `site.*` blocks. The provider blocks now live in the leaf `@getvitops/config`, which both import,
 so `IndexingConfig`, `TrackingConfig`, `NotificationsConfig` and friends are inferred types, not
-copies. `GetvitopsSeoOptions` in astro is the remaining mirror.
+copies. `site.seo` follows the same rule (ADR-0002): `SeoSchema` is in `@getvitops/config` and astro's
+`GetvitopsSeoOptions` is the _resolved_ shape of it, not a second vocabulary.
 
 ## 2.3 Key files
 

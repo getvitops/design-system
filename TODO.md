@@ -349,9 +349,16 @@ just the one-liners here.
 
 From the 2026-11 architecture audit; each is a known gap, not a regression.
 
-- **DOM tests** (`*.dom.test.ts`) missing for `wc-image-compare`, `wc-entries`, `wc-consent`, `wc-copy`,
-  `wc-dismissable`, `wc-multi-field` and `wc-split-panel`. (`wc-marquee` has one.)
+- **DOM tests** (`*.dom.test.ts`) missing for `wc-image-compare`, `wc-consent`, `wc-copy`,
+  `wc-dismissable`, `wc-multi-field` and `wc-split-panel`.
 - **e2e no-JS fallback coverage** (`site/e2e/no-js-fallback.e2e.ts`) missing for cards, consent and the other
   elements without a spec.
-- **`WCEntries.ts`**: the `aria-hidden` column nav contains focusable buttons — hidden from AT but still in the
-  tab order. Re-check against the current markup, then either drop `aria-hidden` or make the buttons inert.
+
+### Cloudflare `cf` CLI — evaluate when its beta ends
+
+`cf` has been in open beta since 2026-09-28 and is Wrangler's successor (typed `cloudflare.config.ts`, `cf migrate`
+from `wrangler.jsonc`). Wrangler gets a final major pointing at `cf` only when the beta ends, then 18 months of
+maintenance; Cloudflare's own agent docs still say to use Wrangler for local dev, deploys and `d1 migrations`.
+Everything here depends on Wrangler today (`@astrojs/cloudflare`, `emdash migrate --wrangler-config`, the hosting
+executors, both templates' `wrangler.jsonc`). Before migrating, check adapter and EmDash support for
+`cloudflare.config.ts`. Stay on Wrangler until then.

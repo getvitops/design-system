@@ -711,9 +711,11 @@ credential — making them provision a second, unrelated one for the other half 
 bought nothing. `search setup` is the only thing that genuinely requires a specific grant.
 
 `IndexingConfig` is the inferred type of `@getvitops/config`'s `IndexingSchema`, so the type the
-executor accepts and the document `validateConfig` accepts cannot drift. The one remaining hand-kept
-mirror in this area is `GetvitopsSeoOptions` in `@getvitops/astro`, a copy of `site.seo` still to be
-moved into config (ADR-0001 action item).
+executor accepts and the document `validateConfig` accepts cannot drift. `site.seo` is the single source
+of site-level SEO defaults (ADR-0002): `SeoSchema` lives in `@getvitops/config`, and `@getvitops/astro`'s
+`resolveSeoDefaults()` resolves it (with `organization.name` as the site name) into the `GetvitopsSeoOptions`
+shape `<Seo />` reads; `vitops({ seo })` is only an override merged over that. `seo-defaults.test.ts` fails
+when a `site.seo` field is added and not read, which is how four fields once sat in the schema doing nothing.
 
 ## Search Console onboarding
 

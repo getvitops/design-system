@@ -430,47 +430,39 @@ Site navigation settings (which nav template renders where).
 
 ### `seo` *(optional)*
 
-SEO defaults: title/description templates, robots policy, verification tokens, Open Graph + Twitter cards, and post-deploy indexing notification.
+SEO defaults: site name, title/description defaults, robots policy, verification tokens, Open Graph + Twitter cards, and post-deploy indexing notification. Read by `<Seo />`, `vitops robots` and `vitops search notify`.
 
-- `titleTemplate` (string) — Page-title pattern (e.g. "%s · Acme").
-- `descriptionTemplate` (string)
-- `robots` (string) — e.g. "index,follow" / "noindex,nofollow".
-- `googleSiteVerification` (string)
-- `bingSiteVerification` (string)
-- `openGraph` (object)
-  - `type` (string)
-  - `siteName` (string)
-  - `title` (one of) — A string, or a per-locale map of strings (`{ en: "…", fr: "…" }`).
+- `siteName` (one of) — `og:site_name`, and the `<title>` when a page passes none. Defaults to `organization.name`, so most sites never state it.
+  - *one of*
+  - *one of*
+- `titleTemplate` (one of) — Page-title pattern; `%s` is the page title (e.g. "%s · Acme"). Applies to `<title>` only, never to `og:title`, and is skipped when the page title already equals the site name.
+  - *one of*
+  - *one of*
+- `defaultTitle` (one of) — `<title>` for pages that pass none. Used verbatim — the template is not applied. Defaults to the site name.
+  - *one of*
+  - *one of*
+- `defaultDescription` (one of) — `<meta name="description">` for pages that pass none.
+  - *one of*
+  - *one of*
+- `robots` (string) — Site-wide robots directive (e.g. "index,follow" / "noindex,nofollow"). `site.environments.<env>.robots` wins over it.
+- `googleSiteVerification` (string) — Google Search Console verification token (`<meta name="google-site-verification">`).
+- `bingSiteVerification` (string) — Bing Webmaster Tools verification token (`<meta name="msvalidate.01">`).
+- `openGraph` (object) — Open Graph defaults. Per-page `<Seo />` props override them.
+  - `type` (website | article | profile) — Default `og:type`. Default `website`.
+  - `locale` (string) — `og:locale`. `en-CA` and `en_CA` both emit `en_CA`.
+  - `localeAlternates` (array of string) — Other locales the same content exists in → `og:locale:alternate`.
+  - `image` (one of) — Fallback share image for pages that bring none.
     - *one of*
     - *one of*
-  - `description` (one of) — A string, or a per-locale map of strings (`{ en: "…", fr: "…" }`).
-    - *one of*
-    - *one of*
-  - `image` (one of)
-    - *one of*
-    - *one of*
-      - `src` (string, required)
-      - `alt` (string, required)
+      - `src` (string, required) — Absolute, or relative to `site` (resolved at render time).
+      - `alt` (string)
       - `width` (number)
       - `height` (number)
-  - `locale` (string)
-- `twitter` (object)
-  - `card` (summary | summary_large_image | app | player)
-  - `site` (string)
-  - `creator` (string)
-  - `title` (one of) — A string, or a per-locale map of strings (`{ en: "…", fr: "…" }`).
-    - *one of*
-    - *one of*
-  - `description` (one of) — A string, or a per-locale map of strings (`{ en: "…", fr: "…" }`).
-    - *one of*
-    - *one of*
-  - `image` (one of)
-    - *one of*
-    - *one of*
-      - `src` (string, required)
-      - `alt` (string, required)
-      - `width` (number)
-      - `height` (number)
+      - `type` (string) — MIME type, e.g. `image/png`.
+- `twitter` (object) — Twitter/X card defaults.
+  - `card` (summary | summary_large_image | app | player) — Card type when no image resolves (default `summary`).
+  - `site` (string) — The site's own handle, e.g. "@acme".
+  - `creator` (string) — Default author handle, e.g. "@ada".
 - `indexing` (object) — How `vitops search notify` tells search engines about a deploy: which sitemap, IndexNow key, Search Console property, and which pages to verify afterwards.
   - `sitemapUrl` (string) — The sitemap to submit and to diff for changed URLs. Defaults to `<canonical>/sitemap-index.xml`.
   - `indexNow` (object) — IndexNow submission (Bing, Yandex, Naver, Seznam, Yep — not Google). Omit to skip the channel.

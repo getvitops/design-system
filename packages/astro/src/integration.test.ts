@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { AstroIntegration, HookParameters } from 'astro';
 import { describe, expect, it } from 'vite-plus/test';
+import { defaultSiteConfig } from '@getvitops/generator';
 import vitops, { type GetvitopsOptions } from './integration.ts';
 
 type Params = HookParameters<'astro:config:setup'>;
@@ -181,6 +182,43 @@ describe('vitops({ seo })', () => {
     const h = harness({ seo: { siteName: 'Acme' } }, { integrations: [integration('emdash')] });
     await h.run();
     expect(warned(h.logs, 'EmDashHead')).toBe(true);
+  });
+});
+
+describe('site.seo as the source of <Seo /> defaults', () => {
+  // The harness's `site.input` points at a real file so the integration reads it like a consumer's.
+  it('derives defaults from the site config, with organization.name as the site name', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-seo-'));
+    const cfg = defaultSiteConfig() as unknown as {
+      organization: Record<string, unknown>;
+      site: Record<string, unknown>;
+    };
+    cfg.organization.name = 'Acme';
+    cfg.site.seo = { titleTemplate: '%s · Acme', openGraph: { locale: 'en_CA' } };
+    writeFileSync(join(dir, 'site.json'), JSON.stringify(cfg));
+    const h = harness({ site: { input: 'site.json' } }, { root: pathToFileURL(`${dir}/`) });
+    await h.run();
+    expect(headData(h.updates).seo).toMatchObject({
+      siteName: 'Acme',
+      titleTemplate: '%s · Acme',
+      openGraph: { locale: 'en_CA' },
+    });
+  });
+
+  it('lets vitops({ seo }) override one field without discarding the config', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-seo-'));
+    const cfg = defaultSiteConfig() as unknown as { site: Record<string, unknown> };
+    cfg.site.seo = { titleTemplate: '%s · Acme', siteName: 'Acme' };
+    writeFileSync(join(dir, 'site.json'), JSON.stringify(cfg));
+    const h = harness(
+      { site: { input: 'site.json' }, seo: { siteName: 'Override' } },
+      { root: pathToFileURL(`${dir}/`) },
+    );
+    await h.run();
+    expect(headData(h.updates).seo).toMatchObject({
+      siteName: 'Override',
+      titleTemplate: '%s · Acme',
+    });
   });
 });
 

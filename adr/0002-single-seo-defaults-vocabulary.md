@@ -1,6 +1,6 @@
 # ADR-0002: One vocabulary for site-level SEO defaults
 
-**Status:** Proposed
+**Status:** Accepted (implemented 2026-11-04)
 **Date:** 2026-11-03
 **Deciders:** Alex Gagnon
 
@@ -51,10 +51,11 @@ accepts should be one type. Here the executor (`<Seo />`) and the document disag
    `site.seo.robots` in `robots.ts` and `search notify`; `<Seo />` should read the same resolved value, which
    closes a third place that could disagree (a staging page emitting `index` while `robots.txt` says
    `Disallow`).
-5. **Deprecate, don't break.** `GetvitopsSeoOptions` stays exported for one major as a type alias of the
-   override shape, with the old field names accepted and mapped (`siteName` → `seo.siteName`, etc.) and a
-   one-line warning at integration setup. `vitops lint --fix` cannot rewrite `astro.config.mjs`, so the
-   changeset carries the migration table.
+5. **No rename, so nothing to deprecate.** As built, `GetvitopsSeoOptions` keeps its field names — they became
+   the names in `site.seo` — and is now documented as the _resolved_ shape; `vitops({ seo })` still accepts
+   it unchanged. What was removed is the dead config surface: `descriptionTemplate` (→ `defaultDescription`),
+   `openGraph.siteName`/`title`/`description` and `twitter.title`/`description`/`image` (per-page values, not
+   defaults; nothing read them, and no existing client config set them).
 
 ## Options considered
 
@@ -91,14 +92,14 @@ two names for one thing. Rejected.
 
 ## Action items
 
-1. [ ] Inventory every existing consumer of `vitops({ seo })` (the two templates do not set it; check
+1. [x] Inventory (only this repo's docs site sets `vitops({ seo })`; no client `site.json` sets any `site.seo` display field) every existing consumer of `vitops({ seo })` (the two templates do not set it; check
        `vitops-website` and `vitops-portal`) to size the migration.
-2. [ ] Add `SeoSchema` to `@getvitops/config` with the merged fields; point `SiteSchema` at it; regenerate
+2. [x] Add `SeoSchema` to `@getvitops/config` with the merged fields; point `SiteSchema` at it; regenerate
        `config.schema.json` and the docs bundle.
-3. [ ] Write `resolveSeoDefaults(config, locale)` in `@getvitops/astro` with tests over `Localizable`,
+3. [x] Write `resolveSeoDefaults(config, locale)` in `@getvitops/astro` with tests over `Localizable`,
        per-environment `robots`, and `organization.name` fallback.
-4. [ ] Make the integration read it from `site.input`; merge `vitops({ seo })` over it; warn on the old names.
-5. [ ] Replace the `seo.ts` interface with the derived type; keep a deprecated alias.
-6. [ ] Add a drift test: every `site.seo` display field is read by `resolveSeoDefaults` (the guard that was
+4. [x] Make the integration read it from `site.input`; merge `vitops({ seo })` over it; warn on the old names.
+5. [x] Replace the `seo.ts` interface with the derived type; keep a deprecated alias.
+6. [x] Add a drift test: every `site.seo` display field is read by `resolveSeoDefaults` (the guard that was
        missing, and the reason four fields went unused).
-7. [ ] Changeset with the field-by-field migration table; note it in the root `CHANGELOG.md`.
+7. [x] Changeset with the field-by-field migration table; note it in the root `CHANGELOG.md`.

@@ -39,6 +39,7 @@ import { type GetvitopsAdsOptions, resolveAds } from './ads.ts';
 import { type HeadFont, resolveFonts } from './fonts.ts';
 import { localeConsistencyWarnings } from './i18n.ts';
 import type { GetvitopsSeoOptions } from './seo.ts';
+import { mergeSeoDefaults, resolveSeoDefaults } from './seo-defaults.ts';
 import { TRACKING_ENDPOINT, type GetvitopsTrackingOptions, resolveTracking } from './tracking.ts';
 
 export interface GetvitopsFaviconOptions {
@@ -326,8 +327,11 @@ export interface GetvitopsOptions {
   sitemap?: boolean | GetvitopsSitemapOptions;
   /**
    * Site-level defaults for `<Seo />` (`@getvitops/astro/Seo.astro`) — site name,
-   * title template, Open Graph + Twitter defaults, verification tokens. Off unless
-   * provided; per-page props override every field.
+   * title template, Open Graph + Twitter defaults, verification tokens.
+   *
+   * These come from `site.seo` in the site config (with `organization.name` as the site
+   * name); this option is an **override** merged over that, field by field, for a value
+   * an app wants to set in code. Per-page props override both.
    *
    * Needs the `site` astro.config option for canonical and `og:url`; without it
    * `<Seo />` omits every absolute-URL tag rather than deriving one from the
@@ -583,6 +587,26 @@ function readSiteLocales(
     return { locales: cfg.site.locales, defaultLocale: cfg.site.defaultLocale };
   } catch {
     return null;
+  }
+}
+
+/**
+ * Resolve `site.seo` (plus `organization.name` as the site-name fallback) out of the site config.
+ *
+ * Best-effort, like `readSiteLocales`: a malformed or missing config is silence here, since every
+ * other consumer of the file validates it loudly in the same hook. An empty object means "the
+ * config states no SEO defaults", which is also what no site config at all means.
+ */
+function readSiteSeo(configPath: string, siteEnv: string): GetvitopsSeoOptions {
+  try {
+    return resolveSeoDefaults(
+      resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv),
+      {
+        env: siteEnv,
+      },
+    );
+  } catch {
+    return {};
   }
 }
 
@@ -934,7 +958,16 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
           for (const warning of localeConsistencyWarnings(siteLocales, config.i18n))
             logger.warn(warning);
         }
-        if (opts.seo) {
+        // `site.seo` is the source; `vitops({ seo })` overrides it field by field (ADR-0002).
+        const seoDefaults = mergeSeoDefaults(
+          siteInput
+            ? readSiteSeo(resolve(root, siteInput), opts.site?.siteEnv ?? 'production')
+            : {},
+          opts.seo,
+        );
+        // A config that only supplies the organization name (so a site name) is not "seo
+        // configured"; warn only when the site actually asked for <Seo /> defaults.
+        if (opts.seo || Object.keys(seoDefaults).some((k) => k !== 'siteName')) {
           // Warn once here rather than letting every page silently drop its
           // canonical — a missing absolute URL is invisible in the output.
           if (!config.site)
@@ -1481,7 +1514,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
                 sitemap: sitemapHref,
                 fonts: headFonts,
                 site: config.site ?? null,
-                seo: opts.seo ?? {},
+                seo: seoDefaults,
                 analytics: opts.analytics ?? {},
                 consent: consentEnabled,
                 consentCategories: offeredCategories,
