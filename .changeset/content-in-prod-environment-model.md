@@ -17,11 +17,13 @@ prod — never promoted back. Both templates gain a hotfix path back into `dev`.
   merging would change `dev`, so a prod hotfix doesn't leave `dev` behind. The PR is left for a
   human to merge unless a `BACKMERGE_TOKEN` secret (PAT / GitHub App token) is set: a merge made
   with the default token triggers no workflows, so Deploy dev would not run.
-- **GitHub sign-in enabled in the emdash template** (`authProviders: [github()]`). A passkey only
-  works at the origin it was registered on, so a refreshed dev site would otherwise lock editors
-  out. GitHub links an existing user by verified email. **Existing sites:** nothing breaks, but add
-  `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` to the worker (one GitHub OAuth app per origin) or
-  the button has nothing to sign in with.
+- **Magic-link sign-in in the emdash template**: it now registers `cloudflareEmail()` and a
+  `send_email` binding named `EMAIL`. A passkey only works at the origin it was registered on, so a
+  refreshed dev site would otherwise lock editors out; the cloned users already exist, so the same
+  email signs in on both origins. **Existing sites:** templates are copied at scaffold time, so
+  nothing changes until you add both yourself, and magic link answers "Email is not configured"
+  until you do. Onboard the sender first (`npx vitops email setup send.<your-domain>`) and set
+  `from` to an address on that domain — the template ships a placeholder you must replace.
 - **The dev worker no longer has a cron trigger** (`build-dev-wrangler.mjs`), since a refreshed
   database carries prod's scheduled publishes and plugin jobs. Scheduled publishing can't be
   exercised on dev. Set a different `EMDASH_PREVIEW_SECRET` on the dev worker, or prod preview

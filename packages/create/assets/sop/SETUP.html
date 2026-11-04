@@ -221,18 +221,18 @@
               </span>
             </label>
             <label class="custom-check">
-              <input type="checkbox" data-sop="hosting.github-login" />
+              <input type="checkbox" data-sop="hosting.magic-link" />
               <span class="custom-check__box"
                 ><span class="custom-check__indicator custom-check__indicator--check"></span
               ></span>
               <span>
-                <strong>EmDash template: create a GitHub OAuth app per site by hand</strong> — one
-                for prod, one for dev, because each takes a single callback URL
-                (<code>https://&lt;origin&gt;/_emdash/api/auth/oauth/github/callback</code>). Set
-                <code>GITHUB_CLIENT_ID</code> / <code>GITHUB_CLIENT_SECRET</code> on each worker
-                with <code>wrangler secret put</code>. Passkeys only work at the origin they were
-                created on, so without this a refreshed dev site has no way in. Editors sign in with
-                the GitHub account whose verified email matches their EmDash user.
+                EmDash template: onboard the sender domain for sign-in email —
+                <code>npx vitops email setup send.&lt;your-domain&gt;</code>, then put that address
+                in <code>cloudflareEmail({ from })</code> in <code>astro.config.mjs</code> (it ships
+                a placeholder). Editors sign in with a magic link ("Sign in with email" on the login
+                page) because a passkey only works at the origin it was registered on, so a
+                refreshed dev site has no other way in. Check <strong>Settings → Email</strong> and
+                send the test email on both prod and dev.
               </span>
             </label>
             <label class="custom-check">

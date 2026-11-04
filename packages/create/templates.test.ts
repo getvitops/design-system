@@ -174,6 +174,18 @@ describe.each(templateNames)('template %s workflows', (name) => {
 });
 
 /**
+ * Magic link is how an editor gets into a dev site whose database was copied from prod (passkeys are
+ * origin-bound). It needs the email plugin AND the binding it reads — `cloudflareEmail()` defaults to a
+ * binding named `EMAIL` — and a missing half fails only at the first sign-in attempt, as "Email is not
+ * configured".
+ */
+it('emdash template wires the email plugin to a matching send_email binding', () => {
+  const read = (file: string) => readFileSync(join(TEMPLATES, 'emdash', file), 'utf8');
+  expect(read('astro.config.mjs')).toMatch(/cloudflareEmail\(\{/);
+  expect(read('wrangler.jsonc')).toMatch(/"send_email":\s*\[\s*\{\s*"name":\s*"EMAIL"\s*\}\s*\]/);
+});
+
+/**
  * `scripts/refresh-dev.mjs` DROPS every table in its target, so the checks between it and production are
  * asserted rather than trusted. Its pure halves are imported (the file only runs `main` when invoked directly).
  */

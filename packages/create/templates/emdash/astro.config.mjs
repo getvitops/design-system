@@ -1,10 +1,10 @@
 import react from '@astrojs/react';
+import { cloudflareEmail } from '@emdash-cms/cloudflare/plugins';
 import vitops from '@getvitops/astro';
 import { resolveOrganizationName } from '@getvitops/astro/routes';
 import { vitopsEmdash, vitopsHosting } from '@getvitops/emdash';
 import { defineConfig } from 'astro/config';
 import emdash from 'emdash/astro';
-import { github } from 'emdash/auth/providers/github';
 import config from './site.json' with { type: 'json' };
 
 // site.json's organization.name is the one build-time-readable source for a
@@ -48,7 +48,24 @@ export default defineConfig({
       // a VITOPS_GITHUB_TOKEN secret are set (see SETUP.html) — see
       // AGENTS.md's "EmDash plugin as the design-system editing surface".
       // Until then the live half still works; only the sync half is skipped.
-      plugins: [vitopsEmdash({ designSystemEditor: { config } })],
+      //
+      // cloudflareEmail sends magic-link sign-in, invites and account recovery
+      // through Cloudflare Email Sending (the EMAIL binding in wrangler.jsonc).
+      // Magic link is how an editor gets into a site whose database was copied
+      // from another origin: a passkey only works at the origin it was
+      // registered on, so a dev database refreshed from prod
+      // (scripts/refresh-dev.mjs) would otherwise lock everyone out of dev. The
+      // cloned users already exist, so the same email signs in on both origins.
+      // `from` must be on a domain onboarded with Cloudflare Email Sending —
+      // `npx vitops email setup send.<your-domain>` — and is usually the
+      // subdomain, not the apex (see AGENTS.md's "Sender-domain onboarding").
+      // Without it, magic link answers "Email is not configured".
+      plugins: [
+        vitopsEmdash({ designSystemEditor: { config } }),
+        cloudflareEmail({
+          from: { email: 'cms@send.my-emdash-site.example.com', name: organizationName },
+        }),
+      ],
       // 1.0's runtime migration mode defaults to 'auto' (apply pending core
       // migrations on first request) — fine for local dev, but a deploy
       // should have already migrated before traffic arrives. 'check' 503s a
@@ -57,14 +74,6 @@ export default defineConfig({
       // section) was skipped or failed. `dev: 'auto'` keeps the convenient
       // first-run behaviour for `pnpm dev`.
       migrations: { runtime: 'check', dev: 'auto' },
-      // GitHub sign-in alongside passkeys. A passkey only works at the origin
-      // it was registered on, so a dev database refreshed from prod
-      // (scripts/refresh-dev.mjs) would lock every editor out of dev. GitHub
-      // links an existing user by VERIFIED EMAIL, so the same account signs in
-      // on both origins with no re-invite. Each origin needs its own GitHub
-      // OAuth app (one callback URL each, .../_emdash/api/auth/oauth/github/callback)
-      // and its own GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET — see SETUP.html.
-      authProviders: [github()],
     }),
     vitops({
       favicon: {

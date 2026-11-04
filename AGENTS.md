@@ -1549,10 +1549,16 @@ Five things are load-bearing:
   --write-tree` says whether merging would change `dev`. A merge made with the default
   `GITHUB_TOKEN` triggers no workflows, so without `BACKMERGE_TOKEN` the PR is left for a human —
   otherwise `dev` would take the fix without Deploy dev running and sit silently stale.
-- **Sign-in must work on both origins, so the template enables GitHub alongside passkeys.** A
+- **Sign-in must work on both origins, so the template ships magic link, not just passkeys.** A
   passkey only works at the origin it was registered on, so a refreshed dev site would lock every
-  editor out. GitHub links an existing user by **verified email**, so the same account works on
-  both; each origin still needs its own OAuth app (one callback URL each), set by hand.
+  editor out. Magic link needs only a working email provider — the template registers
+  `cloudflareEmail()` and an `EMAIL` `send_email` binding — and the cloned users already exist, so
+  the same address signs in on both origins with nothing per-origin to create. It was chosen over
+  EmDash's GitHub provider, which needs a separate OAuth app and two secrets for each origin (one
+  callback URL each), all by hand. The `from` must be on a domain onboarded with Cloudflare Email
+  Sending (`vitops email setup`, and usually the `send.` subdomain — see "Sender-domain
+  onboarding"); until it is, magic link answers "Email is not configured" and the only way in on a
+  refreshed dev site is a passkey registered there.
 - **No PII scrub on refresh.** Dev is the same organisation, platform and access as prod, so the
   copy carries the same handling obligations; it must stay gated like prod and `noindex`. Sessions
   are in the Astro session store (KV), not D1, so none are carried over.
