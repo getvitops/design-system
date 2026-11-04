@@ -11,6 +11,14 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## `@getvitops/create` 0.8.2 — 2026-11-04
+
+Template documentation only. The EmDash template's README and `AGENTS.md` now give the per-project
+skills install as `npx skills add emdash-cms/skills --skill '*' -y`: the CLI writes to `.agents/skills/`
+and symlinks into `.claude/skills/`, so every agent sees the same files. (0.8.0/0.8.1 named
+`-a claude-code`, which copies into `.claude/skills/` only.) **No consumer-facing change in any other
+package** — the toolchain stays at 8.2.0 and `@getvitops/emdash` at 1.0.0.
+
 ## 8.2.0 (+ `@getvitops/emdash` 1.0.0, `@getvitops/create` 0.8.1, new `@getvitops/config` 8.2.0) — 2026-11-04
 
 The first non-prerelease since 8.1.0. **It includes everything in the 8.2.0-alpha.0 notes below**

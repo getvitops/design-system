@@ -1,5 +1,11 @@
 # @getvitops/create
 
+## 0.8.2
+
+### Patch Changes
+
+- 29fc659: EmDash template: the per-project EmDash skills install command is now `npx skills add emdash-cms/skills --skill '*' -y`. Without `-a`, the CLI writes the skills to `.agents/skills/` and symlinks them into `.claude/skills/`, so Claude Code and every other agent see the same files. The 0.8.0 notes named `-a claude-code`, which copies into `.claude/skills/` only.
+
 ## 0.8.1
 
 ### Patch Changes

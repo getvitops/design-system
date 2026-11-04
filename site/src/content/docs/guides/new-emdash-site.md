@@ -49,13 +49,14 @@ this project pins. A global copy tracks "latest" and drifts ahead of a project p
 release — exactly when an agent would write code against APIs that don't exist yet. Install all six:
 
 ```sh
-npx skills add emdash-cms/skills --skill '*' -a claude-code -y
+npx skills add emdash-cms/skills --skill '*' -y
 ```
 
 That is `building-emdash-site`, `creating-plugins`, `emdash-cli`, `upgrading-emdash` and the two
-WordPress porting skills (useful when you migrate an existing client site). `-a claude-code` copies them
-into `.claude/skills/`; add `-a codex` (or another agent) to cover that agent too. Commit
-`.claude/skills/` and `skills-lock.json`. After you bump `emdash`, run `npx skills update` — the `upgrading-emdash` skill covers
+WordPress porting skills (useful when you migrate an existing client site). The CLI writes them once to
+`.agents/skills/` and symlinks each into `.claude/skills/`, so Claude Code and every other agent that
+reads `.agents/skills/` see the same files. Commit `.agents/skills/`, the `.claude/skills/` symlinks and
+`skills-lock.json`. After you bump `emdash`, run `npx skills update` — the `upgrading-emdash` skill covers
 the rest of the upgrade. See [EmDash's agent skills page](https://docs.emdashcms.com/agent-skills/) for
 the other install routes (Codex, a Claude Code plugin marketplace).
 
