@@ -5,8 +5,10 @@
  * A source-text test can't show this: the page serves whatever the component
  * rendered, and a hash of a slightly different string is a script the browser
  * silently refuses once the policy is enforced. Same setup and run command as
- * `container.test.ts` (`vitest.container.config.ts`); kept in its own file so the
- * existing one stays untouched.
+ * `container.test.ts`: it needs Astro's Vite plugin, so it runs only under
+ * `vitest run -c vitest.container.config.ts` (from packages/astro). The file is
+ * deliberately NOT named `*.test.ts`, so the root `vp test` doesn't pick it up and
+ * fail to parse `.astro` — which is what the existing `container.test.ts` does there.
  */
 import { createHash } from 'node:crypto';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
