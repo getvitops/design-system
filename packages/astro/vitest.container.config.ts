@@ -15,7 +15,7 @@ import { getViteConfig } from 'astro/config';
  */
 export default getViteConfig({
   test: {
-    include: ['src/components/container.test.ts'],
+    include: ['src/components/container.test.ts', 'src/components/sitenav.render.test.ts'],
     environment: 'node',
   },
 });

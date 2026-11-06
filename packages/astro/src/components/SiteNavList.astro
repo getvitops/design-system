@@ -1,0 +1,73 @@
+---
+/**
+ * One `<ul>` level of a `<SiteNav>`, recursing for sub-menus. Internal — import
+ * `SiteNav.astro`. Markup is `bricks/elements/sitenav.php`'s, deliberately identical,
+ * so `patterns/sitenav.css` styles both and a fix to one reaches the other:
+ *
+ *   <li class="sitenav__item sitenav__item--branch">
+ *     <a class="sitenav__link split-link__link">…</a>      ← the link is NOT in the summary
+ *     <details class="sitenav__disclosure"><summary>caret</summary></details>
+ *     <ul class="sitenav__submenu">…</ul>                  ← sibling, driven by :has([open])
+ *   </li>
+ *
+ * The `<details>` is never pre-opened for the current branch: at width the same native
+ * `[open]` PINS the dropdown visible, so an open-by-default branch would hang a menu
+ * over the page on every load. The current item is marked with `aria-current` instead.
+ */
+import { isCurrent, itemDescription, linkRel, type NavItem } from './sitenav.ts';
+
+interface Props {
+  items: NavItem[];
+  current: string;
+  top?: boolean;
+}
+
+const { items, current, top = true } = Astro.props;
+---
+
+<ul class={top ? 'sitenav__list' : 'sitenav__submenu'} role="list">
+  {
+    items.map((item) => {
+      const kids = item.children ?? [];
+      const desc = itemDescription(item);
+      const classes = [
+        'sitenav__link',
+        'split-link__link',
+        desc && 'sitenav__link--described',
+        item.cssClasses,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      const link = (
+        <a
+          class={classes}
+          href={item.url || '#'}
+          target={item.target || undefined}
+          rel={linkRel(item)}
+          aria-current={isCurrent(item.url, current) ? 'page' : undefined}
+        >
+          <span class="sitenav__label">{item.label}</span>
+          {desc && <span class="sitenav__desc">{desc}</span>}
+        </a>
+      );
+      return kids.length > 0 ? (
+        <li class="sitenav__item sitenav__item--branch">
+          {link}
+          <details class="sitenav__disclosure">
+            <summary
+              class="sitenav__subtoggle split-link__toggle"
+              aria-label={`Show ${item.label} submenu`}
+            >
+              <span class="split-link__caret" aria-hidden="true">
+                &#9662;
+              </span>
+            </summary>
+          </details>
+          <Astro.self items={kids} current={current} top={false} />
+        </li>
+      ) : (
+        <li class="sitenav__item">{link}</li>
+      );
+    })
+  }
+</ul>

@@ -382,8 +382,9 @@ export const TIERS: Record<string, TierEntry> = {
   },
   sitenav: {
     css: c(['sitenav', 'sitenav__link', 'sitenav--drawer-start'], 'patterns/sitenav.css'),
+    astro: [...a('SiteNav', 'css'), ...a('SiteFooter', 'css')],
     bricks: 'vitops-sitenav',
-    use: '`.sitenav` with `--bp-*` and a drawer direction. `<details>` + Invoker Commands, no JS.',
+    use: "`.sitenav` with `--bp-*` and a drawer direction. `<details>` + Invoker Commands, no JS. In Astro: `<SiteNav {...await loadNavMenus(getMenu)} />` renders EmDash menu `primary` (the default: dropdowns from `md`, drawer below) and, if they exist, `primary-mobile` (depth-1 nav below `md`) and `primary-mega` (mega panels from `xl`) — adding the menu in the admin is the whole change. An item's `titleAttr` is its description. `<SiteFooter sitemap legal name>` renders `footer-sitemap` + `footer-legal` + the copyright line.",
   },
   'split-link': {
     css: c(['split-link', 'split-link__toggle', 'split-link__panel'], 'patterns/split-link.css'),
