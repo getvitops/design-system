@@ -779,6 +779,20 @@ function readsAsConfig(path: string): boolean {
   }
 }
 
+/** Whether the site config sets `site.icons.sprite` — the fact that makes the generator emit icons.svg. */
+function siteWantsSprite(root: string, siteInput: string | undefined, siteEnv?: string): boolean {
+  if (!siteInput) return false;
+  try {
+    const cfg = resolveConfig(
+      JSON.parse(readFileSync(resolve(root, siteInput), 'utf8')),
+      siteEnv ?? 'production',
+    );
+    return Boolean((cfg.site.icons as { sprite?: boolean } | undefined)?.sprite);
+  } catch {
+    return false;
+  }
+}
+
 export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
   return {
     name: '@getvitops/astro',
@@ -993,14 +1007,35 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
 
         // 1b. Webfonts → Astro's `fonts:` config (+ <Font /> data for <Head />)
         let headFonts: HeadFont[] = [];
-        if (opts.fonts) {
-          const given: GetvitopsFontsOptions = Array.isArray(opts.fonts)
-            ? { families: opts.fonts }
-            : typeof opts.fonts === 'string'
-              ? { input: opts.fonts }
-              : opts.fonts === true
+        // `site.fonts` is a declaration of intent, so leaving the option unset must
+        // not silently drop it: no @font-face, no preload and no warning was the
+        // failure. An explicit `fonts: false` still opts out. A config that fails to
+        // resolve is left to the css pass to report, with its field paths.
+        let fontsOpt = opts.fonts;
+        if (fontsOpt === undefined && siteInput) {
+          try {
+            const cfg = resolveConfig(
+              JSON.parse(readFileSync(resolve(root, siteInput), 'utf8')),
+              opts.site?.siteEnv ?? 'production',
+            );
+            if ((cfg.site.fonts ?? []).length > 0) {
+              fontsOpt = true;
+              logger.info(
+                `fonts: ${siteInput} declares site.fonts, so webfonts are on (pass fonts: false to opt out)`,
+              );
+            }
+          } catch {
+            // reported by the css pass
+          }
+        }
+        if (fontsOpt) {
+          const given: GetvitopsFontsOptions = Array.isArray(fontsOpt)
+            ? { families: fontsOpt }
+            : typeof fontsOpt === 'string'
+              ? { input: fontsOpt }
+              : fontsOpt === true
                 ? {}
-                : opts.fonts;
+                : fontsOpt;
           // `fonts: true` (or an options object with no `input`) reads the site
           // config's own `fonts` array — one place to declare a family, next to
           // the rest of the site's facts. That config is wherever it is: the
@@ -1396,7 +1431,14 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
               ...(editor ? { editorManifestDir: publicDir } : {}),
               // Same mirroring rule as the manifest: the bytes are produced by
               // this pass, so the copy belongs inside it rather than in the hook.
-              ...(iconsData?.sprite ? { spriteDir: publicDir } : {}),
+              //
+              // Also when the SITE CONFIG asks for the sprite (`site.icons.sprite`):
+              // that alone makes the generator write icons.svg, but only the `icons`
+              // option used to mirror it, so the file was generated and never
+              // served — `/vitops/icons.svg` fell through to the catch-all.
+              ...(iconsData?.sprite || siteWantsSprite(root, siteInput, opts.site?.siteEnv)
+                ? { spriteDir: publicDir }
+                : {}),
               // Same reasoning: inside the pass, so the documents track the site
               // config in dev instead of going stale after the first build.
               ...(opts.legal ? { legal: { ...opts.legal, input: legalInput as string } } : {}),
