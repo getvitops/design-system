@@ -98,3 +98,38 @@ it('.agents/skills/setup/SKILL.md is identical across templates', () => {
   );
   for (const other of rest) expect(other.equals(first!)).toBe(true);
 });
+
+/**
+ * The emdash seed's navigation: three menus, and every URL in them must land on
+ * a page the same seed creates. A seeded link that 404s is the first thing a new
+ * site's visitor (and any later audit of its routes) finds.
+ */
+describe('emdash seed menus', () => {
+  const seed = JSON.parse(readFileSync(join(TEMPLATES, 'emdash', 'seed', 'seed.json'), 'utf8')) as {
+    menus: { name: string; items: { url: string; label: string }[] }[];
+    content: { pages: { slug: string }[] };
+  };
+
+  it('ships exactly primary, footer-sitemap and footer-legal', () => {
+    expect(seed.menus.map((m) => m.name)).toEqual(['primary', 'footer-sitemap', 'footer-legal']);
+  });
+
+  it('keeps the logo as the home link: primary holds Contact only', () => {
+    const primary = seed.menus.find((m) => m.name === 'primary')!;
+    expect(primary.items.map((i) => i.url)).toEqual(['/contact']);
+  });
+
+  it('points footer-legal at the three `vitops legal` documents', () => {
+    const legal = seed.menus.find((m) => m.name === 'footer-legal')!;
+    expect(legal.items.map((i) => i.url)).toEqual(['/privacy', '/terms', '/cookies']);
+  });
+
+  it('resolves every menu item to a seeded page', () => {
+    const slugs = new Set(seed.content.pages.map((p) => p.slug));
+    for (const menu of seed.menus)
+      for (const item of menu.items) {
+        const slug = item.url === '/' ? 'home' : item.url.slice(1);
+        expect(slugs.has(slug), `${menu.name}: ${item.url} has no seeded page`).toBe(true);
+      }
+  });
+});
