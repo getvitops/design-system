@@ -528,6 +528,22 @@ describe('terms of service', () => {
     expect(renderMarkdown(site, 'terms')).toContain('governed by the laws of France.');
   });
 
+  test('a business with no street address still validates and renders a postal line', () => {
+    const site = fixture(
+      {},
+      { address: { addressLocality: 'Ottawa', addressRegion: 'ON', addressCountry: 'Canada' } },
+    );
+    expect(validateConfig(site).ok).toBe(true);
+    const md = renderMarkdown(site, 'privacy');
+    expect(md).toContain('Ottawa');
+    expect(md).not.toContain('undefined');
+    expect(md).not.toMatch(/, ,|^, /m);
+  });
+
+  test('accepts an organization description', () => {
+    expect(validateConfig(fixture({}, { description: 'We build things.' })).ok).toBe(true);
+  });
+
   test('lets a consumer state the clause outright', () => {
     const site = fixture({
       legal: {

@@ -172,7 +172,10 @@ const DomainAliasSchema = z.strictObject({
 
 const PostalAddressSchema = desc(
   z.strictObject({
-    streetAddress: z.string(),
+    streetAddress: desc(
+      z.optional(z.string()),
+      'Street line. Optional: a business with no public street address (home-based, service-area) omits it, and the generated legal documents and JSON-LD simply leave the line out.',
+    ),
     addressLocality: desc(z.string(), 'City.'),
     addressRegion: desc(z.optional(z.string()), 'State / province.'),
     postalCode: z.optional(z.string()),
@@ -296,6 +299,10 @@ const OrganizationSchema = z.strictObject({
   address: desc(
     z.optional(PostalAddressSchema),
     'Registered/mailing address. Its `addressRegion` and `addressCountry` are what the governing-law clause of the generated terms of service defaults to.',
+  ),
+  description: desc(
+    z.optional(LocalizableSchema),
+    'One or two sentences on what the organization does → JSON-LD `description` and a fallback for SEO. Localisable.',
   ),
   taxID: desc(z.optional(z.string()), 'Tax identification number.'),
   vatID: desc(z.optional(z.string()), 'VAT identification number.'),
