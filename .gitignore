@@ -36,3 +36,4 @@ packages/create/templates/*/.astro/
 
 # `vitops audit` reports
 .vitops/audit/
+.vitops/e2e-audit/

@@ -185,3 +185,51 @@ jobs:
           name: playwright-report
           path: site/playwright-report/
           retention-days: 14
+
+  # End to end, whole toolchain: scaffold the emdash template against THIS checkout (packed into a
+  # throwaway Verdaccio, like `scaffold`), overlay a test-only seed (a page with every block and a
+  # `blocks`-field page, packages/create/e2e/), build it, serve the prerendered output with its
+  # `_headers` applied and run `vitops audit` over it. See scripts/e2e-audit.mjs.
+  #
+  # `--warn` means findings are REPORTED (job summary line + the uploaded report) but do not fail
+  # the build. To make the audit a gate, delete `-- --warn` below once the findings in the report
+  # are fixed or the budgets are tuned; the script then exits with the audit's own code. Setup
+  # failures (install, seed validation, build) fail the job either way. It never pauses here:
+  # `--pause` is refused when CI is set.
+  e2e-audit:
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-output
+
+      # The browser binary is cached by Playwright version: the download is the slow part, the
+      # system libraries (--with-deps) are not cacheable and are installed every run.
+      - name: Resolve the Playwright version
+        id: pw
+        run: echo "version=$(vp exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - name: Install Playwright's Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: vp exec playwright install --with-deps chromium
+      - name: Install Chromium's system libraries
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: vp exec playwright install-deps chromium
+
+      - name: Scaffold, build and audit
+        run: vp run verify:e2e -- --warn
+
+      - name: Upload the audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-audit-report
+          path: .vitops/e2e-audit/
+          retention-days: 14
