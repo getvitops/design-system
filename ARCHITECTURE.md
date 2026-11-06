@@ -395,6 +395,7 @@ Every task is `npx vp run <name>`, defined in [`vite.config.ts`](vite.config.ts)
 | `build:design`      | `… --format design`                                         | `build:generator`                                                   | **`DESIGN.md`** (repo root, tracked)      |
 | `build:packages`    | the six package builds in sequence                          | —                                                                   | —                                         |
 | `verify:scaffold`   | `node scripts/scaffold-check.mjs emdash && … static`        | `build:packages`                                                    | — (temp dir; uncached, hits the registry) |
+| `verify:e2e`        | `node scripts/e2e-audit.mjs`                                | `build:packages`                                                    | `.vitops/e2e-audit/` (report; uncached)   |
 | `release:version`   | `changeset version`                                         | —                                                                   | per-package `CHANGELOG.md`                |
 | `release`           | `vp test run && vp run build:packages && changeset publish` | —                                                                   | published tarballs                        |
 | `deploy`            | `node --env-file=.env lib/deploy.ts`                        | `build`                                                             | the remote theme                          |

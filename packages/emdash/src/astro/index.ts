@@ -23,7 +23,9 @@ import Hero from './blocks/Hero.astro';
 import ImageCompare from './blocks/ImageCompare.astro';
 import Logos from './blocks/Logos.astro';
 import Marquee from './blocks/Marquee.astro';
+import Nav from './blocks/Nav.astro';
 import Pricing from './blocks/Pricing.astro';
+import Reviews from './blocks/Reviews.astro';
 import Section from './blocks/Section.astro';
 import Stats from './blocks/Stats.astro';
 import Steps from './blocks/Steps.astro';
@@ -48,6 +50,8 @@ export const blockComponents = {
   'vitops.pricing': Pricing,
   'vitops.embed': Embed,
   'vitops.form': Form,
+  'vitops.reviews': Reviews,
+  'vitops.nav': Nav,
 };
 
 /** Keyed by block-type slug (see `SECTION_SLUG`), not by Portable Text `_type`. */

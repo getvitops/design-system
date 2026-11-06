@@ -146,6 +146,8 @@ export function resolveFields(rows: Record<string, unknown>[]): FormField[] {
 export function safeNext(input: unknown): string | null {
   const v = typeof input === 'string' ? input : '';
   if (!v.startsWith('/') || v.startsWith('//') || v.includes('\\') || v.length > 200) return null;
+  // Control characters (and a query/fragment) are exactly what a redirect target must not carry.
+  // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001f\u007f#?]/.test(v)) return null;
   return v;
 }

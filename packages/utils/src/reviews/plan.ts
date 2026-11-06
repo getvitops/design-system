@@ -117,7 +117,12 @@ export function formatPlan(p: ReviewsPlan): string {
  * is a design choice a config field should not have to spell out every time),
  * sorted, then capped by `limit`.
  */
-export function selectReviews(reviews: Review[], config: ReviewLocationConfig): Review[] {
+export function selectReviews(
+  reviews: Review[],
+  // Partial: only the display fields are read. A renderer not tied to one configured location
+  // (the EmDash block, which takes them from its own fields) has no `locationId` to supply.
+  config: Partial<ReviewLocationConfig>,
+): Review[] {
   const featuredIds = config.featured ?? [];
   const byId = new Map(reviews.map((r) => [r.id, r]));
   const featured = featuredIds.map((id) => byId.get(id)).filter((r): r is Review => !!r);

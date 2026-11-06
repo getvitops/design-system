@@ -42,6 +42,7 @@
     "src/components/SiteFooter.astro",
     "src/components/sitenav.ts",
     "src/schemas",
+    "src/json-ld.ts",
     "virtual.d.ts",
     "CHANGELOG.md",
     "src/components/Tracking.astro",

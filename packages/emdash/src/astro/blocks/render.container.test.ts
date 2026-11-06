@@ -262,6 +262,180 @@ describe('vitops.embed', () => {
   });
 });
 
+// The data the two new blocks read: the reviews cache (a virtual module the `vitops()`
+// integration serves; a container cannot register integrations) and EmDash's `getMenu`.
+const fixtures = vi.hoisted(() => ({
+  cache: { version: 1, locations: {} } as { version: 1; locations: Record<string, unknown> },
+  menus: {} as Record<string, unknown>,
+}));
+vi.mock('virtual:getvitops/reviews', () => ({
+  get default() {
+    return fixtures.cache;
+  },
+}));
+vi.mock('virtual:getvitops/icons', () => ({
+  default: { ui: 'ph', brand: 'ph', overrides: {}, engine: 'none' },
+}));
+vi.mock('emdash', () => ({ getMenu: async (name: string) => fixtures.menus[name] ?? null }));
+
+const review = (id: string, rating: number, extra: object = {}) => ({
+  id,
+  location: 'ottawa',
+  rating,
+  author: `Author ${id}`,
+  text: `Text ${id}`,
+  publishedAt: `2026-0${rating}-01T00:00:00Z`,
+  updatedAt: '2026-01-01T00:00:00Z',
+  ...extra,
+});
+
+describe('vitops.reviews', () => {
+  it('renders nothing when the cache is empty (a fresh scaffold has no reviews.json)', async () => {
+    fixtures.cache = { version: 1, locations: {} };
+    const { default: Reviews } = await import('./Reviews.astro');
+    // The dev-only note is allowed (vitest runs with DEV on); no card or wrapper is.
+    const html = await render(Reviews, { _type: 'vitops.reviews' });
+    expect(html).not.toContain('<article');
+    expect(html).not.toMatch(/class="reviews[" ]/);
+  });
+
+  it('selects with selectReviews: minRating, sort, limit and featured-first', async () => {
+    fixtures.cache = {
+      version: 1,
+      locations: {
+        ottawa: {
+          reviews: [review('a', 5), review('b', 4), review('c', 2), review('d', 5, { text: 'D' })],
+        },
+        toronto: { reviews: [review('z', 5)] },
+      },
+    };
+    const { default: Reviews } = await import('./Reviews.astro');
+    const html = await render(Reviews, {
+      location: 'ottawa',
+      minRating: '4',
+      sort: 'rating',
+      limit: 2,
+      featured: 'b',
+    });
+    // Featured first, then best rated; the 2-star and the other location are out.
+    const authors = [...html.matchAll(/Author (\w)</g)].map((m) => m[1]);
+    expect(authors).toEqual(['b', 'a']);
+    expect(html).not.toContain('Author z');
+  });
+
+  it('defaults avatars off, links the source with nofollow, and lays out as a subgrid', async () => {
+    fixtures.cache = {
+      version: 1,
+      locations: {
+        ottawa: {
+          reviews: [
+            review('a', 5, {
+              authorPhoto: 'https://lh3.googleusercontent.com/x',
+              url: 'https://g.co/r/1',
+            }),
+          ],
+        },
+      },
+    };
+    const { default: Reviews } = await import('./Reviews.astro');
+    const html = await render(Reviews, { columns: '2' });
+    expect(html).not.toContain('googleusercontent');
+    expect(html).toContain('class="subgrid"');
+    expect(html).toContain('--subgrid-cols: 2');
+    expect(html).toMatch(
+      /<a class="review__source link" href="https:\/\/g\.co\/r\/1" rel="nofollow/,
+    );
+    // JSON-LD is opt-in elsewhere and never emitted by the block.
+    expect(html).not.toContain('application/ld+json');
+    const withPhoto = await render(Reviews, { avatars: true });
+    expect(withPhoto).toContain('googleusercontent');
+  });
+
+  it('carousel and marquee layouts use the existing components', async () => {
+    fixtures.cache = { version: 1, locations: { ottawa: { reviews: [review('a', 5)] } } };
+    const { default: Reviews } = await import('./Reviews.astro');
+    const carousel = await render(Reviews, { layout: 'carousel', label: 'Praise' });
+    expect(carousel).toContain('<wc-carousel');
+    expect(carousel).toContain('aria-label="Praise"');
+    expect(carousel).toContain('class="carousel__slide"');
+    const marquee = await render(Reviews, { layout: 'marquee' });
+    expect(marquee).toContain('<wc-marquee');
+  });
+
+  it('puts tone on the surrounding band, not on the cards', async () => {
+    fixtures.cache = { version: 1, locations: { ottawa: { reviews: [review('a', 5)] } } };
+    const { default: Reviews } = await import('./Reviews.astro');
+    const html = await render(Reviews, { tone: 'brand-primary' });
+    expect(html).toContain('class="reviews tone"');
+    expect(html).toContain('<article class="review"');
+  });
+});
+
+describe('vitops.nav', () => {
+  const menu = {
+    label: 'Footer site map',
+    items: [
+      {
+        label: 'Services',
+        url: '/services',
+        children: [{ label: 'Web', url: '/services/web' }],
+      },
+      { label: 'Contact', url: '/contact' },
+      { label: 'Bad', url: 'javascript:alert(1)' },
+    ],
+  };
+
+  it('renders a named <nav> with the list, current page and no javascript: link', async () => {
+    fixtures.menus = { 'footer-sitemap': menu };
+    const { default: Nav } = await import('./Nav.astro');
+    const html = await render(Nav, { menu: 'footer-sitemap', depth: '2' });
+    expect(html).toContain('<nav aria-label="Footer site map">');
+    expect(html).toContain('class="navlist"');
+    expect(html).toContain('class="navlist__sub"');
+    expect(html).toContain('href="/services/web"');
+    expect(html).not.toContain('javascript:');
+  });
+
+  it('depth 1 drops the sub-links; columns/inline add their modifier', async () => {
+    fixtures.menus = { 'footer-sitemap': menu };
+    const { default: Nav } = await import('./Nav.astro');
+    const flat = await render(Nav, { menu: 'footer-sitemap', variant: 'columns' });
+    expect(flat).toContain('navlist navlist--columns');
+    expect(flat).not.toContain('/services/web');
+  });
+
+  it('never names itself like the header or footer landmark', async () => {
+    fixtures.menus = { primary: { label: 'Primary', items: [{ label: 'A', url: '/a' }] } };
+    const { default: Nav } = await import('./Nav.astro');
+    const html = await render(Nav, { menu: 'primary' });
+    expect(html).toContain('aria-label="Primary (this page)"');
+  });
+
+  it('heading is a real heading at the chosen level, outside the nav', async () => {
+    fixtures.menus = { 'footer-sitemap': menu };
+    const { default: Nav } = await import('./Nav.astro');
+    const html = await render(Nav, { menu: 'footer-sitemap', heading: 'Explore', level: '3' });
+    expect(html).toContain('<h3 class="font-heading">Explore</h3>');
+    expect(html).toContain('<nav aria-label="Explore">');
+  });
+
+  it('the sitenav variant renders <SiteNav> with that label', async () => {
+    fixtures.menus = { 'footer-sitemap': menu };
+    const { default: Nav } = await import('./Nav.astro');
+    const html = await render(Nav, { menu: 'footer-sitemap', variant: 'sitenav', _key: 'k1' });
+    expect(html).toContain('sitenav__list');
+    expect(html).toContain('aria-label="Footer site map"');
+    expect(html).toContain('navblock-k1');
+  });
+
+  it('a missing menu, an empty one or a non-slug name renders nothing', async () => {
+    fixtures.menus = { empty: { label: 'E', items: [] } };
+    const { default: Nav } = await import('./Nav.astro');
+    for (const name of ['nope', 'empty', '../etc'])
+      expect((await render(Nav, { menu: name })).trim(), name).toBe('');
+  });
+});
+
 // EmDash's <PortableText> reads the site's merged plugin component map from a virtual module its
 // own integration provides — which a container cannot register. Provide the real adapter for the
 // block the test nests, so it resolves as in production. (Not the whole `blockComponents` map:

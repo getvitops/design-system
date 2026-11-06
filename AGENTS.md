@@ -1178,6 +1178,23 @@ Other tools used:
   Runs on a dedicated port (`playwright.config.ts` explains why 4321, Astro's default, is the
   wrong one); wired into CI as its own `e2e` job, separate from `test`, because it needs a
   browser binary the unit-test job has no other reason to carry.
+- `npx vp run verify:e2e` — the whole-toolchain end-to-end (`scripts/e2e-audit.mjs`): scaffolds the
+  emdash template against THIS checkout's packages (shared Verdaccio plumbing in
+  `scripts/lib/scaffold.mjs`, same as `verify:scaffold`), lays the **test-only** overlay from
+  `packages/create/e2e/` over the scaffold's copy (a `/blocks` page with every plugin block, a
+  `/landings/showcase` page of `vitops_section` block types — fixtures keyed by block type,
+  `fixtures.test.ts` fails until a new block in `BLOCKS` has one), builds, serves `dist/client`
+  with `public/_headers` applied and runs `vitops audit`. The overlay must never reach
+  `templates/**` or the package's `files` (`templates.test.ts` guards it). The report lands in
+  `.vitops/e2e-audit/` (`report.md`, `report.json`); extra flags go after `--`: `--warn` (report
+  without failing — CI's current mode, see the `e2e-audit` job), `--out`, `--pages`, `--keep`.
+  **`--pause`** (or `VITOPS_E2E_PAUSE=1`) runs the audit, prints the results, then keeps the
+  server up and waits for Ctrl+C so you can browse the site and the report; it keeps the temp
+  scaffold unless `--no-keep`, and is **refused when `CI` is set**. `--serve-only` skips the audit
+  and pauses. A seed's sample content is only applied by EmDash's setup wizard, never by a build,
+  and the template's `runtime: 'check'` prerenders a pending-migrations page against an
+  unmigrated database — so the script seeds the local D1 through the dev-bypass setup endpoint
+  before building.
 
 ### Task Notes
 

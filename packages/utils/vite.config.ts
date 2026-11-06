@@ -35,6 +35,7 @@ export default defineConfig({
       'src/indexing/index.ts',
       'src/onboarding/index.ts',
       'src/reviews/index.ts',
+      'src/reviews/select.ts',
       'src/ads/index.ts',
       'src/turnstile/index.ts',
       'src/media/index.ts',

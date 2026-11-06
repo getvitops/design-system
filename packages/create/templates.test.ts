@@ -311,3 +311,31 @@ describe('emdash scripts/refresh-dev.mjs', async () => {
     ]);
   });
 });
+
+/**
+ * `e2e/` holds the TEST-ONLY overlay `scripts/e2e-audit.mjs` lays over a scaffold (a page
+ * using every block, a `blocks`-field collection, its route). A fresh `vp create` site must stay
+ * as it is, so the overlay must never be inside a template or in what the package publishes.
+ */
+describe('e2e overlay is not shipped', () => {
+  const pkg = JSON.parse(readFileSync(join(import.meta.dirname, 'package.json'), 'utf8'));
+
+  it("is not in the package's published `files`", () => {
+    // `templates` is a whitelist entry, so nothing outside it ships except the changelog.
+    expect(pkg.files).toEqual(['templates', 'CHANGELOG.md']);
+  });
+
+  it.each(templateNames)('is not inside template %s', (name) => {
+    const walk = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+        e.name === 'node_modules'
+          ? []
+          : e.isDirectory()
+            ? walk(join(dir, e.name))
+            : [join(dir, e.name)],
+      );
+    const files = walk(join(TEMPLATES, name));
+    expect(files.filter((f) => /[\\/]e2e[\\/]/.test(f))).toEqual([]);
+    expect(files.filter((f) => /landings[\\/]\[slug\]\.astro$/.test(f))).toEqual([]);
+  });
+});

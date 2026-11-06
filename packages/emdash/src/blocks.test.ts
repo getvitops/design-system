@@ -299,6 +299,51 @@ describe('cards (U19) and hero extensions', () => {
   });
 });
 
+describe('vitops.reviews', () => {
+  it('reads the cache as a build-time import and chooses with the shared selectReviews', async () => {
+    const source = await codeOf('src/astro/blocks/Reviews.astro');
+    expect(source).toContain("from 'virtual:getvitops/reviews'");
+    expect(source).toContain('selectReviews(');
+    // The Worker-safe subpath, never the root entry (its graph reaches node:fs).
+    expect(source).toContain("'@getvitops/utils/reviews/select'");
+    expect(source).not.toMatch(/@getvitops\/utils\/reviews'/);
+    expect(source).not.toMatch(/node:fs|readFileSync|readCache/);
+  });
+
+  it('keeps privacy-sensitive options off by default and offers no JSON-LD switch', () => {
+    const block = BLOCKS.find((b) => b.type === 'vitops.reviews')!;
+    const field = (id: string) => block.fields!.find((f) => f.action_id === id)!;
+    expect((field('avatars') as { initial_value: boolean }).initial_value).toBe(false);
+    expect(block.fields!.some((f) => /schema|jsonld/i.test(f.action_id))).toBe(false);
+  });
+});
+
+describe('vitops.nav', () => {
+  it('asks the plugin for the site menus and keeps a static fallback', () => {
+    const block = BLOCKS.find((b) => b.type === 'vitops.nav')!;
+    const menu = block.fields!.find((f) => f.action_id === 'menu') as unknown as {
+      options: { value: string }[];
+      optionsRoute: string;
+    };
+    expect(menu.optionsRoute).toBe('menus/list');
+    expect(menu.options.length).toBeGreaterThan(0);
+  });
+
+  it('the plugin registers the menus/list route', () => {
+    const plugin = createPlugin() as unknown as { routes: Record<string, unknown> };
+    expect(Object.keys(plugin.routes)).toContain('menus/list');
+  });
+
+  it('reuses the header nav helpers instead of copying them', async () => {
+    const source = await codeOf('src/astro/blocks/Nav.astro');
+    expect(source).toContain("'@getvitops/astro/components/sitenav.ts'");
+    expect(source).toContain('trimDepth(');
+    const tree = await codeOf('src/astro/blocks/NavTree.astro');
+    expect(tree).toContain('isCurrent(');
+    expect(tree).toContain('aria-current');
+  });
+});
+
 describe('selectBlocks', () => {
   const types = (blocks: { type: string }[]) => blocks.map((b) => b.type);
 

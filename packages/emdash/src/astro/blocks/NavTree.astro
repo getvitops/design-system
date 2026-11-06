@@ -1,0 +1,48 @@
+---
+/**
+ * One `<ul class="navlist">` level of `vitops.nav`, recursing for sub-links. Internal — import
+ * `Nav.astro`. Plain nested lists, no disclosure widgets: a page-body menu is read, not
+ * collapsed, so there is no state to manage and no runtime JS. The `.navlist` pattern is
+ * `patterns/sitenav.css`'s (all formats).
+ */
+import { isCurrent, linkRel, type NavItem } from '@getvitops/astro/components/sitenav.ts';
+import { safeHref } from './value.ts';
+
+interface Props {
+  items: NavItem[];
+  current: string;
+  /** Modifier classes on the top-level list (`navlist--inline`, …); empty for sub-levels. */
+  modifiers?: string[];
+  top?: boolean;
+}
+
+const { items, current, modifiers = [], top = true } = Astro.props;
+---
+
+<ul class:list={[top ? 'navlist' : 'navlist__sub', ...modifiers]} role="list">
+  {
+    items.map((item) => {
+      const href = safeHref(item.url);
+      const kids = item.children ?? [];
+      return (
+        <li class="navlist__item">
+          {href ? (
+            <a
+              class:list={['navlist__link', item.cssClasses]}
+              href={href}
+              target={item.target || undefined}
+              rel={linkRel(item)}
+              aria-current={isCurrent(item.url, current) ? 'page' : undefined}
+            >
+              {item.label}
+            </a>
+          ) : (
+            // A heading-only item (no or an unsafe URL) is a label, not a dead link.
+            <span class="navlist__label">{item.label}</span>
+          )}
+          {kids.length > 0 && <Astro.self items={kids} current={current} top={false} />}
+        </li>
+      );
+    })
+  }
+</ul>

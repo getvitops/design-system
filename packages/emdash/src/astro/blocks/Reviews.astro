@@ -1,0 +1,122 @@
+---
+/**
+ * Google reviews on the framework's `.review` pattern, from the committed
+ * `.vitops/reviews.json` cache (`vitops reviews`).
+ *
+ * **The data is a build-time import, never a filesystem read.** This renders in a Worker (and,
+ * with pages prerendered, inside the Cloudflare adapter's local workerd), where there is no
+ * `fs`. `virtual:getvitops/reviews` is served by the `vitops()` Astro integration from the
+ * project's `.vitops/reviews.json`; with no file it is an empty cache, so a fresh scaffold
+ * builds and this block renders nothing. A new review therefore reaches the page on the next
+ * rebuild after `vitops reviews` is re-run and committed — not when an editor saves.
+ *
+ * **Which reviews show is `selectReviews()`**, `@getvitops/utils`' one decision (featured ids
+ * first, then `minRating` / `sort` / `limit`). The block's fields are its
+ * `ReviewLocationConfig`; nothing is re-implemented here.
+ *
+ * The cards are the Astro `<ReviewCard>`, in a grid (`<Subgrid>`), a `<Carousel>` or a
+ * `<Marquee>`. Both of those emit their own `<wc-*>`, so there is no wrapper here, and each
+ * works with no JS. Reviewer photos are Google-hosted and default OFF (a third-party request
+ * for every visitor); the source link carries `rel="nofollow"`; review JSON-LD is not offered
+ * — Google treats a business marking up reviews of itself as ineligible for rich results.
+ * `tone` colours the surrounding band, never the cards, so `.tone` and the card's own
+ * background cannot fight over one element.
+ *
+ * With nothing to show the public page gets nothing; `astro dev` gets a note saying why, since
+ * "the block is blank" is otherwise indistinguishable from "the block is broken".
+ */
+import reviewCache from 'virtual:getvitops/reviews';
+import { selectReviews, type Review, type ReviewCache } from '@getvitops/utils/reviews/select';
+import Carousel from '@getvitops/astro/components/Carousel.astro';
+import Marquee from '@getvitops/astro/components/Marquee.astro';
+import ReviewCard from '@getvitops/astro/components/ReviewCard.astro';
+import Subgrid from '@getvitops/astro/components/Subgrid.astro';
+import { joinStyle, resolveTone } from './tone.ts';
+import { resolveBlockValue, splitLines, text } from './value.ts';
+
+interface Value {
+  label?: string;
+  location?: string;
+  layout?: string;
+  columns?: string | number;
+  limit?: string | number;
+  minRating?: string | number;
+  sort?: string;
+  featured?: string;
+  avatars?: boolean;
+  tone?: string;
+  color?: string;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const cache = reviewCache as unknown as ReviewCache;
+
+// A blank location means "every location in the cache" — the common case is one, and a
+// multi-location site that wants one location names it.
+const key = text(value.location);
+const pool: Review[] = (key ? [cache.locations[key]] : Object.values(cache.locations)).flatMap(
+  (l) => l?.reviews ?? [],
+);
+
+const limit = Math.round(Number(value.limit));
+const minRating = Math.round(Number(value.minRating));
+const reviews = selectReviews(pool, {
+  featured: splitLines(value.featured),
+  ...(minRating >= 1 && minRating <= 5 ? { minRating } : {}),
+  sort: value.sort === 'rating' ? 'rating' : 'recent',
+  // 0 / blank = no cap, the same as leaving `limit` unset in `site.reviews`.
+  ...(limit > 0 ? { limit } : {}),
+});
+
+const label = text(value.label) || 'Customer reviews';
+const layout = ['carousel', 'marquee'].includes(text(value.layout)) ? text(value.layout) : 'grid';
+const columns = Math.min(4, Math.max(1, Math.round(Number(value.columns)) || 3));
+const avatar = Boolean(value.avatars);
+const tone = resolveTone(value.tone, value.color);
+const toned = Boolean(value.tone || value.color);
+const dev = import.meta.env.DEV;
+---
+
+{
+  reviews.length > 0 ? (
+    <div
+      class:list={['reviews', toned && tone.className]}
+      style={toned ? joinStyle(tone.style) : undefined}
+    >
+      {layout === 'carousel' ? (
+        <Carousel label={label}>
+          {reviews.map((review) => (
+            <li class="carousel__slide">
+              <ReviewCard review={review} avatar={avatar} />
+            </li>
+          ))}
+        </Carousel>
+      ) : layout === 'marquee' ? (
+        <Marquee pauseOnHover aria-label={label} role="group">
+          {reviews.map((review) => (
+            <ReviewCard review={review} avatar={avatar} />
+          ))}
+        </Marquee>
+      ) : (
+        <Subgrid
+          aria-label={label}
+          style={`--subgrid-cols: ${columns}; --subgrid-row-span: 1`}
+        >
+          {reviews.map((review) => (
+            <li>
+              <ReviewCard review={review} avatar={avatar} />
+            </li>
+          ))}
+        </Subgrid>
+      )}
+    </div>
+  ) : (
+    dev && (
+      <p class="reviews__empty" role="note">
+        vitops.reviews: no reviews to show
+        {key ? ` for location "${key}"` : ''}. Run <code>vitops reviews</code> and commit
+        <code>.vitops/reviews.json</code>, or lower the rating filter. (Shown in dev only.)
+      </p>
+    )
+  )
+}
