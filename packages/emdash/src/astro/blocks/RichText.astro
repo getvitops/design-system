@@ -1,0 +1,14 @@
+---
+/**
+ * Inline text with `[label](url)` links, rendered from `linkRuns()` runs — no `set:html`,
+ * so editor text can never inject markup. Internal to the block adapters.
+ */
+import { linkRuns } from './value.ts';
+
+interface Props {
+  text: unknown;
+}
+const runs = linkRuns(Astro.props.text);
+---
+
+{runs.map((run) => (run.href ? <a class="link" href={run.href}>{run.text}</a> : run.text))}

@@ -1,4 +1,5 @@
 import { BLOCKS, type BlockKitFieldDef, type PortableTextBlockDef } from './blocks.ts';
+import { vitopsBlockTypes } from './block-types.ts';
 
 const cell = (s: string | undefined) => (s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
@@ -43,8 +44,18 @@ export function renderBlocksDoc(blocks: readonly PortableTextBlockDef[] = BLOCKS
     '# EmDash blocks',
     '',
     'Each block is a Portable Text object: `{ "_type": "vitops.cards", "_key": "<unique>", ...fields }`.',
-    'Blocks are flat — a block cannot contain other blocks, and a repeater row holds scalar fields only.',
+    'Portable Text blocks are flat — they cannot contain other blocks, and a repeater row holds scalar fields only.',
+    'To put blocks inside something, use the section block TYPE (end of this page), whose body is Portable Text.',
     'Give every block a unique `_key`; gallery and carousel derive their element id from it.',
+    '',
+    '## Colour: `tone` and `color`',
+    '',
+    'Every block that colours something takes the same two fields. `tone` is a colour role from the',
+    "site's `colors.roles` (or a semantic name); an unknown role falls back through its semantic",
+    'relatives to `neutral`. `color` is an escape hatch naming a palette hue (`amber`) or hue and step',
+    '(`amber-300`) and wins over `tone`; its contrast is not checked. Renderers emit `--tone-*` custom',
+    'properties, never a class built from the value. Multiline fields that accept links take',
+    '`[text](/url)`; hero headings accent words wrapped in `*stars*`.',
     '',
   ];
   for (const b of blocks) {
@@ -58,6 +69,30 @@ export function renderBlocksDoc(blocks: readonly PortableTextBlockDef[] = BLOCKS
         '',
       );
     }
+  }
+  out.push(
+    '## Block types (the `blocks` field)',
+    '',
+    'Schema-level block types, not Portable Text blocks: add them to the seed (`blockTypes: [...vitopsBlockTypes()]`),',
+    "allow the slug on the collection's `blocks` field, and render with `blockTypeComponents` from `@getvitops/emdash/astro`.",
+    '',
+  );
+  for (const t of vitopsBlockTypes()) {
+    out.push(`### \`${t.slug}\` — ${t.label}`, '', `${t.description ?? ''}`, '');
+    const fields = t.versions.find((v) => v.version === t.currentVersion)?.fields ?? [];
+    out.push(
+      '| Field | Type | Label | Notes |',
+      '| --- | --- | --- | --- |',
+      ...fields.map((f) => {
+        const notes = [
+          f.validation?.options ? `one of ${f.validation.options.join(', ')}` : '',
+          f.defaultValue !== undefined ? `default \`${String(f.defaultValue)}\`` : '',
+          f.type === 'portableText' ? 'accepts every `vitops.*` block above' : '',
+        ].filter(Boolean);
+        return `| \`${f.slug}\` | ${f.type} | ${cell(f.label)} | ${cell(notes.join('; '))} |`;
+      }),
+      '',
+    );
   }
   return out.join('\n');
 }

@@ -67,6 +67,8 @@ export default defineConfig({
       // Agent worktrees are whole checkouts with no install of their own; their tests can't resolve.
       '.claude/worktrees/**',
       'packages/astro/src/components/container.test.ts',
+      // Same reason, and unlike the astro one it works: `cd packages/emdash && pnpm run test:render`.
+      'packages/emdash/src/astro/blocks/render.container.test.ts',
     ],
   },
 

@@ -1,0 +1,59 @@
+---
+/**
+ * Headline figures on the framework's `.stats` pattern, each figure the existing
+ * `<Counter>` (which emits its own `<wc-counter>` — no wrapper here). `variant: tiles` is
+ * the generic kernel of a dashboard mock: a group line, the figure, its label and a
+ * delta whose `state` (`up`/`down`) colours it through the site's success/danger roles.
+ * The delta's words stay in the text, so colour is never the only carrier.
+ *
+ * `animate: false` renders the plain fragment (`enhance={false}`) — no count-up.
+ */
+import Counter from '@getvitops/astro/components/Counter.astro';
+import { resolveTone, joinStyle } from './tone.ts';
+import { resolveBlockValue, rows, text } from './value.ts';
+
+interface Value {
+  stats?: unknown;
+  variant?: string;
+  animate?: boolean;
+  tone?: string;
+  color?: string;
+}
+
+const STATES = new Set(['up', 'down']);
+
+const value = resolveBlockValue<Value>(Astro.props);
+const stats = rows<Record<string, unknown>>(value.stats)
+  .map((row) => ({
+    value: text(row.value),
+    label: text(row.label),
+    group: text(row.group),
+    delta: text(row.delta),
+    state: STATES.has(text(row.state)) ? text(row.state) : undefined,
+  }))
+  .filter((stat) => stat.value);
+const tiles = value.variant === 'tiles';
+const animate = value.animate !== false;
+const tone = resolveTone(value.tone, value.color);
+---
+
+{
+  stats.length > 0 && (
+    <ul
+      class:list={['stats', tone.className, tiles && 'stats--tiles']}
+      role="list"
+      style={joinStyle(tone.style)}
+    >
+      {stats.map((stat) => (
+        <li class="stats__item" data-state={stat.state}>
+          {tiles && stat.group && <p class="stats__group font-eyebrow">{stat.group}</p>}
+          <p class="stats__figure font-display">
+            <Counter value={stat.value} enhance={animate} />
+          </p>
+          {stat.label && <p class="stats__label">{stat.label}</p>}
+          {tiles && stat.delta && <p class="stats__delta">{stat.delta}</p>}
+        </li>
+      ))}
+    </ul>
+  )
+}

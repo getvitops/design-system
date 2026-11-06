@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vite-plus/test';
 import pkg from '../package.json' with { type: 'json' };
 import { TIERS } from '@getvitops/generator';
 import { BLOCKS, selectBlocks } from './blocks.ts';
+import { SECTION_FIELDS, vitopsBlockTypes } from './block-types.ts';
+import { SEMANTIC_TONES } from './astro/blocks/tone.ts';
 import { SEMANTIC_ICON_OPTIONS } from './icon-options.ts';
 import { createPlugin, vitopsEmdash } from './index.ts';
 
@@ -126,8 +128,19 @@ describe('blocks ↔ the TIERS manifest', () => {
     ).not.toEqual([]);
   });
 
+  it('a block TYPE (block-types.ts) is claimed too, under its slug', () => {
+    for (const { slug } of vitopsBlockTypes())
+      expect(
+        claimed(slug).map(([name]) => name),
+        `no TIERS entry lists '${slug}'`,
+      ).not.toEqual([]);
+  });
+
   it('TIERS lists no block this package does not define', () => {
-    const defined = new Set(BLOCKS.map((b) => b.type));
+    const defined = new Set([
+      ...BLOCKS.map((b) => b.type),
+      ...vitopsBlockTypes().map((t) => t.slug),
+    ]);
     const phantom = entries.flatMap(([name, e]) =>
       (e.emdash ?? []).filter((t) => !defined.has(t)).map((t) => `${name}: ${t}`),
     );
@@ -177,6 +190,112 @@ describe('semantic icon options', () => {
     expect(combos.map((f) => f.action_id)).toEqual(['startIcon', 'endIcon']);
     for (const f of combos)
       expect((f as { options: unknown[] }).options).toBe(SEMANTIC_ICON_OPTIONS);
+  });
+});
+
+describe('vitops_section block type', () => {
+  const [section] = vitopsBlockTypes();
+
+  it('is a valid block-type slug (no dot) and versioned from 1', () => {
+    expect(section!.slug).toMatch(/^[a-z][a-z0-9_]*$/);
+    expect(section!.currentVersion).toBe(1);
+    expect(section!.versions.map((v) => v.version)).toEqual([1]);
+  });
+
+  it('has a Portable Text body — the reason it is a block type, not a Portable Text block', () => {
+    expect(SECTION_FIELDS.find((f) => f.slug === 'body')?.type).toBe('portableText');
+  });
+
+  it('every select declares its options, as the schema requires', () => {
+    for (const f of SECTION_FIELDS.filter((x) => x.type === 'select'))
+      expect(f.validation?.options?.length, f.slug).toBeGreaterThan(0);
+  });
+
+  it('every field slug is consumed by Section.astro, and it renders the body through <PortableText>', async () => {
+    const source = await codeOf('src/astro/blocks/Section.astro');
+    for (const f of SECTION_FIELDS)
+      expect(source, `Section.astro missing '${f.slug}'`).toMatch(new RegExp(`\\b${f.slug}\\b`));
+    expect(source).toContain('<PortableText value={body}');
+  });
+
+  it('is exported from the componentsEntry under its slug', async () => {
+    const source = await readFile(new URL('./astro/index.ts', import.meta.url), 'utf8');
+    expect(source).toMatch(/blockTypeComponents[\s\S]*vitops_section: Section/);
+  });
+});
+
+describe('the shared tone convention', () => {
+  // `vitops.banner` keeps its original four-value `tone` (non-breaking), so it is the one
+  // block with a `tone` field that is not on the shared convention.
+  const colouring = BLOCKS.filter(
+    (b) => b.type !== 'vitops.banner' && b.fields?.some((f) => f.action_id === 'tone'),
+  );
+
+  it('every block that offers a tone offers the color escape hatch beside it', () => {
+    expect(colouring.map((b) => b.type)).toEqual(
+      expect.arrayContaining([
+        'vitops.hero',
+        'vitops.cards',
+        'vitops.steps',
+        'vitops.stats',
+        'vitops.callout',
+      ]),
+    );
+    for (const b of colouring)
+      expect(
+        b.fields!.some((f) => f.action_id === 'color'),
+        b.type,
+      ).toBe(true);
+  });
+
+  it('the tone select asks the plugin route for the site roles and keeps a static fallback', () => {
+    for (const b of colouring) {
+      const tone = b.fields!.find((f) => f.action_id === 'tone') as unknown as {
+        options: { value: string }[];
+        optionsRoute: string;
+      };
+      expect(tone.optionsRoute, b.type).toBe('tones/list');
+      expect(tone.options.map((o) => o.value)).toEqual(['', ...SEMANTIC_TONES]);
+    }
+  });
+
+  it('components resolve tone through resolveTone, never a class built from the value', async () => {
+    for (const b of colouring) {
+      const source = await codeOf(componentFiles[b.type]!);
+      expect(source, b.type).toContain('resolveTone(');
+      expect(source, b.type).not.toMatch(/bg-\$\{|text-\$\{/);
+    }
+  });
+
+  it('the legacy banner tone and actionLink role values keep working', () => {
+    const banner = BLOCKS.find((b) => b.type === 'vitops.banner')!;
+    const tone = banner.fields!.find((f) => f.action_id === 'tone') as {
+      options: { value: string }[];
+    };
+    expect(tone.options.map((o) => o.value)).toEqual(['info', 'success', 'warning', 'danger']);
+  });
+
+  it('the plugin serves the roles at tones/list: stated, with the semantic names kept', async () => {
+    const plugin = createPlugin({ tones: ['brand-primary', 'danger'] }) as unknown as {
+      routes: Record<string, { handler: (ctx: unknown) => Promise<{ items: { id: string }[] }> }>;
+    };
+    const { items } = await plugin.routes['tones/list']!.handler({});
+    expect(items.map((i) => i.id)).toEqual([
+      '',
+      'brand-primary',
+      'danger',
+      ...SEMANTIC_TONES.filter((t) => t !== 'danger'),
+    ]);
+  });
+});
+
+describe('cards (U19) and hero extensions', () => {
+  it('a card title is a real heading with a level, not <p class="font-heading">', async () => {
+    const source = await codeOf('src/astro/blocks/Cards.astro');
+    expect(source).toContain('<Heading class="font-heading"');
+    expect(source).not.toMatch(/<p class="font-heading"/);
+    const cards = BLOCKS.find((b) => b.type === 'vitops.cards')!;
+    expect(cards.fields!.some((f) => f.action_id === 'level')).toBe(true);
   });
 });
 

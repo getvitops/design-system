@@ -30,6 +30,9 @@
   "publishConfig": {
     "access": "public"
   },
+  "scripts": {
+    "test:render": "vitest --config vitest.container.config.ts run"
+  },
   "dependencies": {
     "@getvitops/generator": "workspace:*",
     "@getvitops/utils": "workspace:*"

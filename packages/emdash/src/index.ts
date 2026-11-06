@@ -29,7 +29,8 @@ import type {
   PluginContext,
   PluginDescriptor,
 } from 'emdash';
-import { BLOCKS, selectBlocks, type BlockSelection } from './blocks.ts';
+import { BLOCKS, TONES_ROUTE, selectBlocks, type BlockSelection } from './blocks.ts';
+import { createTonesRoute, rolesOf } from './tones-route.ts';
 import {
   createDesignSystemRoute,
   designSystemOverrideFragment,
@@ -39,6 +40,8 @@ import {
 export { BLOCKS } from './blocks.ts';
 export { selectBlocks } from './blocks.ts';
 export { renderBlocksDoc } from './blocks-doc.ts';
+export { SECTION_BLOCK_TYPE, SECTION_SLUG, vitopsBlockTypes } from './block-types.ts';
+export { resolveTone, toneChain } from './astro/blocks/tone.ts';
 export type { BlockKitFieldDef, BlockSelection, PortableTextBlockDef } from './blocks.ts';
 export { vitopsHosting } from './hosting.ts';
 export type { HostingTarget, VitopsHosting, VitopsHostingOptions } from './hosting.ts';
@@ -90,6 +93,13 @@ export interface VitopsEmdashOptions {
    * site's own — whose renderers the site supplies, see {@link BlockSelection}.
    */
   blocks?: BlockSelection;
+  /**
+   * The site's colour role names (`Object.keys(site.designSystem.colors.roles)`), offered in
+   * every block's `tone` select next to the semantic names. When omitted and
+   * `designSystemEditor.config` is set, they are read from that config. With neither, the
+   * select offers only the semantic names — an editor can still type a palette colour.
+   */
+  tones?: string[];
 }
 
 /**
@@ -120,6 +130,9 @@ export function createPlugin(options: VitopsEmdashOptions = {}) {
   const wcBase = options.wcBase ?? '/vitops';
   const editor = options.designSystemEditor || undefined;
   const fragmentsEnabled = scripts === 'fragments' || !!editor;
+  // The site's colour roles, for every block's `tone` select: stated, or read from the config
+  // the design-system editor already carries — see tones-route.ts.
+  const roles = options.tones ?? rolesOf(editor?.config);
 
   // Mirrors @getvitops/astro Head.astro: module polyfills + elements in
   // head, deferred enhancements at end of body. Composed with the
@@ -177,13 +190,10 @@ export function createPlugin(options: VitopsEmdashOptions = {}) {
         : {}),
     },
 
-    ...(editor
-      ? {
-          routes: {
-            'design-system': createDesignSystemRoute(editor),
-          },
-        }
-      : {}),
+    routes: {
+      [TONES_ROUTE]: createTonesRoute(() => roles),
+      ...(editor ? { 'design-system': createDesignSystemRoute(editor) } : {}),
+    },
   });
 }
 

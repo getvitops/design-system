@@ -1,0 +1,66 @@
+---
+/**
+ * Plan cards on the framework's `.pricing-grid` / `.pricing-card` pattern (patterns/
+ * subgrid.css): each card is a subgrid over four shared rows — header, price, features,
+ * button — so features and buttons line up across plans whatever each holds.
+ *
+ * `--pricing-card-rows` must name those four rows or the cards do not span them; it is set
+ * here rather than left to the pattern's `auto`, which is not a valid `span`.
+ */
+import { headingTag, lines, resolveBlockValue, rows, safeHref, text } from './value.ts';
+
+interface Value {
+  plans?: unknown;
+  level?: string | number;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const plans = rows<Record<string, unknown>>(value.plans)
+  .map((row) => ({
+    name: text(row.name),
+    price: text(row.price),
+    period: text(row.period),
+    features: lines(row.features),
+    ctaLabel: text(row.ctaLabel),
+    ctaHref: safeHref(row.ctaHref),
+    featured: row.featured === true,
+  }))
+  .filter((plan) => plan.name || plan.price);
+const Heading = headingTag(value.level, 3);
+const columns = Math.min(4, Math.max(1, plans.length));
+---
+
+{
+  plans.length > 0 && (
+    <ul
+      class="pricing-grid"
+      role="list"
+      style={`--pricing-columns: ${columns}; --pricing-card-rows: 4`}
+    >
+      {plans.map((plan) => (
+        <li class:list={['pricing-card', plan.featured && 'pricing-card--featured']}>
+          <div class="pricing-card__header">
+            {plan.name && <Heading class="font-title">{plan.name}</Heading>}
+          </div>
+          <p class="pricing-card__price">
+            {plan.price}
+            {plan.period && <small class="font-caption"> {plan.period}</small>}
+          </p>
+          <ul class="pricing-card__features" role="list">
+            {plan.features.map((feature) => (
+              <li class="pricing-card__feature">{feature}</li>
+            ))}
+          </ul>
+          <div class="pricing-card__cta">
+            {plan.ctaLabel && plan.ctaHref && (
+              <a class:list={[plan.featured ? 'cta' : 'btn']} href={plan.ctaHref}>
+                {plan.ctaLabel}
+                <span class="sr-only"> — {plan.name}</span>
+              </a>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
