@@ -17,7 +17,7 @@
  * is a human's call, made in `SETUP.html`, not a step this command applies.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   adminCollaboratorIds,
@@ -50,7 +50,20 @@ import {
   type HostingSetup,
   type HostingState,
 } from '@getvitops/utils/hosting';
+import {
+  createWidget,
+  deriveDomains,
+  formatPlan as formatTurnstilePlan,
+  formatSummary as formatTurnstileSummary,
+  hasDrift as hasTurnstileDrift,
+  listWidgets,
+  patchSiteKey,
+  plan as planTurnstile,
+  resolveAccountId,
+  type TurnstileResult,
+} from '@getvitops/utils/turnstile';
 import { parse, msg } from '../args.ts';
+import { CLOUDFLARE_TOKEN_HINT, loadCloudflareToken } from '../credentials.ts';
 import { fail, loadConfig, SITE_OPTS } from './shared.ts';
 
 const SETUP_HELP = `vitops setup <sub> [options]
@@ -58,6 +71,7 @@ const SETUP_HELP = `vitops setup <sub> [options]
   vitops setup repo    [--dry] [--check] [--public]
   vitops setup hosting [--dry] [--check] [--platform cloudflare|node]
   vitops setup domain  [--dry] [--check] [--domain <apex>]
+  vitops setup turnstile [--dry] [--check] [--no-write] [--no-secret]
   vitops setup search  [options]   (forwards to \`vitops search setup\`)
   vitops setup ads     [options]   (forwards to \`vitops ads setup\`)
   vitops setup all     [--dry] [--check] [--public] [--platform <p>]
@@ -370,6 +384,140 @@ async function cmdSetupDomain(argv: string[]) {
   if (a.flag('check') && step.action !== 'skip') process.exit(1);
 }
 
+/**
+ * Create the Cloudflare Turnstile widget for the site and record its PUBLIC site key.
+ *
+ * The secret is returned by Cloudflare only at creation. It is never written to a config
+ * file: it is piped to `wrangler secret put VITOPS_TURNSTILE_SECRET` on stdin (never argv,
+ * never logged). If that fails, it is shown once on an interactive terminal and otherwise
+ * not at all, with the rotate instruction. Never edits, rotates or deletes a widget.
+ */
+async function cmdSetupTurnstile(argv: string[]) {
+  const a = parse(argv, {
+    ...SITE_OPTS,
+    dry: { type: 'boolean', default: false },
+    check: { type: 'boolean', default: false },
+    'no-write': { type: 'boolean', default: false },
+    'no-secret': { type: 'boolean', default: false },
+  });
+  const input = a.path('input');
+  const cfg = await loadConfig(input, a.str('site-env'));
+  const dry = a.flag('dry');
+  const check = a.flag('check');
+  const token = loadCloudflareToken();
+  // Like `ads setup`: a dry run mutates nothing, so it must not demand the credential.
+  if (!token && !dry)
+    fail(
+      `${CLOUDFLARE_TOKEN_HINT}\n  For this command the token needs "Account > Turnstile > Edit" ` +
+        `(also set CLOUDFLARE_ACCOUNT_ID, or the token must be able to list accounts).`,
+    );
+
+  const setup = {
+    name: (() => {
+      // `organization.name` may be a per-locale map; any one value names the widget.
+      const n = cfg.organization?.name;
+      return (typeof n === 'string' ? n : n ? Object.values(n)[0] : undefined) ?? projectName();
+    })(),
+    domains: deriveDomains(cfg.site),
+    siteKey: cfg.site.security?.turnstile?.siteKey,
+  };
+  let accountId: string | undefined;
+  let widgets: Awaited<ReturnType<typeof listWidgets>>['widgets'] = [];
+  if (token) {
+    const acct = await resolveAccountId(token, process.env.CLOUDFLARE_ACCOUNT_ID || undefined);
+    if (!acct.ok) {
+      if (!dry) fail(`Cloudflare account: ${acct.message}`);
+    } else {
+      accountId = acct.accountId;
+      const listed = await listWidgets(token, accountId!);
+      if (!listed.ok) fail(`listing Turnstile widgets: ${listed.message}`);
+      widgets = listed.widgets;
+    }
+  }
+  const p = planTurnstile(setup, { accountId, widgets });
+
+  if (dry || check) {
+    console.log(formatTurnstilePlan(p));
+    if (check && hasTurnstileDrift(p)) {
+      console.error('\n✖ Turnstile is not set up');
+      process.exit(1);
+    }
+    return;
+  }
+
+  const results: TurnstileResult[] = [];
+  let siteKey = p.adopt?.sitekey;
+  if (p.widget.action === 'blocked') {
+    results.push({ step: 'widget', status: 'blocked', detail: p.widget.detail });
+  } else if (p.widget.action === 'create') {
+    const r = await createWidget(token!, accountId!, { name: setup.name, domains: p.domains });
+    if (!r.ok) results.push({ step: 'widget', status: 'failed', detail: r.message ?? 'failed' });
+    else {
+      siteKey = r.sitekey;
+      results.push({ step: 'widget', status: 'created', detail: r.sitekey! });
+      if (a.flag('no-secret')) {
+        console.error(
+          '! --no-secret: the secret was NOT saved and cannot be read back. Rotate it in the dashboard, then `wrangler secret put VITOPS_TURNSTILE_SECRET`.',
+        );
+      } else {
+        try {
+          execFileSync('npx', ['wrangler', 'secret', 'put', 'VITOPS_TURNSTILE_SECRET'], {
+            input: r.secret!,
+            stdio: ['pipe', 'inherit', 'inherit'],
+          });
+          results.push({
+            step: 'secret',
+            status: 'created',
+            detail: 'VITOPS_TURNSTILE_SECRET (Worker secret)',
+          });
+        } catch {
+          results.push({ step: 'secret', status: 'failed', detail: 'wrangler secret put failed' });
+          if (process.stdout.isTTY) {
+            console.error(
+              `! Save this now, it is shown once: VITOPS_TURNSTILE_SECRET=${r.secret}\n  Then: npx wrangler secret put VITOPS_TURNSTILE_SECRET`,
+            );
+          } else {
+            console.error(
+              '! The secret was not saved and is not printed (non-interactive). Rotate it in the dashboard, then `wrangler secret put VITOPS_TURNSTILE_SECRET`.',
+            );
+          }
+        }
+      }
+    }
+  } else results.push({ step: 'widget', status: 'present', detail: p.widget.detail });
+
+  if (siteKey && p.config.action === 'create' && !a.flag('no-write')) {
+    if (!input.endsWith('.json'))
+      results.push({
+        step: 'site.json',
+        status: 'blocked',
+        detail: `${input} is a module — add site.security.turnstile.siteKey: "${siteKey}" yourself`,
+      });
+    else {
+      const source = readFileSync(input, 'utf8');
+      const indent = /\n([ \t]+)"/.exec(source)?.[1];
+      writeFileSync(
+        input,
+        JSON.stringify(
+          patchSiteKey(JSON.parse(source), siteKey),
+          null,
+          indent?.includes('\t') ? '\t' : (indent?.length ?? 2),
+        ) + (source.endsWith('\n') ? '\n' : ''),
+      );
+      results.push({
+        step: 'site.json',
+        status: 'created',
+        detail: 'site.security.turnstile.siteKey',
+      });
+    }
+  } else if (p.config.action === 'skip')
+    results.push({ step: 'site.json', status: 'present', detail: p.config.detail });
+
+  console.log(`\n${formatTurnstileSummary(results)}`);
+  for (const r of p.reminders) console.log(`  ${r}`);
+  if (results.some((r) => r.status === 'failed' || r.status === 'blocked')) process.exit(1);
+}
+
 /** Forward to the CLI's own `search setup` / `ads setup` as a child process — see
  * this module's docblock for why (their behaviour must not be re-derived). */
 function forward(sub: 'search' | 'ads', argv: string[]): boolean {
@@ -392,6 +540,8 @@ export async function cmdSetup(argv: string[]): Promise<void> {
       return cmdSetupHosting(rest);
     case 'domain':
       return cmdSetupDomain(rest);
+    case 'turnstile':
+      return cmdSetupTurnstile(rest);
     case 'search':
       if (!forward('search', rest)) process.exit(1);
       return;
@@ -434,7 +584,7 @@ export async function cmdSetup(argv: string[]): Promise<void> {
       return;
     default:
       fail(
-        `unknown "setup" subcommand "${sub}" (expected: repo | hosting | domain | search | ads | all). Try: vitops --help`,
+        `unknown "setup" subcommand "${sub}" (expected: repo | hosting | domain | turnstile | search | ads | all). Try: vitops --help`,
       );
   }
 }

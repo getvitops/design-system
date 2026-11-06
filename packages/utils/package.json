@@ -50,6 +50,10 @@
       "types": "./dist/reviews/index.d.mts",
       "import": "./dist/reviews/index.mjs"
     },
+    "./turnstile": {
+      "types": "./dist/turnstile/index.d.mts",
+      "import": "./dist/turnstile/index.mjs"
+    },
     "./ads": {
       "types": "./dist/ads/index.d.mts",
       "import": "./dist/ads/index.mjs"
