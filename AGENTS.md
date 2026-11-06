@@ -83,6 +83,14 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    inside `:where()`, matched to the content it wraps and to its upgraded `:host`: `block` for
    `wc-entries`, `wc-image-compare`, `wc-split-panel`, `wc-multi-field`, `wc-dismissable` (which
    animates its own box, so `display: contents` is out) and `wc-marquee`; `inline-flex` for `wc-copy`.
+   **`<wc-turnstile>`** (in `elements.js`) loads Cloudflare Turnstile on the first interaction with
+   its `<form>`, so a visitor who only reads the page makes no request to `challenges.cloudflare.com`.
+   Turnstile is treated as category `necessary` (it protects the form being submitted) and is
+   therefore **not** behind the consent gate; it is a `wc-*` rather than an inline script because
+   loading a third-party script on interaction is behaviour. Its slotted fallback says the spam
+   check needs JavaScript; whether a token-less submit is accepted is `createConversionRoute`'s
+   `turnstile.required`, not the element's. It declares `display: block` in `forms.css`.
+
    **`wc-counter` is deliberately left `inline`**: it wraps one inline `.counter__value` `<span>`
    (its docblock's example), so the default display is already right for what it holds.
    `wc-color-scheme-toggle` and `wc-consent` manage their own visibility. A new element must declare

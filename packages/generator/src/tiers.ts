@@ -345,11 +345,23 @@ export const TIERS: Record<string, TierEntry> = {
     // NOT generated: the config pattern here is `forms`. This component sits over
     // forms markup, so it has no `patterns.items` entry, no roles and no states.
     emdashExempt:
-      'part of the form block (`vitops.form`), which needs a submission-route redesign first — see the form TODO',
+      'repeats rows a visitor adds at submit time (several phone numbers, guests); `vitops.form` has a fixed, editor-defined field list and no such field type',
     css: c(['form-group', 'input-group', 'fieldset'], 'patterns/forms.css'),
     wc: { tag: 'wc-multi-field', registered: true, adds: 'add/remove repeating field rows' },
     bricks: 'vitops-multi-field',
     use: '`<wc-multi-field>` around a field template. One row submits fine with no JS.',
+  },
+  turnstile: {
+    // Rendered by `vitops.form` when `site.security.turnstile.siteKey` is set; the block
+    // emits `<wc-turnstile>` itself, with its no-JS explanation inside.
+    emdash: ['vitops.form'],
+    css: c(['form-group'], 'patterns/forms.css'),
+    wc: {
+      tag: 'wc-turnstile',
+      registered: true,
+      adds: 'loads Cloudflare Turnstile on first interaction with the form and holds a submit until its token arrives',
+    },
+    use: '`<wc-turnstile sitekey="…">` inside a `<form>`, around a paragraph saying the spam check needs JavaScript. Pair it with `createConversionRoute({ turnstile })`; the `vitops.form` block does both.',
   },
   'color-scheme-toggle': {
     emdashExempt: 'site chrome (header/footer), not page content; belongs in the nav/layout',

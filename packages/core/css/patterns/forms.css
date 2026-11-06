@@ -369,3 +369,8 @@ select.custom-select {
 :where(wc-multi-field) {
   display: block;
 }
+
+/* `<wc-turnstile>` wraps a fallback paragraph and the widget box, both blocks (light DOM, no `:host`). */
+:where(wc-turnstile) {
+  display: block;
+}

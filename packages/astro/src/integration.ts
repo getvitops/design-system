@@ -537,6 +537,12 @@ interface HeadData {
    * built.
    */
   ads: { enabled: boolean; properties: GetvitopsAdsOptions } | null;
+  /**
+   * `site.security.turnstile.siteKey` (public), for form blocks that render the
+   * Turnstile widget. Null when none is configured — a form then renders with no
+   * widget and no third-party reference at all.
+   */
+  turnstileSiteKey: string | null;
 }
 
 /**
@@ -648,6 +654,16 @@ function readSiteAds(
       enabled: env?.ads ?? env?.analytics ?? true,
       properties: properties as GetvitopsAdsOptions,
     };
+  } catch {
+    return null;
+  }
+}
+
+/** Read `site.security.turnstile.siteKey`. Best-effort, like `readSiteAds`. */
+function readSiteTurnstileKey(configPath: string, siteEnv: string): string | null {
+  try {
+    const cfg = resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv);
+    return cfg.site.security?.turnstile?.siteKey || null;
   } catch {
     return null;
   }
@@ -1104,6 +1120,9 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         // have a row for it.
         const adsConfig = siteInput
           ? readSiteAds(resolve(root, siteInput), opts.site?.siteEnv ?? 'production')
+          : null;
+        const turnstileSiteKey = siteInput
+          ? readSiteTurnstileKey(resolve(root, siteInput), opts.site?.siteEnv ?? 'production')
           : null;
         const experimentsConfig = siteInput
           ? readSiteExperiments(resolve(root, siteInput), opts.site?.siteEnv ?? 'production')
@@ -1614,6 +1633,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
                 experiments: experimentsConfig?.experiments ?? {},
                 matomoAbVariantDimensions: experimentsConfig?.matomoAbVariantDimensions ?? {},
                 ads: adsConfig,
+                turnstileSiteKey,
               }),
             ],
           },

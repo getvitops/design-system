@@ -63,6 +63,7 @@ declare module 'virtual:getvitops/head' {
     // site config is already parsed, and because a pixel is a `marketing` demand
     // the banner must have a row for.
     ads: { enabled: boolean; properties: Record<string, unknown> } | null;
+    turnstileSiteKey: string | null;
   }
   const data: HeadData;
   export default data;
