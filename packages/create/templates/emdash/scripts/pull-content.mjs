@@ -62,7 +62,7 @@ const exported = wrangler([
 ]);
 if (exported.status !== 0) {
   const text = `${exported.stdout}\n${exported.stderr}`;
-  if (/not found|does not exist|no such database|7404/i.test(text)) {
+  if (/not found|does not exist|no such database|couldn'?t find|could not find|7404/i.test(text)) {
     console.warn(
       `pull-content: remote database "${db}" does not exist yet (first deploy?) — ` +
         'prerendering from the seed.',

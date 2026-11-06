@@ -1,5 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
+
+// Prerendered to /404.html. Astro serves it, with a 404 status, for any URL no
+// route matches — including every slug not in [...slug].astro's getStaticPaths.
+// Nothing rewrites to this page: rewriting an on-demand route to a prerendered one
+// is what used to turn unknown URLs into 500s.
+export const prerender = true;
 ---
 
 <Layout title="Page not found">
