@@ -100,6 +100,13 @@ export interface TierEntry {
    * generator), so the check runs from the side that can see both.
    */
   emdash?: string[];
+  /**
+   * Why this pattern's web component deliberately has no `emdash` block. A shipped `wc-*`
+   * (in `elements.js` or its own bundle) must set `emdash` OR this — `tiers.test.ts`
+   * enforces it — so "no block" is always a decision with a reason on the page, never an
+   * omission nobody noticed. Meaningless alongside `emdash`; the guard rejects both.
+   */
+  emdashExempt?: string;
   /** The one line an agent needs: what to actually write. */
   use: string;
 }
@@ -137,6 +144,8 @@ export const TIERS: Record<string, TierEntry> = {
       adds: 'WAI-ARIA tree semantics, roving-tabindex keyboard navigation, filter, expand/collapse all, hash deep-linking',
     },
     astro: a('Tree', 'wc'),
+    emdashExempt:
+      'needs nested data (branches within branches) that a flat repeater cannot hold; revisit if EmDash block fields gain nesting',
     use: '`<Tree items={…} />` — it emits `<wc-tree>` itself, so do NOT add your own wrapper.',
   },
   carousel: {
@@ -177,14 +186,16 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<Gallery images={…} label="…" />` — it emits `<wc-gallery>` wrapping a `<Carousel />` (which emits its own `<wc-carousel>`) itself, so do NOT add your own wrapper around either. Each thumbnail is a plain `<a href="#slide-id">` into the carousel\'s own `<li id="slide-id">` inside a single `<dialog class="lightbox-dialog">` (see `lightbox`), so it is a working modal lightbox — WITH prev/next — before any script runs. Stepping between images is the carousel\'s job, not the gallery\'s.',
   },
   entries: {
+    emdash: ['vitops.entries'],
     css: c(['entries__table', 'entries__scroll', 'entries__nav'], 'patterns/table.css'),
     wc: {
       tag: 'wc-entries',
       registered: true,
       adds: 'parses heading + `<dl>` pairs into a table above a breakpoint',
     },
+    astro: a('Entries', 'wc'),
     bricks: 'vitops-entries',
-    use: '`<wc-entries>` around `<h3>` + `<dl>` pairs. The tier-2 exemplar: semantic pairs with no JS, a table with it.',
+    use: '`<Entries entries={[{ heading, pairs: [{ term, value }] }]} />` — it emits `<wc-entries>` itself, so do NOT add your own wrapper. By hand: `<wc-entries>` around `<h3>` + `<dl>` pairs. The tier-2 exemplar: semantic pairs with no JS, a table with it.',
   },
   copy: {
     emdash: ['vitops.copyButton'],
@@ -194,6 +205,8 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<wc-copy>` around the content and a `[data-copy]` button.',
   },
   dismissable: {
+    // The banner block's `dismissible` toggle wraps it.
+    emdash: ['vitops.banner'],
     css: c(['banner__close', 'notification__close'], 'patterns/banner.css'),
     wc: {
       tag: 'wc-dismissable',
@@ -205,6 +218,8 @@ export const TIERS: Record<string, TierEntry> = {
   },
   'split-panel': {
     css: c(['splitter', 'splitter__panel', 'splitter__handle'], 'patterns/splitter.css'),
+    emdashExempt:
+      'app UI (resizable panes), not editorial content; an editor does not drag-resize a published page',
     wc: { tag: 'wc-split-panel', registered: true, adds: 'draggable divider between two panels' },
     bricks: 'vitops-split-panel',
     use: '`<wc-split-panel>` with two children. Unenhanced they simply stack.',
@@ -235,11 +250,88 @@ export const TIERS: Record<string, TierEntry> = {
     astro: a('Marquee', 'wc'),
     use: '`<Marquee>` around one `.marquee__content`, or `<wc-marquee>` by hand. Scrolls via CSS alone; JS only removes the seam.',
   },
+  // ── Editorial patterns the EmDash block library adds (tier 1 only: no JS of their own) ──
+  //
+  // `section`, `steps`, `stats`, `callout`, `logos` and `embed` are structural partials, so
+  // `generated: false`. Colour is NOT theirs: it comes from `tone`, one convention shared by
+  // every block that colours anything (see its entry).
+  tone: {
+    css: c(['tone', 'tone--solid', 'accent'], 'patterns/tone.css'),
+    use: "Add `.tone` and set `--tone-bg` / `--tone-fg` / `--tone-border` / `--tone-solid` / `--tone-on-solid` as custom properties — never a class built from a value, which Tailwind cannot see. `@getvitops/emdash`'s `resolveTone(tone, color)` writes them: role, then semantic fallbacks, then `neutral`, or a palette `color` escape hatch. `.accent` colours a run inside a heading.",
+  },
+  section: {
+    emdash: ['vitops_section'],
+    css: c(
+      [
+        'section',
+        'section__head',
+        'section__kicker',
+        'section__title',
+        'section__sub',
+        'section__body',
+        'section--split',
+        'section--center',
+      ],
+      'patterns/section.css',
+    ),
+    use: '`.section.region` > `.centered` > `.section__inner` holding `.section__head` (kicker, heading, sub) and `.section__body`. `.section--split` puts the head beside the body when wide. In EmDash it is a block TYPE (`vitops_section`) with a Portable Text body that accepts any other block — see `vitopsBlockTypes()`.',
+  },
+  steps: {
+    emdash: ['vitops.steps'],
+    css: c(
+      ['steps', 'steps__item', 'steps__body', 'steps__title', 'steps__text', 'steps--row'],
+      'patterns/steps.css',
+    ),
+    use: '`<ol class="steps tone">` of `<li class="steps__item">` each holding a `.steps__body` with a real heading. The number is a CSS counter and the connector line a pseudo-element; `.steps--row` runs it sideways when wide.',
+  },
+  stats: {
+    emdash: ['vitops.stats'],
+    css: c(
+      [
+        'stats',
+        'stats__item',
+        'stats__figure',
+        'stats__label',
+        'stats__group',
+        'stats__delta',
+        'stats--tiles',
+      ],
+      'patterns/stats.css',
+    ),
+    use: '`<ul class="stats">` of `.stats__item`, each figure a `<Counter>`. `.stats--tiles` adds `.stats__group` and `.stats__delta`; `data-state="up|down"` colours the delta through the success/danger roles.',
+  },
+  callout: {
+    emdash: ['vitops.callout'],
+    css: c(
+      [
+        'callout',
+        'callout__body',
+        'callout__title',
+        'callout__text',
+        'callout__actions',
+        'callout--center',
+      ],
+      'patterns/callout.css',
+    ),
+    use: '`.callout.tone` with a `.callout__body` and `.callout__actions`. A call-to-action band that stays on the page — NOT `banner`, which is a dismissible announcement.',
+  },
+  logos: {
+    emdash: ['vitops.logos'],
+    css: c(['logos', 'logos__item', 'logos--grayscale'], 'patterns/logos.css'),
+    use: '`<ul class="logos">` of `.logos__item` images (alt text = the name). A still grid; `marquee` is the scrolling version.',
+  },
+  embed: {
+    emdash: ['vitops.embed'],
+    css: c(['embed', 'embed__frame', 'embed__placeholder'], 'patterns/embed.css'),
+    use: '`.embed` around an `<iframe class="embed__frame" data-consent="marketing" data-consent-src="…">` with NO `src`, and a `.embed__placeholder`. The consent runtime assigns the address after the grant; the placeholder holds a real link. Never give the iframe a live `src`.',
+  },
   // NOT generated: a counter is a bare text figure, not a bordered/padded box —
   // none of the token-cascade groups (label/control/panel/area/content/pull)
   // fit it, so it has no `patterns.items` entry, matching `multi-field` below.
   // No `bricks` element yet either, same reasoning as `gallery` above.
   counter: {
+    // Each figure of the stats block is a `<Counter>`.
+    emdash: ['vitops.stats'],
     css: c(['counter', 'counter__value', 'counter__presentation'], 'patterns/counter.css'),
     wc: {
       tag: 'wc-counter',
@@ -252,12 +344,15 @@ export const TIERS: Record<string, TierEntry> = {
   'multi-field': {
     // NOT generated: the config pattern here is `forms`. This component sits over
     // forms markup, so it has no `patterns.items` entry, no roles and no states.
+    emdashExempt:
+      'part of the form block (`vitops.form`), which needs a submission-route redesign first — see the form TODO',
     css: c(['form-group', 'input-group', 'fieldset'], 'patterns/forms.css'),
     wc: { tag: 'wc-multi-field', registered: true, adds: 'add/remove repeating field rows' },
     bricks: 'vitops-multi-field',
     use: '`<wc-multi-field>` around a field template. One row submits fine with no JS.',
   },
   'color-scheme-toggle': {
+    emdashExempt: 'site chrome (header/footer), not page content; belongs in the nav/layout',
     css: c([], 'patterns/icon.css'),
     wc: {
       tag: 'wc-color-scheme-toggle',
@@ -268,6 +363,8 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<wc-color-scheme-toggle></wc-color-scheme-toggle>`. Renamed from `<color-scheme-toggle>` in 4.0. Shadow DOM, so it is absent rather than broken without JS.',
   },
   consent: {
+    emdashExempt:
+      'site chrome: the layout renders `<CookieConsent />` once; an editor-placed copy would duplicate the gate',
     css: c(
       ['consent', 'consent__body', 'consent__options', 'consent__actions'],
       'patterns/consent.css',
@@ -283,6 +380,8 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<CookieConsent />`. Its own Lit-free bundle so a site needing consent does not download a rendering framework.',
   },
   'theme-editor': {
+    emdashExempt:
+      'tooling, not content; it is mounted in the EmDash admin by `designSystemEditor`, never in a page',
     css: c(['ed-panel', 'ed-launch', 'ed-input'], 'patterns/theme-editor.css'),
     wc: {
       tag: 'wc-theme-editor',
@@ -367,6 +466,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<NavShell>` with a `nav` slot, plus `<NavShellToggle>` if the toggle must live outside the shell.',
   },
   subgrid: {
+    emdash: ['vitops.pricing'],
     css: c(['subgrid', 'subgrid-card', 'pricing-grid'], 'patterns/subgrid.css'),
     astro: a('Subgrid', 'css'),
     use: '`<Subgrid>` — emits `<ul class="subgrid" role="list">`; author `<li class="card subgrid-card">` items yourself, so tranches align across the set.',

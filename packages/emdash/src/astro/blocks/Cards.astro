@@ -5,15 +5,30 @@
  * as a whole while its text stays selectable; without JS the stretched link does the
  * same job. The card CSS is the framework's `.card` pattern.
  *
- * The title is a styled paragraph rather than a fixed heading element: the block can
- * sit at any depth in a document, and a hard-coded `<h3>` would skip or repeat levels.
+ * **The title is a real heading** at the editor's `level` (default `h3`), in the `heading`
+ * type role. It used to be `<p class="font-heading">`: the wrong size for a card in most
+ * type scales AND no heading in the outline (UPSTREAM 19). The level is a field because the
+ * block can sit at any depth, and a hard-coded one would skip or repeat levels.
+ *
+ * `variant: panel` is the tinted service-panel card — a tone, a checklist and a button.
+ * A panel's whole-card link is dropped (it holds its own button), so it renders as
+ * `<Subgrid>` markup rather than a `<Cards>` that would try to forward clicks.
+ *
+ * The body may carry `[text](url)` inline links; see `linkRuns()`.
  */
 import Cards from '@getvitops/astro/components/Cards.astro';
-import { resolveBlockValue, rows, safeHref, text } from './value.ts';
+import Subgrid from '@getvitops/astro/components/Subgrid.astro';
+import RichText from './RichText.astro';
+import { joinStyle, resolveTone } from './tone.ts';
+import { headingTag, lines, resolveBlockValue, rows, safeHref, text } from './value.ts';
 
 interface Value {
   cards?: unknown;
   columns?: string | number;
+  variant?: string;
+  level?: string | number;
+  tone?: string;
+  color?: string;
 }
 
 const value = resolveBlockValue<Value>(Astro.props);
@@ -25,20 +40,49 @@ const cards = rows<Record<string, unknown>>(value.cards)
     imageAlt: text(row.imageAlt),
     href: safeHref(row.href),
     linkLabel: text(row.linkLabel) || 'Read more',
+    checklist: lines(row.checklist),
+    ctaLabel: text(row.ctaLabel),
+    ctaHref: safeHref(row.ctaHref),
   }))
   .filter((card) => card.title || card.body || card.image);
 const columns = Math.min(4, Math.max(1, Math.round(Number(value.columns) || 3)));
+const panel = value.variant === 'panel';
+const Heading = headingTag(value.level, 3);
+const tone = resolveTone(value.tone, value.color);
+const Grid = panel ? Subgrid : Cards;
 ---
 
 {
   cards.length > 0 && (
-    <Cards style={`--subgrid-cols: ${columns}`}>
+    <Grid style={`--subgrid-cols: ${columns}`}>
       {cards.map((card) => (
-        <li class="card subgrid-card">
+        <li
+          class:list={['card', 'subgrid-card', panel && tone.className]}
+          style={panel ? joinStyle(tone.style) : undefined}
+        >
           {card.image && <img src={card.image} alt={card.imageAlt} loading="lazy" />}
-          {card.title && <p class="font-heading">{card.title}</p>}
-          {card.body && <p>{card.body}</p>}
-          {card.href && (
+          {card.title && <Heading class="font-heading">{card.title}</Heading>}
+          {card.body && (
+            <p>
+              <RichText text={card.body} />
+            </p>
+          )}
+          {panel && card.checklist.length > 0 && (
+            <ul class="rhythm" role="list">
+              {card.checklist.map((item) => (
+                <li>{item}</li>
+              ))}
+            </ul>
+          )}
+          {panel && card.ctaLabel && card.ctaHref && (
+            <p class="subgrid-card__footer">
+              <a class="cta" href={card.ctaHref}>
+                {card.ctaLabel}
+                <span class="sr-only">: {card.title}</span>
+              </a>
+            </p>
+          )}
+          {!panel && card.href && (
             <a class="link stretched-link" href={card.href}>
               {card.linkLabel}
               {/* "Read more" alone is meaningless in a list of links; name the card for AT. */}
@@ -47,6 +91,6 @@ const columns = Math.min(4, Math.max(1, Math.round(Number(value.columns) || 3)))
           )}
         </li>
       ))}
-    </Cards>
+    </Grid>
   )
 }

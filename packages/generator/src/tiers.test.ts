@@ -118,6 +118,36 @@ describe('TIERS covers what is on disk', () => {
     }
   });
 
+  /**
+   * "Not every web component has a block" was found by audit, after the fact: seven of the
+   * thirteen shipped elements had one and nothing recorded that the rest were decisions. A
+   * shipped element must now carry a block OR a stated reason, so the gap is visible in the
+   * manifest and the docs, and a new element cannot skip the question.
+   *
+   * "Shipped" is `registered` (in `elements.js`) or a real own bundle — the editor-v2
+   * elements name `(none …)` as their bundle and are not shipped, so are not asked.
+   */
+  it('every shipped web component has an EmDash block or says why not', () => {
+    const shipped = Object.entries(TIERS).filter(
+      ([, e]) => e.wc && (e.wc.registered || (e.wc.bundle && !e.wc.bundle.startsWith('(none'))),
+    );
+    expect(shipped.length).toBeGreaterThan(10);
+    const silent = shipped
+      .filter(([, e]) => !e.emdash?.length && !e.emdashExempt)
+      .map(([name, e]) => `${name} (${e.wc!.tag})`);
+    expect(
+      silent,
+      `no \`emdash\` block and no \`emdashExempt\` reason: ${silent.join(', ')}`,
+    ).toEqual([]);
+    const both = Object.entries(TIERS)
+      .filter(([, e]) => e.emdash?.length && e.emdashExempt)
+      .map(([name]) => name);
+    expect(both, `set both \`emdash\` and \`emdashExempt\`: ${both.join(', ')}`).toEqual([]);
+    for (const [name, e] of Object.entries(TIERS))
+      if (e.emdashExempt)
+        expect(e.emdashExempt.length, `TIERS.${name}.emdashExempt is too thin`).toBeGreaterThan(20);
+  });
+
   it('every pattern-bearing Astro component is in TIERS', () => {
     const pkg = JSON.parse(
       readFileSync(join(ROOT, 'packages', 'astro', 'package.json'), 'utf8'),

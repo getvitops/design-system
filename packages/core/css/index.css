@@ -72,6 +72,13 @@
 @import './patterns/text-effects.css';
 @import './patterns/svg.css';
 @import './patterns/marquee.css';
+@import './patterns/tone.css';
+@import './patterns/section.css';
+@import './patterns/steps.css';
+@import './patterns/stats.css';
+@import './patterns/callout.css';
+@import './patterns/logos.css';
+@import './patterns/embed.css';
 @import './patterns/counter.css';
 @import './patterns/nav.css';
 @import './patterns/carousel.css';

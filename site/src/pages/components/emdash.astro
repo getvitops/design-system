@@ -8,7 +8,7 @@
  * markup. Membership is `tierPatterns('emdash')`, held to `@getvitops/emdash`'s real block
  * list by that package's own `blocks.test.ts`.
  */
-import { tierPatterns } from '@getvitops/generator';
+import { TIERS, TIER_NAMES, tierPatterns } from '@getvitops/generator';
 import Docs from '../../layouts/Docs.astro';
 import TierEntries from '../../components/TierEntries.astro';
 import { alsoIn, code, href, md, TIER_PAGES, type TierRow } from '../../components/tiers.ts';
@@ -30,6 +30,11 @@ const rows: TierRow[] = tierPatterns('emdash').flatMap(({ name, entry }) =>
   })),
 );
 
+const exempt = TIER_NAMES.filter((n) => TIERS[n]!.emdashExempt).map((n) => ({
+  tag: TIERS[n]!.wc?.tag ?? n,
+  reason: TIERS[n]!.emdashExempt!,
+}));
+
 const title = 'EmDash blocks';
 const description =
   'Tier 3 on EmDash — the Portable Text blocks an editor or agent can insert, and which framework pattern each one renders.';
@@ -50,10 +55,25 @@ const description =
 
   <TierEntries rows={rows} />
 
+  <h2 class="font-title">Web components with no block, on purpose</h2>
+  <p>
+    Every shipped <code>wc-*</code> element has a block above or a stated reason below; the
+    manifest's <code>emdashExempt</code> field is the source and a test fails if one is silent.
+  </p>
+  <ul>
+    {
+      exempt.map(({ tag, reason }) => (
+        <li>
+          <code>{tag}</code> — {reason}
+        </li>
+      ))
+    }
+  </ul>
+
   <p class="font-footnote">
     Repeating patterns (cards, gallery, accordion, marquee, carousel slides) are repeater fields.
-    A pattern that must contain other blocks cannot be a Portable Text block — see
-    <a class="link" href={href('packages/emdash', base)}>@getvitops/emdash</a> for the
-    <code>blocks</code> field route.
+    A pattern that must contain other blocks cannot be a Portable Text block: <code>vitops_section</code>
+    is a block <em>type</em> with a Portable Text body instead — see
+    <a class="link" href={href('packages/emdash', base)}>@getvitops/emdash</a>.
   </p>
 </Docs>

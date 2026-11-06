@@ -1,15 +1,27 @@
 ---
 /**
  * A page opener built from the layout primitives: `.centered` for a single column, `.split`
- * for text beside an image. The heading is a real `<h1>` only when the editor chooses nothing
- * else — a page has one, and EmDash renders the page title elsewhere, so this uses `<h2>`.
+ * for text beside an image. The heading defaults to `<h2>` — a page has one `<h1>`, and
+ * EmDash renders the page title elsewhere — and an editor can change the level. Words wrapped
+ * in `*stars*` render as `<em class="accent">` (accent marks, no raw HTML in the field).
+ * An optional row of option cards sits under the buttons, as the framework's `.card` list.
  * Flat fields, because a block cannot contain other blocks.
  */
-import { resolveBlockValue, safeHref, text } from './value.ts';
+import RichText from './RichText.astro';
+import { joinStyle, resolveTone } from './tone.ts';
+import {
+  accentRuns,
+  headingTag,
+  resolveBlockValue,
+  rows,
+  safeHref,
+  text,
+} from './value.ts';
 
 interface Value {
   eyebrow?: string;
   heading?: string;
+  level?: string | number;
   body?: string;
   primaryLabel?: string;
   primaryHref?: string;
@@ -18,11 +30,16 @@ interface Value {
   image?: string;
   imageAlt?: string;
   layout?: string;
+  tone?: string;
+  color?: string;
+  cards?: unknown;
 }
 
 const value = resolveBlockValue<Value>(Astro.props);
 const eyebrow = text(value.eyebrow);
 const heading = text(value.heading);
+const headingRuns = accentRuns(heading);
+const Heading = headingTag(value.level, 2);
 const body = text(value.body);
 const primaryLabel = text(value.primaryLabel);
 const primaryHref = safeHref(value.primaryHref);
@@ -31,31 +48,68 @@ const secondaryHref = safeHref(value.secondaryHref);
 const image = safeHref(value.image);
 const imageAlt = text(value.imageAlt);
 const split = value.layout === 'split' && Boolean(image);
+const tone = resolveTone(value.tone, value.color);
+const cards = rows<Record<string, unknown>>(value.cards)
+  .map((row) => ({
+    title: text(row.title),
+    body: text(row.body),
+    href: safeHref(row.href),
+    linkLabel: text(row.linkLabel) || 'Learn more',
+  }))
+  .filter((card) => card.title || card.body);
 ---
 
 {
   (heading || body) && (
-    <section class={split ? 'split split-1-2' : 'centered'}>
-      <div class="rhythm">
-        {eyebrow && <p class="font-eyebrow">{eyebrow}</p>}
-        {heading && <h2 class="font-display">{heading}</h2>}
-        {body && <p class="font-lead">{body}</p>}
-        {(primaryLabel && primaryHref) || (secondaryLabel && secondaryHref) ? (
-          <p class="cluster">
-            {primaryLabel && primaryHref && (
-              <a class="cta" href={primaryHref}>
-                {primaryLabel}
-              </a>
-            )}
-            {secondaryLabel && secondaryHref && (
-              <a class="link" href={secondaryHref}>
-                {secondaryLabel}
-              </a>
-            )}
-          </p>
-        ) : null}
+    <section class={tone.style ? tone.className : undefined} style={joinStyle(tone.style)}>
+      <div class={split ? 'split split-1-2' : 'centered'}>
+        <div class="rhythm">
+          {eyebrow && <p class="font-eyebrow">{eyebrow}</p>}
+          {heading && (
+            <Heading class="font-display">
+              {headingRuns.map((run) =>
+                run.accent ? <em class="accent">{run.text}</em> : run.text,
+              )}
+            </Heading>
+          )}
+          {body && <p class="font-lead">{body}</p>}
+          {(primaryLabel && primaryHref) || (secondaryLabel && secondaryHref) ? (
+            <p class="cluster">
+              {primaryLabel && primaryHref && (
+                <a class="cta" href={primaryHref}>
+                  {primaryLabel}
+                </a>
+              )}
+              {secondaryLabel && secondaryHref && (
+                <a class="link" href={secondaryHref}>
+                  {secondaryLabel}
+                </a>
+              )}
+            </p>
+          ) : null}
+        </div>
+        {split && <img src={image} alt={imageAlt} loading="eager" />}
       </div>
-      {split && <img src={image} alt={imageAlt} loading="eager" />}
+      {cards.length > 0 && (
+        <ul class="subgrid centered" role="list" style={`--subgrid-cols: ${Math.min(4, cards.length)}`}>
+          {cards.map((card) => (
+            <li class="card subgrid-card">
+              {card.title && <h3 class="font-heading">{card.title}</h3>}
+              {card.body && (
+                <p>
+                  <RichText text={card.body} />
+                </p>
+              )}
+              {card.href && (
+                <a class="link stretched-link" href={card.href}>
+                  {card.linkLabel}
+                  {card.title && <span class="sr-only">: {card.title}</span>}
+                </a>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   )
 }
