@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import react from '@astrojs/react';
 import vitops from '@getvitops/astro';
 import { vitopsEmdash, vitopsHosting } from '@getvitops/emdash';
@@ -12,6 +13,16 @@ import emdash from 'emdash/astro';
 // Content lives in the database and media in storage, so switching hosts is a
 // data migration, not a rewrite — see README "Hosting".
 const { adapter, database, storage } = await vitopsHosting();
+
+// Favicon/PWA colours come from site.json rather than a second copy here that
+// drifts when the palette changes: the browser-UI colour is the `brand-primary`
+// role's hue seed. (The page background behind the maskable icon is a computed
+// ramp step, not a config value, so `backgroundColor` below stays a literal.)
+const site = JSON.parse(readFileSync(new URL('./site.json', import.meta.url), 'utf8'));
+const colors = site.designSystem?.themes?.default?.colors ?? {};
+const roleHue = (role) =>
+  typeof colors.roles?.[role] === 'string' ? colors.roles[role] : colors.roles?.[role]?.hue;
+const brandColor = colors.palette?.[roleHue('brand-primary')]?.seed ?? '#2e9b73';
 
 export default defineConfig({
   output: 'server',
@@ -35,8 +46,8 @@ export default defineConfig({
     vitops({
       favicon: {
         source: 'src/assets/logo.svg',
-        name: 'My EmDash Site',
-        themeColor: '#2e9b73',
+        name: site.organization?.name ?? 'My EmDash Site',
+        themeColor: brandColor,
         backgroundColor: '#ffffff',
       },
       // inject: false — Layout.astro imports the generated stylesheet, so

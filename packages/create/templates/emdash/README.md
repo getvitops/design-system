@@ -3,7 +3,7 @@
 An [EmDash CMS](https://docs.emdashcms.com) website on Cloudflare Workers,
 styled by the [Vitops design system](https://www.npmjs.com/org/getvitops).
 
-Scaffolded from `vp create @getvitops:emdash`.
+Scaffolded from `vp create @getvitops:emdash --directory <client-slug>` (pass a directory: `vp create` derives the package name from it and invents a random slug otherwise).
 
 ## Stack
 
@@ -30,16 +30,24 @@ vpr dev
 No Cloudflare account needed: `astro dev` runs the Worker locally with local
 D1/R2 emulation (state in `.wrangler/`). On first boot EmDash runs its
 migrations and applies the structure from `seed/seed.json` — a `pages`
-collection, a `primary` menu, and the site settings.
+collection, three menus (`primary`, `footer-sitemap`, `footer-legal`), and the site
+settings.
 
 - Site: <http://localhost:4321>
 - Admin: <http://localhost:4321/_emdash/admin>
 
 Open the admin and complete the setup wizard — it creates your first account,
 and choosing to **include sample content** publishes the starter pages from
-the seed: home, about, terms (`/terms`), and privacy policy (`/privacy`).
-Until then the home route shows a friendly empty state. Unknown paths render
-`src/pages/404.astro`.
+the seed: home, about, contact (`/contact`), terms (`/terms`), privacy policy
+(`/privacy`) and cookie notice (`/cookies`) — every link in the seeded menus
+resolves. Until then the home route shows a friendly empty state. Unknown paths
+get the prerendered `src/pages/404.astro` with a real 404 status.
+
+**Pages are prerendered.** `vpr build` writes static HTML for every published
+`pages` entry, so an edit in the admin goes live on the next rebuild rather than
+per request — see AGENTS.md "Rendering and freshness" for how production content
+reaches the build (`scripts/pull-content.mjs`) and for the publish-triggered rebuild.
+In `vpr dev` the pages read your local database, so edits appear straight away.
 
 The two legal pages are placeholders. To generate real ones from what your site
 actually does, fill in `site.json`'s `organization`/`site.legal` fields and run:
@@ -160,20 +168,23 @@ vpr build:css                  # regenerate the CSS manually
 
 ## Project map
 
-| Path                             | Purpose                                                                                    |
-| -------------------------------- | ------------------------------------------------------------------------------------------ |
-| `site.json`                      | Org + site config; design tokens/patterns at `designSystem.themes.default` → generated CSS |
-| `seed/seed.json`                 | First-boot content model + starter content                                                 |
-| `src/worker.ts`                  | Worker entry (fetch + EmDash scheduled handler)                                            |
-| `src/live.config.ts`             | Astro live content collections wiring for EmDash                                           |
-| `src/layouts/Layout.astro`       | Site chrome: EmDash + Vitops head tags, nav from the CMS menu                              |
-| `src/pages/index.astro`          | Home — renders the `home` page entry                                                       |
-| `src/pages/[...slug].astro`      | Catch-all — renders any `pages` entry at its slug                                          |
-| `src/pages/404.astro`            | Not-found page (the catch-all rewrites here)                                               |
-| `wrangler.jsonc`                 | Cloudflare bindings (D1/R2) + cron trigger                                                 |
-| `scripts/build-dev-wrangler.mjs` | Rewrites the built wrangler config for the isolated dev worker                             |
-| `SETUP.html`                     | Client-onboarding checklist — run `vpr sop` first (see "One-time setup")                   |
-| `.github/workflows/`             | deploy-dev (push to `dev`), deploy-prod (push to `main`), promote                          |
-| `.agents/skills/promote/`        | Agent skill: dispatch the dev → main promotion                                             |
-| `.mcp.json`                      | Astro + EmDash docs MCP servers for coding agents                                          |
-| `.claude/hooks/`                 | Claude Code web: Node 24 + pnpm setup on session start                                     |
+| Path                             | Purpose                                                                                            |
+| -------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `site.json`                      | Org + site config; design tokens/patterns at `designSystem.themes.default` → generated CSS         |
+| `seed/seed.json`                 | First-boot content model + starter content                                                         |
+| `src/worker.ts`                  | Worker entry (fetch + EmDash scheduled handler)                                                    |
+| `src/live.config.ts`             | Astro live content collections wiring for EmDash                                                   |
+| `src/layouts/Layout.astro`       | Site chrome: EmDash + Vitops head tags, nav from the CMS menu                                      |
+| `src/pages/index.astro`          | Home — prerendered from the `home` page entry                                                      |
+| `src/pages/[...slug].astro`      | Prerendered once per published `pages` entry (`getStaticPaths`)                                    |
+| `src/pages/404.astro`            | Prerendered not-found page, served with a 404 status for any unmatched URL                         |
+| `public/_headers`                | Report-Only CSP for the static pages (see AGENTS.md "Content Security Policy")                     |
+| `scripts/pull-content.mjs`       | Loads production's D1 into the local build DB before the prerender (`deploy`/`deploy:dev`)         |
+| `wrangler.jsonc`                 | Cloudflare bindings (D1/R2) + cron trigger                                                         |
+| `scripts/build-dev-wrangler.mjs` | Rewrites the built wrangler config for the isolated dev worker                                     |
+| `SETUP.html`                     | Client-onboarding checklist — run `vpr sop` first (see "One-time setup")                           |
+| `.github/workflows/`             | deploy-dev (push to `dev`), deploy-prod (push to `main`, or an `emdash-publish` dispatch), promote |
+| `.agents/skills/promote/`        | Agent skill: dispatch the dev → main promotion                                                     |
+| `.agents/skills/custom-blocks/`  | Agent skill: when (and how) to add a block type — compose, extend, local, upstream                 |
+| `.mcp.json`                      | Astro + EmDash docs MCP servers for coding agents                                                  |
+| `.claude/hooks/`                 | Claude Code web: Node 24 + pnpm setup on session start                                             |

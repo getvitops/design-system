@@ -4,7 +4,7 @@ A static [Astro](https://astro.build) website on Cloudflare Workers (static
 assets — no server runtime), styled by the
 [Vitops design system](https://www.npmjs.com/org/getvitops).
 
-Scaffolded from `vp create @getvitops:static`.
+Scaffolded from `vp create @getvitops:static --directory <client-slug>` (pass a directory: `vp create` derives the package name from it and invents a random slug otherwise).
 
 ## Stack
 

@@ -1,5 +1,5 @@
-This is an EmDash CMS website (Astro SSR on Cloudflare Workers, D1 + R2)
-styled by the Vitops design system.
+This is an EmDash CMS website (Astro on Cloudflare Workers, D1 + R2 — public pages
+prerendered, the Worker serving the admin and API) styled by the Vitops design system.
 
 ## Ground rules
 
@@ -132,6 +132,92 @@ styled by the Vitops design system.
 
 `.mcp.json` preconfigures the Astro docs and EmDash docs MCP servers — prefer
 searching them over pre-trained knowledge for Astro/EmDash questions.
+
+## Labels: badge and tag
+
+Two label patterns, both enabled in `site.json`'s `patterns.items`: **`badge`** is a
+static label (a status, count or category) and **`tag`** is a label that may be
+static _or_ dynamic (editable, dismissable, in a `tag-list`). Don't invent a third
+name — `chip` and `pill` are not part of this vocabulary. The button pattern's class
+is `btn` (`<a class="btn">` is styled, not just a bare `<button>`).
+
+## Custom blocks
+
+Before adding a block type, a `src/components/blocks/*` renderer, or anything an
+editor places on a page, read `.agents/skills/custom-blocks/SKILL.md`: compose the
+existing `vitops.*` blocks first, extend one second, go site-local third, upstream
+last. Block types can't be renamed or deleted once pages use them, so check the
+framework's pattern names before choosing one.
+
+## Publish-triggered rebuilds
+
+Pages are static, so a publish in the admin goes live only after a rebuild.
+`.github/workflows/deploy-prod.yml` also runs on a `repository_dispatch` event of
+type `emdash-publish` (it pins `ref` to `main`, because a dispatch runs from the
+default branch, `dev`). Wire an EmDash plugin hook to send it:
+
+```jsonc
+// emdash-plugin.jsonc
+"capabilities": ["content:read", "network:request"],
+"allowedHosts": ["api.github.com"]
+```
+
+```ts
+// src/plugin.ts
+hooks: {
+  'content:afterPublish': async (_event, ctx) => {
+    const token = await ctx.settings.get<string>('githubToken'); // an encrypted plugin setting
+    if (!token || !ctx.http) return;
+    await ctx.http.fetch(`https://api.github.com/repos/${OWNER}/${REPO}/dispatches`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json' },
+      body: JSON.stringify({ event_type: 'emdash-publish' }),
+    });
+  },
+}
+```
+
+The token is a fine-grained GitHub token with `Contents: write` on this repo only,
+stored as the plugin's encrypted setting (a sandboxed plugin can't read Worker
+environment variables), never in the repo. The hook name, capabilities and
+`ctx.http` / `ctx.settings` calls follow EmDash's plugin reference but this exact
+plugin has not been run against a live site, so treat it as a starting point. Two
+costs to know: the run goes through the `production` environment, so it **waits for
+the reviewers' approval** like any prod deploy (relax that rule if editors' publishes
+should go live unattended), and bursts of publishes queue behind the
+`deploy-prod` concurrency group rather than cancelling each other. Without the hook,
+a manual run of **Deploy prod** (or a push to `main`) does the same job.
+
+## Content Security Policy
+
+`public/_headers` ships a **`Content-Security-Policy-Report-Only`** header: it logs
+violations to the browser console and blocks nothing, so it can't break a page. Its
+`script-src` is `'self'` plus the SHA-256 of each inline script `<Head />` emits (the
+colour-scheme bootstrap and the consent-gate stub) — no `'unsafe-inline'`. Hashes,
+not nonces, because prerendered pages have no per-request response to put a nonce in.
+`contentSecurityPolicy()` and `inlineScriptHashes()` from `@getvitops/astro` produce
+the same strings (`templates.test.ts` in the toolchain keeps the file in step).
+
+Know what it does not cover before you flip it to enforcing (rename the header to
+`Content-Security-Policy`):
+
+- **`_headers` applies to static assets only.** Worker-rendered responses — the EmDash
+  admin (`/_emdash/*`), its API, anything left on-demand — don't get it. Setting a
+  header there means doing it in code (e.g. Astro middleware calling
+  `contentSecurityPolicy()`), and the admin's own inline scripts and editor HTML
+  would need allowing; leave the admin out of an enforced policy.
+- **Editor-authored HTML blocks are the hard limit.** Any block that lets an editor
+  paste raw HTML or a `<script>` (an embed, a tracking snippet) puts arbitrary inline
+  script on the page, which a hash policy cannot name ahead of time. Enforcing a strict
+  policy means removing such blocks or moving embeds to a consent-gated
+  `data-consent` tag whose origin you allow explicitly.
+- **Third-party tags** the consent gate activates need their origins in `script-src`
+  / `connect-src`; anything with `frame` needs `frame-src`.
+- **A server island** (`server:defer`) adds an inline loader script and a request to
+  the Worker; expect a report for the loader until you hash it.
+
+Run the site, browse the pages you ship with the console open, fix or allow what is
+reported, and only then enforce.
 
 ## Commands
 
