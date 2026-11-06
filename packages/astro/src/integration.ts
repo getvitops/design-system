@@ -1628,6 +1628,17 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         // 5. Virtual head module for <Head/>
         updateConfig({
           vite: {
+            // `<Icon>` imports `@getvitops/generator/icons-sprite`, which imports `@iconify/utils`.
+            // On the Cloudflare adapter `astro dev` evaluates the worker bundle in workerd, where
+            // an un-prebundled CommonJS dependency fails with "module is not defined" on EVERY
+            // route that reaches it (the build is unaffected: Rollup handles the interop). The
+            // dev optimizer only discovers dependencies a site's own sources import, so one
+            // reached through a package's `.astro` file, e.g. a plugin block that renders
+            // `<ReviewCard>`, is never pre-bundled. Naming it here, relative to this package so
+            // it resolves under pnpm's strict layout, fixes dev for every site using `<Icon>`.
+            ssr: {
+              optimizeDeps: { include: ['@getvitops/astro > @getvitops/generator/icons-sprite'] },
+            },
             plugins: [
               virtualReviewsPlugin(root),
               virtualIconsPlugin(

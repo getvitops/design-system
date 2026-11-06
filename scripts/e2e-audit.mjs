@@ -109,7 +109,11 @@ async function seedLocalDatabase(site, step) {
       signal: AbortSignal.timeout(120_000),
     });
     if (res.status >= 400) throw new Error(`dev-bypass setup answered ${res.status}`);
-    const home = await (await fetch(`${base}/`)).text();
+    // A dev server that 500s on every route still contains no "No home page yet" text, so the
+    // status is checked first: a broken dev runtime must fail here, not pass as "seeded".
+    const homeRes = await fetch(`${base}/`);
+    if (!homeRes.ok) throw new Error(`astro dev answered ${homeRes.status} on / (dev is broken)`);
+    const home = await homeRes.text();
     if (/No home page yet/.test(home)) throw new Error('the seed content was not applied');
     log('seeded the local database via the dev-bypass setup');
   } finally {

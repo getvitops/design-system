@@ -94,6 +94,23 @@ const warned = (logs: { level: string; msg: string }[], needle: string) =>
 
 const integration = (name: string): AstroIntegration => ({ name, hooks: {} });
 
+describe('vitops() dev runtime', () => {
+  it('pre-bundles icons-sprite for the SSR environment', async () => {
+    // `<Icon>` reaches `@iconify/utils` through icons-sprite; un-prebundled, workerd's dev
+    // runner answers "module is not defined" on every route that renders it (any site using
+    // `<Icon>`, or a plugin block that renders `<ReviewCard>`). The build is unaffected, so
+    // only this config line and a real `astro dev` keep it fixed.
+    const { updates, run } = harness();
+    await run();
+    const include = updates.flatMap(
+      (u) =>
+        (u.vite as { ssr?: { optimizeDeps?: { include?: string[] } } } | undefined)?.ssr
+          ?.optimizeDeps?.include ?? [],
+    );
+    expect(include).toContain('@getvitops/astro > @getvitops/generator/icons-sprite');
+  });
+});
+
 describe('vitops({ sitemap })', () => {
   it('registers nothing unless asked', async () => {
     const h = harness();
