@@ -95,10 +95,10 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
     required" response into every page — and still succeeds. That is what a fresh
     runner, a first deploy, a `SKIP_PULL_CONTENT=1` build and an **upgrade** deploy
     (the pull restores production's older schema, and `emdash migrate` only runs
-    after the build) would all publish. `scripts/prepare-local-db.mjs` (run after the
+    after the build) would all publish. `vitops emdash prepare-db` (`vpr prepare-local-db`, run after the
     pull by `vpr deploy`, `vpr deploy:dev` and the reusable workflow) starts `astro
     dev` once, calls EmDash's `dev-bypass` setup (which migrates and applies the
-    seed's sample content) and stops it; `scripts/check-prerender.mjs` (part of
+    seed's sample content) and stops it; `vitops emdash check-prerender` (part of
     `vpr build`) then fails the build if any prerendered page is not a real HTML page
     with a title. Run `vpr prepare-local-db` by hand before a first local `vpr build`.
     It only writes the disposable `.wrangler/state`; the dev administrator it creates

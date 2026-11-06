@@ -128,11 +128,11 @@ try {
     if (!r.ok) throw new Error(`\`${cmd} ${args.join(' ')}\` failed`);
     return r;
   };
-  step('pnpm', ['install']);
-  step('pnpm', ['exec', 'emdash', 'seed', '--validate', 'seed/seed.json']);
+  step('vp', ['install']);
+  step('vpx', ['emdash', 'seed', '--validate', 'seed/seed.json']);
   // The template's own pre-build step: migrates and seeds the LOCAL D1 the build prerenders from.
-  step('pnpm', ['run', 'prepare-local-db']);
-  step('pnpm', ['run', 'build']);
+  step('vpr', ['prepare-local-db']);
+  step('vpr', ['build']);
 
   // 4. Serve the prerendered output.
   const client = join(site, 'dist', 'client');

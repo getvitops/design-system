@@ -331,7 +331,7 @@ packages under `packages/` (a pnpm workspace), by layer:
 - **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
   `png-to-ico`, loaded lazily; `oxipng` crush optional). Consumed by cli/vite/astro.
 - **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint|legal|robots|reviews|
-  icons|search|ads|crm|email|setup|media` (bin `vitops`), a thin wrapper over the generator + utils.
+  icons|search|ads|crm|email|emdash|setup|media` (bin `vitops`), a thin wrapper over the generator + utils.
   `legal`/`search`/`ads`/`crm`/`email`
   are covered in their own sections below; `robots` (`vitops robots [--input <site.json>]
   [--site-env <name>] [--out <dir>]`) is `legal`'s sibling — same `Config`-anchoring, same

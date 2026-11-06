@@ -379,6 +379,19 @@ Setup all options:
   Runs repo, hosting, search, ads in order. Stops at the first stage that fails;
   a blocked step (the API token, GitHub Pro/Team gating) is reported, not fatal.
 
+Emdash subcommands:
+  vitops emdash prepare-db           Migrate and seed the local D1 the build prerenders from
+  vitops emdash check-prerender [d]  Fail if a prerendered page is not a real page
+
+Emdash prepare-db options:
+  (none)  Starts \`astro dev\` once, calls EmDash's dev-bypass setup (migrates, applies the
+          seed's sample content), checks the home page renders, stops. Only writes the
+          disposable .wrangler/state. SKIP_PREPARE_LOCAL_DB=1 skips it.
+
+Emdash check-prerender options:
+  [dir]   Build output to check (default: dist/client). Fails on a page that carries the
+          pending-migrations message, is not an HTML document, or has no <title>.
+
 Email subcommands:
   vitops email setup [domain]  Onboard a from-address domain, waiting for its DNS to resolve
   vitops email check [opts]    Non-blocking deploy guard: warn if a from domain isn't onboarded
@@ -504,6 +517,16 @@ export const EMAIL_HELP = `vitops email — sender-domain onboarding checks
 Run \`vitops --help\` for the full option list for each subcommand.
 `;
 
+export const EMDASH_HELP = `vitops emdash — build-time steps for an EmDash site
+
+  vitops emdash prepare-db           Migrate and seed the local D1 the build prerenders from
+                                     (SKIP_PREPARE_LOCAL_DB=1 skips)
+  vitops emdash check-prerender [d]  Fail if a prerendered page under [d] (default dist/client)
+                                     is not a real page
+
+Run \`vitops --help\` for the full option list for each subcommand.
+`;
+
 export const SETUP_HELP = `vitops setup — the scripted path from an empty scaffold to a live site
 
   vitops setup repo [opts]      GitHub repo + branch policy (main protected, dev open)
@@ -539,6 +562,7 @@ export const COMMANDS = [
   'crm',
   'setup',
   'email',
+  'emdash',
   'media',
   'audit',
 ] as const;
@@ -550,6 +574,7 @@ export const SUBCOMMANDS: Record<string, readonly string[]> = {
   crm: ['check', 'setup'],
   setup: ['repo', 'hosting', 'domain', 'turnstile', 'search', 'ads', 'all'],
   email: ['setup', 'check'],
+  emdash: ['prepare-db', 'check-prerender'],
 };
 
 /**
@@ -598,7 +623,9 @@ export function helpFor(command: string, argv: string[]): string {
             ? SETUP_HELP
             : command === 'email'
               ? EMAIL_HELP
-              : undefined) ??
+              : command === 'emdash'
+                ? EMDASH_HELP
+                : undefined) ??
     HELP
   );
 }

@@ -16,6 +16,7 @@
  *   vitops ads       setup [--provider <name>] [--dry] [--check]  |  tags  |  lint
  *   vitops setup     repo | hosting | domain | search | ads | all [--dry] [--check]
  *   vitops email     setup [domain] [--dry] [--check]  |  check [--strict] [--skip]
+ *   vitops emdash    prepare-db  |  check-prerender [dir]
  *   vitops media     [--raw <dir>] [--out <dir>] [--force] [--dry]
  *   vitops audit     [--url <base>] [--build] [--pages <list>] [--warn] [--out <dir>]
  *
@@ -115,6 +116,7 @@ import { cmdAds } from './commands/ads.ts';
 import { cmdAudit } from './commands/audit.ts';
 import { cmdCrm } from './commands/crm.ts';
 import { cmdEmail } from './commands/email.ts';
+import { cmdEmdash } from './commands/emdash.ts';
 import { cmdSetup } from './commands/setup.ts';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
 import { COMMANDS, HELP, helpFor, wantsHelp } from './help.ts';
@@ -1241,6 +1243,8 @@ async function main() {
       return cmdCrm(rest);
     case 'email':
       return cmdEmail(rest);
+    case 'emdash':
+      return cmdEmdash(rest);
     case 'setup':
       return cmdSetup(rest);
     case 'media':

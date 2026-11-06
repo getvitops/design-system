@@ -57,20 +57,20 @@ const name = args.find((a) => !a.startsWith('--')) ?? 'emdash';
 /** Per-template steps run inside the scaffold, in order. `capture` keeps output. */
 const STEPS = {
   emdash: [
-    ['pnpm', ['install']],
-    ['pnpm', ['run', 'typecheck']],
+    ['vp', ['install']],
+    ['vpr', ['typecheck']],
     // The build prerenders from a LOCAL D1 that a fresh scaffold has never migrated; without
     // this the build "succeeds" with the pending-migrations page as every route, and the
-    // template's own `build` guard (scripts/check-prerender.mjs) fails it.
-    ['pnpm', ['run', 'prepare-local-db']],
-    ['pnpm', ['run', 'build'], { capture: true }],
-    ['pnpm', ['run', 'lint:design']],
-    ['pnpm', ['exec', 'emdash', 'seed', '--validate', 'seed/seed.json']],
+    // template's own `build` guard (`vitops emdash check-prerender`) fails it.
+    ['vpr', ['prepare-local-db']],
+    ['vpr', ['build'], { capture: true }],
+    ['vpr', ['lint:design']],
+    ['vpx', ['emdash', 'seed', '--validate', 'seed/seed.json']],
   ],
   static: [
-    ['pnpm', ['install']],
-    ['pnpm', ['run', 'build'], { capture: true }],
-    ['pnpm', ['run', 'lint:design']],
+    ['vp', ['install']],
+    ['vpr', ['build'], { capture: true }],
+    ['vpr', ['lint:design']],
   ],
 };
 
