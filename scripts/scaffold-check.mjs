@@ -45,27 +45,14 @@
  *
  * Requires `build:packages` first, and network access (npmjs, via the proxy).
  */
-import { spawn, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
-import { renameSync, rmSync, writeFileSync } from 'node:fs';
-import { createServer } from 'node:net';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
+import { packAndPublish, prepareSite, run, startRegistry } from './lib/scaffold.mjs';
 
-const ROOT = resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
 const keep = args.includes('--keep');
 const name = args.find((a) => !a.startsWith('--')) ?? 'emdash';
-
-/** The publishable toolchain a scaffold depends on (`create` itself is not one). */
-const PACKAGES = ['config', 'core', 'generator', 'utils', 'cli', 'vite', 'astro', 'emdash'];
-
-/**
- * Pinned, and chosen to be older than the 3-day release cooldown this repo applies to
- * everything else. Bump deliberately: this runs in CI with the registry's credentials absent but
- * its network open, so an unpinned `latest` would be an unreviewed dependency on every PR.
- */
-const VERDACCIO = 'verdaccio@7.0.2';
 
 /** Per-template steps run inside the scaffold, in order. `capture` keeps output. */
 const STEPS = {
@@ -90,135 +77,6 @@ function fail(message) {
   process.exitCode = 1;
 }
 
-function run(cmd, cmdArgs, { cwd, capture = false } = {}) {
-  console.log(`\n[scaffold-check] $ ${cmd} ${cmdArgs.join(' ')}`);
-  const result = spawnSync(cmd, cmdArgs, {
-    cwd,
-    encoding: 'utf8',
-    stdio: capture ? ['ignore', 'pipe', 'pipe'] : 'inherit',
-    env: { ...process.env, CI: '1' },
-  });
-  if (capture) {
-    process.stdout.write(result.stdout ?? '');
-    process.stderr.write(result.stderr ?? '');
-  }
-  return { ok: result.status === 0, output: `${result.stdout ?? ''}${result.stderr ?? ''}` };
-}
-
-/** An unused TCP port. Verdaccio takes a fixed one, so ask the OS and release it. */
-function freePort() {
-  return new Promise((resolvePort, reject) => {
-    const server = createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolvePort(port));
-    });
-  });
-}
-
-async function until(check, what, timeoutMs = 60_000) {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    try {
-      if (await check()) return;
-    } catch {
-      /* not up yet */
-    }
-    if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`);
-    await new Promise((r) => setTimeout(r, 250));
-  }
-}
-
-/** The root-installed Verdaccio's executable, or null when this checkout has not installed it. */
-function findInstalledVerdaccio() {
-  // By path, not `require.resolve`: its `exports` map hides `package.json`.
-  const bin = join(ROOT, 'node_modules', 'verdaccio', 'bin', 'verdaccio');
-  return existsSync(bin) ? bin : null;
-}
-
-/**
- * Install and start a Verdaccio that serves `@getvitops/*` from local storage only and proxies
- * everything else to npmjs. Returns its URL, an npmrc that can publish to it, and a `stop()`.
- */
-async function startRegistry(work) {
-  const tools = join(work, 'verdaccio');
-  mkdirSync(tools);
-  // Verdaccio is a root devDependency, so the usual run needs no network install. The pinned
-  // `npm install` below is the fallback for a checkout whose dependencies are not installed.
-  let bin = findInstalledVerdaccio();
-  if (!bin) {
-    const install = run(
-      'npm',
-      ['install', '--prefix', tools, VERDACCIO, '--no-audit', '--no-fund', '--ignore-scripts'],
-      { cwd: work },
-    );
-    if (!install.ok) throw new Error(`could not install ${VERDACCIO}`);
-    bin = join(tools, 'node_modules', 'verdaccio', 'bin', 'verdaccio');
-  }
-
-  const port = await freePort();
-  const url = `http://127.0.0.1:${port}`;
-  const config = join(tools, 'config.yaml');
-  writeFileSync(
-    config,
-    [
-      `storage: ${join(tools, 'storage')}`,
-      'auth:',
-      '  htpasswd:',
-      `    file: ${join(tools, 'htpasswd')}`,
-      '    max_users: 10', // -1 disables registration, and we need one throwaway user
-      'uplinks:',
-      '  npmjs:',
-      '    url: https://registry.npmjs.org/',
-      'packages:',
-      "  '@getvitops/*':", // no `proxy`: local only, so it can never fall back to a release
-      '    access: $all',
-      '    publish: $authenticated',
-      "  '**':",
-      '    access: $all',
-      '    proxy: npmjs',
-      'max_body_size: 200mb',
-      'log: { type: stdout, format: pretty, level: warn }',
-      '',
-    ].join('\n'),
-  );
-
-  const child = spawn(
-    process.execPath,
-    [bin, '--config', config, '--listen', `127.0.0.1:${port}`],
-    { cwd: tools, stdio: ['ignore', 'inherit', 'inherit'] },
-  );
-  const stop = () => {
-    if (!child.killed) child.kill('SIGTERM');
-  };
-  try {
-    await until(async () => (await fetch(`${url}/-/ping`)).ok, 'Verdaccio to start');
-
-    // `npm publish` refuses without a token even where the registry would allow anonymous
-    // publishing, so register a throwaway user and keep the token it returns.
-    const res = await fetch(`${url}/-/user/org.couchdb.user:scaffold`, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        name: 'scaffold',
-        password: 'scaffold-check-1',
-        email: 'ci@example.com',
-      }),
-    });
-    if (!res.ok) throw new Error(`could not register a publish user (${res.status})`);
-    const { token } = await res.json();
-    if (!token) throw new Error('Verdaccio returned no auth token');
-
-    const npmrc = join(tools, 'publish.npmrc');
-    writeFileSync(npmrc, `registry=${url}/\n//127.0.0.1:${port}/:_authToken=${token}\n`);
-    return { url, npmrc, stop };
-  } catch (error) {
-    stop();
-    throw error;
-  }
-}
-
 if (!STEPS[name]) {
   console.error(
     `[scaffold-check] unknown template '${name}' (expected: ${Object.keys(STEPS).join(', ')})`,
@@ -228,79 +86,16 @@ if (!STEPS[name]) {
 
 const work = mkdtempSync(join(process.env.RUNNER_TEMP ?? tmpdir(), 'vitops-scaffold-'));
 const site = join(work, 'site');
-const tarballs = join(work, 'tarballs');
-mkdirSync(tarballs);
 let registry;
 
 try {
-  // 1. Pack this checkout's toolchain.
-  const packed = {};
-  for (const pkg of PACKAGES) {
-    const dir = join(ROOT, 'packages', pkg);
-    if (!existsSync(join(dir, 'dist'))) {
-      throw new Error(`packages/${pkg}/dist is missing — run \`vp run build:packages\` first`);
-    }
-    const before = new Set(readdirSync(tarballs));
-    const { ok } = run('pnpm', ['pack', '--pack-destination', tarballs], { cwd: dir });
-    if (!ok) throw new Error(`pnpm pack failed for @getvitops/${pkg}`);
-    const file = readdirSync(tarballs).find((f) => !before.has(f));
-    packed[`@getvitops/${pkg}`] = join(tarballs, file);
-  }
-
-  // 2. Serve them from a local registry, tagged `latest` — what the template's `latest` resolves.
+  // Pack this checkout's toolchain, serve it from a local registry as `latest`, copy the
+  // template and point it there — see `scripts/lib/scaffold.mjs`.
   registry = await startRegistry(work);
-  for (const [pkg, file] of Object.entries(packed)) {
-    const { ok } = run(
-      'npm',
-      [
-        'publish',
-        file,
-        '--registry',
-        registry.url,
-        '--tag',
-        'latest',
-        '--userconfig',
-        registry.npmrc,
-      ],
-      { cwd: work },
-    );
-    if (!ok) throw new Error(`publishing ${pkg} to the local registry failed`);
-  }
+  packAndPublish(registry, work);
+  mkdirSync(site);
+  prepareSite(name, site, registry);
 
-  // 3. Copy the template, the way `vp create` does for a bundled one.
-  cpSync(join(ROOT, 'packages/create/templates', name), site, {
-    recursive: true,
-    filter: (src) => !/[\\/](node_modules|\.astro|dist|\.vite-temp)([\\/]|$)/.test(src),
-  });
-  if (existsSync(join(site, '_gitignore'))) {
-    renameSync(join(site, '_gitignore'), join(site, '.gitignore'));
-  }
-
-  // 4. Point the scaffold at the registry, and drop the environment-only settings.
-  const pkgPath = join(site, 'package.json');
-  const manifest = JSON.parse(readFileSync(pkgPath, 'utf8'));
-  delete manifest.packageManager;
-  delete manifest.devEngines;
-  writeFileSync(pkgPath, `${JSON.stringify(manifest, null, 2)}\n`);
-
-  writeFileSync(join(site, '.npmrc'), `registry=${registry.url}/\n`);
-
-  const wsPath = join(site, 'pnpm-workspace.yaml');
-  // Every template ships one (`templates.test.ts` asserts it), carrying the cooldown and the
-  // build approvals `vp create --approve-builds` would otherwise grant.
-  const ws = readFileSync(wsPath, 'utf8');
-  // Published seconds ago, so the cooldown would reject the toolchain under test unless the
-  // template exempts it — which a real scaffold must do too, since releases land the same way.
-  if (!/^\s+- '@getvitops\/\*'$/m.test(ws)) {
-    throw new Error(
-      "the template's pnpm-workspace.yaml does not exempt '@getvitops/*' from minimumReleaseAge",
-    );
-  }
-  writeFileSync(wsPath, ws);
-
-  run('git', ['init', '--quiet'], { cwd: site });
-
-  // 5. Run the steps.
   for (const [cmd, cmdArgs, opts] of STEPS[name]) {
     const { ok, output } = run(cmd, cmdArgs, { cwd: site, ...opts });
     if (!ok) {
