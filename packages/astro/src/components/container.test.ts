@@ -89,7 +89,7 @@ describe('<NodeRenderer />', () => {
           {
             tag: 'p',
             attrs: {},
-            children: [{ tag: '#text', attrs: {}, text: { en: 'Hello', fr: 'Bonjour' } }],
+            text: { en: 'Hello', fr: 'Bonjour' },
           },
         ],
         locale: 'fr',
