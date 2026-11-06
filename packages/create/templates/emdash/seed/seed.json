@@ -38,20 +38,36 @@
       "items": [
         {
           "type": "custom",
+          "label": "Contact",
+          "url": "/contact"
+        }
+      ]
+    },
+    {
+      "name": "footer-sitemap",
+      "label": "Footer: Site Map",
+      "items": [
+        {
+          "type": "custom",
           "label": "Home",
           "url": "/"
         },
         {
           "type": "custom",
-          "label": "About",
-          "url": "/about"
+          "label": "Contact",
+          "url": "/contact"
         }
       ]
     },
     {
-      "name": "footer",
-      "label": "Footer",
+      "name": "footer-legal",
+      "label": "Footer: Legal",
       "items": [
+        {
+          "type": "custom",
+          "label": "Privacy Policy",
+          "url": "/privacy"
+        },
         {
           "type": "custom",
           "label": "Terms & Conditions",
@@ -59,8 +75,8 @@
         },
         {
           "type": "custom",
-          "label": "Privacy Policy",
-          "url": "/privacy"
+          "label": "Cookie Notice",
+          "url": "/cookies"
         }
       ]
     }
@@ -430,6 +446,96 @@
                   "_type": "span",
                   "_key": "privacy-rights-1",
                   "text": "You may request access to, correction of, or deletion of your personal information by contacting the site owner. Edit this page in the EmDash admin.",
+                  "marks": []
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "contact",
+        "slug": "contact",
+        "status": "published",
+        "data": {
+          "title": "Contact",
+          "content": [
+            {
+              "_type": "vitops.banner",
+              "_key": "contact-placeholder",
+              "message": "Placeholder text — replace with your contact details before launch.",
+              "tone": "warning",
+              "dismissible": false
+            },
+            {
+              "_type": "block",
+              "_key": "contact-body",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "contact-body-1",
+                  "text": "Tell visitors how to reach you: an email address, a phone number, a street address or a form. This page exists so the Contact link in the header and footer resolves; edit it in the EmDash admin.",
+                  "marks": []
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "cookies",
+        "slug": "cookies",
+        "status": "published",
+        "data": {
+          "title": "Cookie Notice",
+          "content": [
+            {
+              "_type": "vitops.banner",
+              "_key": "cookies-placeholder",
+              "message": "Placeholder text — replace with your own cookie notice before launch. This is not legal advice. `vitops legal` can generate a draft from site.json.",
+              "tone": "warning",
+              "dismissible": false
+            },
+            {
+              "_type": "block",
+              "_key": "cookies-intro",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "cookies-intro-1",
+                  "text": "This site uses a small number of cookies. Essential cookies keep the site working; others are only set if you choose to allow them.",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "cookies-h",
+              "style": "h2",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "cookies-h-1",
+                  "text": "What cookies we use",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "cookies-body",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "cookies-body-1",
+                  "text": "List each cookie, who sets it and why. Replace this paragraph with the real list before launch.",
                   "marks": []
                 }
               ]

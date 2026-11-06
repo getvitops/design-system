@@ -23,6 +23,15 @@ const organizationName = resolveOrganizationName(config) ?? 'My EmDash Site';
 // data migration, not a rewrite — see README "Hosting".
 const { adapter, database, storage } = await vitopsHosting();
 
+// Favicon/PWA colours come from site.json rather than a second copy here that
+// drifts when the palette changes: the browser-UI colour is the `brand-primary`
+// role's hue seed. (The page background behind the maskable icon is a computed
+// ramp step, not a config value, so `backgroundColor` below stays a literal.)
+const colors = config.designSystem?.themes?.default?.colors ?? {};
+const roleHue = (role) =>
+  typeof colors.roles?.[role] === 'string' ? colors.roles[role] : colors.roles?.[role]?.hue;
+const brandColor = colors.palette?.[roleHue('brand-primary')]?.seed ?? '#2e9b73';
+
 export default defineConfig({
   output: 'server',
   adapter,
@@ -79,7 +88,7 @@ export default defineConfig({
       favicon: {
         source: 'src/assets/logo.svg',
         name: organizationName,
-        themeColor: '#2e9b73',
+        themeColor: brandColor,
         backgroundColor: '#ffffff',
       },
       // inject: false — Layout.astro imports the generated stylesheet, so

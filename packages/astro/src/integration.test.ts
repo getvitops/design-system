@@ -347,6 +347,21 @@ describe('a site config at css.input', () => {
     expect(h.logs.filter((l) => l.msg.startsWith('fonts: nothing declared'))).toHaveLength(0);
   });
 
+  it('turns webfonts on by default when the site config declares site.fonts (U11)', async () => {
+    const h = at({ css: { input: 'company.json', format: 'css' } });
+    await h.run();
+    expect(
+      h.updates.some((u) => Array.isArray(u.fonts) && (u.fonts as unknown[]).length === 1),
+    ).toBe(true);
+    expect(h.logs.some((l) => l.msg.includes('declares site.fonts'))).toBe(true);
+  });
+
+  it('lets `fonts: false` opt out of the site.fonts default', async () => {
+    const h = at({ css: { input: 'company.json', format: 'css' }, fonts: false });
+    await h.run();
+    expect(h.updates.some((u) => 'fonts' in u)).toBe(false);
+  });
+
   it('still demands a path when css.input is a plain design system', async () => {
     // The fallback is not "guess"; a design-system.json holds no legal facts, so
     // asking is the only correct answer.

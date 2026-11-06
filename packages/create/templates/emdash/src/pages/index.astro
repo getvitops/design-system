@@ -3,16 +3,17 @@ import { getEmDashEntry } from 'emdash';
 import { PortableText } from 'emdash/ui';
 import Layout from '../layouts/Layout.astro';
 
-// The seeded home page (seed/seed.json → pages/home). Edit it in the admin;
-// the Vitops blocks from @getvitops/emdash render automatically — EmDash
-// merges the plugin's block components into <PortableText>.
+// Prerendered, like every page in this template: written to static HTML at build
+// time from the `home` entry (seed/seed.json → pages/home). Edit it in the admin;
+// a publish triggers a rebuild that bakes the change in (AGENTS.md "Rendering and
+// freshness"). The Vitops blocks from @getvitops/emdash render automatically —
+// EmDash merges the plugin's block components into <PortableText>.
 //
-// Deliberately NOT prerendered, unlike AGENTS.md's general "prerender by
-// default" rule: this is the one route where the tradeoff that rule names
-// (prerendered = fast, but reflects the database as of the last build) is
-// unacceptable — the whole point of editing in EmDash is that a publish
-// shows up without a redeploy. Add `getStaticPaths()` + `prerender = true`
-// here only if this site's home page genuinely doesn't need that.
+// Anything on a page that must be fresh per request (a stock count, a signed-in
+// greeting) goes in a server island — `<Thing server:defer />` — which stays out
+// of this static HTML and loads after it.
+export const prerender = true;
+
 const { entry: page } = await getEmDashEntry('pages', 'home');
 
 // `page.data` is typed `unknown` until `.emdash/types.ts` is generated from a

@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vite-plus/test';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(HERE, rel), 'utf8');
 
-const head = read('./Head.astro');
+const head = read('../inline-scripts.ts') + read('./Head.astro');
 const toggle = read('../../../core/src/web-components/WCColorSchemeToggle.ts');
 
 describe('<Head /> pre-paint colour-scheme script', () => {

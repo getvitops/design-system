@@ -1,7 +1,10 @@
+import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { validateConfig } from '@getvitops/generator';
+// @ts-ignore — a cross-package source import; `allowImportingTsExtensions` is off here.
+import { CONSENT_STUB, THEME_SCRIPT } from '../astro/src/inline-scripts.ts';
 
 /**
  * Scaffolded projects live OUTSIDE this monorepo, so every dependency
@@ -138,18 +141,51 @@ it('.agents/skills/setup/SKILL.md is identical across templates', () => {
 });
 
 /**
- * `public/_headers` is the one place a scaffolded site gets security headers, so it is held
- * identical across templates and must carry the baseline (and no CSP — see the file's comment).
+ * Both templates ship a Report-Only CSP in `public/_headers`. Its `script-src` names
+ * `<Head />`'s inline scripts by SHA-256, so it is only correct while those hashes
+ * match the bytes `@getvitops/astro` emits. The scripts are constants in
+ * `inline-scripts.ts` (the same ones `csp.ts` hashes and `Head.astro` emits), imported
+ * by relative path rather than through a dependency — `create` ships data, not code,
+ * and shouldn't depend on the astro package just to be tested against it.
+ */
+describe.each(templateNames)('template %s CSP', (name) => {
+  const headers = readFileSync(join(TEMPLATES, name, 'public', '_headers'), 'utf8');
+  const hash = (s: string) => `'sha256-${createHash('sha256').update(s, 'utf8').digest('base64')}'`;
+
+  it('is Report-Only, so it cannot break a page', () => {
+    expect(headers).toMatch(/^\s+Content-Security-Policy-Report-Only: /m);
+    expect(headers).not.toMatch(/^\s+Content-Security-Policy: /m);
+  });
+
+  it("allows each <Head /> inline script by the hash of the bytes it emits, with no 'unsafe-inline'", () => {
+    const policy = /Content-Security-Policy-Report-Only: (.*)/.exec(headers)![1]!;
+    const scriptSrc = policy.split('; ').find((d) => d.startsWith('script-src '))!;
+    expect(scriptSrc).toContain(hash(THEME_SCRIPT));
+    expect(scriptSrc).toContain(hash(CONSENT_STUB));
+    expect(scriptSrc).not.toContain('unsafe-inline');
+  });
+});
+
+/**
+ * `public/_headers` is the one place a scaffolded site gets security headers, so the header
+ * RULES are held identical across templates (the comments differ: one covers a whole static
+ * site, the other only the prerendered assets) and must carry the baseline. A CSP is allowed only
+ * as Report-Only — an enforcing one would break pages (see the CSP tests below).
  */
 it('every template ships the same public/_headers security baseline', () => {
+  const rules = (file: string) =>
+    file
+      .split('\n')
+      .filter((l) => /^\s+\S/.test(l))
+      .join('\n');
   const files = templateNames.map((name) =>
     readFileSync(join(TEMPLATES, name, 'public', '_headers'), 'utf8'),
   );
   for (const file of files) {
     expect(file).toContain('X-Content-Type-Options: nosniff');
     expect(file).toContain('Referrer-Policy:');
-    expect(file).not.toMatch(/^\s*Content-Security-Policy/m);
-    expect(file).toBe(files[0]);
+    expect(file).not.toMatch(/^\s*Content-Security-Policy:/m);
+    expect(rules(file)).toBe(rules(files[0]!));
   }
 });
 
@@ -173,6 +209,41 @@ describe.each(templateNames)('template %s workflows', (name) => {
 
   it('carries the main → dev back-merge caller', () => {
     expect(readdirSync(dir)).toContain('backmerge.yml');
+  });
+});
+
+/**
+ * The emdash seed's navigation: three menus, and every URL in them must land on
+ * a page the same seed creates. A seeded link that 404s is the first thing a new
+ * site's visitor (and any later audit of its routes) finds.
+ */
+describe('emdash seed menus', () => {
+  const seed = JSON.parse(readFileSync(join(TEMPLATES, 'emdash', 'seed', 'seed.json'), 'utf8')) as {
+    menus: { name: string; items: { url: string; label: string }[] }[];
+    content: { pages: { slug: string }[] };
+  };
+
+  it('ships exactly primary, footer-sitemap and footer-legal', () => {
+    expect(seed.menus.map((m) => m.name)).toEqual(['primary', 'footer-sitemap', 'footer-legal']);
+  });
+
+  it('keeps the logo as the home link: primary holds Contact only', () => {
+    const primary = seed.menus.find((m) => m.name === 'primary')!;
+    expect(primary.items.map((i) => i.url)).toEqual(['/contact']);
+  });
+
+  it('points footer-legal at the three `vitops legal` documents', () => {
+    const legal = seed.menus.find((m) => m.name === 'footer-legal')!;
+    expect(legal.items.map((i) => i.url)).toEqual(['/privacy', '/terms', '/cookies']);
+  });
+
+  it('resolves every menu item to a seeded page', () => {
+    const slugs = new Set(seed.content.pages.map((p) => p.slug));
+    for (const menu of seed.menus)
+      for (const item of menu.items) {
+        const slug = item.url === '/' ? 'home' : item.url.slice(1);
+        expect(slugs.has(slug), `${menu.name}: ${item.url} has no seeded page`).toBe(true);
+      }
   });
 });
 

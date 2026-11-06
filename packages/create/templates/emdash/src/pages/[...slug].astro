@@ -1,23 +1,33 @@
 ---
-import { getEmDashEntry } from 'emdash';
+import { getEmDashCollection } from 'emdash';
 import { PortableText } from 'emdash/ui';
 import Layout from '../layouts/Layout.astro';
 
-// Catch-all: any entry in the `pages` collection renders at its slug.
+// Prerendered: every published entry in `pages` becomes a static HTML file at
+// its slug, written at build time and served as a static asset. The build reads
+// the content database — `scripts/pull-content.mjs` loads production's into the
+// local build database first (it is part of `deploy`/`deploy:dev`) — so an edit
+// in the admin goes live on the next rebuild, which a publish webhook triggers
+// (see AGENTS.md "Rendering and freshness").
 //
-// Deliberately NOT prerendered, unlike AGENTS.md's general "prerender by
-// default" rule — see index.astro's comment for why: a live EmDash publish
-// should reach visitors without a redeploy. A page that's known ahead of
-// time and doesn't need that (rarely edited, or fine to lag a build) can
-// move to its own prerendered route with `getStaticPaths()` over the
-// `pages` collection instead of relying on this catch-all.
-const { slug } = Astro.params;
-const { entry: page } = slug ? await getEmDashEntry('pages', slug) : { entry: null };
+// There is no `Astro.rewrite('/404')` here and no on-demand fallback: a URL that
+// isn't in the list below simply has no route, so Astro serves the prerendered
+// `404.astro` with a real 404 status. (The previous version rewrote an
+// on-demand route to the prerendered `/404`, which Astro refuses — every
+// unknown URL was a 500.)
+export const prerender = true;
 
-if (!page) {
-  return Astro.rewrite('/404');
+export async function getStaticPaths() {
+  const { entries, error } = await getEmDashCollection('pages');
+  // Fail the build rather than ship a site with no pages.
+  if (error) throw error;
+  return entries
+    // `home` is served by index.astro at `/`.
+    .filter((entry) => entry.id !== 'home')
+    .map((entry) => ({ params: { slug: entry.id }, props: { page: entry } }));
 }
 
+const { page } = Astro.props;
 // `page.data` is typed `unknown` until `.emdash/types.ts` is generated from a
 // running site (`pnpm dev`, then `emdash types`), so a fresh scaffold would fail
 // `astro check`; the cast keeps it passing both before and after, where the

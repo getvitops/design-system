@@ -104,7 +104,7 @@ justification for the CSS.
 Run **`vitops docs <topic>`** — it prints the reference as markdown to stdout, generated
 live from this project's `design-system.json` and the installed package version, so it is
 never stale and always names the project's actual tokens. (If `vitops` isn't on PATH, use
-`pnpm exec vitops docs <topic>` or `npx vitops docs <topic>`.)
+`vp exec vitops docs <topic>`; a project not on Vite+ can use `pnpm exec` or `npx`.)
 
 | Run                      | When you need                                                           |
 | ------------------------ | ----------------------------------------------------------------------- |
