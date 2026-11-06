@@ -124,6 +124,10 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
     that a bot can then skip the token. Turnstile is category `necessary` (it protects the form
     being sent), loads only when a visitor first uses the form, and its origin is allowed in the
     Report-Only CSP in `public/_headers`.
+  - **Privacy policy inventory.** `vitops legal` derives "what personal information we collect"
+    from `site.templates` entries of type `form`, not from the editor's block, so a form added in
+    the admin is invisible to it. When you add or change form fields, mirror them in a
+    `site.templates` form entry in `site.json`, or the generated policy under-reports.
   - A field named `phone` submits as `tel` (the route reserves `phone` and `event`).
   - The per-IP rate limit is per Worker isolate; add a KV-backed `RateLimitStore` if you need a
     fleet-wide one.
