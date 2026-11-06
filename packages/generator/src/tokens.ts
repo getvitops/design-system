@@ -41,6 +41,15 @@ import {
   pickOn,
   tintedEndpoints,
 } from '@getvitops/utils/color';
+import {
+  BASE_HOOK,
+  LAYOUT_TOKENS,
+  TYPO_KEYMAP,
+  type RoleSpec,
+  roleHue,
+  roleKind,
+} from './shared.ts';
+import type { DesignSystem } from './schema.ts';
 
 export const NUMERIC_STEPS = [
   '50',
@@ -216,9 +225,15 @@ export function expandPalette(raw: Record<string, unknown>): Record<string, Expa
  */
 const LADDER_TOLERANCE = 0.03;
 
-export function ladderWarnings(palette: Record<string, ExpandedHue>): string[] {
+export function ladderWarnings(
+  palette: Record<string, ExpandedHue>,
+  /** The authored palette, to honour a hue's `acknowledgeOffLadder: true`. */
+  authored: Record<string, unknown> = {},
+): string[] {
   const warnings: string[] = [];
   for (const [hue, expanded] of Object.entries(palette)) {
+    if ((authored[hue] as { acknowledgeOffLadder?: boolean } | undefined)?.acknowledgeOffLadder)
+      continue;
     for (const [step, deviation] of Object.entries(expanded.deviations ?? {})) {
       if (Math.abs(deviation as number) <= LADDER_TOLERANCE) continue;
       const dir = (deviation as number) > 0 ? 'lighter' : 'darker';
@@ -226,7 +241,8 @@ export function ladderWarnings(palette: Record<string, ExpandedHue>): string[] {
         `colors.palette.${hue}: the colour pinned at step ${step} is ${Math.abs(
           deviation as number,
         ).toFixed(3)} ${dir} than the shared lightness ladder — this hue will read ` +
-          `${dir} than others at ${step}. Legal, but move it to a neighbouring step if that wasn't intended.`,
+          `${dir} than others at ${step}. Legal, but move it to a neighbouring step if that wasn't intended ` +
+          `(or set \`acknowledgeOffLadder: true\` on the hue to silence this).`,
       );
     }
   }
@@ -421,6 +437,7 @@ export function functionalRole(
   hueName: string,
   hue: ExpandedHue,
   kind: RoleKind = 'chromatic',
+  opts: { solid?: string; foreground?: 'light' | 'dark' } = {},
 ): FunctionalRole {
   const numeric = hue.numeric;
   const v = (n: NumStep) => `var(--color-${hueName}-${snap(numeric, n)})`;
@@ -434,8 +451,21 @@ export function functionalRole(
 
   // Solids and the foreground computed against them are identical in both
   // appearances — that mode-stability is the whole point of the family.
-  const solids = map(SOLID);
-  const onSolid = pickOn(hex(SOLID['bg-solid'] as NumStep));
+  //
+  // A role may name its own solid step (a bright brand colour that lives at 400,
+  // not 600). The family then walks DARKER from it — bold, x-bold — by ladder
+  // position, so 400 → 500 → 600 as the default is 600 → 700 → 800. And
+  // `foreground` pins the polarity of the on-colour (dark text on a bright fill);
+  // `checkContrast` still judges the pair actually emitted.
+  const solidStep = (opts.solid ?? SOLID['bg-solid']) as NumStep;
+  const at = NUMERIC_STEPS.indexOf(solidStep);
+  const stepAt = (i: number) => NUMERIC_STEPS[Math.min(i, NUMERIC_STEPS.length - 1)] as NumStep;
+  const solids = map({
+    'bg-solid': solidStep,
+    'bg-solid-bold': stepAt(at + 1),
+    'bg-solid-x-bold': stepAt(at + 2),
+  });
+  const onSolid = pickOn(hex(solidStep), undefined, opts.foreground);
 
   const light = {
     ...map(kind === 'surface' ? SURFACE_LIGHT : CHROMATIC_LIGHT),
@@ -479,6 +509,8 @@ export function checkContrast(
   fr: FunctionalRole,
   numericOf: (hueName: string) => Partial<Record<NumStep, string>>,
   surfaceBg?: { light: string[]; dark: string[] },
+  /** Appearances to judge; a dark-only site passes `['dark']`. Default: both. */
+  appearances: readonly ('light' | 'dark')[] = ['light', 'dark'],
 ): string[] {
   const failures: string[] = [];
   const resolve = (val: string): string => {
@@ -493,6 +525,7 @@ export function checkContrast(
     ['light', fr.light],
     ['dark', fr.dark],
   ] as const) {
+    if (!appearances.includes(appearance)) continue;
     // Backgrounds this role's own foregrounds have to work on. For a surface
     // role that's its own planes; for a chromatic role it's the page surface
     // plus its own tints.
@@ -551,4 +584,152 @@ export function checkContrast(
     }
   }
   return failures;
+}
+
+/**
+ * Runs the same monotonicity + contrast contract `generate()`'s `build()`
+ * enforces at build time (by throwing), standalone and non-throwing — for a
+ * caller that needs to validate a `colors` subtree *before* handing it to
+ * `generate()`, most notably the EmDash design-system-editor's save route
+ * (see AGENTS.md's "live theme editor" section): a client's edit gets the
+ * exact same accessibility gate a real build would apply, synchronously, at
+ * save time, rather than only discovering a violation at the next deploy.
+ *
+ * Deliberately re-derives `expandPalette`/`functionalRole` independently
+ * rather than sharing state with `build()` — both are cheap, pure
+ * computations, and keeping this standalone means it has no dependency on
+ * `generate.ts`'s CSS-bundling half (which needs lightningcss/node:fs) and so
+ * stays reachable from a Worker.
+ */
+export function validateColorContract(colors: {
+  palette: Record<string, unknown>;
+  roles: Record<string, RoleSpec>;
+}): string[] {
+  const expandedPalette = expandPalette(colors.palette);
+  const scaleRoles: FunctionalRole[] = [];
+  for (const [role, spec] of Object.entries(colors.roles)) {
+    const hueName = roleHue(spec);
+    const hue = expandedPalette[hueName];
+    if (hue == null) return [`role "${role}" references unknown palette hue "${hueName}"`];
+    scaleRoles.push(functionalRole(role, hueName, hue, roleKind(spec)));
+  }
+
+  const monotonicity = monotonicityErrors(expandedPalette);
+  if (monotonicity.length) return monotonicity;
+
+  const surfaceRole = scaleRoles.find((r) => r.role === 'surface' && 'bg' in r.light);
+  const numericOf = (hueName: string) => expandedPalette[hueName]?.numeric ?? {};
+  const resolve = (val: string): string => {
+    const m = /^var\(--color-([a-z0-9-]+)-(\d+)\)$/.exec(val);
+    return m ? (numericOf(m[1] as string)[m[2] as never] ?? val) : val;
+  };
+  const planeKeys = ['bg', 'bg-muted', 'bg-x-muted'] as const;
+  const surfaceBg = surfaceRole
+    ? {
+        light: planeKeys.flatMap((k) =>
+          surfaceRole.light[k] ? [resolve(surfaceRole.light[k] as string)] : [],
+        ),
+        dark: planeKeys.flatMap((k) =>
+          surfaceRole.dark[k] ? [resolve(surfaceRole.dark[k] as string)] : [],
+        ),
+      }
+    : undefined;
+  return scaleRoles.flatMap((fr) => checkContrast(fr, numericOf, surfaceBg));
+}
+
+/**
+ * The `reverseIndex` half of `generate()`'s `design-manifest.json` (css
+ * format), standalone — a CSS var name → the config path that produced it
+ * (e.g. `--color-navy-500` → `colors.palette.navy.anchors.500`). Kept in exact
+ * step with the block inside `generate.ts`'s `build()` that builds the same
+ * map (both read `TYPO_KEYMAP`/`BASE_HOOK` from `shared.ts`, never duplicated
+ * inline) — this is the standalone half for a caller that has a
+ * `DesignSystem` but no built `design-manifest.json` to fetch, most notably
+ * the EmDash design-system-editor plugin route: a deployed Worker has no
+ * filesystem to read a manifest asset from over HTTP without adding a
+ * `network:request` capability + a hostname declared in `allowedHosts` for
+ * *the site's own, deployment-specific* origin — recomputing this from the
+ * `DesignSystem` the site's own build already bundles avoids that entirely.
+ */
+export function buildReverseIndex(ds: Pick<DesignSystem, 'colors' | 'typography' | 'patterns'>) {
+  const expandedPalette = expandPalette(ds.colors.palette as Record<string, unknown>);
+  const reverseIndex: Record<string, string> = {};
+
+  // Same reasoning as generate.ts's own comment: a numeric step maps back to
+  // that step's `anchors` entry, never to the hue's `seed` (which regenerates
+  // the whole ramp).
+  for (const [name, hue] of Object.entries(expandedPalette))
+    for (const n of Object.keys(hue.numeric))
+      reverseIndex[`--color-${name}-${n}`] = `colors.palette.${name}.anchors.${n}`;
+
+  const typoRoles = ds.typography?.roles ?? {};
+  for (const role of Object.keys(typoRoles))
+    for (const [key, [, sfx]] of Object.entries(TYPO_KEYMAP))
+      reverseIndex[`--${role}-${sfx}`] = `typography.roles.${role}.${key}`;
+
+  // Same mapping as generate.ts: layout tokens are always indexed, set or not.
+  for (const [path, token] of Object.entries(LAYOUT_TOKENS)) reverseIndex[token] = `layout.${path}`;
+
+  const pDefaults = ds.patterns?.defaults ?? {};
+  const pRadii = ds.patterns?.radii ?? {};
+  const pGroups = ds.patterns?.groups ?? {};
+  const pItems = ds.patterns?.items ?? {};
+  for (const prop of Object.keys(pDefaults))
+    reverseIndex[`--${prop}-default`] = `patterns.defaults.${prop}`;
+  for (const [group, props] of Object.entries(pGroups))
+    for (const prop of Object.keys(props))
+      reverseIndex[`--${prop}-${group}`] = `patterns.groups.${group}.${prop}`;
+  for (const [name, item] of Object.entries(pItems)) {
+    const base = item.base ?? {};
+    for (const prop of Object.keys(base))
+      if (prop in BASE_HOOK)
+        reverseIndex[`--${BASE_HOOK[prop]}-${name}`] = `patterns.items.${name}.base.${prop}`;
+  }
+  // Radii last, and only where a pattern hasn't already claimed the var —
+  // same collision rule as generate.ts.
+  for (const name of Object.keys(pRadii))
+    if (!(`--br-${name}` in reverseIndex)) reverseIndex[`--br-${name}`] = `patterns.radii.${name}`;
+
+  return reverseIndex;
+}
+
+/**
+ * Turns a design-system PATCH (paths matching `manifest.reverseIndex`'s own
+ * config-path values, e.g. `colors.palette.navy.anchors.500`) into the runtime
+ * `:root` override `<wc-theme-editor>` already injects client-side for its own
+ * live preview — server-rendered instead, for the EmDash design-system-editor
+ * plugin route to serve site-wide via a `page:fragments` `html` contribution
+ * (see AGENTS.md's "live theme editor" + "EmDash plugin as the design-system
+ * editing surface" sections). `''` (no matching var, or an empty patch) means
+ * "nothing to override" — the caller should serve no fragment at all rather
+ * than an empty `<style>` tag.
+ *
+ * Inverts `reverseIndex` (`cssVar → configPath`) once into `configPath →
+ * cssVar`, so it costs one pass regardless of how deep the patch nests. A
+ * patched leaf with no matching var (a `reverseIndex` miss — the same case
+ * `<wc-theme-editor>`'s own `buildPatch()` calls "skipped") is silently
+ * omitted here too, for the same reason: a value with nothing to preview is
+ * not an error, just nothing to show yet.
+ */
+export function patchToOverrideCss(
+  patch: Record<string, unknown>,
+  reverseIndex: Record<string, string>,
+): string {
+  const byPath = new Map<string, string>();
+  for (const [cssVar, path] of Object.entries(reverseIndex)) byPath.set(path, cssVar);
+
+  const lines: string[] = [];
+  const walk = (node: unknown, path: string): void => {
+    if (node == null || typeof node !== 'object') {
+      const cssVar = byPath.get(path);
+      if (cssVar && (typeof node === 'string' || typeof node === 'number'))
+        lines.push(`  ${cssVar}: ${node};`);
+      return;
+    }
+    for (const [key, value] of Object.entries(node as Record<string, unknown>))
+      walk(value, path ? `${path}.${key}` : key);
+  };
+  walk(patch, '');
+
+  return lines.length ? `:root {\n${lines.join('\n')}\n}` : '';
 }

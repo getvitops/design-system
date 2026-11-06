@@ -177,3 +177,59 @@ export function loadSearchCredential(): GoogleCredential | undefined {
 /** Both spellings, for an error that has to tell you what to actually set. */
 export const CREDENTIAL_HINT =
   'a service account in VITOPS_GSC_SERVICE_ACCOUNT / GOOGLE_APPLICATION_CREDENTIALS, or a user OAuth credential in VITOPS_GOOGLE_CLIENT_ID / VITOPS_GOOGLE_CLIENT_SECRET / VITOPS_GOOGLE_REFRESH_TOKEN';
+
+/**
+ * The HubSpot private-app access token, from the environment. Never the
+ * config file — same rule as every other credential here.
+ */
+export function loadHubSpotToken(): string | undefined {
+  return process.env.VITOPS_HUBSPOT_ACCESS_TOKEN || undefined;
+}
+
+/**
+ * The Zoho self-client OAuth credential, for Bigin. All-or-nothing, matching
+ * `loadGoogleOAuth`'s own rule: a partial set is a misconfiguration worth
+ * naming, not a reason to run degraded.
+ */
+export function loadZohoOAuth():
+  | { clientId: string; clientSecret: string; refreshToken: string }
+  | undefined {
+  const clientId = process.env.VITOPS_ZOHO_CLIENT_ID;
+  const clientSecret = process.env.VITOPS_ZOHO_CLIENT_SECRET;
+  const refreshToken = process.env.VITOPS_ZOHO_REFRESH_TOKEN;
+  if (!clientId && !clientSecret && !refreshToken) return undefined;
+  const missing = [
+    ['VITOPS_ZOHO_CLIENT_ID', clientId],
+    ['VITOPS_ZOHO_CLIENT_SECRET', clientSecret],
+    ['VITOPS_ZOHO_REFRESH_TOKEN', refreshToken],
+  ]
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
+  if (missing.length) fail(`incomplete Zoho OAuth credential — missing ${missing.join(', ')}`);
+  return { clientId: clientId!, clientSecret: clientSecret!, refreshToken: refreshToken! };
+}
+
+/**
+ * The Jobber self-client OAuth credential. All-or-nothing, matching
+ * `loadZohoOAuth`'s own rule. Jobber's refresh token must be static — Refresh
+ * Token Rotation off in the app's Developer Center — since a Worker reading a
+ * static env var cannot persist a rotated one; `jobber-token.ts` detects a
+ * rotated token at exchange time and names the fix.
+ */
+export function loadJobberOAuth():
+  | { clientId: string; clientSecret: string; refreshToken: string }
+  | undefined {
+  const clientId = process.env.VITOPS_JOBBER_CLIENT_ID;
+  const clientSecret = process.env.VITOPS_JOBBER_CLIENT_SECRET;
+  const refreshToken = process.env.VITOPS_JOBBER_REFRESH_TOKEN;
+  if (!clientId && !clientSecret && !refreshToken) return undefined;
+  const missing = [
+    ['VITOPS_JOBBER_CLIENT_ID', clientId],
+    ['VITOPS_JOBBER_CLIENT_SECRET', clientSecret],
+    ['VITOPS_JOBBER_REFRESH_TOKEN', refreshToken],
+  ]
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
+  if (missing.length) fail(`incomplete Jobber OAuth credential — missing ${missing.join(', ')}`);
+  return { clientId: clientId!, clientSecret: clientSecret!, refreshToken: refreshToken! };
+}

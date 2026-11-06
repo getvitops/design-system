@@ -11,6 +11,14 @@
  *   - `render.ts`  turns the event into prose, purely.
  *   - `email.ts`   executes, and decides nothing.
  *
+ * `google-ads.ts` is a fourth file, added later, that does **not** follow the
+ * three-file shape above: it isn't a `NotificationsConfig` channel `notify()`
+ * plans and dispatches, it's a separate delivery keyed to `site.ads.google`,
+ * wired in by `createConversionRoute`'s own `googleAdsOffline` option and
+ * folded into the email's "Delivery" section exactly like `@getvitops/utils/
+ * crm`'s `CrmResult` — see that module's `describeCrmResult` for the
+ * precedent this follows (`describeGoogleAdsOfflineResult` here).
+ *
  * ---
  *
  * **TODO — further channels.** Only `email` is implemented. The seam is
@@ -56,12 +64,13 @@ export async function notify(
   event: ConversionEvent,
   ctx: NotifyContext,
   deps: NotifyDeps = {},
+  extra: { notes?: string[] | undefined } = {},
 ): Promise<NotifyResult> {
   const plan = planNotifications(ctx);
   const results: ChannelResult[] = [];
 
   if (plan.email.enabled) {
-    const message = renderEmail(event);
+    const message = renderEmail(event, { ...extra, actionUrl: ctx.notifications?.actionUrl });
     results.push(
       deps.email ? await sendEmail(plan.email, message, deps.email) : logEmail(plan.email, message),
     );
@@ -81,6 +90,17 @@ export {
 } from './plan.ts';
 export { describeEvent, renderEmail } from './render.ts';
 export { logEmail, sendEmail } from './email.ts';
+export {
+  conversionActionResourceName,
+  describeGoogleAdsOfflineResult,
+  toGoogleConversionDateTime,
+  uploadClickConversion,
+} from './google-ads.ts';
+export type {
+  GoogleAdsCredentials,
+  GoogleAdsUploadInput,
+  GoogleAdsUploadResult,
+} from './google-ads.ts';
 export type {
   ChannelPlan,
   ChannelResult,

@@ -5,7 +5,7 @@
  * crawler "come on in" while the other refuses to tell search engines a deploy
  * happened.
  */
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 import { defaultConfig } from './index.ts';
 import type { Config } from './config.ts';
 import { renderRobotsTxt } from './robots.ts';

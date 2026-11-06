@@ -39,10 +39,11 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
 
       - name: Build the docs site
-        run: pnpm exec vp run docs:build
+        run: vp run docs:build
 
       - name: Deploy
         uses: cloudflare/wrangler-action@v4

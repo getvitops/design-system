@@ -1,11 +1,13 @@
 ---
 import VitopsHead from '@getvitops/astro/Head.astro';
+import { resolveOrganizationName } from '@getvitops/astro/routes';
 import { getMenu, getSiteSettings } from 'emdash';
 import { createPublicPageContext } from 'emdash/page';
 import SiteFooter from '@getvitops/astro/components/SiteFooter.astro';
 import SiteNav from '@getvitops/astro/components/SiteNav.astro';
 import { loadNavMenus } from '@getvitops/astro/components/sitenav.ts';
 import { EmDashHead } from 'emdash/ui';
+import config from '../../site.json' with { type: 'json' };
 // Design-system CSS, layout-scoped (vitops css.inject: false): only pages
 // rendered through this layout get it — keeps it out of /_emdash/admin, while
 // EmDash previews (rendered through this layout) keep it.
@@ -13,7 +15,6 @@ import '../styles/tailwind.css';
 // Single source of truth for the brand mark — the same file the favicon set
 // is generated from. `?raw` inlines it at build time (no extra request).
 import logo from '../assets/logo.svg?raw';
-import site from '../../site.json';
 
 interface Props {
   title?: string;
@@ -23,7 +24,11 @@ interface Props {
 
 const { title, description, image } = Astro.props;
 const settings = await getSiteSettings();
-const siteTitle = settings?.title || 'My EmDash Site';
+// getSiteSettings().title is the editable, client-facing display name (set in
+// the EmDash admin) — it wins whenever it's set. resolveOrganizationName(config)
+// is the fallback rather than a second hardcoded string, so a fresh scaffold
+// shows organization.name (from site.json) before anyone's touched the admin.
+const siteTitle = settings?.title || resolveOrganizationName(config) || 'My EmDash Site';
 const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
 const siteDescription = settings?.tagline || 'An EmDash website with the Vitops design system';
 
@@ -51,7 +56,7 @@ const pageCtx = createPublicPageContext({
 const nav = await loadNavMenus(getMenu);
 const footerSitemap = await getMenu('footer-sitemap');
 const footerLegal = await getMenu('footer-legal');
-const orgName = site.organization?.name || siteTitle;
+const orgName = config.organization?.name || siteTitle;
 ---
 
 <!doctype html>

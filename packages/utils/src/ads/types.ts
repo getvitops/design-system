@@ -1,64 +1,99 @@
 /**
  * The ads module's own option surface.
  *
- * Deliberately structural rather than `Config['site']['ads']` imported from
- * `@getvitops/generator`: the generator already depends on this package, so
- * importing back would be a cycle. The vocabulary mirrors that block field for
- * field, so the CLI's adapter is a flat map — the same arrangement, and for the
- * same reason, as `IndexingConfig` and `DomainSetup` beside it.
- *
- * Optional fields are written `?: T | undefined` throughout: `exactOptionalPropertyTypes`
- * is on, and these describe a *parsed JSON config* where an absent key and an explicit
- * `undefined` are the same thing.
+ * `AdPropertySetup` is the `site.ads.<platform>` block from `@getvitops/config` plus the platform it
+ * is keyed by — inferred from the schema `validateConfig` runs, not re-declared here.
  */
+
+import type { AdPropertyConfig } from '@getvitops/config';
+import type { AdProvider as AdProviderConfig } from '@getvitops/config/providers';
 
 /**
  * The ad platforms this toolchain knows how to link a site to.
  *
- * A closed set, mirroring `AD_PROVIDERS` in the generator's `config.ts` — the
- * capability table in `providers.ts` has one entry per member, and a test in the
- * generator asserts the two lists agree. An open string would mean a typo'd
- * provider silently getting no verification step and no tag.
+ * A closed set, and `AD_PROVIDERS` in `@getvitops/config` is its single source: the capability
+ * table in `providers.ts` is a `Record<AdProvider, …>`, so a provider added there without an entry
+ * here is a compile error. (This was a hand-copied union held to the schema's enum by a test in the
+ * generator; the schema now lives below this package, so the copy and the test are gone.) An open
+ * string would mean a typo'd provider silently getting no verification step and no tag.
  */
-export type AdProvider =
-  | 'google'
-  | 'meta'
-  | 'linkedin'
-  | 'reddit'
-  | 'tiktok'
-  | 'microsoft'
-  | 'pinterest'
-  | 'snapchat';
+export type AdProvider = AdProviderConfig;
 
 /** Which consent category gates a provider's tag. */
 export type AdConsentCategory = 'marketing' | 'analytics';
 
-/** One ad property to link, as the config declares it. */
-export interface AdPropertySetup {
-  provider: AdProvider;
-  /**
-   * The account as the platform shows it — Google Ads customer id, Meta ad
-   * account, LinkedIn partner id, Reddit advertiser id.
-   */
-  accountId?: string | undefined;
-  /** The tag/pixel id, when the platform issues one distinct from the account. */
-  pixelId?: string | undefined;
-  /** Google Ads only: the conversion label paired with the conversion id. */
-  conversionLabel?: string | undefined;
-  /** The host to verify, bare (`acme.ca`). The CLI defaults it from the canonical domain. */
-  domain?: string | undefined;
-  /**
-   * The verification token from the platform UI.
-   *
-   * A bare token gets the provider's TXT prefix applied; a value already
-   * containing `=` is used as the whole record content, which is the escape hatch
-   * for a platform changing its prefix without waiting on a toolchain release.
-   */
-  domainVerification?: string | undefined;
-  /** Category the tag waits on. Defaults to `marketing`. */
-  category?: AdConsentCategory | undefined;
-  enabled?: boolean | undefined;
+/**
+ * The three interactions Google Ads can report a distinct conversion action
+ * for. `form` is fired client-side via `vitopsFormConversion()`
+ * (`@getvitops/astro`'s tracking script), the other two from the tel:/mailto:
+ * click handler.
+ */
+export type ConversionAction = 'call' | 'email' | 'form';
+
+/**
+ * One label per action this site wants Google Ads to tell apart.
+ *
+ * Written out field by field, `?: string | undefined` — not
+ * `Partial<Record<ConversionAction, string>>` — matching this file's own
+ * convention above: `exactOptionalPropertyTypes` treats `{ email?: string }`
+ * (present-or-absent) and `{ email?: string | undefined }` (present,
+ * absent, or explicitly `undefined`) as different types, and a parsed JSON
+ * config's optional field is the latter. `Partial<Record<...>>` produces the
+ * former, which rejected the zod-inferred shape config.ts actually produces.
+ */
+export interface ConversionLabelMap {
+  call?: string | undefined;
+  email?: string | undefined;
+  form?: string | undefined;
 }
+
+/**
+ * A bare string is back-compat shorthand for `{ call: label }` — the only
+ * action that existed before this was a map. Absent input normalises to `{}`.
+ */
+export function normalizeConversionLabels(
+  label: string | ConversionLabelMap | undefined,
+): ConversionLabelMap {
+  if (label == null) return {};
+  return typeof label === 'string' ? { call: label } : label;
+}
+
+/**
+ * One Google Ads conversion action **resource id** per action this site
+ * uploads server-side — a numeric id (`"123456789"`) or a full resource name
+ * (`"customers/123/conversionActions/456"`), never the `conversionLabel`
+ * string. Written out field by field for the same `exactOptionalPropertyTypes`
+ * reason as `ConversionLabelMap` above.
+ *
+ * **This is a genuinely different identifier from `conversionLabel`, not an
+ * alternate spelling of it.** `conversionLabel` is the opaque label the web
+ * tag embeds in `send_to: "AW-…/label"` — it identifies the conversion action
+ * to `gtag.js`, not to the Ads API. The API's click-conversion upload
+ * (`ConversionUploadService.UploadClickConversions`) addresses the action by
+ * `conversion_action` **resource name**, a value the label cannot be turned
+ * into locally — Google returns both when a conversion action is created, but
+ * only the label ships to the browser today. Until something in this
+ * toolchain calls `ConversionActionService` to create/list actions and print
+ * both back, this field has to be copied in by hand from the Ads UI/API.
+ */
+export interface ConversionActionIdMap {
+  call?: string | undefined;
+  email?: string | undefined;
+  form?: string | undefined;
+}
+
+/** Same back-compat shorthand as `normalizeConversionLabels`, for ids. */
+export function normalizeConversionActionIds(
+  id: string | ConversionActionIdMap | undefined,
+): ConversionActionIdMap {
+  if (id == null) return {};
+  return typeof id === 'string' ? { call: id } : id;
+}
+
+/** One ad property to link: the config block, plus the platform it is keyed by. */
+export type AdPropertySetup = AdPropertyConfig & {
+  provider: AdProvider;
+};
 
 /** Everything `plan()` needs, once the CLI has read the config. */
 export interface AdsConfig {

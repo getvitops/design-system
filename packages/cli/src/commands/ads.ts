@@ -11,6 +11,8 @@ import {
   hasDrift as hasAdsDrift,
   isAdProvider,
   missingFields,
+  normalizeConversionActionIds,
+  normalizeConversionLabels,
   plan as planAds,
   renderTag,
   tagId,
@@ -32,9 +34,10 @@ import { ADS_HELP } from '../help.ts';
 /**
  * Adapt a `Config` to the ads module's own option shape.
  *
- * The same flat field map as `toSearchConsoleSetup` and `toIndexingConfig`, for the
- * same reason — utils cannot import the generator. The domain default is the one
- * derived value: a platform verifies the host the site is published at, so
+ * `AdPropertySetup` is the `site.ads.<provider>` block plus its key, so this spreads the block.
+ * (It used to copy a hand-picked subset of fields, which silently dropped `conversionActionId` and
+ * `reporting` on the way to the planner.) The domain default is the one derived value: a platform
+ * verifies the host the site is published at, so
  * `domains.canonical` answers it, and only an ad account verified against some
  * other host needs `site.ads.<provider>.domain` stated.
  */
@@ -54,16 +57,7 @@ function toAdProperties(cfg: Config, providerFilter: string | undefined): AdProp
     (provider) => {
       const e = entries[provider]!;
       const domain = e.domain ?? canonicalHost;
-      return {
-        provider,
-        ...(e.accountId ? { accountId: e.accountId } : {}),
-        ...(e.pixelId ? { pixelId: e.pixelId } : {}),
-        ...(e.conversionLabel ? { conversionLabel: e.conversionLabel } : {}),
-        ...(domain ? { domain } : {}),
-        ...(e.domainVerification ? { domainVerification: e.domainVerification } : {}),
-        ...(e.category ? { category: e.category } : {}),
-        ...(e.enabled != null ? { enabled: e.enabled } : {}),
-      };
+      return { ...e, provider, ...(domain ? { domain } : {}) };
     },
   );
 
@@ -314,6 +308,24 @@ async function cmdAdsLint(argv: string[]) {
       findings.push(
         `${p.provider}: site.tracking.enabled is not true, so ${platform.clickIdParams.join('/')} is never captured — conversions will be unattributed`,
       );
+
+    // `reporting: 'server'` with no matching `conversionActionId` isn't a bug —
+    // `gtagBootstrap` keeps that action firing client-side rather than
+    // dropping it — but it does mean the setting is a no-op today, worth
+    // surfacing rather than leaving someone to wonder why nothing changed.
+    if (p.provider === 'google' && p.reporting === 'server') {
+      const labels = normalizeConversionLabels(p.conversionLabel);
+      const actionIds = normalizeConversionActionIds(p.conversionActionId);
+      const configuredNoId = (Object.keys(labels) as (keyof typeof labels)[]).filter(
+        (action) => labels[action] && !actionIds[action],
+      );
+      if (configuredNoId.length)
+        findings.push(
+          `google: reporting is "server" but conversionActionId.${configuredNoId.join(', .')} ` +
+            `is not set — ${configuredNoId.length === 1 ? 'that action' : 'those actions'} still ` +
+            `fire client-side, not a failure but not what "server" asked for either`,
+        );
+    }
   }
 
   if (findings.length === 0) {

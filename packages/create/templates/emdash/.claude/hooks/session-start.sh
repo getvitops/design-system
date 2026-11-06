@@ -31,10 +31,13 @@ export PATH="$NODE24_BIN:$PATH"
 echo "export PATH=\"$NODE24_BIN:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 
 # --- Dependencies (pnpm, pinned via package.json > packageManager) -----------
+# pnpm is the bootstrap here: `vp` (Vite+) is a devDependency, so it only exists
+# once this install has run. After that, use `vp install` / `vpr <script>` /
+# `vp exec <bin>` — see AGENTS.md "Commands".
 cd "$CLAUDE_PROJECT_DIR"
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 corepack enable
 # `install` (not `--frozen-lockfile`) so the warmed container cache is reusable.
 pnpm install
 
-echo "Ready: Node $(node --version), pnpm $(pnpm --version)"
+echo "Ready: Node $(node --version), pnpm $(pnpm --version), vp $(./node_modules/.bin/vp --version 2>/dev/null | head -1 || echo 'not installed')"

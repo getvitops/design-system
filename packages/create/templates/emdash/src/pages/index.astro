@@ -3,15 +3,29 @@ import { getEmDashEntry } from 'emdash';
 import { PortableText } from 'emdash/ui';
 import Layout from '../layouts/Layout.astro';
 
-// The seeded home page (seed/seed.json → pages/home). Edit it in the admin;
-// the Vitops blocks from @getvitops/emdash render automatically — EmDash
-// merges the plugin's block components into <PortableText>.
+// Prerendered, like every page in this template: written to static HTML at build
+// time from the `home` entry (seed/seed.json → pages/home). Edit it in the admin;
+// a publish triggers a rebuild that bakes the change in (AGENTS.md "Rendering and
+// freshness"). The Vitops blocks from @getvitops/emdash render automatically —
+// EmDash merges the plugin's block components into <PortableText>.
+//
+// Anything on a page that must be fresh per request (a stock count, a signed-in
+// greeting) goes in a server island — `<Thing server:defer />` — which stays out
+// of this static HTML and loads after it.
+export const prerender = true;
+
 const { entry: page } = await getEmDashEntry('pages', 'home');
+
+// `page.data` is typed `unknown` until `.emdash/types.ts` is generated from a
+// running site (`pnpm dev`, then `emdash types`), so a fresh scaffold would fail
+// `astro check`; the cast keeps it passing both before and after, where the
+// generated type is already `string`.
+const title = page?.data.title as string | undefined;
 ---
 
-<Layout description={page?.data.title}>
+<Layout description={title}>
   <section class="rhythm">
-    <h1>{page?.data.title ?? 'Welcome'}</h1>
+    <h1>{title ?? 'Welcome'}</h1>
     {
       page?.data.content ? (
         <PortableText value={page.data.content} />

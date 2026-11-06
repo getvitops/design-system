@@ -6,7 +6,7 @@
  * content comes back quoted and must be un-quoted before an exact compare; and
  * there is no code path that edits or deletes a record.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import { createApexTxt, findZoneId, listApexTxt } from './cloudflare.ts';
 
 const res = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });

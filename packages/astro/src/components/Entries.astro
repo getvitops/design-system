@@ -1,0 +1,58 @@
+---
+/**
+ * Entries — rows of term/value pairs that read as a stacked list and, with JS on a wide
+ * container, become a table (specs, opening hours, plan comparisons).
+ *
+ * Tier-3 like `Counter.astro` and `Gallery.astro`: the markup is semantic with no JS — a
+ * heading followed by a `<dl>` of `<dt>`/`<dd>` pairs per entry — and `<wc-entries>` only
+ * parses that fallback into a table above its `breakpoint`.
+ *
+ * **This component emits its own `<wc-entries>`** — do NOT wrap it in one. Same rule as
+ * `Cards.astro` and `Carousel.astro`.
+ *
+ *   <Entries entries={[{ heading: 'Alice', pairs: [{ term: 'Email', value: 'a@x.ca' }] }]} />
+ *
+ * Every entry should carry the SAME terms in the same order: the table's columns are the
+ * terms of the first entry, so a differing set misaligns rather than errors.
+ */
+import type { HTMLAttributes } from 'astro/types';
+
+export interface EntriesRow {
+  /** The row's name — its heading, and the table's row header. */
+  heading: string;
+  pairs: { term: string; value: string }[];
+}
+
+export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
+  entries: EntriesRow[];
+  /** Container width at which the stacked list becomes a table, e.g. `"40rem"`. */
+  breakpoint?: string;
+  /** Keep the table at every width, scrolling sideways when narrow. */
+  projection?: boolean;
+  /** With `projection` and a narrow container, show one data column at a time. */
+  singular?: boolean;
+  /** Heading element for each entry (`<wc-entries>` accepts h1–h6). Default `h3`. */
+  level?: 2 | 3 | 4 | 5 | 6;
+}
+
+const { entries, breakpoint, projection, singular, level = 3, ...rest } = Astro.props;
+const Heading = `h${level}` as 'h3';
+---
+
+<wc-entries breakpoint={breakpoint} projection={projection} singular={singular} {...rest}>
+  {
+    entries.map((entry) => (
+      <>
+        <Heading>{entry.heading}</Heading>
+        <dl>
+          {entry.pairs.map((pair) => (
+            <>
+              <dt>{pair.term}</dt>
+              <dd>{pair.value}</dd>
+            </>
+          ))}
+        </dl>
+      </>
+    ))
+  }
+</wc-entries>

@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/create",
-  "version": "0.7.0",
+  "version": "0.8.2",
   "description": "Project templates for the Vitops design system — scaffold wired-up sites with `vp create @getvitops`.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",
@@ -19,8 +19,7 @@
     "access": "public"
   },
   "devDependencies": {
-    "@getvitops/generator": "workspace:*",
-    "vitest": "catalog:"
+    "@getvitops/generator": "workspace:*"
   },
   "engines": {
     "node": ">=24"

@@ -12,7 +12,7 @@
  * that states a fact and an option that says nothing is the ordinary case, and
  * it must resolve silently, exactly as `css` / `fonts` / `favicon` / `ads` do.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { consentTrackingConflicts } from './integration.ts';
 
 const at = (site: Parameters<typeof consentTrackingConflicts>[0], opts: Record<string, unknown>) =>

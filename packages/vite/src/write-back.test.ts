@@ -11,7 +11,7 @@
  * wrong depth and you get a `colors` key sitting beside `organization` that
  * nothing reads, while the tokens the editor showed you never move.
  */
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 import { designSystemPath, getAt, setAt } from './index.ts';
 
 const ds = { colors: { palette: { navy: { seed: '#123456' } } } };

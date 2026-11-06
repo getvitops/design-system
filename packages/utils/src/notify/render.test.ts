@@ -7,7 +7,7 @@
  * as "from Unknown" — and that single line is why they could not adopt the
  * renderer and hand-wrote ~40 lines instead.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { describeEvent } from './render.ts';
 import type { ConversionEvent } from '../tracking/types.ts';
 
@@ -58,5 +58,21 @@ describe('describeEvent: who submitted', () => {
     const { sections } = describeEvent(form({ first_name: 'Ada', message: 'hi' }));
     const lines = sections.flatMap((s) => s.lines.map(([k]) => k));
     expect(lines.join(' ').toLowerCase()).toContain('message');
+  });
+});
+
+describe('describeEvent: an email-click event', () => {
+  const emailClick = (email: string): ConversionEvent => ({
+    type: 'email',
+    at: Date.parse('2026-01-01T00:00:00Z'),
+    tracking: null,
+    email,
+  });
+
+  it('names the address in the subject and the Contact details section', () => {
+    const { subject, sections } = describeEvent(emailClick('sales@acme.ca'));
+    expect(subject).toContain('sales@acme.ca');
+    const contact = sections.find((s) => s.heading === 'Contact details');
+    expect(contact?.lines).toContainEqual(['Email', 'sales@acme.ca']);
   });
 });

@@ -5,7 +5,7 @@
  * matter operationally: what gets retried, and what happens to the request when a
  * send fails.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import { logEmail, sendEmail } from './email.ts';
 import type { EmailBinding, EmailPlan, RenderedMessage } from './types.ts';
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { extractStyleBlocks, scanCss } from './css-scan.ts';
 import { lintCss } from './lint-css.ts';
 

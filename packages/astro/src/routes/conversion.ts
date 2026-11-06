@@ -1,10 +1,11 @@
 /**
  * The conversion endpoint, as a factory.
  *
- * A site's contact form and its `tel:` beacon both mean the same thing — someone
- * got in touch — and both want the same treatment: read the attribution cookie
- * off the request, build the event, notify whoever the config says. That is the
- * same three lines in every project, so it ships here.
+ * A site's contact form and its `tel:`/`mailto:` beacons all mean the same
+ * thing — someone got in touch — and all want the same treatment: read the
+ * attribution cookie off the request, build the event, notify whoever the
+ * config says. That is the same three lines in every project, so it ships
+ * here.
  *
  * What deliberately does **not** ship here is field-level validation and business
  * rules — a consumer's form has its own required fields and its own response
@@ -15,7 +16,7 @@
  * unauthenticated endpoint that sends email, so leaving it wide open makes it a
  * relay and a cost amplifier regardless of whose form is behind it.
  *
- * The path matters: the capture script beacons `tel:` conversions at
+ * The path matters: the capture script beacons `tel:`/`mailto:` conversions at
  * `TRACKING_ENDPOINT` (`/api/track`, exported from `@getvitops/astro/tracking`),
  * and the integration warns at build if no route answers it.
  *
@@ -57,13 +58,45 @@
  * request and reports a misleading "Body has already been used" instead of the
  * actual error. This package peers on `astro >= 7`, so that form could not work
  * for any supported consumer; `import { env } from 'cloudflare:workers'` is the
- * current one. It also called a `toNotifyContext(config)` helper that does not
- * exist — `context` is a plain `NotifyContext`, built however you like.
+ * current one. It also called a `toNotifyContext(config)` helper that used to
+ * not exist — `context` can now be built with `toNotifyContext(config)` (also
+ * exported from this module), rather than every consumer hand-writing a
+ * `NotifyContext` literal:
+ *
+ * ```ts
+ * import config from '../../site.json' with { type: 'json' };
+ * import { createConversionRoute, toNotifyContext, toCrmConfig } from '@getvitops/astro/routes';
+ *
+ * export const POST = createConversionRoute({
+ *   context: toNotifyContext(config),
+ *   crm: toCrmConfig(config) && { config: toCrmConfig(config)!, credentials: () => ({ ... }) },
+ *   binding: () => env.EMAIL,
+ *   redirectTo: '/thanks',
+ * });
+ * ```
  */
-import { type EmailBinding, notify, type NotifyContext } from '@getvitops/utils/notify';
+import { AD_PLATFORMS, normalizeConversionActionIds } from '@getvitops/utils/ads';
+import type { AdPropertySetup } from '@getvitops/utils/ads';
+import { deliverToCrm, describeCrmResult } from '@getvitops/utils/crm';
+import type { CrmConfig, CrmCredentials, CrmResult } from '@getvitops/utils/crm';
+import {
+  describeGoogleAdsOfflineResult,
+  type EmailBinding,
+  notify,
+  type NotifyContext,
+  uploadClickConversion,
+  type GoogleAdsCredentials,
+  type GoogleAdsUploadResult,
+} from '@getvitops/utils/notify';
 import { verifyTurnstileToken } from '@getvitops/utils/security';
-import { parseTrackingCookie } from '@getvitops/utils/tracking';
-import type { ConversionEvent } from '@getvitops/utils/tracking';
+import { parseTrackingCookie, readCookie } from '@getvitops/utils/tracking';
+import type { ConversionEvent, TrackingData } from '@getvitops/utils/tracking';
+export {
+  resolveOrganizationName,
+  toCrmConfig,
+  toGoogleAdsConfig,
+  toNotifyContext,
+} from './config-adapters.ts';
 
 /** The subset of Astro's `APIContext` this needs — typed structurally so the
  * factory does not pin an Astro version. */
@@ -109,12 +142,49 @@ export interface ConversionRouteOptions {
    */
   binding?: (locals: unknown) => EmailBinding | undefined;
   /**
+   * Push the submission into a CRM (HubSpot, Zoho Bigin or Jobber) before notifying.
+   * Credentials arrive as a function of `locals`, exactly like `binding` above
+   * — the consumer reads them from `import { env } from 'cloudflare:workers'`.
+   * Credentials are never config; that rule is absolute in this toolchain.
+   *
+   * A failed CRM write never fails the request and never blocks the honeypot/
+   * Turnstile gates above it — those run first, so a bot never reaches the
+   * CRM. The outcome is folded into the notification email's "Delivery"
+   * section (via `describeCrmResult`) so a failed write is never silent.
+   */
+  crm?: {
+    config: CrmConfig;
+    credentials?: (locals: unknown) => CrmCredentials | undefined;
+    fetch?: typeof fetch;
+    timeoutMs?: number;
+  };
+  /**
+   * Upload the conversion to Google Ads server-side instead of relying on the
+   * visitor's browser to fire `gtag.js` — see `site.ads.google.reporting` and
+   * `conversionActionId`. Credentials arrive as a function of `locals`, same
+   * shape as `crm.credentials` and `binding` above.
+   *
+   * Only fires for an action whose `conversionActionId` is actually set (via
+   * `toGoogleAdsConfig(config)`, or hand-built the same shape) **and** whose
+   * event carries a Google click id (`gclid`/`gbraid`/`wbraid` on `_ac`) —
+   * an organic conversion has nothing for the Ads API to attribute, so it's
+   * silently skipped rather than reported as a failure. A failed upload never
+   * fails the request, matching `crm` above; the outcome folds into the same
+   * "Delivery" section via `describeGoogleAdsOfflineResult`.
+   */
+  googleAdsOffline?: {
+    config: Pick<AdPropertySetup, 'accountId' | 'conversionActionId' | 'reporting'>;
+    credentials?: (locals: unknown) => GoogleAdsCredentials | undefined;
+    fetch?: typeof fetch;
+  };
+  /**
    * Reject a submission before anything is sent. Return a message to refuse.
    * This is where a consumer puts required-field checks.
    */
   validate?: (body: Record<string, unknown>) => string | null;
-  /** Called with every channel outcome, delivered or not. Defaults to console. */
-  onResult?: (result: Awaited<ReturnType<typeof notify>>) => void;
+  /** Called with every channel outcome, delivered or not, plus the CRM
+   * outcome when `crm` is configured. Defaults to console. */
+  onResult?: (result: ConversionResult) => void;
   /** Injected in tests. */
   now?: () => number;
   /**
@@ -143,10 +213,19 @@ export interface ConversionRouteOptions {
   /**
    * Reject a submission whose `Content-Length` exceeds this many bytes. Default
    * 25_000 — generous for a contact form with no file upload, tiny for anything
-   * meant to relay large payloads. Best-effort: `Content-Length` can be absent
-   * or spoofed, same caveat as the origin check below.
+   * meant to relay large payloads. The header is only a fast path: a chunked
+   * request carries none, so the body is also read through a byte-capped
+   * reader and refused the moment it passes the cap.
    */
   maxBodyBytes?: number;
+  /**
+   * Fall back to the first `X-Forwarded-For` hop as the client IP when
+   * `CF-Connecting-IP` is absent. Default `false`: off Cloudflare the header is
+   * whatever the client sent, so honouring it lets a script mint a fresh
+   * rate-limit bucket per request. Turn on only behind a proxy that overwrites
+   * it. With neither header trusted there is no IP, and rate limiting is skipped.
+   */
+  trustForwardedFor?: boolean;
   /**
    * Reject a submission whose `Origin` header doesn't match this origin.
    * Defaults to `context.canonical`'s origin. Pass `false` to disable.
@@ -188,12 +267,69 @@ export interface ConversionRouteOptions {
   };
 }
 
+/** `notify()`'s own result, plus the CRM and Google Ads offline-upload
+ * outcomes when those are configured. Additive over
+ * `Awaited<ReturnType<typeof notify>>` — a consumer's existing `onResult`
+ * reading `.results`/`.delivered` keeps compiling unchanged. */
+export interface ConversionResult extends Awaited<ReturnType<typeof notify>> {
+  crm?: CrmResult | undefined;
+  googleAds?: GoogleAdsUploadResult | undefined;
+}
+
+/** The click id to report to Google Ads, checked in the same order as
+ * `AD_PLATFORMS.google.clickIdParams` rather than `getPrimaryClickId()` —
+ * that helper returns whichever platform's click id happens to appear first
+ * in the *cross-platform* precedence table, which may not be Google's even
+ * when a `gclid` is present. */
+function googleClickId(tracking: TrackingData | null): { param: string; value: string } | null {
+  if (!tracking) return null;
+  for (const param of AD_PLATFORMS.google.clickIdParams) {
+    const value = tracking[param];
+    if (value) return { param, value: String(value) };
+  }
+  return null;
+}
+
 /** Fields that are never part of a submission's meaning. `cf-turnstile-response`
  * is excluded unconditionally, matching `render.ts`'s `OMIT_FIELDS` — the field
  * carries a verification token, not something the visitor wrote. */
 const CONTROL_FIELDS = new Set(['event', 'phone', 'cf-turnstile-response']);
+/** The capture script sends `link.href` as-is: `tel:` + digits and the punctuation people type
+ * (a space arrives as `%20`). Not free text. */
+const PHONE_RE = /^(?:tel:)?\+?[\d\s().%-]{3,40}$/i;
+/** `mailto:` + an address, with an optional `?subject=…` query. A shape check, not deliverability. */
+const EMAIL_RE = /^(?:mailto:)?[^\s@<>"?]{1,64}@[^\s@<>"?]{1,255}(?:\?[^\s<>"]{0,256})?$/i;
+
 const DEFAULT_HONEYPOT_FIELDS = ['website', '_honeypot', 'honeypot'];
 const DEFAULT_MAX_BODY_BYTES = 25_000;
+
+/**
+ * Read a request body, giving up as soon as it exceeds `max` bytes. Returns `null` when over
+ * the cap. `Content-Length` is optional on chunked requests, so it cannot be the only guard.
+ */
+async function readCapped(request: Request, max: number): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (!request.body) return new Uint8Array();
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 10_000;
 
 function toFormData(
@@ -255,6 +391,7 @@ export function createConversionRoute(options: ConversionRouteOptions) {
     errorRedirectTo = successRedirect,
     honeypotFields = DEFAULT_HONEYPOT_FIELDS,
     maxBodyBytes = DEFAULT_MAX_BODY_BYTES,
+    trustForwardedFor = false,
   } = options;
 
   const allowedOrigin =
@@ -291,10 +428,16 @@ export function createConversionRoute(options: ConversionRouteOptions) {
       }
     }
 
+    // A chunked request has no Content-Length to check above, so cap the stream itself.
+    const bytes = await readCapped(request, maxBodyBytes);
+    if (!bytes) return respondError('Request too large.', 413);
+
     let body: Record<string, unknown>;
     try {
       if (isFormPost) {
-        const formData = await request.formData();
+        const formData = await new Response(bytes, {
+          headers: { 'content-type': contentType },
+        }).formData();
         body = {};
         for (const [key, value] of formData.entries()) {
           if (typeof value === 'string') body[key] = value;
@@ -302,7 +445,7 @@ export function createConversionRoute(options: ConversionRouteOptions) {
       } else {
         // Not just `application/json`: `navigator.sendBeacon` sends a bare
         // string as `text/plain`, and this must keep accepting that body.
-        const parsed: unknown = await request.json();
+        const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
         if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
           return respondError('Malformed request.', 400);
         }
@@ -314,24 +457,50 @@ export function createConversionRoute(options: ConversionRouteOptions) {
 
     const ip =
       request.headers.get('cf-connecting-ip') ??
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+      (trustForwardedFor ? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() : null) ??
       undefined;
 
+    // Classified before rate limiting, not read raw off the client — see the key
+    // below. `phone`/`email` presence is still checked after limiting, since that
+    // check just rejects a malformed beacon rather than deciding the bucket.
+    const isCall = body['event'] === 'call';
+    const isEmailClick = body['event'] === 'email';
+
+    // Keyed on IP *and* the server's own classification (`call` | `email` |
+    // `form`), never the raw `event` string the client sent. A call beacon and an
+    // email-click beacon from the same visitor are two distinct, legitimate
+    // conversions, not a repeat of one, so they need separate buckets — but
+    // trusting the raw string for that also let a client dodge the form rate
+    // limit entirely by varying `event` on every request (any value other than
+    // exactly `'call'`/`'email'` used to get its own bucket). Collapsing
+    // everything else to `'form'` closes that without losing the call/email split.
     if (rateLimit && ip) {
-      const sinceLastHit = await rateLimit.store.hit(ip, now());
+      const rlKey = `${ip}:${isCall ? 'call' : isEmailClick ? 'email' : 'form'}`;
+      const sinceLastHit = await rateLimit.store.hit(rlKey, now());
       if (sinceLastHit !== null && sinceLastHit < rateLimit.windowMs) {
         return respondError('Too many requests.', 429);
       }
     }
 
-    const isCall = body['event'] === 'call';
-    if (isCall && typeof body['phone'] !== 'string') {
+    // A beacon skips every form check, so its one payload field is format-checked instead:
+    // the value is interpolated into a notification someone reads, and an unauthenticated
+    // caller should not be able to put arbitrary text there.
+    if (isCall && !(typeof body['phone'] === 'string' && PHONE_RE.test(body['phone']))) {
       return respondError('Missing phone.', 400);
     }
 
-    const spam = !isCall && hasHoneypot(body, honeypotFields);
+    if (isEmailClick && !(typeof body['email'] === 'string' && EMAIL_RE.test(body['email']))) {
+      return respondError('Missing email.', 400);
+    }
 
-    if (!isCall && !spam && options.turnstile) {
+    // A call and an email-click beacon are the same shape of thing: a fire-and-
+    // forget ping with no form fields to validate, honeypot, verify or map into
+    // a CRM — both skip every check below that exists for a form submission.
+    const isBeacon = isCall || isEmailClick;
+
+    const spam = !isBeacon && hasHoneypot(body, honeypotFields);
+
+    if (!isBeacon && !spam && options.turnstile) {
       const {
         secretKey,
         fieldName = 'cf-turnstile-response',
@@ -350,7 +519,7 @@ export function createConversionRoute(options: ConversionRouteOptions) {
     if (refusal) return respondError(refusal, 400);
 
     const respondSuccess = (): Response =>
-      isCall
+      isBeacon
         ? new Response(null, { status: 204 })
         : isFormPost && successRedirect
           ? redirectTo(successRedirect)
@@ -372,23 +541,88 @@ export function createConversionRoute(options: ConversionRouteOptions) {
       : honeypotFields;
 
     const event: ConversionEvent = {
-      type: isCall ? 'call' : 'form',
+      type: isCall ? 'call' : isEmailClick ? 'email' : 'form',
       ...(isCall
         ? { phone: String(body['phone']).replace(/^tel:/, '') }
-        : { formData: toFormData(body, excludedFields) }),
+        : isEmailClick
+          ? { email: String(body['email']).replace(/^mailto:/, '') }
+          : { formData: toFormData(body, excludedFields) }),
       tracking: parseTrackingCookie(request.headers.get('cookie')),
       userAgent: request.headers.get('user-agent') ?? undefined,
       ip,
       at: now(),
     };
 
-    const result = await notify(event, context, { email: binding?.(locals) });
+    // CRM before notify: the notification email states the CRM outcome, which
+    // is only possible once it's known. Never attempted for a `tel:`/`mailto:`
+    // beacon — a CRM contact comes from submitted form fields, and neither
+    // event has any to map.
+    let crmResult: CrmResult | null = null;
+    if (!isBeacon && options.crm) {
+      crmResult = await deliverToCrm(event, options.crm.config, {
+        credentials: options.crm.credentials?.(locals),
+        fetch: options.crm.fetch,
+        timeoutMs: options.crm.timeoutMs,
+        // Provider-neutral: HubSpot reads `hutk` to stitch the submission to
+        // its own tracking; Jobber reads `pageUri` for its note body. Neither
+        // is HubSpot-specific to build, so this is passed unconditionally
+        // rather than gated on `options.crm.config.provider`.
+        pageContext: {
+          hutk: readCookie(request.headers.get('cookie'), 'hubspotutk') ?? undefined,
+          pageUri: request.headers.get('referer') ?? undefined,
+        },
+      });
+    }
+    const crmNote = describeCrmResult(crmResult);
+
+    // Unlike CRM, this runs for a `tel:`/`mailto:` beacon too — those are
+    // exactly the actions the client-side gtag handler would otherwise fire
+    // for. Skipped, not failed, when there's no click id to attribute, no
+    // `conversionActionId` configured for this action, or no credentials for
+    // this environment (e.g. local dev) — none of those is a real failure.
+    let googleAdsResult: GoogleAdsUploadResult | null = null;
+    const adsCfg = options.googleAdsOffline?.config;
+    if (adsCfg?.reporting === 'server' && adsCfg.accountId) {
+      const actionId = normalizeConversionActionIds(adsCfg.conversionActionId)[event.type];
+      const clickId = googleClickId(event.tracking);
+      const credentials = options.googleAdsOffline?.credentials?.(locals);
+      if (actionId && clickId && credentials) {
+        googleAdsResult = await uploadClickConversion(
+          { customerId: adsCfg.accountId, conversionActionId: actionId, clickId, at: event.at },
+          credentials,
+          options.googleAdsOffline?.fetch,
+        );
+      }
+    }
+    const googleAdsNote = describeGoogleAdsOfflineResult(googleAdsResult);
+
+    const result: ConversionResult = {
+      ...(await notify(
+        event,
+        context,
+        { email: binding?.(locals) },
+        {
+          notes: [crmNote, googleAdsNote].filter((n): n is string => n != null),
+        },
+      )),
+      ...(crmResult ? { crm: crmResult } : {}),
+      ...(googleAdsResult ? { googleAds: googleAdsResult } : {}),
+    };
 
     if (onResult) onResult(result);
-    else
+    else {
       for (const r of result.results) {
         if (!r.sent) console.warn(`[vitops] notification not sent (${r.channel}): ${r.reason}`);
       }
+      if (crmResult && !crmResult.ok) {
+        console.warn(
+          `[vitops] CRM write not delivered (${crmResult.provider}): ${crmResult.reason}`,
+        );
+      }
+      if (googleAdsResult && !googleAdsResult.ok) {
+        console.warn(`[vitops] Google Ads offline upload not delivered: ${googleAdsResult.reason}`);
+      }
+    }
 
     return respondSuccess();
   };

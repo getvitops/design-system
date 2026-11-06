@@ -1219,9 +1219,13 @@ export function schemaTreeNodes(
   };
 
   const required = schema.required ?? [];
-  return Object.entries(schema.properties ?? {})
-    .filter(([key]) => key !== '$schema')
-    .map(([key, child]) => build(key, child, required.includes(key), join(idPrefix, key), 0));
+  return (
+    Object.entries(schema.properties ?? {})
+      // `$schema`/`configVersion` describe the DOCUMENT, not the site — envelope
+      // metadata, not one of the three sections this tree is meant to walk.
+      .filter(([key]) => key !== '$schema' && key !== 'configVersion')
+      .map(([key, child]) => build(key, child, required.includes(key), join(idPrefix, key), 0))
+  );
 }
 
 function renderAuthoring(): string {
@@ -1839,7 +1843,7 @@ function renderComponentsConcept(ds: DesignSystem): string {
   const list = (xs: string[]) => xs.map(code).join(', ');
 
   const tiersOf = (name: string): string[] =>
-    (['css', 'wc', 'astro', 'bricks'] as const).filter((t) =>
+    (['css', 'wc', 'astro', 'bricks', 'emdash'] as const).filter((t) =>
       tierPatterns(t).some((p) => p.name === name),
     );
 
@@ -1873,6 +1877,28 @@ function renderComponentsConcept(ds: DesignSystem): string {
     .map(({ name, entry }) => `| ${code(entry.bricks!)} | ${code(name)} |`)
     .join('\n');
 
+  const emdash = tierPatterns('emdash')
+    .flatMap(({ name, entry }) =>
+      entry.emdash!.map(
+        (type) =>
+          `| ${code(type)} | ${code(name)} | ${
+            entry.astro?.length
+              ? list(
+                  entry.astro.map(
+                    (a) => `<${a.component.split('/').pop()!.replace('.astro', '')} />`,
+                  ),
+                )
+              : 'tier-1 markup'
+          } |`,
+      ),
+    )
+    .join('\n');
+
+  // The decisions, not just the members: a shipped web component with no block says why.
+  const exempt = TIER_NAMES.filter((n) => TIERS[n]!.emdashExempt)
+    .map((n) => `- ${code(TIERS[n]!.wc?.tag ?? n)} — ${TIERS[n]!.emdashExempt}`)
+    .join('\n');
+
   const css = tierPatterns('css')
     .map(({ name, entry }) => {
       const c = entry.css;
@@ -1902,9 +1928,9 @@ function renderComponentsConcept(ds: DesignSystem): string {
     type: 'Design Concept',
     title: 'Vitops components — which tier provides a pattern, and what to write',
     description:
-      'Every UI pattern across the three tiers (CSS classes, wc-* web components, and the platform wrappers: Astro components and Bricks elements): which tiers provide it, which call to make, and how the tiers compose.',
+      'Every UI pattern across the three tiers (CSS classes, wc-* web components, and the platform wrappers: Astro components, Bricks elements and EmDash blocks): which tiers provide it, which call to make, and how the tiers compose.',
     resource: DS_PATH,
-    tags: ['components', 'web-components', 'astro', 'bricks', 'tiers', 'design-system'],
+    tags: ['components', 'web-components', 'astro', 'bricks', 'emdash', 'tiers', 'design-system'],
   })}
 
 # Components
@@ -1918,13 +1944,17 @@ A pattern is provided by up to **three tiers**, and they **compose** rather than
 3. **Platform wrappers** — authoring conveniences that generate the correct markup at build
    time, using the classes and elements of tiers 1 and 2. They must not require runtime JS.
    Where a pattern has a web component, the wrapper emits that tag **with the accessible
-   fallback inside it**. Two platforms:
+   fallback inside it**. Three platforms:
    - **Astro components** (${code('@getvitops/astro')})
    - **Bricks elements** (WordPress / Bricks Builder)
+   - **EmDash blocks** (${code('@getvitops/emdash')}) — Portable Text blocks an editor inserts;
+     each is an adapter over the pattern's Astro component
 
-**Astro and Bricks are the same tier**, not tiers 3 and 4. They are siblings chosen by which
-platform you are on — no project uses both, and neither outranks the other. The tables below
-give them separate columns because they are separate packages, not separate levels.
+**Astro, Bricks and EmDash are the same tier**, not tiers 3, 4 and 5. They are siblings chosen
+by which platform you are on — neither outranks the others. (An EmDash site is an Astro site,
+so it uses the Astro components directly in templates and the blocks inside editor content.)
+The tables below give them separate columns because they are separate packages, not separate
+levels.
 
 ## Choosing
 
@@ -1974,6 +2004,24 @@ Controls, defaults and seeded children for each are in [the elements reference](
 | Element | Pattern |
 | --- | --- |
 ${bricks}
+
+## EmDash blocks
+
+Portable Text block ${code('_type')}s from ${code('@getvitops/emdash')}. Repeating patterns are
+repeater fields. A Portable Text block cannot contain other blocks, so a pattern that must hold
+them is a schema-level block TYPE with a Portable Text body instead — ${code('vitops_section')},
+from ${code('vitopsBlockTypes()')}. Its body accepts every ${code('vitops.*')} block below.
+
+| Block | Pattern | Renders via |
+| --- | --- | --- |
+${emdash}
+
+### Web components with no block, on purpose
+
+Every shipped ${code('wc-*')} element either has a block above or a stated reason here
+(${code('emdashExempt')} in the manifest, enforced by ${code('tiers.test.ts')}):
+
+${exempt}
 
 ## CSS
 

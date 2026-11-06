@@ -7,8 +7,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "deploy": "astro build && wrangler deploy",
-    "deploy:dev": "astro build && node scripts/dev-wrangler-config.mjs && wrangler deploy --config .wrangler.dev.json",
+    "deploy": "vitops email check && astro build && wrangler deploy",
+    "deploy:dev": "vitops email check && astro build && node scripts/dev-wrangler-config.mjs && wrangler deploy --config .wrangler.dev.json",
     "init:github": "vitops setup repo",
     "init:hosting": "vitops setup hosting --no-dev-resources",
     "setup": "vitops setup repo && vitops setup hosting --no-dev-resources",
@@ -20,10 +20,10 @@
   },
   "dependencies": {
     "@getvitops/astro": "latest",
-    "astro": "^7.1.2"
+    "astro": "^7.4.4"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.7",
+    "@astrojs/check": "^0.9.12",
     "@getvitops/cli": "latest",
     "typescript": "^6.0.3",
     "vite": "latest",
@@ -33,9 +33,9 @@
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": "24.18.0",
+      "version": "24",
       "onFail": "download"
     }
   },
-  "packageManager": "pnpm@11.17.0"
+  "packageManager": "pnpm@12.16.1"
 }

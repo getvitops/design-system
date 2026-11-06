@@ -46,7 +46,10 @@ export interface LintFinding {
 }
 
 const UTIL_FAMILIES = ['bg', 'text', 'icon', 'border', 'outline', 'fill', 'stroke'];
-const BREAKPOINTS = ['sm', 'md', 'lg', 'xl'];
+/** Class families the framework owns in every format, for variant-spelling checks. */
+const FRAMEWORK_FAMILY = new RegExp(
+  `^(${[...UTIL_FAMILIES, 'font', 'drop-shadow', 'split', 'flex', 'items', 'justify', 'gap', 'space'].join('|')})(-|$)`,
+);
 
 /**
  * The modifiers actually emitted for one family + role, read back out of the
@@ -132,6 +135,21 @@ export function judge(
       severity: 'error' as const,
       reason: `\`@${cq[1]}:\` container-query variants are a tailwind-format spelling; the ${format} format emits pre-expanded classes`,
       suggestion: `${cq[1]}-${cq[2]}`,
+    };
+
+  // ── Tailwind state variants (`hover:`, `focus:`, `dark:` …) in a format that
+  // emits none. css/bricks pre-expand behaviour into hyphenated classes
+  // (`md-flex-row`, `hover-fade-in`); a colon-spelled state variant on a framework
+  // class resolves to nothing there. Only framework families are judged, so a
+  // consumer's own `hover:` rule in their own CSS is not ours.
+  const sv =
+    /^(hover|focus|focus-visible|focus-within|active|disabled|dark|group-hover):(.+)$/.exec(raw);
+  if (sv && format !== 'tailwind' && FRAMEWORK_FAMILY.test(sv[2] as string))
+    return {
+      cls: raw,
+      severity: 'error' as const,
+      reason: `\`${sv[1]}:\` state variants are a tailwind-format spelling; the ${format} format emits no such class`,
+      suggestion: `${sv[1]}-${sv[2]} where an effect class exists, otherwise a pattern state`,
     };
 
   // ── the `<bp>-` responsive spelling ────────────────────────────────────────

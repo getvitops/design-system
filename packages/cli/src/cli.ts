@@ -15,6 +15,7 @@
  *   vitops search    setup [--domain <name>] [--dry] [--check]  |  notify [--dry] [--all] [--check]
  *   vitops ads       setup [--provider <name>] [--dry] [--check]  |  tags  |  lint
  *   vitops setup     repo | hosting | domain | search | ads | all [--dry] [--check]
+ *   vitops email     setup [domain] [--dry] [--check]  |  check [--strict] [--skip]
  *   vitops media     [--raw <dir>] [--out <dir>] [--force] [--dry]
  *   vitops audit     [--url <base>] [--build] [--pages <list>] [--warn] [--out <dir>]
  *
@@ -26,6 +27,7 @@
  * Everything else stays here.
  */
 import { parseArgs } from 'node:util';
+import { pathToFileURL } from 'node:url';
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { resolve, join, dirname, relative, extname } from 'node:path';
 import { createRequire } from 'node:module';
@@ -111,6 +113,8 @@ import {
 import { cmdSearch } from './commands/search.ts';
 import { cmdAds } from './commands/ads.ts';
 import { cmdAudit } from './commands/audit.ts';
+import { cmdCrm } from './commands/crm.ts';
+import { cmdEmail } from './commands/email.ts';
 import { cmdSetup } from './commands/setup.ts';
 import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
 import { COMMANDS, HELP, helpFor, wantsHelp } from './help.ts';
@@ -786,8 +790,25 @@ function generatorAssetsDir(): string {
 const AGENTS_START = '<!-- vitops:start -->';
 const AGENTS_END = '<!-- vitops:end -->';
 
+/**
+ * Input path for the read-only commands (`docs`, `lint`) when `-i` is absent.
+ *
+ * `site.json` is the file `vitops init --site` and every scaffold write, so it
+ * is the default; a bare `design-system.json` is the fallback for projects that
+ * keep tokens on their own. An explicit `-i` is never second-guessed. If
+ * neither exists the legacy name is returned so the "config not found" message
+ * names a path a reader recognises.
+ */
+function defaultDesignInput(argv: string[], value: string): string {
+  const explicit = argv.some((a) => a === '-i' || a === '--input' || a.startsWith('--input='));
+  if (explicit) return value;
+  for (const name of ['site.json', 'design-system.json'])
+    if (existsSync(resolve(name))) return name;
+  return value;
+}
+
 /** Print a live reference doc (rendered from the project's config) to stdout. */
-function cmdDocs(argv: string[]) {
+async function cmdDocs(argv: string[]) {
   const { values, positionals } = parseArgs({
     args: argv,
     options: {
@@ -809,12 +830,52 @@ function cmdDocs(argv: string[]) {
     return;
   }
   if (topic && !TOPICS[topic]) fail(`unknown topic "${topic}". Valid topics:\n${topicList()}`);
-  const ds = loadDesignSystem(resolve(values.input as string), values.theme as string | undefined);
-  const docs = generateDocs(ds, generatorAssetsDir());
-  const paths = values.all
-    ? Object.values(TOPICS).map((t) => t.path)
-    : [TOPICS[topic as string]!.path];
-  process.stdout.write(paths.map((p) => docs[p]).join('\n'));
+  const names = values.all ? Object.keys(TOPICS) : [topic as string];
+  // An external topic (blocks) needs no design system, so don't demand a config for it.
+  const docs = names.every((n) => TOPICS[n]!.external)
+    ? {}
+    : generateDocs(
+        loadDesignSystem(
+          resolve(defaultDesignInput(argv, values.input as string)),
+          values.theme as string | undefined,
+        ),
+        generatorAssetsDir(),
+      );
+  const parts: string[] = [];
+  for (const name of names) {
+    const t = TOPICS[name]!;
+    if (!t.external) {
+      parts.push((docs as Record<string, string>)[t.path]!);
+      continue;
+    }
+    // Rendered by the plugin that owns the data; the generator cannot import it.
+    const doc = await externalDoc(t.external);
+    if (doc) parts.push(doc);
+    else if (!values.all)
+      fail(`topic "${name}" needs @getvitops/${t.external} installed in this project`);
+  }
+  process.stdout.write(parts.join('\n'));
+}
+
+/** Render a topic owned by an optional package, resolved from the project, not from the CLI. */
+async function externalDoc(pkg: 'emdash'): Promise<string | null> {
+  try {
+    // `require.resolve` rejects an ESM-only `exports` map, but `./package.json` is exported
+    // for exactly this: find the package, then read its `import` entry from the manifest.
+    const manifest = createRequire(join(process.cwd(), 'package.json')).resolve(
+      `@getvitops/${pkg}/package.json`,
+    );
+    const exp = (
+      JSON.parse(readFileSync(manifest, 'utf8')) as {
+        exports: Record<string, { import: string }>;
+      }
+    ).exports['.']!.import;
+    const entry = join(dirname(manifest), exp);
+    const mod = (await import(pathToFileURL(entry).href)) as { renderBlocksDoc?: () => string };
+    return mod.renderBlocksDoc?.() ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function cmdLint(argv: string[]) {
@@ -841,7 +902,10 @@ function cmdLint(argv: string[]) {
   const format = values.format as StylesheetFormat;
   if (!LINT_FORMATS.has(format))
     fail(`unknown format "${format}" (expected: bricks | css | tailwind)`);
-  const ds = loadDesignSystem(resolve(values.input as string), values.theme as string | undefined);
+  const ds = loadDesignSystem(
+    resolve(defaultDesignInput(argv, values.input as string)),
+    values.theme as string | undefined,
+  );
   const srcDir = resolve(values.src as string);
   if (!positionals.length && !existsSync(srcDir)) fail(`source directory not found: ${srcDir}`);
 
@@ -1173,6 +1237,10 @@ async function main() {
       return cmdSearch(rest);
     case 'ads':
       return cmdAds(rest);
+    case 'crm':
+      return cmdCrm(rest);
+    case 'email':
+      return cmdEmail(rest);
     case 'setup':
       return cmdSetup(rest);
     case 'media':

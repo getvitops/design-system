@@ -4,6 +4,7 @@
   "commit": false,
   "fixed": [
     [
+      "@getvitops/config",
       "@getvitops/core",
       "@getvitops/generator",
       "@getvitops/utils",

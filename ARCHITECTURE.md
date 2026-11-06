@@ -36,18 +36,19 @@ npx vitops generate --format tailwind -o src/styles
 
 ## 1.2 Package matrix
 
-| Package                | What it is                                                                 | Install when                            |
-| ---------------------- | -------------------------------------------------------------------------- | --------------------------------------- |
-| `@getvitops/core`      | The framework runtime: CSS partials, Lit web components, browser polyfills | Pulled in by `astro`; direct for Bricks |
-| `@getvitops/generator` | The generator as a library + the JSON Schemas                              | Building your own integration           |
-| `@getvitops/utils`     | Shared build-time + utilities (favicon, icons, tracking, notify)           | Pulled in by everything                 |
-| `@getvitops/cli`       | `vitops` binary — the surface every stack has                              | Always, in any stack                    |
-| `@getvitops/vite`      | Vite plugin: generate on build/dev, hot-regenerate on config change        | Vite without Astro                      |
-| `@getvitops/astro`     | The Astro integration + component library                                  | Astro sites (the main path)             |
-| `@getvitops/emdash`    | EmDash CMS plugin — Portable Text blocks + hosting seam                    | EmDash sites                            |
-| `@getvitops/create`    | `vp create @getvitops` scaffolds; templates only, no build                 | Starting a new project                  |
+| Package                | What it is                                                                 | Install when                             |
+| ---------------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
+| `@getvitops/core`      | The framework runtime: CSS partials, Lit web components, browser polyfills | Pulled in by `astro`; direct for Bricks  |
+| `@getvitops/config`    | Site-config blocks the provider integrations read (zod schemas + types)    | Pulled in by `utils`/`generator`/`astro` |
+| `@getvitops/generator` | The generator as a library + the JSON Schemas                              | Building your own integration            |
+| `@getvitops/utils`     | Shared build-time + utilities (favicon, icons, tracking, notify)           | Pulled in by everything                  |
+| `@getvitops/cli`       | `vitops` binary — the surface every stack has                              | Always, in any stack                     |
+| `@getvitops/vite`      | Vite plugin: generate on build/dev, hot-regenerate on config change        | Vite without Astro                       |
+| `@getvitops/astro`     | The Astro integration + component library                                  | Astro sites (the main path)              |
+| `@getvitops/emdash`    | EmDash CMS plugin — Portable Text blocks + hosting seam                    | EmDash sites                             |
+| `@getvitops/create`    | `vp create @getvitops` scaffolds; templates only, no build                 | Starting a new project                   |
 
-Versions aren't listed here — six of the eight move together (see below) and a hand-maintained
+Versions aren't listed here — seven of the nine move together (see below) and a hand-maintained
 number rots on the first release after this doc is written. Check each package's own
 `package.json` for its current version.
 
@@ -129,7 +130,7 @@ Two subpaths are built separately so a Worker route never bundles the integratio
 `@getvitops/astro/routes` (the conversion endpoint factory) and `@getvitops/astro/tracking`
 (the attribution vocabulary).
 
-### `@getvitops/utils` — thirteen subpaths
+### `@getvitops/utils` — sixteen subpaths
 
 | Subpath        | Runtime         | Purpose                                                                                    |
 | -------------- | --------------- | ------------------------------------------------------------------------------------------ |
@@ -142,13 +143,19 @@ Two subpaths are built separately so a Worker route never bundles the integratio
 | `./ads`        | build           | `vitops ads` — platform capability table, DNS plan                                         |
 | `./hosting`    | build (one-off) | `vitops setup repo/hosting` — GitHub + Cloudflare dev resources, shells to `wrangler`/`gh` |
 | `./reviews`    | build (one-off) | `vitops reviews` — fetch + cache Google Business Profile reviews                           |
+| `./email`      | build (one-off) | `vitops email` — sender-domain onboarding, DNS propagation probe, source scan              |
 | `./notify`     | **Worker**      | Conversion notifications — plan, render, send                                              |
 | `./tracking`   | **Worker**      | Attribution vocabulary + the `_ac` cookie                                                  |
 | `./security`   | **Worker**      | Turnstile token verification                                                               |
+| `./crm`        | **Worker**      | CRM submissions — HubSpot, Zoho Bigin, Jobber (plan, map, send)                            |
+| `./git`        | **Worker**      | Git-derived metadata (`lastmod`) for the EmDash plugin                                     |
 | `./schema`     | build           | Schema.org JSON-LD builders (article, breadcrumb, FAQ, localBusiness)                      |
 
-The two Worker entries are separate subpaths precisely so a conversion endpoint doesn't pull
-`sharp` into its bundle. Neither may use a Node builtin.
+The Worker entries (`notify`, `tracking`, `security`, `crm`, `schema`, `git`) are separate subpaths
+precisely so a conversion endpoint doesn't pull `sharp` into its bundle. **None may reach a Node
+builtin through any local import** — `worker-safe.test.ts` walks each entry's real import graph and
+fails on a `node:` specifier. (`notify` once re-exported the Google Ads upload, which reached
+`node:crypto` through `google/token.ts`; that file now signs with Web Crypto.)
 
 ## 1.4 Config anatomy
 
@@ -237,7 +244,8 @@ dogfooding link `lib/build-theme.ts` uses.
 
 ```mermaid
 flowchart TD
-  utils["@getvitops/utils<br/>(graph root — no workspace deps)"]
+  cfg["@getvitops/config<br/>(graph root — zod only)"]
+  utils["@getvitops/utils"]
   core["@getvitops/core"]
   gen["@getvitops/generator"]
   cli["@getvitops/cli"]
@@ -246,6 +254,9 @@ flowchart TD
   em["@getvitops/emdash"]
   cr["@getvitops/create<br/>(templates only, no build)"]
 
+  cfg --> utils
+  cfg --> gen
+  cfg --> as
   utils --> core --> gen
   utils --> gen
   gen --> cli
@@ -257,18 +268,27 @@ flowchart TD
   utils --> as
   vp --> as
   utils --> em
-  as -.->|"peer >=6.0.0"| em
+  gen --> em
+  as -.->|"peer >=8.2.0-alpha.0"| em
+  core -.->|"optional peer"| em
 ```
+
+Decisions and the architecture review behind this layering are in [`adr/`](adr/):
+[ADR-0000](adr/0000-architecture-review-2026-11.md) records the review and what it fixed or deferred;
+[ADR-0001](adr/0001-site-config-and-providers-packages.md) proposes moving the site config schema below
+the provider code; [ADR-0002](adr/0002-single-seo-defaults-vocabulary.md) proposes one vocabulary for site-level
+SEO defaults. (`adr/` is at the repo root because `docs/` is regenerated and wiped on every build.)
 
 **The one-way rule: `core` may never import the `generator`.** The generator snapshots core, not
 the reverse. That's why several constants exist in two places with a test holding them together —
 `dark-selector.test.ts`, `required-roles.test.ts`, `token-refs.test.ts`, `tiers.test.ts` are all
 drift guards for a dependency edge that can't exist.
 
-The same rule shapes `utils`: it cannot import the generator (the generator already depends on it),
-so `IndexingConfig`, `TrackingConfig`, `NotificationsConfig` and `DomainSetup` **structurally
-mirror** the matching `site.*` blocks, and the CLI adapts between them. The generator _importing_
-the utils capability table (`AD_PLATFORMS`) is the allowed direction.
+The same rule once shaped `utils`: it cannot import the generator, so it kept structural mirrors of
+the `site.*` blocks. The provider blocks now live in the leaf `@getvitops/config`, which both import,
+so `IndexingConfig`, `TrackingConfig`, `NotificationsConfig` and friends are inferred types, not
+copies. `site.seo` follows the same rule (ADR-0002): `SeoSchema` is in `@getvitops/config` and astro's
+`GetvitopsSeoOptions` is the _resolved_ shape of it, not a second vocabulary.
 
 ## 2.3 Key files
 
@@ -368,12 +388,13 @@ Every task is `npx vp run <name>`, defined in [`vite.config.ts`](vite.config.ts)
 | `build:cli`         | `cd packages/cli && vp pack`                                | `build:generator`, `build:utils`                                    | `packages/cli/dist/**`                    |
 | `build:vite-plugin` | `cd packages/vite && vp pack`                               | `build:generator`, `build:utils`                                    | `packages/vite/dist/**`                   |
 | `build:astro`       | `cd packages/astro && vp pack`                              | `build:core`, `build:generator`, `build:utils`, `build:vite-plugin` | `packages/astro/dist/**`                  |
-| `build:emdash`      | `cd packages/emdash && vp pack`                             | `build:utils`                                                       | `packages/emdash/dist/**`                 |
+| `build:emdash`      | `cd packages/emdash && vp pack`                             | `build:utils`, `build:generator`                                    | `packages/emdash/dist/**`                 |
 | `build:theme`       | `node lib/build-theme.ts`                                   | `build:generator`                                                   | `dist/**` + **`docs/**`\*\* (tracked)     |
 | `build:docs`        | `… --format css`                                            | `build:generator`                                                   | `dist/styles.css`, `design-manifest.json` |
 | `build:tailwind`    | `… --format tailwind`                                       | `build:generator`                                                   | `dist/tailwind.css`                       |
 | `build:design`      | `… --format design`                                         | `build:generator`                                                   | **`DESIGN.md`** (repo root, tracked)      |
 | `build:packages`    | the six package builds in sequence                          | —                                                                   | —                                         |
+| `verify:scaffold`   | `node scripts/scaffold-check.mjs emdash && … static`        | `build:packages`                                                    | — (temp dir; uncached, hits the registry) |
 | `release:version`   | `changeset version`                                         | —                                                                   | per-package `CHANGELOG.md`                |
 | `release`           | `vp test run && vp run build:packages && changeset publish` | —                                                                   | published tarballs                        |
 | `deploy`            | `node --env-file=.env lib/deploy.ts`                        | `build`                                                             | the remote theme                          |
@@ -446,14 +467,15 @@ then regenerate.
 
 ## 2.7 CI, release, versioning
 
-`.github/workflows/ci.yml` — push to `main`/`dev`, all PRs. Four jobs:
+`.github/workflows/ci.yml` — push to `main`/`dev`, all PRs. Five jobs:
 
-| Job         | Does                                                                                                                                                                                 |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `test`      | `vp check` (lint + fmt + typecheck, deliberately no `--fix`) then `vp test run`                                                                                                      |
-| `build`     | `vp run build:packages` + `docs:build` — proves every package's own `pack`/`build` and the docs' Astro build actually succeed, not just typecheck against source                     |
-| `generated` | Runs `build:theme` + `build:design`, fails if `git diff` shows changes in `docs/` or `DESIGN.md`; then `docs:sync`, which throws if the generator emits a doc the site doesn't carry |
-| `e2e`       | Real Chromium, scripting disabled, against `site/` — verifies the tier-2 `<wc-*>` no-JS-fallback promise (see AGENTS.md's "Web components" section)                                  |
+| Job         | Does                                                                                                                                                                                                                                                                                                     |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test`      | `vp check` (lint + fmt + typecheck, deliberately no `--fix`) then `vp test run`                                                                                                                                                                                                                          |
+| `build`     | `vp run build:packages` + `docs:build` — proves every package's own `pack`/`build` and the docs' Astro build actually succeed, not just typecheck against source                                                                                                                                         |
+| `scaffold`  | Matrix over `emdash`/`static`: copies the template, publishes this checkout's packed `@getvitops/*` to a throwaway Verdaccio registry and installs from it, then typechecks, builds and `vitops lint --strict`s it — the install-and-build a client gets from `vp create`, which nothing else reproduces |
+| `generated` | Runs `build:theme` + `build:design`, fails if `git diff` shows changes in `docs/` or `DESIGN.md`; then `docs:sync`, which throws if the generator emits a doc the site doesn't carry                                                                                                                     |
+| `e2e`       | Real Chromium, scripting disabled, against `site/` — verifies the tier-2 `<wc-*>` no-JS-fallback promise (see AGENTS.md's "Web components" section)                                                                                                                                                      |
 
 `.github/workflows/deploy-dev.yml` / `deploy-prod.yml` build `site/` and deploy to Cloudflare
 Workers static assets at `docs.vitops.ca` (apex custom domain configured in `site/wrangler.jsonc`,
@@ -500,10 +522,9 @@ These five shapes repeat everywhere. Knowing them makes an unfamiliar file predi
    output; the tests target the `.ts`.
    → `packages/astro/src/components/Analytics.astro` over `src/analytics.ts`.
 
-3. **Structural type mirrors.** Where the dependency edge runs the wrong way, the type is mirrored
-   by shape and adapted at the boundary — never imported.
-   → `IndexingConfig` in `packages/utils/src/indexing/types.ts`, adapted by the CLI's
-   `toIndexingConfig`.
+3. **Shared leaf for config types.** Where the dependency edge runs the wrong way, the type moves
+   to a leaf both sides import — not a hand-kept mirror.
+   → `@getvitops/config` (`IndexingSchema` → `IndexingConfig` in `packages/utils`).
 
 4. **Worker-vs-build-time entry splitting.** Anything that runs in a Worker gets its own build
    entry so it can't pull a build-time dependency in.

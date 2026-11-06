@@ -34,8 +34,8 @@ export function parseFigure(text: string, decimalsOverride?: number): ParsedFigu
   const numeric = match?.[2] || '0';
   const decimalPart = numeric.split('.')[1];
   return {
-    prefix: (match?.[1] ?? '').trim(),
-    suffix: (match?.[3] ?? '').trim(),
+    prefix: match?.[1] ?? '',
+    suffix: match?.[3] ?? '',
     value: Number.parseFloat(numeric.replace(/,/g, '')) || 0,
     decimals: decimalsOverride ?? decimalPart?.length ?? 0,
     grouping: numeric.includes(','),

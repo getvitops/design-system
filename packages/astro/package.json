@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/astro",
-  "version": "8.1.0",
+  "version": "8.2.0",
   "description": "Astro integration for the Vitops design system — favicons/PWA, web-component scripts, and CSS, via a getvitops() integration + <Head /> component.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",
@@ -13,6 +13,7 @@
   "files": [
     "dist",
     "src/components/Head.astro",
+    "src/inline-scripts.ts",
     "src/components/Seo.astro",
     "src/seo.ts",
     "src/components/Analytics.astro",
@@ -27,6 +28,7 @@
     "src/components/Gallery.astro",
     "src/components/ResponsiveImage.astro",
     "src/components/Counter.astro",
+    "src/components/Entries.astro",
     "src/components/NodeRenderer.astro",
     "src/components/WebComponentLoader.astro",
     "src/components/Icon.astro",
@@ -68,6 +70,10 @@
       "types": "./dist/exports/tracking.d.mts",
       "import": "./dist/exports/tracking.mjs"
     },
+    "./middleware": {
+      "types": "./dist/middleware.d.mts",
+      "import": "./dist/middleware.mjs"
+    },
     "./Head.astro": "./src/components/Head.astro",
     "./Seo.astro": "./src/components/Seo.astro",
     "./Analytics.astro": "./src/components/Analytics.astro",
@@ -79,6 +85,7 @@
     "./components/Carousel.astro": "./src/components/Carousel.astro",
     "./components/Gallery.astro": "./src/components/Gallery.astro",
     "./components/Counter.astro": "./src/components/Counter.astro",
+    "./components/Entries.astro": "./src/components/Entries.astro",
     "./components/NodeRenderer.astro": "./src/components/NodeRenderer.astro",
     "./components/WebComponentLoader.astro": "./src/components/WebComponentLoader.astro",
     "./components/Icon.astro": "./src/components/Icon.astro",
@@ -101,6 +108,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@getvitops/config": "workspace:*",
     "@getvitops/core": "workspace:*",
     "@getvitops/generator": "workspace:*",
     "@getvitops/utils": "workspace:*",
@@ -110,8 +118,7 @@
     "@astrojs/sitemap": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "astro": "catalog:",
-    "tailwindcss": "catalog:",
-    "vitest": "catalog:"
+    "tailwindcss": "catalog:"
   },
   "peerDependencies": {
     "@astrojs/sitemap": ">=3.6",

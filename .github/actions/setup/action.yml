@@ -1,19 +1,23 @@
-# checkout + pnpm + node + install, copy-pasted verbatim across ci.yml (4
-# jobs), docs.yml, deploy-dev.yml and deploy-prod.yml before this existed.
-# Not used by site-ci.yml / site-deploy-static.yml: those run in a consumer's
-# own scaffolded repo (no checkout of *this* repo), and site-ci.yml's install
-# step needs `working-directory`, which this action doesn't take.
-name: Setup (checkout + pnpm + node + install)
-description: actions/checkout, pnpm/action-setup, actions/setup-node (.nvmrc, pnpm cache), pnpm install --frozen-lockfile
+# Vite+ + Node + install for this repo's own workflows (ci.yml, docs.yml, deploy-dev.yml, deploy-prod.yml).
+# Not used by site-ci.yml / site-deploy-*.yml: those run in a consumer's own scaffolded repo (no
+# checkout of *this* repo) and take a `working-directory`, which this action doesn't.
+# The caller must run `actions/checkout` FIRST. A local composite action is loaded from the checked-out
+# repository, so one that performs the checkout itself can never be found — every workflow using it
+# failed in seconds with "Can't find 'action.yml'" until the checkout moved out of here.
+#
+# setup-vp installs `vp`, the Node version from `.node-version`, and the package manager named by the
+# root `packageManager` field, then runs `vp install` — so there is no separate pnpm/setup-node step and
+# nothing to keep in step with them. Pinned to an exact release: the moving `v1` tag stopped updating at
+# v1.15.0. Bump deliberately, and mind the 3-day release cooldown applied everywhere else.
+name: Setup (Vite+ + Node + install)
+description: voidzero-dev/setup-vp — Node from .node-version, pnpm from packageManager, frozen-lockfile install, dependency cache
 
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v7
-    - uses: pnpm/action-setup@v6
-    - uses: actions/setup-node@v7
+    - uses: voidzero-dev/setup-vp@v1.22.0
       with:
-        node-version-file: .nvmrc
-        cache: pnpm
-    - run: pnpm install --frozen-lockfile
-      shell: bash
+        node-version-file: .node-version
+        cache: true
+        run-install: |
+          - args: ['--frozen-lockfile']

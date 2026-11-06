@@ -1,10 +1,16 @@
 /**
  * Portable Text block-type declarations for the EmDash editor.
  *
- * v1 exposes only Vitops patterns whose data model fits EmDash's flat Block Kit
- * fields (text_input / number_input / select / toggle). Repeating structured
- * patterns (Cards, wc-entries, FAQ, forms) go through EmDash Sections or
- * Field Kit `list` widgets on json collection fields instead — see the README.
+ * Fields are EmDash Block Kit elements. Scalars (text_input / number_input / select /
+ * toggle / combobox) cover single-valued patterns; `repeater` (rows of scalar
+ * sub-fields) covers the repeating ones — cards, gallery, accordion, marquee, carousel
+ * slides — and `media_picker` picks one asset from the media library. Both are
+ * supported by the Portable Text block editor but not by Block Kit admin pages, which
+ * is why the type below names them explicitly rather than accepting any `Element`.
+ *
+ * Patterns that need other blocks INSIDE them (a section with columns, a card holding a
+ * button) cannot be a Portable Text block — a repeater holds scalars only. Those are
+ * schema-level block TYPES with a `portableText` field, in `block-types.ts` (`vitops_section`).
  *
  * Every `action_id` here must have a matching prop consumed by the block's
  * .astro component in `src/astro/blocks/` (enforced by blocks.test.ts).
@@ -12,16 +18,71 @@
 
 import type { PortableTextBlockConfig } from 'emdash';
 import { SEMANTIC_ICON_OPTIONS } from './icon-options.ts';
+import { SEMANTIC_TONES } from './astro/blocks/tone.ts';
 
-/** The v1 subset of EmDash Block Kit field elements used by these blocks. */
+/** The subset of EmDash Block Kit field elements these blocks use. */
 export type BlockKitFieldDef = Extract<
   NonNullable<PortableTextBlockConfig['fields']>[number],
-  { type: 'text_input' | 'number_input' | 'select' | 'toggle' | 'combobox' }
+  {
+    type:
+      | 'text_input'
+      | 'number_input'
+      | 'select'
+      | 'toggle'
+      | 'combobox'
+      | 'repeater'
+      | 'media_picker';
+  }
 >;
 
 export type PortableTextBlockDef = Omit<PortableTextBlockConfig, 'fields'> & {
   fields?: BlockKitFieldDef[];
 };
+
+/** Route that fills every tone select with the site's own roles — see `index.ts`. */
+export const TONES_ROUTE = 'tones/list';
+
+/**
+ * The tone options an editor can always pick, before the site adds its own roles.
+ * Static because Block Kit needs a non-empty `options` list even when `optionsRoute` is set
+ * (it is the fallback if the route fails, and what non-block-editor renderers read).
+ */
+export const STATIC_TONE_OPTIONS = [
+  { label: 'None', value: '' },
+  ...SEMANTIC_TONES.map((t) => ({ label: t[0]!.toUpperCase() + t.slice(1), value: t })),
+];
+
+/**
+ * The shared tone pair (UPSTREAM 21; resolution lives in `astro/blocks/tone.ts`): a `tone`
+ * select that offers the site's roles, and a `color` escape hatch naming a palette hue.
+ * Spread into any block that colours something.
+ */
+function toneFields(): BlockKitFieldDef[] {
+  return [
+    {
+      type: 'select',
+      action_id: 'tone',
+      label: 'Tone (a colour role from the site)',
+      initial_value: '',
+      options: STATIC_TONE_OPTIONS,
+      optionsRoute: TONES_ROUTE,
+    } as BlockKitFieldDef,
+    {
+      type: 'text_input',
+      action_id: 'color',
+      label: 'Palette colour instead of a tone (e.g. amber or amber-300)',
+    },
+  ];
+}
+
+/** Heading level for a block's own heading; `h1` is reserved for the page title. */
+const levelField = (initial: string): BlockKitFieldDef => ({
+  type: 'select',
+  action_id: 'level',
+  label: 'Heading level',
+  initial_value: initial,
+  options: ['2', '3', '4', '5', '6'].map((n) => ({ label: `h${n}`, value: n })),
+});
 
 export const BLOCKS: PortableTextBlockDef[] = [
   {
@@ -159,17 +220,29 @@ export const BLOCKS: PortableTextBlockDef[] = [
     type: 'vitops.carousel',
     label: 'Carousel',
     placeholder: 'Image carousel',
+    category: 'Media',
     fields: [
+      {
+        type: 'repeater',
+        action_id: 'slides',
+        label: 'Slides',
+        item_label: 'slide',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'src', label: 'Image URL' },
+          { type: 'text_input', action_id: 'alt', label: 'Alt text' },
+        ],
+      },
       {
         type: 'text_input',
         action_id: 'images',
-        label: 'Image URLs (one per line)',
+        label: 'Image URLs, one per line (legacy — use Slides)',
         multiline: true,
       },
       {
         type: 'text_input',
         action_id: 'alts',
-        label: 'Alt texts (one per line, same order)',
+        label: 'Alt texts, one per line (legacy — use Slides)',
         multiline: true,
       },
       {
@@ -198,4 +271,528 @@ export const BLOCKS: PortableTextBlockDef[] = [
       },
     ],
   },
+  {
+    type: 'vitops.gallery',
+    label: 'Gallery',
+    placeholder: 'Thumbnail grid that opens a lightbox carousel',
+    category: 'Media',
+    fields: [
+      {
+        type: 'text_input',
+        action_id: 'label',
+        label: 'Accessible name',
+        initial_value: 'Gallery',
+      },
+      {
+        type: 'repeater',
+        action_id: 'images',
+        label: 'Images',
+        item_label: 'image',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'src', label: 'Image URL' },
+          { type: 'text_input', action_id: 'alt', label: 'Alt text' },
+          { type: 'text_input', action_id: 'caption', label: 'Caption' },
+        ],
+      },
+      {
+        type: 'text_input',
+        action_id: 'aspect',
+        label: 'Thumbnail aspect ratio',
+        initial_value: '1',
+      },
+      { type: 'toggle', action_id: 'loop', label: 'Wrap around at the ends', initial_value: false },
+    ],
+  },
+  {
+    type: 'vitops.cards',
+    label: 'Cards',
+    placeholder: 'A grid of cards',
+    category: 'Sections',
+    fields: [
+      {
+        type: 'repeater',
+        action_id: 'cards',
+        label: 'Cards',
+        item_label: 'card',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'title', label: 'Title' },
+          {
+            type: 'text_input',
+            action_id: 'body',
+            label: 'Text (write [link text](/url) for an inline link)',
+            multiline: true,
+          },
+          { type: 'text_input', action_id: 'image', label: 'Image URL' },
+          { type: 'text_input', action_id: 'imageAlt', label: 'Image alt text' },
+          {
+            type: 'text_input',
+            action_id: 'href',
+            label: 'Link URL (makes the whole card clickable)',
+          },
+          {
+            type: 'text_input',
+            action_id: 'linkLabel',
+            label: 'Link text',
+            initial_value: 'Read more',
+          },
+          {
+            type: 'text_input',
+            action_id: 'checklist',
+            label: 'Checklist (panel style; one item per line)',
+            multiline: true,
+          },
+          { type: 'text_input', action_id: 'ctaLabel', label: 'Button text (panel style)' },
+          { type: 'text_input', action_id: 'ctaHref', label: 'Button URL (panel style)' },
+        ],
+      },
+      {
+        type: 'select',
+        action_id: 'variant',
+        label: 'Style',
+        initial_value: 'default',
+        options: [
+          { label: 'Cards', value: 'default' },
+          { label: 'Panels (tinted, with checklist and button)', value: 'panel' },
+        ],
+      },
+      levelField('3'),
+      ...toneFields(),
+      {
+        type: 'select',
+        action_id: 'columns',
+        label: 'Columns',
+        initial_value: '3',
+        options: [
+          { label: '1', value: '1' },
+          { label: '2', value: '2' },
+          { label: '3', value: '3' },
+          { label: '4', value: '4' },
+        ],
+      },
+    ],
+  },
+  {
+    type: 'vitops.accordion',
+    label: 'Accordion',
+    placeholder: 'A group of collapsible sections',
+    category: 'Sections',
+    fields: [
+      {
+        type: 'repeater',
+        action_id: 'items',
+        label: 'Items',
+        item_label: 'item',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'summary', label: 'Summary (always visible)' },
+          { type: 'text_input', action_id: 'body', label: 'Body (revealed)', multiline: true },
+          { type: 'toggle', action_id: 'open', label: 'Open by default', initial_value: false },
+        ],
+      },
+      {
+        type: 'toggle',
+        action_id: 'exclusive',
+        label: 'Only one open at a time',
+        initial_value: false,
+      },
+    ],
+  },
+  {
+    type: 'vitops.hero',
+    label: 'Hero',
+    placeholder: 'Page opener: heading, text, buttons and an optional image',
+    category: 'Sections',
+    fields: [
+      { type: 'text_input', action_id: 'eyebrow', label: 'Eyebrow (small line above)' },
+      {
+        type: 'text_input',
+        action_id: 'heading',
+        label: 'Heading (wrap words in *stars* to accent them)',
+      },
+      levelField('2'),
+      { type: 'text_input', action_id: 'body', label: 'Text', multiline: true },
+      { type: 'text_input', action_id: 'primaryLabel', label: 'Main button text' },
+      { type: 'text_input', action_id: 'primaryHref', label: 'Main button URL' },
+      { type: 'text_input', action_id: 'secondaryLabel', label: 'Second link text' },
+      { type: 'text_input', action_id: 'secondaryHref', label: 'Second link URL' },
+      { type: 'text_input', action_id: 'image', label: 'Image URL (split layout)' },
+      { type: 'text_input', action_id: 'imageAlt', label: 'Image alt text' },
+      {
+        type: 'select',
+        action_id: 'layout',
+        label: 'Layout',
+        initial_value: 'centered',
+        options: [
+          { label: 'Centered', value: 'centered' },
+          { label: 'Text and image side by side', value: 'split' },
+        ],
+      },
+      ...toneFields(),
+      {
+        type: 'repeater',
+        action_id: 'cards',
+        label: 'Option cards under the buttons (optional)',
+        item_label: 'card',
+        fields: [
+          { type: 'text_input', action_id: 'title', label: 'Title' },
+          {
+            type: 'text_input',
+            action_id: 'body',
+            label: 'Text (write [link text](/url) for an inline link)',
+            multiline: true,
+          },
+          { type: 'text_input', action_id: 'href', label: 'Link URL (makes the card clickable)' },
+          {
+            type: 'text_input',
+            action_id: 'linkLabel',
+            label: 'Link text',
+            initial_value: 'Learn more',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    type: 'vitops.marquee',
+    label: 'Marquee',
+    placeholder: 'A continuously scrolling row (logos, quotes, badges)',
+    category: 'Media',
+    fields: [
+      {
+        type: 'repeater',
+        action_id: 'items',
+        label: 'Items',
+        item_label: 'item',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'text', label: 'Text' },
+          { type: 'text_input', action_id: 'image', label: 'Image URL (shown instead of text)' },
+          { type: 'text_input', action_id: 'alt', label: 'Image alt text' },
+        ],
+      },
+      { type: 'toggle', action_id: 'pauseOnHover', label: 'Pause on hover', initial_value: true },
+      { type: 'toggle', action_id: 'reverse', label: 'Scroll the other way', initial_value: false },
+    ],
+  },
+  {
+    type: 'vitops.logos',
+    label: 'Logos',
+    placeholder: 'A still row of partner or client logos',
+    category: 'Media',
+    fields: [
+      {
+        type: 'text_input',
+        action_id: 'label',
+        label: 'Accessible name',
+        initial_value: 'Partners',
+      },
+      {
+        type: 'repeater',
+        action_id: 'logos',
+        label: 'Logos',
+        item_label: 'logo',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'image', label: 'Image URL' },
+          { type: 'text_input', action_id: 'alt', label: 'Name (alt text)' },
+          { type: 'text_input', action_id: 'href', label: 'Link URL (optional)' },
+        ],
+      },
+      { type: 'toggle', action_id: 'grayscale', label: 'Grey until hovered', initial_value: false },
+      {
+        type: 'select',
+        action_id: 'size',
+        label: 'Logo height',
+        initial_value: 'md',
+        options: [
+          { label: 'Small', value: 'sm' },
+          { label: 'Medium', value: 'md' },
+          { label: 'Large', value: 'lg' },
+        ],
+      },
+    ],
+  },
+  {
+    type: 'vitops.steps',
+    label: 'Steps',
+    placeholder: 'A numbered sequence joined by a connector line',
+    category: 'Sections',
+    fields: [
+      {
+        type: 'repeater',
+        action_id: 'steps',
+        label: 'Steps',
+        item_label: 'step',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'title', label: 'Title' },
+          {
+            type: 'text_input',
+            action_id: 'text',
+            label: 'Text (write [link text](/url) for an inline link)',
+            multiline: true,
+          },
+        ],
+      },
+      levelField('3'),
+      {
+        type: 'select',
+        action_id: 'layout',
+        label: 'Layout',
+        initial_value: 'column',
+        options: [
+          { label: 'Stacked', value: 'column' },
+          { label: 'Side by side when wide', value: 'row' },
+        ],
+      },
+      ...toneFields(),
+    ],
+  },
+  {
+    type: 'vitops.stats',
+    label: 'Stats',
+    placeholder: 'Headline figures that count up, or labelled tiles',
+    category: 'Sections',
+    fields: [
+      {
+        type: 'repeater',
+        action_id: 'stats',
+        label: 'Figures',
+        item_label: 'figure',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'value', label: 'Figure (e.g. 82% or 11 hrs)' },
+          { type: 'text_input', action_id: 'label', label: 'Label' },
+          {
+            type: 'text_input',
+            action_id: 'group',
+            label: 'Group (tiles style; small line above)',
+          },
+          {
+            type: 'text_input',
+            action_id: 'delta',
+            label: 'Change (tiles style; e.g. +3 this week)',
+          },
+          {
+            type: 'select',
+            action_id: 'state',
+            label: 'Change is',
+            initial_value: '',
+            options: [
+              { label: 'Neutral', value: '' },
+              { label: 'Good (up)', value: 'up' },
+              { label: 'Bad (down)', value: 'down' },
+            ],
+          },
+        ],
+      },
+      {
+        type: 'select',
+        action_id: 'variant',
+        label: 'Style',
+        initial_value: 'figures',
+        options: [
+          { label: 'Figures', value: 'figures' },
+          { label: 'Tiles', value: 'tiles' },
+        ],
+      },
+      {
+        type: 'toggle',
+        action_id: 'animate',
+        label: 'Count up when scrolled into view',
+        initial_value: true,
+      },
+      ...toneFields(),
+    ],
+  },
+  {
+    type: 'vitops.callout',
+    label: 'Callout',
+    placeholder: 'A call-to-action band (not a dismissible banner)',
+    category: 'Sections',
+    fields: [
+      { type: 'text_input', action_id: 'heading', label: 'Heading' },
+      levelField('2'),
+      {
+        type: 'text_input',
+        action_id: 'body',
+        label: 'Text (write [link text](/url) for an inline link)',
+        multiline: true,
+      },
+      { type: 'text_input', action_id: 'primaryLabel', label: 'Main button text' },
+      { type: 'text_input', action_id: 'primaryHref', label: 'Main button URL' },
+      { type: 'text_input', action_id: 'secondaryLabel', label: 'Second link text' },
+      { type: 'text_input', action_id: 'secondaryHref', label: 'Second link URL' },
+      {
+        type: 'select',
+        action_id: 'align',
+        label: 'Layout',
+        initial_value: 'start',
+        options: [
+          { label: 'Message left, buttons right', value: 'start' },
+          { label: 'Centered', value: 'center' },
+        ],
+      },
+      {
+        type: 'toggle',
+        action_id: 'solid',
+        label: 'Fill with the solid colour',
+        initial_value: false,
+      },
+      ...toneFields(),
+    ],
+  },
+  {
+    type: 'vitops.entries',
+    label: 'Entries table',
+    placeholder: 'Rows of term/value pairs: a stacked list that becomes a table when wide',
+    category: 'Sections',
+    fields: [
+      {
+        type: 'repeater',
+        action_id: 'entries',
+        label: 'Entries',
+        item_label: 'entry',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'heading', label: 'Heading (row name)' },
+          {
+            type: 'text_input',
+            action_id: 'pairs',
+            label: 'Details (one per line: Term | Value)',
+            multiline: true,
+          },
+        ],
+      },
+      levelField('3'),
+      {
+        type: 'text_input',
+        action_id: 'breakpoint',
+        label: 'Becomes a table at this width',
+        initial_value: '40rem',
+      },
+    ],
+  },
+  {
+    type: 'vitops.pricing',
+    label: 'Pricing',
+    placeholder: 'Plan cards with aligned feature rows',
+    category: 'Sections',
+    fields: [
+      {
+        type: 'repeater',
+        action_id: 'plans',
+        label: 'Plans',
+        item_label: 'plan',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'name', label: 'Plan name' },
+          { type: 'text_input', action_id: 'price', label: 'Price (e.g. $49)' },
+          { type: 'text_input', action_id: 'period', label: 'Period (e.g. per month)' },
+          {
+            type: 'text_input',
+            action_id: 'features',
+            label: 'Features (one per line)',
+            multiline: true,
+          },
+          { type: 'text_input', action_id: 'ctaLabel', label: 'Button text' },
+          { type: 'text_input', action_id: 'ctaHref', label: 'Button URL' },
+          {
+            type: 'toggle',
+            action_id: 'featured',
+            label: 'Highlight this plan',
+            initial_value: false,
+          },
+        ],
+      },
+      levelField('3'),
+    ],
+  },
+  {
+    type: 'vitops.embed',
+    label: 'Embed (video or map)',
+    placeholder: 'A video or map that loads only after the visitor allows it',
+    category: 'Embeds',
+    fields: [
+      {
+        type: 'select',
+        action_id: 'provider',
+        label: 'Provider',
+        initial_value: 'youtube',
+        options: [
+          { label: 'YouTube', value: 'youtube' },
+          { label: 'Vimeo', value: 'vimeo' },
+          { label: 'Map (Google or OpenStreetMap embed address)', value: 'map' },
+          { label: 'Other (https address)', value: 'custom' },
+        ],
+      },
+      { type: 'text_input', action_id: 'url', label: 'Address' },
+      {
+        type: 'text_input',
+        action_id: 'title',
+        label: 'Title (required: it names the frame for screen readers)',
+      },
+      {
+        type: 'select',
+        action_id: 'category',
+        label: 'Consent category it waits on',
+        initial_value: 'marketing',
+        options: [
+          { label: 'Marketing', value: 'marketing' },
+          { label: 'Preferences', value: 'preferences' },
+          { label: 'Analytics', value: 'analytics' },
+        ],
+      },
+      { type: 'text_input', action_id: 'ratio', label: 'Aspect ratio', initial_value: '16 / 9' },
+    ],
+  },
 ];
+
+/** Which Vitops blocks a site's editor offers, and any it adds of its own. */
+export interface BlockSelection {
+  /** Offer only these `vitops.*` types. Unknown names throw — a typo must not silently offer nothing. */
+  include?: string[];
+  /** Drop these `vitops.*` types. Applied after `include`. */
+  exclude?: string[];
+  /**
+   * The site's own blocks. These are EDITOR definitions only: the plugin cannot render a
+   * block it has never heard of, so the site maps each `type` to a component with
+   * `<PortableText components={{ type: { … } }} />`. A type that collides with an existing
+   * one throws, since the later definition would silently replace the earlier one's fields.
+   */
+  extra?: PortableTextBlockDef[];
+}
+
+/**
+ * Resolve {@link BlockSelection} against {@link BLOCKS}.
+ *
+ * Pure so a misconfiguration fails at plugin construction, with the offending name in the
+ * message, rather than as an editor menu that is quietly missing something.
+ */
+export function selectBlocks(selection: BlockSelection = {}): PortableTextBlockDef[] {
+  const known = new Set(BLOCKS.map((b) => b.type));
+  const check = (names: string[] | undefined, option: string): void => {
+    for (const name of names ?? [])
+      if (!known.has(name))
+        throw new Error(
+          `[vitops] blocks.${option}: unknown block '${name}'. Known: ${[...known].join(', ')}.`,
+        );
+  };
+  check(selection.include, 'include');
+  check(selection.exclude, 'exclude');
+
+  const include = selection.include ? new Set(selection.include) : null;
+  const exclude = new Set(selection.exclude);
+  const base = BLOCKS.filter((b) => (!include || include.has(b.type)) && !exclude.has(b.type));
+
+  const extra = selection.extra ?? [];
+  const taken = new Set(BLOCKS.map((b) => b.type));
+  for (const block of extra) {
+    if (taken.has(block.type))
+      throw new Error(`[vitops] blocks.extra: type '${block.type}' is already defined.`);
+    taken.add(block.type);
+  }
+  return [...base, ...extra];
+}

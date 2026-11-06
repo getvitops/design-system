@@ -794,26 +794,30 @@ export class WCTypography extends BaseElement {
               @input=${this._handleSearchInput}
               @focus=${() => this._searchQuery.length >= 2 && this._searchFonts(this._searchQuery)}
             />
-            ${this._searchResults.length > 0 || this._isSearching
-              ? html`
-                  <div class="font-search__results">
-                    ${this._isSearching
-                      ? html`<div class="font-search__loading">Searching...</div>`
-                      : this._searchResults.map(
-                          (font) => html`
-                            <button
-                              type="button"
-                              class="font-search__result"
-                              style="font-family: '${font}', sans-serif"
-                              @click=${() => this._addFont(font)}
-                            >
-                              ${font}
-                            </button>
-                          `,
-                        )}
-                  </div>
-                `
-              : null}
+            ${
+              this._searchResults.length > 0 || this._isSearching
+                ? html`
+                    <div class="font-search__results">
+                      ${
+                        this._isSearching
+                          ? html`<div class="font-search__loading">Searching...</div>`
+                          : this._searchResults.map(
+                              (font) => html`
+                                <button
+                                  type="button"
+                                  class="font-search__result"
+                                  style="font-family: '${font}', sans-serif"
+                                  @click=${() => this._addFont(font)}
+                                >
+                                  ${font}
+                                </button>
+                              `,
+                            )
+                      }
+                    </div>
+                  `
+                : null
+            }
           </div>
           <div class="font-list">
             ${this.fonts.map(
@@ -1255,9 +1259,11 @@ export class WCTypography extends BaseElement {
                   max-inline-size: ${measureValue};
                 "
             >
-              ${role === 'body'
-                ? 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
-                : this._previewText}
+              ${
+                role === 'body'
+                  ? 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.'
+                  : this._previewText
+              }
             </p>
           `;
         })}

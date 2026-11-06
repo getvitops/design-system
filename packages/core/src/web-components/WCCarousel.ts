@@ -9,6 +9,7 @@ import {
   type CarouselPlan,
 } from './utils/carousel.js';
 import { initFromLightDom } from './utils/upgrade.js';
+import { scrollBehavior } from './utils/motion.js';
 import { RovingTabindex } from './utils/RovingTabindex.js';
 
 /**
@@ -365,7 +366,7 @@ export class WCCarousel extends BaseElement {
     if (!children.length) return;
     const next = this.#currentIndex() + delta;
     const target = children[Math.max(0, Math.min(children.length - 1, next))];
-    target?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    target?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: scrollBehavior() });
   }
 
   #scrollToFirstReal(): void {
@@ -530,7 +531,7 @@ export class WCCarousel extends BaseElement {
       marker.setAttribute('aria-selected', String(i === 0));
       if (slide.id) marker.setAttribute('aria-controls', slide.id);
       marker.addEventListener('click', () => {
-        slide.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+        slide.scrollIntoView({ inline: 'center', block: 'nearest', behavior: scrollBehavior() });
       });
       return marker;
     });

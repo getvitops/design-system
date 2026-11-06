@@ -1,0 +1,22 @@
+# Cloudflare static-assets response headers for the whole site (every page here is
+# a static asset). See AGENTS.md "Content Security Policy".
+#
+# REPORT-ONLY on purpose: violations are logged to the browser console and
+# nothing is blocked, so this cannot break a page. Read the console on the
+# pages you ship, add what is legitimately needed, then rename the header to
+# `Content-Security-Policy` to enforce it.
+#
+# The two sha256 values are the inline scripts <Head /> emits (the colour-scheme
+# bootstrap and the consent-gate stub). They change only when
+# @getvitops/astro changes those scripts; regenerate with
+#   vp exec node -e "import('@getvitops/astro').then(m => console.log(m.contentSecurityPolicy()))"
+# `templates.test.ts` in the toolchain repo guards that they match.
+#
+# Third-party tags the consent gate activates need their origins in
+# script-src/connect-src before you enforce.
+/*
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'sha256-CEiVlTo192T9Rug/nAl+ihvkqOQkYdr6Rq3oc+gR9JU=' 'sha256-z/UqsITVvNGOJSaOSvhN1rdtyYdMIxpQ/lMXM1q0g90='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  X-Frame-Options: SAMEORIGIN

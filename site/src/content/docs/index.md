@@ -52,6 +52,7 @@ looks wrong, that's a bug in the framework — which is the point of building th
 ## Where next
 
 - **[Installation](/guides/installation)** — get the toolchain into your project
+- **[Start a new EmDash site](/guides/new-emdash-site)** — `vp create` to a running admin, agent tooling wired
 - **[Your design system](/guides/design-system)** — how `design-system.json` is structured
 - **[CSS class vocabulary](/reference/css-classes)** — what you can actually write in markup
 - **[Changelog](/changelog)** — what changed and how to migrate

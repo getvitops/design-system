@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 import { hasDrift, plan, planDomainConsistency } from './plan.ts';
 import type { DomainState, HostingSetup, HostingState } from './types.ts';
 

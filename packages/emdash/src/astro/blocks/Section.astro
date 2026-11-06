@@ -1,0 +1,84 @@
+---
+/**
+ * `vitops_section` — the editorial wrapper: kicker, heading, lead-in, then a body of other
+ * blocks. It renders a block TYPE (a `blocks` field entry), not a Portable Text block — see
+ * `block-types.ts` for why — so it is mapped through `blockTypeComponents`, not
+ * `blockComponents`.
+ *
+ * Composed from the framework's layout primitives: `.region` for vertical rhythm, `.centered`
+ * for the tracks (the `width` field picks `breakout`/`spotlight`/`fullbleed`), `.section` for
+ * the head and the heading-left `split` layout, `.tone` for the backdrop. The heading is a
+ * real heading at the editor's `level`.
+ *
+ * The body is rendered by EmDash's `<PortableText>`, which merges this plugin's
+ * `blockComponents`, so a `vitops.cards` or `vitops.actionLink` placed in it renders with its
+ * web component. Class names never come from field values (Tailwind could not see them): the
+ * width and layout are looked up in closed tables, colour is `--tone-*` custom properties.
+ */
+import { PortableText } from 'emdash/ui';
+import { joinStyle, resolveTone } from './tone.ts';
+import { headingTag, resolveBlockValue, text } from './value.ts';
+
+interface Value {
+  kicker?: string;
+  heading?: string;
+  level?: string | number;
+  sub?: string;
+  body?: unknown;
+  layout?: string;
+  width?: string;
+  tone?: string;
+  color?: string;
+  solid?: boolean;
+}
+
+const WIDTHS: Record<string, string> = {
+  breakout: 'breakout',
+  spotlight: 'spotlight',
+  fullbleed: 'fullbleed',
+};
+
+const value = resolveBlockValue<Value>(Astro.props);
+const kicker = text(value.kicker);
+const heading = text(value.heading);
+const sub = text(value.sub);
+const body = Array.isArray(value.body) ? value.body : [];
+const Heading = headingTag(value.level, 2);
+const tone = resolveTone(value.tone, value.color);
+const layout = text(value.layout);
+const width = WIDTHS[text(value.width)];
+const hasHead = Boolean(kicker || heading || sub);
+---
+
+{
+  (hasHead || body.length > 0) && (
+    <section
+      class:list={[
+        'section',
+        'region',
+        tone.style && tone.className,
+        tone.style && value.solid && 'tone--solid',
+        layout === 'split' && 'section--split',
+        layout === 'center' && 'section--center',
+      ]}
+      style={joinStyle(tone.style)}
+    >
+      <div class="centered">
+        <div class:list={['section__inner', width]}>
+          {hasHead && (
+            <header class="section__head">
+              {kicker && <p class="section__kicker font-eyebrow">{kicker}</p>}
+              {heading && <Heading class="section__title font-title">{heading}</Heading>}
+              {sub && <p class="section__sub font-lead">{sub}</p>}
+            </header>
+          )}
+          {body.length > 0 && (
+            <div class="section__body">
+              <PortableText value={body} />
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}

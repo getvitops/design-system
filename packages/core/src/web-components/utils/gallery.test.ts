@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { preloadTargets } from './gallery.ts';
 
 // `stepIndex` (re-exported here) is tested at its home, `keynav.test.ts` —

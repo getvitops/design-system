@@ -1,0 +1,38 @@
+---
+/**
+ * Thin adapter over `@getvitops/astro`'s `<Marquee />`, which emits `<wc-marquee>` itself
+ * and duplicates the slot (the copies are `aria-hidden`) for the seamless loop. Without
+ * JS the row still scrolls from CSS alone; `prefers-reduced-motion` is handled there.
+ */
+import Marquee from '@getvitops/astro/components/Marquee.astro';
+import { resolveBlockValue, rows, safeHref, text } from './value.ts';
+
+interface Value {
+  items?: unknown;
+  pauseOnHover?: boolean;
+  reverse?: boolean;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const items = rows<Record<string, unknown>>(value.items)
+  .map((row) => ({
+    text: text(row.text),
+    image: safeHref(row.image),
+    alt: text(row.alt),
+  }))
+  .filter((item) => item.text || item.image);
+---
+
+{
+  items.length > 0 && (
+    <Marquee pauseOnHover={Boolean(value.pauseOnHover)} reverse={Boolean(value.reverse)}>
+      {items.map((item) =>
+        item.image ? (
+          <img src={item.image} alt={item.alt} loading="lazy" />
+        ) : (
+          <span>{item.text}</span>
+        ),
+      )}
+    </Marquee>
+  )
+}

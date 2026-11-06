@@ -1,0 +1,39 @@
+---
+/**
+ * A group of native `<details>` — no JS at any tier. `exclusive` gives every item the
+ * same `name`, which the platform turns into "opening one closes the others". The name
+ * comes from the block's `_key`, so two accordions on a page never close each other.
+ */
+import { paragraphs, resolveBlockValue, rows, text } from './value.ts';
+
+interface Value {
+  _key?: string;
+  items?: unknown;
+  exclusive?: boolean;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const items = rows<Record<string, unknown>>(value.items)
+  .map((row) => ({
+    summary: text(row.summary),
+    body: paragraphs(row.body),
+    open: Boolean(row.open),
+  }))
+  .filter((item) => item.summary);
+const group = value.exclusive ? `accordion-${value._key ?? 'group'}` : undefined;
+---
+
+{
+  items.length > 0 && (
+    <div class="accordion">
+      {items.map((item) => (
+        <details name={group} open={item.open}>
+          <summary>{item.summary}</summary>
+          {item.body.map((p) => (
+            <p>{p}</p>
+          ))}
+        </details>
+      ))}
+    </div>
+  )
+}

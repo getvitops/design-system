@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 import { PLATFORM_PARAMS } from '../tracking/params.ts';
 import { AD_PLATFORMS, AD_PROVIDER_KEYS, categoryOf, renderTag } from './providers.ts';
 
@@ -75,5 +75,74 @@ describe('renderTag', () => {
   test('honours an explicit consent category', () => {
     expect(categoryOf({ provider: 'meta', category: 'analytics' })).toBe('analytics');
     expect(renderTag({ ...meta, category: 'analytics' })).toContain('data-consent="analytics"');
+  });
+
+  test('google with a bare-string conversionLabel exposes it as the call action', () => {
+    const html = renderTag({ provider: 'google', pixelId: 'AW-123', conversionLabel: 'abcDEF' })!;
+    expect(html).toContain('window.vitopsAdsConversions.google={"call":"AW-123/abcDEF"};');
+  });
+
+  test('google with a conversionLabel map exposes one send_to target per action', () => {
+    const html = renderTag({
+      provider: 'google',
+      pixelId: 'AW-123',
+      conversionLabel: { call: 'callLbl', email: 'emailLbl', form: 'formLbl' },
+    })!;
+    expect(html).toContain(
+      'window.vitopsAdsConversions.google=' +
+        '{"call":"AW-123/callLbl","email":"AW-123/emailLbl","form":"AW-123/formLbl"};',
+    );
+  });
+
+  test('a partial conversionLabel map exposes only the actions it names', () => {
+    const html = renderTag({
+      provider: 'google',
+      pixelId: 'AW-123',
+      conversionLabel: { form: 'formLbl' },
+    })!;
+    expect(html).toContain('window.vitopsAdsConversions.google={"form":"AW-123/formLbl"};');
+    expect(html).not.toContain('"call"');
+  });
+
+  test('google with no conversionLabel exposes nothing — gtag still bootstraps', () => {
+    const html = renderTag({ provider: 'google', pixelId: 'AW-123' })!;
+    expect(html).toContain("gtag('config','AW-123');");
+    expect(html).not.toContain('vitopsAdsConversions');
+  });
+
+  describe('reporting: "server" suppresses only the actions with a matching conversionActionId', () => {
+    test('an action with both reporting=server and a conversionActionId is suppressed client-side', () => {
+      const html = renderTag({
+        provider: 'google',
+        pixelId: 'AW-123',
+        conversionLabel: { call: 'callLbl', email: 'emailLbl' },
+        conversionActionId: { call: '999' },
+        reporting: 'server',
+      })!;
+      expect(html).not.toContain('"call"');
+      // `email` has no conversionActionId, so it keeps firing client-side
+      // rather than silently dropping the conversion.
+      expect(html).toContain('"email":"AW-123/emailLbl"');
+    });
+
+    test('reporting=server with no conversionActionId at all changes nothing', () => {
+      const html = renderTag({
+        provider: 'google',
+        pixelId: 'AW-123',
+        conversionLabel: { call: 'callLbl' },
+        reporting: 'server',
+      })!;
+      expect(html).toContain('"call":"AW-123/callLbl"');
+    });
+
+    test('a conversionActionId with reporting left at the default (client) changes nothing', () => {
+      const html = renderTag({
+        provider: 'google',
+        pixelId: 'AW-123',
+        conversionLabel: { call: 'callLbl' },
+        conversionActionId: { call: '999' },
+      })!;
+      expect(html).toContain('"call":"AW-123/callLbl"');
+    });
   });
 });

@@ -1,0 +1,38 @@
+/**
+ * Tone — one convention for "colour this block", shared by every block that colours
+ * anything (section, callout, stats, steps, cards `panel`, hero).
+ *
+ * A block never names a colour class. Class names cannot be built from a field value
+ * (Tailwind only sees literals), so a renderer sets custom properties on the element
+ * and `.tone` reads them:
+ *
+ *   --tone-bg      a tint of the role (`--color-bg-<role>-muted`)
+ *   --tone-fg      its readable text (`--color-text-<role>`)
+ *   --tone-border  its boundary (`--color-border-<role>`)
+ *   --tone-solid / --tone-on-solid   the filled variant and its computed foreground
+ *
+ * Each is a `var()` chain — the role, then its semantic fallbacks, then `neutral` — so a
+ * tone a site never defined degrades to a neutral surface instead of to nothing.
+ * `@getvitops/emdash`'s `resolveTone()` writes the chains. Unset, `.tone` is inert.
+ *
+ * `.tone--tint` is the default; `--solid` fills with the role's solid and its `on` colour.
+ */
+.tone {
+  --_bg: var(--tone-bg, transparent);
+  --_fg: var(--tone-fg, inherit);
+
+  background-color: var(--_bg);
+  color: var(--_fg);
+  border-color: var(--tone-border, currentColor);
+
+  &.tone--solid {
+    background-color: var(--tone-solid, var(--_bg));
+    color: var(--tone-on-solid, var(--_fg));
+  }
+}
+
+/* An accent run inside a heading (`<em class="accent">`): colour, not italics. */
+.accent {
+  font-style: normal;
+  color: var(--accent-color, var(--color-text-ui-accent, currentColor));
+}

@@ -1,0 +1,73 @@
+---
+/**
+ * A call-to-action band on the framework's `.callout` pattern. Not `vitops.banner`: that is
+ * a dismissible announcement, this is content that stays. The heading is a real heading at
+ * the editor's `level`; colour is the shared tone convention, tinted by default and filled
+ * with the role's solid when `solid` is on.
+ */
+import RichText from './RichText.astro';
+import { resolveTone, joinStyle } from './tone.ts';
+import { headingTag, resolveBlockValue, safeHref, text } from './value.ts';
+
+interface Value {
+  heading?: string;
+  level?: string | number;
+  body?: string;
+  primaryLabel?: string;
+  primaryHref?: string;
+  secondaryLabel?: string;
+  secondaryHref?: string;
+  align?: string;
+  solid?: boolean;
+  tone?: string;
+  color?: string;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const heading = text(value.heading);
+const body = text(value.body);
+const primaryLabel = text(value.primaryLabel);
+const primaryHref = safeHref(value.primaryHref);
+const secondaryLabel = text(value.secondaryLabel);
+const secondaryHref = safeHref(value.secondaryHref);
+const hasActions = Boolean((primaryLabel && primaryHref) || (secondaryLabel && secondaryHref));
+const Heading = headingTag(value.level, 2);
+const tone = resolveTone(value.tone, value.color);
+---
+
+{
+  (heading || body) && (
+    <div
+      class:list={[
+        'callout',
+        tone.className,
+        value.solid && 'tone--solid',
+        value.align === 'center' && 'callout--center',
+      ]}
+      style={joinStyle(tone.style)}
+    >
+      <div class="callout__body">
+        {heading && <Heading class="callout__title font-title">{heading}</Heading>}
+        {body && (
+          <p class="callout__text">
+            <RichText text={body} />
+          </p>
+        )}
+      </div>
+      {hasActions && (
+        <p class="callout__actions cluster">
+          {primaryLabel && primaryHref && (
+            <a class="cta" href={primaryHref}>
+              {primaryLabel}
+            </a>
+          )}
+          {secondaryLabel && secondaryHref && (
+            <a class="link" href={secondaryHref}>
+              {secondaryLabel}
+            </a>
+          )}
+        </p>
+      )}
+    </div>
+  )
+}

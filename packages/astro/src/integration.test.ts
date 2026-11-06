@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { AstroIntegration, HookParameters } from 'astro';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
+import { defaultSiteConfig } from '@getvitops/generator';
 import vitops, { type GetvitopsOptions } from './integration.ts';
 
 type Params = HookParameters<'astro:config:setup'>;
@@ -184,6 +185,43 @@ describe('vitops({ seo })', () => {
   });
 });
 
+describe('site.seo as the source of <Seo /> defaults', () => {
+  // The harness's `site.input` points at a real file so the integration reads it like a consumer's.
+  it('derives defaults from the site config, with organization.name as the site name', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-seo-'));
+    const cfg = defaultSiteConfig() as unknown as {
+      organization: Record<string, unknown>;
+      site: Record<string, unknown>;
+    };
+    cfg.organization.name = 'Acme';
+    cfg.site.seo = { titleTemplate: '%s · Acme', openGraph: { locale: 'en_CA' } };
+    writeFileSync(join(dir, 'site.json'), JSON.stringify(cfg));
+    const h = harness({ site: { input: 'site.json' } }, { root: pathToFileURL(`${dir}/`) });
+    await h.run();
+    expect(headData(h.updates).seo).toMatchObject({
+      siteName: 'Acme',
+      titleTemplate: '%s · Acme',
+      openGraph: { locale: 'en_CA' },
+    });
+  });
+
+  it('lets vitops({ seo }) override one field without discarding the config', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-seo-'));
+    const cfg = defaultSiteConfig() as unknown as { site: Record<string, unknown> };
+    cfg.site.seo = { titleTemplate: '%s · Acme', siteName: 'Acme' };
+    writeFileSync(join(dir, 'site.json'), JSON.stringify(cfg));
+    const h = harness(
+      { site: { input: 'site.json' }, seo: { siteName: 'Override' } },
+      { root: pathToFileURL(`${dir}/`) },
+    );
+    await h.run();
+    expect(headData(h.updates).seo).toMatchObject({
+      siteName: 'Override',
+      titleTemplate: '%s · Acme',
+    });
+  });
+});
+
 describe('vitops({ icons })', () => {
   it('registers nothing and serves an inert module unless asked', async () => {
     const h = harness();
@@ -307,6 +345,21 @@ describe('a site config at css.input', () => {
     // The warning fires only when nothing was declared anywhere — its absence is
     // the evidence the site config was found and read.
     expect(h.logs.filter((l) => l.msg.startsWith('fonts: nothing declared'))).toHaveLength(0);
+  });
+
+  it('turns webfonts on by default when the site config declares site.fonts (U11)', async () => {
+    const h = at({ css: { input: 'company.json', format: 'css' } });
+    await h.run();
+    expect(
+      h.updates.some((u) => Array.isArray(u.fonts) && (u.fonts as unknown[]).length === 1),
+    ).toBe(true);
+    expect(h.logs.some((l) => l.msg.includes('declares site.fonts'))).toBe(true);
+  });
+
+  it('lets `fonts: false` opt out of the site.fonts default', async () => {
+    const h = at({ css: { input: 'company.json', format: 'css' }, fonts: false });
+    await h.run();
+    expect(h.updates.some((u) => 'fonts' in u)).toBe(false);
   });
 
   it('still demands a path when css.input is a plain design system', async () => {

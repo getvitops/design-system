@@ -1,0 +1,39 @@
+/**
+ * Embed — a third-party iframe (map, video) held at a fixed aspect ratio, behind consent.
+ *
+ * The iframe ships with NO `src`: the address rides on `data-consent-src`, and the consent
+ * runtime assigns it only once the visitor has granted the category. Until then the
+ * `.embed__placeholder` — a real link to the same content, so it is useful with no JS — is
+ * what the page shows; `[data-vitops-activated]` on the iframe (set by the runtime) hides
+ * it. No third-party request is made before consent.
+ */
+.embed {
+  position: relative;
+  aspect-ratio: var(--embed-ratio, 16 / 9);
+  overflow: hidden;
+  border: var(--b-card, var(--b-card-group, var(--b-default)));
+  border-radius: var(--br-card, var(--br-card-group, var(--br-default)));
+
+  .embed__frame {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    border: 0;
+  }
+
+  .embed__placeholder {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  /* Once the runtime has loaded the frame, the placeholder has nothing left to say. */
+  .embed__frame[data-vitops-activated] ~ .embed__placeholder {
+    display: none;
+  }
+}

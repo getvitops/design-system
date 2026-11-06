@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { collectEntries, parseSitemap } from './sitemap.ts';
 
 const urlset = (body: string) =>

@@ -12,6 +12,9 @@ worker-configuration.d.ts
 # wrangler local state (local D1/R2 data lives here during `astro dev`)
 .wrangler/
 
+# production content dump `scripts/pull-content.mjs` loads into the local build DB
+.vitops/content.sql
+
 # node hosting target: SQLite db + local uploads
 data/
 

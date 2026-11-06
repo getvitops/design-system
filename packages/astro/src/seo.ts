@@ -20,11 +20,12 @@ export type SeoOgType = 'website' | 'article' | 'profile';
  * Site-level SEO defaults, passed to `vitops({ seo })` and baked into the
  * `virtual:getvitops/head` module. Per-page `<Seo />` props override these.
  *
- * The vocabulary mirrors the site-config schema's `seo` block
- * (`@getvitops/generator`, `src/config.ts`) so a `Config` → these adapter would
- * be a flat field map — but it is not imported from there. This is the
- * integration's own option surface, and it must stay JSON-serialisable: it is
- * `JSON.stringify`d into the virtual module, so no functions, no `URL`s, no dates.
+ * `site.seo` in the site config is the source (`@getvitops/config`'s `SeoSchema`);
+ * `resolveSeoDefaults()` turns it into this shape for a build locale, and `vitops({ seo })` is merged
+ * over the result as an override. This interface is therefore the *resolved* shape — plain strings,
+ * `Localizable` already picked — and must stay JSON-serialisable: it is `JSON.stringify`d into the
+ * virtual module, so no functions, no `URL`s, no dates. `seo-defaults.test.ts` fails when a
+ * `site.seo` field is added to the schema and not read here (ADR-0002).
  */
 export interface GetvitopsSeoOptions {
   /** `og:site_name`, and the `<title>` when a page passes none. */

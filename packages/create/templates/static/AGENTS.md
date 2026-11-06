@@ -14,19 +14,19 @@ as Cloudflare Workers static assets (no server runtime, no database).
   portrait, landscape; SVG + PNG) for layout work before real imagery
   exists. Delete the directory once real assets land.
 - Prefer framework CSS classes (utilities, patterns, type roles like
-  `font-heading`) over bespoke CSS. Run `npx vitops agents` to append the
+  `font-heading`) over bespoke CSS. Run `vp exec vitops agents` to append the
   full generated class-vocabulary reference to this file.
 - **Layout foundations — these are the answer, not a starting point.** Six
   substitutions carry the structure of nearly every page:
-  | About to write… | Write instead |
-  | --- | --- |
-  | a `wrap`/`wrapper`/`container`/`inner` class | **`centered`** |
-  | `max-width` + `margin-inline: auto` | **`centered`** |
-  | `padding-block` on a section | **`region`** |
-  | margins between headings/paragraphs/lists | **`rhythm`** |
-  | `display: grid` + `grid-template-columns: repeat(n, …)` | **`subgrid`** |
-  | `repeat(auto-fit, minmax(…))` | **`grid-auto`** |
-  | `display: flex` + `gap` for a row of controls | **`cluster`** |
+  | About to write…                                         | Write instead   |
+  | ------------------------------------------------------- | --------------- |
+  | a `wrap`/`wrapper`/`container`/`inner` class            | **`centered`**  |
+  | `max-width` + `margin-inline: auto`                     | **`centered`**  |
+  | `padding-block` on a section                            | **`region`**    |
+  | margins between headings/paragraphs/lists               | **`rhythm`**    |
+  | `display: grid` + `grid-template-columns: repeat(n, …)` | **`subgrid`**   |
+  | `repeat(auto-fit, minmax(…))`                           | **`grid-auto`** |
+  | `display: flex` + `gap` for a row of controls           | **`cluster`**   |
 - Every page is prerendered by default (`output: 'static'`) — there is no
   server to fall back to, so nothing here can read request-time data
   (cookies, headers, query params) at render time. If a page genuinely needs
@@ -47,18 +47,72 @@ as Cloudflare Workers static assets (no server runtime, no database).
   PR with auto-merge; merging deploys prod. Only run it when the user
   explicitly asks to promote/ship to production.
 
+## Labels: badge and tag
+
+Two label patterns, both enabled in `site.json`'s `patterns.items`: **`badge`** is a
+static label (a status, count or category) and **`tag`** is a label that may be
+static _or_ dynamic (editable, dismissable, in a `tag-list`). Don't invent a third
+name — `chip` and `pill` are not part of this vocabulary. The button pattern's class
+is `btn` (`<a class="btn">` is styled, not just a bare `<button>`).
+
+## Content Security Policy
+
+`public/_headers` ships a **`Content-Security-Policy-Report-Only`** header for every
+page (they are all static assets): violations are logged to the browser console and
+nothing is blocked, so it can't break a page. Its `script-src` is `'self'` plus the
+SHA-256 of each inline script `<Head />` emits (the colour-scheme bootstrap and the
+consent-gate stub), with no `'unsafe-inline'`. `contentSecurityPolicy()` and
+`inlineScriptHashes()` from `@getvitops/astro` produce the same strings.
+
+Before enforcing it (rename the header to `Content-Security-Policy`), browse the pages
+with the console open: add the origins of any third-party tag the consent gate
+activates to `script-src` / `connect-src`, any embed to `frame-src`, and hash any
+inline script you add yourself. Hashes rather than nonces because a static page has no
+per-request response to carry one.
+
 ## Commands
 
-- `pnpm dev` — local dev
-- `pnpm typecheck` — `astro check`
-- `pnpm run build:css` — regenerate the framework CSS from `site.json`
-- `pnpm deploy` — build + `wrangler deploy` to prod
-- `pnpm run deploy:dev` — build + deploy the isolated dev worker
-- `pnpm run init:github` — one-time: create + push the GitHub repo (main +
-  dev, dev default, branch protection + environment policy). Only run when
-  the user asks to set up GitHub.
-- `pnpm run init:hosting` — one-time: read the Cloudflare account id and set
-  it as a repo secret. Only run when the user asks for it.
-- `npx vitops validate site.json` — schema-check the site config
-- `npx vitops lint -i site.json -f css` — find framework classes in
-  source that resolve to nothing under this format
+This is a **Vite+** project: use `vp` (and its `vpr` shorthand), not `pnpm`/`npm`/`npx`.
+The package manager underneath is pnpm, but `vp` picks it up for you.
+
+| To…                                      | Run                                                  |
+| ---------------------------------------- | ---------------------------------------------------- |
+| install dependencies                     | `vp install`                                         |
+| add / remove / update a package          | `vp add <pkg>` · `vp remove <pkg>` · `vp update`     |
+| run a `package.json` script              | `vpr <script>` (alias for `vp run <script>`)         |
+| run a locally installed binary           | `vp exec <bin>` (e.g. `vp exec vitops docs classes`) |
+| run a one-off package without installing | `vp dlx <pkg>`                                       |
+| format + lint + typecheck (files)        | `vp check`                                           |
+| typecheck Astro (`.astro` files)         | `vpr typecheck`                                      |
+
+**Scripts that wrap Astro must go through `vpr`.** `vp dev` / `vp build` run Vite
+directly and skip Astro, so use `vpr dev`, `vpr build`, `vpr preview`.
+
+**`vpr dev` returns immediately.** `astro dev` now starts the server in the
+background. Check it with `vp exec astro dev status`, read its output with
+`vp exec astro dev logs --follow`, and stop it with `vp exec astro dev stop`; the
+site is at <http://localhost:4321>. Don't wait on it as if it were a foreground
+process.
+
+| Script                                    | What it does                                                                                                                        |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `vpr dev`                                 | local dev                                                                                                                           |
+| `vpr build:css`                           | regenerate the framework CSS from `site.json`                                                                                       |
+| `vpr deploy`                              | build + `wrangler deploy` to prod                                                                                                   |
+| `vpr deploy:dev`                          | build + deploy the isolated dev worker                                                                                              |
+| `vpr init:github`                         | one-time: create + push the GitHub repo (main + dev, dev default, branch protection + environment policy). Only when the user asks. |
+| `vpr init:hosting`                        | one-time: read the Cloudflare account id and set it as a repo secret. Only when the user asks.                                      |
+| `vp exec vitops validate site.json`       | schema-check the site config                                                                                                        |
+| `vp exec vitops lint -i site.json -f css` | find framework classes in source that resolve to nothing under this format                                                          |
+
+**Release flow.** A site is not a published package, so there is no changeset or
+version bump: ship by committing to `dev` (auto-deploys the dev worker) and then
+running the **promote** workflow. `vp` has no `vp change` / `vp pm change` command
+(checked against vp 1.5.0); for a _package_ it does have `vp pm version`,
+`vp pm publish` and `vp pm stage`.
+
+**Naming the project.** `vp create` takes the package name from the target
+directory and invents a random slug when none is given, so pass one:
+`vp create @getvitops:static --directory <client-slug>`. `wrangler.jsonc`'s `name`
+is separate and still says what the template shipped — rename it to match before
+the first deploy.

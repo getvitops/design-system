@@ -34,6 +34,8 @@ export class WCMarquee extends BaseElement {
   /** The author's first `.marquee__content`; every other one is ours. */
   #source: HTMLElement | null = null;
   #observer?: ResizeObserver;
+  /** WCAG 2.2.2: motion that starts on its own and lasts over 5s needs a way to stop it. */
+  #toggle: HTMLButtonElement | undefined;
   /** Last measurement `#fill` acted on, so a no-op resize does no work. */
   #last?: { one: number; gap: number; container: number; vertical: boolean };
 
@@ -62,6 +64,7 @@ export class WCMarquee extends BaseElement {
     // own width and we supply enough copies to cover the track.
     this.style.setProperty('--_marquee-min', 'auto');
 
+    this.#addToggle();
     this.#fill();
     // The host's own size is one reason to re-measure; the source's is
     // another — an image finishing load or a font swapping in changes the
@@ -73,7 +76,30 @@ export class WCMarquee extends BaseElement {
     return true;
   }
 
+  /**
+   * A pause button beside the track, not inside it: the track is `overflow: hidden` with an edge
+   * mask, which would clip or fade a control placed within. It is an enhancement — the CSS
+   * already pauses on hover/focus and stops under `prefers-reduced-motion`.
+   */
+  #addToggle() {
+    if (this.#toggle) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'marquee__toggle';
+    button.setAttribute('aria-pressed', 'false');
+    button.textContent = 'Pause animation';
+    button.addEventListener('click', () => {
+      const paused = this.toggleAttribute('data-paused');
+      button.setAttribute('aria-pressed', String(paused));
+      button.textContent = paused ? 'Play animation' : 'Pause animation';
+    });
+    this.after(button);
+    this.#toggle = button;
+  }
+
   override disconnectedCallback() {
+    this.#toggle?.remove();
+    this.#toggle = undefined;
     this.#observer?.disconnect();
     super.disconnectedCallback();
   }

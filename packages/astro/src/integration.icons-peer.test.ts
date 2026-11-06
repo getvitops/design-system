@@ -9,7 +9,7 @@
  *  2. The 'auto' fallthrough when neither icon package is installed.
  */
 import type { AstroIntegration, HookParameters } from 'astro';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import type { GetvitopsOptions } from './integration.ts';
 
 type Params = HookParameters<'astro:config:setup'>;

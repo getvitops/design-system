@@ -23,8 +23,8 @@
             }
           },
           "roles": {
-            "neutral": "ink",
-            "surface": "ink",
+            "neutral": { "hue": "ink", "kind": "surface" },
+            "surface": { "hue": "ink", "kind": "surface" },
             "ui-primary": "brand",
             "brand-primary": "brand",
             "info": "sky",
@@ -93,6 +93,13 @@
               "br": "0.5rem",
               "p": "1rem",
               "fs": "var(--fs-default)"
+            },
+            "label": {
+              "ds": "var(--ds-default)",
+              "b": "none",
+              "br": "0.25rem",
+              "p": "0.25em 0.5em",
+              "fs": "0.75rem"
             }
           },
           "z": {
@@ -126,7 +133,8 @@
                   "ring": true
                 }
               },
-              "roles": []
+              "roles": ["success", "danger", "warning", "info"],
+              "class": "btn"
             },
             "card": {
               "group": "panel",
@@ -140,6 +148,51 @@
               },
               "states": {},
               "roles": []
+            },
+            "badge": {
+              "group": "label",
+              "class": "badge",
+              "default_role": "brand-primary",
+              "overrides": {
+                "p": "0.2em 0.6em",
+                "br": "999px",
+                "fs": "0.85em"
+              },
+              "base": {
+                "display": "inline-block",
+                "padding": "var(--p-badge-group)",
+                "border-radius": "var(--br-badge-group)",
+                "font-size": "var(--fs-badge-group)",
+                "font-weight": "600",
+                "color": "var(--color-text-on-brand-primary)"
+              },
+              "states": {},
+              "roles": ["success", "danger", "warning", "info"]
+            },
+            "tag": {
+              "group": "label",
+              "class": "tag",
+              "default_role": "neutral",
+              "overrides": {
+                "p": "0.25em 0.6em",
+                "b": "1px solid currentColor",
+                "fs": "0.85em"
+              },
+              "base": {
+                "display": "inline-flex",
+                "align-items": "center",
+                "gap": "0.25em",
+                "padding": "var(--p-tag-group)",
+                "border": "var(--b-tag-group)",
+                "border-radius": "var(--br-tag-group)",
+                "font-size": "var(--fs-tag-group)",
+                "font-weight": "500",
+                "line-height": "1.2",
+                "white-space": "nowrap",
+                "color": "var(--color-text-neutral-bold)"
+              },
+              "states": {},
+              "roles": ["success", "danger", "warning", "info"]
             }
           }
         },
@@ -223,6 +276,81 @@
         "url": "https://dev.my-emdash-site.example.com",
         "robots": "noindex,nofollow"
       }
+    },
+    "icons": {
+      "sprite": true,
+      "semantic": [
+        "menu",
+        "close",
+        "home",
+        "settings",
+        "search",
+        "add",
+        "remove",
+        "delete",
+        "edit",
+        "save",
+        "copy",
+        "paste",
+        "attach",
+        "upload",
+        "download",
+        "share",
+        "bookmark",
+        "favorite",
+        "star",
+        "login",
+        "logout",
+        "email",
+        "phone",
+        "location",
+        "globe",
+        "link",
+        "clock",
+        "calendar",
+        "schedule",
+        "person",
+        "group",
+        "file",
+        "folder",
+        "image",
+        "export",
+        "import",
+        "backup",
+        "compress",
+        "check",
+        "error",
+        "warning",
+        "info",
+        "help",
+        "cart",
+        "tag",
+        "receipt",
+        "leaf",
+        "tree",
+        "seedling",
+        "trowel",
+        "droplet",
+        "snowflake",
+        "sun",
+        "cloud",
+        "grid",
+        "list",
+        "filter",
+        "sort",
+        "fullscreen",
+        "collapse",
+        "building",
+        "video",
+        "lock",
+        "unlock",
+        "eye",
+        "print",
+        "code",
+        "palette",
+        "lightbulb",
+        "lightning"
+      ]
     }
   }
 }

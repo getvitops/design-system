@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/utils",
-  "version": "8.1.0",
+  "version": "8.2.0",
   "description": "Shared build-time utilities for the Vitops toolchain — favicon generation and friends.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",
@@ -25,6 +25,14 @@
     "./favicon": {
       "types": "./dist/favicon.d.mts",
       "import": "./dist/favicon.mjs"
+    },
+    "./content": {
+      "types": "./dist/content.d.mts",
+      "import": "./dist/content.mjs"
+    },
+    "./url": {
+      "types": "./dist/url/index.d.mts",
+      "import": "./dist/url/index.mjs"
     },
     "./color": {
       "types": "./dist/color/index.d.mts",
@@ -58,6 +66,10 @@
       "types": "./dist/notify/index.d.mts",
       "import": "./dist/notify/index.mjs"
     },
+    "./crm": {
+      "types": "./dist/crm/index.d.mts",
+      "import": "./dist/crm/index.mjs"
+    },
     "./tracking": {
       "types": "./dist/tracking/index.d.mts",
       "import": "./dist/tracking/index.mjs"
@@ -73,12 +85,21 @@
     "./hosting": {
       "types": "./dist/hosting/index.d.mts",
       "import": "./dist/hosting/index.mjs"
+    },
+    "./email": {
+      "types": "./dist/email/index.d.mts",
+      "import": "./dist/email/index.mjs"
+    },
+    "./git": {
+      "types": "./dist/git/index.d.mts",
+      "import": "./dist/git/index.mjs"
     }
   },
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
+    "@getvitops/config": "workspace:*",
     "colorjs.io": "catalog:",
     "parse5": "catalog:",
     "png-to-ico": "catalog:",
@@ -87,8 +108,7 @@
   "devDependencies": {
     "@axe-core/playwright": "catalog:",
     "lighthouse": "catalog:",
-    "playwright": "catalog:",
-    "vitest": "catalog:"
+    "playwright": "catalog:"
   },
   "peerDependencies": {
     "@axe-core/playwright": ">=4.10.0",

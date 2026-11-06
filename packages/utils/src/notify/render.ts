@@ -11,6 +11,7 @@
  * The contact details are the point; attribution is why it matters; the visitor
  * context is for when something looks wrong.
  */
+import { identifySubmitter } from '../tracking/identity.ts';
 import { getPrimaryClickId, identifyPlatform } from '../tracking/platform.ts';
 import type { ConversionEvent } from '../tracking/types.ts';
 import type { RenderedMessage } from './types.ts';
@@ -43,6 +44,40 @@ interface Section {
 }
 
 /**
+ * One line, already rendered both ways — a plain fact (`html` is just the
+ * escaped `text`) or a link (`html` an anchor, `text` the bare href). Built at
+ * the point each line is known rather than carried as a union and branched on
+ * later: `describeEvent`'s lines are always plain `[label, value]` pairs (see
+ * `Section` above, which `render.test.ts` destructures as such), and the one
+ * line shape `renderEmail` adds itself — the "Actions" link — is turned into
+ * this same rendered shape immediately, so the two renderers below share one
+ * line format instead of branching on what kind of line each one is.
+ */
+interface RenderedLine {
+  label: string;
+  text: string;
+  html: string;
+}
+
+/** A section as `renderEmail` assembles it — `describeEvent`'s output plus its own additions. */
+interface RenderSection {
+  heading: string;
+  lines: RenderedLine[];
+}
+
+function factLine([label, value]: readonly [string, string]): RenderedLine {
+  return { label, text: value, html: escapeHtml(value) };
+}
+
+function linkLine(label: string, href: string): RenderedLine {
+  return { label, text: href, html: `<a href="${escapeHtml(href)}">${escapeHtml(href)}</a>` };
+}
+
+function toRenderSection(section: Section): RenderSection {
+  return { heading: section.heading, lines: section.lines.map(factLine) };
+}
+
+/**
  * Who submitted the form, for the subject line.
  *
  * `formData['name']` alone is the shape a form has when someone writes it that
@@ -53,19 +88,7 @@ interface Section {
  * even when no name field exists.
  */
 function submitterName(formData: Record<string, string>): string {
-  const get = (...keys: string[]): string | undefined => {
-    for (const k of keys) {
-      const v = formData[k]?.trim();
-      if (v) return v;
-    }
-    return undefined;
-  };
-  const full = get('name', 'full_name', 'fullName', 'fullname', 'your-name');
-  if (full) return full;
-  const first = get('first_name', 'firstName', 'firstname', 'given_name');
-  const last = get('last_name', 'lastName', 'lastname', 'family_name', 'surname');
-  if (first || last) return [first, last].filter(Boolean).join(' ');
-  return get('email', 'email_address', 'emailAddress') ?? 'Unknown';
+  return identifySubmitter(formData).fullName;
 }
 
 /**
@@ -88,6 +111,10 @@ export function describeEvent(event: ConversionEvent): { subject: string; sectio
     for (const [key, value] of Object.entries(event.formData)) {
       if (!OMIT_FIELDS.has(key) && value) contact.push([label(key), value]);
     }
+  } else if (event.type === 'email') {
+    const email = event.email ?? 'unknown';
+    subject = `[Email Click] Visitor emailing ${email}`;
+    contact.push(['Email', email]);
   } else {
     const phone = event.phone ?? 'unknown';
     subject = `[Phone Call] Visitor calling ${phone}`;
@@ -130,11 +157,43 @@ export function describeEvent(event: ConversionEvent): { subject: string; sectio
 }
 
 /** Render for e-mail. Both halves, always — see `RenderedMessage`. */
-export function renderEmail(event: ConversionEvent): RenderedMessage {
-  const { subject, sections } = describeEvent(event);
+export function renderEmail(
+  event: ConversionEvent,
+  extra: { notes?: string[] | undefined; actionUrl?: string | undefined } = {},
+): RenderedMessage {
+  const { subject, sections: eventSections } = describeEvent(event);
+
+  // `{clickId}` is the only placeholder — an event has no durable id nothing
+  // in this toolchain could look back up (there's no store), so interpolating
+  // one would be decorative. Omitted entirely when there's no click ID to
+  // interpolate, rather than emailing a link with a literal `{clickId}` in it.
+  const clickId = event.tracking ? getPrimaryClickId(event.tracking) : null;
+  const actionSection: RenderSection | null =
+    extra.actionUrl && clickId
+      ? {
+          heading: 'Actions',
+          lines: [
+            linkLine(
+              'View in ad platform',
+              extra.actionUrl.replace(/\{clickId\}/g, encodeURIComponent(clickId.value)),
+            ),
+          ],
+        }
+      : null;
+
+  // Deliberately a channel-neutral `string[]` rather than a typed CRM result —
+  // this module gains no dependency on `crm`, and the seam serves any future
+  // sink the same way.
+  const sections: RenderSection[] = [
+    ...eventSections.map(toRenderSection),
+    ...(actionSection ? [actionSection] : []),
+    ...(extra.notes && extra.notes.length
+      ? [{ heading: 'Delivery', lines: extra.notes.map((n) => factLine(['CRM', n])) }]
+      : []),
+  ];
 
   const text = sections
-    .map((s) => [`--- ${s.heading} ---`, ...s.lines.map(([k, v]) => `${k}: ${v}`)].join('\n'))
+    .map((s) => [`--- ${s.heading} ---`, ...s.lines.map((l) => `${l.label}: ${l.text}`)].join('\n'))
     .join('\n\n');
 
   const html = sections
@@ -143,9 +202,9 @@ export function renderEmail(event: ConversionEvent): RenderedMessage {
         `<h2 style="font:600 14px system-ui;margin:24px 0 8px">${escapeHtml(s.heading)}</h2>` +
         `<table style="font:14px system-ui;border-collapse:collapse">${s.lines
           .map(
-            ([k, v]) =>
-              `<tr><td style="padding:2px 12px 2px 0;color:#666;vertical-align:top">${escapeHtml(k)}</td>` +
-              `<td style="padding:2px 0">${escapeHtml(v)}</td></tr>`,
+            (l) =>
+              `<tr><td style="padding:2px 12px 2px 0;color:#666;vertical-align:top">${escapeHtml(l.label)}</td>` +
+              `<td style="padding:2px 0">${l.html}</td></tr>`,
           )
           .join('')}</table>`,
     )

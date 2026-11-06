@@ -1,42 +1,27 @@
 /**
  * The indexing module's own option surface.
  *
- * Deliberately structural rather than `Config['seo']['indexing']` imported
- * from `@getvitops/generator`: the generator already depends on this package, so
- * importing back would be a cycle. The vocabulary mirrors that block field for
- * field, so the CLI's adapter is a flat map — the same arrangement, and for the
- * same reason, as `GetvitopsSeoOptions` in `@getvitops/astro`.
+ * The `IndexNow` and `SearchConsole` blocks are the schema's own types, from `@getvitops/config`.
+ * `IndexingConfig` is NOT the `seo.indexing` block: it adds the origin and robots policy the CLI
+ * resolves before planning.
  */
 
 /*
  * Optional fields are written `?: T | undefined` throughout.
  *
  * `exactOptionalPropertyTypes` is on, and these types describe a *parsed JSON
- * config* — the shape `zod/mini` infers for the site-config `seo.indexing` block,
+ * config* — the shape `@zod/mini` infers for the site-config `seo.indexing` block,
  * where an absent key and an explicit `undefined` are the same thing. Writing
  * `?: T` here would make the CLI's adapter unassignable for no gain in safety.
  */
 
-/** IndexNow submission settings. The key is public by design — see `key`. */
-export interface IndexNowConfig {
-  /**
-   * The IndexNow key. **Not a secret**: the engine fetches it back from
-   * `keyLocation` to prove you control the host, so it is published either way.
-   */
-  key: string;
-  /** Absolute URL of the key file. Defaults to `<canonical>/<key>.txt`. */
-  keyLocation?: string | undefined;
-  /** Endpoint (default `https://api.indexnow.org/indexnow`). */
-  endpoint?: string | undefined;
-}
+import type { IndexNowConfig, SearchConsoleConfig } from '@getvitops/config';
 
-/** Google Search Console property settings. The credential never lives here. */
-export interface SearchConsoleConfig {
-  /** `sc-domain:acme.ca`, or the URL-prefix form `https://acme.ca/`. */
-  siteUrl: string;
-  /** Re-submit the sitemap on each run (default true). */
-  resubmitSitemap?: boolean | undefined;
-}
+// The two leaf blocks are the config schema's own types (`@getvitops/config`), re-exported so this
+// module stays the one place indexing's types are looked up. `IndexingConfig` below is NOT the
+// schema's `seo.indexing` block: it is that block plus the derived origin and robots policy the
+// CLI resolves before planning, so it stays a hand-written shape built from the two.
+export type { IndexNowConfig, SearchConsoleConfig };
 
 /** Everything `plan()` needs to decide what to do. */
 export interface IndexingConfig {

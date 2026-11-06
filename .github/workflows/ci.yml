@@ -24,48 +24,93 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  # Build once, then test and verify what was built. Everything downstream `needs` this job and
+  # restores its output, so no other job rebuilds the packages.
+  #
+  # Build comes first because type-aware lint and several test files resolve `@getvitops/*`
+  # subpaths through each package's built `dist/` (their `exports` point there, and oxc emits no
+  # declarations). A clean clone has no dist; without the build the typecheck fails with TS2307
+  # on `@getvitops/utils/color`.
+  #
+  # It also builds the publishable packages and the docs site, which `vp check`/`vp test run`
+  # never do (they exercise source). A break in a package's own `pack`/`build` config (an entry
+  # that doesn't resolve, a peer that doesn't satisfy) or in site/'s build (which imports the
+  # *installed* @getvitops/astro, not source) would otherwise only surface at release time or on
+  # the docs deploy, both further from the change that caused it.
+  build-test:
+    name: Build & test
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+
+      - name: Build every publishable package
+        run: vp run build:packages
 
       # Lint + format + typecheck. No `--fix`: in CI the question is whether the
       # tree is already clean, and a fix would only hide that it wasn't.
       - name: Check
-        run: pnpm exec vp check
+        run: vp check
 
       - name: Test
-        run: pnpm exec vp test run
-
-  # `test` above never builds the publishable packages or the docs site — `vp
-  # check`/`vp test run` exercise source directly, and nothing before this job
-  # ran `build:packages` or `docs:build` on a PR. A break in any package's own
-  # `pack`/`build` config (an entry point that doesn't resolve, a peer that
-  # doesn't satisfy) or in site/'s build (which imports the *installed*
-  # @getvitops/astro, not source) would only surface at release time or on the
-  # docs deploy, both of which are further from the change that caused it.
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: ./.github/actions/setup
-
-      - name: Build every publishable package
-        run: pnpm exec vp run build:packages
+        run: vp test run
 
       # Does a consumer's install actually resolve every subpath, and does
       # the JavaScript actually load? A break in the `exports` map (a
       # typo'd path, a missing dist file, a broken cross-package import) is
       # otherwise invisible until a real install fails on it.
       - name: Verify published-package resolution (publint + attw + runtime import)
-        run: pnpm exec vp run verify:packages
+        run: vp run verify:packages
 
       # A ceiling on the bundles @getvitops/core authors itself, in the
       # sizes the docs' own reasoning already depends on.
       - name: Verify bundle-size budget
-        run: pnpm exec vp run verify:bundle-size
+        run: vp run verify:bundle-size
 
       - name: Build the docs site
-        run: pnpm exec vp run docs:build
+        run: vp run docs:build
+
+      # Hand the build to the downstream jobs. `dist/` alone is not enough: on a fresh runner vp has
+      # no record that `build:packages` ever ran, so it would rebuild even with `dist/` present. The
+      # task cache holds each task's fingerprint, so restoring it beside the outputs turns the
+      # downstream `dependsOn` builds into cache hits.
+      - name: Upload the build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          retention-days: 1
+          include-hidden-files: true
+          path: |
+            packages/*/dist/
+            packages/generator/assets/
+            site/dist/
+            node_modules/.vite/task-cache/
+
+  # Install-and-build what a client gets from `vp create @getvitops:<template>`,
+  # against THIS checkout's `@getvitops/*`, published to a throwaway Verdaccio
+  # registry, rather than the last release (a template's deps are `latest`, so a
+  # plain scaffold would test nothing new).
+  # Nothing else here installs a template the way a client does: it is the one
+  # job that fails when the template, `@getvitops/emdash`'s plugin surface, or a
+  # bump of EmDash / Vite+ breaks a fresh project. See scripts/scaffold-check.mjs
+  # for exactly where it differs from a real `vp create`. Registry-dependent, so
+  # it is a separate job rather than part of `build-test`.
+  scaffold:
+    needs: build-test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        template: [emdash, static]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-output
+
+      - name: Scaffold and build the ${{ matrix.template }} template
+        run: vp run verify:scaffold:${{ matrix.template }}
 
   # `docs/` and `DESIGN.md` are generated but TRACKED, which makes them the one
   # class of artifact that can silently disagree with its source. Everything else
@@ -76,17 +121,22 @@ jobs:
   # committed copy genuinely differs from what the current source produces. The
   # fix is always to run the named task and commit the result.
   generated:
+    needs: build-test
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-output
 
       # Writes dist/ (gitignored) and the tracked docs/ mirror.
       - name: Regenerate the docs bundle
-        run: pnpm exec vp run build:theme
+        run: vp run build:theme
 
       # Writes the tracked root DESIGN.md.
       - name: Regenerate DESIGN.md
-        run: pnpm exec vp run build:design
+        run: vp run build:design
 
       - name: Generated artifacts are up to date
         run: |
@@ -102,26 +152,31 @@ jobs:
       # to readers while `generateDocs` reports success — `sync-reference.mjs`
       # throws on that, and this is where it gets caught before a deploy.
       - name: The docs site carries every emitted doc
-        run: pnpm exec vp run docs:sync
+        run: vp run docs:sync
 
   # The one e2e layer in the repo: real Chromium, scripting disabled, against
   # site/ — verifying the tier-2 `<wc-*>` no-JS-fallback promise
   # (AGENTS.md's "Web components" section) that nothing checked before this.
-  # Separate job, not folded into `test`: it needs a browser binary the unit
+  # Separate job, not folded into `build-test`: it needs a browser binary the unit
   # test job has no reason to carry.
   e2e:
+    needs: build-test
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-output
 
       # --with-deps needs the runner's system libraries a plain `npx playwright
       # install` skips; ubuntu-latest has sudo, so this works here even though
       # it doesn't in every sandbox.
       - name: Install Playwright's Chromium
-        run: pnpm --filter site exec playwright install --with-deps chromium
+        run: vp exec --filter site playwright install --with-deps chromium
 
       - name: No-JS fallback e2e
-        run: pnpm exec vp run docs:e2e
+        run: vp run docs:e2e
 
       - name: Upload the Playwright report on failure
         if: failure()

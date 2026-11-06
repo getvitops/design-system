@@ -28,6 +28,7 @@
  * `<Analytics />`.
  */
 // @ts-ignore — virtual module provided by the vitops() integration at build time
+import { safeHref } from '@getvitops/utils/url';
 import head from 'virtual:getvitops/head';
 import type { OptionalConsentCategory } from '../analytics.ts';
 
@@ -87,7 +88,7 @@ const wording = { ...DEFAULT_LABELS, ...labels };
           losing any functionality.
         </p>
       </slot>
-      {policyUrl && <a class="link" href={policyUrl}>{policyLabel}</a>}
+      {safeHref(policyUrl) && <a class="link" href={safeHref(policyUrl)}>{policyLabel}</a>}
     </div>
 
     {/*

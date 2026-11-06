@@ -1,7 +1,10 @@
+import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { validateConfig } from '@getvitops/generator';
+// @ts-ignore — a cross-package source import; `allowImportingTsExtensions` is off here.
+import { CONSENT_STUB, THEME_SCRIPT } from '../astro/src/inline-scripts.ts';
 
 /**
  * Scaffolded projects live OUTSIDE this monorepo, so every dependency
@@ -61,6 +64,44 @@ describe.each(templateNames)('template %s', (name) => {
     for (const [, range] of ours) expect(range).toBe('latest');
   });
 
+  it('pins Node in .node-version, agreeing with .nvmrc and devEngines', () => {
+    // Version managers read `.node-version` (fnm, mise, asdf, Volta), the reusable CI workflows
+    // read `.nvmrc`, and pnpm reads `devEngines`. Three spellings of one fact: a scaffold that
+    // disagrees with itself gets a different Node locally than it builds with in CI.
+    const read = (file: string) => readFileSync(join(TEMPLATES, name, file), 'utf8').trim();
+    const major = String(pkg.devEngines?.runtime?.version).split('.')[0];
+    expect(read('.node-version')).toBe('24');
+    expect(read('.nvmrc')).toBe(read('.node-version'));
+    expect(major).toBe(read('.node-version'));
+    // Major only: an exact pin disagrees with the floating `.node-version` (24 resolves to the
+    // latest 24.x) and made `vp` warn on every command in a fresh scaffold.
+    expect(pkg.devEngines?.runtime?.version).toBe(major);
+  });
+
+  it("applies the repo's release cooldown and exempts the toolchain from it", () => {
+    // Every client install is held to the same cooldown this repo uses, so a template that ships
+    // a shorter one (or none, which falls back to pnpm's one-day default) is a quieter supply-chain
+    // posture than the repo that scaffolds it. `@getvitops/*` is exempt because releases land together.
+    const root = readFileSync(join(import.meta.dirname, '..', '..', 'pnpm-workspace.yaml'), 'utf8');
+    const age = /^minimumReleaseAge: (\d+)$/m.exec(root)?.[1];
+    expect(age).toBe('4320');
+    const ws = readFileSync(join(TEMPLATES, name, 'pnpm-workspace.yaml'), 'utf8');
+    expect(/^minimumReleaseAge: (\d+)$/m.exec(ws)?.[1]).toBe(age);
+    expect(ws).toMatch(/^\s+- '@getvitops\/\*'$/m);
+  });
+
+  it("uses the same astro range as this repo's catalog", () => {
+    // One bump place. A template left on an older range scaffolds a project a release behind the
+    // Astro this repo builds and tests against.
+    const catalog = readFileSync(
+      join(import.meta.dirname, '..', '..', 'pnpm-workspace.yaml'),
+      'utf8',
+    );
+    const range = /^ {2}astro: (\S+)$/m.exec(catalog)?.[1];
+    expect(range).toBeDefined();
+    expect(pkg.dependencies?.astro).toBe(range);
+  });
+
   it('ships a site.json that validates as a Config', () => {
     // A shipped config that fails validation is a scaffold that can run no
     // site-anchored command (legal/robots/search/ads/reviews/icons all default
@@ -97,4 +138,170 @@ it('.agents/skills/setup/SKILL.md is identical across templates', () => {
     readFileSync(join(TEMPLATES, name, SKILL_PATH)),
   );
   for (const other of rest) expect(other.equals(first!)).toBe(true);
+});
+
+/**
+ * Both templates ship a Report-Only CSP in `public/_headers`. Its `script-src` names
+ * `<Head />`'s inline scripts by SHA-256, so it is only correct while those hashes
+ * match the bytes `@getvitops/astro` emits. The scripts are constants in
+ * `inline-scripts.ts` (the same ones `csp.ts` hashes and `Head.astro` emits), imported
+ * by relative path rather than through a dependency — `create` ships data, not code,
+ * and shouldn't depend on the astro package just to be tested against it.
+ */
+describe.each(templateNames)('template %s CSP', (name) => {
+  const headers = readFileSync(join(TEMPLATES, name, 'public', '_headers'), 'utf8');
+  const hash = (s: string) => `'sha256-${createHash('sha256').update(s, 'utf8').digest('base64')}'`;
+
+  it('is Report-Only, so it cannot break a page', () => {
+    expect(headers).toMatch(/^\s+Content-Security-Policy-Report-Only: /m);
+    expect(headers).not.toMatch(/^\s+Content-Security-Policy: /m);
+  });
+
+  it("allows each <Head /> inline script by the hash of the bytes it emits, with no 'unsafe-inline'", () => {
+    const policy = /Content-Security-Policy-Report-Only: (.*)/.exec(headers)![1]!;
+    const scriptSrc = policy.split('; ').find((d) => d.startsWith('script-src '))!;
+    expect(scriptSrc).toContain(hash(THEME_SCRIPT));
+    expect(scriptSrc).toContain(hash(CONSENT_STUB));
+    expect(scriptSrc).not.toContain('unsafe-inline');
+  });
+});
+
+/**
+ * `public/_headers` is the one place a scaffolded site gets security headers, so the header
+ * RULES are held identical across templates (the comments differ: one covers a whole static
+ * site, the other only the prerendered assets) and must carry the baseline. A CSP is allowed only
+ * as Report-Only — an enforcing one would break pages (see the CSP tests below).
+ */
+it('every template ships the same public/_headers security baseline', () => {
+  const rules = (file: string) =>
+    file
+      .split('\n')
+      .filter((l) => /^\s+\S/.test(l))
+      .join('\n');
+  const files = templateNames.map((name) =>
+    readFileSync(join(TEMPLATES, name, 'public', '_headers'), 'utf8'),
+  );
+  for (const file of files) {
+    expect(file).toContain('X-Content-Type-Options: nosniff');
+    expect(file).toContain('Referrer-Policy:');
+    expect(file).not.toMatch(/^\s*Content-Security-Policy:/m);
+    expect(rules(file)).toBe(rules(files[0]!));
+  }
+});
+
+/**
+ * Every workflow in a template is a thin caller of this repo's reusable `site-*.yml` (see AGENTS.md's
+ * CI/CD section). A caller naming a reusable workflow that doesn't exist, or one pinned to anything but the
+ * moving `@v1` tag, fails only when it first runs — in the client's repo, on a push to `main`.
+ */
+describe.each(templateNames)('template %s workflows', (name) => {
+  const dir = join(TEMPLATES, name, '.github', 'workflows');
+  const reusable = join(import.meta.dirname, '..', '..', '.github', 'workflows');
+
+  it.each(readdirSync(dir))('%s calls an existing reusable workflow pinned to @v1', (file) => {
+    const uses = /uses: getvitops\/design-system\/\.github\/workflows\/(\S+)@(\S+)/.exec(
+      readFileSync(join(dir, file), 'utf8'),
+    );
+    expect(uses, `${file} is not a thin caller`).not.toBeNull();
+    expect(uses![2]).toBe('v1');
+    expect(readdirSync(reusable)).toContain(uses![1]);
+  });
+
+  it('carries the main → dev back-merge caller', () => {
+    expect(readdirSync(dir)).toContain('backmerge.yml');
+  });
+});
+
+/**
+ * The emdash seed's navigation: three menus, and every URL in them must land on
+ * a page the same seed creates. A seeded link that 404s is the first thing a new
+ * site's visitor (and any later audit of its routes) finds.
+ */
+describe('emdash seed menus', () => {
+  const seed = JSON.parse(readFileSync(join(TEMPLATES, 'emdash', 'seed', 'seed.json'), 'utf8')) as {
+    menus: { name: string; items: { url: string; label: string }[] }[];
+    content: { pages: { slug: string }[] };
+  };
+
+  it('ships exactly primary, footer-sitemap and footer-legal', () => {
+    expect(seed.menus.map((m) => m.name)).toEqual(['primary', 'footer-sitemap', 'footer-legal']);
+  });
+
+  it('keeps the logo as the home link: primary holds Contact only', () => {
+    const primary = seed.menus.find((m) => m.name === 'primary')!;
+    expect(primary.items.map((i) => i.url)).toEqual(['/contact']);
+  });
+
+  it('points footer-legal at the three `vitops legal` documents', () => {
+    const legal = seed.menus.find((m) => m.name === 'footer-legal')!;
+    expect(legal.items.map((i) => i.url)).toEqual(['/privacy', '/terms', '/cookies']);
+  });
+
+  it('resolves every menu item to a seeded page', () => {
+    const slugs = new Set(seed.content.pages.map((p) => p.slug));
+    for (const menu of seed.menus)
+      for (const item of menu.items) {
+        const slug = item.url === '/' ? 'home' : item.url.slice(1);
+        expect(slugs.has(slug), `${menu.name}: ${item.url} has no seeded page`).toBe(true);
+      }
+  });
+});
+
+/**
+ * Magic link is how an editor gets into a dev site whose database was copied from prod (passkeys are
+ * origin-bound). It needs the email plugin AND the binding it reads — `cloudflareEmail()` defaults to a
+ * binding named `EMAIL` — and a missing half fails only at the first sign-in attempt, as "Email is not
+ * configured".
+ */
+it('emdash template wires the email plugin to a matching send_email binding', () => {
+  const read = (file: string) => readFileSync(join(TEMPLATES, 'emdash', file), 'utf8');
+  expect(read('astro.config.mjs')).toMatch(/cloudflareEmail\(\{/);
+  expect(read('wrangler.jsonc')).toMatch(/"send_email":\s*\[\s*\{\s*"name":\s*"EMAIL"\s*\}\s*\]/);
+});
+
+/**
+ * `scripts/refresh-dev.mjs` DROPS every table in its target, so the checks between it and production are
+ * asserted rather than trusted. Its pure halves are imported (the file only runs `main` when invoked directly).
+ */
+describe('emdash scripts/refresh-dev.mjs', async () => {
+  const { assertSafeTarget, dropStatements, parseBindingNames } = await import(
+    join(TEMPLATES, 'emdash', 'scripts', 'refresh-dev.mjs')
+  );
+  const ok = { devName: 'site-dev', devId: 'dev-id', devReportedId: 'dev-id', prodId: 'prod-id' };
+
+  it('refuses a target that is production, unset, misnamed or mismatched', () => {
+    expect(() => assertSafeTarget(ok)).not.toThrow();
+    expect(() => assertSafeTarget({ ...ok, devId: 'prod-id', devReportedId: 'prod-id' })).toThrow(
+      /production/,
+    );
+    expect(() => assertSafeTarget({ ...ok, devId: undefined })).toThrow(/not set/);
+    expect(() => assertSafeTarget({ ...ok, devName: 'site' })).toThrow(/-dev/);
+    expect(() => assertSafeTarget({ ...ok, devReportedId: 'other' })).toThrow(/stale/);
+  });
+
+  it('reads names from wrangler.jsonc and ignores commented-out examples', () => {
+    const src = readFileSync(join(TEMPLATES, 'emdash', 'wrangler.jsonc'), 'utf8');
+    expect(parseBindingNames(src)).toEqual({
+      database: 'my-emdash-site',
+      bucket: 'my-emdash-site-media',
+    });
+    expect(parseBindingNames('// "database_name": "nope"\n"database_name": "yes"').database).toBe(
+      'yes',
+    );
+  });
+
+  it("drops views, virtual tables and tables, but not a virtual table's shadow tables", () => {
+    const sql = dropStatements([
+      { name: 'posts', type: 'table', sql: 'CREATE TABLE posts (id)' },
+      { name: 'recent', type: 'view', sql: 'CREATE VIEW recent AS SELECT 1' },
+      { name: 'search', type: 'table', sql: 'CREATE VIRTUAL TABLE search USING fts5(a)' },
+      { name: 'search_data', type: 'table', sql: 'CREATE TABLE search_data (id)' },
+    ]);
+    expect(sql).toEqual([
+      'PRAGMA defer_foreign_keys = true;',
+      'DROP VIEW IF EXISTS "recent";',
+      'DROP TABLE IF EXISTS "search";',
+      'DROP TABLE IF EXISTS "posts";',
+    ]);
+  });
 });

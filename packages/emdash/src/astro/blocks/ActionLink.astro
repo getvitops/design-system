@@ -19,7 +19,7 @@
  * blocks.test.ts checks by literal substring, so reaching them via a spread would
  * pass type-checking and fail the contract test.
  */
-import { resolveBlockValue } from './value.ts';
+import { resolveBlockValue, safeHref } from './value.ts';
 
 interface Value {
   label?: string;
@@ -37,7 +37,9 @@ interface Props {
 }
 
 const value = resolveBlockValue<Value>(Astro.props);
-const { label, href, variant = 'link', startIcon, endIcon, role, newTab = false } = value;
+const { label, variant = 'link', startIcon, endIcon, role, newTab = false } = value;
+// A `javascript:`/`data:` href is dropped, so the block renders nothing rather than a script link.
+const href = safeHref(value.href);
 const { spriteBase = '/vitops' } = Astro.props as Props;
 
 const sprite = `${spriteBase}/icons.svg`;

@@ -1,7 +1,7 @@
 # Deploys `main` to production.
 # `main` should be branch-protected — it then only advances via the Promote
 # workflow (promote.yml), so a push here always represents promoted code. The
-# `production` GitHub Environment (set up by `scripts/init-github.mjs`) has
+# `production` GitHub Environment (set up by `vitops setup repo`) has
 # required reviewers restricted to admins, so this PAUSES for approval before
 # deploying.
 #

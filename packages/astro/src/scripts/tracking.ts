@@ -1,8 +1,10 @@
 // Ad conversion tracking: capture click IDs from the landing URL, track tel:
-// clicks. Form submission itself goes through `createConversionRoute()`
-// (`@getvitops/astro/routes`), which handles both the no-JS `<form
-// method="post">` path and a fetch-based one — there is no separate
-// form-enhancement script here.
+// and mailto: clicks. Form submission itself goes through
+// `createConversionRoute()` (`@getvitops/astro/routes`), which handles both
+// the no-JS `<form method="post">` path and a fetch-based one — there is no
+// form-enhancement script here, only `window.vitopsFormConversion()` (below),
+// which a consumer's own fetch-based submit handler may call once that POST
+// succeeds, to report the `form` Google Ads conversion action client-side.
 //
 // Runs early and ungated on purpose. Reading the query string is not storage and
 // needs nobody's permission; *keeping* it does. So the capture is synchronous —
@@ -27,9 +29,12 @@
 
 const COOKIE_NAME = '_ac';
 const COOKIE_DAYS = 90;
-const AB_COOKIE = '_ab';
+// Default when no experiment is configured, or the marker (below) carries no
+// `data-ab-cookie` override — kept as a literal fallback so a site with no
+// `site.experiments` behaves exactly as before.
+const DEFAULT_AB_COOKIE = '_ab';
 
-// Where the `tel:` conversion beacon goes. Mirrors TRACKING_ENDPOINT in
+// Where the `tel:`/`mailto:` conversion beacons go. Mirrors TRACKING_ENDPOINT in
 // ../tracking.ts (pinned by `tracking.test.ts`), copied for the same reason as
 // the parameter lists below — this file is inlined into the document.
 //
@@ -70,17 +75,35 @@ for (const key of [...CLICK_ID_PARAMS, ...UTM_PARAMS]) {
   if (value) trackingData[key] = value;
 }
 
-// Include A/B variant if assigned by the router Worker. A cookie present but
-// valueless yields undefined, which must not be written into the record.
-const abMatch = document.cookie.split(';').find((c) => c.trim().startsWith(`${AB_COOKIE}=`));
-const abVariant = abMatch?.split('=')[1]?.trim();
+/**
+ * Reads a raw cookie value by name. Splits on the *first* `=` only (a prior
+ * version split on every `=`, silently truncating any value containing one)
+ * and URL-decodes the result — a prior version didn't, so a variant name or
+ * attribution value containing a reserved character came back mangled.
+ */
+function rawCookie(name: string): string | undefined {
+  const match = document.cookie.split(';').find((c) => c.trim().startsWith(`${name}=`));
+  if (!match) return undefined;
+  const eq = match.indexOf('=');
+  const value = match.slice(eq + 1).trim();
+  return value ? decodeURIComponent(value) : undefined;
+}
+
+// <Tracking /> writes the experiment cookie name onto this marker (the first
+// *enabled* `site.experiments` entry — see `readSiteExperiments`'s own
+// docblock for why only one reaches the lead-attribution pipeline), so a
+// site with no experiments configured falls back to the same default this
+// always used.
+const trackingMarker = document.querySelector('[data-vitops-tracking]');
+const abCookieName = trackingMarker?.getAttribute('data-ab-cookie') || DEFAULT_AB_COOKIE;
+const abVariant = rawCookie(abCookieName);
 if (abVariant) trackingData['ab_variant'] = abVariant;
 
 function readCookie(): Record<string, unknown> | null {
-  const match = document.cookie.split(';').find((c) => c.trim().startsWith(`${COOKIE_NAME}=`));
-  if (!match) return null;
+  const raw = rawCookie(COOKIE_NAME);
+  if (!raw) return null;
   try {
-    const data: unknown = JSON.parse(decodeURIComponent(match.split('=').slice(1).join('=')));
+    const data: unknown = JSON.parse(raw);
     return typeof data === 'object' && data !== null && !Array.isArray(data)
       ? (data as Record<string, unknown>)
       : null;
@@ -121,10 +144,9 @@ const gate = (): ConsentLike | undefined =>
   (window as unknown as { vitopsConsent?: ConsentLike }).vitopsConsent;
 
 if (Object.keys(trackingData).length > 0) {
-  // <Tracking /> writes the category onto this marker, which also carries
-  // `data-consent-cookies` so revoking clears `_ac`.
-  const marker = document.querySelector('[data-vitops-tracking]');
-  const category = marker?.getAttribute('data-consent') ?? 'marketing';
+  // <Tracking /> writes the category onto this marker (looked up once,
+  // above), which also carries `data-consent-cookies` so revoking clears `_ac`.
+  const category = trackingMarker?.getAttribute('data-consent') ?? 'marketing';
 
   if (!gate()) {
     // No gate on this site: behave as it always has.
@@ -147,15 +169,86 @@ if (Object.keys(trackingData).length > 0) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Tel: click tracking via sendBeacon
+// 2. Tel:/mailto: click tracking via sendBeacon, plus a Google Ads conversion
 // ---------------------------------------------------------------------------
 
+/**
+ * Typed locally, matching `ConsentLike` above: a global augmentation here
+ * would widen `Window` package-wide for a shape only this file uses.
+ *
+ * `gtag` is a plain function global — it's declared inside the classic
+ * (non-module) inline `<script>` `gtagBootstrap` emits (`@getvitops/utils/ads`),
+ * which attaches it to `window`. This file runs as a module (`<Tracking />`
+ * imports it), so it must go through `window.gtag`, not a bare `gtag(...)` call.
+ * `vitopsAdsConversions.google` is the same bootstrap's per-action `send_to`
+ * map (`{call?, email?, form?}`) — each action carries its own target, so a
+ * call, an email click and a form submission report as distinct Google Ads
+ * conversion actions instead of all three sharing one.
+ */
+interface AdsGlobal {
+  gtag?: (...args: unknown[]) => void;
+  vitopsAdsConversions?: Record<string, Partial<Record<'call' | 'email' | 'form', string>>>;
+}
+const adsGlobal = (): AdsGlobal => window as unknown as AdsGlobal;
+
 document.addEventListener('click', (e) => {
-  const link = (e.target as Element).closest?.('a[href^="tel:"]') as HTMLAnchorElement | null;
+  const link = (e.target as Element).closest?.(
+    'a[href^="tel:"], a[href^="mailto:"]',
+  ) as HTMLAnchorElement | null;
   if (!link) return;
 
-  // Fire-and-forget beacon; don't block the tel: navigation
+  const isEmail = link.href.startsWith('mailto:');
+
+  // Fire-and-forget beacon; don't block the tel:/mailto: navigation.
   if (navigator.sendBeacon) {
-    navigator.sendBeacon(TRACK_ENDPOINT, JSON.stringify({ event: 'call', phone: link.href }));
+    const body = isEmail
+      ? { event: 'email', email: link.href }
+      : { event: 'call', phone: link.href };
+    navigator.sendBeacon(TRACK_ENDPOINT, JSON.stringify(body));
+  }
+
+  // Report the same click as a Google Ads conversion, when that action's
+  // `conversionLabel` is configured. `sendTo` is absent whenever the tag never
+  // loaded (gated and undecided, or `site.ads.google` unset) or that specific
+  // action has no label — silently skipped, same as every other
+  // optional-runtime check in this file.
+  const sendTo = adsGlobal().vitopsAdsConversions?.['google']?.[isEmail ? 'email' : 'call'];
+  if (sendTo && typeof adsGlobal().gtag === 'function') {
+    adsGlobal().gtag!('event', 'conversion', { send_to: sendTo });
   }
 });
+
+// ---------------------------------------------------------------------------
+// 3. Form-submission conversion, for a consumer's own fetch-based submit handler
+// ---------------------------------------------------------------------------
+
+const CONVERTED_ATTR = 'data-vitops-converted';
+
+/**
+ * Fires the Google Ads `form` conversion action (see `AdsGlobal` above) for a
+ * consumer's own fetch-based submit handler to call once its own POST to
+ * `createConversionRoute()` has succeeded — mirroring the tel:/mailto: click
+ * handler above, but for a form, which has no click to hook.
+ *
+ * Idempotent per element (`data-vitops-converted`): a handler that fires this
+ * more than once for the same submission (a retried network call, a
+ * double-invoked effect) reports the conversion once, not twice.
+ *
+ * There is deliberately no server-side equivalent for a no-JS
+ * `<form method="post">` submission — that path is a full-page redirect with no
+ * script execution to fire from, and reporting a Google-Ads-labelled
+ * conversion from the server needs the Google Ads API's click-conversion
+ * upload (developer token + MCC access), not a client-side pixel call. See the
+ * vNext backlog's §16 for that follow-up.
+ */
+function vitopsFormConversion(formEl: HTMLFormElement): void {
+  if (formEl.hasAttribute(CONVERTED_ATTR)) return;
+  formEl.setAttribute(CONVERTED_ATTR, '');
+  const sendTo = adsGlobal().vitopsAdsConversions?.['google']?.['form'];
+  if (sendTo && typeof adsGlobal().gtag === 'function') {
+    adsGlobal().gtag!('event', 'conversion', { send_to: sendTo });
+  }
+}
+
+(window as unknown as { vitopsFormConversion?: typeof vitopsFormConversion }).vitopsFormConversion =
+  vitopsFormConversion;

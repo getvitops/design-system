@@ -575,11 +575,18 @@ export function contrastLc(fg: string, bg: string): number {
 /**
  * Pick a tinted near-white or near-black foreground for best contrast on `bg`
  * (a whisper of the background's hue mixed into off-white/off-black).
+ *
+ * `prefer` forces the polarity instead of choosing the better one — for a role
+ * whose author wants dark text on a bright fill (or the reverse). Whether that
+ * pairing is legible is the caller's contrast check to decide, not this
+ * function's.
  */
-export function pickOn(bg: string, hue?: number): string {
+export function pickOn(bg: string, hue?: number, prefer?: 'light' | 'dark'): string {
   const h = hue ?? hexToOklch(bg).h;
   const white = oklchToHex({ l: 0.98, c: 0.01, h });
   const black = oklchToHex({ l: 0.16, c: 0.02, h });
+  if (prefer === 'light') return white;
+  if (prefer === 'dark') return black;
   return contrastLc(white, bg) >= contrastLc(black, bg) ? white : black;
 }
 

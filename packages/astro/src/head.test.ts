@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 
 /**
  * Drift guards over the two inline `<head>` scripts in `<Head />`.
@@ -15,7 +15,11 @@ import { describe, expect, it } from 'vitest';
  * loudly at home.
  */
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(HERE, 'components', 'Head.astro'), 'utf8');
+// The inline scripts are constants in inline-scripts.ts (so csp.ts can hash the very
+// same bytes), imported by Head.astro; read both so the guards see script + wiring.
+const SRC =
+  readFileSync(join(HERE, 'inline-scripts.ts'), 'utf8') +
+  readFileSync(join(HERE, 'components', 'Head.astro'), 'utf8');
 
 describe('THEME_SCRIPT', () => {
   it('uses the same localStorage key as WCColorSchemeToggle', () => {
