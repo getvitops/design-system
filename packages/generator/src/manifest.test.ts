@@ -233,3 +233,21 @@ describe('buildReverseIndex (standalone, Worker-safe)', () => {
     expect(buildReverseIndex(ds)).toEqual(manifestOf(ds).reverseIndex);
   });
 });
+
+describe('design-manifest: emitted by every stylesheet format the editor can sit on', () => {
+  // The manifest describes the design system, not the CSS. The tailwind format omitted it,
+  // so a tailwind EmDash site's /design-system admin page fetched a file nothing wrote.
+  it.each(['css', 'tailwind'] as const)('%s writes design-manifest.json', async (format) => {
+    const { mkdtempSync, readdirSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { generate } = await import('./generate.ts');
+    const out = mkdtempSync(join(tmpdir(), 'vitops-manifest-'));
+    try {
+      await generate({ input: defaultConfig(), format, outDir: out });
+      expect(readdirSync(out)).toContain('design-manifest.json');
+    } finally {
+      rmSync(out, { recursive: true, force: true });
+    }
+  });
+});

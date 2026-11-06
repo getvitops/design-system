@@ -91,6 +91,10 @@ export default defineConfig({
       // there instead of a bare design-system.json. legal/fonts/search/ads/
       // reviews all read the same file (see AGENTS.md's "Client onboarding").
       css: { format: 'tailwind', inject: false, input: 'site.json' },
+      // The /design-system admin page embeds public/vitops/design-system-editor.html in an
+      // iframe; this writes it, with its manifest, editor.js and editor.css, without loading
+      // the editor on public pages.
+      editorManifest: true,
       site: { input: 'site.json' },
     }),
   ],

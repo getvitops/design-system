@@ -8,7 +8,16 @@
  *
  * Thin wrapper over @getvitops/generator — the same generator the CLI uses.
  */
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import {
@@ -126,8 +135,9 @@ export interface VitopsPluginOptions {
   media?: VitopsMediaOptions;
   /**
    * Directory to mirror `design-manifest.json` into as `vitops/design-manifest.json`
-   * — the URL `<wc-theme-editor>` fetches by default. Set by the Astro integration's
-   * `editor` option. Copied inside the generate pass rather than by the caller, so
+   * — the URL `<wc-theme-editor>` fetches by default — plus a standalone
+   * `vitops/editor.css` for hosts that render the editor outside the site's own pages.
+   * Set by the Astro integration's `editor` / `editorManifest` options. Copied inside the generate pass rather than by the caller, so
    * it can't race the first generation and can't go stale on regeneration.
    */
   editorManifestDir?: string;
@@ -205,9 +215,8 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
     const inputIsSite = isConfig(raw);
     // `generate` reads the site config only for what the stylesheet depends on;
     // legal documents stay the separate opt-in below.
-    await generate({
+    const genArgs = {
       input: raw as Parameters<typeof generate>[0]['input'],
-      format,
       outDir,
       ...(options.theme != null ? { theme: options.theme } : {}),
       siteEnv: options.site?.siteEnv ?? 'production',
@@ -216,7 +225,8 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
         : {}),
       // An explicit `site` wins; otherwise `input` supplies it when it is one.
       ...(siteInput ? { site: readJson(siteInput) as never } : {}),
-    });
+    };
+    await generate({ ...genArgs, format });
     if (options.legal) {
       // The three paths are the same file in almost every project, so the
       // declaration cascades rather than being repeated.
@@ -234,11 +244,24 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
         writeFileSync(join(legalOut, name), content);
     }
     if (options.editorManifestDir) {
-      const src = resolve(root, outDir, 'design-manifest.json');
-      if (existsSync(src)) {
-        const dest = resolve(root, options.editorManifestDir, 'vitops');
-        mkdirSync(dest, { recursive: true });
-        copyFileSync(src, join(dest, 'design-manifest.json'));
+      const dest = resolve(root, options.editorManifestDir, 'vitops');
+      mkdirSync(dest, { recursive: true });
+      const manifest = resolve(root, outDir, 'design-manifest.json');
+      if (existsSync(manifest)) copyFileSync(manifest, join(dest, 'design-manifest.json'));
+      // The editor renders in light DOM and borrows the framework's own CSS, which a host
+      // outside the site's pages (the EmDash admin, in an iframe) has to load itself. That
+      // needs a standalone stylesheet; only the `css` format emits one, so a tailwind site
+      // gets a throwaway `css` pass whose output never reaches `outDir`.
+      if (format === 'css') {
+        copyFileSync(resolve(root, outDir, 'styles.css'), join(dest, 'editor.css'));
+      } else {
+        const scratch = mkdtempSync(join(tmpdir(), 'vitops-editor-css-'));
+        try {
+          await generate({ ...genArgs, format: 'css', outDir: scratch });
+          copyFileSync(join(scratch, 'styles.css'), join(dest, 'editor.css'));
+        } finally {
+          rmSync(scratch, { recursive: true, force: true });
+        }
       }
     }
     if (options.spriteDir) {

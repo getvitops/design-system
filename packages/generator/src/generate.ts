@@ -2064,6 +2064,9 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
   } else if (format === 'tailwind') {
     put('tailwind.css', built.tailwind);
     put('tokens.json', built.tokensJson);
+    // The editor reads this whatever the stylesheet format: it describes the design
+    // system, not the CSS. A tailwind site mounting <wc-theme-editor> has no other source.
+    put('design-manifest.json', built.designManifest);
   } else if (format === 'css') {
     const { code } = bundleCss(built.generated, assetsDir, true);
     put('styles.css', code);

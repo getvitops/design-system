@@ -272,6 +272,17 @@ export interface GetvitopsOptions {
    */
   editor?: boolean;
   /**
+   * Ship what a host needs to embed `<wc-theme-editor>`, WITHOUT loading it from `<Head />`
+   * (default false). Writes into `public/vitops/`: `design-manifest.json`, `editor.js`, a
+   * standalone `editor.css`, and `design-system-editor.html`, a page that mounts the editor.
+   *
+   * For hosts outside the site's own pages, such as the EmDash admin
+   * (`@getvitops/emdash`'s `designSystemEditor`, which iframes that page so the design
+   * system never leaks into the admin's styles). Public pages don't pay for the bundle.
+   * Requires `css`.
+   */
+  editorManifest?: boolean;
+  /**
    * Render the site's legal documents (privacy policy, terms, cookie notice)
    * from a site config, and re-render when it changes. Off unless provided.
    *
@@ -902,6 +913,40 @@ function readsAsConfig(path: string): boolean {
   }
 }
 
+/**
+ * A standalone page hosting `<wc-theme-editor>`, for a host that cannot load the
+ * framework CSS itself (the EmDash admin embeds this in an iframe, so the design
+ * system never touches the admin's own styles). `?save=<url>` supplies the save
+ * endpoint, which is the host's to name, not this integration's.
+ */
+function writeEditorHost(dest: string): void {
+  mkdirSync(dest, { recursive: true });
+  writeFileSync(
+    join(dest, 'design-system-editor.html'),
+    `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Design system editor</title>
+<link rel="stylesheet" href="/vitops/editor.css">
+</head>
+<body>
+<script type="module">
+  await import('/vitops/editor.js');
+  const el = document.createElement('wc-theme-editor');
+  el.setAttribute('manifest', '/vitops/design-manifest.json');
+  const save = new URLSearchParams(location.search).get('save');
+  if (save && save.startsWith('/')) el.setAttribute('save-endpoint', save);
+  document.body.append(el);
+</script>
+</body>
+</html>
+`,
+  );
+}
+
 export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
   return {
     name: '@getvitops/astro',
@@ -911,8 +956,10 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         const publicDir = fileURLToPath(config.publicDir);
         const webComponents = opts.webComponents !== false;
         const editor = opts.editor === true;
-        if (editor && !opts.css)
-          logger.warn('editor: true needs a `css` config — it reads design-manifest.json.');
+        if ((editor || opts.editorManifest) && !opts.css)
+          logger.warn(
+            'editor/editorManifest needs a `css` config — it reads design-manifest.json.',
+          );
         if (opts.legal && !opts.css)
           logger.warn(
             'legal: needs a `css` config — the generation runs in the Vite plugin that `css` ' +
@@ -1231,11 +1278,12 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
               ? ['polyfills.js', 'deferred.js', 'elements.js', 'polyfills']
               : [];
             if (consentRuntime) bundles.push('consent.js');
-            if (editor) bundles.push('editor.js');
+            if (editor || opts.editorManifest) bundles.push('editor.js');
             for (const f of bundles) {
               const src = join(coreDist, f);
               if (existsSync(src)) cpSync(src, join(dest, f), { recursive: true });
             }
+            if (opts.editorManifest) writeEditorHost(dest);
             logger.info('copied web-component bundles → public/vitops/');
           } else {
             logger.warn(
@@ -1556,7 +1604,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
               out,
               // Mirrored inside the generate pass so the served copy can never be
               // missing on a cold start or stale after a config edit.
-              ...(editor ? { editorManifestDir: publicDir } : {}),
+              ...(editor || opts.editorManifest ? { editorManifestDir: publicDir } : {}),
               // Same mirroring rule as the manifest: the bytes are produced by
               // this pass, so the copy belongs inside it rather than in the hook.
               ...(iconsData?.sprite ? { spriteDir: publicDir } : {}),
