@@ -502,10 +502,14 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`.centered` as a track grid. Children land in `measure` — give it a track child to lay out inside.',
   },
   sitenav: {
-    css: c(['sitenav', 'sitenav__link', 'sitenav--drawer-start'], 'patterns/sitenav.css'),
+    css: c(
+      ['sitenav', 'sitenav__link', 'sitenav--drawer-start', 'navlist', 'navlist--columns'],
+      'patterns/sitenav.css',
+    ),
     astro: [...a('SiteNav', 'css'), ...a('SiteFooter', 'css')],
+    emdash: ['vitops.nav'],
     bricks: 'vitops-sitenav',
-    use: "`.sitenav` with `--bp-*` and a drawer direction. `<details>` + Invoker Commands, no JS. In Astro: `<SiteNav {...await loadNavMenus(getMenu)} />` renders EmDash menu `primary` (the default: dropdowns from `md`, drawer below) and, if they exist, `primary-mobile` (depth-1 nav below `md`) and `primary-mega` (mega panels from `xl`) — adding the menu in the admin is the whole change. An item's `titleAttr` is its description. `<SiteFooter sitemap legal name>` renders `footer-sitemap` + `footer-legal` + the copyright line.",
+    use: "`.sitenav` with `--bp-*` and a drawer direction. `<details>` + Invoker Commands, no JS. In Astro: `<SiteNav {...await loadNavMenus(getMenu)} />` renders EmDash menu `primary` (the default: dropdowns from `md`, drawer below) and, if they exist, `primary-mobile` (depth-1 nav below `md`) and `primary-mega` (mega panels from `xl`) — adding the menu in the admin is the whole change. An item's `titleAttr` is its description. `<SiteFooter sitemap legal name>` renders `footer-sitemap` + `footer-legal` + the copyright line. For a menu inside page content (a site map, a section's links, footer-style columns) use `.navlist` — plain nested lists, `--inline` / `--columns` — or, in EmDash, the `vitops.nav` block (menu, layout `list|inline|columns|sitenav`, depth 1–3, heading, tone). Name each `<nav>` uniquely: the header is `Primary` and the footer `Site map` / `Legal`, and the block never reuses those.",
   },
   'split-link': {
     css: c(['split-link', 'split-link__toggle', 'split-link__panel'], 'patterns/split-link.css'),
@@ -580,7 +584,8 @@ export const TIERS: Record<string, TierEntry> = {
       true,
     ),
     astro: a('ReviewCard', 'css'),
-    use: "`<ReviewCard review={…} />` — one card, from `vitops reviews`' `.vitops/reviews.json` cache. Put several inside `<Carousel>` slides or `<Marquee>` items; there is no group component and no `wc-review`.",
+    emdash: ['vitops.reviews'],
+    use: "`<ReviewCard review={…} />` — one card, from `vitops reviews`' `.vitops/reviews.json` cache. Put several inside `<Carousel>` slides or `<Marquee>` items; there is no group component and no `wc-review`. In EmDash, `vitops.reviews` is that whole row: it reads the cache as a build-time import (`virtual:getvitops/reviews`, served by `vitops()`; empty when the file is absent), picks reviews with `selectReviews()`, and lays them out as a grid, carousel or marquee. A new review appears after `vitops reviews` is re-run, committed and the site rebuilt.",
   },
   tabs: {
     css: c(['tabs'], undefined, true),
