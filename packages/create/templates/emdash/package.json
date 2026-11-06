@@ -34,6 +34,8 @@
     "@astrojs/check": "^0.9.7",
     "@cloudflare/workers-types": "^4.20260305.1",
     "@getvitops/cli": "latest",
+    "@tailwindcss/vite": "^4.3.3",
+    "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vite": "latest",
     "vite-plus": "latest",
