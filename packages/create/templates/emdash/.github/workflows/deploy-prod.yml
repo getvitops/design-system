@@ -8,12 +8,23 @@
 # Deploys via the vitops toolchain's reusable EmDash deploy workflow — see
 # https://github.com/getvitops/design-system/blob/main/.github/workflows/site-deploy-emdash.yml
 #
+# Also runs on a `repository_dispatch` of type `emdash-publish`: pages are
+# prerendered, so a publish in the EmDash admin only goes live after a rebuild,
+# and an EmDash `content:afterPublish` hook POSTs that event (AGENTS.md,
+# "Publish-triggered rebuilds"). A dispatch runs this file from the DEFAULT branch
+# (`dev`), so `ref` pins the build to `main` — production's code, not dev's. It
+# still goes through the `production` environment, so it still waits for the
+# reviewers' approval; relax that rule if editors' publishes should go live
+# unattended.
+#
 # Required repo secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
 name: Deploy prod
 
 on:
   push:
     branches: [main]
+  repository_dispatch:
+    types: [emdash-publish]
 
 concurrency:
   group: deploy-prod
@@ -25,6 +36,7 @@ jobs:
     with:
       environment: production
       is-dev: false
+      ref: ${{ github.event_name == 'repository_dispatch' && 'main' || '' }}
       # Set this to your production URL once known.
       health-check-url: ''
     secrets:

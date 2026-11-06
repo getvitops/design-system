@@ -14,7 +14,7 @@ as Cloudflare Workers static assets (no server runtime, no database).
   portrait, landscape; SVG + PNG) for layout work before real imagery
   exists. Delete the directory once real assets land.
 - Prefer framework CSS classes (utilities, patterns, type roles like
-  `font-heading`) over bespoke CSS. Run `npx vitops agents` to append the
+  `font-heading`) over bespoke CSS. Run `vp exec vitops agents` to append the
   full generated class-vocabulary reference to this file.
 - **Layout foundations — these are the answer, not a starting point.** Six
   substitutions carry the structure of nearly every page:
@@ -49,16 +49,16 @@ as Cloudflare Workers static assets (no server runtime, no database).
 
 ## Commands
 
-- `pnpm dev` — local dev
-- `pnpm typecheck` — `astro check`
-- `pnpm run build:css` — regenerate the framework CSS from `site.json`
-- `pnpm deploy` — build + `wrangler deploy` to prod
-- `pnpm run deploy:dev` — build + deploy the isolated dev worker
-- `pnpm run init:github` — one-time: create + push the GitHub repo (main +
+- `vpr dev` — local dev
+- `vpr typecheck` — `astro check`
+- `vpr build:css` — regenerate the framework CSS from `site.json`
+- `vpr deploy` — build + `wrangler deploy` to prod
+- `vpr deploy:dev` — build + deploy the isolated dev worker
+- `vpr init:github` — one-time: create + push the GitHub repo (main +
   dev, dev default, branch protection + environment policy). Only run when
   the user asks to set up GitHub.
-- `pnpm run init:hosting` — one-time: read the Cloudflare account id and set
+- `vpr init:hosting` — one-time: read the Cloudflare account id and set
   it as a repo secret. Only run when the user asks for it.
-- `npx vitops validate site.json` — schema-check the site config
-- `npx vitops lint -i site.json -f css` — find framework classes in
+- `vp exec vitops validate site.json` — schema-check the site config
+- `vp exec vitops lint -i site.json -f css` — find framework classes in
   source that resolve to nothing under this format

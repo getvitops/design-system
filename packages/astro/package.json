@@ -13,6 +13,7 @@
   "files": [
     "dist",
     "src/components/Head.astro",
+    "src/inline-scripts.ts",
     "src/components/Seo.astro",
     "src/seo.ts",
     "src/components/Analytics.astro",

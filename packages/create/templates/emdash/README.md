@@ -23,8 +23,8 @@ before real imagery exists — delete once real assets land (separate from
 ## Local development
 
 ```bash
-pnpm install
-pnpm dev
+vp install
+vpr dev
 ```
 
 No Cloudflare account needed: `astro dev` runs the Worker locally with local
@@ -45,7 +45,7 @@ The two legal pages are placeholders. To generate real ones from what your site
 actually does, fill in `site.json`'s `organization`/`site.legal` fields and run:
 
 ```sh
-npx vitops legal --format portable-text --out ./legal
+vp exec vitops legal --format portable-text --out ./legal
 ```
 
 Then paste each document's blocks into the matching page in the admin. The
@@ -55,8 +55,8 @@ before you publish.
 ## Deploy
 
 ```bash
-npx wrangler login
-pnpm deploy
+vp exec wrangler login
+vpr deploy
 ```
 
 Wrangler provisions the D1 database and R2 bucket named in `wrangler.jsonc`
@@ -85,7 +85,7 @@ The repo ships a two-environment flow modeled on branch = environment:
 One-time setup — work through the checklist:
 
 ```bash
-pnpm run sop && open SETUP.html   # or: xdg-open SETUP.html
+vpr sop && open SETUP.html   # or: xdg-open SETUP.html
 ```
 
 It covers host choice, GitHub + branch policy, hosting resources, going live
@@ -95,7 +95,7 @@ command per step. An AI agent can work the same list autonomously via
 `.agents/skills/setup/`; it stops at the steps that genuinely need a human
 (the Cloudflare API token, the domain cutover, publishing legal documents).
 
-`pnpm deploy:dev` reproduces the dev deploy locally: it rewrites the
+`vpr deploy:dev` reproduces the dev deploy locally: it rewrites the
 adapter-generated wrangler config (`scripts/build-dev-wrangler.mjs`) so the
 dev worker never touches prod data — it hard-fails without `DEV_D1_ID`,
 on purpose. Schema/content changes live in the EmDash database, not git, so
@@ -112,7 +112,7 @@ is a configurable dimension of the project, not a rewrite:
   belong to this target.
 - **`node`** — `@astrojs/node` (standalone) + SQLite file + local uploads,
   for a VPS / docker-compose / k8s host. Not installed by default; to switch:
-  `pnpm add @astrojs/node better-sqlite3`, then `vitopsHosting({ target:
+  `vp add @astrojs/node better-sqlite3`, then `vitopsHosting({ target:
 'node' })` (or set `HOSTING=node` — the env var wins). Run the built site
   with `node ./dist/server/entry.mjs`; data lives in `./data/` (gitignored) —
   persist it as a volume. Scheduled publishing runs in-process on Node, so
@@ -132,7 +132,7 @@ and media in the storage backend (bucket/directory copy).
   agents answer from current documentation. Your running site also exposes its
   own content MCP server at `/_emdash/api/mcp` (authenticated).
 - **Skills** (`.agents/skills/`): `promote` dispatches the dev → main
-  promotion workflow. Run `npx vitops agents` to also write the design-system
+  promotion workflow. Run `vp exec vitops agents` to also write the design-system
   class reference into `AGENTS.md`.
 - **Claude Code on the web**: the SessionStart hook
   (`.claude/hooks/session-start.sh`) installs Node 24 (matching
@@ -153,9 +153,9 @@ routes stay unstyled by it.
 Useful commands (via `@getvitops/cli`):
 
 ```bash
-npx vitops validate site.json   # check the config against the schema
-npx vitops agents               # write the design-system reference into AGENTS.md
-pnpm build:css                  # regenerate the CSS manually
+vp exec vitops validate site.json   # check the config against the schema
+vp exec vitops agents               # write the design-system reference into AGENTS.md
+vpr build:css                  # regenerate the CSS manually
 ```
 
 ## Project map
@@ -172,7 +172,7 @@ pnpm build:css                  # regenerate the CSS manually
 | `src/pages/404.astro`            | Not-found page (the catch-all rewrites here)                                               |
 | `wrangler.jsonc`                 | Cloudflare bindings (D1/R2) + cron trigger                                                 |
 | `scripts/build-dev-wrangler.mjs` | Rewrites the built wrangler config for the isolated dev worker                             |
-| `SETUP.html`                     | Client-onboarding checklist — run `pnpm run sop` first (see "One-time setup")              |
+| `SETUP.html`                     | Client-onboarding checklist — run `vpr sop` first (see "One-time setup")                   |
 | `.github/workflows/`             | deploy-dev (push to `dev`), deploy-prod (push to `main`), promote                          |
 | `.agents/skills/promote/`        | Agent skill: dispatch the dev → main promotion                                             |
 | `.mcp.json`                      | Astro + EmDash docs MCP servers for coding agents                                          |

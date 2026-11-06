@@ -50,6 +50,10 @@ export type {
 // Real per-page <lastmod> for the sitemap. A helper rather than a `sitemap`
 // option, because it shells out to git and returns nothing from a shallow clone —
 // a caveat that belongs at the call site.
+// Strict-CSP helpers: SHA-256 hashes of the inline scripts <Head /> emits, and a
+// starting policy built on them. Build-time (node:crypto), like gitLastmod.
+export { contentSecurityPolicy, cspScriptHash, inlineScriptHashes } from './csp.ts';
+export type { ContentSecurityPolicyOptions, InlineScriptOptions } from './csp.ts';
 export { gitLastmod, routeFromPage, slugFromContent } from './lastmod.ts';
 export type { GitLastmodOptions } from './lastmod.ts';
 export { resolveSeo } from './seo.ts';

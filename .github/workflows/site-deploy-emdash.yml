@@ -17,7 +17,12 @@
 # `is-dev: true` runs `scripts/build-dev-wrangler.mjs` (the adapter-generated
 # config rewrite documented in that script) and deploys the flat dev config
 # it emits; `is-dev: false` (the default, for prod) deploys straight from
-# `pnpm run deploy`. See AGENTS.md's "EmDash migrations" note: there is no
+# `pnpm run deploy`. Both run `scripts/pull-content.mjs` first (it needs the
+# Cloudflare credentials the deploy already has): the template's pages are
+# prerendered, so the build must read production's content — see the template
+# AGENTS.md's "Rendering and freshness". To rebuild on a CMS publish, the caller
+# adds a `repository_dispatch` (`emdash-publish`) trigger and passes `ref`. See
+# AGENTS.md's "EmDash migrations" note: there is no
 # migration STEP here on purpose — EmDash applies migrations + the seed at
 # first boot of the worker — so the boot probe below is what actually catches
 # a bad migration, by forcing that first boot inside the deploy job instead of
@@ -35,6 +40,15 @@ on:
         default: false
       health-check-url:
         description: URL to probe after deploy (forces first boot, so a bad migration fails here). Omit to skip.
+        type: string
+        default: ''
+      ref:
+        description: >-
+          Git ref to check out and deploy. Empty (the default) keeps the previous
+          behaviour — the triggering event's own ref. Needed for a
+          `repository_dispatch` rebuild (a CMS publish), which runs the workflow
+          from the default branch (`dev`): the production caller passes `main`
+          so a content publish rebuilds production's code, not dev's.
         type: string
         default: ''
       working-directory:
@@ -67,6 +81,10 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # '' falls back to the event's default ref, so callers that do not
+          # pass `ref` are unchanged.
+          ref: ${{ inputs.ref }}
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:

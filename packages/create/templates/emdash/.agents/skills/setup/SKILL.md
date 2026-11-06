@@ -7,14 +7,14 @@ description: Work the client-onboarding checklist (SETUP.html) autonomously — 
 
 `SETUP.html` is the canonical checklist — this skill adds only sequencing,
 gates, and where to stop. It does not restate the steps; read `SETUP.html`
-(or `npx vitops setup --help`) for what each stage actually does and why.
+(or `vp exec vitops setup --help`) for what each stage actually does and why.
 
 ## Steps
 
 1. **Preview the whole sequence first.**
 
    ```bash
-   npx vitops setup all --dry
+   vp exec vitops setup all --dry
    ```
 
    Read the plan before doing anything. It names every step it would take and
@@ -24,10 +24,10 @@ gates, and where to stop. It does not restate the steps; read `SETUP.html`
 2. **Run it.**
 
    ```bash
-   npx vitops setup all
+   vp exec vitops setup all
    ```
 
-   Re-run `npx vitops setup --check` after each leg rather than retrying on
+   Re-run `vp exec vitops setup --check` after each leg rather than retrying on
    your own judgment — a step already done resolves to a no-op skip, so a
    second run is safe, and `--check` tells you exactly what still needs doing
    instead of you guessing from output.

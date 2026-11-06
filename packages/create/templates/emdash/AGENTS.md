@@ -26,7 +26,7 @@ styled by the Vitops design system.
   (`/_emdash/admin`) or the site's MCP server (`/_emdash/api/mcp`) to change
   the content model of a running site.
 - Prefer framework CSS classes (utilities, patterns, type roles like
-  `font-heading`) over bespoke CSS. Run `npx vitops agents` to append the
+  `font-heading`) over bespoke CSS. Run `vp exec vitops agents` to append the
   full generated class-vocabulary reference to this file.
 - **Layout foundations — these are the answer, not a starting point.** Six
   substitutions carry the structure of nearly every page:
@@ -59,18 +59,41 @@ styled by the Vitops design system.
   `li` is the grid item, so the anchor's tranches never align and it does not fill
   the cell; it renders fine, which is why it keeps getting written.
 
-  `npm run lint:design` reports all of these, and the pre-commit hook fails on them
+  `vpr lint:design` reports all of these, and the pre-commit hook fails on them
   — the fix is the class, not a justification for the CSS.
 
-- **Prerender by default.** `output: 'server'` is required (the admin, media/API
-  routes, preview and scheduled publishing need a server), so prerendering is
-  opt-in per route: put `export const prerender = true` on every page that
-  doesn't need per-request data, and give dynamic routes a `getStaticPaths()`
-  that queries the collection at build time. A route with no `prerender` export
-  is re-rendered for every visitor on every request. The cost is that a
-  prerendered page reflects the database as of the last build, so an admin
-  publish needs a redeploy — leave a route server-rendered only where that is
-  unacceptable (preview, personalised content, must-be-live-in-seconds).
+- **Rendering and freshness: everything is prerendered.** `output: 'server'` is
+  still required (the admin, media/API routes and scheduled publishing need a
+  Worker), but every public page — `index.astro`, `[...slug].astro`, `404.astro` —
+  has `export const prerender = true`, and `[...slug].astro` lists the published
+  `pages` entries in `getStaticPaths()`. The HTML is written at build time and
+  served as a static asset; the Worker only handles `/_emdash/*` and anything
+  you deliberately leave on-demand. A route with no `prerender` export is
+  re-rendered on every request, so don't leave it off by accident.
+  - **Where build-time content comes from.** The Cloudflare adapter prerenders
+    against a _local_ D1 (`.wrangler/state`), never the deployed one — on a CI
+    runner that is an empty database, which would bake "No home page yet" into
+    every page. `scripts/pull-content.mjs` (the first step of `vpr deploy` and
+    `vpr deploy:dev`) exports production's D1 and loads it locally first. It
+    fails closed: a failed export aborts the deploy rather than publishing an
+    empty site (the one exception is a database that doesn't exist yet, the first
+    deploy, which builds from the seed). `SKIP_PULL_CONTENT=1` skips it.
+  - **Freshness is a rebuild.** Production is the truth for content, and a page
+    reflects it as of the last build. Publishing in the admin therefore has to
+    trigger one: the deploy workflows listen for a `repository_dispatch` event of
+    type `emdash-publish` (see "Publish-triggered rebuilds" below).
+  - **Drafts and previews.** A prerendered page cannot show an unpublished
+    draft, so an admin "Preview" link shows the last published build. If previews
+    matter, add a dedicated on-demand route for them rather than removing
+    `prerender` from the public ones.
+  - **Dynamic parts are server islands.** Anything that must be fresh per request
+    goes in its own component rendered with `server:defer` inside the prerendered
+    page; the surrounding HTML stays static. Keep islands rare — each is a Worker
+    request after load.
+  - **Unknown URLs.** There is no `Astro.rewrite('/404')`: a slug not listed by
+    `getStaticPaths()` has no route, so Astro serves the prerendered `404.html`
+    with a real 404 status. Rewriting an on-demand route to a prerendered one
+    fails (500), so don't reintroduce it.
 - The Worker cron trigger in `wrangler.jsonc` drives scheduled publishing —
   don't remove it.
 - Hosting (adapter + EmDash database/storage) comes from `vitopsHosting()`
@@ -99,7 +122,7 @@ styled by the Vitops design system.
   a finished policy, because the risk here is a plausible-looking document
   getting shipped unread.
   To replace them properly, fill in `site.json`'s `organization`/`site.legal`
-  fields and run `npx vitops legal --format portable-text --out ./legal`, then
+  fields and run `vp exec vitops legal --format portable-text --out ./legal`, then
   paste each document's blocks into the page in the admin. That renders a real
   policy from what the site actually does — the analytics provider it uses,
   the fields its forms collect, where it deploys — rather than from guesses.
@@ -112,12 +135,46 @@ searching them over pre-trained knowledge for Astro/EmDash questions.
 
 ## Commands
 
-- `pnpm dev` — local dev with local D1/R2 emulation (no Cloudflare account)
-- `pnpm typecheck` — `astro check`
-- `pnpm deploy` — build + `wrangler deploy` prod (provisions D1/R2 on first run)
-- `pnpm deploy:dev` — build + deploy the isolated dev worker (needs `DEV_D1_ID`)
-- `pnpm run init:github` — one-time: create + push the GitHub repo (main + dev,
-  dev default). Only run when the user asks to set up GitHub.
-- `pnpm run init:hosting` — one-time: provision the hosting platform (dev
-  D1/R2 + repo secrets on cloudflare). Only run when the user asks for it.
-- `npx vitops validate site.json` — schema-check the site config
+This is a **Vite+** project: use `vp` (and its `vpr` shorthand), not `pnpm`/`npm`/`npx`.
+The package manager underneath is pnpm, but `vp` picks it up for you.
+
+| To…                                      | Run                                                     |
+| ---------------------------------------- | ------------------------------------------------------- |
+| install dependencies                     | `vp install`                                            |
+| add / remove / update a package          | `vp add <pkg>` · `vp remove <pkg>` · `vp update`        |
+| run a `package.json` script              | `vpr <script>` (alias for `vp run <script>`)            |
+| run a locally installed binary           | `vp exec <bin>` (e.g. `vp exec vitops docs components`) |
+| run a one-off package without installing | `vp dlx <pkg>`                                          |
+| format + lint + typecheck (files)        | `vp check`                                              |
+| typecheck Astro (`.astro` files)         | `vpr typecheck`                                         |
+
+**Scripts that wrap Astro must go through `vpr`.** `vp dev` / `vp build` run Vite
+directly and skip Astro, so use `vpr dev`, `vpr build`, `vpr preview`.
+
+**`vpr dev` returns immediately.** `astro dev` now starts the server in the
+background. Check it with `vp exec astro dev status`, read its output with
+`vp exec astro dev logs --follow`, and stop it with `vp exec astro dev stop`; the
+site is at <http://localhost:4321>. Don't wait on it as if it were a foreground
+process.
+
+| Script                              | What it does                                                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------------------- |
+| `vpr dev`                           | local dev with local D1/R2 emulation (no Cloudflare account)                                |
+| `vpr deploy`                        | pull production content, build, `wrangler deploy` prod (provisions D1/R2 on first run)      |
+| `vpr deploy:dev`                    | same, for the isolated dev worker (needs `DEV_D1_ID`)                                       |
+| `vpr pull-content`                  | just the content pull (see "Rendering and freshness")                                       |
+| `vpr init:github`                   | one-time: create + push the GitHub repo (main + dev, dev default). Only when the user asks. |
+| `vpr init:hosting`                  | one-time: provision hosting (dev D1/R2 + repo secrets). Only when the user asks.            |
+| `vp exec vitops validate site.json` | schema-check the site config                                                                |
+
+**Release flow.** A site is not a published package, so there is no changeset or
+version bump: ship by committing to `dev` (auto-deploys the dev worker) and then
+running the **promote** workflow. `vp` has no `vp change` / `vp pm change` command
+(checked against vp 1.5.0); for a _package_ it does have `vp pm version`,
+`vp pm publish` and `vp pm stage`.
+
+**Naming the project.** `vp create` takes the package name from the target
+directory and invents a random slug when none is given, so pass one:
+`vp create @getvitops:emdash --directory <client-slug>`. `wrangler.jsonc`'s
+`name`, D1 `database_name` and R2 `bucket_name` are separate and still say
+`my-emdash-site` — rename them to match before the first deploy.

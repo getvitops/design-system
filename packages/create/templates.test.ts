@@ -1,7 +1,10 @@
+import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { validateConfig } from '@getvitops/generator';
+// @ts-ignore — a cross-package source import; `allowImportingTsExtensions` is off here.
+import { CONSENT_STUB, THEME_SCRIPT } from '../astro/src/inline-scripts.ts';
 
 /**
  * Scaffolded projects live OUTSIDE this monorepo, so every dependency
@@ -97,6 +100,32 @@ it('.agents/skills/setup/SKILL.md is identical across templates', () => {
     readFileSync(join(TEMPLATES, name, SKILL_PATH)),
   );
   for (const other of rest) expect(other.equals(first!)).toBe(true);
+});
+
+/**
+ * Both templates ship a Report-Only CSP in `public/_headers`. Its `script-src` names
+ * `<Head />`'s inline scripts by SHA-256, so it is only correct while those hashes
+ * match the bytes `@getvitops/astro` emits. The scripts are constants in
+ * `inline-scripts.ts` (the same ones `csp.ts` hashes and `Head.astro` emits), imported
+ * by relative path rather than through a dependency — `create` ships data, not code,
+ * and shouldn't depend on the astro package just to be tested against it.
+ */
+describe.each(templateNames)('template %s CSP', (name) => {
+  const headers = readFileSync(join(TEMPLATES, name, 'public', '_headers'), 'utf8');
+  const hash = (s: string) => `'sha256-${createHash('sha256').update(s, 'utf8').digest('base64')}'`;
+
+  it('is Report-Only, so it cannot break a page', () => {
+    expect(headers).toMatch(/^\s+Content-Security-Policy-Report-Only: /m);
+    expect(headers).not.toMatch(/^\s+Content-Security-Policy: /m);
+  });
+
+  it("allows each <Head /> inline script by the hash of the bytes it emits, with no 'unsafe-inline'", () => {
+    const policy = /Content-Security-Policy-Report-Only: (.*)/.exec(headers)![1]!;
+    const scriptSrc = policy.split('; ').find((d) => d.startsWith('script-src '))!;
+    expect(scriptSrc).toContain(hash(THEME_SCRIPT));
+    expect(scriptSrc).toContain(hash(CONSENT_STUB));
+    expect(scriptSrc).not.toContain('unsafe-inline');
+  });
 });
 
 /**
