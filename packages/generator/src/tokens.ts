@@ -41,7 +41,14 @@ import {
   pickOn,
   tintedEndpoints,
 } from '@getvitops/utils/color';
-import { BASE_HOOK, TYPO_KEYMAP, type RoleSpec, roleHue, roleKind } from './shared.ts';
+import {
+  BASE_HOOK,
+  LAYOUT_TOKENS,
+  TYPO_KEYMAP,
+  type RoleSpec,
+  roleHue,
+  roleKind,
+} from './shared.ts';
 import type { DesignSystem } from './schema.ts';
 
 export const NUMERIC_STEPS = [
@@ -659,6 +666,9 @@ export function buildReverseIndex(ds: Pick<DesignSystem, 'colors' | 'typography'
   for (const role of Object.keys(typoRoles))
     for (const [key, [, sfx]] of Object.entries(TYPO_KEYMAP))
       reverseIndex[`--${role}-${sfx}`] = `typography.roles.${role}.${key}`;
+
+  // Same mapping as generate.ts: layout tokens are always indexed, set or not.
+  for (const [path, token] of Object.entries(LAYOUT_TOKENS)) reverseIndex[token] = `layout.${path}`;
 
   const pDefaults = ds.patterns?.defaults ?? {};
   const pRadii = ds.patterns?.radii ?? {};
