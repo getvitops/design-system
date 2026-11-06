@@ -28,6 +28,7 @@ export default defineConfig({
       'src/reviews/index.ts',
       'src/ads/index.ts',
       'src/media/index.ts',
+      'src/audit/index.ts',
       'src/notify/index.ts',
       'src/tracking/index.ts',
       'src/security/index.ts',

@@ -20,3 +20,6 @@ site/.wrangler/
 site/.astro/
 
 .npmrc
+
+# `vitops audit` reports
+.vitops/audit/

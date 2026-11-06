@@ -30,6 +30,7 @@ Usage:
   vitops ads <sub> [opts]       Ad properties: verify domains (setup) + emit pixels (tags) + lint
   vitops setup <sub> [opts]     Scripted onboarding: repo, hosting, domain, search, ads, all
   vitops media [options]       Encode raw video into web-ready WebM + MP4 + poster
+  vitops audit [options]       Performance + accessibility budgets over a built site (Lighthouse + axe)
 
 Generate options:
   -i, --input <path>    design-system.json or site config (default: ./design-system.json)
@@ -357,6 +358,29 @@ Media options:
   ffmpeg output is not reproducible across versions, so re-encoding in CI churns
   the diff on every toolchain bump. Use --force when you mean to re-encode.
 
+Audit options:
+      --build           Run \`astro build\` first (default: audit the existing build)
+      --url <base>      Audit an already-running server instead of \`astro preview\`
+      --port <n>        Port for \`astro preview\` (default: 4398; aborts if taken)
+      --dir <path>      Project directory (default: .)
+      --pages <list>    Extra comma-separated paths. Always tried: / /privacy /terms
+                        /cookies /contact, plus links in seed/seed.json's primary* and
+                        footer* menus. A 404 skips a page; a 404 on / fails the run.
+      --no-defaults     Audit only / and --pages
+      --seed <path>     EmDash seed to read menus from (default: seed/seed.json if present)
+      --lcp <ms>        LCP budget (default: 2500)
+      --cls <n>         CLS budget (default: 0.1)
+      --tbt <ms>        Total Blocking Time budget, the INP proxy (default: 200)
+      --impact <list>   axe impacts that fail a page (default: serious,critical)
+      --form-factor <f> mobile | desktop Lighthouse profile (default: mobile)
+  -o, --out <dir>       Report directory (default: .vitops/audit): report.json, report.md,
+                        and pages/<page>.{json,md}
+      --warn            Report without failing (exit 0), for first adoption
+
+  Needs the optional packages: npm i -D playwright @axe-core/playwright lighthouse
+  && npx playwright install chromium. A pass means no automated axe violations and the
+  budgets held — it is NOT AODA certification; report.md lists the manual checks.
+
 Common:
   -h, --help            Show this help
 `;
@@ -412,6 +436,7 @@ export const COMMANDS = [
   'ads',
   'setup',
   'media',
+  'audit',
 ] as const;
 
 /** Commands that group subcommands instead of taking options directly. */

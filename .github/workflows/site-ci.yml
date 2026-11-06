@@ -24,6 +24,18 @@ on:
         description: Run `pnpm run lint:design` (requires the script to exist).
         type: boolean
         default: true
+      # OPT-IN, default off: callers pinned to `@v1` that do not pass it are unaffected.
+      run-audit:
+        description: >-
+          Run `vitops audit` (Lighthouse + axe budgets) against the built site after the
+          build. Requires `playwright`, `@axe-core/playwright` and `lighthouse` in the
+          site's devDependencies. A pass is NOT AODA certification.
+        type: boolean
+        default: false
+      audit-args:
+        description: Extra flags for `vitops audit`, e.g. `--warn` while first adopting it.
+        type: string
+        default: ''
 
 jobs:
   ci:
@@ -61,3 +73,22 @@ jobs:
 
       - name: Build
         run: pnpm run build
+
+      # Opt-in perf + a11y budgets over the build just made (`astro preview` serves the
+      # prerendered output). Chromium comes from Playwright; the report is uploaded even
+      # when the audit fails, which is when it is wanted.
+      - name: Install audit browser
+        if: inputs.run-audit
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Audit (performance + accessibility)
+        if: inputs.run-audit
+        run: pnpm exec vitops audit ${{ inputs.audit-args }}
+
+      - name: Upload audit report
+        if: ${{ always() && inputs.run-audit }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitops-audit
+          path: ${{ inputs.working-directory }}/.vitops/audit
+          if-no-files-found: ignore
