@@ -364,6 +364,17 @@ export default defineConfig({
         command: 'vp run verify:scaffold:emdash && vp run verify:scaffold:static',
         cache: false,
       },
+      // End to end: scaffold the emdash template against THIS checkout, overlay a test-only
+      // seed (a page with every block + a `blocks`-field page, packages/create/e2e/), build,
+      // serve the prerendered output and run `vitops audit` on it. Report lands in
+      // `.vitops/e2e-audit/`. `--pause` (or VITOPS_E2E_PAUSE=1) keeps the site and report up for
+      // a human; refused under CI. Uncached for the same reason as `verify:scaffold`. See
+      // scripts/e2e-audit.mjs.
+      'verify:e2e': {
+        command: 'node scripts/e2e-audit.mjs',
+        dependsOn: ['build:packages'],
+        cache: false,
+      },
       // Apply pending changesets: bump every package + write the per-package
       // CHANGELOG.md files. Run BEFORE `release`, then hand-write the matching
       // entry in the root CHANGELOG.md (the curated, toolchain-level notes).
