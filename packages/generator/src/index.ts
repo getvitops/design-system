@@ -64,6 +64,7 @@ export {
   TYPO_KEYMAP,
   roleHue,
   roleKind,
+  roleSolidOptions,
 } from './shared.ts';
 export type { RoleSpec } from './shared.ts';
 export { tokenVar, tokenClass, CONTRAST } from './tokens.ts';

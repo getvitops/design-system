@@ -143,7 +143,7 @@ const DesignSystemBlock = desc(
     ),
     defaultColorScheme: desc(
       z.optional(z.enum(['light', 'dark', 'system'])),
-      'Initial appearance. `"system"` follows the OS via `prefers-color-scheme` and is what makes `<wc-color-scheme-toggle>`\'s "System" position resolve to anything — it removes the theme attribute, so without this the page falls through to light. It also gives a no-JS page the OS appearance. Defaults to `"light"`, because switching an existing site to `"system"` visibly flips it dark for dark-OS visitors.',
+      'Initial appearance. `"dark"` makes the site DARK-ONLY: the dark tokens become the `:root` appearance (with `color-scheme: dark`), no light block or `data-theme` flip is emitted, and the light-mode contrast checks are skipped — so a palette that only works dark (bright fills with dark text, for example) builds. Do not ship `<wc-color-scheme-toggle>` on such a site. `"system"` follows the OS via `prefers-color-scheme` and is what makes `<wc-color-scheme-toggle>`\'s "System" position resolve to anything — it removes the theme attribute, so without this the page falls through to light. It also gives a no-JS page the OS appearance. Defaults to `"light"`, because switching an existing site to `"system"` visibly flips it dark for dark-OS visitors.',
     ),
   }),
   'The design system: named themes plus the system-wide facts (which theme, which appearance). A bare design system, or a bare theme map, is accepted as shorthand for `{ themes: … }`.',
