@@ -17,6 +17,7 @@ import CopyButton from './blocks/CopyButton.astro';
 import Details from './blocks/Details.astro';
 import Embed from './blocks/Embed.astro';
 import Entries from './blocks/Entries.astro';
+import Form from './blocks/Form.astro';
 import Gallery from './blocks/Gallery.astro';
 import Hero from './blocks/Hero.astro';
 import ImageCompare from './blocks/ImageCompare.astro';
@@ -46,6 +47,7 @@ export const blockComponents = {
   'vitops.entries': Entries,
   'vitops.pricing': Pricing,
   'vitops.embed': Embed,
+  'vitops.form': Form,
 };
 
 /** Keyed by block-type slug (see `SECTION_SLUG`), not by Portable Text `_type`. */

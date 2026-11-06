@@ -1,0 +1,194 @@
+---
+/**
+ * A contact / enquiry form that posts to the site's conversion endpoint.
+ *
+ * Tier 1 first: a real `<form method="post">` of real `<label>`s, styled by the framework's
+ * `forms.css` vocabulary, that works with no JavaScript. It posts to `createConversionRoute()`
+ * (default `/api/track`, which the emdash template ships), which applies the honeypot, origin,
+ * size and rate checks, verifies Turnstile, then writes the CRM and emails the notification.
+ * The block itself decides none of that: it only emits markup the route understands.
+ *
+ * The no-JS round trip. The route answers a form post with a 303 back to the `_next` hidden
+ * field (this page's path, a same-site path only) plus `?sent=1#form-sent` or
+ * `?error=1#form-error`. The page is prerendered and cannot know which happened, so both
+ * messages are always in the markup and `.form-notice--target:not(:target)` hides whichever the
+ * URL fragment does not name. They carry `tabindex="-1"` so following the fragment moves focus
+ * to the message. One form per page: the fragment ids are fixed.
+ *
+ * Spam protection, in layers: a honeypot field named per the route's default, the route's own
+ * origin/rate/size checks, and Cloudflare Turnstile when `site.security.turnstile.siteKey`
+ * exists (the siteKey comes from the build's `virtual:getvitops/head`). Turnstile is emitted as
+ * `<wc-turnstile>`, which loads Cloudflare's script only on first interaction with the form.
+ * Its slotted paragraph is the no-JS explanation. With no site key there is no widget and no
+ * third-party reference at all.
+ *
+ * Field names go through `form.ts`, which keeps them clear of the names the route reserves
+ * (`phone`, `event`, the honeypots), and a phone field submits as `tel`.
+ */
+import head from 'virtual:getvitops/head';
+import { resolveTone, joinStyle } from './tone.ts';
+import { HONEYPOT_NAME, resolveFields, safeAction, safeNext } from './form.ts';
+import { headingTag, resolveBlockValue, rows, text } from './value.ts';
+
+interface Value {
+  heading?: string;
+  level?: string | number;
+  intro?: string;
+  fields?: unknown;
+  submitLabel?: string;
+  successMessage?: string;
+  errorMessage?: string;
+  noJsMessage?: string;
+  action?: string;
+  tone?: string;
+  color?: string;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const fields = resolveFields(rows(value.fields));
+const heading = text(value.heading);
+const intro = text(value.intro);
+const Heading = headingTag(value.level, 2);
+const submitLabel = text(value.submitLabel) || 'Send';
+const successMessage = text(value.successMessage) || 'Thanks. Your message has been sent.';
+const errorMessage =
+  text(value.errorMessage) ||
+  'Sorry, your message could not be sent. Please try again, or contact us another way.';
+const noJsMessage =
+  text(value.noJsMessage) ||
+  'The spam check on this form needs JavaScript. If it is turned off, please contact us by email or phone instead.';
+const action = safeAction(value.action);
+const next = safeNext(Astro.url.pathname) ?? '/';
+const siteKey = typeof head?.turnstileSiteKey === 'string' ? head.turnstileSiteKey : null;
+const tone = resolveTone(value.tone, value.color);
+const successTone = resolveTone('success', '');
+const errorTone = resolveTone('danger', '');
+const hasForm = fields.length > 0;
+---
+
+{
+  hasForm && (
+    <div class:list={['form-block', 'rhythm', tone.className]} style={joinStyle(tone.style)}>
+      {heading && <Heading class="font-heading">{heading}</Heading>}
+      {intro && <p>{intro}</p>}
+
+      <div
+        id="form-sent"
+        class:list={['callout', 'form-notice--target', successTone.className]}
+        style={joinStyle(successTone.style)}
+        role="status"
+        tabindex="-1"
+      >
+        <div class="callout__body">
+          <p class="callout__text">{successMessage}</p>
+        </div>
+      </div>
+      <div
+        id="form-error"
+        class:list={['callout', 'form-notice--target', errorTone.className]}
+        style={joinStyle(errorTone.style)}
+        role="alert"
+        tabindex="-1"
+      >
+        <div class="callout__body">
+          <p class="callout__text">{errorMessage}</p>
+        </div>
+      </div>
+
+      <form method="post" action={action} class="rhythm">
+        <input type="hidden" name="_next" value={next} />
+        {fields.map((f) => {
+          const describedby = f.help ? `${f.id}-help` : undefined;
+          const requiredMark = f.required ? { required: true, 'aria-required': 'true' } : {};
+          return f.type === 'checkbox' ? (
+            <div class="form-group">
+              <label class="custom-check">
+                <input
+                  type="checkbox"
+                  id={f.id}
+                  name={f.name}
+                  value="yes"
+                  aria-describedby={describedby}
+                  {...requiredMark}
+                />
+                <span class="custom-check__box">
+                  <span class="custom-check__indicator custom-check__indicator--check" />
+                </span>
+                <span>{f.label}</span>
+              </label>
+              {f.help && (
+                <p id={`${f.id}-help`} class="form-group__helper">
+                  {f.help}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div class="form-group">
+              <label class="form-group__label" for={f.id}>
+                {f.label}
+                {!f.required && <span class="form-group__optional">(optional)</span>}
+              </label>
+              {f.type === 'textarea' ? (
+                <textarea
+                  id={f.id}
+                  name={f.name}
+                  rows="5"
+                  placeholder={f.placeholder || undefined}
+                  aria-describedby={describedby}
+                  {...requiredMark}
+                />
+              ) : f.type === 'select' ? (
+                <div class="custom-select">
+                  <select id={f.id} name={f.name} aria-describedby={describedby} {...requiredMark}>
+                    <option value="">Choose one</option>
+                    {f.options.map((o) => (
+                      <option value={o}>{o}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <input
+                  type={f.type}
+                  id={f.id}
+                  name={f.name}
+                  placeholder={f.placeholder || undefined}
+                  autocomplete={f.autocomplete}
+                  aria-describedby={describedby}
+                  {...requiredMark}
+                />
+              )}
+              {f.help && (
+                <p id={`${f.id}-help`} class="form-group__helper">
+                  {f.help}
+                </p>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Honeypot: named per createConversionRoute's default list. Positioned off-screen rather than
+            display:none (which simple bots skip), and hidden from assistive tech and the tab order. */}
+        <div class="sr-only" aria-hidden="true">
+          <label>
+            Leave this field empty
+            <input type="text" name={HONEYPOT_NAME} tabindex="-1" autocomplete="off" />
+          </label>
+        </div>
+
+        {siteKey && (
+          <wc-turnstile sitekey={siteKey}>
+            <p class="form-group__helper" data-turnstile-fallback>
+              {noJsMessage}
+            </p>
+          </wc-turnstile>
+        )}
+
+        <p>
+          <button type="submit" class="cta">
+            {submitLabel}
+          </button>
+        </p>
+      </form>
+    </div>
+  )
+}

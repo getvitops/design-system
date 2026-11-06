@@ -17,7 +17,7 @@ describe('renderBlocksDoc', () => {
   });
 
   it('documents the new library blocks', () => {
-    for (const t of ['logos', 'steps', 'stats', 'callout', 'entries', 'pricing', 'embed'])
+    for (const t of ['logos', 'steps', 'stats', 'callout', 'entries', 'pricing', 'embed', 'form'])
       expect(doc).toContain(`## \`vitops.${t}\``);
   });
 
