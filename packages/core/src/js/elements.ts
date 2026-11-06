@@ -27,3 +27,4 @@ import '../web-components/WCTree.js';
 import '../web-components/WCCards.js';
 import '../web-components/WCGallery.js';
 import '../web-components/WCCounter.js';
+import '../web-components/WCTurnstile.js';

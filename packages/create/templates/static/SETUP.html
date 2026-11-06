@@ -416,6 +416,23 @@
               </span>
             </label>
             <label class="custom-check">
+              <input type="checkbox" data-sop="connections.turnstile" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                If the site has a contact form, create its spam check:
+                <code>vp exec vitops setup turnstile --dry</code>, then
+                <code>vp exec vitops setup turnstile</code>. It needs
+                <code>CLOUDFLARE_API_TOKEN</code> with
+                <strong>Account &gt; Turnstile &gt; Edit</strong> (plus
+                <code>CLOUDFLARE_ACCOUNT_ID</code>) and <code>wrangler login</code>. The public site
+                key goes into <code>site.security.turnstile.siteKey</code>; the secret is saved as
+                the Worker secret <code>VITOPS_TURNSTILE_SECRET</code> and never touches
+                <code>site.json</code>. It never edits or deletes an existing widget.
+              </span>
+            </label>
+            <label class="custom-check">
               <input type="checkbox" data-sop="connections.email" />
               <span class="custom-check__box"
                 ><span class="custom-check__indicator custom-check__indicator--check"></span

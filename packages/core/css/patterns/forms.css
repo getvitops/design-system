@@ -369,3 +369,17 @@ select.custom-select {
 :where(wc-multi-field) {
   display: block;
 }
+
+/* `<wc-turnstile>` wraps a fallback paragraph and the widget box, both blocks (light DOM, no `:host`). */
+:where(wc-turnstile) {
+  display: block;
+}
+
+/*
+ * A message shown only when the URL fragment names it. A prerendered page cannot know whether a
+ * no-JS post succeeded, so a form's success and error notices are always in the markup and the
+ * endpoint's redirect (`#form-sent` / `#form-error`) reveals one.
+ */
+.form-notice--target:not(:target) {
+  display: none;
+}

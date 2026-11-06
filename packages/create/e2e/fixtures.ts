@@ -14,6 +14,9 @@
  * `public/`, so every `src` below is same-origin and the report-only CSP stays quiet.
  */
 
+// @ts-ignore — a cross-package source import; `allowImportingTsExtensions` is off here.
+import { SAMPLE_FORM_BLOCK } from '../../emdash/src/astro/blocks/form.sample.ts';
+
 const IMG = {
   wide: '/e2e/wireframe-600x400.png',
   tall: '/e2e/wireframe-400x600.png',
@@ -228,6 +231,9 @@ export const FIXTURES: Record<string, BlockFixture> = {
     sort: 'recent',
     avatars: false,
   },
+  // One form per page (fixed ids), so this is the only form on `/blocks`. The site.json has no
+  // Turnstile key, so no widget or third-party request is part of the audited page.
+  'vitops.form': (({ _type: _t, _key: _k, ...fields }) => fields)(SAMPLE_FORM_BLOCK),
   'vitops.nav': {
     menu: 'footer-sitemap',
     label: 'Page links',

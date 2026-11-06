@@ -2,7 +2,7 @@ import { defineConfig } from 'vite-plus';
 
 // Node library build for @getvitops/utils. Externalises sharp + png-to-ico
 // (native/heavy — loaded lazily at runtime). One entry per published subpath —
-// `indexing`, `onboarding` and `ads` are separate because they are the
+// `indexing`, `onboarding`, `ads` and `turnstile` are separate because they are the
 // network-touching modules here, `media` because it is the only one that shells
 // out to an external encoder (ffmpeg), `hosting` because it shells out to
 // `wrangler`/`gh` for the same reason, and `email` because it both calls
@@ -37,6 +37,7 @@ export default defineConfig({
       'src/reviews/index.ts',
       'src/reviews/select.ts',
       'src/ads/index.ts',
+      'src/turnstile/index.ts',
       'src/media/index.ts',
       'src/audit/index.ts',
       'src/notify/index.ts',

@@ -71,6 +71,19 @@ export function renderBlocksDoc(blocks: readonly PortableTextBlockDef[] = BLOCKS
     }
   }
   out.push(
+    '## `vitops.form` needs an endpoint',
+    '',
+    'The form posts to `/api/track` (the `action` field overrides it), which must be an on-demand route',
+    'built with `createConversionRoute()` from `@getvitops/astro/routes`; the emdash template ships one.',
+    'Field names are submitted as written, except that `phone` becomes `tel` and a few names the route',
+    'reserves (`event`, `website`, `honeypot`, `_honeypot`, `cf-turnstile-response`) are renamed.',
+    'It emails `site.notifications.email` and writes `site.crm` when set; with neither, the route refuses',
+    'the post rather than accept a message nobody receives. Add the spam check with',
+    '`vitops setup turnstile`: once `site.security.turnstile.siteKey` is set the block renders',
+    '`<wc-turnstile>`, which loads Cloudflare Turnstile only when the visitor first uses the form',
+    '(category `necessary`, so it is not behind the consent banner). The secret lives in the',
+    '`VITOPS_TURNSTILE_SECRET` Worker secret, never in `site.json`. Use one form per page.',
+    '',
     '## Block types (the `blocks` field)',
     '',
     'Schema-level block types, not Portable Text blocks: add them to the seed (`blockTypes: [...vitopsBlockTypes()]`),',

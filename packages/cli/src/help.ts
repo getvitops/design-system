@@ -345,6 +345,22 @@ Setup domain options:
   or deploys. Cutover overwrites the zone's DNS record and can take an existing live
   site down; that step is manual, on purpose. See SETUP.html's "Domain strategy" stage.
 
+Setup turnstile options:
+  -i, --input <path>    Site config (default: ./site.json)
+      --site-env <env>  Environment to read (default: production)
+      --dry             Print the plan and exit (needs no token)
+      --check           Exit non-zero if no widget/site key is set up; mutates nothing
+      --no-write        Do not write site.security.turnstile.siteKey back to the config
+      --no-secret       Do not run \`wrangler secret put\` for the new widget's secret
+
+  Creates a managed Turnstile widget for the site's hostnames (canonical + each
+  environment URL) unless one already covers them, and writes the PUBLIC site key to
+  site.security.turnstile.siteKey. The SECRET is returned once at creation: it is piped
+  to \`wrangler secret put VITOPS_TURNSTILE_SECRET\` and never written to a config file.
+  Never edits, rotates or deletes an existing widget.
+  Needs CLOUDFLARE_API_TOKEN with "Account > Turnstile > Edit", plus CLOUDFLARE_ACCOUNT_ID
+  (or a token that can list accounts), and \`wrangler login\` for the secret.
+
 Setup search options:
   Forwards every option to \`vitops search setup\` unchanged — see "Search setup
   options:" above.
@@ -532,7 +548,7 @@ export const SUBCOMMANDS: Record<string, readonly string[]> = {
   search: ['setup', 'notify'],
   ads: ['setup', 'tags', 'lint'],
   crm: ['check', 'setup'],
-  setup: ['repo', 'hosting', 'domain', 'search', 'ads', 'all'],
+  setup: ['repo', 'hosting', 'domain', 'turnstile', 'search', 'ads', 'all'],
   email: ['setup', 'check'],
 };
 

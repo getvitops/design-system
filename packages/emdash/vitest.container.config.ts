@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { getViteConfig } from 'astro/config';
 
 /**
@@ -14,6 +15,15 @@ import { getViteConfig } from 'astro/config';
  * Run via `vp run test:render` in this package, not the root `vp test`.
  */
 export default getViteConfig({
+  // `virtual:getvitops/head` is supplied by the `vitops()` integration in a real site; a stub
+  // stands in so the form block's one read of it (`turnstileSiteKey`) can be driven by a test.
+  resolve: {
+    alias: {
+      'virtual:getvitops/head': fileURLToPath(
+        new URL('./src/astro/blocks/head.stub.ts', import.meta.url),
+      ),
+    },
+  },
   test: {
     include: ['src/astro/blocks/render.container.test.ts'],
     environment: 'node',

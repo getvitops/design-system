@@ -752,6 +752,74 @@ export const BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
+    type: 'vitops.form',
+    label: 'Contact form',
+    placeholder: 'An enquiry form that emails you (and your CRM) and works without JavaScript',
+    category: 'Forms',
+    fields: [
+      { type: 'text_input', action_id: 'heading', label: 'Heading' },
+      levelField('2'),
+      { type: 'text_input', action_id: 'intro', label: 'Text above the form', multiline: true },
+      {
+        type: 'repeater',
+        action_id: 'fields',
+        label: 'Fields',
+        item_label: 'field',
+        min_items: 1,
+        fields: [
+          { type: 'text_input', action_id: 'label', label: 'Label (what the visitor sees)' },
+          {
+            type: 'text_input',
+            action_id: 'name',
+            label: 'Name in the message (optional: letters, digits, underscores)',
+          },
+          {
+            type: 'select',
+            action_id: 'type',
+            label: 'Kind',
+            initial_value: 'text',
+            options: [
+              { label: 'Short text', value: 'text' },
+              { label: 'Email address', value: 'email' },
+              { label: 'Phone number', value: 'tel' },
+              { label: 'Long text', value: 'textarea' },
+              { label: 'Choose one', value: 'select' },
+              { label: 'Tick box', value: 'checkbox' },
+            ],
+          },
+          { type: 'toggle', action_id: 'required', label: 'Required', initial_value: false },
+          { type: 'text_input', action_id: 'placeholder', label: 'Example text' },
+          { type: 'text_input', action_id: 'help', label: 'Help text under the field' },
+          {
+            type: 'text_input',
+            action_id: 'options',
+            label: 'Choices (one per line; for "Choose one" only)',
+            multiline: true,
+          },
+        ],
+      },
+      { type: 'text_input', action_id: 'submitLabel', label: 'Button text', initial_value: 'Send' },
+      {
+        type: 'text_input',
+        action_id: 'successMessage',
+        label: 'Message after sending',
+        initial_value: 'Thanks. Your message has been sent.',
+      },
+      { type: 'text_input', action_id: 'errorMessage', label: 'Message if sending fails' },
+      {
+        type: 'text_input',
+        action_id: 'noJsMessage',
+        label: 'Message when JavaScript is off (shown only if the site has a spam check)',
+      },
+      {
+        type: 'text_input',
+        action_id: 'action',
+        label: 'Where the form posts (leave empty for /api/track)',
+      },
+      ...toneFields(),
+    ],
+  },
+  {
     /**
      * Google reviews from the committed `.vitops/reviews.json` cache (`vitops reviews`).
      *

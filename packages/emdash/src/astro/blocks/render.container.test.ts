@@ -13,6 +13,9 @@ import Callout from './Callout.astro';
 import Cards from './Cards.astro';
 import Embed from './Embed.astro';
 import Entries from './Entries.astro';
+import Form from './Form.astro';
+import head from './head.stub.ts';
+import { SAMPLE_FORM_BLOCK } from './form.sample.ts';
 import Hero from './Hero.astro';
 import Logos from './Logos.astro';
 import Pricing from './Pricing.astro';
@@ -476,4 +479,92 @@ describe('vitops_section', () => {
     expect(html).toContain('class="logos"');
     expect(html).toContain('alt="Acme"');
   }, 60_000);
+});
+
+describe('vitops.form', () => {
+  async function renderForm(node: object, path = '/contact') {
+    const container = await AstroContainer.create();
+    return container.renderToString(Form as unknown as Component, {
+      props: { node },
+      request: new Request(`http://localhost${path}`),
+    });
+  }
+
+  it('renders a no-JS form: real labels, a post to the endpoint, and its own page as _next', async () => {
+    head.turnstileSiteKey = null;
+    const html = await renderForm(SAMPLE_FORM_BLOCK);
+    expect(html).toContain('<form method="post" action="/api/track"');
+    expect(html).toContain('name="_next" value="/contact"');
+    expect(html).toMatch(/<label class="form-group__label" for="form-1-name">\s*Your name/);
+    expect(html).toContain('id="form-1-name"');
+    expect(html).toContain('autocomplete="name"');
+    expect(html).toContain('type="email"');
+    expect(html).toContain('autocomplete="email"');
+    expect(html).toContain('<textarea');
+    expect(html).toContain('<option value="Design">Design</option>');
+    expect(html).toContain('type="checkbox"');
+    expect(html).toContain('Send message');
+  });
+
+  it('never submits a phone field as `phone`: the route drops that name', async () => {
+    const html = await renderForm(SAMPLE_FORM_BLOCK);
+    expect(html).toContain('name="tel"');
+    expect(html).not.toContain('name="phone"');
+    expect(html).toContain('autocomplete="tel"');
+  });
+
+  it('marks required fields and ties help text to its control', async () => {
+    const html = await renderForm(SAMPLE_FORM_BLOCK);
+    expect(html).toMatch(/id="form-2-email"[^>]*required/);
+    expect(html).toContain('aria-describedby="form-2-email-help"');
+    expect(html).toContain('id="form-2-email-help"');
+    expect(html).toContain('(optional)');
+  });
+
+  it('ships a honeypot the route recognises, hidden from assistive tech and the tab order', async () => {
+    const html = await renderForm(SAMPLE_FORM_BLOCK);
+    expect(html).toMatch(/aria-hidden="true"[\s\S]*name="website"[^>]*tabindex="-1"/);
+  });
+
+  it('carries both result notices, revealed by the URL fragment, with the editor message', async () => {
+    const html = await renderForm(SAMPLE_FORM_BLOCK);
+    expect(html).toMatch(/id="form-sent"[^>]*role="status"/);
+    expect(html).toMatch(/id="form-error"[^>]*role="alert"/);
+    expect(html).toContain('form-notice--target');
+    expect(html).toContain('Thanks, we will be in touch.');
+  });
+
+  it('has no Turnstile and no third-party reference without a site key', async () => {
+    head.turnstileSiteKey = null;
+    const html = await renderForm(SAMPLE_FORM_BLOCK);
+    expect(html).not.toContain('wc-turnstile');
+    expect(html).not.toContain('cloudflare.com');
+  });
+
+  it('renders <wc-turnstile> with its no-JS explanation when a site key exists, and no script', async () => {
+    head.turnstileSiteKey = '0x4AAAAAAAexample1234';
+    try {
+      const html = await renderForm(SAMPLE_FORM_BLOCK);
+      expect(html).toContain('<wc-turnstile sitekey="0x4AAAAAAAexample1234">');
+      expect(html).toContain('data-turnstile-fallback');
+      expect(html).toContain('needs JavaScript');
+      // The widget script is loaded by the element on interaction, never emitted here.
+      expect(html).not.toContain('<script');
+      expect(html).not.toContain('challenges.cloudflare.com');
+    } finally {
+      head.turnstileSiteKey = null;
+    }
+  });
+
+  it('refuses an off-site action and renders nothing for a form with no fields', async () => {
+    const html = await renderForm({ ...SAMPLE_FORM_BLOCK, action: 'https://evil.example/steal' });
+    expect(html).toContain('action="/api/track"');
+    expect(html).not.toContain('evil.example');
+    expect(await renderForm({ _type: 'vitops.form', fields: [] })).not.toContain('<form');
+  });
+
+  it('escapes editor text', async () => {
+    const html = await renderForm({ ...SAMPLE_FORM_BLOCK, heading: '<script>alert(1)</script>' });
+    expect(html).not.toContain('<script>alert(1)');
+  });
 });
