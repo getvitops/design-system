@@ -1,0 +1,61 @@
+/**
+ * Stats — a row of headline figures ("11 hrs/week", "82%") and, as `.stats--tiles`, a
+ * grid of labelled tiles with a group, a delta and a state (the generic kernel of a
+ * dashboard mock: "Open jobs  24  +3 this week").
+ *
+ * The figure is the `.counter` pattern, so the count-up is `<wc-counter>`'s; this
+ * partial only lays the figures out. With no JS and no CSS each figure is plain text
+ * beside its label.
+ *
+ * `data-state` on a tile (`up` / `down`) drives the delta's colour through the semantic
+ * roles, so "good" and "bad" follow the site's own success/danger rather than a hard-coded
+ * green and red. The delta's words stay in the text: colour is never the only carrier.
+ */
+.stats {
+  display: grid;
+  gap: var(--stats-gap, 1.5rem);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--stats-min, 12rem)), 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  .stats__item {
+    display: grid;
+    gap: 0.25rem;
+    align-content: start;
+    margin: 0;
+  }
+
+  .stats__figure,
+  .stats__label,
+  .stats__group,
+  .stats__delta {
+    margin: 0;
+  }
+
+  .stats__figure {
+    color: var(--tone-fg, inherit);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stats__group {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.8;
+  }
+
+  .stats__item[data-state='up'] .stats__delta {
+    color: var(--color-text-success, inherit);
+  }
+
+  .stats__item[data-state='down'] .stats__delta {
+    color: var(--color-text-danger, inherit);
+  }
+
+  &.stats--tiles .stats__item {
+    padding: var(--stats-tile-padding, 1rem 1.25rem);
+    border: var(--b-card, var(--b-card-group, var(--b-default)));
+    border-radius: var(--br-card, var(--br-card-group, var(--br-default)));
+    background-color: var(--tone-bg, transparent);
+  }
+}

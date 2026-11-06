@@ -1,0 +1,98 @@
+/**
+ * Steps — an ordered sequence ("getting started is simple") with a connector line
+ * running through the numbered markers.
+ *
+ * It is an `<ol>`, so the order is semantic and announced with no CSS. The number is a
+ * CSS counter and the connector a pseudo-element on each item; without this stylesheet
+ * the list is simply a numbered list. Vertical by default, side by side with `--row`
+ * once the container has room.
+ *
+ * The marker takes its fill from `.tone` (`--tone-solid` / `--tone-on-solid`), so one
+ * `tone` field recolours the whole sequence.
+ */
+.steps {
+  --_marker: var(--steps-marker-size, 2.5rem);
+  --_line: var(--steps-line-width, 2px);
+  --_gap: var(--steps-gap, 1.5rem);
+
+  display: grid;
+  gap: var(--_gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+
+  .steps__item {
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--_marker) minmax(0, 1fr);
+    column-gap: 1rem;
+    align-items: start;
+    counter-increment: step;
+  }
+
+  /* The marker. */
+  .steps__item::before {
+    content: counter(step);
+    display: grid;
+    place-items: center;
+    inline-size: var(--_marker);
+    block-size: var(--_marker);
+    border-radius: 50%;
+    font-weight: 700;
+    background-color: var(--tone-solid, currentColor);
+    color: var(--tone-on-solid, Canvas);
+    position: relative;
+    z-index: 1;
+  }
+
+  /* The connector: from this marker down to the next. */
+  .steps__item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: calc(var(--_marker) / 2 - var(--_line) / 2);
+    inset-block-start: var(--_marker);
+    inset-block-end: calc(var(--_gap) * -1);
+    inline-size: var(--_line);
+    background-color: var(--tone-border, currentColor);
+    opacity: 0.4;
+  }
+
+  .steps__body {
+    display: grid;
+    gap: 0.25rem;
+    grid-column: 2;
+    min-inline-size: 0;
+  }
+
+  .steps__title,
+  .steps__text {
+    margin: 0;
+  }
+}
+
+/* Side by side once there is room: the marker sits above its text and the line runs across. */
+@container (min-width: 48rem) {
+  .steps.steps--row {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+
+    .steps__item {
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 0.75rem;
+    }
+
+    .steps__body {
+      grid-column: 1;
+    }
+
+    .steps__item:not(:last-child)::after {
+      inset-inline-start: var(--_marker);
+      inset-inline-end: calc(var(--_gap) * -1);
+      inset-block-start: calc(var(--_marker) / 2 - var(--_line) / 2);
+      inset-block-end: auto;
+      inline-size: auto;
+      block-size: var(--_line);
+    }
+  }
+}

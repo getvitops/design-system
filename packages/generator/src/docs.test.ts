@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vite-plus/test';
 import { generateDocs } from './docs.ts';
 import { defaultConfig } from './index.ts';
 import { BASE_HOOK, TW_CLASH } from './shared.ts';
-import { TIER_NAMES, tierPatterns } from './tiers.ts';
+import { TIERS, TIER_NAMES, tierPatterns } from './tiers.ts';
 
 // A nonexistent assetsDir is fine: renderElementsDoc guards with existsSync and
 // emits an (empty) element reference, so no built package assets are required.
@@ -211,6 +211,15 @@ describe('generateDocs bundle', () => {
         for (const type of entry.emdash!) expect(md, `block missing`).toContain(`\`${type}\``);
       for (const { entry } of tierPatterns('css'))
         if (entry.css.partial) expect(md, `partial missing`).toContain(`\`${entry.css.partial}\``);
+    });
+
+    it('states why a shipped web component has no EmDash block', () => {
+      const md = doc();
+      expect(md).toContain('Web components with no block, on purpose');
+      for (const n of TIER_NAMES) {
+        const reason = TIERS[n]!.emdashExempt;
+        if (reason) expect(md, `exemption for ${n} missing`).toContain(reason);
+      }
     });
 
     it('warns against composing two tiers by hand', () => {

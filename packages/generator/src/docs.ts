@@ -1894,6 +1894,11 @@ function renderComponentsConcept(ds: DesignSystem): string {
     )
     .join('\n');
 
+  // The decisions, not just the members: a shipped web component with no block says why.
+  const exempt = TIER_NAMES.filter((n) => TIERS[n]!.emdashExempt)
+    .map((n) => `- ${code(TIERS[n]!.wc?.tag ?? n)} — ${TIERS[n]!.emdashExempt}`)
+    .join('\n');
+
   const css = tierPatterns('css')
     .map(({ name, entry }) => {
       const c = entry.css;
@@ -2003,12 +2008,20 @@ ${bricks}
 ## EmDash blocks
 
 Portable Text block ${code('_type')}s from ${code('@getvitops/emdash')}. Repeating patterns are
-repeater fields. A block cannot contain other blocks — a section holding a card and a button is a
-${code('blocks')} field in the EmDash schema, not a Portable Text block.
+repeater fields. A Portable Text block cannot contain other blocks, so a pattern that must hold
+them is a schema-level block TYPE with a Portable Text body instead — ${code('vitops_section')},
+from ${code('vitopsBlockTypes()')}. Its body accepts every ${code('vitops.*')} block below.
 
 | Block | Pattern | Renders via |
 | --- | --- | --- |
 ${emdash}
+
+### Web components with no block, on purpose
+
+Every shipped ${code('wc-*')} element either has a block above or a stated reason here
+(${code('emdashExempt')} in the manifest, enforced by ${code('tiers.test.ts')}):
+
+${exempt}
 
 ## CSS
 
