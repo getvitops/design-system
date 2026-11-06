@@ -59,6 +59,10 @@ const STEPS = {
   emdash: [
     ['pnpm', ['install']],
     ['pnpm', ['run', 'typecheck']],
+    // The build prerenders from a LOCAL D1 that a fresh scaffold has never migrated; without
+    // this the build "succeeds" with the pending-migrations page as every route, and the
+    // template's own `build` guard (scripts/check-prerender.mjs) fails it.
+    ['pnpm', ['run', 'prepare-local-db']],
     ['pnpm', ['run', 'build'], { capture: true }],
     ['pnpm', ['run', 'lint:design']],
     ['pnpm', ['exec', 'emdash', 'seed', '--validate', 'seed/seed.json']],

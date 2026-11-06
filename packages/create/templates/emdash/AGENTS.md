@@ -89,6 +89,20 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
     fails closed: a failed export aborts the deploy rather than publishing an
     empty site (the one exception is a database that doesn't exist yet, the first
     deploy, which builds from the seed). `SKIP_PULL_CONTENT=1` skips it.
+  - **The local database must be migrated before the build.** The template runs
+    `migrations: { runtime: 'check' }`, so a build against a local database with
+    pending migrations prerenders EmDash's one-line "Database migrations are
+    required" response into every page — and still succeeds. That is what a fresh
+    runner, a first deploy, a `SKIP_PULL_CONTENT=1` build and an **upgrade** deploy
+    (the pull restores production's older schema, and `emdash migrate` only runs
+    after the build) would all publish. `scripts/prepare-local-db.mjs` (run after the
+    pull by `vpr deploy`, `vpr deploy:dev` and the reusable workflow) starts `astro
+    dev` once, calls EmDash's `dev-bypass` setup (which migrates and applies the
+    seed's sample content) and stops it; `scripts/check-prerender.mjs` (part of
+    `vpr build`) then fails the build if any prerendered page is not a real HTML page
+    with a title. Run `vpr prepare-local-db` by hand before a first local `vpr build`.
+    It only writes the disposable `.wrangler/state`; the dev administrator it creates
+    is never deployed.
   - **Freshness is a rebuild.** Production is the truth for content, and a page
     reflects it as of the last build. Publishing in the admin therefore has to
     trigger one: the deploy workflows listen for a `repository_dispatch` event of
@@ -317,6 +331,7 @@ process.
 | `vpr deploy`                        | pull production content, build, `wrangler deploy` prod (provisions D1/R2 on first run)      |
 | `vpr deploy:dev`                    | same, for the isolated dev worker (needs `DEV_D1_ID`)                                       |
 | `vpr pull-content`                  | just the content pull (see "Rendering and freshness")                                       |
+| `vpr prepare-local-db`              | migrate and seed the local D1 the build prerenders from                                     |
 | `vpr init:github`                   | one-time: create + push the GitHub repo (main + dev, dev default). Only when the user asks. |
 | `vpr init:hosting`                  | one-time: provision hosting (dev D1/R2 + repo secrets). Only when the user asks.            |
 | `vp exec vitops validate site.json` | schema-check the site config                                                                |

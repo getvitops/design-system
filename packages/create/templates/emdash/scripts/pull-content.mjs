@@ -18,7 +18,8 @@
 // Fails CLOSED. A deploy that proceeds after a failed pull would publish an empty
 // site over a good one, so any failure aborts the deploy — except one case that is
 // not a failure: the remote database does not exist yet (the first deploy, where
-// wrangler provisions it), where building from the seed is exactly right.
+// wrangler provisions it). Building from the seed is only right once the local database is
+// migrated and seeded, which is `scripts/prepare-local-db.mjs`'s job, run straight after this.
 //
 // Skip with SKIP_PULL_CONTENT=1 (e.g. a deliberate seed-only build).
 

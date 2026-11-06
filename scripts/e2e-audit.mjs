@@ -86,41 +86,6 @@ let registry;
 let server;
 let kept = keep;
 
-/**
- * Migrate and seed the LOCAL D1 the build prerenders from. The template's `runtime: 'check'`
- * means a build against an unmigrated database prerenders EmDash's pending-migrations page
- * (no title, no `lang`, no content) and succeeds anyway — and a seed's sample content is only
- * applied by the setup wizard, never by a build. EmDash's dev-bypass endpoint is the
- * non-interactive form of that wizard ("runs migrations, creates a development administrator,
- * and adds the seed's sample content"), so: start `astro dev`, hit it once, stop it. The state
- * lands in `.wrangler/state`, where the build's prerender reads it.
- */
-async function seedLocalDatabase(site, step) {
-  const port = await freePort();
-  step('pnpm', ['exec', 'astro', 'dev', '--port', String(port), '--host', '127.0.0.1']);
-  try {
-    const base = `http://127.0.0.1:${port}`;
-    await until(
-      async () => (await fetch(`${base}/`, { redirect: 'manual' })).status < 600,
-      'astro dev',
-    );
-    const res = await fetch(`${base}/_emdash/api/setup/dev-bypass?redirect=/`, {
-      redirect: 'manual',
-      signal: AbortSignal.timeout(120_000),
-    });
-    if (res.status >= 400) throw new Error(`dev-bypass setup answered ${res.status}`);
-    // A dev server that 500s on every route still contains no "No home page yet" text, so the
-    // status is checked first: a broken dev runtime must fail here, not pass as "seeded".
-    const homeRes = await fetch(`${base}/`);
-    if (!homeRes.ok) throw new Error(`astro dev answered ${homeRes.status} on / (dev is broken)`);
-    const home = await homeRes.text();
-    if (/No home page yet/.test(home)) throw new Error('the seed content was not applied');
-    log('seeded the local database via the dev-bypass setup');
-  } finally {
-    run('pnpm', ['exec', 'astro', 'dev', 'stop'], { cwd: site, tag: TAG });
-  }
-}
-
 async function cleanup() {
   server?.stop();
   registry?.stop();
@@ -165,7 +130,8 @@ try {
   };
   step('pnpm', ['install']);
   step('pnpm', ['exec', 'emdash', 'seed', '--validate', 'seed/seed.json']);
-  await seedLocalDatabase(site, step);
+  // The template's own pre-build step: migrates and seeds the LOCAL D1 the build prerenders from.
+  step('pnpm', ['run', 'prepare-local-db']);
   step('pnpm', ['run', 'build']);
 
   // 4. Serve the prerendered output.

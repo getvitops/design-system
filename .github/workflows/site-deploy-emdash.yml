@@ -130,6 +130,10 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      - name: Prepare local database for prerender (dev)
+        if: inputs.is-dev
+        run: pnpm run prepare-local-db
+
       - name: Build (dev)
         if: inputs.is-dev
         run: pnpm run build && node scripts/build-dev-wrangler.mjs
@@ -174,6 +178,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Prepare local database for prerender (prod)
+        if: ${{ !inputs.is-dev }}
+        run: pnpm run prepare-local-db
 
       - name: Build (prod)
         if: ${{ !inputs.is-dev }}
