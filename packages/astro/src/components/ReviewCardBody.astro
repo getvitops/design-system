@@ -26,6 +26,7 @@ const initials = review.author
 
 // Google-hosted and fetched from outside the repo, so never trusted as a URL.
 const authorPhoto = safeHref(review.authorPhoto);
+const sourceUrl = safeHref(review.url);
 const full = Math.floor(review.rating);
 const hasHalf = review.rating - full >= 0.5;
 ---
@@ -59,6 +60,16 @@ const hasHalf = review.rating - full >= 0.5;
     </span>
   </header>
   {review.text && <blockquote class="review__body">{review.text}</blockquote>}
+  {
+    sourceUrl && (
+      // `nofollow`: the link is to a third party's page about the business itself, and
+      // Google's guidance for duplicated review content is to not pass it endorsement.
+      <a class="review__source link" href={sourceUrl} rel="nofollow noopener noreferrer">
+        View on Google
+        <span class="sr-only"> (review by {review.author})</span>
+      </a>
+    )
+  }
   {
     review.reply && (
       <footer class="review__reply">
