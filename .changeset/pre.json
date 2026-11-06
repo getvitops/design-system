@@ -1,0 +1,32 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "@getvitops/astro": "8.2.0",
+    "@getvitops/cli": "8.2.0",
+    "@getvitops/config": "8.2.0",
+    "@getvitops/core": "8.2.0",
+    "@getvitops/create": "0.8.2",
+    "@getvitops/emdash": "1.0.0",
+    "@getvitops/generator": "8.2.0",
+    "@getvitops/utils": "8.2.0",
+    "@getvitops/vite": "8.2.0",
+    "site": "0.0.0"
+  },
+  "changesets": [
+    "astro-dev-icons-sprite",
+    "block-library-patterns",
+    "contact-form-turnstile",
+    "emdash-block-library",
+    "emdash-build-commands",
+    "emdash-reviews-nav-blocks",
+    "honest-theming",
+    "legal-quebec-casl",
+    "manifest-for-tailwind-editor",
+    "org-optional-address",
+    "scaffold-prerender-csp",
+    "site-nav-footer",
+    "template-local-db-prepare",
+    "vitops-audit"
+  ]
+}

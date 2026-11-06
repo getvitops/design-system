@@ -1,5 +1,88 @@
 # @getvitops/generator
 
+## 8.3.0-alpha.0
+
+### Minor Changes
+
+- 93d2067: New framework patterns and an `Entries` component for the EmDash block library.
+
+  **CSS, all formats** (css, bricks and inlined into tailwind's `components` layer; no existing class changes): `tone` (a shared tint/solid colour convention driven by `--tone-*` custom properties, plus `.accent` for a run inside a heading), `section` (head and heading-left `--split` layout), `steps` (numbered `<ol>` with a connector line), `stats` (figures and `--tiles`), `callout` (a call-to-action band), `logos` (a still partner grid) and `embed` (a consent-gated iframe frame). All are structural partials, classified `vitops.components`.
+
+  **`@getvitops/astro`:** new `Entries.astro` (`@getvitops/astro/components/Entries.astro`) emits `<wc-entries>` itself with the semantic heading + `<dl>` fallback.
+
+  **`@getvitops/generator`:** `TierEntry` gains `emdashExempt` (a reason a shipped web component has no EmDash block). `tiers.test.ts` now fails if a shipped `wc-*` has neither `emdash` nor `emdashExempt`, and the components doc and the docs site list the exemptions.
+
+  No other consumer-facing change in `@getvitops/core`, `@getvitops/utils`, `@getvitops/cli` or `@getvitops/vite` beyond the version bump.
+
+- 161c7f3: A contact form that works end to end: `vitops setup turnstile`, `<wc-turnstile>`, the `vitops.form` EmDash block, and the route the emdash template ships to receive it.
+
+  **CSS, all formats** (no existing class changes): `forms.css` gains `.form-notice--target:not(:target)` (a message revealed only when the URL fragment names it, which is how a prerendered page shows a no-JS form's result) and `:where(wc-turnstile) { display: block }`.
+
+  **`@getvitops/core`:** new `<wc-turnstile sitekey="…">` in `elements.js`. It loads Cloudflare Turnstile on the first interaction with its form (no request to `challenges.cloudflare.com` for a visitor who only reads the page), holds an early submit until the token arrives, and leaves its slotted no-JS explanation in place until JS takes over. Turnstile is category `necessary`, so it is not behind the consent banner.
+
+  **`@getvitops/utils` / `@getvitops/cli`:** new `@getvitops/utils/turnstile` and `vitops setup turnstile [--dry] [--check] [--no-write] [--no-secret]`. It plans from the site's hostnames, creates a managed widget unless one already covers them (an existing widget is adopted, never edited, rotated or deleted), writes the public key to `site.security.turnstile.siteKey`, and pipes the one-time secret to `wrangler secret put VITOPS_TURNSTILE_SECRET` without writing it to any file. Needs `CLOUDFLARE_API_TOKEN` with **Account > Turnstile > Edit** and `CLOUDFLARE_ACCOUNT_ID`.
+
+  **`@getvitops/astro`:** `virtual:getvitops/head` gains `turnstileSiteKey` (read from `site.security.turnstile.siteKey`) so blocks can render the widget. No other change.
+
+  **`@getvitops/generator`:** `TIERS` gains a `turnstile` entry (wc-turnstile, claimed by `vitops.form`); `wc-multi-field`'s `emdashExempt` reason is reworded now the form block exists.
+
+  **`@getvitops/emdash`:** new `vitops.form` block: a field repeater (text, email, phone, long text, choose one, tick box), required flags, help text, success/error messages, optional Turnstile. It renders a semantic `<form method="post">` that works with no JavaScript, with a honeypot named per `createConversionRoute`'s defaults. A field named `phone` submits as `tel`, because the route reserves `phone` and `event`.
+
+  **`@getvitops/create`:** the emdash template ships `src/pages/api/track.ts` (`prerender = false`, `createConversionRoute()`), a seeded contact form, and `challenges.cloudflare.com` in both templates' Report-Only CSP (`script-src`, `frame-src`). The route refuses a post with nowhere to deliver and fails closed when a site key exists without `VITOPS_TURNSTILE_SECRET`. SETUP.html gains the Turnstile step. Existing sites: copy the route and the CSP change, then run `vitops setup turnstile`.
+
+- 175d16e: **Added: `vitops.reviews` and `vitops.nav` EmDash blocks.** Non-breaking.
+
+  - **`vitops.reviews`** renders Google reviews from the committed `.vitops/reviews.json` cache (`vitops reviews`) as a grid, carousel or marquee of `<ReviewCard>`. Fields: location key, layout, columns, limit, lowest rating, order, featured ids, reviewer photos (off by default), tone/colour. Which reviews show is `selectReviews()`, the one shared decision. Review JSON-LD is not offered (Google treats self-marked-up reviews as ineligible for rich results). A new review reaches the page after `vitops reviews` is re-run, committed and the site rebuilt, not when an editor saves; with no cache file the block renders nothing (a note in `astro dev`).
+  - **`vitops.nav`** renders a named EmDash menu inside page content (site map, section links, footer-style columns), never the header. Fields: menu (picked from the site's menus via a new `menus/list` plugin route, with `footer-sitemap`/`footer-legal`/`primary` as the static fallback), accessible name, visible heading and level, layout `list | inline | columns | sitenav`, depth 1-3, tone/colour. It is a `<nav>` with a name that is never `Primary`, `Site map` or `Legal` (the layout's landmarks), `aria-current="page"`, no runtime JS; a missing or empty menu renders nothing.
+  - `@getvitops/astro`: **`virtual:getvitops/reviews`**, served by `vitops()`, is `.vitops/reviews.json` as a build-time import (an empty cache when absent or unreadable), because a Worker cannot read the file. `<ReviewCard>` now renders the review's source link (`.review__source`, `rel="nofollow noopener noreferrer"`), which the pattern already styled. **Fix:** `src/json-ld.ts` was missing from the published `files`, so any consumer importing `<ReviewCard>` (which composes `schemas/Review.astro`) failed to build with an unresolved import. `@getvitops/emdash` now needs this version of `@getvitops/astro` for the `vitops.reviews` block.
+  - `@getvitops/utils`: new Worker-safe subpath **`@getvitops/utils/reviews/select`** (`selectReviews` and the review types, no `node:fs`). `selectReviews` now takes only the display fields (`featured`, `minRating`, `limit`, `sort`), so a caller with no configured `locationId` can use it; existing calls are unchanged.
+  - `@getvitops/core`: new `.navlist` pattern in `patterns/sitenav.css` (`.navlist`, `__item`, `__link`, `__label`, `__sub`, `--inline`, `--columns`). **All formats** (css, bricks, tailwind). No existing class changes.
+  - `@getvitops/generator`: `TIERS.review` lists `vitops.reviews` and `TIERS.sitenav` lists `vitops.nav` (and `.navlist`), so `vitops docs components` and the docsite show them.
+
+- 83d6f3c: Theming escape hatches, so a real palette builds without raw ramp steps. All additive; existing configs build unchanged.
+
+  - **Dark-only sites.** `designSystem.defaultColorScheme: "dark"` (accepted by the schema before, but ignored) now makes the dark tokens the `:root` appearance with `color-scheme: dark`, emits no light block or `data-theme` flip, and skips light-mode contrast checks. Reaches css, bricks and tailwind formats. Do not ship `<wc-color-scheme-toggle>` on such a site.
+  - **Role solid step and foreground.** `colors.roles.<role>` may be `{ hue, kind?, solid?, foreground? }`. `solid: 400` starts the solid family at step 400 (bold and x-bold walk one and two rungs darker); `foreground: "dark" | "light"` pins `text-on-<role>`. The APCA check (Lc 60) still runs on the pair emitted. The string shorthand is unchanged. All formats. The live editor's `roleTokens` still assume the default 600 family when re-pointing a role.
+  - **Split shadows.** `shadows.<name>` may be `{ box?, drop? }`: `box` (spread, inset, layers) is `--shadow-<name>`; `drop` is `--shadow-<name>-drop` and feeds `.drop-shadow-<name>` and the `shadow:` state shortcut. The string form is unchanged. css/bricks emit `.drop-shadow-*`; tailwind emits the `-drop` token only.
+  - **Layout tokens.** New optional `layout` block (`widths.{measure,breakout,spotlight,nav}`, `regionSpace.{min,preferred,max}`) emitted as `--width-*` / `--region-space*` on `:root` in css, bricks and tailwind formats, and exposed in `design-manifest.json` (`layout`, `reverseIndex`). Keys you omit keep the framework defaults.
+  - **`acknowledgeOffLadder: true`** on a palette hue silences that hue's off-ladder anchor warnings.
+  - **Typography:** `transform` and `decoration` are now accepted as aliases of `text-transform` and `text-decoration` (canonical wins when both are present) instead of warning and being dropped.
+  - **Docs strings** (`authoring.md`, JSON Schema hovers) state the Lc 60 muted-text requirement against the page plane and give a type-scale recipe for marketing headings.
+  - `@getvitops/utils`: `pickOn` takes an optional `prefer: 'light' | 'dark'`.
+
+- 892b204: Generated legal documents gain a **Quebec (Law 25) jurisdiction**: `site.legal.jurisdiction: "qc"` renders the privacy policy, terms of use and cookie notice from new, Quebec-specific templates (not the `ca` prose). The privacy policy adds the person in charge of the protection of personal information, technologies that identify, locate or profile, transfers _outside Quebec_ (so a provider elsewhere in Canada counts), retention and anonymization, and the rights of access, rectification, portability, withdrawal, de-indexing and review of automated decisions, with the Commission d'accès à l'information as the complaint body. Every `qc` document carries a second, prominent review banner (counsel review, designated person, impact assessment, French-language requirement). Two optional config facts back it: `privacyPolicy.privacyOfficerTitle` and `privacyPolicy.impactAssessments` (the impact-assessment sentence renders only when attested). The "off until you choose" profiling assurance renders only under an opt-in consent model. **Not legal advice and not reviewed by counsel.**
+
+  CASL: when a form collects a newsletter sign-up, the `ca` **and** `qc` privacy policies now include a short "Commercial Electronic Messages" paragraph (consent, sender identification, unsubscribe). Existing `ca` documents change only for sites with such a form. No CSS change; no change to `ca` documents otherwise.
+
+- 06d6112: Fix the EmDash `/design-system` admin page erroring on a tailwind site. It fetches `/vitops/design-manifest.json`, which the `tailwind` format never emitted and the integration only mirrored under `editor: true` (which also loads `editor.js` on every public page).
+
+  - **generator** (`tailwind` format only): `design-manifest.json` is now emitted alongside `tailwind.css`. No change to the CSS.
+  - **astro**: new `vitops({ editorManifest: true })` writes everything an outside host needs into `public/vitops/` (`design-manifest.json`, `editor.js`, a standalone `editor.css`, and `design-system-editor.html`) without loading the editor on public pages. `editor: true` still loads it from `<Head />`.
+  - **vite**: `editorManifestDir` also writes `vitops/editor.css`, from a throwaway `css`-format pass on tailwind sites.
+  - **emdash**: the `/design-system` admin page was unstyled and overflowed the admin, because the editor borrows the framework CSS and the admin never loads it. It now embeds `/vitops/design-system-editor.html` in an iframe, so the design system can't leak into the admin's styles. **Requires `editorManifest: true`** in `vitops({ … })`.
+  - **create**: the EmDash template sets `editorManifest: true`. Existing sites: add it to `vitops({ … })` in `astro.config.mjs`.
+
+  No consumer-facing change in the other toolchain packages.
+
+- 6297337: `organization.address.streetAddress` is now optional (a home-based or service-area business with no public street address), and `organization.description` is a new optional, localisable field. The generated legal documents omit an absent street line; JSON-LD builders already skipped absent address fields. Non-breaking; no CSS change.
+- 55061e2: **Added: `<SiteNav>` and `<SiteFooter>` for Astro/EmDash sites.** Both are tier-1 markup over the existing `sitenav` pattern (no runtime JS: `<details>` accordions + Popover API drawer). Non-breaking.
+
+  - `<SiteNav {...await loadNavMenus(getMenu)} />` renders EmDash menu `primary` (the default: depth 3, dropdowns from the `md` container width, drawer below). If a `primary-mobile` menu exists it replaces the nav below `md` (depth 1); if `primary-mega` exists it replaces it from `xl` (mega panels). Adding the menu in the admin is the whole change. Only one tier is in the accessibility tree at a time. An item's `titleAttr` is its description (EmDash has no description field yet).
+  - `<SiteFooter sitemap legal name>` renders `footer-sitemap` + `footer-legal` + a copyright line.
+  - `@getvitops/astro/components/sitenav.ts` exports the pure helpers (`loadNavMenus`, `selectTiers`, ...).
+  - CSS (`patterns/sitenav.css`, **all formats**): tier visibility classes (`.sitenav-tier--below-*`/`--from-*`), `.sitenav--mega`, `.sitenav__desc`, `.sitefooter*`, `aria-current` styling, reduced-motion and forced-colors handling. Existing `.sitenav` rules are unchanged, so the Bricks element is unaffected.
+  - `@getvitops/create` (emdash template): the layout now renders header and footer through these components, with the colour-scheme toggle in the header. It reads menus `primary`, `footer-sitemap` and `footer-legal`; a template whose seed still has the old `footer` menu renders no footer links until the seed is updated.
+  - `@getvitops/generator`: `TIERS.sitenav` now lists the two Astro components.
+
+### Patch Changes
+
+- Updated dependencies [161c7f3]
+- Updated dependencies [175d16e]
+- Updated dependencies [83d6f3c]
+- Updated dependencies [b47df4d]
+  - @getvitops/utils@8.3.0-alpha.0
+  - @getvitops/config@8.3.0-alpha.0
+
 ## 8.2.0
 
 ### Minor Changes

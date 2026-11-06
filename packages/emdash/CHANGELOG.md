@@ -1,5 +1,74 @@
 # @getvitops/emdash
 
+## 2.0.0-alpha.0
+
+### Minor Changes
+
+- 161c7f3: A contact form that works end to end: `vitops setup turnstile`, `<wc-turnstile>`, the `vitops.form` EmDash block, and the route the emdash template ships to receive it.
+
+  **CSS, all formats** (no existing class changes): `forms.css` gains `.form-notice--target:not(:target)` (a message revealed only when the URL fragment names it, which is how a prerendered page shows a no-JS form's result) and `:where(wc-turnstile) { display: block }`.
+
+  **`@getvitops/core`:** new `<wc-turnstile sitekey="…">` in `elements.js`. It loads Cloudflare Turnstile on the first interaction with its form (no request to `challenges.cloudflare.com` for a visitor who only reads the page), holds an early submit until the token arrives, and leaves its slotted no-JS explanation in place until JS takes over. Turnstile is category `necessary`, so it is not behind the consent banner.
+
+  **`@getvitops/utils` / `@getvitops/cli`:** new `@getvitops/utils/turnstile` and `vitops setup turnstile [--dry] [--check] [--no-write] [--no-secret]`. It plans from the site's hostnames, creates a managed widget unless one already covers them (an existing widget is adopted, never edited, rotated or deleted), writes the public key to `site.security.turnstile.siteKey`, and pipes the one-time secret to `wrangler secret put VITOPS_TURNSTILE_SECRET` without writing it to any file. Needs `CLOUDFLARE_API_TOKEN` with **Account > Turnstile > Edit** and `CLOUDFLARE_ACCOUNT_ID`.
+
+  **`@getvitops/astro`:** `virtual:getvitops/head` gains `turnstileSiteKey` (read from `site.security.turnstile.siteKey`) so blocks can render the widget. No other change.
+
+  **`@getvitops/generator`:** `TIERS` gains a `turnstile` entry (wc-turnstile, claimed by `vitops.form`); `wc-multi-field`'s `emdashExempt` reason is reworded now the form block exists.
+
+  **`@getvitops/emdash`:** new `vitops.form` block: a field repeater (text, email, phone, long text, choose one, tick box), required flags, help text, success/error messages, optional Turnstile. It renders a semantic `<form method="post">` that works with no JavaScript, with a honeypot named per `createConversionRoute`'s defaults. A field named `phone` submits as `tel`, because the route reserves `phone` and `event`.
+
+  **`@getvitops/create`:** the emdash template ships `src/pages/api/track.ts` (`prerender = false`, `createConversionRoute()`), a seeded contact form, and `challenges.cloudflare.com` in both templates' Report-Only CSP (`script-src`, `frame-src`). The route refuses a post with nowhere to deliver and fails closed when a site key exists without `VITOPS_TURNSTILE_SECRET`. SETUP.html gains the Turnstile step. Existing sites: copy the route and the CSP change, then run `vitops setup turnstile`.
+
+- 1e36b83: Seven new blocks, a section block type, and a shared `tone`.
+
+  **New Portable Text blocks:** `vitops.logos` (a still grid; `marquee` only scrolls), `vitops.steps`, `vitops.stats` (each figure is a `<Counter>`; a `tiles` style adds group, change and good/bad state), `vitops.callout` (a call-to-action band, not the dismissible `banner`), `vitops.entries` (wraps `<wc-entries>`), `vitops.pricing` (aligned plan cards) and `vitops.embed` (a video or map that loads only after consent: the iframe ships with no `src`, the address rides on `data-consent-src`, and a `title` is required).
+
+  **New block TYPE `vitops_section`** (kicker, heading with a level, lead-in, tone, an optional heading-left `split` layout, and a Portable Text body that accepts every `vitops.*` block). It is a schema-level block type, not a Portable Text block, because Block Kit fields cannot hold rich text. Add `...vitopsBlockTypes()` to `seed.json`'s `blockTypes`, allow `vitops_section` on the collection's `blocks` field, and map it with `blockTypeComponents` from `@getvitops/emdash/astro` (`defineBlockComponents`).
+
+  **Extended, non-breaking:** `vitops.hero` gains accent marks (`*words*` in the heading), a heading `level`, `tone`/`color` and an optional row of cards. `vitops.cards` gains a `panel` style (tone, checklist, button), a heading `level`, `tone`/`color`, and `[text](/url)` inline links in the body. **Cards fix:** the card title is now a real heading element (default `h3`, `font-heading`) instead of `<p class="font-heading">`; saved content is unchanged, but the markup and the page outline change. Set `level` to taste.
+
+  **Shared `tone` + `color`** on every block that colours anything: a role from `site.json`, falling back through its semantic relatives to `neutral`, or a palette hue/step. Renderers emit `--tone-*` custom properties (never a class built from a value, which Tailwind cannot see). New option `vitopsEmdash({ tones })` (or the roles are read from `designSystemEditor.config`) fills each block's `tone` select with the site's own roles through a `tones/list` plugin route; with neither, the select offers the semantic names. `vitops.banner.tone` and `vitops.actionLink.role` keep their existing values.
+
+  **Render tests:** `pnpm --filter @getvitops/emdash run test:render` renders the block adapters through Astro's container API in a separate vitest config.
+
+- 175d16e: **Added: `vitops.reviews` and `vitops.nav` EmDash blocks.** Non-breaking.
+
+  - **`vitops.reviews`** renders Google reviews from the committed `.vitops/reviews.json` cache (`vitops reviews`) as a grid, carousel or marquee of `<ReviewCard>`. Fields: location key, layout, columns, limit, lowest rating, order, featured ids, reviewer photos (off by default), tone/colour. Which reviews show is `selectReviews()`, the one shared decision. Review JSON-LD is not offered (Google treats self-marked-up reviews as ineligible for rich results). A new review reaches the page after `vitops reviews` is re-run, committed and the site rebuilt, not when an editor saves; with no cache file the block renders nothing (a note in `astro dev`).
+  - **`vitops.nav`** renders a named EmDash menu inside page content (site map, section links, footer-style columns), never the header. Fields: menu (picked from the site's menus via a new `menus/list` plugin route, with `footer-sitemap`/`footer-legal`/`primary` as the static fallback), accessible name, visible heading and level, layout `list | inline | columns | sitenav`, depth 1-3, tone/colour. It is a `<nav>` with a name that is never `Primary`, `Site map` or `Legal` (the layout's landmarks), `aria-current="page"`, no runtime JS; a missing or empty menu renders nothing.
+  - `@getvitops/astro`: **`virtual:getvitops/reviews`**, served by `vitops()`, is `.vitops/reviews.json` as a build-time import (an empty cache when absent or unreadable), because a Worker cannot read the file. `<ReviewCard>` now renders the review's source link (`.review__source`, `rel="nofollow noopener noreferrer"`), which the pattern already styled. **Fix:** `src/json-ld.ts` was missing from the published `files`, so any consumer importing `<ReviewCard>` (which composes `schemas/Review.astro`) failed to build with an unresolved import. `@getvitops/emdash` now needs this version of `@getvitops/astro` for the `vitops.reviews` block.
+  - `@getvitops/utils`: new Worker-safe subpath **`@getvitops/utils/reviews/select`** (`selectReviews` and the review types, no `node:fs`). `selectReviews` now takes only the display fields (`featured`, `minRating`, `limit`, `sort`), so a caller with no configured `locationId` can use it; existing calls are unchanged.
+  - `@getvitops/core`: new `.navlist` pattern in `patterns/sitenav.css` (`.navlist`, `__item`, `__link`, `__label`, `__sub`, `--inline`, `--columns`). **All formats** (css, bricks, tailwind). No existing class changes.
+  - `@getvitops/generator`: `TIERS.review` lists `vitops.reviews` and `TIERS.sitenav` lists `vitops.nav` (and `.navlist`), so `vitops docs components` and the docsite show them.
+
+- 06d6112: Fix the EmDash `/design-system` admin page erroring on a tailwind site. It fetches `/vitops/design-manifest.json`, which the `tailwind` format never emitted and the integration only mirrored under `editor: true` (which also loads `editor.js` on every public page).
+
+  - **generator** (`tailwind` format only): `design-manifest.json` is now emitted alongside `tailwind.css`. No change to the CSS.
+  - **astro**: new `vitops({ editorManifest: true })` writes everything an outside host needs into `public/vitops/` (`design-manifest.json`, `editor.js`, a standalone `editor.css`, and `design-system-editor.html`) without loading the editor on public pages. `editor: true` still loads it from `<Head />`.
+  - **vite**: `editorManifestDir` also writes `vitops/editor.css`, from a throwaway `css`-format pass on tailwind sites.
+  - **emdash**: the `/design-system` admin page was unstyled and overflowed the admin, because the editor borrows the framework CSS and the admin never loads it. It now embeds `/vitops/design-system-editor.html` in an iframe, so the design system can't leak into the admin's styles. **Requires `editorManifest: true`** in `vitops({ … })`.
+  - **create**: the EmDash template sets `editorManifest: true`. Existing sites: add it to `vitops({ … })` in `astro.config.mjs`.
+
+  No consumer-facing change in the other toolchain packages.
+
+### Patch Changes
+
+- Updated dependencies [efd4e72]
+- Updated dependencies [93d2067]
+- Updated dependencies [161c7f3]
+- Updated dependencies [175d16e]
+- Updated dependencies [83d6f3c]
+- Updated dependencies [892b204]
+- Updated dependencies [06d6112]
+- Updated dependencies [6297337]
+- Updated dependencies [224a731]
+- Updated dependencies [55061e2]
+- Updated dependencies [b47df4d]
+  - @getvitops/astro@8.3.0-alpha.0
+  - @getvitops/core@8.3.0-alpha.0
+  - @getvitops/generator@8.3.0-alpha.0
+  - @getvitops/utils@8.3.0-alpha.0
+
 ## 1.0.0
 
 ### Major Changes

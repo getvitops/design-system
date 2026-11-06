@@ -1,5 +1,33 @@
 # @getvitops/vite
 
+## 8.3.0-alpha.0
+
+### Minor Changes
+
+- 06d6112: Fix the EmDash `/design-system` admin page erroring on a tailwind site. It fetches `/vitops/design-manifest.json`, which the `tailwind` format never emitted and the integration only mirrored under `editor: true` (which also loads `editor.js` on every public page).
+
+  - **generator** (`tailwind` format only): `design-manifest.json` is now emitted alongside `tailwind.css`. No change to the CSS.
+  - **astro**: new `vitops({ editorManifest: true })` writes everything an outside host needs into `public/vitops/` (`design-manifest.json`, `editor.js`, a standalone `editor.css`, and `design-system-editor.html`) without loading the editor on public pages. `editor: true` still loads it from `<Head />`.
+  - **vite**: `editorManifestDir` also writes `vitops/editor.css`, from a throwaway `css`-format pass on tailwind sites.
+  - **emdash**: the `/design-system` admin page was unstyled and overflowed the admin, because the editor borrows the framework CSS and the admin never loads it. It now embeds `/vitops/design-system-editor.html` in an iframe, so the design system can't leak into the admin's styles. **Requires `editorManifest: true`** in `vitops({ … })`.
+  - **create**: the EmDash template sets `editorManifest: true`. Existing sites: add it to `vitops({ … })` in `astro.config.mjs`.
+
+  No consumer-facing change in the other toolchain packages.
+
+### Patch Changes
+
+- Updated dependencies [93d2067]
+- Updated dependencies [161c7f3]
+- Updated dependencies [175d16e]
+- Updated dependencies [83d6f3c]
+- Updated dependencies [892b204]
+- Updated dependencies [06d6112]
+- Updated dependencies [6297337]
+- Updated dependencies [55061e2]
+- Updated dependencies [b47df4d]
+  - @getvitops/generator@8.3.0-alpha.0
+  - @getvitops/utils@8.3.0-alpha.0
+
 ## 8.2.0
 
 ### Patch Changes

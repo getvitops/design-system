@@ -1,5 +1,57 @@
 # @getvitops/utils
 
+## 8.3.0-alpha.0
+
+### Minor Changes
+
+- 161c7f3: A contact form that works end to end: `vitops setup turnstile`, `<wc-turnstile>`, the `vitops.form` EmDash block, and the route the emdash template ships to receive it.
+
+  **CSS, all formats** (no existing class changes): `forms.css` gains `.form-notice--target:not(:target)` (a message revealed only when the URL fragment names it, which is how a prerendered page shows a no-JS form's result) and `:where(wc-turnstile) { display: block }`.
+
+  **`@getvitops/core`:** new `<wc-turnstile sitekey="…">` in `elements.js`. It loads Cloudflare Turnstile on the first interaction with its form (no request to `challenges.cloudflare.com` for a visitor who only reads the page), holds an early submit until the token arrives, and leaves its slotted no-JS explanation in place until JS takes over. Turnstile is category `necessary`, so it is not behind the consent banner.
+
+  **`@getvitops/utils` / `@getvitops/cli`:** new `@getvitops/utils/turnstile` and `vitops setup turnstile [--dry] [--check] [--no-write] [--no-secret]`. It plans from the site's hostnames, creates a managed widget unless one already covers them (an existing widget is adopted, never edited, rotated or deleted), writes the public key to `site.security.turnstile.siteKey`, and pipes the one-time secret to `wrangler secret put VITOPS_TURNSTILE_SECRET` without writing it to any file. Needs `CLOUDFLARE_API_TOKEN` with **Account > Turnstile > Edit** and `CLOUDFLARE_ACCOUNT_ID`.
+
+  **`@getvitops/astro`:** `virtual:getvitops/head` gains `turnstileSiteKey` (read from `site.security.turnstile.siteKey`) so blocks can render the widget. No other change.
+
+  **`@getvitops/generator`:** `TIERS` gains a `turnstile` entry (wc-turnstile, claimed by `vitops.form`); `wc-multi-field`'s `emdashExempt` reason is reworded now the form block exists.
+
+  **`@getvitops/emdash`:** new `vitops.form` block: a field repeater (text, email, phone, long text, choose one, tick box), required flags, help text, success/error messages, optional Turnstile. It renders a semantic `<form method="post">` that works with no JavaScript, with a honeypot named per `createConversionRoute`'s defaults. A field named `phone` submits as `tel`, because the route reserves `phone` and `event`.
+
+  **`@getvitops/create`:** the emdash template ships `src/pages/api/track.ts` (`prerender = false`, `createConversionRoute()`), a seeded contact form, and `challenges.cloudflare.com` in both templates' Report-Only CSP (`script-src`, `frame-src`). The route refuses a post with nowhere to deliver and fails closed when a site key exists without `VITOPS_TURNSTILE_SECRET`. SETUP.html gains the Turnstile step. Existing sites: copy the route and the CSP change, then run `vitops setup turnstile`.
+
+- 175d16e: **Added: `vitops.reviews` and `vitops.nav` EmDash blocks.** Non-breaking.
+
+  - **`vitops.reviews`** renders Google reviews from the committed `.vitops/reviews.json` cache (`vitops reviews`) as a grid, carousel or marquee of `<ReviewCard>`. Fields: location key, layout, columns, limit, lowest rating, order, featured ids, reviewer photos (off by default), tone/colour. Which reviews show is `selectReviews()`, the one shared decision. Review JSON-LD is not offered (Google treats self-marked-up reviews as ineligible for rich results). A new review reaches the page after `vitops reviews` is re-run, committed and the site rebuilt, not when an editor saves; with no cache file the block renders nothing (a note in `astro dev`).
+  - **`vitops.nav`** renders a named EmDash menu inside page content (site map, section links, footer-style columns), never the header. Fields: menu (picked from the site's menus via a new `menus/list` plugin route, with `footer-sitemap`/`footer-legal`/`primary` as the static fallback), accessible name, visible heading and level, layout `list | inline | columns | sitenav`, depth 1-3, tone/colour. It is a `<nav>` with a name that is never `Primary`, `Site map` or `Legal` (the layout's landmarks), `aria-current="page"`, no runtime JS; a missing or empty menu renders nothing.
+  - `@getvitops/astro`: **`virtual:getvitops/reviews`**, served by `vitops()`, is `.vitops/reviews.json` as a build-time import (an empty cache when absent or unreadable), because a Worker cannot read the file. `<ReviewCard>` now renders the review's source link (`.review__source`, `rel="nofollow noopener noreferrer"`), which the pattern already styled. **Fix:** `src/json-ld.ts` was missing from the published `files`, so any consumer importing `<ReviewCard>` (which composes `schemas/Review.astro`) failed to build with an unresolved import. `@getvitops/emdash` now needs this version of `@getvitops/astro` for the `vitops.reviews` block.
+  - `@getvitops/utils`: new Worker-safe subpath **`@getvitops/utils/reviews/select`** (`selectReviews` and the review types, no `node:fs`). `selectReviews` now takes only the display fields (`featured`, `minRating`, `limit`, `sort`), so a caller with no configured `locationId` can use it; existing calls are unchanged.
+  - `@getvitops/core`: new `.navlist` pattern in `patterns/sitenav.css` (`.navlist`, `__item`, `__link`, `__label`, `__sub`, `--inline`, `--columns`). **All formats** (css, bricks, tailwind). No existing class changes.
+  - `@getvitops/generator`: `TIERS.review` lists `vitops.reviews` and `TIERS.sitenav` lists `vitops.nav` (and `.navlist`), so `vitops docs components` and the docsite show them.
+
+- 83d6f3c: Theming escape hatches, so a real palette builds without raw ramp steps. All additive; existing configs build unchanged.
+
+  - **Dark-only sites.** `designSystem.defaultColorScheme: "dark"` (accepted by the schema before, but ignored) now makes the dark tokens the `:root` appearance with `color-scheme: dark`, emits no light block or `data-theme` flip, and skips light-mode contrast checks. Reaches css, bricks and tailwind formats. Do not ship `<wc-color-scheme-toggle>` on such a site.
+  - **Role solid step and foreground.** `colors.roles.<role>` may be `{ hue, kind?, solid?, foreground? }`. `solid: 400` starts the solid family at step 400 (bold and x-bold walk one and two rungs darker); `foreground: "dark" | "light"` pins `text-on-<role>`. The APCA check (Lc 60) still runs on the pair emitted. The string shorthand is unchanged. All formats. The live editor's `roleTokens` still assume the default 600 family when re-pointing a role.
+  - **Split shadows.** `shadows.<name>` may be `{ box?, drop? }`: `box` (spread, inset, layers) is `--shadow-<name>`; `drop` is `--shadow-<name>-drop` and feeds `.drop-shadow-<name>` and the `shadow:` state shortcut. The string form is unchanged. css/bricks emit `.drop-shadow-*`; tailwind emits the `-drop` token only.
+  - **Layout tokens.** New optional `layout` block (`widths.{measure,breakout,spotlight,nav}`, `regionSpace.{min,preferred,max}`) emitted as `--width-*` / `--region-space*` on `:root` in css, bricks and tailwind formats, and exposed in `design-manifest.json` (`layout`, `reverseIndex`). Keys you omit keep the framework defaults.
+  - **`acknowledgeOffLadder: true`** on a palette hue silences that hue's off-ladder anchor warnings.
+  - **Typography:** `transform` and `decoration` are now accepted as aliases of `text-transform` and `text-decoration` (canonical wins when both are present) instead of warning and being dropped.
+  - **Docs strings** (`authoring.md`, JSON Schema hovers) state the Lc 60 muted-text requirement against the page plane and give a type-scale recipe for marketing headings.
+  - `@getvitops/utils`: `pickOn` takes an optional `prefer: 'light' | 'dark'`.
+
+- b47df4d: **Added: `vitops audit` — Lighthouse + axe budgets over a built site.** Non-breaking, opt-in.
+
+  `vitops audit [--build] [--url <base>] [--pages /a,/b] [--warn] [--out <dir>]` serves the existing build with `astro preview` on a dedicated port (4398; it aborts rather than attach to something else already there), audits `/` plus `/privacy`, `/terms`, `/cookies`, `/contact` and every link in `seed/seed.json`'s `primary*`/`footer*` menus, and skips any route that 404s (a 404 on `/` fails the run). Per page it runs axe (tags wcag2a, wcag2aa, wcag21a, wcag21aa) and Lighthouse on the same Chromium. Default budgets: LCP < 2500 ms, CLS < 0.1, TBT < 200 ms (the INP proxy), no serious or critical axe violations; override with `--lcp`, `--cls`, `--tbt`, `--impact`. Writes `report.json`, `report.md` and `pages/<page>.{json,md}` to `.vitops/audit/`; exits non-zero on failure unless `--warn`. Every report states that a pass is **not** AODA certification and lists the manual checks.
+
+  `playwright`, `@axe-core/playwright` and `lighthouse` are **optional peer dependencies** of `@getvitops/utils`, loaded lazily — nothing is installed or loaded unless you run the command, and a missing one fails with the install command. Pure planner and report rendering are `@getvitops/utils/audit` (new subpath).
+
+  CI: the reusable `site-ci.yml` gains opt-in `run-audit` (default `false`) and `audit-args` inputs; callers pinned to `@v1` that pass neither are unaffected.
+
+### Patch Changes
+
+- @getvitops/config@8.3.0-alpha.0
+
 ## 8.2.0
 
 ### Minor Changes

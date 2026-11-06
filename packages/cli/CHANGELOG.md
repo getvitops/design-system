@@ -1,5 +1,74 @@
 # @getvitops/cli
 
+## 8.3.0-alpha.0
+
+### Minor Changes
+
+- 161c7f3: A contact form that works end to end: `vitops setup turnstile`, `<wc-turnstile>`, the `vitops.form` EmDash block, and the route the emdash template ships to receive it.
+
+  **CSS, all formats** (no existing class changes): `forms.css` gains `.form-notice--target:not(:target)` (a message revealed only when the URL fragment names it, which is how a prerendered page shows a no-JS form's result) and `:where(wc-turnstile) { display: block }`.
+
+  **`@getvitops/core`:** new `<wc-turnstile sitekey="…">` in `elements.js`. It loads Cloudflare Turnstile on the first interaction with its form (no request to `challenges.cloudflare.com` for a visitor who only reads the page), holds an early submit until the token arrives, and leaves its slotted no-JS explanation in place until JS takes over. Turnstile is category `necessary`, so it is not behind the consent banner.
+
+  **`@getvitops/utils` / `@getvitops/cli`:** new `@getvitops/utils/turnstile` and `vitops setup turnstile [--dry] [--check] [--no-write] [--no-secret]`. It plans from the site's hostnames, creates a managed widget unless one already covers them (an existing widget is adopted, never edited, rotated or deleted), writes the public key to `site.security.turnstile.siteKey`, and pipes the one-time secret to `wrangler secret put VITOPS_TURNSTILE_SECRET` without writing it to any file. Needs `CLOUDFLARE_API_TOKEN` with **Account > Turnstile > Edit** and `CLOUDFLARE_ACCOUNT_ID`.
+
+  **`@getvitops/astro`:** `virtual:getvitops/head` gains `turnstileSiteKey` (read from `site.security.turnstile.siteKey`) so blocks can render the widget. No other change.
+
+  **`@getvitops/generator`:** `TIERS` gains a `turnstile` entry (wc-turnstile, claimed by `vitops.form`); `wc-multi-field`'s `emdashExempt` reason is reworded now the form block exists.
+
+  **`@getvitops/emdash`:** new `vitops.form` block: a field repeater (text, email, phone, long text, choose one, tick box), required flags, help text, success/error messages, optional Turnstile. It renders a semantic `<form method="post">` that works with no JavaScript, with a honeypot named per `createConversionRoute`'s defaults. A field named `phone` submits as `tel`, because the route reserves `phone` and `event`.
+
+  **`@getvitops/create`:** the emdash template ships `src/pages/api/track.ts` (`prerender = false`, `createConversionRoute()`), a seeded contact form, and `challenges.cloudflare.com` in both templates' Report-Only CSP (`script-src`, `frame-src`). The route refuses a post with nowhere to deliver and fails closed when a site key exists without `VITOPS_TURNSTILE_SECRET`. SETUP.html gains the Turnstile step. Existing sites: copy the route and the CSP change, then run `vitops setup turnstile`.
+
+- fec1b4b: The EmDash template's two build scripts are now CLI commands, so fixes reach existing sites with `vp update` instead of a re-copy.
+
+  - `vitops emdash prepare-db` migrates and seeds the local D1 the build prerenders from (was `scripts/prepare-local-db.mjs`). The start and stop calls time out after 5 minutes and it prints progress.
+  - `vitops emdash check-prerender [dir]` fails the build if a prerendered page is not a real page (was `scripts/check-prerender.mjs`).
+
+  **Migration for a site scaffolded earlier:** delete `scripts/prepare-local-db.mjs` and `scripts/check-prerender.mjs`, then in `package.json` set `"prepare-local-db": "vitops emdash prepare-db"`, `"build": "astro build && vitops emdash check-prerender"`, and use the same two commands in place of `node scripts/…` inside `deploy` and `deploy:dev`. A site that never had the scripts needs only the `package.json` entries.
+
+- b47df4d: **Added: `vitops audit` — Lighthouse + axe budgets over a built site.** Non-breaking, opt-in.
+
+  `vitops audit [--build] [--url <base>] [--pages /a,/b] [--warn] [--out <dir>]` serves the existing build with `astro preview` on a dedicated port (4398; it aborts rather than attach to something else already there), audits `/` plus `/privacy`, `/terms`, `/cookies`, `/contact` and every link in `seed/seed.json`'s `primary*`/`footer*` menus, and skips any route that 404s (a 404 on `/` fails the run). Per page it runs axe (tags wcag2a, wcag2aa, wcag21a, wcag21aa) and Lighthouse on the same Chromium. Default budgets: LCP < 2500 ms, CLS < 0.1, TBT < 200 ms (the INP proxy), no serious or critical axe violations; override with `--lcp`, `--cls`, `--tbt`, `--impact`. Writes `report.json`, `report.md` and `pages/<page>.{json,md}` to `.vitops/audit/`; exits non-zero on failure unless `--warn`. Every report states that a pass is **not** AODA certification and lists the manual checks.
+
+  `playwright`, `@axe-core/playwright` and `lighthouse` are **optional peer dependencies** of `@getvitops/utils`, loaded lazily — nothing is installed or loaded unless you run the command, and a missing one fails with the install command. Pure planner and report rendering are `@getvitops/utils/audit` (new subpath).
+
+  CI: the reusable `site-ci.yml` gains opt-in `run-audit` (default `false`) and `audit-args` inputs; callers pinned to `@v1` that pass neither are unaffected.
+
+### Patch Changes
+
+- 224a731: **`@getvitops/astro` (no CSS change; all formats unaffected)**
+
+  - **`site.fonts` is no longer silently ignored.** `vitops()` now turns webfonts on by default when the site config (`site` option, or a `css.input` that is a site config) declares `site.fonts`, and logs that it did. Before, no `@font-face`, preload or warning was emitted unless you also passed `fonts: true`. Pass `fonts: false` to opt out. Migration: none — sites that already set `fonts` behave the same; sites that declared `site.fonts` without it will start loading those families.
+  - **The icon sprite is served when the site config asks for it.** `site.icons.sprite: true` made the generator write `icons.svg`, but only the `icons` integration option copied it to `public/vitops/`, so `/vitops/icons.svg` was never served. It is now mirrored whenever the site config sets it.
+  - **Strict CSP is achievable.** New build-time exports `inlineScriptHashes()`, `cspScriptHash()` and `contentSecurityPolicy()` give the SHA-256 hashes of the two inline scripts `<Head />` emits (colour-scheme bootstrap, consent-gate stub) and a starting policy built on them, with no `'unsafe-inline'` in `script-src`. The scripts moved from `Head.astro`'s frontmatter to `src/inline-scripts.ts` (shipped in the package) so the hash and the emitted bytes are the same constant; the rendered output is byte-identical.
+
+  **`@getvitops/create` (templates; existing scaffolded sites are not changed)**
+
+  - **emdash: every public page is prerendered.** `index.astro`, `[...slug].astro` (via `getStaticPaths` over the published `pages`) and `404.astro` set `prerender = true`. Unknown URLs now return the prerendered 404 with a real 404 status — the old `Astro.rewrite('/404')` from an on-demand route to a prerendered one was refused by Astro, so every unknown URL was a 500. `scripts/pull-content.mjs` (first step of `deploy`/`deploy:dev`) loads production's D1 into the local build database, because the Cloudflare adapter prerenders against a local D1 that is empty on CI; it fails closed. The deploy-prod workflow also runs on a `repository_dispatch` of type `emdash-publish`. Migration for an existing site: copy those pages, the script and the two `package.json` scripts, and add the trigger; previews of unpublished drafts no longer work on the public routes (see AGENTS.md).
+  - **emdash: seed menus are `primary` (Contact), `footer-sitemap` (Home, Contact) and `footer-legal` (Privacy Policy, Terms & Conditions, Cookie Notice)**, replacing `primary` (Home, About) and `footer` (Terms, Privacy), with placeholder `contact` and `cookies` pages so every seeded link resolves. The template Layout still reads the old menu names until it is updated; the seed only applies to an empty database, so existing sites keep their menus.
+  - **Both templates: `badge` and `tag` patterns (group `label`) are enabled, `button` carries `class: "btn"` so `<a class="btn">` is styled, and `neutral`/`surface` are declared as surface roles** (they were chromatic, which emitted no `.bg-neutral`/`text-neutral-muted`). css/bricks/tailwind output of a scaffolded site changes accordingly.
+  - **Both templates ship `public/_headers` with a `Content-Security-Policy-Report-Only` default** naming `<Head />`'s inline scripts by hash. It blocks nothing. `_headers` applies to static assets only, not Worker-rendered responses; see AGENTS.md for the EmDash admin and HTML-block trade-off.
+  - **Guidance is Vite+-first**: `AGENTS.md`, README, the `setup` skill, `SETUP.html` and the session hook use `vp`/`vpr`/`vp exec` instead of `pnpm`/`npx`, with one command table; `vpr dev` is documented as returning immediately. There is no `vp change`/`vp pm change` (checked against vp 1.5.0); the release flow is `dev` → promote.
+  - emdash ships `.agents/skills/custom-blocks/SKILL.md` (compose, extend, site-local, upstream; naming and lifecycle rules) and the favicon `themeColor`/`name` now derive from `site.json`.
+  - Label vocabulary: `badge` is a static label, `tag` is static or dynamic; `chip`/`pill` are not used.
+
+  **`@getvitops/cli`**: the bundled `vitops-design-system` skill points at `vp exec vitops docs <topic>`.
+
+  No consumer-facing change in `@getvitops/core`, `@getvitops/generator`, `@getvitops/utils` or `@getvitops/vite`.
+
+- Updated dependencies [93d2067]
+- Updated dependencies [161c7f3]
+- Updated dependencies [175d16e]
+- Updated dependencies [83d6f3c]
+- Updated dependencies [892b204]
+- Updated dependencies [06d6112]
+- Updated dependencies [6297337]
+- Updated dependencies [55061e2]
+- Updated dependencies [b47df4d]
+  - @getvitops/generator@8.3.0-alpha.0
+  - @getvitops/utils@8.3.0-alpha.0
+
 ## 8.2.0
 
 ### Minor Changes
