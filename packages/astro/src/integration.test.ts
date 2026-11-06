@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -571,5 +571,42 @@ describe('vitops({ analytics, consent })', () => {
     );
     await h.run();
     expect(h.logs.some((l) => l.msg.includes('cookie notice'))).toBe(false);
+  });
+});
+
+describe('virtual:getvitops/reviews', () => {
+  const REVIEWS = '\0virtual:getvitops/reviews';
+  const reviewsData = (updates: Record<string, unknown>[]) =>
+    virtualData(updates, '@getvitops/astro:virtual-reviews', REVIEWS);
+  const rootOf = (dir: string) => ({
+    root: pathToFileURL(`${dir}/`),
+    publicDir: pathToFileURL(`${dir}/public/`),
+  });
+
+  it('serves an EMPTY cache when the file is absent, so a fresh scaffold builds', async () => {
+    const h = harness();
+    await h.run();
+    expect(reviewsData(h.updates)).toEqual({ version: 1, locations: {} });
+  });
+
+  it('serves the committed cache from the project root', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-'));
+    mkdirSync(join(dir, '.vitops'));
+    const cache = { version: 1, locations: { ottawa: { reviews: [{ id: 'a', rating: 5 }] } } };
+    writeFileSync(join(dir, '.vitops/reviews.json'), JSON.stringify(cache));
+
+    const h = harness({}, rootOf(dir));
+    await h.run();
+    expect(reviewsData(h.updates)).toEqual(cache);
+  });
+
+  it('reads a corrupt file as absent rather than failing the build', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-'));
+    mkdirSync(join(dir, '.vitops'));
+    writeFileSync(join(dir, '.vitops/reviews.json'), '{ not json');
+
+    const h = harness({}, rootOf(dir));
+    await h.run();
+    expect(reviewsData(h.updates)).toEqual({ version: 1, locations: {} });
   });
 });

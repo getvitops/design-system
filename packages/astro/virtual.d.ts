@@ -68,6 +68,22 @@ declare module 'virtual:getvitops/head' {
   export default data;
 }
 
+/**
+ * The committed `.vitops/reviews.json` cache as a build-time import — for components that
+ * render in a Worker and so cannot read the file (the EmDash `vitops.reviews` block). Always
+ * defined: with no cache file it is `{ version: 1, locations: {} }`.
+ */
+declare module 'virtual:getvitops/reviews' {
+  // Structurally `ReviewCache` from `@getvitops/utils/reviews` (an ambient module in a
+  // shipped .d.ts cannot import from src). Kept loose on purpose: callers re-type it on the
+  // way into `selectReviews`, which is where the real contract is.
+  const cache: {
+    version: 1;
+    locations: Record<string, { reviews: Record<string, unknown>[] } & Record<string, unknown>>;
+  };
+  export default cache;
+}
+
 /** Types for the virtual module the getvitops() integration provides to <Icon />. */
 declare module 'virtual:getvitops/icons' {
   // Keep these keys in step with `IconsData` in src/integration.ts, for the same

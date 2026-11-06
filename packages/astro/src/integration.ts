@@ -27,6 +27,7 @@ import vitopsPlugin from '@getvitops/vite';
 // Type only — the encoder itself is loaded by the Vite plugin, in the pass that
 // runs it, so a project without a `media` option never reaches ffmpeg.
 import type { OutputKind as MediaOutputKind } from '@getvitops/utils/media';
+import { REVIEWS_CACHE_PATH, readCache as readReviewsCache } from '@getvitops/utils/reviews';
 import type { AstroIntegration } from 'astro';
 import {
   consentCategories,
@@ -868,6 +869,39 @@ function virtualIconsPlugin(data: IconsData) {
   };
 }
 
+const REVIEWS_ID = 'virtual:getvitops/reviews';
+const RESOLVED_REVIEWS_ID = `\0${REVIEWS_ID}`;
+
+/**
+ * The committed `.vitops/reviews.json` cache as a build-time import, for server-rendered
+ * components that cannot read the filesystem (the EmDash `vitops.reviews` block runs in a
+ * Worker — and, with pages prerendered, inside the Cloudflare adapter's local workerd).
+ *
+ * **An absent or unusable file serves an EMPTY cache, never an error.** A fresh scaffold has
+ * no `.vitops/reviews.json` (nothing has run `vitops reviews` yet) and a build must not fail
+ * for it; the block renders an editor placeholder instead. `readCache` already treats a
+ * corrupt or wrong-version file as absent, which is the same rule — the failure is silent
+ * here only because the consumer of this module reports it.
+ *
+ * Read in `load`, not at plugin construction, and the file is registered as a watch file, so
+ * a dev server picks up a re-run of `vitops reviews` without a restart.
+ */
+function virtualReviewsPlugin(root: string) {
+  const path = resolve(root, REVIEWS_CACHE_PATH);
+  return {
+    name: '@getvitops/astro:virtual-reviews',
+    resolveId(id: string) {
+      return id === REVIEWS_ID ? RESOLVED_REVIEWS_ID : null;
+    },
+    load(this: { addWatchFile?: (id: string) => void } | void, id: string) {
+      if (id !== RESOLVED_REVIEWS_ID) return null;
+      this?.addWatchFile?.(path);
+      const cache = readReviewsCache(path) ?? { version: 1, locations: {} };
+      return `export default ${JSON.stringify(cache)};`;
+    },
+  };
+}
+
 /** Defaults live here so the component and the integration can't drift. */
 const ICON_DEFAULTS = {
   ui: 'fa7-solid',
@@ -1576,6 +1610,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         updateConfig({
           vite: {
             plugins: [
+              virtualReviewsPlugin(root),
               virtualIconsPlugin(
                 iconsData ?? {
                   engine: 'none',
