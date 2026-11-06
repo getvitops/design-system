@@ -119,9 +119,9 @@ export function formatPlan(p: ReviewsPlan): string {
  */
 export function selectReviews(
   reviews: Review[],
-  // Only the display fields: a renderer that is not tied to one configured location (the EmDash
-  // block, which takes them from its own fields) has no `locationId` to supply.
-  config: Pick<ReviewLocationConfig, 'featured' | 'minRating' | 'limit' | 'sort'>,
+  // Partial: only the display fields are read. A renderer not tied to one configured location
+  // (the EmDash block, which takes them from its own fields) has no `locationId` to supply.
+  config: Partial<ReviewLocationConfig>,
 ): Review[] {
   const featuredIds = config.featured ?? [];
   const byId = new Map(reviews.map((r) => [r.id, r]));
