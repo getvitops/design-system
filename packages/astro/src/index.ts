@@ -57,6 +57,8 @@ export type { ContentSecurityPolicyOptions, InlineScriptOptions } from './csp.ts
 export { gitLastmod, routeFromPage, slugFromContent } from './lastmod.ts';
 export type { GitLastmodOptions } from './lastmod.ts';
 export { resolveSeo } from './seo.ts';
+export { resolveSeoDefaults, mergeSeoDefaults } from './seo-defaults.ts';
+export type { ResolveSeoDefaultsOptions } from './seo-defaults.ts';
 export type {
   GetvitopsSeoOptions,
   ResolvedSeo,

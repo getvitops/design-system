@@ -37,7 +37,9 @@ import {
 } from './analytics.ts';
 import { type GetvitopsAdsOptions, resolveAds } from './ads.ts';
 import { type HeadFont, resolveFonts } from './fonts.ts';
+import { localeConsistencyWarnings } from './i18n.ts';
 import type { GetvitopsSeoOptions } from './seo.ts';
+import { mergeSeoDefaults, resolveSeoDefaults } from './seo-defaults.ts';
 import { TRACKING_ENDPOINT, type GetvitopsTrackingOptions, resolveTracking } from './tracking.ts';
 
 export interface GetvitopsFaviconOptions {
@@ -270,6 +272,17 @@ export interface GetvitopsOptions {
    */
   editor?: boolean;
   /**
+   * Ship what a host needs to embed `<wc-theme-editor>`, WITHOUT loading it from `<Head />`
+   * (default false). Writes into `public/vitops/`: `design-manifest.json`, `editor.js`, a
+   * standalone `editor.css`, and `design-system-editor.html`, a page that mounts the editor.
+   *
+   * For hosts outside the site's own pages, such as the EmDash admin
+   * (`@getvitops/emdash`'s `designSystemEditor`, which iframes that page so the design
+   * system never leaks into the admin's styles). Public pages don't pay for the bundle.
+   * Requires `css`.
+   */
+  editorManifest?: boolean;
+  /**
    * Render the site's legal documents (privacy policy, terms, cookie notice)
    * from a site config, and re-render when it changes. Off unless provided.
    *
@@ -325,8 +338,11 @@ export interface GetvitopsOptions {
   sitemap?: boolean | GetvitopsSitemapOptions;
   /**
    * Site-level defaults for `<Seo />` (`@getvitops/astro/Seo.astro`) — site name,
-   * title template, Open Graph + Twitter defaults, verification tokens. Off unless
-   * provided; per-page props override every field.
+   * title template, Open Graph + Twitter defaults, verification tokens.
+   *
+   * These come from `site.seo` in the site config (with `organization.name` as the site
+   * name); this option is an **override** merged over that, field by field, for a value
+   * an app wants to set in code. Per-page props override both.
    *
    * Needs the `site` astro.config option for canonical and `og:url`; without it
    * `<Seo />` omits every absolute-URL tag rather than deriving one from the
@@ -455,6 +471,20 @@ export interface GetvitopsIconsOptions {
 }
 
 /**
+ * What `<Tracking />` emits — pulled out to its own named type (rather than
+ * inline in `HeadData`, which `head.test.ts`'s regex-based drift guard reads
+ * line-by-line) purely so the formatter's line-wrapping doesn't turn each of
+ * its fields into a false top-level `HeadData` key match.
+ */
+interface HeadTrackingData {
+  enabled: boolean;
+  category: string;
+  cookies: string[];
+  /** First enabled `site.experiments` entry's cookie name — see tracking.ts. */
+  abVariantCookie: string | null;
+}
+
+/**
  * Serialised into the virtual module with `JSON.stringify`, so every field here
  * must be JSON-representable — no functions. (That is why the sitemap's *href*
  * lives here and its options, which carry `filter`/`serialize`, do not.)
@@ -493,7 +523,12 @@ interface HeadData {
    * than in the component because its warnings belong beside the others, and the
    * offered consent categories it checks against are known only at this point.
    */
-  tracking: { enabled: boolean; category: string; cookies: string[] } | null;
+  /** `abVariantCookie` is the first enabled `site.experiments` entry's cookie name — see tracking.ts. */
+  tracking: HeadTrackingData | null;
+  /** Enabled `site.experiments`, keyed the same way, each resolved to its cookie name — for `<Analytics />`'s reporting hook. */
+  experiments: Record<string, { cookieName: string }>;
+  /** `site.analytics.matomo.abVariantDimensions` — passed through for the same reporting hook. */
+  matomoAbVariantDimensions: Record<string, number>;
   /**
    * What `<Ads />` emits: the `site.ads` properties plus whether this environment
    * fires them at all. Read from the site config here rather than in the component
@@ -547,6 +582,46 @@ function undisclosedProviders(configPath: string, analytics: GetvitopsAnalyticsO
 }
 
 /**
+ * Read `site.locales`/`site.defaultLocale` out of the site config, for
+ * `localeConsistencyWarnings` to check against Astro's own `i18n` block.
+ *
+ * Best-effort, matching `readSiteAds`'s shape exactly: a malformed or missing
+ * config is silence here, since every other consumer of this file already
+ * validates it loudly elsewhere in the same hook.
+ */
+function readSiteLocales(
+  configPath: string,
+  siteEnv: string,
+): { locales: Record<string, unknown>; defaultLocale: string } | null {
+  try {
+    const cfg = resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv);
+    return { locales: cfg.site.locales, defaultLocale: cfg.site.defaultLocale };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve `site.seo` (plus `organization.name` as the site-name fallback) out of the site config.
+ *
+ * Best-effort, like `readSiteLocales`: a malformed or missing config is silence here, since every
+ * other consumer of the file validates it loudly in the same hook. An empty object means "the
+ * config states no SEO defaults", which is also what no site config at all means.
+ */
+function readSiteSeo(configPath: string, siteEnv: string): GetvitopsSeoOptions {
+  try {
+    return resolveSeoDefaults(
+      resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv),
+      {
+        env: siteEnv,
+      },
+    );
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Read `site.ads` and this environment's ads switch out of the site config.
  *
  * Best-effort, like `undisclosedProviders`: every other consumer of this file
@@ -575,6 +650,65 @@ function readSiteAds(
     };
   } catch {
     return null;
+  }
+}
+
+/**
+ * Read `site.experiments` + `site.analytics.matomo.abVariantDimensions` out of
+ * the site config, resolving each experiment's cookie name (default
+ * `_ab_<key>`, matching `vitopsAbTesting()`'s own default) so `<Analytics />`
+ * doesn't need to know the fallback rule itself.
+ *
+ * Mirrors `readSiteAds`'s shape: best-effort, only enabled experiments
+ * (a disabled one has no cookie to read and shouldn't cost every provider's
+ * bootstrap a no-op check), `null` when nothing's configured.
+ */
+function readSiteExperiments(
+  configPath: string,
+  siteEnv: string,
+): {
+  experiments: Record<string, { cookieName: string }>;
+  matomoAbVariantDimensions: Record<string, number>;
+  /** The first enabled experiment's cookie name — see tracking.ts's own docblock for why only one. */
+  primaryCookie: string | null;
+} | null {
+  try {
+    const cfg = resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv);
+    const configured = cfg.site.experiments;
+    if (!configured || Object.keys(configured).length === 0) return null;
+    const experiments: Record<string, { cookieName: string }> = {};
+    let primaryCookie: string | null = null;
+    for (const [key, experiment] of Object.entries(configured)) {
+      if (!experiment.enabled) continue;
+      const cookieName = experiment.cookieName ?? `_ab_${key}`;
+      experiments[key] = { cookieName };
+      primaryCookie ??= cookieName;
+    }
+    if (Object.keys(experiments).length === 0) return null;
+    return {
+      experiments,
+      matomoAbVariantDimensions: cfg.site.analytics?.matomo?.abVariantDimensions ?? {},
+      primaryCookie,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Is `site.crm` configured and not explicitly disabled?
+ *
+ * Mirrors `readSiteAds`'s "read the config, decide nothing else" shape — this
+ * only answers the one question `hasConversionRoute`'s warning needs, not the
+ * whole `CrmConfig`, which the consumer's own route file builds from the same
+ * config however it likes.
+ */
+function siteCrmEnabled(configPath: string, siteEnv: string): boolean {
+  try {
+    const cfg = resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv);
+    return Boolean(cfg.site.crm && cfg.site.crm.enabled !== false);
+  } catch {
+    return false;
   }
 }
 
@@ -793,6 +927,40 @@ function siteWantsSprite(root: string, siteInput: string | undefined, siteEnv?: 
   }
 }
 
+/**
+ * A standalone page hosting `<wc-theme-editor>`, for a host that cannot load the
+ * framework CSS itself (the EmDash admin embeds this in an iframe, so the design
+ * system never touches the admin's own styles). `?save=<url>` supplies the save
+ * endpoint, which is the host's to name, not this integration's.
+ */
+function writeEditorHost(dest: string): void {
+  mkdirSync(dest, { recursive: true });
+  writeFileSync(
+    join(dest, 'design-system-editor.html'),
+    `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Design system editor</title>
+<link rel="stylesheet" href="/vitops/editor.css">
+</head>
+<body>
+<script type="module">
+  await import('/vitops/editor.js');
+  const el = document.createElement('wc-theme-editor');
+  el.setAttribute('manifest', '/vitops/design-manifest.json');
+  const save = new URLSearchParams(location.search).get('save');
+  if (save && save.startsWith('/')) el.setAttribute('save-endpoint', save);
+  document.body.append(el);
+</script>
+</body>
+</html>
+`,
+  );
+}
+
 export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
   return {
     name: '@getvitops/astro',
@@ -802,8 +970,10 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         const publicDir = fileURLToPath(config.publicDir);
         const webComponents = opts.webComponents !== false;
         const editor = opts.editor === true;
-        if (editor && !opts.css)
-          logger.warn('editor: true needs a `css` config — it reads design-manifest.json.');
+        if ((editor || opts.editorManifest) && !opts.css)
+          logger.warn(
+            'editor/editorManifest needs a `css` config — it reads design-manifest.json.',
+          );
         if (opts.legal && !opts.css)
           logger.warn(
             'legal: needs a `css` config — the generation runs in the Vite plugin that `css` ' +
@@ -838,7 +1008,27 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
             '[vitops] legal: needs `legal.input` (a site config path), the top-level `site` ' +
               'option, or a `css.input` that is itself a site config.',
           );
-        if (opts.seo) {
+        // See i18n.ts's own docblock for why this is a warning, not the hard
+        // error a consent contradiction gets: either side can legitimately be
+        // configured without the other.
+        if (siteInput) {
+          const siteLocales = readSiteLocales(
+            resolve(root, siteInput),
+            opts.site?.siteEnv ?? 'production',
+          );
+          for (const warning of localeConsistencyWarnings(siteLocales, config.i18n))
+            logger.warn(warning);
+        }
+        // `site.seo` is the source; `vitops({ seo })` overrides it field by field (ADR-0002).
+        const seoDefaults = mergeSeoDefaults(
+          siteInput
+            ? readSiteSeo(resolve(root, siteInput), opts.site?.siteEnv ?? 'production')
+            : {},
+          opts.seo,
+        );
+        // A config that only supplies the organization name (so a site name) is not "seo
+        // configured"; warn only when the site actually asked for <Seo /> defaults.
+        if (opts.seo || Object.keys(seoDefaults).some((k) => k !== 'siteName')) {
           // Warn once here rather than letting every page silently drop its
           // canonical — a missing absolute URL is invisible in the output.
           if (!config.site)
@@ -915,6 +1105,9 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         const adsConfig = siteInput
           ? readSiteAds(resolve(root, siteInput), opts.site?.siteEnv ?? 'production')
           : null;
+        const experimentsConfig = siteInput
+          ? readSiteExperiments(resolve(root, siteInput), opts.site?.siteEnv ?? 'production')
+          : null;
         const detectedCategories = consentCategories([
           ...analytics.tags,
           ...resolveAds(adsConfig?.properties, { consent: consentEnabled, enabled: true }).tags,
@@ -945,6 +1138,20 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
               `${TRACKING_ENDPOINT}, but no route answers that path. Add ` +
               `\`src/pages/api/track.ts\` exporting \`createConversionRoute(...)\` from ` +
               `\`@getvitops/astro/routes\` — otherwise every call conversion is silently lost.`,
+          );
+        }
+        // The same "config asserts a fact nothing implements" gap Turnstile hit:
+        // `site.crm` names a provider, but nothing writes to it unless a route
+        // passes the `crm` option to `createConversionRoute()`.
+        if (
+          siteInput &&
+          siteCrmEnabled(resolve(root, siteInput), opts.site?.siteEnv ?? 'production') &&
+          !hasConversionRoute(root)
+        ) {
+          logger.warn(
+            `site.crm is configured, but no route answers ${TRACKING_ENDPOINT}. Add ` +
+              `\`src/pages/api/track.ts\` exporting \`createConversionRoute({ crm: {...}, ... })\` ` +
+              `from \`@getvitops/astro/routes\` — otherwise submissions never reach the CRM.`,
           );
         }
 
@@ -1106,11 +1313,12 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
               ? ['polyfills.js', 'deferred.js', 'elements.js', 'polyfills']
               : [];
             if (consentRuntime) bundles.push('consent.js');
-            if (editor) bundles.push('editor.js');
+            if (editor || opts.editorManifest) bundles.push('editor.js');
             for (const f of bundles) {
               const src = join(coreDist, f);
               if (existsSync(src)) cpSync(src, join(dest, f), { recursive: true });
             }
+            if (opts.editorManifest) writeEditorHost(dest);
             logger.info('copied web-component bundles → public/vitops/');
           } else {
             logger.warn(
@@ -1389,7 +1597,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
                 sitemap: sitemapHref,
                 fonts: headFonts,
                 site: config.site ?? null,
-                seo: opts.seo ?? {},
+                seo: seoDefaults,
                 analytics: opts.analytics ?? {},
                 consent: consentEnabled,
                 consentCategories: offeredCategories,
@@ -1400,8 +1608,11 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
                       enabled: true,
                       category: tracking.category,
                       cookies: tracking.cookies,
+                      abVariantCookie: experimentsConfig?.primaryCookie ?? null,
                     }
                   : null,
+                experiments: experimentsConfig?.experiments ?? {},
+                matomoAbVariantDimensions: experimentsConfig?.matomoAbVariantDimensions ?? {},
                 ads: adsConfig,
               }),
             ],
@@ -1428,7 +1639,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
               out,
               // Mirrored inside the generate pass so the served copy can never be
               // missing on a cold start or stale after a config edit.
-              ...(editor ? { editorManifestDir: publicDir } : {}),
+              ...(editor || opts.editorManifest ? { editorManifestDir: publicDir } : {}),
               // Same mirroring rule as the manifest: the bytes are produced by
               // this pass, so the copy belongs inside it rather than in the hook.
               //
@@ -1483,7 +1694,10 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
             }
             plugins.push(...(tailwindcss() as unknown as typeof plugins));
           }
-          updateConfig({ vite: { plugins } });
+          // `never`: with Astro 7.4's `DeepPartial<AstroConfig>`, comparing the plugin array against
+          // Vite's `PluginOption` blows TypeScript's instantiation depth (TS2321). The array is
+          // built from real Vite plugins above, so the cast loses nothing a check would catch.
+          updateConfig({ vite: { plugins: plugins as never } });
           const cssFile = format === 'tailwind' ? 'tailwind.css' : 'styles.css';
           if (opts.css.inject !== false) {
             const cssPath = resolve(root, out, cssFile);

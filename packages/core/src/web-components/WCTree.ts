@@ -8,6 +8,7 @@ import {
   type TreeNavNode,
 } from './utils/tree-nav.js';
 import { RovingTabindex, type RovingContext, type RovingMove } from './utils/RovingTabindex.js';
+import { scrollBehavior } from './utils/motion.js';
 import { initFromLightDom } from './utils/upgrade.js';
 
 /** A node this element has parsed out of the DOM. Static fields only — `hidden`
@@ -656,7 +657,7 @@ export class WCTree extends BaseElement {
     const row =
       target.querySelector<HTMLElement>(':scope > .tree__summary, :scope > .tree__content') ??
       target;
-    row.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    row.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
   }
 
   /* ── Accessibility-tree revelation (find-in-page, fragment nav) ── */

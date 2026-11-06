@@ -28,11 +28,16 @@ export async function getStaticPaths() {
 }
 
 const { page } = Astro.props;
+// `page.data` is typed `unknown` until `.emdash/types.ts` is generated from a
+// running site (`pnpm dev`, then `emdash types`), so a fresh scaffold would fail
+// `astro check`; the cast keeps it passing both before and after, where the
+// generated type is already `string`.
+const title = page.data.title as string | undefined;
 ---
 
-<Layout title={page.data.title}>
+<Layout title={title}>
   <article class="rhythm">
-    <h1>{page.data.title}</h1>
+    <h1>{title}</h1>
     {page.data.content && <PortableText value={page.data.content} />}
   </article>
 </Layout>

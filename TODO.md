@@ -5,7 +5,189 @@ build — WordPress/Bricks **and** Cloudflare EmDash (Astro/Tailwind). Keep toke
 names platform-agnostic so the same schema round-trips through both the Bricks generators and
 the Tailwind (`--format=tailwind`) output.
 
-## Patterns: `badge` + `tag` — still open
+## vNext release scope
+
+Full design detail lives in the vNext release plan
+(`~/.claude/plans/both-emdash-https-emdashcms-com-and-piped-hoare.md`, plus
+`vnext-backlog.md` in the same directory for what's still open — copy the relevant section
+into this repo's own docs if that plan file location is ephemeral).
+
+Plans/entitlements (`site.plan`), runtime A/B traffic-splitting (`vitopsAbTesting()`), and
+server-side ad-platform conversion reporting items 1–3 (per-action `conversionLabel`,
+`vitopsFormConversion()`, the conversion-email action link, the rate-limit-key fix) are all
+built — see `vnext-backlog.md` for the build record. What's left, in priority order:
+
+1. **Server-side ad-platform conversion reporting, items 4–6** — a
+   Google-Ads-offline-conversion-upload sender, the client/server reporting on/off switch, and
+   a `vitops ads provision` command. Blocked on obtaining a Google Ads developer token + MCC
+   OAuth access — the credential acquisition, not the engineering, is the critical path.
+
+## Unrelated backlog (not part of the vNext release)
+
+### Location and service page generation
+
+Demoted out of the vNext release entirely on 2026-09-29 (explicit instruction) — decision-complete,
+not built, pick up whenever, no release urgency. Expanded from a sketch into a decision-complete
+sub-plan on 2026-09-29, grounded in three parallel research passes (not guessed): a full read of
+every JSON-LD builder in `packages/utils/src/schema/` and the "no site-model layer" rules in
+`packages/astro/AGENTS.md`; a full read of `organization.locations`/`.services`' exact zod shapes in
+`packages/generator/src/config.ts`, cross-checked against two real client configs
+(`~/dev/jblsigns/config.json`, `~/dev/metrovantis/company.json`) that already populate `locations`;
+and a full read of how EmDash 1.0 actually defines collections. That third pass overturned the
+original sketch's EmDash-routing idea (item 4 below) — worth stating up front because it's the one
+thing that changed the shape of this plan the most.
+
+**Corrected assumption: a plugin cannot register an EmDash collection, at all.** Checked against
+EmDash 1.0's real types (`PluginDescriptor`, `PluginAdminConfig`, `PluginDefinition.storage` — none
+expose a collection/content-type registration surface; confirmed via `ctx.schema` being read-only,
+gated by `schema:read`). A collection can only be created two ways: (a) `seed/seed.json`, applied
+**once, at a site's first boot only** — no effect on an already-scaffolded site; or (b) `emdash
+schema create`/`add-field` run against a **live instance** (CLI, REST API, or the admin UI/MCP) —
+an operator step, the same class of thing as the design-system editor's `VITOPS_GITHUB_TOKEN`. The
+original sketch's "seed a `locations` collection, sync it with config" idea is real but **not
+something this toolchain can ship as a zero-operator-step feature** the way the design-system-editor
+plugin was. Given that, and given the org's actual near-term need (Ottawa/Ontario local + provincial
+SEO — real pages with correct JSON-LD, not a second editorial surface), this plan **narrows scope
+deliberately**: ship the config-driven page + JSON-LD generation now, defer the
+EmDash-editorial-body overlay to its own later pass. See "What's deferred" at the end.
+
+**What's already confirmed to line up cleanly** (from the schema research — this is why the mapping
+work is smaller than the original sketch assumed):
+
+- `location.address` (`streetAddress`/`addressLocality`/`addressRegion`/`postalCode`/
+  `addressCountry`) is **field-for-field identical** to `LocalBusinessGraphOptions.address` —
+  direct pass-through, no mapper needed.
+- `location.geo` (`{latitude, longitude}`) matches `LocalBusinessGraphOptions.geo` exactly —
+  direct pass-through.
+- `location.hours` (`{dayOfWeek: DayOfWeek[]; opens; closes}[]`) matches
+  `openingHoursSpecification`'s shape exactly, and `location.hoursSpecial`
+  (`{validFrom; validThrough?; opens?; closes?}[]`) matches `specialOpeningHoursSpecification`
+  exactly — both direct pass-through, no day-of-week URL-mapping or time reformatting needed (the
+  original sketch assumed a real mapper was needed here; it isn't).
+- `service.offers` (`OfferSchema`: `name?`, `price?`, `priceCurrency?`, `availability?`, `url?`,
+  `validFrom?`, `priceValidUntil?`) already matches schema.org `Offer` field names directly.
+- What genuinely needs resolving: `Localizable` fields (`name`, `description`, `slug` — via the
+  existing `t()` from `@getvitops/utils`, same pattern `resolveOrganizationName` already
+  established), `ImageRef[]` → `image: string[]` (flatten each ref's `src`, dropping `alt` since the
+  builder has no per-image alt slot), and `listings` — confirmed no schema.org equivalent, correctly
+  dropped from JSON-LD (unchanged from the original sketch; `config.ts:242`'s comment already
+  documents this as intentional, recorded for a future listings-push command).
+
+**Design.**
+
+1. **New JSON-LD builder**: `serviceGraph(options: ServiceGraphOptions)` in
+   `packages/utils/src/schema/service.ts` (+ export from that package's `index.ts`), matching the
+   existing builders' style exactly (`localBusiness.ts`/`organization.ts`: a plain function
+   returning `{'@context', '@type': 'Service', ...}`, optional fields omitted when falsy — see
+   those two files for the pattern to copy). Fields: `name` (required), `description?`, `url?`,
+   `provider?: string | {name; url?}` (rendered as a nested `Organization`), `areaServed?: string[]`,
+   `offers?: Offer[]` (each spread with `'@type': 'Offer'`). No `Service.astro` needed as a separate
+   file if `<ServicePage>` (item 4) renders the `<script>` tag itself — but for parity with
+   `LocalBusiness.astro`'s existing pattern (and so `serviceGraph` is independently usable the same
+   way `localBusinessGraph` is via `<LocalBusiness>`), add a thin `Service.astro` alongside it in
+   `packages/astro/src/schemas/`, same three-line shape as `LocalBusiness.astro`.
+2. **New adapter module**: `packages/astro/src/schemas/graph-adapters.ts` — the "no site-model
+   layer" rule's requirement (take config as an argument, type against the real `Config`, never
+   import consumer global state) applied here exactly the way `routes/config-adapters.ts` already
+   applies it to `toNotifyContext`:
+   - `resolveSlug(key: string, slug: Localizable | undefined, locale: string, defaultLocale:
+     string): string` — `t(slug, locale, defaultLocale) || key`. The **object key**
+     (`organization.locations`'s own record key, e.g. `'ottawa'`) is the stable identity already
+     used everywhere else in this codebase (`toNotifyContext`'s `primaryLocation` sort,
+     `validateConfig`'s membership check) — `slug` is an optional, per-locale URL override, not a
+     replacement identity.
+   - `locationToLocalBusiness(location: LocationEntry, opts: {locale, defaultLocale}):
+     LocalBusinessGraphOptions` — resolves `name`/`description` via `t()`, flattens `photos`
+     (`ImageRef[]`) to `image: string[]` (`typeof ref === 'string' ? ref : ref.src`), passes
+     `address`/`geo`/`hours`/`hoursSpecial`/`type`/`areaServed`/`priceRange`/`paymentAccepted`/
+     `currenciesAccepted`/`knowsLanguage`/`sameAs` straight through (confirmed shape-identical
+     above), drops `listings`.
+   - `serviceToGraph(service: ServiceEntry, opts: {locale, defaultLocale, providerName?}):
+     ServiceGraphOptions` — resolves `name`/`description` via `t()`, passes `offers` straight
+     through, sets `provider: providerName` when given (the caller passes
+     `resolveOrganizationName(config)` — direct reuse of the existing helper).
+   - Unit-tested in `graph-adapters.test.ts` the same way `config-adapters.test.ts` already tests
+     `toNotifyContext` — pure functions, no Astro rendering needed to verify them.
+3. **New tier-3 wrappers**: `packages/astro/src/components/LocationPage.astro` and
+   `ServicePage.astro`. Deliberately **thin** per AGENTS.md's tier-3 rule and the "no site-model
+   layer" scar tissue (`Seo.astro`'s own docblock: folding a schema concern into a do-everything
+   component is exactly how the deleted `SEO.astro` reached 276 lines) — this stays orthogonal to
+   `<Seo />`, same as the existing schema components:
+   - Props: `location: LocationEntry` (or `service: ServiceEntry`), `locale?: string`,
+     `defaultLocale: string` — explicit arguments only, matching the rule verbatim ("a generic
+     package must take config as an argument rather than importing consumer global state"). The
+     caller (a real Astro page) does the `Object.entries(config.organization.locations)` lookup
+     and passes one resolved entry in, exactly the idiom `toNotifyContext` already uses.
+   - Renders: an `<address>` block, an hours table (from `hours`/`hoursSpecial`), a
+     `<slot name="photos">` defaulting to a plain `<ul class="gallery">` of `<img>`s (not a new
+     gallery component — a consumer who wants `<Carousel>`/`<Gallery>` overrides the slot; inventing
+     photo-display logic here would be scope creep this plan doesn't need), a `<LocalBusiness
+     {...locationToLocalBusiness(location, {locale, defaultLocale})} />` (or `<Service
+     {...serviceToGraph(...)} />`) schema island, and a bare `<slot />` for the surrounding page
+     copy the content author still writes.
+   - Registered in `packages/astro/package.json`'s `exports` + `files` the same way
+     `Head.astro`/`Subgrid.astro` already are (mirror the existing entry shape — don't invent a new
+     export convention).
+4. **Routing — deliberately just documented, not scaffolded into either template.**
+   `organization.locations`/`.services` are optional and empty by default in both scaffolds; a
+   `getStaticPaths()` page iterating an empty record is dead weight shipped to every client who
+   isn't using this yet. Instead, `<LocationPage>`'s own docblock states the idiom directly
+   (verified working with the schema above — no toolchain change needed beyond the two components):
+
+   ```astro
+   ---
+   // src/pages/locations/[slug].astro
+   import config from '../../../site.json' with { type: 'json' };
+   import LocationPage from '@getvitops/astro/LocationPage.astro';
+   import { resolveSlug } from '@getvitops/astro/schemas/graph-adapters';
+
+   export function getStaticPaths() {
+     const { defaultLocale } = config.site;
+     return Object.entries(config.organization?.locations ?? {}).map(([key, location]) => ({
+       params: { slug: resolveSlug(key, location.slug, defaultLocale, defaultLocale) },
+       props: { location, locale: defaultLocale },
+     }));
+   }
+   const { location, locale } = Astro.props;
+   ---
+   <Layout><LocationPage location={location} locale={locale} defaultLocale={config.site.defaultLocale}>
+     <!-- author's own page copy -->
+   </LocationPage></Layout>
+   ```
+
+   This applies identically to a static/Bricks-adjacent Astro site and to an EmDash site's own
+   `src/pages/` tree (EmDash's catch-all `[...slug].astro` only intercepts what it doesn't already
+   match, and a concrete `locations/[slug].astro` route takes precedence in Astro's own router) —
+   **no EmDash dependency at all** for this half of the feature, which is what makes it shippable
+   without an operator step. Per-locale route generation (one path per location **per locale**, for
+   a site with real i18n routing) is explicitly out of scope here — that's an Astro `i18n` routing
+   concern orthogonal to this wrapper, left to whoever wires up real multi-locale routing.
+
+5. **Bricks/WordPress**: explicitly out of scope for this plan. `@getvitops/astro`'s tier-3
+   components have no Bricks-side counterpart yet (`@getvitops/bricks` doesn't exist — AGENTS.md
+   already calls this out as "future"), so a Bricks-rendered location/service page with JSON-LD is
+   a separate, unscoped effort, not silently dropped.
+6. **GBP category → `LocalBusinessType` mapping**: a small, incrementally-grown
+   `Record<gbpCategoryId, LocalBusinessType>` lookup table, keyed by `categoryId` (stable across
+   renames, unlike `displayName`), living beside `LocalBusinessType` in `config.ts` (or its own
+   module past a few dozen entries), following the `AD_PLATFORMS` capability-table pattern. Seed
+   source, in order of preference: (a) the Business Information API's `categories.list`, gated
+   behind the same pending agency-wide GBP API access request the reviews feature already needs;
+   (b) a static third-party export of the ~4,000-row category list as a stopgap. Add an entry only
+   when a real client's category doesn't already map cleanly.
+
+**What's deferred (not part of this plan, stated so it isn't silently lost):** the
+EmDash-editorial-body overlay — a `locations` collection (via `seed/seed.json` for fresh scaffolds,
+or `emdash schema add-field`/the admin UI/MCP for an existing site) holding just a `slug` +
+a `portableText` body field, matched against `organization.locations`' key at render time, so a
+client can add prose/photos around the structured facts without touching `site.json`. Left for its
+own pass because it requires either a scaffold-time-only seed change (no help to already-live
+sites) or a live operator step, and because the core SEO/JSON-LD value ships in full without it.
+
+**Sequencing note.** Doesn't depend on anything else in this file — buildable independently
+whenever picked up.
+
+### Patterns: `badge` + `tag` — still open
 
 The `badge`/`tag`/`chip` split (see AGENTS.md's "Small-label patterns split by behaviour") is
 done. Left:
@@ -13,7 +195,7 @@ done. Left:
 - `typography.roles` has a `tag` type role, unrelated to the `tag` pattern — worth
   disambiguating.
 
-## Typography: fully fluid, Utopia-style
+### Typography: fully fluid, Utopia-style
 
 - Move the type scale to a proper **Utopia** (utopia.fyi) fluid model: a min type scale +
   ratio at a min viewport and a max type scale + ratio at a max viewport, interpolated with
@@ -25,10 +207,11 @@ done. Left:
   The Utopia model must express cleanly in both — verify the clamp math matches what Bricks'
   Scale Generator produces so imports round-trip.
 
-## EmDash editing portal (`@getvitops/emdash`) — v2 backlog
+### EmDash editing portal (`@getvitops/emdash`) — v2 backlog
 
 v1 (native plugin, `admin.portableTextBlocks`, `componentsEntry`/`blockComponents`, dogfooded in
-`apps/portal`) is done. Left:
+`apps/portal`) is done, and the `emdash`/`@emdash-cms/cloudflare` peer range is now pinned to the
+tested `>=1.0.0 <2` line. Left:
 
 - `page:metadata` hook emitting JSON-LD from the shared builders now in
   `packages/utils/src/schema/` (`articleGraph`/`organizationGraph`/`breadcrumbGraph`/`faqGraph`;
@@ -41,7 +224,6 @@ v1 (native plugin, `admin.portableTextBlocks`, `componentsEntry`/`blockComponent
   deleted in `201bfb9`; `NavShell.astro` is a markup-only layout primitive, not that adapter).
 - Carousel field UX: replace the newline-separated-URLs workaround if EmDash grows
   media-picker/repeater PT block fields.
-- Pin the `emdash` peer range per tested version (currently `>=0.31.0`, verified on 0.31.0).
 
 ---
 
@@ -49,7 +231,7 @@ Deferred from the `--format=design` (DESIGN.md) work: a **DESIGN.md → config i
 (`design.md` as an _input_, seeding `design-system.json` from a brand brief) and a `diff` gate
 in CI.
 
-## DTCG (`tokens.json`) export — todo
+### DTCG (`tokens.json`) export — todo
 
 No standards-format token export exists — what ships as `tokens.json`
 (`packages/generator/src/generate.ts`) is a bespoke flat mirror (six keys, no `$` metadata).
@@ -77,7 +259,7 @@ scoped as a Google DESIGN.md/DTCG/OKF adoption (the OKF half of that plan alread
   would also need excluding from `StylesheetFormat = Exclude<Format,'design'>`, same as
   `'design'` is).
 
-## Translucent hairline/border token — todo
+### Translucent hairline/border token — todo
 
 There's a `border` colour target, but every value on it is an opaque ramp step. Most UI needs a
 subtle divider that composites over whatever surface it lands on (e.g.
@@ -89,14 +271,14 @@ borrow `--color-surface-xl` as a stand-in. Two things to resolve when building i
 - APCA's `CONTRAST.NON_TEXT ≥ 45` check assumes a solid colour — decide whether a translucent
   token is exempt from that gate or gets checked against a worst-case backdrop.
 
-## Webfont loading outside Astro — todo
+### Webfont loading outside Astro — todo
 
 `site.fonts` delegates to Astro's Fonts API for loading; Bricks/WordPress and plain-HTML
 consumers only get the `--font-*` tokens and must hand-wire `@font-face`/preload themselves.
 Needs a loading path (self-hosted `@font-face` emission, or a documented preload snippet) for
 non-Astro consumers.
 
-## Component auto-loader — todo
+### Component auto-loader — todo
 
 Ship only the components a page actually uses, plus their dependencies, instead of the
 whole `elements.js` bundle. Modelled on Web Awesome's autoloader.
@@ -132,7 +314,7 @@ Notes for whoever picks this up:
 - Check it against the Bricks builder, where markup is injected and re-rendered
   constantly — that is the hardest case for an observer-driven loader.
 
-## Foundational components — todo
+### Foundational components — todo
 
 Not built yet; tracked in full in `elements.ts`'s docblock (`packages/core/src/js/elements.ts`),
 this entry is the index into that list:
@@ -163,42 +345,20 @@ here before it shipped — see its own class docblock, `WCCounter.ts`, for the s
 treatment landed in (why it clears the tier-2 bar, shape, load-bearing details) — rather than
 just the one-liners here.
 
-## GBP category → `LocalBusinessType` mapping — todo
+### Test and a11y coverage gaps — todo
 
-Follows from populating JBL Signs' `organization.locations.ottawa.type` by hand: Google's GBP
-category for that listing (`"Sign shop"`) has no counterpart in our `LocalBusinessType` enum
-(`packages/generator/src/config.ts`), so `HomeAndConstructionBusiness` was a one-off human guess
-made while wiring up `localBusinessGraph()`. That doesn't scale past a handful of clients.
+From the 2026-11 architecture audit; each is a known gap, not a regression.
 
-**Why a lookup table, not a bigger enum.** Google's category taxonomy
-(`mybusinessbusinessinformation.googleapis.com` `categories.list`) has ~4,000 entries; schema.org's
-`LocalBusiness` hierarchy has nowhere near that many, and **Google publishes no mapping between
-the two** — this stays a hand-curated decision regardless of data source. The right shape is a
-small table (GBP `categoryId` → `LocalBusinessType`), built incrementally as real client categories
-are encountered — not an attempt to pre-map all ~4,000 up front.
+- **DOM tests** (`*.dom.test.ts`) missing for `wc-image-compare`, `wc-consent`, `wc-copy`,
+  `wc-dismissable`, `wc-multi-field` and `wc-split-panel`.
+- **e2e no-JS fallback coverage** (`site/e2e/no-js-fallback.e2e.ts`) missing for cards, consent and the other
+  elements without a spec.
 
-**Data source, in order of preference:**
+### Cloudflare `cf` CLI — evaluate when its beta ends
 
-1. **`categories.list`** (Business Information API) — canonical, current, `categoryId` +
-   `displayName`, region/language-filterable. Gated behind the pending agency-wide GBP API access
-   request (verified GBP 60+ days old, applicant email domain matching the website domain, 14-day
-   review) — the same approval that gates any future listings-sync work.
-2. **A static export** (the ~4,000-row CSV/gist third parties maintain, since Google itself
-   publishes no downloadable list) as a stopgap while API access is pending — enough to seed the
-   table now, though it can drift from Google's live list.
-
-**Shape**, following the `AD_PLATFORMS` capability-table pattern
-(`packages/utils/src/ads/providers.ts`): a `Record<string, LocalBusinessType>` keyed by GBP
-`categoryId` (stable across renames), with `displayName` carried alongside for readability, not
-used for matching. Lives beside `LocalBusinessType` in `packages/generator/src/config.ts`, or its
-own module if it grows past a few dozen entries.
-
-**Build it incrementally**: add an entry only when a real client's GBP category doesn't already map
-cleanly, the same way `HomeAndConstructionBusiness` got picked for JBL Signs — resolve it once,
-record it, move on. Don't cover categories with no client behind them yet.
-
-**Forward-looking**: this table is also what a future listings-push command (writing our
-`organization.locations.*` back out to GBP/Bing/Apple, not yet designed) needs in the other
-direction — going from our `type` back to a `categoryId` when _creating_ a listing that doesn't
-exist yet. Worth keying the table by `categoryId` now rather than `displayName` so that direction
-doesn't require re-deriving it later.
+`cf` has been in open beta since 2026-09-28 and is Wrangler's successor (typed `cloudflare.config.ts`, `cf migrate`
+from `wrangler.jsonc`). Wrangler gets a final major pointing at `cf` only when the beta ends, then 18 months of
+maintenance; Cloudflare's own agent docs still say to use Wrangler for local dev, deploys and `d1 migrations`.
+Everything here depends on Wrangler today (`@astrojs/cloudflare`, `emdash migrate --wrangler-config`, the hosting
+executors, both templates' `wrangler.jsonc`). Before migrating, check adapter and EmDash support for
+`cloudflare.config.ts`. Stay on Wrangler until then.

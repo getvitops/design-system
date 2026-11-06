@@ -1,4 +1,5 @@
 ---
+import { jsonLdScript } from '../json-ld.ts';
 export interface Props {
   claimReviewed: string;
   url: string;
@@ -80,5 +81,5 @@ const jsonLd = {
 };
 ---
 
-<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<script is:inline type="application/ld+json" set:html={jsonLdScript(jsonLd)} />
 <slot />

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
 import { vitopsHosting } from './hosting.ts';
 
 afterEach(() => {
@@ -28,6 +28,13 @@ describe('vitopsHosting', () => {
     // in their serialized config rather than depending on emdash internals.
     expect(JSON.stringify(hosting.database)).toContain('MY_DB');
     expect(JSON.stringify(hosting.storage)).toContain('MY_MEDIA');
+  });
+
+  it('coalesces D1 reads by default, and lets a site opt out', async () => {
+    const on = await vitopsHosting();
+    const off = await vitopsHosting({ cloudflare: { coalesce: false } });
+    expect(JSON.stringify(on.database)).toContain('"coalesce":true');
+    expect(JSON.stringify(off.database)).toContain('"coalesce":false');
   });
 
   it('node target fails with install instructions while @astrojs/node is absent', async () => {

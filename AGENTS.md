@@ -76,15 +76,18 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      `<time datetime>` (`"5 minutes ago"`), re-rendering as it goes stale. Fallback is the value
      already in the markup.
 
-   **Known gap — element display.** An unregistered custom element is `display: inline`, and most
-   of these wrap block content, so before upgrade (or with `elements.js` absent entirely) the tag
-   forms an inline box around a block child. Only `wc-tree` (`patterns/tree.css`), `wc-cards`
-   (`patterns/card.css`), `wc-carousel` (`patterns/carousel.css`), `wc-gallery`
-   (`patterns/gallery.css`) and `wc-theme-editor` (`patterns/theme-editor.css`) currently declare
-   `display`; `wc-color-scheme-toggle` and `wc-consent` manage their own visibility, so the
-   remaining seven are unaddressed. Fixing them means checking each pattern's intended flow rather
-   than blanket-setting `display: block`, since an element used inline would regress — match the
-   declaration to the content the element wraps.
+   **Element display.** An unregistered custom element is `display: inline`, and most of these wrap
+   block content, so before upgrade (or with `elements.js` absent entirely) the tag would form an
+   inline box around a block child — and, where the upgraded `:host` declares a different display,
+   registering would shift the layout. Each pattern's partial now declares `display` for its element
+   inside `:where()`, matched to the content it wraps and to its upgraded `:host`: `block` for
+   `wc-entries`, `wc-image-compare`, `wc-split-panel`, `wc-multi-field`, `wc-dismissable` (which
+   animates its own box, so `display: contents` is out) and `wc-marquee`; `inline-flex` for `wc-copy`.
+   **`wc-counter` is deliberately left `inline`**: it wraps one inline `.counter__value` `<span>`
+   (its docblock's example), so the default display is already right for what it holds.
+   `wc-color-scheme-toggle` and `wc-consent` manage their own visibility. A new element must declare
+   its display in its pattern's partial — an element used inline would regress under a blanket
+   `display: block`, so match the declaration to the content it wraps.
 
 3. **Platform wrappers** (`@getvitops/astro` components; future `@getvitops/bricks`) — thin
    **authoring conveniences (DX)** for the pure-HTML/CSS patterns: they render the correct
@@ -303,10 +306,25 @@ packages under `packages/` (a pnpm workspace), by layer:
   (`MOVED_KEYS` in `config.ts`), short-circuiting before zod would report a dozen
   `unrecognized_keys`; that error is the migration.
 
+- **`@getvitops/config`** — the **site-config provider blocks** as zod schemas and inferred types:
+  `site.crm`, `site.ads`, `site.reviews`, `site.seo.indexing`, `site.searchConsole`,
+  `site.notifications`, `site.tracking`, `site.security`, `site.deployment`. A **leaf** — it imports
+  `@zod/mini` and nothing else in the workspace — which is the whole point: `@getvitops/utils` (the
+  provider code) can import its own configuration types instead of keeping a hand-copied mirror beside
+  each module, so the type an executor accepts and the document `validateConfig` accepts cannot drift.
+  Two entries, and the split is load-bearing: `.` carries the schemas (zod), `./providers` carries the
+  closed lists (`AD_PROVIDERS`, `CRM_PROVIDERS`, `BIGIN_DATA_CENTERS`) as bare literals, because Worker
+  code needs them as runtime values and must not pull zod along — `worker-safe.test.ts` fails a Worker
+  subpath that takes a value from the root. **The umbrella `Config` is NOT here**: it embeds the
+  design-system schema, whose `tokenRefIssues` calls the token engine, so moving it would have dragged
+  most of the generator down. `generator` re-exports the moved names, so no import path changed. Declare
+  `zod` here too: leaving `@zod/mini`'s peer to auto-install gave this package zod 4.6.7 beside the
+  generator's 4.6.5, and the two copies made the generator's declaration emit fail with TS2883.
 - **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
   `png-to-ico`, loaded lazily; `oxipng` crush optional). Consumed by cli/vite/astro.
 - **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint|legal|robots|reviews|
-icons|search|ads|media` (bin `vitops`), a thin wrapper over the generator + utils. `legal`/`search`/`ads`
+  icons|search|ads|crm|email|setup|media` (bin `vitops`), a thin wrapper over the generator + utils.
+  `legal`/`search`/`ads`/`crm`/`email`
   are covered in their own sections below; `robots` (`vitops robots [--input <site.json>]
   [--site-env <name>] [--out <dir>]`) is `legal`'s sibling — same `Config`-anchoring, same
   stdout-or-`--out` shape — rendering `robots.txt` from the resolved environment's robots
@@ -395,7 +413,7 @@ the Build system section.
 
 Build/publish: `npx vp run build:packages` (core → generator → utils → cli → vite → astro; each task
 `dependsOn` the packages it imports) and `npx vp run release` (`build:packages && changeset publish`).
-Versioning is via Changesets (`.changeset/config.json`): `core`/`generator`/`utils`/`cli`/`vite`/`astro`
+Versioning is via Changesets (`.changeset/config.json`): `config`/`core`/`generator`/`utils`/`cli`/`vite`/`astro`
 are **fixed** together — one version for the whole toolchain; `@getvitops/emdash` and
 `@getvitops/create` version independently; the root and `site/` stay private/ignored.
 
@@ -437,7 +455,7 @@ reading changelogs that were accurate and still unanswerable:
   change in this package"** rather than leaving the absence to be inferred; a lockstep major
   is otherwise indistinguishable from one whose notes were forgotten.
 - **Every pattern-CSS entry names the formats it reaches** — `css/bricks only`, `tailwind
-only`, `all formats`. The `.rhythm` heading-spacing change was written as a plain breaking
+  only`, `all formats`. The `.rhythm` heading-spacing change was written as a plain breaking
   change and never reached the tailwind output; a consumer diffed builds to establish that.
   One clause settles it.
 
@@ -483,9 +501,11 @@ Four things here are load-bearing:
 - **`JURISDICTIONS` in `config.ts` and `TEMPLATES` in `legal/templates/index.ts` are checked
   against each other** by `satisfies`. Adding a jurisdiction is: author three templates, add
   one enum member, add one registry key — skip either and it fails to compile rather than
-  rendering against the wrong body of law. Only `ca` (PIPEDA) ships; its prose names the
-  Office of the Privacy Commissioner of Canada and frames transfers as "outside of Canada",
-  so do not reuse it elsewhere.
+  rendering against the wrong body of law. `ca` (PIPEDA) and `qc` (Quebec Law 25) ship. The
+  `ca` prose names the Office of the Privacy Commissioner of Canada and frames transfers as
+  "outside of Canada", so do not reuse it elsewhere; `qc` is its own text (Commission d'accès
+  à l'information, transfers "outside Quebec") and carries a second review banner naming
+  counsel review, the person in charge of privacy and French availability.
 
 Delivery is one renderer, four consumers — the CLI is the load-bearing one, because it is the
 surface every consumer has regardless of stack:
@@ -504,8 +524,8 @@ a build tool; the one failure mode with real consequences is a consumer publishi
 
 A visitor arrives on an ad with a click ID in the URL; `<Tracking />`
 (`@getvitops/astro`) captures it into the first-party **`_ac`** cookie; when they later
-submit a form or tap a `tel:` link, `createConversionRoute()` reads the cookie back and
-notifies whoever the config names. Three packages, split along the seams the rest of the
+submit a form or tap a `tel:`/`mailto:` link, `createConversionRoute()` reads the cookie back
+and notifies whoever the config names. Three packages, split along the seams the rest of the
 toolchain already uses:
 
 | Layer                                         | Where                       | Why there                                                |
@@ -517,8 +537,9 @@ toolchain already uses:
 Both `utils` entries are separate subpaths because they are the only modules that run in a
 **Worker** rather than at build time — keeping them off `src/index.ts` is what stops a
 conversion endpoint pulling `sharp` into its bundle. Neither may use a Node builtin.
-`TrackingConfig`/`NotificationsConfig` mirror the `site.*` blocks structurally, since utils
-cannot import from the generator — the same arrangement as `IndexingConfig`.
+`TrackingConfig`/`NotificationsConfig` are the inferred types of `@getvitops/config`'s
+`TrackingSchema`/`NotificationsSchema` — utils imports its own configuration types rather than
+mirroring them (see `@getvitops/config` above).
 
 Eight things are load-bearing:
 
@@ -565,7 +586,7 @@ Eight things are load-bearing:
   Cloudflare's siteverify endpoint via `verifyTurnstileToken()` (`@getvitops/utils/security` — a
   Worker-safe subpath for the same reason `notify`/`tracking` are). The **secret** key is an env
   var, never config, mirroring every other credential in the toolchain; `site.security.turnstile
-.siteKey` stays public config and is what the legal templates read to name Turnstile in the
+  .siteKey` stays public config and is what the legal templates read to name Turnstile in the
   generated privacy policy (see the Legal documents section). Before this existed, that field made
   the policy assert something nothing in the toolchain checked — a bare token in the submission
   is, by default, treated as absent-because-no-JS rather than rejected (`required: true` opts a
@@ -691,9 +712,12 @@ Console does not care which, and a consumer who ran `search setup` already holds
 credential — making them provision a second, unrelated one for the other half of the same command
 bought nothing. `search setup` is the only thing that genuinely requires a specific grant.
 
-`@getvitops/utils` cannot import from `@getvitops/generator` (the generator already depends on
-it), so `IndexingConfig` mirrors the `site.seo.indexing` block structurally and the CLI adapts — the
-same arrangement, for the same reason, as `GetvitopsSeoOptions` in `@getvitops/astro`.
+`IndexingConfig` is the inferred type of `@getvitops/config`'s `IndexingSchema`, so the type the
+executor accepts and the document `validateConfig` accepts cannot drift. `site.seo` is the single source
+of site-level SEO defaults (ADR-0002): `SeoSchema` lives in `@getvitops/config`, and `@getvitops/astro`'s
+`resolveSeoDefaults()` resolves it (with `organization.name` as the site name) into the `GetvitopsSeoOptions`
+shape `<Seo />` reads; `vitops({ seo })` is only an override merged over that. `seo-defaults.test.ts` fails
+when a `site.seo` field is added and not read, which is how four fields once sat in the schema doing nothing.
 
 ## Search Console onboarding
 
@@ -736,8 +760,8 @@ Credentials follow the same env-var pattern as `lib/deploy.ts` and never live in
 Cloudflare via `CLOUDFLARE_API_TOKEN` (a `Zone:DNS:Edit` token — the standard "Edit zone DNS"
 template also carries the `Zone:Read` that the zone-by-name lookup needs), Google via
 `VITOPS_GOOGLE_CLIENT_ID` / `VITOPS_GOOGLE_CLIENT_SECRET` / `VITOPS_GOOGLE_REFRESH_TOKEN`. As with
-`IndexingConfig`, the util-side `DomainSetup`/`DomainState` types are structural mirrors (utils
-cannot import the generator) and the CLI's `toSearchConsoleSetup` adapts.
+`IndexingConfig`, the util-side onboarding types derive from `@getvitops/config`; the CLI's
+`toSearchConsoleSetup` only reshapes the config for the planner.
 
 ## Ad-platform linking
 
@@ -786,11 +810,9 @@ Five things are load-bearing:
 - **`AD_PLATFORMS` is the single source, and it feeds three surfaces that must agree.** The cookie
   list reaches `data-consent-cookies` (what a revoke clears) _and_ the generated cookie notice via
   `adProcessors()` in `legal/providers.ts`; the click-ID list is checked against `PLATFORM_PARAMS`;
-  the tag is emitted inert (`type="text/plain"` + `data-src`, never a live `src`). The generator
-  mirrors the provider list as the `AD_PROVIDERS` enum — a `z.enum` needs literals to reach the
-  published JSON Schema — and `ads-config.test.ts` asserts the two are the same set. Note the
-  generator **imports** the capability table (that direction is allowed); only `utils`-side types
-  are structural mirrors.
+  the tag is emitted inert (`type="text/plain"` + `data-src`, never a live `src`). `AD_PROVIDERS`
+  lives in `@getvitops/config/providers` as bare literals (a `z.enum` needs literals to reach the
+  published JSON Schema), and `ads-config.test.ts` asserts it matches the capability table.
 
 Credentials follow the same env-var pattern as everything else: `CLOUDFLARE_API_TOKEN` for the DNS
 write, and nothing else — no platform API is called, so no ad-platform credential exists to leak.
@@ -806,6 +828,177 @@ answer for tags it doesn't govern; and the environment switch is its own — `en
 cascading to `analytics` then true, because a preview deployment sending pageviews is survivable and
 one firing conversion pixels is not. The integration resolves ads **before** choosing offered consent
 categories, since a pixel is a `marketing` demand and the banner must already have a row for it.
+
+## Sender-domain onboarding (`vitops email`)
+
+`site.notifications.email.from` (see Conversion tracking above) names an address, but nothing
+connected that to whether its domain is actually onboarded onto an outbound provider —
+`EMAIL.send()` throws `E_SENDER_NOT_VERIFIED` at runtime with no build or deploy-time warning.
+`vitops email setup [domain]` (`@getvitops/utils/email` → `packages/cli/src/commands/email.ts`)
+onboards a sending domain and waits for its DNS to resolve; `vitops email check` is the
+non-blocking deploy guard both templates' `deploy` script runs first. Same pure-planner/executor
+split as `ads/`, `onboarding/` and `hosting/` — `plan.ts` decides everything, `cloudflare.ts`
+executes Cloudflare's REST API and decides nothing, `dns.ts` is a read-only DoH propagation probe,
+`scan.ts` is the best-effort static source scan.
+
+Three things here are load-bearing:
+
+- **The onboarded entity is an exact name, and it is usually a subdomain — never the apex a `from`
+  address names.** Checked live against this account: `send.vitops.ca` is onboarded, and
+  `wrangler email sending dns get vitops.ca` fails with "No sending subdomain found for
+  `vitops.ca`" — Cloudflare matches `subdomains.find(s => s.name === name)`, no fallback to a
+  parent zone. So a config whose `from` is `noreply@vitops.ca` is **not** covered by an onboarded
+  `send.vitops.ca`, and the planner's single most valuable report is naming that mismatch: absent
+  exact name + an onboarded sibling in the same zone → `blocked`, not `create`.
+- **Why `send.<domain>` rather than the apex is NOT about MX conflict** — checked live: every
+  record Cloudflare adds sits under its own label (`cf-bounce.<sending>`, `cf-bounce._domainkey
+  .<sending>`), which collides with neither an apex MX nor `mail.<domain>`. What actually recommends
+  a subdomain is the DMARC record: `_dmarc.<sending>` sets `p=reject`, and onboarding the apex
+  would overwrite the domain's real `_dmarc.<domain>` — for `vitops.ca` that would replace an
+  existing `p=none` policy covering Zoho-hosted mail with `p=reject`, which fails every message
+  that isn't SPF/DKIM-aligned for this sender. A blocked report's fix therefore recommends sending
+  from the onboarded subdomain first, and names enabling the apex as the second option with that
+  caveat — never the reverse.
+- **This calls Cloudflare's REST API directly, not `wrangler email sending list`** — checked
+  against wrangler 4.119.0: that command has no `--json`, only a text table, and scraping it was
+  ruled out the way every other executor here avoids parsing CLI prose. `findZoneForHost` mirrors
+  wrangler's own `resolveDomain` label-walk (try the full host as a zone name, then each shorter
+  suffix) rather than a public-suffix-list dependency, because a sending name is usually a
+  subdomain and Cloudflare zones are registered at the apex.
+
+`vitops email check` warns and exits 0 by default — `--strict` makes it a real gate — because a
+false positive (a `from` the scan can't see is actually correct, e.g. built dynamically) must not
+block every deploy; `site.notifications.email.verifySender: false` or `VITOPS_SKIP_EMAIL_CHECK`
+opt out per-site. Candidates come from config first (`site.notifications.email.from`, or
+`resolveSender()`'s derived `noreply@<canonical>`), with the source scan (`email/scan.ts`, modelled
+on `icons-scan.ts`) only a supplement — a computed `from` value in source is reported as dynamic,
+never guessed at, the same rule `icons-scan.ts` and `vitops lint` already follow.
+
+## CRM submissions
+
+`site.crm` (`@getvitops/utils/crm`) pushes a form submission into a client's CRM — HubSpot, Zoho
+Bigin, or Jobber — server-side, hung off the same `createConversionRoute()` every conversion already
+reaches, rather than a client-side iframe/JS embed. That distinction is the whole reason it exists: a
+cross-origin iframe can't read the first-party `_ac` cookie, and a HubSpot-hosted script posts
+straight to `api.hsforms.com` — either way the lead reaches the CRM with no record of the ad that
+paid for it and no notification email, and the markup can't be white-labelled against this design
+system. Tier-1 all the way down: a client form is `<form method="post" action="/api/track">`
+against `css/patterns/forms.css`'s existing field vocabulary — no new `/core` component, and
+`<wc-form>` stays deliberately deferred.
+
+Four external facts settle most of the design:
+
+- **Zoho Bigin has no unauthenticated submission endpoint.** Every write is OAuth refresh-token
+  only, so a browser-side path cannot exist for Bigin at all.
+- **HubSpot's unauthenticated forms endpoint is rate-limited per _portal_** and rejects any field
+  not already declared on the form. A bot on one client's site would starve every other form
+  sharing that portal — the "configure it in their UI first" coupling this feature exists to avoid.
+- **Bigin's `Contacts.Last_Name` is mandatory and `Email` is the unique field.** A bare name/email
+  form 400s on insert unless a last name is derived.
+- **Jobber is a GraphQL API that answers `200 OK` for failures.** A rejected `clientCreate`
+  returns `userErrors[]`, and a malformed request returns top-level `errors[]` — both with HTTP
+  200, so `jobber.ts` classifies on the body, not the status. Its refresh tokens also rotate by
+  default: Refresh Token Rotation must be turned **off** in the app's Developer Center settings,
+  since a Worker reading a static `VITOPS_JOBBER_REFRESH_TOKEN` cannot persist a rotated one. A
+  per-client private app is never published to Jobber's Marketplace (where rotation ON is
+  mandatory), so this is a legitimate setup requirement, not a workaround — `jobber-token.ts`
+  detects a rotated token at exchange time and names the fix rather than failing an hour later
+  as an opaque 401.
+
+Seven things are load-bearing:
+
+- **CRM-before-notify, and the notification states the outcome.** `createConversionRoute()` calls
+  `deliverToCrm()` after the honeypot/Turnstile/`validate` gates (a honeypot trip must never reach
+  the CRM) and before `notify()`, then folds the result into `notify`'s fourth arg —
+  `describeCrmResult()` becomes one line in the email's "Delivery" section
+  (`Written to HubSpot (contact 1234)` / `⚠ Not written to HubSpot: access token rejected (401)`).
+  The email is the durability floor: a failed CRM write must still reach a human with the full
+  submission and a stated reason, which is only possible once the outcome is known.
+- **A failed CRM write never fails the request.** The visitor has already submitted; refusing them
+  because a CRM token expired turns a lost write into a lost conversion — the same rule
+  `notify()`'s own docblock states for the email channel.
+- **Consent gates `_ac`, never the CRM write.** A visitor filling in a form is deliberately handing
+  over their data — that's the necessary processing of their own submission. `event.tracking` is
+  `null` for a visitor who declined `marketing`, and `map.ts`'s `mapSubmission()` simply writes no
+  attribution fields; absence is not an error, and the CRM write proceeds regardless.
+- **Bigin's last-name fallback**, in `crm/map.ts`'s `deriveLastName()`: an explicit `lastName` field
+  wins; failing that, the last space-separated token of the full name; failing that, the email
+  local-part; failing all three, a stated refusal rather than a fabricated name or a 400 Bigin would
+  otherwise return.
+- **Credentials are a function of `locals`, never config** — `createConversionRoute()`'s `crm`
+  option takes `credentials?: (locals) => CrmCredentials`, matching `binding?: (locals) =>
+  EmailBinding` exactly, so a consumer reads `VITOPS_HUBSPOT_ACCESS_TOKEN` /
+  `VITOPS_ZOHO_CLIENT_ID`/`_CLIENT_SECRET`/`_REFRESH_TOKEN` /
+  `VITOPS_JOBBER_CLIENT_ID`/`_CLIENT_SECRET`/`_REFRESH_TOKEN` from `cloudflare:workers`'s `env`.
+  That rule is absolute in this toolchain.
+- **`vitops crm check` is the drift guard, and the reason a separate CLI command exists at all.**
+  HubSpot _rejects_ a submission naming a property that isn't on the form; Bigin _silently ignores_
+  one. A typo'd `site.crm.fieldMap`/`trackingFields` entry is therefore invisible in one CRM and
+  fatal in the other, and only fetching the live field/property list can tell you which.
+  `vitops crm setup` creates missing HubSpot properties; Bigin has no such API, so it always
+  resolves to a manual reminder, matching how `ads setup` handles a platform with no verification
+  API. Jobber currently renders `fieldMap`/`trackingFields` values as note-text lines rather than
+  app-configured custom fields (see below), so both subcommands say so rather than checking an
+  unverified endpoint.
+
+Compliance is not optional here, and follows the rule Legal documents already set: **the config
+records facts; the template owns prose.** `legal/providers.ts` names HubSpot, Zoho Bigin or Jobber
+once `site.crm` picks one — the same reasoning `site.ads` already established for ad platforms,
+since `site.crm` makes the toolchain the thing deciding whether a submission reaches any of them.
+Bigin's cross-border-transfer sentence derives from `bigin.dataCenter` exactly as `matomoLocation()`
+derives Matomo Cloud's: `dataCenter: 'ca'` asserts `storage: [{ country: 'Canada' }]`, which
+`derive.ts`'s `foreign()` then correctly omits from the disclosure — a real win for an Ontario
+client running Bigin's Canadian data centre. HubSpot's `operatorCountry` is verified (Delaware
+corporation, Cambridge, MA); Zoho's is deliberately left unset pending verification, since Zoho
+Corporation has both an Indian and a US entity and which one controls a given account is not
+something the config can see — don't invent a jurisdiction there. **Jobber's operator is Canadian
+but its storage is not** — Octopusapp Inc. d/b/a Jobber, Edmonton AB, verified from its own
+published privacy policy, which is exactly why `KNOWN_PROCESSORS.jobber` sets `operatorCountry:
+'Canada'` **and** `storage: [{ country: 'the United States' }, { country: 'Canada' }]` rather than
+inheriting Bigin's Canadian-data-centre win: that same policy names the United States as a
+processing location, so a Canadian operator must not be read as Canadian-only storage. Unlike
+Bigin's `dataCenter`, this isn't derived from a config field — Jobber gives the config nothing to
+derive from, so it's asserted once, directly in the table.
+
+`packages/utils/src/crm/` follows the pure-planner/executor split every other module here does
+(`plan.ts` decides whether the channel is on, from one `PROVIDER_REQUIREMENTS` table rather than a
+hand-written `if` per provider; `map.ts` decides how one submission becomes a provider-neutral
+`CrmRecord`; `hubspot.ts`/`bigin.ts`/`jobber.ts` execute and decide nothing beyond the last-name
+refusal and Jobber's own GraphQL-body classification). `identifySubmitter()` — pulling first/last
+name, email, phone, company out of a form's fields by its aliases — was promoted out of
+`notify/render.ts`'s private `submitterName()` into `tracking/identity.ts`, because `crm/map.ts`
+needed the whole identity, not just a display name, and a second independent alias cascade is
+exactly the bug `render.ts`'s own comment records: a downstream site had five of six forms carrying
+`first_name`/`last_name`, and a name-only cascade read every one of them as "Unknown".
+
+Three CRMs is also the point where the binary `hubspot ? … : bigin` branches a second provider
+could get away with had to go: `describeCrmResult`'s provider label, `deliverToCrm`'s executor
+dispatch, and `planCrm`'s block/credential checks are each one small table now
+(`PROVIDER_LABELS`, a `switch` with a `never` exhaustiveness check, `PROVIDER_REQUIREMENTS`), so a
+fourth provider added to `CrmProvider` with no matching entry is a compile error rather than a
+silently mislabelled email or a runtime crash on a missing config block.
+
+No durable retry queue (the notification email is the durability floor, matching `notify`'s own
+restraint), no client-side path (impossible for Bigin, actively harmful for HubSpot's rate limit),
+and no generic connector framework — three CRMs with three genuinely different transports (a
+form-submission POST, a REST upsert, a GraphQL mutation) is evidence against a shared abstraction,
+not for one, the same restraint `notify`'s own TODO records for its unimplemented channels.
+
+**Jobber-specific, and each an open item rather than a silent guess:**
+
+- Only `clientCreate` is verified against Jobber's own published docs. The best-effort note
+  (`noteCreate`) and the dedupe lookup (`clients` search) are **not** — Jobber's changelog records
+  `requestNoteCreate`/`requestUpsert` being _removed_, so the note surface is genuinely in flux.
+  Both are wrapped so a wrong guess degrades rather than breaks: a failed note never downgrades a
+  successful client write, and `dedupe` defaults to `false` until the search shape is confirmed
+  against a live account's GraphiQL schema — turn it on once verified, and update `jobber.ts`'s
+  docblock with what was found.
+- Attribution and any unmapped extra fields render into the note body by default, not a Jobber
+  custom field — Jobber's app-configured custom fields need the Connect plan or higher, and their
+  `clientCreate` input shape is a further unverified surface. `fieldMap`/`trackingFields` values
+  still land as note lines rather than a guessed custom-field mutation input.
+- A resubmitting visitor creates a second Jobber client unless `crm.jobber.dedupe: true` is set
+  (once verified) — Jobber's `clientCreate` has no upsert, unlike Bigin's.
 
 ## Client onboarding
 
@@ -981,6 +1174,10 @@ Other tools used:
 ### Task Notes
 
 - do not run format or lint as verifications, these are done automatically on save and PostToolUse hooks.
+- if `vp check` passes locally but CI's `vp check` reports formatting issues, suspect a stale hoisted `node_modules/oxfmt`
+  (or `oxlint`/`vite`) left by an old `npm install`: `vp` resolves the formatter from the project root, so it shadows
+  the version pnpm pinned. `ls node_modules/oxfmt` should not exist — `node_modules` is pnpm-owned; reinstall with
+  `pnpm install --frozen-lockfile`.
 - `index.html` is the evergreen docsite that should dogfood the output of the build. Make sure it's kept up to date
 
 ## Output
@@ -1016,7 +1213,7 @@ Other tools used:
 
   **Geometry must resolve through the group alias layer — never hard-code the group token.** For
   every grouped pattern the generator emits `--<prop>-<name>-group` aliases (`--br-btn-group:
-var(--br-control)`), and `overrides` replace an alias with a literal. So a pattern's `base` writes
+  var(--br-control)`), and `overrides` replace an alias with a literal. So a pattern's `base` writes
   `"border-radius": "var(--br-btn-group)"`, **not** `"var(--br-control, 0.25rem)"`. Both render the
   same, but only the first keeps the pattern → group mapping in CSS, where it is inspectable and
   editable in devtools; a hard-coded fallback bakes it into the rule and is unreachable. The full
@@ -1302,10 +1499,12 @@ check required) and gated by a `production` GitHub Environment whose required re
 are the repo's admin collaborators — so a merge to `main` starts the prod deploy but it
 **pauses for an admin's approval** before it runs. Promotion is manual and one-directional:
 the `promote` workflow opens a `dev → main` PR with auto-merge; nothing pushes to `main`
-directly. `scripts/init-github.mjs` in each template provisions all of this (branch
-protection, both environments) at scaffold time — see its docblock for what it sets and
-what it can't (branch protection / environment reviewers need GitHub Pro/Team on a
-private repo; the script prints the manual equivalent when it 403s).
+directly. `vitops setup repo` (absorbing the old template-local `scripts/init-github.mjs`,
+removed in `@getvitops/create` 0.7.0 — see "Client onboarding" above) provisions all of
+this (branch protection, both environments) at scaffold time — see
+`packages/utils/src/hosting/github.ts` for what it sets and what it can't (branch
+protection / environment reviewers need GitHub Pro/Team on a private repo; the command
+reports the manual equivalent when it 403s).
 
 **Reusable workflows, not copy-pasted ones.** `.github/workflows/site-ci.yml`,
 `site-deploy-static.yml`, `site-deploy-emdash.yml` and `site-promote.yml` in _this_ repo
@@ -1320,13 +1519,70 @@ input: `site-deploy-emdash.yml` needs a `DEV_D1_ID` secret and a config rewrite
 (`scripts/build-dev-wrangler.mjs`, documented on that script) that make no sense for
 `site-deploy-static.yml`'s plain static-assets path.
 
-**EmDash has no migration step, on purpose — and that's not a gap left unaddressed.**
-EmDash applies its migrations and `seed/seed.json` at **first boot of the worker**, not at
-deploy time — there is no `.sql` file and no `wrangler d1 migrations apply` anywhere in this
-toolchain. `site-deploy-emdash.yml`'s optional `health-check-url` input is what turns that
-from a promise into a checked fact: it curls the deployed URL after `wrangler deploy`,
-forcing first boot inside the job, so a broken migration fails the deploy instead of
-surfacing to the first real visitor.
+**EmDash 1.0 migrations run before traffic, not on the first visitor's request.**
+Pre-1.0, EmDash applied its core migrations and `seed/seed.json` at first boot of the
+worker with no separate step — there was no `.sql` file and no `wrangler d1 migrations
+apply` anywhere in this toolchain, and `site-deploy-emdash.yml`'s optional
+`health-check-url` input turned that into a checked fact by curling the deployed URL after
+`wrangler deploy`, forcing first boot inside the job so a broken migration failed the
+deploy instead of surfacing to the first real visitor. EmDash 1.0 makes this explicit
+instead of implicit: `migrations.runtime` in `emdash()`'s config defaults to `'auto'`
+(same first-request behaviour as before) but the documented production pattern is
+`'check'` (the worker 503s on pending migrations rather than applying them) plus a real
+`emdash migrate` step in CI — `emdash migrate --status`, then `emdash migrate
+--expected-target-fingerprint <sha>` before `wrangler deploy`, then `emdash migrate
+--check` after. `site-deploy-emdash.yml` runs this sequence explicitly now; the
+`health-check-url` boot probe remains as a defence-in-depth check, not the only guard.
+
+**The `dev → main` flow is for code, not content: truth runs a different direction per kind of
+data.** Code, Astro pages, `site.json` and the design system live in git, so `dev` is their truth
+and they promote `dev → main`. EmDash content (entries, media, menus, settings) lives in D1/R2 and
+**production is its truth** — editors work there, and drafts, "Publish changes" on a live entry,
+signed preview links and scheduling _are_ the staging step. The dev database is therefore a
+disposable copy refreshed from prod (`site-refresh-dev.yml` → the template's
+`scripts/refresh-dev.mjs`), never promoted back. This is EmDash's own "rehearse on a preview
+environment" pattern; the earlier arrangement (a long-lived dev database content was edited in)
+drifted from prod permanently and gave a prod edit no path back.
+
+Five things are load-bearing:
+
+- **Refresh is one-way and guarded, because it drops every table in its target.**
+  `assertSafeTarget` refuses a database that isn't named `*-dev`, whose id isn't `$DEV_D1_ID`, or
+  whose id is production's — the same instinct as `build-dev-wrangler.mjs` refusing to run without
+  `DEV_D1_ID`. It runs in the `dev` GitHub Environment, not `production`: it only reads prod, and a
+  refresh waiting on an admin's approval would never get run.
+- **The back-merge compares trees, not ancestry.** Promotion merges `dev` into `main` with a merge
+  commit, so `main` is never an ancestor of `dev` right after a release even though the content is
+  identical; an ancestry check would open a no-op PR on every promote. `git merge-tree
+  --write-tree` says whether merging would change `dev`. A merge made with the default
+  `GITHUB_TOKEN` triggers no workflows, so without `BACKMERGE_TOKEN` the PR is left for a human —
+  otherwise `dev` would take the fix without Deploy dev running and sit silently stale.
+- **Sign-in must work on both origins, so the template ships magic link, not just passkeys.** A
+  passkey only works at the origin it was registered on, so a refreshed dev site would lock every
+  editor out. Magic link needs only a working email provider — the template registers
+  `cloudflareEmail()` and an `EMAIL` `send_email` binding — and the cloned users already exist, so
+  the same address signs in on both origins with nothing per-origin to create. It was chosen over
+  EmDash's GitHub provider, which needs a separate OAuth app and two secrets for each origin (one
+  callback URL each), all by hand. The `from` must be on a domain onboarded with Cloudflare Email
+  Sending (`vitops email setup`, and usually the `send.` subdomain — see "Sender-domain
+  onboarding"); until it is, magic link answers "Email is not configured" and the only way in on a
+  refreshed dev site is a passkey registered there.
+- **No PII scrub on refresh.** Dev is the same organisation, platform and access as prod, so the
+  copy carries the same handling obligations; it must stay gated like prod and `noindex`. Sessions
+  are in the Astro session store (KV), not D1, so none are carried over.
+- **Two things in D1 would leak across.** The preview-link secret is stored in the database, so a
+  refresh copies prod's and prod preview links would open drafts on dev — set
+  `EMDASH_PREVIEW_SECRET` on the dev worker. Scheduled publishes and plugin jobs are copied too, so
+  `build-dev-wrangler.mjs` drops the cron trigger from the dev config; the cost is that scheduled
+  publishing can't be exercised on dev.
+
+`<wc-theme-editor>`'s "Save to source" is the sanctioned prod → git path for design tokens: it
+commits to `site.deployment.branch` (default `dev`), so it rides the next promote. Keep that off
+`main`, or a prod edit becomes a hotfix that skips review.
+
+Not built: per-PR preview environments. Static sites could have them cheaply (`wrangler versions
+upload`), but an EmDash preview needs a database each; a persistent dev plus refresh covers the
+need until contention on `dev` is real.
 
 **This repo's own docs site is the one exception to "thin caller."**
 `.github/workflows/deploy-dev.yml` / `deploy-prod.yml` at the repo root deploy `site/`
@@ -1344,9 +1600,30 @@ real deploy code was never exercised by its own docs build. `.github/workflows/d
 platforms — and should be deleted outright once the Cloudflare prod deploy has succeeded
 at least once.
 
+**The `scaffold` CI job is the only thing that installs a template the way a client does.** A
+template's `@getvitops/*` deps are `latest` (see `templates.test.ts` for why), so a plain scaffold
+resolves the last _release_ and would test nothing new; `scripts/scaffold-check.mjs` (`vp run
+verify:scaffold`) instead `pnpm pack`s this checkout's packages, **publishes them to a throwaway
+Verdaccio registry** under `latest`, and installs the scaffold from it, then typechecks, builds and
+`vitops lint --strict`s it. `@getvitops/*` is served from that registry only (no uplink, so it cannot
+fall back to a release) and everything else proxies to npmjs. It replaced `overrides` pointing at
+`file:` tarballs, which never resolved the scaffold's own `latest` specifiers and needed
+`blockExoticSubdeps` switched off. The template's release cooldown is left in force — the script
+throws if a template stops exempting `@getvitops/*` from it — so the install resolves what a client
+would today, Astro included. It copies the template directory rather than calling `vp create`,
+because `vp create @getvitops:<name>` resolves the _published_ `@getvitops/create` from npm and
+refuses `--directory` for a local path. It also drops `packageManager` and `devEngines` (they make
+pnpm/Node try to download other versions than the runner has) and fails on EmDash's
+adapter-version-mismatch warning, which is how an
+upgrade of `emdash` without `@emdash-cms/cloudflare` shows up. It exists because it found real
+defects the first time it ran: `resolveOrganizationName` demanded the full `Config`, which a plain
+`import site from './site.json'` cannot satisfy; `page.data` was `unknown` before `emdash types`
+had run; and the templates declared `neutral`/`surface` as chromatic roles while using
+`text-neutral-muted`, a class that resolved to nothing.
+
 **Verifying a change to the reusable workflows**, before running `release-workflows.yml`:
 `vp check` / `vp test run` (covers `templates.test.ts`); scaffold each template fresh in a
-scratch dir and run `node scripts/init-github.mjs --dry-run`; push a no-op commit to `dev`
+scratch dir and run `vitops setup repo --dry`; push a no-op commit to `dev`
 and confirm the dev worker updates; run `promote` and confirm the prod job **pauses** for
 approval before publishing.
 

@@ -8,6 +8,9 @@ order: 10
 Every package in the toolchain shares one version. Install `@getvitops/cli` and let it pull the
 rest, or add the integration for your platform directly.
 
+Starting a client site on EmDash? Skip to [Start a new EmDash site](/guides/new-emdash-site) — it
+covers `vp create`, the agent tooling and the first run end to end.
+
 ## Pick your entry point
 
 ### Astro (recommended)
@@ -81,8 +84,9 @@ of core's CSS and web-component bundles, while the Astro integration copies the 
 bundles into your `public/`. Mixing versions can leave the stylesheet and the components
 disagreeing about what a class means.
 
-`@getvitops/emdash` and `@getvitops/create` have no `@getvitops/*` dependencies and version
-independently.
+`@getvitops/emdash` and `@getvitops/create` version independently. `@getvitops/create` has no
+`@getvitops/*` dependencies; `@getvitops/emdash` depends on `@getvitops/utils` and peers on
+`@getvitops/astro`, so installing it pins you to a matching toolchain generation.
 
 ## Teach your coding agent
 

@@ -91,7 +91,7 @@ export const prerender = false;
 | `webComponents` | `true`               | copy + link the web-component bundles                             |
 | `favicon`       | off unless given     | `source`, `lowResSource`, `name`, `themeColor`, `backgroundColor` |
 | `sitemap`       | off unless given     | generate `sitemap-index.xml` via `@astrojs/sitemap`               |
-| `seo`           | off unless given     | site-level defaults for `<Seo />`                                 |
+| `seo`           | from `site.seo`      | override for the `<Seo />` defaults the site config supplies       |
 | `analytics`     | off unless given     | providers for `<Analytics />` (GA4, Clarity, Matomo, Plausible)   |
 | `consent`       | off unless given     | the consent gate + `<CookieConsent />`                            |
 | `media`         | off unless given     | encode `raw/` video into WebM + MP4 + poster (needs `ffmpeg`)     |
@@ -172,22 +172,32 @@ npm dependency. Full behaviour, flags and the caching contract: [`vitops media`]
 ## `<Seo />`
 
 Page metadata: `<title>`, description, canonical, Open Graph, Twitter cards, robots, `article:*`,
-`hreflang`, verification tokens. Site-level defaults go in the integration; pages pass what differs.
+`hreflang`, verification tokens. Site-level defaults live in the site config's `site.seo` (the site name
+falls back to `organization.name`); pages pass what differs.
+
+```json
+// site.json
+{
+  "site": {
+    "seo": {
+      "titleTemplate": "%s · Acme",
+      "defaultDescription": "We make the thing.",
+      "openGraph": {
+        "locale": "en_CA",
+        "image": { "src": "/og.png", "alt": "Acme", "width": 1200, "height": 630 }
+      },
+      "twitter": { "site": "@acme" }
+    }
+  }
+}
+```
+
+`vitops({ seo })` still works as an override merged over the config, for a value an app wants to set in
+code:
 
 ```js
 // astro.config.mjs
-vitops({
-  seo: {
-    siteName: 'Acme',
-    titleTemplate: '%s · Acme',
-    defaultDescription: 'We make the thing.',
-    openGraph: {
-      locale: 'en_CA',
-      image: { url: '/og.png', alt: 'Acme', width: 1200, height: 630 },
-    },
-    twitter: { site: '@acme' },
-  },
-});
+vitops({ seo: { siteName: 'Acme' } });
 ```
 
 ```astro

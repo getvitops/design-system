@@ -364,3 +364,8 @@ select.custom-select {
     outline-offset: 2px;
   }
 }
+
+/* `<wc-multi-field>` is a group of controls, a block. Its shadow `:host` declares no display. */
+:where(wc-multi-field) {
+  display: block;
+}

@@ -19,3 +19,7 @@
 # consent gate activates (allow their origins in script-src/connect-src).
 /*
   Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'sha256-CEiVlTo192T9Rug/nAl+ihvkqOQkYdr6Rq3oc+gR9JU=' 'sha256-z/UqsITVvNGOJSaOSvhN1rdtyYdMIxpQ/lMXM1q0g90='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  X-Frame-Options: SAMEORIGIN

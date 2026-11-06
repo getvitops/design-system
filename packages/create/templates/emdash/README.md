@@ -14,7 +14,8 @@ Scaffolded from `vp create @getvitops:emdash --directory <client-slug>` (pass a 
   (Tailwind v4 format), generates favicons/PWA assets from
   `src/assets/logo.svg`, and serves the web-component runtime
 - **`@getvitops/emdash`** — design-system Portable Text blocks in the editor
-  slash menu: image compare, copy snippet, banner, disclosure, carousel
+  slash menu (hero, cards, accordion, carousel, gallery, marquee, banner, …);
+  `vp exec vitops docs blocks` lists every block and field
 
 `src/assets/placeholder/` ships neutral wireframe images for layout work
 before real imagery exists — delete once real assets land (separate from
@@ -26,6 +27,11 @@ before real imagery exists — delete once real assets land (separate from
 vp install
 vpr dev
 ```
+
+Once this is its own repo (not sitting inside the `getvitops/design-system`
+monorepo), uncomment `lint.options` in `vite.config.ts` for type-aware
+`vp check`/`vp lint` — it ships commented out because vite-plus 1.0 only
+honours that option at a project's actual root, and errors on it otherwise.
 
 No Cloudflare account needed: `astro dev` runs the Worker locally with local
 D1/R2 emulation (state in `.wrangler/`). On first boot EmDash runs its
@@ -90,7 +96,8 @@ The repo ships a two-environment flow modeled on branch = environment:
   into `main` with auto-merge enabled. With required reviews on `main`, a
   human approves the PR; merging deploys prod.
 
-One-time setup — work through the checklist:
+One-time setup — see [Start a new EmDash site](https://docs.vitops.ca/guides/new-emdash-site) for the whole
+procedure, then work through the checklist:
 
 ```bash
 vpr sop && open SETUP.html   # or: xdg-open SETUP.html
@@ -121,12 +128,12 @@ is a configurable dimension of the project, not a rewrite:
 - **`node`** — `@astrojs/node` (standalone) + SQLite file + local uploads,
   for a VPS / docker-compose / k8s host. Not installed by default; to switch:
   `vp add @astrojs/node better-sqlite3`, then `vitopsHosting({ target:
-'node' })` (or set `HOSTING=node` — the env var wins). Run the built site
+  'node' })` (or set `HOSTING=node` — the env var wins). Run the built site
   with `node ./dist/server/entry.mjs`; data lives in `./data/` (gitignored) —
   persist it as a volume. Scheduled publishing runs in-process on Node, so
   the worker/cron pieces aren't needed. For production, move storage to
   S3-compatible and/or the database to Postgres via `vitopsHosting({ node:
-{ database, storage } })`. CI deploy for Node hosts is TBD — the shipped
+  { database, storage } })`. CI deploy for Node hosts is TBD — the shipped
   workflows are Cloudflare-specific.
 
 Moving an existing site between targets (either direction) is a data
@@ -142,6 +149,10 @@ and media in the storage backend (bucket/directory copy).
 - **Skills** (`.agents/skills/`): `promote` dispatches the dev → main
   promotion workflow. Run `vp exec vitops agents` to also write the design-system
   class reference into `AGENTS.md`.
+- **EmDash skills** are installed per project so they match the pinned `emdash`
+  version: `vp dlx skills add emdash-cms/skills --skill '*' -y`,
+  then commit `.agents/skills/`, the `.claude/skills/` symlinks and `skills-lock.json`. Update with
+  `vp dlx skills update` after an `emdash` bump.
 - **Claude Code on the web**: the SessionStart hook
   (`.claude/hooks/session-start.sh`) installs Node 24 (matching
   `devEngines`), activates the pinned pnpm, and installs dependencies in the

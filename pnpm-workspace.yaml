@@ -7,9 +7,13 @@ catalog:
   '@arethetypeswrong/cli': ^0.18.5
   '@astrojs/check': ^0.9.7
   '@astrojs/cloudflare': ^14.0.0
+  # Only for @getvitops/emdash's opt-in `designSystemEditor` admin page —
+  # EmDash's own docs require @astrojs/react + react + react-dom for any
+  # native plugin's React admin surface.
+  '@astrojs/react': ^7.0.0
   '@astrojs/sitemap': ^3.7.3
   '@changesets/cli': ^2.27.0
-  '@emdash-cms/cloudflare': ^0.31.0
+  '@emdash-cms/cloudflare': ^1.4.0
   '@iconify-json/fa7-solid': ^1.2.5
   '@iconify-json/lucide': ^1.2.121
   '@iconify-json/material-symbols': ^1.2.88
@@ -20,21 +24,25 @@ catalog:
   '@oddbird/css-anchor-positioning': ^0.9.0
   '@oddbird/popover-polyfill': ^0.7.0
   '@playwright/test': ^1.62.1
-  # Pinned exact, not ^: vite-plus bundles vitest@4.1.9 internally and asserts
+  # Pinned exact, not ^: vite-plus bundles vitest@5.0.5 internally and asserts
   # the coverage provider matches it exactly — a caret range resolved
-  # 4.1.10 here and vite-plus refused to start rather than run mixed versions.
-  '@vitest/coverage-v8': 4.1.9
+  # 4.1.10 here and vite-plus refused to start rather than run mixed versions
+  # (verified against vite-plus 0.2.1, which bundled vitest 4.1.9; vite-plus
+  # 1.0.0 moved to vitest 5.0.1; 1.4.0 bundles 5.0.5 — bumped in lockstep with
+  # the vite-plus bump below, to match what vite-plus 1.4.0 actually
+  # bundles).
+  '@vitest/coverage-v8': 5.0.5
   '@tailwindcss/vite': ^4.3.3
   '@types/node': ^25.9.3
   '@webcomponents/template-shadowroot': ^0.2.1
   '@webcomponents/webcomponentsjs': ^2.8.0
-  astro: ^7.1.2
+  astro: ^7.4.4
   astro-icon: ^1.1.5
   baseline-status: ^1.1.1
   colorjs.io: ^0.5.2
   construct-style-sheets-polyfill: ^3.1.0
   cssnano: ^8.0.5
-  emdash: ^0.31.0
+  emdash: ^1.4.0
   happy-dom: ^20.0.0
   invokers-polyfill: ^1.0.3
   parse5: ^7.3.0
@@ -45,18 +53,23 @@ catalog:
   postcss: ^8.5.26
   postcss-lit: ^1.4.1
   publint: ^0.3.23
+  react: ^19.3.0
+  react-dom: ^19.3.0
   scroll-timeline-polyfill: ^1.1.0
   sharp: ^0.35.3
   tailwindcss: ^4.3.3
   temporal-polyfill: ^1.0.1
   typescript: ^6.0.3
-  vite: ^6.0.0
+  '@types/react': ^19.3.0
+  '@types/react-dom': ^19.3.0
+  vite: npm:@voidzero-dev/vite-plus-core@1.4.0
   # Pinned exact, not ^, for the same reason as @vitest/coverage-v8 above: vite-plus
   # bundles this version internally and refuses to start on a mismatch.
-  vitest: 4.1.9
-  vite-plus: ^0.2.1
+  vitest: 5.0.5
+  vite-plus: 1.4.0
   wrangler: ^4.111.0
-  zod: ^4.1.13
+  zod: ^4.6.7
+  '@zod/mini': ^4.6.5
 allowBuilds:
   '@parcel/watcher': false
   better-sqlite3: true
@@ -64,5 +77,49 @@ allowBuilds:
   lightningcss: true
   sharp: false
   workerd: true
+# Supply-chain cooldown: nothing is installed within 3 days of its publish. Every scaffolded
+# template carries the same value (templates.test.ts asserts they agree).
+minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
-  - astro@7.1.2
+  # Transitive, resolved before the 3-day policy: Astro 7.4.4 -> shiki, Vitest -> tinybench. They
+  # clear the cooldown on 2026-11-05, so delete these exact-version lines then (exact on purpose —
+  # a range here would also exempt every later release).
+  - '@shikijs/core@4.6.0'
+  - '@shikijs/engine-javascript@4.6.0'
+  - '@shikijs/engine-oniguruma@4.6.0'
+  - '@shikijs/langs@4.6.0'
+  - '@shikijs/primitive@4.6.0'
+  - '@shikijs/themes@4.6.0'
+  - '@shikijs/types@4.6.0'
+  - shiki@4.6.0
+  - tinybench@6.2.3
+  - '@emdash-cms/admin@1.4.0'
+  - '@emdash-cms/auth@1.4.0'
+  - '@emdash-cms/blocks@1.4.0'
+  - '@emdash-cms/cloudflare@1.4.0'
+  - '@emdash-cms/gutenberg-to-portable-text@1.4.0'
+  - '@emdash-cms/plugin-types@0.5.0'
+  - '@emdash-cms/registry-client@0.7.0'
+  - '@emdash-cms/registry-lexicons@0.7.0'
+  - '@emdash-cms/registry-verification@0.3.3'
+  - '@voidzero-dev/vite-plus-core@1.4.0'
+  - '@voidzero-dev/vite-plus-darwin-arm64@1.4.0'
+  - '@voidzero-dev/vite-plus-darwin-x64@1.4.0'
+  - '@voidzero-dev/vite-plus-linux-arm64-gnu@1.4.0'
+  - '@voidzero-dev/vite-plus-linux-arm64-musl@1.4.0'
+  - '@voidzero-dev/vite-plus-linux-x64-gnu@1.4.0'
+  - '@voidzero-dev/vite-plus-linux-x64-musl@1.4.0'
+  - '@voidzero-dev/vite-plus-win32-arm64-msvc@1.4.0'
+  - '@voidzero-dev/vite-plus-win32-x64-msvc@1.4.0'
+  - emdash@1.4.0
+  - vite-plus@1.4.0
+overrides:
+  vite@*: 'catalog:'
+  vitest@*: 'catalog:'
+peerDependencyRules:
+  allowAny:
+    - vite
+    - vitest
+  allowedVersions:
+    vite: '*'
+    vitest: '*'

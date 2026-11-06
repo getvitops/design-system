@@ -59,12 +59,29 @@ So this skill's only job is to kick off the `dev → main` promotion. It does
     no further action.
 - Once `main` advances, **Deploy prod** runs automatically.
 
-## Schema / content changes
+## Content is not promoted — it lives in prod
+
+Content (entries, media, menus, settings) is edited on the **production** site,
+using drafts, "Publish changes" and preview links as the staging step. The dev
+database is a disposable copy of prod: the **Refresh dev from prod** workflow
+(`refresh-dev.yml`) overwrites it, one direction only. Never try to carry dev
+content to prod — a refresh would erase it anyway.
+
+## Schema changes
 
 If this release changes the content model, code promotion is **not** enough —
-the schema lives in the EmDash database, not git. Apply the same schema change
-to the prod site separately (via its admin at `/_emdash/admin` or its MCP
-server at `/_emdash/api/mcp`). Ordering: additive changes (new collection /
-optional field) **before** the code deploy that uses them; removals **after**
-the code that stops using them. Mention this to the user only if the release
-plausibly touched the schema.
+the schema lives in the EmDash database, not git. Rehearse it first: run
+**Refresh dev from prod**, apply the change to dev, check the site. Then apply the
+same change to prod (admin at `/_emdash/admin`, or the MCP server at
+`/_emdash/api/mcp`). Ordering: additive changes (new collection / optional
+field) **before** the code deploy that uses them; removals **after** the code
+that stops using them. Mention this to the user only if the release plausibly
+touched the schema.
+
+## Hotfixing prod
+
+A fix that can't wait for dev: branch off `main`, PR into `main`, deploy. The
+**Back-merge main → dev** workflow then opens a `main → dev` PR so dev doesn't
+drift (merge it — that is what triggers a dev deploy — unless
+`BACKMERGE_TOKEN` is set, in which case it merges itself when clean). Conflicts
+are left on the PR for a human.

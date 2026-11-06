@@ -1,4 +1,5 @@
 ---
+import { jsonLdScript } from '../json-ld.ts';
 import { organizationGraph } from '@getvitops/utils/schema';
 import type { OrganizationGraphOptions } from '@getvitops/utils/schema';
 
@@ -7,5 +8,5 @@ export type Props = OrganizationGraphOptions;
 const jsonLd = organizationGraph(Astro.props);
 ---
 
-<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<script is:inline type="application/ld+json" set:html={jsonLdScript(jsonLd)} />
 <slot />

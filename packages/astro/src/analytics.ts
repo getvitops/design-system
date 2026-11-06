@@ -156,6 +156,39 @@ export interface ResolvedAnalytics {
 export interface ResolveAnalyticsContext {
   /** Is the consent gate enabled on this site (`vitops({ consent })`)? */
   consent?: boolean;
+  /**
+   * Enabled `site.experiments` entries, keyed the same way, each carrying the
+   * resolved cookie name `vitopsAbTesting()`'s middleware assigns
+   * (`_ab_<key>` unless overridden). When set, each provider's bootstrap
+   * reads these cookies client-side and reports the assignment via that
+   * provider's own custom-dimension/property mechanism — a no-op when this
+   * is empty, so a site not using experiments sees no behavior change.
+   */
+  experiments?: Record<string, { cookieName: string }>;
+  /** `site.analytics.matomo.abVariantDimensions` — Matomo's pre-created custom-dimension index per experiment key. */
+  matomoAbVariantDimensions?: Record<string, number>;
+}
+
+/**
+ * A small inline snippet reading each experiment's cookie into a plain
+ * object, skipping any experiment whose cookie isn't set (visitor not yet
+ * assigned, or the experiment disabled after this page was cached). Shared
+ * across providers so the cookie-parsing logic — and its `SAFE_ID` guard on
+ * both the experiment key and cookie name, the same discipline `bad()`
+ * already applies to provider IDs landing in an inline `<script>` — exists
+ * exactly once.
+ */
+function experimentCookieReads(experiments: Record<string, { cookieName: string }>): string {
+  const entries = Object.entries(experiments).filter(([key, e]) => !bad(key) && !bad(e.cookieName));
+  if (!entries.length) return '';
+  return (
+    `function _abrc(n){var m=document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)'));return m?decodeURIComponent(m[1]):null;}` +
+    `var _ab={};` +
+    entries
+      .map(([key, e]) => `_ab[${JSON.stringify(key)}]=_abrc(${JSON.stringify(e.cookieName)});`)
+      .join('') +
+    `for(var _k in _ab){if(_ab[_k]==null)delete _ab[_k];}`
+  );
 }
 
 /**
@@ -175,10 +208,23 @@ function literal(value: Record<string, string | number | boolean>): string {
   return JSON.stringify(value).replaceAll('<', '\\u003c');
 }
 
-function googleAnalytics(input: string | GoogleAnalyticsOptions): ResolvedTag | string {
+function googleAnalytics(
+  input: string | GoogleAnalyticsOptions,
+  experiments: Record<string, { cookieName: string }> = {},
+): ResolvedTag | string {
   const opts = typeof input === 'string' ? { id: input } : input;
   if (bad(opts.id)) return `googleAnalytics: "${opts.id}" is not a valid measurement ID. Skipped.`;
-  const config = opts.config ? `,${literal(opts.config)}` : '';
+  const staticConfig = opts.config ?? {};
+  const reads = experimentCookieReads(experiments);
+  // With no experiments configured, the config object is static, exactly as
+  // before — same output byte-for-byte, no runtime cost added. With
+  // experiments, the automatic pageview's `gtag('config', …)` call is built
+  // at runtime instead, merging each assigned variant in under its
+  // experiment key so it reaches GA4 as a custom parameter on that same hit
+  // (registered as a custom dimension in GA4 Admin by parameter name).
+  const gtagConfig = reads
+    ? `${reads}gtag('config','${opts.id}',Object.assign(${literal(staticConfig)},_ab));`
+    : `gtag('config','${opts.id}'${opts.config ? `,${literal(staticConfig)}` : ''});`;
   return {
     key: 'googleAnalytics',
     provider: 'Google Analytics',
@@ -191,7 +237,7 @@ function googleAnalytics(input: string | GoogleAnalyticsOptions): ResolvedTag | 
       `window.dataLayer=window.dataLayer||[];` +
       `function gtag(){dataLayer.push(arguments)}` +
       `gtag('js',new Date());` +
-      `gtag('config','${opts.id}'${config});`,
+      gtagConfig,
     src: `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(opts.id)}`,
     attrs: {},
   };
@@ -230,7 +276,11 @@ function clarity(input: string | ClarityOptions): ResolvedTag | string {
   };
 }
 
-function matomo(opts: MatomoOptions): ResolvedTag | string {
+function matomo(
+  opts: MatomoOptions,
+  experiments: Record<string, { cookieName: string }> = {},
+  dimensions: Record<string, number> = {},
+): ResolvedTag | string {
   const siteId = String(opts.siteId);
   if (bad(siteId)) return `matomo: "${siteId}" is not a valid site ID. Skipped.`;
   let base: URL;
@@ -242,8 +292,26 @@ function matomo(opts: MatomoOptions): ResolvedTag | string {
   const url = `${base.origin}${base.pathname.replace(/\/*$/, '')}/`;
   const cookies = opts.cookies === true;
 
-  // `disableCookies` must be pushed *before* trackPageView, or the first request
-  // of the visit sets the cookies this option exists to avoid.
+  // Only experiments with a recorded dimension index push anything — one
+  // with no index is silently skipped here (validateConfig's
+  // `experimentDimensionWarnings` is what surfaces that as a build-time
+  // warning, not a hard error: the pageview still ships correctly).
+  const dimensionEntries = Object.entries(experiments).filter(([key]) => dimensions[key] != null);
+  const reads = experimentCookieReads(Object.fromEntries(dimensionEntries));
+  const dimensionPushes = reads
+    ? reads +
+      dimensionEntries
+        .map(
+          ([key]) =>
+            `if(_ab[${JSON.stringify(key)}]!=null)_paq.push(['setCustomDimension',${dimensions[key]},_ab[${JSON.stringify(key)}]]);`,
+        )
+        .join('')
+    : '';
+
+  // `disableCookies` and the experiment dimension pushes must both land
+  // *before* trackPageView — the former so the first request of the visit
+  // doesn't set the cookies it exists to avoid, the latter because a
+  // dimension pushed after trackPageView misses that pageview entirely.
   return {
     key: 'matomo',
     provider: 'Matomo',
@@ -255,6 +323,7 @@ function matomo(opts: MatomoOptions): ResolvedTag | string {
     inline:
       `var _paq=window._paq=window._paq||[];` +
       (cookies ? '' : `_paq.push(['disableCookies']);`) +
+      dimensionPushes +
       `_paq.push(['trackPageView']);_paq.push(['enableLinkTracking']);` +
       `(function(){var u="${url}";` +
       `_paq.push(['setTrackerUrl',u+'matomo.php']);_paq.push(['setSiteId','${siteId}']);` +
@@ -265,9 +334,24 @@ function matomo(opts: MatomoOptions): ResolvedTag | string {
   };
 }
 
-function plausible(input: string | PlausibleOptions): ResolvedTag | string {
+function plausible(
+  input: string | PlausibleOptions,
+  experiments: Record<string, { cookieName: string }> = {},
+): ResolvedTag | string {
   const opts = typeof input === 'string' ? { domain: input } : input;
   if (bad(opts.domain)) return `plausible: "${opts.domain}" is not a valid domain. Skipped.`;
+  // Plausible's current API (plausible.init({customProperties})) needs no
+  // special script variant and no manual-pageview mode — customProperties
+  // attaches to every tracked event, including the automatic pageview, so
+  // there's no double-counting risk to design around. The queueing stub
+  // mirrors gtag's own inline bootstrap above: the real script (loaded via
+  // `src`, async) picks up this call once it's ready, regardless of which
+  // one finishes loading first.
+  const reads = experimentCookieReads(experiments);
+  const inline = reads
+    ? `window.plausible=window.plausible||function(){(window.plausible.q=window.plausible.q||[]).push(arguments)};` +
+      `plausible.init({customProperties:function(){${reads}return _ab;}});`
+    : '';
   return {
     key: 'plausible',
     provider: 'Plausible Analytics',
@@ -278,7 +362,7 @@ function plausible(input: string | PlausibleOptions): ResolvedTag | string {
     cookies: [],
     strategy: 'idle',
     gated: true,
-    inline: '',
+    inline,
     src: opts.src ?? 'https://plausible.io/js/script.js',
     attrs: { 'data-domain': opts.domain },
   };
@@ -300,11 +384,14 @@ export function resolveAnalytics(
   if (!opts) return { tags, needsRuntime: false, warnings };
 
   const strategy = opts.strategy ?? 'idle';
+  const experiments = ctx.experiments ?? {};
   const results = [
-    opts.googleAnalytics === undefined ? null : googleAnalytics(opts.googleAnalytics),
+    opts.googleAnalytics === undefined ? null : googleAnalytics(opts.googleAnalytics, experiments),
     opts.clarity === undefined ? null : clarity(opts.clarity),
-    opts.matomo === undefined ? null : matomo(opts.matomo),
-    opts.plausible === undefined ? null : plausible(opts.plausible),
+    opts.matomo === undefined
+      ? null
+      : matomo(opts.matomo, experiments, ctx.matomoAbVariantDimensions ?? {}),
+    opts.plausible === undefined ? null : plausible(opts.plausible, experiments),
   ];
 
   for (const result of results) {

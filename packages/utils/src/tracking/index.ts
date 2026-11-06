@@ -30,4 +30,7 @@ export {
 
 export { getPrimaryClickId, identifyPlatform } from './platform.ts';
 
+export { identifySubmitter } from './identity.ts';
+export type { SubmitterIdentity } from './identity.ts';
+
 export type { ConversionEvent, TrackingCategory, TrackingConfig, TrackingData } from './types.ts';

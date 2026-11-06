@@ -55,7 +55,7 @@ If you have questions about our use of cookies, please contact us at ${v.mailing
  * attribution with a cookieless analytics provider sets `_ac` and no third-party
  * cookie at all, and the old wording would have declared it cookie-free.
  */
-function providersSection(v: PolicyVars): string {
+export function providersSection(v: PolicyVars): string {
   const setting = v.processors.filter((p) => p.cookies?.length);
   const cookieless = v.processors.filter((p) => p.cookies?.length === 0);
   const own = v.firstPartyCookies;
@@ -106,7 +106,7 @@ ${
 }
 
 /** Only meaningful when a consent tool actually offers the categories. */
-function categoriesSection(v: PolicyVars): string {
+export function categoriesSection(v: PolicyVars): string {
   if (v.consentModel === 'none' || v.cookieCategories.length === 0) return '';
   return `
 ## Cookie Categories

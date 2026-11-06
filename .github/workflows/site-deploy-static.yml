@@ -18,7 +18,7 @@
 #
 # `environment:` is what makes the prod call PAUSE for approval: it targets a
 # GitHub Environment, and a `production` environment with required reviewers
-# restricted to admins (set up by `scripts/init-github.mjs`) blocks the job
+# restricted to admins (set up by `vitops setup repo`) blocks the job
 # until one approves — the same mechanism whether this fires from `push` or
 # `workflow_call`. Nothing here decides who those reviewers are; that is
 # entirely a repo-settings fact, checked once at bootstrap.

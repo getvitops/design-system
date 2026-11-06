@@ -8,7 +8,7 @@ allowBuilds:
 
 # Supply-chain hardening: cooldown on brand-new releases (toolchain exempt)
 # and no non-registry transitive sources.
-minimumReleaseAge: 1440
+minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   - '@getvitops/*'
   - emdash

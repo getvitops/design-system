@@ -5,7 +5,7 @@
  * be a no-op: a step whose desired state already holds must resolve to `skip`, and
  * anything left to do must count as drift.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   backoffSchedule,
   formatSummary,

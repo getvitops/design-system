@@ -7,6 +7,7 @@
  */
 import type { HTMLAttributes } from 'astro/types';
 import type { Review } from '@getvitops/utils/reviews';
+import { safeHref } from '@getvitops/utils/url';
 import Icon from './Icon.astro';
 
 export interface Props extends Omit<HTMLAttributes<'article'>, 'slot'> {
@@ -23,6 +24,8 @@ const initials = review.author
   .map((w) => w[0]?.toUpperCase())
   .join('');
 
+// Google-hosted and fetched from outside the repo, so never trusted as a URL.
+const authorPhoto = safeHref(review.authorPhoto);
 const full = Math.floor(review.rating);
 const hasHalf = review.rating - full >= 0.5;
 ---
@@ -30,8 +33,8 @@ const hasHalf = review.rating - full >= 0.5;
 <article class:list={['review', className]} {...rest}>
   <header class="review__header">
     {
-      avatar && review.authorPhoto ? (
-        <img class="review__avatar" src={review.authorPhoto} alt="" loading="lazy" />
+      avatar && authorPhoto ? (
+        <img class="review__avatar" src={authorPhoto} alt="" loading="lazy" />
       ) : (
         <span class="review__initials" aria-hidden="true">{initials}</span>
       )

@@ -1,0 +1,40 @@
+---
+/**
+ * Thin adapter over `@getvitops/astro`'s `<Gallery />` — a thumbnail grid whose dialog
+ * is a carousel. The `<wc-gallery>` tag, the no-JS `:target` dialog and the image
+ * pipeline all live there; this only maps the repeater rows onto `images`.
+ */
+import Gallery from '@getvitops/astro/components/Gallery.astro';
+import { resolveBlockValue, rows, safeHref, text } from './value.ts';
+
+interface Value {
+  _key?: string;
+  label?: string;
+  images?: unknown;
+  aspect?: string;
+  loop?: boolean;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+// Two blocks with the same label would derive the same id; `_key` is unique per block.
+const id = value._key ? `gallery-${value._key.replace(/[^a-z0-9_-]/gi, '')}` : undefined;
+const images = rows<{ src?: unknown; alt?: unknown; caption?: unknown }>(value.images).flatMap(
+  (row) => {
+    const src = safeHref(row.src);
+    const caption = text(row.caption);
+    return src ? [{ src, alt: text(row.alt), ...(caption ? { caption } : {}) }] : [];
+  },
+);
+---
+
+{
+  images.length > 0 && (
+    <Gallery
+      label={text(value.label) || 'Gallery'}
+      images={images}
+      id={id}
+      aspect={text(value.aspect) || undefined}
+      loop={Boolean(value.loop)}
+    />
+  )
+}

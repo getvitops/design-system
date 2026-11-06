@@ -12,6 +12,12 @@ export default defineConfig({
     dts: true,
     clean: true,
     minify: false,
-    deps: { neverBundle: ['emdash', 'astro'] },
+    deps: {
+      // tsdown <0.23 compatibility: resolve external dependency subpaths.
+      // Remove to preserve subpath imports as written (the new default).
+      // https://tsdown.dev/options/dependencies#deps-resolvedepsubpath
+      resolveDepSubpath: true,
+      neverBundle: ['emdash', 'astro'],
+    },
   },
 });

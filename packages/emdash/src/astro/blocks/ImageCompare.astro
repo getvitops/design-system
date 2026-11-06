@@ -1,5 +1,5 @@
 ---
-import { resolveBlockValue } from './value.ts';
+import { resolveBlockValue, safeHref } from './value.ts';
 
 interface Value {
   before?: string;
@@ -11,7 +11,10 @@ interface Value {
 }
 
 const value = resolveBlockValue<Value>(Astro.props);
-const { before, beforeAlt = '', beforeLabel = 'Before', after, afterAlt = '', afterLabel = 'After' } = value;
+const { beforeAlt = '', beforeLabel = 'Before', afterAlt = '', afterLabel = 'After' } = value;
+// A `javascript:`/`data:` src is dropped, so the block renders nothing rather than that image.
+const before = safeHref(value.before);
+const after = safeHref(value.after);
 ---
 
 {before && after && (

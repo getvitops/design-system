@@ -106,22 +106,23 @@ live from this project's `design-system.json` and the installed package version,
 never stale and always names the project's actual tokens. (If `vitops` isn't on PATH, use
 `vp exec vitops docs <topic>`; a project not on Vite+ can use `pnpm exec` or `npx`.)
 
-| Run                      | When you need                                                          |
-| ------------------------ | ---------------------------------------------------------------------- |
-| `vitops docs classes`    | which class to apply — the full class vocabulary as naming rules       |
-| `vitops docs authoring`  | what a `design-system.json` field means / what's valid                 |
-| `vitops docs config`     | the three-section config: `designSystem` / `organization` / `site`     |
-| `vitops docs formats`    | tailwind vs css vs bricks output — incl. which utilities Tailwind owns |
-| `vitops docs color`      | how the colour system works (seeded OKLCH scales, roles, dark mode)    |
-| `vitops docs scales`     | how the fluid type/space scales work                                   |
-| `vitops docs patterns`   | how pattern CSS is assembled (token cascade, override hooks, states)   |
-| `vitops docs components` | which tier provides a pattern (classes / `wc-*` / Astro / Bricks)      |
-| `vitops docs icons`      | semantic icon names across sets, bundle derivation, sprite delivery    |
-| `vitops docs consent`    | the consent gate — gating a tag, demand-driven prompting, the API      |
-| `vitops docs tracking`   | ad-click attribution, the `_ac` cookie, conversion notifications       |
-| `vitops docs search`     | what search engines accept, Search Console onboarding + notification   |
-| `vitops docs legal`      | how the policy / terms / cookie notice derive from config facts        |
-| `vitops docs elements`   | the custom Bricks Builder elements and their controls                  |
+| Run                      | When you need                                                           |
+| ------------------------ | ----------------------------------------------------------------------- |
+| `vitops docs classes`    | which class to apply — the full class vocabulary as naming rules        |
+| `vitops docs authoring`  | what a `design-system.json` field means / what's valid                  |
+| `vitops docs config`     | the three-section config: `designSystem` / `organization` / `site`      |
+| `vitops docs formats`    | tailwind vs css vs bricks output — incl. which utilities Tailwind owns  |
+| `vitops docs color`      | how the colour system works (seeded OKLCH scales, roles, dark mode)     |
+| `vitops docs scales`     | how the fluid type/space scales work                                    |
+| `vitops docs patterns`   | how pattern CSS is assembled (token cascade, override hooks, states)    |
+| `vitops docs blocks`     | EmDash Portable Text blocks and every field (needs `@getvitops/emdash`) |
+| `vitops docs components` | which tier provides a pattern (classes / `wc-*` / Astro / Bricks)       |
+| `vitops docs icons`      | semantic icon names across sets, bundle derivation, sprite delivery     |
+| `vitops docs consent`    | the consent gate — gating a tag, demand-driven prompting, the API       |
+| `vitops docs tracking`   | ad-click attribution, the `_ac` cookie, conversion notifications        |
+| `vitops docs search`     | what search engines accept, Search Console onboarding + notification    |
+| `vitops docs legal`      | how the policy / terms / cookie notice derive from config facts         |
+| `vitops docs elements`   | the custom Bricks Builder elements and their controls                   |
 
 `vitops docs` (no topic) lists the topics; `vitops docs --all` prints everything.
 

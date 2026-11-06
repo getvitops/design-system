@@ -16,7 +16,7 @@
  * Per-file environment rather than a global one: the other ~800 tests are pure and
  * have no reason to pay for a DOM.
  */
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 type ROCallback = () => void;
 
@@ -171,5 +171,28 @@ describe('<wc-marquee>', () => {
     // Same nodes, not merely the same count — a no-op resize must not
     // remove-and-recreate the clones.
     expect(after).toEqual(before);
+  });
+
+  it('adds a pause button beside the track that toggles data-paused', async () => {
+    const el = await mount(
+      '<wc-marquee><div class="marquee__content"><span>a</span></div></wc-marquee>',
+    );
+    const button = el.nextElementSibling as HTMLButtonElement;
+    expect(button.matches('button.marquee__toggle')).toBe(true);
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    button.click();
+    expect(el.hasAttribute('data-paused')).toBe(true);
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    button.click();
+    expect(el.hasAttribute('data-paused')).toBe(false);
+  });
+
+  it('removes its pause button when disconnected', async () => {
+    const el = await mount(
+      '<wc-marquee><div class="marquee__content"><span>a</span></div></wc-marquee>',
+    );
+    const button = el.nextElementSibling;
+    el.remove();
+    expect(button?.isConnected).toBe(false);
   });
 });

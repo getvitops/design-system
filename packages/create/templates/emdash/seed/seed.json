@@ -119,6 +119,84 @@
               ]
             },
             {
+              "_type": "vitops.hero",
+              "_key": "demo-hero",
+              "eyebrow": "Vitops blocks",
+              "heading": "Build pages from design-system patterns",
+              "body": "Every block below renders a framework pattern, so it follows your tokens and works without JavaScript.",
+              "primaryLabel": "Open the admin",
+              "primaryHref": "/_emdash/admin",
+              "secondaryLabel": "Docs",
+              "secondaryHref": "https://docs.vitops.ca",
+              "layout": "centered"
+            },
+            {
+              "_type": "vitops.cards",
+              "_key": "demo-cards",
+              "columns": "3",
+              "cards": [
+                {
+                  "_key": "c1",
+                  "title": "Tokens",
+                  "body": "Colour, type and spacing come from site.json.",
+                  "href": "https://docs.vitops.ca",
+                  "linkLabel": "Read more"
+                },
+                {
+                  "_key": "c2",
+                  "title": "Patterns",
+                  "body": "Cards, carousels and dialogs share one vocabulary."
+                },
+                {
+                  "_key": "c3",
+                  "title": "Accessible",
+                  "body": "Semantic HTML first, enhanced when JavaScript loads."
+                }
+              ]
+            },
+            {
+              "_type": "vitops.accordion",
+              "_key": "demo-accordion",
+              "exclusive": true,
+              "items": [
+                {
+                  "_key": "a1",
+                  "summary": "What is a block?",
+                  "body": "A reusable section an editor inserts from the slash menu.",
+                  "open": true
+                },
+                {
+                  "_key": "a2",
+                  "summary": "Can I add my own?",
+                  "body": "Yes. Pass blocks.extra to the plugin and map a component for it."
+                }
+              ]
+            },
+            {
+              "_type": "vitops.marquee",
+              "_key": "demo-marquee",
+              "pauseOnHover": true,
+              "reverse": false,
+              "items": [
+                {
+                  "_key": "m1",
+                  "text": "Fast"
+                },
+                {
+                  "_key": "m2",
+                  "text": "Accessible"
+                },
+                {
+                  "_key": "m3",
+                  "text": "Editable"
+                },
+                {
+                  "_key": "m4",
+                  "text": "Yours"
+                }
+              ]
+            },
+            {
               "_type": "vitops.banner",
               "_key": "welcome-banner",
               "message": "This banner is a Vitops block — dismiss it, then edit this page in the EmDash admin.",

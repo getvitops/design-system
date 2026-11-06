@@ -1,0 +1,67 @@
+---
+/**
+ * A video or map that loads only after the visitor allows it.
+ *
+ * The consent gate's rule (AGENTS.md, "The consent gate"): never give a gated element a
+ * live address. The iframe is emitted with NO `src`; the address rides on
+ * `data-consent-src`, which the consent runtime (`@getvitops/core/consent`) assigns once the
+ * category is granted — and, because the element reaches its loading strategy, raises the
+ * banner for that category rather than waiting for something else to ask. Until then the
+ * page issues no request to the provider. With no JS the gate never runs, so the
+ * placeholder's plain link to the same content is what the visitor gets.
+ *
+ * A `title` is required (WCAG 4.1.2 names the frame); without one, or with an address the
+ * provider rules in `embed.ts` refuse, the block renders nothing rather than an unnamed or
+ * unsafe frame. Only categories the consent store defines are accepted.
+ */
+import { resolveEmbed } from './embed.ts';
+import { resolveBlockValue, text } from './value.ts';
+
+interface Value {
+  provider?: string;
+  url?: string;
+  title?: string;
+  category?: string;
+  ratio?: string;
+}
+
+const CATEGORIES = new Set(['marketing', 'preferences', 'analytics']);
+
+const value = resolveBlockValue<Value>(Astro.props);
+const title = text(value.title);
+const embed = resolveEmbed(value.provider, value.url);
+const category = CATEGORIES.has(text(value.category)) ? text(value.category) : 'marketing';
+// A ratio lands in a style attribute: digits, slash and spaces only.
+const ratio = /^\d+(\.\d+)?\s*\/\s*\d+(\.\d+)?$/.test(text(value.ratio)) ? text(value.ratio) : null;
+---
+
+{
+  title && embed && (
+    <div class="embed" style={ratio ? `--embed-ratio: ${ratio}` : undefined}>
+      <iframe
+        class="embed__frame"
+        title={title}
+        data-consent={category}
+        data-consent-src={embed.src}
+        loading="lazy"
+        referrerpolicy="strict-origin-when-cross-origin"
+        allow="fullscreen; picture-in-picture"
+      />
+      <div class="embed__placeholder">
+        <p class="font-heading">{title}</p>
+        <p>
+          This content is provided by {embed.provider}. It loads once you allow {category} cookies.
+        </p>
+        <p class="cluster">
+          <button type="button" class="btn" data-consent-open>
+            Cookie settings
+          </button>
+          <a class="link" href={embed.openUrl} rel="noopener noreferrer">
+            Open on {embed.provider}
+            <span class="sr-only">: {title}</span>
+          </a>
+        </p>
+      </div>
+    </div>
+  )
+}

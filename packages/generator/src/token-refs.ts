@@ -213,7 +213,7 @@ function collectVarRefs(ds: {
  */
 export function emittedTokens(ds: {
   colors: { palette: Record<string, unknown>; roles: Record<string, RoleSpec> };
-  shadows?: Record<string, string> | undefined;
+  shadows?: Record<string, unknown> | undefined;
   patterns?: { z?: Record<string, number> | undefined } | undefined;
 }): Set<string> {
   const defined = new Set<string>();

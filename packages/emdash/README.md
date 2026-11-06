@@ -36,7 +36,7 @@ export default defineConfig({
 });
 ```
 
-Tested against `emdash@0.31.x`.
+Tested against `emdash@1.4.x`.
 
 ## Rendering mode
 
@@ -125,18 +125,60 @@ export default defineConfig({
   in the database (D1 export / EmDash seed round-trip), media in the storage
   backend (bucket/directory copy). Both directions work.
 
-## Editor blocks (v1)
+## Editor blocks
 
-| Slash-menu entry | `_type`               | Renders                                     |
-| ---------------- | --------------------- | ------------------------------------------- |
-| Image compare    | `vitops.imageCompare` | `<wc-image-compare>` before/after slider    |
-| Copy snippet     | `vitops.copyButton`   | `<wc-copy>` with code/inline fallback       |
-| Banner           | `vitops.banner`       | `<wc-dismissable>` banner with tone colours |
-| Disclosure       | `vitops.details`      | native `<details>`/`<summary>`              |
-| Carousel         | `vitops.carousel`     | `@getvitops/astro`'s `<Carousel />`         |
+| Slash-menu entry | `_type`               | Renders                                                    |
+| ---------------- | --------------------- | ---------------------------------------------------------- |
+| Link or button   | `vitops.actionLink`   | sprite-icon `<a>`, styled `.link`/`.btn`/`.cta`            |
+| Image compare    | `vitops.imageCompare` | `<wc-image-compare>` before/after slider                   |
+| Copy snippet     | `vitops.copyButton`   | `<wc-copy>` with code/inline fallback                      |
+| Banner           | `vitops.banner`       | `<wc-dismissable>` banner with tone colours                |
+| Disclosure       | `vitops.details`      | native `<details>`/`<summary>`                             |
+| Accordion        | `vitops.accordion`    | a group of `<details>`; optionally one-open-at-a-time      |
+| Carousel         | `vitops.carousel`     | `@getvitops/astro`'s `<Carousel />` over a Slides repeater |
+| Gallery          | `vitops.gallery`      | `<Gallery />` — thumbnail grid opening a lightbox carousel |
+| Cards            | `vitops.cards`        | `<Cards />` — a grid of `.card`s, whole-card click with JS |
+| Marquee          | `vitops.marquee`      | `<Marquee />` — a continuously scrolling row               |
 
 All blocks render accessible markup that works without JavaScript; the
-web components progressively enhance it.
+web components progressively enhance it. Each is a thin adapter over the matching
+`@getvitops/astro` component, so the markup exists once. `@getvitops/generator`'s `TIERS`
+manifest lists which block renders which pattern (its `emdash` key, the `vitops docs components`
+"EmDash blocks" table), and `blocks.test.ts` fails if a block and the manifest disagree.
+
+Repeating data (cards, gallery images, accordion items, marquee items, carousel slides) is a
+**repeater** field; images can be a media-library URL or any `http(s)`/relative URL. Link and image
+URLs with any other scheme (`javascript:`, `data:`) are dropped at render time.
+
+### Choosing and extending the blocks
+
+```js
+vitopsEmdash({
+  blocks: {
+    exclude: ['vitops.marquee'], // or `include: [...]` as an allowlist
+    extra: [
+      {
+        type: 'acme.pricing',
+        label: 'Pricing table',
+        fields: [/* Block Kit */],
+      },
+    ],
+  },
+});
+```
+
+`extra` adds **editor** definitions only. This plugin cannot render a block it has never heard of,
+so the site maps each of its own types to a component, and can replace a `vitops.*` renderer the same way:
+
+```astro
+<PortableText
+  value={page.data.content}
+  components={{ type: { 'acme.pricing': PricingTable, 'vitops.cards': MyCards } }}
+/>
+```
+
+EmDash merges renderers as built-ins, then plugin `blockComponents`, then this `components` prop, so
+the site's entry wins.
 
 ## Script delivery
 
@@ -153,17 +195,21 @@ loaded on pages that render these blocks. Pick **one**:
 Enabling both would load the scripts twice (harmless — element registration is
 guarded — but wasteful).
 
-## Repeating structured patterns
+## Patterns that contain other blocks
 
-EmDash's Portable Text block fields are flat, so patterns with repeating data
-(card grids, FAQ lists, spec tables via `wc-entries`, forms) are deliberately
-**not** v1 blocks. Use instead:
+A Portable Text block cannot hold other blocks — a repeater's rows are scalar fields. So a section
+with columns, a hero, or a card holding a button is not a `vitops.*` block. Two routes:
 
-- **Sections** (`/section`): compose the pattern once as reusable content and
-  let editors insert copies.
-- **Field Kit `list` widgets** on `json` collection fields: model the repeating
-  rows in the collection schema and render them at the template level with
-  `Cards.astro` / `NodeRenderer.astro` from `@getvitops/astro`.
+- A **`blocks` field** (EmDash's typed page-composition field): define block types such as `hero` or
+  `split` in the seed, and map each to an Astro component built from `@getvitops/astro`
+  (`Subgrid`, `Cards`, the `.split` classes) with `defineBlockComponents`.
+- **Sections** (`/section`): compose the pattern once as reusable content and let editors insert copies.
+
+EmDash's built-in `columns` block renders its children with marks only, so a `vitops.*` block placed
+inside one does not render. Use a `blocks` field for layout instead.
+
+Not yet blocks: tree, entries, reviews (`ReviewCard` reads `.vitops/reviews.json`, which needs a
+build-time import rather than a filesystem read on a Worker), dialog and tabs (no component yet).
 
 ## Changelog
 

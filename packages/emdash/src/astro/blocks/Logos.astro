@@ -1,0 +1,48 @@
+---
+/**
+ * A still row of partner/client marks on the framework's `.logos` pattern. `vitops.marquee`
+ * is the scrolling version; this one holds still. A list, so the count is announced, and
+ * each mark is an image with the editor's name as its alt text — a logo with no alt is a
+ * link or a fact the page silently drops.
+ */
+import { resolveBlockValue, rows, safeHref, text } from './value.ts';
+
+interface Value {
+  label?: string;
+  logos?: unknown;
+  grayscale?: boolean;
+  size?: string;
+}
+
+const HEIGHTS: Record<string, string> = { sm: '1.75rem', md: '2.5rem', lg: '3.5rem' };
+
+const value = resolveBlockValue<Value>(Astro.props);
+const label = text(value.label) || 'Partners';
+const logos = rows<Record<string, unknown>>(value.logos)
+  .map((row) => ({ image: safeHref(row.image), alt: text(row.alt), href: safeHref(row.href) }))
+  .filter((logo) => logo.image);
+const height = HEIGHTS[text(value.size)];
+---
+
+{
+  logos.length > 0 && (
+    <ul
+      class:list={['logos', value.grayscale && 'logos--grayscale']}
+      role="list"
+      aria-label={label}
+      style={height ? `--logos-height: ${height}` : undefined}
+    >
+      {logos.map((logo) => (
+        <li class="logos__item">
+          {logo.href ? (
+            <a href={logo.href}>
+              <img src={logo.image} alt={logo.alt} loading="lazy" />
+            </a>
+          ) : (
+            <img src={logo.image} alt={logo.alt} loading="lazy" />
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}

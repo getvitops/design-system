@@ -123,7 +123,6 @@ Typography: family aliases, semantic type roles (→ `font-<role>` classes), and
 - `families` (map) — Role-facing family aliases → CSS font values, usually referencing the top-level `fonts` tokens (e.g. "var(--font-display)").
 - `roles` (map) — Semantic type roles (display, title, heading, body, quote, caption, eyebrow, code, lead, footnote, tag, …), each emitted as a `font-<role>` class.
   - `<name>` (map) — A bag of CSS-ish keys, each mapped to a declaration plus a `--<role>-<sfx>` override hook. The recognised set is **closed**: `family`, `size`, `weight`, `style`, `line-height`, `tracking` (→ `letter-spacing`), `text-transform`, `text-decoration`, `text-wrap`, `color`. Note the last four are spelled with their full CSS property names — `transform` and `decoration` are NOT accepted. Anything unrecognised is **ignored**, not passed through, so the generator warns rather than emitting it: a silently-dropped `transform: uppercase` is how title-case navigation reaches production. Note also that `style`, `text-transform`, `text-decoration` and `text-wrap` are emitted on **every** role at their identity value (`normal`/`none`/`none`/`wrap`) whether declared or not, so applying one role class over another fully resets it — which means **omitting `text-wrap` is not "inherit"**: it emits `text-wrap: wrap` and cancels the `pretty` the role would otherwise inherit from a `pretty` ancestor such as a `body`-mapped role. Declare it on every role — `balance` for heading-like roles, `pretty` for copy, `wrap` for short single-line labels.
-    - `<name>` (string | number)
 - `headings` (map) — Maps bare elements to type roles so unclassed markup picks up role styling — `{ "h1": "display", "h2": "heading" }`. The key is used verbatim as a selector, so it is not limited to h1…h6: **map `"body"` to your prose role** to bind base page typography to the role rather than hand-writing it. That binding is what makes the role editable — a stylesheet that re-states `font-family`/`line-height` as literals on `body` shadows `--<role>-ff`/`--<role>-lh`, and the live theme editor then appears to do nothing.
 
 ## `animations` *(optional)*
@@ -134,9 +133,7 @@ Animation effect + journey classes (pure value layers). The animation engine its
   - `<name>` (object) — A named animation effect class — a pure value layer (`--_anim` + `--<prop>-from/-to`) over the static keyframe engine.
     - `kf` (string, required) — Keyframe family driving the effect: composite (transform/opacity), paint, or layout.
     - `css` (map) — Extra literal declarations merged into the effect class as-is.
-      - `<name>` (string | number)
     - `vars` (map) — Effect endpoint variables (`--<key>: <value>`, e.g. opacity-from, translate-y-to) that override the keyframe defaults.
-      - `<name>` (string | number)
 - `journeys` (object) — Multi-part journey classes composed from `base` building blocks.
   - `base` (map) — Named journey building blocks: part name → var map.
   - `compose` (array of array) — Combinations of base parts, each emitted as a `.<parts>-journey` class.

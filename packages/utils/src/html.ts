@@ -5,6 +5,7 @@
  */
 import { parseFragment, serialize as s, type DefaultTreeAdapterTypes } from 'parse5';
 import type { Localizable, ContentNode } from './content.ts';
+import { safeHref } from './url/index.ts';
 
 export type ChildNode = DefaultTreeAdapterTypes.ChildNode;
 
@@ -73,10 +74,35 @@ function isEl(value: string | El): value is El {
   return typeof value === 'object' && value !== null && 'tag' in value && 'text' in value;
 }
 
+const TAG_NAME = /^[a-z][a-z0-9-]*$/i;
+const ATTR_NAME = /^[a-z_:][a-z0-9_:.-]*$/i;
+/** Attributes whose value is a URL the browser will follow or load. */
+const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'poster', 'xlink:href', 'data']);
+
+/**
+ * Names are interpolated into markup unescaped, so a hostile one (`x onload=…`, `img src=x
+ * onerror=…`) would break out of the tag. They are validated, not escaped — there is no escaping
+ * for a name. Callers pass authored data today; this keeps that from becoming load-bearing.
+ */
+function assertTag(tag: string): void {
+  if (!TAG_NAME.test(tag)) throw new Error(`nodesToHtml: invalid tag name ${JSON.stringify(tag)}`);
+}
+
 function attributesToString(attrs: Record<string, unknown>): string {
   const parts: string[] = [];
   for (const [key, value] of Object.entries(attrs)) {
     if (value == null || value === false) continue;
+    if (!ATTR_NAME.test(key))
+      throw new Error(`nodesToHtml: invalid attribute name ${JSON.stringify(key)}`);
+    // Event handlers run script; markup that needs one belongs in a component, not a data tree.
+    if (/^on/i.test(key))
+      throw new Error(`nodesToHtml: event-handler attribute "${key}" is not allowed`);
+    if (URL_ATTRS.has(key.toLowerCase()) && typeof value === 'string') {
+      const safe = safeHref(value);
+      if (safe === undefined) continue;
+      parts.push(`${key}="${safe.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`);
+      continue;
+    }
     if (value === true) {
       parts.push(key);
     } else if (key === 'style' && typeof value === 'object') {
@@ -99,6 +125,7 @@ export function toHtml<Tag extends string>(content: string | El<Tag>): string {
   const { tag, text, attributes } = content;
   const attrStr = attributes ? attributesToString(attributes) : '';
   const t = String(tag);
+  assertTag(t);
   return attrStr ? `<${t} ${attrStr}>${text}</${t}>` : `<${t}>${text}</${t}>`;
 }
 
@@ -133,6 +160,7 @@ function escapeHtml(text: string): string {
 function nodeToHtml(node: ContentNode, resolveText: (value: Localizable) => string): string {
   if (typeof node === 'string') return escapeHtml(resolveText(node));
   const { tag, attrs, text, children } = node;
+  assertTag(tag);
   const attrStr = attrs ? attributesToString(attrs) : '';
   const open = attrStr ? `<${tag} ${attrStr}>` : `<${tag}>`;
   if (VOID_ELEMENTS.has(tag)) return open;

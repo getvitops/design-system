@@ -1,0 +1,53 @@
+/**
+ * Section — the editorial wrapper most pages are made of: an optional kicker, a heading,
+ * a lead-in line, then a body of other blocks.
+ *
+ * Composed from the layout primitives rather than reinventing them: the outer element
+ * is `.region` (vertical rhythm) and the content sits on `.centered`'s tracks, so this
+ * partial only adds what neither has — the head's own rhythm and the `--split` layout,
+ * which puts the head beside the body (heading-left) above the container breakpoint.
+ * Backdrop and colour come from `.tone` (tone.css), never from here.
+ */
+.section {
+  .section__head {
+    display: grid;
+    gap: var(--section-head-gap, 0.75rem);
+    align-content: start;
+  }
+
+  .section__kicker,
+  .section__title {
+    margin: 0;
+  }
+
+  .section__sub {
+    margin: 0;
+    max-inline-size: var(--width-measure, 65ch);
+  }
+
+  .section__body {
+    display: grid;
+    gap: var(--section-body-gap, 1.5rem);
+    min-inline-size: 0;
+  }
+
+  /* Head and body stack until there is room for two columns (below). */
+  &.section--split .section__inner {
+    display: grid;
+    gap: var(--section-split-gap, clamp(1.5rem, 4cqi, 3rem));
+  }
+
+  &.section--center .section__head {
+    text-align: center;
+    justify-items: center;
+  }
+}
+
+@container (min-width: 48rem) {
+  .section.section--split .section__inner {
+    grid-template-columns:
+      minmax(0, var(--section-split-head, 1fr))
+      minmax(0, var(--section-split-body, 2fr));
+    align-items: start;
+  }
+}

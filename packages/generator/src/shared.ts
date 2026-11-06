@@ -103,7 +103,26 @@ export const ROLE_TOKEN_KEYS: readonly string[] = [
 // `kind` admits an explicit `undefined` because the repo runs
 // `exactOptionalPropertyTypes` and the zod-inferred config type spells optionals
 // that way — without it every call site would need a cast.
-export type RoleSpec = string | { hue: string; kind?: 'surface' | 'chromatic' | undefined };
+export interface RoleSpecObject {
+  hue: string;
+  kind?: 'surface' | 'chromatic' | undefined;
+  /** Ramp step the solid family starts from (default 600). */
+  solid?: number | string | undefined;
+  /** Polarity of `text-on-<role>`; absent = whichever has more contrast. */
+  foreground?: 'light' | 'dark' | undefined;
+}
+export type RoleSpec = string | RoleSpecObject;
+
+/** The solid step / foreground polarity a role asked for (both optional). */
+export const roleSolidOptions = (
+  spec: RoleSpec,
+): { solid?: string; foreground?: 'light' | 'dark' } =>
+  typeof spec === 'string'
+    ? {}
+    : {
+        ...(spec.solid != null ? { solid: String(spec.solid) } : {}),
+        ...(spec.foreground ? { foreground: spec.foreground } : {}),
+      };
 
 /** The palette hue a role points at, through either authoring form. */
 export const roleHue = (spec: RoleSpec): string => (typeof spec === 'string' ? spec : spec.hue);
@@ -132,6 +151,29 @@ export const BASE_HOOK: Record<string, string> = {
   // same var twice — a config error, not something to design around.
   background: 'bg',
   'background-color': 'bg',
+};
+
+/**
+ * A typography role's declared key → [CSS property, var-name suffix]. The
+ * recognised key set is CLOSED (an unrecognised key is a config error, see
+ * `generate.ts`'s `ALSO_MEANT`) — shared here (rather than living only in
+ * `generate.ts`) because `tokens.ts`'s `buildReverseIndex` needs the exact
+ * same key → suffix mapping to stay in step with what `generate()` itself
+ * builds, and `tokens.ts` can't import from `generate.ts` (the CSS-bundling
+ * half, which needs lightningcss/node:fs) without losing its own
+ * Worker-safety.
+ */
+export const TYPO_KEYMAP: Record<string, [string, string]> = {
+  family: ['font-family', 'ff'],
+  size: ['font-size', 'fs'],
+  weight: ['font-weight', 'fw'],
+  style: ['font-style', 'fst'],
+  'line-height': ['line-height', 'lh'],
+  tracking: ['letter-spacing', 'ls'],
+  'text-decoration': ['text-decoration', 'td'],
+  'text-transform': ['text-transform', 'tt'],
+  'text-wrap': ['text-wrap', 'tw'],
+  color: ['color', 'color'],
 };
 
 /**
@@ -203,3 +245,40 @@ export const TW_CLASH: ReadonlySet<string> = new Set<string>([
   'rounded-none',
   'rounded-full',
 ]);
+
+/**
+ * `layout` config key → the custom property it sets. The one table both the
+ * emitters (css/bricks/tailwind) and the live-editor manifest's `reverseIndex`
+ * read, so a token that is emitted is always one the editor can write back.
+ */
+export const LAYOUT_TOKENS: Record<string, string> = {
+  'widths.measure': '--width-measure',
+  'widths.breakout': '--width-breakout',
+  'widths.spotlight': '--width-spotlight',
+  'widths.nav': '--width-nav',
+  'regionSpace.min': '--region-space-min',
+  'regionSpace.preferred': '--region-space',
+  'regionSpace.max': '--region-space-max',
+};
+
+/**
+ * The `:root` declarations for an authored `layout` block (only what was set —
+ * an absent key leaves the framework's own default in force), keyed by the
+ * custom property.
+ */
+export function layoutDecls(
+  layout:
+    | {
+        widths?: Record<string, string | undefined> | undefined;
+        regionSpace?: Record<string, string | undefined> | undefined;
+      }
+    | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [path, token] of Object.entries(LAYOUT_TOKENS)) {
+    const [group, key] = path.split('.') as ['widths' | 'regionSpace', string];
+    const value = layout?.[group]?.[key];
+    if (value != null) out[token] = value;
+  }
+  return out;
+}

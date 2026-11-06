@@ -20,6 +20,20 @@ import type { PolicyVars } from '../derive.ts';
 export const REVIEW_NOTICE =
   "> Generated from this site's configuration. It is a starting point, not legal advice — have it reviewed before you publish it, and make sure it matches what your site actually does.";
 
+/**
+ * The second banner the `qc` documents carry, after `REVIEW_NOTICE`.
+ *
+ * Quebec adds obligations a generic review prompt does not name, and each is a
+ * thing this generator cannot check: that a person in charge of privacy has been
+ * designated and is published, that a privacy impact assessment precedes any
+ * communication outside Quebec, that consent mechanics match the Act, and — easy
+ * to miss — that content directed at Quebec consumers is available in French. It
+ * is a second blockquote (a second `vitops.banner` in Portable Text) so it cannot
+ * be skimmed past as part of the first.
+ */
+export const QC_REVIEW_NOTICE =
+  '> Quebec (Law 25): this document is written for the Quebec privacy regime and has NOT been reviewed by counsel. Before publishing, have a lawyer confirm that a person in charge of the protection of personal information is designated, that any transfer of information outside Quebec is preceded by a privacy impact assessment, that your consent and cookie mechanisms match the Act, and whether a French version is required for your audience. It is not legal advice.';
+
 /** A markdown bullet list. Empty in, empty out — never a stray `-`. */
 export function bullets(items: string[]): string {
   return items.map((item) => `- ${item}`).join('\n');

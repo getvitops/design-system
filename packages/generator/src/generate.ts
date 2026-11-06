@@ -28,9 +28,13 @@ import {
   DARK_SEL,
   SYSTEM_DARK_SEL,
   TW_CLASH,
+  TYPO_KEYMAP,
   type RoleSpec,
   roleHue,
   roleKind,
+  roleSolidOptions,
+  layoutDecls,
+  LAYOUT_TOKENS,
 } from './shared.ts';
 import {
   checkContrast,
@@ -306,27 +310,13 @@ interface TypographyRole {
   family?: string;
   [key: string]: string | number | undefined;
 }
-const TYPO_KEYMAP: Record<string, [string, string]> = {
-  family: ['font-family', 'ff'],
-  size: ['font-size', 'fs'],
-  weight: ['font-weight', 'fw'],
-  style: ['font-style', 'fst'],
-  'line-height': ['line-height', 'lh'],
-  tracking: ['letter-spacing', 'ls'],
-  'text-decoration': ['text-decoration', 'td'],
-  'text-transform': ['text-transform', 'tt'],
-  'text-wrap': ['text-wrap', 'tw'],
-  color: ['color', 'color'],
-};
 /**
  * Wrong spellings worth naming explicitly, because each is a plausible reading of
- * the key it isn't. `transform`/`decoration` were documented in the schema for a
+ * the key it isn't. (`transform`/`decoration` used to live here; they are aliases now, below.) They were documented in the schema for a
  * while and shipped title-case navigation to production; `letter-spacing` and
  * `font-*` are the natural guesses for keys we chose to shorten.
  */
 const ALSO_MEANT: Record<string, string> = {
-  transform: 'text-transform',
-  decoration: 'text-decoration',
   'letter-spacing': 'tracking',
   wrap: 'text-wrap',
   'font-family': 'family',
@@ -334,6 +324,34 @@ const ALSO_MEANT: Record<string, string> = {
   'font-weight': 'weight',
   'font-style': 'style',
   lineHeight: 'line-height',
+};
+/**
+ * Short spellings accepted for the two keys named after a full CSS property.
+ * `transform`/`decoration` read naturally beside `tracking`/`weight` and were the
+ * documented names for a while, so they are accepted and normalised to the
+ * canonical `text-transform`/`text-decoration` (which wins if both are present)
+ * rather than warned about and dropped.
+ */
+const TYPO_ALIASES: Record<string, string> = {
+  transform: 'text-transform',
+  decoration: 'text-decoration',
+};
+const normalizeTypographyKeys = (
+  typography: DesignSystem['typography'],
+): DesignSystem['typography'] => {
+  if (!typography?.roles) return typography;
+  const roles = Object.fromEntries(
+    Object.entries(typography.roles).map(([role, spec]) => {
+      const out: Record<string, string | number> = {};
+      for (const [k, v] of Object.entries(spec)) {
+        const canonical = TYPO_ALIASES[k];
+        if (canonical == null) out[k] = v;
+        else if (!(canonical in spec)) out[canonical] = v;
+      }
+      return [role, out];
+    }),
+  );
+  return { ...typography, roles };
 };
 const TYPO_IDENTITY: Record<string, string> = {
   'font-style': 'normal',
@@ -413,6 +431,13 @@ export interface BuildOptions {
    * Off by default, because turning it on flips a site dark for dark-OS users.
    */
   systemColorScheme?: boolean;
+  /**
+   * A dark-only site (`designSystem.defaultColorScheme: "dark"`): the dark
+   * appearance IS the `:root` appearance, no light block or flip is emitted, and
+   * light-mode contrast is not checked — a pairing nobody can see cannot be a
+   * build failure.
+   */
+  darkOnly?: boolean;
 }
 
 export function build(
@@ -431,7 +456,7 @@ export function build(
     const hueName = roleHue(spec);
     const hue = expandedPalette[hueName];
     if (hue == null) throw new Error(`role "${role}" references unknown palette hue "${hueName}"`);
-    scaleRoles.push(functionalRole(role, hueName, hue, roleKind(spec)));
+    scaleRoles.push(functionalRole(role, hueName, hue, roleKind(spec), roleSolidOptions(spec)));
   }
   // Found by name AND kind. Only a surface-kind role has a bare `bg` token, and
   // `--surface-glass` / `.glass` / `--overlay` are written against
@@ -454,7 +479,7 @@ export function build(
   // A pinned brand colour that sits off the shared lightness ladder is legal —
   // the author asked for that exact colour — but past ~0.03 L the hue reads
   // visibly heavier or lighter than its siblings at that step, so say so.
-  for (const w of ladderWarnings(expandedPalette)) console.warn(`[vitops] ${w}`);
+  for (const w of ladderWarnings(expandedPalette, ds.colors.palette)) console.warn(`[vitops] ${w}`);
 
   // A pinned colour far enough off the ladder can leave the ramp non-monotonic —
   // some step lighter than the one above it. That is an error, not a warning:
@@ -489,7 +514,9 @@ export function build(
           ),
         }
       : undefined;
-    const failures = scaleRoles.flatMap((fr) => checkContrast(fr, numericOf, surfaceBg));
+    const failures = scaleRoles.flatMap((fr) =>
+      checkContrast(fr, numericOf, surfaceBg, buildOpts.darkOnly ? ['dark'] : undefined),
+    );
     if (failures.length)
       throw new Error(
         `colour contrast contract failed (${failures.length} pairing${
@@ -497,9 +524,34 @@ export function build(
         }):\n  ${failures.join('\n  ')}`,
       );
   }
+  // Dark-only: the dark tokens become the base appearance. With light === dark
+  // everywhere below, the flip delta is empty and the Bricks palette import
+  // marks nothing `darkEnabled`, so no per-format branch is needed beyond the
+  // explicit `color-scheme` and the dark blocks that are emitted unconditionally.
+  if (buildOpts.darkOnly)
+    scaleRoles.forEach((fr, i) => {
+      scaleRoles[i] = { ...fr, light: fr.dark };
+    });
   const patterns = ds.patterns;
-  const shadows = ds.shadows;
-  const typography = ds.typography;
+  // A shadow is a plain string (one value, safe for both `box-shadow` and
+  // `drop-shadow()`) or `{ box, drop }` (separate grammars: `box` may carry
+  // spread/inset/layers). `shadows` holds what `--shadow-<name>` is set to — the
+  // box form; `shadowDrops` holds what `drop-shadow()` consumers read, under
+  // `--shadow-<name>-drop` when the two differ.
+  const shadowDrops: Record<string, { token: string; value: string }> = {};
+  const shadows: Record<string, string> | undefined = ds.shadows
+    ? Object.fromEntries(
+        Object.entries(ds.shadows).map(([name, v]) => {
+          if (typeof v === 'string') {
+            shadowDrops[name] = { token: `--shadow-${name}`, value: v };
+            return [name, v];
+          }
+          if (v.drop != null) shadowDrops[name] = { token: `--shadow-${name}-drop`, value: v.drop };
+          return [name, (v.box ?? v.drop) as string];
+        }),
+      )
+    : undefined;
+  const typography = normalizeTypographyKeys(ds.typography);
   const UTILITIES = (ds.colors.utilities ?? ['bg', 'text', 'icon', 'border']).filter(
     (u) => u in UTILITY_PROPS,
   );
@@ -527,7 +579,7 @@ export function build(
       NON_PALETTE_BG;
   } else {
     let css = `/* GENERATED from design-system.json — do not edit by hand. */\n:root {\n`;
-    css += `  color-scheme: light;\n`;
+    css += `  color-scheme: ${buildOpts.darkOnly ? 'dark' : 'light'};\n`;
     css += `  /* Hue scales (numeric steps, 50 = tinted near-white … 950 = tinted near-black) */\n`;
     for (const [name, hue] of Object.entries(expandedPalette))
       for (const [n, hex] of Object.entries(hue.numeric))
@@ -552,7 +604,7 @@ export function build(
       for (const fr of scaleRoles)
         for (const [t, val] of Object.entries(fr.dark))
           if (fr.light[t] !== val) fb += `  ${tokenVar(fr.role, t)}: ${val};\n`;
-      if (surfaceRole)
+      if (surfaceRole && !buildOpts.darkOnly)
         fb += `  --overlay: color-mix(in oklch, var(--color-${surfaceRole.hue}-950) 60%, transparent);\n`;
       if (fb) {
         css += `/* Functional role tokens (dark) */\n`;
@@ -600,10 +652,16 @@ export function build(
     let sh = `/* GENERATED drop-shadow tokens + utilities — do not edit by hand. */\n`;
     if (entries.length) {
       sh += `:root {\n`;
-      for (const [name, value] of entries) sh += `  --shadow-${name}: ${value};\n`;
+      for (const [name, value] of entries) {
+        sh += `  --shadow-${name}: ${value};\n`;
+        const drop = shadowDrops[name];
+        if (drop && drop.token !== `--shadow-${name}`) sh += `  ${drop.token}: ${drop.value};\n`;
+      }
       sh += `}\n\n`;
-      for (const [name] of entries)
-        sh += `.drop-shadow-${name} { filter: drop-shadow(var(--shadow-${name})); }\n`;
+      for (const [name] of entries) {
+        const drop = shadowDrops[name];
+        if (drop) sh += `.drop-shadow-${name} { filter: drop-shadow(var(${drop.token})); }\n`;
+      }
     }
     generated['shadows.css'] = sh;
   }
@@ -692,6 +750,12 @@ export function build(
         sp += `}\n`;
       }
     }
+    // Layout widths + region spacing from the `layout` block — only what was
+    // authored. Emitted here (utilities layer) so it outranks the framework's own
+    // `:root` defaults in layout.css, which sit in the components layer.
+    const layoutVars = layoutDecls(ds.layout);
+    if (Object.keys(layoutVars).length)
+      sp += `\n/* layout tokens (from \`layout\`) */\n:root {\n${decls(layoutVars)}\n}\n`;
     generated['spacing.css'] = sp;
   }
 
@@ -787,8 +851,12 @@ export function build(
       }
       if (typeof spec.scale === 'number') body.push(`scale: ${spec.scale};`);
       if (typeof spec.lift === 'string') body.push(`translate: 0 calc(-1 * ${spec.lift});`);
-      if (typeof spec.shadow === 'string' && shadows?.[spec.shadow])
-        body.push(`filter: drop-shadow(var(--shadow-${spec.shadow}));`);
+      if (typeof spec.shadow === 'string' && shadowDrops[spec.shadow])
+        body.push(`filter: drop-shadow(var(${shadowDrops[spec.shadow]?.token}));`);
+      else if (typeof spec.shadow === 'string' && shadows?.[spec.shadow])
+        console.warn(
+          `[vitops] pattern state "shadow: ${spec.shadow}" skipped: shadows.${spec.shadow} has no \`drop\` form`,
+        );
       else if (spec.shadow === true)
         body.push(`box-shadow: var(--lift-shadow, 0 8px 20px -6px rgb(0 0 0 / 0.25));`);
       if (spec.ring === true) {
@@ -1156,6 +1224,8 @@ export function build(
     for (const role of Object.keys(typoRoles))
       for (const [key, [, sfx]] of Object.entries(TYPO_KEYMAP))
         reverseIndex[`--${role}-${sfx}`] = `typography.roles.${role}.${key}`;
+    for (const [path, token] of Object.entries(LAYOUT_TOKENS))
+      reverseIndex[token] = `layout.${path}`;
     const pDefaults = patterns?.defaults ?? {};
     const pRadii = patterns?.radii ?? {};
     const pGroups = patterns?.groups ?? {};
@@ -1204,6 +1274,7 @@ export function build(
         fonts: ds.fonts ?? {},
         patterns: { defaults: pDefaults, radii: pRadii, groups: pGroups, items },
         shadows: shadows ?? {},
+        layout: ds.layout ?? {},
         reverseIndex,
       },
       null,
@@ -1232,6 +1303,7 @@ export function build(
           assetsDir,
           utilities: UTILITIES,
           systemColorScheme: buildOpts.systemColorScheme === true,
+          darkOnly: buildOpts.darkOnly === true,
         });
 
   // ── DESIGN.md ────────────────────────────────────────────────────────────────
@@ -1279,6 +1351,8 @@ interface TwCtx {
   utilities: string[];
   /** `BuildOptions.systemColorScheme` — see the OS-preference block below. */
   systemColorScheme: boolean;
+  /** `BuildOptions.darkOnly`. */
+  darkOnly: boolean;
 }
 
 function emitTailwind(ctx: TwCtx): string {
@@ -1329,6 +1403,21 @@ function emitTailwind(ctx: TwCtx): string {
   theme.push(`\n  /* Container breakpoints → @sm:/@md:/@lg:/@xl: */`);
   for (const [name, val] of BREAKPOINTS) theme.push(`  --container-${name}: ${val};`);
   parts.push(`@theme {\n${theme.join('\n')}\n}\n`);
+  // Split shadows (`{ box, drop }`): the drop-shadow() form is a plain token, not
+  // an @theme one — `--shadow-*` there would mint a `shadow-<name>-drop` utility.
+  const dropTokens = Object.entries(ds.shadows ?? {}).flatMap(([n, v]) =>
+    typeof v !== 'string' && v.drop != null ? [`  --shadow-${n}-drop: ${v.drop};`] : [],
+  );
+  if (dropTokens.length)
+    parts.push(
+      `/* drop-shadow() forms of split shadows */\n:root {\n${dropTokens.join('\n')}\n}\n`,
+    );
+
+  {
+    const layoutVars = layoutDecls(ds.layout);
+    if (Object.keys(layoutVars).length)
+      parts.push(`/* Layout tokens (from \`layout\`) */\n:root {\n${decls(layoutVars)}\n}\n`);
+  }
 
   if (spaceSteps.length)
     parts.push(
@@ -1363,6 +1452,7 @@ function emitTailwind(ctx: TwCtx): string {
       fn += `  --surface-glass: color-mix(in oklch, var(--color-bg-surface) 72%, transparent);\n`;
       fn += `  --overlay: color-mix(in oklch, var(--color-${surface.hue}-950) 45%, transparent);\n`;
     }
+    if (ctx.darkOnly) fn = `  color-scheme: dark;\n${fn}`;
     parts.push(`/* Role tokens (the public API) */\n:root {\n${fn}}\n`);
   }
 
@@ -1378,7 +1468,7 @@ function emitTailwind(ctx: TwCtx): string {
       if (fr.light[t] !== val) darkBlock += `  ${tokenVar(fr.role, t)}: ${val};\n`;
   {
     const surface = scaleRoles.find((r) => r.role === 'surface');
-    if (surface)
+    if (surface && !ctx.darkOnly)
       darkBlock += `  --overlay: color-mix(in oklch, var(--color-${surface.hue}-950) 60%, transparent);\n`;
   }
   if (darkBlock) {
@@ -2056,6 +2146,7 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
   const built = build(ds, format, assetsDir, {
     systemColorScheme:
       options.systemColorScheme ?? config?.designSystem?.defaultColorScheme === 'system',
+    darkOnly: config?.designSystem?.defaultColorScheme === 'dark',
   });
   mkdirSync(outDir, { recursive: true });
   const written: string[] = [];
@@ -2075,6 +2166,9 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
   } else if (format === 'tailwind') {
     put('tailwind.css', built.tailwind);
     put('tokens.json', built.tokensJson);
+    // The editor reads this whatever the stylesheet format: it describes the design
+    // system, not the CSS. A tailwind site mounting <wc-theme-editor> has no other source.
+    put('design-manifest.json', built.designManifest);
   } else if (format === 'css') {
     const { code } = bundleCss(built.generated, assetsDir, true);
     put('styles.css', code);

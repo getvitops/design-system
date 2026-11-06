@@ -8,19 +8,38 @@
  *
  * Thin wrapper over @getvitops/generator — the same generator the CLI uses.
  */
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import {
+  designSystemPath,
+  formatConfig,
   generate,
   generateLegal,
+  getAt,
   isConfig,
+  mergePatch,
   resolveConfig,
+  setAt,
   validate,
   type Format,
   type LegalOutput,
 } from '@getvitops/generator';
 import { generateFavicons, writeFaviconManifest } from '@getvitops/utils';
+// Re-exported for existing consumers/tests importing these from this package
+// directly — the implementations now live in `@getvitops/generator` (shared
+// with the EmDash design-system-editor plugin route; see that package's
+// AGENTS.md section), this module just re-uses them.
+export { designSystemPath, getAt, setAt } from '@getvitops/generator';
 // Own subpath: it shells out to ffmpeg, and a project without a `media` option
 // should never load it.
 import {
@@ -32,88 +51,6 @@ import {
 
 /** Endpoint `<wc-theme-editor>` probes for, and POSTs its patch to. */
 const EDITOR_ENDPOINT = '/__vitops/design-system';
-
-/**
- * Where the design system lives inside the config file on disk.
- *
- * `[]` for a `design-system.json` — the file *is* the design system. For a site
- * config it is under `designSystem`, and this reads the **raw** object rather
- * than the resolved one because the editor's write-back has to land where the
- * author actually put it. `resolveConfig` normalises the two shorthands in
- * memory; a writer that assumed the canonical shape would grow a second
- * `themes` key beside the author's bare map and silently stop editing anything.
- */
-export function designSystemPath(raw: unknown, theme = 'default'): string[] {
-  if (!isConfig(raw)) return [];
-  const ds = (raw as Record<string, unknown>).designSystem as Record<string, unknown>;
-  if (ds != null && typeof ds === 'object') {
-    if ('themes' in ds) return ['designSystem', 'themes', theme];
-    // A bare `DesignSystem` written inline — one theme, and it is `default`.
-    if ('colors' in ds) return ['designSystem'];
-  }
-  return ['designSystem', theme]; // the legacy bare theme map
-}
-
-export const getAt = (obj: unknown, path: string[]): unknown =>
-  path.reduce<unknown>((cur, k) => (cur as Record<string, unknown>)?.[k], obj);
-
-/** Return a copy of `obj` with `path` replaced by `value`. Creates missing objects. */
-export function setAt(obj: unknown, path: string[], value: unknown): unknown {
-  if (!path.length) return value;
-  const [head, ...rest] = path as [string, ...string[]];
-  const base = (typeof obj === 'object' && obj !== null ? obj : {}) as Record<string, unknown>;
-  return { ...base, [head]: setAt(base[head], rest, value) };
-}
-
-/**
- * Recursively merge a patch into a config. Plain objects merge key-wise;
- * everything else (scalars, and arrays — a token list is replaced, not appended)
- * is overwritten by the patch.
- */
-function deepMerge(base: unknown, patch: unknown): unknown {
-  const isPlain = (v: unknown): v is Record<string, unknown> =>
-    typeof v === 'object' && v !== null && !Array.isArray(v);
-  if (!isPlain(base) || !isPlain(patch)) return patch;
-  const out: Record<string, unknown> = { ...base };
-  for (const [k, v] of Object.entries(patch)) out[k] = deepMerge(base[k], v);
-  return out;
-}
-
-/** Printed width the config is formatted to — matches the repo formatter's default. */
-const PRINT_WIDTH = 100;
-
-/**
- * Serialize a config the way a formatter would: 2-space indent, but arrays of
- * scalars kept on one line when they fit.
- *
- * `JSON.stringify(v, null, 2)` explodes every array onto its own lines, so writing
- * back a two-key patch reflowed ~300 lines of `design-system.json` — a diff nobody
- * can review, for a change of two values. Matching the prevailing style keeps the
- * write surgical, which is the whole point of saving to source rather than copying
- * a patch by hand.
- */
-function formatConfig(value: unknown, col = 0, indent = 0): string {
-  const pad = ' '.repeat(indent);
-  if (Array.isArray(value)) {
-    if (!value.length) return '[]';
-    if (value.every((v) => v === null || typeof v !== 'object')) {
-      const inline = `[${value.map((v) => JSON.stringify(v)).join(', ')}]`;
-      if (col + inline.length <= PRINT_WIDTH) return inline;
-    }
-    const items = value.map((v) => `${pad}  ${formatConfig(v, indent + 2, indent + 2)}`);
-    return `[\n${items.join(',\n')}\n${pad}]`;
-  }
-  if (value !== null && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>);
-    if (!entries.length) return '{}';
-    const items = entries.map(([k, v]) => {
-      const head = `${pad}  ${JSON.stringify(k)}: `;
-      return head + formatConfig(v, head.length, indent + 2);
-    });
-    return `{\n${items.join(',\n')}\n${pad}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
-}
 
 export interface VitopsMediaOptions {
   /** Directory of unprocessed video, walked recursively. Default: 'raw'. */
@@ -198,8 +135,9 @@ export interface VitopsPluginOptions {
   media?: VitopsMediaOptions;
   /**
    * Directory to mirror `design-manifest.json` into as `vitops/design-manifest.json`
-   * — the URL `<wc-theme-editor>` fetches by default. Set by the Astro integration's
-   * `editor` option. Copied inside the generate pass rather than by the caller, so
+   * — the URL `<wc-theme-editor>` fetches by default — plus a standalone
+   * `vitops/editor.css` for hosts that render the editor outside the site's own pages.
+   * Set by the Astro integration's `editor` / `editorManifest` options. Copied inside the generate pass rather than by the caller, so
    * it can't race the first generation and can't go stale on regeneration.
    */
   editorManifestDir?: string;
@@ -277,9 +215,8 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
     const inputIsSite = isConfig(raw);
     // `generate` reads the site config only for what the stylesheet depends on;
     // legal documents stay the separate opt-in below.
-    await generate({
+    const genArgs = {
       input: raw as Parameters<typeof generate>[0]['input'],
-      format,
       outDir,
       ...(options.theme != null ? { theme: options.theme } : {}),
       siteEnv: options.site?.siteEnv ?? 'production',
@@ -288,7 +225,8 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
         : {}),
       // An explicit `site` wins; otherwise `input` supplies it when it is one.
       ...(siteInput ? { site: readJson(siteInput) as never } : {}),
-    });
+    };
+    await generate({ ...genArgs, format });
     if (options.legal) {
       // The three paths are the same file in almost every project, so the
       // declaration cascades rather than being repeated.
@@ -306,11 +244,24 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
         writeFileSync(join(legalOut, name), content);
     }
     if (options.editorManifestDir) {
-      const src = resolve(root, outDir, 'design-manifest.json');
-      if (existsSync(src)) {
-        const dest = resolve(root, options.editorManifestDir, 'vitops');
-        mkdirSync(dest, { recursive: true });
-        copyFileSync(src, join(dest, 'design-manifest.json'));
+      const dest = resolve(root, options.editorManifestDir, 'vitops');
+      mkdirSync(dest, { recursive: true });
+      const manifest = resolve(root, outDir, 'design-manifest.json');
+      if (existsSync(manifest)) copyFileSync(manifest, join(dest, 'design-manifest.json'));
+      // The editor renders in light DOM and borrows the framework's own CSS, which a host
+      // outside the site's pages (the EmDash admin, in an iframe) has to load itself. That
+      // needs a standalone stylesheet; only the `css` format emits one, so a tailwind site
+      // gets a throwaway `css` pass whose output never reaches `outDir`.
+      if (format === 'css') {
+        copyFileSync(resolve(root, outDir, 'styles.css'), join(dest, 'editor.css'));
+      } else {
+        const scratch = mkdtempSync(join(tmpdir(), 'vitops-editor-css-'));
+        try {
+          await generate({ ...genArgs, format: 'css', outDir: scratch });
+          copyFileSync(join(scratch, 'styles.css'), join(dest, 'editor.css'));
+        } finally {
+          rmSync(scratch, { recursive: true, force: true });
+        }
       }
     }
     if (options.spriteDir) {
@@ -457,7 +408,7 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
 
             const current = readJson(input);
             const at = designSystemPath(current, options.theme);
-            const merged = deepMerge(getAt(current, at), patch);
+            const merged = mergePatch(getAt(current, at), patch);
             // Validate the *merged* result, not the patch: a patch is a partial
             // by design, so it can't be validated on its own, and writing an
             // invalid config would break the very dev server doing the writing.

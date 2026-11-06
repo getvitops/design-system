@@ -8,8 +8,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "pull-content": "node scripts/pull-content.mjs",
-    "deploy": "node scripts/pull-content.mjs && astro build && wrangler deploy",
-    "deploy:dev": "node scripts/pull-content.mjs && astro build && node scripts/build-dev-wrangler.mjs && wrangler deploy --config dist/server/wrangler.dev.json",
+    "deploy": "vitops email check && node scripts/pull-content.mjs && astro build && emdash migrate --wrangler-config wrangler.jsonc && wrangler deploy",
+    "deploy:dev": "vitops email check && node scripts/pull-content.mjs && astro build && node scripts/build-dev-wrangler.mjs && emdash migrate --wrangler-config dist/server/wrangler.dev.json && wrangler deploy --config dist/server/wrangler.dev.json",
     "init:github": "vitops setup repo",
     "init:hosting": "vitops setup hosting",
     "setup": "vitops setup all",
@@ -21,21 +21,23 @@
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.0.0",
-    "@astrojs/react": "^6.0.0",
-    "@emdash-cms/cloudflare": "^0.31.0",
+    "@astrojs/react": "^7.1.2",
+    "@emdash-cms/cloudflare": "^1.4.0",
     "@getvitops/astro": "latest",
+    "@getvitops/core": "latest",
     "@getvitops/emdash": "latest",
-    "astro": "^7.1.2",
-    "emdash": "^0.31.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.4.4",
+    "emdash": "^1.4.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.7",
+    "@astrojs/check": "^0.9.12",
     "@cloudflare/workers-types": "^4.20260305.1",
     "@getvitops/cli": "latest",
-    "@tailwindcss/vite": "^4.3.3",
-    "tailwindcss": "^4.3.3",
+    "@iconify-json/fa7-solid": "^1.2.5",
     "typescript": "^6.0.3",
     "vite": "latest",
     "vite-plus": "latest",
@@ -44,11 +46,11 @@
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": "24.18.0",
+      "version": "24",
       "onFail": "download"
     }
   },
-  "packageManager": "pnpm@11.17.0",
+  "packageManager": "pnpm@12.16.1",
   "emdash": {
     "seed": "seed/seed.json"
   }

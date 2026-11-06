@@ -10,7 +10,7 @@
  * renderer cannot express fails loudly rather than degrading.
  */
 import { readFileSync } from 'node:fs';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 import { defaultConfig } from '../index.ts';
 import { DOC_SLUGS } from './templates/index.ts';
 import { resolveConfig, validateConfig, type Config, type OrganizationConfig } from '../config.ts';
@@ -145,6 +145,46 @@ describe('processor derivation', () => {
       fixture({ analytics: { matomo: { url: 'https://stats.acme.example', siteId: '1' } } }),
     );
     expect(own).not.toContain('the European Union');
+  });
+
+  test('names HubSpot when site.crm.provider is hubspot', () => {
+    const site = fixture({
+      crm: { provider: 'hubspot', hubspot: { portalId: '1', formGuid: 'g' } },
+    });
+    expect(detectProcessorKeys(site)).toEqual(['hubspot']);
+    expect(privacyOf(site)).toContain('HubSpot');
+  });
+
+  test('names Zoho Bigin when site.crm.provider is bigin', () => {
+    const site = fixture({ crm: { provider: 'bigin', bigin: { dataCenter: 'ca' } } });
+    expect(detectProcessorKeys(site)).toEqual(['zohoBigin']);
+    expect(privacyOf(site)).toContain('Zoho Bigin');
+  });
+
+  test('a Canadian-hosted Bigin asserts no cross-border transfer', () => {
+    // The real win for an Ontario client: the data centre is a config field,
+    // and the policy must derive from it rather than assume a transfer.
+    const md = privacyOf(fixture({ crm: { provider: 'bigin', bigin: { dataCenter: 'ca' } } }));
+    expect(md).not.toContain('outside of Canada');
+  });
+
+  test('a US-hosted Bigin does assert a cross-border transfer', () => {
+    const md = privacyOf(fixture({ crm: { provider: 'bigin', bigin: { dataCenter: 'com' } } }));
+    expect(md).toContain('outside of Canada');
+  });
+
+  test('names Jobber when site.crm.provider is jobber', () => {
+    const site = fixture({ crm: { provider: 'jobber', jobber: {} } });
+    expect(detectProcessorKeys(site)).toEqual(['jobber']);
+    expect(privacyOf(site)).toContain('Jobber');
+  });
+
+  test('a Canadian-operated Jobber still asserts a cross-border transfer', () => {
+    // Jobber's operator is Canadian, but its own privacy policy names the
+    // United States as a processing location too — a Canadian operator must
+    // not be read as Canadian-only storage.
+    const md = privacyOf(fixture({ crm: { provider: 'jobber', jobber: {} } }));
+    expect(md).toContain('outside of Canada');
   });
 
   test('do not name Cloudflare twice when Turnstile already implies it', () => {
@@ -488,6 +528,22 @@ describe('terms of service', () => {
     expect(renderMarkdown(site, 'terms')).toContain('governed by the laws of France.');
   });
 
+  test('a business with no street address still validates and renders a postal line', () => {
+    const site = fixture(
+      {},
+      { address: { addressLocality: 'Ottawa', addressRegion: 'ON', addressCountry: 'Canada' } },
+    );
+    expect(validateConfig(site).ok).toBe(true);
+    const md = renderMarkdown(site, 'privacy');
+    expect(md).toContain('Ottawa');
+    expect(md).not.toContain('undefined');
+    expect(md).not.toMatch(/, ,|^, /m);
+  });
+
+  test('accepts an organization description', () => {
+    expect(validateConfig(fixture({}, { description: 'We build things.' })).ok).toBe(true);
+  });
+
   test('lets a consumer state the clause outright', () => {
     const site = fixture({
       legal: {
@@ -675,6 +731,7 @@ describe('designSystem normalisation', () => {
                 },
               },
             },
+            plan: { key: 'test', addons: ['ab_testing'] },
           }),
           designSystem,
         },
@@ -702,11 +759,154 @@ describe('designSystem normalisation', () => {
               },
             },
           },
+          plan: { key: 'test', addons: ['ab_testing'] },
         }),
         designSystem: { themes: { default: defaultConfig() } },
       },
       'production',
     ).designSystem.themes;
     expect(Object.keys(themes).sort()).toEqual(['default', 'elegant']);
+  });
+});
+
+describe('quebec (Law 25) templates', () => {
+  const qc = (legal: object = {}, site: Partial<Config['site']> = {}, org = {}): Config => {
+    const base = fixture({}, org);
+    return {
+      ...base,
+      site: {
+        ...base.site,
+        legal: { ...base.site.legal, jurisdiction: 'qc', ...legal },
+        ...site,
+      },
+    } as Config;
+  };
+  const qcPrivacy = (c: Config) => renderMarkdown(c, 'privacy');
+
+  test('registers all three documents and validates', () => {
+    expect(validateConfig(qc()).ok).toBe(true);
+    expect(Object.keys(generateLegal(qc()))).toEqual([
+      'privacy-policy.md',
+      'terms-of-service.md',
+      'cookie-notice.md',
+    ]);
+  });
+
+  test('every document carries both review banners, and resolves cleanly', () => {
+    for (const [name, content] of Object.entries(generateLegal(qc()))) {
+      expect(content, name).toContain('not legal advice');
+      expect(content, name).toContain('Quebec (Law 25)');
+      expect(content, name).toContain('NOT been reviewed by counsel');
+      expect(content, name).not.toMatch(/\$\{|undefined|\[object Object\]/);
+    }
+  });
+
+  test('stays inside the closed markdown subset, in every output format', () => {
+    for (const output of ['md', 'html', 'portable-text'] as const)
+      expect(() => generateLegal(qc(), { output })).not.toThrow();
+    const pt = JSON.parse(generateLegal(qc(), { output: 'portable-text' })['privacy-policy.json']!);
+    expect(pt.filter((b: { _type: string }) => b._type === 'vitops.banner')).toHaveLength(2);
+  });
+
+  test('carries the Law 25 content PIPEDA prose lacks, and none of the ca framing', () => {
+    const md = qcPrivacy(qc());
+    for (const needle of [
+      'person in charge of the protection of personal information',
+      'portability',
+      'rectification',
+      'de-index',
+      'automated processing',
+      "Commission d'accès à l'information du Québec",
+    ])
+      expect(md).toContain(needle);
+    expect(md).not.toContain('Office of the Privacy Commissioner of Canada');
+    expect(md).not.toContain('outside of Canada');
+  });
+
+  test('names the person in charge only when the config does', () => {
+    expect(qcPrivacy(qc())).not.toContain('Inc. is ');
+    expect(qcPrivacy(qc())).not.toContain('..');
+    const named = qc({
+      privacyPolicy: {
+        enabled: true,
+        privacyOfficer: { name: 'Jean Tremblay', email: 'jean@acme.example' },
+        privacyOfficerTitle: 'President',
+      },
+    });
+    expect(qcPrivacy(named)).toContain('is Jean Tremblay (President)');
+  });
+
+  test('frames transfers as leaving Quebec, and asserts the assessment only when attested', () => {
+    const withUs = (assess: boolean) =>
+      qc({
+        privacyPolicy: {
+          enabled: true,
+          impactAssessments: assess,
+          processors: [
+            { name: 'Mailer', purpose: 'email', storage: [{ country: 'the United States' }] },
+            { name: 'Host', purpose: 'hosting', storage: [{ country: 'Canada' }] },
+          ],
+        },
+      });
+    const off = qcPrivacy(withUs(false));
+    expect(off).toContain('outside Quebec');
+    expect(off).toContain('elsewhere in Canada');
+    expect(off).not.toContain('we carry out a privacy impact assessment');
+    expect(qcPrivacy(withUs(true))).toContain('we carry out a privacy impact assessment');
+  });
+
+  test('says nothing about transfers when nothing is stored outside Quebec', () => {
+    expect(qcPrivacy(qc())).not.toContain('Transfers Outside Quebec');
+  });
+
+  test('promises "off until you choose" only under an opt-in consent model', () => {
+    const tracked = (type: 'opt-in' | 'opt-out') =>
+      qc(
+        { cookieConsent: { enabled: true, type, categories: ['Analytics'] } },
+        { analytics: { googleAnalyticsId: 'G-1' } },
+      );
+    expect(qcPrivacy(tracked('opt-in'))).toContain('None of these is activated until you choose');
+    const out = qcPrivacy(tracked('opt-out'));
+    expect(out).not.toContain('None of these is activated until you choose');
+    expect(out).toContain('deactivate');
+    expect(renderMarkdown(tracked('opt-in'), 'cookies')).toContain(
+      'not activated until you choose',
+    );
+  });
+
+  test('omits the profiling section when nothing on the site profiles', () => {
+    expect(qcPrivacy(qc())).not.toContain('Identify, Locate or Profile');
+  });
+
+  test('terms are Quebec civil-law terms, defaulting to Quebec law', () => {
+    const noProvince = qc(
+      {},
+      {},
+      { address: { addressLocality: 'Gatineau', addressCountry: 'Canada' } },
+    );
+    const terms = renderMarkdown(noProvince, 'terms');
+    expect(terms).toContain('the laws of Quebec and the federal laws of Canada');
+    expect(terms).toContain('gross fault');
+    expect(terms).toContain('Consumer Protection Act');
+    expect(terms).not.toContain('to the fullest extent permitted by law');
+  });
+});
+
+describe('CASL paragraph', () => {
+  const withNewsletter = (jurisdiction: 'ca' | 'qc') => {
+    const base = fixture({
+      templates: { signup: { type: 'form', fields: [{ name: 'newsletter', type: 'checkbox' }] } },
+    });
+    return {
+      ...base,
+      site: { ...base.site, legal: { ...base.site.legal, jurisdiction } },
+    } as Config;
+  };
+
+  test('appears only when a form collects a newsletter sign-up', () => {
+    for (const j of ['ca', 'qc'] as const) {
+      expect(renderMarkdown(withNewsletter(j), 'privacy')).toContain('Anti-Spam Legislation');
+      expect(renderMarkdown(fixture(), 'privacy')).not.toContain('Anti-Spam Legislation');
+    }
   });
 });

@@ -19,6 +19,16 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
   `getEmDashCollection` / `getEmDashEntry` from `emdash`; render Portable Text
   with `<PortableText />` from `emdash/ui` (the Vitops blocks from
   `@getvitops/emdash` are merged in automatically).
+- **Building pages from patterns:** the editor's insert menu offers the `vitops.*` blocks —
+  link/button, image compare, copy snippet, banner, disclosure, accordion, hero, carousel, gallery,
+  cards, marquee (`vp exec vitops docs blocks` lists them with every field). Repeating content (cards, gallery images, accordion items, carousel slides) is
+  a repeater field. A block cannot contain other blocks, and a `vitops.*` block inside EmDash's
+  built-in `columns` does not render — for layout (a section, a split, a hero) use a `blocks`
+  field, or hand-write the page template with `@getvitops/astro` components
+  (`Subgrid`, `Cards`, `Carousel`, …). `vp exec vitops docs components` lists every pattern, which
+  tiers provide it, and which block renders it. Override a block's rendering per site with
+  `<PortableText components={{ type: { 'vitops.cards': MyCards } }} />`; hide one with
+  `vitopsEmdash({ blocks: { exclude: [...] } })` in `astro.config.mjs`.
 - `seed/seed.json` only applies against an empty database: structure
   (collections, menus, settings) on first boot; the `content` entries only
   when the setup wizard's "include sample content" option is chosen. Changing
@@ -30,15 +40,16 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
   full generated class-vocabulary reference to this file.
 - **Layout foundations — these are the answer, not a starting point.** Six
   substitutions carry the structure of nearly every page:
-  | About to write… | Write instead |
-  | --- | --- |
-  | a `wrap`/`wrapper`/`container`/`inner` class | **`centered`** |
-  | `max-width` + `margin-inline: auto` | **`centered`** |
-  | `padding-block` on a section | **`region`** |
-  | margins between headings/paragraphs/lists | **`rhythm`** |
-  | `display: grid` + `grid-template-columns: repeat(n, …)` | **`subgrid`** |
-  | `repeat(auto-fit, minmax(…))` | **`grid-auto`** |
-  | `display: flex` + `gap` for a row of controls | **`cluster`** |
+
+  | About to write…                                         | Write instead   |
+  | ------------------------------------------------------- | --------------- |
+  | a `wrap`/`wrapper`/`container`/`inner` class            | **`centered`**  |
+  | `max-width` + `margin-inline: auto`                     | **`centered`**  |
+  | `padding-block` on a section                            | **`region`**    |
+  | margins between headings/paragraphs/lists               | **`rhythm`**    |
+  | `display: grid` + `grid-template-columns: repeat(n, …)` | **`subgrid`**   |
+  | `repeat(auto-fit, minmax(…))`                           | **`grid-auto`** |
+  | `display: flex` + `gap` for a row of controls           | **`cluster`**   |
 
   `centered` is a grid of _named tracks_, not a max-width box — a child widens
   itself with `breakout`/`spotlight`/`fullbleed` without the parent knowing, which
@@ -127,6 +138,22 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
   policy from what the site actually does — the analytics provider it uses,
   the fields its forms collect, where it deploys — rather than from guesses.
   It still needs review before launch.
+
+## EmDash 1.x behaviours worth knowing
+
+- **Passkeys are bound to the hostname they were created on.** After the
+  workers.dev → custom-domain cutover, use **Settings → General → Change
+  domain**, then **Continue on** to add a passkey at the new address.
+- **HTML blocks created in the admin run JavaScript** in a sandboxed iframe
+  (Contributor and up can add it). Astro's `security.csp` blocks their styles
+  and scripts, so don't turn CSP on without allowing for that.
+- **Link entries by `entry.data.slug`, never `entry.id`** — on multilingual
+  sites `id` carries a locale prefix.
+- **Submit `/sitemap.xml`** to search engines, not a per-collection sitemap;
+  collection sitemaps now split into pages of 2,000 entries.
+- **A stuck D1 migration lock** is cleared with
+  `vp exec emdash migrate --take-over-lock <id>` (confirms the target, or
+  needs `--expected-target-fingerprint` non-interactively).
 
 ## Docs MCP servers
 
@@ -218,6 +245,21 @@ Know what it does not cover before you flip it to enforcing (rename the header t
 
 Run the site, browse the pages you ship with the console open, fix or allow what is
 reported, and only then enforce.
+
+## EmDash agent skills
+
+The EmDash skills (`building-emdash-site`, `creating-plugins`, `emdash-cli`,
+`upgrading-emdash` and the two WordPress porting skills) are installed per
+project, not globally, so they match the `emdash` version this repo pins. If
+`.agents/skills/building-emdash-site/` is missing, install them (the setup guide
+and `SETUP.html` have the full step):
+
+```bash
+vp dlx skills add emdash-cms/skills --skill '*' -y
+```
+
+Refresh them with `vp dlx skills update` after bumping `emdash` — the
+`upgrading-emdash` skill covers the rest of the upgrade.
 
 ## Commands
 

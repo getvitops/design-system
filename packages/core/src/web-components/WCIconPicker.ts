@@ -660,14 +660,16 @@ export class WCIconPicker extends BaseElement {
     return html`
       <!-- Preview -->
       <div class="picker__preview ${this.value ? '' : 'picker__preview--empty'}" part="preview">
-        ${this.value
-          ? html`
-              <span class="picker__preview-icon" part="preview-icon"
-                >${this.#renderSvg(selectedSvg)}</span
-              >
-              <span class="picker__preview-label">${this.value}</span>
-            `
-          : html`<span>No icon selected</span>`}
+        ${
+          this.value
+            ? html`
+                <span class="picker__preview-icon" part="preview-icon"
+                  >${this.#renderSvg(selectedSvg)}</span
+                >
+                <span class="picker__preview-label">${this.value}</span>
+              `
+            : html`<span>No icon selected</span>`
+        }
       </div>
 
       <!-- Controls -->
@@ -703,86 +705,96 @@ export class WCIconPicker extends BaseElement {
       </div>
 
       <!-- Set tabs -->
-      ${showSetTabs
-        ? html`
-            <div class="picker__set-tabs" part="set-tabs" role="tablist" aria-label="Icon sets">
-              <button
-                class="picker__set-tab"
-                role="tab"
-                aria-selected=${!this._activeSet}
-                @click=${() => this.#onSetChange('')}
-              >
-                All
-              </button>
-              ${parsedSets.map(
-                (prefix) => html`
-                  <button
-                    class="picker__set-tab"
-                    role="tab"
-                    aria-selected=${this._activeSet === prefix}
-                    @click=${() => this.#onSetChange(prefix)}
-                  >
-                    ${prefix}
-                  </button>
-                `,
-              )}
-            </div>
-          `
-        : nothing}
+      ${
+        showSetTabs
+          ? html`
+              <div class="picker__set-tabs" part="set-tabs" role="tablist" aria-label="Icon sets">
+                <button
+                  class="picker__set-tab"
+                  role="tab"
+                  aria-selected=${!this._activeSet}
+                  @click=${() => this.#onSetChange('')}
+                >
+                  All
+                </button>
+                ${parsedSets.map(
+                  (prefix) => html`
+                    <button
+                      class="picker__set-tab"
+                      role="tab"
+                      aria-selected=${this._activeSet === prefix}
+                      @click=${() => this.#onSetChange(prefix)}
+                    >
+                      ${prefix}
+                    </button>
+                  `,
+                )}
+              </div>
+            `
+          : nothing
+      }
 
       <!-- Status -->
       <div class="picker__status" role="status" aria-live="polite">
-        ${this._loading
-          ? 'Loading...'
-          : this._results.length > 0
-            ? `${this._results.length} icon${this._results.length !== 1 ? 's' : ''}`
-            : ''}
+        ${
+          this._loading
+            ? 'Loading...'
+            : this._results.length > 0
+              ? `${this._results.length} icon${this._results.length !== 1 ? 's' : ''}`
+              : ''
+        }
       </div>
 
       <!-- Grid or prompt -->
-      ${this._results.length > 0
-        ? html`
-            <div
-              class="picker__grid"
-              part="grid"
-              role="listbox"
-              aria-label="Icon results"
-              @keydown=${this.#onGridKeydown}
-            >
-              ${this._results.map((result, i) => {
-                const svg = svgCache.get(result.fqn) ?? '';
-                return html`
-                  <div
-                    class="picker__cell"
-                    part="cell"
-                    role="option"
-                    tabindex=${i === 0 ? '0' : '-1'}
-                    aria-selected=${this.value === result.fqn}
-                    aria-label=${result.label}
-                    title="${result.label}${this.mode === 'semantic' ? ` (${result.name})` : ''}"
-                    @click=${() => this.#onCellClick(result)}
-                    @focus=${() => {
-                      this.#focusIndex = i;
-                    }}
-                  >
-                    <span class="picker__cell-icon" part="cell-icon">${this.#renderSvg(svg)}</span>
-                    <span class="picker__cell-label" part="cell-label">${result.label}</span>
-                  </div>
-                `;
-              })}
-            </div>
-          `
-        : html`
-            <div class="picker__prompt">
-              ${this.mode === 'icon-name' && !this._query
-                ? 'Type to search icons'
-                : this._query && !this._loading
-                  ? 'No results found'
-                  : this._loading
-                    ? 'Loading...'
-                    : ''}
-            </div>
-          `}
+      ${
+        this._results.length > 0
+          ? html`
+              <div
+                class="picker__grid"
+                part="grid"
+                role="listbox"
+                aria-label="Icon results"
+                @keydown=${this.#onGridKeydown}
+              >
+                ${this._results.map((result, i) => {
+                  const svg = svgCache.get(result.fqn) ?? '';
+                  return html`
+                    <div
+                      class="picker__cell"
+                      part="cell"
+                      role="option"
+                      tabindex=${i === 0 ? '0' : '-1'}
+                      aria-selected=${this.value === result.fqn}
+                      aria-label=${result.label}
+                      title="${result.label}${this.mode === 'semantic' ? ` (${result.name})` : ''}"
+                      @click=${() => this.#onCellClick(result)}
+                      @focus=${() => {
+                        this.#focusIndex = i;
+                      }}
+                    >
+                      <span class="picker__cell-icon" part="cell-icon"
+                        >${this.#renderSvg(svg)}</span
+                      >
+                      <span class="picker__cell-label" part="cell-label">${result.label}</span>
+                    </div>
+                  `;
+                })}
+              </div>
+            `
+          : html`
+              <div class="picker__prompt">
+                ${
+                  this.mode === 'icon-name' && !this._query
+                    ? 'Type to search icons'
+                    : this._query && !this._loading
+                      ? 'No results found'
+                      : this._loading
+                        ? 'Loading...'
+                        : ''
+                }
+              </div>
+            `
+      }
     `;
   }
 

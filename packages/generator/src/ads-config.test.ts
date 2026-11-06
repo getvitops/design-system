@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'vitest';
-import { AD_PLATFORMS, AD_PROVIDER_KEYS } from '@getvitops/utils/ads';
+import { describe, expect, test } from 'vite-plus/test';
+import { AD_PLATFORMS } from '@getvitops/utils/ads';
 import { AD_PROVIDERS, validateConfig, type Config } from './config.ts';
 import { defaultConfig } from './index.ts';
 import { resolveProcessors } from './legal/providers.ts';
@@ -25,16 +25,10 @@ const errorsFor = (raw: unknown): string[] => {
   return result.ok ? [] : result.errors.map((e) => `${e.path.join('.')}: ${e.message}`);
 };
 
-describe('AD_PROVIDERS mirrors the capability table', () => {
-  // The schema owns what a config may *say*; `@getvitops/utils/ads` owns what each
-  // platform *can do*. A provider added to one and not the other would either be
-  // unconfigurable or configurable with no verification step and no tag — both
-  // silent. The generator may import utils (the reverse would be a cycle), so this
-  // guard lives here.
-  test('the two lists are the same set', () => {
-    expect([...AD_PROVIDERS].sort()).toEqual([...AD_PROVIDER_KEYS].sort());
-  });
-
+// The schema's provider list and the capability table used to be two lists held together by a test
+// here. `AD_PROVIDERS` now lives in `@getvitops/config` and the table is a
+// `Record<AdProvider, …>` over it, so a provider missing from either is a compile error.
+describe('site.ads providers', () => {
   test('an unknown provider key is rejected', () => {
     expect(errorsFor(fixture({ myspace: { pixelId: '1' } })).join()).toMatch(/myspace/i);
   });
@@ -62,6 +56,52 @@ describe('validateConfig on site.ads', () => {
 
   test('rejects an entry that identifies nothing', () => {
     expect(errorsFor(fixture({ reddit: {} })).join()).toMatch(/identifies nothing/);
+  });
+
+  test('accepts a bare-string conversionLabel — back-compat shape', () => {
+    expect(errorsFor(fixture({ google: { pixelId: 'AW-1', conversionLabel: 'lbl' } }))).toEqual([]);
+  });
+
+  test('accepts a per-action conversionLabel map', () => {
+    expect(
+      errorsFor(
+        fixture({
+          google: { pixelId: 'AW-1', conversionLabel: { call: 'c', email: 'e', form: 'f' } },
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  test('rejects an unrecognized key inside a conversionLabel map', () => {
+    expect(
+      errorsFor(fixture({ google: { pixelId: 'AW-1', conversionLabel: { sms: 'x' } } })).join(),
+    ).toMatch(/conversionLabel/);
+  });
+
+  test('accepts a bare-string conversionActionId — back-compat shape', () => {
+    expect(errorsFor(fixture({ google: { pixelId: 'AW-1', conversionActionId: '999' } }))).toEqual(
+      [],
+    );
+  });
+
+  test('accepts a per-action conversionActionId map alongside reporting', () => {
+    expect(
+      errorsFor(
+        fixture({
+          google: {
+            pixelId: 'AW-1',
+            conversionActionId: { call: '111', form: '999' },
+            reporting: 'server',
+          },
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  test('rejects an unrecognized reporting value', () => {
+    expect(errorsFor(fixture({ google: { pixelId: 'AW-1', reporting: 'both' } })).join()).toMatch(
+      /reporting/,
+    );
   });
 });
 

@@ -25,7 +25,7 @@
 // @ts-ignore — virtual module provided by the vitops() integration at build time
 import head from 'virtual:getvitops/head';
 
-const { enabled, category, cookies } = head.tracking ?? { enabled: false };
+const { enabled, category, cookies, abVariantCookie } = head.tracking ?? { enabled: false };
 ---
 
 {enabled && (
@@ -35,6 +35,7 @@ const { enabled, category, cookies } = head.tracking ?? { enabled: false };
       data-vitops-tracking
       data-consent={category}
       data-consent-cookies={cookies?.length ? cookies.join(',') : undefined}
+      data-ab-cookie={abVariantCookie ?? undefined}
     />
     <script>
       import '../scripts/tracking.ts';

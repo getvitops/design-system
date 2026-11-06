@@ -1,0 +1,137 @@
+import { describe, expect, it } from 'vite-plus/test';
+import type { Config } from '@getvitops/generator';
+import {
+  resolveOrganizationName,
+  toCrmConfig,
+  toGoogleAdsConfig,
+  toNotifyContext,
+} from './config-adapters.ts';
+
+function config(overrides: {
+  organization?: Config['organization'];
+  site?: Partial<Config['site']>;
+}): Config {
+  return {
+    designSystem: { themes: { default: {} } },
+    organization: overrides.organization,
+    site: {
+      defaultLocale: 'en',
+      locales: { en: {} },
+      environments: { production: { url: 'https://acme.ca' } },
+      ...overrides.site,
+    },
+  } as unknown as Config;
+}
+
+describe('toNotifyContext', () => {
+  it('resolves a localizable organization name in the requested locale', () => {
+    const cfg = config({ organization: { name: { en: 'Acme', fr: 'Acme Ltée' } } });
+    expect(toNotifyContext(cfg, 'fr').organizationName).toBe('Acme Ltée');
+    expect(toNotifyContext(cfg, 'de').organizationName).toBe('Acme'); // falls back to defaultLocale
+  });
+
+  it('falls back to legalName when name is unset', () => {
+    const cfg = config({ organization: { legalName: 'Acme Widgets Inc.' } });
+    expect(toNotifyContext(cfg).organizationName).toBe('Acme Widgets Inc.');
+  });
+
+  it('never returns an empty-string organizationName', () => {
+    const cfg = config({ organization: { name: { fr: 'Acme Ltée' }, legalName: 'Acme Inc.' } });
+    // requested + default locale both miss the map — t() would return '' — must fall back
+    expect(toNotifyContext(cfg, 'de').organizationName).toBe('Acme Inc.');
+  });
+
+  it('carries canonical and notifications through unchanged', () => {
+    const cfg = config({
+      site: {
+        domains: { canonical: 'https://acme.ca' },
+        notifications: { email: 'owner@acme.ca' },
+      },
+    });
+    const ctx = toNotifyContext(cfg);
+    expect(ctx.canonical).toBe('https://acme.ca');
+    expect(ctx.notifications).toEqual({ email: 'owner@acme.ca' });
+  });
+
+  it('orders locationEmails with the primary location first', () => {
+    const cfg = config({
+      organization: {
+        primaryLocation: 'ottawa',
+        locations: {
+          toronto: { name: 'Toronto', email: 'toronto@acme.ca' },
+          ottawa: { name: 'Ottawa', email: 'ottawa@acme.ca' },
+        },
+      },
+    });
+    expect(toNotifyContext(cfg).locationEmails).toEqual(['ottawa@acme.ca', 'toronto@acme.ca']);
+  });
+
+  it('drops locations with no email rather than emitting an empty string', () => {
+    const cfg = config({
+      organization: {
+        locations: { ottawa: { name: 'Ottawa' } },
+      },
+    });
+    expect(toNotifyContext(cfg).locationEmails).toEqual([]);
+  });
+
+  it('handles no organization at all', () => {
+    const cfg = config({});
+    expect(toNotifyContext(cfg)).toEqual({
+      notifications: undefined,
+      canonical: undefined,
+      organizationName: undefined,
+      locationEmails: [],
+    });
+  });
+});
+
+describe('resolveOrganizationName', () => {
+  it('is what toNotifyContext.organizationName delegates to', () => {
+    const cfg = config({ organization: { name: { en: 'Acme' } } });
+    expect(resolveOrganizationName(cfg)).toBe(toNotifyContext(cfg).organizationName);
+  });
+
+  it('accepts the loosely-typed object a `import site from "./site.json"` produces', () => {
+    // A JSON import is not assignable to `Config` (its literals widen to
+    // `string`), so this is the shape every scaffolded Layout.astro passes.
+    const imported = {
+      organization: { name: { en: 'Acme', fr: 'Acme FR' }, legalName: 'Acme Inc.' },
+      site: { defaultLocale: 'en', locales: { en: { name: 'English' } } },
+    };
+    expect(resolveOrganizationName(imported)).toBe('Acme');
+    expect(resolveOrganizationName(imported, 'fr')).toBe('Acme FR');
+  });
+});
+
+describe('toCrmConfig', () => {
+  it('passes site.crm through unchanged', () => {
+    const crm: Config['site']['crm'] = {
+      provider: 'hubspot',
+      hubspot: { portalId: '123', formGuid: 'abc' },
+    };
+    expect(toCrmConfig(config({ site: { crm } }))).toEqual(crm);
+  });
+
+  it('returns undefined when crm is unset', () => {
+    expect(toCrmConfig(config({}))).toBeUndefined();
+  });
+});
+
+describe('toGoogleAdsConfig', () => {
+  it('passes site.ads.google through unchanged', () => {
+    const google = {
+      accountId: '123-456-7890',
+      conversionActionId: '999',
+      reporting: 'server' as const,
+    };
+    expect(toGoogleAdsConfig(config({ site: { ads: { google } } }))).toEqual(google);
+  });
+
+  it('returns undefined when there is no Google Ads property configured', () => {
+    expect(toGoogleAdsConfig(config({}))).toBeUndefined();
+    expect(
+      toGoogleAdsConfig(config({ site: { ads: { meta: { pixelId: '1' } } } })),
+    ).toBeUndefined();
+  });
+});

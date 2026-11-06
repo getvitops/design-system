@@ -14,7 +14,7 @@
  * rather than covering all ~20 components in one pass.
  */
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import Cards from './Cards.astro';
 import Details from './Details.astro';
 import NodeRenderer from './NodeRenderer.astro';

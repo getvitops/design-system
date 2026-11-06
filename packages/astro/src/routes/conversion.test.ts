@@ -8,15 +8,33 @@
  * path a consumer without a binding gets. That's enough to assert `onResult` and
  * response shape without a fake Cloudflare binding.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import { deliverToCrm } from '@getvitops/utils/crm';
+import { uploadClickConversion } from '@getvitops/utils/notify';
 import { verifyTurnstileToken } from '@getvitops/utils/security';
 import { createConversionRoute, type RateLimitStore } from './conversion.ts';
 
 vi.mock('@getvitops/utils/security', () => ({ verifyTurnstileToken: vi.fn() }));
+vi.mock('@getvitops/utils/crm', async () => {
+  const actual =
+    await vi.importActual<typeof import('@getvitops/utils/crm')>('@getvitops/utils/crm');
+  return { ...actual, deliverToCrm: vi.fn() };
+});
+vi.mock('@getvitops/utils/notify', async () => {
+  const actual =
+    await vi.importActual<typeof import('@getvitops/utils/notify')>('@getvitops/utils/notify');
+  return { ...actual, uploadClickConversion: vi.fn() };
+});
 
 beforeEach(() => {
   vi.mocked(verifyTurnstileToken).mockReset();
+  vi.mocked(deliverToCrm).mockReset();
+  vi.mocked(uploadClickConversion).mockReset();
 });
+
+/** A request carrying a `_ac` cookie with the given attribution data. */
+const acCookie = (data: Record<string, unknown>) =>
+  `_ac=${encodeURIComponent(JSON.stringify(data))}`;
 
 const ctx = () => ({
   notifications: { email: 'owner@acme.ca' },
@@ -72,6 +90,17 @@ describe('createConversionRoute: no-JS form submissions (1.4)', () => {
       method: 'POST',
       headers: { 'content-type': 'text/plain;charset=UTF-8' },
       body: JSON.stringify({ event: 'call', phone: 'tel:+15551234567' }),
+    });
+    const res = await handler({ request });
+    expect(res.status).toBe(204);
+  });
+
+  it('accepts the mailto: beacon the same way as the tel: one', async () => {
+    const handler = createConversionRoute({ context: ctx() });
+    const request = new Request('https://acme.ca/api/track', {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain;charset=UTF-8' },
+      body: JSON.stringify({ event: 'email', email: 'mailto:sales@acme.ca' }),
     });
     const res = await handler({ request });
     expect(res.status).toBe(204);
@@ -215,6 +244,38 @@ describe('createConversionRoute: body size cap (1.5)', () => {
     expect(res.status).toBe(413);
   });
 
+  it('rejects a chunked body over the cap that sends no Content-Length', async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('{"name":"'));
+        controller.enqueue(encoder.encode('x'.repeat(50)));
+        controller.enqueue(encoder.encode('"}'));
+        controller.close();
+      },
+    });
+    const request = new Request('https://acme.ca/api/track', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: stream,
+      duplex: 'half',
+    } as RequestInit);
+    const handler = createConversionRoute({ context: ctx(), maxBodyBytes: 20 });
+    const res = await handler({ request });
+    expect(res.status).toBe(413);
+  });
+
+  it('still parses a form post under the cap', async () => {
+    const handler = createConversionRoute({ context: ctx() });
+    const request = new Request('https://acme.ca/api/track', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'name=Ada',
+    });
+    const res = await handler({ request });
+    expect(res.status).toBe(200);
+  });
+
   it('accepts a request under the default cap', async () => {
     const handler = createConversionRoute({ context: ctx() });
     const res = await handler({ request: jsonRequest({ name: 'Ada' }) });
@@ -267,6 +328,27 @@ describe('createConversionRoute: rate limit (1.5)', () => {
     expect(b.status).toBe(200);
   });
 
+  it('ignores X-Forwarded-For unless trustForwardedFor is set', async () => {
+    const hits: string[] = [];
+    const store = {
+      hit: async (key: string) => {
+        hits.push(key);
+        return null;
+      },
+    };
+    const req = () => jsonRequest({ name: 'Ada' }, { 'x-forwarded-for': '198.51.100.9' });
+
+    await createConversionRoute({ context: ctx(), rateLimit: { store } })({ request: req() });
+    expect(hits).toEqual([]);
+
+    await createConversionRoute({
+      context: ctx(),
+      rateLimit: { store },
+      trustForwardedFor: true,
+    })({ request: req() });
+    expect(hits).toEqual(['198.51.100.9:form']);
+  });
+
   it('rateLimit: false disables the check entirely', async () => {
     const handler = createConversionRoute({ context: ctx(), rateLimit: false });
     const headers = { 'cf-connecting-ip': '203.0.113.5' };
@@ -287,7 +369,69 @@ describe('createConversionRoute: rate limit (1.5)', () => {
     await handler({
       request: jsonRequest({ name: 'Ada' }, { 'cf-connecting-ip': '203.0.113.6' }),
     });
-    expect(hits).toEqual([['203.0.113.6', expect.any(Number)]]);
+    // A plain form post carries no `event` field — keyed as `form`.
+    expect(hits).toEqual([['203.0.113.6:form', expect.any(Number)]]);
+  });
+
+  it('does not rate-limit a call beacon against an email-click beacon from the same IP', async () => {
+    let time = 1_000_000;
+    const handler = createConversionRoute({
+      context: ctx(),
+      now: () => time,
+      rateLimit: { windowMs: 10_000 },
+    });
+    const headers = { 'cf-connecting-ip': '203.0.113.7' };
+
+    const call = await handler({
+      request: jsonRequest({ event: 'call', phone: 'tel:+15551234567' }, headers),
+    });
+    expect(call.status).toBe(204);
+
+    time += 1_000; // still inside the window — but a different event type
+    const email = await handler({
+      request: jsonRequest({ event: 'email', email: 'mailto:sales@acme.ca' }, headers),
+    });
+    expect(email.status).toBe(204);
+  });
+
+  it('still rate-limits two call beacons from the same IP inside the window', async () => {
+    let time = 1_000_000;
+    const handler = createConversionRoute({
+      context: ctx(),
+      now: () => time,
+      rateLimit: { windowMs: 10_000 },
+    });
+    const headers = { 'cf-connecting-ip': '203.0.113.8' };
+
+    await handler({ request: jsonRequest({ event: 'call', phone: 'tel:+15551234567' }, headers) });
+    time += 1_000;
+    const second = await handler({
+      request: jsonRequest({ event: 'call', phone: 'tel:+15551234567' }, headers),
+    });
+    expect(second.status).toBe(429);
+  });
+
+  it("normalises the rate-limit key to the server's own classification, closing the bypass where varying a bogus `event` value dodged the form limit", async () => {
+    let time = 1_000_000;
+    const handler = createConversionRoute({
+      context: ctx(),
+      now: () => time,
+      rateLimit: { windowMs: 10_000 },
+    });
+    const headers = { 'cf-connecting-ip': '203.0.113.10' };
+
+    const first = await handler({
+      request: jsonRequest({ event: 'not-call-or-email-1', name: 'Ada' }, headers),
+    });
+    expect(first.status).toBe(200);
+
+    time += 1_000; // still inside the window
+    // A different bogus `event` value used to land in its own bucket, dodging
+    // the limit entirely. Both now classify as `form` and share one bucket.
+    const second = await handler({
+      request: jsonRequest({ event: 'not-call-or-email-2', name: 'Bea' }, headers),
+    });
+    expect(second.status).toBe(429);
   });
 });
 
@@ -346,6 +490,18 @@ describe('createConversionRoute: Turnstile verification (1.3)', () => {
     });
     const res = await handler({
       request: jsonRequest({ event: 'call', phone: 'tel:+15551234567' }),
+    });
+    expect(res.status).toBe(204);
+    expect(verifyTurnstileToken).not.toHaveBeenCalled();
+  });
+
+  it('never verifies an email-click event either', async () => {
+    const handler = createConversionRoute({
+      context: ctx(),
+      turnstile: { secretKey: 'sk', required: true },
+    });
+    const res = await handler({
+      request: jsonRequest({ event: 'email', email: 'mailto:sales@acme.ca' }),
     });
     expect(res.status).toBe(204);
     expect(verifyTurnstileToken).not.toHaveBeenCalled();
@@ -412,6 +568,12 @@ describe('createConversionRoute: still behaves as before for the common paths', 
     expect(res.status).toBe(400);
   });
 
+  it('returns 400 for an email event missing an address', async () => {
+    const handler = createConversionRoute({ context: ctx() });
+    const res = await handler({ request: jsonRequest({ event: 'email' }) });
+    expect(res.status).toBe(400);
+  });
+
   it("a failed notification does not fail the request — it's reported through onResult", async () => {
     const onResult = vi.fn();
     const handler = createConversionRoute({
@@ -421,5 +583,270 @@ describe('createConversionRoute: still behaves as before for the common paths', 
     const res = await handler({ request: jsonRequest({ name: 'Ada' }) });
     expect(res.status).toBe(200);
     expect(onResult).toHaveBeenCalledWith(expect.objectContaining({ delivered: false }));
+  });
+});
+
+const crmConfig = { provider: 'hubspot' as const, hubspot: { portalId: '1', formGuid: 'g' } };
+const crmCredentials = { provider: 'hubspot' as const, hubspot: { accessToken: 'tok' } };
+
+describe('createConversionRoute: CRM delivery', () => {
+  it('delivers the CRM write and folds the outcome into onResult', async () => {
+    vi.mocked(deliverToCrm).mockResolvedValue({
+      ok: true,
+      provider: 'hubspot',
+      recordId: '123',
+    });
+    const onResult = vi.fn();
+    const handler = createConversionRoute({
+      context: ctx(),
+      crm: { config: crmConfig, credentials: () => crmCredentials },
+      onResult,
+    });
+    const res = await handler({ request: jsonRequest({ name: 'Ada', email: 'ada@example.com' }) });
+    expect(res.status).toBe(200);
+    expect(deliverToCrm).toHaveBeenCalledTimes(1);
+    expect(onResult).toHaveBeenCalledWith(
+      expect.objectContaining({ crm: { ok: true, provider: 'hubspot', recordId: '123' } }),
+    );
+  });
+
+  it('never attempts a CRM write for a call event — there are no form fields to map', async () => {
+    const handler = createConversionRoute({
+      context: ctx(),
+      crm: { config: crmConfig, credentials: () => crmCredentials },
+    });
+    const res = await handler({ request: jsonRequest({ event: 'call', phone: '+15550100' }) });
+    expect(res.status).toBe(204);
+    expect(deliverToCrm).not.toHaveBeenCalled();
+  });
+
+  it('never attempts a CRM write for an email-click event either', async () => {
+    const handler = createConversionRoute({
+      context: ctx(),
+      crm: { config: crmConfig, credentials: () => crmCredentials },
+    });
+    const res = await handler({
+      request: jsonRequest({ event: 'email', email: 'mailto:sales@acme.ca' }),
+    });
+    expect(res.status).toBe(204);
+    expect(deliverToCrm).not.toHaveBeenCalled();
+  });
+
+  it('never reaches the CRM when the honeypot trips', async () => {
+    const handler = createConversionRoute({
+      context: ctx(),
+      crm: { config: crmConfig, credentials: () => crmCredentials },
+    });
+    const res = await handler({ request: jsonRequest({ name: 'Ada', website: 'spam.biz' }) });
+    expect(res.status).toBe(200);
+    expect(deliverToCrm).not.toHaveBeenCalled();
+  });
+
+  it('a failed CRM write does not fail the request, and the email still sends', async () => {
+    vi.mocked(deliverToCrm).mockResolvedValue({
+      ok: false,
+      provider: 'hubspot',
+      reason: 'access token rejected (401)',
+    });
+    const onResult = vi.fn();
+    const handler = createConversionRoute({
+      context: ctx(),
+      crm: { config: crmConfig, credentials: () => crmCredentials },
+      onResult,
+    });
+    const res = await handler({ request: jsonRequest({ name: 'Ada', email: 'ada@example.com' }) });
+    expect(res.status).toBe(200);
+    // Dev has no `EMAIL` binding, so the notification logs rather than sends —
+    // that's `notify()`'s own dev path and unrelated to the CRM outcome, which
+    // is the thing this test actually asserts.
+    const result = onResult.mock.calls[0]![0];
+    expect(result.results[0].reason).toBe('No binding — logged to the console.');
+    expect(result.crm.ok).toBe(false);
+  });
+
+  it('does not call deliverToCrm at all when no crm option is passed', async () => {
+    const handler = createConversionRoute({ context: ctx() });
+    await handler({ request: jsonRequest({ name: 'Ada' }) });
+    expect(deliverToCrm).not.toHaveBeenCalled();
+  });
+});
+
+describe('createConversionRoute: Google Ads offline conversion upload', () => {
+  const adsCredentials = {
+    developerToken: 'dev',
+    oauth: { clientId: 'i', clientSecret: 's', refreshToken: 'r' },
+  };
+
+  it('uploads a form conversion when reporting=server, a conversionActionId is set, and a gclid was captured', async () => {
+    vi.mocked(uploadClickConversion).mockResolvedValue({ ok: true });
+    const onResult = vi.fn();
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        config: {
+          accountId: '123-456-7890',
+          conversionActionId: { form: '999' },
+          reporting: 'server',
+        },
+        credentials: () => adsCredentials,
+      },
+      onResult,
+    });
+    const res = await handler({
+      request: jsonRequest(
+        { name: 'Ada', email: 'ada@example.com' },
+        { cookie: acCookie({ gclid: 'abc123' }) },
+      ),
+    });
+    expect(res.status).toBe(200);
+    expect(uploadClickConversion).toHaveBeenCalledTimes(1);
+    expect(uploadClickConversion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerId: '123-456-7890',
+        conversionActionId: '999',
+        clickId: { param: 'gclid', value: 'abc123' },
+      }),
+      adsCredentials,
+      undefined,
+    );
+    expect(onResult).toHaveBeenCalledWith(expect.objectContaining({ googleAds: { ok: true } }));
+  });
+
+  it('also runs for a call beacon — unlike CRM, which skips beacons entirely', async () => {
+    vi.mocked(uploadClickConversion).mockResolvedValue({ ok: true });
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        config: { accountId: '123', conversionActionId: { call: '111' }, reporting: 'server' },
+        credentials: () => adsCredentials,
+      },
+    });
+    const res = await handler({
+      request: jsonRequest(
+        { event: 'call', phone: '+15550100' },
+        { cookie: acCookie({ gclid: 'abc123' }) },
+      ),
+    });
+    expect(res.status).toBe(204);
+    expect(uploadClickConversion).toHaveBeenCalledWith(
+      expect.objectContaining({ conversionActionId: '111' }),
+      adsCredentials,
+      undefined,
+    );
+  });
+
+  it('is skipped, not failed, when the visitor carries no click id', async () => {
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        config: { accountId: '123', conversionActionId: { form: '999' }, reporting: 'server' },
+        credentials: () => adsCredentials,
+      },
+    });
+    const res = await handler({ request: jsonRequest({ name: 'Ada' }) });
+    expect(res.status).toBe(200);
+    expect(uploadClickConversion).not.toHaveBeenCalled();
+  });
+
+  it('is skipped when no conversionActionId is configured for this action', async () => {
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        // Only `call` has an id — a form submission has none configured.
+        config: { accountId: '123', conversionActionId: { call: '111' }, reporting: 'server' },
+        credentials: () => adsCredentials,
+      },
+    });
+    await handler({
+      request: jsonRequest({ name: 'Ada' }, { cookie: acCookie({ gclid: 'abc123' }) }),
+    });
+    expect(uploadClickConversion).not.toHaveBeenCalled();
+  });
+
+  it('is skipped when reporting is left at the default (client)', async () => {
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        config: { accountId: '123', conversionActionId: { form: '999' } },
+        credentials: () => adsCredentials,
+      },
+    });
+    await handler({
+      request: jsonRequest({ name: 'Ada' }, { cookie: acCookie({ gclid: 'abc123' }) }),
+    });
+    expect(uploadClickConversion).not.toHaveBeenCalled();
+  });
+
+  it('is skipped when credentials resolve to undefined for this environment', async () => {
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        config: { accountId: '123', conversionActionId: { form: '999' }, reporting: 'server' },
+        credentials: () => undefined,
+      },
+    });
+    await handler({
+      request: jsonRequest({ name: 'Ada' }, { cookie: acCookie({ gclid: 'abc123' }) }),
+    });
+    expect(uploadClickConversion).not.toHaveBeenCalled();
+  });
+
+  it('a failed upload does not fail the request, and folds into onResult', async () => {
+    vi.mocked(uploadClickConversion).mockResolvedValue({ ok: false, reason: 'boom' });
+    const onResult = vi.fn();
+    const handler = createConversionRoute({
+      context: ctx(),
+      googleAdsOffline: {
+        config: { accountId: '123', conversionActionId: { form: '999' }, reporting: 'server' },
+        credentials: () => adsCredentials,
+      },
+      onResult,
+    });
+    const res = await handler({
+      request: jsonRequest({ name: 'Ada' }, { cookie: acCookie({ gclid: 'abc123' }) }),
+    });
+    expect(res.status).toBe(200);
+    expect(onResult).toHaveBeenCalledWith(
+      expect.objectContaining({ googleAds: { ok: false, reason: 'boom' } }),
+    );
+  });
+
+  it('does not call uploadClickConversion at all when no googleAdsOffline option is passed', async () => {
+    const handler = createConversionRoute({ context: ctx() });
+    await handler({
+      request: jsonRequest({ name: 'Ada' }, { cookie: acCookie({ gclid: 'abc123' }) }),
+    });
+    expect(uploadClickConversion).not.toHaveBeenCalled();
+  });
+});
+
+describe('beacon payload validation', () => {
+  const handler = createConversionRoute({ context: { canonical: 'https://example.com' } } as never);
+  const post = (body: unknown) =>
+    handler({
+      request: new Request('https://example.com/api/track', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
+      locals: {},
+    } as never);
+
+  it.each([
+    { event: 'call', phone: 'Click here: https://evil.example' },
+    { event: 'call', phone: '<script>alert(1)</script>' },
+    { event: 'email', email: 'not an address' },
+    { event: 'email', email: 'a@b.c<script>' },
+  ])('rejects %j', async (body) => {
+    expect((await post(body)).status).toBe(400);
+  });
+
+  it.each([
+    { event: 'call', phone: 'tel:+15551234567' },
+    { event: 'call', phone: 'tel:+1%20555%20123%204567' },
+    { event: 'email', email: 'mailto:hi@example.com' },
+    { event: 'email', email: 'mailto:hi@example.com?subject=Quote%20request' },
+  ])('accepts %j', async (body) => {
+    expect((await post(body)).status).toBe(204);
   });
 });

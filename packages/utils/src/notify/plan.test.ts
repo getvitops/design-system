@@ -6,7 +6,7 @@
  * indistinguishable from no conversion, which is the failure this split exists to
  * make impossible.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { DEFAULT_EMAIL_BINDING, normalizeEmailChannel, planNotifications } from './plan.ts';
 import { describeEvent, renderEmail } from './render.ts';
 import type { ConversionEvent } from '../tracking/types.ts';
@@ -146,5 +146,35 @@ describe('renderEmail', () => {
   it('drops empty sections rather than printing a bare heading', () => {
     const { sections } = describeEvent({ type: 'form', formData: {}, tracking: null, at: 0 });
     expect(sections.every((s) => s.lines.length > 0)).toBe(true);
+  });
+
+  it('adds an Actions section with the click ID interpolated, when both are present', () => {
+    const msg = renderEmail(formEvent, { actionUrl: 'https://ads.example.com/view?id={clickId}' });
+    expect(msg.text).toContain('--- Actions ---');
+    expect(msg.text).toContain('View in ad platform: https://ads.example.com/view?id=G1');
+    expect(msg.html).toContain('<a href="https://ads.example.com/view?id=G1">');
+  });
+
+  it('omits the Actions section when actionUrl is set but the event has no click ID', () => {
+    const msg = renderEmail(
+      { type: 'call', phone: '+15550100', tracking: null, at: 0 },
+      { actionUrl: 'https://ads.example.com/view?id={clickId}' },
+    );
+    expect(msg.text).not.toContain('Actions');
+  });
+
+  it('omits the Actions section when no actionUrl is configured', () => {
+    const msg = renderEmail(formEvent);
+    expect(msg.text).not.toContain('Actions');
+  });
+
+  it('renders a Delivery section from notes, unaffected by the Actions addition', () => {
+    const msg = renderEmail(formEvent, {
+      notes: ['Written to HubSpot (contact 1234)'],
+      actionUrl: 'https://ads.example.com/view?id={clickId}',
+    });
+    expect(msg.text).toContain('--- Actions ---');
+    expect(msg.text).toContain('--- Delivery ---');
+    expect(msg.text).toContain('Written to HubSpot (contact 1234)');
   });
 });

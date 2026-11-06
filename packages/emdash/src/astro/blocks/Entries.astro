@@ -1,0 +1,30 @@
+---
+/**
+ * Thin adapter over `@getvitops/astro`'s `<Entries />`, which emits `<wc-entries>` itself —
+ * so this must not add its own wrapper. Stacked heading + `<dl>` pairs with no JS, a table
+ * with it. The editor writes each row's details as `Term | Value` lines.
+ */
+import Entries from '@getvitops/astro/components/Entries.astro';
+import { headingTag, pairs, resolveBlockValue, rows, text } from './value.ts';
+
+interface Value {
+  entries?: unknown;
+  level?: string | number;
+  breakpoint?: string;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const entries = rows<Record<string, unknown>>(value.entries)
+  .map((row) => ({
+    heading: text(row.heading),
+    pairs: pairs(row.pairs).filter((pair) => pair.term),
+  }))
+  .filter((entry) => entry.heading && entry.pairs.length > 0);
+const level = Number(headingTag(value.level, 3).slice(1)) as 2 | 3 | 4 | 5 | 6;
+// A breakpoint lands in an attribute the element parses as a CSS length; keep it to one.
+const breakpoint = /^\d+(\.\d+)?(rem|em|px|ch)$/.test(text(value.breakpoint))
+  ? text(value.breakpoint)
+  : undefined;
+---
+
+{entries.length > 0 && <Entries entries={entries} level={level} breakpoint={breakpoint} />}

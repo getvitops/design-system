@@ -11,14 +11,14 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 // NOTE: never import ./cli.ts here — it runs main() on import.
 import { findSkillTarget, GENERATED_MARKER, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
 
 describe('TOPICS', () => {
   it('every topic path exists in the generateDocs bundle (no-drift guard)', () => {
     const paths = new Set(Object.keys(generateDocs(defaultConfig(), '/nonexistent-assets')));
-    for (const [name, t] of Object.entries(TOPICS))
+    for (const [name, t] of Object.entries(TOPICS).filter(([, t]) => !t.external))
       expect(paths.has(t.path), `topic "${name}" → ${t.path}`).toBe(true);
   });
 });

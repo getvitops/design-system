@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/generator",
-  "version": "8.1.0",
+  "version": "8.2.0",
   "description": "Generate design-system outputs (Bricks, standalone CSS, Tailwind v4) from a design-system.json.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",
@@ -25,6 +25,18 @@
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs"
     },
+    "./config": {
+      "types": "./dist/config.d.mts",
+      "import": "./dist/config.mjs"
+    },
+    "./tokens": {
+      "types": "./dist/tokens.d.mts",
+      "import": "./dist/tokens.mjs"
+    },
+    "./icons-sprite": {
+      "types": "./dist/icons-sprite.d.mts",
+      "import": "./dist/icons-sprite.mjs"
+    },
     "./schema.json": "./schema.json",
     "./config.schema.json": "./config.schema.json",
     "./package.json": "./package.json"
@@ -33,15 +45,16 @@
     "access": "public"
   },
   "dependencies": {
+    "@getvitops/config": "workspace:*",
     "@getvitops/utils": "workspace:*",
     "@iconify/utils": "catalog:",
+    "@zod/mini": "catalog:",
     "lightningcss": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@getvitops/core": "workspace:*",
-    "@iconify/types": "catalog:",
-    "vitest": "catalog:"
+    "@iconify/types": "catalog:"
   },
   "engines": {
     "node": ">=24"

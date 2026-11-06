@@ -17,7 +17,7 @@
  * multi-site case was inexpressible. With three sections, several sites can share
  * one `organization` and override only `site`.
  *
- * Authored with `zod/mini` (same instance the design-system schema uses), so the
+ * Authored with `@zod/mini` (same instance the design-system schema uses), so the
  * two compose: `DesignSystemSchema` is embedded as `designSystem.themes.<theme>` and the
  * whole thing serialises to one JSON Schema via `z.toJSONSchema`. Everything a
  * generator needs derives from here: the `Config` type (`z.infer`), the
@@ -25,24 +25,57 @@
  *
  * Pure: no YAML/env/fs. `resolveConfig` takes an already-parsed object; a
  * thin loader (reading YAML, injecting `SITE_ENV`) lives outside this module.
+ *
+ * **This module is also its own package entry**, published as
+ * `@getvitops/generator/config` (see `vite.config.ts`'s `pack.entry`) — the
+ * `Config` schema, validator and resolvers on their own, importable without
+ * pulling in `generate.ts`/`docs.ts`/`legal/`'s `node:fs`/`node:crypto`/
+ * lightningcss, which `src/index.ts` (the main entry) also re-exports. This is
+ * what makes `Config` bundleable in a Worker — an EmDash plugin's own admin
+ * route, or anywhere else — without dragging in code that only ever runs at
+ * build time. Keep this module's own import graph clean of those Node
+ * builtins; that guarantee is the entire point of it existing separately.
  */
-import * as z from 'zod/mini';
+import * as z from '@zod/mini';
 // The ad-platform capability table. Imported rather than mirrored: this direction is
 // the allowed one (the generator already depends on utils; utils may never import
 // the generator), and what a platform can do is one fact, not two.
 import { AD_PLATFORMS } from '@getvitops/utils/ads';
+import { TRACKED_PARAMS } from '@getvitops/utils/tracking';
+import {
+  AD_PROVIDERS,
+  AdPropertySchema,
+  AdProviderSchema,
+  BIGIN_DATA_CENTERS,
+  CRM_PROVIDERS,
+  CrmProviderSchema,
+  CrmSchema,
+  DeploymentSchema,
+  IndexNowSchema,
+  IndexingSchema,
+  LocalizableSchema,
+  NotificationsSchema,
+  ReviewLocationSchema,
+  ReviewsSchema,
+  SearchConsoleSchema,
+  SearchConsoleSetupSchema,
+  SecuritySchema,
+  SeoSchema,
+  TrackingSchema,
+  type AdProvider,
+  type CrmProviderConfig,
+} from '@getvitops/config';
 import { desc, DesignSystemPatchSchema, type DesignSystem } from './schema.ts';
+
+// Re-exported so the generator's public API is unchanged: these moved to `@getvitops/config`.
+export { AD_PROVIDERS, BIGIN_DATA_CENTERS, CRM_PROVIDERS };
+export type { AdProvider, CrmProviderConfig };
 
 // ── Primitives ────────────────────────────────────────────────────────────────
 
-const LocalizableSchema = desc(
-  z.union([z.string(), z.record(z.string(), z.string())]),
-  'A string, or a per-locale map of strings (`{ en: "…", fr: "…" }`).',
-);
-
 const ImageRefSchema = z.union([
   z.string(),
-  z.object({
+  z.strictObject({
     src: z.string(),
     alt: z.string(),
     width: z.optional(z.number()),
@@ -110,7 +143,7 @@ const DesignSystemBlock = desc(
     ),
     defaultColorScheme: desc(
       z.optional(z.enum(['light', 'dark', 'system'])),
-      'Initial appearance. `"system"` follows the OS via `prefers-color-scheme` and is what makes `<wc-color-scheme-toggle>`\'s "System" position resolve to anything — it removes the theme attribute, so without this the page falls through to light. It also gives a no-JS page the OS appearance. Defaults to `"light"`, because switching an existing site to `"system"` visibly flips it dark for dark-OS visitors.',
+      'Initial appearance. `"dark"` makes the site DARK-ONLY: the dark tokens become the `:root` appearance (with `color-scheme: dark`), no light block or `data-theme` flip is emitted, and the light-mode contrast checks are skipped — so a palette that only works dark (bright fills with dark text, for example) builds. Do not ship `<wc-color-scheme-toggle>` on such a site. `"system"` follows the OS via `prefers-color-scheme` and is what makes `<wc-color-scheme-toggle>`\'s "System" position resolve to anything — it removes the theme attribute, so without this the page falls through to light. It also gives a no-JS page the OS appearance. Defaults to `"light"`, because switching an existing site to `"system"` visibly flips it dark for dark-OS visitors.',
     ),
   }),
   'The design system: named themes plus the system-wide facts (which theme, which appearance). A bare design system, or a bare theme map, is accepted as shorthand for `{ themes: … }`.',
@@ -118,7 +151,7 @@ const DesignSystemBlock = desc(
 
 // ── Locales ─────────────────────────────────────────────────────────────────────
 
-const LocaleSchema = z.object({
+const LocaleSchema = z.strictObject({
   name: desc(z.string(), 'Display name of the locale (e.g. "English").'),
   tagline: desc(z.optional(z.string()), 'Site tagline in this locale.'),
   basePath: desc(z.optional(z.string()), 'URL prefix for this locale (e.g. "/fr").'),
@@ -128,7 +161,7 @@ const LocaleSchema = z.object({
 
 const HttpRedirect = z.union([z.literal(301), z.literal(302), z.literal(307), z.literal(308)]);
 
-const DomainAliasSchema = z.object({
+const DomainAliasSchema = z.strictObject({
   domain: z.string(),
   redirectType: HttpRedirect,
   redirectTo: z.string(),
@@ -138,8 +171,11 @@ const DomainAliasSchema = z.object({
 // ── Contact / address (schema.org-aligned) ──────────────────────────────────────
 
 const PostalAddressSchema = desc(
-  z.object({
-    streetAddress: z.string(),
+  z.strictObject({
+    streetAddress: desc(
+      z.optional(z.string()),
+      'Street line. Optional: a business with no public street address (home-based, service-area) omits it, and the generated legal documents and JSON-LD simply leave the line out.',
+    ),
     addressLocality: desc(z.string(), 'City.'),
     addressRegion: desc(z.optional(z.string()), 'State / province.'),
     postalCode: z.optional(z.string()),
@@ -148,7 +184,7 @@ const PostalAddressSchema = desc(
   'schema.org `PostalAddress` field names, so JSON-LD generation is lossless.',
 );
 
-const ContactObjectSchema = z.object({
+const ContactObjectSchema = z.strictObject({
   name: z.optional(z.string()),
   email: z.optional(z.email()),
   phone: z.optional(z.string()),
@@ -163,13 +199,13 @@ export type ContactObject = z.infer<typeof ContactObjectSchema>;
 
 // ── Locations (schema.org LocalBusiness) ────────────────────────────────────────
 
-const GeoSchema = z.object({
+const GeoSchema = z.strictObject({
   latitude: z.number().check(z.gte(-90), z.lte(90)),
   longitude: z.number().check(z.gte(-180), z.lte(180)),
 });
 
 /** schema.org `OpeningHoursSpecification` — per-day open/close (24h `HH:MM`). */
-const OpeningHoursSchema = z.object({
+const OpeningHoursSchema = z.strictObject({
   dayOfWeek: z.array(DayOfWeek),
   opens: z.string().check(z.regex(/^\d{2}:\d{2}$/)),
   closes: z.string().check(z.regex(/^\d{2}:\d{2}$/)),
@@ -181,7 +217,7 @@ const OpeningHoursSchema = z.object({
  * (`OpeningHoursSpecification`), distinguished by carrying `validFrom`. A
  * full closure omits `opens`/`closes` rather than encoding an open interval.
  */
-const SpecialHoursSchema = z.object({
+const SpecialHoursSchema = z.strictObject({
   validFrom: IsoDate,
   validThrough: z.optional(IsoDate),
   opens: z.optional(z.string().check(z.regex(/^\d{2}:\d{2}$/))),
@@ -209,7 +245,7 @@ const LocalBusinessType = z.enum([
 // record-keyed-by-platform shape of `site.searchConsole`/`site.ads`.
 const ListingPlatform = z.enum(['google', 'bing', 'apple']);
 
-const LocationSchema = z.object({
+const LocationSchema = z.strictObject({
   slug: z.optional(LocalizableSchema),
   name: LocalizableSchema,
   email: z.optional(z.email()),
@@ -244,7 +280,7 @@ const LocationSchema = z.object({
 
 // ── Organization (schema.org Organization) ──────────────────────────────────────
 
-const OrganizationSchema = z.object({
+const OrganizationSchema = z.strictObject({
   name: desc(
     z.optional(LocalizableSchema),
     'Trading name, as a reader would recognise it (e.g. "Acme"). Localisable.',
@@ -264,6 +300,10 @@ const OrganizationSchema = z.object({
     z.optional(PostalAddressSchema),
     'Registered/mailing address. Its `addressRegion` and `addressCountry` are what the governing-law clause of the generated terms of service defaults to.',
   ),
+  description: desc(
+    z.optional(LocalizableSchema),
+    'One or two sentences on what the organization does → JSON-LD `description` and a fallback for SEO. Localisable.',
+  ),
   taxID: desc(z.optional(z.string()), 'Tax identification number.'),
   vatID: desc(z.optional(z.string()), 'VAT identification number.'),
   sameAs: desc(z.optional(z.array(z.url())), 'Profile URLs → JSON-LD `sameAs` (mirrors `links`).'),
@@ -273,7 +313,7 @@ const OrganizationSchema = z.object({
 
 const DnsRecordType = z.enum(['A', 'AAAA', 'CNAME', 'TXT', 'MX', 'NS', 'SRV', 'CAA', 'PTR', 'SOA']);
 
-const DnsRecordSchema = z.object({
+const DnsRecordSchema = z.strictObject({
   type: DnsRecordType,
   name: z.optional(z.string()),
   value: z.string(),
@@ -281,35 +321,17 @@ const DnsRecordSchema = z.object({
   proxied: z.optional(z.boolean()),
 });
 
-const DnsDomainSchema = z.object({
+const DnsDomainSchema = z.strictObject({
   provider: z.optional(z.string()),
   nameservers: z.optional(z.array(z.string())),
   records: z.optional(z.array(DnsRecordSchema)),
-});
-
-/**
- * One domain to onboard into Google Search Console via `vitops search setup`.
- *
- * The verification token is fetched live from the Site Verification API at run
- * time and written to DNS — it is never stored here. What the config records is
- * the *intent*: which domains to onboard, and who should co-own them.
- */
-const SearchConsoleSetupSchema = z.object({
-  delegatedOwners: desc(
-    z.optional(z.array(z.email())),
-    'Emails added as verification owners on the Site Verification web resource. Automated via the API — additive and idempotent, never removes an existing owner.',
-  ),
-  fullUserGroup: desc(
-    z.optional(z.email()),
-    'A Google Group to grant Full-User access in Search Console. SURFACED AS A REMINDER only: Search Console exposes no user/permission API, so this step stays manual by design.',
-  ),
 });
 
 // ── Environments ──────────────────────────────────────────────────────────────
 
 const RobotsSchema = z.string(); // e.g. "index,follow" / "noindex,nofollow"
 
-const EnvironmentSchema = z.object({
+const EnvironmentSchema = z.strictObject({
   url: desc(z.url(), 'Public origin of this environment.'),
   api: desc(z.optional(z.url()), 'API origin, when different from `url`.'),
   analytics: desc(z.optional(z.boolean()), 'Whether analytics fire in this environment.'),
@@ -323,12 +345,39 @@ const EnvironmentSchema = z.object({
 
 // ── A/B testing ─────────────────────────────────────────────────────────────────
 
-const AbVariantSchema = z.object({
+const AbVariantSchema = z.strictObject({
   environment: z.string(),
   description: z.optional(z.string()),
   // Deliberate escape hatch: overrides are deep-merged into the raw config
   // before validation, so their shape is the config's own.
   overrides: z.optional(z.record(z.string(), z.unknown())),
+});
+
+/**
+ * A runtime, per-visitor content experiment — deliberately separate from
+ * `abTesting.variants` above, which targets a whole build/environment via
+ * `overrides`. This is the opposite granularity: one page, cookie-pinned per
+ * visitor, with the two variants written directly in the page itself (no
+ * config-schema representation of "the content"). `site.experiments` is a
+ * record so running more than one experiment on different pages at once is
+ * just another key — nothing here assumes only one is active.
+ */
+const ExperimentSchema = z.strictObject({
+  enabled: z.boolean(),
+  category: desc(
+    z.optional(z.enum(['analytics', 'marketing'])),
+    "Consent category this experiment's assignment cookie waits on (default `analytics`) — independent of `site.tracking.category`, so an experiment never piggybacks on ad-attribution consent.",
+  ),
+  cookieName: desc(z.optional(z.string()), 'Default `_ab_<experiment key>`.'),
+  cookieMaxAge: desc(z.optional(z.number().check(z.int(), z.positive())), 'Seconds.'),
+  splitRatio: desc(
+    z.optional(z.number().check(z.gte(0), z.lte(1))),
+    'Fraction of new visitors auto-assigned to `variants[1]` (default 0.5). 0 means nobody is auto-assigned — a manually or query-param-set cookie still pins a visitor to `variants[1]`, which is what makes 0 a real blue/green-preview mode rather than a no-op.',
+  ),
+  variants: desc(
+    z.tuple([z.string(), z.string()]),
+    'Exactly two variant names, e.g. ["control", "new-form"]. `variants[0]` is the default a visitor with no assignment yet effectively sees.',
+  ),
 });
 
 // ── Fonts (Astro Fonts API projection) ──────────────────────────────────────────
@@ -352,7 +401,7 @@ const FontDisplay = z.enum(['auto', 'block', 'swap', 'fallback', 'optional']);
 const FontWeight = z.union([z.number(), z.string()]); // discrete, or a variable range like "100 900"
 
 /** A local-font face (`provider: 'local'`). */
-const FontVariantSchema = z.object({
+const FontVariantSchema = z.strictObject({
   src: z.array(z.string()),
   weight: z.optional(FontWeight),
   style: z.optional(FontStyle),
@@ -360,7 +409,7 @@ const FontVariantSchema = z.object({
   display: z.optional(FontDisplay),
 });
 
-export const SiteFontSchema = z.object({
+export const SiteFontSchema = z.strictObject({
   name: z.string(),
   provider: FontProvider,
   cssVariable: z.string().check(z.regex(/^--/)),
@@ -377,7 +426,7 @@ export const SiteFontSchema = z.object({
     z.optional(
       z.union([
         z.boolean(),
-        z.array(z.object({ weight: FontWeight, style: z.optional(FontStyle) })),
+        z.array(z.strictObject({ weight: FontWeight, style: z.optional(FontStyle) })),
       ]),
     ),
     'Emit `<Font preload />` for this family (true, or a list of weight/style faces).',
@@ -388,7 +437,7 @@ export const SiteFontSchema = z.object({
 
 const PresentSchema = z.optional(z.record(z.string(), z.unknown()));
 
-const NavItemSchema: z.ZodMiniType = z.object({
+const NavItemSchema: z.ZodMiniType = z.strictObject({
   label: z.optional(LocalizableSchema),
   image: z.optional(ImageRefSchema),
   href: z.optional(z.string()),
@@ -396,7 +445,7 @@ const NavItemSchema: z.ZodMiniType = z.object({
   attrs: AttrsSchema,
   itemAttrs: AttrsSchema,
   submenu: z.optional(
-    z.object({
+    z.strictObject({
       present: PresentSchema,
       get items() {
         return z.optional(z.array(NavItemSchema));
@@ -421,19 +470,19 @@ const FormFieldType = z.enum([
   'hidden',
 ]);
 
-const FormFieldSchema = z.object({
+const FormFieldSchema = z.strictObject({
   name: z.string(),
   type: FormFieldType,
   label: z.optional(LocalizableSchema),
   required: z.optional(z.boolean()),
   validation: z.optional(z.string()), // regex source or named rule
   options: z.optional(
-    z.union([z.string(), z.array(z.object({ label: z.string(), value: z.string() }))]),
+    z.union([z.string(), z.array(z.strictObject({ label: z.string(), value: z.string() }))]),
   ),
   attrs: AttrsSchema,
 });
 
-const ContentNodeSchema: z.ZodMiniType = z.object({
+const ContentNodeSchema: z.ZodMiniType = z.strictObject({
   tag: z.string(),
   attrs: AttrsSchema,
   text: z.optional(z.string()),
@@ -443,13 +492,13 @@ const ContentNodeSchema: z.ZodMiniType = z.object({
 });
 
 const TemplateSchema = z.union([
-  z.object({
+  z.strictObject({
     type: z.literal('nav'),
     tags: z.optional(z.array(z.string())),
     present: PresentSchema,
     items: z.optional(z.array(NavItemSchema)),
   }),
-  z.object({
+  z.strictObject({
     type: z.literal('form'),
     tags: z.optional(z.array(z.string())),
     present: PresentSchema,
@@ -459,7 +508,7 @@ const TemplateSchema = z.union([
     submit: z.optional(z.record(z.string(), AttrValue)),
     honeypot: z.optional(z.boolean()),
   }),
-  z.object({
+  z.strictObject({
     type: z.literal('nodes'),
     tags: z.optional(z.array(z.string())),
     nodes: z.optional(z.array(ContentNodeSchema)),
@@ -468,19 +517,19 @@ const TemplateSchema = z.union([
 
 // ── Galleries / testimonials ────────────────────────────────────────────────────
 
-const GalleryImageSchema = z.object({
+const GalleryImageSchema = z.strictObject({
   src: z.string(),
   alt: LocalizableSchema,
   caption: z.optional(LocalizableSchema),
 });
 
-const GallerySchema = z.object({
+const GallerySchema = z.strictObject({
   title: z.optional(LocalizableSchema),
   tags: z.optional(z.array(z.string())),
   images: z.array(GalleryImageSchema),
 });
 
-const TestimonialItemSchema = z.object({
+const TestimonialItemSchema = z.strictObject({
   quote: LocalizableSchema,
   name: z.string(),
   role: z.optional(z.string()),
@@ -488,14 +537,14 @@ const TestimonialItemSchema = z.object({
   date: z.optional(IsoDate),
 });
 
-const TestimonialGroupSchema = z.object({
+const TestimonialGroupSchema = z.strictObject({
   title: z.optional(LocalizableSchema),
   items: z.array(TestimonialItemSchema),
 });
 
 // ── Services (schema.org Offer) ─────────────────────────────────────────────────
 
-const OfferSchema = z.object({
+const OfferSchema = z.strictObject({
   name: z.optional(LocalizableSchema),
   price: z.optional(z.union([z.string(), z.number()])),
   priceCurrency: z.optional(Iso4217),
@@ -505,7 +554,7 @@ const OfferSchema = z.object({
   priceValidUntil: z.optional(IsoDate),
 });
 
-const ServiceSchema = z.object({
+const ServiceSchema = z.strictObject({
   name: LocalizableSchema,
   description: z.optional(LocalizableSchema),
   slug: z.optional(LocalizableSchema),
@@ -514,200 +563,37 @@ const ServiceSchema = z.object({
 
 // ── SEO / social ─────────────────────────────────────────────────────────────
 
-const OpenGraphSchema = z.object({
-  type: z.optional(z.string()),
-  siteName: z.optional(z.string()),
-  title: z.optional(LocalizableSchema),
-  description: z.optional(LocalizableSchema),
-  image: z.optional(ImageRefSchema),
-  locale: z.optional(z.string()),
-});
-
-const TwitterSchema = z.object({
-  card: z.optional(z.enum(['summary', 'summary_large_image', 'app', 'player'])),
-  site: z.optional(z.string()),
-  creator: z.optional(z.string()),
-  title: z.optional(LocalizableSchema),
-  description: z.optional(LocalizableSchema),
-  image: z.optional(ImageRefSchema),
-});
-
 // ── Indexing ────────────────────────────────────────────────────────────────────
-
-/**
- * What `vitops search notify` needs to tell search engines a deploy happened.
- *
- * Scoped by what search engines actually accept, which is narrower than it looks:
- * Google exposes **no** "request indexing" API (the Search Console button is not in
- * its API, and URL Inspection is read-only), and it removed the sitemap ping
- * endpoint in 2023. So the sanctioned set is: an accurate sitemap, a Search Console
- * sitemap resubmit, an IndexNow ping — which Google does *not* honour but Bing,
- * Yandex, Naver, Seznam and Yep do — and a read-only inspection pass to find out
- * what Google actually did.
- *
- * Facts only, the same rule the legal block follows: this records what the site has
- * (a key, a property, which pages matter), never what to say about it.
- */
-const IndexNowSchema = z.object({
-  key: desc(
-    z.string().check(z.regex(/^[a-zA-Z0-9-]{8,128}$/)),
-    'IndexNow key (8–128 chars, hex is conventional). NOT a secret — it is served publicly at `keyLocation` so the engine can verify you own the host. Generate one with `vitops search notify --new-key`.',
-  ),
-  keyLocation: desc(
-    z.optional(z.url()),
-    'Absolute URL of the key file. Defaults to `<canonical>/<key>.txt`; set it only when the file lives elsewhere.',
-  ),
-  endpoint: desc(
-    z.optional(z.url()),
-    'IndexNow endpoint (default `https://api.indexnow.org/indexnow`). Any participating engine shares submissions with the rest, so one is normally enough.',
-  ),
-});
-
-const SearchConsoleSchema = z.object({
-  siteUrl: desc(
-    z.string(),
-    'The property exactly as Search Console identifies it — `sc-domain:acme.ca` for a domain property, or the URL-prefix form `https://acme.ca/`. A mismatch here is a 403, not a "not found".',
-  ),
-  resubmitSitemap: desc(
-    z.optional(z.boolean()),
-    'Re-submit the sitemap through the Search Console API on each notify (default true when `searchConsole` is set). This is the automated equivalent of the manual resubmit in the UI.',
-  ),
-});
-
-const IndexingSchema = z.object({
-  sitemapUrl: desc(
-    z.optional(z.url()),
-    'The sitemap to submit and to diff for changed URLs. Defaults to `<canonical>/sitemap-index.xml`.',
-  ),
-  indexNow: desc(
-    z.optional(IndexNowSchema),
-    'IndexNow submission (Bing, Yandex, Naver, Seznam, Yep — not Google). Omit to skip the channel.',
-  ),
-  searchConsole: desc(
-    z.optional(SearchConsoleSchema),
-    'Google Search Console property. Needs a credential at run time — either a service account in `VITOPS_GSC_SERVICE_ACCOUNT` / `GOOGLE_APPLICATION_CREDENTIALS`, or the user OAuth credential `vitops search setup` uses (`VITOPS_GOOGLE_CLIENT_ID` / `_CLIENT_SECRET` / `_REFRESH_TOKEN`). The service account wins when both are set. Never put a key in this file.',
-  ),
-  priorityUrls: desc(
-    z.optional(z.array(z.url())),
-    'The pages whose indexing actually matters. `vitops search notify --check` inspects these and exits non-zero if Google has not indexed one. Kept explicit because URL Inspection is quota-bound (2000/day), so checking every page is neither affordable nor informative.',
-  ),
-});
 
 // ── Ad properties ───────────────────────────────────────────────────────────────
 
-/**
- * The ad platforms `vitops ads` can link a site to.
- *
- * A closed enum, mirroring `AD_PROVIDER_KEYS` in `@getvitops/utils/ads` — that
- * module owns what each platform *can do* (whether it verifies a domain, what its
- * tag is, which click ID it stamps), this owns what a config may *say*. Mirrored
- * rather than derived because a `z.enum` needs literals to reach the published JSON
- * Schema; `config.test.ts` asserts the two lists are the same set, so a provider
- * added to one and not the other fails the build rather than silently getting no
- * verification step and no tag.
- */
-export const AD_PROVIDERS = [
-  'google',
-  'meta',
-  'linkedin',
-  'reddit',
-  'tiktok',
-  'microsoft',
-  'pinterest',
-  'snapchat',
-] as const;
-const AdProviderSchema = z.enum(AD_PROVIDERS);
-export type AdProvider = (typeof AD_PROVIDERS)[number];
-
-/**
- * One ad property this site is linked to.
- *
- * Facts, not prose — the same rule the legal block follows. This records *which*
- * account and *which* tag id, and the platform capability table decides what can be
- * done about them. It is also what finally lets the rest of the toolchain see an ad
- * pixel: the generated cookie notice discloses its cookies, `vitops ads lint`
- * checks its click ID is captured, and the consent gate is handed the cookie names
- * to clear on revoke. A pixel pasted into a template is invisible to all three.
- */
-const AdPropertySchema = z.object({
-  accountId: desc(
-    z.optional(z.string()),
-    'The advertising account as the platform shows it — Google Ads customer ID, Meta ad account, LinkedIn partner ID, Reddit advertiser ID. For LinkedIn this is also the Insight Tag id; everywhere else the tag id is `pixelId`.',
-  ),
-  pixelId: desc(
-    z.optional(z.string()),
-    'The tag/pixel ID the browser snippet initialises — Meta pixel, TikTok pixel, Reddit pixel, Microsoft UET tag ID, Pinterest tag ID, Snap pixel, or the Google Ads conversion ID (`AW-…`, which is NOT the customer ID).',
-  ),
-  conversionLabel: desc(
-    z.optional(z.string()),
-    'Google Ads only: the conversion action label paired with the `AW-…` conversion ID.',
-  ),
-  domain: desc(
-    z.optional(z.string()),
-    'Bare hostname to verify with this platform. Defaults to the host of `domains.canonical` — set it only when the ad account is verified against a different domain.',
-  ),
-  domainVerification: desc(
-    z.optional(z.string()),
-    'The verification token from the platform UI, for the platforms that verify by DNS TXT (Meta, TikTok, Pinterest, Snapchat). `vitops ads setup` prompts for it and writes it here on first run. NOT a secret — it is published in DNS, and the platform fetching it back is the ownership proof, exactly like the IndexNow key. A value containing `=` is used as the whole record, which is the escape hatch if a platform changes its prefix.',
-  ),
-  category: desc(
-    z.optional(z.enum(['marketing', 'analytics'])),
-    'Consent category the tag waits on (default `marketing`). An ad pixel is advertising by default; `analytics` is for a site using one purely for its own measurement.',
-  ),
-  enabled: desc(
-    z.optional(z.boolean()),
-    'Set false to keep the property on record without emitting its tag.',
-  ),
-});
-
 // ── Reviews ─────────────────────────────────────────────────────────────────────
 
+// ── Plans & entitlements ───────────────────────────────────────────────────────
+
 /**
- * How one location's Google reviews are selected and ordered for display.
- *
- * Keyed by `organization.locations` key, mirroring `site.ads`/`site.searchConsole`
- * — `vitops reviews` needs to know which physical location a fetched review set
- * belongs to, and that record already exists.
+ * The commercial plan/add-on a site is entitled to — distinct from a `Config`
+ * section's own `enabled` flag. `enabled` answers "does this site do X at
+ * all" (a capability switch); `plan` answers "is this client entitled to turn
+ * X on" (a commercial switch one layer above). Absence means unrestricted,
+ * matching every other opt-in block in `Config`. `key` is an open string, not
+ * a closed enum, so a client-specific plan needs no schema change; `addons`
+ * is checked against `PLAN_CAPABILITIES` below. The commercial catalogue
+ * itself (plan names, pricing, which add-ons a plan bundles) stays
+ * Portal-side — this only records which one a site has.
  */
-const ReviewLocationSchema = z.object({
-  accountId: desc(
-    z.optional(z.string()),
-    'GBP account resource id (`accounts/…`), overriding `site.reviews.accountId` for this location.',
+const PlanSchema = z.strictObject({
+  key: desc(
+    z.string(),
+    'Commercial plan identifier (e.g. "essentials", "growth") — open string, not a closed enum.',
   ),
-  locationId: desc(z.string(), 'GBP location resource id (`locations/…`) to fetch reviews for.'),
-  featured: desc(
+  addons: desc(
     z.optional(z.array(z.string())),
-    'Review ids to always include, in this order, ahead of everything else automatically selected.',
-  ),
-  minRating: desc(
-    z.optional(z.number()),
-    'Drop reviews below this star rating (default 4) from the automatic (non-featured) selection.',
-  ),
-  limit: desc(z.optional(z.number()), 'Keep at most this many reviews after filtering.'),
-  sort: desc(
-    z.optional(z.enum(['recent', 'rating'])),
-    'Ordering for the non-featured remainder (default `recent`).',
+    'Add-on keys this site is entitled to (e.g. "ab_testing", "server_side_tracking") — checked against PLAN_CAPABILITIES.',
   ),
 });
 
-const ReviewsSchema = z.object({
-  accountId: desc(
-    z.optional(z.string()),
-    'Default GBP account resource id (`accounts/…`) for locations that do not override it.',
-  ),
-  locations: desc(
-    z.record(z.string(), ReviewLocationSchema),
-    'Which `organization.locations` to fetch Google reviews for, and how each one’s reviews are filtered/ordered. `vitops reviews` writes the result to `.vitops/reviews.json`.',
-  ),
-  schema: desc(
-    z.optional(z.boolean()),
-    'Emit `Review` JSON-LD for these reviews (default false). Off by default: Google’s structured-data policy treats a business marking up reviews of itself as ineligible for review rich results, and risks a manual action.',
-  ),
-  avatars: desc(
-    z.optional(z.boolean()),
-    'Render the reviewer’s Google-hosted avatar photo (default false). Off by default: every visitor would otherwise issue a third-party request to googleusercontent.com, and the URLs are not guaranteed to stay live.',
-  ),
-});
+// ── CRM ─────────────────────────────────────────────────────────────────────────
 
 // ── Legal ───────────────────────────────────────────────────────────────────────
 
@@ -718,7 +604,7 @@ const ReviewsSchema = z.object({
  * anything without a registered template. Add a member here and a matching entry
  * in `legal/templates/index.ts` — the two are checked against each other.
  */
-export const JURISDICTIONS = ['ca'] as const;
+export const JURISDICTIONS = ['ca', 'qc'] as const;
 const JurisdictionSchema = z.enum(JURISDICTIONS);
 export type Jurisdiction = (typeof JURISDICTIONS)[number];
 
@@ -737,6 +623,9 @@ export type Jurisdiction = (typeof JURISDICTIONS)[number];
  */
 export const JURISDICTION_COUNTRIES = {
   ca: 'Canada',
+  // Not a country: Law 25 frames transfers as leaving *Quebec*, so a provider
+  // holding data elsewhere in Canada is a transfer for this template set.
+  qc: 'Quebec',
 } satisfies Record<Jurisdiction, string>;
 
 /**
@@ -747,7 +636,7 @@ export const JURISDICTION_COUNTRIES = {
  * Deliberately facts, not prose: the config records *what is true*, the template
  * owns *how it is said*. That keeps a policy correct when the wording changes.
  */
-const ProcessorStorageSchema = z.object({
+const ProcessorStorageSchema = z.strictObject({
   country: desc(
     z.string(),
     'A country or bloc where this provider stores or processes the information, as it should read in a sentence (e.g. "Canada", "the United States", "the European Union"). Naming the jurisdiction the policy is written for is meaningful: it says this information does not leave it.',
@@ -758,7 +647,7 @@ const ProcessorStorageSchema = z.object({
   ),
 });
 
-const ProcessorSchema = z.object({
+const ProcessorSchema = z.strictObject({
   name: desc(z.string(), 'The provider, as a reader would recognise it (e.g. "Stripe").'),
   purpose: desc(
     z.string(),
@@ -784,7 +673,7 @@ const ProcessorSchema = z.object({
 // here is a fact about a *presentation* of the organization — swap the site and
 // these change while `organization` does not.
 
-const SiteSectionSchema = z.object({
+const SiteSectionSchema = z.strictObject({
   defaultLocale: desc(
     z.string(),
     'The locale used when none is specified; must be a `locales` key.',
@@ -795,7 +684,7 @@ const SiteSectionSchema = z.object({
   ),
   domains: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         canonical: desc(z.url(), 'The canonical origin used for absolute URLs and SEO.'),
         aliases: desc(
           z.optional(z.array(DomainAliasSchema)),
@@ -815,7 +704,7 @@ const SiteSectionSchema = z.object({
   ),
   google: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         project: desc(
           z.string(),
           'Google Cloud project id that API usage is attributed to (quota and billing). One project per site keeps usage separate — Search Console today, Maps and anything else later. Sent as `x-goog-user-project`, which is required when the credential is a *user* one (an ADC login from `gcloud auth application-default login`, or `VITOPS_GOOGLE_*`): those use a shared OAuth client that carries no project of its own. A service-account credential belongs to a project already, so this is not needed for it. The identity must hold `serviceusage.services.use` on the project, and the APIs being called must be enabled there.',
@@ -832,9 +721,13 @@ const SiteSectionSchema = z.object({
     z.record(z.string(), EnvironmentSchema),
     'Deploy environments (production, dev, …): URL, API origin, analytics toggle, robots policy, active A/B variant.',
   ),
+  plan: desc(
+    z.optional(PlanSchema),
+    'Commercial plan/add-on entitlement, gating which capability fields below may be turned on. Absence means unrestricted.',
+  ),
   abTesting: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         enabled: z.boolean(),
         cookieName: z.optional(z.string()),
         cookieMaxAge: desc(z.optional(z.number().check(z.int(), z.positive())), 'Seconds.'),
@@ -849,6 +742,10 @@ const SiteSectionSchema = z.object({
       }),
     ),
     'A/B testing: cookie-based split plus named variants whose `overrides` patch the config per environment.',
+  ),
+  experiments: desc(
+    z.optional(z.record(z.string(), ExperimentSchema)),
+    'Runtime, per-visitor content experiments — one config-schema-free page branches on a cookie the vitopsAbTesting() middleware assigns. Distinct from `abTesting`, which merges a whole build/environment variant at resolve time; this instead lets one page (e.g. a real, nav-linked /contact) run a copy test without a second URL or a second deploy. Keyed by an open experiment name so more than one can run at once.',
   ),
   fonts: desc(
     z.optional(z.array(SiteFontSchema)),
@@ -877,10 +774,10 @@ const SiteSectionSchema = z.object({
   ),
   navigation: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         activeTemplate: desc(
           z.optional(
-            z.object({
+            z.strictObject({
               default: desc(z.optional(z.string()), 'A `templates` key.'),
               breakpoints: desc(
                 z.optional(z.record(z.string(), z.string())),
@@ -895,38 +792,28 @@ const SiteSectionSchema = z.object({
     'Site navigation settings (which nav template renders where).',
   ),
   seo: desc(
-    z.optional(
-      z.object({
-        titleTemplate: desc(z.optional(z.string()), 'Page-title pattern (e.g. "%s · Acme").'),
-        descriptionTemplate: z.optional(z.string()),
-        robots: desc(z.optional(RobotsSchema), 'e.g. "index,follow" / "noindex,nofollow".'),
-        googleSiteVerification: z.optional(z.string()),
-        bingSiteVerification: z.optional(z.string()),
-        openGraph: z.optional(OpenGraphSchema),
-        twitter: z.optional(TwitterSchema),
-        indexing: desc(
-          z.optional(IndexingSchema),
-          'How `vitops search notify` tells search engines about a deploy: which sitemap, IndexNow key, Search Console property, and which pages to verify afterwards.',
-        ),
-      }),
-    ),
-    'SEO defaults: title/description templates, robots policy, verification tokens, Open Graph + Twitter cards, and post-deploy indexing notification.',
+    z.optional(SeoSchema),
+    'SEO defaults: site name, title/description defaults, robots policy, verification tokens, Open Graph + Twitter cards, and post-deploy indexing notification. Read by `<Seo />`, `vitops robots` and `vitops search notify`.',
   ),
   analytics: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         googleAnalyticsId: z.optional(z.string()),
         plausibleDomain: z.optional(z.string()),
         googleTagManagerId: z.optional(z.string()),
         clarityId: desc(z.optional(z.string()), 'Microsoft Clarity project ID.'),
         matomo: desc(
           z.optional(
-            z.object({
+            z.strictObject({
               url: desc(z.string(), 'Instance base URL (self-hosted, or `*.matomo.cloud`).'),
               siteId: desc(z.string(), 'Site ID within that instance.'),
               cookies: desc(
                 z.optional(z.boolean()),
                 'Default false — Matomo runs cookieless (`disableCookies`), which is what lets the cookie notice state positively that it sets none.',
+              ),
+              abVariantDimensions: desc(
+                z.optional(z.record(z.string(), z.number())),
+                'Pre-created Matomo custom-dimension index per `site.experiments` key — Matomo requires the dimension to exist in the instance before a value can be pushed for it.',
               ),
             }),
           ),
@@ -937,62 +824,10 @@ const SiteSectionSchema = z.object({
     'Analytics provider IDs (gated per environment via `environments.<env>.analytics`). Which provider is set is also what the generated privacy policy and cookie notice disclose — see `legal`.',
   ),
   notifications: desc(
-    z.optional(
-      z.object({
-        email: desc(
-          z.optional(
-            z.union([
-              z.email(),
-              z.object({
-                provider: desc(
-                  z.literal('cloudflare'),
-                  'Delivery provider. Only Cloudflare Email Sending is implemented; the field is stated so adding another is additive.',
-                ),
-                to: desc(
-                  z.optional(z.email()),
-                  'Recipient. Defaults to the primary location’s `email`, then the first location that has one.',
-                ),
-                from: desc(
-                  z.optional(z.email()),
-                  'Sender. Defaults to `noreply@<domains.canonical>`. Its domain must be onboarded (`wrangler email sending enable <domain>`) or every send fails.',
-                ),
-                fromName: desc(
-                  z.optional(z.string()),
-                  'Display name on the From header. Defaults to `organization.name`.',
-                ),
-                replyTo: desc(z.optional(z.email()), 'Reply-To header.'),
-                binding: desc(
-                  z.optional(z.string()),
-                  'Workers `send_email` binding name (default `EMAIL`). Set it when using a restricted binding.',
-                ),
-              }),
-            ]),
-          ),
-          'Where conversion notifications are e-mailed. A bare address is shorthand for `{ provider: "cloudflare", to }`.',
-        ),
-      }),
-    ),
+    NotificationsSchema,
     'Where site notifications (form submissions, tracked calls) are sent. TODO: `sms` and `persist` channels — only `email` is implemented.',
   ),
-  tracking: desc(
-    z.optional(
-      z.object({
-        enabled: desc(
-          z.optional(z.boolean()),
-          'Capture ad click IDs and UTMs from the landing URL into the `_ac` cookie, for attributing conversions.',
-        ),
-        category: desc(
-          z.optional(z.enum(['marketing', 'analytics'])),
-          'Consent category the `_ac` cookie waits on (default `marketing`). It is a 90-day identifier tying a visitor to the ad that brought them, so it is only written once this category is granted — and asking for it is what raises the banner.',
-        ),
-        platforms: desc(
-          z.optional(z.array(z.string())),
-          'Informational list of ad platforms in use. Capture recognises every known click-ID parameter regardless.',
-        ),
-      }),
-    ),
-    'Ad-click attribution for conversion tracking.',
-  ),
+  tracking: desc(TrackingSchema, 'Ad-click attribution for conversion tracking.'),
   ads: desc(
     z.optional(z.partialRecord(AdProviderSchema, AdPropertySchema)),
     'Ad properties this site is linked to, keyed by platform. Read by `vitops ads setup` (ensure the DNS verification record), `vitops ads tags` (emit the consent-gated pixel), and the generated cookie notice (disclose what each pixel stores). Credentials never live here — the DNS write uses CLOUDFLARE_API_TOKEN from the environment.',
@@ -1001,33 +836,34 @@ const SiteSectionSchema = z.object({
     z.optional(ReviewsSchema),
     'Google Business Profile reviews to cache and display, keyed by `organization.locations`. Read by `vitops reviews`. Credentials never live here — a Google OAuth credential comes from the environment, same as `site.searchConsole`.',
   ),
-  security: desc(
-    z.optional(
-      z.object({
-        turnstile: z.optional(
-          z.object({
-            siteKey: desc(z.optional(z.string()), 'Cloudflare Turnstile site key (public).'),
-          }),
-        ),
-      }),
-    ),
-    'Security integrations (bot protection).',
+  crm: desc(
+    z.optional(CrmSchema),
+    "Push form submissions into a client CRM (HubSpot, Zoho Bigin, or Jobber) alongside the notification email. Read by `createConversionRoute()`'s `crm` option and `vitops crm check`/`vitops crm setup`. Credentials never live here.",
   ),
+  security: desc(SecuritySchema, 'Security integrations (bot protection).'),
   legal: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         jurisdiction: desc(
           z.optional(JurisdictionSchema),
           'Which legal template set the generated documents use. Default `ca`.',
         ),
         privacyPolicy: z.optional(
-          z.object({
+          z.strictObject({
             enabled: z.boolean(),
             url: z.optional(z.url()),
             lastUpdated: z.optional(IsoDate),
             privacyOfficer: desc(
               z.optional(ContactConfigSchema),
               'Who privacy requests go to. Falls back to `contact`, then `primaryLocation`.',
+            ),
+            privacyOfficerTitle: desc(
+              z.optional(z.string()),
+              'Title of the person in charge of the protection of personal information (e.g. "President"). Quebec Law 25 requires the title and contact details to be published; the `qc` templates print it beside the `privacyOfficer` contact. Not asserted when absent.',
+            ),
+            impactAssessments: desc(
+              z.optional(z.boolean()),
+              'Attests that a privacy impact assessment is carried out before personal information is communicated outside Quebec (Law 25, s. 17). The `qc` privacy policy states that assurance only when this is `true` — a fact the config cannot otherwise know, so it is never assumed.',
             ),
             retention: desc(
               z.optional(z.string()),
@@ -1040,7 +876,7 @@ const SiteSectionSchema = z.object({
           }),
         ),
         termsOfService: z.optional(
-          z.object({
+          z.strictObject({
             enabled: z.boolean(),
             url: z.optional(z.url()),
             lastUpdated: z.optional(z.nullable(IsoDate)),
@@ -1051,7 +887,7 @@ const SiteSectionSchema = z.object({
           }),
         ),
         cookieConsent: z.optional(
-          z.object({
+          z.strictObject({
             enabled: z.boolean(),
             type: desc(z.optional(z.enum(['opt-in', 'opt-out'])), 'Consent model.'),
             position: z.optional(z.enum(['top', 'bottom', 'center'])),
@@ -1098,7 +934,7 @@ const SiteSectionSchema = z.object({
   ),
   favicon: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         source: desc(z.string(), 'Source image (SVG/PNG) the favicon set is generated from.'),
         lowResSource: desc(
           z.optional(z.string()),
@@ -1121,15 +957,7 @@ const SiteSectionSchema = z.object({
     'Favicon/PWA asset generation (consumed by `@getvitops/utils` favicon tooling).',
   ),
   deployment: desc(
-    z.optional(
-      z.object({
-        platform: z.optional(z.string()),
-        buildCommand: z.optional(z.string()),
-        deployCommand: z.optional(z.string()),
-        outputDirectory: z.optional(z.string()),
-        type: z.optional(z.string()),
-      }),
-    ),
+    DeploymentSchema,
     'How the site is built and deployed (platform, commands, output directory) — informational for tooling.',
   ),
 });
@@ -1160,7 +988,7 @@ const OrganizationSectionSchema = z.extend(OrganizationSchema, {
   ),
   links: desc(
     z.optional(
-      z.object({
+      z.strictObject({
         googleMaps: z.optional(z.url()),
         instagram: z.optional(z.url()),
         facebook: z.optional(z.url()),
@@ -1176,10 +1004,26 @@ const OrganizationSectionSchema = z.extend(OrganizationSchema, {
 
 // ── Top-level schema ────────────────────────────────────────────────────────────
 
-export const ConfigSchema = z.object({
+/**
+ * The `Config` document's own SHAPE version — distinct from `@getvitops/generator`'s
+ * package version, which is CSS-release-driven (bumps on every design-system/CSS
+ * change) and says nothing about whether `Config`'s shape moved. Bump this constant,
+ * and add a new literal to `configVersion`'s union below, only when a future shape
+ * change is disruptive enough to warrant a migration note — the same bar the
+ * pre-3.0 flat-config migration (`MOVED_KEYS`) already set, now with a real field
+ * to check instead of pattern-matching which keys are present after the fact.
+ * Most releases add optional fields and need no bump at all.
+ */
+export const CONFIG_VERSION = 1;
+
+export const ConfigSchema = z.strictObject({
   $schema: desc(
     z.optional(z.string()),
     'URL of the published config JSON Schema (stamped by `vitops init --site`) so editors provide autocomplete + validation.',
+  ),
+  configVersion: desc(
+    z.optional(z.literal(CONFIG_VERSION)),
+    'The config shape version (see `CONFIG_VERSION`) — absent reads as version 1, which is every config validated by this schema so far.',
   ),
   designSystem: DesignSystemBlock,
   organization: desc(
@@ -1213,6 +1057,8 @@ export type SiteAdProperty = z.infer<typeof AdPropertySchema>;
 export type SiteReviews = z.infer<typeof ReviewsSchema>;
 /** One `site.reviews.locations` entry. */
 export type SiteReviewLocation = z.infer<typeof ReviewLocationSchema>;
+export type SitePlan = z.infer<typeof PlanSchema>;
+export type SiteExperiment = z.infer<typeof ExperimentSchema>;
 
 // ── JSON Schema + validation ────────────────────────────────────────────────────
 
@@ -1234,6 +1080,46 @@ export type ConfigValidationResult =
 type Issue = z.core.$ZodIssue;
 const issue = (path: (string | number)[], message: string): Issue =>
   ({ code: 'custom', path, message }) as Issue;
+
+/**
+ * One entry per add-on key `site.plan.addons` can name: `label` is the human
+ * name used in the validation error, `gates` answers whether the config
+ * actually has the gated feature turned on. Kept beside `Config`/`validateConfig`
+ * (not in `shared.ts`, despite that file's own small-lookup-table pattern —
+ * `shared.ts` exists specifically to let `generate.ts` and `docs.ts` share data
+ * without one importing the other, and neither of those needs this table;
+ * `CRM_PROVIDER_BLOCKS` below is the closer precedent for "small map local to
+ * `validateConfig`'s own concerns").
+ *
+ * `bookkeeping`/`support`/`software_licenses` — the Portal's other `feature_key`
+ * values — intentionally have no entry here: they're pure Portal/billing
+ * features with no `Config` counterpart, not a gap to fill in later.
+ */
+export interface PlanCapability {
+  label: string;
+  gates: (cfg: Config) => boolean;
+}
+export const PLAN_CAPABILITIES: Record<string, PlanCapability> = {
+  ab_testing: {
+    label: 'A/B testing',
+    gates: (cfg) =>
+      !!cfg.site.abTesting?.enabled ||
+      Object.values(cfg.site.environments).some((e) => e.variant != null) ||
+      // `site.experiments` (runtime, per-visitor — see ExperimentSchema) is a
+      // separate mechanism from `abTesting` (build-time, whole-config
+      // variants), added after this gate was first written, and was missed
+      // here until found during downstream adoption planning: a site could
+      // turn on a runtime experiment with no `ab_testing` add-on and this
+      // check wouldn't catch it. Both mechanisms answer the same commercial
+      // question — "is this site entitled to run an A/B test" — so both gate
+      // the same add-on.
+      Object.values(cfg.site.experiments ?? {}).some((e) => e.enabled),
+  },
+  server_side_tracking: {
+    label: 'server-side conversion tracking',
+    gates: (cfg) => !!cfg.site.tracking?.enabled,
+  },
+};
 
 // ── Migration from the flat `SiteConfig` ────────────────────────────────────────
 
@@ -1302,6 +1188,28 @@ function migrationIssues(raw: unknown): Issue[] {
 }
 
 /**
+ * `unrecognized_keys` reports the offending keys structurally (`issue.keys`)
+ * but zod's default message is a bare "Invalid input" — the same gap
+ * `schema.ts`'s `explainRamp` works around for the design-system schema.
+ * Config hits this on every keyed-record field (`site.ads`, `site.crm`'s
+ * `fieldMap`, …), so it's a general post-processing step here rather than a
+ * one-off. Not the same helper as `explainRamp`'s: that one also claims the
+ * key was "ignored at generate time", which is true for a loose object's
+ * silently-dropped extras but wrong here — a `partialRecord`'s key schema
+ * (e.g. `AdProviderSchema`) genuinely rejects the config rather than
+ * dropping the field, so this says "rejected", not "ignored".
+ */
+const explainUnrecognizedKeys = (issue: Issue): Issue => {
+  if (issue.code !== 'unrecognized_keys') return issue;
+  const keys = (issue as { keys?: string[] }).keys ?? [];
+  if (!keys.length) return issue;
+  return {
+    ...issue,
+    message: `unknown key${keys.length > 1 ? 's' : ''} ${keys.map((k) => `"${k}"`).join(', ')} — not part of the schema, rejected.`,
+  };
+};
+
+/**
  * Validate a raw (already parsed) config: shape via zod, then the cross-field
  * integrity that JSON Schema can't express (referential keys, extends acyclicity).
  * These live only here — the published JSON Schema enforces shape, not integrity.
@@ -1311,7 +1219,12 @@ export function validateConfig(input: unknown): ConfigValidationResult {
   if (migration.length) return { ok: false, data: undefined, errors: migration };
 
   const parsed = z.safeParse(ConfigSchema, input);
-  if (!parsed.success) return { ok: false, data: undefined, errors: parsed.error.issues };
+  if (!parsed.success)
+    return {
+      ok: false,
+      data: undefined,
+      errors: parsed.error.issues.map(explainUnrecognizedKeys),
+    };
   const cfg = parsed.data;
   const site = cfg.site;
   const org = cfg.organization;
@@ -1533,8 +1446,89 @@ export function validateConfig(input: unknown): ConfigValidationResult {
       );
   }
 
+  // CRM. `provider` decides which block is required — a config naming a
+  // provider with no matching block is a config `planCrm` in
+  // `@getvitops/utils/crm` would report as off with a reason, but stopping it
+  // at validation is louder than discovering it at first submission. One
+  // table rather than a hand-written `if` per provider, so a fourth provider
+  // added to `CRM_PROVIDERS` with no matching entry here is a type error
+  // (`Record<CrmProviderConfig, …>`) instead of a silently unchecked block.
+  if (site.crm) {
+    const at = ['site', 'crm'];
+    const CRM_PROVIDER_BLOCKS: Record<CrmProviderConfig, 'hubspot' | 'bigin' | 'jobber'> = {
+      hubspot: 'hubspot',
+      bigin: 'bigin',
+      jobber: 'jobber',
+    };
+    const block = CRM_PROVIDER_BLOCKS[site.crm.provider];
+    if (site.crm[block] == null)
+      errors.push(
+        issue(
+          [...at, block],
+          `site.crm.provider is "${site.crm.provider}" but site.crm.${block} is missing`,
+        ),
+      );
+    const knownTrackingKeys = new Set([...TRACKED_PARAMS, 'landingPage', 'referrer', 'ab_variant']);
+    for (const key of Object.keys(site.crm.trackingFields ?? {})) {
+      if (!knownTrackingKeys.has(key))
+        errors.push(
+          issue(
+            [...at, 'trackingFields', key],
+            `"${key}" is not a recognised _ac attribution key — a typo'd key silently maps nothing`,
+          ),
+        );
+    }
+  }
+
+  // Plan entitlement. A gated feature turned on with no matching add-on is
+  // rejected here rather than silently allowed — the toolchain enforcement
+  // `site.plan` exists for in the first place (see PLAN_CAPABILITIES' docblock).
+  for (const [key, cap] of Object.entries(PLAN_CAPABILITIES)) {
+    if (cap.gates(cfg) && !(site.plan?.addons ?? []).includes(key))
+      errors.push(
+        issue(
+          ['site', 'plan', 'addons'],
+          `${cap.label} is enabled but site.plan doesn't list the "${key}" add-on`,
+        ),
+      );
+  }
+
   if (errors.length) return { ok: false, data: undefined, errors };
   return { ok: true, data: cfg, errors: [] };
+}
+
+/**
+ * Warning strings for an enabled `site.experiments` entry whose site also
+ * configures Matomo but has no matching `abVariantDimensions` index — the
+ * Matomo custom-dimension push for that experiment is silently skipped
+ * without one, since Matomo requires the dimension to exist in the instance
+ * first. A warning, not a `validateConfig` error, the same way
+ * `localeConsistencyWarnings` (`@getvitops/astro/i18n.ts`) is: the pageview
+ * still ships correctly, just without that one dimension, so this shouldn't
+ * block a build — mirrors that function's shape (pure, `[]` when nothing to
+ * warn about) rather than adding a `warnings` field to `ConfigValidationResult`.
+ */
+export function experimentDimensionWarnings(
+  site:
+    | {
+        experiments?: Record<string, { enabled: boolean }>;
+        analytics?: { matomo?: { abVariantDimensions?: Record<string, number> } };
+      }
+    | null
+    | undefined,
+): string[] {
+  if (!site?.experiments || !site.analytics?.matomo) return [];
+  const dimensions = site.analytics.matomo.abVariantDimensions ?? {};
+  const warnings: string[] = [];
+  for (const [key, experiment] of Object.entries(site.experiments)) {
+    if (experiment.enabled && dimensions[key] == null)
+      warnings.push(
+        `experiments.${key}: Matomo is configured but site.analytics.matomo.abVariantDimensions.${key} ` +
+          `isn't set — this experiment's variant won't reach Matomo as a custom dimension until you ` +
+          `create the dimension in your Matomo instance and record its index here.`,
+      );
+  }
+  return warnings;
 }
 
 /**
@@ -1775,4 +1769,98 @@ export function deepMerge(target: Record<string, unknown>, source: Record<string
       target[key] = s;
     }
   }
+}
+
+// ── Design-system patch write-back ──────────────────────────────────────────
+// Shared by @getvitops/vite's dev-only `/__vitops/design-system` endpoint and
+// the EmDash design-system-editor plugin route (see AGENTS.md's "live theme
+// editor" and "EmDash plugin as the design-system editing surface" sections)
+// — one place "patch a config file's design-system subtree" lives, rather
+// than each consumer inventing its own copy.
+
+/**
+ * Where the design system lives inside a config file on disk.
+ *
+ * `[]` for a `design-system.json` — the file *is* the design system. For a
+ * site config it is under `designSystem`, and this reads the **raw** object
+ * rather than the resolved one because a write-back has to land where the
+ * author actually put it. `resolveConfig` normalises the two shorthands in
+ * memory; a writer that assumed the canonical shape would grow a second
+ * `themes` key beside the author's bare map and silently stop editing
+ * anything.
+ */
+export function designSystemPath(raw: unknown, theme = 'default'): string[] {
+  if (!isConfig(raw)) return [];
+  const ds = (raw as Record<string, unknown>).designSystem as Record<string, unknown>;
+  if (ds != null && typeof ds === 'object') {
+    if ('themes' in ds) return ['designSystem', 'themes', theme];
+    // A bare `DesignSystem` written inline — one theme, and it is `default`.
+    if ('colors' in ds) return ['designSystem'];
+  }
+  return ['designSystem', theme]; // the legacy bare theme map
+}
+
+export const getAt = (obj: unknown, path: string[]): unknown =>
+  path.reduce<unknown>((cur, k) => (cur as Record<string, unknown>)?.[k], obj);
+
+/** Return a copy of `obj` with `path` replaced by `value`. Creates missing objects. */
+export function setAt(obj: unknown, path: string[], value: unknown): unknown {
+  if (!path.length) return value;
+  const [head, ...rest] = path as [string, ...string[]];
+  const base = (typeof obj === 'object' && obj !== null ? obj : {}) as Record<string, unknown>;
+  return { ...base, [head]: setAt(base[head], rest, value) };
+}
+
+/**
+ * Recursively merge a patch into a config, returning a new value rather than
+ * mutating either argument. Plain objects merge key-wise; everything else
+ * (scalars, and arrays — a token list is replaced, not appended) is
+ * overwritten by the patch. Distinct from `deepMerge` above (which mutates
+ * `target` in place and requires both sides to already be objects) — this one
+ * has to handle `base` being `undefined` (a patch targeting a path that
+ * doesn't exist yet) and a patch that is itself a scalar or array.
+ */
+export function mergePatch(base: unknown, patch: unknown): unknown {
+  const isPlain = (v: unknown): v is Record<string, unknown> =>
+    typeof v === 'object' && v !== null && !Array.isArray(v);
+  if (!isPlain(base) || !isPlain(patch)) return patch;
+  const out: Record<string, unknown> = { ...base };
+  for (const [k, v] of Object.entries(patch)) out[k] = mergePatch(base[k], v);
+  return out;
+}
+
+/** Printed width a rewritten config file is wrapped to — matches the repo formatter's default. */
+const PRINT_WIDTH = 100;
+
+/**
+ * Serialize a config the way a formatter would: 2-space indent, but arrays of
+ * scalars kept on one line when they fit.
+ *
+ * `JSON.stringify(v, null, 2)` explodes every array onto its own lines, so
+ * writing back a two-key patch would reflow a whole `design-system.json` — a
+ * diff nobody can review, for a change of two values. Matching the
+ * prevailing style keeps the write surgical, which is the whole point of
+ * saving to source rather than copying a patch by hand.
+ */
+export function formatConfig(value: unknown, col = 0, indent = 0): string {
+  const pad = ' '.repeat(indent);
+  if (Array.isArray(value)) {
+    if (!value.length) return '[]';
+    if (value.every((v) => v === null || typeof v !== 'object')) {
+      const inline = `[${value.map((v) => JSON.stringify(v)).join(', ')}]`;
+      if (col + inline.length <= PRINT_WIDTH) return inline;
+    }
+    const items = value.map((v) => `${pad}  ${formatConfig(v, indent + 2, indent + 2)}`);
+    return `[\n${items.join(',\n')}\n${pad}]`;
+  }
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (!entries.length) return '{}';
+    const items = entries.map(([k, v]) => {
+      const head = `${pad}  ${JSON.stringify(k)}: `;
+      return head + formatConfig(v, head.length, indent + 2);
+    });
+    return `{\n${items.join(',\n')}\n${pad}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
 }
