@@ -217,6 +217,25 @@ export const FIXTURES: Record<string, BlockFixture> = {
     category: 'marketing',
     ratio: '16/9',
   },
+  // Reads the sample `.vitops/reviews.json` the overlay writes (REVIEWS_CACHE in overlay.ts).
+  'vitops.reviews': {
+    label: 'What clients say',
+    location: 'ottawa',
+    layout: 'grid',
+    columns: '3',
+    limit: 3,
+    minRating: '4',
+    sort: 'recent',
+    avatars: false,
+  },
+  'vitops.nav': {
+    menu: 'footer-sitemap',
+    label: 'Page links',
+    heading: 'Explore',
+    level: '2',
+    variant: 'columns',
+    depth: '1',
+  },
 };
 
 /**

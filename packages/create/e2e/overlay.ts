@@ -29,6 +29,47 @@ export const LANDINGS = 'landings';
 export const LANDING_SLUG = 'showcase';
 
 /** Pages the audit should visit beyond the defaults. */
+/**
+ * A sample `.vitops/reviews.json` (the cache `vitops reviews` writes), so the `vitops.reviews`
+ * block renders real cards in the e2e site rather than the empty state. Fictional authors.
+ */
+export const REVIEWS_CACHE = {
+  version: 1,
+  locations: {
+    ottawa: {
+      locationId: 'e2e-location',
+      accountId: 'e2e-account',
+      fetchedAt: '2026-11-01T00:00:00.000Z',
+      averageRating: 4.7,
+      totalReviewCount: 3,
+      reviews: [
+        ['r1', 5, 'Alex Example', 'Quick, tidy and on budget. We would hire them again.'],
+        [
+          'r2',
+          5,
+          'Sam Sample',
+          'Clear quote, no surprises, and the work was finished a day early.',
+        ],
+        [
+          'r3',
+          4,
+          'Jordan Placeholder',
+          'Good communication throughout. Cleanup could have been faster.',
+        ],
+      ].map(([id, rating, author, text], i) => ({
+        id,
+        location: 'ottawa',
+        rating,
+        author,
+        text,
+        publishedAt: `2026-10-0${i + 1}T12:00:00.000Z`,
+        updatedAt: `2026-10-0${i + 1}T12:00:00.000Z`,
+        url: `https://example.com/reviews/${id}`,
+      })),
+    },
+  },
+};
+
 export const E2E_PATHS = ['/blocks', `/${LANDINGS}/${LANDING_SLUG}`];
 
 type Json = Record<string, unknown>;
@@ -190,7 +231,10 @@ export function buildOverlay(base: Json): Overlay {
 
   return {
     seed,
-    files: { [`src/pages/${LANDINGS}/[slug].astro`]: LANDING_ROUTE },
+    files: {
+      [`src/pages/${LANDINGS}/[slug].astro`]: LANDING_ROUTE,
+      '.vitops/reviews.json': `${JSON.stringify(REVIEWS_CACHE, null, 2)}\n`,
+    },
     copies: ['400x400', '400x600', '600x400'].map((size) => [
       join(PLACEHOLDERS, `wireframe-${size}.png`),
       `public/e2e/wireframe-${size}.png`,
