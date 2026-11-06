@@ -1,0 +1,163 @@
+---
+/**
+ * SiteNav — the site header's navigation, from EmDash menus (or any menu data of the
+ * same shape). Markup + classes only, no runtime JS: the hamburger is a Popover API
+ * invoker for a `[popover]` drawer, branches are native `<details>` accordions in the
+ * drawer and hover/focus/click dropdowns at width. Every declaration lives in the
+ * framework's `sitenav` pattern (patterns/sitenav.css), emitted in all three formats.
+ * No `wc-*` element is involved, so there is no `display` to declare.
+ *
+ *   import { loadNavMenus } from '@getvitops/astro/components/sitenav.ts';
+ *   const nav = await loadNavMenus(getMenu);
+ *   <SiteNav {...nav} />
+ *
+ * ── TIERS ──
+ * ONE menu is the default and is enough: `primary`, depth 3, a dropdown from the `md`
+ * container width (48rem) and a drawer below it. Two optional variants are each their
+ * own EmDash menu; `<SiteNav>` renders whichever exist, with no code change:
+ *
+ *   `primary-mobile`  Add it to give small screens a simpler nav (depth 1, the few links
+ *                     a thumb wants). It shows BELOW `mobileBreakpoint` (default `md`);
+ *                     `primary` takes over from there.
+ *   `primary-mega`    Add it for a mega menu on wide screens (full-width panels, depth 3).
+ *                     It shows from `megaBreakpoint` (default `xl`, 80rem); `primary`
+ *                     covers the widths below.
+ *
+ * Breakpoints are container widths (sm/md/lg/xl = 30/48/64/80rem), matched to the
+ * `.sitenav--bp-*` classes, so they follow the same `body` container every other
+ * responsive utility does. Only one tier is ever in the accessibility tree: the others
+ * are `display: none`, so a screen-reader user never meets two "Primary" landmarks.
+ *
+ * ── DESCRIPTIONS ──
+ * EmDash menu items have no description field. Convention until they do (an upstream
+ * request): an item's **`titleAttr` is its description**, rendered as muted second-line
+ * text under the link. It is NOT emitted as a `title` tooltip. `cssClasses` pass through
+ * on the link.
+ *
+ * Accessibility: `<nav aria-label>` landmark, `aria-current="page"` on the current
+ * item, the link is never inside `<summary>` (no nested interactive controls), caret
+ * buttons are named, `:focus-visible` rings and forced-colors / reduced-motion handling
+ * are in the pattern.
+ */
+import {
+  drawerId,
+  navClass,
+  selectTiers,
+  tierClass,
+  type NavBreakpoint,
+  type NavMenuInput,
+} from './sitenav.ts';
+import SiteNavList from './SiteNavList.astro';
+
+interface Props {
+  /** `primary` menu (the default, medium tier). */
+  primary?: NavMenuInput;
+  /** `primary-mobile` menu. Optional variant. */
+  mobile?: NavMenuInput;
+  /** `primary-mega` menu. Optional variant. */
+  mega?: NavMenuInput;
+  /** Accessible name of the `<nav>`. Default "Primary". */
+  label?: string;
+  /** Hamburger button name. Default "Menu". */
+  toggleLabel?: string;
+  /** Where the default nav promotes from drawer to dropdowns. Default `md`. */
+  breakpoint?: NavBreakpoint;
+  /** Where `primary-mobile` hands over to `primary`. Default = `breakpoint`. */
+  mobileBreakpoint?: NavBreakpoint;
+  /** Where `primary-mega` takes over. Default `xl`. */
+  megaBreakpoint?: NavBreakpoint;
+  /** Levels in the default nav. Default 3. */
+  depth?: number;
+  /** Override the current path (for `aria-current`). Default: the request path. */
+  current?: string;
+  /** Id prefix for the drawer popovers. Required only if two SiteNavs share a page. */
+  id?: string;
+  class?: string;
+}
+
+const {
+  primary,
+  mobile,
+  mega,
+  label = 'Primary',
+  toggleLabel = 'Menu',
+  breakpoint,
+  mobileBreakpoint,
+  megaBreakpoint,
+  depth,
+  current = Astro.url.pathname,
+  id = 'sitenav',
+  class: className,
+} = Astro.props;
+
+const tiers = selectTiers({
+  primary,
+  mobile,
+  mega,
+  breakpoint,
+  mobileBreakpoint,
+  megaBreakpoint,
+  depth,
+});
+---
+
+{
+  tiers.map((tier) => {
+    const panel = drawerId(id, tier);
+    return (
+      <div class:list={[...tierClass(tier), className]}>
+        <nav class:list={navClass(tier)} aria-label={label}>
+          <button
+            type="button"
+            class="sitenav__toggle"
+            popovertarget={panel}
+            aria-label={toggleLabel}
+          >
+            <svg
+              class="sitenav__toggle-icon"
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <div id={panel} popover class="sitenav__panel">
+            <button
+              type="button"
+              class="sitenav__close"
+              popovertarget={panel}
+              popovertargetaction="hide"
+              aria-label="Close menu"
+            >
+              <svg
+                class="sitenav__close-icon"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <line x1="6" y1="6" x2="18" y2="18" />
+                <line x1="18" y1="6" x2="6" y2="18" />
+              </svg>
+            </button>
+            <SiteNavList items={tier.items} current={current} />
+          </div>
+        </nav>
+      </div>
+    );
+  })
+}

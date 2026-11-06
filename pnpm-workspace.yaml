@@ -5,6 +5,7 @@ packages:
 # these via the `catalog:` protocol so a version is bumped in exactly one place.
 catalog:
   '@arethetypeswrong/cli': ^0.18.5
+  '@axe-core/playwright': ^4.10.0
   '@astrojs/check': ^0.9.7
   '@astrojs/cloudflare': ^14.0.0
   # Only for @getvitops/emdash's opt-in `designSystemEditor` admin page —
@@ -46,9 +47,11 @@ catalog:
   happy-dom: ^20.0.0
   invokers-polyfill: ^1.0.3
   parse5: ^7.3.0
+  lighthouse: ^13.0.0
   lightningcss: ^1.32.0
   lit: ^3.3.3
   minify-html-literals: ^1.3.5
+  playwright: ^1.62.1
   png-to-ico: ^3.0.2
   postcss: ^8.5.26
   postcss-lit: ^1.4.1

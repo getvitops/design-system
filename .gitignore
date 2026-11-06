@@ -33,3 +33,6 @@ packages/create/templates/*/.astro/
 .dev*
 # Agent worktrees: whole checkouts, never tracked
 .claude/worktrees/
+
+# `vitops audit` reports
+.vitops/audit/

@@ -1,0 +1,79 @@
+---
+/**
+ * SiteFooter — a `contentinfo` landmark with a site map, legal links and a copyright
+ * line. Markup + classes only; styles are `patterns/sitenav.css`'s `.sitefooter*`.
+ *
+ *   const sitemap = await getMenu('footer-sitemap');
+ *   const legal = await getMenu('footer-legal');
+ *   <SiteFooter {sitemap} {legal} name={siteTitle} />
+ *
+ * Both menus are optional and each renders only if it has items, so a one-page site
+ * gets just the copyright line. Menus are FLAT here (depth 1): a footer that nests is
+ * a site map, and wants a page, not a column. `name` is `organization.name`.
+ *
+ * The two `<nav>`s are named ("Site map", "Legal") so the landmark list is not a pile
+ * of unlabeled regions, and the copyright is plain text — never a link.
+ */
+import { isCurrent, linkRel, menuItems, type NavMenuInput } from './sitenav.ts';
+
+interface Props {
+  /** `footer-sitemap` menu. */
+  sitemap?: NavMenuInput;
+  /** `footer-legal` menu. */
+  legal?: NavMenuInput;
+  /** Company/site name for the copyright line (`organization.name`). */
+  name: string;
+  /** Override the year (tests, or a "since" range string). Default: build year. */
+  year?: number | string;
+  /** Accessible names. */
+  sitemapLabel?: string;
+  legalLabel?: string;
+  current?: string;
+  class?: string;
+}
+
+const {
+  sitemap,
+  legal,
+  name,
+  year = new Date().getFullYear(),
+  sitemapLabel = 'Site map',
+  legalLabel = 'Legal',
+  current = Astro.url.pathname,
+  class: className,
+} = Astro.props;
+
+const groups = [
+  { label: sitemapLabel, items: menuItems(sitemap), kind: 'sitemap' },
+  { label: legalLabel, items: menuItems(legal), kind: 'legal' },
+].filter((g) => g.items.length > 0);
+---
+
+<footer class:list={['sitefooter', className]}>
+  {
+    groups.length > 0 && (
+      <div class="sitefooter__nav">
+        {groups.map((g) => (
+          <nav class={`sitefooter__group sitefooter__group--${g.kind}`} aria-label={g.label}>
+            <ul class="sitefooter__list" role="list">
+              {g.items.map((item) => (
+                <li>
+                  <a
+                    class="sitefooter__link"
+                    href={item.url || '#'}
+                    target={item.target || undefined}
+                    rel={linkRel(item)}
+                    aria-current={isCurrent(item.url, current) ? 'page' : undefined}
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+      </div>
+    )
+  }
+  <p class="sitefooter__copy">&copy; {year} {name}</p>
+</footer>

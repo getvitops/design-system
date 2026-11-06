@@ -18,7 +18,11 @@ import { getViteConfig } from 'astro/config';
 // whole bridge; Vitest reads `test` off the resolved config at runtime.
 export default getViteConfig({
   test: {
-    include: ['src/components/container.test.ts', 'src/components/head.container-test.ts'],
+    include: [
+      'src/components/container.test.ts',
+      'src/components/head.container-test.ts',
+      'src/components/sitenav.container-test.ts',
+    ],
     environment: 'node',
   },
 } as Parameters<typeof getViteConfig>[0]);

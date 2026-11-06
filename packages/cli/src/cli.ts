@@ -17,6 +17,7 @@
  *   vitops setup     repo | hosting | domain | search | ads | all [--dry] [--check]
  *   vitops email     setup [domain] [--dry] [--check]  |  check [--strict] [--skip]
  *   vitops media     [--raw <dir>] [--out <dir>] [--force] [--dry]
+ *   vitops audit     [--url <base>] [--build] [--pages <list>] [--warn] [--out <dir>]
  *
  * Thin wrapper over @getvitops/generator (generation) and @getvitops/utils (favicons).
  * Every client brings their own consumer-editable design-system.json.
@@ -111,6 +112,7 @@ import {
 } from './commands/shared.ts';
 import { cmdSearch } from './commands/search.ts';
 import { cmdAds } from './commands/ads.ts';
+import { cmdAudit } from './commands/audit.ts';
 import { cmdCrm } from './commands/crm.ts';
 import { cmdEmail } from './commands/email.ts';
 import { cmdSetup } from './commands/setup.ts';
@@ -1243,6 +1245,8 @@ async function main() {
       return cmdSetup(rest);
     case 'media':
       return cmdMedia(rest);
+    case 'audit':
+      return cmdAudit(rest);
     default:
       fail(`unknown command "${command}" (expected: ${COMMANDS.join(' | ')}). Try: vitops --help`);
   }

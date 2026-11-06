@@ -3,6 +3,9 @@ import VitopsHead from '@getvitops/astro/Head.astro';
 import { resolveOrganizationName } from '@getvitops/astro/routes';
 import { getMenu, getSiteSettings } from 'emdash';
 import { createPublicPageContext } from 'emdash/page';
+import SiteFooter from '@getvitops/astro/components/SiteFooter.astro';
+import SiteNav from '@getvitops/astro/components/SiteNav.astro';
+import { loadNavMenus } from '@getvitops/astro/components/sitenav.ts';
 import { EmDashHead } from 'emdash/ui';
 import config from '../../site.json' with { type: 'json' };
 // Design-system CSS, layout-scoped (vitops css.inject: false): only pages
@@ -42,18 +45,18 @@ const pageCtx = createPublicPageContext({
   siteName: siteTitle,
 });
 
-// Editor-managed navigation (seeded as "primary" and "footer"; edit under
-// Menus in the admin). Falls back to a bare home link if the menu is deleted.
-const menu = await getMenu('primary');
-const navLinks = menu?.items?.length
-  ? menu.items.map((item) => ({ label: item.label, href: item.url ?? '/' }))
-  : [{ label: 'Home', href: '/' }];
-const footerMenu = await getMenu('footer');
-const footerLinks = (footerMenu?.items ?? []).map((item) => ({
-  label: item.label,
-  href: item.url ?? '/',
-}));
-const year = new Date().getFullYear();
+// Editor-managed navigation, read from EmDash menus (edit under Menus in the admin):
+//   `primary`         header nav (the logo is the home link, so it holds no Home item).
+//                     Nested items become dropdowns; an item's `titleAttr` is its description.
+//   `primary-mobile`  OPTIONAL — a simpler depth-1 nav that replaces `primary` below `md`.
+//   `primary-mega`    OPTIONAL — a mega menu that replaces `primary` from `xl`.
+//   `footer-sitemap`, `footer-legal`  footer columns.
+// Variants need no code change: create the menu and <SiteNav> picks it up. A missing menu
+// renders nothing rather than failing (a fresh DB before the seed has applied).
+const nav = await loadNavMenus(getMenu);
+const footerSitemap = await getMenu('footer-sitemap');
+const footerLegal = await getMenu('footer-legal');
+const orgName = config.organization?.name || siteTitle;
 ---
 
 <!doctype html>
@@ -75,17 +78,10 @@ const year = new Date().getFullYear();
           <span class="brand-mark" set:html={logo} aria-hidden="true" />
           <span class="font-heading">{siteTitle}</span>
         </a>
-        <nav aria-label="Primary">
-          <ul class="nav-items justify-center">
-            {
-              navLinks.map((link) => (
-                <li>
-                  <a href={link.href}>{link.label}</a>
-                </li>
-              ))
-            }
-          </ul>
-        </nav>
+        <div class="header-end flex items-center">
+          <SiteNav {...nav} />
+          <wc-color-scheme-toggle></wc-color-scheme-toggle>
+        </div>
       </div>
     </header>
 
@@ -93,24 +89,7 @@ const year = new Date().getFullYear();
       <slot />
     </main>
 
-    <footer class="centered">
-      {
-        footerLinks.length > 0 && (
-          <nav aria-label="Footer">
-            <ul class="nav-items justify-center">
-              {footerLinks.map((link) => (
-                <li>
-                  <a class="font-caption" href={link.href}>
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )
-      }
-      <p class="font-caption text-neutral-muted">© {year} {siteTitle}</p>
-    </footer>
+    <SiteFooter class="centered" sitemap={footerSitemap} legal={footerLegal} name={orgName} />
 
     <style>
       .brand {
@@ -129,10 +108,8 @@ const year = new Date().getFullYear();
         block-size: 64px;
       }
 
-      footer {
-        margin-block-start: var(--space-2xl);
-        padding-block: var(--space-l);
-        border-block-start: 1px solid var(--color-border-neutral);
+      .header-end {
+        gap: var(--space-s, 0.75rem);
       }
     </style>
   </body>
