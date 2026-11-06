@@ -130,6 +130,13 @@ async function until(check, what, timeoutMs = 60_000) {
   }
 }
 
+/** The root-installed Verdaccio's executable, or null when this checkout has not installed it. */
+function findInstalledVerdaccio() {
+  // By path, not `require.resolve`: its `exports` map hides `package.json`.
+  const bin = join(ROOT, 'node_modules', 'verdaccio', 'bin', 'verdaccio');
+  return existsSync(bin) ? bin : null;
+}
+
 /**
  * Install and start a Verdaccio that serves `@getvitops/*` from local storage only and proxies
  * everything else to npmjs. Returns its URL, an npmrc that can publish to it, and a `stop()`.
@@ -137,12 +144,18 @@ async function until(check, what, timeoutMs = 60_000) {
 async function startRegistry(work) {
   const tools = join(work, 'verdaccio');
   mkdirSync(tools);
-  const install = run(
-    'npm',
-    ['install', '--prefix', tools, VERDACCIO, '--no-audit', '--no-fund', '--ignore-scripts'],
-    { cwd: work },
-  );
-  if (!install.ok) throw new Error(`could not install ${VERDACCIO}`);
+  // Verdaccio is a root devDependency, so the usual run needs no network install. The pinned
+  // `npm install` below is the fallback for a checkout whose dependencies are not installed.
+  let bin = findInstalledVerdaccio();
+  if (!bin) {
+    const install = run(
+      'npm',
+      ['install', '--prefix', tools, VERDACCIO, '--no-audit', '--no-fund', '--ignore-scripts'],
+      { cwd: work },
+    );
+    if (!install.ok) throw new Error(`could not install ${VERDACCIO}`);
+    bin = join(tools, 'node_modules', 'verdaccio', 'bin', 'verdaccio');
+  }
 
   const port = await freePort();
   const url = `http://127.0.0.1:${port}`;
@@ -173,13 +186,7 @@ async function startRegistry(work) {
 
   const child = spawn(
     process.execPath,
-    [
-      join(tools, 'node_modules', 'verdaccio', 'bin', 'verdaccio'),
-      '--config',
-      config,
-      '--listen',
-      `127.0.0.1:${port}`,
-    ],
+    [bin, '--config', config, '--listen', `127.0.0.1:${port}`],
     { cwd: tools, stdio: ['ignore', 'inherit', 'inherit'] },
   );
   const stop = () => {

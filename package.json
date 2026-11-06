@@ -15,6 +15,7 @@
     "happy-dom": "catalog:",
     "publint": "catalog:",
     "typescript": "catalog:",
+    "verdaccio": "catalog:",
     "vite-plus": "catalog:",
     "vitest": "catalog:"
   },

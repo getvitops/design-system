@@ -58,8 +58,14 @@ describe.each(templateNames)('template %s', (name) => {
     // the day it was written and silently is not any more — the emdash
     // template shipped `@getvitops/astro: ^0.7.0` through the whole 1.0
     // release, scaffolding projects a full major behind. `latest` is correct
-    // here precisely because these move in lockstep with each other.
-    const ours = deps.filter(([dep]) => dep.startsWith('@getvitops/'));
+    // here precisely because these move in lockstep with each other. `emdash` and
+    // `@emdash-cms/*` are held to the same rule: the template's cooldown already
+    // exempts them, and `@getvitops/emdash` peers on a range of them, so a stale pin
+    // is how the scaffold drifts a minor behind the plugin that targets it.
+    const ours = deps.filter(
+      ([dep]) =>
+        dep.startsWith('@getvitops/') || dep === 'emdash' || dep.startsWith('@emdash-cms/'),
+    );
     expect(ours.length).toBeGreaterThan(0);
     for (const [, range] of ours) expect(range).toBe('latest');
   });

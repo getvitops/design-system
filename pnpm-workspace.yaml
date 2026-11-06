@@ -68,6 +68,7 @@ catalog:
   vite: npm:@voidzero-dev/vite-plus-core@1.4.0
   # Pinned exact, not ^, for the same reason as @vitest/coverage-v8 above: vite-plus
   # bundles this version internally and refuses to start on a mismatch.
+  verdaccio: 7.0.2
   vitest: 5.0.5
   vite-plus: 1.4.0
   wrangler: ^4.111.0
