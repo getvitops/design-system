@@ -604,7 +604,7 @@ const PlanSchema = z.strictObject({
  * anything without a registered template. Add a member here and a matching entry
  * in `legal/templates/index.ts` — the two are checked against each other.
  */
-export const JURISDICTIONS = ['ca'] as const;
+export const JURISDICTIONS = ['ca', 'qc'] as const;
 const JurisdictionSchema = z.enum(JURISDICTIONS);
 export type Jurisdiction = (typeof JURISDICTIONS)[number];
 
@@ -623,6 +623,9 @@ export type Jurisdiction = (typeof JURISDICTIONS)[number];
  */
 export const JURISDICTION_COUNTRIES = {
   ca: 'Canada',
+  // Not a country: Law 25 frames transfers as leaving *Quebec*, so a provider
+  // holding data elsewhere in Canada is a transfer for this template set.
+  qc: 'Quebec',
 } satisfies Record<Jurisdiction, string>;
 
 /**
@@ -853,6 +856,14 @@ const SiteSectionSchema = z.strictObject({
             privacyOfficer: desc(
               z.optional(ContactConfigSchema),
               'Who privacy requests go to. Falls back to `contact`, then `primaryLocation`.',
+            ),
+            privacyOfficerTitle: desc(
+              z.optional(z.string()),
+              'Title of the person in charge of the protection of personal information (e.g. "President"). Quebec Law 25 requires the title and contact details to be published; the `qc` templates print it beside the `privacyOfficer` contact. Not asserted when absent.',
+            ),
+            impactAssessments: desc(
+              z.optional(z.boolean()),
+              'Attests that a privacy impact assessment is carried out before personal information is communicated outside Quebec (Law 25, s. 17). The `qc` privacy policy states that assurance only when this is `true` — a fact the config cannot otherwise know, so it is never assumed.',
             ),
             retention: desc(
               z.optional(z.string()),

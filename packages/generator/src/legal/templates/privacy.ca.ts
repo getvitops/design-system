@@ -18,6 +18,7 @@
 // `list` is a formatting helper, the same class as `bullets` — the connectives
 // ("including", "in the case of") stay in the prose below, where they belong.
 import { list, type PolicyVars } from '../derive.ts';
+import { caslSection } from './casl.ts';
 import { bullets, REVIEW_NOTICE, updatedLine } from './shared.ts';
 
 export function privacyCa(v: PolicyVars): string {
@@ -89,7 +90,7 @@ Business reserves the right to transfer personal information in the event that w
 ### Your Choices
 
 ${bullets(v.optOutOptions)}
-
+${caslSection(v)}
 ### How We Protect Personal Information
 
 The security of your personal information is important to us. We protect your personal information in our control through appropriate security safeguards against loss, theft, unauthorized access, disclosure, copying, use or modification. These safeguards include physical measures (such as locked filing cabinets), organizational measures (such as employee training and restricted access), and technological measures (such as encryption and passwords). Personal information may be accessed by persons within our organization who require such access to carry out the purposes described in this Privacy Policy, or such other purposes as permitted or required by law. Personal information we collect is maintained with the source of the information at ${v.url}.

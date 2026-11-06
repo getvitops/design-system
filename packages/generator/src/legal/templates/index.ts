@@ -13,8 +13,11 @@
 import type { Jurisdiction } from '../../config.ts';
 import type { PolicyVars } from '../derive.ts';
 import { cookiesCa } from './cookies.ca.ts';
+import { cookiesQc } from './cookies.qc.ts';
 import { privacyCa } from './privacy.ca.ts';
+import { privacyQc } from './privacy.qc.ts';
 import { termsCa } from './terms.ca.ts';
+import { termsQc } from './terms.qc.ts';
 
 export type LegalDoc = 'privacy' | 'terms' | 'cookies';
 
@@ -22,6 +25,7 @@ export type DocSet = Record<LegalDoc, (v: PolicyVars) => string>;
 
 export const TEMPLATES = {
   ca: { privacy: privacyCa, terms: termsCa, cookies: cookiesCa },
+  qc: { privacy: privacyQc, terms: termsQc, cookies: cookiesQc },
 } satisfies Record<Jurisdiction, DocSet>;
 
 /** Stable output order, independent of which docs a given config enables. */
