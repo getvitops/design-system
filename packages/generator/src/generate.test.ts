@@ -296,11 +296,18 @@ describe('typography role keys', () => {
     return seen.filter((w) => w.includes('typography.roles'));
   };
 
-  it('warns on the short forms, naming the real key', () => {
-    const warnings = warningsFor(withRole({ transform: 'uppercase', decoration: 'underline' }));
-    expect(warnings).toHaveLength(2);
-    expect(warnings.join('\n')).toContain('"text-transform"');
-    expect(warnings.join('\n')).toContain('"text-decoration"');
+  it('accepts the short forms as aliases and emits the canonical declaration', () => {
+    const ds = withRole({ transform: 'uppercase', decoration: 'underline' });
+    expect(warningsFor(ds)).toEqual([]);
+    const css = build(ds, 'css', '/nonexistent-assets').generated['typography.css'] ?? '';
+    expect(css).toMatch(/\.font-eyebrow[^}]*text-transform: var\(--eyebrow-tt, uppercase\)/);
+    expect(css).toMatch(/\.font-eyebrow[^}]*text-decoration: var\(--eyebrow-td, underline\)/);
+  });
+
+  it('prefers the canonical key when both spellings are present', () => {
+    const ds = withRole({ transform: 'uppercase', 'text-transform': 'capitalize' });
+    const css = build(ds, 'css', '/nonexistent-assets').generated['typography.css'] ?? '';
+    expect(css).toContain('--eyebrow-tt, capitalize');
   });
 
   it('lists the recognised keys for a key it has no suggestion for', () => {

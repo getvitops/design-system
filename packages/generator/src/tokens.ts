@@ -41,7 +41,14 @@ import {
   pickOn,
   tintedEndpoints,
 } from '@getvitops/utils/color';
-import { BASE_HOOK, TYPO_KEYMAP, type RoleSpec, roleHue, roleKind } from './shared.ts';
+import {
+  BASE_HOOK,
+  LAYOUT_TOKENS,
+  TYPO_KEYMAP,
+  type RoleSpec,
+  roleHue,
+  roleKind,
+} from './shared.ts';
 import type { DesignSystem } from './schema.ts';
 
 export const NUMERIC_STEPS = [
@@ -218,9 +225,15 @@ export function expandPalette(raw: Record<string, unknown>): Record<string, Expa
  */
 const LADDER_TOLERANCE = 0.03;
 
-export function ladderWarnings(palette: Record<string, ExpandedHue>): string[] {
+export function ladderWarnings(
+  palette: Record<string, ExpandedHue>,
+  /** The authored palette, to honour a hue's `acknowledgeOffLadder: true`. */
+  authored: Record<string, unknown> = {},
+): string[] {
   const warnings: string[] = [];
   for (const [hue, expanded] of Object.entries(palette)) {
+    if ((authored[hue] as { acknowledgeOffLadder?: boolean } | undefined)?.acknowledgeOffLadder)
+      continue;
     for (const [step, deviation] of Object.entries(expanded.deviations ?? {})) {
       if (Math.abs(deviation as number) <= LADDER_TOLERANCE) continue;
       const dir = (deviation as number) > 0 ? 'lighter' : 'darker';
@@ -228,7 +241,8 @@ export function ladderWarnings(palette: Record<string, ExpandedHue>): string[] {
         `colors.palette.${hue}: the colour pinned at step ${step} is ${Math.abs(
           deviation as number,
         ).toFixed(3)} ${dir} than the shared lightness ladder — this hue will read ` +
-          `${dir} than others at ${step}. Legal, but move it to a neighbouring step if that wasn't intended.`,
+          `${dir} than others at ${step}. Legal, but move it to a neighbouring step if that wasn't intended ` +
+          `(or set \`acknowledgeOffLadder: true\` on the hue to silence this).`,
       );
     }
   }
@@ -423,6 +437,7 @@ export function functionalRole(
   hueName: string,
   hue: ExpandedHue,
   kind: RoleKind = 'chromatic',
+  opts: { solid?: string; foreground?: 'light' | 'dark' } = {},
 ): FunctionalRole {
   const numeric = hue.numeric;
   const v = (n: NumStep) => `var(--color-${hueName}-${snap(numeric, n)})`;
@@ -436,8 +451,21 @@ export function functionalRole(
 
   // Solids and the foreground computed against them are identical in both
   // appearances — that mode-stability is the whole point of the family.
-  const solids = map(SOLID);
-  const onSolid = pickOn(hex(SOLID['bg-solid'] as NumStep));
+  //
+  // A role may name its own solid step (a bright brand colour that lives at 400,
+  // not 600). The family then walks DARKER from it — bold, x-bold — by ladder
+  // position, so 400 → 500 → 600 as the default is 600 → 700 → 800. And
+  // `foreground` pins the polarity of the on-colour (dark text on a bright fill);
+  // `checkContrast` still judges the pair actually emitted.
+  const solidStep = (opts.solid ?? SOLID['bg-solid']) as NumStep;
+  const at = NUMERIC_STEPS.indexOf(solidStep);
+  const stepAt = (i: number) => NUMERIC_STEPS[Math.min(i, NUMERIC_STEPS.length - 1)] as NumStep;
+  const solids = map({
+    'bg-solid': solidStep,
+    'bg-solid-bold': stepAt(at + 1),
+    'bg-solid-x-bold': stepAt(at + 2),
+  });
+  const onSolid = pickOn(hex(solidStep), undefined, opts.foreground);
 
   const light = {
     ...map(kind === 'surface' ? SURFACE_LIGHT : CHROMATIC_LIGHT),
@@ -481,6 +509,8 @@ export function checkContrast(
   fr: FunctionalRole,
   numericOf: (hueName: string) => Partial<Record<NumStep, string>>,
   surfaceBg?: { light: string[]; dark: string[] },
+  /** Appearances to judge; a dark-only site passes `['dark']`. Default: both. */
+  appearances: readonly ('light' | 'dark')[] = ['light', 'dark'],
 ): string[] {
   const failures: string[] = [];
   const resolve = (val: string): string => {
@@ -495,6 +525,7 @@ export function checkContrast(
     ['light', fr.light],
     ['dark', fr.dark],
   ] as const) {
+    if (!appearances.includes(appearance)) continue;
     // Backgrounds this role's own foregrounds have to work on. For a surface
     // role that's its own planes; for a chromatic role it's the page surface
     // plus its own tints.
@@ -635,6 +666,9 @@ export function buildReverseIndex(ds: Pick<DesignSystem, 'colors' | 'typography'
   for (const role of Object.keys(typoRoles))
     for (const [key, [, sfx]] of Object.entries(TYPO_KEYMAP))
       reverseIndex[`--${role}-${sfx}`] = `typography.roles.${role}.${key}`;
+
+  // Same mapping as generate.ts: layout tokens are always indexed, set or not.
+  for (const [path, token] of Object.entries(LAYOUT_TOKENS)) reverseIndex[token] = `layout.${path}`;
 
   const pDefaults = ds.patterns?.defaults ?? {};
   const pRadii = ds.patterns?.radii ?? {};

@@ -145,8 +145,8 @@ describe('format spelling, both directions', () => {
   });
 
   it('still sees through non-container variants in every format', () => {
-    // `hover:` is real everywhere — only the `@`-prefixed form is format-specific.
-    expect(judge(`hover:bg-${hue}-d`, v, 'css')?.reason).toContain('not a step');
+    // Still judged in css (now reported as the wrong-format variant first).
+    expect(judge(`hover:bg-${hue}-d`, v, 'css')?.severity).toBe('error');
   });
 
   it('marks everything it already reported as an error, not a suggestion', () => {
@@ -154,5 +154,25 @@ describe('format spelling, both directions', () => {
     // "this resolves to nothing", which must keep failing the command.
     for (const cls of [`bg-${hue}-d`, 'md-flex-row'])
       expect(judge(cls, v, 'tailwind')?.severity, cls).toBe('error');
+  });
+});
+
+describe('state-variant spelling', () => {
+  it('flags colon state variants on framework classes in css and bricks', () => {
+    for (const format of ['css', 'bricks'] as const) {
+      const f = judge(`hover:bg-${role}-muted`, v, format);
+      expect(f?.severity).toBe('error');
+      expect(f?.reason).toContain('tailwind-format');
+    }
+  });
+
+  it('leaves them alone in tailwind and on non-framework classes', () => {
+    expect(judge(`hover:bg-${role}-muted`, v, 'tailwind')).toBeNull();
+    expect(judge('hover:my-own-thing', v, 'css')).toBeNull();
+  });
+
+  it('flags the wrong-format responsive spelling both ways for a split', () => {
+    expect(judge('md-split-1-2', v, 'tailwind')?.suggestion).toContain('@md:split-1-2');
+    expect(judge('@md:split-1-2', v, 'css')?.suggestion).toBe('md-split-1-2');
   });
 });

@@ -103,7 +103,26 @@ export const ROLE_TOKEN_KEYS: readonly string[] = [
 // `kind` admits an explicit `undefined` because the repo runs
 // `exactOptionalPropertyTypes` and the zod-inferred config type spells optionals
 // that way — without it every call site would need a cast.
-export type RoleSpec = string | { hue: string; kind?: 'surface' | 'chromatic' | undefined };
+export interface RoleSpecObject {
+  hue: string;
+  kind?: 'surface' | 'chromatic' | undefined;
+  /** Ramp step the solid family starts from (default 600). */
+  solid?: number | string | undefined;
+  /** Polarity of `text-on-<role>`; absent = whichever has more contrast. */
+  foreground?: 'light' | 'dark' | undefined;
+}
+export type RoleSpec = string | RoleSpecObject;
+
+/** The solid step / foreground polarity a role asked for (both optional). */
+export const roleSolidOptions = (
+  spec: RoleSpec,
+): { solid?: string; foreground?: 'light' | 'dark' } =>
+  typeof spec === 'string'
+    ? {}
+    : {
+        ...(spec.solid != null ? { solid: String(spec.solid) } : {}),
+        ...(spec.foreground ? { foreground: spec.foreground } : {}),
+      };
 
 /** The palette hue a role points at, through either authoring form. */
 export const roleHue = (spec: RoleSpec): string => (typeof spec === 'string' ? spec : spec.hue);
@@ -226,3 +245,40 @@ export const TW_CLASH: ReadonlySet<string> = new Set<string>([
   'rounded-none',
   'rounded-full',
 ]);
+
+/**
+ * `layout` config key → the custom property it sets. The one table both the
+ * emitters (css/bricks/tailwind) and the live-editor manifest's `reverseIndex`
+ * read, so a token that is emitted is always one the editor can write back.
+ */
+export const LAYOUT_TOKENS: Record<string, string> = {
+  'widths.measure': '--width-measure',
+  'widths.breakout': '--width-breakout',
+  'widths.spotlight': '--width-spotlight',
+  'widths.nav': '--width-nav',
+  'regionSpace.min': '--region-space-min',
+  'regionSpace.preferred': '--region-space',
+  'regionSpace.max': '--region-space-max',
+};
+
+/**
+ * The `:root` declarations for an authored `layout` block (only what was set —
+ * an absent key leaves the framework's own default in force), keyed by the
+ * custom property.
+ */
+export function layoutDecls(
+  layout:
+    | {
+        widths?: Record<string, string | undefined> | undefined;
+        regionSpace?: Record<string, string | undefined> | undefined;
+      }
+    | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [path, token] of Object.entries(LAYOUT_TOKENS)) {
+    const [group, key] = path.split('.') as ['widths' | 'regionSpace', string];
+    const value = layout?.[group]?.[key];
+    if (value != null) out[token] = value;
+  }
+  return out;
+}

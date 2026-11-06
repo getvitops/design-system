@@ -788,6 +788,23 @@ function generatorAssetsDir(): string {
 const AGENTS_START = '<!-- vitops:start -->';
 const AGENTS_END = '<!-- vitops:end -->';
 
+/**
+ * Input path for the read-only commands (`docs`, `lint`) when `-i` is absent.
+ *
+ * `site.json` is the file `vitops init --site` and every scaffold write, so it
+ * is the default; a bare `design-system.json` is the fallback for projects that
+ * keep tokens on their own. An explicit `-i` is never second-guessed. If
+ * neither exists the legacy name is returned so the "config not found" message
+ * names a path a reader recognises.
+ */
+function defaultDesignInput(argv: string[], value: string): string {
+  const explicit = argv.some((a) => a === '-i' || a === '--input' || a.startsWith('--input='));
+  if (explicit) return value;
+  for (const name of ['site.json', 'design-system.json'])
+    if (existsSync(resolve(name))) return name;
+  return value;
+}
+
 /** Print a live reference doc (rendered from the project's config) to stdout. */
 async function cmdDocs(argv: string[]) {
   const { values, positionals } = parseArgs({
@@ -816,7 +833,10 @@ async function cmdDocs(argv: string[]) {
   const docs = names.every((n) => TOPICS[n]!.external)
     ? {}
     : generateDocs(
-        loadDesignSystem(resolve(values.input as string), values.theme as string | undefined),
+        loadDesignSystem(
+          resolve(defaultDesignInput(argv, values.input as string)),
+          values.theme as string | undefined,
+        ),
         generatorAssetsDir(),
       );
   const parts: string[] = [];
@@ -880,7 +900,10 @@ function cmdLint(argv: string[]) {
   const format = values.format as StylesheetFormat;
   if (!LINT_FORMATS.has(format))
     fail(`unknown format "${format}" (expected: bricks | css | tailwind)`);
-  const ds = loadDesignSystem(resolve(values.input as string), values.theme as string | undefined);
+  const ds = loadDesignSystem(
+    resolve(defaultDesignInput(argv, values.input as string)),
+    values.theme as string | undefined,
+  );
   const srcDir = resolve(values.src as string);
   if (!positionals.length && !existsSync(srcDir)) fail(`source directory not found: ${srcDir}`);
 

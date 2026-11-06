@@ -14,6 +14,7 @@ import { desc } from '@getvitops/config';
 import * as z from '@zod/mini';
 import { REQUIRED_ROLES, type RoleSpec, roleHue } from './shared.ts';
 import { tokenRefIssues } from './token-refs.ts';
+import { NUMERIC_STEPS } from './tokens.ts';
 
 /**
  * Attach a JSON-Schema `description`. zod/mini has no `.describe()` method; the
@@ -30,6 +31,13 @@ const CssDecls = desc(
 const Scalar = z.union([z.string(), z.number()]);
 const VarMap = z.record(z.string(), Scalar);
 
+const AckOffLadder = z.optional(
+  desc(
+    z.boolean(),
+    'Acknowledge that this hue deliberately pins colours off the shared lightness ladder (typically to match an existing brand palette exactly). Silences the per-step "off the ladder" build warnings for THIS hue only; the monotonicity and contrast checks still run.',
+  ),
+);
+
 // ── colors ──────────────────────────────────────────────────────────────────
 const SeededRamp = desc(
   z.strictObject({
@@ -43,6 +51,7 @@ const SeededRamp = desc(
         'Step → colour overrides (hex or oklch()) pinned VERBATIM at those steps. Every other step takes its lightness from the shared ladder, with chroma and hue interpolated between the anchors — so an anchor is reproduced exactly and is the only step allowed off the ladder. An explicit anchor overrides the seed at that step; two anchors that resolve to the same step are an error.',
       ),
     ),
+    acknowledgeOffLadder: AckOffLadder,
   }),
   'Seeded hue: the 11-step scale is GENERATED in OKLCH from `seed` (anchors pin specific steps).',
 );
@@ -52,6 +61,7 @@ const FixedRamp = desc(
       z.union([z.array(z.string()), z.record(z.string(), z.string())]),
       'Fixed brand kit: authored tones placed verbatim at their nearest steps plus tinted off-white/off-black endpoints; no interpolation. Either an ordered light → dark array or a step → colour map.',
     ),
+    acknowledgeOffLadder: AckOffLadder,
   }),
   'Fixed hue: authored brand tones used verbatim; no generation.',
 );
@@ -75,6 +85,18 @@ const RoleSpecSchema = z.union([
         '`surface` — a page/panel colour: gets a bare `bg-<role>` plus the full emphasis range and text scale. `chromatic` (default) — a signal colour: tints and solids only, no bare `bg-<role>`.',
       ),
     ),
+    solid: z.optional(
+      desc(
+        z.union([z.number(), z.string()]),
+        "Ramp step (100…900) the role's solid family starts from; default 600. `bg-<role>-solid` is this step and `-solid-bold` / `-solid-x-bold` walk one and two rungs DARKER, so `solid: 400` gives 400 → 500 → 600. Use it when the brand colour is bright and lives lower on the ramp (a yellow at 400) instead of reaching for raw `bg-<hue>-<step>` classes. Like the default family it is the same in light and dark. The contrast check still runs on the pair this produces.",
+      ),
+    ),
+    foreground: z.optional(
+      desc(
+        z.enum(['light', 'dark']),
+        'Polarity of `text-on-<role>`, the foreground for a filled surface. Default is whichever of near-white / near-black has more contrast on the solid. Set `"dark"` so a bright fill carries dark text (or `"light"` for the reverse). The build still fails if the forced pair is below APCA Lc 60.',
+      ),
+    ),
   }),
 ]);
 
@@ -88,7 +110,7 @@ const Colors = desc(
     ),
     roles: desc(
       z.record(z.string(), RoleSpecSchema),
-      `Maps semantic role names onto palette hues. Role names are ARBITRARY — add a key and the generator emits that role's token set (\`--color-<target>-<role>[-<variant>]\` for target bg/text/icon/border), its dark-mode flip and its utility classes.\n\nA value is either a hue name (\`"danger": "rust"\`) or \`{ "hue": …, "kind": "surface" | "chromatic" }\`. **The kind decides the shape of the token set.** \`chromatic\` (the default, and what the bare-string form means) is a signal colour: its backgrounds split into tints (\`bg-<role>-x-muted\`/\`-muted\`) and solids (\`bg-<role>-solid[-bold|-x-bold]\`), with deliberately **no bare \`bg-<role>\`** — "how loud?" is a question the author answers. \`surface\` is a page/panel colour: it has a bare \`bg-<role>\` plus the full emphasis range and text scale.\n\nDark mode flips automatically; there is no per-appearance scheme grammar. The solid family and its computed \`text-on-<role>\` foreground stay mode-stable so a filled button keeps its identity. Six roles are a required core, because the shipped framework CSS references them with no fallback: ${REQUIRED_ROLES.join(', ')}. Conventional additions are ui-secondary/accent, brand-secondary, info and success.`,
+      `Maps semantic role names onto palette hues. Role names are ARBITRARY — add a key and the generator emits that role's token set (\`--color-<target>-<role>[-<variant>]\` for target bg/text/icon/border), its dark-mode flip and its utility classes.\n\nA value is either a hue name (\`"danger": "rust"\`) or \`{ "hue": …, "kind": "surface" | "chromatic" }\`. **The kind decides the shape of the token set.** \`chromatic\` (the default, and what the bare-string form means) is a signal colour: its backgrounds split into tints (\`bg-<role>-x-muted\`/\`-muted\`) and solids (\`bg-<role>-solid[-bold|-x-bold]\`), with deliberately **no bare \`bg-<role>\`** — "how loud?" is a question the author answers. \`surface\` is a page/panel colour: it has a bare \`bg-<role>\` plus the full emphasis range and text scale.\n\nDark mode flips automatically; there is no per-appearance scheme grammar. The solid family and its computed \`text-on-<role>\` foreground stay mode-stable so a filled button keeps its identity. \n\n**Contrast is enforced at build time, in both appearances** (APCA Lc): body text ≥ 75, secondary and muted text (\`text-muted\`) ≥ **60 against the page plane** it sits on, icons and guaranteed boundaries ≥ 45, and \`text-on-<role>\` ≥ 60 on the role's solid. So a mockup's muted grey that lands near Lc 57 fails the build — lighten the anchor on a dark page (or darken it on a light one) until it clears 60. \`text-x-muted\`/\`text-xx-muted\` are exempt (placeholders, disabled). A role can move its fill off the default step 600 with \`solid\`, and pin the polarity of its on-colour with \`foreground\`; a dark-only site (\`defaultColorScheme: "dark"\`) is only checked in dark. Six roles are a required core, because the shipped framework CSS references them with no fallback: ${REQUIRED_ROLES.join(', ')}. Conventional additions are ui-secondary/accent, brand-secondary, info and success.`,
     ),
     utilities: z.optional(
       desc(
@@ -99,6 +121,18 @@ const Colors = desc(
   }),
   'The colour system (the only required section): `palette` hues become generated OKLCH scales; `roles` map semantic roles onto those hues, from which all role tokens and dark mode derive.',
 );
+
+const Shadow = z.union([
+  z.string(),
+  z.strictObject({
+    box: z.optional(
+      desc(z.string(), '`box-shadow` value: spread, `inset` and multiple layers allowed.'),
+    ),
+    drop: z.optional(
+      desc(z.string(), '`drop-shadow()` value: one layer, at most three lengths, no `inset`.'),
+    ),
+  }),
+]);
 
 // ── fluid modular scale (type + space) ──────────────────────────────────────
 const Scale = z.strictObject({
@@ -197,7 +231,7 @@ const Patterns = desc(
 // ── typography ──────────────────────────────────────────────────────────────
 const TypographyRole = desc(
   z.record(z.string(), Scalar),
-  'A bag of CSS-ish keys, each mapped to a declaration plus a `--<role>-<sfx>` override hook. The recognised set is **closed**: `family`, `size`, `weight`, `style`, `line-height`, `tracking` (→ `letter-spacing`), `text-transform`, `text-decoration`, `text-wrap`, `color`. Note the last four are spelled with their full CSS property names — `transform` and `decoration` are NOT accepted. Anything unrecognised is **ignored**, not passed through, so the generator warns rather than emitting it: a silently-dropped `transform: uppercase` is how title-case navigation reaches production. Note also that `style`, `text-transform`, `text-decoration` and `text-wrap` are emitted on **every** role at their identity value (`normal`/`none`/`none`/`wrap`) whether declared or not, so applying one role class over another fully resets it — which means **omitting `text-wrap` is not "inherit"**: it emits `text-wrap: wrap` and cancels the `pretty` the role would otherwise inherit from a `pretty` ancestor such as a `body`-mapped role. Declare it on every role — `balance` for heading-like roles, `pretty` for copy, `wrap` for short single-line labels.',
+  'A bag of CSS-ish keys, each mapped to a declaration plus a `--<role>-<sfx>` override hook. The recognised set is **closed**: `family`, `size`, `weight`, `style`, `line-height`, `tracking` (→ `letter-spacing`), `text-transform`, `text-decoration`, `text-wrap`, `color`. The canonical spellings of the last four are their full CSS property names (`text-transform`, `text-decoration`, …); `transform` and `decoration` are accepted as aliases of the first two and normalised to them. Anything unrecognised is **ignored**, not passed through, so the generator warns rather than emitting it: a silently-dropped key (a typo for `text-transform`, say) is how title-case navigation reaches production. Note also that `style`, `text-transform`, `text-decoration` and `text-wrap` are emitted on **every** role at their identity value (`normal`/`none`/`none`/`wrap`) whether declared or not, so applying one role class over another fully resets it — which means **omitting `text-wrap` is not "inherit"**: it emits `text-wrap: wrap` and cancels the `pretty` the role would otherwise inherit from a `pretty` ancestor such as a `body`-mapped role. Declare it on every role — `balance` for heading-like roles, `pretty` for copy, `wrap` for short single-line labels.',
 );
 const Typography = desc(
   z.strictObject({
@@ -259,6 +293,43 @@ const Animations = desc(
   'Animation effect + journey classes (pure value layers). The animation engine itself — keyframes, drivers, floats, utilities — is static framework CSS, not configured here.',
 );
 
+// ── layout ──────────────────────────────────────────────────────────────────
+const Length = z.string();
+const Layout = desc(
+  z.strictObject({
+    widths: z.optional(
+      desc(
+        z.strictObject({
+          measure: z.optional(
+            desc(Length, 'Reading column → `--width-measure` (framework default 65ch).'),
+          ),
+          breakout: z.optional(
+            desc(Length, '`.breakout` track → `--width-breakout` (default 90ch).'),
+          ),
+          spotlight: z.optional(
+            desc(Length, '`.spotlight` track → `--width-spotlight` (default 120ch).'),
+          ),
+          nav: z.optional(
+            desc(Length, 'Navigation column beside content → `--width-nav` (default 16rem).'),
+          ),
+        }),
+        'Content track widths for `.centered`. In `ch` so the reading measure stays character-based; keep measure ≤ breakout ≤ spotlight.',
+      ),
+    ),
+    regionSpace: z.optional(
+      desc(
+        z.strictObject({
+          min: z.optional(desc(Length, 'Floor → `--region-space-min` (default 3rem).')),
+          preferred: z.optional(desc(Length, 'Preferred value → `--region-space` (default 8vh).')),
+          max: z.optional(desc(Length, 'Ceiling → `--region-space-max` (default 8rem).')),
+        }),
+        'Vertical padding of `.region`: `padding-block: clamp(min, preferred, max)`.',
+      ),
+    ),
+  }),
+  'Optional layout tokens. Each key you set is emitted as a `:root` custom property (css, bricks and tailwind formats); each you omit keeps the framework default. Lets the live editor tune widths and region spacing instead of a hand-written override stylesheet.',
+);
+
 // ── the design system ───────────────────────────────────────────────────────
 export const DesignSystemSchema = z.strictObject({
   $schema: desc(
@@ -282,8 +353,8 @@ export const DesignSystemSchema = z.strictObject({
   ),
   colors: Colors,
   shadows: desc(
-    z.optional(z.record(z.string(), z.string())),
-    'Named shadows → `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Values are shadow parameter lists (offset/blur/colour). Each token feeds two consumers with different grammars — `box-shadow` (pattern geometry, via the `--ds-*` group aliases) and `filter: drop-shadow(…)` (the utilities and the `shadow:` state shortcut) — so values must stay in the intersection: **one layer, no spread radius, no `inset`**. `drop-shadow()` rejects all three, and rejecting them invalidates the whole filter, so the shadow vanishes rather than degrading.',
+    z.optional(z.record(z.string(), Shadow)),
+    'Named shadows → `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. A value is either a string (below) or `{ "box"?: string, "drop"?: string }` for a shadow that needs the two grammars to differ: `box` is what `--shadow-<name>` holds and what `box-shadow` consumers (pattern geometry, `--ds-*`) read, so it MAY use spread, `inset` and several layers; `drop` is emitted as `--shadow-<name>-drop` and is what `.drop-shadow-<name>` and the `shadow:` state shortcut read, so it must obey the drop-shadow() limits. Omit `drop` and no drop-shadow utility is emitted for that name; omit `box` and `--shadow-<name>` takes the `drop` value. The plain string form keeps working and feeds both consumers from one value. For that string form: each token feeds two consumers with different grammars — `box-shadow` (pattern geometry, via the `--ds-*` group aliases) and `filter: drop-shadow(…)` (the utilities and the `shadow:` state shortcut) — so values must stay in the intersection: **one layer, no spread radius, no `inset`**. `drop-shadow()` rejects all three, and rejecting them invalidates the whole filter, so the shadow vanishes rather than degrading.',
   ),
   fonts: desc(
     z.optional(z.record(z.string(), z.string())),
@@ -291,8 +362,9 @@ export const DesignSystemSchema = z.strictObject({
   ),
   typeScale: desc(
     z.optional(Scale),
-    'Fluid modular TYPE scale → `--text-<name>` tokens, consumed by typography roles and text-size utilities.',
+    'Fluid modular TYPE scale → `--text-<name>` tokens, consumed by typography roles and text-size utilities.\n\n**Recipe for marketing headings:** one ratio cannot serve both a ~16px body and a ~76px hero — a ratio big enough for the hero collapses the small end to unreadable. Extend `names` upward instead of raising the ratio: keep `base` ≈ "1rem" at the body step, `ratio` ≈ 1.2 at `maxVw` (≈ 1.125–1.15 `minRatio` at `minVw` so headings tame on phones), and add names (`4xl`, `5xl`) for the display sizes — the steps above `baseStep` are what headings read, the steps below it only need `xs`/`sm`. Aim the largest named step at your hero (≈ 4.5–5rem at `maxVw`), then point the `display`/`title` roles at those steps rather than hand-writing `clamp()` in a role. If a step still needs its own value, set that role\'s `size` literally — roles may bypass the scale.',
   ),
+  layout: z.optional(Layout),
   spaceScale: desc(
     z.optional(Scale),
     'Fluid modular SPACE scale → `--space-<name>` tokens, consumed by spacing/gap utilities and vertical rhythm.',
@@ -399,7 +471,7 @@ export type ValidationResult =
   | { ok: true; data: DesignSystem; errors: []; warnings: string[] }
   | { ok: false; data: undefined; errors: z.core.$ZodIssue[]; warnings: string[] };
 
-const RAMP_KEYS = new Set(['seed', 'anchors', 'tones']);
+const RAMP_KEYS = new Set(['seed', 'anchors', 'tones', 'acknowledgeOffLadder']);
 
 /**
  * Replace the bare "Invalid input" a failed union produces with the reason.
@@ -479,6 +551,24 @@ export function validate(input: unknown): ValidationResult {
       };
     }
   }
+  for (const [role, spec] of Object.entries(roles)) {
+    if (typeof spec === 'string' || spec.solid == null) continue;
+    const step = String(spec.solid);
+    // 50 and 950 leave no room for the two darker rungs; 100…900 is the usable range.
+    if (!(NUMERIC_STEPS as readonly string[]).includes(step) || step === '50' || step === '950')
+      return {
+        ok: false,
+        data: undefined,
+        errors: [
+          {
+            code: 'custom',
+            path: ['colors', 'roles', role, 'solid'],
+            message: `solid step "${step}" is not one of 100, 200, … 900`,
+          } as z.core.$ZodIssue,
+        ],
+        warnings: [],
+      };
+  }
   const warnings: string[] = [];
   // Role names are arbitrary — but the shipped component CSS is written against
   // a core set, and references them with no fallback. Omitting one doesn't fail
@@ -505,7 +595,22 @@ export function validate(input: unknown): ValidationResult {
         `patterns.radii.${name} collides with the "${name}" pattern on --br-${name}; ` +
           `the pattern's override hook wins — rename the radius`,
       );
-  for (const [name, value] of Object.entries(result.data.shadows ?? {})) {
+  for (const [name, spec] of Object.entries(result.data.shadows ?? {})) {
+    if (typeof spec !== 'string' && spec.box == null && spec.drop == null)
+      return {
+        ok: false,
+        data: undefined,
+        errors: [
+          {
+            code: 'custom',
+            path: ['shadows', name],
+            message: 'a split shadow needs at least one of `box` and `drop`',
+          } as z.core.$ZodIssue,
+        ],
+        warnings: [],
+      };
+    const value = typeof spec === 'string' ? spec : spec.drop;
+    if (value == null) continue;
     const issue = dropShadowIssue(value);
     if (issue)
       warnings.push(

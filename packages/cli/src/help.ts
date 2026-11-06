@@ -86,7 +86,8 @@ Agents options:
 Docs options:
   <topic>               classes | authoring | formats | color | scales | patterns | elements
                         (no topic: list topics with summaries)
-  -i, --input <path>    design-system.json or site config (default: ./design-system.json)
+  -i, --input <path>    site config or design-system.json (default: ./site.json, else
+                        ./design-system.json)
       --theme <name>    Theme to render docs from, when --input is a site config
       --all             Print every topic, concatenated
 
@@ -99,7 +100,8 @@ Icons options:
       --json            Machine-readable report on stdout
 
 Lint options:
-  -i, --input <path>    design-system.json or site config (default: ./design-system.json)
+  -i, --input <path>    site config or design-system.json (default: ./site.json, else
+                        ./design-system.json)
       --theme <name>    Theme to judge classes against, when --input is a site config
   -f, --format <fmt>    Format you build (bricks | css | tailwind; default: bricks).
                         Responsive md-* classes are real in css/bricks, inert in tailwind.

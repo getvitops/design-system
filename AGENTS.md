@@ -501,9 +501,11 @@ Four things here are load-bearing:
 - **`JURISDICTIONS` in `config.ts` and `TEMPLATES` in `legal/templates/index.ts` are checked
   against each other** by `satisfies`. Adding a jurisdiction is: author three templates, add
   one enum member, add one registry key — skip either and it fails to compile rather than
-  rendering against the wrong body of law. Only `ca` (PIPEDA) ships; its prose names the
-  Office of the Privacy Commissioner of Canada and frames transfers as "outside of Canada",
-  so do not reuse it elsewhere.
+  rendering against the wrong body of law. `ca` (PIPEDA) and `qc` (Quebec Law 25) ship. The
+  `ca` prose names the Office of the Privacy Commissioner of Canada and frames transfers as
+  "outside of Canada", so do not reuse it elsewhere; `qc` is its own text (Commission d'accès
+  à l'information, transfers "outside Quebec") and carries a second review banner naming
+  counsel review, the person in charge of privacy and French availability.
 
 Delivery is one renderer, four consumers — the CLI is the load-bearing one, because it is the
 surface every consumer has regardless of stack:
