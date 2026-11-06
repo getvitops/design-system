@@ -50,6 +50,10 @@
       "types": "./dist/reviews/index.d.mts",
       "import": "./dist/reviews/index.mjs"
     },
+    "./reviews/select": {
+      "types": "./dist/reviews/select.d.mts",
+      "import": "./dist/reviews/select.mjs"
+    },
     "./ads": {
       "types": "./dist/ads/index.d.mts",
       "import": "./dist/ads/index.mjs"

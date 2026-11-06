@@ -1,0 +1,85 @@
+---
+/**
+ * An EmDash menu inside page content — a site map, a section's link list, a set of footer-style
+ * columns. **Not the site header:** that is `<SiteNav>` in the layout, which owns the drawer,
+ * the dropdowns and the breakpoints. The `sitenav` variant exists for the rare page that wants
+ * that navbar in the body, and renders `<SiteNav>` itself rather than a copy of it.
+ *
+ * Tier-3, no runtime JS. The menu is fetched with EmDash's `getMenu()` at render time (so at
+ * build time on a prerendered page). **A missing menu, an empty one, or a name that is not a
+ * slug renders nothing** — never an error; a deleted menu must not take the page down.
+ *
+ * Accessibility: a `<nav>` landmark with a name that is unique on the page — the header is
+ * "Primary" and the footer "Site map" / "Legal", so `navLabel()` never hands this block one of
+ * those — and `aria-current="page"` on the current item. An optional visible heading is a real
+ * heading at the editor's `level` (default `h2`), kept outside the `<nav>` so the landmark's
+ * name is the `aria-label`, not a duplicate of the heading text.
+ *
+ * The menu-tree helpers (`trimDepth`, `isCurrent`, `linkRel`) are `@getvitops/astro`'s
+ * `sitenav.ts`; only the selection rules live in `nav.ts`.
+ */
+import { getMenu } from 'emdash';
+import SiteNav from '@getvitops/astro/components/SiteNav.astro';
+import { menuItems, trimDepth } from '@getvitops/astro/components/sitenav.ts';
+import NavTree from './NavTree.astro';
+import { menuName, navDepth, navId, navLabel, navVariant } from './nav.ts';
+import { joinStyle, resolveTone } from './tone.ts';
+import { headingTag, resolveBlockValue, text } from './value.ts';
+
+interface Value {
+  _key?: string;
+  menu?: string;
+  label?: string;
+  heading?: string;
+  level?: string | number;
+  variant?: string;
+  depth?: string | number;
+  tone?: string;
+  color?: string;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const name = menuName(value.menu);
+let menu: Awaited<ReturnType<typeof getMenu>> = null;
+if (name) {
+  try {
+    menu = await getMenu(name);
+  } catch {
+    // No database or request context: the same quiet nothing as a missing menu.
+    menu = null;
+  }
+}
+
+const variant = navVariant(value.variant);
+const depth = navDepth(value.depth);
+const items = menuItems(menu);
+const label = navLabel(value.label, value.heading, menu?.label, name ?? '');
+const heading = text(value.heading);
+const Heading = headingTag(value.level, 2);
+const tone = resolveTone(value.tone, value.color);
+const toned = Boolean(value.tone || value.color);
+const trimmed = trimDepth(items, depth);
+const current = Astro.url.pathname;
+---
+
+{
+  items.length > 0 && (
+    <div
+      class:list={['navblock', toned && tone.className]}
+      style={toned ? joinStyle(tone.style) : undefined}
+    >
+      {heading && <Heading class="font-heading">{heading}</Heading>}
+      {variant === 'sitenav' ? (
+        <SiteNav primary={trimmed} label={label} depth={depth} id={navId(value._key, name ?? '')} />
+      ) : (
+        <nav aria-label={label}>
+          <NavTree
+            items={trimmed}
+            current={current}
+            modifiers={variant === 'list' ? [] : [`navlist--${variant}`]}
+          />
+        </nav>
+      )}
+    </div>
+  )
+}

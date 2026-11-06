@@ -42,6 +42,9 @@ export type PortableTextBlockDef = Omit<PortableTextBlockConfig, 'fields'> & {
 /** Route that fills every tone select with the site's own roles — see `index.ts`. */
 export const TONES_ROUTE = 'tones/list';
 
+/** Route that lists the site's EmDash menus for `vitops.nav`'s `menu` select — see `menus-route.ts`. */
+export const MENUS_ROUTE = 'menus/list';
+
 /**
  * The tone options an editor can always pick, before the site adds its own roles.
  * Static because Block Kit needs a non-empty `options` list even when `optionsRoute` is set
@@ -746,6 +749,148 @@ export const BLOCKS: PortableTextBlockDef[] = [
         ],
       },
       { type: 'text_input', action_id: 'ratio', label: 'Aspect ratio', initial_value: '16 / 9' },
+    ],
+  },
+  {
+    /**
+     * Google reviews from the committed `.vitops/reviews.json` cache (`vitops reviews`).
+     *
+     * The data is a BUILD-TIME import (`virtual:getvitops/reviews`, from the `vitops()` Astro
+     * integration), never a filesystem read: the renderer runs in a Worker. So a new review
+     * appears after the next `vitops reviews` run is committed and the site rebuilt, not when
+     * an editor saves. Which reviews show is `selectReviews()` from `@getvitops/utils`, the
+     * one place that is decided — these fields are exactly its `ReviewLocationConfig`.
+     */
+    type: 'vitops.reviews',
+    label: 'Google reviews',
+    icon: 'star',
+    placeholder: 'Customer reviews from the Google Business Profile cache',
+    category: 'Sections',
+    fields: [
+      {
+        type: 'text_input',
+        action_id: 'label',
+        label: 'Name for the group (read by screen readers)',
+        initial_value: 'Customer reviews',
+      },
+      {
+        type: 'text_input',
+        action_id: 'location',
+        label: 'Location key (organization.locations key; blank = every location in the cache)',
+      },
+      {
+        type: 'select',
+        action_id: 'layout',
+        label: 'Layout',
+        initial_value: 'grid',
+        options: [
+          { label: 'Grid', value: 'grid' },
+          { label: 'Carousel', value: 'carousel' },
+          { label: 'Marquee (scrolling row)', value: 'marquee' },
+        ],
+      },
+      {
+        type: 'select',
+        action_id: 'columns',
+        label: 'Columns (grid only)',
+        initial_value: '3',
+        options: ['1', '2', '3', '4'].map((n) => ({ label: n, value: n })),
+      },
+      {
+        type: 'number_input',
+        action_id: 'limit',
+        label: 'Most reviews to show (0 = all)',
+        initial_value: 6,
+      },
+      {
+        type: 'select',
+        action_id: 'minRating',
+        label: 'Lowest rating to show',
+        initial_value: '4',
+        options: ['1', '2', '3', '4', '5'].map((n) => ({
+          label: n === '1' ? 'Any' : `${n} stars and up`,
+          value: n,
+        })),
+      },
+      {
+        type: 'select',
+        action_id: 'sort',
+        label: 'Order',
+        initial_value: 'recent',
+        options: [
+          { label: 'Newest first', value: 'recent' },
+          { label: 'Highest rated first', value: 'rating' },
+        ],
+      },
+      {
+        type: 'text_input',
+        action_id: 'featured',
+        label: 'Review ids to show first (comma-separated; they ignore the rating filter)',
+      },
+      {
+        type: 'toggle',
+        action_id: 'avatars',
+        label: "Show reviewers' Google photos (loads images from Google for every visitor)",
+        initial_value: false,
+      },
+      ...toneFields(),
+    ],
+  },
+  {
+    /**
+     * A named EmDash menu inside page content: a site map, a section's link list, a footer-style
+     * set of columns. NOT the header — that is `<SiteNav>` in the layout, which owns the drawer,
+     * dropdowns and breakpoints. `variant: sitenav` renders the same markup and pattern for the
+     * rare page that wants a real navbar in the body.
+     *
+     * The menu is chosen from `menus/list` (the site's own menus) with the conventional names as
+     * the static fallback, because a select needs a non-empty `options` list.
+     */
+    type: 'vitops.nav',
+    label: 'Menu',
+    icon: 'list',
+    placeholder: 'An EmDash menu as a list of links',
+    category: 'Navigation',
+    fields: [
+      {
+        type: 'select',
+        action_id: 'menu',
+        label: 'Menu',
+        initial_value: 'footer-sitemap',
+        options: [
+          { label: 'Footer site map', value: 'footer-sitemap' },
+          { label: 'Footer legal', value: 'footer-legal' },
+          { label: 'Primary', value: 'primary' },
+        ],
+        optionsRoute: MENUS_ROUTE,
+      } as BlockKitFieldDef,
+      {
+        type: 'text_input',
+        action_id: 'label',
+        label: 'Name for the navigation (read by screen readers; must differ from other menus)',
+      },
+      { type: 'text_input', action_id: 'heading', label: 'Visible heading (optional)' },
+      levelField('2'),
+      {
+        type: 'select',
+        action_id: 'variant',
+        label: 'Layout',
+        initial_value: 'list',
+        options: [
+          { label: 'Vertical list', value: 'list' },
+          { label: 'Inline row', value: 'inline' },
+          { label: 'Columns (each top-level item with its sub-links)', value: 'columns' },
+          { label: 'Navbar (the header pattern, in the page)', value: 'sitenav' },
+        ],
+      },
+      {
+        type: 'select',
+        action_id: 'depth',
+        label: 'Levels to show',
+        initial_value: '1',
+        options: ['1', '2', '3'].map((n) => ({ label: n, value: n })),
+      },
+      ...toneFields(),
     ],
   },
 ];

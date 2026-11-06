@@ -16,6 +16,7 @@ const WORKER_ENTRIES = [
   'schema/index.ts',
   'git/index.ts',
   'url/index.ts',
+  'reviews/select.ts',
   'content.ts',
 ];
 
