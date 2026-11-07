@@ -110,6 +110,8 @@ export interface VitopsPluginOptions {
    * Also the theme `<wc-theme-editor>`'s **Save to source** writes back into.
    */
   theme?: string;
+  /** `tailwind` format only: `@source` paths for packages whose renderers use classes (see `GenerateOptions.sources`). */
+  sources?: string[];
   /** Output target. Default: 'tailwind' (the EmDash/Astro case). */
   format?: Format;
   /** Directory to write generated output into. Default: 'src/styles'. */
@@ -220,6 +222,7 @@ export default function vitops(options: VitopsPluginOptions = {}): Plugin {
       outDir,
       ...(options.theme != null ? { theme: options.theme } : {}),
       siteEnv: options.site?.siteEnv ?? 'production',
+      ...(options.sources?.length ? { sources: options.sources } : {}),
       ...(options.systemColorScheme != null
         ? { systemColorScheme: options.systemColorScheme }
         : {}),

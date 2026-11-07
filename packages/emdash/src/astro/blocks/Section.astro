@@ -30,6 +30,7 @@ interface Value {
   tone?: string;
   color?: string;
   solid?: boolean;
+  theme?: string;
 }
 
 const WIDTHS: Record<string, string> = {
@@ -44,24 +45,21 @@ const heading = text(value.heading);
 const sub = text(value.sub);
 const body = Array.isArray(value.body) ? value.body : [];
 const Heading = headingTag(value.level, 2);
-const tone = resolveTone(value.tone, value.color);
+// `theme` is one pick for the common case: `<role>` tints, `<role>:solid` fills. It wins over the
+// older `tone`/`color`/`solid` fields, which stay for content that already uses them.
+const [themeRole, themeFill] = text(value.theme).replace(/^none$/, '').split(':');
+const tone = themeRole ? resolveTone(themeRole) : resolveTone(value.tone, value.color);
+const solid = themeRole ? themeFill === 'solid' : Boolean(value.solid);
 const layout = text(value.layout);
 const width = WIDTHS[text(value.width)];
 const hasHead = Boolean(kicker || heading || sub);
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
   (hasHead || body.length > 0) && (
     <section
-      class:list={[
-        'section',
-        'region',
-        tone.style && tone.className,
-        tone.style && value.solid && 'tone--solid',
-        layout === 'split' && 'section--split',
-        layout === 'center' && 'section--center',
-      ]}
-      style={joinStyle(tone.style)}
+      {...rootAttrs(value, ['section', 'region', tone.style && tone.className, tone.style && solid && 'tone--solid', layout === 'split' && 'section--split', layout === 'center' && 'section--center'], joinStyle(tone.style))}
     >
       <div class="centered">
         <div class:list={['section__inner', width]}>

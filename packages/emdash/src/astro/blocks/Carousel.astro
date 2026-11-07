@@ -39,6 +39,7 @@ const slides = fromRepeater.length > 0 ? fromRepeater : fromLegacy;
 // Two blocks with the same label would derive the same id; `_key` is unique per block.
 const id = value._key ? `carousel-${value._key.replace(/[^a-z0-9_-]/gi, '')}` : undefined;
 const autoplay = Number(value.autoplay) || 0;
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
@@ -50,6 +51,7 @@ const autoplay = Number(value.autoplay) || 0;
       aspect={value.aspect || '16 / 9'}
       slides={slides}
       id={id}
+      {...rootAttrs(value)}
     />
   )
 }

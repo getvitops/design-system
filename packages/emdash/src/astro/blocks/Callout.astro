@@ -33,18 +33,13 @@ const secondaryHref = safeHref(value.secondaryHref);
 const hasActions = Boolean((primaryLabel && primaryHref) || (secondaryLabel && secondaryHref));
 const Heading = headingTag(value.level, 2);
 const tone = resolveTone(value.tone, value.color);
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
   (heading || body) && (
     <div
-      class:list={[
-        'callout',
-        tone.className,
-        value.solid && 'tone--solid',
-        value.align === 'center' && 'callout--center',
-      ]}
-      style={joinStyle(tone.style)}
+      {...rootAttrs(value, ['callout', tone.className, value.solid && 'tone--solid', value.align === 'center' && 'callout--center'], joinStyle(tone.style))}
     >
       <div class="callout__body">
         {heading && <Heading class="callout__title font-title">{heading}</Heading>}

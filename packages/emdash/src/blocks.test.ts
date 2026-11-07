@@ -100,10 +100,23 @@ describe('block ↔ component agreement', () => {
     async (type, block) => {
       const source = await codeOf(componentFiles[type]!);
       for (const id of actionIds(block.fields ?? [])) {
+        // The escape hatches are applied by rootAttrs in each renderer (see the test below).
+        if (COMMON.has(id)) continue;
         expect(source, `${componentFiles[type]} missing field '${id}'`).toMatch(
           new RegExp(`\\b${id}\\b`),
         );
       }
+    },
+  );
+
+  it.each(BLOCKS.map((b) => b.type))(
+    '%s applies its escape hatches to its own root',
+    async (type) => {
+      // One rule for every block: id/class/style go on the outermost element it renders, via
+      // rootAttrs — never an extra wrapper node, so the DOM shape does not depend on the fields set.
+      const source = await codeOf(componentFiles[type]!);
+      expect(source).toContain('rootAttrs(');
+      expect(source).not.toContain('BlockShell');
     },
   );
 
@@ -114,6 +127,9 @@ describe('block ↔ component agreement', () => {
     }
   });
 });
+
+/** Field ids every block carries and `rootAttrs` applies (see `astro/blocks/attrs.ts`). */
+const COMMON = new Set(['anchor', 'className', 'class_name', 'style']);
 
 describe('blocks ↔ the TIERS manifest', () => {
   // The generator cannot import this package (this one imports it), so the check that
@@ -213,7 +229,7 @@ describe('vitops_section block type', () => {
 
   it('every field slug is consumed by Section.astro, and it renders the body through <PortableText>', async () => {
     const source = await codeOf('src/astro/blocks/Section.astro');
-    for (const f of SECTION_FIELDS)
+    for (const f of SECTION_FIELDS.filter((x) => !COMMON.has(x.slug)))
       expect(source, `Section.astro missing '${f.slug}'`).toMatch(new RegExp(`\\b${f.slug}\\b`));
     expect(source).toContain('<PortableText value={body}');
   });

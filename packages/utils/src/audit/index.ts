@@ -23,13 +23,22 @@ export {
   parseImpacts,
   pathsFromMenus,
   pathsFromSeed,
+  pathsFromSitemapLocs,
   planPages,
   renderMarkdown,
   renderPageMarkdown,
   reportFiles,
+  sitemapLocs,
   unauditedPage,
 } from './plan.ts';
 export type { MenuItemLike, MenuLike, PagePlanInput } from './plan.ts';
-export { isPortFree, runAudit, runCommand, startPreview } from './run.ts';
+export {
+  fetchSitemapPaths,
+  isPortFree,
+  preflight,
+  runAudit,
+  runCommand,
+  startPreview,
+} from './run.ts';
 export type { PreviewServer, RunOptions } from './run.ts';
 export type * from './types.ts';

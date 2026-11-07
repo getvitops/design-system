@@ -36,6 +36,23 @@ const select = (
   validation: { options },
 });
 
+/**
+ * The `theme` select's values: `none`, a role, or `<role>:solid`. Block-type selects are
+ * static, so this lists the roles every site defines; any other site role still works through
+ * the `tone` field. `<role>:solid` is the filled backdrop with the contrast-computed text.
+ */
+export const THEME_ROLES = [
+  'neutral',
+  'surface',
+  'brand-primary',
+  'brand-secondary',
+  'info',
+  'success',
+  'warning',
+  'danger',
+];
+export const THEMES = ['none', ...THEME_ROLES, ...THEME_ROLES.map((r) => `${r}:solid`)];
+
 export const SECTION_FIELDS: BlockFieldDefinition[] = [
   { slug: 'kicker', label: 'Kicker (small line above the heading)', type: 'string' },
   { slug: 'heading', label: 'Heading', type: 'string' },
@@ -55,6 +72,15 @@ export const SECTION_FIELDS: BlockFieldDefinition[] = [
     type: 'string',
   },
   { slug: 'solid', label: 'Fill with the solid colour', type: 'boolean', defaultValue: false },
+  select(
+    'theme',
+    'Theme (backdrop and readable text in one pick; overrides the tone fields)',
+    THEMES,
+    'none',
+  ),
+  { slug: 'anchor', label: 'Anchor id (so a link can point here with #id)', type: 'string' },
+  { slug: 'class_name', label: 'Extra CSS classes', type: 'string' },
+  { slug: 'style', label: 'CSS custom properties, e.g. --p-card: 2rem', type: 'string' },
 ];
 
 /** `vitops.section`: kicker, heading, lead-in, tone/backdrop, optional heading-left layout, and a body of blocks. */

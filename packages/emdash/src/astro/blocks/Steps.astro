@@ -23,13 +23,13 @@ const steps = rows<Record<string, unknown>>(value.steps)
   .filter((step) => step.title || step.text);
 const Heading = headingTag(value.level, 3);
 const tone = resolveTone(value.tone, value.color);
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
   steps.length > 0 && (
     <ol
-      class:list={['steps', tone.className, value.layout === 'row' && 'steps--row']}
-      style={joinStyle(tone.style)}
+      {...rootAttrs(value, ['steps', tone.className, value.layout === 'row' && 'steps--row'], joinStyle(tone.style))}
     >
       {steps.map((step) => (
         <li class="steps__item">

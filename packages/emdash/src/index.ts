@@ -21,7 +21,7 @@
  * ]
  * ```
  */
-import { definePlugin, getMenus } from 'emdash';
+import { definePlugin, getMenus, getWidgetAreas } from 'emdash';
 import type {
   PageFragmentContribution,
   PageFragmentEvent,
@@ -29,7 +29,14 @@ import type {
   PluginContext,
   PluginDescriptor,
 } from 'emdash';
-import { BLOCKS, MENUS_ROUTE, TONES_ROUTE, selectBlocks, type BlockSelection } from './blocks.ts';
+import {
+  BLOCKS,
+  MENUS_ROUTE,
+  TONES_ROUTE,
+  WIDGET_AREAS_ROUTE,
+  selectBlocks,
+  type BlockSelection,
+} from './blocks.ts';
 import { createMenusRoute } from './menus-route.ts';
 import { createTonesRoute, rolesOf } from './tones-route.ts';
 import {
@@ -194,6 +201,8 @@ export function createPlugin(options: VitopsEmdashOptions = {}) {
     routes: {
       [TONES_ROUTE]: createTonesRoute(() => roles),
       [MENUS_ROUTE]: createMenusRoute(() => getMenus()),
+      // Same shape as a menu summary (`name`, `label`), so the same route factory lists areas.
+      [WIDGET_AREAS_ROUTE]: createMenusRoute(() => getWidgetAreas()),
       ...(editor ? { 'design-system': createDesignSystemRoute(editor) } : {}),
     },
   });

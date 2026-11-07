@@ -9,6 +9,7 @@
  */
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import type { LegalOutput, SiteFont, StylesheetFormat } from '@getvitops/generator';
 import { isConfig, renderRobotsTxt, resolveConfig } from '@getvitops/generator';
@@ -40,6 +41,7 @@ import { type GetvitopsAdsOptions, resolveAds } from './ads.ts';
 import { type HeadFont, resolveFonts } from './fonts.ts';
 import { localeConsistencyWarnings } from './i18n.ts';
 import type { GetvitopsSeoOptions } from './seo.ts';
+import { tailwindSources } from './tailwind-sources.ts';
 import { mergeSeoDefaults, resolveSeoDefaults } from './seo-defaults.ts';
 import { TRACKING_ENDPOINT, type GetvitopsTrackingOptions, resolveTracking } from './tracking.ts';
 
@@ -1728,6 +1730,14 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
               ...(opts.site ? { site: opts.site } : {}),
               ...(opts.css.systemColorScheme != null
                 ? { systemColorScheme: opts.css.systemColorScheme }
+                : {}),
+              // Tailwind skips node_modules; name the packages whose renderers use classes.
+              ...(format === 'tailwind'
+                ? {
+                    sources: tailwindSources(resolve(root, out), (pkg) =>
+                      createRequire(resolve(root, 'package.json')).resolve(`${pkg}/package.json`),
+                    ),
+                  }
                 : {}),
             }),
           ];

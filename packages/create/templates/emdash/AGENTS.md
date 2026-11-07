@@ -29,6 +29,22 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
   tiers provide it, and which block renders it. Override a block's rendering per site with
   `<PortableText components={{ type: { 'vitops.cards': MyCards } }} />`; hide one with
   `vitopsEmdash({ blocks: { exclude: [...] } })` in `astro.config.mjs`.
+- **Escape hatches on every block.** Each `vitops.*` block (and the section type) has an
+  `anchor` (becomes the `id`, for `#links`), `className` (extra classes — with the tailwind format
+  only ones the site already uses) and `style` (CSS custom properties only, e.g. `--p-card: 2rem`;
+  anything else is dropped). `vitops_section` also has a `theme`: one pick for a tinted or solid
+  backdrop with readable text. Set `--header-offset` to the sticky header's height so anchors
+  clear it.
+- **`vitops audit`** needs optional packages and a browser, checked before it starts a server:
+  `vp add -D playwright @axe-core/playwright lighthouse && vp exec playwright install chromium`.
+  Its page list is the built sitemap, then the seed's menus.
+- **Section, block or widget area?** Copy-and-edit content is an EmDash Section. The same content
+  everywhere (an announcement bar, a pre-footer call to action, a sidebar, footer columns) is a
+  **widget area**: define it under Widgets in the admin, render it with
+  `<VitopsWidgetArea name="…" />` from `@getvitops/emdash/astro` in the layout, or place it in
+  page content with the `vitops.widgetArea` block. The layout renders `announcement` and
+  `pre-footer`. Page-specific content is blocks. An area cannot hold another area, and prerendered
+  pages show an edit after the next deploy (like menus).
 - `seed/seed.json` only applies against an empty database: structure
   (collections, menus, settings) on first boot; the `content` entries only
   when the setup wizard's "include sample content" option is chosen. Changing

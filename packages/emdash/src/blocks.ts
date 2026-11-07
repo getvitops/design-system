@@ -78,6 +78,33 @@ function toneFields(): BlockKitFieldDef[] {
   ];
 }
 
+/** Route that lists the site's widget areas for `vitops.widgetArea`'s `area` select. */
+export const WIDGET_AREAS_ROUTE = 'widget-areas/list';
+
+/**
+ * The escape hatches every block carries, appended last by `BLOCKS` (see `astro/blocks/attrs.ts`
+ * for how each is validated and why `style` takes custom properties only).
+ */
+export function commonFields(): BlockKitFieldDef[] {
+  return [
+    {
+      type: 'text_input',
+      action_id: 'anchor',
+      label: 'Anchor id (so a link can point here with #id)',
+    },
+    {
+      type: 'text_input',
+      action_id: 'className',
+      label: 'Extra CSS classes (with the tailwind format, only classes the site already uses)',
+    },
+    {
+      type: 'text_input',
+      action_id: 'style',
+      label: 'CSS custom properties, e.g. --p-card: 2rem; --tone-bg: #fee',
+    },
+  ];
+}
+
 /** Heading level for a block's own heading; `h1` is reserved for the page title. */
 const levelField = (initial: string): BlockKitFieldDef => ({
   type: 'select',
@@ -87,7 +114,7 @@ const levelField = (initial: string): BlockKitFieldDef => ({
   options: ['2', '3', '4', '5', '6'].map((n) => ({ label: `h${n}`, value: n })),
 });
 
-export const BLOCKS: PortableTextBlockDef[] = [
+const BASE_BLOCKS: PortableTextBlockDef[] = [
   {
     /**
      * A link or button, optionally with an icon at either end.
@@ -961,7 +988,80 @@ export const BLOCKS: PortableTextBlockDef[] = [
       ...toneFields(),
     ],
   },
+  {
+    /** A row of static labels (`badge`) or editable/dismissable ones (`tag`). */
+    type: 'vitops.badges',
+    label: 'Badges',
+    icon: 'tag',
+    placeholder: 'A row of short labels',
+    fields: [
+      {
+        type: 'repeater',
+        action_id: 'items',
+        label: 'Labels',
+        fields: [
+          { type: 'text_input', action_id: 'label', label: 'Label' },
+          {
+            type: 'select',
+            action_id: 'tone',
+            label: 'Tone (blank uses the block tone)',
+            initial_value: '',
+            options: STATIC_TONE_OPTIONS,
+            optionsRoute: TONES_ROUTE,
+          } as BlockKitFieldDef,
+          { type: 'text_input', action_id: 'color', label: 'Palette colour instead (e.g. amber)' },
+          {
+            type: 'combobox',
+            action_id: 'icon',
+            label: 'Icon before the label',
+            placeholder: 'None',
+            options: SEMANTIC_ICON_OPTIONS,
+          },
+          { type: 'text_input', action_id: 'href', label: 'Link URL (optional)' },
+        ],
+      } as BlockKitFieldDef,
+      {
+        type: 'select',
+        action_id: 'variant',
+        label: 'Style',
+        initial_value: 'badge',
+        options: [
+          { label: 'Badge (static label)', value: 'badge' },
+          { label: 'Tag', value: 'tag' },
+        ],
+      },
+      ...toneFields(),
+    ],
+  },
+  {
+    /**
+     * A widget area: content defined once under Widgets in the admin and shown wherever this
+     * block is placed. Edits reach every page it sits on (after the next build, on a
+     * prerendered site) — unlike a Section, which is copied.
+     */
+    type: 'vitops.widgetArea',
+    label: 'Widget area',
+    icon: 'layout',
+    placeholder: 'Shared content managed under Widgets',
+    fields: [
+      {
+        type: 'select',
+        action_id: 'area',
+        label: 'Widget area',
+        initial_value: '',
+        options: [{ label: 'Choose…', value: '' }],
+        optionsRoute: WIDGET_AREAS_ROUTE,
+      } as BlockKitFieldDef,
+      levelField('3'),
+    ],
+  },
 ];
+
+/** Every block gets the escape hatches last, so the editor reads content first. */
+export const BLOCKS: PortableTextBlockDef[] = BASE_BLOCKS.map((b) => ({
+  ...b,
+  fields: [...(b.fields ?? []), ...commonFields()],
+}));
 
 /** Which Vitops blocks a site's editor offers, and any it adds of its own. */
 export interface BlockSelection {

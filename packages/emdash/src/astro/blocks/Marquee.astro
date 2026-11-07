@@ -21,11 +21,12 @@ const items = rows<Record<string, unknown>>(value.items)
     alt: text(row.alt),
   }))
   .filter((item) => item.text || item.image);
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
   items.length > 0 && (
-    <Marquee pauseOnHover={Boolean(value.pauseOnHover)} reverse={Boolean(value.reverse)}>
+    <Marquee pauseOnHover={Boolean(value.pauseOnHover)} reverse={Boolean(value.reverse)} {...rootAttrs(value)}>
       {items.map((item) =>
         item.image ? (
           <img src={item.image} alt={item.alt} loading="lazy" />

@@ -65,7 +65,7 @@ const STEPS = {
     ['vpr', ['prepare-local-db']],
     ['vpr', ['build'], { capture: true }],
     ['vpr', ['lint:design']],
-    ['vpx', ['emdash', 'seed', '--validate', 'seed/seed.json']],
+    ['vp', ['exec', 'emdash', 'seed', '--validate', 'seed/seed.json']],
   ],
   static: [
     ['vp', ['install']],

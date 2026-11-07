@@ -712,3 +712,20 @@ describe('layout split — knock-on invariants', () => {
     expect(tw, 'and so do its variants').toContain('sticky--bottom');
   });
 });
+
+describe('tailwind `sources`', () => {
+  it('emits one @source per entry, right after the tailwind import', () => {
+    const css = build(ds(), 'tailwind', ASSETS, {
+      sources: ['../../node_modules/@getvitops/emdash/src/astro'],
+    }).tailwind;
+    expect(css).toMatch(
+      /@import "tailwindcss";\n@source "\.\.\/\.\.\/node_modules\/@getvitops\/emdash\/src\/astro";/,
+    );
+  });
+
+  it('emits none when none are given, and the css format ignores them', () => {
+    expect(build(ds(), 'tailwind', ASSETS).tailwind).not.toContain('@source');
+    const css = build(ds(), 'css', ASSETS, { sources: ['x'] });
+    expect(JSON.stringify(css.generated)).not.toContain('@source');
+  });
+});

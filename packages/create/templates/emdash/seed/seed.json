@@ -81,6 +81,48 @@
       ]
     }
   ],
+  "widgetAreas": [
+    {
+      "name": "announcement",
+      "label": "Announcement bar",
+      "description": "Shown above the header on every page. Empty until you add a widget.",
+      "widgets": []
+    },
+    {
+      "name": "pre-footer",
+      "label": "Above the footer",
+      "description": "A call to action shown above the footer on every page (Widgets in the admin).",
+      "widgets": [
+        {
+          "type": "content",
+          "title": "Ready to talk?",
+          "content": [
+            {
+              "_type": "block",
+              "_key": "pf-text",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "pf-text-s",
+                  "text": "Tell us what you need and we will reply within one business day.",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "vitops.actionLink",
+              "_key": "pf-cta",
+              "label": "Contact us",
+              "href": "/contact",
+              "variant": "cta"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "content": {
     "pages": [
       {
@@ -487,10 +529,30 @@
               "heading": "Send us a message",
               "level": "2",
               "fields": [
-                { "label": "Your name", "name": "name", "type": "text", "required": true },
-                { "label": "Email", "name": "email", "type": "email", "required": true },
-                { "label": "Phone", "name": "phone", "type": "tel", "required": false },
-                { "label": "Message", "name": "message", "type": "textarea", "required": true }
+                {
+                  "label": "Your name",
+                  "name": "name",
+                  "type": "text",
+                  "required": true
+                },
+                {
+                  "label": "Email",
+                  "name": "email",
+                  "type": "email",
+                  "required": true
+                },
+                {
+                  "label": "Phone",
+                  "name": "phone",
+                  "type": "tel",
+                  "required": false
+                },
+                {
+                  "label": "Message",
+                  "name": "message",
+                  "type": "textarea",
+                  "required": true
+                }
               ],
               "submitLabel": "Send message",
               "successMessage": "Thanks. Your message has been sent and we will reply soon."

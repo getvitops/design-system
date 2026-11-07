@@ -25,6 +25,7 @@ const images = rows<{ src?: unknown; alt?: unknown; caption?: unknown }>(value.i
     return src ? [{ src, alt: text(row.alt), ...(caption ? { caption } : {}) }] : [];
   },
 );
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
@@ -33,6 +34,7 @@ const images = rows<{ src?: unknown; alt?: unknown; caption?: unknown }>(value.i
       label={text(value.label) || 'Gallery'}
       images={images}
       id={id}
+      {...rootAttrs(value)}
       aspect={text(value.aspect) || undefined}
       loop={Boolean(value.loop)}
     />

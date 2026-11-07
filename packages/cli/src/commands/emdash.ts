@@ -20,7 +20,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
-import { prerenderProblem, PENDING_MIGRATIONS } from '../prerender-check.ts';
+import { missingTypeRoleRules, prerenderProblem, PENDING_MIGRATIONS } from '../prerender-check.ts';
 import { fail } from './shared.ts';
 import { EMDASH_HELP } from '../help.ts';
 
@@ -119,23 +119,35 @@ async function cmdPrepareDb() {
     );
 }
 
-function* htmlFiles(dir: string): Generator<string> {
+function* filesWith(dir: string, ext: string): Generator<string> {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
-    if (entry.isDirectory()) yield* htmlFiles(path);
-    else if (entry.name.endsWith('.html')) yield path;
+    if (entry.isDirectory()) yield* filesWith(path, ext);
+    else if (entry.name.endsWith(ext)) yield path;
   }
 }
+const htmlFiles = (dir: string) => filesWith(dir, '.html');
+const cssFiles = (dir: string) => [...filesWith(dir, '.css')];
 
 function cmdCheckPrerender(argv: string[]) {
   const root = argv.find((a) => !a.startsWith('-')) ?? 'dist/client';
+  const strict = argv.includes('--strict');
   if (!existsSync(root)) fail(`${root} does not exist (run \`astro build\` first).`);
   const bad: string[] = [];
+  const unstyled: string[] = [];
+  const css = cssFiles(root)
+    .map((f) => readFileSync(f, 'utf8'))
+    .join('\n');
   let count = 0;
   for (const file of htmlFiles(root)) {
     count += 1;
-    const why = prerenderProblem(readFileSync(file, 'utf8'));
+    const html = readFileSync(file, 'utf8');
+    const why = prerenderProblem(html);
     if (why) bad.push(`  ${file} ${why}`);
+    else if (css) {
+      const missing = missingTypeRoleRules(html, css);
+      if (missing.length) unstyled.push(`  ${file}: ${missing.join(', ')}`);
+    }
   }
   if (count === 0) fail(`no .html files under ${root}.`);
   if (bad.length)
@@ -144,6 +156,14 @@ function cmdCheckPrerender(argv: string[]) {
         'The local database the build reads is probably unmigrated. Run `vpr prepare-local-db` ' +
         '(it migrates and seeds the local D1 through `astro dev`), then build again.',
     );
+  if (unstyled.length) {
+    const note =
+      `type-role classes with no rule in the built CSS (they render at body size):\n${unstyled.join('\n')}\n\n` +
+      'Tailwind does not scan node_modules. Use @getvitops/astro >= the release that adds the ' +
+      "`@source` lines, or add `@source` for the package that renders them to the site's stylesheet.";
+    if (strict) fail(note);
+    console.warn(`check-prerender: warning: ${note}`);
+  }
   console.log(`check-prerender: ${count} prerendered page(s) look like real pages.`);
 }
 

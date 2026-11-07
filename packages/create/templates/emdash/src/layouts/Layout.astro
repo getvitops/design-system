@@ -7,6 +7,7 @@ import SiteFooter from '@getvitops/astro/components/SiteFooter.astro';
 import SiteNav from '@getvitops/astro/components/SiteNav.astro';
 import { loadNavMenus } from '@getvitops/astro/components/sitenav.ts';
 import { EmDashHead } from 'emdash/ui';
+import { VitopsWidgetArea } from '@getvitops/emdash/astro';
 import config from '../../site.json' with { type: 'json' };
 // Design-system CSS, layout-scoped (vitops css.inject: false): only pages
 // rendered through this layout get it — keeps it out of /_emdash/admin, while
@@ -72,6 +73,8 @@ const orgName = config.organization?.name || siteTitle;
     <VitopsHead />
   </head>
   <body>
+    <!-- Widget areas (Widgets in the admin): the same content wherever they appear. -->
+    <VitopsWidgetArea name="announcement" class="centered" />
     <header class="navbar-sticky centered">
       <div class="navbar">
         <a class="brand flex items-center" href="/" aria-label={`${siteTitle} home`}>
@@ -88,6 +91,8 @@ const orgName = config.organization?.name || siteTitle;
     <main class="centered rhythm">
       <slot />
     </main>
+
+    <VitopsWidgetArea name="pre-footer" class="centered" />
 
     <SiteFooter class="centered" sitemap={footerSitemap} legal={footerLegal} name={orgName} />
 

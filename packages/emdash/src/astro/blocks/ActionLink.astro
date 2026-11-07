@@ -51,12 +51,13 @@ const classes = [variant, role ? `${variant}-${role}` : null, newTab ? 'link--ex
 // Only render when there is somewhere to go and something to read — a bare icon
 // with no label would be an unlabelled link.
 const renderable = Boolean(label && href);
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
   renderable && (
     <a
-      class={classes}
+      {...rootAttrs(value, [classes])}
       href={href}
       {...(newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
       {startIcon && (

@@ -110,12 +110,46 @@ export function pathsFromSeed(seed: unknown): string[] {
   return Array.isArray(menus) ? pathsFromMenus(menus as MenuLike[]) : [];
 }
 
+/** `<loc>` values in a sitemap or sitemap index, in document order. */
+export function sitemapLocs(xml: string): string[] {
+  return [...xml.matchAll(/<loc>\s*([^<\s][^<]*?)\s*<\/loc>/gi)].map((m) =>
+    (m[1] as string).replace(/&amp;/g, '&'),
+  );
+}
+
+/** A `<sitemapindex>` lists other sitemaps, not pages. */
+export const isSitemapIndex = (xml: string) => /<sitemapindex[\s>]/i.test(xml);
+
+/**
+ * The page paths in a sitemap's `<loc>`s. The origin is dropped: a built sitemap names the
+ * production host, and the audit reads the same paths from whatever server it was pointed at.
+ */
+export function pathsFromSitemapLocs(locs: string[]): string[] {
+  const out: string[] = [];
+  for (const loc of locs) {
+    try {
+      const { pathname } = new URL(loc);
+      const path = normalizePath(pathname);
+      if (path && !/\.(xml|txt)$/i.test(pathname)) out.push(path);
+    } catch {
+      /* not a URL */
+    }
+  }
+  return out;
+}
+
 export interface PagePlanInput {
+  /** Paths from the built sitemap. */
+  sitemapPaths?: string[];
   /** Paths found in menus. */
   menuPaths?: string[];
   /** Paths from `--pages`. */
   extra?: string[];
-  /** Default true. `--no-defaults` for a site that wants an exact list. */
+  /**
+   * Default true, but only used when the sitemap and the menus found nothing: guessing
+   * `/privacy`, `/contact`… is the fallback, not an addition to a list the site already gave.
+   * `--no-defaults` for a site that wants an exact list.
+   */
   includeDefaults?: boolean;
 }
 
@@ -130,7 +164,9 @@ export function planPages(input: PagePlanInput = {}): string[] {
     }
   };
   add('/');
-  if (input.includeDefaults !== false) for (const p of DEFAULT_PAGES) add(p);
+  const discovered = (input.sitemapPaths?.length ?? 0) + (input.menuPaths?.length ?? 0) > 0;
+  if (input.includeDefaults !== false && !discovered) for (const p of DEFAULT_PAGES) add(p);
+  for (const p of input.sitemapPaths ?? []) add(p);
   for (const p of input.menuPaths ?? []) add(p);
   for (const p of input.extra ?? []) add(normalizePath(p));
   return out;

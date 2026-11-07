@@ -21,11 +21,12 @@ const items = rows<Record<string, unknown>>(value.items)
   }))
   .filter((item) => item.summary);
 const group = value.exclusive ? `accordion-${value._key ?? 'group'}` : undefined;
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
   items.length > 0 && (
-    <div class="accordion">
+    <div {...rootAttrs(value, ['accordion'])}>
       {items.map((item) => (
         <details name={group} open={item.open}>
           <summary>{item.summary}</summary>

@@ -50,11 +50,12 @@ const panel = value.variant === 'panel';
 const Heading = headingTag(value.level, 3);
 const tone = resolveTone(value.tone, value.color);
 const Grid = panel ? Subgrid : Cards;
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
   cards.length > 0 && (
-    <Grid style={`--subgrid-cols: ${columns}`}>
+    <Grid {...rootAttrs(value, [], `--subgrid-cols: ${columns}`)}>
       {cards.map((card) => (
         <li
           class:list={['card', 'subgrid-card', panel && tone.className]}

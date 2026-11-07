@@ -1,0 +1,91 @@
+---
+/**
+ * A widget area rendered in the framework's vocabulary, in place of `emdash/ui`'s
+ * `<WidgetArea>`: titles at a chosen heading level (the stock one is always `h3`), a menu as a
+ * labelled `<nav>` of `.link`s, content through `<PortableText>` so every `vitops.*` block
+ * works inside it. Renders nothing when the area is missing or empty.
+ *
+ * Two limits, both deliberate:
+ * - **No widget area inside a widget area.** A content widget that held a `vitops.widgetArea`
+ *   block could name its own area and recurse, and a request-scoped depth counter cannot be kept
+ *   honest while Astro streams children, so the block is simply not rendered in here.
+ * - **`component` widgets** (`core:recent-posts`, …) are EmDash's closed map and its renderer is
+ *   not exported, so an area that holds one is handed whole to the stock `<WidgetArea>`.
+ *
+ * Prerendered pages bake the area at build time: an edit in the admin shows after the next deploy.
+ */
+import { getMenu, getWidgetArea } from 'emdash';
+import { PortableText, WidgetArea as StockWidgetArea } from 'emdash/ui';
+import Nothing from './Nothing.astro';
+import { headingTag, safeHref, text } from './blocks/value.ts';
+
+interface Props {
+  /** The area's `name` as set under Widgets. */
+  name: string;
+  /** Level of each widget's title; default `3`. */
+  level?: number | string;
+  class?: string;
+  id?: string;
+  style?: string;
+}
+
+const { name, level, class: className, id, style } = Astro.props;
+const area = name ? await getWidgetArea(name) : null;
+const widgets = area?.widgets ?? [];
+const delegated = widgets.some((w) => w.type === 'component');
+const Heading = headingTag(level, 3);
+const menus = Object.fromEntries(
+  await Promise.all(
+    widgets
+      .filter((w) => w.type === 'menu' && w.menuName)
+      .map(async (w) => [w.id, await getMenu(w.menuName!)] as const),
+  ),
+);
+const inner = { type: { 'vitops.widgetArea': Nothing } };
+---
+
+{
+  widgets.length > 0 && (
+    <div id={id} class:list={['widget-area', className]} style={style} data-widget-area={area?.name}>
+      {delegated ? (
+        <StockWidgetArea name={name} />
+      ) : (
+        <>
+        {widgets.map((widget) => (
+          <section class="widget" data-widget-type={widget.type}>
+            {text(widget.title) && widget.type !== 'menu' && (
+              <Heading class="widget__title font-heading">{widget.title}</Heading>
+            )}
+            {widget.type === 'content' && widget.content && (
+              <div class="widget__content rhythm">
+                <PortableText value={widget.content} components={inner} />
+              </div>
+            )}
+            {widget.type === 'menu' && menus[widget.id] && (
+              <>
+                {text(widget.title) && <Heading class="widget__title font-heading">{widget.title}</Heading>}
+                <nav class="widget__menu" aria-label={text(widget.title) || area?.label}>
+                  <ul role="list">
+                    {menus[widget.id]!.items.map((item) => {
+                      const href = safeHref(item.url);
+                      return (
+                        href && (
+                          <li>
+                            <a class="link" href={href} title={item.titleAttr || undefined}>
+                              {item.label}
+                            </a>
+                          </li>
+                        )
+                      );
+                    })}
+                  </ul>
+                </nav>
+              </>
+            )}
+          </section>
+        ))}
+        </>
+      )}
+    </div>
+  )
+}

@@ -35,14 +35,14 @@ const stats = rows<Record<string, unknown>>(value.stats)
 const tiles = value.variant === 'tiles';
 const animate = value.animate !== false;
 const tone = resolveTone(value.tone, value.color);
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
   stats.length > 0 && (
     <ul
-      class:list={['stats', tone.className, tiles && 'stats--tiles']}
+      {...rootAttrs(value, ['stats', tone.className, tiles && 'stats--tiles'], joinStyle(tone.style))}
       role="list"
-      style={joinStyle(tone.style)}
     >
       {stats.map((stat) => (
         <li class="stats__item" data-state={stat.state}>

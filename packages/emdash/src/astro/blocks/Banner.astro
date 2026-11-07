@@ -10,10 +10,11 @@ interface Value {
 const value = resolveBlockValue<Value>(Astro.props);
 const { message, tone = 'info', dismissible = true } = value;
 const bannerClass = `banner bg-${tone}${dismissible ? ' banner--dismissible' : ''}`;
+import { rootAttrs } from './attrs.ts';
 ---
 
 {message && dismissible && (
-  <wc-dismissable>
+  <wc-dismissable {...rootAttrs(value)}>
     <div class={bannerClass}>
       <div class="banner__content">{message}</div>
       <button class="banner__close" data-dismiss aria-label="Dismiss">✕</button>
@@ -21,7 +22,7 @@ const bannerClass = `banner bg-${tone}${dismissible ? ' banner--dismissible' : '
   </wc-dismissable>
 )}
 {message && !dismissible && (
-  <div class={bannerClass}>
+  <div {...rootAttrs(value, [bannerClass])}>
     <div class="banner__content">{message}</div>
   </div>
 )}

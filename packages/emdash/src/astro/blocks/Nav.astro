@@ -60,13 +60,13 @@ const tone = resolveTone(value.tone, value.color);
 const toned = Boolean(value.tone || value.color);
 const trimmed = trimDepth(items, depth);
 const current = Astro.url.pathname;
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
   items.length > 0 && (
     <div
-      class:list={['navblock', toned && tone.className]}
-      style={toned ? joinStyle(tone.style) : undefined}
+      {...rootAttrs(value, ['navblock', toned && tone.className], toned ? joinStyle(tone.style) : undefined)}
     >
       {heading && <Heading class="font-heading">{heading}</Heading>}
       {variant === 'sitenav' ? (

@@ -1,0 +1,21 @@
+---
+/**
+ * `vitops.widgetArea` — a synced region inside page content: the area is defined once under
+ * Widgets in the admin and every page that places this block shows the same thing. (An EmDash
+ * Section, by contrast, is copied in.) See  `../WidgetArea.astro` for what it renders and why a
+ * widget area cannot hold another. The markup (`.widget-area`) lives there.
+ */
+import WidgetArea from '../WidgetArea.astro';
+import { resolveBlockValue, text } from './value.ts';
+import { rootAttrs } from './attrs.ts';
+
+interface Value {
+  area?: string;
+  level?: string | number;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const name = text(value.area);
+---
+
+{name && <WidgetArea name={name} level={value.level} {...rootAttrs(value, ['widget-area--in-page'])} />}

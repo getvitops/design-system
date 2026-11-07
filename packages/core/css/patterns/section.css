@@ -51,3 +51,11 @@
     align-items: start;
   }
 }
+
+/*
+ * A block given an anchor id (`@getvitops/emdash`'s `anchor` field). The offset keeps the target
+ * clear of a sticky header; set `--header-offset` to the header's height. All formats.
+ */
+.block-anchor {
+  scroll-margin-top: var(--header-offset, 5rem);
+}

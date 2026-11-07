@@ -15,12 +15,22 @@
  * installed system-wide.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { AXE_TAGS, auditedPage, classifyStatus, normalizeImpact, unauditedPage } from './plan.ts';
+import {
+  AXE_TAGS,
+  auditedPage,
+  classifyStatus,
+  isSitemapIndex,
+  normalizeImpact,
+  pathsFromSitemapLocs,
+  sitemapLocs,
+  unauditedPage,
+} from './plan.ts';
 import type { AuditBudgets, AxeViolation, FormFactor, PageMetrics, PageResult } from './types.ts';
 
 const INSTALL =
-  'npm i -D playwright @axe-core/playwright lighthouse && npx playwright install chromium';
+  'vp add -D playwright @axe-core/playwright lighthouse && vp exec playwright install chromium';
 
 /** Load an optional dependency or throw an error that says how to get it. */
 async function loadOptional<T>(name: string): Promise<T> {
@@ -38,6 +48,55 @@ async function loadOptional<T>(name: string): Promise<T> {
       );
     throw err;
   }
+}
+
+/**
+ * Check, before any server starts, that everything the audit needs is there: the three optional
+ * packages and a Chromium binary. A missing browser used to surface only after the preview
+ * server was up, and the failed launch left it running.
+ */
+export async function preflight(): Promise<void> {
+  const pw = await loadOptional<{ chromium: { executablePath(): string } }>('playwright');
+  await loadOptional('@axe-core/playwright');
+  await loadOptional('lighthouse');
+  let exe = '';
+  try {
+    exe = pw.chromium.executablePath();
+  } catch {
+    /* treated as missing below */
+  }
+  if (!exe || !existsSync(exe))
+    throw new Error(
+      'Chromium is not installed for Playwright.\n  Install: vp exec playwright install chromium',
+    );
+}
+
+/**
+ * Page paths from the served site's sitemap (`/sitemap-index.xml`, then `/sitemap.xml`), following
+ * an index one level to its child sitemaps. Empty when the site serves none.
+ */
+export async function fetchSitemapPaths(baseUrl: string): Promise<string[]> {
+  const get = async (path: string): Promise<string | undefined> => {
+    try {
+      const res = await fetch(new URL(path, baseUrl), { redirect: 'follow' });
+      return res.ok ? await res.text() : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  for (const root of ['/sitemap-index.xml', '/sitemap.xml']) {
+    const xml = await get(root);
+    if (!xml) continue;
+    if (!isSitemapIndex(xml)) return pathsFromSitemapLocs(sitemapLocs(xml));
+    const out: string[] = [];
+    for (const loc of sitemapLocs(xml)) {
+      // The index names the production host; read the same file from the server being audited.
+      const child = await get(new URL(loc).pathname);
+      if (child) out.push(...pathsFromSitemapLocs(sitemapLocs(child)));
+    }
+    return out;
+  }
+  return [];
 }
 
 /** A free TCP port, or `true` for "this specific one is free". */
@@ -231,7 +290,7 @@ export async function runAudit(opts: RunOptions): Promise<PageResult[]> {
     });
   } catch (err) {
     throw new Error(
-      `could not launch Chromium: ${(err as Error).message}\n  Install a browser: npx playwright install chromium`,
+      `could not launch Chromium: ${(err as Error).message}\n  Install a browser: vp exec playwright install chromium`,
       { cause: err },
     );
   }

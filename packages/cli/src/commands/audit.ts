@@ -11,6 +11,8 @@ import { dirname, join, resolve } from 'node:path';
 import {
   DEFAULT_BUDGETS,
   buildReport,
+  fetchSitemapPaths,
+  preflight,
   formatSummary,
   parseImpacts,
   pathsFromSeed,
@@ -87,15 +89,6 @@ export async function cmdAudit(argv: string[]): Promise<void> {
     }
   } else if (seedFlag) fail(`audit: seed not found: ${seedPath}`);
 
-  const paths = planPages({
-    menuPaths,
-    extra: (args.opt('pages') ?? '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean),
-    includeDefaults: !args.flag('no-defaults'),
-  });
-
   if (args.flag('build') && !args.opt('url')) {
     console.log('▸ building (astro build)');
     try {
@@ -105,8 +98,25 @@ export async function cmdAudit(argv: string[]): Promise<void> {
     }
   }
 
+  // Missing peers or Chromium fail here, before any server exists to be left running.
+  try {
+    await preflight();
+  } catch (err) {
+    fail(`audit: ${msg(err)}`);
+  }
+
   let server: Awaited<ReturnType<typeof startPreview>> | undefined;
   let baseUrl = args.opt('url');
+  // `fail` and an uncaught throw skip `finally`, and Ctrl+C skips it too: stop the detached
+  // preview on every way out, or the next run aborts with "port already in use".
+  const stopServer = () => server?.stop();
+  const onSignal = (signal: NodeJS.Signals) => {
+    stopServer();
+    process.exit(signal === 'SIGINT' ? 130 : 143);
+  };
+  process.once('SIGINT', onSignal);
+  process.once('SIGTERM', onSignal);
+  process.once('exit', stopServer);
   try {
     if (!baseUrl) {
       const port = num('port', args.opt('port'), DEFAULT_PORT);
@@ -114,6 +124,22 @@ export async function cmdAudit(argv: string[]): Promise<void> {
       server = await startPreview({ cwd: dir, port });
       baseUrl = server.baseUrl;
     }
+    // Planned once the server is up: the built sitemap is the page list when there is one.
+    const sitemapPaths = await fetchSitemapPaths(baseUrl);
+    const paths = planPages({
+      sitemapPaths,
+      menuPaths,
+      extra: (args.opt('pages') ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+      includeDefaults: !args.flag('no-defaults'),
+    });
+    console.log(
+      sitemapPaths.length
+        ? `▸ ${sitemapPaths.length} page(s) from the sitemap`
+        : '▸ no sitemap found; using menus and defaults',
+    );
     console.log(`▸ auditing ${paths.length} candidate page(s) at ${baseUrl} (${formFactor})`);
     const pages = await runAudit({
       baseUrl,

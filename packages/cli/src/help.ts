@@ -391,6 +391,8 @@ Emdash prepare-db options:
 Emdash check-prerender options:
   [dir]   Build output to check (default: dist/client). Fails on a page that carries the
           pending-migrations message, is not an HTML document, or has no <title>.
+  --strict  Also fail (not just warn) when a page uses a type-role class (font-display, …)
+          the built CSS has no rule for.
 
 Email subcommands:
   vitops email setup [domain]  Onboard a from-address domain, waiting for its DNS to resolve
@@ -462,10 +464,12 @@ Audit options:
       --url <base>      Audit an already-running server instead of \`astro preview\`
       --port <n>        Port for \`astro preview\` (default: 4398; aborts if taken)
       --dir <path>      Project directory (default: .)
-      --pages <list>    Extra comma-separated paths. Always tried: / /privacy /terms
-                        /cookies /contact, plus links in seed/seed.json's primary* and
-                        footer* menus. A 404 skips a page; a 404 on / fails the run.
-      --no-defaults     Audit only / and --pages
+      --pages <list>    Extra comma-separated paths. The page list is the built sitemap
+                        plus links in seed/seed.json's primary* and footer* menus; only
+                        when neither exists are / /privacy /terms /cookies /contact
+                        guessed. A 404 skips a page (with its reason in the report); a
+                        404 on / fails the run.
+      --no-defaults     Never guess the default pages
       --seed <path>     EmDash seed to read menus from (default: seed/seed.json if present)
       --lcp <ms>        LCP budget (default: 2500)
       --cls <n>         CLS budget (default: 0.1)
@@ -476,8 +480,8 @@ Audit options:
                         and pages/<page>.{json,md}
       --warn            Report without failing (exit 0), for first adoption
 
-  Needs the optional packages: npm i -D playwright @axe-core/playwright lighthouse
-  && npx playwright install chromium. A pass means no automated axe violations and the
+  Needs the optional packages: vp add -D playwright @axe-core/playwright lighthouse
+  && vp exec playwright install chromium (checked before any server starts). A pass means no automated axe violations and the
   budgets held — it is NOT AODA certification; report.md lists the manual checks.
 
 Common:

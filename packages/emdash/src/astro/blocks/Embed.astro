@@ -33,11 +33,12 @@ const embed = resolveEmbed(value.provider, value.url);
 const category = CATEGORIES.has(text(value.category)) ? text(value.category) : 'marketing';
 // A ratio lands in a style attribute: digits, slash and spaces only.
 const ratio = /^\d+(\.\d+)?\s*\/\s*\d+(\.\d+)?$/.test(text(value.ratio)) ? text(value.ratio) : null;
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
   title && embed && (
-    <div class="embed" style={ratio ? `--embed-ratio: ${ratio}` : undefined}>
+    <div {...rootAttrs(value, ['embed'], ratio ? `--embed-ratio: ${ratio}` : undefined)}>
       <iframe
         class="embed__frame"
         title={title}

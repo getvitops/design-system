@@ -7,6 +7,8 @@
  * `../block-types.ts` (a `blocks` field entry, keyed by slug), for a site to pass to
  * `defineBlockComponents` / `<Blocks components={…}>`. EmDash does not merge it.
  */
+import Badges from './blocks/Badges.astro';
+import WidgetArea from './blocks/WidgetArea.astro';
 import Accordion from './blocks/Accordion.astro';
 import ActionLink from './blocks/ActionLink.astro';
 import Banner from './blocks/Banner.astro';
@@ -52,9 +54,14 @@ export const blockComponents = {
   'vitops.form': Form,
   'vitops.reviews': Reviews,
   'vitops.nav': Nav,
+  'vitops.badges': Badges,
+  'vitops.widgetArea': WidgetArea,
 };
 
 /** Keyed by block-type slug (see `SECTION_SLUG`), not by Portable Text `_type`. */
 export const blockTypeComponents = {
   vitops_section: Section,
 };
+
+/** The framework-styled widget area, for a site layout (the block form is `vitops.widgetArea`). */
+export { default as VitopsWidgetArea } from './WidgetArea.astro';

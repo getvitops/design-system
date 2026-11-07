@@ -57,11 +57,12 @@ const cards = rows<Record<string, unknown>>(value.cards)
     linkLabel: text(row.linkLabel) || 'Learn more',
   }))
   .filter((card) => card.title || card.body);
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
   (heading || body) && (
-    <section class={tone.style ? tone.className : undefined} style={joinStyle(tone.style)}>
+    <section {...rootAttrs(value, [tone.style && tone.className], joinStyle(tone.style))}>
       <div class={split ? 'split split-1-2' : 'centered'}>
         <div class="rhythm">
           {eyebrow && <p class="font-eyebrow">{eyebrow}</p>}

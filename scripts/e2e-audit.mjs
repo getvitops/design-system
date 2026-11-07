@@ -129,7 +129,7 @@ try {
     return r;
   };
   step('vp', ['install']);
-  step('vpx', ['emdash', 'seed', '--validate', 'seed/seed.json']);
+  step('vp', ['exec', 'emdash', 'seed', '--validate', 'seed/seed.json']);
   // The template's own pre-build step: migrates and seeds the LOCAL D1 the build prerenders from.
   step('vpr', ['prepare-local-db']);
   step('vpr', ['build']);

@@ -1148,6 +1148,35 @@ Each review already carries a unique `id` (the GBP review id) and a `location` k
 `getCollection('reviews', ({ data }) => data.location === 'ottawa')` works with no further plumbing.
 Non-Astro consumers read the same JSON directly.
 
+### Block escape hatches and widget areas
+
+Every `vitops.*` block carries `anchor` (an `id`), `className` and `style`, applied by each renderer
+to its **own outermost element** through `rootAttrs()` and validated in `astro/blocks/attrs.ts`.
+There is deliberately no wrapper node: one that appeared only when a field was set would make a
+block's DOM shape depend on content, and break CSS and JS selectors written against it. The one
+nuance is `vitops.cards`, whose default variant is a `<wc-cards>` host and whose attributes go on
+the grid inside it (the panel variant has no host), so they sit on the same element in both. **`style` is
+custom properties only**, and that is the point: `--p-card: 2rem` tunes a hook the design system
+already defines, while a free-form declaration would let one page diverge from the tokens and
+`url(` is a request to wherever an editor points it. **`className` has one caveat**: under the
+`tailwind` format a class typed in the CMS exists only if some source already used it (Tailwind
+scans files, not content); css and bricks ship every class. `vitops_section`'s `theme` is
+`<role>` or `<role>:solid`, mapped onto the existing `tone`/`solid` logic so contrast stays the
+generator's guarantee; `tone`/`color`/`solid` remain because a block-type field cannot be renamed.
+
+**Widget areas** are EmDash's synced regions (an EmDash Section is copied, so later edits do not
+reach earlier uses). `<VitopsWidgetArea>` renders one in the framework's vocabulary — titles at a
+chosen heading level, a menu as a labelled `<nav>` — and the `vitops.widgetArea` block places one
+in content. An area cannot hold another (a request-scoped depth counter cannot be kept honest
+while Astro streams children), and one holding a `core:*` component widget is handed whole to
+EmDash's renderer, whose per-widget renderer is not exported. Prerendered pages bake an area at
+build time, like menus.
+
+The `tailwind` format needs `@source` lines for the packages whose renderers carry classes:
+Tailwind v4 does not scan `node_modules`, so `font-display` (used only by `vitops.stats`) was never
+emitted. The Astro integration passes them (`tailwind-sources.ts` → `generate({ sources })`), and
+`vitops emdash check-prerender` warns when a type-role class has no rule as a backstop.
+
 ## Development
 
 The build system uses `vite-plus` (`vp`), which is a wrapper for common tools for SDLC tasks:

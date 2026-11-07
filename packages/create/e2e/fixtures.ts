@@ -234,6 +234,18 @@ export const FIXTURES: Record<string, BlockFixture> = {
   // One form per page (fixed ids), so this is the only form on `/blocks`. The site.json has no
   // Turnstile key, so no widget or third-party request is part of the audited page.
   'vitops.form': (({ _type: _t, _key: _k, ...fields }) => fields)(SAMPLE_FORM_BLOCK),
+  'vitops.badges': {
+    items: [
+      { label: 'Ottawa', icon: 'location', tone: 'info' },
+      { label: 'Ontario-wide', color: 'amber' },
+      { label: 'Canada-wide' },
+    ],
+    variant: 'badge',
+    anchor: 'e2e-badges',
+  },
+  // The template seed's `pre-footer` area: one content widget, so the page exercises the
+  // framework renderer without needing a second database fixture.
+  'vitops.widgetArea': { area: 'pre-footer', level: '3' },
   'vitops.nav': {
     menu: 'footer-sitemap',
     label: 'Page links',

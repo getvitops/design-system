@@ -9,10 +9,11 @@ interface Value {
 
 const value = resolveBlockValue<Value>(Astro.props);
 const { summary, body, open = false } = value;
+import { rootAttrs } from './attrs.ts';
 ---
 
 {summary && (
-  <details open={open}>
+  <details open={open} {...rootAttrs(value)}>
     <summary>{summary}</summary>
     <p>{body}</p>
   </details>

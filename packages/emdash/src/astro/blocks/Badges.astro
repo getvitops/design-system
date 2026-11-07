@@ -1,0 +1,67 @@
+---
+/**
+ * `vitops.badges` — a row of short labels on the framework's `.badge` (static) or `.tag`
+ * pattern. Each row may carry its own tone, falling back to the block's, which is what lets
+ * one block show a pine label beside an amber one. An icon is child order, not a modifier, and
+ * a row with a `href` becomes a link.
+ */
+import { resolveTone } from './tone.ts';
+import { resolveBlockValue, rows, safeHref, text } from './value.ts';
+import { rootAttrs } from './attrs.ts';
+
+interface Props {
+  /** Base URL of the sprite. Matches VitopsEmdashOptions.wcBase. */
+  spriteBase?: string;
+}
+
+interface Value {
+  items?: unknown;
+  variant?: string;
+  tone?: string;
+  color?: string;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const { spriteBase = '/vitops' } = Astro.props as Props;
+const kind = text(value.variant) === 'tag' ? 'tag' : 'badge';
+const items = rows<Record<string, unknown>>(value.items)
+  .map((row) => {
+    const own = text(row.tone) || text(row.color);
+    const tone = own ? resolveTone(row.tone, row.color) : resolveTone(value.tone, value.color);
+    return {
+      label: text(row.label),
+      icon: /^[a-z0-9-]+$/.test(text(row.icon)) ? text(row.icon) : '',
+      href: safeHref(row.href),
+      tone,
+    };
+  })
+  .filter((item) => item.label);
+---
+
+  {
+    items.length > 0 && (
+      <ul {...rootAttrs(value, ['cluster'])} role="list">
+        {items.map((item) => {
+          const Tag = item.href ? 'a' : 'span';
+          return (
+            <li>
+              <Tag
+                class:list={[kind, item.tone.style && item.tone.className, item.href && 'link']}
+                href={item.href || undefined}
+                style={item.tone.style || undefined}
+              >
+                {item.icon && (
+                  <span class="icon" aria-hidden="true">
+                    <svg>
+                      <use href={`${spriteBase}/icons.svg#icon-${item.icon}`} />
+                    </svg>
+                  </span>
+                )}
+                {item.label}
+              </Tag>
+            </li>
+          );
+        })}
+      </ul>
+    )
+  }

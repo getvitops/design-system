@@ -15,10 +15,11 @@ const { beforeAlt = '', beforeLabel = 'Before', afterAlt = '', afterLabel = 'Aft
 // A `javascript:`/`data:` src is dropped, so the block renders nothing rather than that image.
 const before = safeHref(value.before);
 const after = safeHref(value.after);
+import { rootAttrs } from './attrs.ts';
 ---
 
 {before && after && (
-  <wc-image-compare before-label={beforeLabel} after-label={afterLabel}>
+  <wc-image-compare {...rootAttrs(value)} before-label={beforeLabel} after-label={afterLabel}>
     <img slot="before" src={before} alt={beforeAlt} loading="lazy" />
     <img slot="after" src={after} alt={afterAlt} loading="lazy" />
   </wc-image-compare>

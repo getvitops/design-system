@@ -271,6 +271,7 @@ export const TIERS: Record<string, TierEntry> = {
         'section__body',
         'section--split',
         'section--center',
+        'block-anchor',
       ],
       'patterns/section.css',
     ),
@@ -546,8 +547,14 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<a>` gets it at zero specificity; `.link` for other tags. `.stretched-link` makes one link cover its positioned ancestor (whole-card click, no JS — but the card text stops being selectable); `.raised` lifts content back above that overlay.',
   },
   badge: {
+    emdash: ['vitops.badges'],
     css: c(['badge', 'badge-indicator'], 'patterns/tag.css', true),
     use: '`.badge` — a STATIC label. Use `tag` if it is dismissable or editable.',
+  },
+  'widget-area': {
+    emdash: ['vitops.widgetArea'],
+    css: c(['widget-area', 'widget__title', 'widget__menu'], 'patterns/widget-area.css'),
+    use: 'Editor-managed regions: `<VitopsWidgetArea name="footer-columns" />` (`@getvitops/emdash/astro`) renders an area from Widgets in the admin — titled groups, a menu as a labelled `<nav>`, content as Portable Text. In a page, the `vitops.widgetArea` block places one. An area holding a `core:*` component widget falls back to EmDash\'s own renderer, and an area cannot hold another. Prerendered pages show an edit after the next deploy.',
   },
   tag: {
     css: c(['tag', 'tag__remove', 'tag__icon', 'tag-list'], 'patterns/tag.css', true),

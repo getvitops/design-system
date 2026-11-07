@@ -111,6 +111,14 @@ export interface GenerateOptions {
    * would be out of proportion. Set explicitly, it wins over the site config.
    */
   systemColorScheme?: boolean;
+  /**
+   * `tailwind` format only: directories (or globs) Tailwind should scan for class names, written
+   * as `@source` lines after `@import "tailwindcss"`. Paths are relative to the emitted
+   * `tailwind.css`. Tailwind v4 does not scan `node_modules`, so a utility used only by a package's
+   * own renderer (`font-display` in `vitops.stats`) is otherwise never generated — silently.
+   * Ignored by the css and bricks formats, which ship every framework class.
+   */
+  sources?: string[];
 }
 
 export interface GenerateResult {
@@ -431,6 +439,8 @@ export interface BuildOptions {
    * Off by default, because turning it on flips a site dark for dark-OS users.
    */
   systemColorScheme?: boolean;
+  /** `GenerateOptions.sources` — `@source` lines for the tailwind format. */
+  sources?: string[];
   /**
    * A dark-only site (`designSystem.defaultColorScheme: "dark"`): the dark
    * appearance IS the `:root` appearance, no light block or flip is emitted, and
@@ -1303,6 +1313,7 @@ export function build(
           assetsDir,
           utilities: UTILITIES,
           systemColorScheme: buildOpts.systemColorScheme === true,
+          sources: buildOpts.sources ?? [],
           darkOnly: buildOpts.darkOnly === true,
         });
 
@@ -1351,6 +1362,8 @@ interface TwCtx {
   utilities: string[];
   /** `BuildOptions.systemColorScheme` — see the OS-preference block below. */
   systemColorScheme: boolean;
+  /** `BuildOptions.sources` — one `@source` per entry, right after the import. */
+  sources: string[];
   /** `BuildOptions.darkOnly`. */
   darkOnly: boolean;
 }
@@ -1379,7 +1392,10 @@ function emitTailwind(ctx: TwCtx): string {
       `   Fonts below are STACKS ONLY — this file loads no webfonts. Load them with\n` +
       `   Astro's fonts: config and point the token at the family's cssVariable. */`,
   ];
-  parts.push(`@import "tailwindcss";\n`);
+  parts.push(`@import "tailwindcss";`);
+  // Tailwind v4 skips node_modules; the integration names the packages whose renderers use classes.
+  for (const src of ctx.sources) parts.push(`@source ${JSON.stringify(src)};`);
+  parts.push('');
 
   const theme: string[] = [];
   theme.push(`  /* Hue scales → bg-<hue>-<step> text-* border-* (numeric, 50…950) */`);
@@ -2147,6 +2163,7 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
     systemColorScheme:
       options.systemColorScheme ?? config?.designSystem?.defaultColorScheme === 'system',
     darkOnly: config?.designSystem?.defaultColorScheme === 'dark',
+    ...(options.sources?.length ? { sources: options.sources } : {}),
   });
   mkdirSync(outDir, { recursive: true });
   const written: string[] = [];

@@ -75,13 +75,13 @@ const avatar = Boolean(value.avatars);
 const tone = resolveTone(value.tone, value.color);
 const toned = Boolean(value.tone || value.color);
 const dev = import.meta.env.DEV;
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
   reviews.length > 0 ? (
     <div
-      class:list={['reviews', toned && tone.className]}
-      style={toned ? joinStyle(tone.style) : undefined}
+      {...rootAttrs(value, ['reviews', toned && tone.className], toned ? joinStyle(tone.style) : undefined)}
     >
       {layout === 'carousel' ? (
         <Carousel label={label}>

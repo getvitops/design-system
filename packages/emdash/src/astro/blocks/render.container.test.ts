@@ -568,3 +568,43 @@ describe('vitops.form', () => {
     expect(html).not.toContain('<script>alert(1)');
   });
 });
+
+describe('escape hatches (anchor, className, style)', () => {
+  const hatches = { anchor: 'x', className: 'mt-4', style: '--a: 1px; background: url(evil)' };
+  const samples: [string, unknown, object][] = [
+    ['callout', Callout, { heading: 'H', body: 'b' }],
+    ['stats', Stats, { stats: [{ value: '1', label: 'a' }] }],
+    ['steps', Steps, { steps: [{ title: 'a', text: 'b' }] }],
+    ['logos', Logos, { logos: [{ image: '/a.png', alt: 'A' }] }],
+    ['pricing', Pricing, { plans: [{ name: 'P', price: '$1' }] }],
+    ['hero', Hero, { heading: 'H', body: 'b' }],
+    ['cards (default)', Cards, { cards: [{ title: 'T' }] }],
+    ['cards (panel)', Cards, { variant: 'panel', cards: [{ title: 'T' }] }],
+  ];
+
+  it.each(samples)(
+    '%s: lands on its own element, with no wrapper node',
+    async (name, component, fields) => {
+      const html = (await render(component, { ...fields, ...hatches })).trim();
+      // One id, one added class, the custom property kept and the fetching declaration dropped.
+      expect(html.match(/id="x"/g)).toHaveLength(1);
+      expect(html).toContain('mt-4');
+      expect(html).toContain('block-anchor');
+      expect(html).toContain('--a: 1px');
+      expect(html).not.toContain('url(');
+      expect(html).not.toContain('block-shell');
+      // The element carrying it is the first one rendered, except `cards`, whose default variant is
+      // a <wc-cards> host around the grid the attributes go on.
+      if (!name.startsWith('cards')) expect(html).toMatch(/^<[a-z-]+[^>]*\sid="x"/);
+    },
+  );
+
+  it.each(samples)(
+    '%s: renders the same markup with none set',
+    async (_name, component, fields) => {
+      const html = await render(component, fields);
+      expect(html).not.toContain('block-anchor');
+      expect(html).not.toContain(' id="x"');
+    },
+  );
+});

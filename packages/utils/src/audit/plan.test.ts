@@ -11,7 +11,10 @@ import {
   pageSlug,
   parseImpacts,
   pathsFromSeed,
+  isSitemapIndex,
+  pathsFromSitemapLocs,
   planPages,
+  sitemapLocs,
   renderMarkdown,
   reportFiles,
   unauditedPage,
@@ -79,10 +82,30 @@ describe('planPages', () => {
   it('adds menu and --pages paths, de-duplicated and normalised', () => {
     expect(
       planPages({ menuPaths: ['/about', '/contact'], extra: ['/pricing/', '/about'] }),
-    ).toEqual(['/', '/privacy', '/terms', '/cookies', '/contact', '/about', '/pricing']);
+    ).toEqual(['/', '/about', '/contact', '/pricing']);
+  });
+  it('uses the sitemap instead of guessing, ahead of menus', () => {
+    expect(
+      planPages({ sitemapPaths: ['/privacy', '/about'], menuPaths: ['/about', '/x'] }),
+    ).toEqual(['/', '/privacy', '/about', '/x']);
   });
   it('--no-defaults gives exactly / plus what was asked for', () => {
     expect(planPages({ includeDefaults: false, extra: ['/a'] })).toEqual(['/', '/a']);
+  });
+});
+
+describe('sitemap parsing', () => {
+  const index =
+    '<sitemapindex><sitemap><loc>https://x.ca/sitemap-0.xml</loc></sitemap></sitemapindex>';
+  const urlset =
+    '<urlset><url><loc>https://x.ca/</loc></url><url><loc>https://x.ca/about/?a=1&amp;b=2</loc></url></urlset>';
+  it('tells an index from a urlset', () => {
+    expect(isSitemapIndex(index)).toBe(true);
+    expect(isSitemapIndex(urlset)).toBe(false);
+  });
+  it('reduces locs to paths on whatever host serves them, skipping sitemap files', () => {
+    expect(pathsFromSitemapLocs(sitemapLocs(urlset))).toEqual(['/', '/about']);
+    expect(pathsFromSitemapLocs(sitemapLocs(index))).toEqual([]);
   });
 });
 

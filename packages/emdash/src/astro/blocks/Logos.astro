@@ -22,15 +22,15 @@ const logos = rows<Record<string, unknown>>(value.logos)
   .map((row) => ({ image: safeHref(row.image), alt: text(row.alt), href: safeHref(row.href) }))
   .filter((logo) => logo.image);
 const height = HEIGHTS[text(value.size)];
+import { rootAttrs } from './attrs.ts';
 ---
 
 {
   logos.length > 0 && (
     <ul
-      class:list={['logos', value.grayscale && 'logos--grayscale']}
+      {...rootAttrs(value, ['logos', value.grayscale && 'logos--grayscale'], height ? `--logos-height: ${height}` : undefined)}
       role="list"
       aria-label={label}
-      style={height ? `--logos-height: ${height}` : undefined}
     >
       {logos.map((logo) => (
         <li class="logos__item">
