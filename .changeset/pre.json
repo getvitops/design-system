@@ -15,6 +15,7 @@
   },
   "changesets": [
     "astro-dev-icons-sprite",
+    "block-escape-hatches-widget-areas",
     "block-library-patterns",
     "contact-form-turnstile",
     "emdash-block-library",
