@@ -118,7 +118,18 @@ import { cmdCrm } from './commands/crm.ts';
 import { cmdEmail } from './commands/email.ts';
 import { cmdEmdash } from './commands/emdash.ts';
 import { cmdSetup } from './commands/setup.ts';
-import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
+import {
+  AGENTS_END,
+  AGENTS_START,
+  discoverBlockSkills,
+  findSkillTarget,
+  linkPackagedSkills,
+  linkSkill,
+  renderAgentsBlock,
+  SKILL_NAME,
+  TOPICS,
+  upsertAgentsBlock,
+} from './agents.ts';
 import { COMMANDS, HELP, helpFor, wantsHelp } from './help.ts';
 import { lintCss } from './lint-css.ts';
 import { lintMarkup } from './lint-markup.ts';
@@ -789,9 +800,6 @@ function generatorAssetsDir(): string {
   return join(dirname(pkg), 'assets');
 }
 
-const AGENTS_START = '<!-- vitops:start -->';
-const AGENTS_END = '<!-- vitops:end -->';
-
 /**
  * Input path for the read-only commands (`docs`, `lint`) when `-i` is absent.
  *
@@ -1062,7 +1070,9 @@ function discoverConfig(cwd: string): string | undefined {
   return undefined;
 }
 
-function cmdAgents(argv: string[]) {
+function cmdAgents(rawArgv: string[]) {
+  // `vitops agents sync` is the explicit verb; bare `vitops agents` does the same.
+  const argv = rawArgv[0] === 'sync' ? rawArgv.slice(1) : rawArgv;
   const { values } = parseArgs({
     args: argv,
     options: {
@@ -1104,7 +1114,7 @@ function cmdAgents(argv: string[]) {
   // Explicit --docs-dir = legacy layout: write the docs bundle as files, no skill.
   const legacyDocsDir = values['docs-dir'] as string | undefined;
   let summary: string;
-  let pointer: string[];
+  let legacyBlock: string | undefined;
 
   if (legacyDocsDir) {
     if (!ds) fail(`--docs-dir needs a config to render docs from (${inputRel} not found)`);
@@ -1120,14 +1130,17 @@ function cmdAgents(argv: string[]) {
       writeFileSync(p, content);
     }
     summary = `wrote ${Object.keys(docs).length} docs to ${legacyDocsDir}/`;
-    pointer = [
-      'Prefer the framework’s utility + component classes over hand-written CSS.',
-      `Reference docs (regenerate with \`vitops agents --docs-dir ${legacyDocsDir}\`): \`${legacyDocsDir}/css/classes.md\`,`,
-      `\`${legacyDocsDir}/authoring.md\`, \`${legacyDocsDir}/formats.md\`, \`${legacyDocsDir}/bricks/elements.md\`.`,
-    ];
+    legacyBlock = [
+      AGENTS_START,
+      `Built with the Vitops design system (\`@getvitops/*\`); tokens and site facts live in \`${inputRel}\`.`,
+      `Prefer its classes and patterns over hand-written CSS. Reference docs are in \`${legacyDocsDir}/\``,
+      `(\`css/classes.md\`, \`authoring.md\`, \`formats.md\`, \`bricks/elements.md\`); regenerate with \`vitops agents --docs-dir ${legacyDocsDir}\`.`,
+      AGENTS_END,
+    ].join('\n');
   } else {
     // Link the packaged skill (ships inside @getvitops/cli) into the agent
     // discovery locations; nothing is generated into the repo.
+    for (const warn of linkPackagedSkills(process.cwd())) console.warn(`  ⚠ ${warn}`);
     const target = findSkillTarget(process.cwd());
     if (target) {
       for (const dir of ['.agents', '.claude']) {
@@ -1141,63 +1154,25 @@ function cmdAgents(argv: string[]) {
       );
       summary = 'no skill linked';
     }
-    pointer = [
-      'Prefer the framework’s utility + component classes over hand-written CSS.',
-      `Full design-system context lives in the \`${SKILL_NAME}\` skill (linked from`,
-      '`.agents/skills/` and `.claude/skills/` into the installed `@getvitops/cli`;',
-      're-link with `vitops agents` if the links are deleted — they survive version',
-      'bumps). Reference docs print live, from this project’s config, via:',
-      '',
-      ...Object.entries(TOPICS).map(([name, t]) => `- \`vitops docs ${name}\` — ${t.summary}`),
-    ];
   }
 
-  // Only spelled out when it isn't the default the commands already assume.
-  const inputFlag = inputRel === 'design-system.json' ? '' : ` --input ${inputRel}`;
-  const block = [
-    AGENTS_START,
-    '## Vitops design system',
-    '',
-    `Styled with the Vitops design system (\`@getvitops/*\`); tokens live in \`${inputRel}\`.`,
-    'Generate output with the CLI:',
-    '',
-    // Interpolated, not hard-coded: `generate` defaults --input to
-    // design-system.json and hard-fails when it is absent, so an emitted command
-    // without the flag is copy-paste-broken in exactly the projects that most
-    // need the block to be right.
-    `- \`vitops generate${inputFlag} --format tailwind --out src/styles\` — Tailwind v4 / Astro`,
-    `- \`vitops generate${inputFlag} --format css --out dist\` — standalone CSS`,
-    `- \`vitops generate${inputFlag} --format bricks --out <theme>/dist\` — WordPress / Bricks`,
-    `- \`vitops generate${inputFlag} --format design --out .\` — \`DESIGN.md\`, the agent-facing brief`,
-    `- \`vitops init\` · \`vitops validate${inputFlag}\` · \`vitops favicon\``,
-    '',
-    ...pointer,
-    '',
-    `<!-- regenerate: vitops agents · @getvitops/cli@${cliVersion()} -->`,
-    AGENTS_END,
-  ].join('\n');
+  const block =
+    legacyBlock ??
+    renderAgentsBlock({
+      config: inputRel,
+      skills: discoverBlockSkills(process.cwd()),
+      version: cliVersion(),
+    });
 
   const outPath = resolve(values.out as string);
-  let next: string;
-  let action: string;
-  if (existsSync(outPath)) {
-    const cur = readFileSync(outPath, 'utf8');
-    const s = cur.indexOf(AGENTS_START);
-    const e = cur.indexOf(AGENTS_END);
-    if (s !== -1 && e !== -1 && e > s) {
-      next = cur.slice(0, s) + block + cur.slice(e + AGENTS_END.length);
-      action = 'updated block in';
-    } else {
-      next = cur.replace(/\s*$/, '') + '\n\n' + block + '\n';
-      action = 'appended block to';
-    }
-  } else {
-    mkdirSync(dirname(outPath), { recursive: true });
-    next = block + '\n';
-    action = 'created';
-  }
-  writeFileSync(outPath, next);
-  console.log(`✓ ${action} ${values.out} + ${summary}`);
+  const existing = existsSync(outPath) ? readFileSync(outPath, 'utf8') : undefined;
+  const { text, action } = upsertAgentsBlock(existing, block);
+  if (existing === undefined) mkdirSync(dirname(outPath), { recursive: true });
+  writeFileSync(outPath, text);
+  const verb = { created: 'created', updated: 'updated block in', added: 'added block to top of' }[
+    action
+  ];
+  console.log(`✓ ${verb} ${values.out} + ${summary}`);
 }
 
 async function main() {

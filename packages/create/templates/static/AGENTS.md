@@ -1,3 +1,18 @@
+<!-- vitops:start -->
+
+Built with the Vitops design system (`@getvitops/*`); tokens and site facts live in `site.json`.
+Prefer its classes and patterns over hand-written CSS. Load the skill that matches the task:
+
+- [contact-form](.agents/skills/contact-form/SKILL.md) — Use when adding or changing a form, fixing submissions that don't arrive, setting up noti…
+- [content-and-deploys](.agents/skills/content-and-deploys/SKILL.md) — Use for any deploy or build problem, stale or missing content, "my publish isn't live", s…
+- [csp](.agents/skills/csp/SKILL.md) — Use when changing `public/_headers`, adding an embed, tracking snippet or third-party scr…
+- [custom-blocks](.agents/skills/custom-blocks/SKILL.md) — Use before creating, renaming or deleting any block type, any `src/components/blocks/*` r…
+- [vitops-design-system](.agents/skills/vitops-design-system/SKILL.md) — Use when styling or authoring pages or components (choosing utility/pattern classes, colo…
+
+Reference, rendered from this project: `vitops docs <topic>` (no topic lists them).
+<!-- managed by `vitops agents sync` · @getvitops/cli@8.3.0-alpha.2 — edit outside this block -->
+<!-- vitops:end -->
+
 This is a static Astro website styled by the Vitops design system, deployed
 as Cloudflare Workers static assets (no server runtime, no database).
 
@@ -14,8 +29,8 @@ as Cloudflare Workers static assets (no server runtime, no database).
   portrait, landscape; SVG + PNG) for layout work before real imagery
   exists. Delete the directory once real assets land.
 - Prefer framework CSS classes (utilities, patterns, type roles like
-  `font-heading`) over bespoke CSS. Run `vp exec vitops agents` to append the
-  full generated class-vocabulary reference to this file.
+  `font-heading`) over bespoke CSS. `vp exec vitops docs classes` prints the
+  full class vocabulary.
 - **Layout foundations — these are the answer, not a starting point.** Six
   substitutions carry the structure of nearly every page:
   | About to write…                                         | Write instead   |

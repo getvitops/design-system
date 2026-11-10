@@ -6,6 +6,7 @@ import {
   existsSync,
   lstatSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   readlinkSync,
   rmSync,
@@ -139,4 +140,130 @@ export function linkSkill(linkPath: string, targetDir: string): string | null {
   } catch (err) {
     return `could not symlink ${linkPath}: ${(err as Error).message}`;
   }
+}
+
+export const AGENTS_START = '<!-- vitops:start -->';
+export const AGENTS_END = '<!-- vitops:end -->';
+
+/** A skill the block links to. */
+export interface BlockSkill {
+  name: string;
+  /** Path from the project root, as the link target. */
+  path: string;
+  /** One short line: when to load it. */
+  summary: string;
+}
+
+/** A frontmatter `description`, whether a plain line or a folded (`>-`) scalar. */
+function descriptionOf(skillMd: string): string {
+  const fm = /^---\n([\s\S]*?)\n---/.exec(skillMd)?.[1] ?? '';
+  const m = /^description:[ \t]*(.*)((?:\n[ \t]+.*)*)/m.exec(fm);
+  if (!m) return '';
+  const first = m[1]!.trim();
+  const folded = /^[>|][-+]?$/.test(first);
+  return [folded ? '' : first, ...m[2]!.split('\n').map((l) => l.trim())].filter(Boolean).join(' ');
+}
+
+/**
+ * One short line saying when to load a skill: its "Use when/for/before …" sentence if it has one
+ * (that is the part that answers "is this the one?"), else its first sentence.
+ */
+export function skillSummary(skillMd: string, max = 90): string {
+  const description = descriptionOf(skillMd);
+  const use = /\bUse (?:when|for|before|ONLY)\b[^.]*/.exec(description)?.[0];
+  const line = use ?? description.split(/(?<=[.!?])\s/)[0] ?? description;
+  return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
+}
+
+/**
+ * The skills that belong in the block: those under `.agents/skills` that are links into an installed
+ * `@getvitops/*` package. A site's own skills and the EmDash ones are not ours to list, and the block
+ * stays short.
+ */
+export function discoverBlockSkills(cwd: string): BlockSkill[] {
+  const dir = resolve(cwd, '.agents', 'skills');
+  if (!existsSync(dir)) return [];
+  const out: BlockSkill[] = [];
+  for (const name of readdirSync(dir).sort()) {
+    const link = join(dir, name);
+    const skillFile = join(link, 'SKILL.md');
+    if (!lstatSync(link).isSymbolicLink() || !existsSync(skillFile)) continue;
+    if (!readlinkSync(link).replace(/\\/g, '/').includes('node_modules/@getvitops/')) continue;
+    out.push({
+      name,
+      path: `.agents/skills/${name}/SKILL.md`,
+      summary: skillSummary(readFileSync(skillFile, 'utf8')),
+    });
+  }
+  return out;
+}
+
+/**
+ * Link every skill an installed `@getvitops/skills` ships into `.agents/skills` (and `.claude/skills`),
+ * the same logical-path links `skills experimental_sync` makes, so `vitops agents sync` leaves a project
+ * with the skills the block names even where that CLI has not run. Returns warnings.
+ */
+export function linkPackagedSkills(cwd: string): string[] {
+  const warnings: string[] = [];
+  let dir = resolve(cwd);
+  const { root } = parse(dir);
+  for (;;) {
+    const skills = join(dir, 'node_modules', '@getvitops', 'skills', 'skills');
+    if (existsSync(skills)) {
+      for (const name of readdirSync(skills)) {
+        const target = join(skills, name);
+        if (!existsSync(join(target, 'SKILL.md'))) continue;
+        for (const base of ['.agents', '.claude']) {
+          const warn = linkSkill(resolve(cwd, base, 'skills', name), target);
+          if (warn) warnings.push(warn);
+        }
+      }
+      return warnings;
+    }
+    if (dir === root) return warnings;
+    dir = dirname(dir);
+  }
+}
+
+/**
+ * The managed block for the top of an `AGENTS.md`: what the project is built with, the one rule that
+ * matters, and links to the skills that carry the detail. Deliberately short: depth lives in the
+ * skills and in `vitops docs`, which agents load on demand rather than on every session.
+ */
+export function renderAgentsBlock(opts: {
+  config: string;
+  skills: BlockSkill[];
+  version: string;
+}): string {
+  const lines = [
+    AGENTS_START,
+    `Built with the Vitops design system (\`@getvitops/*\`); tokens and site facts live in \`${opts.config}\`.`,
+    'Prefer its classes and patterns over hand-written CSS. Load the skill that matches the task:',
+    '',
+    ...opts.skills.map((s) => `- [${s.name}](${s.path})${s.summary ? ` — ${s.summary}` : ''}`),
+    ...(opts.skills.length ? [''] : []),
+    'Reference, rendered from this project: `vitops docs <topic>` (no topic lists them).',
+    `<!-- managed by \`vitops agents sync\` · @getvitops/cli@${opts.version} — edit outside this block -->`,
+    AGENTS_END,
+  ];
+  return lines.join('\n');
+}
+
+/**
+ * Put `block` into an AGENTS.md body. An existing fenced block is replaced in place and nothing else
+ * is touched; with none, the block goes at the TOP, so it is the first thing an agent reads.
+ */
+export function upsertAgentsBlock(
+  current: string | undefined,
+  block: string,
+): { text: string; action: 'created' | 'updated' | 'added' } {
+  if (current === undefined) return { text: `${block}\n`, action: 'created' };
+  const s = current.indexOf(AGENTS_START);
+  const e = current.indexOf(AGENTS_END);
+  if (s !== -1 && e !== -1 && e > s)
+    return {
+      text: current.slice(0, s) + block + current.slice(e + AGENTS_END.length),
+      action: 'updated',
+    };
+  return { text: `${block}\n\n${current.replace(/^\s+/, '')}`, action: 'added' };
 }

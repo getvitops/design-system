@@ -13,7 +13,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 // NOTE: never import ./cli.ts here — it runs main() on import.
-import { findSkillTarget, GENERATED_MARKER, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
+import {
+  AGENTS_END,
+  AGENTS_START,
+  findSkillTarget,
+  GENERATED_MARKER,
+  linkSkill,
+  renderAgentsBlock,
+  SKILL_NAME,
+  skillSummary,
+  TOPICS,
+  upsertAgentsBlock,
+} from './agents.ts';
 
 describe('TOPICS', () => {
   it('every topic path exists in the generateDocs bundle (no-drift guard)', () => {
@@ -107,5 +118,63 @@ describe('linkSkill', () => {
     expect(warn).toContain('left');
     expect(lstatSync(linkPath).isSymbolicLink()).toBe(false);
     expect(readFileSync(join(linkPath, 'SKILL.md'), 'utf8')).toBe('hand-written user skill');
+  });
+});
+
+describe('the managed AGENTS.md block', () => {
+  const skills = [
+    { name: 'csp', path: '.agents/skills/csp/SKILL.md', summary: 'The Report-Only CSP.' },
+    {
+      name: 'vitops-design-system',
+      path: '.agents/skills/vitops-design-system/SKILL.md',
+      summary: '',
+    },
+  ];
+  const block = renderAgentsBlock({ config: 'site.json', skills, version: '1.2.3' });
+
+  it('is short and links the skills instead of repeating them', () => {
+    expect(block.split('\n').length).toBeLessThanOrEqual(12);
+    expect(block).toContain('[csp](.agents/skills/csp/SKILL.md) — The Report-Only CSP.');
+    expect(block).toContain('`site.json`');
+    expect(block.startsWith(AGENTS_START)).toBe(true);
+    expect(block.endsWith(AGENTS_END)).toBe(true);
+  });
+
+  it('goes at the top of an existing file and leaves the rest alone', () => {
+    const { text, action } = upsertAgentsBlock('# My notes\n\nKeep this.\n', block);
+    expect(action).toBe('added');
+    expect(text.startsWith(AGENTS_START)).toBe(true);
+    expect(text.endsWith('# My notes\n\nKeep this.\n')).toBe(true);
+  });
+
+  it('replaces only its own block, in place, on a later sync', () => {
+    const first = upsertAgentsBlock('# Notes\n', block).text;
+    const next = renderAgentsBlock({ config: 'site.json', skills: [], version: '9.9.9' });
+    const { text, action } = upsertAgentsBlock(first.replace('# Notes', '# Notes edited'), next);
+    expect(action).toBe('updated');
+    expect(text).toContain('@getvitops/cli@9.9.9');
+    expect(text).not.toContain('[csp]');
+    expect(text.endsWith('# Notes edited\n')).toBe(true);
+    expect(text.match(/vitops:start/g)).toHaveLength(1);
+  });
+
+  it('creates the file when there is none', () => {
+    expect(upsertAgentsBlock(undefined, block).action).toBe('created');
+  });
+
+  it('takes the "when to use it" sentence from a skill description', () => {
+    const md =
+      '---\nname: x\ndescription: Decide whether a section needs a block. Use before adding one, or when asked to "add a block".\n---\n';
+    expect(skillSummary(md)).toBe('Use before adding one, or when asked to "add a block"');
+    expect(skillSummary('---\nname: x\ndescription: Just a sentence. More.\n---\n')).toBe(
+      'Just a sentence.',
+    );
+    expect(skillSummary('---\nname: x\n---\n')).toBe('');
+  });
+
+  it('reads a folded (>-) description', () => {
+    const md =
+      '---\nname: x\ndescription: >-\n  Teaches agents the design system.\n  Use when styling.\n---\n';
+    expect(skillSummary(md)).toBe('Use when styling');
   });
 });

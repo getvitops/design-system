@@ -147,8 +147,8 @@ and media in the storage backend (bucket/directory copy).
   agents answer from current documentation. Your running site also exposes its
   own content MCP server at `/_emdash/api/mcp` (authenticated).
 - **Skills** (`.agents/skills/`): `promote` dispatches the dev → main
-  promotion workflow. Run `vp exec vitops agents` to also write the design-system
-  class reference into `AGENTS.md`.
+  promotion workflow. The short block at the top of `AGENTS.md` (fenced by
+  `<!-- vitops:start -->`) lists the toolkit skills; `vp install` refreshes it (`vitops agents sync`).
 - **EmDash skills** are installed per project so they match the pinned `emdash`
   version: `vp dlx skills add emdash-cms/skills --skill '*' -y`,
   then commit `.agents/skills/`, the `.claude/skills/` symlinks and `skills-lock.json`. Update with
@@ -173,7 +173,7 @@ Useful commands (via `@getvitops/cli`):
 
 ```bash
 vp exec vitops validate site.json   # check the config against the schema
-vp exec vitops agents               # write the design-system reference into AGENTS.md
+vp exec vitops agents sync          # refresh the managed block at the top of AGENTS.md and link the skills
 vpr build:css                  # regenerate the CSS manually
 ```
 

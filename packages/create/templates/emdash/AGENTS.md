@@ -1,3 +1,18 @@
+<!-- vitops:start -->
+
+Built with the Vitops design system (`@getvitops/*`); tokens and site facts live in `site.json`.
+Prefer its classes and patterns over hand-written CSS. Load the skill that matches the task:
+
+- [contact-form](.agents/skills/contact-form/SKILL.md) — Use when adding or changing a form, fixing submissions that don't arrive, setting up noti…
+- [content-and-deploys](.agents/skills/content-and-deploys/SKILL.md) — Use for any deploy or build problem, stale or missing content, "my publish isn't live", s…
+- [csp](.agents/skills/csp/SKILL.md) — Use when changing `public/_headers`, adding an embed, tracking snippet or third-party scr…
+- [custom-blocks](.agents/skills/custom-blocks/SKILL.md) — Use before creating, renaming or deleting any block type, any `src/components/blocks/*` r…
+- [vitops-design-system](.agents/skills/vitops-design-system/SKILL.md) — Use when styling or authoring pages or components (choosing utility/pattern classes, colo…
+
+Reference, rendered from this project: `vitops docs <topic>` (no topic lists them).
+<!-- managed by `vitops agents sync` · @getvitops/cli@8.3.0-alpha.2 — edit outside this block -->
+<!-- vitops:end -->
+
 This is an EmDash CMS website (Astro on Cloudflare Workers, D1 + R2 — public pages
 prerendered, the Worker serving the admin and API) styled by the Vitops design system.
 
@@ -22,7 +37,7 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
 - Keep the Worker cron trigger in `wrangler.jsonc`: it publishes content scheduled in the admin.
 - `src/assets/placeholder/` is wireframe stand-in imagery; delete it once real assets land.
 - Prefer framework classes (utilities, patterns, type roles like `font-heading`) over bespoke CSS.
-  `vp exec vitops agents` appends the full class reference to this file.
+  `vp exec vitops docs classes` prints the full class reference.
 - `SETUP.html` is the onboarding checklist (`.agents/skills/setup/`). Tick a box only for a step you
   completed, never for a human-only one (the Cloudflare API token, domain cutover, legal documents).
 

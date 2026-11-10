@@ -19,7 +19,7 @@ Usage:
   vitops init [options]         Scaffold a starter design-system.json
   vitops validate <file>        Validate a config against the schema it says it is
   vitops favicon [options]      Generate a favicon set from a source image
-  vitops agents [options]       Link the design-system agent skill + AGENTS.md pointer
+  vitops agents [sync] [options] Link the agent skills + keep a short managed block at the top of AGENTS.md
   vitops docs [topic]           Print live design-system reference docs to stdout
   vitops lint [opts] [files]    Report classes that resolve to nothing + primitives you re-implemented
   vitops legal [options]        Render legal documents from a site config
@@ -80,7 +80,11 @@ Agents options:
   -i, --input <path>    design-system.json or site config (default: ./design-system.json;
                         validated if present)
       --theme <name>    Theme to read, when --input is a site config
-  -o, --out <path>      Doc file to update, idempotently (default: ./AGENTS.md)
+  -o, --out <path>      Doc file to update, idempotently (default: ./AGENTS.md). Only the fenced
+                        \`<!-- vitops:start -->\` block is written: added at the top when absent,
+                        replaced in place when present, everything else left alone. It names the
+                        config and links the vitops skills linked under .agents/skills (the CLI's own
+                        and those of an installed @getvitops/skills, which this command also links).
       --docs-dir <dir>  Legacy layout: write the docs bundle as files to this dir
                         instead of linking the packaged skill
 

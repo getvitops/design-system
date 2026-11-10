@@ -16,7 +16,7 @@
     "build:css": "vitops generate -i site.json -f css -o src/styles",
     "lint:design": "vitops lint -i site.json -f css --strict",
     "sop": "vitops generate -i site.json -f css -o .vitops/sop",
-    "prepare": "vp config && skills experimental_sync -y -a claude-code --no-frozen-lockfile"
+    "prepare": "vp config && skills experimental_sync -y -a claude-code --no-frozen-lockfile && vitops agents sync -i site.json"
   },
   "dependencies": {
     "@getvitops/astro": "latest",
