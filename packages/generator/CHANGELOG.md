@@ -1,5 +1,43 @@
 # @getvitops/generator
 
+## 8.3.0-alpha.2
+
+### Minor Changes
+
+- 0a47856: Build correctness and gaps from the second upstream round.
+
+  - **`@getvitops/emdash`: fixes a circular import that emptied the plugin block map in the static build.** `Section.astro` and `WidgetArea.astro` imported `emdash/ui` statically, which imports `virtual:emdash/block-components`, which is `@getvitops/emdash/astro` again. Depending on import order, every `vitops_*` block inside a section body was dropped from prerendered pages with only a `PortableText [components.type] is missing …` warning. Both now import it lazily, and a test fails if any renderer imports `emdash/ui` statically. No code change needed in sites.
+  - **`@getvitops/cli`: `vitops emdash build`** runs `astro build` and then `check-prerender`, and fails when the build reports a block type with no component (reported once per type). The template's `build`, `deploy` and `deploy:dev` scripts use it; existing sites replace `astro build && vitops emdash check-prerender` with `vitops emdash build`. `check-prerender` also warns (fails with `--strict`) on a page without exactly one `<h1>`.
+  - **`@getvitops/emdash`: `vitops_hero` and `vitops_section` heading level** accepts `h1`–`h6` and `p` (a heading that is styled but not in the outline). The hero defaults to `h1`; set the level to `2` on a page whose layout already renders an `h1` (the template's seed does).
+  - **`@getvitops/emdash`: `vitops_logos`** shows an entry's name as text (`.logos__name`) when it has no image. `@getvitops/core` adds the rule (all formats).
+  - **`@getvitops/emdash`: an empty content widget** (no text, no blocks) no longer renders its title, and an area whose widgets are all empty renders nothing.
+  - **`@getvitops/create`:** the template's `pages` collection gets `urlPattern: "/{slug}"` (the sitemap listed `/pages/<slug>`, which 404s; existing sites change it under Content Types), and `.gitignore` ignores only `src/styles/tailwind.css` and `tokens.json`, so site CSS kept in `src/styles/` is committed.
+  - **`@getvitops/emdash`: per-item colour.** The rows of `vitops_cards`, `vitops_stats`, `vitops_steps` and the hero's `cards` take their own `tone` / `color` (blank inherits the block's), so one block can hold a pine item and an amber one. Hero cards also take an `eyebrow` and a button (`ctaLabel` / `ctaHref`; with a button the card is no longer a stretched link).
+  - **`@getvitops/generator` / `@getvitops/emdash`: solid fills read.** The generator emits `--color-<hue>-<step>-on` for every step of every hue, the foreground for a fill at that step picked by the same APCA rule as `text-on-<role>` (css and tailwind formats, a plain `:root`, not `@theme`). A block fill chosen by `color` (hue and step) uses it instead of a fixed white..
+  - **`@getvitops/core`: `.counter__value.sr-only`** hides itself, so a build that never emitted the `.sr-only` utility no longer shows a counting figure twice (all formats).
+  - **`@getvitops/astro` / `@getvitops/core`: `SiteFooter` groups.** A top-level item of the `footer-sitemap` menu with children becomes a column (its label is the heading, its children the links, one level only); childless items stay in the flat list. Each column is a named `<nav>`.
+  - **`@getvitops/astro`: planned links and header buttons.** A menu item with `draft` in its CSS classes stays in the menu but is not rendered (at every level, in the header and the footer). `<SiteNav>` has an `actions` slot for header buttons that are not menu items, and an item with `cta` in its CSS classes renders as a button.
+  - **`@getvitops/cli`: `check-prerender` warnings** (fail with `--strict`): links to pages the build did not produce, a form with no delivery address (no `site.notifications.email`, location `email` or `site.crm`), and form fields missing from every `site.templates` form entry (the generated privacy policy reads those). It reads `./site.json`, or `--site=<path>`. `vitops setup … --dry-run` is accepted as `--dry`.
+  - **`@getvitops/emdash` / `@getvitops/astro`: "tick any number" form field** (`vitops_form` field kind `checkboxes`): a fieldset of checkboxes sharing one name. The conversion route joins repeated values (`IT, Marketing`) instead of keeping the last. The "required" toggle is not applied to the group (HTML cannot require one of several).
+  - **`@getvitops/core`: size hooks.** `.steps__title`, `.stats__figure` and `.card__title` read `--steps-title-size` (default one step below `heading`), `--stats-figure-size` and `--card-title-size`, set on the block through its `style` field. They set the `--heading-fs` / `--display-fs` properties the type-role utilities already read, so no extra class or prop is needed (all formats).
+  - **`@getvitops/create`:** the template's `site.json` lists its contact form under `site.templates`, so the privacy policy inventory and the new check agree.
+  - **`@getvitops/emdash`: `theme` on every block, on widget areas and on your own markup.** A `theme` select (`<role>` tinted, `<role>:solid` filled, populated from the site's roles by a new `themes/list` route) is a common field on every `vitops_*` block, applied to the block's own root with the role's computed readable text. `<VitopsWidgetArea theme="…">` takes the same, and `themeAttrs('surface')` gives `{ class, style }` for a layout `<body>`. `vitops_section`'s existing `theme` now goes through the same path.
+  - **`@getvitops/cli` / `@getvitops/emdash`: pages with a dropped block fail the build.** `vitops_section` and widget areas emit an invisible `<template data-vitops-unrendered="…">` for any body block with no renderer, and `check-prerender` fails the page naming the types (nested bodies only; `vitops emdash build` also scans the build log, which covers top-level bodies). A regression test imports the plugin entry first with a mock of the real virtual module, so the old import cycle fails it.
+  - **`@getvitops/emdash`: `formTemplateFromBlock(block)`** turns a saved `vitops_form` value into a `site.templates` form entry (names as submitted, a `checkboxes` field as a `checkbox` with options), to paste into `site.json` so the generated privacy policy lists what the form collects. The build cannot read the CMS database, so this is run by hand; `check-prerender` warns when fields are missing.
+  - **`@getvitops/utils`: `hasFormDelivery`** (`@getvitops/utils/notify`): the one test for "has this form anywhere to go", used by `check-prerender`.
+  - **`@getvitops/emdash`:** a `color` hue tint now flips with the colour scheme (`light-dark()`); hero option cards sit at `h2` under an `h1` hero; menu items also accept `hidden: true` (same as the `draft` class); `vitops docs blocks` documents `theme`, the per-row colours, the `--<role>-fs` type-size hook and the form checks.
+  - **`@getvitops/create`:** the template redirects `/home` to `/`, and the guides use `vp exec` instead of `vpx`.
+
+### Patch Changes
+
+- 0a47856: **Breaking: every block type is now `vitops_<name>`** (`vitops_cards`, `vitops_hero`, `vitops_actionLink`, …), where the Portable Text blocks were `vitops.<name>` and the section block type was already `vitops_section`. EmDash validates a block type's slug as `[a-z][a-z0-9_]*`, so `vitops.section` was never possible and the toolkit had two styles for one kind of thing. Underscore is the one form valid everywhere, so it is now the only one.
+
+  Migration: in stored content and in `seed/seed.json`, rename `_type` values from `vitops.<name>` to `vitops_<name>`; in `PortableText` `components`, rename the keys the same way; the `blocks: { include, exclude }` option takes full type names, so rename those too. `vt_*` names in a site are that site's own types and are unaffected. A search-and-replace of `vitops.(actionLink|imageCompare|copyButton|banner|details|carousel|gallery|cards|accordion|hero|marquee|logos|steps|stats|callout|entries|pricing|embed|form|reviews|nav|badges|widgetArea)` with `vitops_$1` covers it. `vitops emdash build` reports any block left on the old name as having no component.
+
+- Updated dependencies [0a47856]
+  - @getvitops/utils@8.3.0-alpha.2
+  - @getvitops/config@8.3.0-alpha.2
+
 ## 8.3.0-alpha.1
 
 ### Minor Changes

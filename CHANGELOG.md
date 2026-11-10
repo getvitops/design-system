@@ -11,6 +11,37 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 8.3.0-alpha.2 (+ `@getvitops/emdash` 2.0.0-alpha.2, `@getvitops/create` 0.9.0-alpha.2, new `@getvitops/skills` 0.1.0-alpha.0) — alpha channel
+
+Prerelease on the `alpha` dist-tag; not on `latest`. Per-package detail is in each package's CHANGELOG.
+
+**Breaking (`@getvitops/emdash`): every block type is now `vitops_<name>`** (`vitops_cards`, `vitops_hero`, …;
+was `vitops.<name>`). EmDash validates a block type slug as `[a-z][a-z0-9_]*`, so `vitops_section` could never
+be dotted and there were two styles. Rename `_type` values in stored content and `seed/seed.json`, `components`
+keys in `<PortableText>`, and `blocks.include/exclude` entries. `vt_*` types are a site's own.
+
+Added:
+
+- **`@getvitops/skills`**: agent skills (`custom-blocks`, `content-and-deploys`, `contact-form`, `csp`) linked into
+  a project by `skills experimental_sync` (the templates run it on `prepare`), so they update with the package.
+- **`theme` on every block**, on `<VitopsWidgetArea>` and via `themeAttrs()`: a site colour role, tinted or
+  filled, with the generator's computed readable text. The generator emits `--color-<hue>-<step>-on` for hue
+  fills.
+- Per-item `tone`/`color` on cards, stats, steps and hero cards; hero card eyebrow and button; `vitops_logos`
+  text entries; hero/section heading level `h1`/`p`; a "tick any number" form field; `formTemplateFromBlock()`.
+- `SiteFooter` columns; `draft`/`hidden` menu items and `<SiteNav>` `actions` slot; size hooks
+  (`--steps-title-size`, `--stats-figure-size`, `--card-title-size`).
+- `vitops emdash build`, and `check-prerender` checks: dropped blocks (fails), dead links, `<h1>` count, form
+  delivery and privacy inventory (warn; `--strict` fails).
+
+Fixed: a circular import that emptied the plugin block map in static builds (blocks inside a section were silently
+dropped); counter figure shown twice without `.sr-only`; empty content widgets rendering their title; the
+template's sitemap listing `/pages/<slug>`; `.gitignore` swallowing hand-written `src/styles/` files.
+
+Migration for existing sites: set the `pages` collection `urlPattern` to `/{slug}` in the admin (the seed applies
+once); replace `astro build && vitops emdash check-prerender` with `vitops emdash build`; add
+`@getvitops/skills` and `skills`, and set `prepare` to `vp config && skills experimental_sync -y -a claude-code --no-frozen-lockfile`.
+
 ## `@getvitops/create` 0.8.2 — 2026-11-04
 
 Template documentation only. The EmDash template's README and `AGENTS.md` now give the per-project

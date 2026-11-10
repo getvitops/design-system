@@ -11,16 +11,19 @@
     "@getvitops/generator": "8.2.0",
     "@getvitops/utils": "8.2.0",
     "@getvitops/vite": "8.2.0",
-    "site": "0.0.0"
+    "site": "0.0.0",
+    "@getvitops/skills": "0.0.0"
   },
   "changesets": [
     "astro-dev-icons-sprite",
     "block-escape-hatches-widget-areas",
     "block-library-patterns",
+    "block-names-vitops-underscore",
     "contact-form-turnstile",
     "emdash-block-library",
     "emdash-build-commands",
     "emdash-reviews-nav-blocks",
+    "emdash-template-agents-concise",
     "honest-theming",
     "legal-quebec-casl",
     "manifest-for-tailwind-editor",
@@ -28,6 +31,7 @@
     "scaffold-prerender-csp",
     "site-nav-footer",
     "template-local-db-prepare",
+    "upstream-2-build-correctness",
     "vitops-audit"
   ]
 }
