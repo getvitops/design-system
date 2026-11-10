@@ -1,5 +1,15 @@
 # @getvitops/astro
 
+## 8.3.0-alpha.3
+
+### Patch Changes
+
+- @getvitops/config@8.3.0-alpha.3
+- @getvitops/core@8.3.0-alpha.3
+- @getvitops/generator@8.3.0-alpha.3
+- @getvitops/utils@8.3.0-alpha.3
+- @getvitops/vite@8.3.0-alpha.3
+
 ## 8.3.0-alpha.2
 
 ### Minor Changes

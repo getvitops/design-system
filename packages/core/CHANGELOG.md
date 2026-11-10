@@ -1,5 +1,7 @@
 # @getvitops/core
 
+## 8.3.0-alpha.3
+
 ## 8.3.0-alpha.2
 
 ### Minor Changes

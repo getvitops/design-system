@@ -1,5 +1,12 @@
 # @getvitops/vite
 
+## 8.3.0-alpha.3
+
+### Patch Changes
+
+- @getvitops/generator@8.3.0-alpha.3
+- @getvitops/utils@8.3.0-alpha.3
+
 ## 8.3.0-alpha.2
 
 ### Patch Changes

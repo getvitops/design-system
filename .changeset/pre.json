@@ -15,6 +15,7 @@
     "@getvitops/skills": "0.0.0"
   },
   "changesets": [
+    "agents-sync-block",
     "astro-dev-icons-sprite",
     "block-escape-hatches-widget-areas",
     "block-library-patterns",

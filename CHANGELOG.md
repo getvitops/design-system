@@ -11,6 +11,14 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 8.3.0-alpha.3 (+ `@getvitops/emdash` 2.0.0-alpha.3, `@getvitops/create` 0.9.0-alpha.3) — alpha channel
+
+**`vitops agents sync`**: the managed `AGENTS.md` block is now a short fenced block at the **top** of the file
+(config, "prefer the framework's classes", and links to the skills linked from installed `@getvitops/*`
+packages, each with a one-line "use when"), replaced in place on later runs and leaving the rest of the file
+alone. It also links the skills of an installed `@getvitops/skills`. The templates run it from `prepare` and
+ship the block. **No consumer-facing change in the other packages** beyond the version.
+
 ## 8.3.0-alpha.2 (+ `@getvitops/emdash` 2.0.0-alpha.2, `@getvitops/create` 0.9.0-alpha.2, new `@getvitops/skills` 0.1.0-alpha.0) — alpha channel
 
 Prerelease on the `alpha` dist-tag; not on `latest`. Per-package detail is in each package's CHANGELOG.

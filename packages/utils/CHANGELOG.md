@@ -1,5 +1,11 @@
 # @getvitops/utils
 
+## 8.3.0-alpha.3
+
+### Patch Changes
+
+- @getvitops/config@8.3.0-alpha.3
+
 ## 8.3.0-alpha.2
 
 ### Minor Changes

@@ -1,5 +1,12 @@
 # @getvitops/emdash
 
+## 2.0.0-alpha.3
+
+### Patch Changes
+
+- @getvitops/generator@8.3.0-alpha.3
+- @getvitops/utils@8.3.0-alpha.3
+
 ## 2.0.0-alpha.2
 
 ### Major Changes
