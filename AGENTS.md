@@ -1163,9 +1163,10 @@ custom properties only**, and that is the point: `--p-card: 2rem` tunes a hook t
 already defines, while a free-form declaration would let one page diverge from the tokens and
 `url(` is a request to wherever an editor points it. **`className` has one caveat**: under the
 `tailwind` format a class typed in the CMS exists only if some source already used it (Tailwind
-scans files, not content); css and bricks ship every class. `vitops_section`'s `theme` is
-`<role>` or `<role>:solid`, mapped onto the existing `tone`/`solid` logic so contrast stays the
-generator's guarantee; `tone`/`color`/`solid` remain because a block-type field cannot be renamed.
+scans files, not content); css and bricks ship every class. Every block (and widget area) has a `theme`, `<role>` or
+`<role>:solid`, applied by `rootAttrs()` to the block's own root as `.tone` classes and `--tone-*`
+properties, so contrast stays the generator's guarantee and a site's raised or glass role styling
+reaches every block; `tone`/`color`/`solid` remain because a block-type field cannot be renamed.
 
 **Widget areas** are EmDash's synced regions (an EmDash Section is copied, so later edits do not
 reach earlier uses). `<VitopsWidgetArea>` renders one in the framework's vocabulary — titles at a

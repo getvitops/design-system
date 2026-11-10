@@ -32,13 +32,14 @@ import type {
 import {
   BLOCKS,
   MENUS_ROUTE,
+  THEMES_ROUTE,
   TONES_ROUTE,
   WIDGET_AREAS_ROUTE,
   selectBlocks,
   type BlockSelection,
 } from './blocks.ts';
 import { createMenusRoute } from './menus-route.ts';
-import { createTonesRoute, rolesOf } from './tones-route.ts';
+import { createThemesRoute, createTonesRoute, rolesOf } from './tones-route.ts';
 import {
   createDesignSystemRoute,
   designSystemOverrideFragment,
@@ -200,6 +201,7 @@ export function createPlugin(options: VitopsEmdashOptions = {}) {
 
     routes: {
       [TONES_ROUTE]: createTonesRoute(() => roles),
+      [THEMES_ROUTE]: createThemesRoute(() => roles),
       [MENUS_ROUTE]: createMenusRoute(() => getMenus()),
       // Same shape as a menu summary (`name`, `label`), so the same route factory lists areas.
       [WIDGET_AREAS_ROUTE]: createMenusRoute(() => getWidgetAreas()),

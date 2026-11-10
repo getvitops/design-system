@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { anchorId, blockAttrs, classTokens, customProperties } from './attrs.ts';
+import { anchorId, blockAttrs, classTokens, customProperties, rootAttrs } from './attrs.ts';
 
 describe('anchorId', () => {
   it('slugifies and accepts a clean id', () => {
@@ -52,5 +52,23 @@ describe('blockAttrs', () => {
       class: 'mt-4',
       style: '--p-card: 2rem',
     });
+  });
+});
+
+describe('theme on every block', () => {
+  it('adds the tinted classes and --tone-* properties to the root', () => {
+    const a = rootAttrs({ theme: 'surface' }, ['callout']);
+    expect(a.class).toBe('callout tone');
+    expect(a.style).toContain('--tone-bg: var(--color-bg-surface-muted');
+  });
+  it('fills with the role solid and its computed text for `<role>:solid`', () => {
+    const a = rootAttrs({ theme: 'brand-primary:solid' }, ['hero']);
+    expect(a.class).toBe('hero tone tone--solid');
+    expect(a.style).toContain('--tone-on-solid: var(--color-text-on-brand-primary');
+  });
+  it("replaces a block's own tone classes rather than doubling them, and is inert for none", () => {
+    expect(rootAttrs({ theme: 'info' }, ['x', 'tone', 'tone--solid']).class).toBe('x tone');
+    expect(rootAttrs({ theme: 'none' }, ['x', 'tone']).class).toBe('x tone');
+    expect(rootAttrs({ theme: 'bad role!' }, ['x']).class).toBe('x');
   });
 });

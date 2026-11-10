@@ -16,6 +16,7 @@
  */
 import { getMenu, getWidgetArea } from 'emdash';
 import Nothing from './Nothing.astro';
+import { joinStyle, resolveTheme } from './blocks/tone.ts';
 import { headingTag, safeHref, text } from './blocks/value.ts';
 // Lazy for the same reason as `blocks/Section.astro`: a static `emdash/ui` import makes a cycle
 // through `virtual:emdash/block-components` and empties the plugin block map in a static build.
@@ -29,9 +30,12 @@ interface Props {
   class?: string;
   id?: string;
   style?: string;
+  /** A backdrop for the area, from the site's colour roles: `surface`, `brand-primary:solid`, … */
+  theme?: string;
 }
 
-const { name, level, class: className, id, style } = Astro.props;
+const { name, level, class: className, id, style, theme } = Astro.props;
+const themed = resolveTheme(theme);
 const area = name ? await getWidgetArea(name) : null;
 const widgets = area?.widgets ?? [];
 const delegated = widgets.some((w) => w.type === 'component');
@@ -59,7 +63,7 @@ const inner = { type: { 'vitops_widgetArea': Nothing } };
 
 {
   shown.length > 0 && (
-    <div id={id} class:list={['widget-area', className]} style={style} data-widget-area={area?.name}>
+    <div id={id} class:list={['widget-area', themed?.className, className]} style={joinStyle(themed?.style, style)} data-widget-area={area?.name}>
       {delegated ? (
         <StockWidgetArea name={name} />
       ) : (

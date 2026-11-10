@@ -135,3 +135,26 @@ export function joinStyle(...parts: (string | undefined | false)[]): string | un
 export function rowTone(row: Record<string, unknown>): string | undefined {
   return resolveTone(row.tone, row.color).style || undefined;
 }
+
+/**
+ * The `theme` every block can carry: a backdrop for the block's own root element, chosen from the
+ * site's colour roles. `<role>` is the tinted surface (`bg-<role>-muted`, with the role's text);
+ * `<role>:solid` is the filled backdrop with the contrast-computed `text-on-<role>`; `none` or
+ * nothing is no theme. Contrast is therefore the generator's guarantee, not the editor's judgement,
+ * and a site that styles its roles as raised, glass or flat gets that look, because the tokens are
+ * the site's own.
+ *
+ * Returns the classes and `--tone-*` style to put on the root element, or `undefined` for no theme.
+ */
+export function resolveTheme(theme: unknown): { className: string; style: string } | undefined {
+  if (typeof theme !== 'string') return undefined;
+  const [role, fill] = theme
+    .trim()
+    .toLowerCase()
+    .replace(/^none$/, '')
+    .split(':');
+  if (!role || !ROLE.test(role)) return undefined;
+  const tone = resolveTone(role);
+  if (!tone.style) return undefined;
+  return { className: fill === 'solid' ? 'tone tone--solid' : 'tone', style: tone.style };
+}

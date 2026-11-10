@@ -8,6 +8,7 @@
  * `defineBlockComponents` / `<Blocks components={…}>`. EmDash does not merge it.
  */
 import Badges from './blocks/Badges.astro';
+import { resolveTheme } from './blocks/tone.ts';
 import WidgetArea from './blocks/WidgetArea.astro';
 import Accordion from './blocks/Accordion.astro';
 import ActionLink from './blocks/ActionLink.astro';
@@ -65,3 +66,12 @@ export const blockTypeComponents = {
 
 /** The framework-styled widget area, for a site layout (the block form is `vitops_widgetArea`). */
 export { default as VitopsWidgetArea } from './WidgetArea.astro';
+
+/**
+ * `themeAttrs('surface')` → `{ class, style }` for the layout's `<body>` (or any element a site owns):
+ * the same backdrop-and-readable-text every block's `theme` field gives, from the site's own roles.
+ */
+export function themeAttrs(theme: string | undefined): { class?: string; style?: string } {
+  const t = resolveTheme(theme);
+  return t ? { class: t.className, style: t.style } : {};
+}

@@ -15,6 +15,8 @@
  * `css` and `bricks` formats every framework class ships, so the caveat does not apply.
  */
 
+import { resolveTheme } from './tone.ts';
+
 export interface BlockAttrs {
   id?: string;
   class?: string;
@@ -94,11 +96,21 @@ export function rootAttrs(
   ownStyle?: string,
 ): BlockAttrs {
   const user = blockAttrs(value);
+  // `theme` is the block's backdrop: classes and `--tone-*` properties on its own root, after the
+  // block's own tone so an explicit theme wins, and before the editor's `style` so that wins over it.
+  const theme = resolveTheme((value as Record<string, unknown> | undefined)?.theme);
   const out: BlockAttrs = {};
   if (user.id) out.id = user.id;
-  const cls = [...own, user.id && 'block-anchor', user.class].filter(Boolean).join(' ');
+  const cls = [
+    ...own.filter((c) => !theme || (c !== 'tone' && c !== 'tone--solid')),
+    theme?.className,
+    user.id && 'block-anchor',
+    user.class,
+  ]
+    .filter(Boolean)
+    .join(' ');
   if (cls) out.class = cls;
-  const style = [ownStyle, user.style].filter(Boolean).join('; ');
+  const style = [ownStyle, theme?.style, user.style].filter(Boolean).join('; ');
   if (style) out.style = style;
   return out;
 }

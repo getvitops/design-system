@@ -47,3 +47,23 @@ export function createTonesRoute(roles: () => readonly string[]): PluginRoute {
     handler: async () => ({ items: toneItems(roles()) }),
   };
 }
+
+/** The `theme` select's items: `None`, then each role tinted and filled (`role`, `role:solid`). */
+export function themeItems(roles: readonly string[]): ToneItem[] {
+  const names = [...new Set([...roles, ...SEMANTIC_TONES])];
+  const label = (id: string) => id.replace(/-/g, ' ');
+  return [
+    { id: '', name: 'None' },
+    ...names.flatMap((id) => [
+      { id, name: label(id) },
+      { id: `${id}:solid`, name: `${label(id)} (filled)` },
+    ]),
+  ];
+}
+
+export function createThemesRoute(roles: () => readonly string[]): PluginRoute {
+  return {
+    permission: 'content:read',
+    handler: async () => ({ items: themeItems(roles()) }),
+  };
+}

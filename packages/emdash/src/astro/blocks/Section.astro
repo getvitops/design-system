@@ -49,11 +49,10 @@ const heading = text(value.heading);
 const sub = text(value.sub);
 const body = Array.isArray(value.body) ? value.body : [];
 const Heading = outlineTag(value.level, 2);
-// `theme` is one pick for the common case: `<role>` tints, `<role>:solid` fills. It wins over the
-// older `tone`/`color`/`solid` fields, which stay for content that already uses them.
-const [themeRole, themeFill] = text(value.theme).replace(/^none$/, '').split(':');
-const tone = themeRole ? resolveTone(themeRole) : resolveTone(value.tone, value.color);
-const solid = themeRole ? themeFill === 'solid' : Boolean(value.solid);
+// `theme` (every block's backdrop) is applied by `rootAttrs`, and wins over the older
+// `tone`/`color`/`solid` fields, which stay for content that already uses them.
+const tone = resolveTone(value.tone, value.color);
+const solid = Boolean(value.solid);
 const layout = text(value.layout);
 const width = WIDTHS[text(value.width)];
 const hasHead = Boolean(kicker || heading || sub);

@@ -42,10 +42,14 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
   from `@getvitops/emdash/astro` in the layout, or in page content with the `vitops_widgetArea`
   block. Page-specific content is blocks. An area can't hold another area, and prerendered pages
   show an edit after the next deploy (like menus).
-- **Escape hatches on every block:** `anchor` (the `id`, for `#links`), `className` (extra classes;
-  under the tailwind format only ones the site already uses) and `style` (CSS custom properties
-  only, e.g. `--p-card: 2rem`; anything else is dropped). `vitops_section` also has `theme`: one
-  pick for a tinted or solid backdrop with readable text. Set `--header-offset` to the sticky
+- **Escape hatches on every block:** `theme` (a backdrop from the site's colour roles, `surface` or
+  `brand-primary:solid`, with the readable text for it picked by the design system, so contrast is
+  not the editor's judgement), `anchor` (the `id`, for `#links`), `className` (extra classes; under
+  the tailwind format only ones the site already uses) and `style` (CSS custom properties only,
+  e.g. `--p-card: 2rem`; anything else is dropped). The same backdrop is available on a widget area
+  (`<VitopsWidgetArea theme="…">`) and on your own markup (`themeAttrs('surface')` from
+  `@getvitops/emdash/astro`, spread on the layout's `<body>`). How a role looks (flat, raised,
+  glass) is the site's own role styling in `site.json`. Set `--header-offset` to the sticky
   header's height so anchors clear it.
 - Override a block per site with `<PortableText components={{ type: { 'vitops_cards': MyCards } }} />`;
   hide one with `vitopsEmdash({ blocks: { exclude: [...] } })`.

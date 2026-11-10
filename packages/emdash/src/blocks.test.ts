@@ -131,7 +131,7 @@ describe('block ↔ component agreement', () => {
 });
 
 /** Field ids every block carries and `rootAttrs` applies (see `astro/blocks/attrs.ts`). */
-const COMMON = new Set(['anchor', 'className', 'class_name', 'style']);
+const COMMON = new Set(['anchor', 'className', 'class_name', 'style', 'theme']);
 
 describe('blocks ↔ the TIERS manifest', () => {
   // The generator cannot import this package (this one imports it), so the check that

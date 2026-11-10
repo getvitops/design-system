@@ -19,6 +19,7 @@
 import type { PortableTextBlockConfig } from 'emdash';
 import { SEMANTIC_ICON_OPTIONS } from './icon-options.ts';
 import { SEMANTIC_TONES } from './astro/blocks/tone.ts';
+import { THEME_ROLES } from './block-types.ts';
 
 /** The subset of EmDash Block Kit field elements these blocks use. */
 export type BlockKitFieldDef = Extract<
@@ -41,6 +42,8 @@ export type PortableTextBlockDef = Omit<PortableTextBlockConfig, 'fields'> & {
 
 /** Route that fills every tone select with the site's own roles — see `index.ts`. */
 export const TONES_ROUTE = 'tones/list';
+/** Lists each colour role twice: tinted (`role`) and filled (`role:solid`), for every block's `theme`. */
+export const THEMES_ROUTE = 'themes/list';
 
 /** Route that lists the site's EmDash menus for `vitops_nav`'s `menu` select — see `menus-route.ts`. */
 export const MENUS_ROUTE = 'menus/list';
@@ -87,6 +90,20 @@ export const WIDGET_AREAS_ROUTE = 'widget-areas/list';
  */
 export function commonFields(): BlockKitFieldDef[] {
   return [
+    {
+      type: 'select',
+      action_id: 'theme',
+      label: 'Theme (a backdrop with readable text, from the site colours)',
+      initial_value: '',
+      options: [
+        { label: 'None', value: '' },
+        ...THEME_ROLES.flatMap((r) => [
+          { label: r.replace(/-/g, ' '), value: r },
+          { label: `${r.replace(/-/g, ' ')} (filled)`, value: `${r}:solid` },
+        ]),
+      ],
+      optionsRoute: THEMES_ROUTE,
+    } as BlockKitFieldDef,
     {
       type: 'text_input',
       action_id: 'anchor',
