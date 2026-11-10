@@ -25,7 +25,7 @@ export default getViteConfig({
     },
   },
   test: {
-    include: ['src/astro/blocks/render.container.test.ts'],
+    include: ['src/astro/blocks/*.container.test.ts'],
     environment: 'node',
   },
 } as Parameters<typeof getViteConfig>[0]);

@@ -14,3 +14,8 @@ declare module 'virtual:getvitops/head' {
   const head: { turnstileSiteKey: string | null } & Record<string, unknown>;
   export default head;
 }
+
+/** Supplied by EmDash's integration: the merged plugin `blockComponents` maps. */
+declare module 'virtual:emdash/block-components' {
+  export const pluginBlockComponents: Record<string, unknown>;
+}

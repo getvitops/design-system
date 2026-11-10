@@ -16,6 +16,7 @@
  */
 import { getMenu, getWidgetArea } from 'emdash';
 import Nothing from './Nothing.astro';
+import { unrenderedTypes } from './blocks/unrendered.ts';
 import { joinStyle, resolveTheme } from './blocks/tone.ts';
 import { headingTag, safeHref, text } from './blocks/value.ts';
 // Lazy for the same reason as `blocks/Section.astro`: a static `emdash/ui` import makes a cycle
@@ -58,6 +59,9 @@ const hasBody = (content: unknown) =>
 const shown = widgets.filter(
   (w) => w.type !== 'content' || hasBody(w.content),
 );
+const missing = [
+  ...new Set((await Promise.all(shown.map((w) => unrenderedTypes(w.content)))).flat()),
+];
 const inner = { type: { 'vitops_widgetArea': Nothing } };
 ---
 
@@ -101,6 +105,7 @@ const inner = { type: { 'vitops_widgetArea': Nothing } };
             )}
           </section>
         ))}
+        {missing.map((type) => <template data-vitops-unrendered={type} />)}
         </>
       )}
     </div>

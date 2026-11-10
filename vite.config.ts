@@ -68,7 +68,7 @@ export default defineConfig({
       '.claude/worktrees/**',
       'packages/astro/src/components/container.test.ts',
       // Same reason, and unlike the astro one it works: `cd packages/emdash && pnpm run test:render`.
-      'packages/emdash/src/astro/blocks/render.container.test.ts',
+      'packages/emdash/src/astro/blocks/*.container.test.ts',
     ],
   },
 

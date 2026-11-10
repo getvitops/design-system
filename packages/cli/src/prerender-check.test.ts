@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  unrenderedBlocks,
   brokenInternalLinks,
   formFieldNames,
   uninventoriedFields,
@@ -127,5 +128,22 @@ describe('form field inventory', () => {
       'message',
     ]);
     expect(uninventoriedFields({}, ['name'])).toEqual(['name']);
+  });
+});
+
+describe('unrenderedBlocks / prerenderProblem', () => {
+  const page = (body: string) =>
+    `<!doctype html><html><head><title>T</title></head><body>${body}</body></html>`;
+  it('lists the dropped block types once', () => {
+    const html = page(
+      '<template data-vitops-unrendered="vitops_cards"></template><template data-vitops-unrendered="vitops_cards"></template><template data-vitops-unrendered="vitops_hero"></template>',
+    );
+    expect(unrenderedBlocks(html)).toEqual(['vitops_cards', 'vitops_hero']);
+  });
+  it('fails a page that dropped a block', () => {
+    expect(
+      prerenderProblem(page('<template data-vitops-unrendered="vitops_cards"></template>')),
+    ).toMatch(/dropped block.*vitops_cards/);
+    expect(prerenderProblem(page('<p>ok</p>'))).toBeUndefined();
   });
 });

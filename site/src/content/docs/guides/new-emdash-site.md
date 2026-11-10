@@ -16,7 +16,7 @@ Cloudflare resources, the domain, Search Console, ads, legal — lives in the sc
 - **Node 24** and **[Vite+](https://viteplus.dev) (`vp`)**. The scaffold pins its Node version in
   `.node-version`; `vp` reads it.
 - **`gh`** (GitHub CLI), logged in: `gh auth login`.
-- A **Cloudflare account** and `vpx wrangler login`. Local development needs neither — `vp dev` runs the
+- A **Cloudflare account** and `vp exec wrangler login`. Local development needs neither — `vp dev` runs the
   Worker with local D1/R2 emulation — but the hand-off checklist does.
 - The client's name, address and brand colours. You'll enter them in step 4.
 
@@ -63,13 +63,13 @@ the other install routes (Codex, a Claude Code plugin marketplace).
 **The Vitops design-system skill.**
 
 ```sh
-vpx vitops agents -i site.json
+vp exec vitops agents -i site.json
 ```
 
 Links the `vitops-design-system` skill into `.agents/skills/` and `.claude/skills/` and writes a managed
 block into `AGENTS.md`. The skill teaches the agent to fetch the class vocabulary live
-(`vpx vitops docs <topic>`), rendered from _your_ `site.json`, so it can never describe tokens the site
-doesn't have. `vpx vitops docs blocks` lists every EmDash block and its fields.
+(`vp exec vitops docs <topic>`), rendered from _your_ `site.json`, so it can never describe tokens the site
+doesn't have. `vp exec vitops docs blocks` lists every EmDash block and its fields.
 
 **The site's own MCP server** (`/_emdash/api/mcp`) is separate: it lets an agent read and write _content_
 on a running site, over OAuth, with the permissions of the role that approves it. It is not in
@@ -89,8 +89,8 @@ Everything brand-specific is in **`site.json`**:
 Replace `src/assets/logo.svg` (favicons and the PWA manifest are generated from it), then check your work:
 
 ```sh
-vpx vitops validate site.json
-vpx vitops lint -i site.json -f tailwind --strict
+vp exec vitops validate site.json
+vp exec vitops lint -i site.json -f tailwind --strict
 ```
 
 `lint` catches the failure that is otherwise invisible — a utility class that resolves to nothing. See the
@@ -129,17 +129,17 @@ xdg-open SETUP.html   # or: open SETUP.html
 per step. In order:
 
 1. **Host** — Cloudflare Workers by default.
-2. **GitHub repo + branch policy** — `vpx vitops setup repo`. `dev` is the unprotected integration
+2. **GitHub repo + branch policy** — `vp exec vitops setup repo`. `dev` is the unprotected integration
    branch; `main` is production, protected, and reached only through the promote workflow.
-3. **Hosting resources** — `vpx vitops setup hosting`: the isolated dev D1 database and R2 bucket, and the
+3. **Hosting resources** — `vp exec vitops setup hosting`: the isolated dev D1 database and R2 bucket, and the
    repo secrets. You create the Cloudflare API token by hand; no API can mint one.
 4. **Domain strategy** — go live on `*.workers.dev` first, with `robots: noindex,nofollow`. The custom-domain
    cutover is a separate, deliberate step that takes any existing site at that domain offline the moment
    you deploy.
 5. **Configuration** — fill in `site.json` fully.
-6. **Search Console, ads, sender email** — `vpx vitops setup search`, `setup ads`, `email setup`.
+6. **Search Console, ads, sender email** — `vp exec vitops setup search`, `setup ads`, `email setup`.
 7. **Legal** — generate the privacy policy, terms and cookie notice from your config
-   (`vpx vitops legal --format portable-text`), then have them reviewed before publishing.
+   (`vp exec vitops legal --format portable-text`), then have them reviewed before publishing.
 8. **Launch gates** — robots, canonical domain, favicons, lint, typecheck, the production approval.
 
 An agent can work the same list autonomously through `.agents/skills/setup/`. It stops at the steps that

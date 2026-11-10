@@ -25,6 +25,12 @@ export const SAMPLE_FORM_BLOCK = {
       required: false,
       options: 'Maintenance\nDesign\nInstallation',
     },
+    {
+      label: 'Interested in',
+      name: 'interests',
+      type: 'checkboxes',
+      options: 'Managed IT\nWeb design\nSEO',
+    },
     { label: 'Message', name: 'message', type: 'textarea', required: true },
     { label: 'Add me to your newsletter', name: 'newsletter', type: 'checkbox' },
   ],

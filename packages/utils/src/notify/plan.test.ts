@@ -7,7 +7,12 @@
  * make impossible.
  */
 import { describe, expect, it } from 'vite-plus/test';
-import { DEFAULT_EMAIL_BINDING, normalizeEmailChannel, planNotifications } from './plan.ts';
+import {
+  DEFAULT_EMAIL_BINDING,
+  hasFormDelivery,
+  normalizeEmailChannel,
+  planNotifications,
+} from './plan.ts';
 import { describeEvent, renderEmail } from './render.ts';
 import type { ConversionEvent } from '../tracking/types.ts';
 
@@ -176,5 +181,17 @@ describe('renderEmail', () => {
     expect(msg.text).toContain('--- Actions ---');
     expect(msg.text).toContain('--- Delivery ---');
     expect(msg.text).toContain('Written to HubSpot (contact 1234)');
+  });
+});
+
+describe('hasFormDelivery', () => {
+  it('is false with no email channel, no location email and no CRM', () => {
+    expect(hasFormDelivery({})).toBe(false);
+    expect(hasFormDelivery({ locationEmails: [] })).toBe(false);
+  });
+  it('is true with any one of them', () => {
+    expect(hasFormDelivery({ notifications: { email: 'a@b.ca' } })).toBe(true);
+    expect(hasFormDelivery({ locationEmails: ['a@b.ca'] })).toBe(true);
+    expect(hasFormDelivery({}, { provider: 'hubspot' })).toBe(true);
   });
 });

@@ -20,6 +20,7 @@
 // that evaluates the virtual module before `blockComponents` exists, so the static build ships
 // an empty plugin block map and drops every `vitops_*` block in a section body.
 const { PortableText } = await import('emdash/ui');
+import { unrenderedTypes } from './unrendered.ts';
 import { joinStyle, resolveTone } from './tone.ts';
 import { outlineTag, resolveBlockValue, text } from './value.ts';
 
@@ -49,6 +50,7 @@ const heading = text(value.heading);
 const sub = text(value.sub);
 const body = Array.isArray(value.body) ? value.body : [];
 const Heading = outlineTag(value.level, 2);
+const missing = await unrenderedTypes(body);
 // `theme` (every block's backdrop) is applied by `rootAttrs`, and wins over the older
 // `tone`/`color`/`solid` fields, which stay for content that already uses them.
 const tone = resolveTone(value.tone, value.color);
@@ -76,6 +78,7 @@ import { rootAttrs } from './attrs.ts';
           {body.length > 0 && (
             <div class="section__body">
               <PortableText value={body} />
+              {missing.map((type) => <template data-vitops-unrendered={type} />)}
             </div>
           )}
         </div>

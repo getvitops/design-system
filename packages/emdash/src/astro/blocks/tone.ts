@@ -8,8 +8,9 @@
  * - **`color`** — the escape hatch: a palette hue (`amber`) or hue and step (`amber-300`).
  *   Wins over `tone` when set. Contrast is NOT checked for it — the generator's contrast
  *   contract covers roles, not arbitrary hue/step pairs — so it is for decoration. A solid fill
- *   reads from the site's `--color-<hue>-<step>-on`, but the tint is light-scheme only: use a `tone`
- *   role, which re-points per scheme, where the site has a dark theme.
+ *   reads from the site's `--color-<hue>-<step>-on` and the tint flips with the colour scheme
+ *   (`light-dark()`); mid steps (300–500) cannot reach APCA Lc 75 with either text colour, so use
+ *   a role where contrast matters.
  *
  * **Why CSS custom properties, not classes.** A class name built from a field value
  * (`bg-${tone}`) is invisible to Tailwind's scanner, so it generates nothing in that
@@ -88,13 +89,16 @@ export function resolveTone(tone?: unknown, color?: unknown): ResolvedTone {
     // step, picked by the same APCA rule as `text-on-<role>`, so a fill by hue and step reads
     // without a fixed white and without asking the browser to guess.
     const fill = step ?? '600';
+    // Raw hue steps never re-point in dark, so the tint flips here: `light-dark()` follows the
+    // `color-scheme` the generator sets under the dark selector.
+    const flip = (light: string, dark: string) => `light-dark(${at(light)}, ${at(dark)})`;
     return {
       className: 'tone',
       style: [
-        `--tone-bg: ${at('100')}`,
-        `--tone-fg: ${at('900')}`,
-        `--tone-border: ${at('300')}`,
-        `--tone-solid: ${at(step ?? '600')}`,
+        `--tone-bg: ${flip('100', '900')}`,
+        `--tone-fg: ${flip('900', '100')}`,
+        `--tone-border: ${flip('300', '700')}`,
+        `--tone-solid: ${at(fill)}`,
         `--tone-on-solid: ${at(`${fill}-on`)}`,
       ].join('; '),
     };

@@ -49,6 +49,8 @@ import {
 export { BLOCKS } from './blocks.ts';
 export { selectBlocks } from './blocks.ts';
 export { renderBlocksDoc } from './blocks-doc.ts';
+export { formTemplateFromBlock } from './form-template.ts';
+export type { FormTemplate, FormTemplateField } from './form-template.ts';
 export { SECTION_BLOCK_TYPE, SECTION_SLUG, vitopsBlockTypes } from './block-types.ts';
 export { resolveTone, toneChain } from './astro/blocks/tone.ts';
 export type { BlockKitFieldDef, BlockSelection, PortableTextBlockDef } from './blocks.ts';

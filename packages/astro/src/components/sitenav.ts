@@ -28,6 +28,8 @@ export interface NavItem {
   titleAttr?: string;
   /** Extra classes from the editor; passed through on the link. */
   cssClasses?: string;
+  /** `true` is the same as `draft` in `cssClasses`: a planned link, kept but not rendered. */
+  hidden?: boolean;
   children?: NavItem[];
 }
 
@@ -47,7 +49,7 @@ export const MENU_NAMES = {
  * EmDash menu items have no draft state of their own, so the editor's "CSS classes" field carries it.
  */
 export function isDraft(item: NavItem): boolean {
-  return /(^|\s)draft(\s|$)/.test(item.cssClasses ?? '');
+  return item.hidden === true || /(^|\s)draft(\s|$)/.test(item.cssClasses ?? '');
 }
 
 const hasDraft = (items: NavItem[]): boolean =>

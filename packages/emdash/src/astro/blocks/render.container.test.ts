@@ -83,7 +83,10 @@ describe('vitops_hero', () => {
 
   it('renders the optional cards slot', async () => {
     const html = await render(Hero, { heading: 'Hi', cards: [{ title: 'A', body: 'b' }] });
-    expect(html).toContain('<h3 class="font-heading">A</h3>');
+    // the hero defaults to h1, so its option cards sit one level down
+    expect(html).toContain('<h2 class="font-heading">A</h2>');
+    const under2 = await render(Hero, { heading: 'Hi', level: '2', cards: [{ title: 'A' }] });
+    expect(under2).toContain('<h3 class="font-heading">A</h3>');
   });
 });
 

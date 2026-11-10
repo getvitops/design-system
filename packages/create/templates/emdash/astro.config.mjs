@@ -35,6 +35,8 @@ const brandColor = colors.palette?.[roleHue('brand-primary')]?.seed ?? '#2e9b73'
 export default defineConfig({
   output: 'server',
   adapter,
+  // The seed's `pages` collection serves entries at `/{slug}` (urlPattern), and `home` lives at `/`.
+  redirects: { '/home': '/' },
   image: {
     layout: 'constrained',
     responsiveStyles: true,

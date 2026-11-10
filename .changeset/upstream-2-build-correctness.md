@@ -1,9 +1,11 @@
 ---
 '@getvitops/emdash': minor
 '@getvitops/cli': minor
-'@getvitops/core': patch
-'@getvitops/generator': patch
-'@getvitops/create': patch
+'@getvitops/core': minor
+'@getvitops/generator': minor
+'@getvitops/astro': minor
+'@getvitops/utils': minor
+'@getvitops/create': minor
 ---
 
 Build correctness and gaps from the second upstream round.
@@ -15,7 +17,7 @@ Build correctness and gaps from the second upstream round.
 - **`@getvitops/emdash`: an empty content widget** (no text, no blocks) no longer renders its title, and an area whose widgets are all empty renders nothing.
 - **`@getvitops/create`:** the template's `pages` collection gets `urlPattern: "/{slug}"` (the sitemap listed `/pages/<slug>`, which 404s; existing sites change it under Content Types), and `.gitignore` ignores only `src/styles/tailwind.css` and `tokens.json`, so site CSS kept in `src/styles/` is committed.
 - **`@getvitops/emdash`: per-item colour.** The rows of `vitops_cards`, `vitops_stats`, `vitops_steps` and the hero's `cards` take their own `tone` / `color` (blank inherits the block's), so one block can hold a pine item and an amber one. Hero cards also take an `eyebrow` and a button (`ctaLabel` / `ctaHref`; with a button the card is no longer a stretched link).
-- **`@getvitops/generator` / `@getvitops/emdash`: solid fills read.** The generator emits `--color-<hue>-<step>-on` for every step of every hue, the foreground for a fill at that step picked by the same APCA rule as `text-on-<role>` (css and tailwind formats, a plain `:root`, not `@theme`). A block fill chosen by `color` (hue and step) uses it instead of a fixed white. The tint from `color` is light-scheme only; use a `tone` role where the site has a dark theme.
+- **`@getvitops/generator` / `@getvitops/emdash`: solid fills read.** The generator emits `--color-<hue>-<step>-on` for every step of every hue, the foreground for a fill at that step picked by the same APCA rule as `text-on-<role>` (css and tailwind formats, a plain `:root`, not `@theme`). A block fill chosen by `color` (hue and step) uses it instead of a fixed white..
 - **`@getvitops/core`: `.counter__value.sr-only`** hides itself, so a build that never emitted the `.sr-only` utility no longer shows a counting figure twice (all formats).
 - **`@getvitops/astro` / `@getvitops/core`: `SiteFooter` groups.** A top-level item of the `footer-sitemap` menu with children becomes a column (its label is the heading, its children the links, one level only); childless items stay in the flat list. Each column is a named `<nav>`.
 - **`@getvitops/astro`: planned links and header buttons.** A menu item with `draft` in its CSS classes stays in the menu but is not rendered (at every level, in the header and the footer). `<SiteNav>` has an `actions` slot for header buttons that are not menu items, and an item with `cta` in its CSS classes renders as a button.
@@ -24,3 +26,8 @@ Build correctness and gaps from the second upstream round.
 - **`@getvitops/core`: size hooks.** `.steps__title`, `.stats__figure` and `.card__title` read `--steps-title-size` (default one step below `heading`), `--stats-figure-size` and `--card-title-size`, set on the block through its `style` field. They set the `--heading-fs` / `--display-fs` properties the type-role utilities already read, so no extra class or prop is needed (all formats).
 - **`@getvitops/create`:** the template's `site.json` lists its contact form under `site.templates`, so the privacy policy inventory and the new check agree.
 - **`@getvitops/emdash`: `theme` on every block, on widget areas and on your own markup.** A `theme` select (`<role>` tinted, `<role>:solid` filled, populated from the site's roles by a new `themes/list` route) is a common field on every `vitops_*` block, applied to the block's own root with the role's computed readable text. `<VitopsWidgetArea theme="…">` takes the same, and `themeAttrs('surface')` gives `{ class, style }` for a layout `<body>`. `vitops_section`'s existing `theme` now goes through the same path.
+- **`@getvitops/cli` / `@getvitops/emdash`: pages with a dropped block fail the build.** `vitops_section` and widget areas emit an invisible `<template data-vitops-unrendered="…">` for any body block with no renderer, and `check-prerender` fails the page naming the types (nested bodies only; `vitops emdash build` also scans the build log, which covers top-level bodies). A regression test imports the plugin entry first with a mock of the real virtual module, so the old import cycle fails it.
+- **`@getvitops/emdash`: `formTemplateFromBlock(block)`** turns a saved `vitops_form` value into a `site.templates` form entry (names as submitted, a `checkboxes` field as a `checkbox` with options), to paste into `site.json` so the generated privacy policy lists what the form collects. The build cannot read the CMS database, so this is run by hand; `check-prerender` warns when fields are missing.
+- **`@getvitops/utils`: `hasFormDelivery`** (`@getvitops/utils/notify`): the one test for "has this form anywhere to go", used by `check-prerender`.
+- **`@getvitops/emdash`:** a `color` hue tint now flips with the colour scheme (`light-dark()`); hero option cards sit at `h2` under an `h1` hero; menu items also accept `hidden: true` (same as the `draft` class); `vitops docs blocks` documents `theme`, the per-row colours, the `--<role>-fs` type-size hook and the form checks.
+- **`@getvitops/create`:** the template redirects `/home` to `/`, and the guides use `vp exec` instead of `vpx`.

@@ -45,6 +45,16 @@ describe('trimDepth / treeDepth', () => {
   });
 });
 
+describe('hidden items', () => {
+  it('`hidden: true` is the same as `draft`', () => {
+    const items = menuItems([
+      { label: 'Home', url: '/' },
+      { label: 'Soon', url: '/soon', hidden: true },
+    ]);
+    expect(items.map((i) => i.label)).toEqual(['Home']);
+  });
+});
+
 describe('draft items', () => {
   const menu = [
     { label: 'Home', url: '/' },

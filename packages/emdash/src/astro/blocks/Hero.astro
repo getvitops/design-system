@@ -40,6 +40,8 @@ const eyebrow = text(value.eyebrow);
 const heading = text(value.heading);
 const headingRuns = accentRuns(heading);
 const Heading = outlineTag(value.level, 1);
+// A hero titled `h1` puts its option cards one level down, at `h2`.
+const CardHeading = Heading === 'h1' ? 'h2' : 'h3';
 const body = text(value.body);
 const primaryLabel = text(value.primaryLabel);
 const primaryHref = safeHref(value.primaryHref);
@@ -100,7 +102,7 @@ import { rootAttrs } from './attrs.ts';
           {cards.map((card) => (
             <li class:list={['card', 'subgrid-card', card.style && 'tone']} style={card.style}>
               {card.eyebrow && <p class="font-eyebrow">{card.eyebrow}</p>}
-              {card.title && <h3 class="font-heading">{card.title}</h3>}
+              {card.title && <CardHeading class="font-heading">{card.title}</CardHeading>}
               {card.body && (
                 <p>
                   <RichText text={card.body} />

@@ -120,3 +120,17 @@ function planEmail(ctx: NotifyContext): EmailPlan {
     enabled: true,
   };
 }
+
+/**
+ * Whether a form post has anywhere to go: a `notifications.email` channel, a location e-mail,
+ * or a CRM. With none of the three the emdash template's `/api/track` refuses the post (it
+ * would otherwise accept it and lose the message), so `vitops emdash check-prerender` asks the
+ * same question of the config before the first visitor finds out. One function so the build
+ * check and the route cannot disagree.
+ */
+export function hasFormDelivery(
+  ctx: Pick<NotifyContext, 'notifications' | 'locationEmails'>,
+  crm?: unknown,
+): boolean {
+  return Boolean(ctx.notifications?.email || ctx.locationEmails?.length || crm);
+}

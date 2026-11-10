@@ -83,6 +83,7 @@ export async function notify(
 
 export {
   DEFAULT_EMAIL_BINDING,
+  hasFormDelivery,
   normalizeEmailChannel,
   planNotifications,
   resolveRecipient,

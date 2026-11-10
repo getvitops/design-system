@@ -6,6 +6,8 @@
  * required" body, which is written to `index.html` like any other page, and the deploy then
  * publishes it.
  */
+import { hasFormDelivery } from '@getvitops/utils/notify';
+
 export const PENDING_MIGRATIONS = /Database migrations are required/i;
 
 /** Why `html` is not a real page, or `undefined` when it looks like one. */
@@ -13,7 +15,22 @@ export function prerenderProblem(html: string): string | undefined {
   if (PENDING_MIGRATIONS.test(html)) return 'carries the pending-migrations message';
   if (!/<html[\s>]/i.test(html)) return 'is not an HTML document';
   if (!/<title>[^<]+<\/title>/i.test(html)) return 'has no <title>';
+  const unrendered = unrenderedBlocks(html);
+  if (unrendered.length)
+    return `dropped block(s) with no renderer: ${unrendered.join(', ')} (see \`PortableText [components.type] is missing\` in the build log)`;
   return undefined;
+}
+
+/**
+ * `vitops_*` block types a page's nested body dropped. `vitops_section` and widget areas emit a
+ * `data-vitops-unrendered="<type>"` marker for each, so a page whose sections rendered as
+ * headings over empty bodies fails here instead of passing for a real page. (The build-log check in
+ * `vitops emdash build` also catches top-level bodies, which carry no marker.)
+ */
+export function unrenderedBlocks(html: string): string[] {
+  const types = new Set<string>();
+  for (const m of html.matchAll(/data-vitops-unrendered\s*=\s*"([^"]+)"/gi)) types.add(m[1]!);
+  return [...types].sort();
 }
 
 /** The type-role utilities (`font-<role>`) the framework defines; a closed list from its docs. */
@@ -132,15 +149,17 @@ export function deliveryProblem(config: unknown): string | undefined {
     site?: { notifications?: { email?: unknown }; crm?: unknown };
     organization?: { locations?: Record<string, { email?: unknown }> | Array<{ email?: unknown }> };
   };
-  if (c.site?.crm) return undefined;
-  const email = c.site?.notifications?.email;
-  if (typeof email === 'string' && email) return undefined;
-  if (email && typeof email === 'object' && typeof (email as { to?: unknown }).to === 'string')
-    return undefined;
   const locations = c.organization?.locations;
-  const list = Array.isArray(locations) ? locations : Object.values(locations ?? {});
-  if (list.some((l) => typeof l?.email === 'string' && l.email)) return undefined;
-  return 'no recipient: set `site.notifications.email`, or give an organization location an `email`, or configure `site.crm`';
+  const locationEmails = (Array.isArray(locations) ? locations : Object.values(locations ?? {}))
+    .map((l) => l?.email)
+    .filter((e): e is string => typeof e === 'string' && e !== '');
+  // The same test the route makes (`hasFormDelivery`), so the build and the route cannot disagree.
+  return hasFormDelivery(
+    { notifications: c.site?.notifications as never, locationEmails },
+    c.site?.crm,
+  )
+    ? undefined
+    : 'no recipient: set `site.notifications.email`, or give an organization location an `email`, or configure `site.crm`';
 }
 
 const NOT_COLLECTED = new Set([
