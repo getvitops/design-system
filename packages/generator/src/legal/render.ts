@@ -176,7 +176,7 @@ export function toHtmlFragment(blocks: Block[]): string {
  * Two deliberate mappings:
  *  - the `# ` heading is **dropped** — in EmDash the page title is a field
  *    (`data.title`), and repeating it as the first content block renders twice;
- *  - the review blockquote becomes a `vitops.banner` with `tone: "warning"`,
+ *  - the review blockquote becomes a `vitops_banner` with `tone: "warning"`,
  *    which is exactly the block the hand-written placeholder pages used.
  *
  * `_key`s are derived from position rather than randomness, so regenerating an
@@ -190,7 +190,7 @@ export function toPortableText(blocks: Block[], prefix: string): unknown[] {
 
     if (b.kind === 'quote') {
       out.push({
-        _type: 'vitops.banner',
+        _type: 'vitops_banner',
         _key: key,
         message: b.spans.map((s) => s.text).join(''),
         tone: 'warning',

@@ -71,7 +71,7 @@ declare module 'virtual:getvitops/head' {
 
 /**
  * The committed `.vitops/reviews.json` cache as a build-time import — for components that
- * render in a Worker and so cannot read the file (the EmDash `vitops.reviews` block). Always
+ * render in a Worker and so cannot read the file (the EmDash `vitops_reviews` block). Always
  * defined: with no cache file it is `{ version: 1, locations: {} }`.
  */
 declare module 'virtual:getvitops/reviews' {

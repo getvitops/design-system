@@ -28,7 +28,7 @@ export const REVIEW_NOTICE =
  * designated and is published, that a privacy impact assessment precedes any
  * communication outside Quebec, that consent mechanics match the Act, and — easy
  * to miss — that content directed at Quebec consumers is available in French. It
- * is a second blockquote (a second `vitops.banner` in Portable Text) so it cannot
+ * is a second blockquote (a second `vitops_banner` in Portable Text) so it cannot
  * be skimmed past as part of the first.
  */
 export const QC_REVIEW_NOTICE =

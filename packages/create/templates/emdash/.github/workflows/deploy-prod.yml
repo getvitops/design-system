@@ -10,7 +10,7 @@
 #
 # Also runs on a `repository_dispatch` of type `emdash-publish`: pages are
 # prerendered, so a publish in the EmDash admin only goes live after a rebuild,
-# and an EmDash `content:afterPublish` hook POSTs that event (AGENTS.md,
+# and an EmDash `content:afterPublish` hook POSTs that event (.agents/skills/content-and-deploys,
 # "Publish-triggered rebuilds"). A dispatch runs this file from the DEFAULT branch
 # (`dev`), so `ref` pins the build to `main` — production's code, not dev's. It
 # still goes through the `production` environment, so it still waits for the

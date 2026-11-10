@@ -19,7 +19,7 @@
 import Cards from '@getvitops/astro/components/Cards.astro';
 import Subgrid from '@getvitops/astro/components/Subgrid.astro';
 import RichText from './RichText.astro';
-import { joinStyle, resolveTone } from './tone.ts';
+import { joinStyle, resolveTone, rowTone } from './tone.ts';
 import { headingTag, lines, resolveBlockValue, rows, safeHref, text } from './value.ts';
 
 interface Value {
@@ -43,6 +43,7 @@ const cards = rows<Record<string, unknown>>(value.cards)
     checklist: lines(row.checklist),
     ctaLabel: text(row.ctaLabel),
     ctaHref: safeHref(row.ctaHref),
+    style: rowTone(row),
   }))
   .filter((card) => card.title || card.body || card.image);
 const columns = Math.min(4, Math.max(1, Math.round(Number(value.columns) || 3)));
@@ -59,7 +60,7 @@ import { rootAttrs } from './attrs.ts';
       {cards.map((card) => (
         <li
           class:list={['card', 'subgrid-card', panel && tone.className]}
-          style={panel ? joinStyle(tone.style) : undefined}
+          style={panel ? joinStyle(tone.style, card.style) : card.style}
         >
           {card.image && <img src={card.image} alt={card.imageAlt} loading="lazy" />}
           {card.title && <Heading class="font-heading">{card.title}</Heading>}

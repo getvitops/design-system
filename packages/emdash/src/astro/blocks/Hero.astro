@@ -8,10 +8,10 @@
  * Flat fields, because a block cannot contain other blocks.
  */
 import RichText from './RichText.astro';
-import { joinStyle, resolveTone } from './tone.ts';
+import { joinStyle, resolveTone, rowTone } from './tone.ts';
 import {
   accentRuns,
-  headingTag,
+  outlineTag,
   resolveBlockValue,
   rows,
   safeHref,
@@ -39,7 +39,7 @@ const value = resolveBlockValue<Value>(Astro.props);
 const eyebrow = text(value.eyebrow);
 const heading = text(value.heading);
 const headingRuns = accentRuns(heading);
-const Heading = headingTag(value.level, 2);
+const Heading = outlineTag(value.level, 1);
 const body = text(value.body);
 const primaryLabel = text(value.primaryLabel);
 const primaryHref = safeHref(value.primaryHref);
@@ -55,6 +55,10 @@ const cards = rows<Record<string, unknown>>(value.cards)
     body: text(row.body),
     href: safeHref(row.href),
     linkLabel: text(row.linkLabel) || 'Learn more',
+    eyebrow: text(row.eyebrow),
+    ctaLabel: text(row.ctaLabel),
+    ctaHref: safeHref(row.ctaHref),
+    style: rowTone(row),
   }))
   .filter((card) => card.title || card.body);
 import { rootAttrs } from './attrs.ts';
@@ -94,18 +98,27 @@ import { rootAttrs } from './attrs.ts';
       {cards.length > 0 && (
         <ul class="subgrid centered" role="list" style={`--subgrid-cols: ${Math.min(4, cards.length)}`}>
           {cards.map((card) => (
-            <li class="card subgrid-card">
+            <li class:list={['card', 'subgrid-card', card.style && 'tone']} style={card.style}>
+              {card.eyebrow && <p class="font-eyebrow">{card.eyebrow}</p>}
               {card.title && <h3 class="font-heading">{card.title}</h3>}
               {card.body && (
                 <p>
                   <RichText text={card.body} />
                 </p>
               )}
-              {card.href && (
-                <a class="link stretched-link" href={card.href}>
-                  {card.linkLabel}
-                  {card.title && <span class="sr-only">: {card.title}</span>}
-                </a>
+              {card.ctaLabel && card.ctaHref ? (
+                <p class="subgrid-card__footer">
+                  <a class="cta" href={card.ctaHref}>
+                    {card.ctaLabel}
+                  </a>
+                </p>
+              ) : (
+                card.href && (
+                  <a class="link stretched-link" href={card.href}>
+                    {card.linkLabel}
+                    {card.title && <span class="sr-only">: {card.title}</span>}
+                  </a>
+                )
               )}
             </li>
           ))}

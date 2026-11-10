@@ -892,7 +892,7 @@ const RESOLVED_REVIEWS_ID = `\0${REVIEWS_ID}`;
 
 /**
  * The committed `.vitops/reviews.json` cache as a build-time import, for server-rendered
- * components that cannot read the filesystem (the EmDash `vitops.reviews` block runs in a
+ * components that cannot read the filesystem (the EmDash `vitops_reviews` block runs in a
  * Worker — and, with pages prerendered, inside the Cloudflare adapter's local workerd).
  *
  * **An absent or unusable file serves an EMPTY cache, never an error.** A fresh scaffold has

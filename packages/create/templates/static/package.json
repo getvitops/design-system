@@ -16,15 +16,17 @@
     "build:css": "vitops generate -i site.json -f css -o src/styles",
     "lint:design": "vitops lint -i site.json -f css --strict",
     "sop": "vitops generate -i site.json -f css -o .vitops/sop",
-    "prepare": "vp config"
+    "prepare": "vp config && skills experimental_sync -y -a claude-code --no-frozen-lockfile"
   },
   "dependencies": {
     "@getvitops/astro": "latest",
+    "@getvitops/skills": "latest",
     "astro": "^7.4.4"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@getvitops/cli": "latest",
+    "skills": "^1.7.6",
     "typescript": "^6.0.3",
     "vite": "latest",
     "vite-plus": "latest",

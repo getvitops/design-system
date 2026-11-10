@@ -7,7 +7,9 @@
  *   fallbacks, then `neutral`.
  * - **`color`** — the escape hatch: a palette hue (`amber`) or hue and step (`amber-300`).
  *   Wins over `tone` when set. Contrast is NOT checked for it — the generator's contrast
- *   contract covers roles, not arbitrary hue/step pairs — so it is for decoration.
+ *   contract covers roles, not arbitrary hue/step pairs — so it is for decoration. A solid fill
+ *   picks its text from the fill (see below), but the tint is light-scheme only: use a `tone`
+ *   role, which re-points per scheme, where the site has a dark theme.
  *
  * **Why CSS custom properties, not classes.** A class name built from a field value
  * (`bg-${tone}`) is invisible to Tailwind's scanner, so it generates nothing in that
@@ -82,14 +84,19 @@ export function resolveTone(tone?: unknown, color?: unknown): ResolvedTone {
   if (hue) {
     const [, name, step] = hue;
     const at = (s: string) => `var(--color-${name}-${s})`;
+    // The foreground comes from the fill, not a fixed white: steps up to 500 are light enough that
+    // white fails (amber-600 under white text was the reported case), so those get the hue's
+    // darkest step. Browsers with `contrast-color()` override this with the exact computed answer
+    // (`.tone--auto-on`), which also covers a step the ladder guess gets wrong.
+    const fill = Number(step ?? '600');
     return {
-      className: 'tone',
+      className: 'tone tone--auto-on',
       style: [
         `--tone-bg: ${at('100')}`,
         `--tone-fg: ${at('900')}`,
         `--tone-border: ${at('300')}`,
         `--tone-solid: ${at(step ?? '600')}`,
-        `--tone-on-solid: #fff`,
+        `--tone-on-solid: ${fill >= 700 ? '#fff' : at('950')}`,
       ].join('; '),
     };
   }
@@ -119,4 +126,13 @@ export function resolveTone(tone?: unknown, color?: unknown): ResolvedTone {
 export function joinStyle(...parts: (string | undefined | false)[]): string | undefined {
   const out = parts.filter(Boolean).join('; ');
   return out || undefined;
+}
+
+/**
+ * A repeater row's own colour: the `style` that overrides the block's `--tone-*` properties for
+ * that item, or `undefined` when the row sets none (it then inherits the block's). Only the custom
+ * properties are written, so the row picks up the block's own `.tone` surface and just recolours it.
+ */
+export function rowTone(row: Record<string, unknown>): string | undefined {
+  return resolveTone(row.tone, row.color).style || undefined;
 }

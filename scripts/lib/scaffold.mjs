@@ -14,7 +14,20 @@ import { join, resolve } from 'node:path';
 export const ROOT = resolve(import.meta.dirname, '..', '..');
 
 /** The publishable toolchain a scaffold depends on (`create` itself is not one). */
-export const PACKAGES = ['config', 'core', 'generator', 'utils', 'cli', 'vite', 'astro', 'emdash'];
+export const PACKAGES = [
+  'config',
+  'core',
+  'generator',
+  'utils',
+  'cli',
+  'vite',
+  'astro',
+  'emdash',
+  'skills',
+];
+
+/** Packages that ship data only, so have no `dist/` to require. */
+const NO_BUILD = new Set(['skills']);
 
 /**
  * Pinned, and chosen to be older than the 3-day release cooldown this repo applies to
@@ -160,7 +173,7 @@ export function packAndPublish(registry, work) {
   const packed = {};
   for (const pkg of PACKAGES) {
     const dir = join(ROOT, 'packages', pkg);
-    if (!existsSync(join(dir, 'dist'))) {
+    if (!NO_BUILD.has(pkg) && !existsSync(join(dir, 'dist'))) {
       throw new Error(`packages/${pkg}/dist is missing — run \`vp run build:packages\` first`);
     }
     const before = new Set(readdirSync(tarballs));

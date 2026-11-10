@@ -362,3 +362,11 @@ maintenance; Cloudflare's own agent docs still say to use Wrangler for local dev
 Everything here depends on Wrangler today (`@astrojs/cloudflare`, `emdash migrate --wrangler-config`, the hosting
 executors, both templates' `wrangler.jsonc`). Before migrating, check adapter and EmDash support for
 `cloudflare.config.ts`. Stay on Wrangler until then.
+
+### Scheduled publishes vs prerendered pages — review the cron
+
+The emdash template's `triggers.crons` (`* * * * *`, `wrangler.jsonc`) runs the Worker every minute so content
+scheduled in the admin publishes, and plugin cron and maintenance run. Pages are prerendered, so a scheduled publish
+changes the database but the live HTML stays stale until a rebuild. Decide how it should trigger one, and confirm
+whether `content:afterPublish` fires for scheduled publishes (the `emdash-publish` dispatch hook in
+`content-and-deploys` assumes it does; unverified). Also check whether every-minute is the right cadence.

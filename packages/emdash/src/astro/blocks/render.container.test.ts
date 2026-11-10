@@ -30,7 +30,7 @@ async function render(component: unknown, node: object) {
   return container.renderToString(component as Component, { props: { node } });
 }
 
-describe('vitops.cards', () => {
+describe('vitops_cards', () => {
   const cards = [
     {
       title: 'Cut costs',
@@ -73,7 +73,7 @@ describe('vitops.cards', () => {
   });
 });
 
-describe('vitops.hero', () => {
+describe('vitops_hero', () => {
   it('accents starred words and honours the heading level', async () => {
     const html = await render(Hero, { heading: 'Two services. *One team.*', level: '3' });
     expect(html).toContain(
@@ -87,7 +87,7 @@ describe('vitops.hero', () => {
   });
 });
 
-describe('vitops.logos', () => {
+describe('vitops_logos', () => {
   it('is a labelled list of images with alt text', async () => {
     const html = await render(Logos, {
       label: 'Key partners',
@@ -103,12 +103,28 @@ describe('vitops.logos', () => {
     expect(html).toContain('<a href="/acme">');
   });
 
+  it('shows the name as text when an entry has no image, linked or not', async () => {
+    const html = await render(Logos, {
+      logos: [
+        { alt: 'Acme Partners', href: '/acme' },
+        { alt: 'Beta Group' },
+        { image: '/c.svg', alt: 'Gamma' },
+        { image: '', alt: '' },
+      ],
+    });
+    expect(html).toContain('<span class="logos__name font-heading">Acme Partners</span>');
+    expect(html).toContain('<span class="logos__name font-heading">Beta Group</span>');
+    expect(html).toContain('<a href="/acme"><span');
+    expect(html).toContain('alt="Gamma"');
+    expect(html.match(/logos__item/g)).toHaveLength(3);
+  });
+
   it('renders nothing with no logos', async () => {
     expect((await render(Logos, { logos: [] })).trim()).toBe('');
   });
 });
 
-describe('vitops.steps', () => {
+describe('vitops_steps', () => {
   it('is an ordered list with real headings and a tone', async () => {
     const html = await render(Steps, {
       steps: [{ title: 'Call', text: 'We talk' }, { title: 'Build' }],
@@ -123,7 +139,7 @@ describe('vitops.steps', () => {
   });
 });
 
-describe('vitops.stats', () => {
+describe('vitops_stats', () => {
   const stats = [
     { value: '82%', label: 'Faster', group: 'Ops', delta: '+3 this week', state: 'up' },
   ];
@@ -150,7 +166,7 @@ describe('vitops.stats', () => {
   });
 });
 
-describe('vitops.callout', () => {
+describe('vitops_callout', () => {
   it('is a heading, text and actions in a tinted or solid band — not a banner', async () => {
     const html = await render(Callout, {
       heading: 'Ready?',
@@ -168,7 +184,7 @@ describe('vitops.callout', () => {
   });
 });
 
-describe('vitops.entries', () => {
+describe('vitops_entries', () => {
   it('emits <wc-entries> with a semantic heading + dl per entry', async () => {
     const html = await render(Entries, {
       level: '4',
@@ -191,7 +207,7 @@ describe('vitops.entries', () => {
   });
 });
 
-describe('vitops.pricing', () => {
+describe('vitops_pricing', () => {
   it('aligns plans through the pricing-card subgrid rows', async () => {
     const html = await render(Pricing, {
       plans: [
@@ -221,7 +237,7 @@ describe('vitops.pricing', () => {
   });
 });
 
-describe('vitops.embed', () => {
+describe('vitops_embed', () => {
   it('ships the iframe with NO src and the address on data-consent-src', async () => {
     const html = await render(Embed, {
       provider: 'youtube',
@@ -289,12 +305,12 @@ const review = (id: string, rating: number, extra: object = {}) => ({
   ...extra,
 });
 
-describe('vitops.reviews', () => {
+describe('vitops_reviews', () => {
   it('renders nothing when the cache is empty (a fresh scaffold has no reviews.json)', async () => {
     fixtures.cache = { version: 1, locations: {} };
     const { default: Reviews } = await import('./Reviews.astro');
     // The dev-only note is allowed (vitest runs with DEV on); no card or wrapper is.
-    const html = await render(Reviews, { _type: 'vitops.reviews' });
+    const html = await render(Reviews, { _type: 'vitops_reviews' });
     expect(html).not.toContain('<article');
     expect(html).not.toMatch(/class="reviews[" ]/);
   });
@@ -371,7 +387,7 @@ describe('vitops.reviews', () => {
   });
 });
 
-describe('vitops.nav', () => {
+describe('vitops_nav', () => {
   const menu = {
     label: 'Footer site map',
     items: [
@@ -441,7 +457,7 @@ describe('vitops.nav', () => {
 // block the test nests, so it resolves as in production. (Not the whole `blockComponents` map:
 // that imports Section.astro, which imports `emdash/ui`, which awaits this very factory.)
 vi.mock('virtual:emdash/block-components', async () => ({
-  pluginBlockComponents: { 'vitops.logos': (await import('./Logos.astro')).default },
+  pluginBlockComponents: { vitops_logos: (await import('./Logos.astro')).default },
 }));
 
 vi.mock('virtual:emdash/config', () => ({ default: {} }));
@@ -466,8 +482,8 @@ describe('vitops_section', () => {
               style: 'normal',
               children: [{ _type: 'span', _key: 'b', text: 'Body copy' }],
             },
-            // The point of the block: another vitops.* block resolves INSIDE the body.
-            { _type: 'vitops.logos', _key: 'c', logos: [{ image: '/x.svg', alt: 'Acme' }] },
+            // The point of the block: another vitops_* block resolves INSIDE the body.
+            { _type: 'vitops_logos', _key: 'c', logos: [{ image: '/x.svg', alt: 'Acme' }] },
           ],
         },
       },
@@ -481,7 +497,7 @@ describe('vitops_section', () => {
   }, 60_000);
 });
 
-describe('vitops.form', () => {
+describe('vitops_form', () => {
   async function renderForm(node: object, path = '/contact') {
     const container = await AstroContainer.create();
     return container.renderToString(Form as unknown as Component, {
@@ -560,7 +576,7 @@ describe('vitops.form', () => {
     const html = await renderForm({ ...SAMPLE_FORM_BLOCK, action: 'https://evil.example/steal' });
     expect(html).toContain('action="/api/track"');
     expect(html).not.toContain('evil.example');
-    expect(await renderForm({ _type: 'vitops.form', fields: [] })).not.toContain('<form');
+    expect(await renderForm({ _type: 'vitops_form', fields: [] })).not.toContain('<form');
   });
 
   it('escapes editor text', async () => {
@@ -607,4 +623,44 @@ describe('escape hatches (anchor, className, style)', () => {
       expect(html).not.toContain(' id="x"');
     },
   );
+});
+
+describe('per-item colour and hero card extras', () => {
+  const rows = [
+    { title: 'Pine', body: 'a', tone: 'success' },
+    { title: 'Amber', body: 'b', color: 'amber' },
+    { title: 'Plain', body: 'c' },
+  ];
+
+  it('a row sets its own --tone-* properties; a row with none inherits', async () => {
+    const html = await render(Cards, { variant: 'panel', tone: 'info', cards: rows });
+    const items = html.match(/<li[^>]*class="card[^"]*"[^>]*>/g)!;
+    expect(items).toHaveLength(3);
+    expect(items[0]).toContain('--color-bg-success-muted');
+    expect(items[1]).toContain('--color-amber-100');
+    expect(items[2]).toContain('--color-bg-info-muted'); // the block's own
+  });
+
+  it('applies to stats and steps rows', async () => {
+    const stats = await render(Stats, {
+      stats: [{ value: '1', tone: 'danger' }, { value: '2' }],
+    });
+    expect(stats).toContain('stats__item" style="--tone-bg');
+    const steps = await render(Steps, {
+      steps: [{ title: 'A', color: 'amber' }, { title: 'B' }],
+    });
+    expect(steps).toContain('steps__item" style="--tone-bg');
+  });
+
+  it('hero cards take an eyebrow, a button and a tone', async () => {
+    const html = await render(Hero, {
+      heading: 'H',
+      level: '1',
+      cards: [{ title: 'Door', eyebrow: 'For IT', ctaLabel: 'Go', ctaHref: '/go', color: 'amber' }],
+    });
+    expect(html).toContain('class="font-eyebrow">For IT');
+    expect(html).toContain('<a class="cta" href="/go">');
+    expect(html).toContain('card subgrid-card tone');
+    expect(html).not.toContain('stretched-link');
+  });
 });

@@ -1,5 +1,5 @@
 /**
- * Pure decisions for the `vitops.form` block: which of an editor's field rows become real
+ * Pure decisions for the `vitops_form` block: which of an editor's field rows become real
  * controls, and under what submitted names.
  *
  * Names matter more than they look. `createConversionRoute` (`@getvitops/astro/routes`) is

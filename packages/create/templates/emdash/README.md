@@ -51,7 +51,7 @@ get the prerendered `src/pages/404.astro` with a real 404 status.
 
 **Pages are prerendered.** `vpr build` writes static HTML for every published
 `pages` entry, so an edit in the admin goes live on the next rebuild rather than
-per request — see AGENTS.md "Rendering and freshness" for how production content
+per request — see `.agents/skills/content-and-deploys` for how production content
 reaches the build (`scripts/pull-content.mjs`) and for the publish-triggered rebuild.
 In `vpr dev` the pages read your local database, so edits appear straight away.
 
@@ -189,7 +189,7 @@ vpr build:css                  # regenerate the CSS manually
 | `src/pages/index.astro`          | Home — prerendered from the `home` page entry                                                      |
 | `src/pages/[...slug].astro`      | Prerendered once per published `pages` entry (`getStaticPaths`)                                    |
 | `src/pages/404.astro`            | Prerendered not-found page, served with a 404 status for any unmatched URL                         |
-| `public/_headers`                | Report-Only CSP for the static pages (see AGENTS.md "Content Security Policy")                     |
+| `public/_headers`                | Report-Only CSP for the static pages (see `.agents/skills/csp`)                                    |
 | `scripts/pull-content.mjs`       | Loads production's D1 into the local build DB before the prerender (`deploy`/`deploy:dev`)         |
 | `wrangler.jsonc`                 | Cloudflare bindings (D1/R2) + cron trigger                                                         |
 | `scripts/build-dev-wrangler.mjs` | Rewrites the built wrangler config for the isolated dev worker                                     |

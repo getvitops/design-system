@@ -1,0 +1,23 @@
+{
+  "name": "@getvitops/skills",
+  "version": "0.0.0",
+  "description": "Agent skills for sites built with the Vitops toolchain. Installed as a dependency and linked into a project with `skills experimental_sync`, so they update with the package.",
+  "homepage": "https://docs.vitops.ca",
+  "bugs": "https://github.com/getvitops/design-system/issues",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/getvitops/design-system.git",
+    "directory": "packages/skills"
+  },
+  "files": [
+    "skills",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

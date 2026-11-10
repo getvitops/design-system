@@ -42,7 +42,7 @@ export type PortableTextBlockDef = Omit<PortableTextBlockConfig, 'fields'> & {
 /** Route that fills every tone select with the site's own roles — see `index.ts`. */
 export const TONES_ROUTE = 'tones/list';
 
-/** Route that lists the site's EmDash menus for `vitops.nav`'s `menu` select — see `menus-route.ts`. */
+/** Route that lists the site's EmDash menus for `vitops_nav`'s `menu` select — see `menus-route.ts`. */
 export const MENUS_ROUTE = 'menus/list';
 
 /**
@@ -78,7 +78,7 @@ function toneFields(): BlockKitFieldDef[] {
   ];
 }
 
-/** Route that lists the site's widget areas for `vitops.widgetArea`'s `area` select. */
+/** Route that lists the site's widget areas for `vitops_widgetArea`'s `area` select. */
 export const WIDGET_AREAS_ROUTE = 'widget-areas/list';
 
 /**
@@ -114,6 +114,21 @@ const levelField = (initial: string): BlockKitFieldDef => ({
   options: ['2', '3', '4', '5', '6'].map((n) => ({ label: `h${n}`, value: n })),
 });
 
+/**
+ * Heading level for a block that can own the page title (hero): `h1`, or `p` for a heading that is
+ * visual only and should not appear in the outline.
+ */
+const titleLevelField = (initial: string): BlockKitFieldDef => ({
+  type: 'select',
+  action_id: 'level',
+  label: 'Heading level (h1 is the page title; p is styled like a heading but not in the outline)',
+  initial_value: initial,
+  options: [
+    ...['1', '2', '3', '4', '5', '6'].map((n) => ({ label: `h${n}`, value: n })),
+    { label: 'p (not a heading)', value: 'p' },
+  ],
+});
+
 const BASE_BLOCKS: PortableTextBlockDef[] = [
   {
     /**
@@ -129,7 +144,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
      * raw HTML), so `<wc-icon-picker>` cannot be mounted inside a block modal
      * however much nicer it would be. Revisit if EmDash opens that union.
      */
-    type: 'vitops.actionLink',
+    type: 'vitops_actionLink',
     label: 'Link or button',
     icon: 'link',
     placeholder: 'A link or button, with optional icons',
@@ -178,7 +193,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.imageCompare',
+    type: 'vitops_imageCompare',
     label: 'Image compare',
     placeholder: 'Before/after image slider',
     fields: [
@@ -196,7 +211,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.copyButton',
+    type: 'vitops_copyButton',
     label: 'Copy snippet',
     icon: 'code',
     placeholder: 'Text with a copy-to-clipboard button',
@@ -216,7 +231,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.banner',
+    type: 'vitops_banner',
     label: 'Banner',
     placeholder: 'Announcement or notice',
     fields: [
@@ -237,7 +252,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.details',
+    type: 'vitops_details',
     label: 'Disclosure',
     placeholder: 'Collapsible details/summary',
     fields: [
@@ -247,7 +262,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.carousel',
+    type: 'vitops_carousel',
     label: 'Carousel',
     placeholder: 'Image carousel',
     category: 'Media',
@@ -302,7 +317,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.gallery',
+    type: 'vitops_gallery',
     label: 'Gallery',
     placeholder: 'Thumbnail grid that opens a lightbox carousel',
     category: 'Media',
@@ -335,7 +350,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.cards',
+    type: 'vitops_cards',
     label: 'Cards',
     placeholder: 'A grid of cards',
     category: 'Sections',
@@ -404,7 +419,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.accordion',
+    type: 'vitops_accordion',
     label: 'Accordion',
     placeholder: 'A group of collapsible sections',
     category: 'Sections',
@@ -430,7 +445,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.hero',
+    type: 'vitops_hero',
     label: 'Hero',
     placeholder: 'Page opener: heading, text, buttons and an optional image',
     category: 'Sections',
@@ -441,7 +456,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         action_id: 'heading',
         label: 'Heading (wrap words in *stars* to accent them)',
       },
-      levelField('2'),
+      titleLevelField('1'),
       { type: 'text_input', action_id: 'body', label: 'Text', multiline: true },
       { type: 'text_input', action_id: 'primaryLabel', label: 'Main button text' },
       { type: 'text_input', action_id: 'primaryHref', label: 'Main button URL' },
@@ -485,7 +500,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.marquee',
+    type: 'vitops_marquee',
     label: 'Marquee',
     placeholder: 'A continuously scrolling row (logos, quotes, badges)',
     category: 'Media',
@@ -507,7 +522,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.logos',
+    type: 'vitops_logos',
     label: 'Logos',
     placeholder: 'A still row of partner or client logos',
     category: 'Media',
@@ -525,8 +540,16 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         item_label: 'logo',
         min_items: 1,
         fields: [
-          { type: 'text_input', action_id: 'image', label: 'Image URL' },
-          { type: 'text_input', action_id: 'alt', label: 'Name (alt text)' },
+          {
+            type: 'text_input',
+            action_id: 'image',
+            label: 'Image URL (leave empty to show the name as text)',
+          },
+          {
+            type: 'text_input',
+            action_id: 'alt',
+            label: 'Name (alt text, or the text shown with no image)',
+          },
           { type: 'text_input', action_id: 'href', label: 'Link URL (optional)' },
         ],
       },
@@ -545,7 +568,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.steps',
+    type: 'vitops_steps',
     label: 'Steps',
     placeholder: 'A numbered sequence joined by a connector line',
     category: 'Sections',
@@ -581,7 +604,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.stats',
+    type: 'vitops_stats',
     label: 'Stats',
     placeholder: 'Headline figures that count up, or labelled tiles',
     category: 'Sections',
@@ -638,7 +661,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.callout',
+    type: 'vitops_callout',
     label: 'Callout',
     placeholder: 'A call-to-action band (not a dismissible banner)',
     category: 'Sections',
@@ -675,7 +698,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.entries',
+    type: 'vitops_entries',
     label: 'Entries table',
     placeholder: 'Rows of term/value pairs: a stacked list that becomes a table when wide',
     category: 'Sections',
@@ -706,7 +729,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.pricing',
+    type: 'vitops_pricing',
     label: 'Pricing',
     placeholder: 'Plan cards with aligned feature rows',
     category: 'Sections',
@@ -741,7 +764,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.embed',
+    type: 'vitops_embed',
     label: 'Embed (video or map)',
     placeholder: 'A video or map that loads only after the visitor allows it',
     category: 'Embeds',
@@ -779,7 +802,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
-    type: 'vitops.form',
+    type: 'vitops_form',
     label: 'Contact form',
     placeholder: 'An enquiry form that emails you (and your CRM) and works without JavaScript',
     category: 'Forms',
@@ -856,7 +879,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
      * an editor saves. Which reviews show is `selectReviews()` from `@getvitops/utils`, the
      * one place that is decided — these fields are exactly its `ReviewLocationConfig`.
      */
-    type: 'vitops.reviews',
+    type: 'vitops_reviews',
     label: 'Google reviews',
     icon: 'star',
     placeholder: 'Customer reviews from the Google Business Profile cache',
@@ -941,7 +964,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
      * The menu is chosen from `menus/list` (the site's own menus) with the conventional names as
      * the static fallback, because a select needs a non-empty `options` list.
      */
-    type: 'vitops.nav',
+    type: 'vitops_nav',
     label: 'Menu',
     icon: 'list',
     placeholder: 'An EmDash menu as a list of links',
@@ -990,7 +1013,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
   },
   {
     /** A row of static labels (`badge`) or editable/dismissable ones (`tag`). */
-    type: 'vitops.badges',
+    type: 'vitops_badges',
     label: 'Badges',
     icon: 'tag',
     placeholder: 'A row of short labels',
@@ -1039,7 +1062,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
      * block is placed. Edits reach every page it sits on (after the next build, on a
      * prerendered site) — unlike a Section, which is copied.
      */
-    type: 'vitops.widgetArea',
+    type: 'vitops_widgetArea',
     label: 'Widget area',
     icon: 'layout',
     placeholder: 'Shared content managed under Widgets',
@@ -1058,16 +1081,63 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
 ];
 
 /** Every block gets the escape hatches last, so the editor reads content first. */
+/**
+ * Repeaters whose rows can carry their own colour. A row's `tone` / `color` win over the block's,
+ * and blank falls back to it, so one block can hold a pine card and an amber one without
+ * becoming two blocks. (If you want a single colour for the lot, set it on the block.)
+ */
+const ROW_TONE: Record<string, string> = {
+  vitops_cards: 'cards',
+  vitops_stats: 'stats',
+  vitops_steps: 'steps',
+  vitops_hero: 'cards',
+};
+
+/** Extra row fields for one repeater, beyond the shared tone pair. */
+const ROW_EXTRA: Record<string, Record<string, BlockKitFieldDef[]>> = {
+  vitops_hero: {
+    cards: [
+      { type: 'text_input', action_id: 'eyebrow', label: 'Eyebrow (small line above the title)' },
+      { type: 'text_input', action_id: 'ctaLabel', label: 'Button text' },
+      { type: 'text_input', action_id: 'ctaHref', label: 'Button URL' },
+    ],
+  },
+};
+
+const rowToneFields = (): BlockKitFieldDef[] => [
+  {
+    type: 'select',
+    action_id: 'tone',
+    label: 'Tone for this item (blank uses the block tone)',
+    initial_value: '',
+    options: STATIC_TONE_OPTIONS,
+    optionsRoute: TONES_ROUTE,
+  } as BlockKitFieldDef,
+  { type: 'text_input', action_id: 'color', label: 'Palette colour instead (e.g. amber)' },
+];
+
+function withRowFields(block: PortableTextBlockDef): BlockKitFieldDef[] {
+  const repeater = ROW_TONE[block.type];
+  return (block.fields ?? []).map((f) =>
+    f.type === 'repeater' && f.action_id === repeater
+      ? ({
+          ...f,
+          fields: [...f.fields, ...(ROW_EXTRA[block.type]?.[repeater] ?? []), ...rowToneFields()],
+        } as BlockKitFieldDef)
+      : f,
+  );
+}
+
 export const BLOCKS: PortableTextBlockDef[] = BASE_BLOCKS.map((b) => ({
   ...b,
-  fields: [...(b.fields ?? []), ...commonFields()],
+  fields: [...withRowFields(b), ...commonFields()],
 }));
 
 /** Which Vitops blocks a site's editor offers, and any it adds of its own. */
 export interface BlockSelection {
-  /** Offer only these `vitops.*` types. Unknown names throw — a typo must not silently offer nothing. */
+  /** Offer only these `vitops_*` types. Unknown names throw — a typo must not silently offer nothing. */
   include?: string[];
-  /** Drop these `vitops.*` types. Applied after `include`. */
+  /** Drop these `vitops_*` types. Applied after `include`. */
   exclude?: string[];
   /**
    * The site's own blocks. These are EDITOR definitions only: the plugin cannot render a

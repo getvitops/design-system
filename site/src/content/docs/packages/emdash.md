@@ -139,11 +139,11 @@ export default defineConfig({
 
 | Slash-menu entry | `_type`               | Renders                                     |
 | ---------------- | --------------------- | ------------------------------------------- |
-| Image compare    | `vitops.imageCompare` | `<wc-image-compare>` before/after slider    |
-| Copy snippet     | `vitops.copyButton`   | `<wc-copy>` with code/inline fallback   |
-| Banner           | `vitops.banner`       | `<wc-dismissable>` banner with tone colours |
-| Disclosure       | `vitops.details`      | native `<details>`/`<summary>`              |
-| Carousel         | `vitops.carousel`     | `@getvitops/astro`'s `<Carousel />`         |
+| Image compare    | `vitops_imageCompare` | `<wc-image-compare>` before/after slider    |
+| Copy snippet     | `vitops_copyButton`   | `<wc-copy>` with code/inline fallback   |
+| Banner           | `vitops_banner`       | `<wc-dismissable>` banner with tone colours |
+| Disclosure       | `vitops_details`      | native `<details>`/`<summary>`              |
+| Carousel         | `vitops_carousel`     | `@getvitops/astro`'s `<Carousel />`         |
 
 All blocks render accessible markup that works without JavaScript; the
 web components progressively enhance it.

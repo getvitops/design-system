@@ -1,5 +1,5 @@
 /**
- * The `menus/list` plugin route: what fills `vitops.nav`'s `menu` select with the site's own
+ * The `menus/list` plugin route: what fills `vitops_nav`'s `menu` select with the site's own
  * EmDash menus, so an editor picks from what exists instead of typing a name that may not.
  *
  * Same mechanism as `tones-route.ts` and the same failure rule: Block Kit's `select` falls

@@ -44,11 +44,41 @@ function classesIn(html: string): Set<string> {
  * Type-role classes a page uses that the built stylesheet has no rule for.
  *
  * Tailwind v4 does not scan `node_modules`, so a utility used only by a package's own renderer
- * (`font-display` in `vitops.stats`) was never generated, and the page rendered at body size with
+ * (`font-display` in `vitops_stats`) was never generated, and the page rendered at body size with
  * no error. The type roles are the one family checkable without the site's config: the list is
  * closed. A class is "defined" when the CSS names it as a selector.
  */
 export function missingTypeRoleRules(html: string, css: string): string[] {
   const defined = (cls: string) => new RegExp(`\\.${cls}(?![\\w-])`).test(css);
   return [...classesIn(html)].filter((c) => TYPE_ROLE_CLASS.test(c) && !defined(c)).sort();
+}
+
+/**
+ * Block types EmDash's `<PortableText>` reported as having no component, from a build's output.
+ *
+ * `astro build` prints `PortableText [components.type] is missing "vitops_cards"` once per
+ * occurrence and carries on, rendering nothing for that block. A single missing renderer is a
+ * page published with its content gone, and the prerender guard cannot see it in the HTML. The
+ * known cause is an import cycle that empties the plugin's block map for a whole build, so the
+ * warning arrives dozens of times; it is reported once per type.
+ */
+export function missingBlockComponents(log: string): string[] {
+  // eslint-disable-next-line no-control-regex
+  const plain = log.replace(/\u001b\[[0-9;]*m/g, '');
+  const seen = new Set<string>();
+  for (const m of plain.matchAll(/PortableText \[components\.type\] is missing "([^"]+)"/g))
+    seen.add(m[1]!);
+  return [...seen].sort();
+}
+
+/**
+ * How many `<h1>` a page has. A page with none has no title in its outline; a page with two (a
+ * hero left on its `h1` default beside a layout title) has a muddled one. Counted outside
+ * `<template>`, `<script>` and comments so inert markup does not skew it.
+ */
+export function h1Count(html: string): number {
+  const live = html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<(script|template|style)[\s\S]*?<\/\1>/gi, '');
+  return (live.match(/<h1[\s>]/gi) ?? []).length;
 }

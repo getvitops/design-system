@@ -6,7 +6,7 @@
  * convention — see `tone.ts`.
  */
 import RichText from './RichText.astro';
-import { resolveTone, joinStyle } from './tone.ts';
+import { resolveTone, joinStyle, rowTone } from './tone.ts';
 import { headingTag, resolveBlockValue, rows, text } from './value.ts';
 
 interface Value {
@@ -19,7 +19,7 @@ interface Value {
 
 const value = resolveBlockValue<Value>(Astro.props);
 const steps = rows<Record<string, unknown>>(value.steps)
-  .map((row) => ({ title: text(row.title), text: text(row.text) }))
+  .map((row) => ({ title: text(row.title), text: text(row.text), style: rowTone(row) }))
   .filter((step) => step.title || step.text);
 const Heading = headingTag(value.level, 3);
 const tone = resolveTone(value.tone, value.color);
@@ -32,7 +32,7 @@ import { rootAttrs } from './attrs.ts';
       {...rootAttrs(value, ['steps', tone.className, value.layout === 'row' && 'steps--row'], joinStyle(tone.style))}
     >
       {steps.map((step) => (
-        <li class="steps__item">
+        <li class="steps__item" style={step.style}>
           <div class="steps__body">
             {step.title && <Heading class="steps__title font-heading">{step.title}</Heading>}
             {step.text && (

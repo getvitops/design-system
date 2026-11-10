@@ -89,9 +89,9 @@ export interface TierEntry {
   bricks?: string;
   /**
    * `@getvitops/emdash` Portable Text block `_type`s that render this pattern, e.g.
-   * `vitops.carousel`. An array because one pattern can have several blocks
+   * `vitops_carousel`. An array because one pattern can have several blocks
    * (`details` has a single disclosure and an accordion group) and one block can span
-   * patterns (`vitops.actionLink` is `link`, `btn` and `cta`).
+   * patterns (`vitops_actionLink` is `link`, `btn` and `cta`).
    *
    * Tier 3, a sibling of `astro` and `bricks`: a block is a platform wrapper that an
    * editor drops into a page, and each one is an adapter over this entry's Astro
@@ -149,7 +149,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<Tree items={…} />` — it emits `<wc-tree>` itself, so do NOT add your own wrapper.',
   },
   carousel: {
-    emdash: ['vitops.carousel'],
+    emdash: ['vitops_carousel'],
     css: c(
       ['carousel', 'carousel__track', 'carousel__slide', 'carousel__media', 'carousel__hint'],
       'patterns/carousel.css',
@@ -171,7 +171,7 @@ export const TIERS: Record<string, TierEntry> = {
   // follow-up whenever it's needed — it only adds a field here, nothing above it
   // has to change.
   gallery: {
-    emdash: ['vitops.gallery'],
+    emdash: ['vitops_gallery'],
     css: c(
       ['gallery', 'gallery__item', 'gallery__trigger', 'gallery__thumb'],
       'patterns/gallery.css',
@@ -186,7 +186,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<Gallery images={…} label="…" />` — it emits `<wc-gallery>` wrapping a `<Carousel />` (which emits its own `<wc-carousel>`) itself, so do NOT add your own wrapper around either. Each thumbnail is a plain `<a href="#slide-id">` into the carousel\'s own `<li id="slide-id">` inside a single `<dialog class="lightbox-dialog">` (see `lightbox`), so it is a working modal lightbox — WITH prev/next — before any script runs. Stepping between images is the carousel\'s job, not the gallery\'s.',
   },
   entries: {
-    emdash: ['vitops.entries'],
+    emdash: ['vitops_entries'],
     css: c(['entries__table', 'entries__scroll', 'entries__nav'], 'patterns/table.css'),
     wc: {
       tag: 'wc-entries',
@@ -198,7 +198,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<Entries entries={[{ heading, pairs: [{ term, value }] }]} />` — it emits `<wc-entries>` itself, so do NOT add your own wrapper. By hand: `<wc-entries>` around `<h3>` + `<dl>` pairs. The tier-2 exemplar: semantic pairs with no JS, a table with it.',
   },
   copy: {
-    emdash: ['vitops.copyButton'],
+    emdash: ['vitops_copyButton'],
     css: c(['copy', 'copy__button', 'copy__icon', 'copy__tooltip'], 'patterns/copy.css'),
     wc: { tag: 'wc-copy', registered: true, adds: 'clipboard write plus success feedback' },
     bricks: 'vitops-copy-button',
@@ -206,7 +206,7 @@ export const TIERS: Record<string, TierEntry> = {
   },
   dismissable: {
     // The banner block's `dismissible` toggle wraps it.
-    emdash: ['vitops.banner'],
+    emdash: ['vitops_banner'],
     css: c(['banner__close', 'notification__close'], 'patterns/banner.css'),
     wc: {
       tag: 'wc-dismissable',
@@ -225,7 +225,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<wc-split-panel>` with two children. Unenhanced they simply stack.',
   },
   'image-compare': {
-    emdash: ['vitops.imageCompare'],
+    emdash: ['vitops_imageCompare'],
     // Same partial as split-panel — one of the reasons this file is authored.
     css: c(
       ['image-compare', 'image-compare__before', 'image-compare__handle'],
@@ -240,7 +240,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<wc-image-compare>` with two images. Both are visible without JS.',
   },
   marquee: {
-    emdash: ['vitops.marquee'],
+    emdash: ['vitops_marquee'],
     css: c(['marquee', 'marquee__content', 'marquee__item'], 'patterns/marquee.css'),
     wc: {
       tag: 'wc-marquee',
@@ -278,7 +278,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`.section.region` > `.centered` > `.section__inner` holding `.section__head` (kicker, heading, sub) and `.section__body`. `.section--split` puts the head beside the body when wide. In EmDash it is a block TYPE (`vitops_section`) with a Portable Text body that accepts any other block — see `vitopsBlockTypes()`.',
   },
   steps: {
-    emdash: ['vitops.steps'],
+    emdash: ['vitops_steps'],
     css: c(
       ['steps', 'steps__item', 'steps__body', 'steps__title', 'steps__text', 'steps--row'],
       'patterns/steps.css',
@@ -286,7 +286,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<ol class="steps tone">` of `<li class="steps__item">` each holding a `.steps__body` with a real heading. The number is a CSS counter and the connector line a pseudo-element; `.steps--row` runs it sideways when wide.',
   },
   stats: {
-    emdash: ['vitops.stats'],
+    emdash: ['vitops_stats'],
     css: c(
       [
         'stats',
@@ -302,7 +302,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<ul class="stats">` of `.stats__item`, each figure a `<Counter>`. `.stats--tiles` adds `.stats__group` and `.stats__delta`; `data-state="up|down"` colours the delta through the success/danger roles.',
   },
   callout: {
-    emdash: ['vitops.callout'],
+    emdash: ['vitops_callout'],
     css: c(
       [
         'callout',
@@ -317,12 +317,12 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`.callout.tone` with a `.callout__body` and `.callout__actions`. A call-to-action band that stays on the page — NOT `banner`, which is a dismissible announcement.',
   },
   logos: {
-    emdash: ['vitops.logos'],
-    css: c(['logos', 'logos__item', 'logos--grayscale'], 'patterns/logos.css'),
-    use: '`<ul class="logos">` of `.logos__item` images (alt text = the name). A still grid; `marquee` is the scrolling version.',
+    emdash: ['vitops_logos'],
+    css: c(['logos', 'logos__item', 'logos__name', 'logos--grayscale'], 'patterns/logos.css'),
+    use: '`<ul class="logos">` of `.logos__item` images (alt text = the name), or `.logos__name` text when there is no image. A still grid; `marquee` is the scrolling version.',
   },
   embed: {
-    emdash: ['vitops.embed'],
+    emdash: ['vitops_embed'],
     css: c(['embed', 'embed__frame', 'embed__placeholder'], 'patterns/embed.css'),
     use: '`.embed` around an `<iframe class="embed__frame" data-consent="marketing" data-consent-src="…">` with NO `src`, and a `.embed__placeholder`. The consent runtime assigns the address after the grant; the placeholder holds a real link. Never give the iframe a live `src`.',
   },
@@ -332,7 +332,7 @@ export const TIERS: Record<string, TierEntry> = {
   // No `bricks` element yet either, same reasoning as `gallery` above.
   counter: {
     // Each figure of the stats block is a `<Counter>`.
-    emdash: ['vitops.stats'],
+    emdash: ['vitops_stats'],
     css: c(['counter', 'counter__value', 'counter__presentation'], 'patterns/counter.css'),
     wc: {
       tag: 'wc-counter',
@@ -346,23 +346,23 @@ export const TIERS: Record<string, TierEntry> = {
     // NOT generated: the config pattern here is `forms`. This component sits over
     // forms markup, so it has no `patterns.items` entry, no roles and no states.
     emdashExempt:
-      'repeats rows a visitor adds at submit time (several phone numbers, guests); `vitops.form` has a fixed, editor-defined field list and no such field type',
+      'repeats rows a visitor adds at submit time (several phone numbers, guests); `vitops_form` has a fixed, editor-defined field list and no such field type',
     css: c(['form-group', 'input-group', 'fieldset'], 'patterns/forms.css'),
     wc: { tag: 'wc-multi-field', registered: true, adds: 'add/remove repeating field rows' },
     bricks: 'vitops-multi-field',
     use: '`<wc-multi-field>` around a field template. One row submits fine with no JS.',
   },
   turnstile: {
-    // Rendered by `vitops.form` when `site.security.turnstile.siteKey` is set; the block
+    // Rendered by `vitops_form` when `site.security.turnstile.siteKey` is set; the block
     // emits `<wc-turnstile>` itself, with its no-JS explanation inside.
-    emdash: ['vitops.form'],
+    emdash: ['vitops_form'],
     css: c(['form-group'], 'patterns/forms.css'),
     wc: {
       tag: 'wc-turnstile',
       registered: true,
       adds: 'loads Cloudflare Turnstile on first interaction with the form and holds a submit until its token arrives',
     },
-    use: '`<wc-turnstile sitekey="…">` inside a `<form>`, around a paragraph saying the spam check needs JavaScript. Pair it with `createConversionRoute({ turnstile })`; the `vitops.form` block does both.',
+    use: '`<wc-turnstile sitekey="…">` inside a `<form>`, around a paragraph saying the spam check needs JavaScript. Pair it with `createConversionRoute({ turnstile })`; the `vitops_form` block does both.',
   },
   'color-scheme-toggle': {
     emdashExempt: 'site chrome (header/footer), not page content; belongs in the nav/layout',
@@ -455,7 +455,7 @@ export const TIERS: Record<string, TierEntry> = {
 
   // ── Astro-only conveniences over tier-1 markup (no web component) ──────────
   details: {
-    emdash: ['vitops.details', 'vitops.accordion'],
+    emdash: ['vitops_details', 'vitops_accordion'],
     css: c(['details', 'details-trigger', 'details-icon'], 'patterns/details.css', true),
     astro: a('Details', 'css'),
     use: '`<Details>` — or hand-write `<details>`. No JS at either tier; `::details-content` animates in CSS.',
@@ -479,13 +479,13 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<NavShell>` with a `nav` slot, plus `<NavShellToggle>` if the toggle must live outside the shell.',
   },
   subgrid: {
-    emdash: ['vitops.pricing'],
+    emdash: ['vitops_pricing'],
     css: c(['subgrid', 'subgrid-card', 'pricing-grid'], 'patterns/subgrid.css'),
     astro: a('Subgrid', 'css'),
     use: '`<Subgrid>` — emits `<ul class="subgrid" role="list">`; author `<li class="card subgrid-card">` items yourself, so tranches align across the set.',
   },
   card: {
-    emdash: ['vitops.cards'],
+    emdash: ['vitops_cards'],
     css: c(['card'], 'patterns/card.css', true),
     wc: {
       tag: 'wc-cards',
@@ -504,7 +504,7 @@ export const TIERS: Record<string, TierEntry> = {
 
   // ── Bricks + CSS, no web component ────────────────────────────────────────
   split: {
-    emdash: ['vitops.hero'],
+    emdash: ['vitops_hero'],
     css: c(['split', 'split-1-2', 'split-reverse'], 'layout.css'),
     bricks: 'vitops-split',
     use: '`.split` plus a ratio class. Pure CSS; `md-split-1-2` for the responsive form.',
@@ -520,9 +520,9 @@ export const TIERS: Record<string, TierEntry> = {
       'patterns/sitenav.css',
     ),
     astro: [...a('SiteNav', 'css'), ...a('SiteFooter', 'css')],
-    emdash: ['vitops.nav'],
+    emdash: ['vitops_nav'],
     bricks: 'vitops-sitenav',
-    use: "`.sitenav` with `--bp-*` and a drawer direction. `<details>` + Invoker Commands, no JS. In Astro: `<SiteNav {...await loadNavMenus(getMenu)} />` renders EmDash menu `primary` (the default: dropdowns from `md`, drawer below) and, if they exist, `primary-mobile` (depth-1 nav below `md`) and `primary-mega` (mega panels from `xl`) — adding the menu in the admin is the whole change. An item's `titleAttr` is its description. `<SiteFooter sitemap legal name>` renders `footer-sitemap` + `footer-legal` + the copyright line. For a menu inside page content (a site map, a section's links, footer-style columns) use `.navlist` — plain nested lists, `--inline` / `--columns` — or, in EmDash, the `vitops.nav` block (menu, layout `list|inline|columns|sitenav`, depth 1–3, heading, tone). Name each `<nav>` uniquely: the header is `Primary` and the footer `Site map` / `Legal`, and the block never reuses those.",
+    use: "`.sitenav` with `--bp-*` and a drawer direction. `<details>` + Invoker Commands, no JS. In Astro: `<SiteNav {...await loadNavMenus(getMenu)} />` renders EmDash menu `primary` (the default: dropdowns from `md`, drawer below) and, if they exist, `primary-mobile` (depth-1 nav below `md`) and `primary-mega` (mega panels from `xl`) — adding the menu in the admin is the whole change. An item's `titleAttr` is its description. `<SiteFooter sitemap legal name>` renders `footer-sitemap` + `footer-legal` + the copyright line. For a menu inside page content (a site map, a section's links, footer-style columns) use `.navlist` — plain nested lists, `--inline` / `--columns` — or, in EmDash, the `vitops_nav` block (menu, layout `list|inline|columns|sitenav`, depth 1–3, heading, tone). Name each `<nav>` uniquely: the header is `Primary` and the footer `Site map` / `Legal`, and the block never reuses those.",
   },
   'split-link': {
     css: c(['split-link', 'split-link__toggle', 'split-link__panel'], 'patterns/split-link.css'),
@@ -532,29 +532,29 @@ export const TIERS: Record<string, TierEntry> = {
 
   // ── CSS-only patterns ─────────────────────────────────────────────────────
   btn: {
-    emdash: ['vitops.actionLink'],
+    emdash: ['vitops_actionLink'],
     css: c(['btn'], undefined, true),
     use: '`<button>` gets it with no class; `.btn` carries it to other tags. `fill: false`, so states drive `color`.',
   },
   cta: {
-    emdash: ['vitops.actionLink'],
+    emdash: ['vitops_actionLink'],
     css: c(['cta', 'cta-danger'], undefined, true),
     use: '`.cta` on any element — usually `<a>`, since a CTA navigates. Filled, with role variants.',
   },
   link: {
-    emdash: ['vitops.actionLink'],
+    emdash: ['vitops_actionLink'],
     css: c(['link', 'skip-link', 'stretched-link', 'raised'], 'patterns/anchor-link.css', true),
     use: '`<a>` gets it at zero specificity; `.link` for other tags. `.stretched-link` makes one link cover its positioned ancestor (whole-card click, no JS — but the card text stops being selectable); `.raised` lifts content back above that overlay.',
   },
   badge: {
-    emdash: ['vitops.badges'],
+    emdash: ['vitops_badges'],
     css: c(['badge', 'badge-indicator'], 'patterns/tag.css', true),
     use: '`.badge` — a STATIC label. Use `tag` if it is dismissable or editable.',
   },
   'widget-area': {
-    emdash: ['vitops.widgetArea'],
+    emdash: ['vitops_widgetArea'],
     css: c(['widget-area', 'widget__title', 'widget__menu'], 'patterns/widget-area.css'),
-    use: 'Editor-managed regions: `<VitopsWidgetArea name="footer-columns" />` (`@getvitops/emdash/astro`) renders an area from Widgets in the admin — titled groups, a menu as a labelled `<nav>`, content as Portable Text. In a page, the `vitops.widgetArea` block places one. An area holding a `core:*` component widget falls back to EmDash\'s own renderer, and an area cannot hold another. Prerendered pages show an edit after the next deploy.',
+    use: 'Editor-managed regions: `<VitopsWidgetArea name="footer-columns" />` (`@getvitops/emdash/astro`) renders an area from Widgets in the admin — titled groups, a menu as a labelled `<nav>`, content as Portable Text. In a page, the `vitops_widgetArea` block places one. An area holding a `core:*` component widget falls back to EmDash\'s own renderer, and an area cannot hold another. Prerendered pages show an edit after the next deploy.',
   },
   tag: {
     css: c(['tag', 'tag__remove', 'tag__icon', 'tag-list'], 'patterns/tag.css', true),
@@ -603,8 +603,8 @@ export const TIERS: Record<string, TierEntry> = {
       true,
     ),
     astro: a('ReviewCard', 'css'),
-    emdash: ['vitops.reviews'],
-    use: "`<ReviewCard review={…} />` — one card, from `vitops reviews`' `.vitops/reviews.json` cache. Put several inside `<Carousel>` slides or `<Marquee>` items; there is no group component and no `wc-review`. In EmDash, `vitops.reviews` is that whole row: it reads the cache as a build-time import (`virtual:getvitops/reviews`, served by `vitops()`; empty when the file is absent), picks reviews with `selectReviews()`, and lays them out as a grid, carousel or marquee. A new review appears after `vitops reviews` is re-run, committed and the site rebuilt.",
+    emdash: ['vitops_reviews'],
+    use: "`<ReviewCard review={…} />` — one card, from `vitops reviews`' `.vitops/reviews.json` cache. Put several inside `<Carousel>` slides or `<Marquee>` items; there is no group component and no `wc-review`. In EmDash, `vitops_reviews` is that whole row: it reads the cache as a build-time import (`virtual:getvitops/reviews`, served by `vitops()`; empty when the file is absent), picks reviews with `selectReviews()`, and lays them out as a grid, carousel or marquee. A new review appears after `vitops reviews` is re-run, committed and the site rebuilt.",
   },
   tabs: {
     css: c(['tabs'], undefined, true),
@@ -619,7 +619,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`.navbar` with `--start/--center/--end`.',
   },
   banner: {
-    emdash: ['vitops.banner'],
+    emdash: ['vitops_banner'],
     css: c(['banner', 'banner__content', 'banner__action'], 'patterns/banner.css', true),
     use: '`.banner`; wrap in `<wc-dismissable>` for a close button that works.',
   },

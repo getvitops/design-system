@@ -8,6 +8,7 @@
  *
  *   prepare-db        migrate and seed the LOCAL D1 the build prerenders from
  *   check-prerender   fail if a prerendered page is not a real page
+ *   build             `astro build`, then the same checks, plus a failure for any block with no renderer
  *
  * Why both exist: `astro build` prerenders every page inside a local workerd against a local D1
  * (`.wrangler/state`), never the deployed database. The template sets
@@ -16,11 +17,17 @@
  * and the build still succeeds. A fresh CI runner, a first deploy, a `SKIP_PULL_CONTENT=1`
  * build and an upgrade deploy all hand the build exactly that database.
  */
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
-import { missingTypeRoleRules, prerenderProblem, PENDING_MIGRATIONS } from '../prerender-check.ts';
+import {
+  h1Count,
+  missingBlockComponents,
+  missingTypeRoleRules,
+  prerenderProblem,
+  PENDING_MIGRATIONS,
+} from '../prerender-check.ts';
 import { fail } from './shared.ts';
 import { EMDASH_HELP } from '../help.ts';
 
@@ -135,6 +142,7 @@ function cmdCheckPrerender(argv: string[]) {
   if (!existsSync(root)) fail(`${root} does not exist (run \`astro build\` first).`);
   const bad: string[] = [];
   const unstyled: string[] = [];
+  const outline: string[] = [];
   const css = cssFiles(root)
     .map((f) => readFileSync(f, 'utf8'))
     .join('\n');
@@ -144,7 +152,11 @@ function cmdCheckPrerender(argv: string[]) {
     const html = readFileSync(file, 'utf8');
     const why = prerenderProblem(html);
     if (why) bad.push(`  ${file} ${why}`);
-    else if (css) {
+    else {
+      const h1s = h1Count(html);
+      if (h1s !== 1 && !file.endsWith('/404.html')) outline.push(`  ${file}: ${h1s} <h1>`);
+    }
+    if (!why && css) {
       const missing = missingTypeRoleRules(html, css);
       if (missing.length) unstyled.push(`  ${file}: ${missing.join(', ')}`);
     }
@@ -164,7 +176,50 @@ function cmdCheckPrerender(argv: string[]) {
     if (strict) fail(note);
     console.warn(`check-prerender: warning: ${note}`);
   }
+  if (outline.length) {
+    const note =
+      `pages whose outline has not exactly one <h1>:\n${outline.join('\n')}\n\n` +
+      'Give each page one: set a `vitops_hero` (or section) heading level to h1, or let the ' +
+      'layout render the title, and make other display headings h2 or p.';
+    if (strict) fail(note);
+    console.warn(`check-prerender: warning: ${note}`);
+  }
   console.log(`check-prerender: ${count} prerendered page(s) look like real pages.`);
+}
+
+/**
+ * `astro build` and then `check-prerender`, failing on any block type EmDash reported as having
+ * no component. That report is a build-log warning, not an exit code, so the build's output is
+ * streamed through unchanged and scanned afterwards.
+ */
+async function cmdBuild(argv: string[]) {
+  const bin = existsSync('node_modules/.bin/astro') ? 'node_modules/.bin/astro' : 'astro';
+  let log = '';
+  const code = await new Promise<number>((resolve) => {
+    const child = spawn(bin, ['build'], { stdio: ['inherit', 'pipe', 'pipe'] });
+    child.stdout.on('data', (d) => {
+      log += d;
+      process.stdout.write(d);
+    });
+    child.stderr.on('data', (d) => {
+      log += d;
+      process.stderr.write(d);
+    });
+    child.on('error', () => resolve(1));
+    child.on('close', (c) => resolve(c ?? 1));
+  });
+  if (code !== 0) process.exit(code);
+  const missing = missingBlockComponents(log);
+  if (missing.length)
+    fail(
+      `the build rendered nothing for these block types (no component registered):\n` +
+        missing.map((t) => `  ${t}`).join('\n') +
+        '\n\nEvery page using them was published without that content. If they are `vitops_*` ' +
+        'blocks, the plugin block map was empty for this build: check that no module imported by ' +
+        '`@getvitops/emdash/astro` imports `emdash/ui` statically (an import cycle), and that the ' +
+        'plugin is registered in astro.config.mjs.',
+    );
+  cmdCheckPrerender(argv);
 }
 
 export async function cmdEmdash(argv: string[]) {
@@ -174,6 +229,8 @@ export async function cmdEmdash(argv: string[]) {
       return cmdPrepareDb();
     case 'check-prerender':
       return cmdCheckPrerender(rest);
+    case 'build':
+      return cmdBuild(rest);
     case undefined:
     case '-h':
     case '--help':
@@ -181,7 +238,7 @@ export async function cmdEmdash(argv: string[]) {
       return;
     default:
       fail(
-        `unknown "emdash" subcommand "${sub}" (expected: prepare-db | check-prerender). Try: vitops --help`,
+        `unknown "emdash" subcommand "${sub}" (expected: prepare-db | check-prerender | build). Try: vitops --help`,
       );
   }
 }

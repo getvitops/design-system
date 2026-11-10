@@ -18,7 +18,7 @@ describe('renderBlocksDoc', () => {
 
   it('documents the new library blocks', () => {
     for (const t of ['logos', 'steps', 'stats', 'callout', 'entries', 'pricing', 'embed', 'form'])
-      expect(doc).toContain(`## \`vitops.${t}\``);
+      expect(doc).toContain(`## \`vitops_${t}\``);
   });
 
   it('documents every block and every field, including repeater sub-fields', () => {

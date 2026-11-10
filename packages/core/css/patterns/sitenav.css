@@ -536,7 +536,7 @@
   }
 }
 
-/* ── In-page menu (`vitops.nav` block) ─────────────────────────────────────────
+/* ── In-page menu (`vitops_nav` block) ─────────────────────────────────────────
  *
  * A menu read in the body of a page — a site map, a section's links, footer-style columns —
  * as plain nested lists. No disclosure and no drawer: that is the header's job (`.sitenav`).

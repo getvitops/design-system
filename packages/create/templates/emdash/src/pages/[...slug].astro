@@ -8,7 +8,7 @@ import Layout from '../layouts/Layout.astro';
 // the content database — `scripts/pull-content.mjs` loads production's into the
 // local build database first (it is part of `deploy`/`deploy:dev`) — so an edit
 // in the admin goes live on the next rebuild, which a publish webhook triggers
-// (see AGENTS.md "Rendering and freshness").
+// (see .agents/skills/content-and-deploys).
 //
 // There is no `Astro.rewrite('/404')` here and no on-demand fallback: a URL that
 // isn't in the list below simply has no route, so Astro serves the prerendered

@@ -59,6 +59,22 @@ export function headingTag(
   return `h${clamped}` as 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 }
 
+/**
+ * The element for a block that may own the page's title: `h1`–`h6`, or `p` when the heading is
+ * visual only and the outline should not carry it (the role class still styles it). Hero and
+ * section use this; every other block keeps `headingTag`'s `h2`–`h6`, so a page's `h1` only
+ * comes from a block an editor chose it for.
+ */
+export function outlineTag(
+  level: unknown,
+  fallback: 1 | 2 | 3 | 4 | 5 | 6 = 2,
+): 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' {
+  if (String(level).trim().toLowerCase() === 'p') return 'p';
+  const n = Math.round(Number(level));
+  const clamped = Number.isFinite(n) && n >= 1 && n <= 6 ? n : fallback;
+  return `h${clamped}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+}
+
 /** One run of inline text, optionally a link. */
 export interface Run {
   text: string;

@@ -15,6 +15,7 @@
       "slug": "pages",
       "label": "Pages",
       "labelSingular": "Page",
+      "urlPattern": "/{slug}",
       "supports": ["drafts", "revisions", "seo"],
       "fields": [
         {
@@ -112,7 +113,7 @@
               ]
             },
             {
-              "_type": "vitops.actionLink",
+              "_type": "vitops_actionLink",
               "_key": "pf-cta",
               "label": "Contact us",
               "href": "/contact",
@@ -161,10 +162,11 @@
               ]
             },
             {
-              "_type": "vitops.hero",
+              "_type": "vitops_hero",
               "_key": "demo-hero",
               "eyebrow": "Vitops blocks",
               "heading": "Build pages from design-system patterns",
+              "level": "2",
               "body": "Every block below renders a framework pattern, so it follows your tokens and works without JavaScript.",
               "primaryLabel": "Open the admin",
               "primaryHref": "/_emdash/admin",
@@ -173,7 +175,7 @@
               "layout": "centered"
             },
             {
-              "_type": "vitops.cards",
+              "_type": "vitops_cards",
               "_key": "demo-cards",
               "columns": "3",
               "cards": [
@@ -197,7 +199,7 @@
               ]
             },
             {
-              "_type": "vitops.accordion",
+              "_type": "vitops_accordion",
               "_key": "demo-accordion",
               "exclusive": true,
               "items": [
@@ -215,7 +217,7 @@
               ]
             },
             {
-              "_type": "vitops.marquee",
+              "_type": "vitops_marquee",
               "_key": "demo-marquee",
               "pauseOnHover": true,
               "reverse": false,
@@ -239,14 +241,14 @@
               ]
             },
             {
-              "_type": "vitops.banner",
+              "_type": "vitops_banner",
               "_key": "welcome-banner",
               "message": "This banner is a Vitops block — dismiss it, then edit this page in the EmDash admin.",
               "tone": "info",
               "dismissible": true
             },
             {
-              "_type": "vitops.details",
+              "_type": "vitops_details",
               "_key": "next-steps",
               "summary": "Next steps",
               "body": "Adjust site.json (under designSystem.themes.default) to your brand (colors, type, patterns), replace src/assets/logo.svg, then deploy with `pnpm deploy`.",
@@ -287,7 +289,7 @@
           "title": "Terms & Conditions",
           "content": [
             {
-              "_type": "vitops.banner",
+              "_type": "vitops_banner",
               "_key": "terms-placeholder",
               "message": "Placeholder text — replace with your own terms before launch. This is not legal advice.",
               "tone": "warning",
@@ -388,7 +390,7 @@
           "title": "Privacy Policy",
           "content": [
             {
-              "_type": "vitops.banner",
+              "_type": "vitops_banner",
               "_key": "privacy-placeholder",
               "message": "Placeholder text — replace with your own privacy policy before launch. This is not legal advice.",
               "tone": "warning",
@@ -503,7 +505,7 @@
           "title": "Contact",
           "content": [
             {
-              "_type": "vitops.banner",
+              "_type": "vitops_banner",
               "_key": "contact-placeholder",
               "message": "Placeholder text — replace with your contact details before launch.",
               "tone": "warning",
@@ -524,7 +526,7 @@
               ]
             },
             {
-              "_type": "vitops.form",
+              "_type": "vitops_form",
               "_key": "contact-form",
               "heading": "Send us a message",
               "level": "2",
@@ -568,7 +570,7 @@
           "title": "Cookie Notice",
           "content": [
             {
-              "_type": "vitops.banner",
+              "_type": "vitops_banner",
               "_key": "cookies-placeholder",
               "message": "Placeholder text — replace with your own cookie notice before launch. This is not legal advice. `vitops legal` can generate a draft from site.json.",
               "tone": "warning",

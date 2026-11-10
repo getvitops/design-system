@@ -2010,7 +2010,7 @@ ${bricks}
 Portable Text block ${code('_type')}s from ${code('@getvitops/emdash')}. Repeating patterns are
 repeater fields. A Portable Text block cannot contain other blocks, so a pattern that must hold
 them is a schema-level block TYPE with a Portable Text body instead — ${code('vitops_section')},
-from ${code('vitopsBlockTypes()')}. Its body accepts every ${code('vitops.*')} block below.
+from ${code('vitopsBlockTypes()')}. Its body accepts every ${code('vitops_*')} block below.
 
 | Block | Pattern | Renders via |
 | --- | --- | --- |

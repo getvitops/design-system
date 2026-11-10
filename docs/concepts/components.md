@@ -192,19 +192,19 @@ repeater fields. A block cannot contain other blocks — a section holding a car
 
 | Block | Pattern | Renders via |
 | --- | --- | --- |
-| `vitops.banner` | `banner` | tier-1 markup |
-| `vitops.actionLink` | `btn` | tier-1 markup |
-| `vitops.cards` | `card` | `<Cards />` |
-| `vitops.carousel` | `carousel` | `<Carousel />` |
-| `vitops.copyButton` | `copy` | tier-1 markup |
-| `vitops.actionLink` | `cta` | tier-1 markup |
-| `vitops.details` | `details` | `<Details />` |
-| `vitops.accordion` | `details` | `<Details />` |
-| `vitops.gallery` | `gallery` | `<Gallery />` |
-| `vitops.imageCompare` | `image-compare` | tier-1 markup |
-| `vitops.actionLink` | `link` | tier-1 markup |
-| `vitops.marquee` | `marquee` | `<Marquee />` |
-| `vitops.hero` | `split` | tier-1 markup |
+| `vitops_banner` | `banner` | tier-1 markup |
+| `vitops_actionLink` | `btn` | tier-1 markup |
+| `vitops_cards` | `card` | `<Cards />` |
+| `vitops_carousel` | `carousel` | `<Carousel />` |
+| `vitops_copyButton` | `copy` | tier-1 markup |
+| `vitops_actionLink` | `cta` | tier-1 markup |
+| `vitops_details` | `details` | `<Details />` |
+| `vitops_accordion` | `details` | `<Details />` |
+| `vitops_gallery` | `gallery` | `<Gallery />` |
+| `vitops_imageCompare` | `image-compare` | tier-1 markup |
+| `vitops_actionLink` | `link` | tier-1 markup |
+| `vitops_marquee` | `marquee` | `<Marquee />` |
+| `vitops_hero` | `split` | tier-1 markup |
 
 ## CSS
 

@@ -3,363 +3,175 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
 
 ## Ground rules
 
-- `site.json` is the single source of truth — organization + site facts, and
-  the design system (colors, type, spacing, patterns, animations) under
-  `designSystem.themes.default`. Never edit `src/styles/tailwind.css` — it is
-  generated from `site.json` by the `vitops()` integration on every dev/build
-  and is gitignored. (There is no separate `design-system.json`: a scaffolded
-  config can't merely reference a sibling file, so the token set lives inside
-  `site.json` — see `AGENTS.md`'s "Client onboarding" section in the toolchain
-  repo for why.)
-- `src/assets/placeholder/` holds neutral wireframe stand-ins (square,
-  portrait, landscape; SVG + PNG) for layout work before real imagery
-  exists. Delete the directory once real assets land — it's separate from
-  `src/assets/logo.svg`, the actual brand asset.
-- Content lives in the EmDash database, not in the repo. Query it with
-  `getEmDashCollection` / `getEmDashEntry` from `emdash`; render Portable Text
-  with `<PortableText />` from `emdash/ui` (the Vitops blocks from
-  `@getvitops/emdash` are merged in automatically).
-- **Building pages from patterns:** the editor's insert menu offers the `vitops.*` blocks —
-  link/button, image compare, copy snippet, banner, disclosure, accordion, hero, carousel, gallery,
-  cards, marquee (`vp exec vitops docs blocks` lists them with every field). Repeating content (cards, gallery images, accordion items, carousel slides) is
-  a repeater field. A block cannot contain other blocks, and a `vitops.*` block inside EmDash's
-  built-in `columns` does not render — for layout (a section, a split, a hero) use a `blocks`
-  field, or hand-write the page template with `@getvitops/astro` components
-  (`Subgrid`, `Cards`, `Carousel`, …). `vp exec vitops docs components` lists every pattern, which
-  tiers provide it, and which block renders it. Override a block's rendering per site with
-  `<PortableText components={{ type: { 'vitops.cards': MyCards } }} />`; hide one with
-  `vitopsEmdash({ blocks: { exclude: [...] } })` in `astro.config.mjs`.
-- **Escape hatches on every block.** Each `vitops.*` block (and the section type) has an
-  `anchor` (becomes the `id`, for `#links`), `className` (extra classes — with the tailwind format
-  only ones the site already uses) and `style` (CSS custom properties only, e.g. `--p-card: 2rem`;
-  anything else is dropped). `vitops_section` also has a `theme`: one pick for a tinted or solid
-  backdrop with readable text. Set `--header-offset` to the sticky header's height so anchors
-  clear it.
-- **`vitops audit`** needs optional packages and a browser, checked before it starts a server:
+- `site.json` is the single source of truth: organization + site facts, and the design system
+  under `designSystem.themes.default`. Never edit the generated stylesheet
+  (`src/styles/tailwind.css` with the default `tailwind` format; `css.format` in
+  `astro.config.mjs` picks it). It is rebuilt from `site.json` on every dev/build and gitignored.
+  Only `src/styles/tailwind.css` and `tokens.json` are ignored: put your own CSS in a separate file
+  (for example `src/site.css`, imported from the layout) and commit it.
+- Content lives in the EmDash database, not the repo. Read it with `getEmDashCollection` /
+  `getEmDashEntry` from `emdash`; render Portable Text with `<PortableText />` from `emdash/ui`
+  (the `vitops_*` blocks from `@getvitops/emdash` are merged in).
+- **Where truth lives:** content (entries, media, menus) is **production's**, edited there; code,
+  `site.json` and schema are **git's** (`dev` → `main`). The dev database is a disposable copy
+  refreshed from prod, never promoted back. See `.agents/skills/content-and-deploys/SKILL.md`.
+- `seed/seed.json` applies only to an empty database. To change a running site's content model, use
+  the admin (`/_emdash/admin`) or its MCP server (`/_emdash/api/mcp`).
+- Hosting comes from `vitopsHosting()` in `astro.config.mjs` — never hard-code an adapter or
+  d1/r2/sqlite. Switch with `vitopsHosting({ target })` or the `HOSTING` env var.
+- Keep the Worker cron trigger in `wrangler.jsonc`: it publishes content scheduled in the admin.
+- `src/assets/placeholder/` is wireframe stand-in imagery; delete it once real assets land.
+- Prefer framework classes (utilities, patterns, type roles like `font-heading`) over bespoke CSS.
+  `vp exec vitops agents` appends the full class reference to this file.
+- `SETUP.html` is the onboarding checklist (`.agents/skills/setup/`). Tick a box only for a step you
+  completed, never for a human-only one (the Cloudflare API token, domain cutover, legal documents).
+
+## Building pages
+
+- The editor's insert menu offers the `vitops_*` blocks. `vp exec vitops docs blocks` lists them
+  with every field; `vp exec vitops docs components` lists every pattern, which tiers provide it
+  and which block renders it.
+- **Nesting.** A block type with a `portableText` field, such as `vitops_section`, holds other
+  blocks. A `vitops_*` block holds only scalar fields and repeaters (cards, gallery images,
+  accordion items, slides), so it can't. EmDash's built-in `columns` doesn't render `vitops_*`
+  children. For layout, nest in a section, use a `blocks` field, or hand-write the template with
+  `@getvitops/astro` components (`Subgrid`, `Cards`, `Carousel`, …).
+- **Section, block or widget area?** Copy-and-edit content is an EmDash Section. The same content
+  everywhere (announcement bar, pre-footer call to action, sidebar, footer columns) is a **widget
+  area**: define it under Widgets in the admin and render it with `<VitopsWidgetArea name="…" />`
+  from `@getvitops/emdash/astro` in the layout, or in page content with the `vitops_widgetArea`
+  block. Page-specific content is blocks. An area can't hold another area, and prerendered pages
+  show an edit after the next deploy (like menus).
+- **Escape hatches on every block:** `anchor` (the `id`, for `#links`), `className` (extra classes;
+  under the tailwind format only ones the site already uses) and `style` (CSS custom properties
+  only, e.g. `--p-card: 2rem`; anything else is dropped). `vitops_section` also has `theme`: one
+  pick for a tinted or solid backdrop with readable text. Set `--header-offset` to the sticky
+  header's height so anchors clear it.
+- Override a block per site with `<PortableText components={{ type: { 'vitops_cards': MyCards } }} />`;
+  hide one with `vitopsEmdash({ blocks: { exclude: [...] } })`.
+- **One `<h1>` per page.** The template's page routes render the title as an `<h1>`, and a hero's
+  heading level defaults to `h1`, so set a hero's level to `2` on those pages (or let the hero own
+  the `h1`). Use `p` for a display heading that is not part of the outline. `vitops emdash build`
+  warns on any page without exactly one `<h1>`.
+- Labels: `badge` is static (status, count, category); `tag` may be editable or dismissable. Don't
+  invent `chip` or `pill`. The button class is `btn`.
+- **Before adding a block type** or a `src/components/blocks/*` renderer, read
+  `.agents/skills/custom-blocks/SKILL.md`. Types can't be renamed or deleted once pages use them.
+
+## Layout foundations — the answer, not a starting point
+
+| About to write…                                         | Write instead   |
+| ------------------------------------------------------- | --------------- |
+| a `wrap`/`wrapper`/`container`/`inner` class            | **`centered`**  |
+| `max-width` + `margin-inline: auto`                     | **`centered`**  |
+| `padding-block` on a section                            | **`region`**    |
+| margins between headings/paragraphs/lists               | **`rhythm`**    |
+| `display: grid` + `grid-template-columns: repeat(n, …)` | **`subgrid`**   |
+| `repeat(auto-fit, minmax(…))`                           | **`grid-auto`** |
+| `display: flex` + `gap` for a row of controls           | **`cluster`**   |
+
+`centered` is a grid of _named tracks_: a child widens itself with `breakout`/`spotlight`/
+`fullbleed` without the parent knowing, which a bespoke `.wrap` can't do.
+
+- **More than one card means `subgrid`**, so headings and CTAs align across the set:
+  `<ul class="subgrid subgrid-cols-3" role="list">` with `<li class="card subgrid-card">`, or
+  `<Subgrid />` (renders the slot verbatim; author the `<li>`s).
+- **A card that is a link:** `stretched-link` inside it is zero-JS but kills text selection;
+  `<Cards>` keeps selection and falls back to the same link with no JS. Never both. Never
+  `<li><a class="card">`: the `li` is the grid item, so the tranches don't align.
+- `vpr lint:design` reports all of these and the pre-commit hook fails on them. Fix the class, not
+  the CSS.
+
+## Rendering and the contact form
+
+- Every public page is **prerendered**; the Worker handles `/_emdash/*` and `src/pages/api/track.ts`.
+  An admin publish goes live after a rebuild. Run `vpr prepare-local-db` before a first local
+  `vpr build`. Details, previews and server islands: `.agents/skills/content-and-deploys/SKILL.md`.
+- The contact form posts to `/api/track`. Set `site.notifications.email` before launch or the route
+  refuses posts, and mirror form fields in `site.templates`. Details:
+  `.agents/skills/contact-form/SKILL.md`.
+- `public/_headers` ships a Report-Only CSP. Read `.agents/skills/csp/SKILL.md` before enforcing it
+  or adding embeds.
+- `vitops audit` needs optional packages and a browser, checked before it starts a server:
   `vp add -D playwright @axe-core/playwright lighthouse && vp exec playwright install chromium`.
   Its page list is the built sitemap, then the seed's menus.
-- **Section, block or widget area?** Copy-and-edit content is an EmDash Section. The same content
-  everywhere (an announcement bar, a pre-footer call to action, a sidebar, footer columns) is a
-  **widget area**: define it under Widgets in the admin, render it with
-  `<VitopsWidgetArea name="…" />` from `@getvitops/emdash/astro` in the layout, or place it in
-  page content with the `vitops.widgetArea` block. The layout renders `announcement` and
-  `pre-footer`. Page-specific content is blocks. An area cannot hold another area, and prerendered
-  pages show an edit after the next deploy (like menus).
-- `seed/seed.json` only applies against an empty database: structure
-  (collections, menus, settings) on first boot; the `content` entries only
-  when the setup wizard's "include sample content" option is chosen. Changing
-  the seed does not migrate an existing site — use the admin
-  (`/_emdash/admin`) or the site's MCP server (`/_emdash/api/mcp`) to change
-  the content model of a running site.
-- Prefer framework CSS classes (utilities, patterns, type roles like
-  `font-heading`) over bespoke CSS. Run `vp exec vitops agents` to append the
-  full generated class-vocabulary reference to this file.
-- **Layout foundations — these are the answer, not a starting point.** Six
-  substitutions carry the structure of nearly every page:
-
-  | About to write…                                         | Write instead   |
-  | ------------------------------------------------------- | --------------- |
-  | a `wrap`/`wrapper`/`container`/`inner` class            | **`centered`**  |
-  | `max-width` + `margin-inline: auto`                     | **`centered`**  |
-  | `padding-block` on a section                            | **`region`**    |
-  | margins between headings/paragraphs/lists               | **`rhythm`**    |
-  | `display: grid` + `grid-template-columns: repeat(n, …)` | **`subgrid`**   |
-  | `repeat(auto-fit, minmax(…))`                           | **`grid-auto`** |
-  | `display: flex` + `gap` for a row of controls           | **`cluster`**   |
-
-  `centered` is a grid of _named tracks_, not a max-width box — a child widens
-  itself with `breakout`/`spotlight`/`fullbleed` without the parent knowing, which
-  is the thing a bespoke `.wrap` can never do. **More than one card means
-  `subgrid`**: a plain grid aligns the outer boxes but not the tranches inside
-  them, so headings and CTAs land at different heights across the set. Write
-  `<ul class="subgrid subgrid-cols-3" role="list">` with
-  `<li class="card subgrid-card">` items, or `<Subgrid />` (which renders the slot
-  verbatim — author the `<li>`s yourself; it adds `role="list"` for you, and a
-  hand-written one needs it because a marker-less `<ul>` stops being announced as a
-  list in Safari).
-
-  **When the whole card is a link the card is still the item**, and pick by whether
-  the card's text must stay selectable: `stretched-link` on a link inside it is
-  zero-JS but kills text selection, while `<Cards>` (which wraps the list in
-  `<wc-cards>`) keeps selection and falls back to that same link with no JS. Never
-  both — the overlay wins and the JS never runs. Never `<li><a class="card">`: the
-  `li` is the grid item, so the anchor's tranches never align and it does not fill
-  the cell; it renders fine, which is why it keeps getting written.
-
-  `vpr lint:design` reports all of these, and the pre-commit hook fails on them
-  — the fix is the class, not a justification for the CSS.
-
-- **Rendering and freshness: everything is prerendered.** `output: 'server'` is
-  still required (the admin, media/API routes and scheduled publishing need a
-  Worker), but every public page — `index.astro`, `[...slug].astro`, `404.astro` —
-  has `export const prerender = true`, and `[...slug].astro` lists the published
-  `pages` entries in `getStaticPaths()`. The HTML is written at build time and
-  served as a static asset; the Worker only handles `/_emdash/*` and anything
-  you deliberately leave on-demand. A route with no `prerender` export is
-  re-rendered on every request, so don't leave it off by accident.
-  - **Where build-time content comes from.** The Cloudflare adapter prerenders
-    against a _local_ D1 (`.wrangler/state`), never the deployed one — on a CI
-    runner that is an empty database, which would bake "No home page yet" into
-    every page. `scripts/pull-content.mjs` (the first step of `vpr deploy` and
-    `vpr deploy:dev`) exports production's D1 and loads it locally first. It
-    fails closed: a failed export aborts the deploy rather than publishing an
-    empty site (the one exception is a database that doesn't exist yet, the first
-    deploy, which builds from the seed). `SKIP_PULL_CONTENT=1` skips it.
-  - **The local database must be migrated before the build.** The template runs
-    `migrations: { runtime: 'check' }`, so a build against a local database with
-    pending migrations prerenders EmDash's one-line "Database migrations are
-    required" response into every page — and still succeeds. That is what a fresh
-    runner, a first deploy, a `SKIP_PULL_CONTENT=1` build and an **upgrade** deploy
-    (the pull restores production's older schema, and `emdash migrate` only runs
-    after the build) would all publish. `vitops emdash prepare-db` (`vpr prepare-local-db`, run after the
-    pull by `vpr deploy`, `vpr deploy:dev` and the reusable workflow) starts `astro
-    dev` once, calls EmDash's `dev-bypass` setup (which migrates and applies the
-    seed's sample content) and stops it; `vitops emdash check-prerender` (part of
-    `vpr build`) then fails the build if any prerendered page is not a real HTML page
-    with a title. Run `vpr prepare-local-db` by hand before a first local `vpr build`.
-    It only writes the disposable `.wrangler/state`; the dev administrator it creates
-    is never deployed.
-  - **Freshness is a rebuild.** Production is the truth for content, and a page
-    reflects it as of the last build. Publishing in the admin therefore has to
-    trigger one: the deploy workflows listen for a `repository_dispatch` event of
-    type `emdash-publish` (see "Publish-triggered rebuilds" below).
-  - **Drafts and previews.** A prerendered page cannot show an unpublished
-    draft, so an admin "Preview" link shows the last published build. If previews
-    matter, add a dedicated on-demand route for them rather than removing
-    `prerender` from the public ones.
-  - **Dynamic parts are server islands.** Anything that must be fresh per request
-    goes in its own component rendered with `server:defer` inside the prerendered
-    page; the surrounding HTML stays static. Keep islands rare — each is a Worker
-    request after load.
-  - **Unknown URLs.** There is no `Astro.rewrite('/404')`: a slug not listed by
-    `getStaticPaths()` has no route, so Astro serves the prerendered `404.html`
-    with a real 404 status. Rewriting an on-demand route to a prerendered one
-    fails (500), so don't reintroduce it.
-- **The contact form is the one on-demand route.** The `vitops.form` block posts a plain
-  `<form method="post">` to `src/pages/api/track.ts` (`prerender = false`, built with
-  `createConversionRoute()`), which also answers the conversion beacons. The block works with
-  no JavaScript: the route answers a form post with a 303 back to the page plus `?sent=1#form-sent`
-  or `?error=1#form-error`, and the block's two notices are revealed by that fragment. Keep one
-  form per page. Where submissions go: `site.notifications.email` (or the primary location's
-  `email`) and `site.crm` when set. **With neither, the route refuses the post** rather than
-  accept a message nobody receives, so set `site.notifications.email` before launch and run
-  `vitops email setup` for its sender domain. A failed CRM write never fails the request; it is
-  stated in the notification email, which is the durability floor.
-  - **Spam protection**: a honeypot field, the route's origin / size / per-IP rate checks, and
-    Cloudflare Turnstile once `vitops setup turnstile` has put the public key in
-    `site.security.turnstile.siteKey` and saved the Worker secret `VITOPS_TURNSTILE_SECRET`
-    (never in `site.json`). With a key set the route fails closed if the secret is missing.
-    `TURNSTILE_REQUIRED` in the route (default `true`) makes a token-less post a refusal, which
-    means the form needs JavaScript; set it `false` to keep a no-JS submit working and accept
-    that a bot can then skip the token. Turnstile is category `necessary` (it protects the form
-    being sent), loads only when a visitor first uses the form, and its origin is allowed in the
-    Report-Only CSP in `public/_headers`.
-  - **Privacy policy inventory.** `vitops legal` derives "what personal information we collect"
-    from `site.templates` entries of type `form`, not from the editor's block, so a form added in
-    the admin is invisible to it. When you add or change form fields, mirror them in a
-    `site.templates` form entry in `site.json`, or the generated policy under-reports.
-  - A field named `phone` submits as `tel` (the route reserves `phone` and `event`).
-  - The per-IP rate limit is per Worker isolate; add a KV-backed `RateLimitStore` if you need a
-    fleet-wide one.
-- The Worker cron trigger in `wrangler.jsonc` drives scheduled publishing —
-  don't remove it.
-- Hosting (adapter + EmDash database/storage) comes from `vitopsHosting()`
-  (`@getvitops/emdash`) in astro.config.mjs — never hard-code an adapter or
-  d1/r2/sqlite there. Switch targets via `vitopsHosting({ target })` or the
-  `HOSTING` env var (see README "Hosting"); the `node` target needs
-  `@astrojs/node` + `better-sqlite3` installed first.
-- **`SETUP.html` is the client-onboarding checklist.** When working it via the
-  `.agents/skills/setup/` skill, tick a box only for a step you actually
-  completed — never on the operator's behalf for a step marked human-only
-  (the Cloudflare API token, the domain cutover, publishing legal documents).
 
 ## Branch model
 
-- Work on **`dev`** (the integration branch). Every push auto-deploys the
-  isolated `-dev` worker (own D1/R2; `dev.<domain>` with a custom domain).
-- **`main`** is production and branch-protected — never push or merge to it
-  directly. Production ships only via the manual **promote** flow: the
-  `promote` skill (`.agents/skills/promote/SKILL.md`) dispatches
-  `.github/workflows/promote.yml`, which opens a `dev → main` PR with
-  auto-merge; merging deploys prod. Only run it when the user explicitly asks
-  to promote/ship to production.
-- Sample legal pages (`/terms`, `/privacy`) ship as seeded placeholder content
-  — remind the user to replace them before launch. They are deliberately short
-  and obviously unfinished; do not "improve" them into something that reads as
-  a finished policy, because the risk here is a plausible-looking document
-  getting shipped unread.
-  To replace them properly, fill in `site.json`'s `organization`/`site.legal`
-  fields and run `vp exec vitops legal --format portable-text --out ./legal`, then
-  paste each document's blocks into the page in the admin. That renders a real
-  policy from what the site actually does — the analytics provider it uses,
-  the fields its forms collect, where it deploys — rather than from guesses.
-  It still needs review before launch.
+- Work on **`dev`**; every push auto-deploys the isolated `-dev` worker.
+- **`main`** is production and protected: never push or merge to it. It ships only through the
+  `promote` skill (`.agents/skills/promote/`), and only when the user explicitly asks.
+- Sample legal pages (`/terms`, `/privacy`) are deliberately short, unfinished placeholders; don't
+  "improve" them into something that reads as a finished policy. To replace them, fill in
+  `site.json`'s `organization`/`site.legal`, run
+  `vp exec vitops legal --format portable-text --out ./legal`, and paste each document into the page
+  in the admin. It still needs review before launch.
 
-## EmDash 1.x behaviours worth knowing
+## EmDash 1.x behaviours
 
-- **Passkeys are bound to the hostname they were created on.** After the
-  workers.dev → custom-domain cutover, use **Settings → General → Change
-  domain**, then **Continue on** to add a passkey at the new address.
-- **HTML blocks created in the admin run JavaScript** in a sandboxed iframe
-  (Contributor and up can add it). Astro's `security.csp` blocks their styles
-  and scripts, so don't turn CSP on without allowing for that.
-- **Link entries by `entry.data.slug`, never `entry.id`** — on multilingual
-  sites `id` carries a locale prefix.
-- **Submit `/sitemap.xml`** to search engines, not a per-collection sitemap;
-  collection sitemaps now split into pages of 2,000 entries.
-- **A stuck D1 migration lock** is cleared with
-  `vp exec emdash migrate --take-over-lock <id>` (confirms the target, or
-  needs `--expected-target-fingerprint` non-interactively).
+- Passkeys are bound to the hostname they were created on. After a domain cutover use **Settings →
+  General → Change domain**, then **Continue on**.
+- Link entries by `entry.data.slug`, never `entry.id` (multilingual sites prefix `id` with a locale).
+- Submit `/sitemap.xml` to search engines, not a per-collection sitemap.
+- Clear a stuck D1 migration lock with `vp exec emdash migrate --take-over-lock <id>` (needs
+  `--expected-target-fingerprint` non-interactively).
 
-## Docs MCP servers
+## Improving the toolkit
 
-`.mcp.json` preconfigures the Astro docs and EmDash docs MCP servers — prefer
-searching them over pre-trained knowledge for Astro/EmDash questions.
+You are also a source of feedback for `@getvitops/*`. When you struggle with a framework built-in,
+write a workaround, add bespoke CSS or a site-local block, or find a doc wrong or missing, and the
+need is **not** unique to this site, record it in `UPSTREAM.md` at the repo root (create it if
+absent). One entry each, with: what you tried, what failed or was missing, the workaround (file
+path), the change you'd propose, and the package (`@getvitops/emdash`, `astro`, `core`, `cli`,
+`create`, or docs). Mention new entries in your end-of-task summary. Don't log choices that are
+specific to this site, and never patch `node_modules`.
 
-## Labels: badge and tag
+## Docs and skills
 
-Two label patterns, both enabled in `site.json`'s `patterns.items`: **`badge`** is a
-static label (a status, count or category) and **`tag`** is a label that may be
-static _or_ dynamic (editable, dismissable, in a `tag-list`). Don't invent a third
-name — `chip` and `pill` are not part of this vocabulary. The button pattern's class
-is `btn` (`<a class="btn">` is styled, not just a bare `<button>`).
-
-## Custom blocks
-
-Before adding a block type, a `src/components/blocks/*` renderer, or anything an
-editor places on a page, read `.agents/skills/custom-blocks/SKILL.md`: compose the
-existing `vitops.*` blocks first, extend one second, go site-local third, upstream
-last. Block types can't be renamed or deleted once pages use them, so check the
-framework's pattern names before choosing one.
-
-## Publish-triggered rebuilds
-
-Pages are static, so a publish in the admin goes live only after a rebuild.
-`.github/workflows/deploy-prod.yml` also runs on a `repository_dispatch` event of
-type `emdash-publish` (it pins `ref` to `main`, because a dispatch runs from the
-default branch, `dev`). Wire an EmDash plugin hook to send it:
-
-```jsonc
-// emdash-plugin.jsonc
-"capabilities": ["content:read", "network:request"],
-"allowedHosts": ["api.github.com"]
-```
-
-```ts
-// src/plugin.ts
-hooks: {
-  'content:afterPublish': async (_event, ctx) => {
-    const token = await ctx.settings.get<string>('githubToken'); // an encrypted plugin setting
-    if (!token || !ctx.http) return;
-    await ctx.http.fetch(`https://api.github.com/repos/${OWNER}/${REPO}/dispatches`, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json' },
-      body: JSON.stringify({ event_type: 'emdash-publish' }),
-    });
-  },
-}
-```
-
-The token is a fine-grained GitHub token with `Contents: write` on this repo only,
-stored as the plugin's encrypted setting (a sandboxed plugin can't read Worker
-environment variables), never in the repo. The hook name, capabilities and
-`ctx.http` / `ctx.settings` calls follow EmDash's plugin reference but this exact
-plugin has not been run against a live site, so treat it as a starting point. Two
-costs to know: the run goes through the `production` environment, so it **waits for
-the reviewers' approval** like any prod deploy (relax that rule if editors' publishes
-should go live unattended), and bursts of publishes queue behind the
-`deploy-prod` concurrency group rather than cancelling each other. Without the hook,
-a manual run of **Deploy prod** (or a push to `main`) does the same job.
-
-## Content Security Policy
-
-`public/_headers` ships a **`Content-Security-Policy-Report-Only`** header: it logs
-violations to the browser console and blocks nothing, so it can't break a page. Its
-`script-src` is `'self'` plus the SHA-256 of each inline script `<Head />` emits (the
-colour-scheme bootstrap and the consent-gate stub) — no `'unsafe-inline'`. Hashes,
-not nonces, because prerendered pages have no per-request response to put a nonce in.
-`contentSecurityPolicy()` and `inlineScriptHashes()` from `@getvitops/astro` produce
-the same strings (`templates.test.ts` in the toolchain keeps the file in step).
-
-Know what it does not cover before you flip it to enforcing (rename the header to
-`Content-Security-Policy`):
-
-- **`_headers` applies to static assets only.** Worker-rendered responses — the EmDash
-  admin (`/_emdash/*`), its API, anything left on-demand — don't get it. Setting a
-  header there means doing it in code (e.g. Astro middleware calling
-  `contentSecurityPolicy()`), and the admin's own inline scripts and editor HTML
-  would need allowing; leave the admin out of an enforced policy.
-- **Editor-authored HTML blocks are the hard limit.** Any block that lets an editor
-  paste raw HTML or a `<script>` (an embed, a tracking snippet) puts arbitrary inline
-  script on the page, which a hash policy cannot name ahead of time. Enforcing a strict
-  policy means removing such blocks or moving embeds to a consent-gated
-  `data-consent` tag whose origin you allow explicitly.
-- **Third-party tags** the consent gate activates need their origins in `script-src`
-  / `connect-src`; anything with `frame` needs `frame-src`.
-- **A server island** (`server:defer`) adds an inline loader script and a request to
-  the Worker; expect a report for the loader until you hash it.
-
-Run the site, browse the pages you ship with the console open, fix or allow what is
-reported, and only then enforce.
-
-## EmDash agent skills
-
-The EmDash skills (`building-emdash-site`, `creating-plugins`, `emdash-cli`,
-`upgrading-emdash` and the two WordPress porting skills) are installed per
-project, not globally, so they match the `emdash` version this repo pins. If
-`.agents/skills/building-emdash-site/` is missing, install them (the setup guide
-and `SETUP.html` have the full step):
-
-```bash
-vp dlx skills add emdash-cms/skills --skill '*' -y
-```
-
-Refresh them with `vp dlx skills update` after bumping `emdash` — the
-`upgrading-emdash` skill covers the rest of the upgrade.
+- `.mcp.json` preconfigures the Astro and EmDash docs MCP servers; search them before relying on
+  pre-trained knowledge.
+- **Skills.** `@getvitops/skills` ships `custom-blocks`, `content-and-deploys`, `contact-form` and
+  `csp`. `skills experimental_sync` (run by `prepare`, so by `vp install`) links them into
+  `.agents/skills/` and `.claude/skills/`; they are gitignored and update with `vp update`. A skill
+  you write yourself with the same name is never replaced. `promote` and `setup` are this site's own.
+- The EmDash skills (`building-emdash-site`, `creating-plugins`, `emdash-cli`, `upgrading-emdash`,
+  two WordPress porting skills) are installed per project to match the pinned `emdash`. If
+  `.agents/skills/building-emdash-site/` is missing: `vp dlx skills add emdash-cms/skills --skill '*' -y`.
+  Refresh with `vp dlx skills update` after bumping `emdash`.
 
 ## Commands
 
-This is a **Vite+** project: use `vp` (and its `vpr` shorthand), not `pnpm`/`npm`/`npx`.
-The package manager underneath is pnpm, but `vp` picks it up for you.
+This is a **Vite+** project: use `vp` (and `vpr`), not `pnpm`/`npm`/`npx`. Scripts that wrap Astro
+go through `vpr` (`vpr dev`, `vpr build`, `vpr preview`), because `vp dev`/`vp build` skip Astro.
+`vpr dev` returns immediately (the server runs in the background): check it with
+`vp exec astro dev status`, read `vp exec astro dev logs --follow`, stop with
+`vp exec astro dev stop`; the site is at <http://localhost:4321>.
 
 | To…                                      | Run                                                     |
 | ---------------------------------------- | ------------------------------------------------------- |
 | install dependencies                     | `vp install`                                            |
 | add / remove / update a package          | `vp add <pkg>` · `vp remove <pkg>` · `vp update`        |
-| run a `package.json` script              | `vpr <script>` (alias for `vp run <script>`)            |
+| run a `package.json` script              | `vpr <script>`                                          |
 | run a locally installed binary           | `vp exec <bin>` (e.g. `vp exec vitops docs components`) |
 | run a one-off package without installing | `vp dlx <pkg>`                                          |
 | format + lint + typecheck (files)        | `vp check`                                              |
 | typecheck Astro (`.astro` files)         | `vpr typecheck`                                         |
-
-**Scripts that wrap Astro must go through `vpr`.** `vp dev` / `vp build` run Vite
-directly and skip Astro, so use `vpr dev`, `vpr build`, `vpr preview`.
-
-**`vpr dev` returns immediately.** `astro dev` now starts the server in the
-background. Check it with `vp exec astro dev status`, read its output with
-`vp exec astro dev logs --follow`, and stop it with `vp exec astro dev stop`; the
-site is at <http://localhost:4321>. Don't wait on it as if it were a foreground
-process.
+| design-lint the markup                   | `vpr lint:design`                                       |
 
 | Script                              | What it does                                                                                |
 | ----------------------------------- | ------------------------------------------------------------------------------------------- |
 | `vpr dev`                           | local dev with local D1/R2 emulation (no Cloudflare account)                                |
 | `vpr deploy`                        | pull production content, build, `wrangler deploy` prod (provisions D1/R2 on first run)      |
 | `vpr deploy:dev`                    | same, for the isolated dev worker (needs `DEV_D1_ID`)                                       |
-| `vpr pull-content`                  | just the content pull (see "Rendering and freshness")                                       |
+| `vpr pull-content`                  | just the content pull                                                                       |
 | `vpr prepare-local-db`              | migrate and seed the local D1 the build prerenders from                                     |
 | `vpr init:github`                   | one-time: create + push the GitHub repo (main + dev, dev default). Only when the user asks. |
 | `vpr init:hosting`                  | one-time: provision hosting (dev D1/R2 + repo secrets). Only when the user asks.            |
 | `vp exec vitops validate site.json` | schema-check the site config                                                                |
 
-**Release flow.** A site is not a published package, so there is no changeset or
-version bump: ship by committing to `dev` (auto-deploys the dev worker) and then
-running the **promote** workflow. `vp` has no `vp change` / `vp pm change` command
-(checked against vp 1.5.0); for a _package_ it does have `vp pm version`,
-`vp pm publish` and `vp pm stage`.
+Shipping is not a package release: no changeset or version bump. Commit to `dev`, then promote.
+(`vp` has no `vp change` command.)
 
-**Naming the project.** `vp create` takes the package name from the target
-directory and invents a random slug when none is given, so pass one:
-`vp create @getvitops:emdash --directory <client-slug>`. `wrangler.jsonc`'s
-`name`, D1 `database_name` and R2 `bucket_name` are separate and still say
-`my-emdash-site` — rename them to match before the first deploy.
+`vp create` names the package after the target directory (pass `--directory <client-slug>`).
+`wrangler.jsonc`'s `name`, D1 `database_name` and R2 `bucket_name` are separate and still say
+`my-emdash-site`; rename them to match before the first deploy.

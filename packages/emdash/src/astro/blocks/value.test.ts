@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { accentRuns, headingTag, lines, linkRuns, pairs, paragraphs, rows, text } from './value.ts';
+import {
+  accentRuns,
+  headingTag,
+  outlineTag,
+  lines,
+  linkRuns,
+  pairs,
+  paragraphs,
+  rows,
+  text,
+} from './value.ts';
 
 describe('editor-text helpers', () => {
   it('headingTag clamps to h2-h6 and falls back', () => {
@@ -52,5 +62,21 @@ describe('repeater helpers', () => {
   it('paragraphs splits on blank lines only', () => {
     expect(paragraphs('one\ntwo\n\n three \n\n\n')).toEqual(['one\ntwo', 'three']);
     expect(paragraphs('')).toEqual([]);
+  });
+});
+
+describe('outlineTag', () => {
+  it('allows h1 through h6', () => {
+    expect(outlineTag('1')).toBe('h1');
+    expect(outlineTag(6)).toBe('h6');
+  });
+  it('returns p for a heading that is not in the outline', () => {
+    expect(outlineTag('p')).toBe('p');
+    expect(outlineTag(' P ')).toBe('p');
+  });
+  it('falls back for anything else', () => {
+    expect(outlineTag(undefined, 1)).toBe('h1');
+    expect(outlineTag(9)).toBe('h2');
+    expect(outlineTag('x', 3)).toBe('h3');
   });
 });

@@ -56,7 +56,7 @@ describe('e2e overlay', () => {
     }[];
     expect(sections.every((s) => s._type === 'vitops_section')).toBe(true);
     expect(new Set(sections.map((s) => s._key)).size).toBe(sections.length);
-    expect(sections.some((s) => s.body.some((b) => b._type.startsWith('vitops.')))).toBe(true);
+    expect(sections.some((s) => s.body.some((b) => b._type.startsWith('vitops_')))).toBe(true);
   });
 
   it('adds block types, a blocks field and entries to a copy, leaving the template seed alone', () => {

@@ -339,3 +339,39 @@ describe('e2e overlay is not shipped', () => {
     expect(files.filter((f) => /landings[\\/]\[slug\]\.astro$/.test(f))).toEqual([]);
   });
 });
+
+/**
+ * Skills every template gets from `@getvitops/skills` (linked by `skills experimental_sync` on
+ * `prepare`) rather than copying at scaffold time, so they update with the package. A template
+ * must therefore depend on both, gitignore the links the sync creates, and not also ship a copy
+ * under the same name — two sources for one skill would drift, and the sync never replaces a
+ * directory it did not create. (The set is written for EmDash sites; it is installed everywhere.)
+ */
+describe.each(templateNames)('template %s skills from @getvitops/skills', (templateName) => {
+  const SKILLS = join(import.meta.dirname, '..', 'skills', 'skills');
+  const names = readdirSync(SKILLS, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name);
+  const template = join(TEMPLATES, templateName);
+  const pkg = JSON.parse(readFileSync(join(template, 'package.json'), 'utf8'));
+  const ignore = readFileSync(join(template, '_gitignore'), 'utf8').split('\n');
+
+  it('depends on the package and the sync CLI, and runs the sync on prepare', () => {
+    expect(pkg.dependencies['@getvitops/skills']).toBe('latest');
+    expect(pkg.devDependencies.skills).toBeDefined();
+    expect(pkg.scripts.prepare).toContain('skills experimental_sync');
+    // CI defaults to a frozen lockfile, which a fresh clone or a package update would fail.
+    expect(pkg.scripts.prepare).toContain('--no-frozen-lockfile');
+  });
+
+  it.each(names)('%s has valid frontmatter and is not also scaffolded', (name) => {
+    const text = readFileSync(join(SKILLS, name, 'SKILL.md'), 'utf8');
+    const front = /^---\nname: (.+)\ndescription: (.+)\n---\n/.exec(text);
+    expect(front, `${name}/SKILL.md frontmatter`).not.toBeNull();
+    expect(front![1]).toBe(name);
+    expect(front![2]!.length).toBeGreaterThan(40);
+    expect(readdirSync(join(template, '.agents', 'skills'))).not.toContain(name);
+    expect(ignore).toContain(`.agents/skills/${name}`);
+    expect(ignore).toContain(`.claude/skills/${name}`);
+  });
+});

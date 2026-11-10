@@ -1,5 +1,5 @@
 /**
- * Pure decisions behind the `vitops.nav` block, kept out of `Nav.astro` so they are asserted in
+ * Pure decisions behind the `vitops_nav` block, kept out of `Nav.astro` so they are asserted in
  * `nav.test.ts` without rendering (the split `sitenav.ts` makes for `<SiteNav>`). The menu-tree
  * helpers themselves — depth trimming, `aria-current` — are `@getvitops/astro`'s, not copied.
  */

@@ -2,7 +2,7 @@
  * Block TYPES (EmDash's schema-level `blocks` field) the plugin ships, as opposed to the
  * Portable Text blocks in `blocks.ts`.
  *
- * **Why `vitops.section` is not in `BLOCKS`.** A plugin Portable Text block is declared
+ * **Why `vitops_section` is not in `BLOCKS`.** A plugin Portable Text block is declared
  * with Block Kit fields — scalars, selects, repeaters of scalars — and Block Kit has no
  * rich-text element, so such a block cannot hold other blocks. A section's whole point is a
  * body of other blocks, and the one EmDash feature with a `portableText` field type is the
@@ -11,7 +11,7 @@
  * so this module exports the definition for the site to put in `seed/seed.json`'s
  * `blockTypes`, and `blockTypeComponents` (in `@getvitops/emdash/astro`) renders it.
  *
- * Inside the section's `body`, every `vitops.*` Portable Text block resolves normally: the
+ * Inside the section's `body`, every `vitops_*` Portable Text block resolves normally: the
  * body is rendered by EmDash's `<PortableText>`, which merges this plugin's component map.
  *
  * Block types cannot be renamed or hard-deleted once shipped, so the slug follows the
@@ -20,7 +20,7 @@
  */
 import type { ApplySeedBlockTypeInput, BlockFieldDefinition } from 'emdash';
 
-/** Block-type slugs may not contain a dot, so `vitops.section` is stored as `vitops_section`. */
+/** Block-type slugs may not contain a dot, so `vitops_section` is stored as `vitops_section`. */
 export const SECTION_SLUG = 'vitops_section';
 
 const select = (
@@ -56,7 +56,12 @@ export const THEMES = ['none', ...THEME_ROLES, ...THEME_ROLES.map((r) => `${r}:s
 export const SECTION_FIELDS: BlockFieldDefinition[] = [
   { slug: 'kicker', label: 'Kicker (small line above the heading)', type: 'string' },
   { slug: 'heading', label: 'Heading', type: 'string' },
-  select('level', 'Heading level', ['2', '3', '4', '5', '6'], '2'),
+  select(
+    'level',
+    'Heading level (p: styled like a heading, not in the outline)',
+    ['1', '2', '3', '4', '5', '6', 'p'],
+    '2',
+  ),
   { slug: 'sub', label: 'Lead-in text under the heading', type: 'text' },
   { slug: 'body', label: 'Content (any blocks)', type: 'portableText' },
   select('layout', 'Layout', ['stack', 'center', 'split'], 'stack'),
@@ -83,7 +88,7 @@ export const SECTION_FIELDS: BlockFieldDefinition[] = [
   { slug: 'style', label: 'CSS custom properties, e.g. --p-card: 2rem', type: 'string' },
 ];
 
-/** `vitops.section`: kicker, heading, lead-in, tone/backdrop, optional heading-left layout, and a body of blocks. */
+/** `vitops_section`: kicker, heading, lead-in, tone/backdrop, optional heading-left layout, and a body of blocks. */
 export const SECTION_BLOCK_TYPE: ApplySeedBlockTypeInput = {
   slug: SECTION_SLUG,
   label: 'Section',

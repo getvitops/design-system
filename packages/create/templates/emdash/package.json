@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build && vitops emdash check-prerender",
+    "build": "vitops emdash build",
     "preview": "astro preview",
     "pull-content": "node scripts/pull-content.mjs",
     "prepare-local-db": "vitops emdash prepare-db",
-    "deploy": "vitops email check && node scripts/pull-content.mjs && vitops emdash prepare-db && astro build && vitops emdash check-prerender && emdash migrate --wrangler-config wrangler.jsonc && wrangler deploy",
-    "deploy:dev": "vitops email check && node scripts/pull-content.mjs && vitops emdash prepare-db && astro build && vitops emdash check-prerender && node scripts/build-dev-wrangler.mjs && emdash migrate --wrangler-config dist/server/wrangler.dev.json && wrangler deploy --config dist/server/wrangler.dev.json",
+    "deploy": "vitops email check && node scripts/pull-content.mjs && vitops emdash prepare-db && vitops emdash build && emdash migrate --wrangler-config wrangler.jsonc && wrangler deploy",
+    "deploy:dev": "vitops email check && node scripts/pull-content.mjs && vitops emdash prepare-db && vitops emdash build && node scripts/build-dev-wrangler.mjs && emdash migrate --wrangler-config dist/server/wrangler.dev.json && wrangler deploy --config dist/server/wrangler.dev.json",
     "init:github": "vitops setup repo",
     "init:hosting": "vitops setup hosting",
     "setup": "vitops setup all",
@@ -18,7 +18,7 @@
     "build:css": "vitops generate -i site.json -f tailwind -o src/styles",
     "lint:design": "vitops lint -i site.json -f tailwind --strict",
     "sop": "vitops generate -i site.json -f css -o .vitops/sop",
-    "prepare": "vp config"
+    "prepare": "vp config && skills experimental_sync -y -a claude-code --no-frozen-lockfile"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.0.0",
@@ -27,6 +27,7 @@
     "@getvitops/astro": "latest",
     "@getvitops/core": "latest",
     "@getvitops/emdash": "latest",
+    "@getvitops/skills": "latest",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.4.4",
     "emdash": "latest",
@@ -39,6 +40,7 @@
     "@cloudflare/workers-types": "^4.20260305.1",
     "@getvitops/cli": "latest",
     "@iconify-json/fa7-solid": "^1.2.5",
+    "skills": "^1.7.6",
     "typescript": "^6.0.3",
     "vite": "latest",
     "vite-plus": "latest",

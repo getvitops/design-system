@@ -51,3 +51,13 @@ describe('joinStyle', () => {
     expect(joinStyle('--a: 1', '', '--b: 2')).toBe('--a: 1; --b: 2');
   });
 });
+
+describe('solid fill from a hue and step', () => {
+  it('takes its text from the fill, not a fixed white', () => {
+    const light = resolveTone('', 'amber-500');
+    expect(light.style).toContain('--tone-on-solid: var(--color-amber-950)');
+    const dark = resolveTone('', 'navy-800');
+    expect(dark.style).toContain('--tone-on-solid: #fff');
+    expect(light.className).toBe('tone tone--auto-on');
+  });
+});

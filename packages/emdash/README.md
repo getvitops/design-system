@@ -129,16 +129,16 @@ export default defineConfig({
 
 | Slash-menu entry | `_type`               | Renders                                                    |
 | ---------------- | --------------------- | ---------------------------------------------------------- |
-| Link or button   | `vitops.actionLink`   | sprite-icon `<a>`, styled `.link`/`.btn`/`.cta`            |
-| Image compare    | `vitops.imageCompare` | `<wc-image-compare>` before/after slider                   |
-| Copy snippet     | `vitops.copyButton`   | `<wc-copy>` with code/inline fallback                      |
-| Banner           | `vitops.banner`       | `<wc-dismissable>` banner with tone colours                |
-| Disclosure       | `vitops.details`      | native `<details>`/`<summary>`                             |
-| Accordion        | `vitops.accordion`    | a group of `<details>`; optionally one-open-at-a-time      |
-| Carousel         | `vitops.carousel`     | `@getvitops/astro`'s `<Carousel />` over a Slides repeater |
-| Gallery          | `vitops.gallery`      | `<Gallery />` — thumbnail grid opening a lightbox carousel |
-| Cards            | `vitops.cards`        | `<Cards />` — a grid of `.card`s, whole-card click with JS |
-| Marquee          | `vitops.marquee`      | `<Marquee />` — a continuously scrolling row               |
+| Link or button   | `vitops_actionLink`   | sprite-icon `<a>`, styled `.link`/`.btn`/`.cta`            |
+| Image compare    | `vitops_imageCompare` | `<wc-image-compare>` before/after slider                   |
+| Copy snippet     | `vitops_copyButton`   | `<wc-copy>` with code/inline fallback                      |
+| Banner           | `vitops_banner`       | `<wc-dismissable>` banner with tone colours                |
+| Disclosure       | `vitops_details`      | native `<details>`/`<summary>`                             |
+| Accordion        | `vitops_accordion`    | a group of `<details>`; optionally one-open-at-a-time      |
+| Carousel         | `vitops_carousel`     | `@getvitops/astro`'s `<Carousel />` over a Slides repeater |
+| Gallery          | `vitops_gallery`      | `<Gallery />` — thumbnail grid opening a lightbox carousel |
+| Cards            | `vitops_cards`        | `<Cards />` — a grid of `.card`s, whole-card click with JS |
+| Marquee          | `vitops_marquee`      | `<Marquee />` — a continuously scrolling row               |
 
 All blocks render accessible markup that works without JavaScript; the
 web components progressively enhance it. Each is a thin adapter over the matching
@@ -155,7 +155,7 @@ URLs with any other scheme (`javascript:`, `data:`) are dropped at render time.
 ```js
 vitopsEmdash({
   blocks: {
-    exclude: ['vitops.marquee'], // or `include: [...]` as an allowlist
+    exclude: ['vitops_marquee'], // or `include: [...]` as an allowlist
     extra: [
       {
         type: 'acme.pricing',
@@ -168,12 +168,12 @@ vitopsEmdash({
 ```
 
 `extra` adds **editor** definitions only. This plugin cannot render a block it has never heard of,
-so the site maps each of its own types to a component, and can replace a `vitops.*` renderer the same way:
+so the site maps each of its own types to a component, and can replace a `vitops_*` renderer the same way:
 
 ```astro
 <PortableText
   value={page.data.content}
-  components={{ type: { 'acme.pricing': PricingTable, 'vitops.cards': MyCards } }}
+  components={{ type: { 'acme.pricing': PricingTable, 'vitops_cards': MyCards } }}
 />
 ```
 
@@ -197,15 +197,17 @@ guarded — but wasteful).
 
 ## Patterns that contain other blocks
 
-A Portable Text block cannot hold other blocks — a repeater's rows are scalar fields. So a section
-with columns, a hero, or a card holding a button is not a `vitops.*` block. Two routes:
+A `vitops_*` Portable Text block holds only scalar fields and repeaters, so it cannot hold other
+blocks. A block _type_ with a `portableText` field can: `vitops_section`'s `body` holds any blocks,
+so a section containing cards or stats is a section whose body holds `vitops_cards` or
+`vitops_stats`. For a hero or a card holding a button, two routes:
 
 - A **`blocks` field** (EmDash's typed page-composition field): define block types such as `hero` or
   `split` in the seed, and map each to an Astro component built from `@getvitops/astro`
   (`Subgrid`, `Cards`, the `.split` classes) with `defineBlockComponents`.
 - **Sections** (`/section`): compose the pattern once as reusable content and let editors insert copies.
 
-EmDash's built-in `columns` block renders its children with marks only, so a `vitops.*` block placed
+EmDash's built-in `columns` block renders its children with marks only, so a `vitops_*` block placed
 inside one does not render. Use a `blocks` field for layout instead.
 
 Not yet blocks: tree, entries, reviews (`ReviewCard` reads `.vitops/reviews.json`, which needs a

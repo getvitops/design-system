@@ -641,7 +641,7 @@ describe('output formats', () => {
     expect(JSON.stringify(blocks)).not.toContain('Title');
 
     expect(blocks[0]).toEqual({
-      _type: 'vitops.banner',
+      _type: 'vitops_banner',
       _key: 'privacy-1',
       message: 'warn',
       tone: 'warning',
@@ -805,7 +805,7 @@ describe('quebec (Law 25) templates', () => {
     for (const output of ['md', 'html', 'portable-text'] as const)
       expect(() => generateLegal(qc(), { output })).not.toThrow();
     const pt = JSON.parse(generateLegal(qc(), { output: 'portable-text' })['privacy-policy.json']!);
-    expect(pt.filter((b: { _type: string }) => b._type === 'vitops.banner')).toHaveLength(2);
+    expect(pt.filter((b: { _type: string }) => b._type === 'vitops_banner')).toHaveLength(2);
   });
 
   test('carries the Law 25 content PIPEDA prose lacks, and none of the ca framing', () => {

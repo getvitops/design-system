@@ -1,8 +1,8 @@
 /**
- * The site's one on-demand endpoint: contact-form posts (the `vitops.form` block) and the
+ * The site's one on-demand endpoint: contact-form posts (the `vitops_form` block) and the
  * conversion beacons (`<Tracking />`, `tel:`/`mailto:` clicks) all arrive here.
  *
- * Every public page is prerendered (see AGENTS.md, "Rendering and freshness"); this route sets
+ * Every public page is prerendered (see .agents/skills/content-and-deploys); this route sets
  * `prerender = false` because it has to run on each request. It is the one exception, and the
  * Cloudflare adapter handles it in the Worker beside the EmDash admin.
  *

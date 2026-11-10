@@ -13,11 +13,11 @@ burden, and **a block type cannot be renamed or deleted** once pages use it (see
 
 ## 1. Decision rule
 
-1. **Compose what exists.** The `vitops.*` blocks from `@getvitops/emdash` (cards,
+1. **Compose what exists.** The `vitops_*` blocks from `@getvitops/emdash` (cards,
    carousel, gallery, accordion, details, banner, hero, marquee, image-compare,
    copy button, action link, …) resolve inside any block type's `portableText` field,
    so "a section with a heading, intro and then a row of cards" is a section block
-   whose body holds `vitops.cards` — not a new "cards section" type. Check what is
+   whose body holds `vitops_cards` — not a new "cards section" type. Check what is
    installed first: `vp exec vitops docs components` lists every block the toolchain
    ships and which tier provides it.
 2. **Extend an existing block** if one is close. An extra option (a `variant`
@@ -70,9 +70,11 @@ name one:
 - **Repeater sub-fields are scalar-only** (no `portableText`, no links inside text),
   so a checklist is one newline-separated `text` field. Don't fight it; rich item
   bodies need EmDash to lift that limit.
-- **Blocks don't nest.** A "section containing stats" is the section's own body
-  holding `vitops.*` blocks, or a flat sequence of sibling blocks; per-section
-  backdrops don't carry across siblings.
+- **Nesting needs a `portableText` field.** A `vitops_*` Portable Text block holds
+  only scalars and repeaters, so it can't contain blocks. A block _type_ with a
+  `portableText` field can (`vitops_section`'s `body` holds any blocks), so "a
+  section containing stats" is a section whose body holds `vitops_stats`. A flat
+  sequence of siblings works too, but per-section backdrops don't carry across them.
 - **Reach for framework classes** (`centered`, `region`, `rhythm`, `subgrid`,
   `cluster`, `font-*`, `card`, `badge`, `tag`) in the renderer; run
   `vpr lint:design` — hand-written layout CSS in a block is the signal that the

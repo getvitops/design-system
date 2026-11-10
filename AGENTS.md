@@ -1,10 +1,11 @@
-This repo is responsible for generating design systems for use in websites (primarily Astro and WordPress with Bricks Builder).
+This repo is responsible for generating design systems for use in websites (primarily EmDash CMS and WordPress with Bricks Builder).
 
 It is composed of:
 
 - TS-based utilities
 - Variable-based lightweight CSS Framework for high level design patterns and common utilities (e.g. track-based centering of content, vertical rhythm, UI patterns)
 - Lit-based Web Components for patterns that benefit from progressive enhancement (they are styled via the CSS Framework, and are fully operable, although degraded, in non-JS environments)
+- Wrappers for the Web Components and additional components for each platform (e.g. EmDash Blocks/Widgets, Astro components, PHP fragments, ...)
 
 **This file is the _why_.** For the structural map — package matrix, key files, the `vp` task graph,
 the asset snapshot chain, what's generated vs hand-written — see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -394,6 +395,8 @@ packages under `packages/` (a pnpm workspace), by layer:
   drift-guarded by `templates.test.ts` — `vp create` copies only the one directory a template names,
   so nothing can copy a sibling `assets/` for it at scaffold time.
 
+- **`@getvitops/skills`** — agent skills as data (`skills/<name>/SKILL.md`, no build), for knowledge about the toolkit that must update after a site is scaffolded. A site depends on it and runs `skills experimental_sync` (the `skills` CLI's preview command; pin its version) from `prepare`, which links each skill into `.agents/skills/` and `.claude/skills/` and relinks on every run. The sync never replaces a directory it did not create, so a site overrides a skill by name. Skills tied to a site's own files (`promote`, `setup`) stay in the template; `vitops-design-system` still ships in `@getvitops/cli`. Independent version, like `emdash` and `create`.
+
 Dependency versions are centralized in `pnpm-workspace.yaml`'s `catalog:` (referenced via the
 `catalog:` protocol); internal deps use `workspace:*`. Both are rewritten to concrete versions on
 publish.
@@ -505,7 +508,7 @@ Four things here are load-bearing:
   `> ` quote, `**strong**`, `` `code` ``. An unsupported construct is an error, not a silent
   degrade — that is what stops a literal `| --- |` reaching a published page. HTML goes through
   `nodesToHtml` from `@getvitops/utils` (escaping already solved); Portable Text maps the `> `
-  quote to `vitops.banner` and **drops the `# ` heading**, which is EmDash's `data.title` field.
+  quote to `vitops_banner` and **drops the `# ` heading**, which is EmDash's `data.title` field.
 - **`JURISDICTIONS` in `config.ts` and `TEMPLATES` in `legal/templates/index.ts` are checked
   against each other** by `satisfies`. Adding a jurisdiction is: author three templates, add
   one enum member, add one registry key — skip either and it fails to compile rather than
@@ -1150,11 +1153,11 @@ Non-Astro consumers read the same JSON directly.
 
 ### Block escape hatches and widget areas
 
-Every `vitops.*` block carries `anchor` (an `id`), `className` and `style`, applied by each renderer
+Every `vitops_*` block carries `anchor` (an `id`), `className` and `style`, applied by each renderer
 to its **own outermost element** through `rootAttrs()` and validated in `astro/blocks/attrs.ts`.
 There is deliberately no wrapper node: one that appeared only when a field was set would make a
 block's DOM shape depend on content, and break CSS and JS selectors written against it. The one
-nuance is `vitops.cards`, whose default variant is a `<wc-cards>` host and whose attributes go on
+nuance is `vitops_cards`, whose default variant is a `<wc-cards>` host and whose attributes go on
 the grid inside it (the panel variant has no host), so they sit on the same element in both. **`style` is
 custom properties only**, and that is the point: `--p-card: 2rem` tunes a hook the design system
 already defines, while a free-form declaration would let one page diverge from the tokens and
@@ -1166,14 +1169,14 @@ generator's guarantee; `tone`/`color`/`solid` remain because a block-type field 
 
 **Widget areas** are EmDash's synced regions (an EmDash Section is copied, so later edits do not
 reach earlier uses). `<VitopsWidgetArea>` renders one in the framework's vocabulary — titles at a
-chosen heading level, a menu as a labelled `<nav>` — and the `vitops.widgetArea` block places one
+chosen heading level, a menu as a labelled `<nav>` — and the `vitops_widgetArea` block places one
 in content. An area cannot hold another (a request-scoped depth counter cannot be kept honest
 while Astro streams children), and one holding a `core:*` component widget is handed whole to
 EmDash's renderer, whose per-widget renderer is not exported. Prerendered pages bake an area at
 build time, like menus.
 
 The `tailwind` format needs `@source` lines for the packages whose renderers carry classes:
-Tailwind v4 does not scan `node_modules`, so `font-display` (used only by `vitops.stats`) was never
+Tailwind v4 does not scan `node_modules`, so `font-display` (used only by `vitops_stats`) was never
 emitted. The Astro integration passes them (`tailwind-sources.ts` → `generate({ sources })`), and
 `vitops emdash check-prerender` warns when a type-role class has no rule as a backstop.
 

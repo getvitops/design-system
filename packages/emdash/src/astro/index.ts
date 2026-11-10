@@ -33,29 +33,29 @@ import Stats from './blocks/Stats.astro';
 import Steps from './blocks/Steps.astro';
 
 export const blockComponents = {
-  'vitops.actionLink': ActionLink,
-  'vitops.imageCompare': ImageCompare,
-  'vitops.copyButton': CopyButton,
-  'vitops.banner': Banner,
-  'vitops.details': Details,
-  'vitops.carousel': Carousel,
-  'vitops.gallery': Gallery,
-  'vitops.cards': Cards,
-  'vitops.accordion': Accordion,
-  'vitops.hero': Hero,
-  'vitops.marquee': Marquee,
-  'vitops.logos': Logos,
-  'vitops.steps': Steps,
-  'vitops.stats': Stats,
-  'vitops.callout': Callout,
-  'vitops.entries': Entries,
-  'vitops.pricing': Pricing,
-  'vitops.embed': Embed,
-  'vitops.form': Form,
-  'vitops.reviews': Reviews,
-  'vitops.nav': Nav,
-  'vitops.badges': Badges,
-  'vitops.widgetArea': WidgetArea,
+  vitops_actionLink: ActionLink,
+  vitops_imageCompare: ImageCompare,
+  vitops_copyButton: CopyButton,
+  vitops_banner: Banner,
+  vitops_details: Details,
+  vitops_carousel: Carousel,
+  vitops_gallery: Gallery,
+  vitops_cards: Cards,
+  vitops_accordion: Accordion,
+  vitops_hero: Hero,
+  vitops_marquee: Marquee,
+  vitops_logos: Logos,
+  vitops_steps: Steps,
+  vitops_stats: Stats,
+  vitops_callout: Callout,
+  vitops_entries: Entries,
+  vitops_pricing: Pricing,
+  vitops_embed: Embed,
+  vitops_form: Form,
+  vitops_reviews: Reviews,
+  vitops_nav: Nav,
+  vitops_badges: Badges,
+  vitops_widgetArea: WidgetArea,
 };
 
 /** Keyed by block-type slug (see `SECTION_SLUG`), not by Portable Text `_type`. */
@@ -63,5 +63,5 @@ export const blockTypeComponents = {
   vitops_section: Section,
 };
 
-/** The framework-styled widget area, for a site layout (the block form is `vitops.widgetArea`). */
+/** The framework-styled widget area, for a site layout (the block form is `vitops_widgetArea`). */
 export { default as VitopsWidgetArea } from './WidgetArea.astro';

@@ -1,9 +1,9 @@
 /**
- * A realistic saved `vitops.form` block, for tests and the e2e fixtures: the fields a small
+ * A realistic saved `vitops_form` block, for tests and the e2e fixtures: the fields a small
  * service business asks for, including the two names the conversion route treats specially.
  */
 export const SAMPLE_FORM_BLOCK = {
-  _type: 'vitops.form',
+  _type: 'vitops_form',
   _key: 'contact',
   heading: 'Get in touch',
   level: '2',

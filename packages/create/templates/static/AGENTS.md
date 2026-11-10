@@ -70,6 +70,13 @@ activates to `script-src` / `connect-src`, any embed to `frame-src`, and hash an
 inline script you add yourself. Hashes rather than nonces because a static page has no
 per-request response to carry one.
 
+## Skills
+
+`@getvitops/skills` ships agent skills that update with the package. `skills experimental_sync` (run
+by `prepare`, so by `vp install`) links them into `.agents/skills/` and `.claude/skills/`; they are
+gitignored. The set is written for EmDash sites, so `csp` is the one that applies here. A skill you
+write yourself with the same name is never replaced. `setup` is this site's own.
+
 ## Commands
 
 This is a **Vite+** project: use `vp` (and its `vpr` shorthand), not `pnpm`/`npm`/`npx`.

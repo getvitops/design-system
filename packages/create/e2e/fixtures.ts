@@ -27,7 +27,7 @@ const IMG = {
 export type BlockFixture = Record<string, unknown>;
 
 export const FIXTURES: Record<string, BlockFixture> = {
-  'vitops.actionLink': {
+  vitops_actionLink: {
     label: 'Book a consultation',
     href: '/contact',
     variant: 'cta',
@@ -35,7 +35,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
     role: '',
     newTab: false,
   },
-  'vitops.imageCompare': {
+  vitops_imageCompare: {
     before: IMG.wide,
     beforeAlt: 'Wireframe of the lawn before treatment',
     beforeLabel: 'Before',
@@ -43,22 +43,22 @@ export const FIXTURES: Record<string, BlockFixture> = {
     afterAlt: 'Wireframe of the lawn after treatment',
     afterLabel: 'After',
   },
-  'vitops.copyButton': {
+  vitops_copyButton: {
     text: 'npm install @getvitops/astro',
     label: 'Copy command',
     display: 'code-block',
   },
-  'vitops.banner': {
+  vitops_banner: {
     message: 'Spring booking is open. Reserve a visit before the end of the month.',
     tone: 'info',
     dismissible: true,
   },
-  'vitops.details': {
+  vitops_details: {
     summary: 'What is included in a visit?',
     body: 'An assessment of the site, a written quote and a follow-up call. There is no charge for the first visit.',
     open: false,
   },
-  'vitops.carousel': {
+  vitops_carousel: {
     slides: [
       { src: IMG.wide, alt: 'Wireframe slide one, a wide landscape' },
       { src: IMG.wide, alt: 'Wireframe slide two, a wide landscape' },
@@ -69,7 +69,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
     loop: true,
     aspect: '3/2',
   },
-  'vitops.gallery': {
+  vitops_gallery: {
     label: 'Project gallery',
     images: [
       { src: IMG.wide, alt: 'Wide wireframe, front garden', caption: 'Front garden' },
@@ -79,7 +79,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
     aspect: '3/2',
     loop: false,
   },
-  'vitops.cards': {
+  vitops_cards: {
     variant: 'default',
     level: '3',
     tone: '',
@@ -102,7 +102,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
       { title: 'Care', body: 'Seasonal visits to keep it looking right.' },
     ],
   },
-  'vitops.accordion': {
+  vitops_accordion: {
     exclusive: true,
     items: [
       {
@@ -117,7 +117,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
       { summary: 'Is the quote binding?', body: 'It is fixed unless the scope changes.' },
     ],
   },
-  'vitops.hero': {
+  vitops_hero: {
     eyebrow: 'Ottawa and area',
     heading: 'Landscapes that last',
     level: '2',
@@ -131,7 +131,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
     layout: 'split',
     tone: '',
   },
-  'vitops.marquee': {
+  vitops_marquee: {
     items: [
       { text: 'Licensed and insured' },
       { text: 'Locally owned' },
@@ -141,7 +141,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
     pauseOnHover: true,
     reverse: false,
   },
-  'vitops.logos': {
+  vitops_logos: {
     label: 'Trusted by',
     logos: [
       { image: IMG.square, alt: 'Example Client One', href: 'https://example.com' },
@@ -151,7 +151,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
     grayscale: true,
     size: 'md',
   },
-  'vitops.steps': {
+  vitops_steps: {
     level: '3',
     layout: 'row',
     tone: '',
@@ -161,7 +161,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
       { title: 'Build', text: 'The crew arrives on the agreed date.' },
     ],
   },
-  'vitops.stats': {
+  vitops_stats: {
     variant: 'tiles',
     animate: false,
     tone: '',
@@ -171,7 +171,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
       { value: '4.9', label: 'Average review', delta: '+0.2', state: 'up' },
     ],
   },
-  'vitops.callout': {
+  vitops_callout: {
     heading: 'Ready when you are',
     level: '2',
     body: 'Tell us about the space and we will reply within one business day.',
@@ -183,14 +183,14 @@ export const FIXTURES: Record<string, BlockFixture> = {
     solid: false,
     tone: '',
   },
-  'vitops.entries': {
+  vitops_entries: {
     level: '3',
     entries: [
       { heading: 'Lawn renewal', pairs: 'Duration | 2 days\nCrew | 3\nFrom | $1,800' },
       { heading: 'Patio build', pairs: 'Duration | 1 week\nCrew | 4\nFrom | $6,500' },
     ],
   },
-  'vitops.pricing': {
+  vitops_pricing: {
     level: '3',
     plans: [
       {
@@ -213,7 +213,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
       },
     ],
   },
-  'vitops.embed': {
+  vitops_embed: {
     provider: 'map',
     url: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2800!2d-75.69!3d45.42!2m3!1f0!2f0!3f0',
     title: 'Map of our Ottawa office',
@@ -221,7 +221,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
     ratio: '16/9',
   },
   // Reads the sample `.vitops/reviews.json` the overlay writes (REVIEWS_CACHE in overlay.ts).
-  'vitops.reviews': {
+  vitops_reviews: {
     label: 'What clients say',
     location: 'ottawa',
     layout: 'grid',
@@ -233,8 +233,8 @@ export const FIXTURES: Record<string, BlockFixture> = {
   },
   // One form per page (fixed ids), so this is the only form on `/blocks`. The site.json has no
   // Turnstile key, so no widget or third-party request is part of the audited page.
-  'vitops.form': (({ _type: _t, _key: _k, ...fields }) => fields)(SAMPLE_FORM_BLOCK),
-  'vitops.badges': {
+  vitops_form: (({ _type: _t, _key: _k, ...fields }) => fields)(SAMPLE_FORM_BLOCK),
+  vitops_badges: {
     items: [
       { label: 'Ottawa', icon: 'location', tone: 'info' },
       { label: 'Ontario-wide', color: 'amber' },
@@ -245,8 +245,8 @@ export const FIXTURES: Record<string, BlockFixture> = {
   },
   // The template seed's `pre-footer` area: one content widget, so the page exercises the
   // framework renderer without needing a second database fixture.
-  'vitops.widgetArea': { area: 'pre-footer', level: '3' },
-  'vitops.nav': {
+  vitops_widgetArea: { area: 'pre-footer', level: '3' },
+  vitops_nav: {
     menu: 'footer-sitemap',
     label: 'Page links',
     heading: 'Explore',

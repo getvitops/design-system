@@ -96,7 +96,7 @@ export interface VitopsEmdashOptions {
    */
   designSystemEditor?: DesignSystemEditorOptions | false;
   /**
-   * Which blocks the editor offers. All of the `vitops.*` blocks by default. Use `exclude` to
+   * Which blocks the editor offers. All of the `vitops_*` blocks by default. Use `exclude` to
    * drop one a client should not see, `include` for an allowlist, and `extra` to add the
    * site's own — whose renderers the site supplies, see {@link BlockSelection}.
    */

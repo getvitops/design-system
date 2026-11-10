@@ -29,6 +29,14 @@
     background-color: var(--tone-solid, var(--_bg));
     color: var(--tone-on-solid, var(--_fg));
   }
+
+  /* A fill chosen by hue and step (the `color` escape hatch) has no computed `text-on-<role>`:
+     where the browser can compute a readable foreground from the fill itself, use it. */
+  @supports (color: contrast-color(red)) {
+    &.tone--solid.tone--auto-on {
+      color: contrast-color(var(--tone-solid));
+    }
+  }
 }
 
 /* An accent run inside a heading (`<em class="accent">`): colour, not italics. */

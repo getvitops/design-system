@@ -30,7 +30,7 @@ export const LANDING_SLUG = 'showcase';
 
 /** Pages the audit should visit beyond the defaults. */
 /**
- * A sample `.vitops/reviews.json` (the cache `vitops reviews` writes), so the `vitops.reviews`
+ * A sample `.vitops/reviews.json` (the cache `vitops reviews` writes), so the `vitops_reviews`
  * block renders real cards in the e2e site rather than the empty state. Fictional authors.
  */
 export const REVIEWS_CACHE = {
@@ -101,7 +101,7 @@ export function blocksPageContent(): unknown[] {
     textBlock('intro', 'normal', 'Every Vitops Portable Text block, once, with valid values.'),
   ];
   for (const type of coverage().covered) {
-    const slug = type.replace('vitops.', '');
+    const slug = type.replace('vitops_', '');
     out.push(textBlock(`h-${slug}`, 'h2', slug), pluginBlock(type, `b-${slug}`));
   }
   return out;
@@ -127,21 +127,21 @@ export function sectionBlocks(): Json[] {
       sub: 'A section holds any plugin block in its body.',
       layout: 'stack',
       width: 'measure',
-      body: body('s1', ['vitops.cards', 'vitops.actionLink'], 'Three services, one crew.'),
+      body: body('s1', ['vitops_cards', 'vitops_actionLink'], 'Three services, one crew.'),
     }),
     section('s2', {
       kicker: 'Process',
       heading: 'How it works',
       layout: 'split',
       width: 'breakout',
-      body: body('s2', ['vitops.steps', 'vitops.stats'], 'From first visit to finished job.'),
+      body: body('s2', ['vitops_steps', 'vitops_stats'], 'From first visit to finished job.'),
     }),
     section('s3', {
       heading: 'Questions',
       layout: 'center',
       width: 'spotlight',
       tone: 'info',
-      body: body('s3', ['vitops.accordion', 'vitops.callout'], 'The short answers.'),
+      body: body('s3', ['vitops_accordion', 'vitops_callout'], 'The short answers.'),
     }),
   ];
 }

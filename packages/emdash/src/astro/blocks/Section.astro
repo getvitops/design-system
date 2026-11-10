@@ -11,13 +11,17 @@
  * real heading at the editor's `level`.
  *
  * The body is rendered by EmDash's `<PortableText>`, which merges this plugin's
- * `blockComponents`, so a `vitops.cards` or `vitops.actionLink` placed in it renders with its
+ * `blockComponents`, so a `vitops_cards` or `vitops_actionLink` placed in it renders with its
  * web component. Class names never come from field values (Tailwind could not see them): the
  * width and layout are looked up in closed tables, colour is `--tone-*` custom properties.
  */
-import { PortableText } from 'emdash/ui';
+// Imported lazily on purpose. `emdash/ui` statically imports `virtual:emdash/block-components`,
+// which is this package's `index.ts`, which imports this file: a static import here is a cycle
+// that evaluates the virtual module before `blockComponents` exists, so the static build ships
+// an empty plugin block map and drops every `vitops_*` block in a section body.
+const { PortableText } = await import('emdash/ui');
 import { joinStyle, resolveTone } from './tone.ts';
-import { headingTag, resolveBlockValue, text } from './value.ts';
+import { outlineTag, resolveBlockValue, text } from './value.ts';
 
 interface Value {
   kicker?: string;
@@ -44,7 +48,7 @@ const kicker = text(value.kicker);
 const heading = text(value.heading);
 const sub = text(value.sub);
 const body = Array.isArray(value.body) ? value.body : [];
-const Heading = headingTag(value.level, 2);
+const Heading = outlineTag(value.level, 2);
 // `theme` is one pick for the common case: `<role>` tints, `<role>:solid` fills. It wins over the
 // older `tone`/`color`/`solid` fields, which stay for content that already uses them.
 const [themeRole, themeFill] = text(value.theme).replace(/^none$/, '').split(':');

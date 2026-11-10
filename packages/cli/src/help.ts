@@ -382,6 +382,7 @@ Setup all options:
 Emdash subcommands:
   vitops emdash prepare-db           Migrate and seed the local D1 the build prerenders from
   vitops emdash check-prerender [d]  Fail if a prerendered page is not a real page
+  vitops emdash build [d]            astro build, then check-prerender; fails on blocks with no renderer
 
 Emdash prepare-db options:
   (none)  Starts \`astro dev\` once, calls EmDash's dev-bypass setup (migrates, applies the
@@ -393,6 +394,12 @@ Emdash check-prerender options:
           pending-migrations message, is not an HTML document, or has no <title>.
   --strict  Also fail (not just warn) when a page uses a type-role class (font-display, …)
           the built CSS has no rule for.
+
+Emdash build options:
+  [dir]   Runs \`astro build\`, then check-prerender on [dir] (default: dist/client). Also fails
+          when the build reports a block type with no component ("PortableText
+          [components.type] is missing …"): the page was published without that content.
+  --strict  Passed through to check-prerender.
 
 Email subcommands:
   vitops email setup [domain]  Onboard a from-address domain, waiting for its DNS to resolve
@@ -527,6 +534,8 @@ export const EMDASH_HELP = `vitops emdash — build-time steps for an EmDash sit
                                      (SKIP_PREPARE_LOCAL_DB=1 skips)
   vitops emdash check-prerender [d]  Fail if a prerendered page under [d] (default dist/client)
                                      is not a real page
+  vitops emdash build [d]            astro build, then check-prerender; also fails when the build
+                                     reports a block type with no component (content dropped)
 
 Run \`vitops --help\` for the full option list for each subcommand.
 `;
@@ -578,7 +587,7 @@ export const SUBCOMMANDS: Record<string, readonly string[]> = {
   crm: ['check', 'setup'],
   setup: ['repo', 'hosting', 'domain', 'turnstile', 'search', 'ads', 'all'],
   email: ['setup', 'check'],
-  emdash: ['prepare-db', 'check-prerender'],
+  emdash: ['prepare-db', 'check-prerender', 'build'],
 };
 
 /**

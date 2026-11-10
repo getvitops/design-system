@@ -115,7 +115,7 @@ export interface GenerateOptions {
    * `tailwind` format only: directories (or globs) Tailwind should scan for class names, written
    * as `@source` lines after `@import "tailwindcss"`. Paths are relative to the emitted
    * `tailwind.css`. Tailwind v4 does not scan `node_modules`, so a utility used only by a package's
-   * own renderer (`font-display` in `vitops.stats`) is otherwise never generated — silently.
+   * own renderer (`font-display` in `vitops_stats`) is otherwise never generated — silently.
    * Ignored by the css and bricks formats, which ship every framework class.
    */
   sources?: string[];

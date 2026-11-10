@@ -1,7 +1,7 @@
 /**
  * The `@source` paths a site's Tailwind needs so classes used only by installed packages'
  * renderers are generated. Tailwind v4 does not scan `node_modules`, so `font-display` (used by
- * `vitops.stats`) or a class in an `@getvitops/astro` component produced no rule and the page
+ * `vitops_stats`) or a class in an `@getvitops/astro` component produced no rule and the page
  * rendered at body size with no error anywhere.
  *
  * Resolution is injected so the choice is testable; an absent package is skipped, not an error —

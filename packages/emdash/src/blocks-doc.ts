@@ -43,7 +43,7 @@ export function renderBlocksDoc(blocks: readonly PortableTextBlockDef[] = BLOCKS
     '',
     '# EmDash blocks',
     '',
-    'Each block is a Portable Text object: `{ "_type": "vitops.cards", "_key": "<unique>", ...fields }`.',
+    'Each block is a Portable Text object: `{ "_type": "vitops_cards", "_key": "<unique>", ...fields }`.',
     'Portable Text blocks are flat — they cannot contain other blocks, and a repeater row holds scalar fields only.',
     'To put blocks inside something, use the section block TYPE (end of this page), whose body is Portable Text.',
     'Give every block a unique `_key`; gallery and carousel derive their element id from it.',
@@ -71,7 +71,7 @@ export function renderBlocksDoc(blocks: readonly PortableTextBlockDef[] = BLOCKS
     }
   }
   out.push(
-    '## `vitops.form` needs an endpoint',
+    '## `vitops_form` needs an endpoint',
     '',
     'The form posts to `/api/track` (the `action` field overrides it), which must be an on-demand route',
     'built with `createConversionRoute()` from `@getvitops/astro/routes`; the emdash template ships one.',
@@ -100,7 +100,7 @@ export function renderBlocksDoc(blocks: readonly PortableTextBlockDef[] = BLOCKS
         const notes = [
           f.validation?.options ? `one of ${f.validation.options.join(', ')}` : '',
           f.defaultValue !== undefined ? `default \`${String(f.defaultValue)}\`` : '',
-          f.type === 'portableText' ? 'accepts every `vitops.*` block above' : '',
+          f.type === 'portableText' ? 'accepts every `vitops_*` block above' : '',
         ].filter(Boolean);
         return `| \`${f.slug}\` | ${f.type} | ${cell(f.label)} | ${cell(notes.join('; '))} |`;
       }),

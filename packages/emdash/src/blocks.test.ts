@@ -21,7 +21,9 @@ async function componentFilesFromIndex(): Promise<Record<string, string>> {
     ]),
   );
   return Object.fromEntries(
-    [...source.matchAll(/'([\w.]+)':\s*(\w+)/g)].map((m) => [m[1]!, imports[m[2]!] ?? '']),
+    [...source.matchAll(/['"]?(vitops_\w+)['"]?:\s*(\w+)/g)]
+      .filter((m) => m[1] !== 'vitops_section') // a block TYPE (`blockTypeComponents`), not a Portable Text block
+      .map((m) => [m[1]!, imports[m[2]!] ?? '']),
   );
 }
 
@@ -123,7 +125,7 @@ describe('block ↔ component agreement', () => {
   it('the astro componentsEntry maps exactly the declared block types', async () => {
     const source = await readFile(new URL('./astro/index.ts', import.meta.url), 'utf8');
     for (const block of BLOCKS) {
-      expect(source).toContain(`'${block.type}'`);
+      expect(source).toMatch(new RegExp(`\\b${block.type}\\b\\s*:`));
     }
   });
 });
@@ -201,7 +203,7 @@ describe('semantic icon options', () => {
   });
 
   it('is what the actionLink icon fields offer', () => {
-    const block = BLOCKS.find((b) => b.type === 'vitops.actionLink');
+    const block = BLOCKS.find((b) => b.type === 'vitops_actionLink');
     const combos = (block?.fields ?? []).filter((f) => f.type === 'combobox');
     expect(combos.map((f) => f.action_id)).toEqual(['startIcon', 'endIcon']);
     for (const f of combos)
@@ -241,20 +243,20 @@ describe('vitops_section block type', () => {
 });
 
 describe('the shared tone convention', () => {
-  // `vitops.banner` keeps its original four-value `tone` (non-breaking), so it is the one
+  // `vitops_banner` keeps its original four-value `tone` (non-breaking), so it is the one
   // block with a `tone` field that is not on the shared convention.
   const colouring = BLOCKS.filter(
-    (b) => b.type !== 'vitops.banner' && b.fields?.some((f) => f.action_id === 'tone'),
+    (b) => b.type !== 'vitops_banner' && b.fields?.some((f) => f.action_id === 'tone'),
   );
 
   it('every block that offers a tone offers the color escape hatch beside it', () => {
     expect(colouring.map((b) => b.type)).toEqual(
       expect.arrayContaining([
-        'vitops.hero',
-        'vitops.cards',
-        'vitops.steps',
-        'vitops.stats',
-        'vitops.callout',
+        'vitops_hero',
+        'vitops_cards',
+        'vitops_steps',
+        'vitops_stats',
+        'vitops_callout',
       ]),
     );
     for (const b of colouring)
@@ -284,7 +286,7 @@ describe('the shared tone convention', () => {
   });
 
   it('the legacy banner tone and actionLink role values keep working', () => {
-    const banner = BLOCKS.find((b) => b.type === 'vitops.banner')!;
+    const banner = BLOCKS.find((b) => b.type === 'vitops_banner')!;
     const tone = banner.fields!.find((f) => f.action_id === 'tone') as {
       options: { value: string }[];
     };
@@ -310,12 +312,12 @@ describe('cards (U19) and hero extensions', () => {
     const source = await codeOf('src/astro/blocks/Cards.astro');
     expect(source).toContain('<Heading class="font-heading"');
     expect(source).not.toMatch(/<p class="font-heading"/);
-    const cards = BLOCKS.find((b) => b.type === 'vitops.cards')!;
+    const cards = BLOCKS.find((b) => b.type === 'vitops_cards')!;
     expect(cards.fields!.some((f) => f.action_id === 'level')).toBe(true);
   });
 });
 
-describe('vitops.reviews', () => {
+describe('vitops_reviews', () => {
   it('reads the cache as a build-time import and chooses with the shared selectReviews', async () => {
     const source = await codeOf('src/astro/blocks/Reviews.astro');
     expect(source).toContain("from 'virtual:getvitops/reviews'");
@@ -327,16 +329,16 @@ describe('vitops.reviews', () => {
   });
 
   it('keeps privacy-sensitive options off by default and offers no JSON-LD switch', () => {
-    const block = BLOCKS.find((b) => b.type === 'vitops.reviews')!;
+    const block = BLOCKS.find((b) => b.type === 'vitops_reviews')!;
     const field = (id: string) => block.fields!.find((f) => f.action_id === id)!;
     expect((field('avatars') as { initial_value: boolean }).initial_value).toBe(false);
     expect(block.fields!.some((f) => /schema|jsonld/i.test(f.action_id))).toBe(false);
   });
 });
 
-describe('vitops.nav', () => {
+describe('vitops_nav', () => {
   it('asks the plugin for the site menus and keeps a static fallback', () => {
-    const block = BLOCKS.find((b) => b.type === 'vitops.nav')!;
+    const block = BLOCKS.find((b) => b.type === 'vitops_nav')!;
     const menu = block.fields!.find((f) => f.action_id === 'menu') as unknown as {
       options: { value: string }[];
       optionsRoute: string;
@@ -368,17 +370,17 @@ describe('selectBlocks', () => {
   });
 
   it('include is an allowlist, in the library order', () => {
-    expect(types(selectBlocks({ include: ['vitops.cards', 'vitops.banner'] }))).toEqual([
-      'vitops.banner',
-      'vitops.cards',
+    expect(types(selectBlocks({ include: ['vitops_cards', 'vitops_banner'] }))).toEqual([
+      'vitops_banner',
+      'vitops_cards',
     ]);
   });
 
   it('exclude drops blocks, and wins over include', () => {
     const out = types(
-      selectBlocks({ include: ['vitops.cards', 'vitops.banner'], exclude: ['vitops.cards'] }),
+      selectBlocks({ include: ['vitops_cards', 'vitops_banner'], exclude: ['vitops_cards'] }),
     );
-    expect(out).toEqual(['vitops.banner']);
+    expect(out).toEqual(['vitops_banner']);
   });
 
   it('throws on an unknown name rather than offering nothing', () => {
@@ -391,16 +393,41 @@ describe('selectBlocks', () => {
   it("appends the site's own blocks and refuses a colliding type", () => {
     const mine = { type: 'acme.hero', label: 'Hero' };
     expect(types(selectBlocks({ extra: [mine] })).at(-1)).toBe('acme.hero');
-    expect(() => selectBlocks({ extra: [{ type: 'vitops.cards', label: 'Dup' }] })).toThrow(
+    expect(() => selectBlocks({ extra: [{ type: 'vitops_cards', label: 'Dup' }] })).toThrow(
       /already defined/,
     );
     expect(() => selectBlocks({ extra: [mine, mine] })).toThrow(/already defined/);
   });
 
   it('createPlugin applies the selection to the editor menu', () => {
-    const plugin = createPlugin({ blocks: { include: ['vitops.cards'] } }) as unknown as {
+    const plugin = createPlugin({ blocks: { include: ['vitops_cards'] } }) as unknown as {
       admin: { portableTextBlocks: { type: string }[] };
     };
-    expect(types(plugin.admin.portableTextBlocks)).toEqual(['vitops.cards']);
+    expect(types(plugin.admin.portableTextBlocks)).toEqual(['vitops_cards']);
+  });
+});
+
+describe('the plugin block map is not emptied by an import cycle', () => {
+  /**
+   * `emdash/ui` statically imports `virtual:emdash/block-components`, which is `astro/index.ts`.
+   * Any module that index reaches and that also imports `emdash/ui` statically makes a cycle, and
+   * when a site imports `@getvitops/emdash/astro` first the virtual module evaluates while
+   * `blockComponents` is still undefined: the static build then drops every `vitops_*` block inside
+   * a section body, and nothing fails. Renderers that need `<PortableText>` import it lazily.
+   */
+  it('no renderer imports emdash/ui statically', async () => {
+    const { readdirSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const root = join(import.meta.dirname, 'astro');
+    const files = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+        e.isDirectory() ? files(join(dir, e.name)) : [join(dir, e.name)],
+      );
+    const offenders: string[] = [];
+    for (const f of files(root).filter((p) => /\.(astro|ts)$/.test(p) && !p.endsWith('.test.ts'))) {
+      const src = (await readFile(f, 'utf8')).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '');
+      if (/(^|\n)\s*import[^;]*from\s+['"]emdash\/ui['"]/.test(src)) offenders.push(f);
+    }
+    expect(offenders).toEqual([]);
   });
 });
