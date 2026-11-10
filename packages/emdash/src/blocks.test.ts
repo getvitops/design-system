@@ -310,7 +310,7 @@ describe('the shared tone convention', () => {
 describe('cards (U19) and hero extensions', () => {
   it('a card title is a real heading with a level, not <p class="font-heading">', async () => {
     const source = await codeOf('src/astro/blocks/Cards.astro');
-    expect(source).toContain('<Heading class="font-heading"');
+    expect(source).toContain('<Heading class="card__title font-heading"');
     expect(source).not.toMatch(/<p class="font-heading"/);
     const cards = BLOCKS.find((b) => b.type === 'vitops_cards')!;
     expect(cards.fields!.some((f) => f.action_id === 'level')).toBe(true);

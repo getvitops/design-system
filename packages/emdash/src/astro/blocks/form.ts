@@ -12,7 +12,15 @@
  * that is where it goes.
  */
 
-export const FIELD_TYPES = ['text', 'email', 'tel', 'textarea', 'select', 'checkbox'] as const;
+export const FIELD_TYPES = [
+  'text',
+  'email',
+  'tel',
+  'textarea',
+  'select',
+  'checkbox',
+  'checkboxes',
+] as const;
 export type FieldType = (typeof FIELD_TYPES)[number];
 
 /** Names the route treats specially. A field must never submit under one of these. */
@@ -114,14 +122,15 @@ export function resolveFields(rows: Record<string, unknown>[]): FormField[] {
       : 'text';
     const name = fieldName(row['name'], label, type, taken);
     const options =
-      type === 'select'
+      type === 'select' || type === 'checkboxes'
         ? str(row['options'])
             .split('\n')
             .map((o) => o.trim())
             .filter(Boolean)
         : [];
     // A select with nothing to choose is unusable; render it as free text instead.
-    const effective: FieldType = type === 'select' && options.length === 0 ? 'text' : type;
+    const effective: FieldType =
+      (type === 'select' || type === 'checkboxes') && options.length === 0 ? 'text' : type;
     out.push({
       name,
       id: `form-${out.length + 1}-${name}`,
@@ -129,7 +138,9 @@ export function resolveFields(rows: Record<string, unknown>[]): FormField[] {
       type: effective,
       required: row['required'] === true,
       placeholder:
-        effective === 'checkbox' || effective === 'select' ? '' : str(row['placeholder']),
+        effective === 'checkbox' || effective === 'select' || effective === 'checkboxes'
+          ? ''
+          : str(row['placeholder']),
       help: str(row['help']),
       options,
       autocomplete: autocompleteFor(name, effective),

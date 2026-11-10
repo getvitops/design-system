@@ -98,6 +98,36 @@ describe('<SiteFooter />', () => {
     expect(html).toContain('&copy; 2030 Acme');
   });
 
+  it('turns a top-level item with children into a named column, one level only', async () => {
+    const html = await renderFooter({
+      sitemap: {
+        items: [
+          { label: 'Home', url: '/' },
+          {
+            label: 'Services',
+            url: '/services',
+            children: [
+              {
+                label: 'Managed IT',
+                url: '/managed-it',
+                children: [{ label: 'Deep', url: '/deep' }],
+              },
+              { label: 'Marketing', url: '/marketing' },
+            ],
+          },
+        ],
+      },
+      name: 'Acme',
+    });
+    expect(html).toContain('aria-labelledby="sitefooter-col-0"');
+    expect(html).toContain('id="sitefooter-col-0">Services</p>');
+    expect(html).toContain('href="/managed-it"');
+    expect(html).not.toContain('/deep');
+    // the childless item stays in the flat "Site map" list
+    expect(html).toContain('aria-label="Site map"');
+    expect(html).toContain('href="/"');
+  });
+
   it('is just the copyright line for a site with no footer menus', async () => {
     const html = await renderFooter({ name: 'Acme', year: 2030 });
     expect(html).not.toContain('<nav');

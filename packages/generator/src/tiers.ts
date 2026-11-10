@@ -486,7 +486,7 @@ export const TIERS: Record<string, TierEntry> = {
   },
   card: {
     emdash: ['vitops_cards'],
-    css: c(['card'], 'patterns/card.css', true),
+    css: c(['card', 'card__title'], 'patterns/card.css', true),
     wc: {
       tag: 'wc-cards',
       registered: true,

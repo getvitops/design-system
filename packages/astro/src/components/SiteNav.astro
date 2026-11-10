@@ -32,7 +32,9 @@
  * EmDash menu items have no description field. Convention until they do (an upstream
  * request): an item's **`titleAttr` is its description**, rendered as muted second-line
  * text under the link. It is NOT emitted as a `title` tooltip. `cssClasses` pass through
- * on the link.
+ * on the link. An item with `draft` in its `cssClasses` is a planned link: it stays in the
+ * menu but is not rendered. An item with `cta` there renders as a button (`.cta`), and the
+ * `actions` slot adds header buttons that are not menu items (rendered beside each tier's nav).
  *
  * Accessibility: `<nav aria-label>` landmark, `aria-current="page"` on the current
  * item, the link is never inside `<summary>` (no nested interactive controls), caret
@@ -157,6 +159,11 @@ const tiers = selectTiers({
             <SiteNavList items={tier.items} current={current} />
           </div>
         </nav>
+        {Astro.slots.has('actions') && (
+          <div class="sitenav__actions">
+            <slot name="actions" />
+          </div>
+        )}
       </div>
     );
   })

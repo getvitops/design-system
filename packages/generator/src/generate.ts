@@ -16,6 +16,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { transform } from 'lightningcss';
+import { pickOn } from '@getvitops/utils/color';
 import { validate, type DesignSystem } from './schema.ts';
 import { generateDocs } from './docs.ts';
 import { emitDesignMd } from './design-md.ts';
@@ -131,6 +132,23 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ASSETS = join(HERE, '..', 'assets');
 
 // ── colour machinery ─────────────────────────────────────────────────────────
+/**
+ * `--color-<hue>-<step>-on`: the readable text colour for a fill at that step, computed with the
+ * same APCA pick as `text-on-<role>`. A role has one (`--color-text-on-<role>`); a raw hue step
+ * did not, so a block filling with `color: amber-500` had no site-defined foreground to use. These
+ * live in a plain `:root`, never `@theme`: a `--color-*` theme key would mint `text-<hue>-<step>-on`
+ * utilities nobody asked for.
+ */
+export function hueOnTokens(
+  palette: Record<string, { numeric: Record<string, string> }>,
+): string[] {
+  const out: string[] = [];
+  for (const [name, hue] of Object.entries(palette))
+    for (const [n, hex] of Object.entries(hue.numeric))
+      out.push(`--color-${name}-${n}-on: ${pickOn(hex)};`);
+  return out;
+}
+
 // Every hue is an 11-step numeric OKLCH scale on a shared lightness ladder (see
 // tokens.ts); every role resolves to `--color-<target>-<role>[-<variant>]`.
 // Dark mode re-points which step each token reads; the solid family is stable.
@@ -594,6 +612,8 @@ export function build(
     for (const [name, hue] of Object.entries(expandedPalette))
       for (const [n, hex] of Object.entries(hue.numeric))
         css += `  --color-${name}-${n}: ${hex};\n`;
+    css += `\n  /* Foreground for a fill at a hue step (--color-<hue>-<step>-on) */\n`;
+    for (const line of hueOnTokens(expandedPalette)) css += `  ${line}\n`;
     css += `\n  /* Role tokens (the public API) */\n`;
     for (const fr of scaleRoles)
       for (const [t, val] of Object.entries(fr.light))
@@ -1468,6 +1488,7 @@ function emitTailwind(ctx: TwCtx): string {
       fn += `  --surface-glass: color-mix(in oklch, var(--color-bg-surface) 72%, transparent);\n`;
       fn += `  --overlay: color-mix(in oklch, var(--color-${surface.hue}-950) 45%, transparent);\n`;
     }
+    for (const line of hueOnTokens(expandedPalette)) fn += `  ${line}\n`;
     if (ctx.darkOnly) fn = `  color-scheme: dark;\n${fn}`;
     parts.push(`/* Role tokens (the public API) */\n:root {\n${fn}}\n`);
   }

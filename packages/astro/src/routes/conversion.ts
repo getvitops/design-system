@@ -440,7 +440,10 @@ export function createConversionRoute(options: ConversionRouteOptions) {
         }).formData();
         body = {};
         for (const [key, value] of formData.entries()) {
-          if (typeof value === 'string') body[key] = value;
+          if (typeof value !== 'string') continue;
+          // Several values under one name (a group of tick boxes) join, so none is lost to "last wins".
+          const prior = body[key];
+          body[key] = typeof prior === 'string' && prior ? `${prior}, ${value}` : value;
         }
       } else {
         // Not just `application/json`: `navigator.sendBeacon` sends a bare

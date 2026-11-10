@@ -76,7 +76,7 @@ const SETUP_HELP = `vitops setup <sub> [options]
   vitops setup ads     [options]   (forwards to \`vitops ads setup\`)
   vitops setup all     [--dry] [--check] [--public] [--platform <p>]
 
---dry prints the plan and stops. --check reports drift/blocked steps and exits
+--dry (or --dry-run) prints the plan and stops. --check reports drift/blocked steps and exits
 non-zero, mutating nothing. Neither creates the Cloudflare API token or performs
 a custom-domain cutover — both are named as manual steps; see SETUP.html.`;
 
@@ -532,7 +532,8 @@ function forward(sub: 'search' | 'ads', argv: string[]): boolean {
 }
 
 export async function cmdSetup(argv: string[]): Promise<void> {
-  const [sub, ...rest] = argv;
+  // `--dry-run` is the spelling most people reach for; the flag is `--dry` everywhere else.
+  const [sub, ...rest] = argv.map((a) => (a === '--dry-run' ? '--dry' : a));
   switch (sub) {
     case 'repo':
       return cmdSetupRepo(rest);

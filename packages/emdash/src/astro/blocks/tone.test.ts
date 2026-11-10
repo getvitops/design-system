@@ -53,11 +53,11 @@ describe('joinStyle', () => {
 });
 
 describe('solid fill from a hue and step', () => {
-  it('takes its text from the fill, not a fixed white', () => {
-    const light = resolveTone('', 'amber-500');
-    expect(light.style).toContain('--tone-on-solid: var(--color-amber-950)');
-    const dark = resolveTone('', 'navy-800');
-    expect(dark.style).toContain('--tone-on-solid: #fff');
-    expect(light.className).toBe('tone tone--auto-on');
+  it("takes its text from the site's -on token for that step", () => {
+    expect(resolveTone('', 'amber-500').style).toContain(
+      '--tone-on-solid: var(--color-amber-500-on)',
+    );
+    expect(resolveTone('', 'navy').style).toContain('--tone-on-solid: var(--color-navy-600-on)');
+    expect(resolveTone('', 'navy').className).toBe('tone');
   });
 });

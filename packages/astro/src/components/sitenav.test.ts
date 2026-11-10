@@ -45,6 +45,31 @@ describe('trimDepth / treeDepth', () => {
   });
 });
 
+describe('draft items', () => {
+  const menu = [
+    { label: 'Home', url: '/' },
+    { label: 'Pricing', url: '/pricing', cssClasses: 'draft' },
+    {
+      label: 'Services',
+      url: '/services',
+      children: [
+        { label: 'Live', url: '/live' },
+        { label: 'Planned', url: '/planned', cssClasses: 'cta draft' },
+      ],
+    },
+  ];
+  it('keeps a planned link out of the rendered menu, at every level', () => {
+    const items = menuItems(menu);
+    expect(items.map((i) => i.label)).toEqual(['Home', 'Services']);
+    expect(items[1]!.children!.map((i) => i.label)).toEqual(['Live']);
+  });
+  it('does not mutate the cached menu', () => {
+    menuItems(menu);
+    expect(menu).toHaveLength(3);
+    expect(menu[2]!.children).toHaveLength(2);
+  });
+});
+
 describe('menuItems', () => {
   it('accepts a getMenu() object, a bare array, or nothing', () => {
     expect(menuItems({ items: tree })).toBe(tree);

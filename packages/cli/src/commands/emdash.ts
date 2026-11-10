@@ -20,13 +20,19 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import {
+  brokenInternalLinks,
+  deliveryProblem,
+  formFieldNames,
+  uninventoriedFields,
+  hasConversionForm,
   h1Count,
   missingBlockComponents,
   missingTypeRoleRules,
   prerenderProblem,
   PENDING_MIGRATIONS,
+  routeOf,
 } from '../prerender-check.ts';
 import { fail } from './shared.ts';
 import { EMDASH_HELP } from '../help.ts';
@@ -143,6 +149,10 @@ function cmdCheckPrerender(argv: string[]) {
   const bad: string[] = [];
   const unstyled: string[] = [];
   const outline: string[] = [];
+  const dead: string[] = [];
+  let formPage: string | undefined;
+  const formFields = new Set<string>();
+  const routes = new Set([...htmlFiles(root)].map((f) => routeOf(relative(root, f))));
   const css = cssFiles(root)
     .map((f) => readFileSync(f, 'utf8'))
     .join('\n');
@@ -155,6 +165,14 @@ function cmdCheckPrerender(argv: string[]) {
     else {
       const h1s = h1Count(html);
       if (h1s !== 1 && !file.endsWith('/404.html')) outline.push(`  ${file}: ${h1s} <h1>`);
+    }
+    if (!why && hasConversionForm(html)) {
+      formPage ??= file;
+      for (const n of formFieldNames(html)) formFields.add(n);
+    }
+    if (!why) {
+      const links = brokenInternalLinks(html, routes);
+      if (links.length) dead.push(`  ${file}: ${links.join(', ')}`);
     }
     if (!why && css) {
       const missing = missingTypeRoleRules(html, css);
@@ -173,6 +191,43 @@ function cmdCheckPrerender(argv: string[]) {
       `type-role classes with no rule in the built CSS (they render at body size):\n${unstyled.join('\n')}\n\n` +
       'Tailwind does not scan node_modules. Use @getvitops/astro >= the release that adds the ' +
       "`@source` lines, or add `@source` for the package that renders them to the site's stylesheet.";
+    if (strict) fail(note);
+    console.warn(`check-prerender: warning: ${note}`);
+  }
+  if (formPage) {
+    const siteFile = argv.find((a) => a.startsWith('--site='))?.slice(7) ?? 'site.json';
+    let siteConfig: unknown;
+    try {
+      if (existsSync(siteFile)) siteConfig = JSON.parse(readFileSync(siteFile, 'utf8'));
+    } catch {
+      siteConfig = undefined; // an unreadable config is `vitops validate`'s to report
+    }
+    if (siteConfig) {
+      const problem = deliveryProblem(siteConfig);
+      if (problem) {
+        const note =
+          `${formPage} has a form, but ${problem}. The route refuses submissions until one is set, ` +
+          'so the first visitor to send a message would be told it failed. Run `vitops email setup` ' +
+          'for the sender domain once it is.';
+        if (strict) fail(note);
+        console.warn(`check-prerender: warning: ${note}`);
+      }
+      const missing = uninventoriedFields(siteConfig, [...formFields].sort());
+      if (missing.length) {
+        const note =
+          `the form collects ${missing.join(', ')}, which no site.templates form entry in ${siteFile} ` +
+          'lists. `vitops legal` builds the privacy policy\'s "what we collect" from those entries, ' +
+          'so the generated policy would under-report. Mirror the fields in a `type: "form"` template.';
+        if (strict) fail(note);
+        console.warn(`check-prerender: warning: ${note}`);
+      }
+    }
+  }
+  if (dead.length) {
+    const note =
+      `links to pages the build did not produce (they would 404):\n${dead.join('\n')}\n\n` +
+      'Publish the page, or mark the menu item as a planned link by adding `draft` to its CSS ' +
+      'classes so it is not rendered until the page exists.';
     if (strict) fail(note);
     console.warn(`check-prerender: warning: ${note}`);
   }

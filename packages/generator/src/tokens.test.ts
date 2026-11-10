@@ -431,3 +431,17 @@ describe('patchToOverrideCss', () => {
     expect(patchToOverrideCss(patch, reverseIndex)).toBe('');
   });
 });
+
+describe('hueOnTokens', () => {
+  it('emits a readable foreground for every step of every hue', async () => {
+    const { hueOnTokens } = await import('./generate.ts');
+    const expanded = expandPalette({ amber: { seed: '#d97706' } } as never);
+    const lines = hueOnTokens(expanded as never);
+    expect(lines).toHaveLength(NUMERIC_STEPS.length);
+    const on50 = lines.find((l) => l.startsWith('--color-amber-50-on'))!;
+    const on950 = lines.find((l) => l.startsWith('--color-amber-950-on'))!;
+    // light fill → dark text, dark fill → light text
+    expect(hexToOklch(on50.match(/#[0-9a-f]{6}/i)![0]).l).toBeLessThan(0.3);
+    expect(hexToOklch(on950.match(/#[0-9a-f]{6}/i)![0]).l).toBeGreaterThan(0.9);
+  });
+});

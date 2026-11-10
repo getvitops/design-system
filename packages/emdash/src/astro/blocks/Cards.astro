@@ -63,7 +63,7 @@ import { rootAttrs } from './attrs.ts';
           style={panel ? joinStyle(tone.style, card.style) : card.style}
         >
           {card.image && <img src={card.image} alt={card.imageAlt} loading="lazy" />}
-          {card.title && <Heading class="font-heading">{card.title}</Heading>}
+          {card.title && <Heading class="card__title font-heading">{card.title}</Heading>}
           {card.body && (
             <p>
               <RichText text={card.body} />

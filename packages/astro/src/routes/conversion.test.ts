@@ -70,6 +70,29 @@ describe('createConversionRoute: no-JS form submissions (1.4)', () => {
     expect(await res.json()).toEqual({ success: true });
   });
 
+  it('keeps every value of a repeated field (a group of tick boxes)', async () => {
+    const seen: Record<string, unknown>[] = [];
+    const handler = createConversionRoute({
+      context: ctx(),
+      validate: (body: Record<string, unknown>) => {
+        seen.push(body);
+        return null;
+      },
+    } as never);
+    const params = new URLSearchParams();
+    params.append('name', 'Ada');
+    params.append('interests', 'IT');
+    params.append('interests', 'Marketing');
+    await handler({
+      request: new Request('http://localhost/api/track', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+      }),
+    });
+    expect(seen[0]?.interests).toBe('IT, Marketing');
+  });
+
   it('redirects a successful no-JS submission instead of returning raw JSON', async () => {
     const handler = createConversionRoute({ context: ctx(), redirectTo: '/thanks' });
     const res = await handler({ request: formRequest({ name: 'Ada' }) });

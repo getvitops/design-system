@@ -835,6 +835,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
               { label: 'Long text', value: 'textarea' },
               { label: 'Choose one', value: 'select' },
               { label: 'Tick box', value: 'checkbox' },
+              { label: 'Tick any number', value: 'checkboxes' },
             ],
           },
           { type: 'toggle', action_id: 'required', label: 'Required', initial_value: false },
@@ -843,7 +844,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
           {
             type: 'text_input',
             action_id: 'options',
-            label: 'Choices (one per line; for "Choose one" only)',
+            label: 'Choices (one per line; for "Choose one" and "Tick any number")',
             multiline: true,
           },
         ],

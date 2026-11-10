@@ -123,6 +123,24 @@ import { rootAttrs } from './attrs.ts';
                 </p>
               )}
             </div>
+          ) : f.type === 'checkboxes' ? (
+            <fieldset class="form-group" aria-describedby={describedby}>
+              <legend class="form-group__label">{f.label}</legend>
+              {f.options.map((o) => (
+                <label class="custom-check">
+                  <input type="checkbox" name={f.name} value={o} />
+                  <span class="custom-check__box">
+                    <span class="custom-check__indicator custom-check__indicator--check" />
+                  </span>
+                  <span>{o}</span>
+                </label>
+              ))}
+              {f.help && (
+                <p id={`${f.id}-help`} class="form-group__helper">
+                  {f.help}
+                </p>
+              )}
+            </fieldset>
           ) : (
             <div class="form-group">
               <label class="form-group__label" for={f.id}>

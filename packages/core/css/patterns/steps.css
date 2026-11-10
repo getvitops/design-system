@@ -69,6 +69,13 @@
   .steps__text {
     margin: 0;
   }
+
+  /* A step title is a sub-heading, not a section heading: one notch down from the role's size.
+     Set --steps-title-size on the block (its `style` field) to change it. The role utility reads
+     --heading-fs, so this sets the property it already consumes rather than fighting its layer. */
+  .steps__title {
+    --heading-fs: var(--steps-title-size, var(--text-l, 1.2rem));
+  }
 }
 
 /* Side by side once there is room: the marker sits above its text and the line runs across. */

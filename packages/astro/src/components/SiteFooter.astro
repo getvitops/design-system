@@ -8,11 +8,15 @@
  *   <SiteFooter {sitemap} {legal} name={siteTitle} />
  *
  * Both menus are optional and each renders only if it has items, so a one-page site
- * gets just the copyright line. Menus are FLAT here (depth 1): a footer that nests is
- * a site map, and wants a page, not a column. `name` is `organization.name`.
+ * gets just the copyright line. `name` is `organization.name`.
  *
- * The two `<nav>`s are named ("Site map", "Legal") so the landmark list is not a pile
- * of unlabeled regions, and the copyright is plain text — never a link.
+ * **One level of grouping in the site map.** A top-level item with children becomes a column:
+ * its label is the column heading and its children are the links. A childless item stays in the
+ * flat list ahead of the columns. Deeper levels are ignored; a footer that nests further is a
+ * site map and wants a page. The legal menu is always flat.
+ *
+ * Every `<nav>` is named (a column by its heading, the others "Site map" / "Legal") so the
+ * landmark list is not a pile of unlabeled regions, and the copyright is plain text, never a link.
  */
 import { isCurrent, linkRel, menuItems, type NavMenuInput } from './sitenav.ts';
 
@@ -43,16 +47,43 @@ const {
   class: className,
 } = Astro.props;
 
+const sitemapItems = menuItems(sitemap);
+const columns = sitemapItems
+  .filter((item) => (item.children?.length ?? 0) > 0)
+  .map((item, i) => ({ id: `sitefooter-col-${i}`, heading: item, items: item.children! }));
+const flat = sitemapItems.filter((item) => !(item.children?.length ?? 0));
 const groups = [
-  { label: sitemapLabel, items: menuItems(sitemap), kind: 'sitemap' },
+  { label: sitemapLabel, items: flat, kind: 'sitemap' },
   { label: legalLabel, items: menuItems(legal), kind: 'legal' },
 ].filter((g) => g.items.length > 0);
 ---
 
 <footer class:list={['sitefooter', className]}>
   {
-    groups.length > 0 && (
+    (groups.length > 0 || columns.length > 0) && (
       <div class="sitefooter__nav">
+        {columns.map((col) => (
+          <nav class="sitefooter__group sitefooter__group--column" aria-labelledby={col.id}>
+            <p class="sitefooter__heading font-eyebrow" id={col.id}>
+              {col.heading.label}
+            </p>
+            <ul class="sitefooter__list sitefooter__list--column" role="list">
+              {col.items.map((item) => (
+                <li>
+                  <a
+                    class="sitefooter__link"
+                    href={item.url || '#'}
+                    target={item.target || undefined}
+                    rel={linkRel(item)}
+                    aria-current={isCurrent(item.url, current) ? 'page' : undefined}
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
         {groups.map((g) => (
           <nav class={`sitefooter__group sitefooter__group--${g.kind}`} aria-label={g.label}>
             <ul class="sitefooter__list" role="list">

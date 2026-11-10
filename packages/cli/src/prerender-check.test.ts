@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  brokenInternalLinks,
+  formFieldNames,
+  uninventoriedFields,
+  deliveryProblem,
+  hasConversionForm,
+  routeOf,
   h1Count,
   missingBlockComponents,
   missingTypeRoleRules,
@@ -64,5 +70,62 @@ describe('h1Count', () => {
     expect(h1Count('<h1>a</h1><h1 class="x">b</h1>')).toBe(2);
     expect(h1Count('<p>x</p><!-- <h1>c</h1> --><template><h1>d</h1></template>')).toBe(0);
     expect(h1Count('<h1>one</h1>')).toBe(1);
+  });
+});
+
+describe('routeOf / brokenInternalLinks', () => {
+  it('maps built files to the routes they serve', () => {
+    expect(routeOf('index.html')).toBe('/');
+    expect(routeOf('about/index.html')).toBe('/about');
+    expect(routeOf('terms.html')).toBe('/terms');
+  });
+  it('reports links to routes that were not built, and only those', () => {
+    const routes = new Set(['/', '/about']);
+    const html =
+      '<a href="/about">a</a><a href="/pricing/">p</a><a href="/about#x">b</a>' +
+      '<a href="#top">t</a><a href="/logo.svg">f</a><a href="/api/track">w</a>' +
+      '<a href="https://x.com/y">e</a><a href="/industries?x=1">i</a><!-- <a href="/hidden"> -->';
+    expect(brokenInternalLinks(html, routes)).toEqual(['/industries', '/pricing']);
+  });
+});
+
+describe('form delivery', () => {
+  it('spots the form post', () => {
+    expect(hasConversionForm('<form method="post" action="/api/track">')).toBe(true);
+    expect(hasConversionForm('<form action="/search">')).toBe(false);
+  });
+  it('wants a recipient or a CRM', () => {
+    expect(deliveryProblem({})).toMatch(/no recipient/);
+    expect(deliveryProblem({ site: { notifications: { email: 'a@b.ca' } } })).toBeUndefined();
+    expect(
+      deliveryProblem({ site: { notifications: { email: { to: 'a@b.ca' } } } }),
+    ).toBeUndefined();
+    expect(
+      deliveryProblem({ organization: { locations: { hq: { email: 'a@b.ca' } } } }),
+    ).toBeUndefined();
+    expect(deliveryProblem({ site: { crm: { provider: 'hubspot' } } })).toBeUndefined();
+  });
+});
+
+describe('form field inventory', () => {
+  const html =
+    '<form method="post" action="/api/track"><input type="hidden" name="_next" value="/c">' +
+    '<input name="name"><input type="email" name="email"><textarea name="message"></textarea>' +
+    '<input type="checkbox" name="interests" value="a"><input type="checkbox" name="interests" value="b">' +
+    '<input type="text" name="website" tabindex="-1"></form><form action="/search"><input name="q"></form>';
+  it('lists what the visitor supplies, once each', () => {
+    expect(formFieldNames(html)).toEqual(['email', 'interests', 'message', 'name']);
+  });
+  it('reports fields no form template lists', () => {
+    const config = {
+      site: {
+        templates: { contact: { type: 'form', fields: [{ name: 'name' }, { name: 'email' }] } },
+      },
+    };
+    expect(uninventoriedFields(config, ['email', 'interests', 'message', 'name'])).toEqual([
+      'interests',
+      'message',
+    ]);
+    expect(uninventoriedFields({}, ['name'])).toEqual(['name']);
   });
 });

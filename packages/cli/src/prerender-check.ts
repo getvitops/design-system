@@ -82,3 +82,108 @@ export function h1Count(html: string): number {
     .replace(/<(script|template|style)[\s\S]*?<\/\1>/gi, '');
   return (live.match(/<h1[\s>]/gi) ?? []).length;
 }
+
+/** The URL path a built `.html` file is served at: `a/index.html` and `a.html` are both `/a`. */
+export function routeOf(relativeFile: string): string {
+  const path =
+    '/' +
+    relativeFile
+      .replace(/\\/g, '/')
+      .replace(/(^|\/)index\.html$/, '$1')
+      .replace(/\.html$/, '');
+  return path.length > 1 ? path.replace(/\/+$/, '') : '/';
+}
+
+/**
+ * Site-relative links in a page that point at a route the build did not produce: a planned link
+ * (`/pricing` in a menu before the page exists) that would 404. Anchors, query-only links, assets
+ * (anything with a file extension), `/_emdash/*` and `/api/*` (Worker routes) are not judged.
+ */
+export function brokenInternalLinks(html: string, routes: ReadonlySet<string>): string[] {
+  const live = html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<(script|template|style)[\s\S]*?<\/\1>/gi, '');
+  const broken = new Set<string>();
+  for (const m of live.matchAll(/<a\s[^>]*?href\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
+    const href = (m[1] ?? m[2] ?? '').trim();
+    if (!href.startsWith('/') || href.startsWith('//')) continue;
+    const path = href.split(/[?#]/)[0] || '/';
+    if (/\.[a-z0-9]{1,8}$/i.test(path) || path.startsWith('/_') || path.startsWith('/api/'))
+      continue;
+    const norm = path.length > 1 ? path.replace(/\/+$/, '') : path;
+    if (!routes.has(norm)) broken.add(norm);
+  }
+  return [...broken].sort();
+}
+
+/** Whether a built page carries the `vitops_form` block's post (to the conversion route). */
+export function hasConversionForm(html: string): boolean {
+  return /<form[^>]*\saction\s*=\s*["']\/api\/track["']/i.test(html);
+}
+
+/**
+ * Why a site with a form has nowhere to send it, or `undefined` when something is configured.
+ * `createConversionRoute` refuses a post with no recipient and no CRM rather than accept a message
+ * nobody receives, so the first visitor to submit would be told it failed. A recipient is
+ * `site.notifications.email` (a bare address, or `{ to }`) or a location `email`; a CRM also counts.
+ */
+export function deliveryProblem(config: unknown): string | undefined {
+  const c = (config ?? {}) as {
+    site?: { notifications?: { email?: unknown }; crm?: unknown };
+    organization?: { locations?: Record<string, { email?: unknown }> | Array<{ email?: unknown }> };
+  };
+  if (c.site?.crm) return undefined;
+  const email = c.site?.notifications?.email;
+  if (typeof email === 'string' && email) return undefined;
+  if (email && typeof email === 'object' && typeof (email as { to?: unknown }).to === 'string')
+    return undefined;
+  const locations = c.organization?.locations;
+  const list = Array.isArray(locations) ? locations : Object.values(locations ?? {});
+  if (list.some((l) => typeof l?.email === 'string' && l.email)) return undefined;
+  return 'no recipient: set `site.notifications.email`, or give an organization location an `email`, or configure `site.crm`';
+}
+
+const NOT_COLLECTED = new Set([
+  '_next',
+  'website',
+  'honeypot',
+  '_honeypot',
+  'cf-turnstile-response',
+]);
+
+/**
+ * The visitor-supplied field names of the form that posts to `/api/track`, from the built HTML:
+ * every named control except the hidden ones, the honeypot and the Turnstile token, which are not
+ * personal information the visitor gave. Repeated names (a tick-box group) count once.
+ */
+export function formFieldNames(html: string): string[] {
+  const names = new Set<string>();
+  for (const form of html.matchAll(
+    /<form[^>]*\saction\s*=\s*["']\/api\/track["'][^>]*>([\s\S]*?)<\/form>/gi,
+  )) {
+    for (const m of form[1]!.matchAll(/<(input|textarea|select)\b([^>]*)>/gi)) {
+      const attrs = m[2]!;
+      if (/\stype\s*=\s*["']hidden["']/i.test(attrs)) continue;
+      const name = /\sname\s*=\s*["']([^"']+)["']/i.exec(attrs)?.[1];
+      if (name && !NOT_COLLECTED.has(name)) names.add(name);
+    }
+  }
+  return [...names].sort();
+}
+
+/**
+ * Form fields that are on a built page but not in any `site.templates` form entry. `vitops legal`
+ * derives "what personal information we collect" from those entries, not from the editor's block,
+ * so a field added in the admin is invisible to the generated privacy policy until mirrored.
+ */
+export function uninventoriedFields(config: unknown, built: string[]): string[] {
+  const templates = (
+    config as {
+      site?: { templates?: Record<string, { type?: string; fields?: { name?: string }[] }> };
+    }
+  )?.site?.templates;
+  const known = new Set<string>();
+  for (const tpl of Object.values(templates ?? {}))
+    if (tpl?.type === 'form') for (const f of tpl.fields ?? []) if (f?.name) known.add(f.name);
+  return built.filter((name) => !known.has(name));
+}

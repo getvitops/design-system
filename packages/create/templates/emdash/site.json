@@ -309,6 +309,17 @@
   },
   "site": {
     "defaultLocale": "en",
+    "templates": {
+      "contact": {
+        "type": "form",
+        "fields": [
+          { "name": "name", "type": "text", "required": true },
+          { "name": "email", "type": "email", "required": true },
+          { "name": "tel", "type": "tel" },
+          { "name": "message", "type": "textarea", "required": true }
+        ]
+      }
+    },
     "locales": {
       "en": {
         "name": "English"

@@ -34,6 +34,9 @@
   }
 
   .stats__figure {
+    /* Display size by default; --stats-figure-size on the block overrides it (the role utility
+       reads --display-fs). `inherit` passes through whatever the site set for the role. */
+    --display-fs: var(--stats-figure-size, inherit);
     color: var(--tone-fg, inherit);
     font-variant-numeric: tabular-nums;
   }

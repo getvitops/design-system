@@ -41,10 +41,32 @@ export const MENU_NAMES = {
   mega: 'primary-mega',
 } as const;
 
+/**
+ * A planned link: an item whose `cssClasses` contains `draft` is kept in the menu (so it is there
+ * to publish later, with its place in the order) but is not rendered, nor are its children.
+ * EmDash menu items have no draft state of their own, so the editor's "CSS classes" field carries it.
+ */
+export function isDraft(item: NavItem): boolean {
+  return /(^|\s)draft(\s|$)/.test(item.cssClasses ?? '');
+}
+
+const hasDraft = (items: NavItem[]): boolean =>
+  items.some((item) => isDraft(item) || hasDraft(item.children ?? []));
+
+/** Drop draft items at every level, returning copies; the input is never mutated. */
+function withoutDrafts(items: NavItem[]): NavItem[] {
+  if (!hasDraft(items)) return items; // no drafts: hand back the cached menu untouched
+  return items
+    .filter((item) => !isDraft(item))
+    .map((item) =>
+      item.children?.length ? { ...item, children: withoutDrafts(item.children) } : item,
+    );
+}
+
 export function menuItems(menu: NavMenuInput): NavItem[] {
   if (!menu) return [];
   const items = Array.isArray(menu) ? menu : (menu.items ?? []);
-  return items;
+  return withoutDrafts(items);
 }
 
 /**

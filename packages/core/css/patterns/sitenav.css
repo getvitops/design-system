@@ -613,6 +613,14 @@
   }
 }
 
+/* Header buttons that are not menu items (`<SiteNav><a slot="actions" class="cta">…`). */
+.sitenav__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* ── Footer (`<SiteFooter>`) ───────────────────────────────────────────────── */
 .sitefooter {
   margin-block-start: var(--space-2xl, 3rem);
@@ -637,6 +645,16 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem 1.25rem;
+}
+
+.sitefooter__heading {
+  margin: 0 0 0.5rem;
+}
+
+/* A column from a menu item with children: a heading over a stacked list. */
+.sitefooter__list--column {
+  flex-direction: column;
+  gap: 0.125rem;
 }
 
 .sitefooter__link {

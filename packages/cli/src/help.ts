@@ -393,7 +393,8 @@ Emdash check-prerender options:
   [dir]   Build output to check (default: dist/client). Fails on a page that carries the
           pending-migrations message, is not an HTML document, or has no <title>.
   --strict  Also fail (not just warn) when a page uses a type-role class (font-display, …)
-          the built CSS has no rule for.
+          the built CSS has no rule for, links to pages the build did not produce, a page without
+          exactly one <h1>, or a form with nowhere to send it (reads ./site.json, or --site=<path>).
 
 Emdash build options:
   [dir]   Runs \`astro build\`, then check-prerender on [dir] (default: dist/client). Also fails

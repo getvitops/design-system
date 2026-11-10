@@ -42,7 +42,7 @@ describe('vitops_cards', () => {
 
   it('renders the title as a heading at the chosen level (U19), not a paragraph', async () => {
     const html = await render(Cards, { cards, level: '4' });
-    expect(html).toContain('<h4 class="font-heading">Cut costs</h4>');
+    expect(html).toContain('<h4 class="card__title font-heading">Cut costs</h4>');
     expect(html).not.toContain('<p class="font-heading"');
   });
 
@@ -520,6 +520,19 @@ describe('vitops_form', () => {
     expect(html).toContain('<option value="Design">Design</option>');
     expect(html).toContain('type="checkbox"');
     expect(html).toContain('Send message');
+  });
+
+  it('renders "tick any number" as a fieldset of checkboxes sharing one name', async () => {
+    const html = await renderForm({
+      ...SAMPLE_FORM_BLOCK,
+      fields: [
+        { label: 'Interests', name: 'interests', type: 'checkboxes', options: 'IT\nMarketing' },
+      ],
+    });
+    expect(html).toContain('<fieldset');
+    expect(html).toContain('<legend class="form-group__label">Interests</legend>');
+    expect(html.match(/name="interests"/g)).toHaveLength(2);
+    expect(html).toContain('value="Marketing"');
   });
 
   it('never submits a phone field as `phone`: the route drops that name', async () => {
