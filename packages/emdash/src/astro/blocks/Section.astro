@@ -8,7 +8,9 @@
  * Composed from the framework's layout primitives: `.region` for vertical rhythm, `.centered`
  * for the tracks (the `width` field picks `breakout`/`spotlight`/`fullbleed`), `.section` for
  * the head and the heading-left `split` layout, `.tone` for the backdrop. The heading is a
- * real heading at the editor's `level`.
+ * real heading at the editor's `level`, with `*accent*` runs. Level 1 plus `ctaLabel`/`secondaryLabel`
+ * make it the page opener, so a hero is not nested in a section. `stack: rhythm` puts `.rhythm` on the
+ * inner element so head and body are spaced by the vertical-rhythm scale.
  *
  * The body is rendered by EmDash's `<PortableText>`, which merges this plugin's
  * `blockComponents`, so a `vitops_cards` or `vitops_actionLink` placed in it renders with its
@@ -22,7 +24,7 @@
 const { PortableText } = await import('emdash/ui');
 import { unrenderedTypes } from './unrendered.ts';
 import { joinStyle, resolveTone } from './tone.ts';
-import { outlineTag, resolveBlockValue, text } from './value.ts';
+import { accentRuns, outlineTag, resolveBlockValue, safeHref, text } from './value.ts';
 
 interface Value {
   kicker?: string;
@@ -36,6 +38,11 @@ interface Value {
   color?: string;
   solid?: boolean;
   theme?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  secondaryLabel?: string;
+  secondaryHref?: string;
+  stack?: string;
 }
 
 const WIDTHS: Record<string, string> = {
@@ -57,7 +64,14 @@ const tone = resolveTone(value.tone, value.color);
 const solid = Boolean(value.solid);
 const layout = text(value.layout);
 const width = WIDTHS[text(value.width)];
-const hasHead = Boolean(kicker || heading || sub);
+const headingRuns = accentRuns(heading);
+const ctaLabel = text(value.ctaLabel);
+const ctaHref = safeHref(value.ctaHref);
+const secondaryLabel = text(value.secondaryLabel);
+const secondaryHref = safeHref(value.secondaryHref);
+const hasActions = Boolean((ctaLabel && ctaHref) || (secondaryLabel && secondaryHref));
+const stacked = text(value.stack) === 'rhythm';
+const hasHead = Boolean(kicker || heading || sub || hasActions);
 import { rootAttrs } from './attrs.ts';
 ---
 
@@ -67,12 +81,32 @@ import { rootAttrs } from './attrs.ts';
       {...rootAttrs(value, ['section', 'region', tone.style && (solid ? tone.className : tone.surface), tone.style && solid && 'tone--solid', layout === 'split' && 'section--split', layout === 'center' && 'section--center'], joinStyle(tone.style))}
     >
       <div class="centered">
-        <div class:list={['section__inner', width]}>
+        <div class:list={['section__inner', width, stacked && 'rhythm']}>
           {hasHead && (
             <header class="section__head">
               {kicker && <p class="section__kicker font-eyebrow">{kicker}</p>}
-              {heading && <Heading class="section__title font-title">{heading}</Heading>}
+              {heading && (
+                <Heading class="section__title font-title">
+                  {headingRuns.map((run) =>
+                    run.accent ? <em class="accent">{run.text}</em> : run.text,
+                  )}
+                </Heading>
+              )}
               {sub && <p class="section__sub font-lead">{sub}</p>}
+              {hasActions && (
+                <p class="section__actions cluster">
+                  {ctaLabel && ctaHref && (
+                    <a class="cta" href={ctaHref}>
+                      {ctaLabel}
+                    </a>
+                  )}
+                  {secondaryLabel && secondaryHref && (
+                    <a class="link" href={secondaryHref}>
+                      {secondaryLabel}
+                    </a>
+                  )}
+                </p>
+              )}
             </header>
           )}
           {body.length > 0 && (

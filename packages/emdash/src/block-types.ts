@@ -63,8 +63,18 @@ export const SECTION_FIELDS: BlockFieldDefinition[] = [
     '2',
   ),
   { slug: 'sub', label: 'Lead-in text under the heading', type: 'text' },
+  { slug: 'ctaLabel', label: 'Button text (filled)', type: 'string' },
+  { slug: 'ctaHref', label: 'Button URL', type: 'string' },
+  { slug: 'secondaryLabel', label: 'Second link text', type: 'string' },
+  { slug: 'secondaryHref', label: 'Second link URL', type: 'string' },
   { slug: 'body', label: 'Content (any blocks)', type: 'portableText' },
   select('layout', 'Layout', ['stack', 'center', 'split'], 'stack'),
+  select(
+    'stack',
+    'Spacing (rhythm: head and body use the vertical-rhythm scale, as a page opener or prose stack)',
+    ['grid', 'rhythm'],
+    'grid',
+  ),
   select('width', 'Width', ['measure', 'breakout', 'spotlight', 'fullbleed'], 'measure'),
   {
     slug: 'tone',

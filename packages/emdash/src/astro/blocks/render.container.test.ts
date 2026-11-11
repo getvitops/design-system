@@ -498,6 +498,31 @@ describe('vitops_section', () => {
     expect(html).toContain('class="logos"');
     expect(html).toContain('alt="Acme"');
   }, 60_000);
+
+  it('is a page opener: accent heading, two actions and a rhythm stack', async () => {
+    const { default: Section } = await import('./Section.astro');
+    const container = await AstroContainer.create();
+    const html = await container.renderToString(Section as unknown as Component, {
+      props: {
+        value: {
+          heading: 'Two services. *One team.*',
+          level: '1',
+          sub: 'Lead',
+          ctaLabel: 'Book a call',
+          ctaHref: '/contact',
+          secondaryLabel: 'See pricing',
+          secondaryHref: '/pricing',
+          stack: 'rhythm',
+        },
+      },
+    });
+    expect(html).toContain(
+      '<h1 class="section__title font-title">Two services. <em class="accent">One team.</em></h1>',
+    );
+    expect(html).toContain('<a class="cta" href="/contact">Book a call</a>');
+    expect(html).toContain('<a class="link" href="/pricing">See pricing</a>');
+    expect(html).toContain('class="section__inner rhythm"');
+  }, 60_000);
 });
 
 describe('vitops_form', () => {
@@ -679,4 +704,22 @@ describe('per-item colour and hero card extras', () => {
     expect(html).toContain('card subgrid-card tone');
     expect(html).not.toContain('stretched-link');
   });
+});
+
+describe('per-card theme', () => {
+  it('tints one card without touching its siblings', async () => {
+    const container = await AstroContainer.create();
+    const html = await container.renderToString(Cards as unknown as Component, {
+      props: {
+        value: {
+          variant: 'panel',
+          cards: [{ title: 'Without us', theme: 'danger' }, { title: 'With us' }],
+        },
+      },
+    });
+    const [first, second] = html.split('<li ').slice(1);
+    expect(first).toContain('tone tone--tint');
+    expect(first).toContain('--tone-bg');
+    expect(second).not.toContain('--tone-bg');
+  }, 60_000);
 });

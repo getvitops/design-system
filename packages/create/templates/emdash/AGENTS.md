@@ -51,6 +51,10 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
   accordion items, slides), so it can't. EmDash's built-in `columns` doesn't render `vitops_*`
   children. For layout, nest in a section, use a `blocks` field, or hand-write the template with
   `@getvitops/astro` components (`Subgrid`, `Cards`, `Carousel`, …).
+- **Page opener.** Use `vitops_section` at heading level 1 with its button fields (`ctaLabel`,
+  `secondaryLabel`) and `stack: rhythm`; don't nest a `vitops_hero` or another section wrapper in a
+  section body, which renders two layers of `section > .centered`. `vitops_hero` is for a hero
+  that stands alone (it carries option cards).
 - **Section, block or widget area?** Copy-and-edit content is an EmDash Section. The same content
   everywhere (announcement bar, pre-footer call to action, sidebar, footer columns) is a **widget
   area**: define it under Widgets in the admin and render it with `<VitopsWidgetArea name="…" />`

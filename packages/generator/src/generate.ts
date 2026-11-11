@@ -150,6 +150,9 @@ export function toneTintRule(tint?: { mix: string }): string {
   return `/* colors.tint */\n.tone {\n  --tone-tint: color-mix(in oklab, var(--tone-solid, currentColor) ${tint.mix}, transparent);\n}\n\n`;
 }
 
+const blockSet =
+  'wc-cards, ul[class], ol[class], details, form, table, figure, .accordion, .section__body';
+
 export function hueOnTokens(
   palette: Record<string, { numeric: Record<string, string> }>,
 ): string[] {
@@ -1688,6 +1691,9 @@ function emitTailwind(ctx: TwCtx): string {
   // way `grid-auto` does above, without the framework needing to know its class name.
   util.push(`\n/* Opt out of ambient .rhythm item spacing (mirrors layout-utilities.css) */`);
   util.push(`@utility no-rhythm {\n  & > li + li { margin-top: 0; }\n}`);
+  util.push(
+    `\n/* Opt-in flex stack (mirrors layout-utilities.css) */\n@utility rhythm-flex {\n  display: flex;\n  flex-direction: column;\n  align-items: flex-start;\n  & > :is(${blockSet}) { align-self: stretch; }\n}`,
+  );
   // Applied to the SECOND element of a pair, to override the rhythm it inherited.
   util.push(`\n/* Vertical-rhythm overrides (mirrors layout.css) */`);
   for (const pair of [
@@ -1731,6 +1737,8 @@ function emitTailwind(ctx: TwCtx): string {
   --rhythm-li-li: 0.3;
   --rhythm-text-media: 1.2;
   --rhythm-media-text: 1.2;
+  --rhythm-block: 2;
+  --rhythm-block-action: 1.6;
   --width-measure: 65ch;
   --width-breakout: 90ch;
   --width-spotlight: 120ch;
@@ -1780,6 +1788,25 @@ body {
 }
 .rhythm > :where(figure, img, picture, video) + :where(p, h1, h2, h3, h4, h5, h6, ul, ol) {
   margin-top: calc(var(--rhythm-base) * var(--rhythm-media-text));
+}
+
+/* Block-level children are a block gap apart, not a paragraph apart: a card row, a stats list, an
+   accordion or a form under a lead sat flush at the prose spacing. \`:is()\` takes its most specific
+   argument (0-1-1), so this beats the paragraph-to-list pairs above (0-1-2 would not tie it).
+   Classless \`ul\`/\`ol\` stay prose. A form's own \`.rhythm\` holds \`div\` fields, which are not listed,
+   so its tight field spacing is untouched. */
+.rhythm > * + :is(wc-cards, ul[class], ol[class], details, form, table, figure, .accordion, .section__body) {
+  margin-top: calc(var(--rhythm-base) * var(--rhythm-block));
+}
+/* A row of buttons after the lead. */
+.rhythm > * + p.cluster {
+  margin-top: calc(var(--rhythm-base) * var(--rhythm-block-action));
+}
+/* A bare link is inline, and an inline box ignores \`margin-top\`, so it sat flush under the
+   paragraph above. Buttons (\`.cta\`, \`.btn\`) are inline-flex and already space. */
+.rhythm > :where(a:not(.cta, .btn)) {
+  display: block;
+  inline-size: fit-content;
 }
 
 .centered {

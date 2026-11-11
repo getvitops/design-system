@@ -59,3 +59,13 @@
 .block-anchor {
   scroll-margin-top: var(--header-offset, 5rem);
 }
+
+/* Head and body of a plain (stack) section sit a gap apart; split already has a grid gap and a
+   `rhythm` stack its own scale. */
+.section:not(.section--split) .section__inner:not(.rhythm) > .section__head + .section__body {
+  margin-block-start: var(--section-gap, 2rem);
+}
+
+.section .section__actions {
+  align-items: center;
+}
