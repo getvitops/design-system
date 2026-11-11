@@ -414,6 +414,17 @@
   },
   "site": {
     "defaultLocale": "en",
+    "chrome": {
+      "masthead": {
+        "position": "sticky",
+        "behavior": "always",
+        "surface": "glass",
+        "layout": "full",
+        "elevation": { "shadow": "sm", "onScroll": true },
+        "height": "4rem"
+      },
+      "nav": { "compact": "drawer", "drawerSide": "end" }
+    },
     "templates": {
       "contact": {
         "type": "form",

@@ -1,0 +1,25 @@
+---
+/**
+ * The extra column of a mega-menu panel, from an EmDash widget area. Pass it to `<SiteNav>`:
+ *
+ *   import { VitopsMegaPanel } from '@getvitops/emdash/astro';
+ *   <SiteNav {...nav} megaPanel={VitopsMegaPanel} />
+ *
+ * `<SiteNav>` renders it inside each top-level item's panel on the `primary-mega` tier, passing
+ * `{ item }`. The area is named `mega-<last URL segment>` (`/services/` → `mega-services`), or
+ * by a `mega-area:<name>` class on the menu item, which wins because labels are translated and
+ * so unstable. An item with neither, or whose area is missing or empty, renders nothing — an
+ * editor adds a column by creating the widget area, with no code change.
+ */
+import { megaAreaName, type NavItem } from '@getvitops/astro/components/sitenav.ts';
+import WidgetArea from './WidgetArea.astro';
+
+interface Props {
+  item: NavItem;
+}
+
+const { item } = Astro.props;
+const name = megaAreaName(item);
+---
+
+{name && <WidgetArea name={name} level={3} class="sitenav__mega-area" />}

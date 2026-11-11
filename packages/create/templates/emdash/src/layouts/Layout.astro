@@ -5,9 +5,11 @@ import { getMenu, getSiteSettings } from 'emdash';
 import { createPublicPageContext } from 'emdash/page';
 import SiteFooter from '@getvitops/astro/components/SiteFooter.astro';
 import SiteNav from '@getvitops/astro/components/SiteNav.astro';
+import Masthead from '@getvitops/astro/components/Masthead.astro';
+import { resolveNavOptions } from '@getvitops/astro/components/masthead.ts';
 import { loadNavMenus } from '@getvitops/astro/components/sitenav.ts';
 import { EmDashHead } from 'emdash/ui';
-import { VitopsWidgetArea } from '@getvitops/emdash/astro';
+import { VitopsMegaPanel, VitopsWidgetArea } from '@getvitops/emdash/astro';
 import config from '../../site.json' with { type: 'json' };
 // Design-system CSS, layout-scoped (vitops css.inject: false): only pages
 // rendered through this layout get it — keeps it out of /_emdash/admin, while
@@ -75,18 +77,19 @@ const orgName = config.organization?.name || siteTitle;
   <body>
     <!-- Widget areas (Widgets in the admin): the same content wherever they appear. -->
     <VitopsWidgetArea name="announcement" class="centered" />
-    <header class="navbar-sticky centered">
-      <div class="navbar">
-        <a class="brand flex items-center" href="/" aria-label={`${siteTitle} home`}>
-          <span class="brand-mark" set:html={logo} aria-hidden="true" />
-          <span class="font-heading">{siteTitle}</span>
-        </a>
-        <div class="header-end flex items-center">
-          <SiteNav {...nav} />
-          <wc-color-scheme-toggle></wc-color-scheme-toggle>
-        </div>
+    <!-- The masthead's look and the nav's behaviour come from `site.chrome` in site.json
+         (position, hide-on-scroll, glass, inset, shadow, drawer vs dropdown). A prop here
+         overrides one field for this layout. -->
+    <Masthead config={config}>
+      <a slot="brand" class="brand flex items-center" href="/" aria-label={`${siteTitle} home`}>
+        <span class="brand-mark" set:html={logo} aria-hidden="true" />
+        <span class="font-heading">{siteTitle}</span>
+      </a>
+      <div class="header-end flex items-center">
+        <SiteNav {...nav} {...resolveNavOptions(config)} megaPanel={VitopsMegaPanel} />
+        <wc-color-scheme-toggle></wc-color-scheme-toggle>
       </div>
-    </header>
+    </Masthead>
 
     <main class="centered rhythm">
       <slot />
@@ -107,10 +110,6 @@ const orgName = config.organization?.name || siteTitle;
         display: block;
         inline-size: 1.75rem;
         block-size: 1.75rem;
-      }
-
-      .navbar {
-        block-size: 64px;
       }
 
       .header-end {

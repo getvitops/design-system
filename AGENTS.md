@@ -1078,6 +1078,51 @@ copies of the same content would drift. `SETUP.html`'s checkbox state persists i
 today, behind one named seam (`window.__vitopsSopStore`) so a later EmDash-backed store is a
 swap, not a rewrite — that store does not exist yet; don't build it speculatively.
 
+## Site chrome: the masthead and nav behaviour
+
+`site.chrome` (`@getvitops/config`'s `ChromeSchema`) is where a site states how its top bar looks and
+how its navigation behaves; `<Masthead>` and `<SiteNav>` (`@getvitops/astro`) read it through
+`resolveMasthead()` / `resolveNavOptions()`, and a prop overrides one field for one layout. It is
+git-owned design (`site.json`, promoted `dev → main`), not an EmDash admin setting: editors own the
+menus and widget areas, the design owns how they present.
+
+- **The name is deliberate.** `chrome`, and `masthead` for the bar itself. `<header>` is valid inside
+  any section or article, so it does not identify the site bar; `banner` already means the
+  announcement bar (`.banner`, `vitops_banner`) and is the ARIA landmark role auditors flag when it
+  is written explicitly on a `<header>`. `<Masthead>` emits a plain `<header>` and never a `role`.
+- **Three nav sizes are three menus, not three settings.** `primary-mobile`, `primary`, `primary-mega`
+  (`sitenav.ts`'s `MENU_NAMES`) each render as their own tier in a width window; `site.chrome.nav`
+  only tunes them. `compact: 'dropdown'` swaps the narrow drawer for an anchored columnar panel and
+  emits `sitenav--panel-dropdown` **instead of** a `drawer-*` class — both are narrow-state rules at
+  the same specificity, so emitting both would leave the winner to source order
+  (`state-branch.test.ts` guards the shape).
+- **Scroll behaviour only ever subtracts, and the base is the settled bar.** The un-modified
+  `.masthead` is visible, solid (or glass), elevated and in flow. `scroll-state()` container queries
+  on the root only take things away from it: `*-on-scroll` clears the surface, shadow or border
+  while `not scroll-state(scrollable: top)` (the page is at the top), and `hide-on-scroll` slides
+  the bar away. A browser without the feature (Firefox today) therefore keeps a visible, solid,
+  elevated bar. This used to be written the other way round — base clear, query reveals — which left
+  such a browser with a transparent bar over body text forever; `masthead-fallback.e2e.ts` (a
+  Firefox project) is the regression test. A masthead with focus inside it, or an open
+  popover/disclosure, never slides away. Don't add a JS path for the missing browsers: the
+  effect arrives with the feature, the degrade is already correct.
+- **`height` and `inset` take fluid lengths, and are validated as a closed grammar.** Both are
+  written into a `<style>` on `:root` (`mastheadRootCss()`), so `isSafeLength()` admits only
+  numbers-with-units, `calc|clamp|min|max`, balanced parentheses — never `var()`, `url()`, `;` or
+  braces. `cqi` resolves against `body` (the container the nav breakpoints use), `vw` against the
+  viewport. `--masthead-inset` is written only for a non-`full` layout and always then (defaulted to
+  `0.75rem`), because `--header-offset` adds it unconditionally and must agree with the element.
+- **Config is read loosely, checked at runtime.** A plain `import site from './site.json'` types every
+  enum as `string`, which a strict `Config` rejects (the `resolveOrganizationName` trap), so
+  `ChromeSource` is structural and `resolveMasthead` validates each value against the schema's
+  literal lists. Height, tone and shadow are also checked to be a plain length / role / name, because
+  they are written into CSS.
+- **Mega panels get rich content from widget areas.** `megaPanel={VitopsMegaPanel}`
+  (`@getvitops/emdash/astro`) renders the area `mega-<last URL segment>`, or the item's
+  `mega-area:<name>` class (which wins: labels are translated). The prop keeps `@getvitops/astro`
+  free of a CMS dependency. Absent area, absent column.
+- `site.navigation` (`activeTemplate`) is still unread by any renderer. This is not it.
+
 ## Google reviews
 
 `vitops reviews` (`packages/cli` → `@getvitops/utils/reviews`) fetches a client's Google Business
@@ -1229,6 +1274,31 @@ Other tools used:
   unmigrated database — so the script seeds the local D1 through the dev-bypass setup endpoint
   before building.
 
+### Seeing rendered pages
+
+**`playwright-cli` is the one sanctioned way for an agent to look at a rendered page** — not the
+Claude-in-Chrome extension, not Playwright MCP or any other browser MCP server
+(`.claude/settings.json` denies `mcp__claude-in-chrome__*` and `mcp__playwright__*`). Three reasons:
+a CLI + skill keeps the model's context free of tool schemas and full accessibility trees (output
+goes to files under `.playwright-cli/`, gitignored); it is reproducible, since it is the `playwright`
+this repo already pins in the catalog and `vitops audit`/`site/e2e` already use (the standalone
+`@playwright/cli` package pins its own alpha `playwright` and a second browser download, so we don't
+install it); and it needs no user-level browser or extension setup.
+
+- Invoke as `pnpm exec playwright cli …` (`npx --no-install playwright cli …` also works). `prepare`
+  runs `playwright cli install --skills`, writing the upstream command reference to
+  `.claude/skills/playwright-cli/` (gitignored — regenerated from the pinned version). Defaults live
+  in the committed `.playwright/cli.config.json` (headless Chromium).
+- Serve first, then look: `docs:dev` (4321) for `site/`, `verify:e2e --pause` for the scaffolded
+  EmDash site, or open `index.html` as a `file://` page only with `PLAYWRIGHT_MCP_ALLOW_UNRESTRICTED_FILE_ACCESS=1`.
+  Remember a running `docs:dev` serves stale framework CSS (see Build system) — check the served
+  file before blaming the CSS.
+- `snapshot` before `screenshot`: the snapshot is text and cheap; screenshot only when the question
+  is visual (layout, colour, dark mode via `data-theme="dark"`). One named session per task
+  (`-s=<task>`), `close` when done.
+- Tier-2 no-JS fallbacks: prove them with a config setting `javaScriptEnabled: false`
+  (`open --config=…`), the same promise `site/e2e/no-js-fallback.e2e.ts` asserts.
+
 ### Task Notes
 
 - do not run format or lint as verifications, these are done automatically on save and PostToolUse hooks.
@@ -1274,31 +1344,6 @@ Other tools used:
   var(--br-control)`), and `overrides` replace an alias with a literal. So a pattern's `base` writes
   `"border-radius": "var(--br-btn-group)"`, **not** `"var(--br-control, 0.25rem)"`. Both render the
   same, but only the first keeps the pattern → group mapping in CSS, where it is inspectable and
-
-### Seeing rendered pages
-
-**`playwright-cli` is the one sanctioned way for an agent to look at a rendered page** — not the
-Claude-in-Chrome extension, not Playwright MCP or any other browser MCP server
-(`.claude/settings.json` denies `mcp__claude-in-chrome__*` and `mcp__playwright__*`). Three reasons:
-a CLI + skill keeps the model's context free of tool schemas and full accessibility trees (output
-goes to files under `.playwright-cli/`, gitignored); it is reproducible, since it is the `playwright`
-this repo already pins in the catalog and `vitops audit`/`site/e2e` already use (the standalone
-`@playwright/cli` package pins its own alpha `playwright` and a second browser download, so we don't
-install it); and it needs no user-level browser or extension setup.
-
-- Invoke as `pnpm exec playwright cli …` (`npx --no-install playwright cli …` also works). `prepare`
-  runs `playwright cli install --skills`, writing the upstream command reference to
-  `.claude/skills/playwright-cli/` (gitignored — regenerated from the pinned version). Defaults live
-  in the committed `.playwright/cli.config.json` (headless Chromium).
-- Serve first, then look: `docs:dev` (4321) for `site/`, `verify:e2e --pause` for the scaffolded
-  EmDash site, or open `index.html` as a `file://` page only with `PLAYWRIGHT_MCP_ALLOW_UNRESTRICTED_FILE_ACCESS=1`.
-  Remember a running `docs:dev` serves stale framework CSS (see Build system) — check the served
-  file before blaming the CSS.
-- `snapshot` before `screenshot`: the snapshot is text and cheap; screenshot only when the question
-  is visual (layout, colour, dark mode via `data-theme="dark"`). One named session per task
-  (`-s=<task>`), `close` when done.
-- Tier-2 no-JS fallbacks: prove them with a config setting `javaScriptEnabled: false`
-  (`open --config=…`), the same promise `site/e2e/no-js-fallback.e2e.ts` asserts.
 
   editable in devtools; a hard-coded fallback bakes it into the rule and is unreachable. The full
   chain is `--p-btn` (consumer hook, from `BASE_HOOK`) → `--p-btn-group` (pattern/`overrides`) →

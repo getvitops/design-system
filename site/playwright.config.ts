@@ -15,6 +15,10 @@ import { defineConfig, devices } from '@playwright/test';
  *     for every `:focus-visible` element in the framework until that rule
  *     existed. CSS-only, so it needs JS enabled only to read
  *     `getComputedStyle` back out; the effect itself doesn't depend on it.
+ *   - the `masthead` projects: that `site.chrome` produces the behaviour it claims in a real
+ *     browser — hide-on-scroll, scroll-state elevation, header-offset anchoring, the dropdown
+ *     and mega panels. Computed style and layout facts no happy-dom test can see; the
+ *     `masthead-no-js` project proves the same page needs no script at all.
  *   - the `lightbox-fit` project: that an opened lightbox image is always
  *     scaled to fit the viewport, never cropped, never overflowing it — a
  *     computed-layout fact no `*.dom.test.ts` (happy-dom, no real layout) can
@@ -76,6 +80,23 @@ export default defineConfig({
       name: 'forced-colors',
       testMatch: /forced-colors\.e2e\.ts$/,
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'masthead',
+      testMatch: /masthead\.e2e\.ts$/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1400, height: 800 } },
+    },
+    {
+      // Firefox has no `scroll-state()`. The masthead must degrade to a solid, elevated,
+      // always-visible bar there, not to a transparent one over body text.
+      name: 'masthead-firefox',
+      testMatch: /masthead-fallback\.e2e\.ts$/,
+      use: { ...devices['Desktop Firefox'], viewport: { width: 1400, height: 800 } },
+    },
+    {
+      name: 'masthead-no-js',
+      testMatch: /masthead-no-js\.e2e\.ts$/,
+      use: { ...devices['Desktop Chrome'], javaScriptEnabled: false },
     },
     {
       name: 'lightbox-fit',

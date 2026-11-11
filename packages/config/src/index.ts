@@ -15,3 +15,4 @@ export * from './reviews.ts';
 export * from './crm.ts';
 export * from './blocks.ts';
 export * from './seo.ts';
+export * from './chrome.ts';

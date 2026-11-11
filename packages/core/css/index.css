@@ -40,6 +40,7 @@
 /* navbar before sitenav: sitenav's wide state composes it. */
 @import './patterns/navbar.css';
 @import './patterns/sitenav.css';
+@import './patterns/masthead.css';
 /* After sitenav (the nav family stays contiguous) and after drawer.css, whose
    panel surface navshell's desktop block has to undo. */
 @import './patterns/navshell.css';

@@ -61,6 +61,7 @@ import {
   SearchConsoleSetupSchema,
   SecuritySchema,
   SeoSchema,
+  ChromeSchema,
   TrackingSchema,
   type AdProvider,
   type CrmProviderConfig,
@@ -794,6 +795,10 @@ const SiteSectionSchema = z.strictObject({
     ),
     'Site navigation settings (which nav template renders where).',
   ),
+  chrome: desc(
+    z.optional(ChromeSchema),
+    'Page furniture: the masthead (top bar — position, hide-on-scroll, glass/transparent surface, inset/floating layout, shadow/border) and how its navigation behaves at each width (compact drawer or dropdown, mega tier). Read by `<Masthead />` and `<SiteNav />` via `resolveMasthead()` / `resolveNavOptions()`; a prop overrides a field per layout.',
+  ),
   seo: desc(
     z.optional(SeoSchema),
     'SEO defaults: site name, title/description defaults, robots policy, verification tokens, Open Graph + Twitter cards, and post-deploy indexing notification. Read by `<Seo />`, `vitops robots` and `vitops search notify`.',
@@ -1421,6 +1426,32 @@ export function validateConfig(input: unknown): ConfigValidationResult {
         issue(
           at,
           `site.ads.${provider} identifies nothing — set accountId (the advertising account) and/or pixelId (the tag: ${platform.tag.needs} is what its snippet needs)`,
+        ),
+      );
+  }
+
+  // Masthead tone and shadow name things the design system defines. Checked only against a theme
+  // that states them directly: a theme that `extends` another inherits roles and shadows this
+  // pass cannot see, and a false rejection of a working config is worse than a missed typo.
+  const mast = site.chrome?.masthead;
+  const dsTheme = themes[defaultTheme ?? 'default'];
+  if (mast && dsTheme && dsTheme.extends == null) {
+    const role = mast.tone?.replace(/:solid$/, '');
+    const roles = dsTheme.colors?.roles;
+    if (role != null && roles != null && !has(roles, role))
+      errors.push(
+        issue(
+          ['site', 'chrome', 'masthead', 'tone'],
+          `"${role}" is not a colors.roles key — a masthead tone must name one of: ${Object.keys(roles).join(', ')}`,
+        ),
+      );
+    const shadow = mast.elevation?.shadow;
+    const shadows = dsTheme.shadows;
+    if (shadow != null && shadows != null && !has(shadows, shadow))
+      errors.push(
+        issue(
+          ['site', 'chrome', 'masthead', 'elevation', 'shadow'],
+          `"${shadow}" is not a designSystem.shadows key — one of: ${Object.keys(shadows).join(', ')}`,
         ),
       );
   }

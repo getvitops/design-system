@@ -57,6 +57,18 @@ export type { ContentSecurityPolicyOptions, InlineScriptOptions } from './csp.ts
 export { gitLastmod, routeFromPage, slugFromContent } from './lastmod.ts';
 export type { GitLastmodOptions } from './lastmod.ts';
 export { resolveSeo } from './seo.ts';
+export {
+  mastheadClass,
+  mastheadRootCss,
+  mastheadStyle,
+  resolveMasthead,
+  resolveNavOptions,
+} from './components/masthead.ts';
+export type {
+  MastheadOptions,
+  ResolvedMasthead,
+  ResolvedNavOptions,
+} from './components/masthead.ts';
 export { resolveSeoDefaults, mergeSeoDefaults } from './seo-defaults.ts';
 export type { ResolveSeoDefaultsOptions } from './seo-defaults.ts';
 export type {

@@ -20,9 +20,13 @@ interface Props {
   items: NavItem[];
   current: string;
   top?: boolean;
+  /** Mega tier only: component rendered as an extra column in each top-level submenu. */
+  panel?: any;
+  /** The branch whose submenu this is — what the `panel` column is about. */
+  owner?: NavItem;
 }
 
-const { items, current, top = true } = Astro.props;
+const { items, current, top = true, panel: Panel, owner } = Astro.props;
 ---
 
 <ul class={top ? 'sitenav__list' : 'sitenav__submenu'} role="list">
@@ -63,11 +67,24 @@ const { items, current, top = true } = Astro.props;
               </span>
             </summary>
           </details>
-          <Astro.self items={kids} current={current} top={false} />
+          <Astro.self
+            items={kids}
+            current={current}
+            top={false}
+            panel={top ? Panel : undefined}
+            owner={item}
+          />
         </li>
       ) : (
         <li class="sitenav__item">{link}</li>
       );
     })
+  }
+  {
+    !top && Panel && owner && (
+      <li class="sitenav__item sitenav__mega-extra">
+        <Panel item={owner} />
+      </li>
+    )
   }
 </ul>

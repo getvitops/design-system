@@ -526,13 +526,21 @@ export const TIERS: Record<string, TierEntry> = {
   },
   sitenav: {
     css: c(
-      ['sitenav', 'sitenav__link', 'sitenav--drawer-start', 'navlist', 'navlist--columns'],
+      [
+        'sitenav',
+        'sitenav__link',
+        'sitenav--drawer-start',
+        'sitenav--panel-dropdown',
+        'sitenav--mega',
+        'navlist',
+        'navlist--columns',
+      ],
       'patterns/sitenav.css',
     ),
     astro: [...a('SiteNav', 'css'), ...a('SiteFooter', 'css')],
     emdash: ['vitops_nav'],
     bricks: 'vitops-sitenav',
-    use: "`.sitenav` with `--bp-*` and a drawer direction. `<details>` + Invoker Commands, no JS. In Astro: `<SiteNav {...await loadNavMenus(getMenu)} />` renders EmDash menu `primary` (the default: dropdowns from `md`, drawer below) and, if they exist, `primary-mobile` (depth-1 nav below `md`) and `primary-mega` (mega panels from `xl`) — adding the menu in the admin is the whole change. An item's `titleAttr` is its description. `<SiteFooter sitemap legal name>` renders `footer-sitemap` + `footer-legal` + the copyright line. For a menu inside page content (a site map, a section's links, footer-style columns) use `.navlist` — plain nested lists, `--inline` / `--columns` — or, in EmDash, the `vitops_nav` block (menu, layout `list|inline|columns|sitenav`, depth 1–3, heading, tone). Name each `<nav>` uniquely: the header is `Primary` and the footer `Site map` / `Legal`, and the block never reuses those.",
+    use: "`.sitenav` with `--bp-*` and a drawer direction. `<details>` + Invoker Commands, no JS. In Astro: `<SiteNav {...await loadNavMenus(getMenu)} />` renders EmDash menu `primary` (the default: dropdowns from `md`, drawer below) and, if they exist, `primary-mobile` (depth-1 nav below `md`) and `primary-mega` (mega panels from `xl`) — adding the menu in the admin is the whole change. An item's `titleAttr` is its description. Per-site behaviour lives in `site.chrome.nav` — `<SiteNav {...nav} {...resolveNavOptions(site)} />` sets `compact` (`drawer` | `dropdown`: an anchored, columnar panel under the toggle), `drawerSide`, the breakpoints and depths. For a mega panel's featured column pass `megaPanel={VitopsMegaPanel}` (`@getvitops/emdash/astro`): it renders the widget area `mega-<item slug>` (or the item's `mega-area:<name>` class) and nothing when there is none. `<SiteFooter sitemap legal name>` renders `footer-sitemap` + `footer-legal` + the copyright line. For a menu inside page content (a site map, a section's links, footer-style columns) use `.navlist` — plain nested lists, `--inline` / `--columns` — or, in EmDash, the `vitops_nav` block (menu, layout `list|inline|columns|sitenav`, depth 1–3, heading, tone). Name each `<nav>` uniquely: the header is `Primary` and the footer `Site map` / `Legal`, and the block never reuses those.",
   },
   'split-link': {
     css: c(['split-link', 'split-link__toggle', 'split-link__panel'], 'patterns/split-link.css'),
@@ -623,6 +631,14 @@ export const TIERS: Record<string, TierEntry> = {
   nav: {
     css: c(['menu', 'navbar', 'nav-collapse', 'drawer-nav'], 'patterns/nav.css', true),
     use: '`.menu` / `.navbar`. See `navbar` and `navshell` for the newer shells.',
+  },
+  masthead: {
+    css: c(
+      ['masthead', 'masthead--sticky', 'masthead--glass', 'masthead--floating'],
+      'patterns/masthead.css',
+    ),
+    astro: a('Masthead', 'css'),
+    use: '`<Masthead config={site}>` from `site.chrome.masthead` (position `static|sticky|fixed`, behavior `always|hide-on-scroll`, surface `solid|glass|transparent|transparent-until-scrolled`, layout `full|inset|floating`, `inset` and `height` lengths — fluid ones like `clamp(3.5rem, 8cqi, 4.5rem)` are fine — elevation shadow/border, `onScroll`); a prop overrides one field for a layout. Slots `brand`, default (the `<SiteNav>`), `actions`. Pure CSS — hide-on-scroll and the *-on-scroll states are `scroll-state()` queries that only subtract from a settled bar, so a browser without them (Firefox today) shows a visible, solid, elevated one. It never takes `role="banner"`: a body-level `<header>` already is the landmark, and `.banner` means the announcement bar.',
   },
   navbar: {
     css: c(['navbar', 'navbar--sticky', 'nav-items'], 'patterns/navbar.css'),

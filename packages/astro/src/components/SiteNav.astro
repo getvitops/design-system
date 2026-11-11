@@ -47,6 +47,8 @@ import {
   selectTiers,
   tierClass,
   type NavBreakpoint,
+  type NavCompactMode,
+  type NavDrawerSide,
   type NavMenuInput,
 } from './sitenav.ts';
 import SiteNavList from './SiteNavList.astro';
@@ -70,6 +72,18 @@ interface Props {
   megaBreakpoint?: NavBreakpoint;
   /** Levels in the default nav. Default 3. */
   depth?: number;
+  /** Levels in the mega panel. Default 3. */
+  megaDepth?: number;
+  /** What the toggle opens below the breakpoint: an edge `drawer` (default) or an anchored columnar `dropdown`. */
+  compact?: NavCompactMode;
+  /** Edge the drawer slides from. Default `end`. */
+  drawerSide?: NavDrawerSide;
+  /**
+   * An Astro component rendered as an extra column inside each top-level mega-tier panel, given
+   * `{ item }`. Kept a prop so this package has no CMS dependency (`@getvitops/emdash`'s
+   * `VitopsMegaPanel` fills it from a widget area). Mega tier only; hidden when narrow.
+   */
+  megaPanel?: any;
   /** Override the current path (for `aria-current`). Default: the request path. */
   current?: string;
   /** Id prefix for the drawer popovers. Required only if two SiteNavs share a page. */
@@ -87,6 +101,10 @@ const {
   mobileBreakpoint,
   megaBreakpoint,
   depth,
+  megaDepth,
+  compact,
+  drawerSide,
+  megaPanel,
   current = Astro.url.pathname,
   id = 'sitenav',
   class: className,
@@ -100,6 +118,7 @@ const tiers = selectTiers({
   mobileBreakpoint,
   megaBreakpoint,
   depth,
+  megaDepth,
 });
 ---
 
@@ -108,7 +127,7 @@ const tiers = selectTiers({
     const panel = drawerId(id, tier);
     return (
       <div class:list={[...tierClass(tier), className]}>
-        <nav class:list={navClass(tier)} aria-label={label}>
+        <nav class:list={navClass(tier, { compact, drawerSide })} aria-label={label}>
           <button
             type="button"
             class="sitenav__toggle"
@@ -156,7 +175,7 @@ const tiers = selectTiers({
                 <line x1="18" y1="6" x2="6" y2="18" />
               </svg>
             </button>
-            <SiteNavList items={tier.items} current={current} />
+            <SiteNavList items={tier.items} current={current} panel={tier.kind === 'mega' ? megaPanel : undefined} />
           </div>
         </nav>
         {Astro.slots.has('actions') && (

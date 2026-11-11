@@ -126,6 +126,10 @@ export function containsCurrent(item: NavItem, currentPath: string): boolean {
   );
 }
 
+/** What the toggle opens below a nav's breakpoint. */
+export type NavCompactMode = 'drawer' | 'dropdown';
+export type NavDrawerSide = 'start' | 'end';
+
 export interface SiteNavTier {
   kind: 'mobile' | 'default' | 'mega';
   /** Menu name this tier is read from. */
@@ -257,14 +261,46 @@ export function tierClass(tier: SiteNavTier): string[] {
   ];
 }
 
-/** Extra classes on the `.sitenav` root for a tier. */
-export function navClass(tier: SiteNavTier): string[] {
+export interface NavClassOptions {
+  /** `drawer` (default): an edge drawer. `dropdown`: a columnar panel anchored under the toggle. */
+  compact?: NavCompactMode;
+  /** Edge the drawer slides from. Default `end`. Ignored for `dropdown`. */
+  drawerSide?: NavDrawerSide;
+}
+
+/**
+ * Extra classes on the `.sitenav` root for a tier. A dropdown panel carries NO `drawer-*` class on
+ * purpose: those are narrow-state rules at the same specificity as the dropdown's, so emitting both
+ * would leave the winner to source order.
+ */
+export function navClass(tier: SiteNavTier, opts: NavClassOptions = {}): string[] {
+  const compact = opts.compact ?? 'drawer';
   return [
     'sitenav',
     `sitenav--bp-${tier.breakpoint}`,
-    'sitenav--drawer-end',
+    compact === 'dropdown'
+      ? 'sitenav--panel-dropdown'
+      : `sitenav--drawer-${opts.drawerSide ?? 'end'}`,
     ...(tier.kind === 'mega' ? ['sitenav--mega'] : []),
   ];
+}
+
+/**
+ * The EmDash widget area that fills a mega-panel item's extra column. `mega-area:<name>` in the
+ * item's `cssClasses` wins (labels are translated, so they are unstable); otherwise the last
+ * path segment of its URL (`/services/` → `mega-services`). `undefined` when neither exists.
+ */
+export function megaAreaName(item: NavItem): string | undefined {
+  const explicit = /(?:^|\s)mega-area:([a-z0-9][a-z0-9-]*)(?:\s|$)/.exec(item.cssClasses ?? '');
+  if (explicit) return explicit[1];
+  const path = (item.url ?? '').split(/[?#]/)[0] ?? '';
+  if (!path.startsWith('/') || path.startsWith('//')) return undefined;
+  const slug = path.split('/').filter(Boolean).pop();
+  const clean = slug
+    ?.toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return clean ? `mega-${clean}` : undefined;
 }
 
 /** Description text for an item, or undefined. See `NavItem.titleAttr`. */

@@ -1,0 +1,111 @@
+---
+/**
+ * Masthead — `site.chrome`, live. Each demo is a real page (`/demo/masthead/<variant>`) embedded
+ * in an iframe, because a sticky/fixed bar and scroll-driven behaviour can't be shown inside a
+ * page that has its own scrolling header. Open one in a tab to scroll it properly.
+ */
+import Docs from '../layouts/Docs.astro';
+
+const VARIANTS = [
+  {
+    slug: 'sticky-glass',
+    title: 'Sticky glass, shadow once scrolled',
+    config: `"masthead": { "position": "sticky", "surface": "glass",\n  "elevation": { "shadow": "sm", "onScroll": true } }`,
+  },
+  {
+    slug: 'hide-on-scroll',
+    title: 'Hide on scroll down, back on scroll up',
+    config: `"masthead": { "position": "sticky", "behavior": "hide-on-scroll",\n  "elevation": { "border": true } }`,
+  },
+  {
+    slug: 'floating',
+    title: 'Floating, inset from the viewport',
+    config: `"masthead": { "position": "sticky", "surface": "glass",\n  "layout": "floating", "inset": "1.5rem", "height": "5rem",\n  "elevation": { "shadow": "sm" } }`,
+  },
+  {
+    slug: 'fluid',
+    title: 'Fluid height and inset (clamp + container units)',
+    config: `"masthead": { "position": "sticky", "surface": "glass",\n  "layout": "floating",\n  "height": "clamp(3.5rem, 8cqi, 4.5rem)",\n  "inset": "clamp(0.5rem, 3cqi, 2rem)" }`,
+  },
+  {
+    slug: 'transparent-hero',
+    title: 'Transparent over a hero, solid once scrolled',
+    config: `"masthead": { "position": "fixed",\n  "surface": "transparent-until-scrolled",\n  "elevation": { "shadow": "sm", "onScroll": true } }`,
+  },
+  {
+    slug: 'dropdown',
+    title: 'Compact dropdown (columnar panel under the toggle)',
+    config: `"masthead": { "position": "sticky" },\n"nav": { "compact": "dropdown", "breakpoint": "xl" }`,
+  },
+  {
+    slug: 'mega',
+    title: 'Mega menu (the primary-mega tier)',
+    config: `"masthead": { "position": "sticky", "elevation": { "border": true } },\n"nav": { "megaBreakpoint": "lg" }`,
+  },
+];
+
+const headings = [
+  { depth: 2, slug: 'options', text: 'Options' },
+  { depth: 2, slug: 'variants', text: 'Variants' },
+  ...VARIANTS.map((v) => ({ depth: 3, slug: v.slug, text: v.title })),
+];
+---
+
+<Docs
+  title="Masthead"
+  description="The site's top bar and its navigation behaviour, configured from site.chrome."
+  headings={headings}
+>
+  <p>
+    <code>site.chrome</code> says how the top bar looks and how its navigation behaves; the
+    <code>&lt;Masthead&gt;</code> and <code>&lt;SiteNav&gt;</code> Astro components read it, and a prop
+    overrides one field for one layout. It is pure CSS: no script runs for any variant below.
+    The name is <em>masthead</em>, not <em>header</em> or <em>banner</em> — <code>&lt;header&gt;</code> is
+    valid inside any section, and <code>banner</code> is the announcement bar and an ARIA landmark role.
+  </p>
+
+  <h2 id="options">Options</h2>
+  <div class="table-wrapper">
+    <table class="table">
+      <thead><tr><th>Key</th><th>Values</th></tr></thead>
+      <tbody>
+        <tr><td><code>masthead.position</code></td><td><code>static</code> · <code>sticky</code> · <code>fixed</code> (overlays the first section)</td></tr>
+        <tr><td><code>masthead.behavior</code></td><td><code>always</code> · <code>hide-on-scroll</code></td></tr>
+        <tr><td><code>masthead.surface</code></td><td><code>solid</code> · <code>glass</code> · <code>transparent</code> · <code>transparent-until-scrolled</code></td></tr>
+        <tr><td><code>masthead.layout</code></td><td><code>full</code> · <code>inset</code> · <code>floating</code></td></tr>
+        <tr><td><code>masthead.elevation</code></td><td><code>shadow</code> (a shadows key), <code>border</code>, <code>onScroll</code></td></tr>
+        <tr><td><code>masthead.tone</code>, <code>width</code></td><td>a colour role (<code>role:solid</code> for a fill) · <code>content</code> | <code>full</code></td></tr>
+        <tr><td><code>masthead.height</code>, <code>masthead.inset</code></td><td>a CSS length, fluid allowed: <code>4rem</code>, <code>clamp(3.5rem, 8cqi, 4.5rem)</code>. <code>inset</code> is the gap to the viewport for <code>inset</code>/<code>floating</code> (default <code>0.75rem</code>). <code>cqi</code> follows the page container, <code>vw</code> the viewport.</td></tr>
+        <tr><td><code>nav.compact</code></td><td><code>drawer</code> · <code>dropdown</code></td></tr>
+        <tr><td><code>nav.drawerSide</code>, breakpoints, depths</td><td><code>start</code> | <code>end</code> · <code>sm…xl</code> · 1–3</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    <strong>Browser support.</strong> Hide-on-scroll and the <code>onScroll</code> states use
+    <code>scroll-state()</code> container queries, which only ever take things away from a settled
+    bar. Chromium gets all of it. A browser without them (Firefox today) shows the settled bar:
+    solid, elevated and always visible — never a transparent one over the page. The effect appears
+    on its own once the browser ships the feature. The bar never slides away while focus or an open
+    menu is inside it.
+  </p>
+
+  <h2 id="variants">Variants</h2>
+  {
+    VARIANTS.map((v) => (
+      <section class="rhythm">
+        <h3 id={v.slug}>{v.title}</h3>
+        <pre><code>{`"chrome": { ${v.config} }`}</code></pre>
+        <iframe
+          title={v.title}
+          src={`/demo/masthead/${v.slug}/`}
+          loading="lazy"
+          style="inline-size: 100%; block-size: 26rem; border: 1px solid var(--color-border-surface); border-radius: var(--br-panel)"
+        />
+        <p>
+          <a class="link" href={`/demo/masthead/${v.slug}/`}>Open full page</a>
+        </p>
+      </section>
+    ))
+  }
+</Docs>

@@ -68,8 +68,17 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
   e.g. `--p-card: 2rem`; anything else is dropped). The same backdrop is available on a widget area
   (`<VitopsWidgetArea theme="…">`) and on your own markup (`themeAttrs('surface')` from
   `@getvitops/emdash/astro`, spread on the layout's `<body>`). How a role looks (flat, raised,
-  glass) is the site's own role styling in `site.json`. Set `--header-offset` to the sticky
-  header's height so anchors clear it.
+  glass) is the site's own role styling in `site.json`. The sticky masthead sets
+  `--header-offset` itself (from `site.chrome.masthead.height`), so anchors clear it.
+- **The header is `site.chrome`, not markup.** `site.chrome.masthead` sets position
+  (`static|sticky|fixed`), `behavior` (`always|hide-on-scroll`), `surface`
+  (`solid|glass|transparent|transparent-until-scrolled`), `layout` (`full|inset|floating`) and
+  `elevation`; `site.chrome.nav` sets `compact` (`drawer|dropdown`), `drawerSide`, breakpoints and
+  depths. A `<Masthead>` prop overrides one field for a layout (a landing page can be
+  `position="fixed" surface="transparent-until-scrolled"`). Nav tiers are menus: `primary`,
+  optional `primary-mobile` and `primary-mega`. For the mega panel's featured column, create a
+  widget area named `mega-<item url slug>` (e.g. `mega-services`), or put `mega-area:<name>` in
+  the menu item's CSS classes.
 - Override a block per site with `<PortableText components={{ type: { 'vitops_cards': MyCards } }} />`;
   hide one with `vitopsEmdash({ blocks: { exclude: [...] } })`.
 - **One `<h1>` per page.** The template's page routes render the title as an `<h1>`, and a hero's
@@ -115,6 +124,8 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
   `.agents/skills/contact-form/SKILL.md`.
 - `public/_headers` ships a Report-Only CSP. Read `.agents/skills/csp/SKILL.md` before enforcing it
   or adding embeds.
+- To look at a rendered page, use `playwright-cli` (`.agents/skills/see-the-page/`), never a browser
+  extension or MCP server.
 - `vitops audit` needs optional packages and a browser, checked before it starts a server:
   `vp add -D @axe-core/playwright lighthouse && vp exec playwright install chromium` (`playwright`
   itself is already a devDependency).
@@ -125,8 +136,6 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
 - Work on **`dev`**; every push auto-deploys the isolated `-dev` worker.
 - **`main`** is production and protected: never push or merge to it. It ships only through the
   `promote` skill (`.agents/skills/promote/`), and only when the user explicitly asks.
-- To look at a rendered page, use `playwright-cli` (`.agents/skills/see-the-page/`), never a browser
-  extension or MCP server.
 - Sample legal pages (`/terms`, `/privacy`) are deliberately short, unfinished placeholders; don't
   "improve" them into something that reads as a finished policy. To replace them, fill in
   `site.json`'s `organization`/`site.legal`, run

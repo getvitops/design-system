@@ -1,0 +1,201 @@
+/**
+ * Masthead — the site's top bar: brand, navigation, actions. Pure CSS (tier 1); `<Masthead>`
+ * (`@getvitops/astro`) only emits the classes below from `site.chrome.masthead`.
+ *
+ *   <header class="masthead masthead--sticky masthead--glass masthead--shadow-on-scroll">
+ *     <div class="masthead__row navbar centered">brand · nav · actions</div>
+ *   </header>
+ *
+ * Named "masthead", not "header"/"banner": `<header>` is valid in any section, and `.banner` is
+ * the announcement bar. The element is a plain `<header>` with no explicit `role`.
+ *
+ * ── SAFE BASE, SUBTRACTIVE ENHANCEMENTS ──
+ * The un-modified rule is the settled state: visible, solid (or glass), elevated, in flow.
+ * Scroll behaviour is layered on with `scroll-state()` container queries that only ever
+ * SUBTRACT from it — `*-on-scroll` clears the surface/shadow/border while the page is at the
+ * top; `hide-on-scroll` slides the bar away. Where the query is unsupported (Firefox today)
+ * nothing subtracts, so the bar stays visible, solid and elevated: a query can change how the
+ * bar looks, never leave it unreadable or take the nav away. (Writing these the other way
+ * round — base clear, query reveals — leaves an unsupporting browser with a transparent bar
+ * over body text forever.)
+ *
+ * Hooks (all optional custom properties): `--masthead-height`, `--masthead-bg`, `--masthead-fg`,
+ * `--masthead-blur`, `--masthead-glass-opacity`, `--masthead-inset`, `--masthead-shadow`,
+ * `--masthead-border`. `site.chrome.masthead` sets `--masthead-height` and `--masthead-inset`
+ * on `:root` (see `mastheadRootCss()`), so a clamp()/cqi length there reaches `--header-offset`.
+ */
+
+/* Zero-specificity colour defaults, so a `.tone` (or any class) on the element wins. */
+:where(.masthead) {
+  --_masthead-base: var(--tone-bg, var(--color-bg-surface));
+
+  background-color: var(--masthead-bg, var(--_masthead-base));
+  color: var(--masthead-fg, var(--tone-fg, var(--color-text-surface)));
+}
+
+.masthead {
+  --_masthead-h: var(--masthead-height, 4rem);
+  --_masthead-inset: 0px;
+
+  position: relative;
+  z-index: var(--z-tier-sticky);
+  display: block;
+  box-sizing: border-box;
+  transition:
+    translate 0.25s ease,
+    background-color 0.25s ease,
+    box-shadow 0.25s ease,
+    backdrop-filter 0.25s ease;
+}
+
+.masthead__row {
+  display: block;
+}
+
+/* The row's flex child carries the height; `.centered` (when used) is the grid around it. */
+.masthead__row > .navbar {
+  min-block-size: var(--_masthead-h);
+}
+
+/* `width: full` has no track to supply a gutter. */
+.masthead__row:not(.centered) > .navbar {
+  padding-inline: var(--masthead-gutter, 1rem);
+}
+
+/* ── Position ──────────────────────────────────────────────────────────────── */
+.masthead--sticky {
+  position: sticky;
+  inset-block-start: var(--_masthead-inset);
+}
+
+/* Out of flow: overlays the first section. Pair with `--transparent*`. */
+.masthead--fixed {
+  position: fixed;
+  inset-block-start: var(--_masthead-inset);
+  inset-inline: 0;
+}
+
+/* Anchors and `scroll-padding` land below a pinned masthead. Sticky keeps its space in
+   flow, fixed does not, but both cover the top of the viewport. */
+:root:has(.masthead--sticky, .masthead--fixed) {
+  --header-offset: calc(var(--masthead-height, 4rem) + var(--masthead-inset, 0px));
+  --top-offset: var(--header-offset);
+}
+
+/* ── Surface ───────────────────────────────────────────────────────────────── */
+.masthead--glass {
+  background-color: color-mix(
+    in oklch,
+    var(--masthead-bg, var(--_masthead-base)) var(--masthead-glass-opacity, 72%),
+    transparent
+  );
+  backdrop-filter: blur(var(--masthead-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--masthead-blur, 12px));
+}
+
+/* A browser without backdrop-filter would show page content through a tint. Go solid. */
+@supports not (backdrop-filter: blur(1px)) {
+  .masthead--glass {
+    background-color: var(--masthead-bg, var(--_masthead-base));
+  }
+}
+
+.masthead--transparent {
+  background-color: transparent;
+}
+
+/* ── Layout ────────────────────────────────────────────────────────────────── */
+.masthead--inset,
+.masthead--floating {
+  --_masthead-inset: var(--masthead-inset, 0.75rem);
+
+  margin-inline: var(--_masthead-inset);
+  margin-block-start: var(--_masthead-inset);
+}
+
+/* `fixed` has no flow to margin against: pin the box in by its insets instead. */
+.masthead--fixed.masthead--inset,
+.masthead--fixed.masthead--floating {
+  margin: 0;
+  inset-inline: var(--_masthead-inset);
+}
+
+.masthead--inset {
+  border-radius: var(--br-control, 0.375rem);
+}
+
+.masthead--floating {
+  border-radius: var(--br-panel, 1rem);
+  overflow: clip;
+}
+
+/* ── Elevation ─────────────────────────────────────────────────────────────── */
+.masthead--shadow {
+  box-shadow: var(--masthead-shadow, var(--shadow-sm));
+}
+
+.masthead--border {
+  border-block-end: var(
+    --masthead-border,
+    1px solid var(--tone-border, var(--color-border-surface))
+  );
+}
+
+/* A full outline once the masthead is detached from the viewport edge. */
+.masthead--border:is(.masthead--inset, .masthead--floating) {
+  border: var(--masthead-border, 1px solid var(--tone-border, var(--color-border-surface)));
+}
+
+/* ── Scroll behaviour ───────────────────────────────────────────────────────
+   The page is the scroll-state container. Only when a masthead asks for one, so a
+   site that uses none pays nothing. */
+:root:has(
+  .masthead--hide-on-scroll,
+  .masthead--transparent-until-scrolled,
+  .masthead--shadow-on-scroll,
+  .masthead--border-on-scroll
+) {
+  container: masthead-page / scroll-state;
+}
+
+/* At the top of the page, the *-on-scroll modifiers subtract their settled look. `not
+   scroll-state(scrollable: top)` is "nothing above the viewport", i.e. scrollY = 0. */
+@container masthead-page not scroll-state(scrollable: top) {
+  .masthead--transparent-until-scrolled {
+    background-color: transparent;
+    /* A glass bar would otherwise blur the hero behind an otherwise clear bar. */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .masthead--shadow-on-scroll {
+    box-shadow: none;
+  }
+  .masthead--border-on-scroll {
+    border-color: transparent;
+  }
+}
+
+/* Slide away while the last scroll was downward; back when it reverses. Never while the
+   visitor is inside it: focus, an open popover or an open disclosure keeps it on screen. */
+@container masthead-page scroll-state(scrolled: block-end) {
+  .masthead--hide-on-scroll:not(:focus-within, :has(:popover-open, details[open])) {
+    translate: 0 calc(-100% - var(--_masthead-inset) - 1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .masthead {
+    transition: none;
+  }
+}
+
+/* Shadows and tints disappear in forced-colors; keep a real edge. */
+@media (forced-colors: active) {
+  .masthead {
+    border-block-end: 1px solid CanvasText;
+  }
+  .masthead--inset,
+  .masthead--floating {
+    border: 1px solid CanvasText;
+  }
+}

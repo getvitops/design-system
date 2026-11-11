@@ -1,0 +1,209 @@
+---
+/**
+ * Masthead demo pages — one static page per variant, so a real viewport (and the e2e suite) can
+ * scroll them. The docs page `/masthead` embeds each in an `<iframe>`: a sticky or fixed bar
+ * cannot be demonstrated inside a scrolling docs page without fighting its own header.
+ *
+ * Everything on a page is the framework's own vocabulary; the only per-variant input is the
+ * `site.chrome` block, passed as `config` exactly as a real layout passes `site.json`.
+ */
+import Head from '@getvitops/astro/Head.astro';
+import Masthead from '@getvitops/astro/components/Masthead.astro';
+import SiteNav from '@getvitops/astro/components/SiteNav.astro';
+import { resolveNavOptions } from '@getvitops/astro/components/masthead.ts';
+import '../../../styles/styles.css';
+
+export function getStaticPaths() {
+  const nav = {
+    primary: [
+      {
+        label: 'Services',
+        url: '/services/',
+        children: [
+          { label: 'Design systems', url: '/services/design/', titleAttr: 'Tokens, patterns, docs' },
+          { label: 'Websites', url: '/services/web/', titleAttr: 'EmDash and WordPress' },
+          { label: 'Support', url: '/services/support/' },
+        ],
+      },
+      { label: 'Pricing', url: '/pricing/' },
+      { label: 'Case studies', url: '/work/' },
+      { label: 'Contact', url: '/contact/' },
+    ],
+  };
+  const mega = {
+    mega: [
+      {
+        label: 'Services',
+        url: '/services/',
+        children: [
+          {
+            label: 'Build',
+            url: '/services/build/',
+            children: [
+              { label: 'Design systems', url: '/services/design/', titleAttr: 'Tokens, patterns, docs' },
+              { label: 'Websites', url: '/services/web/' },
+            ],
+          },
+          {
+            label: 'Run',
+            url: '/services/run/',
+            children: [
+              { label: 'Hosting', url: '/services/hosting/' },
+              { label: 'Support', url: '/services/support/' },
+            ],
+          },
+        ],
+      },
+      { label: 'Pricing', url: '/pricing/' },
+      { label: 'Contact', url: '/contact/' },
+    ],
+  };
+  return [
+    {
+      params: { variant: 'sticky-glass' },
+      props: {
+        nav,
+        chrome: {
+          masthead: { position: 'sticky', surface: 'glass', elevation: { shadow: 'sm', onScroll: true } },
+        },
+      },
+    },
+    {
+      params: { variant: 'hide-on-scroll' },
+      props: {
+        nav,
+        chrome: {
+          masthead: { position: 'sticky', behavior: 'hide-on-scroll', elevation: { border: true } },
+        },
+      },
+    },
+    {
+      params: { variant: 'floating' },
+      props: {
+        nav,
+        chrome: {
+          masthead: {
+            position: 'sticky',
+            surface: 'glass',
+            layout: 'floating',
+            inset: '1.5rem',
+            height: '5rem',
+            elevation: { shadow: 'sm' },
+          },
+        },
+      },
+    },
+    {
+      params: { variant: 'fluid' },
+      props: {
+        nav,
+        chrome: {
+          masthead: {
+            position: 'sticky',
+            surface: 'glass',
+            layout: 'floating',
+            height: 'clamp(3.5rem, 8cqi, 4.5rem)',
+            inset: 'clamp(0.5rem, 3cqi, 2rem)',
+            elevation: { shadow: 'sm' },
+          },
+        },
+      },
+    },
+    {
+      params: { variant: 'transparent-hero' },
+      props: {
+        nav,
+        hero: true,
+        chrome: {
+          masthead: {
+            position: 'fixed',
+            surface: 'transparent-until-scrolled',
+            elevation: { shadow: 'sm', onScroll: true },
+          },
+        },
+      },
+    },
+    {
+      params: { variant: 'dropdown' },
+      props: {
+        nav,
+        chrome: { masthead: { position: 'sticky' }, nav: { compact: 'dropdown', breakpoint: 'xl' } },
+      },
+    },
+    {
+      params: { variant: 'mega' },
+      props: {
+        nav: { ...nav, ...mega },
+        chrome: {
+          masthead: { position: 'sticky', elevation: { border: true } },
+          nav: { megaBreakpoint: 'lg', breakpoint: 'md' },
+        },
+      },
+    },
+  ];
+}
+
+const { variant } = Astro.params;
+const { nav, chrome, hero } = Astro.props as {
+  nav: { primary: any[]; mega?: any[] };
+  chrome: Record<string, any>;
+  hero?: boolean;
+};
+const site = { site: { chrome } };
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Masthead demo — {variant}</title>
+    <Head />
+  </head>
+  <body data-variant={variant}>
+    <Masthead config={site}>
+      <a slot="brand" class="font-heading" href="/">Acme</a>
+      <SiteNav
+        primary={nav.primary}
+        mega={nav.mega}
+        {...resolveNavOptions(site)}
+        current="/pricing/"
+      />
+      <a slot="actions" class="cta" href="/contact/">Get in touch</a>
+    </Masthead>
+    <main class="rhythm">
+      {
+        hero && (
+          <section
+            class="bg-brand-primary-muted"
+            style="min-block-size: 70vh; display: grid; place-items: center"
+          >
+            <h1 class="font-display">Hero under a transparent masthead</h1>
+          </section>
+        )
+      }
+      <div class="centered rhythm">
+        <h1 id="top" class="font-display">Scroll me</h1>
+        <p>
+          The masthead above is configured by <code>site.chrome</code> alone. Scroll down, then up.
+        </p>
+        {
+          Array.from({ length: 30 }, (_, i) => (
+            <p>
+              Paragraph {i + 1}. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+              eiusmod tempor incididunt ut labore et dolore magna aliqua.
+            </p>
+          ))
+        }
+        <h2 id="anchor-target">Anchor target</h2>
+        <p>Jumping here must land below a pinned masthead (<code>--header-offset</code>).</p>
+        {
+          Array.from({ length: 30 }, (_, i) => (
+            <p>More {i + 1}. Ut enim ad minim veniam, quis nostrud exercitation.</p>
+          ))
+        }
+      </div>
+    </main>
+  </body>
+</html>

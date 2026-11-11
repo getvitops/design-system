@@ -1,0 +1,49 @@
+---
+/**
+ * Masthead — the site's top bar, from `site.chrome.masthead` with per-layout overrides. Markup
+ * and classes only, no runtime JS: position, glass/transparent surfaces, inset/floating layout,
+ * shadow/border and hide-on-scroll are all `patterns/masthead.css` (scroll-state queries).
+ *
+ *   import site from '../../site.json';
+ *   import { resolveNavOptions } from '@getvitops/astro/components/masthead.ts';
+ *   <Masthead config={site}>
+ *     <a slot="brand" href="/">Acme</a>
+ *     <SiteNav {...nav} {...resolveNavOptions(site)} />
+ *     <a slot="actions" class="cta" href="/contact">Contact</a>
+ *   </Masthead>
+ *
+ * A prop overrides the same field from the config for this layout — e.g. a landing page that
+ * sets `position="fixed" surface="transparent-until-scrolled"` over a hero. The element is a
+ * plain header with no `role="banner"`: a body-level header already is the banner landmark,
+ * and an explicit role is what auditors flag.
+ */
+import {
+  mastheadClass,
+  mastheadRootCss,
+  mastheadStyle,
+  resolveMasthead,
+  type ChromeSource,
+  type MastheadOptions,
+} from './masthead.ts';
+
+interface Props extends MastheadOptions {
+  /** The site config (or anything shaped `{ site: { chrome } }`). */
+  config?: ChromeSource;
+  class?: string;
+}
+
+const { config, class: className, ...override } = Astro.props;
+const masthead = resolveMasthead(config, override);
+const rootCss = mastheadRootCss(masthead);
+---
+
+{rootCss && <style is:global set:html={rootCss} />}
+<header class:list={[...mastheadClass(masthead), className]} style={mastheadStyle(masthead)}>
+  <div class:list={['masthead__row', masthead.width === 'content' && 'centered']}>
+    <div class="navbar">
+      <slot name="brand" />
+      <div class="navbar__spacer"><slot /></div>
+      <slot name="actions" />
+    </div>
+  </div>
+</header>

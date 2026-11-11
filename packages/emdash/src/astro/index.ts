@@ -67,6 +67,9 @@ export const blockTypeComponents = {
 /** The framework-styled widget area, for a site layout (the block form is `vitops_widgetArea`). */
 export { default as VitopsWidgetArea } from './WidgetArea.astro';
 
+/** A mega-menu panel's extra column from a widget area, for `<SiteNav megaPanel={VitopsMegaPanel} />`. */
+export { default as VitopsMegaPanel } from './MegaPanel.astro';
+
 /**
  * `themeAttrs('surface')` → `{ class, style }` for the layout's `<body>` (or any element a site owns):
  * the same backdrop-and-readable-text every block's `theme` field gives, from the site's own roles.
