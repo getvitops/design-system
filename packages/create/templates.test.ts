@@ -384,10 +384,10 @@ describe.each(templateNames)('template %s skills from @getvitops/skills', (templ
 describe.each(templateNames)('template %s covers the patterns the blocks emit', (name) => {
   const site = JSON.parse(readFileSync(join(TEMPLATES, name, 'site.json'), 'utf8'));
   const items = Object.keys(site.designSystem.themes.default.patterns.items);
-  it.each(['btn', 'button', 'cta', 'link', 'card', 'badge', 'tag', 'details', 'steps'])(
+  it.each(['btn', 'cta', 'link', 'card', 'badge', 'tag', 'details', 'steps'])(
     'defines %s',
     (pattern) => {
-      expect(items).toContain(pattern === 'btn' ? 'button' : pattern);
+      expect(items).toContain(pattern);
     },
   );
   it('defines ui-accent for heading accents', () => {

@@ -376,3 +376,20 @@ whether `content:afterPublish` fires for scheduled publishes (the `emdash-publis
 No table or comparison block, no role-setup diagram, no timeline: the licence tracker, the ads comparison and the
 joining-and-leaving diagram became checklists in panel cards. `table.css` and `vitops_entries` are a start for a
 comparison block; a timeline could reuse the steps connector. Needs a second consumer before designing.
+
+### CSS transitions run at page load
+
+Measured on the e2e `/blocks` page (Chromium, Playwright): at `load`, ~150 `CSSTransition`s are running, every pattern
+with `transition-property: … background-color, color` animating from its unstyled value. It happens with every script
+removed from the page when the stylesheet arrives after parsing, and with the scripts in place even when it does not, and
+it stops when the bundle `<script>` tags sit after the `<link rel="stylesheet">`s (1 transition). The effect is a 200 ms
+colour flash on every button at first paint. `vitops audit` now waits for transitions before axe, which removes the false
+contrast failures; the flash itself is open. Candidates: emit the pattern transition only under a class set after first
+paint, or have `<Head />` place the bundle tags after Astro's stylesheet links (Astro appends them after the component).
+
+### `text-on-<role>` contract: APCA Lc 60 is below WCAG AA
+
+The generator guarantees `text-on-<role>` at APCA Lc ≥ 60 on the role's solid, but axe and Lighthouse grade by WCAG
+4.5:1. A step-600 blue or red (the template's `info`/`danger`) passes the contract at 4.2:1 and 4.4:1 and fails every
+client audit. Either raise the `text-on` bar to Lc 75 (`CONTRAST.TEXT`), or add a WCAG 4.5:1 check beside it with the
+same `acknowledgeContrast` escape hatch. Both will fail some existing configs; survey the reference config first.

@@ -260,6 +260,7 @@ export async function runAudit(opts: RunOptions): Promise<PageResult[]> {
           newContext(): Promise<{
             newPage(): Promise<{
               goto(u: string, o: { waitUntil: string }): Promise<unknown>;
+              waitForFunction(fn: string, arg?: unknown, o?: { timeout: number }): Promise<unknown>;
             }>;
             close(): Promise<void>;
           }>;
@@ -319,6 +320,18 @@ export async function runAudit(opts: RunOptions): Promise<PageResult[]> {
       let violations: AxeViolation[];
       try {
         await page.goto(url, { waitUntil: 'load' });
+        // Let the page settle before axe reads colours. At `load` Chromium can still be running
+        // the CSS transitions every pattern declares (a filled button mid-way from its unstyled
+        // colour), and axe then reports a contrast ratio no visitor sees. Measured on the e2e
+        // `/blocks` page: 152 transitions at `load`, ten false contrast failures; none 300 ms
+        // later. Bounded, so a page with a looping transition still gets audited.
+        await page
+          .waitForFunction(
+            "document.getAnimations().every((a) => a.constructor.name !== 'CSSTransition' || a.playState === 'finished')",
+            undefined,
+            { timeout: 2000 },
+          )
+          .catch(() => undefined);
         violations = toViolations(await new axe.AxeBuilder({ page }).withTags(AXE_TAGS).analyze());
       } finally {
         await context.close();

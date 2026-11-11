@@ -529,13 +529,20 @@ wc-carousel {
   margin: var(--carousel-hint-inset, 0.5rem);
   z-index: var(--z-tier-raised);
   pointer-events: none;
-  color: var(--color-text-surface-x-muted);
+  /* `muted`, not `x-muted`: the hint is visible text, and `x-muted` is the placeholder tier the
+     contrast contract exempts (axe flagged it at 1.34:1). */
+  color: var(--color-text-surface-muted);
   transition: opacity 0.3s ease;
 }
 
+/* The hint fades out over the first 12% of scroll and is then hidden outright: an element left at
+   0.2 opacity is still text to an audit (axe reported 1.34:1), and once the visitor has scrolled it
+   has nothing left to say. `visibility` flips only at the end of the range, so the fade still shows.
+   Set --carousel-hint-dimmed above 0 to keep a ghost of it instead. */
 @keyframes carousel-hint-dim {
   to {
-    opacity: var(--carousel-hint-dimmed, 0.2);
+    opacity: var(--carousel-hint-dimmed, 0);
+    visibility: hidden;
   }
 }
 
