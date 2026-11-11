@@ -431,3 +431,14 @@ describe('the plugin block map is not emptied by an import cycle', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/**
+ * EmDash validates a block type's field slugs against `[a-z][a-z0-9_]*` at seed time only, so a
+ * camelCase slug (`ctaLabel`) passes every unit test and fails the first `emdash seed --validate`.
+ */
+it('every block-type field slug is lowercase snake_case', () => {
+  for (const type of vitopsBlockTypes())
+    for (const v of type.versions)
+      for (const f of v.fields)
+        expect(f.slug, `${type.slug}.${f.slug}`).toMatch(/^[a-z][a-z0-9_]*$/);
+});

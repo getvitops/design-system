@@ -8,7 +8,7 @@
  * Composed from the framework's layout primitives: `.region` for vertical rhythm, `.centered`
  * for the tracks (the `width` field picks `breakout`/`spotlight`/`fullbleed`), `.section` for
  * the head and the heading-left `split` layout, `.tone` for the backdrop. The heading is a
- * real heading at the editor's `level`, with `*accent*` runs. Level 1 plus `ctaLabel`/`secondaryLabel`
+ * real heading at the editor's `level`, with `*accent*` runs. Level 1 plus `cta_label`/`secondary_label`
  * make it the page opener, so a hero is not nested in a section. `stack: rhythm` puts `.rhythm` on the
  * inner element so head and body are spaced by the vertical-rhythm scale.
  *
@@ -38,10 +38,11 @@ interface Value {
   color?: string;
   solid?: boolean;
   theme?: string;
-  ctaLabel?: string;
-  ctaHref?: string;
-  secondaryLabel?: string;
-  secondaryHref?: string;
+  // A block TYPE's slugs must be lowercase (like `class_name`), so these are snake_case.
+  cta_label?: string;
+  cta_href?: string;
+  secondary_label?: string;
+  secondary_href?: string;
   stack?: string;
 }
 
@@ -65,10 +66,10 @@ const solid = Boolean(value.solid);
 const layout = text(value.layout);
 const width = WIDTHS[text(value.width)];
 const headingRuns = accentRuns(heading);
-const ctaLabel = text(value.ctaLabel);
-const ctaHref = safeHref(value.ctaHref);
-const secondaryLabel = text(value.secondaryLabel);
-const secondaryHref = safeHref(value.secondaryHref);
+const ctaLabel = text(value.cta_label);
+const ctaHref = safeHref(value.cta_href);
+const secondaryLabel = text(value.secondary_label);
+const secondaryHref = safeHref(value.secondary_href);
 const hasActions = Boolean((ctaLabel && ctaHref) || (secondaryLabel && secondaryHref));
 const stacked = text(value.stack) === 'rhythm';
 const hasHead = Boolean(kicker || heading || sub || hasActions);
