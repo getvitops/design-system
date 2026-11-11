@@ -13,6 +13,10 @@ interface Value {
   logos?: unknown;
   grayscale?: boolean;
   size?: string;
+  kicker?: string;
+  note?: string;
+  linkLabel?: string;
+  linkHref?: string;
 }
 
 const HEIGHTS: Record<string, string> = { sm: '1.75rem', md: '2.5rem', lg: '3.5rem' };
@@ -23,11 +27,23 @@ const logos = rows<Record<string, unknown>>(value.logos)
   .map((row) => ({ image: safeHref(row.image), alt: text(row.alt), href: safeHref(row.href) }))
   .filter((logo) => logo.image || logo.alt);
 const height = HEIGHTS[text(value.size)];
+const kicker = text(value.kicker);
+const note = text(value.note);
+const linkLabel = text(value.linkLabel);
+const linkHref = safeHref(value.linkHref);
+const hasLink = Boolean(linkLabel && linkHref);
+// A wrapper exists only when there is a kicker, note or link to hold. The attributes stay on the
+// list in both cases, as they do on `vitops_cards`, so a selector on the list works either way.
+const framed = Boolean(kicker || note || hasLink);
+const Wrap = framed ? 'div' : Fragment;
+const wrapProps = framed ? { class: 'logos-block' } : {};
 import { rootAttrs } from './attrs.ts';
 ---
 
 {
   logos.length > 0 && (
+    <Wrap {...wrapProps}>
+      {kicker && <p class="logos__kicker font-eyebrow">{kicker}</p>}
     <ul
       {...rootAttrs(value, ['logos', value.grayscale && 'logos--grayscale'], height ? `--logos-height: ${height}` : undefined)}
       role="list"
@@ -47,5 +63,14 @@ import { rootAttrs } from './attrs.ts';
         </li>
       ))}
     </ul>
+      {note && <p class="logos__note font-caption">{note}</p>}
+      {hasLink && (
+        <p class="logos__link">
+          <a class="link" href={linkHref}>
+            {linkLabel}
+          </a>
+        </p>
+      )}
+    </Wrap>
   )
 }

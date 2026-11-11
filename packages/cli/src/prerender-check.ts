@@ -133,6 +133,27 @@ export function brokenInternalLinks(html: string, routes: ReadonlySet<string>): 
   return [...broken].sort();
 }
 
+/**
+ * URLs a sitemap lists that the build did not produce a page for. A collection with no
+ * `urlPattern` is listed as `/<collection>/<slug>` while the site serves `/<slug>`, so the
+ * sitemap submitted to a search engine would be all dead links. Only same-path `<loc>`s are judged.
+ */
+export function sitemapOrphans(xml: string, routes: ReadonlySet<string>): string[] {
+  const orphans = new Set<string>();
+  for (const m of xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)) {
+    let path: string;
+    try {
+      path = new URL(m[1]!).pathname;
+    } catch {
+      continue;
+    }
+    if (/\.[a-z0-9]{1,8}$/i.test(path)) continue; // nested sitemaps, assets
+    const norm = path.length > 1 ? path.replace(/\/+$/, '') : path;
+    if (!routes.has(norm)) orphans.add(norm);
+  }
+  return [...orphans].sort();
+}
+
 /** Whether a built page carries the `vitops_form` block's post (to the conversion route). */
 export function hasConversionForm(html: string): boolean {
   return /<form[^>]*\saction\s*=\s*["']\/api\/track["']/i.test(html);

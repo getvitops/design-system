@@ -280,10 +280,20 @@ export const TIERS: Record<string, TierEntry> = {
   steps: {
     emdash: ['vitops_steps'],
     css: c(
-      ['steps', 'steps__item', 'steps__body', 'steps__title', 'steps__text', 'steps--row'],
+      [
+        'steps',
+        'steps__item',
+        'steps__body',
+        'steps__title',
+        'steps__text',
+        'steps--row',
+        'steps--cards',
+        'steps--animated',
+      ],
       'patterns/steps.css',
+      true,
     ),
-    use: '`<ol class="steps tone">` of `<li class="steps__item">` each holding a `.steps__body` with a real heading. The number is a CSS counter and the connector line a pseudo-element; `.steps--row` runs it sideways when wide.',
+    use: '`<ol class="steps tone">` of `<li class="steps__item">` each holding a `.steps__body` with a real heading. The number is a CSS counter and the connector line a pseudo-element; `.steps--row` runs it sideways when wide; `.steps--cards` puts each step in a card and `.steps--animated` draws the connector on scroll. The marker size and card geometry are the `steps` entry of `patterns.items` (`--steps-marker-size`, the `content` group tokens).',
   },
   stats: {
     emdash: ['vitops_stats'],

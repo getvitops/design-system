@@ -63,3 +63,17 @@
     opacity: 1;
   }
 }
+
+/* The optional frame: a line above the row, and a closing note and link below it. */
+.logos-block {
+  display: grid;
+  justify-items: center;
+  gap: var(--logos-block-gap, 1.25rem);
+  text-align: center;
+
+  .logos__kicker,
+  .logos__note,
+  .logos__link {
+    margin: 0;
+  }
+}

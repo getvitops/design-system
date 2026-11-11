@@ -1,6 +1,6 @@
 import { noChange } from 'lit';
 import { BaseElement } from './BaseElement.js';
-import { easingToken, formatterFor, parseFigure } from './utils/counter.js';
+import { easingToken, formatterFor, isAnimatableFigure, parseFigure } from './utils/counter.js';
 import { initFromLightDom } from './utils/upgrade.js';
 
 /**
@@ -130,6 +130,9 @@ export class WCCounter extends BaseElement {
     if (!source) return false; // Retry hook — see initFromLightDom.
 
     this.#source = source;
+    // "1 in 6", "24/7", "—": not one figure, so a count-up would show something false. Leave the
+    // fallback text as authored.
+    if (!isAnimatableFigure(source.textContent ?? '')) return true;
     const decimalsAttr = this.getAttribute('data-decimals');
     const parsed = parseFigure(
       source.textContent ?? '',

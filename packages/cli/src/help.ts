@@ -541,6 +541,9 @@ export const EMDASH_HELP = `vitops emdash — build-time steps for an EmDash sit
                                      is not a real page
   vitops emdash build [d]            astro build, then check-prerender; also fails when the build
                                      reports a block type with no component (content dropped)
+  vitops emdash form-template --from <seed.json> [--name contact] [--site site.json] [--dry]
+                                     Copy a vitops_form block into site.templates (the privacy
+                                     policy's "what we collect" and a check-prerender input)
 
 Run \`vitops --help\` for the full option list for each subcommand.
 `;

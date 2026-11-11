@@ -464,6 +464,9 @@ const FormFieldType = z.enum([
   'textarea',
   'select',
   'checkbox',
+  // Several checkboxes under one name; the block renderer's own spelling, so a hand-written template
+  // that copies a block's field list validates. `formTemplateFromBlock` writes `checkbox`.
+  'checkboxes',
   'radio',
   'date',
   'file',
@@ -491,7 +494,7 @@ const ContentNodeSchema: z.ZodMiniType = z.strictObject({
   },
 });
 
-const TemplateSchema = z.union([
+const TemplateSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('nav'),
     tags: z.optional(z.array(z.string())),

@@ -550,6 +550,10 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         label: 'Accessible name',
         initial_value: 'Partners',
       },
+      { type: 'text_input', action_id: 'kicker', label: 'Line above the row (optional)' },
+      { type: 'text_input', action_id: 'note', label: 'Closing note under the row (optional)' },
+      { type: 'text_input', action_id: 'linkLabel', label: 'Link text under the row (optional)' },
+      { type: 'text_input', action_id: 'linkHref', label: 'Link URL' },
       {
         type: 'repeater',
         action_id: 'logos',
@@ -761,6 +765,16 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
           { type: 'text_input', action_id: 'name', label: 'Plan name' },
           { type: 'text_input', action_id: 'price', label: 'Price (e.g. $49)' },
           { type: 'text_input', action_id: 'period', label: 'Period (e.g. per month)' },
+          {
+            type: 'text_input',
+            action_id: 'yearly',
+            label: 'Yearly price line (e.g. $34 paid yearly), shown under the price',
+          },
+          {
+            type: 'text_input',
+            action_id: 'note',
+            label: 'Note under the plan name (e.g. Best for small teams)',
+          },
           {
             type: 'text_input',
             action_id: 'features',

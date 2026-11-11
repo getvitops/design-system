@@ -20,6 +20,8 @@ const plans = rows<Record<string, unknown>>(value.plans)
     name: text(row.name),
     price: text(row.price),
     period: text(row.period),
+    yearly: text(row.yearly),
+    note: text(row.note),
     features: lines(row.features),
     ctaLabel: text(row.ctaLabel),
     ctaHref: safeHref(row.ctaHref),
@@ -41,10 +43,12 @@ import { rootAttrs } from './attrs.ts';
         <li class:list={['pricing-card', plan.featured && 'pricing-card--featured']}>
           <div class="pricing-card__header">
             {plan.name && <Heading class="font-title">{plan.name}</Heading>}
+            {plan.note && <p class="pricing-card__note font-caption">{plan.note}</p>}
           </div>
           <p class="pricing-card__price">
             {plan.price}
             {plan.period && <small class="font-caption"> {plan.period}</small>}
+            {plan.yearly && <small class="pricing-card__yearly font-caption">{plan.yearly}</small>}
           </p>
           <ul class="pricing-card__features" role="list">
             {plan.features.map((feature) => (

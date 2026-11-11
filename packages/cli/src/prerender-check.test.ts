@@ -7,6 +7,7 @@ import {
   deliveryProblem,
   hasConversionForm,
   routeOf,
+  sitemapOrphans,
   h1Count,
   missingBlockComponents,
   missingTypeRoleRules,
@@ -145,5 +146,16 @@ describe('unrenderedBlocks / prerenderProblem', () => {
       prerenderProblem(page('<template data-vitops-unrendered="vitops_cards"></template>')),
     ).toMatch(/dropped block.*vitops_cards/);
     expect(prerenderProblem(page('<p>ok</p>'))).toBeUndefined();
+  });
+});
+
+describe('sitemapOrphans', () => {
+  const routes = new Set(['/', '/about', '/blog/hello']);
+  it('names listed URLs the build has no page for', () => {
+    const xml = `<urlset><url><loc>https://x.ca/</loc></url><url><loc>https://x.ca/pages/about</loc></url><url><loc>https://x.ca/about/</loc></url></urlset>`;
+    expect(sitemapOrphans(xml, routes)).toEqual(['/pages/about']);
+  });
+  it('ignores nested sitemaps and assets', () => {
+    expect(sitemapOrphans('<loc>https://x.ca/sitemap-0.xml</loc>', routes)).toEqual([]);
   });
 });

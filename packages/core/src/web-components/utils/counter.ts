@@ -22,6 +22,15 @@ export interface ParsedFigure {
 const FIGURE_RE = /^([^0-9-]*)(-?[0-9,]*\.?[0-9]*)([^0-9]*)$/;
 
 /**
+ * Whether fallback text is ONE figure the count-up can honestly animate. `"1 in 6"` and `"24/7"` have
+ * more than one number, `"—"` has none; animating them would count down from zero to a wrong value.
+ */
+export function isAnimatableFigure(text: string): boolean {
+  const match = FIGURE_RE.exec(text.trim());
+  return !!match && /[0-9]/.test(match[2] ?? '');
+}
+
+/**
  * Parse a figure out of fallback text.
  *
  * Assumes `,` groups and `.` decimals — en-US-style, matching the grouping

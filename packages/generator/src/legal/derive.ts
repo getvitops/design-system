@@ -197,6 +197,7 @@ function fieldPhrase(name: string, type: string): string | undefined {
     case 'select':
     case 'radio':
     case 'checkbox':
+    case 'checkboxes':
       return 'your answers to the questions we ask';
     default:
       break;

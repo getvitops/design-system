@@ -101,3 +101,10 @@ reviewers' approval** like any prod deploy (relax that rule if editors' publishe
 unattended), and bursts of publishes queue behind the `deploy-prod` concurrency group rather than
 cancelling each other. Without the hook, a manual run of **Deploy prod** (or a push to `main`) does
 the same job.
+
+## Sitemap lists `/pages/<slug>`
+
+A collection with no `urlPattern` is listed as `/<collection>/<slug>`, so the sitemap would send
+search engines to 404s while the site serves `/<slug>`. `vitops emdash build` (check-prerender) warns
+when the sitemap lists URLs the build has no page for. Set the pattern on the collection (the seed's
+`urlPattern`, or Content types in the admin); a database made before the seed set it needs the admin fix.

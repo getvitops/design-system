@@ -7,7 +7,7 @@
  * the list is simply a numbered list. Vertical by default, side by side with `--row`
  * once the container has room.
  *
- * The marker takes its fill from `.tone` (`--tone-solid` / `--tone-on-solid`), so one
+ * The marker takes its colour from `.tone` (`--tone-solid` / `--tone-on-solid`), so one
  * `tone` field recolours the whole sequence.
  */
 .steps {
@@ -25,6 +25,8 @@
   .steps__item {
     position: relative;
     display: grid;
+    align-content: start; /* a row's items stretch to its height; the marker stays at the top */
+    margin-block-start: 0; /* not `.rhythm li + li`'s step gap: the grid `gap` already spaces them */
     grid-template-columns: var(--_marker) minmax(0, 1fr);
     column-gap: 1rem;
     align-items: start;
@@ -40,8 +42,11 @@
     block-size: var(--_marker);
     border-radius: 50%;
     font-weight: 700;
-    background-color: var(--tone-solid, currentColor);
-    color: var(--tone-on-solid, Canvas);
+    /* An outlined disc in the tone, so it reads with no tone set (a filled one on Canvas text was
+       a black disc with no number). `--steps-p` fills it for `steps--animated`. */
+    background-color: transparent;
+    color: var(--tone-solid, currentColor);
+    border: var(--_line) solid var(--tone-solid, currentColor);
     position: relative;
     z-index: 1;
   }
@@ -78,6 +83,77 @@
   }
 }
 
+/* Each step in a card (`className: steps--cards`). The card's geometry is the `steps` pattern's
+   (`patterns.items.steps` in site.json: padding, border, radius, shadow), so a site restyles it
+   there. The connector then runs in the gap between cards, at the marker's height. */
+.steps.steps--cards {
+  .steps__item {
+    padding: var(--p-steps-group, 1.5rem);
+    border: var(--b-steps-group, 1px solid var(--color-border-surface-muted));
+    border-radius: var(--br-steps-group, 0.75rem);
+    box-shadow: var(--ds-steps-group, none);
+    background-color: var(--color-bg-surface, transparent);
+  }
+
+  .steps__item:not(:last-child)::after {
+    opacity: 0.7;
+    background-color: var(--tone-solid, currentColor);
+    inset-block-start: calc(var(--p-steps-group, 1.5rem) + var(--_marker) / 2 - var(--_line) / 2);
+  }
+}
+
+/* The connector draws and the marker fills as each step scrolls in (`className: steps--animated`).
+   CSS only: one `view()` timeline per item drives `--steps-p` (0 to 1) and the marker and connector
+   read it. Without scroll-driven animations, or with reduced motion, `--steps-p` stays 1: the static
+   pattern. */
+@property --steps-p {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 1;
+}
+@keyframes steps-progress {
+  from {
+    --steps-p: 0;
+  }
+  to {
+    --steps-p: 1;
+  }
+}
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .steps.steps--animated {
+      .steps__item {
+        animation: steps-progress linear both;
+        animation-timeline: view();
+        animation-range: entry 15% cover 40%;
+      }
+
+      .steps__item::after {
+        transform-origin: top;
+        transform: scaleY(var(--steps-p));
+      }
+
+      &.steps--row .steps__item::after {
+        transform-origin: left;
+        transform: scaleX(var(--steps-p));
+      }
+
+      .steps__item::before {
+        background-color: color-mix(
+          in oklab,
+          var(--tone-solid, currentColor) calc(var(--steps-p) * 100%),
+          transparent
+        );
+        color: color-mix(
+          in oklab,
+          var(--tone-on-solid, Canvas) calc(var(--steps-p) * 100%),
+          var(--tone-solid, currentColor)
+        );
+      }
+    }
+  }
+}
+
 /* Side by side once there is room: the marker sits above its text and the line runs across. */
 @container (min-width: 48rem) {
   .steps.steps--row {
@@ -91,6 +167,12 @@
 
     .steps__body {
       grid-column: 1;
+    }
+
+    &.steps--cards .steps__item:not(:last-child)::after {
+      inset-inline-start: 100%;
+      inset-inline-end: calc(var(--_gap) * -1);
+      inset-block-start: calc(var(--p-steps-group, 1.5rem) + var(--_marker) / 2 - var(--_line) / 2);
     }
 
     .steps__item:not(:last-child)::after {

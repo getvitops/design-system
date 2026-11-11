@@ -210,6 +210,25 @@ describe('vitops_entries', () => {
   });
 });
 
+describe('vitops_logos frame', () => {
+  it('wraps the row with a kicker, note and link only when one is set', async () => {
+    const bare = await render(Logos, { logos: [{ alt: 'Acme' }] });
+    expect(bare).not.toContain('logos-block');
+    const html = await render(Logos, {
+      kicker: 'Trusted by',
+      note: 'and 40 more',
+      linkLabel: 'All partners',
+      linkHref: '/partners',
+      logos: [{ alt: 'Acme' }],
+    });
+    expect(html).toContain('<div class="logos-block">');
+    expect(html).toContain('<p class="logos__kicker font-eyebrow">Trusted by</p>');
+    expect(html).toContain('<p class="logos__note font-caption">and 40 more</p>');
+    expect(html).toContain('<a class="link" href="/partners">All partners</a>');
+    expect(html).toContain('aria-label="Partners"');
+  });
+});
+
 describe('vitops_pricing', () => {
   it('aligns plans through the pricing-card subgrid rows', async () => {
     const html = await render(Pricing, {
@@ -237,6 +256,24 @@ describe('vitops_pricing', () => {
     expect(html).toContain('pricing-card pricing-card--featured');
     expect(html).toContain('<h3 class="font-title">Pro</h3>');
     expect(html).toContain('pricing-card__feature');
+  });
+
+  it('carries a yearly line and a note per plan', async () => {
+    const html = await render(Pricing, {
+      plans: [
+        {
+          name: 'Pro',
+          price: '$39',
+          period: '/month',
+          yearly: '$34 paid yearly',
+          note: 'Best for teams',
+        },
+      ],
+    });
+    expect(html).toContain(
+      '<small class="pricing-card__yearly font-caption">$34 paid yearly</small>',
+    );
+    expect(html).toContain('<p class="pricing-card__note font-caption">Best for teams</p>');
   });
 });
 

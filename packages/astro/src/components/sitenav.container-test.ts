@@ -131,6 +131,19 @@ describe('<SiteFooter />', () => {
   it('is just the copyright line for a site with no footer menus', async () => {
     const html = await renderFooter({ name: 'Acme', year: 2030 });
     expect(html).not.toContain('<nav');
+    expect(html).not.toContain('sitefooter__brand');
     expect(html).toContain('sitefooter__copy');
+  });
+
+  it("renders a brand slot as the first column, in the site's own markup", async () => {
+    const html = await (
+      await AstroContainer.create()
+    ).renderToString(SiteFooter, {
+      props: { sitemap, name: 'Acme', year: 2030 },
+      slots: { brand: '<p class="font-lead">Managed IT in Ottawa.</p>' },
+    });
+    expect(html).toMatch(
+      /<div class="sitefooter__nav"><div class="sitefooter__brand">\s*<p class="font-lead">/,
+    );
   });
 });

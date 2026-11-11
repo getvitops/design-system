@@ -7,6 +7,8 @@
  *   const legal = await getMenu('footer-legal');
  *   <SiteFooter {sitemap} {legal} name={siteTitle} />
  *
+ * A `brand` slot (a logo, a blurb) renders as the first column, so the markup stays the site's own.
+ *
  * Both menus are optional and each renders only if it has items, so a one-page site
  * gets just the copyright line. `name` is `organization.name`.
  *
@@ -47,6 +49,7 @@ const {
   class: className,
 } = Astro.props;
 
+const hasBrand = Astro.slots.has('brand');
 const sitemapItems = menuItems(sitemap);
 const columns = sitemapItems
   .filter((item) => (item.children?.length ?? 0) > 0)
@@ -60,8 +63,13 @@ const groups = [
 
 <footer class:list={['sitefooter', className]}>
   {
-    (groups.length > 0 || columns.length > 0) && (
+    (groups.length > 0 || columns.length > 0 || hasBrand) && (
       <div class="sitefooter__nav">
+        {hasBrand && (
+          <div class="sitefooter__brand">
+            <slot name="brand" />
+          </div>
+        )}
         {columns.map((col) => (
           <nav class="sitefooter__group sitefooter__group--column" aria-labelledby={col.id}>
             <p class="sitefooter__heading font-eyebrow" id={col.id}>

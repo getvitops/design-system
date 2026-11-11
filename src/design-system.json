@@ -393,6 +393,20 @@
       },
       "forms": {
         "group": "control"
+      },
+      "steps": {
+        "group": "content",
+        "class": "steps",
+        "overrides": {
+          "b": "1px solid var(--color-border-surface-muted)",
+          "br": "0.75rem",
+          "p": "1.5rem",
+          "ds": "none"
+        },
+        "base": {
+          "--steps-marker-size": "2.5rem",
+          "--steps-line-width": "2px"
+        }
       }
     }
   },

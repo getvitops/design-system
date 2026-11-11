@@ -370,3 +370,9 @@ scheduled in the admin publishes, and plugin cron and maintenance run. Pages are
 changes the database but the live HTML stays stale until a rebuild. Decide how it should trigger one, and confirm
 whether `content:afterPublish` fires for scheduled publishes (the `emdash-publish` dispatch hook in
 `content-and-deploys` assumes it does; unverified). Also check whether every-minute is the right cadence.
+
+### Block ideas from the vitops.ca build (UPSTREAM finding 20)
+
+No table or comparison block, no role-setup diagram, no timeline: the licence tracker, the ads comparison and the
+joining-and-leaving diagram became checklists in panel cards. `table.css` and `vitops_entries` are a start for a
+comparison block; a timeline could reuse the steps connector. Needs a second consumer before designing.

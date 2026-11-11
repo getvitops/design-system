@@ -8,6 +8,7 @@
  *
  *   prepare-db        migrate and seed the LOCAL D1 the build prerenders from
  *   check-prerender   fail if a prerendered page is not a real page
+ *   form-template     copy a vitops_form block into site.templates
  *   build             `astro build`, then the same checks, plus a failure for any block with no renderer
  *
  * Why both exist: `astro build` prerenders every page inside a local workerd against a local D1
@@ -18,7 +19,18 @@
  * build and an upgrade deploy all hand the build exactly that database.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from 'node:fs';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+import { validateConfig } from '@getvitops/generator';
 import { createServer } from 'node:net';
 import { join, relative } from 'node:path';
 import {
@@ -33,7 +45,9 @@ import {
   prerenderProblem,
   PENDING_MIGRATIONS,
   routeOf,
+  sitemapOrphans,
 } from '../prerender-check.ts';
+import { findFormBlocks, withTemplate } from '../form-template.ts';
 import { fail } from './shared.ts';
 import { EMDASH_HELP } from '../help.ts';
 
@@ -48,7 +62,17 @@ function freePort(): Promise<number> {
   });
 }
 
-async function until(test: () => Promise<boolean>, what: string, ms = 120_000) {
+/**
+ * Poll until `test` passes. `died` is asked after each miss and may return why waiting is pointless
+ * (the dev server printed an error and is gone), so a broken config fails in seconds, not after the
+ * full timeout.
+ */
+async function until(
+  test: () => Promise<boolean>,
+  what: string,
+  ms = 120_000,
+  died?: () => string | undefined,
+) {
   const deadline = Date.now() + ms;
   while (Date.now() < deadline) {
     try {
@@ -56,6 +80,8 @@ async function until(test: () => Promise<boolean>, what: string, ms = 120_000) {
     } catch {
       // not up yet
     }
+    const why = died?.();
+    if (why) throw new Error(`${what} did not start: ${why}`);
     await new Promise((r) => setTimeout(r, 1000));
   }
   throw new Error(`timed out waiting for ${what}`);
@@ -68,12 +94,55 @@ const log = (msg: string) => console.log(`prepare-db: ${msg}`);
  * output through pipes would leave this process waiting on the daemon's inherited handles,
  * which looks exactly like a hang. Output is ignored and every call has a timeout.
  */
-const astro = (args: string[]) =>
-  spawnSync(existsSync('node_modules/.bin/astro') ? 'node_modules/.bin/astro' : 'astro', args, {
-    stdio: 'ignore',
-    timeout: 300_000,
-    env: { ...process.env, CI: '1' },
-  });
+const DEV_LOG = '.vitops/prepare-db.log';
+const astro = (args: string[]) => {
+  // Output goes to a file, not a pipe: the daemon keeps the handle open, and a pipe would make
+  // this process wait on it (which looks exactly like a hang). The file is read back on failure.
+  mkdirSync('.vitops', { recursive: true });
+  const fd = openSync(DEV_LOG, 'a');
+  try {
+    return spawnSync(
+      existsSync('node_modules/.bin/astro') ? 'node_modules/.bin/astro' : 'astro',
+      args,
+      { stdio: ['ignore', fd, fd], timeout: 300_000, env: { ...process.env, CI: '1' } },
+    );
+  } finally {
+    closeSync(fd);
+  }
+};
+const logTail = (lines = 30) => {
+  try {
+    return readFileSync(DEV_LOG, 'utf8').trimEnd().split('\n').slice(-lines).join('\n');
+  } catch {
+    return '';
+  }
+};
+// An error line from the dev server, once it has printed one, means it is not coming up.
+const devError = () => {
+  const tail = logTail(60);
+  const line = tail.split('\n').find((l) => /\[(?:ERROR|error)\]|^\s*(?:\w+)?Error:|ERR_/.test(l));
+  return line?.trim();
+};
+
+/** `site.json` must parse and validate before a dev server is asked to read it. */
+function checkSiteConfig(siteFile = 'site.json') {
+  if (!existsSync(siteFile)) return;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(siteFile, 'utf8'));
+  } catch (e) {
+    fail(`${siteFile} is not valid JSON: ${(e as Error).message}`);
+  }
+  const result = validateConfig(parsed);
+  if (!result.ok)
+    fail(
+      `${siteFile} is not a valid site config:\n` +
+        result.errors
+          .map((i) => `  ${(i.path ?? []).join('.') || '(root)'}: ${i.message}`)
+          .join('\n') +
+        '\n\nThe dev server would exit on this without saying why. Fix it, or run `vitops validate`.',
+    );
+}
 
 /**
  * Starts `astro dev` once, calls EmDash's `dev-bypass` setup endpoint (the non-interactive
@@ -87,6 +156,8 @@ async function cmdPrepareDb() {
     log('SKIP_PREPARE_LOCAL_DB set — leaving the local database as it is.');
     return;
   }
+  checkSiteConfig();
+  writeFileSync(DEV_LOG, '');
   const port = await freePort();
   const base = `http://127.0.0.1:${port}`;
 
@@ -102,7 +173,12 @@ async function cmdPrepareDb() {
 
   let failure: Error | null = null;
   try {
-    await until(async () => (await fetch(`${base}/_emdash/api/setup/status`)).ok, 'astro dev');
+    await until(
+      async () => (await fetch(`${base}/_emdash/api/setup/status`)).ok,
+      'astro dev',
+      120_000,
+      devError,
+    );
     log('dev server is up; migrating and seeding (first run can take a minute) ...');
     // A database that is already set up may decline; the home page check decides if it matters.
     const setup = await fetch(`${base}/_emdash/api/setup/dev-bypass?redirect=/`, {
@@ -125,6 +201,10 @@ async function cmdPrepareDb() {
     failure = e as Error;
   } finally {
     astro(['dev', 'stop']);
+  }
+  if (failure) {
+    const tail = logTail();
+    if (tail) console.error(`prepare-db: last of ${DEV_LOG}:\n${tail}\n`);
   }
   if (failure)
     fail(
@@ -158,6 +238,8 @@ function cmdCheckPrerender(argv: string[]) {
     .join('\n');
   let count = 0;
   for (const file of htmlFiles(root)) {
+    // The toolkit's own assets (the theme editor page, …) are not site pages: no h1, no outline.
+    if (relative(root, file).startsWith('vitops/')) continue;
     count += 1;
     const html = readFileSync(file, 'utf8');
     const why = prerenderProblem(html);
@@ -223,6 +305,21 @@ function cmdCheckPrerender(argv: string[]) {
       }
     }
   }
+  const orphaned = [...filesWith(root, '.xml')]
+    .filter((f) => /sitemap[^/\\]*\.xml$/.test(f))
+    .flatMap((f) => sitemapOrphans(readFileSync(f, 'utf8'), routes));
+  if (orphaned.length) {
+    const note =
+      `the sitemap lists URLs the build did not produce (a search engine would be sent to 404s):\n` +
+      `${orphaned
+        .slice(0, 10)
+        .map((u) => `  ${u}`)
+        .join('\n')}${orphaned.length > 10 ? `\n  … and ${orphaned.length - 10} more` : ''}\n\n` +
+      'A collection with no `urlPattern` is listed as /<collection>/<slug>. Set the pattern on the ' +
+      "collection (the seed's `urlPattern`, or Content types in the admin) to the path the site serves.";
+    if (strict) fail(note);
+    console.warn(`check-prerender: warning: ${note}`);
+  }
   if (dead.length) {
     const note =
       `links to pages the build did not produce (they would 404):\n${dead.join('\n')}\n\n` +
@@ -240,6 +337,63 @@ function cmdCheckPrerender(argv: string[]) {
     console.warn(`check-prerender: warning: ${note}`);
   }
   console.log(`check-prerender: ${count} prerendered page(s) look like real pages.`);
+}
+
+/**
+ * `vitops emdash form-template --from <seed.json|export.json> [--name <key>] [--site <site.json>]`:
+ * copy a `vitops_form` block's fields into `site.templates`, so the generated privacy policy and
+ * `check-prerender` know what the form collects. Hand-written entries are easy to get wrong (a
+ * field type the policy's schema does not have fails with only a path); this uses the renderer's
+ * own resolver, so the names are the ones the form submits.
+ */
+async function cmdFormTemplate(argv: string[]) {
+  const flag = (name: string) => {
+    const i = argv.indexOf(`--${name}`);
+    if (i >= 0) return argv[i + 1];
+    return argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
+  };
+  const from = flag('from') ?? (existsSync('seed/seed.json') ? 'seed/seed.json' : undefined);
+  const siteFile = flag('site') ?? 'site.json';
+  const dry = argv.includes('--dry');
+  if (!from) fail('give --from <seed.json or content export containing a vitops_form block>.');
+  if (!existsSync(from!)) fail(`${from} does not exist.`);
+  if (!existsSync(siteFile)) fail(`${siteFile} does not exist (use --site <path>).`);
+
+  const blocks = findFormBlocks(JSON.parse(readFileSync(from!, 'utf8')));
+  if (blocks.length === 0) fail(`no vitops_form block found in ${from}.`);
+  const requested = flag('name');
+  if (blocks.length > 1 && !requested)
+    fail(
+      `${blocks.length} vitops_form blocks in ${from}; this writes one entry. Name it with --name <key> ` +
+        'and narrow --from to the one you mean (a content export of a single entry).',
+    );
+  const name = requested ?? 'contact';
+
+  let emdash: { formTemplateFromBlock: (b: unknown) => unknown };
+  try {
+    const resolved = createRequire(join(process.cwd(), 'noop.js')).resolve('@getvitops/emdash');
+    emdash = await import(pathToFileURL(resolved).href);
+  } catch {
+    fail('@getvitops/emdash is not installed in this project (run from the site root).');
+  }
+  const template = emdash!.formTemplateFromBlock(blocks[0]);
+  const { config, changed } = withTemplate(
+    JSON.parse(readFileSync(siteFile, 'utf8')),
+    name,
+    template,
+  );
+  const check = validateConfig(config);
+  if (!check.ok)
+    fail(
+      `the template would make ${siteFile} invalid:\n` +
+        check.errors.map((i) => `  ${(i.path ?? []).join('.')}: ${i.message}`).join('\n'),
+    );
+  if (!changed) return console.log(`form-template: site.templates.${name} is already up to date.`);
+  if (dry) return console.log(JSON.stringify({ [name]: template }, null, 2));
+  writeFileSync(siteFile, `${JSON.stringify(config, null, 2)}\n`);
+  console.log(
+    `form-template: wrote site.templates.${name} to ${siteFile}. Run your formatter on it.`,
+  );
 }
 
 /**
@@ -286,6 +440,8 @@ export async function cmdEmdash(argv: string[]) {
       return cmdCheckPrerender(rest);
     case 'build':
       return cmdBuild(rest);
+    case 'form-template':
+      return cmdFormTemplate(rest);
     case undefined:
     case '-h':
     case '--help':
@@ -293,7 +449,7 @@ export async function cmdEmdash(argv: string[]) {
       return;
     default:
       fail(
-        `unknown "emdash" subcommand "${sub}" (expected: prepare-db | check-prerender | build). Try: vitops --help`,
+        `unknown "emdash" subcommand "${sub}" (expected: prepare-db | check-prerender | build | form-template). Try: vitops --help`,
       );
   }
 }
