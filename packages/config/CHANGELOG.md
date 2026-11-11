@@ -1,5 +1,7 @@
 # @getvitops/config
 
+## 8.3.0-alpha.4
+
 ## 8.3.0-alpha.3
 
 ## 8.3.0-alpha.2

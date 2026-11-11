@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/skills",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "description": "Agent skills for sites built with the Vitops toolchain. Installed as a dependency and linked into a project with `skills experimental_sync`, so they update with the package.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",

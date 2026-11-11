@@ -1,5 +1,42 @@
 # @getvitops/emdash
 
+## 2.0.0-alpha.4
+
+### Minor Changes
+
+- 99e66a2: Fixes from the vitops.ca build (alpha.3 findings 1–5, 19, 29).
+
+  - **Scaffold patterns.** Both templates now define `cta`, `link` and `details` in `patterns.items` (a `content` group too), and a `ui-accent` role. `.cta` had no CSS at all, so every hero, card and callout button rendered as plain text; a test now fails if a template omits a pattern the blocks emit. `vitops_accordion` renders a sprite chevron like `vitops_details`, and `details.css` styles an `.accordion` group (a divider and padded summaries from the `details` pattern tokens) — all formats.
+  - **Tone paints only on surfaces.** `.tone` now sets colour variables and `border-color`; the background comes from `.tone--tint` (callout, panel card, hero card, toned section/hero/nav/reviews, `theme`) or `.tone--solid`. A steps, stats or form block with a tone is no longer turned into a band. `ResolvedTone` gains `surface` (`tone tone--tint`). **If you styled `.tone` directly,** add `tone--tint` where you want the background. A `.cta` inside a tinted or filled tone takes the tone's solid. all formats.
+  - **`colors.tint: { mix: "8%" }`** derives the tint from the role's solid (`--tone-tint`) instead of its `muted` step, which turns brown for amber on a dark page. Off by default; not covered by the contrast contract.
+  - **Per-card backdrop.** `vitops_cards` and `vitops_hero` rows take a `theme` (tint or fill of a site colour), so one card of a pair can be tinted.
+  - **`colors.roles.<r>.acknowledgeContrast`**: a number of Lc a pairing may miss its APCA bar by and still only warn (e.g. pine's solid at Lc 59.5 against 60). A larger miss still fails.
+  - **Select:** where `appearance: base-select` is supported the wrapper's own chevron is hidden, so a select no longer shows two arrows, and the wrapper and control fill the field (`.custom-select` is `display: block`; add `display: inline-block` if you used it inline). all formats.
+
+- d64fb20: Layout and spacing fixes from the vitops.ca build (findings 6–9).
+
+  - **`vitops_section` is the page opener.** New fields `cta_label`/`cta_href`/`secondary_label`/`secondary_href` (a `.cta` and a `.link` in the head), `*accent*` runs in the heading, and `stack: rhythm`, which puts `.rhythm` on `.section__inner` so head and body use the vertical-rhythm scale. With level 1 it replaces nesting a `vitops_hero` in a section, which rendered `section > .centered > … > section > .centered`. `vitops_hero` stays for a stand-alone hero with option cards. A plain (`stack: grid`) section also puts a gap between head and body now (`--section-gap`, default 2rem) instead of sitting flush. css/bricks/tailwind.
+  - **`.rhythm` spaces blocks.** A card row (`wc-cards`, classed `ul`/`ol`), accordion, `details`, form, table, figure or `.section__body` directly under a `.rhythm` is `--rhythm-block` (2) apart, not a paragraph apart; a button row (`p.cluster`) is `--rhythm-block-action` (1.6). Classless lists stay prose and a form's own field spacing is unchanged. A bare `<a>` that is a direct child of `.rhythm` is now `display: block; inline-size: fit-content`, since an inline box ignored `margin-top` and sat flush under the paragraph above (`.cta` and `.btn` are unaffected). all formats.
+  - **`rhythm-flex`** utility: an opt-in flex-column stack for the case the margin stack does not suit; margins apply to any child. all formats (`@utility` in tailwind).
+
+- 322dd6a: Block fixes from the vitops.ca build (findings 11–13, 15, 17, 18, 21).
+
+  - **Steps.** The marker is an outlined disc in the tone (number and ring in `--tone-solid`, falling back to `currentColor`), so a steps block with no tone no longer shows black discs with no number. Items keep `align-content: start` and no `.rhythm li + li` margin, so markers in a row line up. Two modifiers through the block's `className`: `steps--cards` (each step in a card) and `steps--animated` (the connector draws and the marker fills as each step scrolls in; static under reduced motion or without scroll-driven animations). `steps` is now a config pattern: `patterns.items.steps` in `site.json` owns the card geometry (`content` group tokens) and the marker size (`--steps-marker-size`, `--steps-line-width`); both templates and the reference config ship an entry. all formats.
+  - **Stats.** `<wc-counter>` leaves a figure it cannot count as authored (`"1 in 6"`, `"24/7"`, `"—"`) instead of counting down from zero to a wrong value. `animate: false` on the block still turns the count-up off for a whole block.
+  - **Logos.** `vitops_logos` takes an optional `kicker`, `note` and `linkLabel`/`linkHref`; with any of them set, the row is wrapped in `.logos-block`. The list keeps the block's attributes either way.
+  - **Pricing.** Plans take `yearly` (a second price line) and `note` (under the plan name).
+  - **`<SiteFooter>`** has a `brand` named slot, rendered as the first column (`.sitefooter__brand`) in the site's own markup.
+
+### Patch Changes
+
+- Updated dependencies [99e66a2]
+- Updated dependencies [00a9d86]
+- Updated dependencies [d64fb20]
+- Updated dependencies [322dd6a]
+- Updated dependencies [322dd6a]
+  - @getvitops/generator@8.3.0-alpha.4
+  - @getvitops/utils@8.3.0-alpha.4
+
 ## 2.0.0-alpha.3
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @getvitops/vite
 
+## 8.3.0-alpha.4
+
+### Patch Changes
+
+- Updated dependencies [99e66a2]
+- Updated dependencies [00a9d86]
+- Updated dependencies [d64fb20]
+- Updated dependencies [322dd6a]
+- Updated dependencies [322dd6a]
+  - @getvitops/generator@8.3.0-alpha.4
+  - @getvitops/utils@8.3.0-alpha.4
+
 ## 8.3.0-alpha.3
 
 ### Patch Changes

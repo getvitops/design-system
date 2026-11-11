@@ -11,6 +11,32 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 8.3.0-alpha.4 (+ `@getvitops/emdash` 2.0.0-alpha.4, `@getvitops/create` 0.9.0-alpha.4, `@getvitops/skills` 0.1.0-alpha.1) — alpha channel
+
+Fixes from the vitops.ca build against alpha.3.
+
+### Breaking
+
+- **`.tone` no longer paints a background.** It sets colour variables; `.tone--tint` (surfaces) or `.tone--solid` paints. The emdash blocks add `tone--tint` where they are surfaces (callout, panel/hero cards, toned section, hero, nav, reviews, `theme`), so block users change nothing; **hand-written markup that relied on `.tone` painting needs `tone--tint`**. css/bricks/tailwind.
+- `vitops_section`'s new fields are snake_case (`cta_label`, `cta_href`, `secondary_label`, `secondary_href`); a block type's slugs cannot be camelCase.
+- `.custom-select` is `display: block` (was `inline-block`).
+- The templates' `button` pattern is now the `btn` affordance; the filled tier is `.cta`.
+
+### Added
+
+- **Scaffold patterns:** `cta`, `link`, `details`, `steps` in `patterns.items`; a `ui-accent` role. `.cta` previously had no CSS in a scaffold.
+- **`vitops_section` as the page opener:** CTAs, `*accent*` heading runs, `stack: rhythm`; a plain section now spaces head from body.
+- **`.rhythm` block gap** (`--rhythm-block`, `--rhythm-block-action`), bare child links blockified, `rhythm-flex` utility.
+- **Tone:** `colors.tint` (solid-derived tint, opt-in), per-card `theme`, `roles.<r>.acknowledgeContrast`.
+- **Steps:** outlined marker, `steps--cards`, `steps--animated`, `steps` config pattern. Logos kicker/note/link; pricing `yearly`/`note`; `<SiteFooter>` `brand` slot; accordion chevron.
+- **`vitops emdash form-template`**; `checkboxes` accepted in `site.templates`; `prepare-db` validates `site.json`, logs to `.vitops/prepare-db.log` and fails fast; `check-prerender` warns on sitemap URLs with no page and skips `vitops/**`.
+
+### Fixed
+
+- `<wc-counter>` no longer counts `"1 in 6"`-style figures down from zero; select no longer shows two chevrons; carousel hint contrast; `vitops audit` waits for CSS transitions before axe (ten false contrast failures); template `info`/`danger` solids at step 700 (WCAG 4.5:1).
+
+Known gaps are in `TODO.md`: ~150 pattern transitions run at page load (a colour flash), and `text-on-<role>` is held to APCA Lc 60, below WCAG AA.
+
 ## 8.3.0-alpha.3 (+ `@getvitops/emdash` 2.0.0-alpha.3, `@getvitops/create` 0.9.0-alpha.3) — alpha channel
 
 **`vitops agents sync`**: the managed `AGENTS.md` block is now a short fenced block at the **top** of the file
