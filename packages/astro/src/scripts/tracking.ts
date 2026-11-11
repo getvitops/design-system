@@ -234,6 +234,11 @@ const CONVERTED_ATTR = 'data-vitops-converted';
  * more than once for the same submission (a retried network call, a
  * double-invoked effect) reports the conversion once, not twice.
  *
+ * Call it from the fetch handler after a successful POST — not from a
+ * success-page query parameter (`?sent=1`). That replays on refresh/back, and
+ * the honeypot deliberately redirects to the same success URL, so bots would
+ * count as leads. For no-JS forms use `reporting: 'server'` instead.
+ *
  * There is deliberately no server-side equivalent for a no-JS
  * `<form method="post">` submission — that path is a full-page redirect with no
  * script execution to fire from, and reporting a Google-Ads-labelled

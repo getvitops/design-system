@@ -166,7 +166,9 @@ export const AD_PLATFORMS: Record<AdProvider, AdPlatform> = {
     },
     manualSteps: (e) => [
       ...(Object.keys(normalizeConversionLabels(e.conversionLabel)).length
-        ? []
+        ? [
+            'confirm each conversion action\'s category in Google Ads (call → "Phone call lead", email → "Contact", form → "Submit lead form"); the tag cannot set it, and a wrong one reports under the wrong goal',
+          ]
         : ['create a conversion action in Google Ads and record its label as `conversionLabel`']),
       'link the Google Ads account to Search Console / GA4 in the UI if you want imported conversions',
     ],

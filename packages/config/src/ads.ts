@@ -28,16 +28,23 @@ export const AdPropertySchema = z.strictObject({
       z.union([
         z.string(),
         z.strictObject({
-          call: desc(z.optional(z.string()), 'Fired on a tel: link click.'),
-          email: desc(z.optional(z.string()), 'Fired on a mailto: link click.'),
+          call: desc(
+            z.optional(z.string()),
+            'Fired on a tel: link click. Create the action in Google Ads with category "Phone call lead".',
+          ),
+          email: desc(
+            z.optional(z.string()),
+            'Fired on a mailto: link click. Create the action in Google Ads with category "Contact".',
+          ),
           form: desc(
             z.optional(z.string()),
-            "Fired client-side by `vitopsFormConversion()` — the consumer's own submit handler calls it once a form POST succeeds.",
+            'Fired client-side by `vitopsFormConversion()` — the consumer\'s own submit handler calls it once a form POST succeeds. Create the action in Google Ads with category "Submit lead form". Don\'t fire it from a success-page query parameter: that replays on refresh and the honeypot returns the same success page.',
           ),
         }),
       ]),
     ),
     'Google Ads only: the conversion action label(s) paired with the `AW-…` conversion ID — ' +
+      "the category (Phone call lead, Contact, …) is a property of the action in Google Ads, not of the tag call, so a wrong category can't be fixed from code; " +
       'either one bare label (back-compat, treated as the `call` action) or a map of ' +
       'action → label, so a call, an email click and a form submission each fire their own ' +
       'Google Ads conversion action instead of all three reporting as the same one.',
