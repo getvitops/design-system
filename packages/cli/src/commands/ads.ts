@@ -281,12 +281,14 @@ async function cmdAdsLint(argv: string[]) {
 
   const cfg = await siteConfig(a);
   const properties = toAdProperties(cfg, undefined);
-  if (properties.length === 0) {
+  const phones = cfg.site.tracking?.phoneNumbers;
+  if (properties.length === 0 && !phones) {
     console.log('· no site.ads properties — nothing to check');
     return;
   }
 
   const findings: string[] = [];
+  const notes: string[] = [];
   const trackingOn = cfg.site.tracking?.enabled === true;
 
   for (const p of properties) {
@@ -327,6 +329,29 @@ async function cmdAdsLint(argv: string[]) {
         );
     }
   }
+
+  // Call tracking. A tracking-number provider records every caller's number, so it is a
+  // processor the generated privacy policy must name; nothing else in the config says it
+  // is there, which makes an undeclared one a silent compliance gap.
+  if (phones) {
+    const declared = (cfg.site.legal?.privacyPolicy?.processors ?? []).map((p) =>
+      p.name.toLowerCase(),
+    );
+    if (!phones.provider)
+      findings.push(
+        'site.tracking.phoneNumbers has no provider — state which call-tracking service holds these numbers (twilio, callrail, …) so the privacy policy can name it',
+      );
+    else if (!declared.some((n) => n.includes(phones.provider!.toLowerCase())))
+      findings.push(
+        `site.tracking.phoneNumbers.provider "${phones.provider}" records callers' numbers but is not in site.legal.privacyPolicy.processors — the generated privacy policy will not name it`,
+      );
+  }
+  const google = properties.find((p) => p.provider === 'google' && p.enabled !== false);
+  if (google?.callTracking && normalizeConversionLabels(google.conversionLabel).call)
+    notes.push(
+      'google: callTracking and conversionLabel.call are both set — one call can count twice. In Google Ads, make one of the two conversion actions secondary.',
+    );
+  for (const n of notes) console.warn(`! ${n}`);
 
   if (findings.length === 0) {
     console.log(

@@ -146,3 +146,51 @@ describe('renderTag', () => {
     });
   });
 });
+
+describe('Google website call conversions', () => {
+  const entry = {
+    provider: 'google' as const,
+    pixelId: 'AW-123',
+    callTracking: { label: 'lbl_1', number: '613-555-0100' },
+  };
+  const body = AD_PLATFORMS.google.tag.bootstrap('AW-123', entry);
+
+  test('configures the call-conversion action beside the tag', () => {
+    expect(body).toContain("gtag('config','AW-123/lbl_1'");
+    expect(body).toContain('phone_conversion_number:"613-555-0100"');
+  });
+
+  test('hands the swap to the capture script through a queue, so load order cannot lose it', () => {
+    expect(body).toContain('window.vitopsPhoneSwaps');
+    expect(body).toContain('window.vitopsSwapPhone');
+  });
+
+  test('only turns off the cookie cache when asked', () => {
+    expect(body).not.toContain('phone_conversion_options');
+    const off = AD_PLATFORMS.google.tag.bootstrap('AW-123', {
+      ...entry,
+      callTracking: { ...entry.callTracking, cache: false },
+    });
+    expect(off).toContain('phone_conversion_options:{cache:false}');
+  });
+
+  test('emits nothing extra without callTracking', () => {
+    const plain = AD_PLATFORMS.google.tag.bootstrap('AW-123', {
+      provider: 'google',
+      pixelId: 'AW-123',
+    });
+    expect(plain).not.toContain('phone_conversion');
+    expect(plain).not.toContain('vitopsPhoneSwaps');
+  });
+
+  test('is a Google-only capability', () => {
+    expect(AD_PROVIDER_KEYS.filter((p) => AD_PLATFORMS[p].websiteCallTracking)).toEqual(['google']);
+  });
+
+  test('tells the operator what Google needs done by hand', () => {
+    const steps = AD_PLATFORMS.google.manualSteps(entry).join('\n');
+    expect(steps).toMatch(/Calls from a phone number on your website/);
+    expect(steps).toMatch(/secondary/);
+    expect(steps).toMatch(/Search Console/);
+  });
+});

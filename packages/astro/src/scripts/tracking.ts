@@ -61,6 +61,43 @@ const CLICK_ID_PARAMS = [
   'epik', // Pinterest
 ] as const;
 
+// Mirrors PROVIDER_BY_PARAM, UTM_SOURCE_ALIASES, PAID_MEDIUM and DEFAULT_PAID in
+// @getvitops/utils/tracking/phone — copied for the same reason; `tracking.test.ts`
+// pins them. They decide which call-tracking number a visitor is shown (section 4).
+const PROVIDER_BY_PARAM: Record<string, string> = {
+  gclid: 'google',
+  gbraid: 'google',
+  wbraid: 'google',
+  fbclid: 'meta',
+  li_fat_id: 'linkedin',
+  rdt_cid: 'reddit',
+  ttclid: 'tiktok',
+  msclkid: 'microsoft',
+  epik: 'pinterest',
+  ScCid: 'snapchat',
+};
+const UTM_SOURCE_ALIASES: Record<string, string> = {
+  google: 'google',
+  facebook: 'meta',
+  instagram: 'meta',
+  meta: 'meta',
+  fb: 'meta',
+  ig: 'meta',
+  bing: 'microsoft',
+  microsoft: 'microsoft',
+  linkedin: 'linkedin',
+  reddit: 'reddit',
+  tiktok: 'tiktok',
+  pinterest: 'pinterest',
+  snapchat: 'snapchat',
+  snap: 'snapchat',
+};
+const PAID_MEDIUM = /^(cpc|ppc|paid.*|cpm|display|paidsocial|paid_social)$/i;
+const DEFAULT_PAID = 'default-paid';
+// Set on a `tel:` link whose number was swapped, so the click beacon can say which
+// platform's number the visitor called.
+const PHONE_SOURCE_ATTR = 'data-vitops-phone-source';
+
 const UTM_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;
 
 // ---------------------------------------------------------------------------
@@ -201,9 +238,10 @@ document.addEventListener('click', (e) => {
 
   // Fire-and-forget beacon; don't block the tel:/mailto: navigation.
   if (navigator.sendBeacon) {
+    const phoneSource = link.getAttribute(PHONE_SOURCE_ATTR);
     const body = isEmail
       ? { event: 'email', email: link.href }
-      : { event: 'call', phone: link.href };
+      : { event: 'call', phone: link.href, ...(phoneSource ? { phoneSource } : {}) };
     navigator.sendBeacon(TRACK_ENDPOINT, JSON.stringify(body));
   }
 
@@ -257,3 +295,133 @@ function vitopsFormConversion(formEl: HTMLFormElement): void {
 
 (window as unknown as { vitopsFormConversion?: typeof vitopsFormConversion }).vitopsFormConversion =
   vitopsFormConversion;
+
+// ---------------------------------------------------------------------------
+// 4. Call-tracking numbers: show a visitor from an ad the number provisioned for it
+// ---------------------------------------------------------------------------
+//
+// The server-rendered HTML always carries the real number (crawlers, JSON-LD and
+// visitors without JavaScript see it); this only ever *swaps*. Two callers:
+//
+//   - **Google**, when `site.ads.google.callTracking` is set: Google's own tag fetches
+//     a forwarding number and calls `vitopsSwapPhone` (via a queue, because the inline
+//     tag and this module load in no fixed order). Google replaces text only — this
+//     rewrites the `tel:` href too.
+//   - **Everyone else**, from `site.tracking.phoneNumbers`: the number for the
+//     platform that sent the visitor. The landing page decides from the URL, which is
+//     not storage and needs no permission; later pages decide from `_ac`, which exists
+//     only once `marketing` was granted. A visitor who declined therefore sees a
+//     tracking number on the landing page only.
+
+interface PhoneConfig {
+  number: string;
+  sources: Record<string, string | undefined>;
+}
+
+const PHONE_TEXT = /\+?\d[\d\s().-]{5,18}\d/g;
+
+/** Mirrors `phoneDigits`: digits only, a leading North American `1` dropped. */
+function phoneDigits(value: string): string {
+  const d = value.replace(/\D/g, '');
+  return d.length === 11 && d.startsWith('1') ? d.slice(1) : d;
+}
+
+/** Mirrors `telUri`. */
+function telUri(display: string): string {
+  const d = display.replace(/\D/g, '');
+  return d.length === 10 ? `tel:+1${d}` : `tel:+${d}`;
+}
+
+/** Replace every phone-looking run in `node`'s text that names `target` with `display`. */
+function swapText(node: Node, target: string, display: string): void {
+  if (node.nodeType === 3) {
+    const text = node as Text;
+    const next = text.data.replace(PHONE_TEXT, (m) => (phoneDigits(m) === target ? display : m));
+    if (next !== text.data) text.data = next;
+    return;
+  }
+  for (const child of Array.from(node.childNodes)) swapText(child, target, display);
+}
+
+/**
+ * Swap `original` for `display` in every matching `tel:` link (href and text) and in
+ * every `[data-vitops-phone]` element's text. Called by Google's tag, so the
+ * signature is `(formatted, tel, original)` with the second argument unused: Google's
+ * own docs disagree about whether it carries a `+`, so the href is built locally.
+ */
+function swapPhone(display: string, _tel: unknown, original: string, source = 'google'): void {
+  const target = phoneDigits(original);
+  if (!target || phoneDigits(display) === target) return;
+  const uri = telUri(display);
+  for (const a of Array.from(document.querySelectorAll('a[href^="tel:"]'))) {
+    if (phoneDigits((a.getAttribute('href') ?? '').slice(4)) !== target) continue;
+    a.setAttribute('href', uri);
+    a.setAttribute(PHONE_SOURCE_ATTR, source);
+    swapText(a, target, display);
+  }
+  for (const el of Array.from(document.querySelectorAll('[data-vitops-phone]')))
+    swapText(el, target, display);
+}
+
+/** Mirrors `selectPhoneNumber`. */
+function selectPhone(
+  current: Record<string, unknown> | null,
+  stored: Record<string, unknown> | null,
+  config: PhoneConfig,
+  googleNative: boolean,
+): { number: string; source: string } | null {
+  const providerOf = (data: Record<string, unknown>): string | null => {
+    for (const param of Object.keys(PROVIDER_BY_PARAM))
+      if (data[param]) return PROVIDER_BY_PARAM[param]!;
+    const source = data['utm_source'];
+    return typeof source === 'string'
+      ? (UTM_SOURCE_ALIASES[source.trim().toLowerCase()] ?? null)
+      : null;
+  };
+  const isPaid = (data: Record<string, unknown>): boolean => {
+    if (Object.keys(PROVIDER_BY_PARAM).some((p) => data[p])) return true;
+    const medium = data['utm_medium'];
+    return typeof medium === 'string' && PAID_MEDIUM.test(medium.trim());
+  };
+  for (const data of [current, stored]) {
+    if (!data) continue;
+    const provider = providerOf(data);
+    if (provider === 'google' && googleNative) return null;
+    const specific = provider ? config.sources[provider] : undefined;
+    if (specific && phoneDigits(specific) !== phoneDigits(config.number))
+      return { number: specific, source: provider! };
+    if (isPaid(data) || provider) {
+      const fallback = config.sources[DEFAULT_PAID];
+      return fallback && phoneDigits(fallback) !== phoneDigits(config.number)
+        ? { number: fallback, source: DEFAULT_PAID }
+        : null;
+    }
+  }
+  return null;
+}
+
+type SwapFn = (display: string, tel: unknown, original: string) => void;
+const phoneGlobal = window as unknown as {
+  vitopsSwapPhone?: SwapFn;
+  vitopsPhoneSwaps?: [string, unknown, string][];
+};
+phoneGlobal.vitopsSwapPhone = swapPhone;
+// Google's tag may have called before this module ran; replay what it queued.
+for (const args of phoneGlobal.vitopsPhoneSwaps ?? []) swapPhone(...args);
+phoneGlobal.vitopsPhoneSwaps = [];
+
+const phoneAttr = trackingMarker?.getAttribute('data-phone-numbers');
+if (phoneAttr) {
+  try {
+    const config = JSON.parse(phoneAttr) as PhoneConfig;
+    const picked = selectPhone(
+      Object.keys(trackingData).length ? trackingData : null,
+      readCookie(),
+      config,
+      trackingMarker?.hasAttribute('data-google-call-tracking') ?? false,
+    );
+    if (picked) swapPhone(picked.number, null, config.number, picked.source);
+  } catch {
+    // A malformed attribute leaves the real number in place, which is the safe state.
+  }
+}

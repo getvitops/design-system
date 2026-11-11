@@ -485,6 +485,16 @@ interface HeadTrackingData {
   cookies: string[];
   /** First enabled `site.experiments` entry's cookie name — see tracking.ts. */
   abVariantCookie: string | null;
+  /**
+   * `site.tracking.phoneNumbers` — the real number plus a tracking number per ad platform.
+   * Null when none is configured, so `<Tracking />` emits no phone attributes at all.
+   */
+  phoneNumbers: { number: string; sources: Record<string, string | undefined> } | null;
+  /**
+   * True when `site.ads.google.callTracking` is set: Google's own tag swaps a Google
+   * visit's number, so the capture script must not also swap one.
+   */
+  googleCallTracking: boolean;
 }
 
 /**
@@ -1676,6 +1686,8 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
                       category: tracking.category,
                       cookies: tracking.cookies,
                       abVariantCookie: experimentsConfig?.primaryCookie ?? null,
+                      phoneNumbers: trackingOpts?.phoneNumbers ?? null,
+                      googleCallTracking: !!adsConfig?.properties?.google?.callTracking,
                     }
                   : null,
                 experiments: experimentsConfig?.experiments ?? {},

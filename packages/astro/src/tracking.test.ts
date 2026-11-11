@@ -3,8 +3,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   CLICK_ID_PARAMS,
+  DEFAULT_PAID,
+  PAID_MEDIUM,
+  PROVIDER_BY_PARAM,
   TRACKING_COOKIE as UTILS_COOKIE,
   UTM_PARAMS,
+  UTM_SOURCE_ALIASES,
 } from '@getvitops/utils/tracking';
 import { describe, expect, it } from 'vite-plus/test';
 import { resolveTracking, TRACKING_COOKIE, TRACKING_ENDPOINT } from './tracking.ts';
@@ -83,6 +87,19 @@ describe('capture script mirrors @getvitops/utils/tracking', () => {
 
   it('recognises every UTM parameter', () => {
     for (const param of UTM_PARAMS) expect(SRC).toContain(`'${param}'`);
+  });
+
+  it('maps every click-ID parameter to the same platform the utils table does', () => {
+    // Which call-tracking number a visitor is shown is decided here, from these.
+    for (const [param, provider] of Object.entries(PROVIDER_BY_PARAM))
+      expect(SRC).toContain(`${param}: '${provider}'`);
+  });
+
+  it('knows every utm_source alias, the paid-medium test and the fallback key', () => {
+    for (const [alias, provider] of Object.entries(UTM_SOURCE_ALIASES))
+      expect(SRC).toContain(`${alias}: '${provider}'`);
+    expect(SRC).toContain(`const PAID_MEDIUM = ${PAID_MEDIUM.toString()}`);
+    expect(SRC).toContain(`const DEFAULT_PAID = '${DEFAULT_PAID}'`);
   });
 
   it('beacons to the endpoint the exported constant names', () => {

@@ -1421,11 +1421,60 @@ export function validateConfig(input: unknown): ConfigValidationResult {
           `site.ads.${provider}.domainVerification needs a domain to put the record on — set site.domains.canonical, or state site.ads.${provider}.domain explicitly`,
         ),
       );
+    if (entry.callTracking != null && !platform.websiteCallTracking)
+      errors.push(
+        issue(
+          [...at, 'callTracking'],
+          `${platform.name} cannot put a forwarding number on the website — only Google Ads can (Microsoft's exist only inside the ad, and only in the US/UK/AU). For a per-platform number, provision one with a call-tracking provider and state it in site.tracking.phoneNumbers.sources.${provider}.`,
+        ),
+      );
+    if (entry.callTracking != null && site.tracking?.enabled !== true)
+      errors.push(
+        issue(
+          [...at, 'callTracking'],
+          `site.ads.${provider}.callTracking needs site.tracking.enabled: true — the capture script is what rewrites the tel: links Google's tag leaves untouched`,
+        ),
+      );
+    if (entry.callTracking != null && entry.pixelId == null)
+      errors.push(
+        issue(
+          [...at, 'callTracking'],
+          `site.ads.${provider}.callTracking is addressed as AW-…/<label>, so it needs pixelId (the AW- conversion ID)`,
+        ),
+      );
     if (entry.accountId == null && entry.pixelId == null)
       errors.push(
         issue(
           at,
           `site.ads.${provider} identifies nothing — set accountId (the advertising account) and/or pixelId (the tag: ${platform.tag.needs} is what its snippet needs)`,
+        ),
+      );
+  }
+
+  // Call-tracking numbers. A tracking number is only ever shown by the capture script, and
+  // Google supplies its own, so two settings that cannot both be true are rejected here
+  // rather than discovered as a visitor shown one number while the call is attributed to another.
+  const phones = site.tracking?.phoneNumbers;
+  if (phones != null) {
+    if (site.tracking?.enabled !== true)
+      errors.push(
+        issue(
+          ['site', 'tracking', 'phoneNumbers'],
+          'site.tracking.phoneNumbers needs site.tracking.enabled: true — the capture script is what swaps the number',
+        ),
+      );
+    if (phones.sources.google != null && site.ads?.google?.callTracking != null)
+      errors.push(
+        issue(
+          ['site', 'tracking', 'phoneNumbers', 'sources', 'google'],
+          'site.ads.google.callTracking is set, so Google supplies its own forwarding number — remove the google entry here, or two numbers compete for one visitor',
+        ),
+      );
+    if (Object.keys(phones.sources).length === 0)
+      errors.push(
+        issue(
+          ['site', 'tracking', 'phoneNumbers', 'sources'],
+          'site.tracking.phoneNumbers.sources is empty, so no visitor is ever shown a tracking number — add a number per platform, or remove phoneNumbers',
         ),
       );
   }

@@ -30,6 +30,18 @@ export {
 
 export { getPrimaryClickId, identifyPlatform } from './platform.ts';
 
+export {
+  DEFAULT_PAID,
+  PAID_MEDIUM,
+  PROVIDER_BY_PARAM,
+  UTM_SOURCE_ALIASES,
+  phoneDigits,
+  samePhone,
+  selectPhoneNumber,
+  telUri,
+} from './phone.ts';
+export type { PhoneNumbersConfig, SelectedNumber } from './phone.ts';
+
 export { identifySubmitter } from './identity.ts';
 export type { SubmitterIdentity } from './identity.ts';
 

@@ -1,5 +1,6 @@
 import * as z from '@zod/mini';
 import { desc } from './desc.ts';
+import { AD_PROVIDERS } from './providers.ts';
 
 /** `site.notifications` */
 export const NotificationsSchema = z.optional(
@@ -63,6 +64,25 @@ export const TrackingSchema = z.optional(
     platforms: desc(
       z.optional(z.array(z.string())),
       'Informational list of ad platforms in use. Capture recognises every known click-ID parameter regardless.',
+    ),
+    phoneNumbers: desc(
+      z.optional(
+        z.strictObject({
+          number: desc(
+            z.string(),
+            'The real phone number exactly as the site displays it. Server-rendered HTML always carries this one, so crawlers, structured data and visitors without JavaScript see it.',
+          ),
+          sources: desc(
+            z.partialRecord(z.enum([...AD_PROVIDERS, 'default-paid']), z.string()),
+            'Tracking numbers keyed by ad platform (the `site.ads` provider names), each provisioned with a call-tracking provider and forwarding to `number`. `default-paid` is the fallback for a paid visit from a platform with no number of its own. Google needs no entry when `site.ads.google.callTracking` is set — Google supplies its own.',
+          ),
+          provider: desc(
+            z.optional(z.string()),
+            'The call-tracking provider (e.g. `twilio`, `callrail`). Informational, but it records callers’ numbers, so it must be named in the privacy policy — declare it in `site.legal.privacyPolicy.processors` unless it is a known one.',
+          ),
+        }),
+      ),
+      'Show a visitor from an ad the tracking number for that platform instead of the real one. Swapped in by the capture script from the landing URL (immediately) or the `_ac` cookie (later pages, once `marketing` is granted); the matching `tel:` links are rewritten too. An organic visitor is never swapped. Needs `enabled: true`.',
     ),
   }),
 );

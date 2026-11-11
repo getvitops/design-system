@@ -16,6 +16,9 @@
  *    `clearCookies()` queries `[data-consent="<category>"]` and reads
  *    `data-consent-cookies` off whatever it finds, so revoking consent clears
  *    `_ac`. That cleanup did not exist before.
+ *  - **Call-tracking numbers** ride on the same marker (`data-phone-numbers`,
+ *    `data-google-call-tracking`) when `site.tracking.phoneNumbers` is set. The
+ *    HTML itself always carries the real number; only the script swaps it.
  *  - **The script**, which captures synchronously and then waits on consent for
  *    the *write* only. See src/scripts/tracking.ts.
  *
@@ -25,7 +28,8 @@
 // @ts-ignore — virtual module provided by the vitops() integration at build time
 import head from 'virtual:getvitops/head';
 
-const { enabled, category, cookies, abVariantCookie } = head.tracking ?? { enabled: false };
+const { enabled, category, cookies, abVariantCookie, phoneNumbers, googleCallTracking } =
+  head.tracking ?? { enabled: false };
 ---
 
 {enabled && (
@@ -36,6 +40,8 @@ const { enabled, category, cookies, abVariantCookie } = head.tracking ?? { enabl
       data-consent={category}
       data-consent-cookies={cookies?.length ? cookies.join(',') : undefined}
       data-ab-cookie={abVariantCookie ?? undefined}
+      data-phone-numbers={phoneNumbers ? JSON.stringify(phoneNumbers) : undefined}
+      data-google-call-tracking={googleCallTracking ? '' : undefined}
     />
     <script>
       import '../scripts/tracking.ts';

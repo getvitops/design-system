@@ -59,6 +59,11 @@ export interface ConversionEvent {
   /** Submitted fields, for `type: 'form'`. Honeypots are stripped before this. */
   formData?: Record<string, string> | undefined;
   phone?: string | undefined;
+  /**
+   * For `type: 'call'` on a swapped number: which `site.tracking.phoneNumbers` source (or
+   * `google`) the visitor was shown. Lets the notification say "called the Meta number".
+   */
+  phoneSource?: string | undefined;
   /** The `mailto:` address, for `type: 'email'`. */
   email?: string | undefined;
   /** Attribution from the `_ac` cookie, or null when the visitor arrived cold. */

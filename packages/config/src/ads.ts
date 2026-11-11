@@ -66,6 +66,25 @@ export const AdPropertySchema = z.strictObject({
       "label the web tag uses and which the Ads API's upload endpoint does not accept. " +
       'Only meaningful when `reporting: "server"`.',
   ),
+  callTracking: desc(
+    z.optional(
+      z.strictObject({
+        label: desc(
+          z.string(),
+          'The conversion action label of a **separate** Google Ads action of type "Calls from a phone number on your website" (not the `conversionLabel.call` action, which counts `tel:` taps). Paired with `pixelId` as `AW-…/<label>`.',
+        ),
+        number: desc(
+          z.string(),
+          'The phone number exactly as the site displays it, e.g. `613-555-0100`. Google swaps its forwarding number in only where the page text matches these digits, so a differently formatted number on the page is silently never replaced.',
+        ),
+        cache: desc(
+          z.optional(z.boolean()),
+          'Set false to stop Google caching the fetched forwarding number in a cookie (`phone_conversion_options.cache`). Default true, so the number follows the visitor across pages.',
+        ),
+      }),
+    ),
+    'Google Ads only: **website call conversions**. The Google tag fetches a Google forwarding number for visitors who arrived from a Google ad and swaps it in for `number`, so a phone call (not just a `tel:` tap) is attributed to the click. Google decides who sees it; this toolchain also rewrites the matching `tel:` links, which Google does not. Counts the same call as `conversionLabel.call` if both are primary — make one secondary in Google Ads. Any other platform has no equivalent: see `site.tracking.phoneNumbers`.',
+  ),
   reporting: desc(
     z.optional(z.enum(['client', 'server'])),
     'Google Ads only: `"client"` (default) fires the conversion via `gtag.js` in the ' +

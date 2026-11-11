@@ -134,3 +134,35 @@ describe('resolveAds', () => {
     expect(consentCategories(tags)).toEqual(['marketing']);
   });
 });
+
+describe('resolveAds: website call tracking', () => {
+  const base = { pixelId: 'AW-1' };
+
+  it('emits the call-conversion config when label and number are valid', () => {
+    const r = resolveAds(
+      { google: { ...base, callTracking: { label: 'lbl-1', number: '(613) 555-0100' } } },
+      { consent: true },
+    );
+    expect(r.tags[0]!.inline).toContain("gtag('config','AW-1/lbl-1'");
+    expect(r.warnings.join()).not.toMatch(/callTracking/);
+  });
+
+  it('drops only call tracking for a label that could break out of the script', () => {
+    const r = resolveAds(
+      { google: { ...base, callTracking: { label: "x');alert(1)//", number: '613-555-0100' } } },
+      { consent: true },
+    );
+    expect(r.tags).toHaveLength(1);
+    expect(r.tags[0]!.inline).not.toContain('phone_conversion');
+    expect(r.warnings.join()).toMatch(/callTracking\.label/);
+  });
+
+  it('drops only call tracking for a number that is not a phone number', () => {
+    const r = resolveAds(
+      { google: { ...base, callTracking: { label: 'lbl', number: '</script>' } } },
+      { consent: true },
+    );
+    expect(r.tags[0]!.inline).not.toContain('phone_conversion');
+    expect(r.warnings.join()).toMatch(/callTracking\.number/);
+  });
+});

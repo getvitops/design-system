@@ -119,6 +119,7 @@ export function describeEvent(event: ConversionEvent): { subject: string; sectio
     const phone = event.phone ?? 'unknown';
     subject = `[Phone Call] Visitor calling ${phone}`;
     contact.push(['Phone', phone]);
+    if (event.phoneSource) contact.push(['Number shown', `${event.phoneSource} tracking number`]);
   }
 
   const attribution: [string, string][] = [];

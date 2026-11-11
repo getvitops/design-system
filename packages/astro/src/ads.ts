@@ -47,6 +47,7 @@ export type GetvitopsAdProperty = Pick<
   | 'pixelId'
   | 'conversionLabel'
   | 'conversionActionId'
+  | 'callTracking'
   | 'reporting'
   | 'category'
   | 'enabled'
@@ -85,6 +86,9 @@ export interface ResolveAdsContext {
  * config file is not a plausible thing to allow either.
  */
 const SAFE_ID = /^[\w.-]+$/;
+
+/** A displayed phone number: digits and the punctuation people write around them. */
+const SAFE_PHONE = /^\+?[\d\s().-]{7,20}$/;
 
 /** Resolve the configured ad properties into the tags `<Ads />` emits. */
 export function resolveAds(
@@ -147,6 +151,24 @@ export function resolveAds(
       safeEntry = Object.keys(cleanLabels).length
         ? { ...rest, conversionLabel: cleanLabels }
         : rest;
+    }
+
+    // `callTracking` lands in the same inline `<script>`. Its label gets `SAFE_ID`; its
+    // number gets a phone pattern. A bad one drops only call tracking, not the tag.
+    if (entry.callTracking) {
+      const { label, number } = entry.callTracking;
+      const bad = !SAFE_ID.test(label)
+        ? `callTracking.label "${label}" is not a valid label`
+        : !SAFE_PHONE.test(number)
+          ? `callTracking.number "${number}" is not a valid phone number`
+          : !platform.websiteCallTracking
+            ? `${platform.name} has no website call tracking`
+            : null;
+      if (bad) {
+        warnings.push(`ads: ${provider} ${bad}. Website call tracking skipped.`);
+        const { callTracking: _drop, ...rest } = safeEntry;
+        safeEntry = rest;
+      }
     }
 
     const category: ConsentCategory = entry.category ?? 'marketing';

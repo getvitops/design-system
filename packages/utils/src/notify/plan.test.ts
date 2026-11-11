@@ -132,6 +132,20 @@ describe('renderEmail', () => {
     expect(msg.text).toMatch(/None — visitor arrived without ad tracking/);
   });
 
+  it('names the tracking number a caller was shown', () => {
+    const msg = renderEmail({
+      type: 'call',
+      phone: '+16135550101',
+      phoneSource: 'meta',
+      tracking: null,
+      at: 0,
+    });
+    expect(msg.text).toContain('meta tracking number');
+    expect(
+      renderEmail({ type: 'call', phone: '+16135550101', tracking: null, at: 0 }).text,
+    ).not.toContain('tracking number');
+  });
+
   it('escapes submitted values into the html half', () => {
     const msg = renderEmail({
       type: 'form',

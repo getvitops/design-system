@@ -126,3 +126,122 @@ describe('ad pixels reach the generated documents', () => {
     expect(resolveProcessors(cfg).some((p) => p.name === 'Meta')).toBe(false);
   });
 });
+
+describe('call tracking numbers', () => {
+  // `tracking.enabled` is a plan-gated capability, so the fixture states the add-on.
+  const plan = { key: 'growth', addons: ['server_side_tracking'] };
+  const tracking = { enabled: true };
+  const call = { label: 'abc_DEF-1', number: '613-555-0100' };
+
+  test('accepts Google website call conversions with tracking on', () => {
+    expect(
+      errorsFor(fixture({ google: { pixelId: 'AW-1', callTracking: call } }, { tracking, plan })),
+    ).toEqual([]);
+  });
+
+  test('rejects callTracking on a platform that cannot do it, and says where to go instead', () => {
+    const errors = errorsFor(
+      fixture({ microsoft: { pixelId: '1', callTracking: call } }, { tracking, plan }),
+    );
+    expect(errors.join()).toMatch(/site\.ads\.microsoft\.callTracking/);
+    expect(errors.join()).toMatch(/site\.tracking\.phoneNumbers/);
+  });
+
+  test('rejects callTracking when the capture script is off', () => {
+    // Google replaces text only; the script is what rewrites the tel: href.
+    expect(errorsFor(fixture({ google: { pixelId: 'AW-1', callTracking: call } })).join()).toMatch(
+      /site\.tracking\.enabled/,
+    );
+  });
+
+  test('rejects callTracking with no AW- conversion id to address it by', () => {
+    expect(
+      errorsFor(
+        fixture({ google: { accountId: '123-456-7890', callTracking: call } }, { tracking, plan }),
+      ).join(),
+    ).toMatch(/pixelId/);
+  });
+
+  test('accepts per-platform numbers', () => {
+    expect(
+      errorsFor(
+        fixture(
+          {},
+          {
+            plan,
+            tracking: {
+              enabled: true,
+              phoneNumbers: {
+                number: '613-555-0100',
+                sources: { meta: '613-555-0101', 'default-paid': '613-555-0199' },
+              },
+            },
+          },
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  test('rejects an unknown source key', () => {
+    expect(
+      errorsFor(
+        fixture(
+          {},
+          {
+            plan,
+            tracking: {
+              enabled: true,
+              phoneNumbers: { number: '613-555-0100', sources: { myspace: '613-555-0101' } },
+            },
+          },
+        ),
+      ).join(),
+    ).toMatch(/myspace|sources/);
+  });
+
+  test('rejects phoneNumbers when the capture script is off', () => {
+    expect(
+      errorsFor(
+        fixture(
+          {},
+          {
+            plan,
+            tracking: {
+              phoneNumbers: { number: '613-555-0100', sources: { meta: '613-555-0101' } },
+            },
+          },
+        ),
+      ).join(),
+    ).toMatch(/site\.tracking\.enabled/);
+  });
+
+  test('rejects a google source while Google supplies its own number', () => {
+    const errors = errorsFor(
+      fixture(
+        { google: { pixelId: 'AW-1', callTracking: call } },
+        {
+          plan,
+          tracking: {
+            enabled: true,
+            phoneNumbers: { number: '613-555-0100', sources: { google: '613-555-0102' } },
+          },
+        },
+      ),
+    );
+    expect(errors.join()).toMatch(/Google supplies its own/);
+  });
+
+  test('rejects an empty sources map', () => {
+    expect(
+      errorsFor(
+        fixture(
+          {},
+          {
+            plan,
+            tracking: { enabled: true, phoneNumbers: { number: '613-555-0100', sources: {} } },
+          },
+        ),
+      ).join(),
+    ).toMatch(/sources is empty/);
+  });
+});

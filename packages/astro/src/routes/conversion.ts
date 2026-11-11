@@ -293,10 +293,12 @@ function googleClickId(tracking: TrackingData | null): { param: string; value: s
 /** Fields that are never part of a submission's meaning. `cf-turnstile-response`
  * is excluded unconditionally, matching `render.ts`'s `OMIT_FIELDS` — the field
  * carries a verification token, not something the visitor wrote. */
-const CONTROL_FIELDS = new Set(['event', 'phone', 'cf-turnstile-response']);
+const CONTROL_FIELDS = new Set(['event', 'phone', 'phoneSource', 'cf-turnstile-response']);
 /** The capture script sends `link.href` as-is: `tel:` + digits and the punctuation people type
  * (a space arrives as `%20`). Not free text. */
 const PHONE_RE = /^(?:tel:)?\+?[\d\s().%-]{3,40}$/i;
+/** A `site.tracking.phoneNumbers` source key (`meta`, `default-paid`, …). Printed in a notification. */
+const PHONE_SOURCE_RE = /^[a-z][a-z-]{1,19}$/;
 /** `mailto:` + an address, with an optional `?subject=…` query. A shape check, not deliverability. */
 const EMAIL_RE = /^(?:mailto:)?[^\s@<>"?]{1,64}@[^\s@<>"?]{1,255}(?:\?[^\s<>"]{0,256})?$/i;
 
@@ -546,7 +548,12 @@ export function createConversionRoute(options: ConversionRouteOptions) {
     const event: ConversionEvent = {
       type: isCall ? 'call' : isEmailClick ? 'email' : 'form',
       ...(isCall
-        ? { phone: String(body['phone']).replace(/^tel:/, '') }
+        ? {
+            phone: String(body['phone']).replace(/^tel:/, ''),
+            ...(typeof body['phoneSource'] === 'string' && PHONE_SOURCE_RE.test(body['phoneSource'])
+              ? { phoneSource: body['phoneSource'] }
+              : {}),
+          }
         : isEmailClick
           ? { email: String(body['email']).replace(/^mailto:/, '') }
           : { formData: toFormData(body, excludedFields) }),

@@ -873,3 +873,36 @@ describe('beacon payload validation', () => {
     expect((await post(body)).status).toBe(204);
   });
 });
+
+describe('createConversionRoute: which tracking number was dialled', () => {
+  /** Run one call beacon through the route with a recording email binding. */
+  async function callBeacon(extra: Record<string, unknown>) {
+    const send = vi.fn().mockResolvedValue({});
+    const handler = createConversionRoute({
+      context: {
+        ...ctx(),
+        notifications: {
+          email: { provider: 'cloudflare', to: 'owner@acme.ca', from: 'noreply@acme.ca' },
+        },
+      },
+      binding: () => ({ send }),
+    });
+    const res = await handler({
+      request: jsonRequest({ event: 'call', phone: 'tel:+16135550101', ...extra }),
+      locals: {},
+    } as never);
+    return { res, sent: send.mock.calls.map((c) => c[0] as { text: string }) };
+  }
+
+  it('says which platform number the caller was shown', async () => {
+    const { res, sent } = await callBeacon({ phoneSource: 'meta' });
+    expect(res.status).toBe(204);
+    expect(sent[0]?.text).toContain('meta tracking number');
+  });
+
+  it('ignores a phoneSource that is not a source key — it is printed into an email', async () => {
+    const { sent } = await callBeacon({ phoneSource: '<script>alert(1)</script>' });
+    expect(sent[0]?.text ?? '').not.toContain('alert(1)');
+    expect(sent[0]?.text ?? '').not.toContain('tracking number');
+  });
+});
