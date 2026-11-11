@@ -11,6 +11,28 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 8.3.0-alpha.5 (+ `@getvitops/emdash` 2.0.0-alpha.5, `@getvitops/create` 0.9.0-alpha.5, `@getvitops/skills` 0.1.0-alpha.2) — alpha channel
+
+Site chrome, call-tracking numbers, a leaner scaffold `AGENTS.md`, and a plainer release cooldown in the templates.
+
+### Breaking
+
+- **`@getvitops/skills`: skills are renamed by scope.** `custom-blocks` → `emdash-custom-blocks`, `content-and-deploys` → `emdash-content-and-deploys`, `contact-form` → `emdash-contact-form`, `csp` → `vitops-csp`, `see-the-page` → `vitops-see-the-page`, `ads` → `vitops-ads`. The `vitops-` and `emdash-` prefixes are reserved for toolkit skills. Migration: `vp install` relinks; in `.gitignore` replace the per-skill `.agents/skills/<name>` and `.claude/skills/<name>` lines with `.agents/skills/vitops-*`, `.agents/skills/emdash-*` and the same two under `.claude/skills/`. A site's own skill must not use those prefixes. `vitops agents sync` now lists (and links) `emdash-*` skills only when `emdash` is a dependency.
+- **Scaffolded `AGENTS.md` is much shorter** (EmDash 212 → ~70 lines, static 141 → ~50); the removed guidance lives in skills (`emdash-building-pages` is new, `vitops-consent` is split out of `vitops-design-system`). Existing sites keep their own file; the managed block at the top is rewritten by `vitops agents sync` (no version stamp, summaries cut at a clause, `vp exec vitops docs`).
+- **Templates: the 3-day release cooldown has no third-party exemptions.** `vite-plus`, `vite` (the `vite-plus-core` alias) are `^1.5.1` (the fix for a critical security bug in 1.5.0) and `emdash`, `@emdash-cms/cloudflare` are `^1.4.0`, instead of `latest` behind an exemption; only `@getvitops/*` is exempt. The old setup failed `vp create` with `ERR_PNPM_NO_MATURE_MATCHING_VERSION` whenever vite-plus had just pinned a fresh `@oxc-project/*`. Migration: reduce `minimumReleaseAgeExclude` to `'@getvitops/*'`, set the `catalog` and `package.json` entries to those ranges.
+
+### Added
+
+- **`site.chrome`** (`@getvitops/config`): `masthead` (position, behaviour, surface, tone, layout, width, elevation, fluid `height` and `inset`) and `nav` (`compact`, `drawerSide`, breakpoints, depths), read by the new `<Masthead>` and by `<SiteNav>` (`compact="dropdown"`, `drawerSide`, `megaDepth`, `megaPanel`). `@getvitops/emdash` adds `VitopsMegaPanel` (mega panel column from the widget area `mega-<slug>`). Scroll effects are `scroll-state()` container queries that only subtract from a solid, visible bar, so browsers without them (Firefox today) show that bar. CSS: **all formats**. The EmDash template renders through `<Masthead>`.
+- **Call tracking numbers:** `site.ads.google.callTracking` (Google website call conversions) and `site.tracking.phoneNumbers` (per-platform numbers); the `tel:` beacon records which number was shown. `vitops ads lint` checks the provider against the privacy-policy processors. New `vitops-ads` skill.
+- **`playwright-cli`** is how agents look at rendered pages: both templates add `playwright`, run `playwright cli install --skills` on `prepare`, and deny browser MCP servers; new `vitops-see-the-page` skill.
+
+### Fixed
+
+- Docs: `site.ads.google.conversionLabel` and `vitops ads` state the Google Ads category each conversion action needs (`call` → Phone call lead, `email` → Contact, `form` → Submit lead form).
+
+`@getvitops/vite` — no consumer-facing change in this package.
+
 ## 8.3.0-alpha.4 (+ `@getvitops/emdash` 2.0.0-alpha.4, `@getvitops/create` 0.9.0-alpha.4, `@getvitops/skills` 0.1.0-alpha.1) — alpha channel
 
 Fixes from the vitops.ca build against alpha.3.

@@ -1,5 +1,42 @@
 # @getvitops/create
 
+## 0.9.0-alpha.5
+
+### Minor Changes
+
+- 6b5ea17: **Leaner scaffolded `AGENTS.md`, and skills named by scope.** The EmDash template's `AGENTS.md` went from 212 to about 70 lines and the static one from 141 to about 50: only always-true rules stay (source of truth, generated CSS, branches, `vp`/`vpr`, where to look), and task-specific guidance moved into skills loaded when the task matches.
+
+  - **Breaking, `@getvitops/skills`: skills are renamed by scope.** `custom-blocks` → `emdash-custom-blocks`, `content-and-deploys` → `emdash-content-and-deploys`, `contact-form` → `emdash-contact-form`, `csp` → `vitops-csp`, `see-the-page` → `vitops-see-the-page`, `ads` → `vitops-ads`. `emdash-*` skills only apply to an EmDash site; `vitops-*` apply anywhere, and both prefixes are reserved for toolkit skills. New: `emdash-building-pages` (blocks, nesting, page opener, widget areas, escape hatches, layout primitives, `site.chrome`) and `vitops-consent` (split out of `vitops-design-system`, whose description and body now cover styling and tokens only). Existing sites: run `vp install` so `skills experimental_sync` relinks, and replace the per-skill `.agents/skills/<name>` / `.claude/skills/<name>` lines in `.gitignore` with `.agents/skills/vitops-*`, `.agents/skills/emdash-*` and the same two under `.claude/skills/`. A site's own skill must not use those prefixes.
+  - **`vitops agents sync`:** the block lists only skills that apply (a project without `emdash` in its dependencies gets no `emdash-*` ones, and they are not linked), summaries are cut at a clause rather than with an ellipsis, the pointer says `vp exec vitops docs`, and the version stamp is gone so the file no longer changes on every CLI bump.
+  - **`@getvitops/create`:** both templates ship the trimmed `AGENTS.md`; the project-naming steps moved into the `setup` skill and EmDash 1.x behaviours, legal-page replacement and the audit prerequisites into `emdash-content-and-deploys`. Existing sites: nothing to change beyond the skill rename; delete the sections you no longer need.
+
+- 7069f93: **Agents now look at rendered pages with `playwright-cli`.** Both templates add `playwright` as a devDependency, run `playwright cli install --skills` from `prepare` (writing the upstream command reference to `.claude/skills/playwright-cli/`), ship `.playwright/cli.config.json`, allow `pnpm exec playwright cli`, and deny `mcp__claude-in-chrome__*` and `mcp__playwright__*` in `.claude/settings.json`. `@getvitops/skills` adds a short `see-the-page` skill (serve first, snapshot before screenshot, dark mode, mobile, no-JS) that defers to the upstream one. Existing sites: add `playwright` as a devDependency, extend `prepare`, and copy the settings. `vitops audit` now needs only `@axe-core/playwright lighthouse` added.
+- 4d94c8b: **Added: `site.chrome` — a configurable masthead and nav behaviour.** Non-breaking.
+
+  - `site.chrome.masthead` (new `@getvitops/config` schema): `position` (`static|sticky|fixed`), `behavior` (`always|hide-on-scroll`), `surface` (`solid|glass|transparent|transparent-until-scrolled`), `tone` (a `colors.roles` key), `layout` (`full|inset|floating`), `width`, `elevation` (`shadow`, `border`, `onScroll`), `height` and `inset`. `height` and `inset` take fluid lengths (`calc()`, `clamp()`, `min()`, `max()`, with `cqi`/`vw`/… units), checked against a closed grammar because they are written into CSS. `validateConfig` rejects a `tone` or `shadow` the design system does not define (only when the default theme states them directly, not via `extends`).
+  - `site.chrome.nav`: `compact` (`drawer|dropdown`), `drawerSide`, `breakpoint`/`mobileBreakpoint`/`megaBreakpoint`, `depth`, `megaDepth`.
+  - `<Masthead config={site}>` (`@getvitops/astro`, slots `brand`/default/`actions`) and `resolveMasthead()` / `resolveNavOptions()`. A prop overrides one field per layout. The key is `chrome`/`masthead` on purpose: `<header>` is valid in any section and `banner` already means the announcement bar and the landmark role.
+  - `<SiteNav>` gains `compact="dropdown"` (a columnar panel anchored under the toggle), `drawerSide` (previously hardcoded to the end edge in Astro), `megaDepth` and `megaPanel`. `.sitenav--mega` now styles second-level items as column headings and has an optional featured column.
+  - `@getvitops/emdash`: `VitopsMegaPanel` fills that column from the widget area `mega-<item url slug>` (or a `mega-area:<name>` class on the menu item). No area means no column.
+  - `@getvitops/create` (emdash template): the layout renders through `<Masthead>`; `site.json` ships a sticky glass masthead with a shadow once scrolled. The hand-written `.navbar { block-size: 64px }` is gone (use `masthead.height`).
+  - CSS (`patterns/masthead.css`, `patterns/sitenav.css`): **all formats**, including tailwind, where the patterns are inlined into `@layer components`. Hide-on-scroll and the `*-on-scroll` states are `scroll-state()` container queries that only subtract from a settled (solid, elevated, visible) bar, so a browser without them (Firefox today) shows that bar rather than a transparent one. A sticky or fixed masthead sets `--header-offset` / `--top-offset` so anchors land below it.
+  - `@getvitops/generator`: new `TIERS.masthead`; `TIERS.sitenav` documents the new props.
+
+### Patch Changes
+
+- bb61a35: **Call tracking numbers: show an ad visitor a number that attributes the phone call.** Two additive config blocks, no CSS, no breaking change — all formats unaffected.
+
+  - **`site.ads.google.callTracking`** — Google Ads _website call conversions_. `{ label, number, cache? }` makes the consent-gated Google tag fetch a Google forwarding number (Canada supported) and swap it in for visitors who arrived from a Google ad. Google replaces text only, so the capture script also rewrites the matching `tel:` href. Needs `pixelId` and `site.tracking.enabled`; rejected on any other platform (only Google can put a number on the website — Microsoft's exist only inside the ad, in the US/UK/AU).
+  - **`site.tracking.phoneNumbers`** — per-platform numbers for every other platform: the real `number`, `sources` keyed by `site.ads` platform (plus `default-paid`), and an informational `provider`. You provision the numbers with a call-tracking service (Twilio, CallRail, …). The landing URL decides first, then the `_ac` cookie, so a visitor who declines `marketing` sees a tracking number on the landing page only. An organic visitor is never swapped, and the server-rendered HTML always carries the real number.
+  - The `tel:` tap beacon now carries which number was shown (`phoneSource`), and the conversion notification says so.
+  - `vitops ads lint` flags a call-tracking provider that is not in `site.legal.privacyPolicy.processors`, and notes that `callTracking` plus `conversionLabel.call` can count one call twice (make one secondary in Google Ads).
+  - `@getvitops/utils/tracking` exports the pure `selectPhoneNumber()` and helpers; the capture script mirrors it and `tracking.test.ts` pins the two.
+  - `@getvitops/skills` gains a **`vitops-ads`** skill (overview plus a `call-tracking.md` topic). The templates gitignore synced skills by prefix (`vitops-*`, `emdash-*`), so it needs no `.gitignore` line of its own.
+
+  `@getvitops/core`, `@getvitops/vite` and `@getvitops/emdash` — no consumer-facing change in these packages.
+
+- 74a87ed: **Scaffolded sites no longer exempt third-party tooling from the 3-day release cooldown.** The templates floated `vite-plus` and `emdash` on `latest` and exempted them (plus `@voidzero-dev/*`, `oxlint`, `oxfmt`) from `minimumReleaseAge`. An exempt package's exact-pinned dependencies are not exempt, so `vp create` then failed with `ERR_PNPM_NO_MATURE_MATCHING_VERSION` whenever vite-plus had just pinned a fresh `@oxc-project/*`. Now only `@getvitops/*` is exempt; `vite-plus` and `vite` (the `vite-plus-core` alias) are `^1.5.1` (the security fix for 1.5.0) and `emdash` and `@emdash-cms/cloudflare` are `^1.4.0`, all ranges, so pnpm resolves the newest version that has cleared the cooldown. Existing sites: in `pnpm-workspace.yaml` reduce `minimumReleaseAgeExclude` to `'@getvitops/*'` and change the `catalog` entries to `^1.5.1`; in `package.json` change those four dependencies from `latest` to those ranges (`vite` as `npm:@voidzero-dev/vite-plus-core@^1.5.1`).
+
 ## 0.9.0-alpha.4
 
 ### Minor Changes

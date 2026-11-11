@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/core",
-  "version": "8.3.0-alpha.4",
+  "version": "8.3.0-alpha.5",
   "description": "The Vitops design-system framework — CSS partials, Lit web components, and browser polyfills.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",

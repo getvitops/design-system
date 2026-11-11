@@ -1,5 +1,28 @@
 # @getvitops/utils
 
+## 8.3.0-alpha.5
+
+### Minor Changes
+
+- bb61a35: **Call tracking numbers: show an ad visitor a number that attributes the phone call.** Two additive config blocks, no CSS, no breaking change — all formats unaffected.
+
+  - **`site.ads.google.callTracking`** — Google Ads _website call conversions_. `{ label, number, cache? }` makes the consent-gated Google tag fetch a Google forwarding number (Canada supported) and swap it in for visitors who arrived from a Google ad. Google replaces text only, so the capture script also rewrites the matching `tel:` href. Needs `pixelId` and `site.tracking.enabled`; rejected on any other platform (only Google can put a number on the website — Microsoft's exist only inside the ad, in the US/UK/AU).
+  - **`site.tracking.phoneNumbers`** — per-platform numbers for every other platform: the real `number`, `sources` keyed by `site.ads` platform (plus `default-paid`), and an informational `provider`. You provision the numbers with a call-tracking service (Twilio, CallRail, …). The landing URL decides first, then the `_ac` cookie, so a visitor who declines `marketing` sees a tracking number on the landing page only. An organic visitor is never swapped, and the server-rendered HTML always carries the real number.
+  - The `tel:` tap beacon now carries which number was shown (`phoneSource`), and the conversion notification says so.
+  - `vitops ads lint` flags a call-tracking provider that is not in `site.legal.privacyPolicy.processors`, and notes that `callTracking` plus `conversionLabel.call` can count one call twice (make one secondary in Google Ads).
+  - `@getvitops/utils/tracking` exports the pure `selectPhoneNumber()` and helpers; the capture script mirrors it and `tracking.test.ts` pins the two.
+  - `@getvitops/skills` gains a **`vitops-ads`** skill (overview plus a `call-tracking.md` topic). The templates gitignore synced skills by prefix (`vitops-*`, `emdash-*`), so it needs no `.gitignore` line of its own.
+
+  `@getvitops/core`, `@getvitops/vite` and `@getvitops/emdash` — no consumer-facing change in these packages.
+
+### Patch Changes
+
+- 785b8b3: Docs only: the `site.ads.google.conversionLabel` field descriptions and `vitops ads` now state which Google Ads category each conversion action needs (`call` → Phone call lead, `email` → Contact, `form` → Submit lead form). The category is set on the action in Google Ads, not by the tag, so a wrong one reports under the wrong goal with no code-side signal. `vitopsFormConversion()`'s docblock also warns against firing a form conversion from a success-page query parameter. No behaviour change.
+- Updated dependencies [785b8b3]
+- Updated dependencies [bb61a35]
+- Updated dependencies [4d94c8b]
+  - @getvitops/config@8.3.0-alpha.5
+
 ## 8.3.0-alpha.4
 
 ### Patch Changes

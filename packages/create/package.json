@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/create",
-  "version": "0.9.0-alpha.4",
+  "version": "0.9.0-alpha.5",
   "description": "Project templates for the Vitops design system — scaffold wired-up sites with `vp create @getvitops`.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",

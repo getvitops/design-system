@@ -15,11 +15,14 @@
     "@getvitops/skills": "0.0.0"
   },
   "changesets": [
+    "ads-conversion-category-docs",
+    "agent-context-lean",
     "agents-sync-block",
     "astro-dev-icons-sprite",
     "block-escape-hatches-widget-areas",
     "block-library-patterns",
     "block-names-vitops-underscore",
+    "call-tracking-numbers",
     "contact-form-turnstile",
     "downstream-a-b-patterns-tone",
     "downstream-audit-settle",
@@ -34,8 +37,11 @@
     "legal-quebec-casl",
     "manifest-for-tailwind-editor",
     "org-optional-address",
+    "playwright-cli-default",
     "scaffold-prerender-csp",
+    "site-chrome-masthead",
     "site-nav-footer",
+    "template-cooldown-no-exemptions",
     "template-local-db-prepare",
     "upstream-2-build-correctness",
     "vitops-audit"

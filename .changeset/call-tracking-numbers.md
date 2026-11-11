@@ -15,6 +15,6 @@
 - The `tel:` tap beacon now carries which number was shown (`phoneSource`), and the conversion notification says so.
 - `vitops ads lint` flags a call-tracking provider that is not in `site.legal.privacyPolicy.processors`, and notes that `callTracking` plus `conversionLabel.call` can count one call twice (make one secondary in Google Ads).
 - `@getvitops/utils/tracking` exports the pure `selectPhoneNumber()` and helpers; the capture script mirrors it and `tracking.test.ts` pins the two.
-- `@getvitops/skills` gains an **`ads`** skill (overview plus a `call-tracking.md` topic). `@getvitops/create`'s templates gitignore its synced links (`.agents/skills/ads`, `.claude/skills/ads`); existing sites add those two lines to `.gitignore`.
+- `@getvitops/skills` gains a **`vitops-ads`** skill (overview plus a `call-tracking.md` topic). The templates gitignore synced skills by prefix (`vitops-*`, `emdash-*`), so it needs no `.gitignore` line of its own.
 
 `@getvitops/core`, `@getvitops/vite` and `@getvitops/emdash` — no consumer-facing change in these packages.

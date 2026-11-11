@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/vite",
-  "version": "8.3.0-alpha.4",
+  "version": "8.3.0-alpha.5",
   "description": "Vite plugin that generates Vitops design-system outputs from a design-system.json during a Vite/Astro build.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",
