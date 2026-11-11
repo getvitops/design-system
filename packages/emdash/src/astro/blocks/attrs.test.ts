@@ -58,7 +58,7 @@ describe('blockAttrs', () => {
 describe('theme on every block', () => {
   it('adds the tinted classes and --tone-* properties to the root', () => {
     const a = rootAttrs({ theme: 'surface' }, ['callout']);
-    expect(a.class).toBe('callout tone');
+    expect(a.class).toBe('callout tone tone--tint');
     expect(a.style).toContain('--tone-bg: var(--color-bg-surface-muted');
   });
   it('fills with the role solid and its computed text for `<role>:solid`', () => {
@@ -67,7 +67,9 @@ describe('theme on every block', () => {
     expect(a.style).toContain('--tone-on-solid: var(--color-text-on-brand-primary');
   });
   it("replaces a block's own tone classes rather than doubling them, and is inert for none", () => {
-    expect(rootAttrs({ theme: 'info' }, ['x', 'tone', 'tone--solid']).class).toBe('x tone');
+    expect(rootAttrs({ theme: 'info' }, ['x', 'tone', 'tone--solid']).class).toBe(
+      'x tone tone--tint',
+    );
     expect(rootAttrs({ theme: 'none' }, ['x', 'tone']).class).toBe('x tone');
     expect(rootAttrs({ theme: 'bad role!' }, ['x']).class).toBe('x');
   });

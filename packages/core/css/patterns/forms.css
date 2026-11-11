@@ -333,7 +333,7 @@ input[type='color'] {
  * `select` (`select.custom-select`); style both so the control radius applies. */
 .custom-select {
   position: relative;
-  display: inline-block;
+  display: block;
 
   &::after {
     content: '';
@@ -348,6 +348,19 @@ input[type='color'] {
     transform: rotate(45deg);
     pointer-events: none;
     opacity: 0.5;
+  }
+
+  /* The wrapper fills its field, and so does the control inside it. */
+  > select {
+    inline-size: 100%;
+  }
+}
+
+/* `appearance: base-select` draws its own arrow (`::picker-icon`); the wrapper's would be a second
+   chevron at the far edge. It only stands in where base-select is unsupported. */
+@supports (appearance: base-select) {
+  .custom-select:has(> select)::after {
+    content: none;
   }
 }
 

@@ -139,6 +139,17 @@ const DEFAULT_ASSETS = join(HERE, '..', 'assets');
  * live in a plain `:root`, never `@theme`: a `--color-*` theme key would mint `text-<hue>-<step>-on`
  * utilities nobody asked for.
  */
+/**
+ * `colors.tint`: the surface tint of a `.tone--tint` element as a mix of the role's solid, instead
+ * of its `muted` step (which can turn muddy: amber's is brown on a dark page). Nothing is emitted
+ * without it, so existing sites are unchanged. Not covered by the contrast contract — a mix over an
+ * arbitrary page is not a pairing the generator can check.
+ */
+export function toneTintRule(tint?: { mix: string }): string {
+  if (!tint) return '';
+  return `/* colors.tint */\n.tone {\n  --tone-tint: color-mix(in oklab, var(--tone-solid, currentColor) ${tint.mix}, transparent);\n}\n\n`;
+}
+
 export function hueOnTokens(
   palette: Record<string, { numeric: Record<string, string> }>,
 ): string[] {
@@ -542,9 +553,18 @@ export function build(
           ),
         }
       : undefined;
-    const failures = scaleRoles.flatMap((fr) =>
-      checkContrast(fr, numericOf, surfaceBg, buildOpts.darkOnly ? ['dark'] : undefined),
-    );
+    const failures = scaleRoles.flatMap((fr) => {
+      const spec = ds.colors.roles[fr.role];
+      const tolerance = typeof spec === 'object' ? (spec.acknowledgeContrast ?? 0) : 0;
+      return checkContrast(
+        fr,
+        numericOf,
+        surfaceBg,
+        buildOpts.darkOnly ? ['dark'] : undefined,
+        tolerance,
+        (msg) => console.warn(`[vitops] contrast acknowledged: ${msg}`),
+      );
+    });
     if (failures.length)
       throw new Error(
         `colour contrast contract failed (${failures.length} pairing${
@@ -604,7 +624,8 @@ export function build(
   if (BRICKS) {
     generated['color.css'] =
       '/* Colours provided by Bricks (palette import generates tokens + utilities). */\n' +
-      NON_PALETTE_BG;
+      NON_PALETTE_BG +
+      toneTintRule(ds.colors.tint);
   } else {
     let css = `/* GENERATED from design-system.json — do not edit by hand. */\n:root {\n`;
     css += `  color-scheme: ${buildOpts.darkOnly ? 'dark' : 'light'};\n`;
@@ -628,6 +649,7 @@ export function build(
       css += `  --overlay: color-mix(in oklch, var(--color-${surfaceRole.hue}-950) 45%, transparent);\n`;
     }
     css += `}\n\n`;
+    css += toneTintRule(ds.colors.tint);
     // Dark appearance: the automatic functional flip (solid stays mode-stable).
     {
       let fb = '';
@@ -1491,6 +1513,7 @@ function emitTailwind(ctx: TwCtx): string {
     for (const line of hueOnTokens(expandedPalette)) fn += `  ${line}\n`;
     if (ctx.darkOnly) fn = `  color-scheme: dark;\n${fn}`;
     parts.push(`/* Role tokens (the public API) */\n:root {\n${fn}}\n`);
+    if (ds.colors.tint) parts.push(toneTintRule(ds.colors.tint));
   }
 
   parts.push(

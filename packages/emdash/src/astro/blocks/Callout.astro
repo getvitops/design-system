@@ -39,7 +39,7 @@ import { rootAttrs } from './attrs.ts';
 {
   (heading || body) && (
     <div
-      {...rootAttrs(value, ['callout', tone.className, value.solid && 'tone--solid', value.align === 'center' && 'callout--center'], joinStyle(tone.style))}
+      {...rootAttrs(value, ['callout', value.solid ? tone.className : tone.surface, value.solid && 'tone--solid', value.align === 'center' && 'callout--center'], joinStyle(tone.style))}
     >
       <div class="callout__body">
         {heading && <Heading class="callout__title font-title">{heading}</Heading>}

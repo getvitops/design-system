@@ -68,6 +68,8 @@ function chain(tokens: string[]): string {
 export interface ResolvedTone {
   /** Always `tone`; a block adds `tone--solid` itself when it fills rather than tints. */
   className: string;
+  /** `tone tone--tint`: what a block that is a surface (callout, card, band) puts on its root. */
+  surface: string;
   /** Inline `style` value of `--tone-*` properties (no trailing semicolon). Empty when unset. */
   style: string;
 }
@@ -94,6 +96,7 @@ export function resolveTone(tone?: unknown, color?: unknown): ResolvedTone {
     const flip = (light: string, dark: string) => `light-dark(${at(light)}, ${at(dark)})`;
     return {
       className: 'tone',
+      surface: 'tone tone--tint',
       style: [
         `--tone-bg: ${flip('100', '900')}`,
         `--tone-fg: ${flip('900', '100')}`,
@@ -104,13 +107,14 @@ export function resolveTone(tone?: unknown, color?: unknown): ResolvedTone {
     };
   }
 
-  if (!hasTone) return { className: 'tone', style: '' };
+  if (!hasTone) return { className: 'tone', surface: 'tone', style: '' };
 
   const roles = toneChain(tone);
   const of = (prefix: string, suffix = '') =>
     chain(roles.map((r) => `--color-${prefix}-${r}${suffix}`));
   return {
     className: 'tone',
+    surface: 'tone tone--tint',
     style: [
       `--tone-bg: ${of('bg', '-muted')}`,
       `--tone-fg: ${of('text')}`,
@@ -160,5 +164,8 @@ export function resolveTheme(theme: unknown): { className: string; style: string
   if (!role || !ROLE.test(role)) return undefined;
   const tone = resolveTone(role);
   if (!tone.style) return undefined;
-  return { className: fill === 'solid' ? 'tone tone--solid' : 'tone', style: tone.style };
+  return {
+    className: fill === 'solid' ? 'tone tone--solid' : 'tone tone--tint',
+    style: tone.style,
+  };
 }

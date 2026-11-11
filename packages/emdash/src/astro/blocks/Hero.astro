@@ -8,7 +8,7 @@
  * Flat fields, because a block cannot contain other blocks.
  */
 import RichText from './RichText.astro';
-import { joinStyle, resolveTone, rowTone } from './tone.ts';
+import { joinStyle, resolveTheme, resolveTone, rowTone } from './tone.ts';
 import {
   accentRuns,
   outlineTag,
@@ -61,6 +61,7 @@ const cards = rows<Record<string, unknown>>(value.cards)
     ctaLabel: text(row.ctaLabel),
     ctaHref: safeHref(row.ctaHref),
     style: rowTone(row),
+    theme: resolveTheme(row.theme),
   }))
   .filter((card) => card.title || card.body);
 import { rootAttrs } from './attrs.ts';
@@ -68,7 +69,7 @@ import { rootAttrs } from './attrs.ts';
 
 {
   (heading || body) && (
-    <section {...rootAttrs(value, [tone.style && tone.className], joinStyle(tone.style))}>
+    <section {...rootAttrs(value, [tone.style && tone.surface], joinStyle(tone.style))}>
       <div class={split ? 'split split-1-2' : 'centered'}>
         <div class="rhythm">
           {eyebrow && <p class="font-eyebrow">{eyebrow}</p>}
@@ -100,7 +101,7 @@ import { rootAttrs } from './attrs.ts';
       {cards.length > 0 && (
         <ul class="subgrid centered" role="list" style={`--subgrid-cols: ${Math.min(4, cards.length)}`}>
           {cards.map((card) => (
-            <li class:list={['card', 'subgrid-card', card.style && 'tone']} style={card.style}>
+            <li class:list={['card', 'subgrid-card', card.style && 'tone tone--tint', card.theme?.className]} style={joinStyle(card.style, card.theme?.style)}>
               {card.eyebrow && <p class="font-eyebrow">{card.eyebrow}</p>}
               {card.title && <CardHeading class="font-heading">{card.title}</CardHeading>}
               {card.body && (

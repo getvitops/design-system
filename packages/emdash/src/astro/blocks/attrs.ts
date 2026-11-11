@@ -102,7 +102,7 @@ export function rootAttrs(
   const out: BlockAttrs = {};
   if (user.id) out.id = user.id;
   const cls = [
-    ...own.filter((c) => !theme || (c !== 'tone' && c !== 'tone--solid')),
+    ...own.filter((c) => !theme || (c !== 'tone' && c !== 'tone--solid' && c !== 'tone--tint')),
     theme?.className,
     user.id && 'block-anchor',
     user.class,

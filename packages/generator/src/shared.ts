@@ -110,6 +110,8 @@ export interface RoleSpecObject {
   solid?: number | string | undefined;
   /** Polarity of `text-on-<role>`; absent = whichever has more contrast. */
   foreground?: 'light' | 'dark' | undefined;
+  /** Lc a pairing may miss its APCA bar by and still only warn. */
+  acknowledgeContrast?: number | undefined;
 }
 export type RoleSpec = string | RoleSpecObject;
 

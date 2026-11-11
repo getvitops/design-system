@@ -64,7 +64,7 @@ import { rootAttrs } from './attrs.ts';
 {
   (hasHead || body.length > 0) && (
     <section
-      {...rootAttrs(value, ['section', 'region', tone.style && tone.className, tone.style && solid && 'tone--solid', layout === 'split' && 'section--split', layout === 'center' && 'section--center'], joinStyle(tone.style))}
+      {...rootAttrs(value, ['section', 'region', tone.style && (solid ? tone.className : tone.surface), tone.style && solid && 'tone--solid', layout === 'split' && 'section--split', layout === 'center' && 'section--center'], joinStyle(tone.style))}
     >
       <div class="centered">
         <div class:list={['section__inner', width]}>

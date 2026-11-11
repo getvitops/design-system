@@ -16,8 +16,8 @@ describe('toneChain', () => {
 
 describe('resolveTone', () => {
   it('is empty when nothing is set, so an unconfigured block stays transparent', () => {
-    expect(resolveTone()).toEqual({ className: 'tone', style: '' });
-    expect(resolveTone('', '')).toEqual({ className: 'tone', style: '' });
+    expect(resolveTone()).toEqual({ className: 'tone', surface: 'tone', style: '' });
+    expect(resolveTone('', '')).toEqual({ className: 'tone', surface: 'tone', style: '' });
   });
 
   it('resolves a role to var() chains the framework tokens satisfy', () => {

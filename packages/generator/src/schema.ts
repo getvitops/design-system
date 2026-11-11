@@ -97,6 +97,12 @@ const RoleSpecSchema = z.union([
         'Polarity of `text-on-<role>`, the foreground for a filled surface. Default is whichever of near-white / near-black has more contrast on the solid. Set `"dark"` so a bright fill carries dark text (or `"light"` for the reverse). The build still fails if the forced pair is below APCA Lc 60.',
       ),
     ),
+    acknowledgeContrast: z.optional(
+      desc(
+        z.number().check(z.positive()),
+        'Acknowledge a near miss on this role: a pairing that falls short of its APCA bar by no more than this many Lc is reported as a build warning instead of failing the build (e.g. `1` for a brand colour that lands at Lc 59.5 against 60). A larger shortfall still fails. Applies to this role only.',
+      ),
+    ),
   }),
 ]);
 
@@ -111,6 +117,17 @@ const Colors = desc(
     roles: desc(
       z.record(z.string(), RoleSpecSchema),
       `Maps semantic role names onto palette hues. Role names are ARBITRARY — add a key and the generator emits that role's token set (\`--color-<target>-<role>[-<variant>]\` for target bg/text/icon/border), its dark-mode flip and its utility classes.\n\nA value is either a hue name (\`"danger": "rust"\`) or \`{ "hue": …, "kind": "surface" | "chromatic" }\`. **The kind decides the shape of the token set.** \`chromatic\` (the default, and what the bare-string form means) is a signal colour: its backgrounds split into tints (\`bg-<role>-x-muted\`/\`-muted\`) and solids (\`bg-<role>-solid[-bold|-x-bold]\`), with deliberately **no bare \`bg-<role>\`** — "how loud?" is a question the author answers. \`surface\` is a page/panel colour: it has a bare \`bg-<role>\` plus the full emphasis range and text scale.\n\nDark mode flips automatically; there is no per-appearance scheme grammar. The solid family and its computed \`text-on-<role>\` foreground stay mode-stable so a filled button keeps its identity. \n\n**Contrast is enforced at build time, in both appearances** (APCA Lc): body text ≥ 75, secondary and muted text (\`text-muted\`) ≥ **60 against the page plane** it sits on, icons and guaranteed boundaries ≥ 45, and \`text-on-<role>\` ≥ 60 on the role's solid. So a mockup's muted grey that lands near Lc 57 fails the build — lighten the anchor on a dark page (or darken it on a light one) until it clears 60. \`text-x-muted\`/\`text-xx-muted\` are exempt (placeholders, disabled). A role can move its fill off the default step 600 with \`solid\`, and pin the polarity of its on-colour with \`foreground\`; a dark-only site (\`defaultColorScheme: "dark"\`) is only checked in dark. Six roles are a required core, because the shipped framework CSS references them with no fallback: ${REQUIRED_ROLES.join(', ')}. Conventional additions are ui-secondary/accent, brand-secondary, info and success.`,
+    ),
+    tint: z.optional(
+      desc(
+        z.strictObject({
+          mix: desc(
+            z.string(),
+            'Share of the role solid in the tint, e.g. `"8%"`. Emits `.tone { --tone-tint: color-mix(in oklab, <solid> <mix>, transparent) }`.',
+          ),
+        }),
+        "Derive the surface tint of a toned block (callout, card panel, band) from the role's solid instead of its `muted` step. Off by default. The generator's contrast contract does not cover it: a translucent mix over an arbitrary page is not a pairing it can check, so keep the share low.",
+      ),
     ),
     utilities: z.optional(
       desc(

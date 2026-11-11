@@ -375,3 +375,22 @@ describe.each(templateNames)('template %s skills from @getvitops/skills', (templ
     expect(ignore).toContain(`.claude/skills/${name}`);
   });
 });
+
+/**
+ * Every class a block renderer emits as a pattern (`cta`, `link`, `details`, …) needs an entry in
+ * the template's `patterns.items`, or the generator never writes its CSS and the block renders
+ * unstyled (the `.cta` gap that shipped through alpha.3).
+ */
+describe.each(templateNames)('template %s covers the patterns the blocks emit', (name) => {
+  const site = JSON.parse(readFileSync(join(TEMPLATES, name, 'site.json'), 'utf8'));
+  const items = Object.keys(site.designSystem.themes.default.patterns.items);
+  it.each(['btn', 'button', 'cta', 'link', 'card', 'badge', 'tag', 'details'])(
+    'defines %s',
+    (pattern) => {
+      expect(items).toContain(pattern === 'btn' ? 'button' : pattern);
+    },
+  );
+  it('defines ui-accent for heading accents', () => {
+    expect(Object.keys(site.designSystem.themes.default.colors.roles)).toContain('ui-accent');
+  });
+});

@@ -81,7 +81,7 @@ import { rootAttrs } from './attrs.ts';
 {
   reviews.length > 0 ? (
     <div
-      {...rootAttrs(value, ['reviews', toned && tone.className], toned ? joinStyle(tone.style) : undefined)}
+      {...rootAttrs(value, ['reviews', toned && tone.surface], toned ? joinStyle(tone.style) : undefined)}
     >
       {layout === 'carousel' ? (
         <Carousel label={label}>

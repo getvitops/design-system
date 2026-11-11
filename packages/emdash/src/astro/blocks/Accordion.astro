@@ -20,6 +20,8 @@ const items = rows<Record<string, unknown>>(value.items)
     open: Boolean(row.open),
   }))
   .filter((item) => item.summary);
+const { spriteBase = '/vitops' } = Astro.props as { spriteBase?: string };
+const sprite = `${spriteBase}/icons.svg`;
 const group = value.exclusive ? `accordion-${value._key ?? 'group'}` : undefined;
 import { rootAttrs } from './attrs.ts';
 ---
@@ -29,7 +31,14 @@ import { rootAttrs } from './attrs.ts';
     <div {...rootAttrs(value, ['accordion'])}>
       {items.map((item) => (
         <details name={group} open={item.open}>
-          <summary>{item.summary}</summary>
+          <summary>
+            <span>{item.summary}</span>
+            <span class="icon details-icon" aria-hidden="true">
+              <svg>
+                <use href={`${sprite}#icon-chevron-down`} />
+              </svg>
+            </span>
+          </summary>
           {item.body.map((p) => (
             <p>{p}</p>
           ))}

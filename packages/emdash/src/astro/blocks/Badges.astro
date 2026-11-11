@@ -46,7 +46,7 @@ const items = rows<Record<string, unknown>>(value.items)
           return (
             <li>
               <Tag
-                class:list={[kind, item.tone.style && item.tone.className, item.href && 'link']}
+                class:list={[kind, item.tone.style && item.tone.surface, item.href && 'link']}
                 href={item.href || undefined}
                 style={item.tone.style || undefined}
               >

@@ -511,6 +511,12 @@ export function checkContrast(
   surfaceBg?: { light: string[]; dark: string[] },
   /** Appearances to judge; a dark-only site passes `['dark']`. Default: both. */
   appearances: readonly ('light' | 'dark')[] = ['light', 'dark'],
+  /**
+   * Lc a pairing may fall short by without failing (`colors.roles.<r>.acknowledgeContrast`). A
+   * shortfall inside it is passed to `onNear` instead, so it is acknowledged but never silent.
+   */
+  tolerance = 0,
+  onNear?: (msg: string) => void,
 ): string[] {
   const failures: string[] = [];
   const resolve = (val: string): string => {
@@ -518,8 +524,11 @@ export function checkContrast(
     if (!m) return val;
     return numericOf(m[1] as string)[m[2] as NumStep] ?? val;
   };
-  const fail = (appearance: string, msg: string) =>
-    failures.push(`${fr.role}/${appearance}: ${msg}`);
+  const fail = (appearance: string, msg: string, lc?: number, min?: number) => {
+    const text = `${fr.role}/${appearance}: ${msg}`;
+    if (tolerance > 0 && lc != null && min != null && lc >= min - tolerance) onNear?.(text);
+    else failures.push(text);
+  };
 
   for (const [appearance, tokens] of [
     ['light', fr.light],
@@ -551,7 +560,8 @@ export function checkContrast(
         if (tokens[key] == null || EXEMPT_TEXT.has(key)) continue;
         const min = key === 'text-muted' ? CONTRAST.SECONDARY : textMin;
         const lc = contrastLc(resolve(tokens[key] as string), bg);
-        if (lc < min) fail(appearance, `${key} Lc ${lc.toFixed(1)} < ${min} on ${planeName} ${bg}`);
+        if (lc < min)
+          fail(appearance, `${key} Lc ${lc.toFixed(1)} < ${min} on ${planeName} ${bg}`, lc, min);
       }
       // Icons carry meaning, so they hold the non-text bar everywhere. Borders
       // do not: a chromatic `border-<role>` is *decorative* — the tinted edge of
@@ -566,6 +576,8 @@ export function checkContrast(
           fail(
             appearance,
             `${key} Lc ${lc.toFixed(1)} < ${CONTRAST.NON_TEXT} on ${planeName} ${bg}`,
+            lc,
+            CONTRAST.NON_TEXT,
           );
       }
     }
@@ -574,13 +586,23 @@ export function checkContrast(
     const solid = resolve(tokens['bg-solid'] as string);
     const onLc = contrastLc(tokens['text-on'] as string, solid);
     if (onLc < CONTRAST.SECONDARY)
-      fail(appearance, `text-on Lc ${onLc.toFixed(1)} < ${CONTRAST.SECONDARY} on bg-solid`);
+      fail(
+        appearance,
+        `text-on Lc ${onLc.toFixed(1)} < ${CONTRAST.SECONDARY} on bg-solid`,
+        onLc,
+        CONTRAST.SECONDARY,
+      );
 
     // The inverse surface, where it exists.
     if (tokens['bg-bold'] != null && tokens['text-on-bold'] != null) {
       const lc = contrastLc(resolve(tokens['text-on-bold'] as string), resolve(tokens['bg-bold']));
       if (lc < CONTRAST.TEXT)
-        fail(appearance, `text-on-bold Lc ${lc.toFixed(1)} < ${CONTRAST.TEXT} on bg-bold`);
+        fail(
+          appearance,
+          `text-on-bold Lc ${lc.toFixed(1)} < ${CONTRAST.TEXT} on bg-bold`,
+          lc,
+          CONTRAST.TEXT,
+        );
     }
   }
   return failures;

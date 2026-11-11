@@ -1112,9 +1112,27 @@ const ROW_TONE: Record<string, string> = {
 };
 
 /** Extra row fields for one repeater, beyond the shared tone pair. */
+const rowThemeField = (): BlockKitFieldDef =>
+  ({
+    type: 'select',
+    action_id: 'theme',
+    label: 'Backdrop for this item (a tint or fill of a site colour; wins over tone)',
+    initial_value: '',
+    options: [
+      { label: 'None', value: '' },
+      ...THEME_ROLES.flatMap((r) => [
+        { label: r.replace(/-/g, ' '), value: r },
+        { label: `${r.replace(/-/g, ' ')} (filled)`, value: `${r}:solid` },
+      ]),
+    ],
+    optionsRoute: THEMES_ROUTE,
+  }) as BlockKitFieldDef;
+
 const ROW_EXTRA: Record<string, Record<string, BlockKitFieldDef[]>> = {
+  vitops_cards: { cards: [rowThemeField()] },
   vitops_hero: {
     cards: [
+      rowThemeField(),
       { type: 'text_input', action_id: 'eyebrow', label: 'Eyebrow (small line above the title)' },
       { type: 'text_input', action_id: 'ctaLabel', label: 'Button text' },
       { type: 'text_input', action_id: 'ctaHref', label: 'Button URL' },

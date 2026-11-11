@@ -15,19 +15,31 @@
  * tone a site never defined degrades to a neutral surface instead of to nothing.
  * `@getvitops/emdash`'s `resolveTone()` writes the chains. Unset, `.tone` is inert.
  *
- * `.tone--tint` is the default; `--solid` fills with the role's solid and its `on` colour.
+ * `.tone--tint` paints the tint (surfaces only); `--solid` fills with the role's solid and its `on`
+ * colour. `--tone-tint` overrides the tint's colour.
  */
 .tone {
-  --_bg: var(--tone-bg, transparent);
   --_fg: var(--tone-fg, inherit);
 
-  background-color: var(--_bg);
   color: var(--_fg);
   border-color: var(--tone-border, currentColor);
 
+  /* A tone is colour variables first. Only a surface paints, so a steps list, a stat row or a
+     form that carries a tone is not turned into a padding-less band. A site can swap the tint for
+     something else (a mix of the solid, glass, …) through `--tone-tint`; see `colors.tint`. */
+  &.tone--tint {
+    background-color: var(--tone-tint, var(--tone-bg, transparent));
+  }
+
   &.tone--solid {
-    background-color: var(--tone-solid, var(--_bg));
+    background-color: var(--tone-solid, var(--tone-bg, transparent));
     color: var(--tone-on-solid, var(--_fg));
+  }
+
+  /* A filled call to action inside a toned surface (the classes are only added with a tone set) takes that block's colour. */
+  &:is(.tone--tint, .tone--solid) .cta {
+    background-color: var(--tone-solid);
+    color: var(--tone-on-solid);
   }
 }
 

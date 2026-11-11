@@ -59,7 +59,7 @@ describe('vitops_cards', () => {
       tone: 'brand-primary',
       cards: [{ title: 'Pillar', checklist: 'one\ntwo', ctaLabel: 'Go', ctaHref: '/go' }],
     });
-    expect(html).toContain('class="card subgrid-card tone"');
+    expect(html).toContain('class="card subgrid-card tone tone--tint"');
     expect(html).toContain('--tone-bg: var(--color-bg-brand-primary-muted');
     expect(html).toContain('<li>one</li>');
     expect(html).toContain('class="cta" href="/go"');
@@ -385,7 +385,7 @@ describe('vitops_reviews', () => {
     fixtures.cache = { version: 1, locations: { ottawa: { reviews: [review('a', 5)] } } };
     const { default: Reviews } = await import('./Reviews.astro');
     const html = await render(Reviews, { tone: 'brand-primary' });
-    expect(html).toContain('class="reviews tone"');
+    expect(html).toContain('class="reviews tone tone--tint"');
     expect(html).toContain('<article class="review"');
   });
 });
@@ -491,7 +491,7 @@ describe('vitops_section', () => {
         },
       },
     });
-    expect(html).toContain('section region tone section--split');
+    expect(html).toContain('section region tone tone--tint section--split');
     expect(html).toContain('<h3 class="section__title font-title">Two services</h3>');
     expect(html).toContain('Why us');
     expect(html).toContain('Body copy');

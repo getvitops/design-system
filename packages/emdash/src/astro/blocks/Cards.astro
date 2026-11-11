@@ -19,7 +19,7 @@
 import Cards from '@getvitops/astro/components/Cards.astro';
 import Subgrid from '@getvitops/astro/components/Subgrid.astro';
 import RichText from './RichText.astro';
-import { joinStyle, resolveTone, rowTone } from './tone.ts';
+import { joinStyle, resolveTheme, resolveTone, rowTone } from './tone.ts';
 import { headingTag, lines, resolveBlockValue, rows, safeHref, text } from './value.ts';
 
 interface Value {
@@ -44,6 +44,7 @@ const cards = rows<Record<string, unknown>>(value.cards)
     ctaLabel: text(row.ctaLabel),
     ctaHref: safeHref(row.ctaHref),
     style: rowTone(row),
+    theme: resolveTheme(row.theme),
   }))
   .filter((card) => card.title || card.body || card.image);
 const columns = Math.min(4, Math.max(1, Math.round(Number(value.columns) || 3)));
@@ -59,8 +60,8 @@ import { rootAttrs } from './attrs.ts';
     <Grid {...rootAttrs(value, [], `--subgrid-cols: ${columns}`)}>
       {cards.map((card) => (
         <li
-          class:list={['card', 'subgrid-card', panel && tone.className]}
-          style={panel ? joinStyle(tone.style, card.style) : card.style}
+          class:list={['card', 'subgrid-card', panel && tone.surface, card.theme?.className]}
+          style={joinStyle(panel ? joinStyle(tone.style, card.style) : card.style, card.theme?.style)}
         >
           {card.image && <img src={card.image} alt={card.imageAlt} loading="lazy" />}
           {card.title && <Heading class="card__title font-heading">{card.title}</Heading>}

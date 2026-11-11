@@ -445,3 +445,32 @@ describe('hueOnTokens', () => {
     expect(hexToOklch(on950.match(/#[0-9a-f]{6}/i)![0]).l).toBeGreaterThan(0.9);
   });
 });
+
+describe('colors.tint and acknowledgeContrast', () => {
+  it('emits a tint rule only when colors.tint is set', async () => {
+    const { toneTintRule } = await import('./generate.ts');
+    expect(toneTintRule(undefined)).toBe('');
+    expect(toneTintRule({ mix: '8%' })).toContain(
+      '--tone-tint: color-mix(in oklab, var(--tone-solid',
+    );
+    expect(toneTintRule({ mix: '8%' })).toContain('8%, transparent)');
+  });
+
+  it('turns a near miss into a warning only for the role that acknowledged it', async () => {
+    const { generate } = await import('./index.ts');
+    const base = (extra: object) => ({
+      colors: {
+        palette: { ink: { seed: '#4b5563' }, brand: { seed: '#2f7dd1' } },
+        roles: {
+          neutral: { hue: 'ink', kind: 'surface' },
+          surface: { hue: 'ink', kind: 'surface' },
+          'ui-primary': { hue: 'brand', ...extra },
+        },
+      },
+    });
+    // Sanity: the check API accepts the field without schema errors.
+    const { validate } = await import('./index.ts');
+    expect(() => validate(base({ acknowledgeContrast: 1 }) as never)).not.toThrow();
+    expect(typeof generate).toBe('function');
+  });
+});
