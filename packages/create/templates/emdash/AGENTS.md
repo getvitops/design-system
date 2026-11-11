@@ -116,7 +116,8 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
 - `public/_headers` ships a Report-Only CSP. Read `.agents/skills/csp/SKILL.md` before enforcing it
   or adding embeds.
 - `vitops audit` needs optional packages and a browser, checked before it starts a server:
-  `vp add -D playwright @axe-core/playwright lighthouse && vp exec playwright install chromium`.
+  `vp add -D @axe-core/playwright lighthouse && vp exec playwright install chromium` (`playwright`
+  itself is already a devDependency).
   Its page list is the built sitemap, then the seed's menus.
 
 ## Branch model
@@ -124,6 +125,8 @@ prerendered, the Worker serving the admin and API) styled by the Vitops design s
 - Work on **`dev`**; every push auto-deploys the isolated `-dev` worker.
 - **`main`** is production and protected: never push or merge to it. It ships only through the
   `promote` skill (`.agents/skills/promote/`), and only when the user explicitly asks.
+- To look at a rendered page, use `playwright-cli` (`.agents/skills/see-the-page/`), never a browser
+  extension or MCP server.
 - Sample legal pages (`/terms`, `/privacy`) are deliberately short, unfinished placeholders; don't
   "improve" them into something that reads as a finished policy. To replace them, fill in
   `site.json`'s `organization`/`site.legal`, run

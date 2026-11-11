@@ -16,7 +16,7 @@
     "build:css": "vitops generate -i site.json -f css -o src/styles",
     "lint:design": "vitops lint -i site.json -f css --strict",
     "sop": "vitops generate -i site.json -f css -o .vitops/sop",
-    "prepare": "vp config && skills experimental_sync -y -a claude-code --no-frozen-lockfile && vitops agents sync -i site.json"
+    "prepare": "vp config && skills experimental_sync -y -a claude-code --no-frozen-lockfile && playwright cli install --skills && vitops agents sync -i site.json"
   },
   "dependencies": {
     "@getvitops/astro": "latest",
@@ -26,6 +26,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@getvitops/cli": "latest",
+    "playwright": "^1.62.1",
     "skills": "^1.7.6",
     "typescript": "^6.0.3",
     "vite": "latest",

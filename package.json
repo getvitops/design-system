@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "postinstall": "node scripts/link-template-deps.mjs"
+    "postinstall": "node scripts/link-template-deps.mjs",
+    "prepare": "playwright cli install --skills"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",

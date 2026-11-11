@@ -89,7 +89,8 @@ per-request response to carry one.
 
 `@getvitops/skills` ships agent skills that update with the package. `skills experimental_sync` (run
 by `prepare`, so by `vp install`) links them into `.agents/skills/` and `.claude/skills/`; they are
-gitignored. The set is written for EmDash sites, so `csp` is the one that applies here. A skill you
+gitignored. The set is written for EmDash sites, so `csp` is the one that applies here. To look at a rendered page, use `playwright-cli`
+(`see-the-page` skill), never a browser extension or MCP server. A skill you
 write yourself with the same name is never replaced. `setup` is this site's own.
 
 ## Commands

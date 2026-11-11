@@ -37,3 +37,7 @@ packages/create/templates/*/.astro/
 # `vitops audit` reports
 .vitops/audit/
 .vitops/e2e-audit/
+
+# playwright-cli: skill is regenerated from the pinned playwright by `prepare`; output is per-session scratch
+.claude/skills/playwright-cli/
+.playwright-cli/

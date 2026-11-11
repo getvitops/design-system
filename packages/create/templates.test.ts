@@ -394,3 +394,36 @@ describe.each(templateNames)('template %s covers the patterns the blocks emit', 
     expect(Object.keys(site.designSystem.themes.default.colors.roles)).toContain('ui-accent');
   });
 });
+
+/**
+ * `playwright-cli` is how an agent sees a rendered page, in every scaffold. It is the CLI bundled in
+ * the pinned `playwright` (not the standalone `@playwright/cli`, which pins a second, alpha
+ * Playwright and browser), its upstream skill is written by `prepare`, and browser MCP servers are
+ * denied so the default is enforced rather than suggested.
+ */
+describe.each(templateNames)('template %s sees pages through playwright-cli', (name) => {
+  const dir = join(TEMPLATES, name);
+  const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
+  const settings = JSON.parse(readFileSync(join(dir, '.claude', 'settings.json'), 'utf8'));
+
+  it('pins playwright and installs its skill on prepare', () => {
+    expect(pkg.devDependencies.playwright).toMatch(/^\^\d/);
+    expect(pkg.devDependencies['@playwright/cli']).toBeUndefined();
+    expect(pkg.scripts.prepare).toContain('playwright cli install --skills');
+  });
+
+  it('allows the CLI and denies browser MCP servers', () => {
+    expect(settings.permissions.allow).toContain('Bash(pnpm exec playwright cli:*)');
+    expect(settings.permissions.deny).toEqual(
+      expect.arrayContaining(['mcp__claude-in-chrome__*', 'mcp__playwright__*']),
+    );
+  });
+
+  it('ships the CLI config and gitignores generated output', () => {
+    const cfg = JSON.parse(readFileSync(join(dir, '.playwright', 'cli.config.json'), 'utf8'));
+    expect(cfg.outputDir).toBe('.playwright-cli');
+    const ignore = readFileSync(join(dir, '_gitignore'), 'utf8');
+    for (const line of ['.claude/skills/playwright-cli', '.playwright-cli/'])
+      expect(ignore).toContain(line);
+  });
+});

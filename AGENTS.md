@@ -1274,6 +1274,32 @@ Other tools used:
   var(--br-control)`), and `overrides` replace an alias with a literal. So a pattern's `base` writes
   `"border-radius": "var(--br-btn-group)"`, **not** `"var(--br-control, 0.25rem)"`. Both render the
   same, but only the first keeps the pattern → group mapping in CSS, where it is inspectable and
+
+### Seeing rendered pages
+
+**`playwright-cli` is the one sanctioned way for an agent to look at a rendered page** — not the
+Claude-in-Chrome extension, not Playwright MCP or any other browser MCP server
+(`.claude/settings.json` denies `mcp__claude-in-chrome__*` and `mcp__playwright__*`). Three reasons:
+a CLI + skill keeps the model's context free of tool schemas and full accessibility trees (output
+goes to files under `.playwright-cli/`, gitignored); it is reproducible, since it is the `playwright`
+this repo already pins in the catalog and `vitops audit`/`site/e2e` already use (the standalone
+`@playwright/cli` package pins its own alpha `playwright` and a second browser download, so we don't
+install it); and it needs no user-level browser or extension setup.
+
+- Invoke as `pnpm exec playwright cli …` (`npx --no-install playwright cli …` also works). `prepare`
+  runs `playwright cli install --skills`, writing the upstream command reference to
+  `.claude/skills/playwright-cli/` (gitignored — regenerated from the pinned version). Defaults live
+  in the committed `.playwright/cli.config.json` (headless Chromium).
+- Serve first, then look: `docs:dev` (4321) for `site/`, `verify:e2e --pause` for the scaffolded
+  EmDash site, or open `index.html` as a `file://` page only with `PLAYWRIGHT_MCP_ALLOW_UNRESTRICTED_FILE_ACCESS=1`.
+  Remember a running `docs:dev` serves stale framework CSS (see Build system) — check the served
+  file before blaming the CSS.
+- `snapshot` before `screenshot`: the snapshot is text and cheap; screenshot only when the question
+  is visual (layout, colour, dark mode via `data-theme="dark"`). One named session per task
+  (`-s=<task>`), `close` when done.
+- Tier-2 no-JS fallbacks: prove them with a config setting `javaScriptEnabled: false`
+  (`open --config=…`), the same promise `site/e2e/no-js-fallback.e2e.ts` asserts.
+
   editable in devtools; a hard-coded fallback bakes it into the rule and is unreachable. The full
   chain is `--p-btn` (consumer hook, from `BASE_HOOK`) → `--p-btn-group` (pattern/`overrides`) →
   `--p-control` (group) → `--p-default`. State the tier's _deviations_ in `overrides` and let
