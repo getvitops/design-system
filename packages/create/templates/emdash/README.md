@@ -51,7 +51,7 @@ get the prerendered `src/pages/404.astro` with a real 404 status.
 
 **Pages are prerendered.** `vpr build` writes static HTML for every published
 `pages` entry, so an edit in the admin goes live on the next rebuild rather than
-per request — see `.agents/skills/content-and-deploys` for how production content
+per request — see `.agents/skills/emdash-content-and-deploys` for how production content
 reaches the build (`scripts/pull-content.mjs`) and for the publish-triggered rebuild.
 In `vpr dev` the pages read your local database, so edits appear straight away.
 
@@ -179,23 +179,23 @@ vpr build:css                  # regenerate the CSS manually
 
 ## Project map
 
-| Path                             | Purpose                                                                                            |
-| -------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `site.json`                      | Org + site config; design tokens/patterns at `designSystem.themes.default` → generated CSS         |
-| `seed/seed.json`                 | First-boot content model + starter content                                                         |
-| `src/worker.ts`                  | Worker entry (fetch + EmDash scheduled handler)                                                    |
-| `src/live.config.ts`             | Astro live content collections wiring for EmDash                                                   |
-| `src/layouts/Layout.astro`       | Site chrome: EmDash + Vitops head tags, nav from the CMS menu                                      |
-| `src/pages/index.astro`          | Home — prerendered from the `home` page entry                                                      |
-| `src/pages/[...slug].astro`      | Prerendered once per published `pages` entry (`getStaticPaths`)                                    |
-| `src/pages/404.astro`            | Prerendered not-found page, served with a 404 status for any unmatched URL                         |
-| `public/_headers`                | Report-Only CSP for the static pages (see `.agents/skills/csp`)                                    |
-| `scripts/pull-content.mjs`       | Loads production's D1 into the local build DB before the prerender (`deploy`/`deploy:dev`)         |
-| `wrangler.jsonc`                 | Cloudflare bindings (D1/R2) + cron trigger                                                         |
-| `scripts/build-dev-wrangler.mjs` | Rewrites the built wrangler config for the isolated dev worker                                     |
-| `SETUP.html`                     | Client-onboarding checklist — run `vpr sop` first (see "One-time setup")                           |
-| `.github/workflows/`             | deploy-dev (push to `dev`), deploy-prod (push to `main`, or an `emdash-publish` dispatch), promote |
-| `.agents/skills/promote/`        | Agent skill: dispatch the dev → main promotion                                                     |
-| `.agents/skills/custom-blocks/`  | Agent skill: when (and how) to add a block type — compose, extend, local, upstream                 |
-| `.mcp.json`                      | Astro + EmDash docs MCP servers for coding agents                                                  |
-| `.claude/hooks/`                 | Claude Code web: Node 24 + pnpm setup on session start                                             |
+| Path                                   | Purpose                                                                                            |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `site.json`                            | Org + site config; design tokens/patterns at `designSystem.themes.default` → generated CSS         |
+| `seed/seed.json`                       | First-boot content model + starter content                                                         |
+| `src/worker.ts`                        | Worker entry (fetch + EmDash scheduled handler)                                                    |
+| `src/live.config.ts`                   | Astro live content collections wiring for EmDash                                                   |
+| `src/layouts/Layout.astro`             | Site chrome: EmDash + Vitops head tags, nav from the CMS menu                                      |
+| `src/pages/index.astro`                | Home — prerendered from the `home` page entry                                                      |
+| `src/pages/[...slug].astro`            | Prerendered once per published `pages` entry (`getStaticPaths`)                                    |
+| `src/pages/404.astro`                  | Prerendered not-found page, served with a 404 status for any unmatched URL                         |
+| `public/_headers`                      | Report-Only CSP for the static pages (see `.agents/skills/vitops-csp`)                             |
+| `scripts/pull-content.mjs`             | Loads production's D1 into the local build DB before the prerender (`deploy`/`deploy:dev`)         |
+| `wrangler.jsonc`                       | Cloudflare bindings (D1/R2) + cron trigger                                                         |
+| `scripts/build-dev-wrangler.mjs`       | Rewrites the built wrangler config for the isolated dev worker                                     |
+| `SETUP.html`                           | Client-onboarding checklist — run `vpr sop` first (see "One-time setup")                           |
+| `.github/workflows/`                   | deploy-dev (push to `dev`), deploy-prod (push to `main`, or an `emdash-publish` dispatch), promote |
+| `.agents/skills/promote/`              | Agent skill: dispatch the dev → main promotion                                                     |
+| `.agents/skills/emdash-custom-blocks/` | Agent skill: when (and how) to add a block type — compose, extend, local, upstream                 |
+| `.mcp.json`                            | Astro + EmDash docs MCP servers for coding agents                                                  |
+| `.claude/hooks/`                       | Claude Code web: Node 24 + pnpm setup on session start                                             |

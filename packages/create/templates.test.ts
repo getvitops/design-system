@@ -408,8 +408,11 @@ describe.each(templateNames)('template %s skills from @getvitops/skills', (templ
     expect(front![1]).toBe(name);
     expect(front![2]!.length).toBeGreaterThan(40);
     expect(readdirSync(join(template, '.agents', 'skills'))).not.toContain(name);
-    expect(ignore).toContain(`.agents/skills/${name}`);
-    expect(ignore).toContain(`.claude/skills/${name}`);
+    // Toolkit skills are ignored by scope glob, so a new one needs no gitignore edit.
+    const scope = /^(vitops|emdash)-/.exec(name)?.[1];
+    expect(scope, `${name} must be prefixed vitops- or emdash-`).toBeDefined();
+    expect(ignore).toContain(`.agents/skills/${scope}-*`);
+    expect(ignore).toContain(`.claude/skills/${scope}-*`);
   });
 });
 
@@ -462,5 +465,36 @@ describe.each(templateNames)('template %s sees pages through playwright-cli', (n
     const ignore = readFileSync(join(dir, '_gitignore'), 'utf8');
     for (const line of ['.claude/skills/playwright-cli', '.playwright-cli/'])
       expect(ignore).toContain(line);
+  });
+});
+
+/**
+ * AGENTS.md is read in full at the start of every session, so it holds only what is always true and
+ * says where to look for the rest; task-specific guidance belongs in a skill, loaded when the task
+ * matches. The budget makes growth a decision rather than drift (the emdash one was 212 lines, a
+ * third of it page-authoring detail that only matters when authoring pages).
+ */
+describe.each(templateNames)('template %s AGENTS.md stays lean', (name) => {
+  const text = readFileSync(join(TEMPLATES, name, 'AGENTS.md'), 'utf8');
+  const BUDGET: Record<string, number> = { emdash: 80, static: 55 };
+
+  it('fits its line budget', () => {
+    expect(text.split('\n').length).toBeLessThanOrEqual(BUDGET[name] ?? 55);
+  });
+
+  it('lists a skill only if it exists and applies to this template', () => {
+    const SKILLS = join(import.meta.dirname, '..', 'skills', 'skills');
+    const listed = [...text.matchAll(/^- \[([\w-]+)\]\(\.agents\/skills\//gm)].map((m) => m[1]!);
+    expect(listed.length).toBeGreaterThan(0);
+    const known = new Set([...readdirSync(SKILLS), 'vitops-design-system']);
+    for (const skill of listed) {
+      expect(known.has(skill), `${skill} is not a shipped skill`).toBe(true);
+      if (name === 'static') expect(skill.startsWith('emdash-'), `${skill} on static`).toBe(false);
+    }
+    if (name === 'emdash') expect(listed).toContain('emdash-building-pages');
+  });
+
+  it('carries no version stamp, which would churn the file on every release', () => {
+    expect(text).not.toMatch(/managed by `vitops agents sync` · @getvitops\/cli@/);
   });
 });

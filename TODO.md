@@ -369,7 +369,7 @@ The emdash template's `triggers.crons` (`* * * * *`, `wrangler.jsonc`) runs the 
 scheduled in the admin publishes, and plugin cron and maintenance run. Pages are prerendered, so a scheduled publish
 changes the database but the live HTML stays stale until a rebuild. Decide how it should trigger one, and confirm
 whether `content:afterPublish` fires for scheduled publishes (the `emdash-publish` dispatch hook in
-`content-and-deploys` assumes it does; unverified). Also check whether every-minute is the right cadence.
+`emdash-content-and-deploys` assumes it does; unverified). Also check whether every-minute is the right cadence.
 
 ### Block ideas from the vitops.ca build (UPSTREAM finding 20)
 

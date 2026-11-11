@@ -5,12 +5,10 @@ description: >-
   styling or authoring pages or components (choosing utility/pattern classes,
   colours, spacing, typography), when editing design-system.json (tokens,
   palette, patterns, scales, animations), when generating output (vitops
-  generate --format tailwind|css|bricks), when asking what the design system
-  provides on a given platform (Tailwind vs Bricks vs standalone CSS), and when
-  touching the site subsystems it generates or gates: the cookie-consent banner
-  and gating third-party tags, ad-click attribution and conversion
-  notifications, the generated privacy policy / terms / cookie notice, and
-  Google Search Console onboarding or post-deploy indexing.
+  generate --format tailwind|css|bricks), or when asking what the design system
+  provides on a given platform (Tailwind vs Bricks vs standalone CSS). Consent
+  gating, ad tracking, legal documents and Search Console have their own skills
+  or `vitops docs` topics.
 ---
 
 # Vitops design system
@@ -278,51 +276,4 @@ where no provider covers the family.
   refresh the AGENTS.md pointer block. The links point into the installed package and
   survive version bumps; re-run only if they were deleted.
 
-## Consent and third-party tags
-
-If the site has a consent gate, **every** non-essential third party goes through it. Run
-`vitops docs consent` before wiring one up — the failure modes here are silent and legal.
-The four that bite:
-
-- **A gated tag must render inert.** `type="text/plain"` + `data-consent="<category>"` +
-  the URL on `data-src` (never `src`), plus `data-consent-cookies` naming what it sets so
-  a revoke can clear them. Given a live `src` the browser fetches the library immediately
-  and the gate is decorative — an undecided visitor's page must issue **no** third-party
-  request.
-- **Use `require()`, not `granted()`, when you want permission.** `granted()` is passive:
-  it never raises the banner, so on a site where nothing else demands that category it is a
-  **permanent silent no-op** and your write never happens. `require()` registers the demand,
-  which is what makes the banner appear. `request()` is the promise form.
-- **No `window.vitopsConsent` means the site has no gate — store freely.** It does not mean
-  denied. (A synchronous stub in `<head>` covers the window before the runtime loads, so
-  absence is reliable. Listen for the `vitops:consent` event rather than calling
-  `subscribe()`, which the stub lacks.)
-- **Patch exactly the categories you put on screen.** `acceptAll()` / `rejectAll()` mean
-  literally every optional category — using one to answer a single-category prompt records
-  consent nobody gave. "Not asked" is a third value (`null`), distinct from declined, and
-  only it can be re-prompted.
-
-The banner is **demand-driven**: it appears when something actually asks, not on first visit.
-A site whose only analytics provider is cookieless never interrupts anyone. Don't "fix" a
-missing banner by forcing it to show — find out what should have demanded a category.
-
-Whatever loads must match what the **generated cookie notice** discloses; the Astro
-integration warns when they disagree, and that is a compliance defect, not a doc nit.
-
-## Conversion tracking
-
-`vitops docs tracking`. `site.tracking.enabled` captures ad click IDs and UTMs from the
-landing URL into the first-party `_ac` cookie; a conversion route reads it back and notifies
-via `site.notifications`. Points worth holding:
-
-- `_ac` is a 90-day identifier, so it waits on `marketing` (or `site.tracking.category`) and
-  the capture **`require()`s** it — see above.
-- Only an arrival actually carrying a click ID or UTM asks; organic visitors are never
-  interrupted.
-- The read is synchronous and the _write_ is what waits — the click ID exists only in the
-  landing URL, so it cannot be deferred.
-- Only the `email` channel (Cloudflare Email Sending) is implemented. Its sending domain must
-  be onboarded with `wrangler email sending enable <domain>` or every send fails; the tool
-  surfaces that error verbatim rather than as "send failed".
-- `--dry`-style planning is pure and reports **why** anything was skipped. A silently unsent
-  notification is indistinguishable from no conversion, so never leave one unexplained.
+Consent gating of third-party tags: the `vitops-consent` skill. Ad pixels and conversions: `vitops-ads`.

@@ -781,18 +781,6 @@ async function cmdReviews(argv: string[]) {
   if (failed) process.exit(1);
 }
 
-// This CLI's own version (dist/cli.mjs → package-root package.json).
-function cliVersion(): string {
-  try {
-    return (
-      JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version ??
-      '0.0.0'
-    );
-  } catch {
-    return '0.0.0';
-  }
-}
-
 // The framework asset root shipped inside @getvitops/generator (holds the Bricks
 // PHP that generateDocs reads for the element reference).
 function generatorAssetsDir(): string {
@@ -1161,7 +1149,6 @@ function cmdAgents(rawArgv: string[]) {
     renderAgentsBlock({
       config: inputRel,
       skills: discoverBlockSkills(process.cwd()),
-      version: cliVersion(),
     });
 
   const outPath = resolve(values.out as string);

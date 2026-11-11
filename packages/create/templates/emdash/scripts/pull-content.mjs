@@ -6,7 +6,7 @@
 // `astro build`. The Cloudflare adapter prerenders inside a local workerd with a
 // LOCAL D1 (`.wrangler/state`), never the deployed database — so on a CI runner
 // the build would see an empty, auto-seeded database and bake "No home page yet"
-// into every page. Production is the truth for content (see .agents/skills/content-and-deploys), so this
+// into every page. Production is the truth for content (see .agents/skills/emdash-content-and-deploys), so this
 // copies production's D1 into the local one first.
 //
 //   wrangler d1 export <db> --remote   →   .vitops/content.sql

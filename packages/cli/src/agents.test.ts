@@ -22,6 +22,8 @@ import {
   renderAgentsBlock,
   SKILL_NAME,
   skillSummary,
+  appliesTo,
+  isEmdashSite,
   TOPICS,
   upsertAgentsBlock,
 } from './agents.ts';
@@ -123,18 +125,24 @@ describe('linkSkill', () => {
 
 describe('the managed AGENTS.md block', () => {
   const skills = [
-    { name: 'csp', path: '.agents/skills/csp/SKILL.md', summary: 'The Report-Only CSP.' },
+    {
+      name: 'vitops-csp',
+      path: '.agents/skills/vitops-csp/SKILL.md',
+      summary: 'The Report-Only CSP.',
+    },
     {
       name: 'vitops-design-system',
       path: '.agents/skills/vitops-design-system/SKILL.md',
       summary: '',
     },
   ];
-  const block = renderAgentsBlock({ config: 'site.json', skills, version: '1.2.3' });
+  const block = renderAgentsBlock({ config: 'site.json', skills });
 
   it('is short and links the skills instead of repeating them', () => {
     expect(block.split('\n').length).toBeLessThanOrEqual(12);
-    expect(block).toContain('[csp](.agents/skills/csp/SKILL.md) — The Report-Only CSP.');
+    expect(block).toContain(
+      '[vitops-csp](.agents/skills/vitops-csp/SKILL.md) — The Report-Only CSP.',
+    );
     expect(block).toContain('`site.json`');
     expect(block.startsWith(AGENTS_START)).toBe(true);
     expect(block.endsWith(AGENTS_END)).toBe(true);
@@ -149,11 +157,11 @@ describe('the managed AGENTS.md block', () => {
 
   it('replaces only its own block, in place, on a later sync', () => {
     const first = upsertAgentsBlock('# Notes\n', block).text;
-    const next = renderAgentsBlock({ config: 'site.json', skills: [], version: '9.9.9' });
+    const next = renderAgentsBlock({ config: 'site.json', skills: [] });
     const { text, action } = upsertAgentsBlock(first.replace('# Notes', '# Notes edited'), next);
     expect(action).toBe('updated');
-    expect(text).toContain('@getvitops/cli@9.9.9');
-    expect(text).not.toContain('[csp]');
+    expect(text).not.toContain('@getvitops/cli@');
+    expect(text).not.toContain('[vitops-csp]');
     expect(text.endsWith('# Notes edited\n')).toBe(true);
     expect(text.match(/vitops:start/g)).toHaveLength(1);
   });
@@ -170,6 +178,31 @@ describe('the managed AGENTS.md block', () => {
       'Just a sentence.',
     );
     expect(skillSummary('---\nname: x\n---\n')).toBe('');
+  });
+
+  it('shortens a long summary at a clause, never mid-word and never with an ellipsis', () => {
+    const md = `---\nname: x\ndescription: Use when adding or changing a pixel, verifying a domain with an ad platform, debugging conversions that arrive unattributed, or showing different numbers.\n---\n`;
+    const out = skillSummary(md);
+    expect(out.length).toBeLessThanOrEqual(120);
+    expect(out).not.toContain('…');
+    expect(out.endsWith(',')).toBe(false);
+    expect(md).toContain(out);
+  });
+
+  it('applies emdash-* skills to EmDash sites only', () => {
+    expect(appliesTo('emdash-custom-blocks', false)).toBe(false);
+    expect(appliesTo('emdash-custom-blocks', true)).toBe(true);
+    expect(appliesTo('vitops-csp', false)).toBe(true);
+    expect(appliesTo('setup', false)).toBe(true);
+    const dir = mkdtempSync(join(tmpdir(), 'site-'));
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({ dependencies: { emdash: '^1.4.0' } }),
+    );
+    expect(isEmdashSite(dir)).toBe(true);
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ dependencies: { astro: '^7' } }));
+    expect(isEmdashSite(dir)).toBe(false);
+    expect(isEmdashSite(join(dir, 'nowhere'))).toBe(false);
   });
 
   it('reads a folded (>-) description', () => {

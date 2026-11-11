@@ -1,5 +1,5 @@
 ---
-name: contact-form
+name: emdash-contact-form
 description: How the contact form works on this site — the on-demand `/api/track` route, no-JS behaviour, where submissions go, spam protection and Turnstile, and the privacy-policy inventory. Use when adding or changing a form, fixing submissions that don't arrive, setting up notifications, CRM or Turnstile, or touching `src/pages/api/track.ts`.
 ---
 

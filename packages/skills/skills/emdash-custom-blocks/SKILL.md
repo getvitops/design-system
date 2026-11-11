@@ -1,5 +1,5 @@
 ---
-name: custom-blocks
+name: emdash-custom-blocks
 description: Decide whether a page section needs a new EmDash block type, and if so how to name, build, version and retire it. Use before creating, renaming or deleting any block type, any `src/components/blocks/*` renderer, or when asked to "add a block", "make an editable section" or "add a component the editors can place".
 ---
 

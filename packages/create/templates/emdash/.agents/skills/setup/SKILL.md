@@ -59,3 +59,10 @@ report that verbatim rather than guessing at a fix. A step reported as
 "blocked" is not a failure to retry; it is waiting on one of the hard stops
 above, or on a `site.json` field the user still needs to fill in (stage 5,
 Configuration).
+
+## Naming the project
+
+`vp create` takes the package name from the target directory and invents a random slug when none
+is given, so pass one: `vp create @getvitops:<template> --directory <client-slug>`. `wrangler.jsonc`'s
+`name` (and on EmDash the D1 `database_name` and R2 `bucket_name`) are separate and still say what
+the template shipped; rename them to match before the first deploy.

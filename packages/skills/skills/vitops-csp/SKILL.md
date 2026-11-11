@@ -1,5 +1,5 @@
 ---
-name: csp
+name: vitops-csp
 description: The Content Security Policy this site ships (Report-Only) and what to check before enforcing it. Use when changing `public/_headers`, adding an embed, tracking snippet or third-party script, turning the CSP on, or seeing CSP reports in the console.
 ---
 

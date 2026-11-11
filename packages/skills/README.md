@@ -28,15 +28,20 @@ Claude Code is selected), records them in `skills-lock.json`, and relinks on eve
 
 `experimental_sync` is a preview command and may change; pin the `skills` version.
 
-A skill the site installed or wrote itself is never replaced, so a site can override one by name.
+A skill the site installed or wrote itself is never replaced, so a site can override one by name. The `vitops-` and `emdash-` prefixes are reserved for toolkit skills (the templates gitignore them by prefix), so name a site's own skill without them.
 
 ## Skills
 
-| Skill                 | Use it for                                                                     |
-| --------------------- | ------------------------------------------------------------------------------ |
-| `custom-blocks`       | Deciding whether a page section needs a new EmDash block type, and building it |
-| `content-and-deploys` | Where content vs code is the truth, prerendering, publish-triggered rebuilds   |
-| `contact-form`        | The `/api/track` route, no-JS behaviour, spam protection, privacy inventory    |
-| `csp`                 | The Report-Only CSP and what to check before enforcing it                      |
+Names carry scope: `emdash-*` only apply to an EmDash site, `vitops-*` to any site built with the toolchain. `vitops agents sync` lists only the ones that apply.
+
+| Skill                        | Use it for                                                                                  |
+| ---------------------------- | ------------------------------------------------------------------------------------------- |
+| `emdash-custom-blocks`       | Deciding whether a page section needs a new EmDash block type, and building it              |
+| `emdash-content-and-deploys` | Where content vs code is the truth, prerendering, publish-triggered rebuilds                |
+| `emdash-contact-form`        | The `/api/track` route, no-JS behaviour, spam protection, privacy inventory                 |
+| `vitops-csp`                 | The Report-Only CSP and what to check before enforcing it                                   |
+| `vitops-ads`                 | Ad pixels, conversions, attribution and call-tracking numbers (`site.ads`)                  |
+| `vitops-see-the-page`        | Looking at a rendered page with `playwright-cli`                                            |
+| `emdash-building-pages`      | Authoring pages from `vitops_*` blocks: nesting, page opener, escape hatches, `site.chrome` |
 
 The `vitops-design-system` skill still ships with `@getvitops/cli` and is linked by `vitops agents`.

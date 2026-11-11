@@ -1,7 +1,7 @@
 # Cloudflare static-assets response headers. They apply to files served from the
 # static asset store — the prerendered pages — and NOT to responses the Worker
 # renders itself (the EmDash admin at /_emdash/*, its API, anything left
-# on-demand). See .agents/skills/csp.
+# on-demand). See .agents/skills/vitops-csp.
 #
 # REPORT-ONLY on purpose: violations are logged to the browser console and
 # nothing is blocked, so this cannot break a page. Read the console on the

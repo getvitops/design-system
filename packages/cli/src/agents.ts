@@ -145,6 +145,19 @@ export function linkSkill(linkPath: string, targetDir: string): string | null {
 export const AGENTS_START = '<!-- vitops:start -->';
 export const AGENTS_END = '<!-- vitops:end -->';
 
+/** Whether the project depends on EmDash: the `emdash-*` skills only make sense there. */
+export function isEmdashSite(cwd: string): boolean {
+  try {
+    const pkg = JSON.parse(readFileSync(resolve(cwd, 'package.json'), 'utf8'));
+    return Boolean({ ...pkg.dependencies, ...pkg.devDependencies }['emdash']);
+  } catch {
+    return false;
+  }
+}
+
+/** Skill names carry their scope: `emdash-*` needs an EmDash site, `vitops-*` and the rest apply anywhere. */
+export const appliesTo = (skill: string, emdash: boolean) => emdash || !skill.startsWith('emdash-');
+
 /** A skill the block links to. */
 export interface BlockSkill {
   name: string;
@@ -168,11 +181,20 @@ function descriptionOf(skillMd: string): string {
  * One short line saying when to load a skill: its "Use when/for/before …" sentence if it has one
  * (that is the part that answers "is this the one?"), else its first sentence.
  */
-export function skillSummary(skillMd: string, max = 90): string {
+export function skillSummary(skillMd: string, max = 120): string {
   const description = descriptionOf(skillMd);
   const use = /\bUse (?:when|for|before|ONLY)\b[^.]*/.exec(description)?.[0];
   const line = use ?? description.split(/(?<=[.!?])\s/)[0] ?? description;
-  return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;
+  if (line.length <= max) return line;
+  // Cut at the last clause boundary that fits rather than mid-word: the part that survives is what
+  // tells an agent whether this is the skill, so it should still read as a whole phrase.
+  const head = line.slice(0, max);
+  const cut = Math.max(head.lastIndexOf(', '), head.lastIndexOf(' or '), head.lastIndexOf(' — '));
+  let out = cut > max / 2 ? head.slice(0, cut) : head.slice(0, head.lastIndexOf(' '));
+  // Never leave an opened parenthesis or a dangling comma behind.
+  if ((out.match(/\(/g) ?? []).length > (out.match(/\)/g) ?? []).length)
+    out = out.slice(0, out.lastIndexOf('('));
+  return out.replace(/[\s,;:—-]+$/, '');
 }
 
 /**
@@ -183,8 +205,10 @@ export function skillSummary(skillMd: string, max = 90): string {
 export function discoverBlockSkills(cwd: string): BlockSkill[] {
   const dir = resolve(cwd, '.agents', 'skills');
   if (!existsSync(dir)) return [];
+  const emdash = isEmdashSite(cwd);
   const out: BlockSkill[] = [];
   for (const name of readdirSync(dir).sort()) {
+    if (!appliesTo(name, emdash)) continue;
     const link = join(dir, name);
     const skillFile = join(link, 'SKILL.md');
     if (!lstatSync(link).isSymbolicLink() || !existsSync(skillFile)) continue;
@@ -205,6 +229,7 @@ export function discoverBlockSkills(cwd: string): BlockSkill[] {
  */
 export function linkPackagedSkills(cwd: string): string[] {
   const warnings: string[] = [];
+  const emdash = isEmdashSite(cwd);
   let dir = resolve(cwd);
   const { root } = parse(dir);
   for (;;) {
@@ -212,7 +237,7 @@ export function linkPackagedSkills(cwd: string): string[] {
     if (existsSync(skills)) {
       for (const name of readdirSync(skills)) {
         const target = join(skills, name);
-        if (!existsSync(join(target, 'SKILL.md'))) continue;
+        if (!existsSync(join(target, 'SKILL.md')) || !appliesTo(name, emdash)) continue;
         for (const base of ['.agents', '.claude']) {
           const warn = linkSkill(resolve(cwd, base, 'skills', name), target);
           if (warn) warnings.push(warn);
@@ -230,11 +255,7 @@ export function linkPackagedSkills(cwd: string): string[] {
  * matters, and links to the skills that carry the detail. Deliberately short: depth lives in the
  * skills and in `vitops docs`, which agents load on demand rather than on every session.
  */
-export function renderAgentsBlock(opts: {
-  config: string;
-  skills: BlockSkill[];
-  version: string;
-}): string {
+export function renderAgentsBlock(opts: { config: string; skills: BlockSkill[] }): string {
   const lines = [
     AGENTS_START,
     `Built with the Vitops design system (\`@getvitops/*\`); tokens and site facts live in \`${opts.config}\`.`,
@@ -242,8 +263,7 @@ export function renderAgentsBlock(opts: {
     '',
     ...opts.skills.map((s) => `- [${s.name}](${s.path})${s.summary ? ` — ${s.summary}` : ''}`),
     ...(opts.skills.length ? [''] : []),
-    'Reference, rendered from this project: `vitops docs <topic>` (no topic lists them).',
-    `<!-- managed by \`vitops agents sync\` · @getvitops/cli@${opts.version} — edit outside this block -->`,
+    'Reference, rendered from this project: `vp exec vitops docs [topic]` (no topic lists them).',
     AGENTS_END,
   ];
   return lines.join('\n');

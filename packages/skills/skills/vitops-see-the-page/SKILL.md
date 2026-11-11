@@ -1,5 +1,5 @@
 ---
-name: see-the-page
+name: vitops-see-the-page
 description: How to look at a rendered page of this site (layout, colour, dark mode, no-JS fallback, mobile width) with playwright-cli. Use whenever you need to see, screenshot or click through a page, verify a visual change, or check how a page behaves without JavaScript.
 ---
 

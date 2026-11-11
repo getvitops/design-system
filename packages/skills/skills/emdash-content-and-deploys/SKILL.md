@@ -1,5 +1,5 @@
 ---
-name: content-and-deploys
+name: emdash-content-and-deploys
 description: How content, builds and deploys fit together on this EmDash site — where each kind of data is the source of truth, why pages are prerendered, how a publish reaches the live site, and refreshing the dev database. Use for any deploy or build problem, stale or missing content, "my publish isn't live", scheduled posts, previews, 404s, server islands, or refreshing dev from prod.
 ---
 
@@ -108,3 +108,23 @@ A collection with no `urlPattern` is listed as `/<collection>/<slug>`, so the si
 search engines to 404s while the site serves `/<slug>`. `vitops emdash build` (check-prerender) warns
 when the sitemap lists URLs the build has no page for. Set the pattern on the collection (the seed's
 `urlPattern`, or Content types in the admin); a database made before the seed set it needs the admin fix.
+
+## EmDash 1.x behaviours
+
+- Passkeys are bound to the hostname they were created on. After a domain cutover use **Settings →
+  General → Change domain**, then **Continue on**.
+- Link entries by `entry.data.slug`, never `entry.id` (multilingual sites prefix `id` with a locale).
+- Submit `/sitemap.xml` to search engines, not a per-collection sitemap.
+- Clear a stuck D1 migration lock with `vp exec emdash migrate --take-over-lock <id>` (needs
+  `--expected-target-fingerprint` non-interactively).
+
+## Legal pages and the audit
+
+- The sample `/terms` and `/privacy` pages are short placeholders. To replace them, fill in
+  `site.json`'s `organization`/`site.legal`, run
+  `vp exec vitops legal --format portable-text --out ./legal`, and paste each document into the page
+  in the admin. The output still needs review before launch.
+- `vitops audit` needs optional packages and a browser, checked before it starts a server:
+  `vp add -D @axe-core/playwright lighthouse && vp exec playwright install chromium`
+  (`playwright` itself is already a devDependency). Its page list is the built sitemap, then the
+  seed's menus.
