@@ -29,8 +29,8 @@
     "playwright": "^1.62.1",
     "skills": "^1.7.6",
     "typescript": "^6.0.3",
-    "vite": "latest",
-    "vite-plus": "latest",
+    "vite": "npm:@voidzero-dev/vite-plus-core@^1.5.1",
+    "vite-plus": "^1.5.1",
     "wrangler": "^4.111.0"
   },
   "devEngines": {

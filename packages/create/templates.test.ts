@@ -58,16 +58,45 @@ describe.each(templateNames)('template %s', (name) => {
     // the day it was written and silently is not any more — the emdash
     // template shipped `@getvitops/astro: ^0.7.0` through the whole 1.0
     // release, scaffolding projects a full major behind. `latest` is correct
-    // here precisely because these move in lockstep with each other. `emdash` and
-    // `@emdash-cms/*` are held to the same rule: the template's cooldown already
-    // exempts them, and `@getvitops/emdash` peers on a range of them, so a stale pin
-    // is how the scaffold drifts a minor behind the plugin that targets it.
-    const ours = deps.filter(
-      ([dep]) =>
-        dep.startsWith('@getvitops/') || dep === 'emdash' || dep.startsWith('@emdash-cms/'),
-    );
+    // here precisely because these move in lockstep with each other, and the
+    // template's cooldown exempts them. Nothing else is exempt, so nothing else floats.
+    const ours = deps.filter(([dep]) => dep.startsWith('@getvitops/'));
     expect(ours.length).toBeGreaterThan(0);
     for (const [, range] of ours) expect(range).toBe('latest');
+  });
+
+  it('gives every third-party dependency a semver range, never a tag', () => {
+    // `latest` resolves to the newest release, whose exact-pinned dependencies can be fresher than
+    // the cooldown (vite-plus 1.6.0 pinned `@oxc-project/*` two days old, so a scaffold failed with
+    // ERR_PNPM_NO_MATURE_MATCHING_VERSION). A range lets pnpm pick the newest version that has
+    // cleared the cooldown, and everything that version pins exactly is older still.
+    for (const [dep, range] of deps) {
+      if (dep.startsWith('@getvitops/')) continue;
+      expect(range, dep).toMatch(/^(npm:@?[^@]+@)?[\^~>=<]*\d/);
+    }
+  });
+
+  it('floats vite and vite-plus together, and keeps emdash inside the plugin peer range', () => {
+    const dev = { ...pkg.dependencies, ...pkg.devDependencies };
+    const floor = (r: string) => /(\d+\.\d+\.\d+)$/.exec(r)?.[1];
+    expect(floor(dev['vite'])).toBe(floor(dev['vite-plus']));
+    expect(dev['vite']).toMatch(/^npm:@voidzero-dev\/vite-plus-core@\^/);
+    const ws = readFileSync(join(TEMPLATES, name, 'pnpm-workspace.yaml'), 'utf8');
+    if (ws.includes('catalog:')) {
+      expect(ws).toContain(`vite: ${dev['vite']}`);
+      expect(ws).toContain(`vite-plus: ${dev['vite-plus']}`);
+    }
+    if (dev['emdash']) {
+      const peer = JSON.parse(
+        readFileSync(join(import.meta.dirname, '..', 'emdash', 'package.json'), 'utf8'),
+      ).peerDependencies.emdash;
+      const min = /^>=(\d+)\.(\d+)\.\d+ <(\d+)$/.exec(peer);
+      const [maj, mnr] = floor(dev['emdash'])!.split('.').map(Number);
+      expect(min).not.toBeNull();
+      expect(maj).toBe(Number(min![3]) - 1);
+      expect(mnr).toBeGreaterThanOrEqual(Number(min![2]));
+      expect(dev['@emdash-cms/cloudflare']).toBe(dev['emdash']);
+    }
   });
 
   it('pins Node in .node-version, agreeing with .nvmrc and devEngines', () => {
@@ -84,7 +113,7 @@ describe.each(templateNames)('template %s', (name) => {
     expect(pkg.devEngines?.runtime?.version).toBe(major);
   });
 
-  it("applies the repo's release cooldown and exempts the toolchain from it", () => {
+  it("applies the repo's release cooldown and exempts only our own toolchain", () => {
     // Every client install is held to the same cooldown this repo uses, so a template that ships
     // a shorter one (or none, which falls back to pnpm's one-day default) is a quieter supply-chain
     // posture than the repo that scaffolds it. `@getvitops/*` is exempt because releases land together.
@@ -94,6 +123,14 @@ describe.each(templateNames)('template %s', (name) => {
     const ws = readFileSync(join(TEMPLATES, name, 'pnpm-workspace.yaml'), 'utf8');
     expect(/^minimumReleaseAge: (\d+)$/m.exec(ws)?.[1]).toBe(age);
     expect(ws).toMatch(/^\s+- '@getvitops\/\*'$/m);
+    // Any other exemption must be an exact, temporary `name@x.y.z` (a security patch): a glob or
+    // bare name exempts a package but not its exact-pinned dependencies, which is how the install broke.
+    const block = /^minimumReleaseAgeExclude:\n((?:\s+- .+\n)+)/m.exec(ws)?.[1] ?? '';
+    for (const line of block.trim().split('\n')) {
+      const entry = line.replace(/^\s*- /, '').replace(/'/g, '');
+      if (entry === '@getvitops/*') continue;
+      expect(entry).toMatch(/^[^*]+@\d+\.\d+\.\d+$/);
+    }
   });
 
   it("uses the same astro range as this repo's catalog", () => {

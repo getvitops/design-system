@@ -6,25 +6,18 @@ allowBuilds:
   better-sqlite3: false
   sharp: false
 
-# Supply-chain hardening: cooldown on brand-new releases (toolchain exempt)
-# and no non-registry transitive sources.
+# Supply-chain hardening: nothing installs within 3 days of its publish, and no non-registry
+# transitive sources. Only our own lockstep `@getvitops/*` is exempt. Do NOT exempt a third-party
+# toolchain: an exempt package's exact pins are not exempt (vite-plus pins `@oxc-project/*`
+# exactly), so the install fails whenever one is fresher than the window. A security patch may be
+# admitted with an exact `name@x.y.z` line and a dated reason; remove it once it matures.
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   - '@getvitops/*'
-  - emdash
-  - '@emdash-cms/*'
-  - vite-plus
-  - '@voidzero-dev/*'
-  - oxlint
-  - '@oxlint/*'
-  - oxlint-tsgolint
-  - '@oxlint-tsgolint/*'
-  - oxfmt
-  - '@oxfmt/*'
 blockExoticSubdeps: true
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@latest
-  vite-plus: latest
+  vite: npm:@voidzero-dev/vite-plus-core@^1.5.1
+  vite-plus: ^1.5.1
 overrides:
   vite: 'catalog:'
 peerDependencyRules:

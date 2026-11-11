@@ -1,0 +1,5 @@
+---
+'@getvitops/create': patch
+---
+
+**Scaffolded sites no longer exempt third-party tooling from the 3-day release cooldown.** The templates floated `vite-plus` and `emdash` on `latest` and exempted them (plus `@voidzero-dev/*`, `oxlint`, `oxfmt`) from `minimumReleaseAge`. An exempt package's exact-pinned dependencies are not exempt, so `vp create` then failed with `ERR_PNPM_NO_MATURE_MATCHING_VERSION` whenever vite-plus had just pinned a fresh `@oxc-project/*`. Now only `@getvitops/*` is exempt; `vite-plus` and `vite` (the `vite-plus-core` alias) are `^1.5.1` (the security fix for 1.5.0) and `emdash` and `@emdash-cms/cloudflare` are `^1.4.0`, all ranges, so pnpm resolves the newest version that has cleared the cooldown. Existing sites: in `pnpm-workspace.yaml` reduce `minimumReleaseAgeExclude` to `'@getvitops/*'` and change the `catalog` entries to `^1.5.1`; in `package.json` change those four dependencies from `latest` to those ranges (`vite` as `npm:@voidzero-dev/vite-plus-core@^1.5.1`).
