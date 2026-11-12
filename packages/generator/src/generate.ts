@@ -134,7 +134,7 @@ const DEFAULT_ASSETS = join(HERE, '..', 'assets');
 // ── colour machinery ─────────────────────────────────────────────────────────
 /**
  * `--color-<hue>-<step>-on`: the readable text colour for a fill at that step, computed with the
- * same APCA pick as `text-on-<role>`. A role has one (`--color-text-on-<role>`); a raw hue step
+ * same contrast-ratio pick as `text-on-<role>`. A role has one (`--color-text-on-<role>`); a raw hue step
  * did not, so a block filling with `color: amber-500` had no site-defined foreground to use. These
  * live in a plain `:root`, never `@theme`: a `--color-*` theme key would mint `text-<hue>-<step>-on`
  * utilities nobody asked for.
@@ -482,9 +482,8 @@ export interface BuildOptions {
   darkOnly?: boolean;
   /**
    * Whether a WCAG 2 contrast-ratio miss fails the build (`fail`) or is reported and tolerated
-   * (`warn`). Derived from `site.accessibility.level` — `AA`/`AAA` fail, anything else (including
-   * no declared target) warns. APCA is judged separately and still fails regardless: that bar is
-   * this design system's own, not the client's legal target.
+   * (`warn`). Derived from `site.accessibility.level` — `A` and `none` warn, anything else
+   * (AA, AAA, and no declared target) fails. The ratio is the only contrast measure.
    */
   wcagRatio?: 'fail' | 'warn';
 }
@@ -574,7 +573,7 @@ export function build(
         tolerance,
         (msg) => console.warn(`[vitops] contrast acknowledged: ${msg}`),
         {
-          mode: buildOpts.wcagRatio ?? 'warn',
+          mode: buildOpts.wcagRatio ?? 'fail',
           onWarn: (msg) => console.warn(`[vitops] WCAG 2 contrast (not enforced): ${msg}`),
         },
       );
@@ -1508,7 +1507,7 @@ function emitTailwind(ctx: TwCtx): string {
   // does so regardless of source order. Putting `--color-<role>-<stop>` in
   // @theme would therefore silently substitute the stop for the plane on the
   // five colliding classes — including `text-<role>-muted` (step 800 → 300) and
-  // `text-<role>-x-muted` (600 → 100), i.e. exactly the tokens tokens.ts's APCA
+  // `text-<role>-x-muted` (600 → 100), i.e. exactly the tokens tokens.ts's contrast
   // test guarantees are readable. Raw hue scales are safe in @theme because no
   // @utility competes for those names.
   if (scaleRoles.length) {
@@ -2225,9 +2224,13 @@ function loadInput(
   return { ds: result.data, ...(resolved.config ? { config: resolved.config } : {}) };
 }
 
-/** `site.accessibility.level` → how a WCAG 2 ratio miss is treated. See `BuildOptions.wcagRatio`. */
+/**
+ * `site.accessibility.level` → how a WCAG 2 ratio miss is treated. See `BuildOptions.wcagRatio`.
+ * Unset is treated as AA: a site that never declared a target is held to the legal baseline, and
+ * only an explicit `A` or `none` opts into warnings.
+ */
 export function wcagRatioMode(level: string | undefined): 'fail' | 'warn' {
-  return level === 'AA' || level === 'AAA' ? 'fail' : 'warn';
+  return level === 'A' || level === 'none' ? 'warn' : 'fail';
 }
 
 export async function generate(options: GenerateOptions): Promise<GenerateResult> {

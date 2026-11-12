@@ -79,7 +79,7 @@ colors:
   bg-neutral-x-bold: "{colors.grey-950}"
   text-neutral: "{colors.grey-900}"
   text-neutral-bold: "{colors.grey-950}"
-  text-neutral-muted: "{colors.grey-700}"
+  text-neutral-muted: "{colors.grey-800}"
   text-neutral-x-muted: "{colors.grey-500}"
   text-neutral-xx-muted: "{colors.grey-400}"
   text-on-neutral-bold: "{colors.grey-50}"
@@ -88,9 +88,9 @@ colors:
   border-neutral-muted: "{colors.grey-200}"
   border-neutral: "{colors.grey-300}"
   border-neutral-bold: "{colors.grey-600}"
-  bg-neutral-solid: "{colors.grey-600}"
-  bg-neutral-solid-bold: "{colors.grey-700}"
-  bg-neutral-solid-x-bold: "{colors.grey-800}"
+  bg-neutral-solid: "{colors.grey-700}"
+  bg-neutral-solid-bold: "{colors.grey-800}"
+  bg-neutral-solid-x-bold: "{colors.grey-900}"
   text-on-neutral: "#f5f9ff"
   bg-surface: "{colors.navy-50}"
   bg-surface-muted: "{colors.navy-100}"
@@ -99,7 +99,7 @@ colors:
   bg-surface-x-bold: "{colors.navy-950}"
   text-surface: "{colors.navy-900}"
   text-surface-bold: "{colors.navy-950}"
-  text-surface-muted: "{colors.navy-700}"
+  text-surface-muted: "{colors.navy-800}"
   text-surface-x-muted: "{colors.navy-500}"
   text-surface-xx-muted: "{colors.navy-400}"
   text-on-surface-bold: "{colors.navy-50}"
@@ -411,8 +411,8 @@ becomes dark and `text-<role>` becomes light on their own. The solid family and
 them to hexes breaks it.**
 
 Contrast is enforced at build time, not by convention — a violation fails the build.
-Text is held to APCA Lc 75 on a role's primary background and Lc 60 on its secondary
-planes; icons and the surface boundary to Lc 45; and chromatic text is checked against
+Text is held to a WCAG 2 contrast ratio of 4.5:1 on every background plane it sits on;
+icons and the surface boundary to 3:1; and chromatic text is checked against
 the *surface* planes it actually sits on, not just its own tints. Pairing
 `text-<role>` with `bg-<role>`, or `text-on-<role>` with `bg-<role>-solid`, is always
 safe. Pairing a raw ramp step with another raw ramp step is not.

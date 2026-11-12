@@ -34,7 +34,6 @@
  */
 import {
   LIGHTNESS_LADDER,
-  contrastLc,
   contrastRatio,
   generateOklchPalette,
   hexToOklch,
@@ -49,6 +48,7 @@ import {
   type RoleSpec,
   roleHue,
   roleKind,
+  roleSolidOptions,
 } from './shared.ts';
 import type { DesignSystem } from './schema.ts';
 
@@ -336,7 +336,9 @@ const SURFACE_LIGHT: Table = {
   'bg-x-bold': '950',
   text: '900',
   'text-bold': '950',
-  'text-muted': '700',
+  // 800, not 700: on the `bg-x-muted` well (step 200) a 700 sits at ~4.4:1 in some hues, just
+  // under WCAG 2's 4.5:1, which muted text now has to hold on every plane.
+  'text-muted': '800',
   'text-x-muted': '500',
   'text-xx-muted': '400',
   'text-on-bold': '50',
@@ -354,8 +356,8 @@ const SURFACE_DARK: Table = {
   'bg-x-bold': '50',
   text: '100',
   'text-bold': '50',
-  // 300 and 400, not v3.1's 400 and 500: those were tuned against WCAG and come
-  // up short of APCA's secondary-text and non-text bars over a dark surface.
+  // 300 and 400, not v3.1's 400 and 500: on a dark surface those fall under WCAG 2's 4.5:1
+  // (text) and 3:1 (non-text) bars.
   'text-muted': '300',
   'text-x-muted': '500',
   'text-xx-muted': '600',
@@ -484,26 +486,21 @@ export function functionalRole(
 // ── the contrast contract ────────────────────────────────────────────────────
 
 /**
- * APCA targets. `TEXT` is the body-text bar; `SECONDARY` covers text on a
- * non-primary surface and de-emphasised text. `NON_TEXT` is the icon/boundary
- * tier — the APCA analogue of WCAG's 3:1, where a glyph may run more vivid than
- * text because shape carries meaning alongside contrast.
+ * WCAG 2 contrast ratios, the only contrast measure the generator enforces. `TEXT` is 1.4.3 (normal
+ * text, 4.5:1); `NON_TEXT` is 1.4.11 (icons and guaranteed boundaries, 3:1). WCAG has no
+ * "secondary text" tier, so muted text holds the text bar too.
+ *
+ * Not APCA: it is perceptually better, but it is no longer on the W3C standards track, so no
+ * statute (AODA is WCAG 2.0 AA) or conformance claim is tested with it.
  */
-export const CONTRAST = { TEXT: 75, SECONDARY: 60, NON_TEXT: 45 } as const;
+export const CONTRAST = { TEXT: 4.5, NON_TEXT: 3 } as const;
 
 /**
- * WCAG 2.x contrast ratios (1.4.3 text, 1.4.11 non-text). Separate from the APCA bars above and not
- * derived from them: APCA is the stricter design target here, but it is a different measure, and
- * the legal tests (AODA = WCAG 2.0 AA) are ratios. Passing one does not imply the other.
+ * How a site's accessibility target treats a ratio miss. `fail` blocks the build, `warn` reports it
+ * and carries on. Comes from `site.accessibility.level` (see `generate()`): AA, AAA and unset fail;
+ * only an explicit `A` or `none` warns.
  */
-export const WCAG_RATIO = { TEXT: 4.5, NON_TEXT: 3 } as const;
-
-/**
- * How a site's accessibility target treats a WCAG 2 ratio miss. `fail` blocks the build, `warn`
- * reports it and carries on. Comes from `site.accessibility.level` (see `generate()`); absent means
- * `warn`, so a site that never declared a target is told but not broken.
- */
-export interface WcagRatioPolicy {
+export interface ContrastPolicy {
   mode: 'fail' | 'warn';
   onWarn: (msg: string) => void;
 }
@@ -530,32 +527,28 @@ export function checkContrast(
   /** Appearances to judge; a dark-only site passes `['dark']`. Default: both. */
   appearances: readonly ('light' | 'dark')[] = ['light', 'dark'],
   /**
-   * Lc a pairing may fall short by without failing (`colors.roles.<r>.acknowledgeContrast`). A
-   * shortfall inside it is passed to `onNear` instead, so it is acknowledged but never silent.
+   * Ratio points a pairing may fall short by without failing (`colors.roles.<r>.acknowledgeContrast`,
+   * e.g. `0.1` for 4.4:1 against 4.5). A shortfall inside it is passed to `onNear` instead, so it is
+   * acknowledged but never silent.
    */
   tolerance = 0,
   onNear?: (msg: string) => void,
-  /** WCAG 2 ratio check alongside APCA. Omitted = APCA only (the pre-`site.accessibility` behaviour). */
-  wcag?: WcagRatioPolicy,
+  /** Default is the strict gate: a caller that names no policy has any miss returned as a failure. */
+  policy: ContrastPolicy = { mode: 'fail', onWarn: () => {} },
 ): string[] {
   const failures: string[] = [];
-  const ratioCheck = (appearance: string, key: string, fg: string, bg: string, min: number) => {
-    if (!wcag) return;
-    const ratio = contrastRatio(fg, bg);
-    if (ratio >= min) return;
-    const text = `${fr.role}/${appearance}: ${key} WCAG ${ratio.toFixed(2)}:1 < ${min}:1 on ${bg}`;
-    if (wcag.mode === 'fail') failures.push(text);
-    else wcag.onWarn(text);
-  };
   const resolve = (val: string): string => {
     const m = /^var\(--color-([a-z0-9-]+)-(\d+)\)$/.exec(val);
     if (!m) return val;
     return numericOf(m[1] as string)[m[2] as NumStep] ?? val;
   };
-  const fail = (appearance: string, msg: string, lc?: number, min?: number) => {
-    const text = `${fr.role}/${appearance}: ${msg}`;
-    if (tolerance > 0 && lc != null && min != null && lc >= min - tolerance) onNear?.(text);
-    else failures.push(text);
+  const check = (appearance: string, label: string, fg: string, bg: string, min: number) => {
+    const ratio = contrastRatio(fg, bg);
+    if (ratio >= min) return;
+    const text = `${fr.role}/${appearance}: ${label} ${ratio.toFixed(2)}:1 < ${min}:1 on ${bg}`;
+    if (tolerance > 0 && ratio >= min - tolerance) onNear?.(text);
+    else if (policy.mode === 'fail') failures.push(text);
+    else policy.onWarn(text);
   };
 
   for (const [appearance, tokens] of [
@@ -581,16 +574,15 @@ export function checkContrast(
           ];
 
     for (const [planeName, bg] of planes) {
-      // `bg` is the role's primary surface and holds the full body-text bar;
-      // every other plane holds the secondary bar.
-      const textMin = planeName === 'bg' ? CONTRAST.TEXT : CONTRAST.SECONDARY;
       for (const key of ['text', 'text-bold', 'text-muted']) {
         if (tokens[key] == null || EXEMPT_TEXT.has(key)) continue;
-        const min = key === 'text-muted' ? CONTRAST.SECONDARY : textMin;
-        const lc = contrastLc(resolve(tokens[key] as string), bg);
-        if (lc < min)
-          fail(appearance, `${key} Lc ${lc.toFixed(1)} < ${min} on ${planeName} ${bg}`, lc, min);
-        ratioCheck(appearance, key, resolve(tokens[key] as string), bg, WCAG_RATIO.TEXT);
+        check(
+          appearance,
+          `${key} on ${planeName}`,
+          resolve(tokens[key] as string),
+          bg,
+          CONTRAST.TEXT,
+        );
       }
       // Icons carry meaning, so they hold the non-text bar everywhere. Borders
       // do not: a chromatic `border-<role>` is *decorative* — the tinted edge of
@@ -600,48 +592,34 @@ export function checkContrast(
       const nonText = fr.kind === 'surface' ? ['icon', 'border-bold'] : ['icon'];
       for (const key of nonText) {
         if (tokens[key] == null) continue;
-        const lc = contrastLc(resolve(tokens[key] as string), bg);
-        if (lc < CONTRAST.NON_TEXT)
-          fail(
-            appearance,
-            `${key} Lc ${lc.toFixed(1)} < ${CONTRAST.NON_TEXT} on ${planeName} ${bg}`,
-            lc,
-            CONTRAST.NON_TEXT,
-          );
-        ratioCheck(appearance, key, resolve(tokens[key] as string), bg, WCAG_RATIO.NON_TEXT);
+        check(
+          appearance,
+          `${key} on ${planeName}`,
+          resolve(tokens[key] as string),
+          bg,
+          CONTRAST.NON_TEXT,
+        );
       }
     }
 
     // The filled-surface pairing: text-on against the solid it names.
-    const solid = resolve(tokens['bg-solid'] as string);
-    const onLc = contrastLc(tokens['text-on'] as string, solid);
-    if (onLc < CONTRAST.SECONDARY)
-      fail(
-        appearance,
-        `text-on Lc ${onLc.toFixed(1)} < ${CONTRAST.SECONDARY} on bg-solid`,
-        onLc,
-        CONTRAST.SECONDARY,
-      );
-    ratioCheck(appearance, 'text-on', tokens['text-on'] as string, solid, WCAG_RATIO.TEXT);
+    check(
+      appearance,
+      'text-on on bg-solid',
+      tokens['text-on'] as string,
+      resolve(tokens['bg-solid'] as string),
+      CONTRAST.TEXT,
+    );
 
     // The inverse surface, where it exists.
-    if (tokens['bg-bold'] != null && tokens['text-on-bold'] != null) {
-      const lc = contrastLc(resolve(tokens['text-on-bold'] as string), resolve(tokens['bg-bold']));
-      if (lc < CONTRAST.TEXT)
-        fail(
-          appearance,
-          `text-on-bold Lc ${lc.toFixed(1)} < ${CONTRAST.TEXT} on bg-bold`,
-          lc,
-          CONTRAST.TEXT,
-        );
-      ratioCheck(
+    if (tokens['bg-bold'] != null && tokens['text-on-bold'] != null)
+      check(
         appearance,
-        'text-on-bold',
+        'text-on-bold on bg-bold',
         resolve(tokens['text-on-bold'] as string),
         resolve(tokens['bg-bold']),
-        WCAG_RATIO.TEXT,
+        CONTRAST.TEXT,
       );
-    }
   }
   return failures;
 }
@@ -671,7 +649,7 @@ export function validateColorContract(colors: {
     const hueName = roleHue(spec);
     const hue = expandedPalette[hueName];
     if (hue == null) return [`role "${role}" references unknown palette hue "${hueName}"`];
-    scaleRoles.push(functionalRole(role, hueName, hue, roleKind(spec)));
+    scaleRoles.push(functionalRole(role, hueName, hue, roleKind(spec), roleSolidOptions(spec)));
   }
 
   const monotonicity = monotonicityErrors(expandedPalette);

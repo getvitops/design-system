@@ -39,7 +39,7 @@ In `site.json`: `{ standard: 'wcag20' | 'wcag21' | 'wcag22', level: 'none' | 'A'
 (schema: `packages/config/src/accessibility.ts`). It records the client's **target**, not a
 conformance claim. New scaffolds default to `wcag21` / `AA`.
 
-- At `AA`/`AAA` a WCAG 2 contrast-ratio miss **fails the generator build**; at `A`/`none` it only warns.
+- Unset, `AA` and `AAA`: a WCAG 2 contrast-ratio miss **fails the generator build**; at `A`/`none` it only warns.
 - `vitops audit` reads it for the axe tags and for gating. At `none` findings are reported and never gate.
 - `acceptedRisk` is free text: who accepted a lower target, when and why. It prints in the audit
   report header and is never read for logic. Fill it when the client chooses below what applies.
@@ -52,11 +52,12 @@ for non-text under 1.4.11 (added in WCAG 2.1; not in 2.0). APCA is perceptually 
 **no longer on the W3C standards track**, so it is not what any law or conformance claim tests.
 Do not cite an APCA result as evidence of accessibility.
 
-**What the toolchain does today** (it has not caught up with the above yet): the generator still
-checks APCA (Lc 75 text, 60 secondary, 45 non-text) and fails the build on it. The WCAG 2 ratio is
-checked alongside, but only **fails the build at `level` `AA` or `AAA`**; at `A`, `none` or unset it
-warns. The two disagree: this repo's own `neutral` role passed APCA at 4.33:1, under 4.5:1. So treat
-a ratio warning as real, set `level` honestly, and never read a passing build as legal contrast.
+**What the toolchain does:** the generator checks only the WCAG 2 ratio (text, including muted
+text, 4.5:1; icons and guaranteed boundaries 3:1; `text-on-<role>` 4.5:1) in both appearances. A
+miss **fails the build** unless `level` is explicitly `A` or `none`, where it warns; unset is held
+to AA. A passing build still says nothing about the rest of WCAG, and it never means "conformant".
+Earlier versions enforced APCA instead and let a ratio miss through (this repo's own `neutral`
+role passed at 4.33:1); if a client is on an older toolchain, treat ratio warnings as real.
 
 ## High contrast
 

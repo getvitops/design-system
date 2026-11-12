@@ -57,11 +57,11 @@ describe('role solid step + foreground polarity', () => {
     else expect(light).toContain('text-on');
   });
 
-  it('still enforces APCA on the pair actually used', () => {
+  it('still enforces the WCAG 2 ratio on the pair actually used', () => {
     const ds = ds0();
-    // Light text on a 100-step solid cannot reach Lc 60 in any hue.
+    // Light text on a 100-step solid cannot reach 4.5:1 in any hue.
     ds.colors.roles[role] = { hue: hue(), solid: 100, foreground: 'light' };
-    expect(() => css(ds)).toThrow(/text-on Lc .* < 60 on bg-solid/);
+    expect(() => css(ds)).toThrow(/text-on on bg-solid .*:1 < 4\.5:1/);
   });
 
   it('rejects a solid step the ramp cannot walk darker from', () => {

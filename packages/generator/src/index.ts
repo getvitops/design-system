@@ -208,10 +208,12 @@ export function defaultConfig(): DesignSystem {
         surface: { hue: 'ink', kind: 'surface' },
         'ui-primary': 'brand',
         'brand-primary': 'brand',
-        info: 'sky',
+        // `solid: 700` on the two whose seed lands at step 600 under 4.5:1 against its white
+        // `text-on-<role>` (4.35:1 and 4.40:1): the WCAG 2 AA gate would refuse the starter config.
+        info: { hue: 'sky', kind: 'chromatic', solid: 700 },
         success: 'brand',
         warning: 'sun',
-        danger: 'rose',
+        danger: { hue: 'rose', kind: 'chromatic', solid: 700 },
       },
       utilities: ['bg', 'text', 'icon', 'border'],
     },

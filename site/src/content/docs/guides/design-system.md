@@ -48,9 +48,9 @@ That yields `--color-pine-50 … 950` on the shared lightness ladder, plus role 
 `--color-<target>-<role>[-<variant>]` (`--color-bg-brand-primary-solid`,
 `--color-text-on-brand-primary`, `--color-text-brand-primary`, …) and matching utilities —
 the class name is the token name minus `--color-`. Dark mode re-points which step each token
-reads, not a second palette you maintain. Contrast targets — text at APCA Lc ≥ 75, secondary
-≥ 60, icons and boundaries ≥ 45, in both appearances — are enforced **at build time**, so a
-violation fails `generate` rather than shipping.
+reads, not a second palette you maintain. Contrast targets — the WCAG 2 ratio, text at 4.5:1 and
+icons and boundaries at 3:1, in both appearances — are enforced **at build time**, so a
+violation fails `generate` rather than shipping (unless `site.accessibility.level` is `A` or `none`).
 
 A role is either `kind: "surface"` (a page or panel colour, with a bare `bg-<role>`) or
 chromatic — the default, and what the bare-string form above means — whose backgrounds split

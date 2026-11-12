@@ -271,7 +271,7 @@ borrow `--color-surface-xl` as a stand-in. Two things to resolve when building i
 
 - It must survive **`forced-colors` mode** (Windows High Contrast flattens `background-color`,
   so a translucent divider needs a fallback there too).
-- APCA's `CONTRAST.NON_TEXT ≥ 45` check assumes a solid colour — decide whether a translucent
+- The `CONTRAST.NON_TEXT` (3:1) check assumes a solid colour — decide whether a translucent
   token is exempt from that gate or gets checked against a worst-case backdrop.
 
 ### Webfont loading outside Astro — todo
@@ -389,10 +389,3 @@ it stops when the bundle `<script>` tags sit after the `<link rel="stylesheet">`
 colour flash on every button at first paint. `vitops audit` now waits for transitions before axe, which removes the false
 contrast failures; the flash itself is open. Candidates: emit the pattern transition only under a class set after first
 paint, or have `<Head />` place the bundle tags after Astro's stylesheet links (Astro appends them after the component).
-
-### `text-on-<role>` contract: APCA Lc 60 is below WCAG AA
-
-The generator guarantees `text-on-<role>` at APCA Lc ≥ 60 on the role's solid, but axe and Lighthouse grade by WCAG
-4.5:1. A step-600 blue or red (the template's `info`/`danger`) passes the contract at 4.2:1 and 4.4:1 and fails every
-client audit. Either raise the `text-on` bar to Lc 75 (`CONTRAST.TEXT`), or add a WCAG 4.5:1 check beside it with the
-same `acknowledgeContrast` escape hatch. Both will fail some existing configs; survey the reference config first.

@@ -9,7 +9,7 @@
  *   Wins over `tone` when set. Contrast is NOT checked for it — the generator's contrast
  *   contract covers roles, not arbitrary hue/step pairs — so it is for decoration. A solid fill
  *   reads from the site's `--color-<hue>-<step>-on` and the tint flips with the colour scheme
- *   (`light-dark()`); mid steps (300–500) cannot reach APCA Lc 75 with either text colour, so use
+ *   (`light-dark()`); mid steps (300–500) cannot reach 4.5:1 with either text colour, so use
  *   a role where contrast matters.
  *
  * **Why CSS custom properties, not classes.** A class name built from a field value
@@ -88,7 +88,7 @@ export function resolveTone(tone?: unknown, color?: unknown): ResolvedTone {
     const [, name, step] = hue;
     const at = (s: string) => `var(--color-${name}-${s})`;
     // The foreground is the site's own: the generator emits `--color-<hue>-<step>-on` for every
-    // step, picked by the same APCA rule as `text-on-<role>`, so a fill by hue and step reads
+    // step, picked by the same contrast-ratio rule as `text-on-<role>`, so a fill by hue and step reads
     // without a fixed white and without asking the browser to guess.
     const fill = step ?? '600';
     // Raw hue steps never re-point in dark, so the tint flips here: `light-dark()` follows the

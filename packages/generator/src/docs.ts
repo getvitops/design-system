@@ -1621,9 +1621,13 @@ ship. In both appearances:
 
 | tier | target | applies to |
 | --- | --- | --- |
-| text | APCA Lc ≥ 75 | \`text-<role>\` on the role's primary background |
-| secondary | Lc ≥ 60 | text on any other background plane; \`text-<role>-muted\`; \`text-on-<role>\` on its solid |
-| non-text | Lc ≥ 45 | \`icon-<role>\`, and a surface role's \`border-<role>-bold\` |
+| text | WCAG 2 ratio ≥ 4.5:1 | \`text-<role>\` and \`text-<role>-muted\` on any plane of the role; \`text-on-<role>\` on its solid |
+| non-text | ratio ≥ 3:1 | \`icon-<role>\`, and a surface role's \`border-<role>-bold\` |
+
+The measure is the WCAG 2 contrast ratio (1.4.3 text, 1.4.11 non-text), which is what AODA and
+most accessibility law test. APCA is perceptually better but is no longer on the W3C standards
+track, so it is not used. \`site.accessibility.level\` \`A\` or \`none\` downgrades a miss to a build
+warning; unset, \`AA\` and \`AAA\` fail it.
 
 Two deliberate exemptions: \`text-<role>-x-muted\` (placeholders) and \`-xx-muted\` (disabled
 text) are *required* to look unavailable, and holding them to the body-text bar would defeat

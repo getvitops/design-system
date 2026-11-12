@@ -33,7 +33,7 @@ export const AccessibilitySchema = z.strictObject({
   ),
   level: desc(
     z.optional(z.enum(WCAG_LEVELS)),
-    'The minimum conformance level the site is held to: `none`, `A`, `AA` or `AAA`. `AA`/`AAA` make a WCAG 2 contrast-ratio miss fail the build; `A` and `none` only warn (contrast is an AA criterion). `vitops audit` runs the axe tags for the chosen standard and level and fails on violations, except at `none`, where they are reported and never fail the run. Unset behaves like today: APCA failures fail the build, ratio misses warn. This records a target, not a claim of conformance.',
+    'The minimum conformance level the site is held to: `none`, `A`, `AA` or `AAA`. Unset, `AA` and `AAA` make a WCAG 2 contrast-ratio miss fail the build; `A` and `none` only warn (contrast is an AA criterion). `vitops audit` runs the axe tags for the chosen standard and level and fails on violations, except at `none`, where they are reported and never fail the run. This records a target, not a claim of conformance.',
   ),
   acceptedRisk: desc(
     z.optional(z.string().check(z.minLength(1))),

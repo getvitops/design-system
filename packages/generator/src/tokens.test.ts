@@ -1,8 +1,8 @@
-import { LIGHTNESS_LADDER, contrastLc, contrastRatio, hexToOklch } from '@getvitops/utils/color';
+import { LIGHTNESS_LADDER, contrastRatio, hexToOklch } from '@getvitops/utils/color';
 import { describe, expect, it } from 'vite-plus/test';
 import { build } from './generate.ts';
 import { defaultConfig } from './index.ts';
-import { roleHue, roleKind } from './shared.ts';
+import { roleHue, roleKind, roleSolidOptions } from './shared.ts';
 import {
   checkContrast,
   expandPalette,
@@ -146,7 +146,13 @@ describe('the contrast contract', () => {
       return m ? numeric(m[1] as string)[m[2] as never]! : v;
     };
     const roles = Object.entries(ds.colors.roles).map(([role, spec]) =>
-      functionalRole(role, roleHue(spec), pal[roleHue(spec)]!, roleKind(spec)),
+      functionalRole(
+        role,
+        roleHue(spec),
+        pal[roleHue(spec)]!,
+        roleKind(spec),
+        roleSolidOptions(spec),
+      ),
     );
     // Chromatic text is checked against the page it sits on, not just its own
     // tint — that is where coloured text actually appears.
@@ -195,18 +201,19 @@ describe('fixed-tone kits', () => {
   });
 
   /**
-   * A kit thin enough that snapping can't cover every tier is REPORTED, not
-   * silently shipped. Two tones leaves the dark-mode icon tier snapping onto the
-   * near-black endpoint, which no amount of interpolation can rescue — the honest
-   * answer is "add a mid tone", and the contract is what says so.
+   * A kit that can't cover every tier is REPORTED, not silently shipped. Two light-mid tones
+   * leave the icon tier snapping onto a step too close to the page plane (2.0:1 against the 3:1
+   * non-text bar), which no amount of interpolation can rescue — the honest answer is "add a
+   * darker tone", and the contract is what says so. (Under the old APCA gate the darker pair
+   * `#29634D`/`#4A9075` was reported; at WCAG 2's 3:1 it passes.)
    */
-  it('reports a kit too thin to cover the non-text tier', () => {
-    const hue = expandPalette({ brand: { tones: ['#29634D', '#4A9075'] } }).brand!;
+  it('reports a kit that cannot cover the non-text tier', () => {
+    const hue = expandPalette({ brand: { tones: ['#7fbf9f', '#8fcaae'] } }).brand!;
     const failures = checkContrast(
       functionalRole('brand-primary', 'brand', hue, 'chromatic'),
       () => hue.numeric!,
     );
-    expect(failures.join('\n')).toMatch(/icon Lc .* < 45/);
+    expect(failures.join('\n')).toMatch(/icon on .*:1 < 3:1/);
   });
 
   /**
@@ -234,9 +241,9 @@ describe('invalid hues', () => {
 });
 
 describe('contrast engine sanity', () => {
-  it('APCA Lc between tinted endpoints is far above the text target', () => {
+  it('WCAG 2 ratio between tinted endpoints is far above the text target', () => {
     const hue = expandPalette({ slate: { seed: SEEDS.slate } }).slate!.numeric!;
-    expect(contrastLc(hue['950']!, hue['50']!)).toBeGreaterThan(90);
+    expect(contrastRatio(hue['950']!, hue['50']!)).toBeGreaterThan(12);
   });
 });
 
@@ -389,13 +396,12 @@ describe('validateColorContract', () => {
   });
 
   it('reports the same contrast failure build() would refuse', () => {
-    // Mirrors the "fixed-tone kits" thin-kit case above — two tones is thin
-    // enough to fail the non-text tier.
+    // Mirrors the "fixed-tone kits" case above: these tones fail the non-text tier.
     const errors = validateColorContract({
-      palette: { brand: { tones: ['#29634D', '#4A9075'] } },
+      palette: { brand: { tones: ['#7fbf9f', '#8fcaae'] } },
       roles: { 'brand-primary': { hue: 'brand', kind: 'chromatic' } },
     });
-    expect(errors.join('\n')).toMatch(/icon Lc .* < 45/);
+    expect(errors.join('\n')).toMatch(/icon on .*:1 < 3:1/);
   });
 });
 
@@ -475,7 +481,7 @@ describe('colors.tint and acknowledgeContrast', () => {
   });
 });
 
-describe('WCAG 2 contrast ratio vs APCA', () => {
+describe('WCAG 2 contrast ratio', () => {
   it('computes the standard ratio (known values)', () => {
     expect(contrastRatio('#000000', '#ffffff')).toBeCloseTo(21, 1);
     expect(contrastRatio('#767676', '#ffffff')).toBeCloseTo(4.54, 2); // the AA grey
@@ -492,56 +498,33 @@ describe('WCAG 2 contrast ratio vs APCA', () => {
     }) as never;
   const tokens = { 'bg-solid': '#777777', 'text-on': '#ffffff' };
   const numeric = () => ({});
-  const wcag = (mode: 'fail' | 'warn', warned: string[] = []) => ({
-    mode,
-    onWarn: (m: string) => warned.push(m),
-  });
 
-  it('is not checked when no policy is passed (pre-site.accessibility behaviour)', () => {
+  it('fails a ratio miss when no policy is passed (the strict default)', () => {
     const out = checkContrast(role(tokens), numeric, undefined, ['light']);
-    expect(out.filter((m) => m.includes('WCAG'))).toEqual([]);
-  });
-
-  it('fail mode reports a ratio miss as a failure', () => {
-    const out = checkContrast(
-      role(tokens),
-      numeric,
-      undefined,
-      ['light'],
-      0,
-      undefined,
-      wcag('fail'),
-    );
-    expect(out.filter((m) => m.includes('WCAG'))).toHaveLength(1);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatch(/text-on on bg-solid 4\.\d\d:1 < 4\.5:1/);
   });
 
   it('warn mode reports the same miss without failing', () => {
     const warned: string[] = [];
-    const base = checkContrast(role(tokens), numeric, undefined, ['light']);
-    const out = checkContrast(
-      role(tokens),
-      numeric,
-      undefined,
-      ['light'],
-      0,
-      undefined,
-      wcag('warn', warned),
-    );
-    expect(out).toEqual(base);
+    const out = checkContrast(role(tokens), numeric, undefined, ['light'], 0, undefined, {
+      mode: 'warn',
+      onWarn: (m) => warned.push(m),
+    });
+    expect(out).toEqual([]);
     expect(warned).toHaveLength(1);
-    expect(warned[0]).toMatch(/text-on WCAG 4\.\d\d:1 < 4\.5:1/);
   });
 
-  it('acknowledgeContrast tolerance does not excuse a ratio miss', () => {
-    const out = checkContrast(
-      role(tokens),
-      numeric,
-      undefined,
-      ['light'],
-      99,
-      undefined,
-      wcag('fail'),
+  it('acknowledgeContrast tolerance (ratio points) excuses a near miss, loudly', () => {
+    const near: string[] = [];
+    const out = checkContrast(role(tokens), numeric, undefined, ['light'], 0.1, (m) =>
+      near.push(m),
     );
-    expect(out.filter((m) => m.includes('WCAG'))).toHaveLength(1);
+    expect(out).toEqual([]);
+    expect(near).toHaveLength(1);
+  });
+
+  it('a shortfall larger than the tolerance still fails', () => {
+    expect(checkContrast(role(tokens), numeric, undefined, ['light'], 0.01)).toHaveLength(1);
   });
 });
