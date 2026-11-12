@@ -1405,6 +1405,7 @@ here changed, and no code that imports `@getvitops/utils` needs editing.
   import hero from '../assets/processed/hero.webm';
   import poster from '../assets/processed/hero.jpg';
   ---
+
   <video poster={poster.src} autoplay muted loop playsinline>
     <source src={hero} type="video/webm" />
   </video>

@@ -38,10 +38,13 @@ const {
   iconResolver = (name: string) => name,
 } = Astro.props;
 
-const styleVars = [
-  maxWidth && `--drawer-max-inline-size: ${maxWidth}`,
-  maxHeight && `--drawer-max-block-size: ${maxHeight}`,
-].filter(Boolean).join('; ') || undefined;
+const styleVars =
+  [
+    maxWidth && `--drawer-max-inline-size: ${maxWidth}`,
+    maxHeight && `--drawer-max-block-size: ${maxHeight}`,
+  ]
+    .filter(Boolean)
+    .join('; ') || undefined;
 
 const { class: triggerAttrClass, ...triggerRestAttrs } = trigger?.attrs ?? {};
 const { class: dialogAttrClass, style: dialogAttrStyle, ...dialogRestAttrs } = attrs ?? {};

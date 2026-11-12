@@ -46,13 +46,13 @@ const jsonLd = {
       ...(movie.image && { image: movie.image }),
       ...(movie.dateCreated && { dateCreated: movie.dateCreated }),
       ...(movie.director && {
-        director: (Array.isArray(movie.director) ? movie.director : [movie.director]).map(d => ({
+        director: (Array.isArray(movie.director) ? movie.director : [movie.director]).map((d) => ({
           '@type': 'Person',
           name: d,
         })),
       }),
       ...(movie.actor && {
-        actor: movie.actor.map(a => ({
+        actor: movie.actor.map((a) => ({
           '@type': 'Person',
           name: a,
         })),
@@ -63,13 +63,15 @@ const jsonLd = {
         aggregateRating: {
           '@type': 'AggregateRating',
           ratingValue: movie.aggregateRating.ratingValue,
-          ...(movie.aggregateRating.ratingCount && { ratingCount: movie.aggregateRating.ratingCount }),
+          ...(movie.aggregateRating.ratingCount && {
+            ratingCount: movie.aggregateRating.ratingCount,
+          }),
           bestRating: movie.aggregateRating.bestRating ?? 10,
           worstRating: movie.aggregateRating.worstRating ?? 1,
         },
       }),
       ...(movie.review && {
-        review: movie.review.map(r => ({
+        review: movie.review.map((r) => ({
           '@type': 'Review',
           author: { '@type': 'Person', name: r.author },
           datePublished: r.datePublished,

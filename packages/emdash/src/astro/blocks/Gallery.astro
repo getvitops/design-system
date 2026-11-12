@@ -28,15 +28,13 @@ const images = rows<{ src?: unknown; alt?: unknown; caption?: unknown }>(value.i
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  images.length > 0 && (
-    <Gallery
-      label={text(value.label) || 'Gallery'}
-      images={images}
-      id={id}
-      {...rootAttrs(value)}
-      aspect={text(value.aspect) || undefined}
-      loop={Boolean(value.loop)}
-    />
-  )
-}
+{images.length > 0 && (
+  <Gallery
+    label={text(value.label) || 'Gallery'}
+    images={images}
+    id={id}
+    {...rootAttrs(value)}
+    aspect={text(value.aspect) || undefined}
+    loop={Boolean(value.loop)}
+  />
+)}

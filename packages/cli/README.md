@@ -115,6 +115,7 @@ Each source becomes three files — VP9/WebM, an H.264/MP4 fallback, and a JPG p
 import hero from '../assets/processed/hero.webm';
 import poster from '../assets/processed/hero.jpg';
 ---
+
 <video poster={poster.src} autoplay muted loop playsinline>
   <source src={hero} type="video/webm" />
 </video>

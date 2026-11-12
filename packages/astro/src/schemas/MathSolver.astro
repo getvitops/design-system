@@ -7,7 +7,15 @@ export interface Props {
   potentialAction: {
     target: string;
     mathExpression?: string;
-    eduQuestionType?: ('Polynomial' | 'Arithmetic' | 'Calculus' | 'Geometry' | 'Statistics' | 'Algebra' | 'Trigonometry')[];
+    eduQuestionType?: (
+      | 'Polynomial'
+      | 'Arithmetic'
+      | 'Calculus'
+      | 'Geometry'
+      | 'Statistics'
+      | 'Algebra'
+      | 'Trigonometry'
+    )[];
   };
   applicationCategory?: string;
   operatingSystem?: string;
@@ -17,15 +25,8 @@ export interface Props {
   };
 }
 
-const {
-  name,
-  url,
-  description,
-  potentialAction,
-  applicationCategory,
-  operatingSystem,
-  offers,
-} = Astro.props;
+const { name, url, description, potentialAction, applicationCategory, operatingSystem, offers } =
+  Astro.props;
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -45,7 +46,9 @@ const jsonLd = {
   potentialAction: {
     '@type': 'SolveMathAction',
     target: potentialAction.target,
-    ...(potentialAction.mathExpression && { 'mathExpression-input': `required name=${potentialAction.mathExpression}` }),
+    ...(potentialAction.mathExpression && {
+      'mathExpression-input': `required name=${potentialAction.mathExpression}`,
+    }),
     ...(potentialAction.eduQuestionType && { eduQuestionType: potentialAction.eduQuestionType }),
   },
 };

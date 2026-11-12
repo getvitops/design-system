@@ -19,9 +19,7 @@ const { src } = Astro.props;
 
 <script>
   // All web components matching this pattern are included in the build
-  const modules = import.meta.glob<{ default?: unknown }>(
-    '/src/components/web-components/WC*.ts'
-  );
+  const modules = import.meta.glob<{ default?: unknown }>('/src/components/web-components/WC*.ts');
 
   // Load requested modules
   document.querySelectorAll<HTMLElement>('wc-loader[data-src]').forEach(async (el) => {

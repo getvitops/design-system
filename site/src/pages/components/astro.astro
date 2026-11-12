@@ -43,25 +43,27 @@ const description =
 
 <Docs title={title} description={description}>
   <p>
-    Tier 3 is <strong>authoring convenience</strong>. Each component renders the correct
-    markup and classes so you don't hand-write boilerplate, and none of them requires runtime
-    JavaScript — <code>Subgrid</code> emits a subgrid list, <code>Popover</code> uses the native
-    Popover API with Anchor Positioning, <code>Details</code>/<code>Drawer</code>/<code>NavShell</code>
-    compose <code>&lt;details&gt;</code> with Invoker Commands. If a wrapper would need runtime JS it
-    is the wrong tier: that becomes a web component, and the wrapper emits its tag instead.
+    Tier 3 is <strong>authoring convenience</strong>. Each component renders the correct markup and
+    classes so you don't hand-write boilerplate, and none of them requires runtime JavaScript —{' '}
+    <code>Subgrid</code> emits a subgrid list, <code>Popover</code> uses the native Popover API with
+    Anchor Positioning, <code>Details</code>/<code>Drawer</code>/<code>NavShell</code>
+    compose <code>&lt;details&gt;</code> with Invoker Commands. If a wrapper would need runtime JS
+    it is the wrong tier: that becomes a web component, and the wrapper emits its tag instead.
   </p>
   <p class="font-footnote">
     Tier 3 has two platforms and these are one of them — the
-    <a class="link" href={href(TIER_PAGES.bricks.path, base)}>Bricks elements</a> are the other,
-    at the same tier rather than above it. Both generate HTML from the classes and elements of
-    tiers 1 and 2; which you use is decided by your platform, and no project uses both.
+    <a class="link" href={href(TIER_PAGES.bricks.path, base)}>
+      Bricks elements
+    </a>{' '}
+    are the other, at the same tier rather than above it. Both generate HTML from the classes and
+    elements of tiers 1 and 2; which you use is decided by your platform, and no project uses both.
   </p>
 
   <h2 id="wrapping">Read the "emits" column before you write markup</h2>
   <p>
-    Where a component wraps a web component, it emits that tag <em>with the accessible fallback
-    inside it</em> — so the one call is the whole composition, and adding your own wrapper nests two
-    elements on one tree:
+    Where a component wraps a web component, it emits that tag{' '}
+    <em>with the accessible fallback inside it</em> — so the one call is the whole composition, and
+    adding your own wrapper nests two elements on one tree:
   </p>
   <pre><code>{'<!-- wrong -->\n<wc-tree><Tree items={…} /></wc-tree>\n\n<!-- right -->\n<Tree items={…} />'}</code></pre>
 
@@ -69,7 +71,13 @@ const description =
 
   <p class="font-footnote">
     Installing and configuring the integration is covered in
-    <a class="link" href={href('guides/installation', base)}>Installation</a>; the package's full
-    surface is on <a class="link" href={href('packages/astro', base)}>@getvitops/astro</a>.
+    <a class="link" href={href('guides/installation', base)}>
+      Installation
+    </a>
+    ; the package's full surface is on{' '}
+    <a class="link" href={href('packages/astro', base)}>
+      @getvitops/astro
+    </a>
+    .
   </p>
 </Docs>

@@ -2,7 +2,18 @@
 import { jsonLdScript } from '../json-ld.ts';
 export interface Props {
   itemReviewed: {
-    type: 'Product' | 'LocalBusiness' | 'Organization' | 'Book' | 'Movie' | 'Restaurant' | 'Event' | 'CreativeWork' | 'SoftwareApplication' | 'MusicRecording' | 'Recipe';
+    type:
+      | 'Product'
+      | 'LocalBusiness'
+      | 'Organization'
+      | 'Book'
+      | 'Movie'
+      | 'Restaurant'
+      | 'Event'
+      | 'CreativeWork'
+      | 'SoftwareApplication'
+      | 'MusicRecording'
+      | 'Recipe';
     name: string;
     image?: string;
     url?: string;
@@ -70,7 +81,9 @@ const buildItemReviewed = () => {
     case 'Movie':
       return {
         ...base,
-        ...(itemReviewed.director && { director: { '@type': 'Person', name: itemReviewed.director } }),
+        ...(itemReviewed.director && {
+          director: { '@type': 'Person', name: itemReviewed.director },
+        }),
         ...(itemReviewed.datePublished && { datePublished: itemReviewed.datePublished }),
       };
     case 'LocalBusiness':
@@ -80,11 +93,19 @@ const buildItemReviewed = () => {
         ...(itemReviewed.address && {
           address: {
             '@type': 'PostalAddress',
-            ...(itemReviewed.address.streetAddress && { streetAddress: itemReviewed.address.streetAddress }),
-            ...(itemReviewed.address.addressLocality && { addressLocality: itemReviewed.address.addressLocality }),
-            ...(itemReviewed.address.addressRegion && { addressRegion: itemReviewed.address.addressRegion }),
+            ...(itemReviewed.address.streetAddress && {
+              streetAddress: itemReviewed.address.streetAddress,
+            }),
+            ...(itemReviewed.address.addressLocality && {
+              addressLocality: itemReviewed.address.addressLocality,
+            }),
+            ...(itemReviewed.address.addressRegion && {
+              addressRegion: itemReviewed.address.addressRegion,
+            }),
             ...(itemReviewed.address.postalCode && { postalCode: itemReviewed.address.postalCode }),
-            ...(itemReviewed.address.addressCountry && { addressCountry: itemReviewed.address.addressCountry }),
+            ...(itemReviewed.address.addressCountry && {
+              addressCountry: itemReviewed.address.addressCountry,
+            }),
           },
         }),
         ...(itemReviewed.priceRange && { priceRange: itemReviewed.priceRange }),

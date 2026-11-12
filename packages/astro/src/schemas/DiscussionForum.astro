@@ -37,7 +37,7 @@ const jsonLd = {
   '@type': 'DiscussionForumPosting',
   ...(mainEntity && mainEntity.length > 0
     ? {
-        mainEntity: mainEntity.map(post => ({
+        mainEntity: mainEntity.map((post) => ({
           '@type': 'DiscussionForumPosting',
           headline: post.headline,
           text: post.text,
@@ -49,14 +49,14 @@ const jsonLd = {
             ...(post.author.url && { url: post.author.url }),
           },
           ...(post.interactionStatistic && {
-            interactionStatistic: post.interactionStatistic.map(stat => ({
+            interactionStatistic: post.interactionStatistic.map((stat) => ({
               '@type': 'InteractionCounter',
               interactionType: { '@type': stat.type },
               userInteractionCount: stat.count,
             })),
           }),
           ...(post.comment && {
-            comment: post.comment.map(c => ({
+            comment: post.comment.map((c) => ({
               '@type': 'Comment',
               text: c.text,
               datePublished: c.datePublished,

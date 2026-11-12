@@ -9,14 +9,7 @@
  */
 import RichText from './RichText.astro';
 import { joinStyle, resolveTheme, resolveTone, rowTone } from './tone.ts';
-import {
-  accentRuns,
-  outlineTag,
-  resolveBlockValue,
-  rows,
-  safeHref,
-  text,
-} from './value.ts';
+import { accentRuns, outlineTag, resolveBlockValue, rows, safeHref, text } from './value.ts';
 
 interface Value {
   eyebrow?: string;
@@ -67,66 +60,74 @@ const cards = rows<Record<string, unknown>>(value.cards)
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  (heading || body) && (
-    <section {...rootAttrs(value, [tone.style && tone.surface], joinStyle(tone.style))}>
-      <div class={split ? 'split split-1-2' : 'centered'}>
-        <div class="rhythm">
-          {eyebrow && <p class="font-eyebrow">{eyebrow}</p>}
-          {heading && (
-            <Heading class="font-display">
-              {headingRuns.map((run) =>
-                run.accent ? <em class="accent">{run.text}</em> : run.text,
-              )}
-            </Heading>
-          )}
-          {body && <p class="font-lead">{body}</p>}
-          {(primaryLabel && primaryHref) || (secondaryLabel && secondaryHref) ? (
-            <p class="cluster">
-              {primaryLabel && primaryHref && (
-                <a class="cta" href={primaryHref}>
-                  {primaryLabel}
-                </a>
-              )}
-              {secondaryLabel && secondaryHref && (
-                <a class="link" href={secondaryHref}>
-                  {secondaryLabel}
-                </a>
-              )}
-            </p>
-          ) : null}
-        </div>
-        {split && <img src={image} alt={imageAlt} loading="eager" />}
+{(heading || body) && (
+  <section {...rootAttrs(value, [tone.style && tone.surface], joinStyle(tone.style))}>
+    <div class={split ? 'split split-1-2' : 'centered'}>
+      <div class="rhythm">
+        {eyebrow && <p class="font-eyebrow">{eyebrow}</p>}
+        {heading && (
+          <Heading class="font-display">
+            {headingRuns.map((run) => (run.accent ? <em class="accent">{run.text}</em> : run.text))}
+          </Heading>
+        )}
+        {body && <p class="font-lead">{body}</p>}
+        {(primaryLabel && primaryHref) || (secondaryLabel && secondaryHref) ? (
+          <p class="cluster">
+            {primaryLabel && primaryHref && (
+              <a class="cta" href={primaryHref}>
+                {primaryLabel}
+              </a>
+            )}
+            {secondaryLabel && secondaryHref && (
+              <a class="link" href={secondaryHref}>
+                {secondaryLabel}
+              </a>
+            )}
+          </p>
+        ) : null}
       </div>
-      {cards.length > 0 && (
-        <ul class="subgrid centered" role="list" style={`--subgrid-cols: ${Math.min(4, cards.length)}`}>
-          {cards.map((card) => (
-            <li class:list={['card', 'subgrid-card', card.style && 'tone tone--tint', card.theme?.className]} style={joinStyle(card.style, card.theme?.style)}>
-              {card.eyebrow && <p class="font-eyebrow">{card.eyebrow}</p>}
-              {card.title && <CardHeading class="font-heading">{card.title}</CardHeading>}
-              {card.body && (
-                <p>
-                  <RichText text={card.body} />
-                </p>
-              )}
-              {card.ctaLabel && card.ctaHref ? (
-                <p class="subgrid-card__footer">
-                  <a class="cta" href={card.ctaHref}>
-                    {card.ctaLabel}
-                  </a>
-                </p>
-              ) : (
-                card.href && (
-                  <a class="link stretched-link" href={card.href}>
-                    {card.linkLabel}
-                    {card.title && <span class="sr-only">: {card.title}</span>}
-                  </a>
-                )
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  )
-}
+      {split && <img src={image} alt={imageAlt} loading="eager" />}
+    </div>
+    {cards.length > 0 && (
+      <ul
+        class="subgrid centered"
+        role="list"
+        style={`--subgrid-cols: ${Math.min(4, cards.length)}`}
+      >
+        {cards.map((card) => (
+          <li
+            class:list={[
+              'card',
+              'subgrid-card',
+              card.style && 'tone tone--tint',
+              card.theme?.className,
+            ]}
+            style={joinStyle(card.style, card.theme?.style)}
+          >
+            {card.eyebrow && <p class="font-eyebrow">{card.eyebrow}</p>}
+            {card.title && <CardHeading class="font-heading">{card.title}</CardHeading>}
+            {card.body && (
+              <p>
+                <RichText text={card.body} />
+              </p>
+            )}
+            {card.ctaLabel && card.ctaHref ? (
+              <p class="subgrid-card__footer">
+                <a class="cta" href={card.ctaHref}>
+                  {card.ctaLabel}
+                </a>
+              </p>
+            ) : (
+              card.href && (
+                <a class="link stretched-link" href={card.href}>
+                  {card.linkLabel}
+                  {card.title && <span class="sr-only">: {card.title}</span>}
+                </a>
+              )
+            )}
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+)}

@@ -76,48 +76,59 @@ const hasHead = Boolean(kicker || heading || sub || hasActions);
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  (hasHead || body.length > 0) && (
-    <section
-      {...rootAttrs(value, ['section', 'region', tone.style && (solid ? tone.className : tone.surface), tone.style && solid && 'tone--solid', layout === 'split' && 'section--split', layout === 'center' && 'section--center'], joinStyle(tone.style))}
-    >
-      <div class="centered">
-        <div class:list={['section__inner', width, stacked && 'rhythm']}>
-          {hasHead && (
-            <header class="section__head">
-              {kicker && <p class="section__kicker font-eyebrow">{kicker}</p>}
-              {heading && (
-                <Heading class="section__title font-title">
-                  {headingRuns.map((run) =>
-                    run.accent ? <em class="accent">{run.text}</em> : run.text,
-                  )}
-                </Heading>
-              )}
-              {sub && <p class="section__sub font-lead">{sub}</p>}
-              {hasActions && (
-                <p class="section__actions cluster">
-                  {ctaLabel && ctaHref && (
-                    <a class="cta" href={ctaHref}>
-                      {ctaLabel}
-                    </a>
-                  )}
-                  {secondaryLabel && secondaryHref && (
-                    <a class="link" href={secondaryHref}>
-                      {secondaryLabel}
-                    </a>
-                  )}
-                </p>
-              )}
-            </header>
-          )}
-          {body.length > 0 && (
-            <div class="section__body">
-              <PortableText value={body} />
-              {missing.map((type) => <template data-vitops-unrendered={type} />)}
-            </div>
-          )}
-        </div>
+{(hasHead || body.length > 0) && (
+  <section
+    {...rootAttrs(
+      value,
+      [
+        'section',
+        'region',
+        tone.style && (solid ? tone.className : tone.surface),
+        tone.style && solid && 'tone--solid',
+        layout === 'split' && 'section--split',
+        layout === 'center' && 'section--center',
+      ],
+      joinStyle(tone.style),
+    )}
+  >
+    <div class="centered">
+      <div class:list={['section__inner', width, stacked && 'rhythm']}>
+        {hasHead && (
+          <header class="section__head">
+            {kicker && <p class="section__kicker font-eyebrow">{kicker}</p>}
+            {heading && (
+              <Heading class="section__title font-title">
+                {headingRuns.map((run) =>
+                  run.accent ? <em class="accent">{run.text}</em> : run.text,
+                )}
+              </Heading>
+            )}
+            {sub && <p class="section__sub font-lead">{sub}</p>}
+            {hasActions && (
+              <p class="section__actions cluster">
+                {ctaLabel && ctaHref && (
+                  <a class="cta" href={ctaHref}>
+                    {ctaLabel}
+                  </a>
+                )}
+                {secondaryLabel && secondaryHref && (
+                  <a class="link" href={secondaryHref}>
+                    {secondaryLabel}
+                  </a>
+                )}
+              </p>
+            )}
+          </header>
+        )}
+        {body.length > 0 && (
+          <div class="section__body">
+            <PortableText value={body} />
+            {missing.map((type) => (
+              <template data-vitops-unrendered={type} />
+            ))}
+          </div>
+        )}
       </div>
-    </section>
-  )
-}
+    </div>
+  </section>
+)}

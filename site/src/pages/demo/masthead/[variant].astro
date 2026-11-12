@@ -20,7 +20,11 @@ export function getStaticPaths() {
         label: 'Services',
         url: '/services/',
         children: [
-          { label: 'Design systems', url: '/services/design/', titleAttr: 'Tokens, patterns, docs' },
+          {
+            label: 'Design systems',
+            url: '/services/design/',
+            titleAttr: 'Tokens, patterns, docs',
+          },
           { label: 'Websites', url: '/services/web/', titleAttr: 'EmDash and WordPress' },
           { label: 'Support', url: '/services/support/' },
         ],
@@ -40,7 +44,11 @@ export function getStaticPaths() {
             label: 'Build',
             url: '/services/build/',
             children: [
-              { label: 'Design systems', url: '/services/design/', titleAttr: 'Tokens, patterns, docs' },
+              {
+                label: 'Design systems',
+                url: '/services/design/',
+                titleAttr: 'Tokens, patterns, docs',
+              },
               { label: 'Websites', url: '/services/web/' },
             ],
           },
@@ -64,7 +72,11 @@ export function getStaticPaths() {
       props: {
         nav,
         chrome: {
-          masthead: { position: 'sticky', surface: 'glass', elevation: { shadow: 'sm', onScroll: true } },
+          masthead: {
+            position: 'sticky',
+            surface: 'glass',
+            elevation: { shadow: 'sm', onScroll: true },
+          },
         },
       },
     },
@@ -127,7 +139,10 @@ export function getStaticPaths() {
       params: { variant: 'dropdown' },
       props: {
         nav,
-        chrome: { masthead: { position: 'sticky' }, nav: { compact: 'dropdown', breakpoint: 'xl' } },
+        chrome: {
+          masthead: { position: 'sticky' },
+          nav: { compact: 'dropdown', breakpoint: 'xl' },
+        },
       },
     },
     {
@@ -163,46 +178,48 @@ const site = { site: { chrome } };
   </head>
   <body data-variant={variant}>
     <Masthead config={site}>
-      <a slot="brand" class="font-heading" href="/">Acme</a>
+      <a slot="brand" class="font-heading" href="/">
+        Acme
+      </a>
       <SiteNav
         primary={nav.primary}
         mega={nav.mega}
         {...resolveNavOptions(site)}
         current="/pricing/"
       />
-      <a slot="actions" class="cta" href="/contact/">Get in touch</a>
+      <a slot="actions" class="cta" href="/contact/">
+        Get in touch
+      </a>
     </Masthead>
     <main class="rhythm">
-      {
-        hero && (
-          <section
-            class="bg-brand-primary-muted"
-            style="min-block-size: 70vh; display: grid; place-items: center"
-          >
-            <h1 class="font-display">Hero under a transparent masthead</h1>
-          </section>
-        )
-      }
+      {hero && (
+        <section
+          class="bg-brand-primary-muted"
+          style="min-block-size: 70vh; display: grid; place-items: center"
+        >
+          <h1 class="font-display">Hero under a transparent masthead</h1>
+        </section>
+      )}
       <div class="centered rhythm">
-        <h1 id="top" class="font-display">Scroll me</h1>
+        <h1 id="top" class="font-display">
+          Scroll me
+        </h1>
         <p>
           The masthead above is configured by <code>site.chrome</code> alone. Scroll down, then up.
         </p>
-        {
-          Array.from({ length: 30 }, (_, i) => (
-            <p>
-              Paragraph {i + 1}. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-              eiusmod tempor incididunt ut labore et dolore magna aliqua.
-            </p>
-          ))
-        }
+        {Array.from({ length: 30 }, (_, i) => (
+          <p>
+            Paragraph {i + 1}. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+            eiusmod tempor incididunt ut labore et dolore magna aliqua.
+          </p>
+        ))}
         <h2 id="anchor-target">Anchor target</h2>
-        <p>Jumping here must land below a pinned masthead (<code>--header-offset</code>).</p>
-        {
-          Array.from({ length: 30 }, (_, i) => (
-            <p>More {i + 1}. Ut enim ad minim veniam, quis nostrud exercitation.</p>
-          ))
-        }
+        <p>
+          Jumping here must land below a pinned masthead (<code>--header-offset</code>).
+        </p>
+        {Array.from({ length: 30 }, (_, i) => (
+          <p>More {i + 1}. Ut enim ad minim veniam, quis nostrud exercitation.</p>
+        ))}
       </div>
     </main>
   </body>

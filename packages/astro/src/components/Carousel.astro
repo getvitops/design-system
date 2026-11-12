@@ -197,44 +197,40 @@ const Shell = enhance ? 'wc-carousel' : 'div';
     aria-label={label}
     aria-describedby={`${uid}-desc`}
   >
-    {
-      slides.map((slide, i) => (
-        <li class="carousel__slide" id={`${uid}-slide-${i + 1}`}>
-          <figure class="carousel__media">
-            {/* The first slide is the LCP candidate, so it is eager and high
+    {slides.map((slide, i) => (
+      <li class="carousel__slide" id={`${uid}-slide-${i + 1}`}>
+        <figure class="carousel__media">
+          {/* The first slide is the LCP candidate, so it is eager and high
                 priority; every later one is lazy, low and async. A horizontal
                 scroll container clips them, and `loading="lazy"` is honoured for
                 that, so this is genuinely JS-free deferral. `decoding` is left
                 unset on the first: `sync` can block the main thread, and the UA's
                 own choice for an eager LCP image is better than ours. */}
-            <ResponsiveImage
-              src={slide.src}
-              alt={slide.alt}
-              formats={formats}
-              srcset={slide.srcset}
-              sizes={slide.sizes}
-              width={slide.width}
-              height={slide.height}
-              loading={i === 0 ? 'eager' : 'lazy'}
-              fetchpriority={i === 0 ? 'high' : 'low'}
-              decoding={i === 0 ? undefined : 'async'}
-            />
-            {slide.caption && (
-              <figcaption class="carousel__caption font-caption">{slide.caption}</figcaption>
-            )}
-          </figure>
-        </li>
-      ))
-    }
+          <ResponsiveImage
+            src={slide.src}
+            alt={slide.alt}
+            formats={formats}
+            srcset={slide.srcset}
+            sizes={slide.sizes}
+            width={slide.width}
+            height={slide.height}
+            loading={i === 0 ? 'eager' : 'lazy'}
+            fetchpriority={i === 0 ? 'high' : 'low'}
+            decoding={i === 0 ? undefined : 'async'}
+          />
+          {slide.caption && (
+            <figcaption class="carousel__caption font-caption">{slide.caption}</figcaption>
+          )}
+        </figure>
+      </li>
+    ))}
     <slot />
   </ul>
-  {
-    hint !== false && (
-      <p class="carousel__hint font-footnote" aria-hidden="true">
-        {hint}
-      </p>
-    )
-  }
+  {hint !== false && (
+    <p class="carousel__hint font-footnote" aria-hidden="true">
+      {hint}
+    </p>
+  )}
   <p id={`${uid}-desc`} class="sr-only">
     Use the left and right arrow keys, or scroll sideways, to move between slides.
   </p>

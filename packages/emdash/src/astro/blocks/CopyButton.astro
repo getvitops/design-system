@@ -15,9 +15,13 @@ import { rootAttrs } from './attrs.ts';
 {text && display === 'code-block' && (
   <div {...rootAttrs(value, ['copy'])}>
     <pre><code>{text}</code></pre>
-    <wc-copy value={text} label={label}>{label}</wc-copy>
+    <wc-copy value={text} label={label}>
+      {label}
+    </wc-copy>
   </div>
 )}
 {text && display === 'inline' && (
-  <wc-copy {...rootAttrs(value)} value={text} label={label}><code>{text}</code></wc-copy>
+  <wc-copy {...rootAttrs(value)} value={text} label={label}>
+    <code>{text}</code>
+  </wc-copy>
 )}

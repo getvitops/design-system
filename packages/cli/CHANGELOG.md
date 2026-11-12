@@ -1614,6 +1614,7 @@ carousel vocabulary, because they render live from the generator.
   import hero from '../assets/processed/hero.webm';
   import poster from '../assets/processed/hero.jpg';
   ---
+
   <video poster={poster.src} autoplay muted loop playsinline>
     <source src={hero} type="video/webm" />
   </video>

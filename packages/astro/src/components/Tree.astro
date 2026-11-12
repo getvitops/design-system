@@ -67,21 +67,19 @@ const {
 {/* One `<ul>`, rendered once, wrapped or not — duplicating the tree markup per
     branch is how the two paths would drift. */}
 <Fragment>
-  {
-    enhance ? (
-      <wc-tree label={label} {...rest}>
-        <ul class="tree tree--lines" role="list" aria-label={ariaLabel}>
-          {items.map((item) => (
-            <TreeNode item={item} depth={0} openDepth={openDepth} />
-          ))}
-        </ul>
-      </wc-tree>
-    ) : (
+  {enhance ? (
+    <wc-tree label={label} {...rest}>
       <ul class="tree tree--lines" role="list" aria-label={ariaLabel}>
         {items.map((item) => (
           <TreeNode item={item} depth={0} openDepth={openDepth} />
         ))}
       </ul>
-    )
-  }
+    </wc-tree>
+  ) : (
+    <ul class="tree tree--lines" role="list" aria-label={ariaLabel}>
+      {items.map((item) => (
+        <TreeNode item={item} depth={0} openDepth={openDepth} />
+      ))}
+    </ul>
+  )}
 </Fragment>

@@ -122,20 +122,44 @@ const tiers = selectTiers({
 });
 ---
 
-{
-  tiers.map((tier) => {
-    const panel = drawerId(id, tier);
-    return (
-      <div class:list={[...tierClass(tier), className]}>
-        <nav class:list={navClass(tier, { compact, drawerSide })} aria-label={label}>
+{tiers.map((tier) => {
+  const panel = drawerId(id, tier);
+  return (
+    <div class:list={[...tierClass(tier), className]}>
+      <nav class:list={navClass(tier, { compact, drawerSide })} aria-label={label}>
+        <button
+          type="button"
+          class="sitenav__toggle"
+          popovertarget={panel}
+          aria-label={toggleLabel}
+        >
+          <svg
+            class="sitenav__toggle-icon"
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <div id={panel} popover class="sitenav__panel">
           <button
             type="button"
-            class="sitenav__toggle"
+            class="sitenav__close"
             popovertarget={panel}
-            aria-label={toggleLabel}
+            popovertargetaction="hide"
+            aria-label="Close menu"
           >
             <svg
-              class="sitenav__toggle-icon"
+              class="sitenav__close-icon"
               viewBox="0 0 24 24"
               width="24"
               height="24"
@@ -146,44 +170,22 @@ const tiers = selectTiers({
               aria-hidden="true"
               focusable="false"
             >
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="18" x2="21" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="18" y1="6" x2="6" y2="18" />
             </svg>
           </button>
-          <div id={panel} popover class="sitenav__panel">
-            <button
-              type="button"
-              class="sitenav__close"
-              popovertarget={panel}
-              popovertargetaction="hide"
-              aria-label="Close menu"
-            >
-              <svg
-                class="sitenav__close-icon"
-                viewBox="0 0 24 24"
-                width="24"
-                height="24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <line x1="6" y1="6" x2="18" y2="18" />
-                <line x1="18" y1="6" x2="6" y2="18" />
-              </svg>
-            </button>
-            <SiteNavList items={tier.items} current={current} panel={tier.kind === 'mega' ? megaPanel : undefined} />
-          </div>
-        </nav>
-        {Astro.slots.has('actions') && (
-          <div class="sitenav__actions">
-            <slot name="actions" />
-          </div>
-        )}
-      </div>
-    );
-  })
-}
+          <SiteNavList
+            items={tier.items}
+            current={current}
+            panel={tier.kind === 'mega' ? megaPanel : undefined}
+          />
+        </div>
+      </nav>
+      {Astro.slots.has('actions') && (
+        <div class="sitenav__actions">
+          <slot name="actions" />
+        </div>
+      )}
+    </div>
+  );
+})}

@@ -67,147 +67,145 @@ const hasForm = fields.length > 0;
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  hasForm && (
-    <div {...rootAttrs(value, ['form-block', 'rhythm', tone.className], joinStyle(tone.style))}>
-      {heading && <Heading class="font-heading">{heading}</Heading>}
-      {intro && <p>{intro}</p>}
+{hasForm && (
+  <div {...rootAttrs(value, ['form-block', 'rhythm', tone.className], joinStyle(tone.style))}>
+    {heading && <Heading class="font-heading">{heading}</Heading>}
+    {intro && <p>{intro}</p>}
 
-      <div
-        id="form-sent"
-        class:list={['callout', 'form-notice--target', successTone.className]}
-        style={joinStyle(successTone.style)}
-        role="status"
-        tabindex="-1"
-      >
-        <div class="callout__body">
-          <p class="callout__text">{successMessage}</p>
-        </div>
+    <div
+      id="form-sent"
+      class:list={['callout', 'form-notice--target', successTone.className]}
+      style={joinStyle(successTone.style)}
+      role="status"
+      tabindex="-1"
+    >
+      <div class="callout__body">
+        <p class="callout__text">{successMessage}</p>
       </div>
-      <div
-        id="form-error"
-        class:list={['callout', 'form-notice--target', errorTone.className]}
-        style={joinStyle(errorTone.style)}
-        role="alert"
-        tabindex="-1"
-      >
-        <div class="callout__body">
-          <p class="callout__text">{errorMessage}</p>
-        </div>
+    </div>
+    <div
+      id="form-error"
+      class:list={['callout', 'form-notice--target', errorTone.className]}
+      style={joinStyle(errorTone.style)}
+      role="alert"
+      tabindex="-1"
+    >
+      <div class="callout__body">
+        <p class="callout__text">{errorMessage}</p>
       </div>
+    </div>
 
-      <form method="post" action={action} class="rhythm">
-        <input type="hidden" name="_next" value={next} />
-        {fields.map((f) => {
-          const describedby = f.help ? `${f.id}-help` : undefined;
-          const requiredMark = f.required ? { required: true, 'aria-required': 'true' } : {};
-          return f.type === 'checkbox' ? (
-            <div class="form-group">
+    <form method="post" action={action} class="rhythm">
+      <input type="hidden" name="_next" value={next} />
+      {fields.map((f) => {
+        const describedby = f.help ? `${f.id}-help` : undefined;
+        const requiredMark = f.required ? { required: true, 'aria-required': 'true' } : {};
+        return f.type === 'checkbox' ? (
+          <div class="form-group">
+            <label class="custom-check">
+              <input
+                type="checkbox"
+                id={f.id}
+                name={f.name}
+                value="yes"
+                aria-describedby={describedby}
+                {...requiredMark}
+              />
+              <span class="custom-check__box">
+                <span class="custom-check__indicator custom-check__indicator--check" />
+              </span>
+              <span>{f.label}</span>
+            </label>
+            {f.help && (
+              <p id={`${f.id}-help`} class="form-group__helper">
+                {f.help}
+              </p>
+            )}
+          </div>
+        ) : f.type === 'checkboxes' ? (
+          <fieldset class="form-group" aria-describedby={describedby}>
+            <legend class="form-group__label">{f.label}</legend>
+            {f.options.map((o) => (
               <label class="custom-check">
-                <input
-                  type="checkbox"
-                  id={f.id}
-                  name={f.name}
-                  value="yes"
-                  aria-describedby={describedby}
-                  {...requiredMark}
-                />
+                <input type="checkbox" name={f.name} value={o} />
                 <span class="custom-check__box">
                   <span class="custom-check__indicator custom-check__indicator--check" />
                 </span>
-                <span>{f.label}</span>
+                <span>{o}</span>
               </label>
-              {f.help && (
-                <p id={`${f.id}-help`} class="form-group__helper">
-                  {f.help}
-                </p>
-              )}
-            </div>
-          ) : f.type === 'checkboxes' ? (
-            <fieldset class="form-group" aria-describedby={describedby}>
-              <legend class="form-group__label">{f.label}</legend>
-              {f.options.map((o) => (
-                <label class="custom-check">
-                  <input type="checkbox" name={f.name} value={o} />
-                  <span class="custom-check__box">
-                    <span class="custom-check__indicator custom-check__indicator--check" />
-                  </span>
-                  <span>{o}</span>
-                </label>
-              ))}
-              {f.help && (
-                <p id={`${f.id}-help`} class="form-group__helper">
-                  {f.help}
-                </p>
-              )}
-            </fieldset>
-          ) : (
-            <div class="form-group">
-              <label class="form-group__label" for={f.id}>
-                {f.label}
-                {!f.required && <span class="form-group__optional">(optional)</span>}
-              </label>
-              {f.type === 'textarea' ? (
-                <textarea
-                  id={f.id}
-                  name={f.name}
-                  rows="5"
-                  placeholder={f.placeholder || undefined}
-                  aria-describedby={describedby}
-                  {...requiredMark}
-                />
-              ) : f.type === 'select' ? (
-                <div class="custom-select">
-                  <select id={f.id} name={f.name} aria-describedby={describedby} {...requiredMark}>
-                    <option value="">Choose one</option>
-                    {f.options.map((o) => (
-                      <option value={o}>{o}</option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <input
-                  type={f.type}
-                  id={f.id}
-                  name={f.name}
-                  placeholder={f.placeholder || undefined}
-                  autocomplete={f.autocomplete}
-                  aria-describedby={describedby}
-                  {...requiredMark}
-                />
-              )}
-              {f.help && (
-                <p id={`${f.id}-help`} class="form-group__helper">
-                  {f.help}
-                </p>
-              )}
-            </div>
-          );
-        })}
+            ))}
+            {f.help && (
+              <p id={`${f.id}-help`} class="form-group__helper">
+                {f.help}
+              </p>
+            )}
+          </fieldset>
+        ) : (
+          <div class="form-group">
+            <label class="form-group__label" for={f.id}>
+              {f.label}
+              {!f.required && <span class="form-group__optional">(optional)</span>}
+            </label>
+            {f.type === 'textarea' ? (
+              <textarea
+                id={f.id}
+                name={f.name}
+                rows="5"
+                placeholder={f.placeholder || undefined}
+                aria-describedby={describedby}
+                {...requiredMark}
+              />
+            ) : f.type === 'select' ? (
+              <div class="custom-select">
+                <select id={f.id} name={f.name} aria-describedby={describedby} {...requiredMark}>
+                  <option value="">Choose one</option>
+                  {f.options.map((o) => (
+                    <option value={o}>{o}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <input
+                type={f.type}
+                id={f.id}
+                name={f.name}
+                placeholder={f.placeholder || undefined}
+                autocomplete={f.autocomplete}
+                aria-describedby={describedby}
+                {...requiredMark}
+              />
+            )}
+            {f.help && (
+              <p id={`${f.id}-help`} class="form-group__helper">
+                {f.help}
+              </p>
+            )}
+          </div>
+        );
+      })}
 
-        {/* Honeypot: named per createConversionRoute's default list. Positioned off-screen rather than
+      {/* Honeypot: named per createConversionRoute's default list. Positioned off-screen rather than
             display:none (which simple bots skip), and hidden from assistive tech and the tab order. */}
-        <div class="sr-only" aria-hidden="true">
-          <label>
-            Leave this field empty
-            <input type="text" name={HONEYPOT_NAME} tabindex="-1" autocomplete="off" />
-          </label>
-        </div>
+      <div class="sr-only" aria-hidden="true">
+        <label>
+          Leave this field empty
+          <input type="text" name={HONEYPOT_NAME} tabindex="-1" autocomplete="off" />
+        </label>
+      </div>
 
-        {siteKey && (
-          <wc-turnstile sitekey={siteKey}>
-            <p class="form-group__helper" data-turnstile-fallback>
-              {noJsMessage}
-            </p>
-          </wc-turnstile>
-        )}
+      {siteKey && (
+        <wc-turnstile sitekey={siteKey}>
+          <p class="form-group__helper" data-turnstile-fallback>
+            {noJsMessage}
+          </p>
+        </wc-turnstile>
+      )}
 
-        <p>
-          <button type="submit" class="cta">
-            {submitLabel}
-          </button>
-        </p>
-      </form>
-    </div>
-  )
-}
+      <p>
+        <button type="submit" class="cta">
+          {submitLabel}
+        </button>
+      </p>
+    </form>
+  </div>
+)}

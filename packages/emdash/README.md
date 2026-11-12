@@ -173,7 +173,7 @@ so the site maps each of its own types to a component, and can replace a `vitops
 ```astro
 <PortableText
   value={page.data.content}
-  components={{ type: { 'acme.pricing': PricingTable, 'vitops_cards': MyCards } }}
+  components={{ type: { 'acme.pricing': PricingTable, vitops_cards: MyCards } }}
 />
 ```
 

@@ -1,14 +1,13 @@
 ---
-title: "@getvitops/astro"
-description: "Astro integration — CSS generation, favicons/PWA, web-component bundles, <Head />."
-section: "Packages"
+title: '@getvitops/astro'
+description: 'Astro integration — CSS generation, favicons/PWA, web-component bundles, <Head />.'
+section: 'Packages'
 order: 20
 ---
 
 ```sh
 npm i -D @getvitops/astro
 ```
-
 
 Astro integration for the Vitops design system. Generates your design-system CSS at build time,
 copies the web-component bundles into `public/`, generates favicons + a PWA manifest, and gives you
@@ -49,7 +48,9 @@ import Head from '@getvitops/astro/Head.astro';
   <head>
     <Head />
   </head>
-  <body><slot /></body>
+  <body>
+    <slot />
+  </body>
 </html>
 ```
 
@@ -91,7 +92,7 @@ export const prerender = false;
 | `webComponents` | `true`               | copy + link the web-component bundles                             |
 | `favicon`       | off unless given     | `source`, `lowResSource`, `name`, `themeColor`, `backgroundColor` |
 | `sitemap`       | off unless given     | generate `sitemap-index.xml` via `@astrojs/sitemap`               |
-| `seo`           | from `site.seo`      | override for the `<Seo />` defaults the site config supplies       |
+| `seo`           | from `site.seo`      | override for the `<Seo />` defaults the site config supplies      |
 | `analytics`     | off unless given     | providers for `<Analytics />` (GA4, Clarity, Matomo, Plausible)   |
 | `consent`       | off unless given     | the consent gate + `<CookieConsent />`                            |
 | `media`         | off unless given     | encode `raw/` video into WebM + MP4 + poster (needs `ffmpeg`)     |
@@ -205,6 +206,7 @@ vitops({ seo: { siteName: 'Acme' } });
 import Head from '@getvitops/astro/Head.astro';
 import Seo from '@getvitops/astro/Seo.astro';
 ---
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -272,6 +274,7 @@ vitops({
 import Analytics from '@getvitops/astro/Analytics.astro';
 import CookieConsent from '@getvitops/astro/CookieConsent.astro';
 ---
+
 <head>
   <Head />
   <Analytics />
@@ -384,13 +387,13 @@ configured with no `consent` gate.
 Thin authoring helpers that emit the framework's HTML/CSS patterns — **none require runtime JS**:
 
 ```astro
-import Subgrid from '@getvitops/astro/components/Subgrid.astro';
-import Cards from '@getvitops/astro/components/Cards.astro';
-import NodeRenderer from '@getvitops/astro/components/NodeRenderer.astro';
-import Popover from '@getvitops/astro/components/Popover.astro';
-import Details from '@getvitops/astro/components/Details.astro';
-import Drawer from '@getvitops/astro/components/Drawer.astro';
-import WebComponentLoader from '@getvitops/astro/components/WebComponentLoader.astro';
+import Subgrid from '@getvitops/astro/components/Subgrid.astro'; import Cards from
+'@getvitops/astro/components/Cards.astro'; import NodeRenderer from
+'@getvitops/astro/components/NodeRenderer.astro'; import Popover from
+'@getvitops/astro/components/Popover.astro'; import Details from
+'@getvitops/astro/components/Details.astro'; import Drawer from
+'@getvitops/astro/components/Drawer.astro'; import WebComponentLoader from
+'@getvitops/astro/components/WebComponentLoader.astro';
 ```
 
 They emit framework classes only — never a Tailwind utility — so they render the same under
@@ -405,25 +408,41 @@ card — head, body, footer — land on the same row lines regardless of content
 
 ```astro
 <Cards class="plans">
-  <article><h3>Basics</h3><p>…</p><a class="cta" href="#">Start</a></article>
-  <article><h3>Managed</h3><p>…</p><a class="cta" href="#">Start</a></article>
+  <article>
+    <h3>Basics</h3>
+    <p>…</p>
+    <a class="cta" href="#">
+      Start
+    </a>
+  </article>
+  <article>
+    <h3>Managed</h3>
+    <p>…</p>
+    <a class="cta" href="#">
+      Start
+    </a>
+  </article>
 </Cards>
 
 <style>
   .plans {
-    --subgrid-cols: 2;      /* columns */
-    --subgrid-row-span: 3;  /* tranches per card: head, body, CTA */
-    --subgrid-gap: 1.5rem;  /* grid gap: between columns, and between tranches */
+    --subgrid-cols: 2; /* columns */
+    --subgrid-row-span: 3; /* tranches per card: head, body, CTA */
+    --subgrid-gap: 1.5rem; /* grid gap: between columns, and between tranches */
     --subgrid-row-gap: 2rem; /* extra space between wrapped rows of cards */
   }
-  @media (width < 48rem) { .plans { --subgrid-cols: 1; } }
+  @media (width < 48rem) {
+    .plans {
+      --subgrid-cols: 1;
+    }
+  }
 </style>
 ```
 
 Set the custom properties from your own CSS rather than inline, so media-query overrides win.
 Sizing and gaps stay yours: the pattern only sets the grid gap from `--subgrid-gap`.
 
-`--subgrid-row-gap` exists because the grid's row gap is the gap between an item's *tranches*, so
-it cannot also be the gap between *rows of items*; it's applied with `sibling-index()`, and where
+`--subgrid-row-gap` exists because the grid's row gap is the gap between an item's _tranches_, so
+it cannot also be the gap between _rows of items_; it's applied with `sibling-index()`, and where
 that isn't supported (currently everything but Chromium) wrapped rows simply fall back to the grid
 gap. `--num-items` is set on the `<ul>` for nth-child-style maths.

@@ -70,12 +70,14 @@ const jsonLd = {
           '@type': 'Offer',
           price: course.offers.price,
           priceCurrency: course.offers.priceCurrency,
-          ...(course.offers.availability && { availability: `https://schema.org/${course.offers.availability}` }),
+          ...(course.offers.availability && {
+            availability: `https://schema.org/${course.offers.availability}`,
+          }),
           ...(course.offers.validFrom && { validFrom: course.offers.validFrom }),
         },
       }),
       ...(course.hasCourseInstance && {
-        hasCourseInstance: course.hasCourseInstance.map(instance => ({
+        hasCourseInstance: course.hasCourseInstance.map((instance) => ({
           '@type': 'CourseInstance',
           courseMode: instance.courseMode,
           ...(instance.startDate && { startDate: instance.startDate }),
@@ -103,7 +105,9 @@ const jsonLd = {
             courseSchedule: {
               '@type': 'Schedule',
               repeatFrequency: instance.courseSchedule.repeatFrequency,
-              ...(instance.courseSchedule.repeatCount && { repeatCount: instance.courseSchedule.repeatCount }),
+              ...(instance.courseSchedule.repeatCount && {
+                repeatCount: instance.courseSchedule.repeatCount,
+              }),
             },
           }),
         })),

@@ -1,7 +1,7 @@
 ---
 title: Your design system
 description: How design-system.json is structured — colours, scales, patterns and animations — and what each section generates.
-section: "Start here"
+section: 'Start here'
 order: 20
 ---
 
@@ -18,14 +18,14 @@ and the JSON Schema is published so editors give you autocomplete and hover docs
 
 ## What each section drives
 
-| Section | Generates |
-| --- | --- |
-| `colors` | 11-step OKLCH scales per hue, functional role tokens, automatic dark mode, colour utilities |
-| `typeScale` / `spaceScale` | Fluid modular scales as `clamp()` steps |
-| `typography` | Font families and semantic type roles → `font-<role>` utilities |
-| `patterns` | Component CSS (`.cta`, `.btn`, `.card`, `.badge`, …) plus the token cascade |
-| `animations` | Effect and journey classes, layered over the hand-written animation engine |
-| `shadows` | `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities |
+| Section                    | Generates                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------- |
+| `colors`                   | 11-step OKLCH scales per hue, functional role tokens, automatic dark mode, colour utilities |
+| `typeScale` / `spaceScale` | Fluid modular scales as `clamp()` steps                                                     |
+| `typography`               | Font families and semantic type roles → `font-<role>` utilities                             |
+| `patterns`                 | Component CSS (`.cta`, `.btn`, `.card`, `.badge`, …) plus the token cascade                 |
+| `animations`               | Effect and journey classes, layered over the hand-written animation engine                  |
+| `shadows`                  | `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities                                |
 
 The [Config reference](/reference/config/) documents every field, rendered from the schema itself —
 so it can't fall out of step with what validation accepts. The token fields are under

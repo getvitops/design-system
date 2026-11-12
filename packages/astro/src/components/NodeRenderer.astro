@@ -10,18 +10,10 @@ interface Props {
   defaultLocale?: string;
 }
 
-const {
-  nodes,
-  attrs,
-  locale = 'en',
-  defaultLocale = 'en',
-} = Astro.props;
+const { nodes, attrs, locale = 'en', defaultLocale = 'en' } = Astro.props;
 
 const resolveText = (value: Localizable) => t(value, locale, defaultLocale);
 const htmlString = nodesToHtml(nodes, resolveText);
 ---
 
-{attrs
-  ? <div {...attrs} set:html={htmlString} />
-  : <Fragment set:html={htmlString} />
-}
+{attrs ? <div {...attrs} set:html={htmlString} /> : <Fragment set:html={htmlString} />}

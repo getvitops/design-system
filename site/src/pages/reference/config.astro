@@ -43,20 +43,22 @@ const description =
   <p>
     Generated from <code>config.schema.json</code> and <code>schema.json</code>, the same schemas
     <code>vitops validate</code> checks against — so they always match validation. Every field is
-    linkable by its dotted path: <code>#site.analytics.clarityId</code>, <code>#colors.palette</code>.
+    linkable by its dotted path: <code>#site.analytics.clarityId</code>,{' '}
+    <code>#colors.palette</code>.
   </p>
   <p class="font-footnote">
     For what belongs in each section and when you need a config at all, start with
-    <a class="link" href={`${import.meta.env.BASE_URL}guides/config`.replace(/\/\/+/g, '/')}
-      >Your config</a
-    >. Agents should read <code>vitops docs config</code> and <code>vitops docs authoring</code>
+    <a class="link" href={`${import.meta.env.BASE_URL}guides/config`.replace(/\/\/+/g, '/')}>
+      Your config
+    </a>
+    . Agents should read <code>vitops docs config</code> and <code>vitops docs authoring</code>
     instead of this page.
   </p>
 
   <h2>Project config</h2>
   <p>
-    The three sections of a project config. Token fields live under <code>designSystem</code> and are
-    listed in full below, so this tree stops at the wrapper.
+    The three sections of a project config. Token fields live under <code>designSystem</code> and
+    are listed in full below, so this tree stops at the wrapper.
   </p>
   <SchemaTree
     schema={configJsonSchema}
@@ -70,9 +72,5 @@ const description =
     Every field of a design system — what <code>designSystem.themes.&lt;name&gt;</code> holds, and
     what a standalone <code>design-system.json</code> contains on its own.
   </p>
-  <SchemaTree
-    schema={jsonSchema}
-    label="Filter token fields"
-    ariaLabel="Design token fields"
-  />
+  <SchemaTree schema={jsonSchema} label="Filter token fields" ariaLabel="Design token fields" />
 </Docs>

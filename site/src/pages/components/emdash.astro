@@ -22,7 +22,9 @@ const rows: TierRow[] = tierPatterns('emdash').flatMap(({ name, entry }) =>
     cells: {
       Pattern: code(name),
       Renders: entry.astro?.length
-        ? entry.astro.map((a) => code(`<${a.component.split('/').pop()!.replace('.astro', '')} />`)).join(', ')
+        ? entry.astro
+            .map((a) => code(`<${a.component.split('/').pop()!.replace('.astro', '')} />`))
+            .join(', ')
         : 'tier-1 markup',
       'Recommended call': md(entry.use),
       'Also in': alsoIn(name, 'emdash', base),
@@ -42,14 +44,19 @@ const description =
 
 <Docs title={title} description={description}>
   <p>
-    Tier 3 on <strong>EmDash</strong> ships the patterns as blocks in the editor's insert menu, so
-    a non-technical author builds a page from the design system without touching markup. Each block
-    is a thin adapter over the matching
-    <a class="link" href={href(TIER_PAGES.astro.path, base)}>Astro component</a>, so the HTML and the
-    no-JS fallback are written once.
+    Tier 3 on <strong>EmDash</strong> ships the patterns as blocks in the editor's insert menu, so a
+    non-technical author builds a page from the design system without touching markup. Each block is
+    a thin adapter over the matching
+    <a class="link" href={href(TIER_PAGES.astro.path, base)}>
+      Astro component
+    </a>
+    , so the HTML and the no-JS fallback are written once.
   </p>
   <p class="font-footnote">
-    Siblings of the <a class="link" href={href(TIER_PAGES.bricks.path, base)}>Bricks elements</a>
+    Siblings of the{' '}
+    <a class="link" href={href(TIER_PAGES.bricks.path, base)}>
+      Bricks elements
+    </a>
     and the Astro components — chosen by platform, never ranked against each other.
   </p>
 
@@ -61,19 +68,21 @@ const description =
     manifest's <code>emdashExempt</code> field is the source and a test fails if one is silent.
   </p>
   <ul>
-    {
-      exempt.map(({ tag, reason }) => (
-        <li>
-          <code>{tag}</code> — {reason}
-        </li>
-      ))
-    }
+    {exempt.map(({ tag, reason }) => (
+      <li>
+        <code>{tag}</code> — {reason}
+      </li>
+    ))}
   </ul>
 
   <p class="font-footnote">
-    Repeating patterns (cards, gallery, accordion, marquee, carousel slides) are repeater fields.
-    A pattern that must contain other blocks cannot be a Portable Text block: <code>vitops_section</code>
+    Repeating patterns (cards, gallery, accordion, marquee, carousel slides) are repeater fields. A
+    pattern that must contain other blocks cannot be a Portable Text block:{' '}
+    <code>vitops_section</code>
     is a block <em>type</em> with a Portable Text body instead — see
-    <a class="link" href={href('packages/emdash', base)}>@getvitops/emdash</a>.
+    <a class="link" href={href('packages/emdash', base)}>
+      @getvitops/emdash
+    </a>
+    .
   </p>
 </Docs>

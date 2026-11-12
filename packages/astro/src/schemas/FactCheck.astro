@@ -30,14 +30,7 @@ export interface Props {
   };
 }
 
-const {
-  claimReviewed,
-  url,
-  author,
-  datePublished,
-  itemReviewed,
-  reviewRating,
-} = Astro.props;
+const { claimReviewed, url, author, datePublished, itemReviewed, reviewRating } = Astro.props;
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -62,7 +55,7 @@ const jsonLd = {
       }),
       ...(itemReviewed.datePublished && { datePublished: itemReviewed.datePublished }),
       ...(itemReviewed.appearance && {
-        appearance: itemReviewed.appearance.map(a => ({
+        appearance: itemReviewed.appearance.map((a) => ({
           '@type': 'CreativeWork',
           url: a.url,
           ...(a.headline && { headline: a.headline }),

@@ -89,13 +89,11 @@ const style = size ? `--icon-size:${size}` : undefined;
 ---
 
 <span class:list={['icon', className]} style={style} {...a11y}>
-  {
-    svg ? (
-      <svg viewBox={svg.viewBox} set:html={svg.body} />
-    ) : icons.engine === 'sprite' && icons.sprite && qualified ? (
-      <svg>
-        <use href={`${icons.sprite}#${spriteId(qualified)}`} />
-      </svg>
-    ) : null
-  }
+  {svg ? (
+    <svg viewBox={svg.viewBox} set:html={svg.body} />
+  ) : icons.engine === 'sprite' && icons.sprite && qualified ? (
+    <svg>
+      <use href={`${icons.sprite}#${spriteId(qualified)}`} />
+    </svg>
+  ) : null}
 </span>

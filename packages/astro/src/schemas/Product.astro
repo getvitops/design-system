@@ -13,47 +13,78 @@ export interface Props {
   brand?: {
     name: string;
   };
-  offers?: {
-    url?: string;
-    price: number | string;
-    priceCurrency: string;
-    priceValidUntil?: string;
-    availability?: 'InStock' | 'OutOfStock' | 'PreOrder' | 'SoldOut' | 'BackOrder' | 'Discontinued' | 'OnlineOnly' | 'InStoreOnly' | 'LimitedAvailability';
-    itemCondition?: 'NewCondition' | 'UsedCondition' | 'RefurbishedCondition' | 'DamagedCondition';
-    seller?: {
-      name: string;
-    };
-    shippingDetails?: {
-      shippingRate?: {
-        value: number;
-        currency: string;
-      };
-      shippingDestination?: {
-        addressCountry: string;
-      };
-      deliveryTime?: {
-        handlingTime?: { minValue: number; maxValue: number };
-        transitTime?: { minValue: number; maxValue: number };
-      };
-    };
-    hasMerchantReturnPolicy?: {
-      applicableCountry: string;
-      returnPolicyCategory: 'MerchantReturnFiniteReturnWindow' | 'MerchantReturnNotPermitted' | 'MerchantReturnUnlimitedWindow';
-      merchantReturnDays?: number;
-      returnMethod?: 'ReturnByMail' | 'ReturnInStore';
-      returnFees?: 'FreeReturn' | 'ReturnFeesCustomerResponsibility';
-    };
-  } | {
-    url?: string;
-    price: number | string;
-    priceCurrency: string;
-    priceValidUntil?: string;
-    availability?: 'InStock' | 'OutOfStock' | 'PreOrder' | 'SoldOut' | 'BackOrder' | 'Discontinued' | 'OnlineOnly' | 'InStoreOnly' | 'LimitedAvailability';
-    itemCondition?: 'NewCondition' | 'UsedCondition' | 'RefurbishedCondition' | 'DamagedCondition';
-    seller?: {
-      name: string;
-    };
-  }[];
+  offers?:
+    | {
+        url?: string;
+        price: number | string;
+        priceCurrency: string;
+        priceValidUntil?: string;
+        availability?:
+          | 'InStock'
+          | 'OutOfStock'
+          | 'PreOrder'
+          | 'SoldOut'
+          | 'BackOrder'
+          | 'Discontinued'
+          | 'OnlineOnly'
+          | 'InStoreOnly'
+          | 'LimitedAvailability';
+        itemCondition?:
+          | 'NewCondition'
+          | 'UsedCondition'
+          | 'RefurbishedCondition'
+          | 'DamagedCondition';
+        seller?: {
+          name: string;
+        };
+        shippingDetails?: {
+          shippingRate?: {
+            value: number;
+            currency: string;
+          };
+          shippingDestination?: {
+            addressCountry: string;
+          };
+          deliveryTime?: {
+            handlingTime?: { minValue: number; maxValue: number };
+            transitTime?: { minValue: number; maxValue: number };
+          };
+        };
+        hasMerchantReturnPolicy?: {
+          applicableCountry: string;
+          returnPolicyCategory:
+            | 'MerchantReturnFiniteReturnWindow'
+            | 'MerchantReturnNotPermitted'
+            | 'MerchantReturnUnlimitedWindow';
+          merchantReturnDays?: number;
+          returnMethod?: 'ReturnByMail' | 'ReturnInStore';
+          returnFees?: 'FreeReturn' | 'ReturnFeesCustomerResponsibility';
+        };
+      }
+    | {
+        url?: string;
+        price: number | string;
+        priceCurrency: string;
+        priceValidUntil?: string;
+        availability?:
+          | 'InStock'
+          | 'OutOfStock'
+          | 'PreOrder'
+          | 'SoldOut'
+          | 'BackOrder'
+          | 'Discontinued'
+          | 'OnlineOnly'
+          | 'InStoreOnly'
+          | 'LimitedAvailability';
+        itemCondition?:
+          | 'NewCondition'
+          | 'UsedCondition'
+          | 'RefurbishedCondition'
+          | 'DamagedCondition';
+        seller?: {
+          name: string;
+        };
+      }[];
   aggregateRating?: {
     ratingValue: number;
     reviewCount?: number;
@@ -210,7 +241,7 @@ const jsonLd = {
     },
   }),
   ...(review && {
-    review: review.map(r => ({
+    review: review.map((r) => ({
       '@type': 'Review',
       author: { '@type': 'Person', name: r.author.name },
       datePublished: r.datePublished,

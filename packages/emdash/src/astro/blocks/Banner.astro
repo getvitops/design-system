@@ -17,7 +17,9 @@ import { rootAttrs } from './attrs.ts';
   <wc-dismissable {...rootAttrs(value)}>
     <div class={bannerClass}>
       <div class="banner__content">{message}</div>
-      <button class="banner__close" data-dismiss aria-label="Dismiss">✕</button>
+      <button class="banner__close" data-dismiss aria-label="Dismiss">
+        ✕
+      </button>
     </div>
   </wc-dismissable>
 )}

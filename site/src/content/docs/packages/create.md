@@ -1,14 +1,13 @@
 ---
-title: "@getvitops/create"
-description: "Project templates — scaffold a wired-up site with `vp create @getvitops`."
-section: "Packages"
+title: '@getvitops/create'
+description: 'Project templates — scaffold a wired-up site with `vp create @getvitops`.'
+section: 'Packages'
 order: 80
 ---
 
 ```sh
 npm i -D @getvitops/create
 ```
-
 
 Project templates for the Vitops design system, consumed by
 [Vite+](https://viteplus.dev)'s `vp create` via the `createConfig.templates`

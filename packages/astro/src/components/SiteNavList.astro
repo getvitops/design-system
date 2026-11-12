@@ -30,61 +30,57 @@ const { items, current, top = true, panel: Panel, owner } = Astro.props;
 ---
 
 <ul class={top ? 'sitenav__list' : 'sitenav__submenu'} role="list">
-  {
-    items.map((item) => {
-      const kids = item.children ?? [];
-      const desc = itemDescription(item);
-      const classes = [
-        'sitenav__link',
-        'split-link__link',
-        desc && 'sitenav__link--described',
-        item.cssClasses,
-      ]
-        .filter(Boolean)
-        .join(' ');
-      const link = (
-        <a
-          class={classes}
-          href={item.url || '#'}
-          target={item.target || undefined}
-          rel={linkRel(item)}
-          aria-current={isCurrent(item.url, current) ? 'page' : undefined}
-        >
-          <span class="sitenav__label">{item.label}</span>
-          {desc && <span class="sitenav__desc">{desc}</span>}
-        </a>
-      );
-      return kids.length > 0 ? (
-        <li class="sitenav__item sitenav__item--branch">
-          {link}
-          <details class="sitenav__disclosure">
-            <summary
-              class="sitenav__subtoggle split-link__toggle"
-              aria-label={`Show ${item.label} submenu`}
-            >
-              <span class="split-link__caret" aria-hidden="true">
-                &#9662;
-              </span>
-            </summary>
-          </details>
-          <Astro.self
-            items={kids}
-            current={current}
-            top={false}
-            panel={top ? Panel : undefined}
-            owner={item}
-          />
-        </li>
-      ) : (
-        <li class="sitenav__item">{link}</li>
-      );
-    })
-  }
-  {
-    !top && Panel && owner && (
-      <li class="sitenav__item sitenav__mega-extra">
-        <Panel item={owner} />
+  {items.map((item) => {
+    const kids = item.children ?? [];
+    const desc = itemDescription(item);
+    const classes = [
+      'sitenav__link',
+      'split-link__link',
+      desc && 'sitenav__link--described',
+      item.cssClasses,
+    ]
+      .filter(Boolean)
+      .join(' ');
+    const link = (
+      <a
+        class={classes}
+        href={item.url || '#'}
+        target={item.target || undefined}
+        rel={linkRel(item)}
+        aria-current={isCurrent(item.url, current) ? 'page' : undefined}
+      >
+        <span class="sitenav__label">{item.label}</span>
+        {desc && <span class="sitenav__desc">{desc}</span>}
+      </a>
+    );
+    return kids.length > 0 ? (
+      <li class="sitenav__item sitenav__item--branch">
+        {link}
+        <details class="sitenav__disclosure">
+          <summary
+            class="sitenav__subtoggle split-link__toggle"
+            aria-label={`Show ${item.label} submenu`}
+          >
+            <span class="split-link__caret" aria-hidden="true">
+              &#9662;
+            </span>
+          </summary>
+        </details>
+        <Astro.self
+          items={kids}
+          current={current}
+          top={false}
+          panel={top ? Panel : undefined}
+          owner={item}
+        />
       </li>
-    )
-  }
+    ) : (
+      <li class="sitenav__item">{link}</li>
+    );
+  })}
+  {!top && Panel && owner && (
+    <li class="sitenav__item sitenav__mega-extra">
+      <Panel item={owner} />
+    </li>
+  )}
 </ul>

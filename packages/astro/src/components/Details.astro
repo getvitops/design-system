@@ -23,18 +23,15 @@ interface Props {
   iconResolver?: (name: string) => string;
 }
 
-const {
-  label,
-  items,
-  class: className,
-  iconResolver = (name: string) => name,
-} = Astro.props;
+const { label, items, class: className, iconResolver = (name: string) => name } = Astro.props;
 ---
 
 <details class={`details-collapse ${className || ''}`}>
-  <summary class="details-trigger"><slot>
-    {label}
-    <Icon name={iconResolver('chevron-down')} class="details-icon" /></slot>
+  <summary class="details-trigger">
+    <slot>
+      {label}
+      <Icon name={iconResolver('chevron-down')} class="details-icon" />
+    </slot>
   </summary>
   <slot name="content" />
 </details>

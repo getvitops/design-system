@@ -26,16 +26,14 @@ const title = page?.data.title as string | undefined;
 <Layout description={title}>
   <section class="rhythm">
     <h1>{title ?? 'Welcome'}</h1>
-    {
-      page?.data.content ? (
-        <PortableText value={page.data.content} />
-      ) : (
-        <p>
-          No home page yet. Complete the setup wizard at <a href="/_emdash/admin">/_emdash/admin</a>{' '}
-          and choose to include the sample content, or create a page with the slug{' '}
-          <code>home</code> in the admin.
-        </p>
-      )
-    }
+    {page?.data.content ? (
+      <PortableText value={page.data.content} />
+    ) : (
+      <p>
+        No home page yet. Complete the setup wizard at <a href="/_emdash/admin">/_emdash/admin</a>{' '}
+        and choose to include the sample content, or create a page with the slug <code>home</code>{' '}
+        in the admin.
+      </p>
+    )}
   </section>
 </Layout>

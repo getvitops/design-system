@@ -55,45 +55,43 @@ const Grid = panel ? Subgrid : Cards;
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  cards.length > 0 && (
-    <Grid {...rootAttrs(value, [], `--subgrid-cols: ${columns}`)}>
-      {cards.map((card) => (
-        <li
-          class:list={['card', 'subgrid-card', panel && tone.surface, card.theme?.className]}
-          style={joinStyle(panel ? joinStyle(tone.style, card.style) : card.style, card.theme?.style)}
-        >
-          {card.image && <img src={card.image} alt={card.imageAlt} loading="lazy" />}
-          {card.title && <Heading class="card__title font-heading">{card.title}</Heading>}
-          {card.body && (
-            <p>
-              <RichText text={card.body} />
-            </p>
-          )}
-          {panel && card.checklist.length > 0 && (
-            <ul class="rhythm" role="list">
-              {card.checklist.map((item) => (
-                <li>{item}</li>
-              ))}
-            </ul>
-          )}
-          {panel && card.ctaLabel && card.ctaHref && (
-            <p class="subgrid-card__footer">
-              <a class="cta" href={card.ctaHref}>
-                {card.ctaLabel}
-                <span class="sr-only">: {card.title}</span>
-              </a>
-            </p>
-          )}
-          {!panel && card.href && (
-            <a class="link stretched-link" href={card.href}>
-              {card.linkLabel}
-              {/* "Read more" alone is meaningless in a list of links; name the card for AT. */}
-              {card.title && <span class="sr-only">: {card.title}</span>}
+{cards.length > 0 && (
+  <Grid {...rootAttrs(value, [], `--subgrid-cols: ${columns}`)}>
+    {cards.map((card) => (
+      <li
+        class:list={['card', 'subgrid-card', panel && tone.surface, card.theme?.className]}
+        style={joinStyle(panel ? joinStyle(tone.style, card.style) : card.style, card.theme?.style)}
+      >
+        {card.image && <img src={card.image} alt={card.imageAlt} loading="lazy" />}
+        {card.title && <Heading class="card__title font-heading">{card.title}</Heading>}
+        {card.body && (
+          <p>
+            <RichText text={card.body} />
+          </p>
+        )}
+        {panel && card.checklist.length > 0 && (
+          <ul class="rhythm" role="list">
+            {card.checklist.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        )}
+        {panel && card.ctaLabel && card.ctaHref && (
+          <p class="subgrid-card__footer">
+            <a class="cta" href={card.ctaHref}>
+              {card.ctaLabel}
+              <span class="sr-only">: {card.title}</span>
             </a>
-          )}
-        </li>
-      ))}
-    </Grid>
-  )
-}
+          </p>
+        )}
+        {!panel && card.href && (
+          <a class="link stretched-link" href={card.href}>
+            {card.linkLabel}
+            {/* "Read more" alone is meaningless in a list of links; name the card for AT. */}
+            {card.title && <span class="sr-only">: {card.title}</span>}
+          </a>
+        )}
+      </li>
+    ))}
+  </Grid>
+)}

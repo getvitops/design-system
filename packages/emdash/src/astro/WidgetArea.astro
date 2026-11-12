@@ -56,22 +56,24 @@ const hasBody = (content: unknown) =>
       b?._type !== 'block' ||
       (Array.isArray(b.children) && b.children.some((c: any) => text(c?.text).trim())),
   );
-const shown = widgets.filter(
-  (w) => w.type !== 'content' || hasBody(w.content),
-);
+const shown = widgets.filter((w) => w.type !== 'content' || hasBody(w.content));
 const missing = [
   ...new Set((await Promise.all(shown.map((w) => unrenderedTypes(w.content)))).flat()),
 ];
-const inner = { type: { 'vitops_widgetArea': Nothing } };
+const inner = { type: { vitops_widgetArea: Nothing } };
 ---
 
-{
-  shown.length > 0 && (
-    <div id={id} class:list={['widget-area', themed?.className, className]} style={joinStyle(themed?.style, style)} data-widget-area={area?.name}>
-      {delegated ? (
-        <StockWidgetArea name={name} />
-      ) : (
-        <>
+{shown.length > 0 && (
+  <div
+    id={id}
+    class:list={['widget-area', themed?.className, className]}
+    style={joinStyle(themed?.style, style)}
+    data-widget-area={area?.name}
+  >
+    {delegated ? (
+      <StockWidgetArea name={name} />
+    ) : (
+      <>
         {shown.map((widget) => (
           <section class="widget" data-widget-type={widget.type}>
             {text(widget.title) && widget.type !== 'menu' && (
@@ -84,7 +86,9 @@ const inner = { type: { 'vitops_widgetArea': Nothing } };
             )}
             {widget.type === 'menu' && menus[widget.id] && (
               <>
-                {text(widget.title) && <Heading class="widget__title font-heading">{widget.title}</Heading>}
+                {text(widget.title) && (
+                  <Heading class="widget__title font-heading">{widget.title}</Heading>
+                )}
                 <nav class="widget__menu" aria-label={text(widget.title) || area?.label}>
                   <ul role="list">
                     {menus[widget.id]!.items.map((item) => {
@@ -105,9 +109,10 @@ const inner = { type: { 'vitops_widgetArea': Nothing } };
             )}
           </section>
         ))}
-        {missing.map((type) => <template data-vitops-unrendered={type} />)}
-        </>
-      )}
-    </div>
-  )
-}
+        {missing.map((type) => (
+          <template data-vitops-unrendered={type} />
+        ))}
+      </>
+    )}
+  </div>
+)}

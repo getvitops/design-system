@@ -18,4 +18,6 @@ const value = resolveBlockValue<Value>(Astro.props);
 const name = text(value.area);
 ---
 
-{name && <WidgetArea name={name} level={value.level} {...rootAttrs(value, ['widget-area--in-page'])} />}
+{name && (
+  <WidgetArea name={name} level={value.level} {...rootAttrs(value, ['widget-area--in-page'])} />
+)}

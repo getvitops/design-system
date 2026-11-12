@@ -42,7 +42,9 @@ const rootCss = mastheadRootCss(masthead);
   <div class:list={['masthead__row', masthead.width === 'content' && 'centered']}>
     <div class="navbar">
       <slot name="brand" />
-      <div class="navbar__spacer"><slot /></div>
+      <div class="navbar__spacer">
+        <slot />
+      </div>
       <slot name="actions" />
     </div>
   </div>

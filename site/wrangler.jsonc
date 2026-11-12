@@ -7,7 +7,7 @@
   // dogfoods the client deploy path rather than the GitHub Pages path it used
   // to deploy through.
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist",
   },
   // Apex custom domain. Cloudflare provisions the DNS record + TLS cert on
   // deploy (the zone must already exist in the account). The dev deploy

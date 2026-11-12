@@ -1,7 +1,7 @@
 ---
 title: Start a new EmDash site
 description: The one-time procedure for standing up a client EmDash site on Cloudflare — from `vp create` to a running admin, with the agent tooling wired — then a hand-off to the in-project setup checklist.
-section: "Start here"
+section: 'Start here'
 order: 15
 ---
 

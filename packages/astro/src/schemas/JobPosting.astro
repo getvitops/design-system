@@ -5,7 +5,16 @@ export interface Props {
   description: string;
   datePosted: string;
   validThrough?: string;
-  employmentType?: ('FULL_TIME' | 'PART_TIME' | 'CONTRACTOR' | 'TEMPORARY' | 'INTERN' | 'VOLUNTEER' | 'PER_DIEM' | 'OTHER')[];
+  employmentType?: (
+    | 'FULL_TIME'
+    | 'PART_TIME'
+    | 'CONTRACTOR'
+    | 'TEMPORARY'
+    | 'INTERN'
+    | 'VOLUNTEER'
+    | 'PER_DIEM'
+    | 'OTHER'
+  )[];
   hiringOrganization: {
     name: string;
     sameAs?: string;
@@ -93,7 +102,7 @@ const jsonLd = {
   }),
   ...(jobLocationType && { jobLocationType }),
   ...(applicantLocationRequirements && {
-    applicantLocationRequirements: applicantLocationRequirements.map(req => ({
+    applicantLocationRequirements: applicantLocationRequirements.map((req) => ({
       '@type': req.type,
       name: req.name,
     })),
@@ -102,14 +111,15 @@ const jsonLd = {
     baseSalary: {
       '@type': 'MonetaryAmount',
       currency: baseSalary.currency,
-      value: typeof baseSalary.value === 'number'
-        ? { '@type': 'QuantitativeValue', value: baseSalary.value, unitText: baseSalary.unitText }
-        : {
-            '@type': 'QuantitativeValue',
-            minValue: baseSalary.value.minValue,
-            maxValue: baseSalary.value.maxValue,
-            unitText: baseSalary.unitText,
-          },
+      value:
+        typeof baseSalary.value === 'number'
+          ? { '@type': 'QuantitativeValue', value: baseSalary.value, unitText: baseSalary.unitText }
+          : {
+              '@type': 'QuantitativeValue',
+              minValue: baseSalary.value.minValue,
+              maxValue: baseSalary.value.maxValue,
+              unitText: baseSalary.unitText,
+            },
     },
   }),
   ...(identifier && {

@@ -47,14 +47,14 @@ const description =
 <Docs title={title} description={description}>
   <p>
     Tier 2 exists <strong>only</strong> where a pattern genuinely benefits from progressive
-    enhancement. The slotted markup <em>is</em> the fallback — semantic, accessible and usable with no
-    JavaScript — and the element parses it and augments it in place. None of these render from empty,
-    which is why the "what JS adds" column is the reason each one exists at all.
+    enhancement. The slotted markup <em>is</em> the fallback — semantic, accessible and usable with
+    no JavaScript — and the element parses it and augments it in place. None of these render from
+    empty, which is why the "what JS adds" column is the reason each one exists at all.
   </p>
   <p>
-    They use light DOM, so the framework CSS applies to both the fallback and the enhanced result, and
-    ship as feature-detected, deferred ES-module bundles. Polyfills load only when a native feature is
-    missing.
+    They use light DOM, so the framework CSS applies to both the fallback and the enhanced result,
+    and ship as feature-detected, deferred ES-module bundles. Polyfills load only when a native
+    feature is missing.
   </p>
 
   <h2 id="bundles">Which bundle</h2>
@@ -65,20 +65,22 @@ const description =
     bundle it gates; and <code>&lt;wc-theme-editor&gt;</code>, which is tooling rather than a page
     pattern and is opt-in per consumer, so a production page that doesn't ask for it pays nothing.
   </p>
-  {
-    unshipped.length > 0 && (
-      <p class="notification bg-warning-muted">
-        {unshipped.map(({ entry }) => entry.wc!.tag).join(', ')} are <strong>registered but in no
-        bundle</strong> (the editor-v2 track). The tags are inert in a consumer project — they are
-        listed so that "the tag does nothing" is documented rather than discovered.
-      </p>
-    )
-  }
+  {unshipped.length > 0 && (
+    <p class="notification bg-warning-muted">
+      {unshipped.map(({ entry }) => entry.wc!.tag).join(', ')} are{' '}
+      <strong>registered but in no bundle</strong> (the editor-v2 track). The tags are inert in a
+      consumer project — they are listed so that "the tag does nothing" is documented rather than
+      discovered.
+    </p>
+  )}
 
   <TierEntries rows={rows} />
 
   <p class="font-footnote">
     Live, interactive demos of each are on the
-    <a class="link" href={href('patterns', base)}>Patterns</a> page.
+    <a class="link" href={href('patterns', base)}>
+      Patterns
+    </a>{' '}
+    page.
   </p>
 </Docs>

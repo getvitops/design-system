@@ -74,7 +74,10 @@ const PAGES = [
   // overview for why the two shapes are opposite on purpose.
   { id: 'components', data: { title: 'Overview', section: 'Components', order: 10 } },
   { id: 'components/css', data: { title: 'CSS classes', section: 'Components', order: 20 } },
-  { id: 'components/elements', data: { title: 'Web components', section: 'Components', order: 30 } },
+  {
+    id: 'components/elements',
+    data: { title: 'Web components', section: 'Components', order: 30 },
+  },
   { id: 'components/astro', data: { title: 'Astro components', section: 'Components', order: 40 } },
   { id: 'components/bricks', data: { title: 'Bricks elements', section: 'Components', order: 50 } },
   { id: 'components/emdash', data: { title: 'EmDash blocks', section: 'Components', order: 60 } },
@@ -89,7 +92,8 @@ const nav = SECTIONS.map((section) => ({
 })).filter((g) => g.items.length);
 
 const here = Astro.url.pathname.replace(/\/$/, '');
-const href = (id: string) => `${import.meta.env.BASE_URL}${id === 'index' ? '' : id}`.replace(/\/$/, '') || '/';
+const href = (id: string) =>
+  `${import.meta.env.BASE_URL}${id === 'index' ? '' : id}`.replace(/\/$/, '') || '/';
 // Only h2/h3 make a useful on-page TOC; deeper headings are detail.
 const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
 ---
@@ -108,38 +112,55 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
   </head>
 
   <body class="bg-surface-muted text-surface">
-    <a class="link skip-link" href="#content">Skip to content</a>
+    <a class="link skip-link" href="#content">
+      Skip to content
+    </a>
 
     <header class="sticky-header docs-header bg-surface-x-muted">
-      <div class="centered"><div class="spotlight cluster-between" style="align-items: center; gap: 1rem">
-        <!-- The site nav's toggle, hoisted out of the shell into the header.
+      <div class="centered">
+        <div class="spotlight cluster-between" style="align-items: center; gap: 1rem">
+          <!-- The site nav's toggle, hoisted out of the shell into the header.
              Two nested shells each rendering their own sticky bar put both at
              the same offset, overlapping; the header is already sticky, so this
              leaves exactly one in-flow bar (the TOC's). `breakpoint` must match
              the shell's — outside `.navshell` the toggle can't read its flag. -->
-        <div class="cluster-start" style="align-items: center; gap: 0.5rem">
-          <NavShellToggle for="site-nav" label="Menu" breakpoint="md" />
-          <a class="font-title docs-brand" href={href('index')}>Vitops</a>
-        </div>
+          <div class="cluster-start" style="align-items: center; gap: 0.5rem">
+            <NavShellToggle for="site-nav" label="Menu" breakpoint="md" />
+            <a class="font-title docs-brand" href={href('index')}>
+              Vitops
+            </a>
+          </div>
 
-        <nav class="cluster-start docs-header__links" style="gap: 1rem; align-items: center">
-          <a class="link" href={href('guides/installation')}>Guides</a>
-          <a class="link" href={href('components')}>Components</a>
-          <a class="link" href={href('packages/cli')}>Packages</a>
-          <a class="link" href={href('theme')}>Theme</a>
-          <a class="link" href={href('reference/config')}>Reference</a>
-          <a class="link" href={href('changelog')}>Changelog</a>
-          <!-- Self-contained (shadow DOM, renders its own segmented control) and
+          <nav class="cluster-start docs-header__links" style="gap: 1rem; align-items: center">
+            <a class="link" href={href('guides/installation')}>
+              Guides
+            </a>
+            <a class="link" href={href('components')}>
+              Components
+            </a>
+            <a class="link" href={href('packages/cli')}>
+              Packages
+            </a>
+            <a class="link" href={href('theme')}>
+              Theme
+            </a>
+            <a class="link" href={href('reference/config')}>
+              Reference
+            </a>
+            <a class="link" href={href('changelog')}>
+              Changelog
+            </a>
+            <!-- Self-contained (shadow DOM, renders its own segmented control) and
                `display: none` until `:defined`, so with no JS it simply isn't
                there. Colour scheme then follows the OS via prefers-color-scheme,
                which the generated stylesheet emits because this site opts in
                (`css.systemColorScheme`, or `designSystem.defaultColorScheme:
                "system"` in a site config). Without it both the no-JS case and
                the toggle's own "System" position resolve to light. -->
-          <wc-color-scheme-toggle></wc-color-scheme-toggle>
-        </nav>
-
-      </div></div>
+            <wc-color-scheme-toggle></wc-color-scheme-toggle>
+          </nav>
+        </div>
+      </div>
     </header>
 
     <!-- `.centered` is a *track* grid (fullbleed/spotlight/breakout/measure) and
@@ -166,7 +187,9 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
                     class="navshell__link"
                     aria-current={here === href(item.id) ? 'page' : undefined}
                     href={href(item.id)}
-                  >{item.data.title}</a>
+                  >
+                    {item.data.title}
+                  </a>
                 ))}
               </>
             ))}
@@ -180,7 +203,8 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
               <aside class="card bg-info-muted">
                 <p class="font-caption">
                   <strong>Generated page.</strong> Rendered from this project’s
-                  <code>design-system.json</code> by <code>@getvitops/generator</code> — the same bundle
+                  <code>design-system.json</code> by <code>@getvitops/generator</code> — the same
+                  bundle
                   <code>vitops docs</code> prints against your own config. Don’t edit it by hand.
                 </p>
               </aside>
@@ -193,13 +217,19 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
                       :target-current. CSS-only and Chrome-only today; other engines
                       simply show no highlight until they ship scroll-target-group. */}
                   {toc.map((h) => (
-                    <a class="navshell__link" data-depth={h.depth} href={`#${h.slug}`}>{h.text}</a>
+                    <a class="navshell__link" data-depth={h.depth} href={`#${h.slug}`}>
+                      {h.text}
+                    </a>
                   ))}
                 </Fragment>
-                <div class="rhythm docs-prose"><slot /></div>
+                <div class="rhythm docs-prose">
+                  <slot />
+                </div>
               </NavShell>
             ) : (
-              <div class="rhythm docs-prose"><slot /></div>
+              <div class="rhythm docs-prose">
+                <slot />
+              </div>
             )}
           </main>
         </NavShell>
@@ -213,10 +243,16 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
     <wc-theme-editor></wc-theme-editor>
 
     <footer class="docs-footer bg-surface-x-muted">
-      <div class="centered"><div class="spotlight cluster-between font-footnote text-surface-muted">
-        <p>Built with the design system it documents.</p>
-        <p><a class="link" href="https://www.npmjs.com/org/getvitops">@getvitops on npm</a></p>
-      </div></div>
+      <div class="centered">
+        <div class="spotlight cluster-between font-footnote text-surface-muted">
+          <p>Built with the design system it documents.</p>
+          <p>
+            <a class="link" href="https://www.npmjs.com/org/getvitops">
+              @getvitops on npm
+            </a>
+          </p>
+        </div>
+      </div>
     </footer>
 
     <style>

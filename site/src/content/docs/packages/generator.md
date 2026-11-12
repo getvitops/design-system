@@ -1,14 +1,13 @@
 ---
-title: "@getvitops/generator"
-description: "The generator as a library, plus the published JSON Schema."
-section: "Packages"
+title: '@getvitops/generator'
+description: 'The generator as a library, plus the published JSON Schema.'
+section: 'Packages'
 order: 40
 ---
 
 ```sh
 npm i -D @getvitops/generator
 ```
-
 
 Generate design-system outputs — **Tailwind v4** (Astro/EmDash), **Bricks** (WordPress), an
 agent-facing **`DESIGN.md`** brief, and standalone **CSS** — from a single `design-system.json`.

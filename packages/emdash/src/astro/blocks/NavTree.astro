@@ -20,29 +20,27 @@ const { items, current, modifiers = [], top = true } = Astro.props;
 ---
 
 <ul class:list={[top ? 'navlist' : 'navlist__sub', ...modifiers]} role="list">
-  {
-    items.map((item) => {
-      const href = safeHref(item.url);
-      const kids = item.children ?? [];
-      return (
-        <li class="navlist__item">
-          {href ? (
-            <a
-              class:list={['navlist__link', item.cssClasses]}
-              href={href}
-              target={item.target || undefined}
-              rel={linkRel(item)}
-              aria-current={isCurrent(item.url, current) ? 'page' : undefined}
-            >
-              {item.label}
-            </a>
-          ) : (
-            // A heading-only item (no or an unsafe URL) is a label, not a dead link.
-            <span class="navlist__label">{item.label}</span>
-          )}
-          {kids.length > 0 && <Astro.self items={kids} current={current} top={false} />}
-        </li>
-      );
-    })
-  }
+  {items.map((item) => {
+    const href = safeHref(item.url);
+    const kids = item.children ?? [];
+    return (
+      <li class="navlist__item">
+        {href ? (
+          <a
+            class:list={['navlist__link', item.cssClasses]}
+            href={href}
+            target={item.target || undefined}
+            rel={linkRel(item)}
+            aria-current={isCurrent(item.url, current) ? 'page' : undefined}
+          >
+            {item.label}
+          </a>
+        ) : (
+          // A heading-only item (no or an unsafe URL) is a label, not a dead link.
+          <span class="navlist__label">{item.label}</span>
+        )}
+        {kids.length > 0 && <Astro.self items={kids} current={current} top={false} />}
+      </li>
+    );
+  })}
 </ul>

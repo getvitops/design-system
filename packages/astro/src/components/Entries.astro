@@ -40,19 +40,17 @@ const Heading = `h${level}` as 'h3';
 ---
 
 <wc-entries breakpoint={breakpoint} projection={projection} singular={singular} {...rest}>
-  {
-    entries.map((entry) => (
-      <>
-        <Heading>{entry.heading}</Heading>
-        <dl>
-          {entry.pairs.map((pair) => (
-            <>
-              <dt>{pair.term}</dt>
-              <dd>{pair.value}</dd>
-            </>
-          ))}
-        </dl>
-      </>
-    ))
-  }
+  {entries.map((entry) => (
+    <>
+      <Heading>{entry.heading}</Heading>
+      <dl>
+        {entry.pairs.map((pair) => (
+          <>
+            <dt>{pair.term}</dt>
+            <dd>{pair.value}</dd>
+          </>
+        ))}
+      </dl>
+    </>
+  ))}
 </wc-entries>

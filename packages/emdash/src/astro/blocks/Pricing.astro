@@ -33,38 +33,36 @@ const columns = Math.min(4, Math.max(1, plans.length));
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  plans.length > 0 && (
-    <ul
-      {...rootAttrs(value, ['pricing-grid'], `--pricing-columns: ${columns}; --pricing-card-rows: 4`)}
-      role="list"
-    >
-      {plans.map((plan) => (
-        <li class:list={['pricing-card', plan.featured && 'pricing-card--featured']}>
-          <div class="pricing-card__header">
-            {plan.name && <Heading class="font-title">{plan.name}</Heading>}
-            {plan.note && <p class="pricing-card__note font-caption">{plan.note}</p>}
-          </div>
-          <p class="pricing-card__price">
-            {plan.price}
-            {plan.period && <small class="font-caption"> {plan.period}</small>}
-            {plan.yearly && <small class="pricing-card__yearly font-caption">{plan.yearly}</small>}
-          </p>
-          <ul class="pricing-card__features" role="list">
-            {plan.features.map((feature) => (
-              <li class="pricing-card__feature">{feature}</li>
-            ))}
-          </ul>
-          <div class="pricing-card__cta">
-            {plan.ctaLabel && plan.ctaHref && (
-              <a class:list={[plan.featured ? 'cta' : 'btn']} href={plan.ctaHref}>
-                {plan.ctaLabel}
-                <span class="sr-only"> — {plan.name}</span>
-              </a>
-            )}
-          </div>
-        </li>
-      ))}
-    </ul>
-  )
-}
+{plans.length > 0 && (
+  <ul
+    {...rootAttrs(value, ['pricing-grid'], `--pricing-columns: ${columns}; --pricing-card-rows: 4`)}
+    role="list"
+  >
+    {plans.map((plan) => (
+      <li class:list={['pricing-card', plan.featured && 'pricing-card--featured']}>
+        <div class="pricing-card__header">
+          {plan.name && <Heading class="font-title">{plan.name}</Heading>}
+          {plan.note && <p class="pricing-card__note font-caption">{plan.note}</p>}
+        </div>
+        <p class="pricing-card__price">
+          {plan.price}
+          {plan.period && <small class="font-caption"> {plan.period}</small>}
+          {plan.yearly && <small class="pricing-card__yearly font-caption">{plan.yearly}</small>}
+        </p>
+        <ul class="pricing-card__features" role="list">
+          {plan.features.map((feature) => (
+            <li class="pricing-card__feature">{feature}</li>
+          ))}
+        </ul>
+        <div class="pricing-card__cta">
+          {plan.ctaLabel && plan.ctaHref && (
+            <a class:list={[plan.featured ? 'cta' : 'btn']} href={plan.ctaHref}>
+              {plan.ctaLabel}
+              <span class="sr-only"> — {plan.name}</span>
+            </a>
+          )}
+        </div>
+      </li>
+    ))}
+  </ul>
+)}

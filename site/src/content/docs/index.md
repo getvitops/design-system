@@ -35,7 +35,7 @@ it in place — so the no-JS rendering is a real fallback, not a blank element.
 scale and the functional tokens over it. Dark mode is an automatic flip, not a second palette you
 maintain. Contrast targets are enforced by unit tests.
 
-**Docs that can't drift.** Every page under *Reference* is generated from the same source the
+**Docs that can't drift.** Every page under _Reference_ is generated from the same source the
 toolchain ships to consumers via `vitops docs`, so this site can't describe output the generator
 doesn't produce.
 

@@ -39,35 +39,33 @@ const isBranch = kids.length > 0;
 ---
 
 <li class="tree__item" id={item.id}>
-  {
-    isBranch ? (
-      <details open={depth < openDepth}>
-        <summary>
-          <span class="tree__toggle" aria-hidden="true" />
-          <span class="tree__label">
-            {item.unnamed ? <em>{item.label}</em> : <code>{item.label}</code>}
-            {item.badge && <span class="badge">{item.badge}</span>}
-            {item.flag && <span class="badge badge-danger">{item.flag}</span>}
-          </span>
-        </summary>
-        {item.descriptionHtml && <p class="tree__desc" set:html={item.descriptionHtml} />}
-        <ul class="tree" role="list">
-          {kids.map((kid) => (
-            <Astro.self item={kid} depth={depth + 1} openDepth={openDepth} />
-          ))}
-        </ul>
-      </details>
-    ) : (
-      <Fragment>
-        <span class="tree__content">
-          <span class="tree__label">
-            {item.unnamed ? <em>{item.label}</em> : <code>{item.label}</code>}
-            {item.badge && <span class="badge">{item.badge}</span>}
-            {item.flag && <span class="badge badge-danger">{item.flag}</span>}
-          </span>
+  {isBranch ? (
+    <details open={depth < openDepth}>
+      <summary>
+        <span class="tree__toggle" aria-hidden="true" />
+        <span class="tree__label">
+          {item.unnamed ? <em>{item.label}</em> : <code>{item.label}</code>}
+          {item.badge && <span class="badge">{item.badge}</span>}
+          {item.flag && <span class="badge badge-danger">{item.flag}</span>}
         </span>
-        {item.descriptionHtml && <p class="tree__desc" set:html={item.descriptionHtml} />}
-      </Fragment>
-    )
-  }
+      </summary>
+      {item.descriptionHtml && <p class="tree__desc" set:html={item.descriptionHtml} />}
+      <ul class="tree" role="list">
+        {kids.map((kid) => (
+          <Astro.self item={kid} depth={depth + 1} openDepth={openDepth} />
+        ))}
+      </ul>
+    </details>
+  ) : (
+    <Fragment>
+      <span class="tree__content">
+        <span class="tree__label">
+          {item.unnamed ? <em>{item.label}</em> : <code>{item.label}</code>}
+          {item.badge && <span class="badge">{item.badge}</span>}
+          {item.flag && <span class="badge badge-danger">{item.flag}</span>}
+        </span>
+      </span>
+      {item.descriptionHtml && <p class="tree__desc" set:html={item.descriptionHtml} />}
+    </Fragment>
+  )}
 </li>

@@ -42,16 +42,14 @@ const autoplay = Number(value.autoplay) || 0;
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  slides.length > 0 && (
-    <Carousel
-      label={value.label || 'Carousel'}
-      autoplay={autoplay > 0 ? autoplay : undefined}
-      loop={Boolean(value.loop)}
-      aspect={value.aspect || '16 / 9'}
-      slides={slides}
-      id={id}
-      {...rootAttrs(value)}
-    />
-  )
-}
+{slides.length > 0 && (
+  <Carousel
+    label={value.label || 'Carousel'}
+    autoplay={autoplay > 0 ? autoplay : undefined}
+    loop={Boolean(value.loop)}
+    aspect={value.aspect || '16 / 9'}
+    slides={slides}
+    id={id}
+    {...rootAttrs(value)}
+  />
+)}

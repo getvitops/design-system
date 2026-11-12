@@ -36,33 +36,40 @@ const tone = resolveTone(value.tone, value.color);
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  (heading || body) && (
-    <div
-      {...rootAttrs(value, ['callout', value.solid ? tone.className : tone.surface, value.solid && 'tone--solid', value.align === 'center' && 'callout--center'], joinStyle(tone.style))}
-    >
-      <div class="callout__body">
-        {heading && <Heading class="callout__title font-title">{heading}</Heading>}
-        {body && (
-          <p class="callout__text">
-            <RichText text={body} />
-          </p>
-        )}
-      </div>
-      {hasActions && (
-        <p class="callout__actions cluster">
-          {primaryLabel && primaryHref && (
-            <a class="cta" href={primaryHref}>
-              {primaryLabel}
-            </a>
-          )}
-          {secondaryLabel && secondaryHref && (
-            <a class="link" href={secondaryHref}>
-              {secondaryLabel}
-            </a>
-          )}
+{(heading || body) && (
+  <div
+    {...rootAttrs(
+      value,
+      [
+        'callout',
+        value.solid ? tone.className : tone.surface,
+        value.solid && 'tone--solid',
+        value.align === 'center' && 'callout--center',
+      ],
+      joinStyle(tone.style),
+    )}
+  >
+    <div class="callout__body">
+      {heading && <Heading class="callout__title font-title">{heading}</Heading>}
+      {body && (
+        <p class="callout__text">
+          <RichText text={body} />
         </p>
       )}
     </div>
-  )
-}
+    {hasActions && (
+      <p class="callout__actions cluster">
+        {primaryLabel && primaryHref && (
+          <a class="cta" href={primaryHref}>
+            {primaryLabel}
+          </a>
+        )}
+        {secondaryLabel && secondaryHref && (
+          <a class="link" href={secondaryHref}>
+            {secondaryLabel}
+          </a>
+        )}
+      </p>
+    )}
+  </div>
+)}

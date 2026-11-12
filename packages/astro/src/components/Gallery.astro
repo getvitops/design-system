@@ -135,28 +135,26 @@ const Shell = enhance ? 'wc-gallery' : 'div';
   {...rest}
 >
   <ul class="gallery" role="list">
-    {
-      images.map((img, i) => {
-        const thumb = img.thumb ?? img.src;
-        return (
-          <li class="gallery__item">
-            <a class="gallery__trigger" href={`#${uid}-img-${i}`}>
-              <ResponsiveImage
-                src={thumb}
-                alt={img.alt}
-                formats={formats}
-                class="gallery__thumb"
-                width={typeof thumb === 'string' ? undefined : (img.thumbWidth ?? 400)}
-                loading={i === 0 ? 'eager' : 'lazy'}
-                fetchpriority={i === 0 ? 'high' : 'low'}
-                decoding={i === 0 ? undefined : 'async'}
-              />
-              <span class="visually-hidden">View full size</span>
-            </a>
-          </li>
-        );
-      })
-    }
+    {images.map((img, i) => {
+      const thumb = img.thumb ?? img.src;
+      return (
+        <li class="gallery__item">
+          <a class="gallery__trigger" href={`#${uid}-img-${i}`}>
+            <ResponsiveImage
+              src={thumb}
+              alt={img.alt}
+              formats={formats}
+              class="gallery__thumb"
+              width={typeof thumb === 'string' ? undefined : (img.thumbWidth ?? 400)}
+              loading={i === 0 ? 'eager' : 'lazy'}
+              fetchpriority={i === 0 ? 'high' : 'low'}
+              decoding={i === 0 ? undefined : 'async'}
+            />
+            <span class="visually-hidden">View full size</span>
+          </a>
+        </li>
+      );
+    })}
     <slot />
   </ul>
   <dialog id={uid} class="lightbox-dialog" closedby="any" aria-label={label}>
@@ -168,35 +166,38 @@ const Shell = enhance ? 'wc-gallery' : 'div';
       loop={loop}
       hint={false}
     >
-      {
-        images.map((img, i) => {
-          const thumb = img.thumb ?? img.src;
-          // A per-slide placeholder: whatever's already on screen (the
-          // thumbnail) stays painted in `.carousel__media`'s background until
-          // the full image finishes loading, so the view-transition morph
-          // never has an empty box as its target — see lightbox.css.
-          const placeholder = typeof thumb === 'string' ? `--lightbox-placeholder:url(${JSON.stringify(thumb)})` : '';
-          return (
-            <li class="carousel__slide" id={`${uid}-img-${i}`}>
-              <figure class="carousel__media" style={placeholder}>
-                <ResponsiveImage
-                  src={img.src}
-                  alt={img.alt}
-                  formats={formats}
-                  width={img.width}
-                  height={img.height}
-                  srcset={img.srcset}
-                  sizes={img.sizes}
-                  loading="lazy"
-                />
-                {img.caption && <figcaption class="carousel__caption font-caption">{img.caption}</figcaption>}
-              </figure>
-            </li>
-          );
-        })
-      }
+      {images.map((img, i) => {
+        const thumb = img.thumb ?? img.src;
+        // A per-slide placeholder: whatever's already on screen (the
+        // thumbnail) stays painted in `.carousel__media`'s background until
+        // the full image finishes loading, so the view-transition morph
+        // never has an empty box as its target — see lightbox.css.
+        const placeholder =
+          typeof thumb === 'string' ? `--lightbox-placeholder:url(${JSON.stringify(thumb)})` : '';
+        return (
+          <li class="carousel__slide" id={`${uid}-img-${i}`}>
+            <figure class="carousel__media" style={placeholder}>
+              <ResponsiveImage
+                src={img.src}
+                alt={img.alt}
+                formats={formats}
+                width={img.width}
+                height={img.height}
+                srcset={img.srcset}
+                sizes={img.sizes}
+                loading="lazy"
+              />
+              {img.caption && (
+                <figcaption class="carousel__caption font-caption">{img.caption}</figcaption>
+              )}
+            </figure>
+          </li>
+        );
+      })}
     </Carousel>
-    <a class="lightbox-dialog__close" href="#" aria-label="Close">&times;</a>
+    <a class="lightbox-dialog__close" href="#" aria-label="Close">
+      &times;
+    </a>
   </dialog>
 </Shell>
 

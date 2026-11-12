@@ -72,7 +72,7 @@ const {
 const wording = { ...DEFAULT_LABELS, ...labels };
 ---
 
-<wc-consent hidden {...noReloadOnRevoke ? { 'reload-on-revoke': 'false' } : {}}>
+<wc-consent hidden {...(noReloadOnRevoke ? { 'reload-on-revoke': 'false' } : {})}>
   {/*
     Shown in the top layer. A plain fixed banner resolves against the nearest
     containing block, and `body { container-type: inline-size }` — ordinary in a
@@ -84,11 +84,15 @@ const wording = { ...DEFAULT_LABELS, ...labels };
     <div class="consent__body">
       <slot>
         <p>
-          We use cookies to understand how this site is used. You can decline without
-          losing any functionality.
+          We use cookies to understand how this site is used. You can decline without losing any
+          functionality.
         </p>
       </slot>
-      {safeHref(policyUrl) && <a class="link" href={safeHref(policyUrl)}>{policyLabel}</a>}
+      {safeHref(policyUrl) && (
+        <a class="link" href={safeHref(policyUrl)}>
+          {policyLabel}
+        </a>
+      )}
     </div>
 
     {/*
@@ -107,9 +111,15 @@ const wording = { ...DEFAULT_LABELS, ...labels };
     </div>
 
     <div class="consent__actions">
-      <button type="button" class="btn" data-consent-reject>{rejectLabel}</button>
-      <button type="button" class="btn" data-consent-save>{saveLabel}</button>
-      <button type="button" class="cta" data-consent-accept>{acceptLabel}</button>
+      <button type="button" class="btn" data-consent-reject>
+        {rejectLabel}
+      </button>
+      <button type="button" class="btn" data-consent-save>
+        {saveLabel}
+      </button>
+      <button type="button" class="cta" data-consent-accept>
+        {acceptLabel}
+      </button>
     </div>
   </form>
 </wc-consent>

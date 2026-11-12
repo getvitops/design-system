@@ -39,22 +39,20 @@ const tone = resolveTone(value.tone, value.color);
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  stats.length > 0 && (
-    <ul
-      {...rootAttrs(value, ['stats', tone.className, tiles && 'stats--tiles'], joinStyle(tone.style))}
-      role="list"
-    >
-      {stats.map((stat) => (
-        <li class="stats__item" data-state={stat.state} style={stat.style}>
-          {tiles && stat.group && <p class="stats__group font-eyebrow">{stat.group}</p>}
-          <p class="stats__figure font-display">
-            <Counter value={stat.value} enhance={animate} />
-          </p>
-          {stat.label && <p class="stats__label">{stat.label}</p>}
-          {tiles && stat.delta && <p class="stats__delta">{stat.delta}</p>}
-        </li>
-      ))}
-    </ul>
-  )
-}
+{stats.length > 0 && (
+  <ul
+    {...rootAttrs(value, ['stats', tone.className, tiles && 'stats--tiles'], joinStyle(tone.style))}
+    role="list"
+  >
+    {stats.map((stat) => (
+      <li class="stats__item" data-state={stat.state} style={stat.style}>
+        {tiles && stat.group && <p class="stats__group font-eyebrow">{stat.group}</p>}
+        <p class="stats__figure font-display">
+          <Counter value={stat.value} enhance={animate} />
+        </p>
+        {stat.label && <p class="stats__label">{stat.label}</p>}
+        {tiles && stat.delta && <p class="stats__delta">{stat.delta}</p>}
+      </li>
+    ))}
+  </ul>
+)}

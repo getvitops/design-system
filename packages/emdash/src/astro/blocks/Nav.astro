@@ -63,23 +63,25 @@ const current = Astro.url.pathname;
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  items.length > 0 && (
-    <div
-      {...rootAttrs(value, ['navblock', toned && tone.surface], toned ? joinStyle(tone.style) : undefined)}
-    >
-      {heading && <Heading class="font-heading">{heading}</Heading>}
-      {variant === 'sitenav' ? (
-        <SiteNav primary={trimmed} label={label} depth={depth} id={navId(value._key, name ?? '')} />
-      ) : (
-        <nav aria-label={label}>
-          <NavTree
-            items={trimmed}
-            current={current}
-            modifiers={variant === 'list' ? [] : [`navlist--${variant}`]}
-          />
-        </nav>
-      )}
-    </div>
-  )
-}
+{items.length > 0 && (
+  <div
+    {...rootAttrs(
+      value,
+      ['navblock', toned && tone.surface],
+      toned ? joinStyle(tone.style) : undefined,
+    )}
+  >
+    {heading && <Heading class="font-heading">{heading}</Heading>}
+    {variant === 'sitenav' ? (
+      <SiteNav primary={trimmed} label={label} depth={depth} id={navId(value._key, name ?? '')} />
+    ) : (
+      <nav aria-label={label}>
+        <NavTree
+          items={trimmed}
+          current={current}
+          modifiers={variant === 'list' ? [] : [`navlist--${variant}`]}
+        />
+      </nav>
+    )}
+  </div>
+)}

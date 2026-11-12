@@ -40,12 +40,15 @@ const wrapProps = framed ? { class: 'logos-block' } : {};
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  logos.length > 0 && (
-    <Wrap {...wrapProps}>
-      {kicker && <p class="logos__kicker font-eyebrow">{kicker}</p>}
+{logos.length > 0 && (
+  <Wrap {...wrapProps}>
+    {kicker && <p class="logos__kicker font-eyebrow">{kicker}</p>}
     <ul
-      {...rootAttrs(value, ['logos', value.grayscale && 'logos--grayscale'], height ? `--logos-height: ${height}` : undefined)}
+      {...rootAttrs(
+        value,
+        ['logos', value.grayscale && 'logos--grayscale'],
+        height ? `--logos-height: ${height}` : undefined,
+      )}
       role="list"
       aria-label={label}
     >
@@ -53,7 +56,11 @@ import { rootAttrs } from './attrs.ts';
         <li class="logos__item">
           {logo.href ? (
             <a href={logo.href}>
-              {logo.image ? <img src={logo.image} alt={logo.alt} loading="lazy" /> : <span class="logos__name font-heading">{logo.alt}</span>}
+              {logo.image ? (
+                <img src={logo.image} alt={logo.alt} loading="lazy" />
+              ) : (
+                <span class="logos__name font-heading">{logo.alt}</span>
+              )}
             </a>
           ) : logo.image ? (
             <img src={logo.image} alt={logo.alt} loading="lazy" />
@@ -63,14 +70,13 @@ import { rootAttrs } from './attrs.ts';
         </li>
       ))}
     </ul>
-      {note && <p class="logos__note font-caption">{note}</p>}
-      {hasLink && (
-        <p class="logos__link">
-          <a class="link" href={linkHref}>
-            {linkLabel}
-          </a>
-        </p>
-      )}
-    </Wrap>
-  )
-}
+    {note && <p class="logos__note font-caption">{note}</p>}
+    {hasLink && (
+      <p class="logos__link">
+        <a class="link" href={linkHref}>
+          {linkLabel}
+        </a>
+      </p>
+    )}
+  </Wrap>
+)}

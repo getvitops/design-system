@@ -150,9 +150,12 @@ work is smaller than the original sketch assumed):
    }
    const { location, locale } = Astro.props;
    ---
-   <Layout><LocationPage location={location} locale={locale} defaultLocale={config.site.defaultLocale}>
-     <!-- author's own page copy -->
-   </LocationPage></Layout>
+
+   <Layout>
+     <LocationPage location={location} locale={locale} defaultLocale={config.site.defaultLocale}>
+       <!-- author's own page copy -->
+     </LocationPage>
+   </Layout>
    ```
 
    This applies identically to a static/Bricks-adjacent Astro site and to an EmDash site's own

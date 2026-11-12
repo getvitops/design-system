@@ -82,6 +82,8 @@ export function alsoIn(pattern: string, self: Tier, base: string): string {
   );
   if (!others.length) return `<span class="font-footnote">this tier only</span>`;
   return others
-    .map((t) => `<a class="link" href="${href(TIER_PAGES[t].path, base)}">${TIER_PAGES[t].short}</a>`)
+    .map(
+      (t) => `<a class="link" href="${href(TIER_PAGES[t].path, base)}">${TIER_PAGES[t].short}</a>`,
+    )
     .join(', ');
 }

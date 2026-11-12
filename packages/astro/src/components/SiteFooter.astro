@@ -62,57 +62,57 @@ const groups = [
 ---
 
 <footer class:list={['sitefooter', className]}>
-  {
-    (groups.length > 0 || columns.length > 0 || hasBrand) && (
-      <div class="sitefooter__nav">
-        {hasBrand && (
-          <div class="sitefooter__brand">
-            <slot name="brand" />
-          </div>
-        )}
-        {columns.map((col) => (
-          <nav class="sitefooter__group sitefooter__group--column" aria-labelledby={col.id}>
-            <p class="sitefooter__heading font-eyebrow" id={col.id}>
-              {col.heading.label}
-            </p>
-            <ul class="sitefooter__list sitefooter__list--column" role="list">
-              {col.items.map((item) => (
-                <li>
-                  <a
-                    class="sitefooter__link"
-                    href={item.url || '#'}
-                    target={item.target || undefined}
-                    rel={linkRel(item)}
-                    aria-current={isCurrent(item.url, current) ? 'page' : undefined}
-                  >
-                    {item.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ))}
-        {groups.map((g) => (
-          <nav class={`sitefooter__group sitefooter__group--${g.kind}`} aria-label={g.label}>
-            <ul class="sitefooter__list" role="list">
-              {g.items.map((item) => (
-                <li>
-                  <a
-                    class="sitefooter__link"
-                    href={item.url || '#'}
-                    target={item.target || undefined}
-                    rel={linkRel(item)}
-                    aria-current={isCurrent(item.url, current) ? 'page' : undefined}
-                  >
-                    {item.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ))}
-      </div>
-    )
-  }
-  <p class="sitefooter__copy">&copy; {year} {name}</p>
+  {(groups.length > 0 || columns.length > 0 || hasBrand) && (
+    <div class="sitefooter__nav">
+      {hasBrand && (
+        <div class="sitefooter__brand">
+          <slot name="brand" />
+        </div>
+      )}
+      {columns.map((col) => (
+        <nav class="sitefooter__group sitefooter__group--column" aria-labelledby={col.id}>
+          <p class="sitefooter__heading font-eyebrow" id={col.id}>
+            {col.heading.label}
+          </p>
+          <ul class="sitefooter__list sitefooter__list--column" role="list">
+            {col.items.map((item) => (
+              <li>
+                <a
+                  class="sitefooter__link"
+                  href={item.url || '#'}
+                  target={item.target || undefined}
+                  rel={linkRel(item)}
+                  aria-current={isCurrent(item.url, current) ? 'page' : undefined}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))}
+      {groups.map((g) => (
+        <nav class={`sitefooter__group sitefooter__group--${g.kind}`} aria-label={g.label}>
+          <ul class="sitefooter__list" role="list">
+            {g.items.map((item) => (
+              <li>
+                <a
+                  class="sitefooter__link"
+                  href={item.url || '#'}
+                  target={item.target || undefined}
+                  rel={linkRel(item)}
+                  aria-current={isCurrent(item.url, current) ? 'page' : undefined}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))}
+    </div>
+  )}
+  <p class="sitefooter__copy">
+    &copy; {year} {name}
+  </p>
 </footer>

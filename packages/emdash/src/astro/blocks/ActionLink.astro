@@ -54,27 +54,26 @@ const renderable = Boolean(label && href);
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  renderable && (
-    <a
-      {...rootAttrs(value, [classes])}
-      href={href}
-      {...(newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
-      {startIcon && (
-        <span class="icon" aria-hidden="true">
-          <svg>
-            <use href={`${sprite}#icon-${startIcon}`} />
-          </svg>
-        </span>
-      )}
-      <span>{label}</span>
-      {endIcon && (
-        <span class="icon" aria-hidden="true">
-          <svg>
-            <use href={`${sprite}#icon-${endIcon}`} />
-          </svg>
-        </span>
-      )}
-    </a>
-  )
-}
+{renderable && (
+  <a
+    {...rootAttrs(value, [classes])}
+    href={href}
+    {...(newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+  >
+    {startIcon && (
+      <span class="icon" aria-hidden="true">
+        <svg>
+          <use href={`${sprite}#icon-${startIcon}`} />
+        </svg>
+      </span>
+    )}
+    <span>{label}</span>
+    {endIcon && (
+      <span class="icon" aria-hidden="true">
+        <svg>
+          <use href={`${sprite}#icon-${endIcon}`} />
+        </svg>
+      </span>
+    )}
+  </a>
+)}

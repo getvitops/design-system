@@ -28,4 +28,6 @@ const breakpoint = /^\d+(\.\d+)?(rem|em|px|ch)$/.test(text(value.breakpoint))
 import { rootAttrs } from './attrs.ts';
 ---
 
-{entries.length > 0 && <Entries entries={entries} level={level} breakpoint={breakpoint} {...rootAttrs(value)} />}
+{entries.length > 0 && (
+  <Entries entries={entries} level={level} breakpoint={breakpoint} {...rootAttrs(value)} />
+)}

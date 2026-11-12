@@ -26,23 +26,25 @@ const tone = resolveTone(value.tone, value.color);
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  steps.length > 0 && (
-    <ol
-      {...rootAttrs(value, ['steps', tone.className, value.layout === 'row' && 'steps--row'], joinStyle(tone.style))}
-    >
-      {steps.map((step) => (
-        <li class="steps__item" style={step.style}>
-          <div class="steps__body">
-            {step.title && <Heading class="steps__title font-heading">{step.title}</Heading>}
-            {step.text && (
-              <p class="steps__text">
-                <RichText text={step.text} />
-              </p>
-            )}
-          </div>
-        </li>
-      ))}
-    </ol>
-  )
-}
+{steps.length > 0 && (
+  <ol
+    {...rootAttrs(
+      value,
+      ['steps', tone.className, value.layout === 'row' && 'steps--row'],
+      joinStyle(tone.style),
+    )}
+  >
+    {steps.map((step) => (
+      <li class="steps__item" style={step.style}>
+        <div class="steps__body">
+          {step.title && <Heading class="steps__title font-heading">{step.title}</Heading>}
+          {step.text && (
+            <p class="steps__text">
+              <RichText text={step.text} />
+            </p>
+          )}
+        </div>
+      </li>
+    ))}
+  </ol>
+)}

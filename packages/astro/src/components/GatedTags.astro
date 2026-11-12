@@ -23,24 +23,23 @@ interface Props {
 const { tags } = Astro.props;
 ---
 
-{tags.map((tag) => tag.gated
-  ? (
-      <script
-        is:inline
-        type="text/plain"
-        data-vitops-tag
-        data-consent={tag.category}
-        data-strategy={tag.strategy}
-        data-src={tag.src}
-        data-consent-cookies={tag.cookies.length ? tag.cookies.join(',') : undefined}
-        {...tag.attrs}
-        set:html={tag.inline}
-      />
-    )
-  : (
-      <>
-        {tag.inline && <script is:inline set:html={tag.inline} />}
-        {tag.src && <script is:inline async src={tag.src} {...tag.attrs}></script>}
-      </>
-    )
+{tags.map((tag) =>
+  tag.gated ? (
+    <script
+      is:inline
+      type="text/plain"
+      data-vitops-tag
+      data-consent={tag.category}
+      data-strategy={tag.strategy}
+      data-src={tag.src}
+      data-consent-cookies={tag.cookies.length ? tag.cookies.join(',') : undefined}
+      {...tag.attrs}
+      set:html={tag.inline}
+    />
+  ) : (
+    <>
+      {tag.inline && <script is:inline set:html={tag.inline} />}
+      {tag.src && <script is:inline async src={tag.src} {...tag.attrs}></script>}
+    </>
+  ),
 )}

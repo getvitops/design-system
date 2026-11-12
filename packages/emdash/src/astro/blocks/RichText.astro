@@ -11,4 +11,12 @@ interface Props {
 const runs = linkRuns(Astro.props.text);
 ---
 
-{runs.map((run) => (run.href ? <a class="link" href={run.href}>{run.text}</a> : run.text))}
+{runs.map((run) =>
+  run.href ? (
+    <a class="link" href={run.href}>
+      {run.text}
+    </a>
+  ) : (
+    run.text
+  ),
+)}

@@ -22,11 +22,15 @@ test.describe('hide-on-scroll', () => {
 
     await scrollBy(page, 700);
     await expect(bar(page)).not.toHaveCSS('translate', 'none');
-    expect(await bar(page).evaluate((el) => el.getBoundingClientRect().bottom)).toBeLessThanOrEqual(0);
+    expect(await bar(page).evaluate((el) => el.getBoundingClientRect().bottom)).toBeLessThanOrEqual(
+      0,
+    );
 
     await scrollBy(page, -200);
     await expect(bar(page)).toHaveCSS('translate', 'none');
-    expect(await bar(page).evaluate((el) => el.getBoundingClientRect().top)).toBeGreaterThanOrEqual(0);
+    expect(await bar(page).evaluate((el) => el.getBoundingClientRect().top)).toBeGreaterThanOrEqual(
+      0,
+    );
   });
 
   test('stays on screen while focus is inside it', async ({ page }) => {
@@ -57,7 +61,10 @@ test.describe('elevation and surface follow the scroll position', () => {
   test('a fixed masthead overlays the page instead of pushing it down', async ({ page }) => {
     await page.goto(url('transparent-hero'));
     await expect(bar(page)).toHaveCSS('position', 'fixed');
-    const heroTop = await page.locator('section').first().evaluate((el) => el.getBoundingClientRect().top);
+    const heroTop = await page
+      .locator('section')
+      .first()
+      .evaluate((el) => el.getBoundingClientRect().top);
     expect(heroTop).toBe(0);
   });
 });
@@ -67,7 +74,11 @@ test.describe('layout', () => {
     await page.goto(url('floating'));
     const box = await bar(page).evaluate((el) => {
       const r = el.getBoundingClientRect();
-      return { left: r.left, right: document.documentElement.clientWidth - r.right, radius: getComputedStyle(el).borderRadius };
+      return {
+        left: r.left,
+        right: document.documentElement.clientWidth - r.right,
+        radius: getComputedStyle(el).borderRadius,
+      };
     });
     expect(box.left).toBeGreaterThan(0);
     expect(box.right).toBeGreaterThan(0);
@@ -86,11 +97,17 @@ test.describe('configured size', () => {
       const r = el.getBoundingClientRect();
       // Measured to `body`, not the viewport: `html { scrollbar-gutter: stable }` reserves the scrollbar's
       // column on the right, so the viewport edge is further away than the page edge.
-      return { left: r.left, right: document.body.getBoundingClientRect().right - r.right, top: r.top };
+      return {
+        left: r.left,
+        right: document.body.getBoundingClientRect().right - r.right,
+        top: r.top,
+      };
     });
     expect(m.left).toBeCloseTo(1.5 * px, 0); // inset: 1.5rem
     expect(m.right).toBeCloseTo(1.5 * px, 0);
-    const row = await page.locator('.masthead__row > .navbar').evaluate((el) => el.getBoundingClientRect().height);
+    const row = await page
+      .locator('.masthead__row > .navbar')
+      .evaluate((el) => el.getBoundingClientRect().height);
     expect(row).toBeGreaterThanOrEqual(5 * px - 1); // height: 5rem (min-block-size)
     expect(row).toBeLessThan(5 * px + 8);
   });

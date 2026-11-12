@@ -36,33 +36,31 @@ const ratio = /^\d+(\.\d+)?\s*\/\s*\d+(\.\d+)?$/.test(text(value.ratio)) ? text(
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  title && embed && (
-    <div {...rootAttrs(value, ['embed'], ratio ? `--embed-ratio: ${ratio}` : undefined)}>
-      <iframe
-        class="embed__frame"
-        title={title}
-        data-consent={category}
-        data-consent-src={embed.src}
-        loading="lazy"
-        referrerpolicy="strict-origin-when-cross-origin"
-        allow="fullscreen; picture-in-picture"
-      />
-      <div class="embed__placeholder">
-        <p class="font-heading">{title}</p>
-        <p>
-          This content is provided by {embed.provider}. It loads once you allow {category} cookies.
-        </p>
-        <p class="cluster">
-          <button type="button" class="btn" data-consent-open>
-            Cookie settings
-          </button>
-          <a class="link" href={embed.openUrl} rel="noopener noreferrer">
-            Open on {embed.provider}
-            <span class="sr-only">: {title}</span>
-          </a>
-        </p>
-      </div>
+{title && embed && (
+  <div {...rootAttrs(value, ['embed'], ratio ? `--embed-ratio: ${ratio}` : undefined)}>
+    <iframe
+      class="embed__frame"
+      title={title}
+      data-consent={category}
+      data-consent-src={embed.src}
+      loading="lazy"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allow="fullscreen; picture-in-picture"
+    />
+    <div class="embed__placeholder">
+      <p class="font-heading">{title}</p>
+      <p>
+        This content is provided by {embed.provider}. It loads once you allow {category} cookies.
+      </p>
+      <p class="cluster">
+        <button type="button" class="btn" data-consent-open>
+          Cookie settings
+        </button>
+        <a class="link" href={embed.openUrl} rel="noopener noreferrer">
+          Open on {embed.provider}
+          <span class="sr-only">: {title}</span>
+        </a>
+      </p>
     </div>
-  )
-}
+  </div>
+)}

@@ -1,14 +1,13 @@
 ---
-title: "@getvitops/cli"
-description: "The command line: generate, validate, scaffold, and wire up coding agents."
-section: "Packages"
+title: '@getvitops/cli'
+description: 'The command line: generate, validate, scaffold, and wire up coding agents.'
+section: 'Packages'
 order: 10
 ---
 
 ```sh
 npm i -D @getvitops/cli
 ```
-
 
 CLI for the Vitops design-system generator. Turn a `design-system.json` into Tailwind v4,
 Bricks, `DESIGN.md`, or standalone CSS output.
@@ -126,11 +125,11 @@ vitops media --raw raw --out src/assets/processed
 **What it produces.** Each source becomes three files, with the directory structure under `--raw`
 preserved:
 
-| output      | what it is                    | why                                                                            |
-| ----------- | ----------------------------- | ------------------------------------------------------------------------------ |
-| `.webm`     | VP9, capped at 1920px, CRF 32 | the modern codec — smaller at the same quality                                 |
-| `.mp4`      | H.264, `+faststart`           | older iOS and social-app webviews still don't decode VP9                       |
-| `.jpg`      | poster frame                  | what the browser shows before the video is decodable                           |
+| output  | what it is                    | why                                                      |
+| ------- | ----------------------------- | -------------------------------------------------------- |
+| `.webm` | VP9, capped at 1920px, CRF 32 | the modern codec — smaller at the same quality           |
+| `.mp4`  | H.264, `+faststart`           | older iOS and social-app webviews still don't decode VP9 |
+| `.jpg`  | poster frame                  | what the browser shows before the video is decodable     |
 
 Import them like any other asset, so your bundler content-hashes them:
 
@@ -198,11 +197,11 @@ vitops search notify --check   # a day or two later: did Google actually index t
 **What it does.** Reads your sitemap, diffs it against the previous run
 (`.vitops/sitemap-snapshot.json`), and submits only what changed:
 
-| channel            | what happens                                          | reaches                                |
-| ------------------ | ----------------------------------------------------- | -------------------------------------- |
-| **IndexNow**       | changed URLs POSTed to `api.indexnow.org`             | Bing, Yandex, Naver, Seznam, Yep       |
-| **Search Console** | sitemap re-submitted via the API                       | Google                                 |
-| **`--check`**      | URL Inspection on `priorityUrls`; non-zero if unindexed | read-only verification                 |
+| channel            | what happens                                            | reaches                          |
+| ------------------ | ------------------------------------------------------- | -------------------------------- |
+| **IndexNow**       | changed URLs POSTed to `api.indexnow.org`               | Bing, Yandex, Naver, Seznam, Yep |
+| **Search Console** | sitemap re-submitted via the API                        | Google                           |
+| **`--check`**      | URL Inspection on `priorityUrls`; non-zero if unindexed | read-only verification           |
 
 **Be clear-eyed about the ceiling here, because the obvious expectation is wrong.** Google exposes
 no API that requests indexing — the button in Search Console isn't available anywhere, URL
@@ -260,12 +259,12 @@ vitops search setup --domain acme.ca # scope to one entry
 the Site Verification API (DNS_TXT), adds the `sc-domain:` property, and adds any `delegatedOwners`
 to the verified web resource.
 
-| step         | behaviour                                                                              |
-| ------------ | -------------------------------------------------------------------------------------- |
-| **TXT**      | created in Cloudflare only when missing — records are never edited or deleted          |
-| **verify**   | retried with backoff while DNS propagates; still-unverified is reported **PENDING**    |
-| **property** | `sc-domain:` property added via the Search Console API                                 |
-| **owners**   | `delegatedOwners` added to the web resource (additive — an existing owner is kept)     |
+| step         | behaviour                                                                           |
+| ------------ | ----------------------------------------------------------------------------------- |
+| **TXT**      | created in Cloudflare only when missing — records are never edited or deleted       |
+| **verify**   | retried with backoff while DNS propagates; still-unverified is reported **PENDING** |
+| **property** | `sc-domain:` property added via the Search Console API                              |
+| **owners**   | `delegatedOwners` added to the web resource (additive — an existing owner is kept)  |
 
 It is **idempotent**: a re-run of an onboarded domain is a no-op. `--check` reports drift and exits
 non-zero without mutating anything; `--dry` prints the plan and stops.

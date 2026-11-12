@@ -43,10 +43,8 @@ export interface Props extends Omit<HTMLAttributes<'img'>, 'src' | 'alt'> {
 const { src, alt, formats = ['avif', 'webp'], srcset, class: className, ...rest } = Astro.props;
 ---
 
-{
-  typeof src === 'string' ? (
-    <img src={src} alt={alt} srcset={srcset} class={className} {...rest} />
-  ) : (
-    <Picture src={src} alt={alt} formats={formats} class={className} {...rest} />
-  )
-}
+{typeof src === 'string' ? (
+  <img src={src} alt={alt} srcset={srcset} class={className} {...rest} />
+) : (
+  <Picture src={src} alt={alt} formats={formats} class={className} {...rest} />
+)}

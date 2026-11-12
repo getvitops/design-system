@@ -51,9 +51,10 @@ const wc = head.wcBase;
  */
 ---
 
-{favicons && head.faviconLinks.map((l: { rel: string; href: string; type?: string; sizes?: string }) => (
-  <link rel={l.rel} href={l.href} type={l.type} sizes={l.sizes} />
-))}
+{favicons &&
+  head.faviconLinks.map((l: { rel: string; href: string; type?: string; sizes?: string }) => (
+    <link rel={l.rel} href={l.href} type={l.type} sizes={l.sizes} />
+  ))}
 {favicons && head.themeColor && <meta name="theme-color" content={head.themeColor} />}
 
 {/*
@@ -69,9 +70,10 @@ const wc = head.wcBase;
   `preload` comes from the declaration, so which faces get a preload link is a property
   of the font, not something re-decided in every layout.
 */}
-{fonts && head.fonts.map((f: { cssVariable: string; preload: boolean | object[] }) => (
-  <Font cssVariable={f.cssVariable} preload={f.preload} />
-))}
+{fonts &&
+  head.fonts.map((f: { cssVariable: string; preload: boolean | object[] }) => (
+    <Font cssVariable={f.cssVariable} preload={f.preload} />
+  ))}
 
 {/* Set by vitops({ sitemap }); null when no sitemap was registered. */}
 {head.sitemap && <link rel="sitemap" type="application/xml" href={head.sitemap} />}

@@ -3,7 +3,29 @@ import { jsonLdScript } from '../json-ld.ts';
 export interface Props {
   name: string;
   description?: string;
-  applicationCategory?: 'GameApplication' | 'SocialNetworkingApplication' | 'TravelApplication' | 'ShoppingApplication' | 'SportsApplication' | 'LifestyleApplication' | 'BusinessApplication' | 'DesignApplication' | 'DeveloperApplication' | 'DriverApplication' | 'EducationalApplication' | 'HealthApplication' | 'FinanceApplication' | 'SecurityApplication' | 'BrowserApplication' | 'CommunicationApplication' | 'DesktopEnhancementApplication' | 'EntertainmentApplication' | 'MultimediaApplication' | 'HomeApplication' | 'UtilitiesApplication' | 'ReferenceApplication';
+  applicationCategory?:
+    | 'GameApplication'
+    | 'SocialNetworkingApplication'
+    | 'TravelApplication'
+    | 'ShoppingApplication'
+    | 'SportsApplication'
+    | 'LifestyleApplication'
+    | 'BusinessApplication'
+    | 'DesignApplication'
+    | 'DeveloperApplication'
+    | 'DriverApplication'
+    | 'EducationalApplication'
+    | 'HealthApplication'
+    | 'FinanceApplication'
+    | 'SecurityApplication'
+    | 'BrowserApplication'
+    | 'CommunicationApplication'
+    | 'DesktopEnhancementApplication'
+    | 'EntertainmentApplication'
+    | 'MultimediaApplication'
+    | 'HomeApplication'
+    | 'UtilitiesApplication'
+    | 'ReferenceApplication';
   operatingSystem?: string;
   url?: string;
   image?: string;
@@ -117,7 +139,7 @@ const jsonLd = {
     },
   }),
   ...(review && {
-    review: review.map(r => ({
+    review: review.map((r) => ({
       '@type': 'Review',
       author: { '@type': 'Person', name: r.author },
       datePublished: r.datePublished,
@@ -137,7 +159,9 @@ const jsonLd = {
   ...(datePublished && { datePublished }),
   ...(downloadUrl && { downloadUrl }),
   ...(installUrl && { installUrl }),
-  ...(featureList && { featureList: Array.isArray(featureList) ? featureList.join(', ') : featureList }),
+  ...(featureList && {
+    featureList: Array.isArray(featureList) ? featureList.join(', ') : featureList,
+  }),
   ...(requirements && { requirements }),
   ...(memoryRequirements && { memoryRequirements }),
   ...(storageRequirements && { storageRequirements }),

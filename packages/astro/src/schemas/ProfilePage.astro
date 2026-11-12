@@ -106,13 +106,19 @@ const jsonLd = {
     ...(mainEntity.address && {
       address: {
         '@type': 'PostalAddress',
-        ...(mainEntity.address.addressLocality && { addressLocality: mainEntity.address.addressLocality }),
-        ...(mainEntity.address.addressRegion && { addressRegion: mainEntity.address.addressRegion }),
-        ...(mainEntity.address.addressCountry && { addressCountry: mainEntity.address.addressCountry }),
+        ...(mainEntity.address.addressLocality && {
+          addressLocality: mainEntity.address.addressLocality,
+        }),
+        ...(mainEntity.address.addressRegion && {
+          addressRegion: mainEntity.address.addressRegion,
+        }),
+        ...(mainEntity.address.addressCountry && {
+          addressCountry: mainEntity.address.addressCountry,
+        }),
       },
     }),
     ...(mainEntity.alumniOf && {
-      alumniOf: mainEntity.alumniOf.map(a => ({
+      alumniOf: mainEntity.alumniOf.map((a) => ({
         '@type': 'EducationalOrganization',
         name: a.name,
         ...(a.url && { url: a.url }),
@@ -120,21 +126,21 @@ const jsonLd = {
     }),
     ...(mainEntity.award && { award: mainEntity.award }),
     ...(mainEntity.memberOf && {
-      memberOf: mainEntity.memberOf.map(m => ({
+      memberOf: mainEntity.memberOf.map((m) => ({
         '@type': 'Organization',
         name: m.name,
         ...(m.url && { url: m.url }),
       })),
     }),
     ...(mainEntity.interactionStatistic && {
-      interactionStatistic: mainEntity.interactionStatistic.map(stat => ({
+      interactionStatistic: mainEntity.interactionStatistic.map((stat) => ({
         '@type': 'InteractionCounter',
         interactionType: { '@type': stat.type },
         userInteractionCount: stat.count,
       })),
     }),
     ...(mainEntity.agentInteractionStatistic && {
-      agentInteractionStatistic: mainEntity.agentInteractionStatistic.map(stat => ({
+      agentInteractionStatistic: mainEntity.agentInteractionStatistic.map((stat) => ({
         '@type': 'InteractionCounter',
         interactionType: { '@type': stat.type },
         userInteractionCount: stat.count,

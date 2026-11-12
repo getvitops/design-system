@@ -131,7 +131,7 @@ const POLYFILLED = [
   {
     id: 'invoker-commands',
     label: '<button command commandfor>',
-    note: 'Polyfilled via <code>invokers-polyfill</code>. <code>&lt;wc-gallery&gt;</code>\'s no-JS fallback and <code>&lt;Drawer /&gt;</code> both depend on it.',
+    note: "Polyfilled via <code>invokers-polyfill</code>. <code>&lt;wc-gallery&gt;</code>'s no-JS fallback and <code>&lt;Drawer /&gt;</code> both depend on it.",
   },
 ];
 
@@ -162,18 +162,26 @@ const headings = [
       instead of freezing at an effect's <code>from</code> keyframe.
     </p>
     <p class="font-footnote text-surface-muted">
-      Statuses below are live from <a class="link" href="https://webstatus.dev">webstatus.dev</a>.
+      Statuses below are live from{' '}
+      <a class="link" href="https://webstatus.dev">
+        webstatus.dev
+      </a>
+      .
     </p>
   </aside>
 
-  <h2 id="support" class="font-title">Browser support</h2>
+  <h2 id="support" class="font-title">
+    Browser support
+  </h2>
 
   <h3 class="font-heading">What this page needs</h3>
   <BaselineSupport features={NEEDS} />
 
   <details class="details an-support">
     <summary class="btn">
-      <span class="details-icon" aria-hidden="true">▸</span>
+      <span class="details-icon" aria-hidden="true">
+        ▸
+      </span>
       How the framework handles what's missing
     </summary>
 
@@ -196,7 +204,8 @@ const headings = [
       There is no class and no inline snippet to install: the check is CSS, so it holds on a page
       that never loads a byte of JavaScript. The same reasoning governs
       <code>.animate-trigger</code>, which is paused only inside
-      <code>@media (scripting: enabled)</code> — pausing is safe only when something can un-pause it.
+      <code>@media (scripting: enabled)</code> — pausing is safe only when something can un-pause
+      it.
     </p>
 
     <h3 class="font-heading">Scroll markers are not polyfilled either — they're replaced</h3>
@@ -213,14 +222,14 @@ const headings = [
       <code>carousel.css</code> styles for the native path. Which branch is live is decided
       <em>by the stylesheet</em> — one <code>@supports</code> sets
       <code>--carousel-native-nav: 1</code> and the element reads it back, so the condition exists
-      once and the two can't disagree. Everything below it is CSS: the strip scrolls, snaps, shows
-      a scrollbar and a hint with no JavaScript at all.
+      once and the two can't disagree. Everything below it is CSS: the strip scrolls, snaps, shows a
+      scrollbar and a hint with no JavaScript at all.
     </p>
 
     <h3 class="font-heading">What is polyfilled</h3>
     <p class="font-body text-surface-muted">
-      Shipped as feature-detected, self-hosted ES-module chunks
-      (<code>@getvitops/core/polyfills</code>): each is fetched <em>only</em> when its test fails, so
+      Shipped as feature-detected, self-hosted ES-module chunks (
+      <code>@getvitops/core/polyfills</code>): each is fetched <em>only</em> when its test fails, so
       a current browser downloads none of them.
     </p>
     <BaselineSupport features={POLYFILLED} />
@@ -232,7 +241,9 @@ const headings = [
   </details>
 
   <!-- ── Model ───────────────────────────────────────────────────────────── -->
-  <h2 id="model" class="font-title">The model</h2>
+  <h2 id="model" class="font-title">
+    The model
+  </h2>
   <p class="font-body">
     An <strong>effect</strong> carries no motion of its own — it's a pure value layer, setting
     <code>--&lt;prop&gt;-from</code> / <code>-to</code> and an <code>--_anim</code> keyframe name. A
@@ -243,9 +254,15 @@ const headings = [
     <div class="card rhythm">
       <p class="font-eyebrow">Keyframe drivers</p>
       <ul class="list">
-        <li><code>.animate-view</code> — plays as the element enters the viewport</li>
-        <li><code>.animate-scroll</code> — scrubs against page scroll</li>
-        <li><code>.animate-trigger</code> — plays once, on demand</li>
+        <li>
+          <code>.animate-view</code> — plays as the element enters the viewport
+        </li>
+        <li>
+          <code>.animate-scroll</code> — scrubs against page scroll
+        </li>
+        <li>
+          <code>.animate-trigger</code> — plays once, on demand
+        </li>
       </ul>
       <p class="font-footnote text-surface-muted">
         Scroll-driven, via <code>animation-timeline</code>. Where that's unsupported,
@@ -256,9 +273,15 @@ const headings = [
     <div class="card rhythm">
       <p class="font-eyebrow">Transition driver</p>
       <ul class="list">
-        <li><code>.transition</code> + <code>hover-&lt;fx&gt;</code></li>
-        <li><code>.transition</code> + <code>focus-&lt;fx&gt;</code></li>
-        <li><code>.transition</code> + <code>active-&lt;fx&gt;</code></li>
+        <li>
+          <code>.transition</code> + <code>hover-&lt;fx&gt;</code>
+        </li>
+        <li>
+          <code>.transition</code> + <code>focus-&lt;fx&gt;</code>
+        </li>
+        <li>
+          <code>.transition</code> + <code>active-&lt;fx&gt;</code>
+        </li>
       </ul>
       <p class="font-footnote text-surface-muted">
         Reversible and interruptible. Different effects can bind to different states on one element:
@@ -273,7 +296,9 @@ const headings = [
   </p>
 
   <!-- ── Effects ─────────────────────────────────────────────────────────── -->
-  <h2 id="effects" class="font-title">Effects</h2>
+  <h2 id="effects" class="font-title">
+    Effects
+  </h2>
   <p class="font-body text-surface-muted">
     <strong>Hover each tile</strong> to play it. Grouped by the keyframe family they drive —
     <code>composite</code> (transform/opacity, cheapest), <code>paint</code> (filter/clip) and
@@ -290,8 +315,9 @@ const headings = [
 
   <p class="font-footnote text-surface-x-muted">
     <strong>Hovering the outline works too.</strong> Each state variant matches the element
-    <em>or its direct parent</em> (<code>.hover-&lt;fx&gt;:hover, :hover &gt; .hover-&lt;fx&gt;</code>),
-    which is what makes <code>reveal-*</code> usable at all: those rest at
+    <em>or its direct parent</em> (
+    <code>.hover-&lt;fx&gt;:hover, :hover &gt; .hover-&lt;fx&gt;</code>), which is what makes{' '}
+    <code>reveal-*</code> usable at all: those rest at
     <code>clip-path: inset(0 100% 0 0)</code>, and <code>clip-path</code> clips
     <em>hit-testing</em> as well as painting — so an element clipped to nothing can never receive
     the hover that would reveal it. The parent is the handle.
@@ -299,7 +325,9 @@ const headings = [
 
   {byKind.map(({ kind, items }) => (
     <section class="rhythm">
-      <h3 class="font-heading">{kind} <span class="badge">{items.length}</span></h3>
+      <h3 class="font-heading">
+        {kind} <span class="badge">{items.length}</span>
+      </h3>
       {NEEDS_INTERPOLATE_SIZE.has(kind) && (
         <p class="font-footnote text-surface-x-muted">
           The only stage that reflows, and the only one behind a feature gate:
@@ -330,7 +358,9 @@ const headings = [
   ))}
 
   <!-- ── Scroll ──────────────────────────────────────────────────────────── -->
-  <h2 id="scroll" class="font-title">Scroll-driven</h2>
+  <h2 id="scroll" class="font-title">
+    Scroll-driven
+  </h2>
   <p class="font-body text-surface-muted">
     The same effects under <code>.animate-view</code>. <strong>Scroll up and back down</strong> —
     they replay, because the timeline is the scroll position, not a one-shot.
@@ -353,7 +383,9 @@ const headings = [
   </div>
 
   <!-- ── Journeys ────────────────────────────────────────────────────────── -->
-  <h2 id="journeys" class="font-title">Journeys</h2>
+  <h2 id="journeys" class="font-title">
+    Journeys
+  </h2>
   <p class="font-body text-surface-muted">
     Compositions of the base parts (<code>fade</code>, <code>slide</code>, <code>scale</code>,
     <code>blur</code>) into one keyframe, so multiple properties move on a single timeline rather
@@ -372,7 +404,9 @@ const headings = [
   </div>
 
   <!-- ── Stagger ─────────────────────────────────────────────────────────── -->
-  <h2 id="stagger" class="font-title">Stagger</h2>
+  <h2 id="stagger" class="font-title">
+    Stagger
+  </h2>
   <p class="font-body text-surface-muted">
     <code>.stagger</code> on the parent offsets each child's <code>animation-delay</code> by
     <code>--stagger-amount</code>. Pure CSS via <code>sibling-index()</code> where supported, with a
@@ -396,7 +430,9 @@ const headings = [
   </div>
 
   <!-- ── Floats ──────────────────────────────────────────────────────────── -->
-  <h2 id="floats" class="font-title">Floats</h2>
+  <h2 id="floats" class="font-title">
+    Floats
+  </h2>
   <p class="font-body text-surface-muted">
     Ambient, infinite motion — waypoint presets over a shared <code>float</code> keyframe. Tune with
     <code>--float-radius</code>, <code>--float-distance</code> and <code>--float-duration</code>.
@@ -431,7 +467,9 @@ const headings = [
   </div>
 
   <!-- ── Text ────────────────────────────────────────────────────────────── -->
-  <h2 id="text" class="font-title">Text effects</h2>
+  <h2 id="text" class="font-title">
+    Text effects
+  </h2>
   <p class="font-body text-surface-muted">
     Typographic motion from <code>patterns/text-effects.css</code>, plus the scroll-driven
     <code>.text-reveal</code> two-tone fill.

@@ -21,10 +21,12 @@ export async function getStaticPaths() {
   const { entries, error } = await getEmDashCollection('pages');
   // Fail the build rather than ship a site with no pages.
   if (error) throw error;
-  return entries
-    // `home` is served by index.astro at `/`.
-    .filter((entry) => entry.id !== 'home')
-    .map((entry) => ({ params: { slug: entry.id }, props: { page: entry } }));
+  return (
+    entries
+      // `home` is served by index.astro at `/`.
+      .filter((entry) => entry.id !== 'home')
+      .map((entry) => ({ params: { slug: entry.id }, props: { page: entry } }))
+  );
 }
 
 const { page } = Astro.props;

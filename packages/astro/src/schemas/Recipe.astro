@@ -57,7 +57,19 @@ export interface Props {
       worstRating?: number;
     };
   }[];
-  suitableForDiet?: ('DiabeticDiet' | 'GlutenFreeDiet' | 'HalalDiet' | 'HinduDiet' | 'KosherDiet' | 'LowCalorieDiet' | 'LowFatDiet' | 'LowLactoseDiet' | 'LowSaltDiet' | 'VeganDiet' | 'VegetarianDiet')[];
+  suitableForDiet?: (
+    | 'DiabeticDiet'
+    | 'GlutenFreeDiet'
+    | 'HalalDiet'
+    | 'HinduDiet'
+    | 'KosherDiet'
+    | 'LowCalorieDiet'
+    | 'LowFatDiet'
+    | 'LowLactoseDiet'
+    | 'LowSaltDiet'
+    | 'VeganDiet'
+    | 'VegetarianDiet'
+  )[];
 }
 
 const {
@@ -128,7 +140,7 @@ const jsonLd = {
           text: step.text,
           ...(step.image && { image: step.image }),
           ...(step.url && { url: step.url }),
-        }
+        },
   ),
   ...(video && {
     video: {
@@ -154,7 +166,7 @@ const jsonLd = {
     },
   }),
   ...(review && {
-    review: review.map(r => ({
+    review: review.map((r) => ({
       '@type': 'Review',
       author: { '@type': 'Person', name: r.author },
       datePublished: r.datePublished,
@@ -170,7 +182,7 @@ const jsonLd = {
     })),
   }),
   ...(suitableForDiet && {
-    suitableForDiet: suitableForDiet.map(diet => `https://schema.org/${diet}`),
+    suitableForDiet: suitableForDiet.map((diet) => `https://schema.org/${diet}`),
   }),
 };
 ---

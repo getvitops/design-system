@@ -78,45 +78,44 @@ const dev = import.meta.env.DEV;
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  reviews.length > 0 ? (
-    <div
-      {...rootAttrs(value, ['reviews', toned && tone.surface], toned ? joinStyle(tone.style) : undefined)}
-    >
-      {layout === 'carousel' ? (
-        <Carousel label={label}>
-          {reviews.map((review) => (
-            <li class="carousel__slide">
-              <ReviewCard review={review} avatar={avatar} />
-            </li>
-          ))}
-        </Carousel>
-      ) : layout === 'marquee' ? (
-        <Marquee pauseOnHover aria-label={label} role="group">
-          {reviews.map((review) => (
+{reviews.length > 0 ? (
+  <div
+    {...rootAttrs(
+      value,
+      ['reviews', toned && tone.surface],
+      toned ? joinStyle(tone.style) : undefined,
+    )}
+  >
+    {layout === 'carousel' ? (
+      <Carousel label={label}>
+        {reviews.map((review) => (
+          <li class="carousel__slide">
             <ReviewCard review={review} avatar={avatar} />
-          ))}
-        </Marquee>
-      ) : (
-        <Subgrid
-          aria-label={label}
-          style={`--subgrid-cols: ${columns}; --subgrid-row-span: 1`}
-        >
-          {reviews.map((review) => (
-            <li>
-              <ReviewCard review={review} avatar={avatar} />
-            </li>
-          ))}
-        </Subgrid>
-      )}
-    </div>
-  ) : (
-    dev && (
-      <p class="reviews__empty" role="note">
-        vitops_reviews: no reviews to show
-        {key ? ` for location "${key}"` : ''}. Run <code>vitops reviews</code> and commit
-        <code>.vitops/reviews.json</code>, or lower the rating filter. (Shown in dev only.)
-      </p>
-    )
+          </li>
+        ))}
+      </Carousel>
+    ) : layout === 'marquee' ? (
+      <Marquee pauseOnHover aria-label={label} role="group">
+        {reviews.map((review) => (
+          <ReviewCard review={review} avatar={avatar} />
+        ))}
+      </Marquee>
+    ) : (
+      <Subgrid aria-label={label} style={`--subgrid-cols: ${columns}; --subgrid-row-span: 1`}>
+        {reviews.map((review) => (
+          <li>
+            <ReviewCard review={review} avatar={avatar} />
+          </li>
+        ))}
+      </Subgrid>
+    )}
+  </div>
+) : (
+  dev && (
+    <p class="reviews__empty" role="note">
+      vitops_reviews: no reviews to show
+      {key ? ` for location "${key}"` : ''}. Run <code>vitops reviews</code> and commit
+      <code>.vitops/reviews.json</code>, or lower the rating filter. (Shown in dev only.)
+    </p>
   )
-}
+)}

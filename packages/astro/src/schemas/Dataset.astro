@@ -95,7 +95,7 @@ const jsonLd = {
     },
   }),
   ...(distribution && {
-    distribution: distribution.map(d => ({
+    distribution: distribution.map((d) => ({
       '@type': 'DataDownload',
       contentUrl: d.contentUrl,
       encodingFormat: d.encodingFormat,

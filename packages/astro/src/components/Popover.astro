@@ -54,18 +54,12 @@ const { class: triggerAttrClass, ...triggerRestAttrs } = trigger?.attrs ?? {};
     aria-label={trigger?.label || 'Open'}
     {...triggerRestAttrs}
   >
-  <span class:list={[trigger?.icon && 'visually-hidden']}>{trigger?.label || 'Open'}</span>
+    <span class:list={[trigger?.icon && 'visually-hidden']}>{trigger?.label || 'Open'}</span>
     {trigger?.icon && <Icon name={iconResolver(trigger.icon)} />}
   </button>
 </slot>
 
-
-<Element
-  id={id}
-  popover={type}
-  class:list={["popover", className]}
-  style={styles}
->
+<Element id={id} popover={type} class:list={['popover', className]} style={styles}>
   <slot />
 </Element>
 

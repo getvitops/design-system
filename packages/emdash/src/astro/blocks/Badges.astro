@@ -38,30 +38,28 @@ const items = rows<Record<string, unknown>>(value.items)
   .filter((item) => item.label);
 ---
 
-  {
-    items.length > 0 && (
-      <ul {...rootAttrs(value, ['cluster'])} role="list">
-        {items.map((item) => {
-          const Tag = item.href ? 'a' : 'span';
-          return (
-            <li>
-              <Tag
-                class:list={[kind, item.tone.style && item.tone.surface, item.href && 'link']}
-                href={item.href || undefined}
-                style={item.tone.style || undefined}
-              >
-                {item.icon && (
-                  <span class="icon" aria-hidden="true">
-                    <svg>
-                      <use href={`${spriteBase}/icons.svg#icon-${item.icon}`} />
-                    </svg>
-                  </span>
-                )}
-                {item.label}
-              </Tag>
-            </li>
-          );
-        })}
-      </ul>
-    )
-  }
+{items.length > 0 && (
+  <ul {...rootAttrs(value, ['cluster'])} role="list">
+    {items.map((item) => {
+      const Tag = item.href ? 'a' : 'span';
+      return (
+        <li>
+          <Tag
+            class:list={[kind, item.tone.style && item.tone.surface, item.href && 'link']}
+            href={item.href || undefined}
+            style={item.tone.style || undefined}
+          >
+            {item.icon && (
+              <span class="icon" aria-hidden="true">
+                <svg>
+                  <use href={`${spriteBase}/icons.svg#icon-${item.icon}`} />
+                </svg>
+              </span>
+            )}
+            {item.label}
+          </Tag>
+        </li>
+      );
+    })}
+  </ul>
+)}

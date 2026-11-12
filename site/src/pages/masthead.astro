@@ -58,26 +58,101 @@ const headings = [
 >
   <p>
     <code>site.chrome</code> says how the top bar looks and how its navigation behaves; the
-    <code>&lt;Masthead&gt;</code> and <code>&lt;SiteNav&gt;</code> Astro components read it, and a prop
-    overrides one field for one layout. It is pure CSS: no script runs for any variant below.
-    The name is <em>masthead</em>, not <em>header</em> or <em>banner</em> — <code>&lt;header&gt;</code> is
-    valid inside any section, and <code>banner</code> is the announcement bar and an ARIA landmark role.
+    <code>&lt;Masthead&gt;</code> and <code>&lt;SiteNav&gt;</code> Astro components read it, and a
+    prop overrides one field for one layout. It is pure CSS: no script runs for any variant below.
+    The name is <em>masthead</em>, not <em>header</em> or <em>banner</em> —{' '}
+    <code>&lt;header&gt;</code> is valid inside any section, and <code>banner</code> is the
+    announcement bar and an ARIA landmark role.
   </p>
 
   <h2 id="options">Options</h2>
   <div class="table-wrapper">
     <table class="table">
-      <thead><tr><th>Key</th><th>Values</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Values</th>
+        </tr>
+      </thead>
       <tbody>
-        <tr><td><code>masthead.position</code></td><td><code>static</code> · <code>sticky</code> · <code>fixed</code> (overlays the first section)</td></tr>
-        <tr><td><code>masthead.behavior</code></td><td><code>always</code> · <code>hide-on-scroll</code></td></tr>
-        <tr><td><code>masthead.surface</code></td><td><code>solid</code> · <code>glass</code> · <code>transparent</code> · <code>transparent-until-scrolled</code></td></tr>
-        <tr><td><code>masthead.layout</code></td><td><code>full</code> · <code>inset</code> · <code>floating</code></td></tr>
-        <tr><td><code>masthead.elevation</code></td><td><code>shadow</code> (a shadows key), <code>border</code>, <code>onScroll</code></td></tr>
-        <tr><td><code>masthead.tone</code>, <code>width</code></td><td>a colour role (<code>role:solid</code> for a fill) · <code>content</code> | <code>full</code></td></tr>
-        <tr><td><code>masthead.height</code>, <code>masthead.inset</code></td><td>a CSS length, fluid allowed: <code>4rem</code>, <code>clamp(3.5rem, 8cqi, 4.5rem)</code>. <code>inset</code> is the gap to the viewport for <code>inset</code>/<code>floating</code> (default <code>0.75rem</code>). <code>cqi</code> follows the page container, <code>vw</code> the viewport.</td></tr>
-        <tr><td><code>nav.compact</code></td><td><code>drawer</code> · <code>dropdown</code></td></tr>
-        <tr><td><code>nav.drawerSide</code>, breakpoints, depths</td><td><code>start</code> | <code>end</code> · <code>sm…xl</code> · 1–3</td></tr>
+        <tr>
+          <td>
+            <code>masthead.position</code>
+          </td>
+          <td>
+            <code>static</code> · <code>sticky</code> · <code>fixed</code> (overlays the first
+            section)
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>masthead.behavior</code>
+          </td>
+          <td>
+            <code>always</code> · <code>hide-on-scroll</code>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>masthead.surface</code>
+          </td>
+          <td>
+            <code>solid</code> · <code>glass</code> · <code>transparent</code> ·{' '}
+            <code>transparent-until-scrolled</code>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>masthead.layout</code>
+          </td>
+          <td>
+            <code>full</code> · <code>inset</code> · <code>floating</code>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>masthead.elevation</code>
+          </td>
+          <td>
+            <code>shadow</code> (a shadows key), <code>border</code>, <code>onScroll</code>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>masthead.tone</code>, <code>width</code>
+          </td>
+          <td>
+            a colour role (<code>role:solid</code> for a fill) · <code>content</code> |{' '}
+            <code>full</code>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>masthead.height</code>, <code>masthead.inset</code>
+          </td>
+          <td>
+            a CSS length, fluid allowed: <code>4rem</code>, <code>clamp(3.5rem, 8cqi, 4.5rem)</code>
+            . <code>inset</code> is the gap to the viewport for <code>inset</code>/
+            <code>floating</code> (default <code>0.75rem</code>). <code>cqi</code> follows the page
+            container, <code>vw</code> the viewport.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>nav.compact</code>
+          </td>
+          <td>
+            <code>drawer</code> · <code>dropdown</code>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>nav.drawerSide</code>, breakpoints, depths
+          </td>
+          <td>
+            <code>start</code> | <code>end</code> · <code>sm…xl</code> · 1–3
+          </td>
+        </tr>
       </tbody>
     </table>
   </div>
@@ -91,21 +166,21 @@ const headings = [
   </p>
 
   <h2 id="variants">Variants</h2>
-  {
-    VARIANTS.map((v) => (
-      <section class="rhythm">
-        <h3 id={v.slug}>{v.title}</h3>
-        <pre><code>{`"chrome": { ${v.config} }`}</code></pre>
-        <iframe
-          title={v.title}
-          src={`/demo/masthead/${v.slug}/`}
-          loading="lazy"
-          style="inline-size: 100%; block-size: 26rem; border: 1px solid var(--color-border-surface); border-radius: var(--br-panel)"
-        />
-        <p>
-          <a class="link" href={`/demo/masthead/${v.slug}/`}>Open full page</a>
-        </p>
-      </section>
-    ))
-  }
+  {VARIANTS.map((v) => (
+    <section class="rhythm">
+      <h3 id={v.slug}>{v.title}</h3>
+      <pre><code>{`"chrome": { ${v.config} }`}</code></pre>
+      <iframe
+        title={v.title}
+        src={`/demo/masthead/${v.slug}/`}
+        loading="lazy"
+        style="inline-size: 100%; block-size: 26rem; border: 1px solid var(--color-border-surface); border-radius: var(--br-panel)"
+      />
+      <p>
+        <a class="link" href={`/demo/masthead/${v.slug}/`}>
+          Open full page
+        </a>
+      </p>
+    </section>
+  ))}
 </Docs>

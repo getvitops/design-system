@@ -36,7 +36,7 @@ const jsonLd = {
       ...(about.url && { url: about.url }),
     },
   }),
-  hasPart: mainEntity.map(qa => ({
+  hasPart: mainEntity.map((qa) => ({
     '@type': 'Question',
     eduQuestionType: qa.eduQuestionType || 'Practice',
     ...(qa.learningResourceType && { learningResourceType: qa.learningResourceType }),

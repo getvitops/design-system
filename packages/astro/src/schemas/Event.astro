@@ -5,8 +5,16 @@ export interface Props {
   description?: string;
   startDate: string;
   endDate?: string;
-  eventStatus?: 'EventScheduled' | 'EventCancelled' | 'EventMovedOnline' | 'EventPostponed' | 'EventRescheduled';
-  eventAttendanceMode?: 'OfflineEventAttendanceMode' | 'OnlineEventAttendanceMode' | 'MixedEventAttendanceMode';
+  eventStatus?:
+    | 'EventScheduled'
+    | 'EventCancelled'
+    | 'EventMovedOnline'
+    | 'EventPostponed'
+    | 'EventRescheduled';
+  eventAttendanceMode?:
+    | 'OfflineEventAttendanceMode'
+    | 'OnlineEventAttendanceMode'
+    | 'MixedEventAttendanceMode';
   location?: {
     type: 'Place' | 'VirtualLocation';
     name?: string;
@@ -64,29 +72,38 @@ const jsonLd = {
   eventStatus: `https://schema.org/${eventStatus}`,
   eventAttendanceMode: `https://schema.org/${eventAttendanceMode}`,
   ...(location && {
-    location: location.type === 'VirtualLocation'
-      ? {
-          '@type': 'VirtualLocation',
-          url: location.url,
-        }
-      : {
-          '@type': 'Place',
-          ...(location.name && { name: location.name }),
-          ...(location.address && {
-            address: {
-              '@type': 'PostalAddress',
-              ...(location.address.streetAddress && { streetAddress: location.address.streetAddress }),
-              ...(location.address.addressLocality && { addressLocality: location.address.addressLocality }),
-              ...(location.address.addressRegion && { addressRegion: location.address.addressRegion }),
-              ...(location.address.postalCode && { postalCode: location.address.postalCode }),
-              ...(location.address.addressCountry && { addressCountry: location.address.addressCountry }),
-            },
-          }),
-        },
+    location:
+      location.type === 'VirtualLocation'
+        ? {
+            '@type': 'VirtualLocation',
+            url: location.url,
+          }
+        : {
+            '@type': 'Place',
+            ...(location.name && { name: location.name }),
+            ...(location.address && {
+              address: {
+                '@type': 'PostalAddress',
+                ...(location.address.streetAddress && {
+                  streetAddress: location.address.streetAddress,
+                }),
+                ...(location.address.addressLocality && {
+                  addressLocality: location.address.addressLocality,
+                }),
+                ...(location.address.addressRegion && {
+                  addressRegion: location.address.addressRegion,
+                }),
+                ...(location.address.postalCode && { postalCode: location.address.postalCode }),
+                ...(location.address.addressCountry && {
+                  addressCountry: location.address.addressCountry,
+                }),
+              },
+            }),
+          },
   }),
   ...(image && { image: Array.isArray(image) ? image : [image] }),
   ...(performer && {
-    performer: performer.map(p => ({
+    performer: performer.map((p) => ({
       '@type': p.type,
       name: p.name,
     })),
@@ -99,7 +116,7 @@ const jsonLd = {
     },
   }),
   ...(offers && {
-    offers: offers.map(offer => ({
+    offers: offers.map((offer) => ({
       '@type': 'Offer',
       ...(offer.url && { url: offer.url }),
       ...(offer.price !== undefined && { price: offer.price }),

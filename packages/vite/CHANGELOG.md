@@ -750,6 +750,7 @@ options, watch behaviour and dev-server endpoints are unchanged.
   import hero from '../assets/processed/hero.webm';
   import poster from '../assets/processed/hero.jpg';
   ---
+
   <video poster={poster.src} autoplay muted loop playsinline>
     <source src={hero} type="video/webm" />
   </video>

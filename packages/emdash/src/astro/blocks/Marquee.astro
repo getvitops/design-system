@@ -24,16 +24,18 @@ const items = rows<Record<string, unknown>>(value.items)
 import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  items.length > 0 && (
-    <Marquee pauseOnHover={Boolean(value.pauseOnHover)} reverse={Boolean(value.reverse)} {...rootAttrs(value)}>
-      {items.map((item) =>
-        item.image ? (
-          <img src={item.image} alt={item.alt} loading="lazy" />
-        ) : (
-          <span>{item.text}</span>
-        ),
-      )}
-    </Marquee>
-  )
-}
+{items.length > 0 && (
+  <Marquee
+    pauseOnHover={Boolean(value.pauseOnHover)}
+    reverse={Boolean(value.reverse)}
+    {...rootAttrs(value)}
+  >
+    {items.map((item) =>
+      item.image ? (
+        <img src={item.image} alt={item.alt} loading="lazy" />
+      ) : (
+        <span>{item.text}</span>
+      ),
+    )}
+  </Marquee>
+)}
