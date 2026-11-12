@@ -1149,7 +1149,9 @@ enhancement.
   one place that assumption lives.
 - **The calling GCP project must be allowlisted by Google before any call succeeds** — a one-time
   access-request form, turnaround measured in days to weeks. `gbp.ts` treats a `403` as that known
-  state and says so, rather than surfacing a raw failure.
+  state and says so, rather than surfacing a raw failure. It is
+  per Google Cloud project, not per site, and cannot be done in code, so it is a checklist step
+  (`connections.gbp` in `SETUP.html`, and a hard stop in the setup skill) to file at kickoff.
 - **Auth is always user OAuth**, the same `VITOPS_GOOGLE_CLIENT_ID` / `_CLIENT_SECRET` /
   `_REFRESH_TOKEN` (or ADC login) `search setup` uses, scoped to `business.manage`
   (`SCOPES.businessProfile`, `@getvitops/utils/google/token.ts`). Reading a client's own reviews is

@@ -412,6 +412,28 @@
               </span>
             </label>
             <label class="custom-check">
+              <input type="checkbox" data-sop="connections.gbp" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                <strong>Only if this site shows Google reviews:</strong> make sure the Google Cloud
+                project behind <code>VITOPS_GOOGLE_CLIENT_ID</code> has been
+                <strong>approved for the Business Profile API</strong>. Google reviews are served
+                only by that API, and it rejects every call from a project Google has not
+                allowlisted, whatever the credential. The approval is a one-time request to Google
+                (find the current form through the Business Profile APIs "prerequisites"
+                documentation) and takes <strong>days to weeks</strong>, so file it at kickoff, not
+                when the reviews block is built. It is
+                <em>per Google Cloud project, not per site or client</em>: one approved agency
+                project serves every client. The credential must also belong to an owner or manager
+                of the client's profile. You can tell it worked when
+                <code>vp exec vitops reviews --check</code> stops reporting a <code>403</code> and
+                the "not allowlisted" message. There is nothing to run or configure per site until
+                then, which is why this is a checklist step and not a command.
+              </span>
+            </label>
+            <label class="custom-check">
               <input type="checkbox" data-sop="connections.search" />
               <span class="custom-check__box"
                 ><span class="custom-check__indicator custom-check__indicator--check"></span

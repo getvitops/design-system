@@ -47,6 +47,12 @@ gates, and where to stop. It does not restate the steps; read `SETUP.html`
   record at that instant — it takes an existing live site down. `setup domain`
   only ever plans and checks this; it never applies it, and neither should
   you. Report the plan and hand the actual cutover to the user.
+- **Google's approval for the Business Profile API** (only for a site that shows
+  Google reviews). Nothing can request it for you or grant it: it is a one-time
+  form submitted to Google, per Google Cloud project, that takes days to weeks.
+  Report it as a blocker with that lead time, tell the user to file it if the
+  project has not been approved, and do not tick `connections.gbp` until
+  `vitops reviews --check` no longer answers 403.
 - **Publishing any generated legal document.** `vitops legal` renders a
   starting point from the config, not a reviewed policy. Generate it, tell the
   user it needs review, and stop — do not paste it into the admin or commit it
