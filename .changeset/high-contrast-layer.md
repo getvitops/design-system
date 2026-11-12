@@ -3,6 +3,9 @@
 '@getvitops/config': minor
 '@getvitops/core': minor
 '@getvitops/astro': minor
+'@getvitops/utils': minor
+'@getvitops/cli': minor
+'@getvitops/skills': patch
 ---
 
 **Added a high-contrast layer and a toggle for it.** WCAG 2 AA is the floor; this is the route above it, and the G174 route for a brand palette that cannot reach it.
@@ -12,8 +15,10 @@
 - **`<ContrastToggle />`** (`@getvitops/astro/components/ContrastToggle.astro`) emits `<wc-contrast-toggle>` around a plain `<label class="contrast-toggle"><input type="checkbox">`. The checkbox works with no JavaScript; the element adds starting checked under `prefers-contrast: more` and remembering the choice behind the `preferences` consent category. `core/css/global.css` also gives the layer a 3px outline and drops `backdrop-filter`.
 - **`<Head contrast />`** restores a remembered choice before first paint. Opt-in, and a separate inline script from the colour-scheme one on purpose: changing that script would change its hash and break the dark-mode bootstrap on every site that pins it in a CSP. A site with a hash-pinned policy adds `inline: { contrast: true }` to `contentSecurityPolicy()`.
 
+- **`vitops audit` runs a second axe pass when `contrastToggle` is set** (`@getvitops/utils/audit`, the CLI): with `data-contrast="more"` on `<html>`. A contrast violation that clears is reported as "conforming only with the high-contrast layer on" and does not fail the page; a page with **no `.contrast-toggle`** fails (`toggle-missing`), and a contrast violation that survives the layer fails, because the layer is then not a conforming alternative.
+- **Two pattern fixes the audit found.** `code` filled itself with a _border_ token (`border-neutral`), which the high-contrast layer turned dark under dark text (2.07:1); it now uses `bg-neutral-x-muted` (a slightly lighter chip in every format). `.comment__date` faded its text with `opacity: 0.7` (3.9:1); it now uses `text-neutral-muted`. **All formats.**
 - **Forced-colors sweep.** Floating surfaces (`dialog.dialog`, `.drawer`, `.tooltip`, `.notification`, `.consent`, `.combobox__listbox`, any open `[popover]`) get a 1px system-colour `outline` under `forced-colors: active`, so one that rests on a `box-shadow` (a consumer's `b: none`, or a bare popover) no longer vanishes. The `.switch` track and thumb get system colours, since the muted track and white thumb flattened to the same canvas and the thumb's shadow was dropped. **All formats.**
 
 Pattern CSS (`contrast-toggle.css`) reaches **all formats**; the token layer it switches reaches **css and tailwind only**, so the toggle is inert under `bricks`.
 
-No consumer-facing change in `@getvitops/utils`, `@getvitops/cli` or `@getvitops/vite`.
+No consumer-facing change in `@getvitops/vite`.

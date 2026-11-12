@@ -75,10 +75,28 @@ Meeting 4.5:1 / 3:1 by default is the baseline. Beyond it, in order:
    not something the site provides, so it is not a substitute for G174 (our reading of the
    technique; confirm with an accessibility specialist).
 
-**Toolchain status:** there is no `prefers-contrast` layer and no contrast toggle yet, so these are
-hand-built per site. Forced-colors is covered only for the focus ring, masthead and sitenav
-(`site/e2e/forced-colors.e2e.ts`); other patterns that mark a boundary with `box-shadow` have not
-been checked. Say so rather than implying the framework handles it.
+**What the toolchain provides** (css and tailwind formats; the Bricks format supplies its own colour
+tokens, so there is nothing for the layer to re-point and the toggle is inert there):
+
+- **A generated high-contrast layer** answering `@media (prefers-contrast: more)`,
+  `:root[data-contrast="more"]` and the toggle's checkbox. It is a third appearance axis, not a
+  theme: text walks to 7:1, borders become as firm as icons, solids walk until `text-on-<role>`
+  clears 7:1, glass goes opaque. `data-contrast="standard"` opts a visitor out of the media query.
+  The layer must itself clear 4.5:1 / 3:1 or `generate` fails; missing 7:1 only warns.
+- **`<ContrastToggle />`** (`@getvitops/astro/components/ContrastToggle.astro`) is the G174 control: a
+  plain checkbox that works with no JavaScript, enhanced by `<wc-contrast-toggle>` to start checked
+  under `prefers-contrast: more` and to remember the choice (behind the `preferences` consent
+  category). Put it on **every page** (masthead or footer); add `<Head contrast />` to restore a
+  remembered choice before first paint, and `inline: { contrast: true }` to a hash-pinned CSP.
+- **`site.accessibility.contrastToggle: true`** says the site ships the toggle. A baseline contrast
+  miss then only warns, and only for a role whose high-contrast layer conforms. `vitops audit` runs
+  axe a second time with the layer on, reports "conforming only with the high-contrast layer on",
+  and **fails a page that has no toggle** or where a contrast failure survives the layer. Do not set
+  it for a site that does not render the toggle everywhere: that would downgrade a real failure.
+- **Forced colours:** the focus ring, masthead, sitenav, floating surfaces (an outline) and the
+  switch are covered and tested (`site/e2e/forced-colors.e2e.ts`). Other patterns that mark a
+  boundary with `box-shadow` alone have not been individually checked; say so rather than implying
+  every pattern is covered.
 
 ## Everyday practice
 
@@ -87,7 +105,7 @@ Use the existing mechanisms; do not restate them here.
 - **Markup first.** Prefer native HTML and platform features. Tier-2 web components must have
   an accessible no-JS fallback (see AGENTS.md "Component architecture"); `site/e2e/no-js-fallback.e2e.ts`
   and `site/e2e/forced-colors.e2e.ts` prove it for focus rings and fallbacks.
-- **Run `vitops audit`** (axe + Lighthouse) on a built site. Reports go to `.vitops/audit/`
+- **Run `vitops audit`** (axe + Lighthouse; a second axe pass when `contrastToggle` is set) on a built site. Reports go to `.vitops/audit/`
   (`report.json`, `report.md`, `report.html`). **They are build artifacts only: never publish them
   in the site**, because they list every violation. The report's `MANUAL_CHECKS` list is what
   automation cannot do (keyboard order, focus visibility, screen reader pass, reduced motion,

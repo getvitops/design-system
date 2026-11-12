@@ -32,6 +32,7 @@ export {
   renderMarkdown,
   renderPageMarkdown,
   reportFiles,
+  resolveContrastToggle,
   sitemapLocs,
   unauditedPage,
 } from './plan.ts';
