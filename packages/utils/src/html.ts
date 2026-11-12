@@ -76,6 +76,24 @@ function isEl(value: string | El): value is El {
 
 const TAG_NAME = /^[a-z][a-z0-9-]*$/i;
 const ATTR_NAME = /^[a-z_:][a-z0-9_:.-]*$/i;
+/**
+ * Elements that run code, load a document or change how the page is parsed, none of which a content
+ * tree (legal text, CMS data) has any business emitting. A name check alone admits all of them.
+ */
+const DENIED_TAGS = new Set([
+  'script',
+  'style',
+  'iframe',
+  'frame',
+  'frameset',
+  'object',
+  'embed',
+  'template',
+  'base',
+  'meta',
+  'link',
+  'portal',
+]);
 /** Attributes whose value is a URL the browser will follow or load. */
 const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'poster', 'xlink:href', 'data']);
 
@@ -86,6 +104,8 @@ const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'poster', 'xli
  */
 function assertTag(tag: string): void {
   if (!TAG_NAME.test(tag)) throw new Error(`nodesToHtml: invalid tag name ${JSON.stringify(tag)}`);
+  if (DENIED_TAGS.has(tag.toLowerCase()))
+    throw new Error(`nodesToHtml: <${tag}> is not allowed in a data tree`);
 }
 
 function attributesToString(attrs: Record<string, unknown>): string {
@@ -106,7 +126,7 @@ function attributesToString(attrs: Record<string, unknown>): string {
     if (value === true) {
       parts.push(key);
     } else if (key === 'style' && typeof value === 'object') {
-      parts.push(`style="${styleList(value as StyleValue)}"`);
+      parts.push(`style="${styleList(value as StyleValue).replace(/"/g, '&quot;')}"`);
     } else {
       const text = Array.isArray(value)
         ? value.filter((v): v is string => typeof v === 'string' && v !== '').join(' ')

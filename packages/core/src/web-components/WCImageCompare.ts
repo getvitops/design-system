@@ -272,7 +272,10 @@ export class WCImageCompare extends BaseElement {
   }
 
   willUpdate(changed: PropertyValues) {
-    if (changed.has('position') && !changed.has('_offset')) {
+    // Not guarded on `_offset`: a drag only ever sets `_offset`, so `position` changing is always an
+    // author change. The first update has BOTH in `changed` (the constructor assigns `_offset`), so
+    // a guard on it made `position="25"` ignored until something changed it a second time.
+    if (changed.has('position')) {
       this._offset = this.position / 100;
       this.dragController.setPosition(this._offset);
     }

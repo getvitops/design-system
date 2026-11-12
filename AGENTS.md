@@ -40,6 +40,13 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      `getElementById`, captured before upgrade — loses it; `tree-toggle` (mirroring the existing
      `tree-filter` event) is the replacement surface. Named here as a deliberate exception, not a
      silent divergence — same treatment as `<wc-consent>` and `<wc-theme-editor>` below.
+   - **`<wc-image-compare>` is the one element that renders into a shadow root** — a named exception
+     to "use light DOM", not a silent one. `DragController` finds its handle through `renderRoot`,
+     and the divider's stacking and clip live in the element's own `static styles`. The fallback
+     promise is unaffected, because the two images are the **light-DOM** children (`slot="before"` /
+     `slot="after"`), which upgrading never touches: with no JS they are two readable images.
+     `WCImageCompare.dom.test.ts` asserts that, and the keyboard/ARIA contract. Converting it to
+     light DOM is possible but buys nothing a client can see; don't do it to tidy the rule.
    - Shipped as feature-detected, deferred ES-module bundles
      (`@getvitops/core/{polyfills,elements,deferred}`); polyfills load **only** when a native feature
      is missing (see `Polyfills.astro`).

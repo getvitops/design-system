@@ -28,3 +28,34 @@ describe('nodesToHtml input validation', () => {
     expect(nodesToHtml([{ tag: 'img', attrs: { src: 'data:text/html,x' } }])).toBe('<img>');
   });
 });
+
+describe('nodesToHtml tag denylist and style escaping', () => {
+  it.each(['script', 'style', 'iframe', 'object', 'embed', 'template', 'base', 'meta', 'link'])(
+    'refuses <%s> in a data tree',
+    (tag) => {
+      expect(() => nodesToHtml([{ tag, text: 'x' }])).toThrow(/not allowed/);
+    },
+  );
+
+  it('refuses a denied tag regardless of case, and nested inside an allowed one', () => {
+    expect(() => nodesToHtml([{ tag: 'SCRIPT', text: 'x' }])).toThrow(/not allowed/);
+    expect(() =>
+      nodesToHtml([{ tag: 'div', children: [{ tag: 'iframe', attrs: { src: '/x' } }] }]),
+    ).toThrow(/not allowed/);
+    expect(() => toHtml({ tag: 'script', text: 'x' })).toThrow(/not allowed/);
+  });
+
+  it('still renders ordinary content tags', () => {
+    expect(nodesToHtml([{ tag: 'p', children: ['a', { tag: 'strong', text: 'b' }] }])).toBe(
+      '<p>a<strong>b</strong></p>',
+    );
+  });
+
+  it('escapes a quote in an object-form style so it cannot close the attribute', () => {
+    const out = nodesToHtml([
+      { tag: 'p', attrs: { style: { color: 'red" onmouseover="alert(1)' } }, text: 'x' },
+    ]);
+    expect(out).toBe('<p style="color: red&quot; onmouseover=&quot;alert(1)">x</p>');
+    expect(out.match(/"/g)).toHaveLength(2);
+  });
+});
