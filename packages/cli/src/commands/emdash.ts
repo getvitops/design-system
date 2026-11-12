@@ -10,6 +10,7 @@
  *   check-prerender   fail if a prerendered page is not a real page
  *   form-template     copy a vitops_form block into site.templates
  *   build             `astro build`, then the same checks, plus a failure for any block with no renderer
+ *   schema, db        move content between environments without losing the target's work (see emdash-env.ts)
  *
  * Why both exist: `astro build` prerenders every page inside a local workerd against a local D1
  * (`.wrangler/state`), never the deployed database. The template sets
@@ -48,6 +49,7 @@ import {
   sitemapOrphans,
 } from '../prerender-check.ts';
 import { findFormBlocks, withTemplate } from '../form-template.ts';
+import { cmdEmdashDb, cmdEmdashSchema } from './emdash-env.ts';
 import { fail } from './shared.ts';
 import { EMDASH_HELP } from '../help.ts';
 
@@ -442,6 +444,10 @@ export async function cmdEmdash(argv: string[]) {
       return cmdBuild(rest);
     case 'form-template':
       return cmdFormTemplate(rest);
+    case 'schema':
+      return cmdEmdashSchema(rest);
+    case 'db':
+      return cmdEmdashDb(rest);
     case undefined:
     case '-h':
     case '--help':
@@ -449,7 +455,7 @@ export async function cmdEmdash(argv: string[]) {
       return;
     default:
       fail(
-        `unknown "emdash" subcommand "${sub}" (expected: prepare-db | check-prerender | build | form-template). Try: vitops --help`,
+        `unknown "emdash" subcommand "${sub}" (expected: prepare-db | check-prerender | build | form-template | schema | db). Try: vitops --help`,
       );
   }
 }

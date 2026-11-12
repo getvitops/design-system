@@ -22,6 +22,29 @@ export type { HostingPlan, HostingResult, StepAction, StepPlan } from './plan.ts
 export type { DomainState, HostingSetup, HostingState } from './types.ts';
 
 export {
+  assertSafeTarget,
+  copyD1,
+  devDatabaseName,
+  dropStatements,
+  dumpDatabase,
+  importDump,
+  parseBindingNames,
+  planD1Copy,
+  rehearseDatabaseName,
+  rewriteDbBinding,
+  tooBigStatements,
+} from './d1-copy.ts';
+export {
+  changedContentSql,
+  COLLECTION_TABLES_QUERY,
+  evaluateGuard,
+  MARKER_QUERY,
+  MARKER_WRITE_SQL,
+} from './sync-dev.ts';
+export type { GuardDecision, GuardInput } from './sync-dev.ts';
+export type { CopyGuardInput, CopyIO, CopyPlan, CopyResult, CopyTargetKind } from './d1-copy.ts';
+
+export {
   createD1,
   createR2Bucket,
   findD1,

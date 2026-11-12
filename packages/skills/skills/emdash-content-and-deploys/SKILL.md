@@ -9,15 +9,18 @@ description: How content, builds and deploys fit together on this EmDash site �
 
 Truth runs a different direction per kind of data.
 
-| Data                                                        | Truth                         | Moves by                                                                  |
-| ----------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------- |
-| Code, Astro pages, `site.json`, design system, seed, schema | git (`dev`)                   | promote `dev → main`                                                      |
-| Content: entries, media, menus, settings                    | **production** D1/R2          | editors work there; drafts and "Publish changes" are the staging step     |
-| Dev database                                                | disposable copy of production | `scripts/refresh-dev.mjs` / the `site-refresh-dev` workflow, one way only |
+| Data                                                        | Truth                                        | Moves by                                                                                                                 |
+| ----------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Code, Astro pages, `site.json`, design system, seed, schema | git (`dev`)                                  | promote `dev → main`                                                                                                     |
+| Content: entries, media, menus, settings                    | **production** D1/R2                         | editors work there; drafts and "Publish changes" are the staging step                                                    |
+| Dev database                                                | staging site, starts as a copy of production | the `site-sync-dev` workflow (`vitops emdash db`), one way only; keeps dev's schema, refuses to overwrite edited content |
 
-The dev site exists to rehearse code and schema changes against real content. Never promote it
-back. The refresh refuses any target not named `*-dev`, and drops every table in its target. It
-copies no sessions (they are in KV). Set `EMDASH_PREVIEW_SECRET` on the dev worker, or prod preview
+The dev site is where code and schema changes are developed against real content. Never promote
+its content back. A sync refuses any target not named `*-dev`, refuses when dev content changed
+since the last sync (`force` discards it; a snapshot is taken first), and replays dev's own
+collections and fields afterwards (additions only). **Promote never touches dev**: it rehearses
+core migrations on a throwaway copy of production (`<db>-rehearse-<run id>`), deletes it, and
+puts a schema diff in the PR. It copies no sessions (they are in KV). Set `EMDASH_PREVIEW_SECRET` on the dev worker, or prod preview
 links would open drafts there. The dev worker's cron trigger is dropped, so scheduled publishing
 can't be exercised on dev.
 

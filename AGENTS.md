@@ -1673,19 +1673,66 @@ instead of implicit: `migrations.runtime` in `emdash()`'s config defaults to `'a
 data.** Code, Astro pages, `site.json` and the design system live in git, so `dev` is their truth
 and they promote `dev → main`. EmDash content (entries, media, menus, settings) lives in D1/R2 and
 **production is its truth** — editors work there, and drafts, "Publish changes" on a live entry,
-signed preview links and scheduling _are_ the staging step. The dev database is therefore a
-disposable copy refreshed from prod (`site-refresh-dev.yml` → the template's
-`scripts/refresh-dev.mjs`), never promoted back. This is EmDash's own "rehearse on a preview
-environment" pattern; the earlier arrangement (a long-lived dev database content was edited in)
-drifted from prod permanently and gave a prod edit no path back.
+signed preview links and scheduling _are_ the staging step. The EmDash **schema** (collections and
+fields) lives in the same database, so it travels with a database copy and with nothing in git.
 
-Five things are load-bearing:
+That gives three databases, each with one job, and the design follows from keeping them apart:
 
-- **Refresh is one-way and guarded, because it drops every table in its target.**
-  `assertSafeTarget` refuses a database that isn't named `*-dev`, whose id isn't `$DEV_D1_ID`, or
-  whose id is production's — the same instinct as `build-dev-wrangler.mjs` refusing to run without
-  `DEV_D1_ID`. It runs in the `dev` GitHub Environment, not `production`: it only reads prod, and a
-  refresh waiting on an admin's approval would never get run.
+| Database      | Job                                                               | Lifetime                     |
+| ------------- | ----------------------------------------------------------------- | ---------------------------- |
+| **prod**      | content truth                                                     | permanent                    |
+| **dev**       | long-lived staging site: schema and code are developed here       | permanent, never wiped blind |
+| **rehearsal** | `<db>-rehearse-<run id>`: a copy of prod a promotion rehearses on | one promote run              |
+
+**Promotion never touches dev.** An earlier arrangement used dev for both, so a promote and a
+staging session overwrote each other. `site-promote.yml` with `rehearse: true` (the emdash template)
+builds dev's code, creates a rehearsal database, copies prod into it (`vitops emdash db copy
+--target rehearse`), runs `emdash migrate` against it, diffs dev's schema against prod's into the PR
+body, and deletes the database. A core migration that breaks on real data fails the promote, not the
+prod deploy. **This is the one place the toolchain deletes anything**, and it is held to a resource
+this run created: `rehearseDatabaseName` only produces `<db>-rehearse-<digits>`, so `db rehearsal
+drop` cannot name another database. It is EmDash's own "rehearse on a disposable copy" pattern.
+
+**Pulling prod into dev is a separate, guarded sync** (`site-sync-dev.yml`, `vitops emdash db`). A
+D1 dump restores a whole database with no row-level merge, so "don't lose dev's work" means:
+refuse if dev content changed since the last sync, snapshot dev, capture its schema, reset it to
+prod, redeploy so core migrations run, then replay dev's collections and fields (`vitops emdash
+schema apply`). A scheduled run only _reports_ drift; it never resets. The unscheduled reset is the
+whole point — a weekly blind copy is exactly what wipes someone's staging work.
+
+Load-bearing, in the order they bite:
+
+- **A reset is one-way and guarded, because it drops every table in its target.**
+  `assertSafeTarget` (`@getvitops/utils/hosting`, asserted in `d1-copy.test.ts`) refuses a database
+  that isn't named `*-dev` (or `*-rehearse-<digits>` for the rehearsal kind), whose id isn't the one
+  we were told, or whose id is production's — the same instinct as `build-dev-wrangler.mjs`
+  refusing to run without `DEV_D1_ID`. The sync runs in the `dev` GitHub Environment, not
+  `production`: it only reads prod, and one waiting on an admin's approval would never get run.
+- **The copy is a four-file dump, not `wrangler d1 export`.** That command refuses any database
+  with a virtual table, and EmDash keeps its search index in FTS5 tables, so the old script failed as
+  soon as a collection had search on. `d1-copy.ts` follows EmDash's backup guide: tables by name
+  (the index is rebuilt on first search), `media_folders` before the rows that reference it, indexes
+  and triggers last. It scans for a statement D1 would reject as `SQLITE_TOOBIG` and stops before the
+  first write rather than leaving a half-imported target.
+- **Content is refused, not merged; schema is replayed, additions only.** Content is prod-owned, so
+  an edited dev is a reason to stop (`--force` is the explicit discard, and a snapshot is always
+  taken first). "Edited since" needs a baseline that survives the reset: a one-row `_vitops_sync`
+  table written after each sync (`sync-dev.ts`); with none, the first run needs `--force`, because
+  nothing can tell a copy from work in progress. Schema replay (`emdash-schema/plan.ts`) only ever
+  plans additions. A field defined differently on both sides is reported, and a field present only
+  on the target is information: removing a field deletes its column and values, and nothing can
+  restore them. Block types are reported but not replayed (they carry a version history the REST
+  API can't be handed back whole).
+- **Replay goes through the REST API, not `emdash schema add-field`.** The CLI command carries only
+  type, label and required, so a select's options, a repeater's sub-fields, a widget or a validation
+  rule would be silently dropped. `client.ts` posts the full field definition the schema export
+  returns, over https only (a bearer token is never sent to a remote `http://`). Credentials are
+  `EMDASH_TOKEN_*` env vars, never config.
+- **Applying dev's schema to production is opt-in and behind the production approval.**
+  `site-deploy-emdash.yml`'s `schema-from-url` runs `schema apply` after the core migrations and
+  before the deploy (additive first, EmDash's own ordering), in the `production` environment, so it
+  waits for the same reviewers. The template wires it to repository variables and restricts it to a
+  `push`, so a content-publish rebuild never touches the schema.
 - **The back-merge compares trees, not ancestry.** Promotion merges `dev` into `main` with a merge
   commit, so `main` is never an ancestor of `dev` right after a release even though the content is
   identical; an ancestry check would open a no-op PR on every promote. `git merge-tree
@@ -1693,7 +1740,7 @@ Five things are load-bearing:
   `GITHUB_TOKEN` triggers no workflows, so without `BACKMERGE_TOKEN` the PR is left for a human —
   otherwise `dev` would take the fix without Deploy dev running and sit silently stale.
 - **Sign-in must work on both origins, so the template ships magic link, not just passkeys.** A
-  passkey only works at the origin it was registered on, so a refreshed dev site would lock every
+  passkey only works at the origin it was registered on, so a synced dev site would lock every
   editor out. Magic link needs only a working email provider — the template registers
   `cloudflareEmail()` and an `EMAIL` `send_email` binding — and the cloned users already exist, so
   the same address signs in on both origins with nothing per-origin to create. It was chosen over
@@ -1701,12 +1748,12 @@ Five things are load-bearing:
   callback URL each), all by hand. The `from` must be on a domain onboarded with Cloudflare Email
   Sending (`vitops email setup`, and usually the `send.` subdomain — see "Sender-domain
   onboarding"); until it is, magic link answers "Email is not configured" and the only way in on a
-  refreshed dev site is a passkey registered there.
-- **No PII scrub on refresh.** Dev is the same organisation, platform and access as prod, so the
+  synced dev site is a passkey registered there.
+- **No PII scrub on sync.** Dev is the same organisation, platform and access as prod, so the
   copy carries the same handling obligations; it must stay gated like prod and `noindex`. Sessions
   are in the Astro session store (KV), not D1, so none are carried over.
 - **Two things in D1 would leak across.** The preview-link secret is stored in the database, so a
-  refresh copies prod's and prod preview links would open drafts on dev — set
+  sync copies prod's and prod preview links would open drafts on dev — set
   `EMDASH_PREVIEW_SECRET` on the dev worker. Scheduled publishes and plugin jobs are copied too, so
   `build-dev-wrangler.mjs` drops the cron trigger from the dev config; the cost is that scheduled
   publishing can't be exercised on dev.
@@ -1716,8 +1763,11 @@ commits to `site.deployment.branch` (default `dev`), so it rides the next promot
 `main`, or a prod edit becomes a hotfix that skips review.
 
 Not built: per-PR preview environments. Static sites could have them cheaply (`wrangler versions
-upload`), but an EmDash preview needs a database each; a persistent dev plus refresh covers the
-need until contention on `dev` is real.
+upload`), but an EmDash preview needs a database each; a persistent dev plus the per-promote
+rehearsal database covers the need until contention on `dev` is real. Also not built: deploying a
+Worker Preview during rehearsal and replaying the schema there — it needs per-site preview
+infrastructure (a `previews` block, a KV namespace, a site URL) the templates don't carry, so the
+schema diff is computed read-only and applied to production only behind its approval.
 
 **This repo's own docs site is the one exception to "thin caller."**
 `.github/workflows/deploy-dev.yml` / `deploy-prod.yml` at the repo root deploy `site/`

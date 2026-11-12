@@ -6,16 +6,32 @@
 # https://github.com/getvitops/design-system/blob/main/.github/workflows/site-promote.yml
 # for the branch-protection / PROMOTE_TOKEN options.
 #
-# Schema/content promotion is deliberately NOT here — the content model lives
-# in the EmDash database, not git. Apply schema changes to prod via the admin
-# or the site's MCP server, additive changes before the code deploy that uses
-# them, removals after the code that stops using them.
+# Before opening the PR it REHEARSES the release on a throwaway copy of production's database
+# (never on the dev site, which people work on): core migrations are applied to real data, the
+# copy is deleted, and a schema diff of dev against production goes in the PR body. A migration
+# that breaks on that data fails here instead of in the production deploy. Turn it off for one
+# run with `rehearse: false` (for example if the rehearsal itself is what's broken).
+#
+# Schema/content promotion is deliberately NOT part of the PR — the content model lives in the
+# EmDash database, not git. Apply schema additions to prod via `schema-from-url` in deploy-prod.yml
+# (behind the production approval), or via the admin, additive changes before the code deploy that
+# uses them, removals after the code that stops using them.
 name: Promote dev → main
 
 on:
   workflow_dispatch:
+    inputs:
+      rehearse:
+        description: Rehearse migrations on a throwaway copy of production first.
+        type: boolean
+        default: true
 
 jobs:
   promote:
     uses: getvitops/design-system/.github/workflows/site-promote.yml@v1
+    with:
+      rehearse: ${{ inputs.rehearse }}
+      # Set these to your dev and production URLs to get the schema diff in the PR body.
+      dev-url: ''
+      prod-url: ''
     secrets: inherit

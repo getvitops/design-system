@@ -202,8 +202,9 @@
               <span>
                 <strong>Know where content is edited (EmDash template).</strong> Editors work on the
                 <em>production</em> site — drafts, "Publish changes" and preview links are the
-                staging step. The dev site holds a disposable copy of production's database; it is
-                refreshed from prod and never promoted back. Code, pages and
+                staging step. Dev is a long-lived staging site: its database starts as a copy of
+                production's and is synced from prod on request (content is never promoted back),
+                while collections and fields are developed on it. Code, pages and
                 <code>site.json</code> still go dev → main.
               </span>
             </label>
@@ -213,11 +214,28 @@
                 ><span class="custom-check__indicator custom-check__indicator--check"></span
               ></span>
               <span>
-                EmDash template: run <strong>Refresh dev from prod</strong> (Actions tab) once the
-                prod site has content, and again before rehearsing a schema change. It runs weekly
-                on its own. To copy media as well, set <code>R2_ACCESS_KEY_ID</code> and
-                <code>R2_SECRET_ACCESS_KEY</code> (an R2 API token's S3 credentials) as repo
-                secrets; without them only the database is refreshed.
+                EmDash template: run <strong>Sync dev from prod</strong> (Actions tab) once the prod
+                site has content. It refuses if dev content was edited since the last sync (the
+                first run needs <em>force</em>, and a snapshot of dev is saved first), and it
+                re-adds dev's own collections and fields afterwards. A weekly run only reports
+                drift; it never resets dev. To copy media as well, set
+                <code>R2_ACCESS_KEY_ID</code> and <code>R2_SECRET_ACCESS_KEY</code> (an R2 API
+                token's S3 credentials) as repo secrets; without them only the database is copied.
+              </span>
+            </label>
+            <label class="custom-check">
+              <input type="checkbox" data-sop="hosting.emdash-tokens" />
+              <span class="custom-check__box"
+                ><span class="custom-check__indicator custom-check__indicator--check"></span
+              ></span>
+              <span>
+                EmDash template: create an API token on each site (admin →
+                <strong>Settings → API Tokens</strong>) and store them as repo secrets
+                <code>EMDASH_TOKEN_DEV</code> and <code>EMDASH_TOKEN_PROD</code>. They let the sync
+                replay dev's schema and let <strong>Promote</strong> show a schema diff in the PR.
+                Also set the dev and production URLs in <code>sync-dev.yml</code> and
+                <code>promote.yml</code>. <em>Skipping this is safe</em>: promote then shows no
+                schema diff and a sync resets dev without replaying its own collections and fields.
               </span>
             </label>
             <label class="custom-check">

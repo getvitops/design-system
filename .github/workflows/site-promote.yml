@@ -9,6 +9,7 @@
 #   jobs:
 #     promote:
 #       uses: getvitops/design-system/.github/workflows/site-promote.yml@v1
+#       with: { rehearse: true }    # emdash template: see below
 #       secrets: inherit
 #
 # Branch protection on `main` means the merge only completes when its rules
@@ -21,21 +22,150 @@
 # reviews the PR waits for a human — which is usually what you want for a
 # prod promotion.
 #
-# Content and schema promotion are deliberately NOT here — for the emdash
-# template, content lives in production (edited there; dev is a refreshed copy,
-# see site-refresh-dev.yml) and the content model lives in the EmDash database,
-# not git. Apply schema changes to prod via the admin or the site's MCP server,
-# additive changes before the code deploy that uses them, removals after.
+# `rehearse: true` (the emdash template) first runs the release against a THROWAWAY copy of
+# production's database, so a core migration that breaks on real data fails here, not in the prod
+# deploy. It never touches the long-lived dev site — people work there — and it deletes only the
+# database it created (`<db>-rehearse-<run id>`, a name `vitops emdash db rehearsal drop` will
+# not match to anything else). That is the one deliberate exception to this toolchain's
+# "never deletes" rule, and it is limited to a resource this run made.
+#
+#   1. build dev's code (the same steps the deploy takes) and create `<db>-rehearse-<run id>`
+#   2. copy production's D1 into it (`vitops emdash db copy --target rehearse`)
+#   3. run `emdash migrate` against it — status, then apply with the fingerprint it prints
+#   4. diff dev's schema against production's (needs dev-url, prod-url and the two EmDash tokens),
+#      so the PR lists the collections/fields this release adds
+#   5. delete the database (kept on failure when `keep-on-failure: true`, to debug)
+#
+# What it does NOT do: deploy a Worker Preview and replay the schema there. That needs per-site
+# preview infrastructure (a `previews` block, a KV namespace, a site URL) the templates don't carry;
+# the schema diff is computed read-only and applied to production only behind the production
+# environment's approval (see site-deploy-emdash.yml's `schema-from-url`).
+#
+# Content and schema are not promoted by the PR itself: content lives in production (edited there;
+# dev is a copy, see site-sync-dev.yml) and the content model lives in the EmDash database, not git.
 name: Site promote
 
 on:
   workflow_call:
+    inputs:
+      rehearse:
+        description: Rehearse core migrations on a throwaway copy of production before opening the PR.
+        type: boolean
+        default: false
+      keep-on-failure:
+        description: Leave the rehearsal database in place when the rehearsal fails, to debug it.
+        type: boolean
+        default: false
+      working-directory:
+        type: string
+        default: '.'
+      dev-url:
+        description: Dev site URL, for the schema diff in the PR body.
+        type: string
+        default: ''
+      prod-url:
+        description: Production site URL, for the schema diff in the PR body.
+        type: string
+        default: ''
     secrets:
       PROMOTE_TOKEN:
         required: false
+      CLOUDFLARE_API_TOKEN:
+        required: false
+      CLOUDFLARE_ACCOUNT_ID:
+        required: false
+      EMDASH_TOKEN_DEV:
+        required: false
+      EMDASH_TOKEN_PROD:
+        required: false
 
 jobs:
+  rehearse:
+    if: inputs.rehearse
+    runs-on: ubuntu-latest
+    # Reads production and creates/deletes only its own throwaway database, so it needs no production
+    # approval. The `dev` environment holds the Cloudflare credentials.
+    environment: dev
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      RUN_ID: ${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: dev
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ${{ inputs.working-directory }}/.nvmrc
+          cache: pnpm
+          cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+
+      # The build writes .emdash/migrations.json and dist/server/wrangler.json, which `migrate` reads.
+      - name: Build dev's code
+        run: |
+          pnpm run pull-content
+          pnpm run prepare-local-db
+          pnpm run build
+
+      - name: Create the rehearsal database
+        run: |
+          id=$(pnpm exec vitops emdash db rehearsal create --id "$RUN_ID" | tail -n 1)
+          echo "REHEARSAL_CREATED=true" >> "$GITHUB_ENV"
+          echo "REHEARSE_D1_ID=$id" >> "$GITHUB_ENV"
+
+      - name: Copy production into it
+        run: pnpm exec vitops emdash db copy --target rehearse --id "$RUN_ID"
+
+      - name: Point a wrangler config at the copy
+        run: pnpm exec vitops emdash db rewrite-config --id "$RUN_ID" --out dist/server/wrangler.rehearse.json
+
+      - name: Rehearse core migrations
+        run: |
+          cfg=dist/server/wrangler.rehearse.json
+          pnpm exec emdash migrate --status --wrangler-config "$cfg" 2>&1 | tee "$RUNNER_TEMP/status.txt"
+          fp=$(grep -oE 'Target fingerprint: [0-9a-f]{64}' "$RUNNER_TEMP/status.txt" | awk '{print $3}' | head -n 1)
+          if [ -z "$fp" ]; then
+            echo "::error::Could not read the target fingerprint from 'emdash migrate --status'."
+            exit 1
+          fi
+          pnpm exec emdash migrate --wrangler-config "$cfg" --expected-target-fingerprint "$fp"
+          pnpm exec emdash migrate --check --wrangler-config "$cfg"
+
+      - name: Diff dev's schema against production's
+        run: |
+          mkdir -p "$RUNNER_TEMP/rehearsal"
+          if [ -n "$DEV_URL" ] && [ -n "$PROD_URL" ] && [ -n "$EMDASH_TOKEN_FROM" ] && [ -n "$EMDASH_TOKEN_TO" ]; then
+            pnpm exec vitops emdash schema diff --from "$DEV_URL" --to "$PROD_URL" --markdown > "$RUNNER_TEMP/rehearsal/schema.md"
+          else
+            echo '_Schema diff not computed: set the dev-url and prod-url inputs and the EMDASH_TOKEN_DEV and EMDASH_TOKEN_PROD secrets._' > "$RUNNER_TEMP/rehearsal/schema.md"
+          fi
+        env:
+          DEV_URL: ${{ inputs.dev-url }}
+          PROD_URL: ${{ inputs.prod-url }}
+          EMDASH_TOKEN_FROM: ${{ secrets.EMDASH_TOKEN_DEV }}
+          EMDASH_TOKEN_TO: ${{ secrets.EMDASH_TOKEN_PROD }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rehearsal-${{ github.run_id }}
+          path: ${{ runner.temp }}/rehearsal
+          retention-days: 7
+
+      # Always, so a failed rehearsal doesn't leave a copy of production's data lying around, unless
+      # asked to keep it. Only ever matches `<db>-rehearse-<this run id>`.
+      - name: Delete the rehearsal database
+        if: always() && env.REHEARSAL_CREATED == 'true' && !(failure() && inputs.keep-on-failure)
+        run: pnpm exec vitops emdash db rehearsal drop --id "$RUN_ID"
+
   promote:
+    needs: rehearse
+    # Runs when the rehearsal passed, or when it was not asked for. A failed rehearsal blocks the PR.
+    if: ${{ !cancelled() && (needs.rehearse.result == 'success' || needs.rehearse.result == 'skipped') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -44,20 +174,39 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        if: needs.rehearse.result == 'success'
+        with:
+          name: rehearsal-${{ github.run_id }}
+          path: rehearsal
+
       - name: Open promotion PR and enable auto-merge
         env:
           GH_TOKEN: ${{ secrets.PROMOTE_TOKEN || github.token }}
+          REHEARSED: ${{ needs.rehearse.result == 'success' }}
         run: |
           set -euo pipefail
+          {
+            echo 'Automated code promotion from `dev`. Merging deploys to production.'
+            echo
+            if [ "$REHEARSED" = "true" ]; then
+              echo "**Rehearsed:** core migrations were applied to a throwaway copy of production's database at \`$(git rev-parse --short origin/dev)\` and it was deleted afterwards."
+              echo
+              cat rehearsal/schema.md
+              echo
+              echo 'Schema additions listed above are applied to production only if the production deploy is configured with `schema-from-url`, and then only after the production approval.'
+            else
+              echo 'Remember: schema/content changes (if any) may live outside git — promote them separately if this release changes them.'
+            fi
+          } > "$RUNNER_TEMP/pr-body.md"
+
           if gh pr view dev --base main --json number >/dev/null 2>&1; then
-            echo "Promotion PR already open; ensuring auto-merge is enabled."
+            echo "Promotion PR already open; refreshing its body and ensuring auto-merge is enabled."
+            gh pr edit dev --body-file "$RUNNER_TEMP/pr-body.md"
           else
-            # printf, not a multi-line string: an unindented continuation line
-            # would end this YAML block and break the whole workflow file.
             gh pr create --base main --head dev \
               --title "Promote dev → main" \
-              --body "$(printf '%s\n\n%s' \
-                "Automated code promotion from \`dev\`. Merging deploys to production." \
-                "Remember: schema/content changes (if any) may live outside git — promote them separately if this release changes them.")"
+              --body-file "$RUNNER_TEMP/pr-body.md"
           fi
           gh pr merge dev --auto --merge

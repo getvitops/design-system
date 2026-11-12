@@ -90,6 +90,10 @@
       "types": "./dist/schema/index.d.mts",
       "import": "./dist/schema/index.mjs"
     },
+    "./emdash-schema": {
+      "types": "./dist/emdash-schema/index.d.mts",
+      "import": "./dist/emdash-schema/index.mjs"
+    },
     "./hosting": {
       "types": "./dist/hosting/index.d.mts",
       "import": "./dist/hosting/index.mjs"

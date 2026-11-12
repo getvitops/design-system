@@ -1,0 +1,265 @@
+# Reusable "sync dev from prod" for the `emdash` template — the non-destructive successor to
+# site-refresh-dev.yml.
+#
+# Dev is a long-lived STAGING site: people add collections and fields on it, and edit content, so a
+# blind copy of prod over it throws that work away. Production is the truth for CONTENT; dev is the
+# place SCHEMA changes are developed. This workflow resets dev to production and keeps what it must:
+#
+#   1. guard      refuse if dev content changed since the last sync (`--force` to discard it)
+#   2. snapshot   dump dev to an artifact first, so even a forced sync is recoverable (90 days)
+#   3. capture    save dev's schema (collections + fields) before the reset
+#   4. reset      copy prod's D1 (and media, if R2 keys exist) over dev — `vitops emdash db copy`
+#   5. deploy     redeploy dev, which applies EmDash core migrations to the copied database
+#   6. replay     re-add dev's own collections/fields (additions only) and stamp the sync marker
+#
+# `mode: report` does steps 1 and a schema diff only and changes nothing: a scheduled drift report.
+#
+# Consumers call this with a pinned major tag:
+#
+#   on: { workflow_dispatch: { inputs: { force: { type: boolean, default: false } } } }
+#   jobs:
+#     sync:
+#       uses: getvitops/design-system/.github/workflows/site-sync-dev.yml@v1
+#       with: { dev-url: https://dev.example.com, force: ${{ inputs.force }} }
+#       secrets: inherit
+#
+# Needs the toolchain's `@getvitops/cli` with `vitops emdash db|schema` (the release that introduced
+# this workflow). Schema replay needs an EmDash API token per environment (Settings → API Tokens):
+# EMDASH_TOKEN_DEV, and EMDASH_TOKEN_PROD for report mode. `skip-schema: true` resets without
+# replay and says so — dev's own schema additions are then lost.
+#
+# Runs in the `dev` GitHub Environment, never `production`: it only READS prod.
+name: Site sync dev
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        type: string
+        default: '.'
+      mode:
+        description: "'sync' (default) resets dev from prod; 'report' changes nothing."
+        type: string
+        default: sync
+      force:
+        description: Replace dev content that changed since the last sync. A snapshot is taken first.
+        type: boolean
+        default: false
+      skip-schema:
+        description: Reset without replaying dev's own schema additions (they are lost).
+        type: boolean
+        default: false
+      dev-url:
+        description: The dev site's URL. Needed for schema capture and replay.
+        type: string
+        default: ''
+      prod-url:
+        description: The production site's URL. Only used by `mode report`.
+        type: string
+        default: ''
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+      DEV_D1_ID:
+        required: true
+      R2_ACCESS_KEY_ID:
+        required: false
+      R2_SECRET_ACCESS_KEY:
+        required: false
+      EMDASH_TOKEN_DEV:
+        required: false
+      EMDASH_TOKEN_PROD:
+        required: false
+
+# A sync wipes and re-imports every table; two overlapping would interleave.
+concurrency:
+  group: sync-dev-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    if: inputs.mode == 'sync'
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      # `secrets` is not allowed in `if`, and a step's own `env` is not visible to its own `if`.
+      HAS_R2_KEYS: ${{ secrets.R2_ACCESS_KEY_ID != '' }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ${{ inputs.working-directory }}/.nvmrc
+          cache: pnpm
+          cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install rclone
+        if: env.HAS_R2_KEYS == 'true'
+        run: sudo apt-get update && sudo apt-get install -y rclone
+
+      # Fail BEFORE any write if schema replay can't happen, rather than after dev was already reset.
+      - name: Check inputs
+        if: ${{ !inputs.skip-schema }}
+        run: |
+          if [ -z "$DEV_URL" ] || [ -z "$EMDASH_TOKEN_DEV" ]; then
+            echo "::error::Schema replay needs the dev-url input and the EMDASH_TOKEN_DEV secret. Set both, or pass skip-schema: true to reset without replay (dev's own collections and fields are then lost)."
+            exit 1
+          fi
+        env:
+          DEV_URL: ${{ inputs.dev-url }}
+          EMDASH_TOKEN_DEV: ${{ secrets.EMDASH_TOKEN_DEV }}
+
+      - name: Guard — has dev content changed since the last sync?
+        run: pnpm exec vitops emdash db guard-dev ${{ inputs.force && '--force' || '' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Snapshot dev
+        run: pnpm exec vitops emdash db snapshot --target dev --out "$RUNNER_TEMP/dev-snapshot"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dev-snapshot-${{ github.run_id }}
+          path: ${{ runner.temp }}/dev-snapshot
+          retention-days: 90
+
+      - name: Capture dev schema
+        if: ${{ !inputs.skip-schema }}
+        run: pnpm exec vitops emdash schema export --url "$DEV_URL" --out "$RUNNER_TEMP/dev-schema.json"
+        env:
+          DEV_URL: ${{ inputs.dev-url }}
+          EMDASH_TOKEN: ${{ secrets.EMDASH_TOKEN_DEV }}
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !inputs.skip-schema }}
+        with:
+          name: dev-schema-${{ github.run_id }}
+          path: ${{ runner.temp }}/dev-schema.json
+          retention-days: 7
+
+      - name: Reset dev from prod
+        run: pnpm exec vitops emdash db copy --target dev
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEV_D1_ID: ${{ secrets.DEV_D1_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+  # The reset copied prod's database, so the dev worker is now running new code against a database
+  # that may be behind it. Redeploying applies EmDash core migrations; the schema REST API does not
+  # answer correctly until that is done.
+  deploy:
+    needs: reset
+    uses: ./.github/workflows/site-deploy-emdash.yml
+    with:
+      environment: dev
+      is-dev: true
+      health-check-url: ${{ inputs.dev-url }}
+      working-directory: ${{ inputs.working-directory }}
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DEV_D1_ID: ${{ secrets.DEV_D1_ID }}
+
+  replay:
+    needs: deploy
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ${{ inputs.working-directory }}/.nvmrc
+          cache: pnpm
+          cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v4
+        if: ${{ !inputs.skip-schema }}
+        with:
+          name: dev-schema-${{ github.run_id }}
+          path: ${{ runner.temp }}/schema
+
+      - name: Replay dev's schema additions
+        if: ${{ !inputs.skip-schema }}
+        run: |
+          pnpm exec vitops emdash schema apply \
+            --from "$RUNNER_TEMP/schema/dev-schema.json" --to "$DEV_URL" | tee "$RUNNER_TEMP/replay.txt"
+          {
+            echo '## Dev schema replay'
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/replay.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          DEV_URL: ${{ inputs.dev-url }}
+          EMDASH_TOKEN_TO: ${{ secrets.EMDASH_TOKEN_DEV }}
+
+      # Last, and only on success: the marker is what the NEXT sync's guard compares against.
+      - name: Mark dev as synced
+        run: pnpm exec vitops emdash db mark-synced
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  report:
+    if: inputs.mode == 'report'
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ${{ inputs.working-directory }}/.nvmrc
+          cache: pnpm
+          cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+
+      - name: Report drift (changes nothing)
+        run: |
+          {
+            echo '## Dev drift report'
+            echo
+            echo '### Dev content'
+            if pnpm exec vitops emdash db guard-dev > "$RUNNER_TEMP/guard.txt" 2>&1; then
+              echo 'Unchanged since the last sync.'
+            else
+              echo '```'
+              cat "$RUNNER_TEMP/guard.txt"
+              echo '```'
+            fi
+            echo
+            echo '### Dev schema vs production'
+            if [ -n "$DEV_URL" ] && [ -n "$PROD_URL" ] && [ -n "$EMDASH_TOKEN_FROM" ] && [ -n "$EMDASH_TOKEN_TO" ]; then
+              pnpm exec vitops emdash schema diff --from "$DEV_URL" --to "$PROD_URL" --markdown
+            else
+              echo 'Not computed: set the dev-url and prod-url inputs and the EMDASH_TOKEN_DEV and EMDASH_TOKEN_PROD secrets.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEV_URL: ${{ inputs.dev-url }}
+          PROD_URL: ${{ inputs.prod-url }}
+          EMDASH_TOKEN_FROM: ${{ secrets.EMDASH_TOKEN_DEV }}
+          EMDASH_TOKEN_TO: ${{ secrets.EMDASH_TOKEN_PROD }}

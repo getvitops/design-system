@@ -63,9 +63,12 @@ So this skill's only job is to kick off the `dev → main` promotion. It does
 
 Content (entries, media, menus, settings) is edited on the **production** site,
 using drafts, "Publish changes" and preview links as the staging step. The dev
-database is a disposable copy of prod: the **Refresh dev from prod** workflow
-(`refresh-dev.yml`) overwrites it, one direction only. Never try to carry dev
-content to prod — a refresh would erase it anyway.
+database starts as a copy of prod and is brought level by the **Sync dev from
+prod** workflow (`sync-dev.yml`), one direction only. A sync refuses when dev
+content was edited since the last one, snapshots dev first, and re-adds dev's own
+collections and fields afterwards. Never try to carry dev content to prod — a
+sync replaces it. **Promote** rehearses the release on a throwaway copy of prod,
+never on dev, so it does not disturb work on the dev site.
 
 ## Schema changes
 

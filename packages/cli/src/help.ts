@@ -547,6 +547,27 @@ export const EMDASH_HELP = `vitops emdash — build-time steps for an EmDash sit
   vitops emdash form-template --from <seed.json> [--name contact] [--site site.json] [--dry]
                                      Copy a vitops_form block into site.templates (the privacy
                                      policy's "what we collect" and a check-prerender input)
+  vitops emdash schema diff --from <url|file> --to <url> [--json|--markdown] [--check]
+                                     What would be replayed from one instance's collections and
+                                     fields onto another's (additions only; differences and
+                                     target-only items are reported, never changed). --check exits 1
+                                     on drift. Tokens: EMDASH_TOKEN_FROM / EMDASH_TOKEN_TO
+  vitops emdash schema apply --from <url|file> --to <url> [--dry]
+                                     Apply those additions to --to. Stops at the first failure
+  vitops emdash schema export --url <site> --out <file>
+                                     Save a site's schema (EMDASH_TOKEN) to compare after a reset
+  vitops emdash db copy --target dev|rehearse [--id <run>] [--dry]
+                                     Copy production's D1 into the dev database (wiped first) or a
+                                     rehearsal database. Refuses a target that is production
+  vitops emdash db snapshot --out <dir> [--target dev|prod]
+                                     Dump a database to four SQL files
+  vitops emdash db guard-dev [--force]
+                                     Exit 1 if dev content changed since the last sync
+  vitops emdash db mark-synced       Record that dev now equals production
+  vitops emdash db rehearsal create|drop --id <run>
+                                     Create or delete the throwaway rehearsal database
+  vitops emdash db rewrite-config --id <run> --out <file> [--in dist/server/wrangler.json]
+                                     Point a wrangler config's DB binding at a rehearsal database
 
 Run \`vitops --help\` for the full option list for each subcommand.
 `;

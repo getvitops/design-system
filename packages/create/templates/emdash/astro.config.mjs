@@ -65,7 +65,7 @@ export default defineConfig({
       // Magic link is how an editor gets into a site whose database was copied
       // from another origin: a passkey only works at the origin it was
       // registered on, so a dev database refreshed from prod
-      // (scripts/refresh-dev.mjs) would otherwise lock everyone out of dev. The
+      // (the sync-dev workflow) would otherwise lock everyone out of dev. The
       // cloned users already exist, so the same email signs in on both origins.
       // `from` must be on a domain onboarded with Cloudflare Email Sending —
       // `npx vitops email setup send.<your-domain>` — and is usually the

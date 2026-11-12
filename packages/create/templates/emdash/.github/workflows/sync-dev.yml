@@ -1,0 +1,45 @@
+# Sync the dev site from PRODUCTION, without throwing away work done on dev.
+#
+# Dev is a long-lived staging site: collections and fields are developed there and content is
+# edited there. Production owns content. A sync therefore (1) refuses if dev content changed since
+# the last sync, (2) snapshots dev first, (3) copies prod's database and media over dev, (4) redeploys
+# dev so core migrations run, then (5) replays dev's own collections and fields (additions only).
+#
+#   - Run it by hand to sync. `force: true` discards dev content edits; the first run needs it,
+#     because a dev site with no sync marker can't be told apart from work in progress.
+#   - The weekly run only REPORTS drift (dev content edited since the last sync, dev schema vs
+#     production) into the job summary. It never resets dev: a scheduled reset is exactly what
+#     could wipe someone's staging work.
+#
+# Runs through the vitops toolchain's reusable workflow — see
+# https://github.com/getvitops/design-system/blob/main/.github/workflows/site-sync-dev.yml
+#
+# Required: the same CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / DEV_D1_ID secrets Deploy dev uses.
+# For schema replay and the drift report: an EmDash API token per site (Settings → API Tokens),
+# stored as EMDASH_TOKEN_DEV and EMDASH_TOKEN_PROD, and the two URLs below.
+# Optional, for copying media: R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY (an R2 API token).
+name: Sync dev from prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Replace dev content edited since the last sync (a snapshot is taken first).
+        type: boolean
+        default: false
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  sync:
+    uses: getvitops/design-system/.github/workflows/site-sync-dev.yml@v1
+    with:
+      mode: ${{ github.event_name == 'schedule' && 'report' || 'sync' }}
+      force: ${{ inputs.force == true }}
+      # Set these to your dev and production URLs.
+      dev-url: ''
+      prod-url: ''
+      # Until dev-url and EMDASH_TOKEN_DEV are set, a sync resets dev WITHOUT replaying its own
+      # collections and fields, so those are lost. Remove this line once they are set.
+      skip-schema: true
+    secrets: inherit

@@ -1,25 +1,20 @@
-# Reusable "refresh dev from prod" for the `emdash` template. Content lives in
-# production (editors work there, with drafts and preview links as the staging
-# step); the dev worker's D1 database and media bucket are a disposable copy
-# used to rehearse code and schema changes against real data. See AGENTS.md's
-# CI/CD section for why content flows prod → dev and never back.
+# DEPRECATED alias for site-sync-dev.yml, kept for one major so `@v1` callers keep working.
 #
-# Consumers call this with a pinned major tag, manually and/or on a schedule:
+# This used to drop and re-import every dev table, on a schedule if the caller asked, which threw away
+# any collection, field or content a person had added to the dev site. It now runs the guarded sync:
+# it refuses when dev content changed since the last sync, snapshots dev first, and the first run
+# needs `force: true` because a dev site with no sync marker can't be told apart from work in
+# progress. It does NOT replay dev's schema here (no URL or token is passed to an old caller); move
+# to site-sync-dev.yml to get that.
 #
-#   on: { workflow_dispatch: {}, schedule: [{ cron: '0 6 * * 1' }] }
 #   jobs:
-#     refresh:
-#       uses: getvitops/design-system/.github/workflows/site-refresh-dev.yml@v1
+#     sync:
+#       uses: getvitops/design-system/.github/workflows/site-sync-dev.yml@v1
+#       with: { dev-url: https://dev.example.com }
 #       secrets: inherit
 #
-# It runs `scripts/refresh-dev.mjs` (documented there), which refuses to touch
-# a database whose id is production's. Media is copied only when the optional
-# R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY secrets exist.
-#
-# Runs in the `dev` GitHub Environment, never `production`: it needs no
-# production approval because it only READS prod, and a refresh that waited on
-# an admin would never be run.
-name: Site refresh dev
+# It also needs an `@getvitops/cli` that has `vitops emdash db` (the release that added this).
+name: Site refresh dev (deprecated)
 
 on:
   workflow_call:
@@ -27,6 +22,9 @@ on:
       working-directory:
         type: string
         default: '.'
+      force:
+        type: boolean
+        default: false
     secrets:
       CLOUDFLARE_API_TOKEN:
         required: true
@@ -39,42 +37,16 @@ on:
       R2_SECRET_ACCESS_KEY:
         required: false
 
-# A refresh drops and re-imports every table; two overlapping would interleave.
-concurrency:
-  group: refresh-dev-${{ github.repository }}
-  cancel-in-progress: false
-
 jobs:
-  refresh:
-    runs-on: ubuntu-latest
-    environment: dev
-    env:
-      # A step's own `env` is not visible to its own `if`, and `secrets` is not
-      # allowed in `if` at all; routing it through job env is the way to branch on it.
-      HAS_R2_KEYS: ${{ secrets.R2_ACCESS_KEY_ID != '' }}
-    defaults:
-      run:
-        working-directory: ${{ inputs.working-directory }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: ${{ inputs.working-directory }}/.nvmrc
-          cache: pnpm
-          cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-
-      # rclone is only for the optional media copy.
-      - name: Install rclone
-        if: env.HAS_R2_KEYS == 'true'
-        run: sudo apt-get update && sudo apt-get install -y rclone
-
-      - name: Refresh dev from prod
-        run: node scripts/refresh-dev.mjs
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DEV_D1_ID: ${{ secrets.DEV_D1_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  sync:
+    uses: ./.github/workflows/site-sync-dev.yml
+    with:
+      working-directory: ${{ inputs.working-directory }}
+      force: ${{ inputs.force }}
+      skip-schema: true
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DEV_D1_ID: ${{ secrets.DEV_D1_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

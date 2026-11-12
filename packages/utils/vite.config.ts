@@ -37,6 +37,7 @@ export default defineConfig({
       'src/reviews/index.ts',
       'src/reviews/select.ts',
       'src/ads/index.ts',
+      'src/emdash-schema/index.ts',
       'src/turnstile/index.ts',
       'src/media/index.ts',
       'src/audit/index.ts',

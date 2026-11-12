@@ -79,12 +79,29 @@ on:
       run-lint-design:
         type: boolean
         default: true
+      schema-from-url:
+        description: >-
+          Production only. A site (normally dev) whose collections and fields are replayed onto
+          production, additions only, between the migrations and the deploy, so the code that uses
+          them lands after the schema it needs. Empty (the default) skips it. Because this job runs
+          in the `production` environment it waits for the same approval as the deploy; removals and
+          changed definitions are reported, never applied. Needs `schema-to-url` and both tokens.
+        type: string
+        default: ''
+      schema-to-url:
+        description: Production's URL, for `schema-from-url`.
+        type: string
+        default: ''
     secrets:
       CLOUDFLARE_API_TOKEN:
         required: true
       CLOUDFLARE_ACCOUNT_ID:
         required: true
       DEV_D1_ID:
+        required: false
+      EMDASH_TOKEN_FROM:
+        required: false
+      EMDASH_TOKEN_TO:
         required: false
 
 # One migration job at a time per environment, per EmDash's own guidance
@@ -203,6 +220,16 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           EMDASH_TARGET_FINGERPRINT: ${{ vars.EMDASH_TARGET_FINGERPRINT }}
+
+      # Additive schema changes go BEFORE the code that uses them (EmDash's own ordering guidance).
+      - name: Apply schema additions (prod)
+        if: ${{ !inputs.is-dev && inputs.schema-from-url != '' }}
+        run: pnpm exec vitops emdash schema apply --from "$SCHEMA_FROM" --to "$SCHEMA_TO"
+        env:
+          SCHEMA_FROM: ${{ inputs.schema-from-url }}
+          SCHEMA_TO: ${{ inputs.schema-to-url }}
+          EMDASH_TOKEN_FROM: ${{ secrets.EMDASH_TOKEN_FROM }}
+          EMDASH_TOKEN_TO: ${{ secrets.EMDASH_TOKEN_TO }}
 
       - name: Deploy (prod)
         if: ${{ !inputs.is-dev }}

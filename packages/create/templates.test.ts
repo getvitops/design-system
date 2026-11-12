@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { validateConfig } from '@getvitops/generator';
@@ -317,49 +317,43 @@ it('emdash template wires the email plugin to a matching send_email binding', ()
 });
 
 /**
- * `scripts/refresh-dev.mjs` DROPS every table in its target, so the checks between it and production are
- * asserted rather than trusted. Its pure halves are imported (the file only runs `main` when invoked directly).
+ * The environment split (AGENTS.md, CI/CD): promotion rehearses on a THROWAWAY copy of production and never
+ * touches the long-lived dev site, and a scheduled run must never reset dev. The copy's own safety checks are
+ * asserted in `@getvitops/utils` (`hosting/d1-copy.test.ts`); here the wiring that would quietly undo them.
  */
-describe('emdash scripts/refresh-dev.mjs', async () => {
-  const { assertSafeTarget, dropStatements, parseBindingNames } = await import(
-    join(TEMPLATES, 'emdash', 'scripts', 'refresh-dev.mjs')
-  );
-  const ok = { devName: 'site-dev', devId: 'dev-id', devReportedId: 'dev-id', prodId: 'prod-id' };
+describe('emdash environment workflows', () => {
+  const wf = (name: string) =>
+    readFileSync(join(TEMPLATES, 'emdash', '.github', 'workflows', name), 'utf8');
 
-  it('refuses a target that is production, unset, misnamed or mismatched', () => {
-    expect(() => assertSafeTarget(ok)).not.toThrow();
-    expect(() => assertSafeTarget({ ...ok, devId: 'prod-id', devReportedId: 'prod-id' })).toThrow(
-      /production/,
+  it('promote rehearses by default, and only through the reusable workflow', () => {
+    const promote = wf('promote.yml');
+    expect(promote).toMatch(
+      /rehearse:\s*\n\s*description:[^\n]*\n\s*type: boolean\n\s*default: true/,
     );
-    expect(() => assertSafeTarget({ ...ok, devId: undefined })).toThrow(/not set/);
-    expect(() => assertSafeTarget({ ...ok, devName: 'site' })).toThrow(/-dev/);
-    expect(() => assertSafeTarget({ ...ok, devReportedId: 'other' })).toThrow(/stale/);
+    expect(promote).toContain('rehearse: ${{ inputs.rehearse }}');
   });
 
-  it('reads names from wrangler.jsonc and ignores commented-out examples', () => {
-    const src = readFileSync(join(TEMPLATES, 'emdash', 'wrangler.jsonc'), 'utf8');
-    expect(parseBindingNames(src)).toEqual({
-      database: 'my-emdash-site',
-      bucket: 'my-emdash-site-media',
-    });
-    expect(parseBindingNames('// "database_name": "nope"\n"database_name": "yes"').database).toBe(
-      'yes',
+  it('a scheduled sync only reports; it never resets dev', () => {
+    const sync = wf('sync-dev.yml');
+    expect(sync).toContain("mode: ${{ github.event_name == 'schedule' && 'report' || 'sync' }}");
+    // The old name must not linger in new scaffolds: it was a blind scheduled reset.
+    expect(existsSync(join(TEMPLATES, 'emdash', '.github', 'workflows', 'refresh-dev.yml'))).toBe(
+      false,
+    );
+    expect(existsSync(join(TEMPLATES, 'emdash', 'scripts', 'refresh-dev.mjs'))).toBe(false);
+  });
+
+  it('schema replay onto production is off until variables are set, and only on a push', () => {
+    const prod = wf('deploy-prod.yml');
+    expect(prod).toContain(
+      "schema-from-url: ${{ github.event_name == 'push' && vars.SCHEMA_FROM_URL || '' }}",
     );
   });
 
-  it("drops views, virtual tables and tables, but not a virtual table's shadow tables", () => {
-    const sql = dropStatements([
-      { name: 'posts', type: 'table', sql: 'CREATE TABLE posts (id)' },
-      { name: 'recent', type: 'view', sql: 'CREATE VIEW recent AS SELECT 1' },
-      { name: 'search', type: 'table', sql: 'CREATE VIRTUAL TABLE search USING fts5(a)' },
-      { name: 'search_data', type: 'table', sql: 'CREATE TABLE search_data (id)' },
-    ]);
-    expect(sql).toEqual([
-      'PRAGMA defer_foreign_keys = true;',
-      'DROP VIEW IF EXISTS "recent";',
-      'DROP TABLE IF EXISTS "search";',
-      'DROP TABLE IF EXISTS "posts";',
-    ]);
+  it('the static template, which has no database, carries none of it', () => {
+    for (const name of ['sync-dev.yml', 'refresh-dev.yml']) {
+      expect(existsSync(join(TEMPLATES, 'static', '.github', 'workflows', name))).toBe(false);
+    }
   });
 });
 
