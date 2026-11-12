@@ -19,3 +19,7 @@ export type {
 } from './localBusiness.ts';
 export { organizationGraph } from './organization.ts';
 export type { OrganizationGraphOptions } from './organization.ts';
+export { GBP_CATEGORY_TYPES, localBusinessTypeForCategory } from './gbp-categories.ts';
+export type { LocalBusinessSubtype } from './gbp-categories.ts';
+export { serviceGraph } from './service.ts';
+export type { ServiceGraphOptions, ServiceOffer } from './service.ts';

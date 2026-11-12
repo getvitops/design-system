@@ -50,24 +50,20 @@ export default defineConfig({
       reporter: ['text', 'html', 'lcov'],
     },
 
-    // `container.test.ts` needs Astro's own Vite plugin (`getViteConfig`, in its
-    // sibling `vitest.container.config.ts`) to parse `.astro` syntax at all — this
-    // root config has no reason to carry that for ~1660 other, plain-TS tests, so
-    // picking the file up here means it hits `vite:import-analysis` on raw Astro
-    // template syntax and fails to even load. Excluded rather than fixed here: its
-    // own config currently throws inside Astro's `getViteConfig` internals (still true on 7.4.4,
-    // the version the catalog pins) (`resolveConfig`/`createVite`, unrelated to anything in this package) before
-    // a single test runs — an upstream/experimental-API problem
-    // (`experimental_AstroContainer`), not a regression in this toolchain. Re-run
-    // via `cd packages/astro && npx vitest --config vitest.container.config.ts run`
-    // once that's sorted, and fold this exclusion's revert into that fix.
+    // The `*container*` tests need Astro's own Vite plugin (`getViteConfig`, in each package's sibling
+    // `vitest.container.config.ts`) to parse `.astro` syntax at all — this root config has no reason to
+    // carry that for ~2,500 other, plain-TS tests, so picking one up here means it hits
+    // `vite:import-analysis` on raw Astro template syntax and fails to even load. They are excluded
+    // from THIS run, not skipped: each package runs its own (`test:container` in `@getvitops/astro`,
+    // `test:render` in `@getvitops/emdash`), and CI's "Container render tests" step does both. (An
+    // earlier note here said `container.test.ts` threw inside `getViteConfig`; it runs and passes on the
+    // Astro this repo pins, so nothing is waiting on an upstream fix.)
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
       // Agent worktrees are whole checkouts with no install of their own; their tests can't resolve.
       '.claude/worktrees/**',
       'packages/astro/src/components/container.test.ts',
-      // Same reason, and unlike the astro one it works: `cd packages/emdash && pnpm run test:render`.
       'packages/emdash/src/astro/blocks/*.container.test.ts',
     ],
   },

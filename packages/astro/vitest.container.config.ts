@@ -22,6 +22,7 @@ export default getViteConfig({
       'src/components/container.test.ts',
       'src/components/head.container-test.ts',
       'src/components/sitenav.container-test.ts',
+      'src/components/pages.container-test.ts',
     ],
     environment: 'node',
   },

@@ -123,7 +123,8 @@ Components ship as **source** `.astro` (compiled in the consumer's build):
 
 | Group           | Components                                                                                                                                       |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Head / SEO      | `Head`, `Seo`, + 24 JSON-LD emitters under `schemas/`                                                                                            |
+| Head / SEO      | `Head`, `Seo`, + 25 JSON-LD emitters under `schemas/` (incl. `Service`)                                                                          |
+| Location pages  | `LocationPage`, `ServicePage` (+ `schemas/graph-adapters.ts`): an `organization.locations` / `services` entry as a page with its JSON-LD         |
 | Consent-gated   | `Analytics`, `Ads`, `Tracking`, `CookieConsent`, `GatedTags`                                                                                     |
 | Markup wrappers | `Subgrid`, `Cards`, `Tree`/`TreeNode`, `NavShell`/`NavShellToggle`, `Popover`, `Details`, `Drawer`, `Icon`, `NodeRenderer`, `WebComponentLoader` |
 

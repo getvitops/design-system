@@ -624,6 +624,12 @@ export const TIERS: Record<string, TierEntry> = {
     emdash: ['vitops_reviews'],
     use: "`<ReviewCard review={…} />` — one card, from `vitops reviews`' `.vitops/reviews.json` cache. Put several inside `<Carousel>` slides or `<Marquee>` items; there is no group component and no `wc-review`. In EmDash, `vitops_reviews` is that whole row: it reads the cache as a build-time import (`virtual:getvitops/reviews`, served by `vitops()`; empty when the file is absent), picks reviews with `selectReviews()`, and lays them out as a grid, carousel or marquee. A new review appears after `vitops reviews` is re-run, committed and the site rebuilt.",
   },
+  'location-pages': {
+    // No stylesheet: semantic HTML in the framework's existing vocabulary (`rhythm`, `table`, `cluster`).
+    css: c([]),
+    astro: [...a('LocationPage', 'css'), ...a('ServicePage', 'css')],
+    use: "`<LocationPage location={…} defaultLocale>` and `<ServicePage service={…} defaultLocale providerName>`: one `organization.locations` / `organization.services` entry as a page (name, address, hours table, photos, offers) plus its `LocalBusiness` / `Service` JSON-LD, with a slot for your own copy. Nothing scaffolds the route: write `src/pages/locations/[slug].astro` with `getStaticPaths()` over the record and `resolveSlug()` from `@getvitops/astro/schemas/graph-adapters.ts` (the idiom is in LocationPage's docblock). The key of the record, not the `slug`, is the entry's identity.",
+  },
   tabs: {
     css: c(
       ['tabs', 'tabs__list', 'tabs__tab', 'tabs__panel', 'tabs--vertical'],

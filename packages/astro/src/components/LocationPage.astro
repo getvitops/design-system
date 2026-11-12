@@ -1,0 +1,221 @@
+---
+/**
+ * LocationPage — one `organization.locations` entry as a page: its name, address, opening hours,
+ * photos and the `LocalBusiness` JSON-LD for it, with a slot for the page copy you write around them.
+ *
+ * Tier 3, thin on purpose: plain semantic HTML and no runtime JS, orthogonal to `<Seo />` the way the
+ * other schema components are (folding a schema concern into a do-everything component is how the
+ * deleted site-model layer reached 276 lines). Props are explicit: the page looks the entry up and
+ * passes it in, so nothing here reads consumer state.
+ *
+ * Routing is yours; nothing scaffolds it, because a `getStaticPaths()` over an empty record is dead
+ * weight on every site that has no locations. The idiom, for an Astro or EmDash site alike (a concrete
+ * `locations/[slug].astro` wins over EmDash's catch-all):
+ *
+ *   ---
+ *   // src/pages/locations/[slug].astro
+ *   import site from '../../../site.json';
+ *   import Layout from '../../layouts/Layout.astro';
+ *   import LocationPage from '@getvitops/astro/components/LocationPage.astro';
+ *   import { resolveSlug } from '@getvitops/astro/schemas/graph-adapters.ts';
+ *
+ *   export function getStaticPaths() {
+ *     const { defaultLocale } = site.site;
+ *     return Object.entries(site.organization?.locations ?? {}).map(([key, location]) => ({
+ *       params: { slug: resolveSlug(key, location.slug, defaultLocale, defaultLocale) },
+ *       props: { location },
+ *     }));
+ *   }
+ *   const { location } = Astro.props;
+ *   ---
+ *   <Layout title={location.name}>
+ *     <LocationPage location={location} defaultLocale={site.site.defaultLocale}>
+ *       <p>Your own copy about this branch.</p>
+ *     </LocationPage>
+ *   </Layout>
+ *
+ * One path per location, not per locale: real multi-locale routing is Astro i18n's job.
+ *
+ * `photos` entries that are plain strings render as decorative (`alt=""`); give a photo meaningful
+ * `{ src, alt }` in the config and it is described. Override the whole gallery with the `photos` slot
+ * (`<Carousel>`, `<Gallery>`); the JSON-LD still lists them.
+ */
+import LocalBusiness from '../schemas/LocalBusiness.astro';
+import { t } from '@getvitops/utils';
+import { locationToLocalBusiness, type LocationSource } from '../schemas/graph-adapters.ts';
+import { hoursRows, specialRows } from './location.ts';
+
+export interface Labels {
+  hours: string;
+  days: string;
+  openingTimes: string;
+  special: string;
+  dates: string;
+  closed: string;
+  photos: string;
+  phone: string;
+  email: string;
+}
+
+export interface Props {
+  location: LocationSource;
+  locale?: string;
+  defaultLocale: string;
+  /** This page's canonical URL → JSON-LD `url`. Defaults to the current URL. */
+  url?: string;
+  /** Heading level for the location's name (its sections use the next one down). Default 1. */
+  level?: 1 | 2 | 3 | 4 | 5;
+  /** Emit the `LocalBusiness` JSON-LD. Default true. */
+  schema?: boolean;
+  /** Visible words, for a site that isn't English. */
+  labels?: Partial<Labels>;
+}
+
+const DEFAULT_LABELS: Labels = {
+  hours: 'Opening hours',
+  days: 'Days',
+  openingTimes: 'Hours',
+  special: 'Holiday and special hours',
+  dates: 'Dates',
+  closed: 'Closed',
+  photos: 'Photos',
+  phone: 'Phone',
+  email: 'Email',
+};
+
+const {
+  location,
+  locale,
+  defaultLocale,
+  url = Astro.url.href,
+  level = 1,
+  schema = true,
+  labels: labelOverrides,
+} = Astro.props;
+const labels = { ...DEFAULT_LABELS, ...labelOverrides };
+const active = locale ?? defaultLocale;
+const name = t(location.name, active, defaultLocale);
+const description = t(location.description, active, defaultLocale);
+const Heading = `h${level}` as 'h1';
+const Sub = `h${Math.min(level + 1, 6)}` as 'h2';
+const hours = hoursRows(location.hours ?? [], active);
+const special = specialRows(location.hoursSpecial ?? [], active, labels.closed);
+const address = location.address;
+const cityLine = [address?.addressLocality, address?.addressRegion, address?.postalCode]
+  .filter(Boolean)
+  .join(' ');
+const hasContact = Boolean(address || location.phone || location.email);
+const telHref = location.phone ? `tel:${location.phone.replace(/[^+\d]/g, '')}` : undefined;
+const photos = (location.photos ?? []).map((p) =>
+  typeof p === 'string' ? { src: p, alt: '' } : { src: p.src, alt: p.alt ?? '' },
+);
+const graph = locationToLocalBusiness(location, {
+  locale,
+  defaultLocale,
+  url,
+  origin: Astro.url.origin,
+});
+---
+
+<article class="rhythm location">
+  <slot name="heading">
+    <Heading>{name}</Heading>
+  </slot>
+  {description && <p>{description}</p>}
+
+  {hasContact && (
+    <address class="location__address">
+      {address?.streetAddress && (
+        <span>
+          {address.streetAddress}
+          <br />
+        </span>
+      )}
+      {cityLine && (
+        <span>
+          {cityLine}
+          <br />
+        </span>
+      )}
+      {address?.addressCountry && (
+        <span>
+          {address.addressCountry}
+          <br />
+        </span>
+      )}
+      {location.phone && (
+        <span>
+          {labels.phone}: <a href={telHref}>{location.phone}</a>
+          <br />
+        </span>
+      )}
+      {location.email && (
+        <span>
+          {labels.email}: <a href={`mailto:${location.email}`}>{location.email}</a>
+        </span>
+      )}
+    </address>
+  )}
+
+  {hours.length > 0 && (
+    <section class="location__hours">
+      <Sub>{labels.hours}</Sub>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">{labels.days}</th>
+            <th scope="col">{labels.openingTimes}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {hours.map((row) => (
+            <tr>
+              <th scope="row">{row.days}</th>
+              <td>{row.hours}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  )}
+
+  {special.length > 0 && (
+    <section class="location__special">
+      <Sub>{labels.special}</Sub>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">{labels.dates}</th>
+            <th scope="col">{labels.openingTimes}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {special.map((row) => (
+            <tr>
+              <th scope="row">{row.dates}</th>
+              <td>{row.hours}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  )}
+
+  <slot name="photos">
+    {photos.length > 0 && (
+      <section class="location__photos" aria-label={labels.photos}>
+        <ul class="cluster" role="list">
+          {photos.map((photo) => (
+            <li>
+              <img src={photo.src} alt={photo.alt} loading="lazy" />
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+  </slot>
+
+  <slot />
+</article>
+
+{schema && <LocalBusiness {...graph} />}

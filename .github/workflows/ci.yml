@@ -55,6 +55,12 @@ jobs:
       - name: Test
         run: vp test run
 
+      # The tests that render `.astro` components through Astro's container API need Astro's own Vite
+      # plugin, so `vp test run` excludes them and each package runs its own config. Until this step
+      # nothing ran them: they could break and every check here would stay green.
+      - name: Container render tests
+        run: pnpm --filter @getvitops/astro run test:container && pnpm --filter @getvitops/emdash run test:render
+
       # Does a consumer's install actually resolve every subpath, and does
       # the JavaScript actually load? A break in the `exports` map (a
       # typo'd path, a missing dist file, a broken cross-package import) is

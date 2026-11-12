@@ -56,6 +56,9 @@
     "src/components/Combobox.astro",
     "src/components/Format.astro",
     "src/components/Range.astro",
+    "src/components/LocationPage.astro",
+    "src/components/ServicePage.astro",
+    "src/components/location.ts",
     "src/components/Tree.astro",
     "src/components/TreeNode.astro",
     "src/components/tree.ts",
@@ -114,6 +117,9 @@
     "./components/Combobox.astro": "./src/components/Combobox.astro",
     "./components/Format.astro": "./src/components/Format.astro",
     "./components/Range.astro": "./src/components/Range.astro",
+    "./components/LocationPage.astro": "./src/components/LocationPage.astro",
+    "./components/ServicePage.astro": "./src/components/ServicePage.astro",
+    "./components/location.ts": "./src/components/location.ts",
     "./components/Tree.astro": "./src/components/Tree.astro",
     "./components/tree.ts": "./src/components/tree.ts",
     "./components/ReviewCard.astro": "./src/components/ReviewCard.astro",
@@ -123,6 +129,9 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "scripts": {
+    "test:container": "vitest --config vitest.container.config.ts run"
   },
   "dependencies": {
     "@getvitops/config": "workspace:*",
