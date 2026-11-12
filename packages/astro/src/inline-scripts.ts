@@ -26,6 +26,23 @@ export const THEME_SCRIPT =
   `document.documentElement.style.colorScheme=s+' only'}}catch(e){}`;
 
 /**
+ * Applies the remembered high-contrast choice before first paint, so a visitor who turned it on
+ * does not see the standard palette flash first. Absent means "follow the OS", which the stylesheet
+ * already does, so nothing is written for it.
+ *
+ * **Separate from `THEME_SCRIPT`, and opt-in** (`<Head contrast />`, `inline: { contrast: true }`
+ * in `csp.ts`): editing `THEME_SCRIPT` would change its hash and silently break the dark-mode
+ * bootstrap on every site that already pins it in a Content-Security-Policy. A site that does not
+ * opt in loses only this pre-paint restore, never anything it had.
+ *
+ * The key MUST match `CONTRAST_STORAGE_KEY` in @getvitops/core's `contrast-toggle.ts`;
+ * `head.test.ts` asserts they stay in step.
+ */
+export const CONTRAST_SCRIPT =
+  `try{var c=localStorage.getItem('vitops-contrast');` +
+  `if(c==='more'||c==='standard')document.documentElement.dataset.contrast=c}catch(e){}`;
+
+/**
  * The consent gate's build-time signal: "something on this page may need
  * permission, and the real gate hasn't loaded yet."
  *

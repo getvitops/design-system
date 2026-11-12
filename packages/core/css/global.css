@@ -103,3 +103,34 @@ body {
     outline-offset: 2px !important;
   }
 }
+
+/* The high-contrast layer's non-token half. The generator re-points the colour tokens under
+   `prefers-contrast: more`, `[data-contrast="more"]` and the `.contrast-toggle` checkbox (see
+   `contrast-more.ts`); these are the parts a token cannot carry. A heavier outline that is always an
+   outline (the default ring is a box-shadow, which a bright background can swallow), and no
+   `backdrop-filter`: a blurred translucent surface is the opposite of a firm one, and the token
+   layer already makes `--surface-glass` opaque.
+
+   `data-contrast="standard"` opts out of the media query, same as for the tokens. `!important` for
+   the same reason as the forced-colors rule above: it has to outrank a `vitops.components` rule that
+   set `outline: none` or a blur, whatever layer that rule is in. */
+@media (prefers-contrast: more) {
+  :root:not([data-contrast='standard']) :focus-visible {
+    outline: 3px solid var(--color-border-focus) !important;
+    outline-offset: 2px !important;
+  }
+  :root:not([data-contrast='standard']) :is(.glass, [class*='glass']) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+:root[data-contrast='more'] :focus-visible,
+:root:has(:where(.contrast-toggle input:checked)) :focus-visible {
+  outline: 3px solid var(--color-border-focus) !important;
+  outline-offset: 2px !important;
+}
+:root[data-contrast='more'] :is(.glass, [class*='glass']),
+:root:has(:where(.contrast-toggle input:checked)) :is(.glass, [class*='glass']) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

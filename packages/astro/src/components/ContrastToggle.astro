@@ -1,0 +1,36 @@
+---
+/**
+ * The high-contrast switch (WCAG technique G174): a visible control that moves the page to a
+ * conforming high-contrast version. Place it where it is reachable on every page — the masthead or
+ * footer — and set `site.accessibility.contrastToggle: true` so the build knows the alternative is
+ * offered.
+ *
+ * Tier 3: an authoring convenience over tier 1 markup that needs no runtime JS. The label wraps a
+ * plain checkbox, and the generated colour layer answers
+ * `:root:has(.contrast-toggle input:checked)`, so ticking it works with scripts off.
+ *
+ * **This component emits its own `<wc-contrast-toggle>`** — do NOT wrap it in one. The element only
+ * adds starting checked under `prefers-contrast: more` and remembering the choice. Set
+ * `enhance={false}` for the bare label where `elements.js` does not load.
+ *
+ * Needs the `vitops()` integration's stylesheet and, for the pre-paint restore, `<Head />`.
+ */
+import type { HTMLAttributes } from 'astro/types';
+
+export interface Props extends Omit<HTMLAttributes<'label'>, 'slot'> {
+  /** Visible label. Default `High contrast`. */
+  label?: string;
+  /** Emit the `<wc-contrast-toggle>` wrapper (default `true`). */
+  enhance?: boolean;
+}
+
+const { label = 'High contrast', enhance = true, class: className, ...rest } = Astro.props;
+const Shell = enhance ? 'wc-contrast-toggle' : 'span';
+---
+
+<Shell>
+  <label class:list={['contrast-toggle', className]} {...rest}>
+    <input type="checkbox" />
+    <span>{label}</span>
+  </label>
+</Shell>

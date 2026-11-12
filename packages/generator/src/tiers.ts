@@ -385,6 +385,18 @@ export const TIERS: Record<string, TierEntry> = {
     bricks: 'vitops-color-scheme-toggle',
     use: '`<wc-color-scheme-toggle></wc-color-scheme-toggle>`. Renamed from `<color-scheme-toggle>` in 4.0. Shadow DOM, so it is absent rather than broken without JS.',
   },
+  'contrast-toggle': {
+    emdashExempt:
+      'site chrome (masthead/footer), not page content: it must be on every page to count as a WCAG G174 alternative, which a per-page editor block cannot guarantee',
+    css: c(['contrast-toggle'], 'patterns/contrast-toggle.css'),
+    wc: {
+      tag: 'wc-contrast-toggle',
+      registered: true,
+      adds: 'starts checked under `prefers-contrast: more` and remembers the choice (consent-gated); the checkbox already works with no JS',
+    },
+    astro: a('ContrastToggle', 'wc'),
+    use: '`<ContrastToggle />` — it emits `<wc-contrast-toggle>` itself, so do NOT add your own wrapper. Set `site.accessibility.contrastToggle: true` so a baseline contrast miss warns instead of failing the build (the generated `[data-contrast="more"]` layer is the conforming version it switches to).',
+  },
   consent: {
     emdashExempt:
       'site chrome: the layout renders `<CookieConsent />` once; an editor-placed copy would duplicate the gate',

@@ -60,6 +60,7 @@ emit its tag.
 | `combobox` | css | CSS shell only — the Lit component is a TODO, so it is not interactive yet. |
 | `comment` | css | `.comment` inside `.comment-thread`. |
 | `consent` | css · wc · astro | `<CookieConsent />`. Its own Lit-free bundle so a site needing consent does not download a rendering framework. |
+| `contrast-toggle` | css · wc · astro | `<ContrastToggle />` — it emits `<wc-contrast-toggle>` itself, so do NOT add your own wrapper. Set `site.accessibility.contrastToggle: true` so a baseline contrast miss warns instead of failing the build (the generated `[data-contrast="more"]` layer is the conforming version it switches to). |
 | `copy` | css · wc · bricks · emdash | `<wc-copy>` around the content and a `[data-copy]` button. |
 | `counter` | css · wc · astro · emdash | `<Counter value="94%" />` — it emits `<wc-counter>` itself, so do NOT add your own wrapper. The final value is parsed from the fallback text, never passed separately. |
 | `cta` | css · emdash | `.cta` on any element — usually `<a>`, since a CTA navigates. Filled, with role variants. |
@@ -137,6 +138,7 @@ is tooling and opt-in per consumer.
 | `<wc-color-scheme-toggle>` | `color-scheme-toggle` | `elements.js` | segmented light/dark/system control; persists the choice (consent-gated) |
 | `<wc-color-wheel>` | `color-wheel` | `(none — editor-v2 track, not yet bundled)` | hue/chroma wheel input |
 | `<wc-consent>` | `consent` | `@getvitops/core/consent` | the permission gate itself — activates `type="text/plain"` tags on grant |
+| `<wc-contrast-toggle>` | `contrast-toggle` | `elements.js` | starts checked under `prefers-contrast: more` and remembers the choice (consent-gated); the checkbox already works with no JS |
 | `<wc-copy>` | `copy` | `elements.js` | clipboard write plus success feedback |
 | `<wc-counter>` | `counter` | `elements.js` | animates from a start value to the value already in the fallback text, on intersection |
 | `<wc-dismissable>` | `dismissable` | `elements.js` | fade-out + removal, optional auto-dismiss |
@@ -162,6 +164,7 @@ is tooling and opt-in per consumer.
 | `@getvitops/astro/components/Cards.astro` | `card` | the `<wc-cards>` tag, fallback inside |
 | `@getvitops/astro/components/Carousel.astro` | `carousel` | the `<wc-carousel>` tag, fallback inside |
 | `@getvitops/astro/CookieConsent.astro` | `consent` | the `<wc-consent>` tag, fallback inside |
+| `@getvitops/astro/components/ContrastToggle.astro` | `contrast-toggle` | the `<wc-contrast-toggle>` tag, fallback inside |
 | `@getvitops/astro/components/Counter.astro` | `counter` | the `<wc-counter>` tag, fallback inside |
 | `@getvitops/astro/components/Details.astro` | `details` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Drawer.astro` | `drawer` | tier-1 markup — no web component |
@@ -244,6 +247,7 @@ Every shipped `wc-*` element either has a block above or a stated reason here
 
 - `wc-color-scheme-toggle` — site chrome (header/footer), not page content; belongs in the nav/layout
 - `wc-consent` — site chrome: the layout renders `<CookieConsent />` once; an editor-placed copy would duplicate the gate
+- `wc-contrast-toggle` — site chrome (masthead/footer), not page content: it must be on every page to count as a WCAG G174 alternative, which a per-page editor block cannot guarantee
 - `wc-multi-field` — repeats rows a visitor adds at submit time (several phone numbers, guests); `vitops_form` has a fixed, editor-defined field list and no such field type
 - `wc-split-panel` — app UI (resizable panes), not editorial content; an editor does not drag-resize a published page
 - `wc-theme-editor` — tooling, not content; it is mounted in the EmDash admin by `designSystemEditor`, never in a page
@@ -272,6 +276,7 @@ rules that generate them all.
 | `combobox` | `patterns/combobox.css` | `combobox`, `combobox__listbox`, `combobox__option` | declared |
 | `comment` | `patterns/comment.css` | `comment`, `comment__author`, `comment-thread` | declared |
 | `consent` | `patterns/consent.css` | `consent`, `consent__body`, `consent__options`, `consent__actions` | — |
+| `contrast-toggle` | `patterns/contrast-toggle.css` | `contrast-toggle` | — |
 | `copy` | `patterns/copy.css` | `copy`, `copy__button`, `copy__icon`, `copy__tooltip` | — |
 | `counter` | `patterns/counter.css` | `counter`, `counter__value`, `counter__presentation` | — |
 | `cta` | — | `cta`, `cta-danger` | declared |

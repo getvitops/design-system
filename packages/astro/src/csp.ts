@@ -22,7 +22,7 @@
  * time import — and never from a Worker entry.
  */
 import { createHash } from 'node:crypto';
-import { CONSENT_STUB, THEME_SCRIPT } from './inline-scripts.ts';
+import { CONSENT_STUB, CONTRAST_SCRIPT, THEME_SCRIPT } from './inline-scripts.ts';
 
 /** The CSP source expression for one inline script: `'sha256-<base64>'`. */
 export function cspScriptHash(script: string): string {
@@ -34,6 +34,12 @@ export interface InlineScriptOptions {
   webComponents?: boolean;
   /** `<Head />` emits the consent-gate stub (a site with the gate on). Default true. */
   consent?: boolean;
+  /**
+   * `<Head contrast />` emits the remembered-high-contrast restore. Default **false**, unlike the
+   * others: it is opt-in, and adding a hash to every site's policy by default would change a
+   * policy nobody asked to change.
+   */
+  contrast?: boolean;
 }
 
 /**
@@ -46,6 +52,7 @@ export function inlineScriptHashes(opts: InlineScriptOptions = {}): string[] {
   const out: string[] = [];
   if (opts.webComponents !== false) out.push(cspScriptHash(THEME_SCRIPT));
   if (opts.consent !== false) out.push(cspScriptHash(CONSENT_STUB));
+  if (opts.contrast === true) out.push(cspScriptHash(CONTRAST_SCRIPT));
   return out;
 }
 

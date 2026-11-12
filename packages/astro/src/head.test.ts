@@ -34,6 +34,19 @@ describe('THEME_SCRIPT', () => {
   });
 });
 
+describe('CONTRAST_SCRIPT', () => {
+  it('uses the same localStorage key as WCContrastToggle and sets data-contrast', () => {
+    // `CONTRAST_STORAGE_KEY` in @getvitops/core's `contrast-toggle.ts`.
+    expect(SRC).toContain("localStorage.getItem('vitops-contrast')");
+    expect(SRC).toContain('document.documentElement.dataset.contrast');
+  });
+
+  it('is opt-in, so no existing site gains an inline script (and a CSP hash) unasked', () => {
+    expect(SRC).toContain('{contrast && <script is:inline set:html={CONTRAST_SCRIPT} />}');
+    expect(SRC).toContain('contrast = false');
+  });
+});
+
 describe('CONSENT_STUB', () => {
   it('is emitted synchronously, not as a module', () => {
     // The whole point is to exist before `consent.js` and `elements.js`, which
