@@ -45,13 +45,39 @@ conformance claim. New scaffolds default to `wcag21` / `AA`.
   report header and is never read for logic. Fill it when the client chooses below what applies.
 - Which `standard`/`level` a client needs is in the topic files. Start with `ontario-aoda.md`.
 
-## APCA is not the legal test
+## Contrast: WCAG 2 AA is the standard
 
-The generator enforces **APCA** (Lc 75 text, 60 secondary, 45 non-text). Laws such as the AODA
-use the **WCAG 2 contrast ratio** (1.4.3: 4.5:1, or 3:1 for large text; 1.4.11 non-text 3:1 is
-not in WCAG 2.0). The two disagree. A palette can pass APCA and miss 4.5:1: this repo's own
-`neutral` role did, at 4.33:1. So an APCA pass says nothing about legal contrast, and a ratio
-fail is real even when the build looked healthy. Set `level` honestly and let the ratio gate speak.
+Rely on the **WCAG 2 contrast ratio**: 4.5:1 for text (3:1 for large text) under 1.4.3, and 3:1
+for non-text under 1.4.11 (added in WCAG 2.1; not in 2.0). APCA is perceptually better, but it is
+**no longer on the W3C standards track**, so it is not what any law or conformance claim tests.
+Do not cite an APCA result as evidence of accessibility.
+
+**What the toolchain does today** (it has not caught up with the above yet): the generator still
+checks APCA (Lc 75 text, 60 secondary, 45 non-text) and fails the build on it. The WCAG 2 ratio is
+checked alongside, but only **fails the build at `level` `AA` or `AAA`**; at `A`, `none` or unset it
+warns. The two disagree: this repo's own `neutral` role passed APCA at 4.33:1, under 4.5:1. So treat
+a ratio warning as real, set `level` honestly, and never read a passing build as legal contrast.
+
+## High contrast
+
+Meeting 4.5:1 / 3:1 by default is the baseline. Beyond it, in order:
+
+1. **`prefers-contrast: more`** for users who opt in: aim for AAA (7:1), make borders solid, use
+   heavier outlines and remove transparency. This goes beyond the requirement, so it is an extra.
+2. **`forced-colors: active`** (Windows High Contrast) done properly: real borders and outlines
+   instead of `box-shadow` for boundaries and focus, because shadows vanish in forced colours; do
+   not rely on background images or colour alone for meaning; use system keywords (`CanvasText`,
+   `LinkText`, `ButtonText`); use `forced-color-adjust: none` sparingly, e.g. colour swatches.
+3. **If brand colours cannot pass by default**, WCAG technique **G174**: a clearly visible control
+   on the page that switches to a conforming version. The control must itself meet contrast, and it
+   can start on when `prefers-contrast: more` matches. A browser's or OS's own high-contrast mode is
+   not something the site provides, so it is not a substitute for G174 (our reading of the
+   technique; confirm with an accessibility specialist).
+
+**Toolchain status:** there is no `prefers-contrast` layer and no contrast toggle yet, so these are
+hand-built per site. Forced-colors is covered only for the focus ring, masthead and sitenav
+(`site/e2e/forced-colors.e2e.ts`); other patterns that mark a boundary with `box-shadow` have not
+been checked. Say so rather than implying the framework handles it.
 
 ## Everyday practice
 
@@ -75,7 +101,7 @@ Use the existing mechanisms; do not restate them here.
 
 | File                 | Load when                                                     |
 | -------------------- | ------------------------------------------------------------- |
-| `ontario-aoda.md`    | Ontario client; AODA, IASR s. 14, 50-employee threshold       |
+| `ontario-aoda.md`    | Ontario client; AODA, IASR s. 14, headcount, 20/50 thresholds |
 | `canada-federal.md`  | Federally regulated client; Accessible Canada Act, EN 301 549 |
 | `quebec.md`          | Quebec public body or Quebec audience; SGQRI 008              |
 | `other-provinces.md` | Manitoba, Nova Scotia, BC or other provinces                  |

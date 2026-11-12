@@ -5,6 +5,7 @@ verified: 2026-11-11
 sources:
   - https://www.ontario.ca/laws/regulation/110191
   - https://www.ontario.ca/page/how-make-websites-accessible
+  - https://www.ontario.ca/page/accessibility-rules-businesses-and-non-profits
   - https://www.w3.org/TR/WCAG22/
 ---
 
@@ -47,6 +48,36 @@ specialist should confirm how it applies to a given client.
   (they are a superset, apart from 4.1.1 Parsing, which 2.2 removes), but that is interpretation,
   not regulatory text.
 
+## Counting employees, and what each threshold triggers
+
+The thresholds depend on the number of **employees in Ontario**. The Ontario "Accessibility rules
+for businesses and non-profits" page (updated 2026-06-16, checked 2026-11-11) says:
+
+- **Count:** full-time, part-time and seasonal employees, and **contract workers**.
+- **Do not count:** employees outside Ontario, volunteers and **independent contractors**. The
+  page frames the difference as control: with an employee you pay wages or salary, assign the
+  work and have a right to control how it is done. An organization with no employees in Ontario is
+  exempt. Volunteers and independent contractors do not count toward the headcount, but the
+  organization stays responsible for them following the rules when they provide services on its behalf.
+  Treating a worker as an independent contractor to stay under a threshold is a risk in itself:
+  a misclassification changes the count.
+- **Which moment is counted:** industry guidance (law-firm and HR sources) uses the **peak
+  headcount at any one time in the previous 12 months**, so a seasonal peak above a threshold puts
+  the organization over it. The Ontario page above does **not** state this rule, so treat it as
+  unverified: confirm it against the regulation or with counsel before telling a client they are
+  under a threshold.
+
+What each size triggers:
+
+| Ontario employees | Obligations relevant here                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 1 to 19           | Obligated, but no compliance report. Accessible formats on request (s. 12), accessible feedback (s. 11).           |
+| 20 or more        | Also an **accessibility compliance report every three years**. The current deadline is **2026-12-31**.             |
+| 50 or more        | Also the section 14 website rule: WCAG 2.0 **AA** for public websites the organization controls (see "Who" above). |
+
+The Ontario page does not say when the cycle after 2026 falls due, and it does not itself name WCAG
+(that comes from s. 14 of the regulation, linked above). Re-check both before relying on them.
+
 ## PDFs and documents
 
 Section 14 does not mention PDFs. The Ontario guidance page defines "content" broadly (text,
@@ -64,7 +95,9 @@ not readily available) is handled by explaining why and giving a summary. Feedba
 
 ## What to do with this
 
-- Ask the client: organization type, **Ontario employee count**, and whether the site is public.
+- Ask the client: organization type, **peak Ontario headcount over the last 12 months** (count
+  contract workers, not independent contractors; see above), and whether the site is public.
+  Also tell a client at 20 or more employees about the compliance report.
 - Large or public-sector client: record `site.accessibility` as `{ standard: 'wcag20', level: 'AA' }`
   at minimum (`wcag21`/`wcag22` is acceptable and stricter). The generator's contrast gate then
   uses the WCAG 2 ratio, which is the legal test.

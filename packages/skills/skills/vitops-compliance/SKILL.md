@@ -32,7 +32,9 @@ Look in `site.json` first (`organization`, `site.locales`, `site.analytics`, `si
 
 1. Where is the organisation based?
 2. Where are its users: Ontario, other provinces, Quebec, EU, elsewhere?
-3. Size (employee count): some laws have thresholds; the topic files say which.
+3. Size: peak number of Ontario employees in the last 12 months. Count contract workers; do not
+   count independent contractors, volunteers or staff outside Ontario. Some laws have thresholds
+   (AODA: 20 and 50); the topic files say which.
 4. Sector: public, broader public, private, non-profit, federally regulated?
 5. Does it send commercial electronic messages (newsletter, promotions, automated follow-ups)?
 6. What personal information does it collect (forms, CRM, analytics, ads, call tracking)?
