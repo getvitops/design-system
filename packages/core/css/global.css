@@ -104,6 +104,25 @@ body {
   }
 }
 
+/* Floating surfaces keep an edge in forced-colors mode.
+
+   Elevation is a `box-shadow` (`--ds-*`), and forced-colors mode sets every box-shadow to `none`
+   while flattening backgrounds to the same `Canvas` as the page. A surface that rests on its border
+   survives that; one that rests on its shadow — a consumer's `b: none`, or a bare `[popover]`
+   (popover.css resets the UA border off) — becomes an invisible box over the page.
+
+   An `outline`, not a `border`: it adds no layout and does not clobber a border the author set, and
+   at `outline-offset: -1px` it lands on top of an existing 1px border instead of doubling it. The
+   `:focus-visible` rule above is `!important` and wins on a focused element. System colour keyword
+   on purpose: an author-specified system colour is kept as written. */
+@media (forced-colors: active) {
+  :is(dialog.dialog, .drawer, .tooltip, .notification, .consent, .combobox__listbox):not([hidden]),
+  [popover]:popover-open {
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
+  }
+}
+
 /* The high-contrast layer's non-token half. The generator re-points the colour tokens under
    `prefers-contrast: more`, `[data-contrast="more"]` and the `.contrast-toggle` checkbox (see
    `contrast-more.ts`); these are the parts a token cannot carry. A heavier outline that is always an

@@ -38,7 +38,10 @@ import { defineConfig, devices } from '@playwright/test';
 // wrong site, silently, with no error at all beyond every locator timing out
 // against a page that carries none of the expected markup. A dedicated port
 // makes a collision a `EADDRINUSE` a developer would get to notice.
-const PORT = 4399;
+// Overridable (`E2E_PORT`) for the same reason it is not 4321: a preview server left running from
+// another checkout or worktree on 4399 is silently reused (`reuseExistingServer`), and every
+// assertion then runs against that build instead of this one.
+const PORT = Number(process.env['E2E_PORT'] ?? 4399);
 const BASE_URL = `http://localhost:${PORT}`;
 
 export default defineConfig({
@@ -79,6 +82,13 @@ export default defineConfig({
     {
       name: 'forced-colors',
       testMatch: /forced-colors\.e2e\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      // The high-contrast layer, JS on: the three triggers, the opt-out, dark crossing, and the
+      // toggle's persistence. The no-script half lives in `no-js-fallback.e2e.ts`.
+      name: 'prefers-contrast',
+      testMatch: /prefers-contrast\.e2e\.ts$/,
       use: { ...devices['Desktop Chrome'] },
     },
     {
