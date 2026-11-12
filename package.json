@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
+    "@astrojs/compiler-rs": "catalog:",
     "@axe-core/playwright": "catalog:",
     "@changesets/cli": "catalog:",
     "@getvitops/generator": "workspace:*",

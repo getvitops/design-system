@@ -20,6 +20,8 @@ export default defineConfig({
     // mirror assertion.
     semi: true,
     singleQuote: true,
+    // Off by default; needs `@astrojs/compiler-rs` in devDependencies.
+    astro: true,
     ignorePatterns: ['dist/**', 'node_modules/**', 'src/styles/**', 'public/vitops/**'],
   },
   lint: {

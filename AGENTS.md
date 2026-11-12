@@ -1301,6 +1301,11 @@ install it); and it needs no user-level browser or extension setup.
 
 ### Task Notes
 
+- `.astro` formatting is Oxfmt's, and is **opt-in twice**: `fmt.astro: true` in `vite.config.ts` _and_
+  `@astrojs/compiler-rs` declared as a devDependency (catalog here; plain range in templates). Without
+  either, `.astro` files are skipped silently — a transitive copy via `astro` is not a contract.
+  `templates.test.ts` guards both for the scaffolds. `site/` is formatted too, minus its generated paths.
+
 - do not run format or lint as verifications, these are done automatically on save and PostToolUse hooks.
 - if `vp check` passes locally but CI's `vp check` reports formatting issues, suspect a stale hoisted `node_modules/oxfmt`
   (or `oxlint`/`vite`) left by an old `npm install`: `vp` resolves the formatter from the project root, so it shadows

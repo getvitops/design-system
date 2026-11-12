@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
+    "@astrojs/compiler-rs": "^0.5.2",
     "@cloudflare/workers-types": "^4.20260305.1",
     "@getvitops/cli": "latest",
     "@iconify-json/fa7-solid": "^1.2.5",

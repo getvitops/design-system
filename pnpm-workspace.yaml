@@ -37,6 +37,9 @@ catalog:
   '@types/node': ^25.9.3
   '@webcomponents/template-shadowroot': ^0.2.1
   '@webcomponents/webcomponentsjs': ^2.8.0
+  # Oxfmt's optional peer: `fmt.astro: true` needs it declared in the project, not only
+  # reachable transitively through astro. Keep inside oxfmt's accepted range.
+  '@astrojs/compiler-rs': ^0.5.2
   astro: ^7.4.4
   astro-icon: ^1.1.5
   baseline-status: ^1.1.1

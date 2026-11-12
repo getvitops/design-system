@@ -145,6 +145,20 @@ describe.each(templateNames)('template %s', (name) => {
     expect(pkg.dependencies?.astro).toBe(range);
   });
 
+  it('enables Oxfmt .astro formatting (config flag + declared compiler)', () => {
+    // Oxfmt skips .astro silently unless `fmt.astro` is set AND `@astrojs/compiler-rs` is a
+    // declared dependency (a transitive copy through astro is not a contract).
+    const catalog = readFileSync(
+      join(import.meta.dirname, '..', '..', 'pnpm-workspace.yaml'),
+      'utf8',
+    );
+    const range = /^ {2}'@astrojs\/compiler-rs': (\S+)$/m.exec(catalog)?.[1];
+    expect(range).toBeDefined();
+    expect(pkg.devDependencies?.['@astrojs/compiler-rs']).toBe(range);
+    const config = readFileSync(join(TEMPLATES, name, 'vite.config.ts'), 'utf8');
+    expect(config).toMatch(/^\s*astro:\s*true,?\s*$/m);
+  });
+
   it('ships a site.json that validates as a Config', () => {
     // A shipped config that fails validation is a scaffold that can run no
     // site-anchored command (legal/robots/search/ads/reviews/icons all default

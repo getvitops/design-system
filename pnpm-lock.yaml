@@ -198,6 +198,9 @@ catalogs:
     '@astrojs/cloudflare':
       specifier: ^14.0.0
       version: 14.1.4
+    '@astrojs/compiler-rs':
+      specifier: ^0.5.2
+      version: 0.5.2
     '@astrojs/react':
       specifier: ^7.0.0
       version: 7.0.0
@@ -372,6 +375,9 @@ importers:
       '@arethetypeswrong/cli':
         specifier: 'catalog:'
         version: 0.18.5
+      '@astrojs/compiler-rs':
+        specifier: 'catalog:'
+        version: 0.5.2
       '@axe-core/playwright':
         specifier: 'catalog:'
         version: 4.14.0(playwright-core@1.62.1)
@@ -594,6 +600,8 @@ importers:
       '@iconify/types':
         specifier: 'catalog:'
         version: 2.0.0
+
+  packages/skills: {}
 
   packages/utils:
     dependencies:

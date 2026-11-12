@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
+    "@astrojs/compiler-rs": "^0.5.2",
     "@getvitops/cli": "latest",
     "playwright": "^1.62.1",
     "skills": "^1.7.6",
