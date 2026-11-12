@@ -140,3 +140,81 @@ export function pairs(input: unknown): { term: string; value: string }[] {
       : { term: line.slice(0, i).trim(), value: line.slice(i + 1).trim() };
   });
 }
+
+/** One node of an outline: what `<Tree />` takes, minus the raw-HTML `descriptionHtml` field. */
+export interface OutlineNode {
+  label: string;
+  badge?: string;
+  id?: string;
+  children?: OutlineNode[];
+}
+
+/** Most nodes and deepest nesting one outline field may produce. A tree this big isn't an outline. */
+export const OUTLINE_MAX_NODES = 500;
+export const OUTLINE_MAX_DEPTH = 6;
+
+const slug = (label: string) =>
+  label
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+/**
+ * An indented outline → a tree. One node per line; each level is indented further than its parent
+ * (spaces or tabs, any amount: only "deeper than the line above" matters, so an editor who uses
+ * two spaces in one place and four in another still gets what they meant). A leading `- ` or `* `
+ * is ignored, and ` | ` splits a label from a small badge:
+ *
+ *     - src
+ *       - index.ts | entry
+ *     - package.json
+ *
+ * Built so a CMS field can drive a recursive component without a nested field type: the editor
+ * types text, and the only thing that ever reaches the tree is `label`, `badge` and a derived `id`
+ * as plain strings. In particular it never produces `descriptionHtml`, which `<Tree />` renders as
+ * raw HTML. Capped at `OUTLINE_MAX_NODES` and `OUTLINE_MAX_DEPTH`: lines past either are dropped
+ * rather than failing the page, and a line nested deeper than the cap attaches at the cap.
+ *
+ * `idPrefix` makes node ids unique across a page (`<prefix>-<slug>`, de-duplicated within the tree);
+ * without it nodes carry no id.
+ */
+export function outline(input: unknown, opts: { idPrefix?: string } = {}): OutlineNode[] {
+  const roots: OutlineNode[] = [];
+  const stack: Array<{ indent: number; node: OutlineNode }> = [];
+  const used = new Set<string>();
+  let count = 0;
+
+  for (const raw of text(input).split('\n')) {
+    if (!raw.trim()) continue;
+    if (count >= OUTLINE_MAX_NODES) break;
+    const indent = (/^[\t ]*/.exec(raw)?.[0] ?? '').replaceAll('\t', '  ').length;
+    const body = raw.trim().replace(/^[-*]\s+/, '');
+    const bar = body.indexOf('|');
+    const label = (bar < 0 ? body : body.slice(0, bar)).trim();
+    const badge = bar < 0 ? '' : body.slice(bar + 1).trim();
+    if (!label) continue;
+
+    const node: OutlineNode = { label, ...(badge ? { badge } : {}) };
+    if (opts.idPrefix) {
+      const stem = `${opts.idPrefix}-${slug(label) || 'node'}`;
+      let id = stem;
+      for (let n = 2; used.has(id); n++) id = `${stem}-${n}`;
+      used.add(id);
+      node.id = id;
+    }
+
+    while (stack.length && stack[stack.length - 1]!.indent >= indent) stack.pop();
+    // Past the depth cap a line stays at the cap: it becomes a sibling of the deepest allowed level
+    // rather than nesting further, and the stack is trimmed so the lines after it can't either.
+    if (stack.length >= OUTLINE_MAX_DEPTH) stack.length = OUTLINE_MAX_DEPTH - 1;
+    const parent = stack[stack.length - 1]?.node;
+    if (parent) (parent.children ??= []).push(node);
+    else roots.push(node);
+
+    stack.push({ indent, node });
+    count++;
+  }
+  return roots;
+}

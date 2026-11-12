@@ -22,6 +22,7 @@ import Pricing from './Pricing.astro';
 import Stats from './Stats.astro';
 import Steps from './Steps.astro';
 import Tabs from './Tabs.astro';
+import Tree from './Tree.astro';
 
 // `.astro` imports are typed as plain prop functions here (see `astro-modules.d.ts`), which the
 // container's `AstroComponentFactory` parameter does not accept; the cast is the whole bridge.
@@ -239,6 +240,42 @@ describe('vitops_tabs', () => {
   it('puts the editor’s anchor on the element itself', async () => {
     const html = await render(Tabs, { tabs, anchor: 'compare' });
     expect(html).toMatch(/<wc-tabs[^>]*id="compare"/);
+  });
+});
+
+describe('vitops_tree', () => {
+  const outline = '- src\n  - index.ts | entry\n- package.json';
+
+  it('emits <wc-tree> over real nested lists built from the outline', async () => {
+    const html = await render(Tree, { _key: 'k1', outline });
+    expect(html).toContain('<wc-tree');
+    expect(html).toContain('index.ts');
+    expect(html).toContain('entry');
+    expect(html).toContain('package.json');
+    expect(html).toMatch(/<details/);
+  });
+
+  it('gives each node an id prefixed with the block key, so two trees never collide', async () => {
+    const a = await render(Tree, { _key: 'k1', outline });
+    const b = await render(Tree, { _key: 'k2', outline });
+    expect(a).toContain('id="tree-k1-src"');
+    expect(b).toContain('id="tree-k2-src"');
+  });
+
+  it('renders markup typed into the outline as text, never as HTML', async () => {
+    const html = await render(Tree, { outline: '<img src=x onerror=alert(1)> | <b>x</b>' });
+    expect(html).not.toContain('<img src=x');
+    expect(html).not.toContain('<b>x</b>');
+    expect(html).toContain('&lt;img');
+  });
+
+  it('renders nothing for an empty outline', async () => {
+    expect(await render(Tree, { outline: '  \n ' })).not.toContain('wc-tree');
+  });
+
+  it('puts the editor’s anchor on the element itself', async () => {
+    const html = await render(Tree, { outline, anchor: 'files' });
+    expect(html).toMatch(/<wc-tree[^>]*id="files"/);
   });
 });
 

@@ -210,9 +210,20 @@ so a section containing cards or stats is a section whose body holds `vitops_car
 EmDash's built-in `columns` block renders its children with marks only, so a `vitops_*` block placed
 inside one does not render. Use a `blocks` field for layout instead.
 
-Not yet blocks: tree (it needs nested data a flat repeater cannot hold), dialog and tabs (no
-component yet). Entries and reviews are blocks (`vitops_entries`, `vitops_reviews`; reviews read
-`.vitops/reviews.json` through the build-time `virtual:getvitops/reviews` import).
+**Landing pages.** A new `@getvitops/create` emdash site ships this wired up: a `landings` collection
+whose `layout` is a `blocks` field of `vitops_section`, the `vitops_section` block type in its seed,
+and `src/pages/landings/[slug].astro` to render it (prerendered, like `pages`). Create a landing in
+the admin and stack sections, each holding any Vitops block. An existing site adds the same with
+`vitops emdash schema apply` from a site that has it, or by hand: put `...vitopsBlockTypes()` in the
+seed's `blockTypes` (applied at first boot only), add the collection with
+`emdash schema create landings` and a `blocks` field, and copy the route.
+
+Not yet blocks: dialog (no component yet). Tree takes an indented outline, because Block Kit fields
+can't nest: one node per line, indent to nest, `| badge` for a chip (`vitops_tree`). Entries and
+reviews are blocks (`vitops_entries`, `vitops_reviews`; reviews read `.vitops/reviews.json` through
+the build-time `virtual:getvitops/reviews` import). Form controls (`<wc-combobox>`, `<wc-range>`) and
+inline formatting (`<wc-format>`) have no block: they belong inside a form or other content, not as a
+block of their own.
 
 ## Changelog
 

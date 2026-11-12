@@ -5,6 +5,9 @@ import {
   outlineTag,
   lines,
   linkRuns,
+  outline,
+  OUTLINE_MAX_DEPTH,
+  OUTLINE_MAX_NODES,
   pairs,
   paragraphs,
   rows,
@@ -78,5 +81,66 @@ describe('outlineTag', () => {
     expect(outlineTag(undefined, 1)).toBe('h1');
     expect(outlineTag(9)).toBe('h2');
     expect(outlineTag('x', 3)).toBe('h3');
+  });
+});
+
+describe('outline', () => {
+  const labels = (nodes: ReturnType<typeof outline>): unknown[] =>
+    nodes.map((n) => (n.children ? [n.label, labels(n.children)] : n.label));
+
+  it('nests by indentation and ignores bullets', () => {
+    expect(labels(outline('- src\n  - index.ts\n  - util\n    - a.ts\n- package.json'))).toEqual([
+      ['src', ['index.ts', ['util', ['a.ts']]]],
+      'package.json',
+    ]);
+  });
+
+  it('only cares that a line is deeper than the one above, not by how much', () => {
+    expect(labels(outline('a\n  b\n      c\n    d\ne'))).toEqual([['a', [['b', ['c', 'd']]]], 'e']);
+  });
+
+  it('treats a tab as indentation', () => {
+    expect(labels(outline('a\n\tb'))).toEqual([['a', ['b']]]);
+  });
+
+  it('splits a badge off with the first |', () => {
+    expect(outline('index.ts | entry | main')).toEqual([
+      { label: 'index.ts', badge: 'entry | main' },
+    ]);
+    expect(outline('plain')).toEqual([{ label: 'plain' }]);
+  });
+
+  it('skips blank lines and lines with no label', () => {
+    expect(labels(outline('a\n\n   \n| only a badge\nb'))).toEqual(['a', 'b']);
+  });
+
+  it('is empty for nothing', () => {
+    expect(outline('')).toEqual([]);
+    expect(outline(undefined)).toEqual([]);
+  });
+
+  it('derives unique ids from a prefix, and none without one', () => {
+    const tree = outline('Docs\nDocs\nA & B', { idPrefix: 't1' });
+    expect(tree.map((n) => n.id)).toEqual(['t1-docs', 't1-docs-2', 't1-a-b']);
+    expect(outline('Docs')[0]).not.toHaveProperty('id');
+  });
+
+  it('never produces raw HTML, whatever is typed', () => {
+    const [node] = outline('<img src=x onerror=alert(1)> | <b>x</b>');
+    expect(Object.keys(node!).sort()).toEqual(['badge', 'label']);
+    expect(node).not.toHaveProperty('descriptionHtml');
+  });
+
+  it('caps the node count and the depth instead of failing', () => {
+    const many = Array.from({ length: OUTLINE_MAX_NODES + 50 }, (_, i) => `n${i}`).join('\n');
+    const count = (nodes: ReturnType<typeof outline>): number =>
+      nodes.reduce((n, x) => n + 1 + count(x.children ?? []), 0);
+    expect(count(outline(many))).toBe(OUTLINE_MAX_NODES);
+
+    const deep = Array.from({ length: 12 }, (_, i) => `${'  '.repeat(i)}l${i}`).join('\n');
+    const depth = (nodes: ReturnType<typeof outline>): number =>
+      nodes.length ? 1 + Math.max(...nodes.map((n) => depth(n.children ?? []))) : 0;
+    expect(depth(outline(deep))).toBeLessThanOrEqual(OUTLINE_MAX_DEPTH);
+    expect(count(outline(deep))).toBe(12);
   });
 });

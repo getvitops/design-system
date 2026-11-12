@@ -1,0 +1,37 @@
+---
+import { getEmDashCollection } from 'emdash';
+import { Blocks, defineBlockComponents } from 'emdash/ui';
+import { blockTypeComponents } from '@getvitops/emdash/astro';
+import Layout from '../../layouts/Layout.astro';
+
+// Landing pages composed from sections. Each entry's `layout` field is a list of `vitops_section`
+// blocks, and every section's body can hold any of the Vitops blocks (hero, cards, tabs, …), so an
+// editor builds a whole page in the admin without a template per page.
+//
+// Prerendered like `pages`: every published entry becomes a static file at /landings/<slug>, built
+// from the content database, so an edit goes live on the next rebuild (see
+// .agents/skills/emdash-content-and-deploys). With no landing published there are no routes, which
+// is fine — nothing links here until you create one.
+export const prerender = true;
+
+export async function getStaticPaths() {
+  const { entries, error } = await getEmDashCollection('landings');
+  // Fail the build rather than ship a site with a landing that silently has no page.
+  if (error) throw error;
+  return entries.map((entry) => ({ params: { slug: entry.id }, props: { page: entry } }));
+}
+
+const { page } = Astro.props;
+// `page.data` is `unknown` until `.emdash/types.ts` is generated, so the casts keep a fresh
+// scaffold passing `astro check`.
+const title = page.data.title as string | undefined;
+// `blockTypeComponents` is keyed by block-type slug and EmDash's `<Blocks>` wants its own map type.
+const components = defineBlockComponents(blockTypeComponents as never);
+---
+
+<Layout title={title}>
+  <article class="rhythm">
+    <h1>{title}</h1>
+    <Blocks value={page.data.layout as never} components={components} />
+  </article>
+</Layout>

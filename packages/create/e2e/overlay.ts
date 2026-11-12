@@ -5,9 +5,10 @@
  * Two pages, covering the two ways EmDash composes blocks:
  *   `/blocks`            the `pages` collection's rich-text field, with EVERY plugin Portable
  *                        Text block inline (the slash-menu path), in `BLOCKS` order.
- *   `/landings/showcase` a second collection whose `blocks` field holds `vitops_section` BLOCK
- *                        TYPES (the page-composition path), each with plugin blocks in its
- *                        `body` — rendered by `<Blocks>` + `blockTypeComponents`.
+ *   `/landings/showcase` an entry in the template's `landings` collection, whose `blocks` field
+ *                        holds `vitops_section` BLOCK TYPES (the page-composition path), each with
+ *                        plugin blocks in its `body` — rendered by `<Blocks>` + `blockTypeComponents`
+ *                        through the template's own `src/pages/landings/[slug].astro`.
  *
  * Pure: takes the template's seed, returns the merged seed plus the extra files, so it can be
  * asserted without a scaffold. Blocks without a fixture are reported, not guessed at — the
@@ -146,35 +147,6 @@ export function sectionBlocks(): Json[] {
   ];
 }
 
-/** Astro route for the landing collection: `<Blocks>` + the plugin's block-type renderers. */
-export const LANDING_ROUTE = `---
-import { getEmDashCollection } from 'emdash';
-import { Blocks, defineBlockComponents } from 'emdash/ui';
-import { blockTypeComponents } from '@getvitops/emdash/astro';
-import Layout from '../../layouts/Layout.astro';
-
-// E2E overlay only: renders the \`${LANDINGS}\` collection's \`layout\` blocks field.
-export const prerender = true;
-
-export async function getStaticPaths() {
-  const { entries, error } = await getEmDashCollection('${LANDINGS}');
-  if (error) throw error;
-  return entries.map((entry) => ({ params: { slug: entry.id }, props: { page: entry } }));
-}
-
-const { page } = Astro.props;
-const title = page.data.title as string | undefined;
-const components = defineBlockComponents(blockTypeComponents as never);
----
-
-<Layout title={title}>
-  <article class="rhythm">
-    <h1>{title}</h1>
-    <Blocks value={page.data.layout as never} components={components} />
-  </article>
-</Layout>
-`;
-
 export interface Overlay {
   /** The template's seed with the e2e collections, block types and entries merged in. */
   seed: Json;
@@ -189,25 +161,34 @@ export function buildOverlay(base: Json): Overlay {
   const collections = (seed.collections as Json[]) ?? [];
   const content = (seed.content as Record<string, Json[]>) ?? {};
 
-  seed.blockTypes = [...((seed.blockTypes as Json[]) ?? []), ...vitopsBlockTypes()];
-  seed.collections = [
-    ...collections,
-    {
-      slug: LANDINGS,
-      label: 'Landings',
-      labelSingular: 'Landing',
-      supports: ['drafts', 'revisions'],
-      fields: [
-        { slug: 'title', label: 'Title', type: 'string', required: true },
-        {
-          slug: 'layout',
-          label: 'Layout',
-          type: 'blocks',
-          validation: { allowedTypes: [SECTION_SLUG], maxItems: 20 },
-        },
-      ],
-    },
+  // The template ships the `vitops_section` block type, the `landings` collection and its route
+  // (`src/pages/landings/[slug].astro`); the overlay adds only what is test-specific. Each is added
+  // only when missing, so the overlay still works over a seed that predates them.
+  const have = new Set(((seed.blockTypes as Json[]) ?? []).map((t) => t.slug));
+  seed.blockTypes = [
+    ...((seed.blockTypes as Json[]) ?? []),
+    ...vitopsBlockTypes().filter((t: { slug: string }) => !have.has(t.slug)),
   ];
+  if (!collections.some((c) => c.slug === LANDINGS)) {
+    seed.collections = [
+      ...collections,
+      {
+        slug: LANDINGS,
+        label: 'Landings',
+        labelSingular: 'Landing',
+        supports: ['drafts', 'revisions'],
+        fields: [
+          { slug: 'title', label: 'Title', type: 'string', required: true },
+          {
+            slug: 'layout',
+            label: 'Layout',
+            type: 'blocks',
+            validation: { allowedTypes: [SECTION_SLUG], maxItems: 20 },
+          },
+        ],
+      },
+    ];
+  }
   seed.content = {
     ...content,
     pages: [
@@ -232,7 +213,6 @@ export function buildOverlay(base: Json): Overlay {
   return {
     seed,
     files: {
-      [`src/pages/${LANDINGS}/[slug].astro`]: LANDING_ROUTE,
       '.vitops/reviews.json': `${JSON.stringify(REVIEWS_CACHE, null, 2)}\n`,
     },
     copies: ['400x400', '400x600', '600x400'].map((size) => [

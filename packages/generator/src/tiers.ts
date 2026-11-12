@@ -144,9 +144,9 @@ export const TIERS: Record<string, TierEntry> = {
       adds: 'WAI-ARIA tree semantics, roving-tabindex keyboard navigation, filter, expand/collapse all, hash deep-linking',
     },
     astro: a('Tree', 'wc'),
-    emdashExempt:
-      'needs nested data (branches within branches) that a flat repeater cannot hold; revisit if EmDash block fields gain nesting',
-    use: '`<Tree items={…} />` — it emits `<wc-tree>` itself, so do NOT add your own wrapper.',
+    // Nested data doesn't fit a flat repeater, so the block takes an indented outline instead.
+    emdash: ['vitops_tree'],
+    use: '`<Tree items={…} />` — it emits `<wc-tree>` itself, so do NOT add your own wrapper. In EmDash, `vitops_tree` takes an indented outline (one node per line, indent to nest, `| badge` for a chip) and builds the tree from it; it never sets `descriptionHtml`.',
   },
   carousel: {
     emdash: ['vitops_carousel'],

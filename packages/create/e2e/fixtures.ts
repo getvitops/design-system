@@ -102,6 +102,12 @@ export const FIXTURES: Record<string, BlockFixture> = {
       { title: 'Care', body: 'Seasonal visits to keep it looking right.' },
     ],
   },
+  vitops_tree: {
+    label: 'Project files',
+    openDepth: 1,
+    outline:
+      '- src\n  - index.ts | entry\n  - components\n    - Button.astro\n- package.json | config',
+  },
   vitops_tabs: {
     level: '3',
     orientation: 'horizontal',

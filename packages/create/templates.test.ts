@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vite-plus/test';
 import { validateConfig } from '@getvitops/generator';
 // @ts-ignore — a cross-package source import; `allowImportingTsExtensions` is off here.
 import { CONSENT_STUB, THEME_SCRIPT } from '../astro/src/inline-scripts.ts';
+// @ts-ignore — a cross-package source import; `allowImportingTsExtensions` is off here.
+import { SECTION_SLUG, vitopsBlockTypes } from '../emdash/src/block-types.ts';
 
 /**
  * Scaffolded projects live OUTSIDE this monorepo, so every dependency
@@ -317,6 +319,37 @@ it('emdash template wires the email plugin to a matching send_email binding', ()
 });
 
 /**
+ * Landing pages: a `blocks` field of `vitops_section` block types. A seed is applied once, at a site's
+ * first boot, so the block type it carries is a SNAPSHOT of what the plugin defines — and a snapshot
+ * drifts. A section field renamed in the plugin would leave every new scaffold with a block type its
+ * renderer no longer reads, and nothing would error.
+ */
+describe('emdash template landing pages', () => {
+  const read = (file: string) => readFileSync(join(TEMPLATES, 'emdash', file), 'utf8');
+  const seed = JSON.parse(read('seed/seed.json'));
+
+  it('seeds exactly the block types the plugin defines', () => {
+    expect(seed.blockTypes).toEqual(JSON.parse(JSON.stringify(vitopsBlockTypes())));
+  });
+
+  it('has a landings collection whose layout field accepts only the section block type', () => {
+    const landings = seed.collections.find((c: { slug: string }) => c.slug === 'landings');
+    expect(landings?.urlPattern).toBe('/landings/{slug}');
+    const layout = landings.fields.find((f: { slug: string }) => f.slug === 'layout');
+    expect(layout.type).toBe('blocks');
+    expect(layout.validation.allowedTypes).toEqual([SECTION_SLUG]);
+  });
+
+  it('renders it through the plugin’s block-type map, prerendered like pages', () => {
+    const route = read('src/pages/landings/[slug].astro');
+    expect(route).toContain("getEmDashCollection('landings')");
+    expect(route).toContain('blockTypeComponents');
+    expect(route).toContain('export const prerender = true');
+    expect(route).toContain('page.data.layout');
+  });
+});
+
+/**
  * The environment split (AGENTS.md, CI/CD): promotion rehearses on a THROWAWAY copy of production and never
  * touches the long-lived dev site, and a scheduled run must never reset dev. The copy's own safety checks are
  * asserted in `@getvitops/utils` (`hosting/d1-copy.test.ts`); here the wiring that would quietly undo them.
@@ -381,7 +414,6 @@ describe('e2e overlay is not shipped', () => {
       );
     const files = walk(join(TEMPLATES, name));
     expect(files.filter((f) => /[\\/]e2e[\\/]/.test(f))).toEqual([]);
-    expect(files.filter((f) => /landings[\\/]\[slug\]\.astro$/.test(f))).toEqual([]);
   });
 });
 

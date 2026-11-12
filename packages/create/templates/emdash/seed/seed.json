@@ -6,6 +6,157 @@
     "description": "An EmDash website wired to the Vitops design system",
     "author": "Vitops"
   },
+  "blockTypes": [
+    {
+      "slug": "vitops_section",
+      "label": "Section",
+      "description": "A titled page section whose body can hold any other blocks.",
+      "category": "Sections",
+      "icon": "layout",
+      "currentVersion": 1,
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "slug": "kicker",
+              "label": "Kicker (small line above the heading)",
+              "type": "string"
+            },
+            {
+              "slug": "heading",
+              "label": "Heading",
+              "type": "string"
+            },
+            {
+              "slug": "level",
+              "label": "Heading level (p: styled like a heading, not in the outline)",
+              "type": "select",
+              "defaultValue": "2",
+              "validation": {
+                "options": ["1", "2", "3", "4", "5", "6", "p"]
+              }
+            },
+            {
+              "slug": "sub",
+              "label": "Lead-in text under the heading",
+              "type": "text"
+            },
+            {
+              "slug": "cta_label",
+              "label": "Button text (filled)",
+              "type": "string"
+            },
+            {
+              "slug": "cta_href",
+              "label": "Button URL",
+              "type": "string"
+            },
+            {
+              "slug": "secondary_label",
+              "label": "Second link text",
+              "type": "string"
+            },
+            {
+              "slug": "secondary_href",
+              "label": "Second link URL",
+              "type": "string"
+            },
+            {
+              "slug": "body",
+              "label": "Content (any blocks)",
+              "type": "portableText"
+            },
+            {
+              "slug": "layout",
+              "label": "Layout",
+              "type": "select",
+              "defaultValue": "stack",
+              "validation": {
+                "options": ["stack", "center", "split"]
+              }
+            },
+            {
+              "slug": "stack",
+              "label": "Spacing (rhythm: head and body use the vertical-rhythm scale, as a page opener or prose stack)",
+              "type": "select",
+              "defaultValue": "grid",
+              "validation": {
+                "options": ["grid", "rhythm"]
+              }
+            },
+            {
+              "slug": "width",
+              "label": "Width",
+              "type": "select",
+              "defaultValue": "measure",
+              "validation": {
+                "options": ["measure", "breakout", "spotlight", "fullbleed"]
+              }
+            },
+            {
+              "slug": "tone",
+              "label": "Backdrop tone (a colour role from the site, e.g. surface or brand-primary)",
+              "type": "string"
+            },
+            {
+              "slug": "color",
+              "label": "Palette colour instead of a tone (e.g. amber or amber-300)",
+              "type": "string"
+            },
+            {
+              "slug": "solid",
+              "label": "Fill with the solid colour",
+              "type": "boolean",
+              "defaultValue": false
+            },
+            {
+              "slug": "theme",
+              "label": "Theme (backdrop and readable text in one pick; overrides the tone fields)",
+              "type": "select",
+              "defaultValue": "none",
+              "validation": {
+                "options": [
+                  "none",
+                  "neutral",
+                  "surface",
+                  "brand-primary",
+                  "brand-secondary",
+                  "info",
+                  "success",
+                  "warning",
+                  "danger",
+                  "neutral:solid",
+                  "surface:solid",
+                  "brand-primary:solid",
+                  "brand-secondary:solid",
+                  "info:solid",
+                  "success:solid",
+                  "warning:solid",
+                  "danger:solid"
+                ]
+              }
+            },
+            {
+              "slug": "anchor",
+              "label": "Anchor id (so a link can point here with #id)",
+              "type": "string"
+            },
+            {
+              "slug": "class_name",
+              "label": "Extra CSS classes",
+              "type": "string"
+            },
+            {
+              "slug": "style",
+              "label": "CSS custom properties, e.g. --p-card: 2rem",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "settings": {
     "title": "My EmDash Site",
     "tagline": "An EmDash website with the Vitops design system"
@@ -28,6 +179,30 @@
           "slug": "content",
           "label": "Content",
           "type": "portableText"
+        }
+      ]
+    },
+    {
+      "slug": "landings",
+      "label": "Landings",
+      "labelSingular": "Landing",
+      "urlPattern": "/landings/{slug}",
+      "supports": ["drafts", "revisions", "seo"],
+      "fields": [
+        {
+          "slug": "title",
+          "label": "Title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "slug": "layout",
+          "label": "Layout",
+          "type": "blocks",
+          "validation": {
+            "allowedTypes": ["vitops_section"],
+            "maxItems": 20
+          }
         }
       ]
     }

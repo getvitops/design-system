@@ -68,10 +68,22 @@ describe('e2e overlay', () => {
   });
 });
 
-describe('the shipped template stays free of the e2e content', () => {
-  it('has no block types or blocks field in its seed', () => {
-    expect(template.blockTypes).toBeUndefined();
-    expect(JSON.stringify(template)).not.toContain('"type":"blocks"');
-    expect(JSON.stringify(template)).not.toContain('vitops_section');
+describe('the shipped template carries the landing machinery but none of the e2e content', () => {
+  it('ships the section block type and a landings collection with a blocks field', () => {
+    expect((template.blockTypes as { slug: string }[]).map((t) => t.slug)).toContain(
+      'vitops_section',
+    );
+    const landings = (template.collections as { slug: string }[]).find(
+      (c) => c.slug === 'landings',
+    );
+    expect(JSON.stringify(landings)).toContain('"type":"blocks"');
+    expect(JSON.stringify(landings)).toContain('vitops_section');
+  });
+
+  it('seeds no landing entry and none of the e2e pages: a fictional page is likelier to ship unread', () => {
+    const content = (template.content ?? {}) as Record<string, unknown[]>;
+    expect(content.landings).toBeUndefined();
+    expect(JSON.stringify(template)).not.toContain('showcase');
+    expect(JSON.stringify(content.pages ?? [])).not.toContain('"blocks"');
   });
 });

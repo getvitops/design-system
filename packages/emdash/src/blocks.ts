@@ -499,6 +499,29 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
+    type: 'vitops_tree',
+    label: 'Tree',
+    placeholder: 'An expandable outline: a file tree, a site map, nested sections',
+    category: 'Sections',
+    fields: [
+      {
+        type: 'text_input',
+        action_id: 'outline',
+        label: 'Outline (one per line; indent a line to nest it under the one above; add | badge)',
+        multiline: true,
+      },
+      { type: 'text_input', action_id: 'label', label: 'Filter box label and list name' },
+      {
+        type: 'number_input',
+        action_id: 'openDepth',
+        label: 'Levels open to start (0 = all closed)',
+        initial_value: 0,
+        min: 0,
+        max: 6,
+      },
+    ],
+  },
+  {
     type: 'vitops_hero',
     label: 'Hero',
     placeholder: 'Page opener: heading, text, buttons and an optional image',
