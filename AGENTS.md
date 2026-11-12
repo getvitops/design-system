@@ -61,30 +61,26 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    **Not registered in `elements.js` yet:** `WCColorWheel`, `WCOklchColorPicker`, `WCIconPicker`,
    `WCTypography` — they belong to the editor-v2 track.
 
+   **Foundational components, built:** combobox, tabs, breadcrumbs, format and range (the slider).
+   Each follows the tier-2 rule: the fallback is real and complete (`<input list>` + `<datalist>`; headed
+   `<section>`s; a labelled `<ol>`; a `<time>`/`<data>` with the text already in it; one or two native
+   range inputs), and the element only builds over it. `wc-tabs` hides each heading it turns into a tab
+   label (the tab already names the panel; leaving it would announce the text twice). `wc-combobox`
+   keeps what is typed even when it matches no option — it suggests, it does not constrain.
+   `wc-range` coordinates two native inputs rather than replacing them, so form submission, validation
+   and keyboard stay the browser's.
+
    **Foundational components not built yet** (`packages/core/src/js/elements.ts` used to carry this
    as a TODO docblock; moved here so it's a backlog, not a comment):
-   - **Combobox** — CSS shell only (`patterns/combobox.css`); the Lit component that makes it
-     interactive doesn't exist.
    - **Not a gap — Dropdown.** A dropdown is not a component: it is the native Popover API plus
      anchor positioning, which is how downstream apps already build them (`.dropdown--show-on-hover`
      in `patterns/dropdown.css` is the hover variant; `<Popover>` sets the anchor). Navigation
      menus follow the WAI-ARIA disclosure pattern, not `role="menu"`. A roving-tabindex menu
      component is an explicit later decision, not backlog.
-   - **Tabs / tab / tab-panel** — `tabs` is a generated pattern with no structural partial and no
-     component (see `tiers.ts`); needs the WAI-ARIA tabs pattern (roving tabindex, arrow keys,
-     `aria-selected`, `aria-controls`).
-   - **Breadcrumbs** — no pattern at all yet. (`schemas/Breadcrumb.astro` is unrelated — Schema.org
-     JSON-LD, not visual nav.) Likely CSS/astro only, no JS: a breadcrumb trail is
-     `<nav aria-label="Breadcrumb"><ol>…` and needs nothing dynamic.
    - **Markdown** — render/enhance markdown content client-side. Library unchosen.
    - **OTP** — segmented one-time-passcode input: auto-advance between digits, paste-splitting a
      full code across them. Fallback is a plain `<input>`.
    - **QR** — QR code generation/display.
-   - **Slider** — a range control, distinct from `<wc-split-panel>`'s drag divider (that resizes two
-     panes; this picks a value).
-   - **Format** — reads a machine value and renders a presentation of it, e.g. a relative date over
-     `<time datetime>` (`"5 minutes ago"`), re-rendering as it goes stale. Fallback is the value
-     already in the markup.
 
    **Element display.** An unregistered custom element is `display: inline`, and most of these wrap
    block content, so before upgrade (or with `elements.js` absent entirely) the tag would form an
@@ -92,7 +88,8 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    registering would shift the layout. Each pattern's partial now declares `display` for its element
    inside `:where()`, matched to the content it wraps and to its upgraded `:host`: `block` for
    `wc-entries`, `wc-image-compare`, `wc-split-panel`, `wc-multi-field`, `wc-dismissable` (which
-   animates its own box, so `display: contents` is out) and `wc-marquee`; `inline-flex` for `wc-copy`.
+   animates its own box, so `display: contents` is out), `wc-marquee`, `wc-tabs` and `wc-range`;
+   `inline-flex` (column) for `wc-combobox` and `inline-flex` for `wc-copy`.
    **`<wc-turnstile>`** (in `elements.js`) loads Cloudflare Turnstile on the first interaction with
    its `<form>`, so a visitor who only reads the page makes no request to `challenges.cloudflare.com`.
    Turnstile is treated as category `necessary` (it protects the form being submitted) and is
@@ -101,8 +98,9 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    check needs JavaScript; whether a token-less submit is accepted is `createConversionRoute`'s
    `turnstile.required`, not the element's. It declares `display: block` in `forms.css`.
 
-   **`wc-counter` is deliberately left `inline`**: it wraps one inline `.counter__value` `<span>`
-   (its docblock's example), so the default display is already right for what it holds.
+   **`wc-counter` and `wc-format` are deliberately left `inline`**: `wc-counter` wraps one inline
+   `.counter__value` `<span>` (its docblock's example) and `wc-format` one inline `<time>`/`<data>`,
+   so the default display is already right for what they hold. `wc-format` has no stylesheet at all.
    `wc-color-scheme-toggle` and `wc-consent` manage their own visibility. A new element must declare
    its display in its pattern's partial — an element used inline would regress under a blanket
    `display: block`, so match the declaration to the content it wraps.

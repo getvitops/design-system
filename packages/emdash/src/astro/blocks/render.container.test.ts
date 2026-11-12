@@ -21,6 +21,7 @@ import Logos from './Logos.astro';
 import Pricing from './Pricing.astro';
 import Stats from './Stats.astro';
 import Steps from './Steps.astro';
+import Tabs from './Tabs.astro';
 
 // `.astro` imports are typed as plain prop functions here (see `astro-modules.d.ts`), which the
 // container's `AstroComponentFactory` parameter does not accept; the cast is the whole bridge.
@@ -207,6 +208,37 @@ describe('vitops_entries', () => {
       entries: [{ heading: 'a', pairs: 'k | v' }],
     });
     expect(html).not.toContain('onload');
+  });
+});
+
+describe('vitops_tabs', () => {
+  const tabs = [
+    { label: 'Overview', body: 'About us.' },
+    { label: 'Pricing', body: 'Plans.' },
+  ];
+
+  it('emits <wc-tabs> over one headed section per tab, readable with no JS', async () => {
+    const html = await render(Tabs, { level: '4', tabs });
+    expect(html).toContain('<wc-tabs');
+    expect(html).toContain('class="tabs"');
+    expect(html).toContain('<section><h4>Overview</h4><p>About us.</p></section>');
+    expect(html).toContain('<h4>Pricing</h4>');
+  });
+
+  it('passes orientation and the hash toggle through to the element', async () => {
+    const html = await render(Tabs, { tabs, orientation: 'vertical', hash: true });
+    expect(html).toContain('orientation="vertical"');
+    expect(html).toMatch(/<wc-tabs[^>]*\shash/);
+  });
+
+  it('drops a tab with no label, and renders nothing when none is left', async () => {
+    const html = await render(Tabs, { tabs: [{ label: '', body: 'x' }] });
+    expect(html).not.toContain('wc-tabs');
+  });
+
+  it('puts the editor’s anchor on the element itself', async () => {
+    const html = await render(Tabs, { tabs, anchor: 'compare' });
+    expect(html).toMatch(/<wc-tabs[^>]*id="compare"/);
   });
 });
 

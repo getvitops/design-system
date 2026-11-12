@@ -17,9 +17,14 @@
  * Role names come from `design-system.json` so the colour variants can't drift
  * from what the generator emits.
  */
+import Breadcrumbs from '@getvitops/astro/components/Breadcrumbs.astro';
 import Carousel from '@getvitops/astro/components/Carousel.astro';
+import Combobox from '@getvitops/astro/components/Combobox.astro';
 import Counter from '@getvitops/astro/components/Counter.astro';
+import Format from '@getvitops/astro/components/Format.astro';
 import Gallery from '@getvitops/astro/components/Gallery.astro';
+import Range from '@getvitops/astro/components/Range.astro';
+import Tabs from '@getvitops/astro/components/Tabs.astro';
 import Docs from '../layouts/Docs.astro';
 import designSystem from '../../../src/design-system.json';
 
@@ -981,6 +986,78 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
       <input class="form-control" id="pt-mf" name="item[]" type="text" placeholder="Add another" />
     </div>
   </wc-multi-field>
+
+  <h3>Tabs</h3>
+  <p>
+    A run of headed sections. With no JS every panel is readable, in order, under its heading; with
+    it they become a WAI-ARIA tablist (arrows, Home and End; try <code>#pt-tab-pricing</code>
+    in the address bar).
+  </p>
+  <Tabs
+    id="pt-tabs"
+    items={[
+      { label: 'Overview', id: 'pt-tab-overview', body: ['One system, three outputs.'] },
+      { label: 'Pricing', id: 'pt-tab-pricing', body: ['Free to run; you bring the config.'] },
+      { label: 'Support', id: 'pt-tab-support', body: ['Docs, the CLI and the changelog.'] },
+    ]}
+  />
+
+  <h3>Combobox</h3>
+  <p>
+    An <code>&lt;input list&gt;</code> with a <code>&lt;datalist&gt;</code> — the browser's own
+    autocomplete with no JS; a filtered listbox that keeps focus in the input with it.
+  </p>
+  <div class="form-group">
+    <label class="form-group__label" for="pt-city">
+      City
+    </label>
+    <Combobox
+      name="city"
+      inputId="pt-city"
+      options={['Ottawa', 'Gatineau', 'Toronto', 'Kingston', { value: 'MTL', label: 'Montréal' }]}
+    />
+  </div>
+
+  <h3>Range</h3>
+  <p>
+    Two native range inputs. With no JS: two sliders, both submitted. With it: one track, thumbs
+    that cannot cross, and the value shown.
+  </p>
+  <Range
+    id="pt-range"
+    names={['min', 'max']}
+    labels={['Minimum price', 'Maximum price']}
+    min={0}
+    max={1000}
+    step={10}
+    values={[200, 800]}
+    output
+  />
+
+  <h3>Format</h3>
+  <p>
+    The server writes the text; <code>&lt;wc-format&gt;</code> re-presents it from the machine
+    value. Posted
+    <Format id="pt-format" type="relative" value="2026-11-03T14:05:00Z" locale="en">
+      November 3, 2026
+    </Format>
+    for
+    <Format type="currency" currency="CAD" locale="en-CA" value={1234.5}>
+      $1,234.50 CAD
+    </Format>
+    .
+  </p>
+
+  <h3>Breadcrumbs</h3>
+  <Breadcrumbs
+    id="pt-breadcrumbs"
+    schema={false}
+    items={[
+      { label: 'Home', href: '/' },
+      { label: 'Components', href: '/components' },
+      { label: 'Patterns' },
+    ]}
+  />
 
   <!-- ── Feedback ──────────────────────────────────────────────────────────── -->
   <h2 id="feedback">Feedback</h2>

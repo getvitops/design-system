@@ -1,0 +1,72 @@
+---
+/**
+ * Tabs — a run of headed sections that, with JS, becomes a WAI-ARIA tablist.
+ *
+ * Tier 3 like `Entries.astro` and `Counter.astro`: the markup is semantic with no JS (every
+ * panel readable, in order, under its own heading, `#id` deep links working) and `<wc-tabs>` only
+ * builds the tab list over it.
+ *
+ * **This component emits its own `<wc-tabs>`** — do NOT wrap it in one. Same rule as
+ * `Cards.astro` and `Entries.astro`.
+ *
+ * Two ways in, combinable. Data, for text panels:
+ *
+ *   <Tabs items={[{ label: 'Overview', body: ['About us.'] }, { label: 'Pricing', body: ['Plans.'] }]} />
+ *
+ * or write the panels yourself in the slot, when they hold real markup. Each must be a
+ * `<section>` that opens with a heading, which becomes the tab label:
+ *
+ *   <Tabs><section id="faq"><h3>FAQ</h3>…</section></Tabs>
+ */
+import type { HTMLAttributes } from 'astro/types';
+
+export interface TabItem {
+  /** The tab's text, and the panel's heading. */
+  label: string;
+  /** The panel's id, so `#id` links select it. Derived from the label when absent. */
+  id?: string;
+  /** Paragraphs of plain text. For anything richer, write a `<section>` in the slot. */
+  body?: string[];
+}
+
+export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
+  items?: TabItem[];
+  /** Heading element for each panel (`<wc-tabs>` reads h1–h6). Default `h3`. */
+  level?: 2 | 3 | 4 | 5 | 6;
+  /** Index of the tab selected first. A URL fragment pointing at a panel wins over it. */
+  selected?: number;
+  /** Which arrows move between tabs, and whether the list runs across or down. Default `horizontal`. */
+  orientation?: 'horizontal' | 'vertical';
+  /** Write the selected panel's id into the URL as tabs change. */
+  hash?: boolean;
+}
+
+const {
+  items = [],
+  level = 3,
+  selected,
+  orientation,
+  hash,
+  class: className,
+  ...rest
+} = Astro.props;
+const Heading = `h${level}` as 'h3';
+---
+
+<wc-tabs
+  class:list={['tabs', className]}
+  selected={selected}
+  orientation={orientation}
+  hash={hash}
+  {...rest}
+>
+  {items.map((item) => (
+    <section id={item.id}>
+      <Heading>{item.label}</Heading>
+      {(item.body ?? []).map((paragraph) => (
+        <p>{paragraph}</p>
+      ))}
+    </section>
+  ))}
+  <slot />
+</wc-tabs>

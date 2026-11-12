@@ -39,3 +39,24 @@ test('without forced-colors, the ordinary box-shadow ring is still what renders'
   const style = await button.evaluate((el) => getComputedStyle(el).outlineStyle);
   expect(style).toBe('none');
 });
+
+test('the selected tab is still distinguishable under forced-colors', async ({ page }) => {
+  // Forced colors replaces author colours, so an indicator drawn only by colour would vanish and
+  // every tab would look alike. `tabs.css` switches the selected one to a system colour and
+  // underlines it; this is the real computed result, not a reading of the stylesheet.
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.goto('/patterns');
+  const tabs = page.locator('#pt-tabs');
+  const selected = tabs.getByRole('tab', { selected: true });
+  const other = tabs.getByRole('tab', { selected: false }).first();
+  const look = (el: typeof selected) =>
+    el.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return { border: style.borderBlockEndColor, underline: style.textDecorationLine };
+    });
+  const a = await look(selected);
+  const b = await look(other);
+  expect(a.underline).toContain('underline');
+  expect(b.underline).not.toContain('underline');
+  expect(a.border).not.toBe(b.border);
+});

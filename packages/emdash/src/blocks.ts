@@ -462,6 +462,43 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
+    type: 'vitops_tabs',
+    label: 'Tabs',
+    placeholder:
+      'Panels under tabs: every panel is a headed section until JavaScript turns them into tabs',
+    category: 'Sections',
+    fields: [
+      {
+        type: 'repeater',
+        action_id: 'tabs',
+        label: 'Tabs',
+        item_label: 'tab',
+        min_items: 2,
+        fields: [
+          { type: 'text_input', action_id: 'label', label: 'Tab label (also the panel heading)' },
+          { type: 'text_input', action_id: 'body', label: 'Panel text', multiline: true },
+        ],
+      },
+      levelField('3'),
+      {
+        type: 'select',
+        action_id: 'orientation',
+        label: 'Tab list',
+        initial_value: 'horizontal',
+        options: [
+          { label: 'Across the top', value: 'horizontal' },
+          { label: 'Down the side', value: 'vertical' },
+        ],
+      },
+      {
+        type: 'toggle',
+        action_id: 'hash',
+        label: 'Put the selected tab in the page address (so it can be linked to)',
+        initial_value: false,
+      },
+    ],
+  },
+  {
     type: 'vitops_hero',
     label: 'Hero',
     placeholder: 'Page opener: heading, text, buttons and an optional image',

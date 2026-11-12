@@ -28,3 +28,7 @@ import '../web-components/WCCards.js';
 import '../web-components/WCGallery.js';
 import '../web-components/WCCounter.js';
 import '../web-components/WCTurnstile.js';
+import '../web-components/WCTabs.js';
+import '../web-components/WCCombobox.js';
+import '../web-components/WCFormat.js';
+import '../web-components/WCRange.js';

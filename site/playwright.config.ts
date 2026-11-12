@@ -77,6 +77,11 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], javaScriptEnabled: false },
     },
     {
+      name: 'enhanced',
+      testMatch: /enhanced-components\.e2e\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
       name: 'forced-colors',
       testMatch: /forced-colors\.e2e\.ts$/,
       use: { ...devices['Desktop Chrome'] },

@@ -51,6 +51,7 @@
 /* was forms.css */
 @import './patterns/forms.css';
 @import './patterns/combobox.css';
+@import './patterns/range.css';
 /* was content.css */
 @import './patterns/table.css';
 @import './patterns/details.css';
@@ -60,6 +61,8 @@
 @import './patterns/consent.css';
 @import './patterns/list.css';
 @import './patterns/tree.css';
+@import './patterns/breadcrumbs.css';
+@import './patterns/tabs.css';
 /* was typographic.css */
 @import './patterns/pull-quote.css';
 @import './patterns/tag.css';

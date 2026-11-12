@@ -1,0 +1,68 @@
+---
+/**
+ * Format — a machine value presented the way the reader expects: "5 minutes ago", "November 3,
+ * 2026", "$1,234.50", in the reader's locale.
+ *
+ * Tier 3 like `Counter.astro`: the markup is a real `<time>` or `<data>` carrying the machine
+ * value, with human text inside. That text is what no-JS readers and search engines see, and what
+ * `<wc-format>` replaces from the value once it loads.
+ *
+ * **This component emits its own `<wc-format>`** — do NOT wrap it in one. Inline, like
+ * `<wc-counter>`: it wraps one inline element.
+ *
+ *   <Format type="relative" value="2026-11-03T14:05:00Z">November 3, 2026</Format>
+ *   <Format type="currency" currency="CAD" value={1234.5}>$1,234.50 CAD</Format>
+ *
+ * The slot is the fallback text, so write it the way you'd want it read with no JS. With no slot
+ * the raw value is shown, which is correct but rarely what anyone wants.
+ */
+import type { HTMLAttributes } from 'astro/types';
+
+export interface Props extends Omit<HTMLAttributes<'span'>, 'slot'> {
+  type?: 'relative' | 'date' | 'datetime' | 'time' | 'number' | 'percent' | 'currency';
+  /** An ISO date/time for `relative`, `date`, `datetime` and `time`; a number for the rest. */
+  value: string | number | Date;
+  locale?: string;
+  /** `full`, `long`, `medium` or `short`, for `date` and `datetime`. */
+  dateStyle?: 'full' | 'long' | 'medium' | 'short';
+  /** `full`, `long`, `medium` or `short`, for `time` and `datetime`. */
+  timeStyle?: 'full' | 'long' | 'medium' | 'short';
+  /** ISO 4217 code. Required for `currency`; without one the fallback text is left as written. */
+  currency?: string;
+  /** `1.5M` rather than `1,500,000`. */
+  compact?: boolean;
+}
+
+const {
+  type = 'relative',
+  value,
+  locale,
+  dateStyle,
+  timeStyle,
+  currency,
+  compact,
+  ...rest
+} = Astro.props;
+const temporal = ['relative', 'date', 'datetime', 'time'].includes(type);
+const machine = value instanceof Date ? value.toISOString() : String(value);
+---
+
+<wc-format
+  type={type}
+  locale={locale}
+  date-style={dateStyle}
+  time-style={timeStyle}
+  currency={currency}
+  compact={compact}
+  {...rest}
+>
+  {temporal ? (
+    <time datetime={machine}>
+      <slot>{machine}</slot>
+    </time>
+  ) : (
+    <data value={machine}>
+      <slot>{machine}</slot>
+    </data>
+  )}
+</wc-format>

@@ -32,6 +32,7 @@ import Reviews from './blocks/Reviews.astro';
 import Section from './blocks/Section.astro';
 import Stats from './blocks/Stats.astro';
 import Steps from './blocks/Steps.astro';
+import Tabs from './blocks/Tabs.astro';
 
 export const blockComponents = {
   vitops_actionLink: ActionLink,
@@ -43,6 +44,7 @@ export const blockComponents = {
   vitops_gallery: Gallery,
   vitops_cards: Cards,
   vitops_accordion: Accordion,
+  vitops_tabs: Tabs,
   vitops_hero: Hero,
   vitops_marquee: Marquee,
   vitops_logos: Logos,

@@ -1,0 +1,85 @@
+---
+/**
+ * Range — a slider with its value shown, or two thumbs on one track.
+ *
+ * Tier 3: the markup is native range inputs that work with no JS (one is a slider; two are two
+ * sliders that both submit), and `<wc-range>` only coordinates them.
+ *
+ * **This component emits its own `<wc-range>`** — do NOT wrap it in one.
+ *
+ *   <Range name="volume" label="Volume" min={0} max={10} value={4} output />
+ *   <Range names={['min', 'max']} labels={['Minimum price', 'Maximum price']}
+ *          min={0} max={1000} values={[200, 800]} output />
+ *
+ * A single slider that doesn't need its value shown needs no component: a bare
+ * `<input type="range">` is styled by `forms.css`. Every input needs a name a screen reader can
+ * announce, so `label` / `labels` are required and become `aria-label`.
+ */
+import type { HTMLAttributes } from 'astro/types';
+
+interface Common extends Omit<HTMLAttributes<'div'>, 'slot'> {
+  min?: number;
+  max?: number;
+  step?: number;
+  /** Show the current value (`20 – 80` for a pair) in an `<output>`. */
+  output?: boolean;
+  disabled?: boolean;
+}
+
+export interface Single extends Common {
+  name: string;
+  value?: number;
+  label: string;
+  names?: never;
+}
+
+export interface Dual extends Common {
+  names: [string, string];
+  values?: [number, number];
+  labels: [string, string];
+  name?: never;
+}
+
+export type Props = Single | Dual;
+
+const props = Astro.props as Single & Dual;
+const {
+  min = 0,
+  max = 100,
+  step,
+  output,
+  disabled,
+  class: className,
+  name,
+  value,
+  label,
+  names,
+  values,
+  labels,
+  ...rest
+} = props;
+const dual = Array.isArray(names);
+const fields = dual
+  ? names!.map((n, i) => ({
+      name: n,
+      value: values?.[i] ?? (i === 0 ? min : max),
+      label: labels![i]!,
+    }))
+  : [{ name: name!, value: value ?? min, label: label! }];
+---
+
+<wc-range class:list={['range', className]} {...rest}>
+  {fields.map((field) => (
+    <input
+      type="range"
+      name={field.name}
+      min={min}
+      max={max}
+      step={step}
+      value={field.value}
+      aria-label={field.label}
+      disabled={disabled}
+    />
+  ))}
+  {output && <output>{fields.map((f) => f.value).join(' – ')}</output>}
+</wc-range>

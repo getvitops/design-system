@@ -102,6 +102,15 @@ export const FIXTURES: Record<string, BlockFixture> = {
       { title: 'Care', body: 'Seasonal visits to keep it looking right.' },
     ],
   },
+  vitops_tabs: {
+    level: '3',
+    orientation: 'horizontal',
+    tabs: [
+      { label: 'Overview', body: 'We design and build roofs that last.' },
+      { label: 'Warranty', body: 'Twenty-five years on materials, ten on labour.' },
+      { label: 'Process', body: 'Quote, schedule, build, walk-through.' },
+    ],
+  },
   vitops_accordion: {
     exclusive: true,
     items: [

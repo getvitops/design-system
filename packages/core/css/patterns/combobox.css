@@ -3,7 +3,17 @@
  * Consumes the generated token cascade (src/css/generated/tokens.css).
  */
 
-/* ── Combobox — CSS shell; filtering/selection lands via Lit ───────────────── */
+/* ── Combobox ──────────────────────────────────────────────────────────────────
+   Fallback markup: `<wc-combobox class="combobox"><input class="combobox__input" list="x">
+   <datalist id="x">…</datalist></wc-combobox>` — native autocomplete with no JS. `<wc-combobox>`
+   replaces the browser's popup with `.combobox__listbox`, filters it, and wires the ARIA 1.2
+   combobox pattern. The listbox opens on focus while it has content and is not `[hidden]`; the
+   element sets `hidden` for Escape, and puts a `.combobox__empty` row in it when nothing matches. */
+:where(wc-combobox) {
+  display: inline-flex;
+  flex-direction: column;
+}
+
 .combobox {
   --_b: var(--b-combobox, var(--b-combobox-group, var(--b-control, var(--b-default))));
   --_br: var(--br-combobox, var(--br-combobox-group, var(--br-control, var(--br-default))));
@@ -43,7 +53,7 @@
   }
 
   /* Native open state via :has(); Lit toggles the same visibility */
-  &:has(.combobox__input:focus):has(.combobox__listbox:not(:empty)) .combobox__listbox {
+  &:has(.combobox__input:focus):has(.combobox__listbox:not(:empty, [hidden])) .combobox__listbox {
     display: block;
   }
 
@@ -68,6 +78,7 @@
     padding: var(--_p);
     text-align: center;
     opacity: 0.7;
+    list-style: none;
   }
 
   &.combobox--loading .combobox__input {
@@ -93,5 +104,13 @@
     &:hover {
       opacity: 1;
     }
+  }
+}
+
+/* The active option is marked by background alone, which forced colors discards. */
+@media (forced-colors: active) {
+  .combobox .combobox__option[aria-selected='true'] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
   }
 }

@@ -1,0 +1,69 @@
+---
+/**
+ * Combobox — a text input with suggestions. Native autocomplete with no JS; with JS, a filtered
+ * ARIA listbox that keeps DOM focus in the input.
+ *
+ * **This component emits its own `<wc-combobox>`** — do NOT wrap it in one. Same rule as
+ * `Entries.astro` and `Tabs.astro`.
+ *
+ *   <label for="city">City</label>
+ *   <Combobox name="city" inputId="city" options={['Ottawa', 'Gatineau', { value: 'ON', label: 'Ontario' }]} />
+ *
+ * The label is yours: an input without one is not accessible, and a label belongs beside the field
+ * in your own markup (`for` = `inputId`). What is typed is what is submitted, so a value that
+ * matches no option is kept: this suggests, it does not constrain. For a closed set use `<select>`.
+ */
+import type { HTMLAttributes } from 'astro/types';
+
+export type ComboboxOption = string | { value: string; label?: string };
+
+export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
+  /** The form field name. */
+  name: string;
+  /** The input's `id`, for the `<label for>`. Defaults to `name`. */
+  inputId?: string;
+  options: ComboboxOption[];
+  value?: string;
+  placeholder?: string;
+  required?: boolean;
+  disabled?: boolean;
+  /** Text for the row shown when nothing matches. Default `No matches`. */
+  emptyText?: string;
+}
+
+const {
+  name,
+  inputId = name,
+  options,
+  value,
+  placeholder,
+  required,
+  disabled,
+  emptyText,
+  class: className,
+  ...rest
+} = Astro.props;
+const listId = `${inputId}-options`;
+const normalized = options.map((option) =>
+  typeof option === 'string' ? { value: option, label: undefined } : option,
+);
+---
+
+<wc-combobox class:list={['combobox', className]} empty-text={emptyText} {...rest}>
+  <input
+    class="combobox__input"
+    type="text"
+    id={inputId}
+    name={name}
+    list={listId}
+    value={value}
+    placeholder={placeholder}
+    required={required}
+    disabled={disabled}
+  />
+  <datalist id={listId}>
+    {normalized.map((option) => (
+      <option value={option.value} label={option.label} />
+    ))}
+  </datalist>
+</wc-combobox>

@@ -625,8 +625,19 @@ export const TIERS: Record<string, TierEntry> = {
     use: "`<ReviewCard review={…} />` — one card, from `vitops reviews`' `.vitops/reviews.json` cache. Put several inside `<Carousel>` slides or `<Marquee>` items; there is no group component and no `wc-review`. In EmDash, `vitops_reviews` is that whole row: it reads the cache as a build-time import (`virtual:getvitops/reviews`, served by `vitops()`; empty when the file is absent), picks reviews with `selectReviews()`, and lays them out as a grid, carousel or marquee. A new review appears after `vitops reviews` is re-run, committed and the site rebuilt.",
   },
   tabs: {
-    css: c(['tabs'], undefined, true),
-    use: 'Generated pattern only; no structural partial and no component yet.',
+    css: c(
+      ['tabs', 'tabs__list', 'tabs__tab', 'tabs__panel', 'tabs--vertical'],
+      'patterns/tabs.css',
+      true,
+    ),
+    wc: {
+      tag: 'wc-tabs',
+      registered: true,
+      adds: 'a WAI-ARIA tablist (arrow/Home/End keys, automatic activation, roving tabindex) built from the headings, one panel shown at a time, URL-fragment deep links',
+    },
+    astro: a('Tabs', 'wc'),
+    emdash: ['vitops_tabs'],
+    use: '`<Tabs items={[{ label, body }]} />`, or `<Tabs>` around your own `<section><h3>…</h3>…</section>` panels. With no JS every panel is readable under its heading. `orientation="vertical"` runs the list down the side; `hash` writes the selected panel into the URL; `selected` sets the first tab. Do NOT wrap it in `<wc-tabs>`: it emits its own. By hand: `<wc-tabs class="tabs">` around `<section>`s that each open with a heading.',
   },
   nav: {
     css: c(
@@ -673,9 +684,51 @@ export const TIERS: Record<string, TierEntry> = {
     css: c(['pull-quote', 'pull-quote__attribution'], 'patterns/pull-quote.css', true),
     use: '`.pull-quote`. Note the type role `quote` is separate.',
   },
+  breadcrumbs: {
+    css: c(['breadcrumbs'], 'patterns/breadcrumbs.css'),
+    astro: a('Breadcrumbs', 'css'),
+    use: '`<Breadcrumbs items={[{ label, href }, …, { label }]} />`. The last item is the current page (`aria-current`, never a link). Emits the `BreadcrumbList` JSON-LD from the same items unless `schema={false}`. Hand-written: `<nav aria-label="Breadcrumb" class="breadcrumbs"><ol><li>…`. No JS.',
+  },
+  format: {
+    // No stylesheet: it wraps one inline `<time>`/`<data>`, so the default `display: inline` is right.
+    css: c([]),
+    wc: {
+      tag: 'wc-format',
+      registered: true,
+      adds: 'replaces the authored text with a locale-aware relative time, date, number, percentage or currency read from the machine value, and keeps a relative time current',
+    },
+    astro: a('Format', 'wc'),
+    emdashExempt:
+      'inline text formatting, used inside other content rather than placed as a block of its own',
+    use: '`<Format type="relative" value="2026-11-03T14:05:00Z">November 3, 2026</Format>`: the slot is the no-JS text, and `title` keeps it after upgrade. `type` is `relative`, `date`, `datetime`, `time`, `number`, `percent` or `currency` (needs `currency="CAD"`). Anything it cannot format is left as written. Do NOT wrap it in `<wc-format>`: it emits its own. By hand: `<wc-format type="relative"><time datetime="…">text</time></wc-format>`.',
+  },
   combobox: {
-    css: c(['combobox', 'combobox__listbox', 'combobox__option'], 'patterns/combobox.css', true),
-    use: 'CSS shell only — the Lit component is a TODO, so it is not interactive yet.',
+    css: c(
+      ['combobox', 'combobox__input', 'combobox__listbox', 'combobox__option', 'combobox__empty'],
+      'patterns/combobox.css',
+      true,
+    ),
+    wc: {
+      tag: 'wc-combobox',
+      registered: true,
+      adds: 'a filtered ARIA 1.2 listbox (aria-activedescendant, arrow/Enter/Escape keys, a live result count) in place of the browser datalist popup',
+    },
+    astro: a('Combobox', 'wc'),
+    emdashExempt:
+      'a form control, composed inside a form (vitops_form) rather than placed as page content',
+    use: '`<Combobox name inputId options={[…]} />` with your own `<label for>`. With no JS it is an `<input list>` + `<datalist>`: native autocomplete. What is typed is what is submitted, so it suggests and does not constrain; use `<select>` for a closed set. Do NOT wrap it in `<wc-combobox>`: it emits its own. By hand: `<wc-combobox class="combobox"><input class="combobox__input" list="x"><datalist id="x">…</datalist></wc-combobox>`.',
+  },
+  range: {
+    css: c(['range', 'range--dual', 'range__track'], 'patterns/range.css'),
+    wc: {
+      tag: 'wc-range',
+      registered: true,
+      adds: 'overlays two native range inputs on one track with thumbs that cannot cross and a filled span between them, and keeps an `<output>` current',
+    },
+    astro: a('Range', 'wc'),
+    emdashExempt:
+      'a form control, composed inside a form (vitops_form) rather than placed as page content',
+    use: 'A single slider needs no element: a bare `<input type="range">` is themed by `forms.css` (accent-color). For its value shown, or for two thumbs, use `<Range name label min max value output />` or `<Range names labels values />`: with no JS those are native range inputs (two submit as two fields). Every input needs a label. Do NOT wrap it in `<wc-range>`: it emits its own.',
   },
   forms: {
     css: c(['form-group', 'input-group', 'fieldset', 'custom-check'], 'patterns/forms.css', true),

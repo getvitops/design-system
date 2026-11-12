@@ -35,7 +35,10 @@ const CORE_DIST = join('packages', 'core', 'dist');
 
 /** Gzipped-byte ceilings. Bump deliberately; see this file's docblock. */
 const BUDGETS: Record<string, number> = {
-  'elements.js': 30_000,
+  // 28.1 KB -> 31.8 KB gzipped with `<wc-tabs>`, `<wc-combobox>`, `<wc-format>` and `<wc-range>`
+  // (about 0.9 KB each; they share Lit, `BaseElement` and `RovingTabindex`, which were already in
+  // the bundle). Intended growth, so the ceiling moves with ~4% headroom.
+  'elements.js': 33_000,
   'consent.js': 3_500,
   'editor.js': 5_500,
   'deferred.js': 1_200,

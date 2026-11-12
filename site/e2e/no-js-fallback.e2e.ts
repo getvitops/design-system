@@ -112,3 +112,80 @@ test.describe('<wc-tree> fallback', () => {
     expect(await branch.getAttribute('open')).not.toBeNull();
   });
 });
+
+test.describe('<wc-tabs> fallback', () => {
+  test('every panel is readable, in order, under its own heading, with no tablist', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    const tabs = page.locator('#pt-tabs');
+    await expect(tabs.locator('[role="tablist"]')).toHaveCount(0);
+    const sections = tabs.locator(':scope > section');
+    await expect(sections).toHaveCount(3);
+    for (let i = 0; i < 3; i++) {
+      await expect(sections.nth(i)).toBeVisible();
+      await expect(sections.nth(i).locator('h3')).toBeVisible();
+    }
+    await expect(sections.nth(1)).toContainText('Free to run');
+  });
+
+  test('a #fragment still lands on its panel', async ({ page }) => {
+    await page.goto('/patterns#pt-tab-support');
+    await expect(page.locator('#pt-tab-support')).toBeInViewport();
+  });
+});
+
+test.describe('<wc-combobox> fallback', () => {
+  test('is a native input with a datalist the browser can suggest from', async ({ page }) => {
+    await page.goto('/patterns');
+    const input = page.locator('#pt-city');
+    await expect(input).toBeVisible();
+    await expect(input).toHaveAttribute('list', 'pt-city-options');
+    await expect(page.locator('#pt-city-options option')).toHaveCount(5);
+    await expect(page.locator('#pt-city-options option[value="MTL"]')).toHaveAttribute(
+      'label',
+      'Montréal',
+    );
+    await expect(input).not.toHaveAttribute('role', 'combobox');
+  });
+
+  test('typed text is what is submitted, matching an option or not', async ({ page }) => {
+    await page.goto('/patterns');
+    await page.locator('#pt-city').fill('Peterborough');
+    await expect(page.locator('#pt-city')).toHaveValue('Peterborough');
+  });
+});
+
+test.describe('<wc-range> fallback', () => {
+  test('two real, labelled sliders that both submit, with no track overlay', async ({ page }) => {
+    await page.goto('/patterns');
+    const range = page.locator('#pt-range');
+    await expect(range.locator('input[type="range"]')).toHaveCount(2);
+    await expect(range.getByRole('slider', { name: 'Minimum price' })).toBeVisible();
+    await expect(range.getByRole('slider', { name: 'Maximum price' })).toBeVisible();
+    await expect(range.locator('.range__track')).toHaveCount(0);
+    await expect(range.locator('input[name="min"]')).toHaveValue('200');
+    await expect(range.locator('input[name="max"]')).toHaveValue('800');
+  });
+});
+
+test.describe('<wc-format> fallback', () => {
+  test('shows the text the server wrote, over a real machine-readable <time>', async ({ page }) => {
+    await page.goto('/patterns');
+    const time = page.locator('#pt-format time');
+    await expect(time).toHaveText('November 3, 2026');
+    await expect(time).toHaveAttribute('datetime', '2026-11-03T14:05:00Z');
+  });
+});
+
+test.describe('<Breadcrumbs>', () => {
+  test('is a labelled list whose last item is the current page, not a link', async ({ page }) => {
+    await page.goto('/patterns');
+    const nav = page.locator('#pt-breadcrumbs');
+    await expect(nav).toHaveAttribute('aria-label', 'Breadcrumb');
+    await expect(nav.locator('li')).toHaveCount(3);
+    await expect(nav.locator('li').last().locator('[aria-current="page"]')).toHaveText('Patterns');
+    await expect(nav.locator('li').last().locator('a')).toHaveCount(0);
+    await expect(nav.locator('li').first().locator('a')).toHaveAttribute('href', '/');
+  });
+});
