@@ -591,8 +591,8 @@ export const TIERS: Record<string, TierEntry> = {
     use: 'Native `<dialog>` plus the `.dialog__*` parts. No JS beyond `showModal()`.',
   },
   dropdown: {
-    css: c(['dropdown--show-on-hover', 'dropdown-menu'], 'patterns/dropdown.css', true),
-    use: '`.dropdown` — Popover API based.',
+    css: c(['dropdown--show-on-hover'], 'patterns/dropdown.css', true),
+    use: 'Not a component: a dropdown is the native Popover API plus anchor positioning. A trigger with `popovertarget`, a `[popover]` panel, and `anchor-name` / `position-anchor` (`<Popover anchorName positionArea>` sets them). Add `.dropdown--show-on-hover` to the wrapper to reveal on hover as well as click. The `.dropdown-trigger` / `.dropdown-menu` / `.dropdown-icon` helpers live in `patterns/nav.css`.',
   },
   notification: {
     css: c(
@@ -629,7 +629,19 @@ export const TIERS: Record<string, TierEntry> = {
     use: 'Generated pattern only; no structural partial and no component yet.',
   },
   nav: {
-    css: c(['menu', 'navbar', 'nav-collapse', 'drawer-nav'], 'patterns/nav.css', true),
+    css: c(
+      [
+        'menu',
+        'navbar',
+        'nav-collapse',
+        'drawer-nav',
+        'dropdown-trigger',
+        'dropdown-menu',
+        'dropdown-icon',
+      ],
+      'patterns/nav.css',
+      true,
+    ),
     use: '`.menu` / `.navbar`. See `navbar` and `navshell` for the newer shells.',
   },
   masthead: {

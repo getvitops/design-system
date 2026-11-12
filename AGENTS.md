@@ -58,9 +58,11 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    as a TODO docblock; moved here so it's a backlog, not a comment):
    - **Combobox** — CSS shell only (`patterns/combobox.css`); the Lit component that makes it
      interactive doesn't exist.
-   - **Dropdown / dropdown-item** — `.dropdown` (`patterns/dropdown.css`) is CSS/Popover-only,
-     hover-or-click; a menu with roving-tabindex arrow keys, type-ahead and Escape-returns-focus
-     (the ARIA `menu`/`menuitem` pattern) needs a component over it.
+   - **Not a gap — Dropdown.** A dropdown is not a component: it is the native Popover API plus
+     anchor positioning, which is how downstream apps already build them (`.dropdown--show-on-hover`
+     in `patterns/dropdown.css` is the hover variant; `<Popover>` sets the anchor). Navigation
+     menus follow the WAI-ARIA disclosure pattern, not `role="menu"`. A roving-tabindex menu
+     component is an explicit later decision, not backlog.
    - **Tabs / tab / tab-panel** — `tabs` is a generated pattern with no structural partial and no
      component (see `tiers.ts`); needs the WAI-ARIA tabs pattern (roving tabindex, arrow keys,
      `aria-selected`, `aria-controls`).
@@ -1619,12 +1621,11 @@ Two unrelated deploy stories live in this repo, and they must not be confused:
 - **This repo's own theme deploy** (`lib/deploy.ts`, below) — rsync/symlink of the Bricks
   theme `dist/`. Unrelated to everything in this section.
 - **The `dev → main` model** for every site this toolchain builds — this repo's own docs
-  site (`site/`) and every `@getvitops/create` template — described here. **Not yet adopted in
-  this repo's own remote as of this writing:** `origin/main` has no `dev` branch and carries
-  only `ci.yml` + `docs.yml`, so the reusable workflows and the `dev`/`main` split described below
-  are the intended model for a scaffolded site, still to be pushed here. Treat this section as
-  the target, and check `git branch -a` / `origin/main`'s own workflow files before assuming it's
-  live.
+  site (`site/`) and every `@getvitops/create` template — described here. **Partly adopted in
+  this repo's own remote:** `origin/dev` exists and carries the reusable workflows
+  (`site-*.yml`, `deploy-dev.yml`, `deploy-prod.yml`, …), but `origin/main` does not have them
+  until the next `dev → main` promote lands. Check `git branch -a` / each branch's own workflow
+  files before assuming either is live.
 
 **Branch model.** `dev` is the integration branch: unprotected, so an agent (or anyone
 with push access) commits and merges there directly, and every push auto-deploys the

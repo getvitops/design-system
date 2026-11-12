@@ -210,8 +210,9 @@ so a section containing cards or stats is a section whose body holds `vitops_car
 EmDash's built-in `columns` block renders its children with marks only, so a `vitops_*` block placed
 inside one does not render. Use a `blocks` field for layout instead.
 
-Not yet blocks: tree, entries, reviews (`ReviewCard` reads `.vitops/reviews.json`, which needs a
-build-time import rather than a filesystem read on a Worker), dialog and tabs (no component yet).
+Not yet blocks: tree (it needs nested data a flat repeater cannot hold), dialog and tabs (no
+component yet). Entries and reviews are blocks (`vitops_entries`, `vitops_reviews`; reviews read
+`.vitops/reviews.json` through the build-time `virtual:getvitops/reviews` import).
 
 ## Changelog
 

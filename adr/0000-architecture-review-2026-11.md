@@ -55,6 +55,21 @@ scan.
 | `nodesToHtml` does not validate tag or attribute names                    | Safe while every node tree is authored. Becomes a risk if CMS data ever reaches it; validate names before that happens.                                                                                                                |
 | Astro's three structural mirrors (`seo.ts`, `ads.ts`, `tracking.ts`)      | They do not have the dependency-cycle excuse the utils mirrors have, so they can be deleted in favour of the generator types.                                                                                                          |
 
+## Update, 2026-11 (later in the month)
+
+Several rows in "Not done" have since closed, and the table above is left as written so the
+history stays readable:
+
+| Row                                                    | Status                                                                                                                     |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `vitops_reviews`, `vitops_entries` blocks              | Shipped. Reviews read the build-time `virtual:getvitops/reviews` module. `vitops_tree` is still open.                      |
+| Layout blocks (section, split, hero)                   | `vitops_section` shipped as a block type. Standalone split/hero types do not exist, and the template does not wire it yet. |
+| Real render tests for the block adapters               | Exist: `packages/emdash/vitest.container.config.ts` (`test:render`). Only the `packages/astro` container test is excluded. |
+| `nodesToHtml` does not validate tag or attribute names | Done for names (`assertTag`, attribute pattern, `on*` rejected). A tag denylist is still open.                             |
+| Astro's three structural mirrors                       | Resolved by ADR-0001/0002. `seo.ts` stays on purpose: it is the _resolved_ shape.                                          |
+| DOM tests for `wc-consent`, `wc-image-compare`         | Still open.                                                                                                                |
+| `wc-image-compare` is shadow DOM                       | Still open. Decision: keep shadow DOM and name it as an exception in AGENTS.md.                                            |
+
 ## Consequences
 
 - The security and boundary fixes are small and shipped as changesets.

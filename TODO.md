@@ -13,14 +13,14 @@ Full design detail lives in the vNext release plan
 into this repo's own docs if that plan file location is ephemeral).
 
 Plans/entitlements (`site.plan`), runtime A/B traffic-splitting (`vitopsAbTesting()`), and
-server-side ad-platform conversion reporting items 1–3 (per-action `conversionLabel`,
-`vitopsFormConversion()`, the conversion-email action link, the rate-limit-key fix) are all
-built — see `vnext-backlog.md` for the build record. What's left, in priority order:
+server-side ad-platform conversion reporting items 1–5 (per-action `conversionLabel`,
+`vitopsFormConversion()`, the conversion-email action link, the rate-limit-key fix, the
+Google-Ads offline-conversion upload in `utils/notify/google-ads.ts`, and the client/server
+`reporting` switch in `site.ads`) are all built. What's left, in priority order:
 
-1. **Server-side ad-platform conversion reporting, items 4–6** — a
-   Google-Ads-offline-conversion-upload sender, the client/server reporting on/off switch, and
-   a `vitops ads provision` command. Blocked on obtaining a Google Ads developer token + MCC
-   OAuth access — the credential acquisition, not the engineering, is the critical path.
+1. **`vitops ads provision`** (was item 6 of server-side ad-platform conversion reporting) —
+   not built. Blocked on obtaining a Google Ads developer token + MCC OAuth access — the
+   credential acquisition, not the engineering, is the critical path.
 
 ## Unrelated backlog (not part of the vNext release)
 
