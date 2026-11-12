@@ -72,7 +72,7 @@ Which `themes` entry to use (convention: "default"). Validated against the map; 
 
 ### `defaultColorScheme` *(optional)*
 
-Initial appearance. `"system"` follows the OS via `prefers-color-scheme` and is what makes `<wc-color-scheme-toggle>`'s "System" position resolve to anything — it removes the theme attribute, so without this the page falls through to light. It also gives a no-JS page the OS appearance. Defaults to `"light"`, because switching an existing site to `"system"` visibly flips it dark for dark-OS visitors.
+Initial appearance. `"dark"` makes the site DARK-ONLY: the dark tokens become the `:root` appearance (with `color-scheme: dark`), no light block or `data-theme` flip is emitted, and the light-mode contrast checks are skipped — so a palette that only works dark (bright fills with dark text, for example) builds. Do not ship `<wc-color-scheme-toggle>` on such a site. `"system"` follows the OS via `prefers-color-scheme` and is what makes `<wc-color-scheme-toggle>`'s "System" position resolve to anything — it removes the theme attribute, so without this the page falls through to light. It also gives a no-JS page the OS appearance. Defaults to `"light"`, because switching an existing site to `"system"` visibly flips it dark for dark-OS visitors.
 
 ## `organization` *(optional)*
 
@@ -106,11 +106,15 @@ General contact telephone number.
 
 Registered/mailing address. Its `addressRegion` and `addressCountry` are what the governing-law clause of the generated terms of service defaults to.
 
-- `streetAddress` (string, required)
+- `streetAddress` (string) — Street line. Optional: a business with no public street address (home-based, service-area) omits it, and the generated legal documents and JSON-LD simply leave the line out.
 - `addressLocality` (string, required) — City.
 - `addressRegion` (string) — State / province.
 - `postalCode` (string)
 - `addressCountry` (string, required) — Country (ISO 3166-1 alpha-2 preferred).
+
+### `description` *(optional)*
+
+One or two sentences on what the organization does → JSON-LD `description` and a fallback for SEO. Localisable.
 
 ### `taxID` *(optional)*
 
@@ -146,7 +150,7 @@ Physical locations (schema.org LocalBusiness): address, geo, opening hours, serv
   - `email` (string)
   - `phone` (string)
   - `address` (object) — schema.org `PostalAddress` field names, so JSON-LD generation is lossless.
-    - `streetAddress` (string, required)
+    - `streetAddress` (string) — Street line. Optional: a business with no public street address (home-based, service-area) omits it, and the generated legal documents and JSON-LD simply leave the line out.
     - `addressLocality` (string, required) — City.
     - `addressRegion` (string) — State / province.
     - `postalCode` (string)
@@ -399,27 +403,6 @@ Named testimonial groups (quote, name, role, rating, date).
 
 Named content templates rendered at SSR time: `nav` (menu trees), `form` (field lists + submit), or `nodes` (raw element trees).
 
-- `<name>` (one of)
-  - *one of*
-    - `type` (string, required)
-    - `tags` (array of string)
-    - `present` (map)
-    - `items` (array)
-  - *one of*
-    - `type` (string, required)
-    - `tags` (array of string)
-    - `present` (map)
-    - `action` (string)
-    - `method` (get | post)
-    - `fields` (array)
-      - `[items]` (object)
-    - `submit` (map)
-    - `honeypot` (boolean)
-  - *one of*
-    - `type` (string, required)
-    - `tags` (array of string)
-    - `nodes` (array)
-
 ### `navigation` *(optional)*
 
 Site navigation settings (which nav template renders where).
@@ -427,6 +410,40 @@ Site navigation settings (which nav template renders where).
 - `activeTemplate` (object) — Which nav template is active, optionally per breakpoint.
   - `default` (string) — A `templates` key.
   - `breakpoints` (map) — Breakpoint name → `templates` key overrides.
+
+### `chrome` *(optional)*
+
+Page furniture: the masthead (top bar — position, hide-on-scroll, glass/transparent surface, inset/floating layout, shadow/border) and how its navigation behaves at each width (compact drawer or dropdown, mega tier). Read by `<Masthead />` and `<SiteNav />` via `resolveMasthead()` / `resolveNavOptions()`; a prop overrides a field per layout.
+
+- `masthead` (object) — The top bar: position, scroll behaviour, surface, layout, elevation.
+  - `position` (static | sticky | fixed) — `static` scrolls away; `sticky` stays in flow and pins to the top; `fixed` is out of flow and overlays the first section (for a transparent masthead over a hero). Default `static`.
+  - `behavior` (always | hide-on-scroll) — `hide-on-scroll` slides the masthead away while scrolling down and back on scrolling up. Ignored when `position` is `static`. It never hides while a menu inside it is open or has focus. Uses `scroll-state()`; in a browser without it (Firefox today) the masthead just stays visible. Default `always`.
+  - `surface` (solid | glass | transparent | transparent-until-scrolled) — `solid`, `glass` (blurred + tinted via `--surface-glass`), `transparent`, or `transparent-until-scrolled` (clear while the page is at the top, solid once it scrolls; a browser without `scroll-state()` shows it solid throughout). Default `solid`.
+  - `tone` (string) — A `colors.roles` key, optionally `<role>:solid`, applied as the masthead `.tone` so text contrast stays the generator's guarantee.
+  - `layout` (full | inset | floating) — `full` is flush to the viewport edges; `inset` leaves a gap to them; `floating` is inset with a panel radius. Default `full`.
+  - `width` (full | content) — `content` keeps the masthead row on the page's `.centered` track; `full` lets it span the masthead. Default `content`.
+  - `elevation` (object) — Shadow and border.
+    - `shadow` (string) — A `designSystem.shadows` key (e.g. `sm`). Omit for no shadow.
+    - `border` (boolean) — A bottom border (a full outline when `layout` is not `full`).
+    - `onScroll` (boolean) — Apply the shadow/border only once the page has scrolled, so the masthead sits flush with the page at the top. Uses `scroll-state()` container queries; in a browser without them (Firefox today) the elevation is simply always on.
+  - `height` (string) — CSS length for the masthead row (default `4rem`). `calc()`, `clamp()`, `min()` and `max()` are accepted, so it can be fluid: `clamp(3.5rem, 8cqi, 4.5rem)`. `cqi` resolves against the nearest size container (`body`, the same one the nav breakpoints use), `vw` against the viewport. Becomes `--masthead-height` and, when the masthead is sticky or fixed, `--header-offset` so in-page anchors land below it.
+  - `inset` (string) — Gap between a `layout: inset` or `floating` masthead and the viewport edge (default `0.75rem`). Same length grammar as `height`, e.g. `clamp(0.5rem, 2cqi, 1.5rem)`. Ignored when `layout` is `full`. Becomes `--masthead-inset` and is counted in `--header-offset`.
+- `nav` (object) — How the masthead navigation behaves at each width.
+  - `breakpoint` (sm | md | lg | xl) — Container width where the default `primary` menu promotes from the compact control to a navbar. Default `md`.
+  - `mobileBreakpoint` (sm | md | lg | xl) — Where a `primary-mobile` menu hands over to `primary`. Default = `breakpoint`.
+  - `megaBreakpoint` (sm | md | lg | xl) — Where a `primary-mega` menu takes over. Default `xl`.
+  - `depth` (integer) — Levels in the default nav (1–3). Default 3.
+  - `megaDepth` (integer) — Levels in the mega panel (1–3). Default 3.
+  - `compact` (drawer | dropdown) — What the toggle opens below its breakpoint: an edge `drawer`, or a columnar `dropdown` panel anchored under the toggle. Default `drawer`.
+  - `drawerSide` (start | end) — Edge the drawer slides from when `compact` is `drawer`. Default `end`.
+
+### `accessibility` *(optional)*
+
+The accessibility target this site is held to: a WCAG `standard` and minimum `level` (`none`/`A`/`AA`/`AAA`), plus a recorded `acceptedRisk`. Sets whether a WCAG 2 contrast-ratio miss fails the build and whether `vitops audit` can fail. A target, not a claim of conformance.
+
+- `standard` (wcag20 | wcag21 | wcag22) — The WCAG version the target is measured against: `wcag20`, `wcag21` or `wcag22`. Default `wcag21`. Pick the version a statute or contract names (Ontario AODA names 2.0); a later version is a superset, so a higher choice is stricter, not different.
+- `level` (none | A | AA | AAA) — The minimum conformance level the site is held to: `none`, `A`, `AA` or `AAA`. `AA`/`AAA` make a WCAG 2 contrast-ratio miss fail the build; `A` and `none` only warn (contrast is an AA criterion). `vitops audit` runs the axe tags for the chosen standard and level and fails on violations, except at `none`, where they are reported and never fail the run. Unset behaves like today: APCA failures fail the build, ratio misses warn. This records a target, not a claim of conformance.
+- `acceptedRisk` (string) — Free text recording who accepted a target below what applies to this site, when, and why (e.g. "Client accepted below AA until rebrand, per J. Smith, 2026-11-11"). Printed in the audit report header. Never read for logic.
 
 ### `seo` *(optional)*
 
@@ -511,6 +528,10 @@ Ad-click attribution for conversion tracking.
 - `enabled` (boolean) — Capture ad click IDs and UTMs from the landing URL into the `_ac` cookie, for attributing conversions.
 - `category` (marketing | analytics) — Consent category the `_ac` cookie waits on (default `marketing`). It is a 90-day identifier tying a visitor to the ad that brought them, so it is only written once this category is granted — and asking for it is what raises the banner.
 - `platforms` (array of string) — Informational list of ad platforms in use. Capture recognises every known click-ID parameter regardless.
+- `phoneNumbers` (object) — Show a visitor from an ad the tracking number for that platform instead of the real one. Swapped in by the capture script from the landing URL (immediately) or the `_ac` cookie (later pages, once `marketing` is granted); the matching `tel:` links are rewritten too. An organic visitor is never swapped. Needs `enabled: true`.
+  - `number` (string, required) — The real phone number exactly as the site displays it. Server-rendered HTML always carries this one, so crawlers, structured data and visitors without JavaScript see it.
+  - `sources` (map, required) — Tracking numbers keyed by ad platform (the `site.ads` provider names), each provisioned with a call-tracking provider and forwarding to `number`. `default-paid` is the fallback for a paid visit from a platform with no number of its own. Google needs no entry when `site.ads.google.callTracking` is set — Google supplies its own.
+  - `provider` (string) — The call-tracking provider (e.g. `twilio`, `callrail`). Informational, but it records callers’ numbers, so it must be named in the privacy policy — declare it in `site.legal.privacyPolicy.processors` unless it is a known one.
 
 ### `ads` *(optional)*
 
@@ -519,18 +540,22 @@ Ad properties this site is linked to, keyed by platform. Read by `vitops ads set
 - `<name>` (object)
   - `accountId` (string) — The advertising account as the platform shows it — Google Ads customer ID, Meta ad account, LinkedIn partner ID, Reddit advertiser ID. For LinkedIn this is also the Insight Tag id; everywhere else the tag id is `pixelId`.
   - `pixelId` (string) — The tag/pixel ID the browser snippet initialises — Meta pixel, TikTok pixel, Reddit pixel, Microsoft UET tag ID, Pinterest tag ID, Snap pixel, or the Google Ads conversion ID (`AW-…`, which is NOT the customer ID).
-  - `conversionLabel` (one of) — Google Ads only: the conversion action label(s) paired with the `AW-…` conversion ID — either one bare label (back-compat, treated as the `call` action) or a map of action → label, so a call, an email click and a form submission each fire their own Google Ads conversion action instead of all three reporting as the same one.
+  - `conversionLabel` (one of) — Google Ads only: the conversion action label(s) paired with the `AW-…` conversion ID — the category (Phone call lead, Contact, …) is a property of the action in Google Ads, not of the tag call, so a wrong category can't be fixed from code; either one bare label (back-compat, treated as the `call` action) or a map of action → label, so a call, an email click and a form submission each fire their own Google Ads conversion action instead of all three reporting as the same one.
     - *one of*
     - *one of*
-      - `call` (string) — Fired on a tel: link click.
-      - `email` (string) — Fired on a mailto: link click.
-      - `form` (string) — Fired client-side by `vitopsFormConversion()` — the consumer's own submit handler calls it once a form POST succeeds.
+      - `call` (string) — Fired on a tel: link click. Create the action in Google Ads with category "Phone call lead".
+      - `email` (string) — Fired on a mailto: link click. Create the action in Google Ads with category "Contact".
+      - `form` (string) — Fired client-side by `vitopsFormConversion()` — the consumer's own submit handler calls it once a form POST succeeds. Create the action in Google Ads with category "Submit lead form". Don't fire it from a success-page query parameter: that replays on refresh and the honeypot returns the same success page.
   - `conversionActionId` (one of) — Google Ads only: the conversion action **resource id(s)** (a numeric id, or a full `customers/…/conversionActions/…` resource name) used for server-side offline conversion upload — NOT the same value as `conversionLabel`, which is the opaque label the web tag uses and which the Ads API's upload endpoint does not accept. Only meaningful when `reporting: "server"`.
     - *one of*
     - *one of*
       - `call` (string) — Fired on a tel: link click.
       - `email` (string) — Fired on a mailto: link click.
       - `form` (string) — Fired on a form submission.
+  - `callTracking` (object) — Google Ads only: **website call conversions**. The Google tag fetches a Google forwarding number for visitors who arrived from a Google ad and swaps it in for `number`, so a phone call (not just a `tel:` tap) is attributed to the click. Google decides who sees it; this toolchain also rewrites the matching `tel:` links, which Google does not. Counts the same call as `conversionLabel.call` if both are primary — make one secondary in Google Ads. Any other platform has no equivalent: see `site.tracking.phoneNumbers`.
+    - `label` (string, required) — The conversion action label of a **separate** Google Ads action of type "Calls from a phone number on your website" (not the `conversionLabel.call` action, which counts `tel:` taps). Paired with `pixelId` as `AW-…/<label>`.
+    - `number` (string, required) — The phone number exactly as the site displays it, e.g. `613-555-0100`. Google swaps its forwarding number in only where the page text matches these digits, so a differently formatted number on the page is silently never replaced.
+    - `cache` (boolean) — Set false to stop Google caching the fetched forwarding number in a cookie (`phone_conversion_options.cache`). Default true, so the number follows the visitor across pages.
   - `reporting` (client | server) — Google Ads only: `"client"` (default) fires the conversion via `gtag.js` in the browser at click/submit time; `"server"` uploads it via the Ads API from the conversion endpoint instead (see `conversionActionId`). An action with no matching `conversionActionId` keeps firing client-side regardless of this setting, so setting it before `conversionActionId` is filled in never silently drops a conversion.
   - `domain` (string) — Bare hostname to verify with this platform. Defaults to the host of `domains.canonical` — set it only when the ad account is verified against a different domain.
   - `domainVerification` (string) — The verification token from the platform UI, for the platforms that verify by DNS TXT (Meta, TikTok, Pinterest, Snapchat). `vitops ads setup` prompts for it and writes it here on first run. NOT a secret — it is published in DNS, and the platform fetching it back is the ownership proof, exactly like the IndexNow key. A value containing `=` is used as the whole record, which is the escape hatch if a platform changes its prefix.
@@ -589,7 +614,7 @@ Security integrations (bot protection).
 
 Legal pages: which documents exist, where they live, and the facts the generated prose asserts.
 
-- `jurisdiction` (ca) — Which legal template set the generated documents use. Default `ca`.
+- `jurisdiction` (ca | qc) — Which legal template set the generated documents use. Default `ca`.
 - `privacyPolicy` (object)
   - `enabled` (boolean, required)
   - `url` (string)
@@ -601,6 +626,8 @@ Legal pages: which documents exist, where they live, and the facts the generated
       - `email` (string)
       - `phone` (string)
       - `address` (object) — schema.org `PostalAddress` field names, so JSON-LD generation is lossless.
+  - `privacyOfficerTitle` (string) — Title of the person in charge of the protection of personal information (e.g. "President"). Quebec Law 25 requires the title and contact details to be published; the `qc` templates print it beside the `privacyOfficer` contact. Not asserted when absent.
+  - `impactAssessments` (boolean) — Attests that a privacy impact assessment is carried out before personal information is communicated outside Quebec (Law 25, s. 17). The `qc` privacy policy states that assurance only when this is `true` — a fact the config cannot otherwise know, so it is never assumed.
   - `retention` (string) — How long personal information is kept, in prose (e.g. "24 months after last contact").
   - `processors` (array) — Third parties that receive personal information and cannot be inferred from the rest of the config (payment processors, CRMs, mail senders). Known providers implied by `analytics`, `security` and `deployment` are added automatically — list only the rest.
     - `[items]` (object)

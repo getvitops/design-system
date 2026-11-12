@@ -43,23 +43,38 @@ The colour system (the only required section): `palette` hues become generated O
     - *one of* — Seeded hue: the 11-step scale is GENERATED in OKLCH from `seed` (anchors pin specific steps).
       - `seed` (string, required) — Seed colour (hex or oklch()). An 11-step numeric scale (50…950, tinted near-white → tinted near-black) is generated in OKLCH from it; the seed is preserved at its natural step.
       - `anchors` (map) — Step → colour overrides (hex or oklch()) pinned VERBATIM at those steps. Every other step takes its lightness from the shared ladder, with chroma and hue interpolated between the anchors — so an anchor is reproduced exactly and is the only step allowed off the ladder. An explicit anchor overrides the seed at that step; two anchors that resolve to the same step are an error.
+      - `acknowledgeOffLadder` (boolean) — Acknowledge that this hue deliberately pins colours off the shared lightness ladder (typically to match an existing brand palette exactly). Silences the per-step "off the ladder" build warnings for THIS hue only; the monotonicity and contrast checks still run.
     - *one of* — Fixed hue: authored brand tones used verbatim; no generation.
       - `tones` (one of, required) — Fixed brand kit: authored tones placed verbatim at their nearest steps plus tinted off-white/off-black endpoints; no interpolation. Either an ordered light → dark array or a step → colour map.
+      - `acknowledgeOffLadder` (boolean) — Acknowledge that this hue deliberately pins colours off the shared lightness ladder (typically to match an existing brand palette exactly). Silences the per-step "off the ladder" build warnings for THIS hue only; the monotonicity and contrast checks still run.
 - `roles` (map, required) — Maps semantic role names onto palette hues. Role names are ARBITRARY — add a key and the generator emits that role's token set (`--color-<target>-<role>[-<variant>]` for target bg/text/icon/border), its dark-mode flip and its utility classes.
 
 A value is either a hue name (`"danger": "rust"`) or `{ "hue": …, "kind": "surface" | "chromatic" }`. **The kind decides the shape of the token set.** `chromatic` (the default, and what the bare-string form means) is a signal colour: its backgrounds split into tints (`bg-<role>-x-muted`/`-muted`) and solids (`bg-<role>-solid[-bold|-x-bold]`), with deliberately **no bare `bg-<role>`** — "how loud?" is a question the author answers. `surface` is a page/panel colour: it has a bare `bg-<role>` plus the full emphasis range and text scale.
 
-Dark mode flips automatically; there is no per-appearance scheme grammar. The solid family and its computed `text-on-<role>` foreground stay mode-stable so a filled button keeps its identity. Six roles are a required core, because the shipped framework CSS references them with no fallback: brand-primary, danger, neutral, surface, ui-primary, warning. Conventional additions are ui-secondary/accent, brand-secondary, info and success.
+Dark mode flips automatically; there is no per-appearance scheme grammar. The solid family and its computed `text-on-<role>` foreground stay mode-stable so a filled button keeps its identity. 
+
+**Contrast is enforced at build time, in both appearances** (APCA Lc): body text ≥ 75, secondary and muted text (`text-muted`) ≥ **60 against the page plane** it sits on, icons and guaranteed boundaries ≥ 45, and `text-on-<role>` ≥ 60 on the role's solid. So a mockup's muted grey that lands near Lc 57 fails the build — lighten the anchor on a dark page (or darken it on a light one) until it clears 60. `text-x-muted`/`text-xx-muted` are exempt (placeholders, disabled). A role can move its fill off the default step 600 with `solid`, and pin the polarity of its on-colour with `foreground`; a dark-only site (`defaultColorScheme: "dark"`) is only checked in dark. Six roles are a required core, because the shipped framework CSS references them with no fallback: brand-primary, danger, neutral, surface, ui-primary, warning. Conventional additions are ui-secondary/accent, brand-secondary, info and success.
   - `<name>` (one of)
     - *one of* — A palette hue name. Shorthand for `{ hue, kind: "chromatic" }`.
     - *one of*
       - `hue` (string, required) — The palette hue this role resolves to.
       - `kind` (surface | chromatic) — `surface` — a page/panel colour: gets a bare `bg-<role>` plus the full emphasis range and text scale. `chromatic` (default) — a signal colour: tints and solids only, no bare `bg-<role>`.
+      - `solid` (number,string) — Ramp step (100…900) the role's solid family starts from; default 600. `bg-<role>-solid` is this step and `-solid-bold` / `-solid-x-bold` walk one and two rungs DARKER, so `solid: 400` gives 400 → 500 → 600. Use it when the brand colour is bright and lives lower on the ramp (a yellow at 400) instead of reaching for raw `bg-<hue>-<step>` classes. Like the default family it is the same in light and dark. The contrast check still runs on the pair this produces.
+      - `foreground` (light | dark) — Polarity of `text-on-<role>`, the foreground for a filled surface. Default is whichever of near-white / near-black has more contrast on the solid. Set `"dark"` so a bright fill carries dark text (or `"light"` for the reverse). The build still fails if the forced pair is below APCA Lc 60.
+      - `acknowledgeContrast` (number) — Acknowledge a near miss on this role: a pairing that falls short of its APCA bar by no more than this many Lc is reported as a build warning instead of failing the build (e.g. `1` for a brand colour that lands at Lc 59.5 against 60). A larger shortfall still fails. Applies to this role only.
+- `tint` (object) — Derive the surface tint of a toned block (callout, card panel, band) from the role's solid instead of its `muted` step. Off by default. The generator's contrast contract does not cover it: a translucent mix over an arbitrary page is not a pairing it can check, so keep the share low.
+  - `mix` (string, required) — Share of the role solid in the tint, e.g. `"8%"`. Emits `.tone { --tone-tint: color-mix(in oklab, <solid> <mix>, transparent) }`.
 - `utilities` (array of bg | text | icon | border | outline | fill | stroke) — Which colour utility-class families to emit (`bg-*`, `text-*`, `icon-*`, `border-*`, `outline-*`, `fill-*`, `stroke-*`). Defaults to bg, text, icon, border. `icon` is a separate non-text tier (a glyph may run more vivid than text); `outline`/`fill`/`stroke` have no tokens of their own and alias the border and icon tiers.
 
 ## `shadows` *(optional)*
 
-Named shadows → `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Values are shadow parameter lists (offset/blur/colour). Each token feeds two consumers with different grammars — `box-shadow` (pattern geometry, via the `--ds-*` group aliases) and `filter: drop-shadow(…)` (the utilities and the `shadow:` state shortcut) — so values must stay in the intersection: **one layer, no spread radius, no `inset`**. `drop-shadow()` rejects all three, and rejecting them invalidates the whole filter, so the shadow vanishes rather than degrading.
+Named shadows → `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. A value is either a string (below) or `{ "box"?: string, "drop"?: string }` for a shadow that needs the two grammars to differ: `box` is what `--shadow-<name>` holds and what `box-shadow` consumers (pattern geometry, `--ds-*`) read, so it MAY use spread, `inset` and several layers; `drop` is emitted as `--shadow-<name>-drop` and is what `.drop-shadow-<name>` and the `shadow:` state shortcut read, so it must obey the drop-shadow() limits. Omit `drop` and no drop-shadow utility is emitted for that name; omit `box` and `--shadow-<name>` takes the `drop` value. The plain string form keeps working and feeds both consumers from one value. For that string form: each token feeds two consumers with different grammars — `box-shadow` (pattern geometry, via the `--ds-*` group aliases) and `filter: drop-shadow(…)` (the utilities and the `shadow:` state shortcut) — so values must stay in the intersection: **one layer, no spread radius, no `inset`**. `drop-shadow()` rejects all three, and rejecting them invalidates the whole filter, so the shadow vanishes rather than degrading.
+
+- `<name>` (one of)
+  - *one of*
+  - *one of*
+    - `box` (string) — `box-shadow` value: spread, `inset` and multiple layers allowed.
+    - `drop` (string) — `drop-shadow()` value: one layer, at most three lengths, no `inset`.
 
 ## `fonts` *(optional)*
 
@@ -68,6 +83,8 @@ Raw font stacks by name, emitted as `--font-<name>` tokens (referenced by `typog
 ## `typeScale` *(optional)*
 
 Fluid modular TYPE scale → `--text-<name>` tokens, consumed by typography roles and text-size utilities.
+
+**Recipe for marketing headings:** one ratio cannot serve both a ~16px body and a ~76px hero — a ratio big enough for the hero collapses the small end to unreadable. Extend `names` upward instead of raising the ratio: keep `base` ≈ "1rem" at the body step, `ratio` ≈ 1.2 at `maxVw` (≈ 1.125–1.15 `minRatio` at `minVw` so headings tame on phones), and add names (`4xl`, `5xl`) for the display sizes — the steps above `baseStep` are what headings read, the steps below it only need `xs`/`sm`. Aim the largest named step at your hero (≈ 4.5–5rem at `maxVw`), then point the `display`/`title` roles at those steps rather than hand-writing `clamp()` in a role. If a step still needs its own value, set that role's `size` literally — roles may bypass the scale.
 
 - `base` (string, required) — Anchor size (a CSS length, e.g. "1rem") — the value at `baseStep`.
 - `ratio` (number, required) — Modular ratio between adjacent steps at large viewports.
@@ -79,6 +96,20 @@ Fluid modular TYPE scale → `--text-<name>` tokens, consumed by typography role
   - `minVw` (string, required) — Viewport width (CSS length) where fluid scaling bottoms out.
   - `maxVw` (string, required) — Viewport width (CSS length) where fluid scaling tops out.
   - `minRatio` (number, required) — Modular ratio at/below `minVw` (usually < `ratio`).
+
+## `layout` *(optional)*
+
+Optional layout tokens. Each key you set is emitted as a `:root` custom property (css, bricks and tailwind formats); each you omit keeps the framework default. Lets the live editor tune widths and region spacing instead of a hand-written override stylesheet.
+
+- `widths` (object) — Content track widths for `.centered`. In `ch` so the reading measure stays character-based; keep measure ≤ breakout ≤ spotlight.
+  - `measure` (string) — Reading column → `--width-measure` (framework default 65ch).
+  - `breakout` (string) — `.breakout` track → `--width-breakout` (default 90ch).
+  - `spotlight` (string) — `.spotlight` track → `--width-spotlight` (default 120ch).
+  - `nav` (string) — Navigation column beside content → `--width-nav` (default 16rem).
+- `regionSpace` (object) — Vertical padding of `.region`: `padding-block: clamp(min, preferred, max)`.
+  - `min` (string) — Floor → `--region-space-min` (default 3rem).
+  - `preferred` (string) — Preferred value → `--region-space` (default 8vh).
+  - `max` (string) — Ceiling → `--region-space-max` (default 8rem).
 
 ## `spaceScale` *(optional)*
 
@@ -122,7 +153,7 @@ Typography: family aliases, semantic type roles (→ `font-<role>` classes), and
 
 - `families` (map) — Role-facing family aliases → CSS font values, usually referencing the top-level `fonts` tokens (e.g. "var(--font-display)").
 - `roles` (map) — Semantic type roles (display, title, heading, body, quote, caption, eyebrow, code, lead, footnote, tag, …), each emitted as a `font-<role>` class.
-  - `<name>` (map) — A bag of CSS-ish keys, each mapped to a declaration plus a `--<role>-<sfx>` override hook. The recognised set is **closed**: `family`, `size`, `weight`, `style`, `line-height`, `tracking` (→ `letter-spacing`), `text-transform`, `text-decoration`, `text-wrap`, `color`. Note the last four are spelled with their full CSS property names — `transform` and `decoration` are NOT accepted. Anything unrecognised is **ignored**, not passed through, so the generator warns rather than emitting it: a silently-dropped `transform: uppercase` is how title-case navigation reaches production. Note also that `style`, `text-transform`, `text-decoration` and `text-wrap` are emitted on **every** role at their identity value (`normal`/`none`/`none`/`wrap`) whether declared or not, so applying one role class over another fully resets it — which means **omitting `text-wrap` is not "inherit"**: it emits `text-wrap: wrap` and cancels the `pretty` the role would otherwise inherit from a `pretty` ancestor such as a `body`-mapped role. Declare it on every role — `balance` for heading-like roles, `pretty` for copy, `wrap` for short single-line labels.
+  - `<name>` (map) — A bag of CSS-ish keys, each mapped to a declaration plus a `--<role>-<sfx>` override hook. The recognised set is **closed**: `family`, `size`, `weight`, `style`, `line-height`, `tracking` (→ `letter-spacing`), `text-transform`, `text-decoration`, `text-wrap`, `color`. The canonical spellings of the last four are their full CSS property names (`text-transform`, `text-decoration`, …); `transform` and `decoration` are accepted as aliases of the first two and normalised to them. Anything unrecognised is **ignored**, not passed through, so the generator warns rather than emitting it: a silently-dropped key (a typo for `text-transform`, say) is how title-case navigation reaches production. Note also that `style`, `text-transform`, `text-decoration` and `text-wrap` are emitted on **every** role at their identity value (`normal`/`none`/`none`/`wrap`) whether declared or not, so applying one role class over another fully resets it — which means **omitting `text-wrap` is not "inherit"**: it emits `text-wrap: wrap` and cancels the `pretty` the role would otherwise inherit from a `pretty` ancestor such as a `body`-mapped role. Declare it on every role — `balance` for heading-like roles, `pretty` for copy, `wrap` for short single-line labels.
 - `headings` (map) — Maps bare elements to type roles so unclassed markup picks up role styling — `{ "h1": "display", "h2": "heading" }`. The key is used verbatim as a selector, so it is not limited to h1…h6: **map `"body"` to your prose role** to bind base page typography to the role rather than hand-writing it. That binding is what makes the role editable — a stylesheet that re-states `font-family`/`line-height` as literals on `body` shadows `--<role>-ff`/`--<role>-lh`, and the live theme editor then appears to do nothing.
 
 ## `animations` *(optional)*
