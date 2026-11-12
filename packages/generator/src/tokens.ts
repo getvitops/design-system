@@ -495,6 +495,12 @@ export function functionalRole(
  */
 export const CONTRAST = { TEXT: 4.5, NON_TEXT: 3 } as const;
 
+/** The pair of bars `checkContrast` judges against. The high-contrast layer is also judged at AAA. */
+export interface ContrastBars {
+  TEXT: number;
+  NON_TEXT: number;
+}
+
 /**
  * How a site's accessibility target treats a ratio miss. `fail` blocks the build, `warn` reports it
  * and carries on. Comes from `site.accessibility.level` (see `generate()`): AA, AAA and unset fail;
@@ -535,6 +541,8 @@ export function checkContrast(
   onNear?: (msg: string) => void,
   /** Default is the strict gate: a caller that names no policy has any miss returned as a failure. */
   policy: ContrastPolicy = { mode: 'fail', onWarn: () => {} },
+  /** Ratio bars; default WCAG 2 AA. The high-contrast layer is additionally judged at AAA (7 / 4.5). */
+  bars: ContrastBars = CONTRAST,
 ): string[] {
   const failures: string[] = [];
   const resolve = (val: string): string => {
@@ -576,13 +584,7 @@ export function checkContrast(
     for (const [planeName, bg] of planes) {
       for (const key of ['text', 'text-bold', 'text-muted']) {
         if (tokens[key] == null || EXEMPT_TEXT.has(key)) continue;
-        check(
-          appearance,
-          `${key} on ${planeName}`,
-          resolve(tokens[key] as string),
-          bg,
-          CONTRAST.TEXT,
-        );
+        check(appearance, `${key} on ${planeName}`, resolve(tokens[key] as string), bg, bars.TEXT);
       }
       // Icons carry meaning, so they hold the non-text bar everywhere. Borders
       // do not: a chromatic `border-<role>` is *decorative* — the tinted edge of
@@ -597,7 +599,7 @@ export function checkContrast(
           `${key} on ${planeName}`,
           resolve(tokens[key] as string),
           bg,
-          CONTRAST.NON_TEXT,
+          bars.NON_TEXT,
         );
       }
     }
@@ -608,7 +610,7 @@ export function checkContrast(
       'text-on on bg-solid',
       tokens['text-on'] as string,
       resolve(tokens['bg-solid'] as string),
-      CONTRAST.TEXT,
+      bars.TEXT,
     );
 
     // The inverse surface, where it exists.
@@ -618,7 +620,7 @@ export function checkContrast(
         'text-on-bold on bg-bold',
         resolve(tokens['text-on-bold'] as string),
         resolve(tokens['bg-bold']),
-        CONTRAST.TEXT,
+        bars.TEXT,
       );
   }
   return failures;
