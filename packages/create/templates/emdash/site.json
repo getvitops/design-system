@@ -414,6 +414,7 @@
   },
   "site": {
     "defaultLocale": "en",
+    "accessibility": { "standard": "wcag21", "level": "AA" },
     "chrome": {
       "masthead": {
         "position": "sticky",

@@ -10,6 +10,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import {
   DEFAULT_BUDGETS,
+  axeTagsFor,
+  budgetsForTarget,
   buildReport,
   fetchSitemapPaths,
   preflight,
@@ -22,10 +24,11 @@ import {
   runCommand,
   startPreview,
   type AuditBudgets,
+  type AuditTarget,
   type FormFactor,
 } from '@getvitops/utils/audit';
 import { msg, parse } from '../args.ts';
-import { fail } from './shared.ts';
+import { fail, loadConfig } from './shared.ts';
 
 /** Dedicated port: not Astro's 4321, which a developer's own `astro dev` is likely on. */
 const DEFAULT_PORT = 4398;
@@ -53,6 +56,8 @@ export async function cmdAudit(argv: string[]): Promise<void> {
     impact: { type: 'string' },
     'form-factor': { type: 'string', default: 'mobile' },
     warn: { type: 'boolean', default: false },
+    input: { type: 'string', short: 'i', default: 'site.json' },
+    'site-env': { type: 'string', default: 'production' },
   });
 
   const dir = resolve(args.str('dir'));
@@ -69,12 +74,33 @@ export async function cmdAudit(argv: string[]): Promise<void> {
       fail(`audit: ${msg(err)}`);
     }
   }
-  const budgets: AuditBudgets = {
+  // The accessibility target is read from site.json when there is one. A site without one (or a
+  // directory without a site.json at all) keeps the legacy tags and gate: the file is looked at,
+  // never required. An explicit --impact still wins over what the target would imply.
+  let target: AuditTarget | undefined;
+  const siteFile = resolve(dir, args.str('input'));
+  if (existsSync(siteFile)) {
+    const a = (await loadConfig(siteFile, args.str('site-env'))).site?.accessibility;
+    if (a?.level || a?.standard)
+      target = {
+        standard: a.standard ?? 'wcag21',
+        level: a.level ?? 'AA',
+        acceptedRisk: a.acceptedRisk,
+      };
+  }
+  const baseBudgets: AuditBudgets = {
     lcpMs: num('lcp', args.opt('lcp'), DEFAULT_BUDGETS.lcpMs),
     cls: num('cls', args.opt('cls'), DEFAULT_BUDGETS.cls),
     tbtMs: num('tbt', args.opt('tbt'), DEFAULT_BUDGETS.tbtMs),
     blockingImpacts: impacts,
   };
+  const budgets = impactFlag ? baseBudgets : budgetsForTarget(baseBudgets, target);
+  if (target)
+    console.log(
+      `▸ accessibility target: ${target.standard} ${target.level}${
+        target.level === 'none' ? ' (violations reported, not gated)' : ''
+      }`,
+    );
 
   // Menu-derived candidates: the EmDash seed, when there is one. Explicit `--seed` must
   // exist; the default location is only looked at, never required.
@@ -146,6 +172,7 @@ export async function cmdAudit(argv: string[]): Promise<void> {
       paths,
       budgets,
       formFactor,
+      ...(target ? { axeTags: axeTagsFor(target) } : {}),
       onProgress: (m) => console.log(`  ${m}`),
     });
     const report = buildReport({
@@ -154,6 +181,7 @@ export async function cmdAudit(argv: string[]): Promise<void> {
       formFactor,
       budgets,
       pages,
+      target,
     });
 
     const out = resolve(dir, args.str('out'));

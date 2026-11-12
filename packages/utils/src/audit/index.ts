@@ -7,6 +7,10 @@
  */
 export {
   AXE_TAGS,
+  axeTagsFor,
+  budgetsForTarget,
+  describeTarget,
+  renderHtml,
   DEFAULT_BUDGETS,
   DEFAULT_PAGES,
   DISCLAIMER,

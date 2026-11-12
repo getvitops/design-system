@@ -35,6 +35,7 @@
 import {
   LIGHTNESS_LADDER,
   contrastLc,
+  contrastRatio,
   generateOklchPalette,
   hexToOklch,
   oklchStringToHex,
@@ -491,6 +492,23 @@ export function functionalRole(
 export const CONTRAST = { TEXT: 75, SECONDARY: 60, NON_TEXT: 45 } as const;
 
 /**
+ * WCAG 2.x contrast ratios (1.4.3 text, 1.4.11 non-text). Separate from the APCA bars above and not
+ * derived from them: APCA is the stricter design target here, but it is a different measure, and
+ * the legal tests (AODA = WCAG 2.0 AA) are ratios. Passing one does not imply the other.
+ */
+export const WCAG_RATIO = { TEXT: 4.5, NON_TEXT: 3 } as const;
+
+/**
+ * How a site's accessibility target treats a WCAG 2 ratio miss. `fail` blocks the build, `warn`
+ * reports it and carries on. Comes from `site.accessibility.level` (see `generate()`); absent means
+ * `warn`, so a site that never declared a target is told but not broken.
+ */
+export interface WcagRatioPolicy {
+  mode: 'fail' | 'warn';
+  onWarn: (msg: string) => void;
+}
+
+/**
  * Text tokens deliberately exempt from the contract. Placeholders and disabled
  * text are required to look unavailable; holding them to the body-text bar would
  * defeat the affordance. Nothing else may be exempt.
@@ -517,8 +535,18 @@ export function checkContrast(
    */
   tolerance = 0,
   onNear?: (msg: string) => void,
+  /** WCAG 2 ratio check alongside APCA. Omitted = APCA only (the pre-`site.accessibility` behaviour). */
+  wcag?: WcagRatioPolicy,
 ): string[] {
   const failures: string[] = [];
+  const ratioCheck = (appearance: string, key: string, fg: string, bg: string, min: number) => {
+    if (!wcag) return;
+    const ratio = contrastRatio(fg, bg);
+    if (ratio >= min) return;
+    const text = `${fr.role}/${appearance}: ${key} WCAG ${ratio.toFixed(2)}:1 < ${min}:1 on ${bg}`;
+    if (wcag.mode === 'fail') failures.push(text);
+    else wcag.onWarn(text);
+  };
   const resolve = (val: string): string => {
     const m = /^var\(--color-([a-z0-9-]+)-(\d+)\)$/.exec(val);
     if (!m) return val;
@@ -562,6 +590,7 @@ export function checkContrast(
         const lc = contrastLc(resolve(tokens[key] as string), bg);
         if (lc < min)
           fail(appearance, `${key} Lc ${lc.toFixed(1)} < ${min} on ${planeName} ${bg}`, lc, min);
+        ratioCheck(appearance, key, resolve(tokens[key] as string), bg, WCAG_RATIO.TEXT);
       }
       // Icons carry meaning, so they hold the non-text bar everywhere. Borders
       // do not: a chromatic `border-<role>` is *decorative* — the tinted edge of
@@ -579,6 +608,7 @@ export function checkContrast(
             lc,
             CONTRAST.NON_TEXT,
           );
+        ratioCheck(appearance, key, resolve(tokens[key] as string), bg, WCAG_RATIO.NON_TEXT);
       }
     }
 
@@ -592,6 +622,7 @@ export function checkContrast(
         onLc,
         CONTRAST.SECONDARY,
       );
+    ratioCheck(appearance, 'text-on', tokens['text-on'] as string, solid, WCAG_RATIO.TEXT);
 
     // The inverse surface, where it exists.
     if (tokens['bg-bold'] != null && tokens['text-on-bold'] != null) {
@@ -603,6 +634,13 @@ export function checkContrast(
           lc,
           CONTRAST.TEXT,
         );
+      ratioCheck(
+        appearance,
+        'text-on-bold',
+        resolve(tokens['text-on-bold'] as string),
+        resolve(tokens['bg-bold']),
+        WCAG_RATIO.TEXT,
+      );
     }
   }
   return failures;

@@ -9,6 +9,7 @@
 import type {
   AuditBudgets,
   AuditReport,
+  AuditTarget,
   AxeImpact,
   AxeViolation,
   BudgetFailure,
@@ -30,6 +31,41 @@ export const DEFAULT_BUDGETS: AuditBudgets = {
  * new level-A ones, so both 2.1 tags are listed.
  */
 export const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
+
+/**
+ * The axe tags a declared target asks for. Tags are cumulative by version (2.1 and 2.2 are
+ * supersets) and by level (AA includes A), so the set grows with both. `none` still lists the
+ * version's A+AA tags: the report then describes what the site falls short of, it just never
+ * fails the run (see `budgetsForTarget`).
+ *
+ * axe's tag vocabulary is its own and moves with releases (`wcag22aa` arrived in 4.5); a tag an
+ * older axe does not know simply matches nothing, so a stale install under-reports rather than
+ * erroring. The report prints the tags used so that is visible.
+ */
+export function axeTagsFor(target: Pick<AuditTarget, 'standard' | 'level'>): string[] {
+  const upTo = target.standard === 'wcag20' ? 0 : target.standard === 'wcag21' ? 1 : 2;
+  const level = target.level === 'none' ? 'AA' : target.level;
+  const withAA = level === 'AA' || level === 'AAA';
+  const tags = ['wcag2a'];
+  if (withAA) tags.push('wcag2aa');
+  if (upTo >= 1) tags.push('wcag21a');
+  if (upTo >= 1 && withAA) tags.push('wcag21aa');
+  if (upTo >= 2 && withAA) tags.push('wcag22aa');
+  if (level === 'AAA') tags.push('wcag2aaa');
+  return tags;
+}
+
+/**
+ * Budgets as a declared target adjusts them. `none` removes the axe gate — violations are still
+ * collected and printed, they just stop failing pages — while performance budgets are unchanged.
+ * A level of A/AA/AAA keeps whatever impacts were configured.
+ */
+export function budgetsForTarget(
+  budgets: AuditBudgets,
+  target: Pick<AuditTarget, 'level'> | undefined,
+): AuditBudgets {
+  return target?.level === 'none' ? { ...budgets, blockingImpacts: [] } : budgets;
+}
 
 /** Pages tried on every run. `/` is required; the rest are skipped when they 404. */
 export const DEFAULT_PAGES = ['/', '/privacy', '/terms', '/cookies', '/contact'];
@@ -310,13 +346,15 @@ export function buildReport(input: {
   formFactor: FormFactor;
   budgets: AuditBudgets;
   pages: PageResult[];
+  target?: AuditTarget | undefined;
 }): AuditReport {
   return {
     generatedAt: input.generatedAt,
     baseUrl: input.baseUrl,
     formFactor: input.formFactor,
     budgets: input.budgets,
-    axeTags: AXE_TAGS,
+    axeTags: input.target ? axeTagsFor(input.target) : AXE_TAGS,
+    target: input.target,
     pages: input.pages,
     passed: input.pages.every((p) => p.failures.length === 0),
     disclaimer: DISCLAIMER,
@@ -375,6 +413,19 @@ export function renderPageMarkdown(page: PageResult, budgets: AuditBudgets): str
   return lines.join('\n');
 }
 
+/** One sentence naming the declared target and any recorded accepted risk. `undefined` when none. */
+export function describeTarget(target: AuditTarget | undefined): string | undefined {
+  if (!target) return undefined;
+  const label = target.level === 'none' ? 'no minimum level' : `level ${target.level}`;
+  const std = target.standard.replace('wcag', 'WCAG ').replace(/(\d)(\d)$/, '$1.$2');
+  const risk = target.acceptedRisk ? ` Accepted risk: ${target.acceptedRisk}` : '';
+  const gate =
+    target.level === 'none'
+      ? ' Accessibility violations are reported but do not fail the run.'
+      : '';
+  return `Declared target (\`site.accessibility\`): ${std}, ${label}.${gate}${risk}`;
+}
+
 export function renderMarkdown(report: AuditReport): string {
   const lines: string[] = [];
   lines.push('# Performance and accessibility audit', '');
@@ -383,6 +434,8 @@ export function renderMarkdown(report: AuditReport): string {
     '',
   );
   lines.push(`> ${report.disclaimer}`, '');
+  const target = describeTarget(report.target);
+  if (target) lines.push(target, '');
   lines.push(
     `Budgets: LCP < ${report.budgets.lcpMs} ms, CLS < ${report.budgets.cls}, TBT < ${report.budgets.tbtMs} ms, ` +
       `no axe ${report.budgets.blockingImpacts.join(' or ')} violations. axe tags: ${report.axeTags.join(', ')}.`,
@@ -407,11 +460,53 @@ export function renderMarkdown(report: AuditReport): string {
   return lines.join('\n');
 }
 
+const esc = (v: unknown) => String(v).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+/**
+ * A self-contained page a client can open from a CI artifact. No scripts, no external requests.
+ *
+ * It lists every violation on the site, which is useful to the owner and equally useful to anyone
+ * building a complaint — so it is an **artifact only**: the CLI writes it under `.vitops/audit/`
+ * and nothing in the toolchain places it in a build's output directory.
+ */
+export function renderHtml(report: AuditReport): string {
+  const target = describeTarget(report.target);
+  const rows = report.pages
+    .map((p) => {
+      const verdict = p.status === 'skipped' ? 'skipped' : p.failures.length ? 'FAIL' : 'pass';
+      const v = [...(p.violations ?? [])]
+        .sort((a, b) => IMPACT_RANK[b.impact] - IMPACT_RANK[a.impact])
+        .map(
+          (x) =>
+            `<li><strong>${esc(x.impact)}</strong> <code>${esc(x.id)}</code> — ${esc(x.help)} (${x.nodeCount} node${x.nodeCount === 1 ? '' : 's'})<ul>${x.targets.map((t) => `<li><code>${esc(t)}</code></li>`).join('')}</ul></li>`,
+        )
+        .join('');
+      return `<section><h2><code>${esc(p.path)}</code> — ${verdict}</h2>${
+        p.reason ? `<p>${esc(p.reason)}</p>` : ''
+      }${v ? `<ul>${v}</ul>` : p.status === 'audited' ? '<p>axe: no violations.</p>' : ''}</section>`;
+    })
+    .join('');
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Accessibility audit</title>
+<style>:root{color-scheme:light dark}body{font:1rem/1.5 system-ui,sans-serif;max-width:60rem;margin:0 auto;padding:1rem}code{overflow-wrap:anywhere}blockquote{margin-inline:0;padding-inline-start:1rem;border-inline-start:.25rem solid currentColor}</style></head>
+<body><h1>Performance and accessibility audit</h1>
+<p><strong>${report.passed ? 'PASS' : 'FAIL'}</strong> · ${esc(report.baseUrl)} · ${esc(report.formFactor)} · ${esc(report.generatedAt)}</p>
+<blockquote>${esc(report.disclaimer)}</blockquote>
+${target ? `<p>${esc(target.replace(/`/g, ''))}</p>` : ''}
+<p>axe tags: ${esc(report.axeTags.join(', '))}</p>
+${rows}
+<h2>Manual checks still required</h2><ul>${report.manualChecks.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>
+</body></html>
+`;
+}
+
 /** Files to write, relative to the output dir: JSON + markdown overall and per page. */
 export function reportFiles(report: AuditReport): Record<string, string> {
   const files: Record<string, string> = {
     'report.json': `${JSON.stringify(report, null, 2)}\n`,
     'report.md': renderMarkdown(report),
+    'report.html': renderHtml(report),
   };
   for (const p of report.pages) {
     if (p.status === 'skipped') continue;

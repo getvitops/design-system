@@ -480,6 +480,13 @@ export interface BuildOptions {
    * build failure.
    */
   darkOnly?: boolean;
+  /**
+   * Whether a WCAG 2 contrast-ratio miss fails the build (`fail`) or is reported and tolerated
+   * (`warn`). Derived from `site.accessibility.level` — `AA`/`AAA` fail, anything else (including
+   * no declared target) warns. APCA is judged separately and still fails regardless: that bar is
+   * this design system's own, not the client's legal target.
+   */
+  wcagRatio?: 'fail' | 'warn';
 }
 
 export function build(
@@ -566,6 +573,10 @@ export function build(
         buildOpts.darkOnly ? ['dark'] : undefined,
         tolerance,
         (msg) => console.warn(`[vitops] contrast acknowledged: ${msg}`),
+        {
+          mode: buildOpts.wcagRatio ?? 'warn',
+          onWarn: (msg) => console.warn(`[vitops] WCAG 2 contrast (not enforced): ${msg}`),
+        },
       );
     });
     if (failures.length)
@@ -2214,6 +2225,11 @@ function loadInput(
   return { ds: result.data, ...(resolved.config ? { config: resolved.config } : {}) };
 }
 
+/** `site.accessibility.level` → how a WCAG 2 ratio miss is treated. See `BuildOptions.wcagRatio`. */
+export function wcagRatioMode(level: string | undefined): 'fail' | 'warn' {
+  return level === 'AA' || level === 'AAA' ? 'fail' : 'warn';
+}
+
 export async function generate(options: GenerateOptions): Promise<GenerateResult> {
   const format: Format = options.format ?? 'bricks';
   const outDir = options.outDir ?? 'dist';
@@ -2234,6 +2250,7 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
     systemColorScheme:
       options.systemColorScheme ?? config?.designSystem?.defaultColorScheme === 'system',
     darkOnly: config?.designSystem?.defaultColorScheme === 'dark',
+    wcagRatio: wcagRatioMode(config?.site?.accessibility?.level),
     ...(options.sources?.length ? { sources: options.sources } : {}),
   });
   mkdirSync(outDir, { recursive: true });

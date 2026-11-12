@@ -447,6 +447,8 @@ export function defaultSiteConfig(opts?: {
     },
     site: {
       defaultLocale: locale,
+      // A new site starts strict. Lowering it is a recorded decision (`acceptedRisk`), not a default.
+      accessibility: { standard: 'wcag21', level: 'AA' },
       locales: { [locale]: { name: 'English' } },
       environments: {
         production: { url },

@@ -374,6 +374,7 @@
   },
   "site": {
     "defaultLocale": "en",
+    "accessibility": { "standard": "wcag21", "level": "AA" },
     "locales": {
       "en": {
         "name": "English"

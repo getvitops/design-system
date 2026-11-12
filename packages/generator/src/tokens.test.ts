@@ -1,4 +1,4 @@
-import { LIGHTNESS_LADDER, contrastLc, hexToOklch } from '@getvitops/utils/color';
+import { LIGHTNESS_LADDER, contrastLc, contrastRatio, hexToOklch } from '@getvitops/utils/color';
 import { describe, expect, it } from 'vite-plus/test';
 import { build } from './generate.ts';
 import { defaultConfig } from './index.ts';
@@ -472,5 +472,76 @@ describe('colors.tint and acknowledgeContrast', () => {
     const { validate } = await import('./index.ts');
     expect(() => validate(base({ acknowledgeContrast: 1 }) as never)).not.toThrow();
     expect(typeof generate).toBe('function');
+  });
+});
+
+describe('WCAG 2 contrast ratio vs APCA', () => {
+  it('computes the standard ratio (known values)', () => {
+    expect(contrastRatio('#000000', '#ffffff')).toBeCloseTo(21, 1);
+    expect(contrastRatio('#767676', '#ffffff')).toBeCloseTo(4.54, 2); // the AA grey
+    expect(contrastRatio('#777777', '#ffffff')).toBeLessThan(4.5);
+  });
+
+  // White over #777 is 4.48:1: just under the WCAG 2 text bar.
+  const role = (appearanceTokens: Record<string, string>) =>
+    ({
+      role: 'x',
+      kind: 'chromatic',
+      light: appearanceTokens,
+      dark: appearanceTokens,
+    }) as never;
+  const tokens = { 'bg-solid': '#777777', 'text-on': '#ffffff' };
+  const numeric = () => ({});
+  const wcag = (mode: 'fail' | 'warn', warned: string[] = []) => ({
+    mode,
+    onWarn: (m: string) => warned.push(m),
+  });
+
+  it('is not checked when no policy is passed (pre-site.accessibility behaviour)', () => {
+    const out = checkContrast(role(tokens), numeric, undefined, ['light']);
+    expect(out.filter((m) => m.includes('WCAG'))).toEqual([]);
+  });
+
+  it('fail mode reports a ratio miss as a failure', () => {
+    const out = checkContrast(
+      role(tokens),
+      numeric,
+      undefined,
+      ['light'],
+      0,
+      undefined,
+      wcag('fail'),
+    );
+    expect(out.filter((m) => m.includes('WCAG'))).toHaveLength(1);
+  });
+
+  it('warn mode reports the same miss without failing', () => {
+    const warned: string[] = [];
+    const base = checkContrast(role(tokens), numeric, undefined, ['light']);
+    const out = checkContrast(
+      role(tokens),
+      numeric,
+      undefined,
+      ['light'],
+      0,
+      undefined,
+      wcag('warn', warned),
+    );
+    expect(out).toEqual(base);
+    expect(warned).toHaveLength(1);
+    expect(warned[0]).toMatch(/text-on WCAG 4\.\d\d:1 < 4\.5:1/);
+  });
+
+  it('acknowledgeContrast tolerance does not excuse a ratio miss', () => {
+    const out = checkContrast(
+      role(tokens),
+      numeric,
+      undefined,
+      ['light'],
+      99,
+      undefined,
+      wcag('fail'),
+    );
+    expect(out.filter((m) => m.includes('WCAG'))).toHaveLength(1);
   });
 });

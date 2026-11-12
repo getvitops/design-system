@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_BUDGETS,
+  AXE_TAGS,
   auditedPage,
+  axeTagsFor,
+  budgetsForTarget,
+  describeTarget,
+  renderHtml,
   buildReport,
   classifyStatus,
   evaluatePage,
@@ -225,6 +230,7 @@ describe('report', () => {
       'pages/home.md',
       'pages/privacy.json',
       'pages/privacy.md',
+      'report.html',
       'report.json',
       'report.md',
     ]);
@@ -236,5 +242,65 @@ describe('report', () => {
   it('slugs paths into filenames', () => {
     expect(pageSlug('/')).toBe('home');
     expect(pageSlug('/a/b-c')).toBe('a-b-c');
+  });
+});
+
+describe('accessibility target', () => {
+  it('maps standard and level to cumulative axe tags', () => {
+    expect(axeTagsFor({ standard: 'wcag20', level: 'AA' })).toEqual(['wcag2a', 'wcag2aa']);
+    expect(axeTagsFor({ standard: 'wcag20', level: 'A' })).toEqual(['wcag2a']);
+    expect(axeTagsFor({ standard: 'wcag21', level: 'AA' })).toEqual([
+      'wcag2a',
+      'wcag2aa',
+      'wcag21a',
+      'wcag21aa',
+    ]);
+    expect(axeTagsFor({ standard: 'wcag22', level: 'AA' })).toContain('wcag22aa');
+    expect(axeTagsFor({ standard: 'wcag21', level: 'AAA' })).toContain('wcag2aaa');
+  });
+  it('`none` still reports against the version at AA, it just stops gating', () => {
+    expect(axeTagsFor({ standard: 'wcag21', level: 'none' })).toEqual(
+      axeTagsFor({ standard: 'wcag21', level: 'AA' }),
+    );
+  });
+  it('level none clears the axe gate; performance budgets are untouched', () => {
+    const b = budgetsForTarget(DEFAULT_BUDGETS, { level: 'none' });
+    expect(b.blockingImpacts).toEqual([]);
+    expect(b.lcpMs).toBe(DEFAULT_BUDGETS.lcpMs);
+    expect(evaluatePage(ok, [violation('critical')], b)).toEqual([]);
+    expect(evaluatePage(ok, [violation('critical')], DEFAULT_BUDGETS)).toHaveLength(1);
+    expect(budgetsForTarget(DEFAULT_BUDGETS, { level: 'AA' })).toBe(DEFAULT_BUDGETS);
+    expect(budgetsForTarget(DEFAULT_BUDGETS, undefined)).toBe(DEFAULT_BUDGETS);
+  });
+  const report = (target?: Parameters<typeof buildReport>[0]['target']) =>
+    buildReport({
+      generatedAt: '2026-11-11T00:00:00Z',
+      baseUrl: 'http://x.test',
+      formFactor: 'mobile',
+      budgets: DEFAULT_BUDGETS,
+      pages: [auditedPage('/', 'http://x.test/', 200, ok, [violation('serious')], DEFAULT_BUDGETS)],
+      target,
+    });
+  it('keeps the legacy tags when no target is declared', () => {
+    expect(report().axeTags).toEqual(AXE_TAGS);
+    expect(describeTarget(undefined)).toBeUndefined();
+  });
+  it('prints the declared target and any accepted risk', () => {
+    const r = report({ standard: 'wcag20', level: 'none', acceptedRisk: 'Client, 2026-11-11' });
+    expect(describeTarget(r.target)).toMatch(/WCAG 2\.0.*no minimum level.*Client, 2026-11-11/);
+    expect(renderMarkdown(r)).toContain('Declared target');
+    expect(renderHtml(r)).toContain('Client, 2026-11-11');
+  });
+  it('report.html is self-contained, noindex and escapes page content', () => {
+    const html = renderHtml(
+      report({ standard: 'wcag21', level: 'AA', acceptedRisk: '<script>x</script>' }),
+    );
+    expect(html).toContain('noindex');
+    expect(html).not.toMatch(/<script|src=|href="http/);
+    expect(html).not.toContain('<script>x');
+  });
+  it('writes only report-relative paths, so nothing can land in a build output by name', () => {
+    for (const name of Object.keys(reportFiles(report())))
+      expect(name, name).toMatch(/^(report\.(json|md|html)|pages\/[\w-]+\.(json|md))$/);
   });
 });

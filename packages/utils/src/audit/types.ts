@@ -57,6 +57,18 @@ export interface PageResult {
   failures: BudgetFailure[];
 }
 
+/**
+ * The accessibility target the audit was judged against (`site.accessibility`). Absent when the
+ * site declared none, in which case the legacy default tags and gate apply. A recorded target is
+ * a decision, never a conformance claim.
+ */
+export interface AuditTarget {
+  standard: 'wcag20' | 'wcag21' | 'wcag22';
+  level: 'none' | 'A' | 'AA' | 'AAA';
+  /** Who accepted a lower target, when and why. Printed, never read for logic. */
+  acceptedRisk?: string | undefined;
+}
+
 export type FormFactor = 'mobile' | 'desktop';
 
 export interface AuditReport {
@@ -65,6 +77,8 @@ export interface AuditReport {
   formFactor: FormFactor;
   budgets: AuditBudgets;
   axeTags: string[];
+  /** The declared target, when the site has one. */
+  target?: AuditTarget | undefined;
   pages: PageResult[];
   /** True when no page has a failure. */
   passed: boolean;

@@ -488,8 +488,11 @@ Audit options:
       --tbt <ms>        Total Blocking Time budget, the INP proxy (default: 200)
       --impact <list>   axe impacts that fail a page (default: serious,critical)
       --form-factor <f> mobile | desktop Lighthouse profile (default: mobile)
+  -i, --input <file>    site.json to read \`site.accessibility\` from (default: site.json, optional):
+                        sets the axe tags and whether violations fail the run (\`none\` = report only)
   -o, --out <dir>       Report directory (default: .vitops/audit): report.json, report.md,
-                        and pages/<page>.{json,md}
+                        report.html and pages/<page>.{json,md}. An artifact, not site content:
+                        it lists every violation, so never copy it into the build output.
       --warn            Report without failing (exit 0), for first adoption
 
   Needs the optional packages: vp add -D playwright @axe-core/playwright lighthouse

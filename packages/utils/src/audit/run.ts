@@ -247,6 +247,8 @@ export interface RunOptions {
   paths: string[];
   budgets: AuditBudgets;
   formFactor: FormFactor;
+  /** axe tags to run; default `AXE_TAGS`. See `axeTagsFor`. */
+  axeTags?: string[];
   onProgress?: (message: string) => void;
 }
 
@@ -332,7 +334,9 @@ export async function runAudit(opts: RunOptions): Promise<PageResult[]> {
             { timeout: 2000 },
           )
           .catch(() => undefined);
-        violations = toViolations(await new axe.AxeBuilder({ page }).withTags(AXE_TAGS).analyze());
+        violations = toViolations(
+          await new axe.AxeBuilder({ page }).withTags(opts.axeTags ?? AXE_TAGS).analyze(),
+        );
       } finally {
         await context.close();
       }

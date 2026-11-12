@@ -62,6 +62,7 @@ import {
   SecuritySchema,
   SeoSchema,
   ChromeSchema,
+  AccessibilitySchema,
   TrackingSchema,
   type AdProvider,
   type CrmProviderConfig,
@@ -798,6 +799,10 @@ const SiteSectionSchema = z.strictObject({
   chrome: desc(
     z.optional(ChromeSchema),
     'Page furniture: the masthead (top bar — position, hide-on-scroll, glass/transparent surface, inset/floating layout, shadow/border) and how its navigation behaves at each width (compact drawer or dropdown, mega tier). Read by `<Masthead />` and `<SiteNav />` via `resolveMasthead()` / `resolveNavOptions()`; a prop overrides a field per layout.',
+  ),
+  accessibility: desc(
+    z.optional(AccessibilitySchema),
+    'The accessibility target this site is held to: a WCAG `standard` and minimum `level` (`none`/`A`/`AA`/`AAA`), plus a recorded `acceptedRisk`. Sets whether a WCAG 2 contrast-ratio miss fails the build and whether `vitops audit` can fail. A target, not a claim of conformance.',
   ),
   seo: desc(
     z.optional(SeoSchema),

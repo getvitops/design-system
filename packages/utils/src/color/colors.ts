@@ -573,6 +573,18 @@ export function contrastLc(fg: string, bg: string): number {
 }
 
 /**
+ * WCAG 2.x contrast ratio (1–21) between a foreground and background, from relative luminance.
+ *
+ * This — not APCA — is what WCAG 2.0 AA (and so AODA) tests: 4.5:1 for normal text, 3:1 for large
+ * text (1.4.3) and for UI components and graphics (1.4.11, 2.1+). The two measures disagree: a
+ * pairing can clear APCA Lc 75 and still sit under 4.5:1, so APCA alone is not evidence of
+ * conformance.
+ */
+export function contrastRatio(fg: string, bg: string): number {
+  return new Color(bg).contrast(fg, 'WCAG21');
+}
+
+/**
  * Pick a tinted near-white or near-black foreground for best contrast on `bg`
  * (a whisper of the background's hue mixed into off-white/off-black).
  *
