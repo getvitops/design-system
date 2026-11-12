@@ -467,7 +467,7 @@ describe.each(templateNames)('template %s sees pages through playwright-cli', (n
   });
 
   it('allows the CLI and denies browser MCP servers', () => {
-    expect(settings.permissions.allow).toContain('Bash(pnpm exec playwright cli:*)');
+    expect(settings.permissions.allow).toContain('Bash(vp exec playwright cli:*)');
     expect(settings.permissions.deny).toEqual(
       expect.arrayContaining(['mcp__claude-in-chrome__*', 'mcp__playwright__*']),
     );

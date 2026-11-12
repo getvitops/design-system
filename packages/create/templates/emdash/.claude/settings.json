@@ -3,8 +3,7 @@
     "allow": [
       "mcp__astro-docs__search_astro_docs",
       "mcp__emdash-docs__search_docs",
-      "Bash(pnpm exec playwright cli:*)",
-      "Bash(npx --no-install playwright cli:*)"
+      "Bash(vp exec playwright cli:*)"
     ],
     "deny": ["mcp__claude-in-chrome__*", "mcp__playwright__*"]
   },

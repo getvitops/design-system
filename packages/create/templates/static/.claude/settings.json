@@ -1,6 +1,6 @@
 {
   "permissions": {
-    "allow": ["Bash(pnpm exec playwright cli:*)", "Bash(npx --no-install playwright cli:*)"],
+    "allow": ["Bash(vp exec playwright cli:*)"],
     "deny": ["mcp__claude-in-chrome__*", "mcp__playwright__*"]
   }
 }
