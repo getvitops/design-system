@@ -175,7 +175,10 @@ test.describe('<wc-field> fallback', () => {
   }) => {
     await page.goto('/patterns');
     const input = page.locator('#pt-field-email input');
-    await expect(page.getByLabel('Email')).toHaveAttribute('name', 'email');
+    await expect(page.locator('#pt-field-email').getByLabel('Email')).toHaveAttribute(
+      'name',
+      'email',
+    );
     await expect(page.locator('#pt-field-email label[for]')).toHaveCount(0);
     await page.locator('#pt-field-email .field__label').click();
     await expect(input).toBeFocused();
@@ -207,6 +210,38 @@ test.describe('<wc-field> fallback', () => {
       .locator('#pt-field-email input')
       .evaluate((el) => (el as HTMLInputElement).checkValidity());
     expect(valid).toBe(false);
+  });
+});
+
+test.describe('<wc-config-form> fallback', () => {
+  test('is a complete form of named, labelled controls the server can parse', async ({ page }) => {
+    await page.goto('/patterns');
+    const form = page.locator('#pt-config-form');
+    // Scoped by name: the locations rows have an Email and a Phone of their own.
+    await expect(form.locator('[name="organization.email"]')).toBeVisible();
+    await expect(form.getByLabel('Email').first()).toHaveAttribute('name', 'organization.email');
+    await expect(form.getByLabel('Phone').first()).toHaveAttribute('name', 'organization.phone');
+    await expect(form.locator('[name="organization.address.addressLocality"]')).toBeVisible();
+    await expect(form.getByRole('button', { name: 'Save' })).toBeVisible();
+  });
+
+  test('offers one blank keyed row per map, and nothing that needs script to appear', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    // The locations step has two keyed maps: locations and services.
+    await expect(page.locator('#pt-config-form .field__row')).toHaveCount(2);
+    await expect(page.locator('#pt-config-form .field__row[data-blank]')).toHaveCount(2);
+    // No script: the output stays empty and no field shows an error.
+    await expect(page.locator('#pt-config-out')).toHaveText('');
+    await expect(page.locator('#pt-config-form wc-field[data-invalid]')).toHaveCount(0);
+  });
+
+  test('loads no config-form bundle', async ({ page }) => {
+    const requests: string[] = [];
+    page.on('request', (req) => requests.push(req.url()));
+    await page.goto('/patterns');
+    expect(requests.filter((url) => /config-form/.test(url))).toEqual([]);
   });
 });
 

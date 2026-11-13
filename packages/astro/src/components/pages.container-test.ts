@@ -11,6 +11,8 @@ import Breadcrumbs from './Breadcrumbs.astro';
 // @ts-ignore -- as above
 import Combobox from './Combobox.astro';
 // @ts-ignore -- as above
+import ConfigForm from './ConfigForm.astro';
+// @ts-ignore -- as above
 import Field from './Field.astro';
 // @ts-ignore -- as above
 import Format from './Format.astro';
@@ -375,5 +377,65 @@ describe('<Field />', () => {
     );
     expect(html).not.toContain('<img src=x');
     expect(html).toContain('&lt;img');
+  });
+});
+
+describe('<ConfigForm />', () => {
+  const schema = {
+    type: 'object',
+    properties: {
+      organization: {
+        type: 'object',
+        required: ['name'],
+        properties: {
+          name: { type: 'string' },
+          email: { type: 'string', format: 'email', description: 'a </script> in prose' },
+          phone: { type: 'string' },
+        },
+      },
+    },
+  };
+  const slot = { default: '<form method="post"><input name="organization.email"></form>' };
+  const schemaJson = (html: string): { properties: { organization: { properties: object } } } =>
+    JSON.parse(
+      html.match(/<script type="application\/json" id="cf-schema">([\s\S]*?)<\/script>/)![1]!,
+    );
+
+  it('emits its own <wc-config-form> around the slotted form, pointing at its schema script', async () => {
+    const html = await render(ConfigForm, { id: 'cf', schema, output: '#out' }, slot);
+    expect(html).toMatch(/<wc-config-form[^>]*schema="cf-schema"[^>]*output="#out"/);
+    expect(html).toMatch(/<wc-config-form[\s\S]*<form method="post">[\s\S]*<\/wc-config-form>/);
+    expect(html).not.toContain('novalidate');
+  });
+
+  it('narrows the schema to the paths the form shows', async () => {
+    const html = await render(
+      ConfigForm,
+      { id: 'cf', schema, paths: ['organization.email'] },
+      slot,
+    );
+    expect(Object.keys(schemaJson(html).properties.organization.properties)).toEqual(['email']);
+  });
+
+  it('keeps the whole schema when no paths are given', async () => {
+    const html = await render(ConfigForm, { id: 'cf', schema }, slot);
+    expect(Object.keys(schemaJson(html).properties.organization.properties)).toEqual([
+      'name',
+      'email',
+      'phone',
+    ]);
+  });
+
+  it('cannot be closed early by prose in the schema', async () => {
+    const html = await render(ConfigForm, { id: 'cf', schema }, slot);
+    expect(html.match(/<script type="application\/json"/g)).toHaveLength(1);
+    expect(html).not.toContain('a </script> in prose');
+    expect(schemaJson(html).properties.organization.properties).toHaveProperty('email');
+  });
+
+  it('passes novalidate through, and only when asked', async () => {
+    expect(await render(ConfigForm, { id: 'cf', schema, novalidate: true }, slot)).toMatch(
+      /<wc-config-form[^>]*novalidate/,
+    );
   });
 });

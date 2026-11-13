@@ -20,6 +20,7 @@
 import Breadcrumbs from '@getvitops/astro/components/Breadcrumbs.astro';
 import Carousel from '@getvitops/astro/components/Carousel.astro';
 import Combobox from '@getvitops/astro/components/Combobox.astro';
+import ConfigForm from '@getvitops/astro/components/ConfigForm.astro';
 import Field from '@getvitops/astro/components/Field.astro';
 import Counter from '@getvitops/astro/components/Counter.astro';
 import Format from '@getvitops/astro/components/Format.astro';
@@ -52,6 +53,14 @@ const SECTIONS = [
 ] as const;
 
 const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
+import { ONBOARDING_STEPS, stepPaths, type JsonSchema } from '@getvitops/config/forms';
+import { configJsonSchema } from '@getvitops/generator';
+import { renderStepHtml } from '@getvitops/utils/forms';
+const configSchema = configJsonSchema as unknown as JsonSchema;
+const configSteps = ONBOARDING_STEPS.filter((step) => ['contact', 'locations'].includes(step.id));
+const configFields = configSteps
+  .map((step) => renderStepHtml(configSchema, step, { idPrefix: 'pt-cf', locales: ['en'] }))
+  .join('');
 ---
 
 <Docs
@@ -1040,6 +1049,28 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
       <input name="phone" type="tel" value="555" />
     </Field>
   </form>
+
+  <h3>Config form</h3>
+  <p>
+    Fields written from the config schema by <code>renderStepHtml</code>, inside a plain
+    <code>&lt;form method="post"&gt;</code>. With no JS it posts the names <code>formToConfig</code>
+    parses. With it, the schema validates as you type, a keyed map gains a row as the blank one is
+    used, and the document the form describes is shown below.
+  </p>
+  <ConfigForm
+    id="pt-config"
+    schema={configSchema}
+    paths={configSteps.flatMap((step) => stepPaths(step))}
+    output="#pt-config-out"
+  >
+    <form id="pt-config-form" method="post" action="#pt-config-form" class="rhythm">
+      <Fragment set:html={configFields} />
+      <button class="cta" type="submit">
+        Save
+      </button>
+    </form>
+  </ConfigForm>
+  <pre id="pt-config-out" aria-label="The document the form describes"></pre>
 
   <h3>Range</h3>
   <p>

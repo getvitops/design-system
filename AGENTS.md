@@ -58,6 +58,16 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      ships `hidden` — with no JS the gate never runs, no gated tag loads and no non-essential cookie
      is set, so there is genuinely nothing to consent to. That fallback isn't empty, it's _moot_.
 
+   **`<wc-config-form>` is the second element outside `elements.js`** (`@getvitops/core/config-form`,
+   ~3.6 KB gzipped, Lit-free, a plain `HTMLElement`), for the reason `<wc-consent>` has its own bundle:
+   it carries what a page with no config form should not download (the JSON Schema validator and the
+   `formToConfig` codec, bundled from `@getvitops/config/forms`). It meets the tier-2 bar: the form it
+   wraps is a complete `<form method="post">` (`renderProjectionHtml`, `@getvitops/utils/forms`) that
+   posts the names `formToConfig` parses with scripting off, and the server validates. The element only
+   adds feedback while typing, a new row for a keyed map as the blank one is used, and `value`. It
+   enhances `<wc-field>` (in `elements.js`) without importing it, so the two load in either order. It
+   cancels a submit that has errors unless it has `novalidate`.
+
    **Not registered in `elements.js` yet:** `WCColorWheel`, `WCOklchColorPicker`, `WCIconPicker`,
    `WCTypography` — they belong to the editor-v2 track.
 
@@ -99,7 +109,7 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    inline box around a block child — and, where the upgraded `:host` declares a different display,
    registering would shift the layout. Each pattern's partial now declares `display` for its element
    inside `:where()`, matched to the content it wraps and to its upgraded `:host`: `block` for
-   `wc-entries`, `wc-image-compare`, `wc-split-panel`, `wc-multi-field`, `wc-dismissable` (which
+   `wc-config-form`, `wc-entries`, `wc-image-compare`, `wc-split-panel`, `wc-multi-field`, `wc-dismissable` (which
    animates its own box, so `display: contents` is out), `wc-marquee`, `wc-tabs` and `wc-range`;
    `inline-flex` (column) for `wc-combobox` and `inline-flex` for `wc-copy`; `flex` (column) for
    `wc-field`, matching `.form-group`.

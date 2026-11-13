@@ -60,6 +60,7 @@ emit its tag.
 | `color-wheel` | wc | Not shipped. Registered but absent from every bundle, so the tag is inert in a consumer project. |
 | `combobox` | css · wc · astro | `<Combobox name inputId options={[…]} />` with your own `<label for>`. With no JS it is an `<input list>` + `<datalist>`: native autocomplete. What is typed is what is submitted, so it suggests and does not constrain; use `<select>` for a closed set. Do NOT wrap it in `<wc-combobox>`: it emits its own. By hand: `<wc-combobox class="combobox"><input class="combobox__input" list="x"><datalist id="x">…</datalist></wc-combobox>`. |
 | `comment` | css | `.comment` inside `.comment-thread`. |
+| `config-form` | wc · astro | `<ConfigForm id schema paths output><form method="post">…</form></ConfigForm>`, with the fields from `renderStepHtml` / `renderProjectionHtml` (`@getvitops/utils/forms`). With no JS it is a plain form posting the names `formToConfig` parses and the server validates. Its own Lit-free bundle (`@getvitops/core/config-form`): the validator and the form codec. Do NOT wrap it in `<wc-config-form>`: it emits its own. `paths` narrows the schema to the fields shown; `novalidate` lets the server decide a submit. |
 | `consent` | css · wc · astro | `<CookieConsent />`. Its own Lit-free bundle so a site needing consent does not download a rendering framework. |
 | `copy` | css · wc · bricks · emdash | `<wc-copy>` around the content and a `[data-copy]` button. |
 | `counter` | css · wc · astro · emdash | `<Counter value="94%" />` — it emits `<wc-counter>` itself, so do NOT add your own wrapper. The final value is parsed from the fallback text, never passed separately. |
@@ -142,6 +143,7 @@ is tooling and opt-in per consumer.
 | `<wc-color-scheme-toggle>` | `color-scheme-toggle` | `elements.js` | segmented light/dark/system control; persists the choice (consent-gated) |
 | `<wc-color-wheel>` | `color-wheel` | `(none — editor-v2 track, not yet bundled)` | hue/chroma wheel input |
 | `<wc-combobox>` | `combobox` | `elements.js` | a filtered ARIA 1.2 listbox (aria-activedescendant, arrow/Enter/Escape keys, a live result count) in place of the browser datalist popup |
+| `<wc-config-form>` | `config-form` | `@getvitops/core/config-form` | validates the form against a JSON Schema as you type and shows each message in its `<wc-field>`, stops a submit that has errors, adds a row to a keyed map as the blank one is used, and exposes the config document the form describes |
 | `<wc-consent>` | `consent` | `@getvitops/core/consent` | the permission gate itself — activates `type="text/plain"` tags on grant |
 | `<wc-copy>` | `copy` | `elements.js` | clipboard write plus success feedback |
 | `<wc-counter>` | `counter` | `elements.js` | animates from a start value to the value already in the fallback text, on intersection |
@@ -173,6 +175,7 @@ is tooling and opt-in per consumer.
 | `@getvitops/astro/components/Cards.astro` | `card` | the `<wc-cards>` tag, fallback inside |
 | `@getvitops/astro/components/Carousel.astro` | `carousel` | the `<wc-carousel>` tag, fallback inside |
 | `@getvitops/astro/components/Combobox.astro` | `combobox` | the `<wc-combobox>` tag, fallback inside |
+| `@getvitops/astro/components/ConfigForm.astro` | `config-form` | the `<wc-config-form>` tag, fallback inside |
 | `@getvitops/astro/CookieConsent.astro` | `consent` | the `<wc-consent>` tag, fallback inside |
 | `@getvitops/astro/components/Counter.astro` | `counter` | the `<wc-counter>` tag, fallback inside |
 | `@getvitops/astro/components/Details.astro` | `details` | tier-1 markup — no web component |
@@ -264,6 +267,7 @@ Every shipped `wc-*` element either has a block above or a stated reason here
 
 - `wc-color-scheme-toggle` — site chrome (header/footer), not page content; belongs in the nav/layout
 - `wc-combobox` — a form control, composed inside a form (vitops_form) rather than placed as page content
+- `wc-config-form` — configuration tooling for a site owner, not page content a visitor reads or an editor places
 - `wc-consent` — site chrome: the layout renders `<CookieConsent />` once; an editor-placed copy would duplicate the gate
 - `wc-field` — a form control wrapper, composed inside a form (vitops_form) rather than placed as page content
 - `wc-format` — inline text formatting, used inside other content rather than placed as a block of its own

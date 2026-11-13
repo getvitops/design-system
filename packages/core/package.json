@@ -23,12 +23,14 @@
     "./polyfills": "./dist/polyfills.js",
     "./deferred": "./dist/deferred.js",
     "./css/*": "./css/*",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./config-form": "./dist/config-form.js"
   },
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
+    "@getvitops/config": "workspace:*",
     "@getvitops/utils": "workspace:*",
     "@lit-labs/signals": "catalog:",
     "@oddbird/css-anchor-positioning": "catalog:",

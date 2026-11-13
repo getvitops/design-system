@@ -511,6 +511,11 @@ fieldset.field__control,
   display: block;
 }
 
+/* `<wc-config-form>` wraps a `<form>`, a block. It has no shadow root, so there is no `:host`. */
+:where(wc-config-form) {
+  display: block;
+}
+
 /* `<wc-turnstile>` wraps a fallback paragraph and the widget box, both blocks (light DOM, no `:host`). */
 :where(wc-turnstile) {
   display: block;

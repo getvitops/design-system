@@ -751,6 +751,19 @@ export const TIERS: Record<string, TierEntry> = {
       'a form control wrapper, composed inside a form (vitops_form) rather than placed as page content',
     use: '`<Field label help error optional><input name … /></Field>`: the label nests the control, so no `id`/`for` is needed. With no JS it is a labelled control and a server `error` is already under it. It is not form-associated: the native control still submits, validates and takes focus. Do NOT wrap it in `<wc-field>`: it emits its own. By hand: `<wc-field class="field"><label class="field__control"><span class="field__label">Name</span><input name="n"></label><small class="field__help">…</small></wc-field>`. Use `.form-group` for a field whose label and control are siblings.',
   },
+  'config-form': {
+    css: c([]),
+    wc: {
+      tag: 'wc-config-form',
+      registered: false,
+      bundle: '@getvitops/core/config-form',
+      adds: 'validates the form against a JSON Schema as you type and shows each message in its `<wc-field>`, stops a submit that has errors, adds a row to a keyed map as the blank one is used, and exposes the config document the form describes',
+    },
+    astro: a('ConfigForm', 'wc'),
+    emdashExempt:
+      'configuration tooling for a site owner, not page content a visitor reads or an editor places',
+    use: '`<ConfigForm id schema paths output><form method="post">…</form></ConfigForm>`, with the fields from `renderStepHtml` / `renderProjectionHtml` (`@getvitops/utils/forms`). With no JS it is a plain form posting the names `formToConfig` parses and the server validates. Its own Lit-free bundle (`@getvitops/core/config-form`): the validator and the form codec. Do NOT wrap it in `<wc-config-form>`: it emits its own. `paths` narrows the schema to the fields shown; `novalidate` lets the server decide a submit.',
+  },
   forms: {
     css: c(['form-group', 'input-group', 'fieldset', 'custom-check'], 'patterns/forms.css', true),
     use: 'Wrap text controls in `.form-group` or `.input-group` — a bare `<input>` gets browser defaults.',

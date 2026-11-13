@@ -38,7 +38,10 @@ import { defineConfig, devices } from '@playwright/test';
 // wrong site, silently, with no error at all beyond every locator timing out
 // against a page that carries none of the expected markup. A dedicated port
 // makes a collision a `EADDRINUSE` a developer would get to notice.
-const PORT = 4399;
+// Overridable so two checkouts (a worktree, another repo's preview) can run at once: with
+// `reuseExistingServer` on, a second run on the same port would silently attach to the first one's
+// server and test its build.
+const PORT = Number(process.env.E2E_PORT ?? 4399);
 const BASE_URL = `http://localhost:${PORT}`;
 
 export default defineConfig({

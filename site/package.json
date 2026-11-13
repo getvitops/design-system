@@ -17,6 +17,7 @@
     "@astrojs/check": "catalog:",
     "@astrojs/sitemap": "catalog:",
     "@getvitops/astro": "workspace:*",
+    "@getvitops/config": "workspace:*",
     "@getvitops/generator": "workspace:*",
     "@getvitops/utils": "workspace:*",
     "@iconify-json/fa7-solid": "catalog:",

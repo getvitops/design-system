@@ -1,0 +1,55 @@
+---
+/**
+ * ConfigForm — a config form that validates as you type, over markup that already works.
+ *
+ * **This component emits its own `<wc-config-form>`** — do NOT wrap it in one. Same rule as
+ * `Combobox.astro` and `Field.astro`.
+ *
+ *   ---
+ *   import { renderStepHtml } from '@getvitops/utils/forms';
+ *   import { configJsonSchema } from '@getvitops/generator';
+ *   const fields = renderStepHtml(configJsonSchema, step, { values });
+ *   ---
+ *   <ConfigForm id="onboarding" schema={configJsonSchema} paths={stepPaths(step)} output="#preview">
+ *     <form method="post">
+ *       <Fragment set:html={fields} />
+ *       <button class="cta">Save</button>
+ *     </form>
+ *   </ConfigForm>
+ *
+ * The slot is the form. With no JS it is a plain `<form method="post">` posting the names
+ * `formToConfig` parses, and the server validates; the element adds feedback while typing, rows for
+ * a keyed map, and `value`. `paths` narrows the schema to the fields the form shows (`pickSchema`),
+ * so a required field the form never displays is not reported against it. It loads
+ * `@getvitops/core/config-form`, its own Lit-free bundle, so a page without a config form pays
+ * nothing for the validator.
+ */
+import { pickSchema, type JsonSchema } from '@getvitops/config/forms';
+
+export interface Props {
+  /** Unique on the page: the id of the `<script type="application/json">` holding the schema. */
+  id: string;
+  /** The config JSON Schema (`configJsonSchema`, or the portal's `config.schema.json`). */
+  schema: JsonSchema;
+  /** Dotted paths the form edits. Omit to validate against the whole schema. */
+  paths?: readonly string[];
+  /** A selector for an element that receives the document as JSON on every change. */
+  output?: string;
+  /** Don't block a submit that has errors; the server decides. */
+  novalidate?: boolean;
+}
+
+const { id, schema, paths, output, novalidate } = Astro.props;
+const narrowed = paths ? pickSchema(schema, paths) : schema;
+// A `<` in the JSON could close the script element early; `<` is the same string to JSON.parse.
+const json = JSON.stringify(narrowed).replace(/</g, '\\u003c');
+const schemaId = `${id}-schema`;
+---
+
+<wc-config-form schema={schemaId} output={output} novalidate={novalidate}>
+  <slot />
+</wc-config-form>
+<script type="application/json" id={schemaId} set:html={json} />
+<script>
+  import '@getvitops/core/config-form';
+</script>

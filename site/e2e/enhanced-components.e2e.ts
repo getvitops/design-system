@@ -172,3 +172,52 @@ test.describe('<wc-field>', () => {
     await expect(field.locator('.field__error')).toHaveText('');
   });
 });
+
+test.describe('<wc-config-form>', () => {
+  test('describes the form as a config document, live', async ({ page }) => {
+    await page.goto('/patterns');
+    const out = page.locator('#pt-config-out');
+    await expect(out).toHaveText('{}');
+    await page.locator('#pt-config-form [name="organization.email"]').fill('ada@example.com');
+    await expect(out).toContainText('"email": "ada@example.com"');
+    await expect(out).toContainText('"organization"');
+  });
+
+  test('says an email is wrong once the field is left, and not before', async ({ page }) => {
+    await page.goto('/patterns');
+    const input = page.locator('#pt-config-form [name="organization.email"]');
+    // `has` is matched inside the field, so it takes a selector relative to it, not `input`.
+    const error = page
+      .locator('#pt-config-form wc-field', { has: page.locator('[name="organization.email"]') })
+      .locator('.field__error');
+    await input.fill('nope');
+    await expect(error).toHaveText('');
+    await page.locator('#pt-config-form [name="organization.phone"]').focus();
+    await expect(error).toHaveText('Must be an email address.');
+    await input.fill('ada@example.com');
+    await expect(error).toHaveText('');
+  });
+
+  test('stops a submit that has errors instead of navigating', async ({ page }) => {
+    await page.goto('/patterns');
+    await page.locator('#pt-config-form [name="organization.email"]').fill('nope');
+    await page.locator('#pt-config-form').getByRole('button', { name: 'Save' }).click();
+    await expect(page).not.toHaveURL(/#pt-config-form/);
+    await expect(page.locator('#pt-config-form wc-field[data-invalid]').first()).toBeVisible();
+  });
+
+  test('adds a row to a keyed map as the blank one is used', async ({ page }) => {
+    await page.goto('/patterns');
+    // Scoped to the locations map: the services map beside it has its own blank row.
+    const locations = page.locator('#pt-cf-organization-locations');
+    const rows = locations.locator('.field__row');
+    await expect(rows).toHaveCount(1);
+    await rows.first().locator('input[name$="$key"]').fill('ottawa');
+    await expect(rows).toHaveCount(2);
+    await expect(locations.locator('.field__row[data-blank]')).toHaveCount(1);
+    await rows.nth(1).locator('input[name$="$key"]').fill('gatineau');
+    await expect(rows).toHaveCount(3);
+    // The services map is untouched.
+    await expect(page.locator('#pt-cf-organization-services .field__row')).toHaveCount(1);
+  });
+});

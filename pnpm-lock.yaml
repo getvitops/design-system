@@ -472,6 +472,9 @@ importers:
 
   packages/core:
     devDependencies:
+      '@getvitops/config':
+        specifier: workspace:*
+        version: link:../config
       '@getvitops/utils':
         specifier: workspace:*
         version: link:../utils
@@ -654,6 +657,9 @@ importers:
       '@getvitops/astro':
         specifier: workspace:*
         version: link:../packages/astro
+      '@getvitops/config':
+        specifier: workspace:*
+        version: link:../packages/config
       '@getvitops/generator':
         specifier: workspace:*
         version: link:../packages/generator
