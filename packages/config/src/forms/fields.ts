@@ -20,6 +20,12 @@ export interface FieldMeta {
   placeholder?: string;
   /** Short help shown under the field, instead of the schema's own `description`. */
   help?: string;
+  /**
+   * Make this a select whose options are the keys of the map at this dotted path in the document
+   * being edited (a role's hue is one of the palette's hues). Read when the form is rendered, so a
+   * key added since is not offered until the form is rendered again.
+   */
+  optionsFrom?: string;
 }
 
 export const FIELD_META: Readonly<Record<string, FieldMeta>> = {
@@ -56,6 +62,16 @@ export const FIELD_META: Readonly<Record<string, FieldMeta>> = {
   // brand (design system)
   'designSystem.themes.default.colors.palette': { label: 'Brand colours' },
   'designSystem.themes.default.colors.palette.*.seed': { label: 'Colour', widget: 'color' },
+  'designSystem.themes.default.colors.roles': {
+    label: 'Colour roles',
+    help: 'Which brand colour each purpose (primary, danger, …) uses.',
+  },
+  'designSystem.themes.default.colors.roles.*.hue': {
+    label: 'Brand colour',
+    optionsFrom: 'designSystem.themes.default.colors.palette',
+  },
+  'designSystem.themes.default.colors.roles.*.kind': { label: 'Kind' },
+  'designSystem.themes.default.colors.roles.*.foreground': { label: 'Text on this colour' },
   'designSystem.themes.default.typography.families': { label: 'Font families' },
 
   // site

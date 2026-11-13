@@ -123,6 +123,15 @@ export function describeField(
   if (strings && (descriptor.widget === 'select' || descriptor.widget === 'radio')) {
     descriptor.options = strings;
   }
+  if (meta?.optionsFrom && !override?.widget) {
+    // Options come from the document being edited, so with no document there are none to offer.
+    const source =
+      options.values !== undefined ? valueAt(options.values, meta.optionsFrom) : undefined;
+    if (typeof source === 'object' && source !== null && !Array.isArray(source)) {
+      descriptor.widget = 'select';
+      descriptor.options = Object.keys(source);
+    }
+  }
 
   if (descriptor.widget === 'group' || descriptor.widget === 'map') {
     const container = descriptor.widget === 'map' ? nodeAt(root, `${path}.*`) : node;

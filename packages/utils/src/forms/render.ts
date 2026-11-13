@@ -154,7 +154,13 @@ function rowScope(
   const base = parent.name(map.path, identity);
   return {
     name: (path, wrap = scalarName) => mapFieldName(base, index, wrap(rel(path))),
-    value: (d) => valueAt(row, rel(d.path)),
+    // A row that is a bare string is shorthand for the row's first field (a role's hue name).
+    value: (d) =>
+      typeof row === 'string'
+        ? d.path === map.children?.[0]?.path
+          ? row
+          : undefined
+        : valueAt(row, rel(d.path)),
     docPath: (path) => `${parent.docPath(map.path)}.${key}.${rel(path)}`,
     depth: parent.depth + 1,
   };
@@ -280,7 +286,11 @@ function renderControl(
       const current = stringOf(value);
       const options: ContentNode[] = [];
       if (!d.required || ctx.scope.depth > 0) options.push(el('option', { value: '' }, '—'));
-      for (const option of d.options ?? []) {
+      // A stored value the list no longer offers is still shown, not silently replaced by the first.
+      const offered = d.options ?? [];
+      for (const option of current && !offered.includes(current)
+        ? [...offered, current]
+        : offered) {
         options.push(
           el('option', { value: av(option), selected: option === current ? true : null }, option),
         );

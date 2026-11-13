@@ -87,7 +87,11 @@ export const PROJECTIONS: readonly Projection[] = [
     title: 'Brand',
     description:
       'The colours and fonts the site is built from. Everything finer than this lives in the theme editor.',
-    items: [{ path: `${D}.colors.palette`, fields: ['seed'] }, `${D}.typography.families`],
+    items: [
+      { path: `${D}.colors.palette`, fields: ['seed'] },
+      { path: `${D}.colors.roles`, fields: ['hue', 'kind', 'foreground'] },
+      `${D}.typography.families`,
+    ],
   },
   {
     // HOOK-UP POINT for the accessibility-requirements work (built separately). Two seams, both

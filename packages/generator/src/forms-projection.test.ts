@@ -164,3 +164,24 @@ describe('step status against a real site.json', () => {
     expect(issues.filter((i) => i.message.startsWith('Expected'))).toEqual([]);
   });
 });
+
+describe('the brand step', () => {
+  it('offers each role the palette hues, and shows a role written as a bare hue name', async () => {
+    const { renderProjectionHtml } = await import('@getvitops/utils/forms');
+    const values = defaultSiteConfig({ name: 'X' });
+    const items = resolveProjection(schema, projectionById('brand.basics')!, { values });
+    const html = renderProjectionHtml(items, { values, locales: ['en'] });
+    const palette = Object.keys(
+      values.designSystem.themes.default!.colors!.palette as Record<string, unknown>,
+    );
+    const role = /<select name="[^"]*roles\$map\.4\.hue"[\s\S]*?<\/select>/.exec(html)?.[0] ?? '';
+    for (const hue of palette) expect(role).toContain(`value="${hue}"`);
+    // `"ui-primary": "brand"` is shorthand; the row shows `brand` selected.
+    expect(html).toMatch(/<option value="brand" selected>/);
+  });
+
+  it('offers no hue list when there is no document to read it from', () => {
+    const field = describeField(schema, 'designSystem.themes.default.colors.roles.*.hue');
+    expect(field?.options).toBeUndefined();
+  });
+});
