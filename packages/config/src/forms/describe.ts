@@ -10,7 +10,7 @@ import {
   inputTypeFor,
   isKeyedMap,
   isLocalisable,
-  isRequired,
+  isUnconditionallyRequired,
   nodeAt,
   propertiesOf,
   resolveRef,
@@ -102,7 +102,7 @@ export function describeField(
     path,
     label: override?.label ?? meta?.label ?? humanize(path.split('.').at(-1)!),
     widget: override?.widget ?? meta?.widget ?? deriveWidget(node, root, depth),
-    required: isRequired(root, path),
+    required: isUnconditionallyRequired(root, path),
   };
   if (node.description) descriptor.description = node.description;
   const help = override?.help ?? meta?.help;

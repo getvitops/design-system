@@ -112,6 +112,19 @@ export function isRequired(root: JsonSchema, path: string): boolean {
   return parent?.required?.includes(path.slice(index + 1)) ?? false;
 }
 
+/**
+ * Required whatever else the form does: the field is required by its parent AND every ancestor is
+ * required by its own. `site.domains.canonical` is required *within* `domains`, but `domains` is
+ * optional, so a form that marked it required would force a domain on a site that has none yet.
+ */
+export function isUnconditionallyRequired(root: JsonSchema, path: string): boolean {
+  const parts = path.split('.');
+  for (let i = 1; i <= parts.length; i++) {
+    if (!isRequired(root, parts.slice(0, i).join('.'))) return false;
+  }
+  return true;
+}
+
 export type InputType = 'text' | 'email' | 'url' | 'date' | 'number';
 
 /**

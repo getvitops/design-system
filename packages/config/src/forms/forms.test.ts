@@ -364,3 +364,39 @@ describe('the forms entry', () => {
     }
   });
 });
+
+describe('isUnconditionallyRequired', () => {
+  const schema = {
+    type: 'object',
+    required: ['site'],
+    properties: {
+      site: {
+        type: 'object',
+        required: ['locale', 'domains'],
+        properties: {
+          locale: { type: 'string' },
+          domains: {
+            type: 'object',
+            required: ['canonical'],
+            properties: { canonical: { type: 'string' } },
+          },
+          crm: {
+            type: 'object',
+            required: ['provider'],
+            properties: { provider: { type: 'string' } },
+          },
+        },
+      },
+      org: { type: 'object', required: ['name'], properties: { name: { type: 'string' } } },
+    },
+  } as unknown as JsonSchema;
+
+  it('is true only when every ancestor is required too', async () => {
+    const { isUnconditionallyRequired } = await import('./json-schema.ts');
+    expect(isUnconditionallyRequired(schema, 'site.locale')).toBe(true);
+    expect(isUnconditionallyRequired(schema, 'site.domains.canonical')).toBe(true);
+    // `provider` is required within `crm`, but `crm` itself is optional.
+    expect(isUnconditionallyRequired(schema, 'site.crm.provider')).toBe(false);
+    expect(isUnconditionallyRequired(schema, 'org.name')).toBe(false);
+  });
+});

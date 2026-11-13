@@ -263,3 +263,42 @@ test.describe('<wc-stepper>', () => {
     await expect(stepper.locator('#pt-step-who')).toBeVisible();
   });
 });
+
+test.describe('/configure', () => {
+  test('builds a site.json as the steps are filled in, and validates it for real', async ({
+    page,
+  }) => {
+    await page.goto('/configure');
+    const stepper = page.locator('wc-stepper');
+    await expect(stepper.locator('section[data-step]:not([hidden])')).toHaveCount(1);
+
+    await stepper.locator('#cfg-identity [name="organization.name"]').fill('Acme Roofing');
+
+    // Jump to the review step through the nav: every step on the way is valid or optional.
+    await stepper.getByRole('link', { name: /^Review/ }).click();
+    await expect(stepper.locator('#cfg-review')).toBeVisible();
+    const out = page.locator('#cfg-out');
+    await expect(out).toContainText('"name": "Acme Roofing"');
+    await expect(out).toContainText('"configVersion"');
+    await expect(page.locator('#cfg-status')).toHaveText('This site.json is valid.');
+  });
+
+  test('will not move past a step with a bad email', async ({ page }) => {
+    await page.goto('/configure#cfg-contact');
+    const stepper = page.locator('wc-stepper');
+    await stepper.locator('#cfg-contact [name="organization.email"]').fill('nope');
+    await stepper.getByRole('button', { name: 'Next' }).click();
+    await expect(stepper.locator('#cfg-contact')).toBeVisible();
+    await expect(stepper.locator('#cfg-brand')).toBeHidden();
+  });
+
+  test('says what is wrong with a bad email on the contact step', async ({ page }) => {
+    await page.goto('/configure#cfg-contact');
+    const input = page.locator('#cfg-contact [name="organization.email"]');
+    await input.fill('nope');
+    await input.blur();
+    await expect(
+      page.locator('#cfg-contact wc-field', { has: page.locator('[name="organization.email"]') }),
+    ).toContainText('Must be an email address.');
+  });
+});

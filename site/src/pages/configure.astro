@@ -1,0 +1,166 @@
+---
+/**
+ * Configure — build a `site.json` in the browser, one step at a time.
+ *
+ * The docs dogfood of the config-form stack: `ONBOARDING_STEPS` (`@getvitops/config/forms`) says
+ * what the steps are, `renderStepHtml` (`@getvitops/utils/forms`) writes each step's fields as a
+ * plain form, `<Stepper>` shows one at a time and `<ConfigForm>` validates as you type. The only
+ * script on this page is the one below: it merges what the form describes over a starter config,
+ * validates the result with the real `validateConfig`, and offers it to copy or download.
+ *
+ * With scripting off, the whole form is on the page, in order, and the review section says what it
+ * needs JavaScript for. Nothing here posts anywhere: this site has no server.
+ */
+import { ONBOARDING_STEPS, stepPaths, type JsonSchema } from '@getvitops/config/forms';
+import { configJsonSchema, defaultSiteConfig } from '@getvitops/generator';
+import { renderStepHtml } from '@getvitops/utils/forms';
+import ConfigForm from '@getvitops/astro/components/ConfigForm.astro';
+import Stepper from '@getvitops/astro/components/Stepper.astro';
+import Docs from '../layouts/Docs.astro';
+
+const title = 'Configure a site';
+const description =
+  'Build a site.json step by step in the browser: identity, contact, brand, accessibility, privacy and more, validated against the real config schema as you type.';
+
+const schema = configJsonSchema as unknown as JsonSchema;
+const base = defaultSiteConfig({ name: '' });
+// The starter's name is blank so the identity step asks for it rather than showing a placeholder.
+delete (base.organization as { name?: string }).name;
+
+const steps = ONBOARDING_STEPS.map((step) => ({
+  step,
+  id: `cfg-${step.id}`,
+  html: renderStepHtml(schema, step, {
+    idPrefix: `cfg-${step.id}`,
+    values: base,
+    locales: ['en'],
+    headingLevel: 3,
+  }),
+}));
+const paths = ONBOARDING_STEPS.flatMap((step) => stepPaths(step));
+const baseJson = JSON.stringify(base).replace(/</g, '\\u003c');
+---
+
+<Docs title={title} description={description}>
+  <p>
+    The same steps a new client works through when onboarding a site. Fill in what applies, skip
+    what doesn't, and finish with a <code>site.json</code> you can drop into a project. Every field
+    is checked against the config schema <code>vitops validate</code> uses.
+  </p>
+
+  <Stepper
+    hash
+    label="Configuration steps"
+    steps={steps.map(({ step, id }) => ({
+      id,
+      title: step.title + (step.optional ? ' (optional)' : ''),
+    }))}
+  >
+    <ConfigForm id="cfg" schema={schema} paths={paths}>
+      <form id="cfg-form" method="get" class="rhythm">
+        {steps.map(({ step, id, html }) =>
+          step.id === 'review' ? (
+            <section id={id} data-step class="rhythm" aria-labelledby={`${id}-h`}>
+              <h2 id={`${id}-h`}>{step.title}</h2>
+              <p class="field__notice" id="cfg-nojs">
+                This page builds your <code>site.json</code> in the browser, so the preview and the
+                validation below need JavaScript. Without it you can still read every field above;{' '}
+                <code>vitops init --site</code> writes the same starter file.
+              </p>
+              <p id="cfg-status" role="status" hidden />
+              <div class="stepper__actions" id="cfg-actions" hidden>
+                <button type="button" class="cta" id="cfg-copy">
+                  Copy site.json
+                </button>
+                <button type="button" class="btn" id="cfg-download">
+                  Download
+                </button>
+              </div>
+              <pre id="cfg-out" aria-label="site.json" hidden />
+            </section>
+          ) : (
+            <section id={id} data-step class="rhythm" aria-labelledby={`${id}-h`}>
+              <h2 id={`${id}-h`}>
+                {step.title}
+                {step.optional && <small> (optional)</small>}
+              </h2>
+              <Fragment set:html={html} />
+            </section>
+          ),
+        )}
+      </form>
+    </ConfigForm>
+  </Stepper>
+  <script type="application/json" id="cfg-base" set:html={baseJson} />
+</Docs>
+
+<script>
+  type Json = Record<string, unknown>;
+
+  const isObject = (v: unknown): v is Json =>
+    typeof v === 'object' && v !== null && !Array.isArray(v);
+  /** Objects merge key by key; anything else (arrays included) replaces. */
+  function merge(base: Json, over: Json): Json {
+    const out: Json = { ...base };
+    for (const [key, value] of Object.entries(over)) {
+      const current = out[key];
+      out[key] = isObject(current) && isObject(value) ? merge(current, value) : value;
+    }
+    return out;
+  }
+
+  const form = document.getElementById('cfg-form') as HTMLFormElement | null;
+  const element = document.querySelector('wc-config-form') as
+    | (HTMLElement & { value?: Json })
+    | null;
+  const out = document.getElementById('cfg-out');
+  const status = document.getElementById('cfg-status');
+  const actions = document.getElementById('cfg-actions');
+  const noJs = document.getElementById('cfg-nojs');
+  const base = JSON.parse(document.getElementById('cfg-base')?.textContent ?? '{}') as Json;
+
+  if (form && element && out && status && actions) {
+    // Nothing on this page posts: the review step is where the work ends.
+    form.addEventListener('submit', (event) => event.preventDefault());
+    noJs?.remove();
+    for (const node of [out, actions]) node.hidden = false;
+
+    const current = (): Json => merge(base, element.value ?? {});
+    const text = (): string => JSON.stringify(current(), null, 2) + '\n';
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const render = (): void => {
+      out.textContent = text();
+      clearTimeout(timer);
+      // The real validator is a separate chunk; load it once the visitor has stopped typing.
+      timer = setTimeout(async () => {
+        const { validateConfig } = await import('@getvitops/generator/config');
+        const result = validateConfig(current());
+        status.hidden = false;
+        status.dataset.valid = String(result.ok);
+        status.textContent = result.ok
+          ? 'This site.json is valid.'
+          : `${result.errors.length} problem${result.errors.length === 1 ? '' : 's'}: ${result.errors
+              .slice(0, 3)
+              .map((e) => `${e.path.length ? e.path.join('.') + ': ' : ''}${e.message}`)
+              .join('; ')}`;
+      }, 300);
+    };
+    element.addEventListener('config-change', render);
+    render();
+
+    document.getElementById('cfg-copy')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      await navigator.clipboard.writeText(text());
+      const label = button.textContent;
+      button.textContent = 'Copied';
+      setTimeout(() => (button.textContent = label), 1500);
+    });
+    document.getElementById('cfg-download')?.addEventListener('click', () => {
+      const url = URL.createObjectURL(new Blob([text()], { type: 'application/json' }));
+      const a = Object.assign(document.createElement('a'), { href: url, download: 'site.json' });
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+</script>

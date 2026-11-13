@@ -19,6 +19,9 @@ import {
 
 const SCHEMA: JsonSchema = {
   type: 'object',
+  // `organization` is required here so its `name` is required outright; a field is only required
+  // natively when every ancestor is (see `isUnconditionallyRequired`).
+  required: ['organization'],
   additionalProperties: false,
   properties: {
     organization: {
@@ -167,6 +170,33 @@ describe('a text field', () => {
     const required = render(['organization.name']);
     expect(attr(all(required, 'input')[0]!, 'required')).toBeDefined();
     expect(required).not.toContain('field__optional');
+  });
+
+  it('does not mark a field required when an ancestor that is optional holds it', () => {
+    // `domains` is optional, so `canonical` is required only if the visitor starts a domain.
+    const html = renderProjectionHtml(
+      resolveProjection(
+        {
+          type: 'object',
+          properties: {
+            site: {
+              type: 'object',
+              properties: {
+                domains: {
+                  type: 'object',
+                  required: ['canonical'],
+                  properties: { canonical: { type: 'string', format: 'uri' } },
+                },
+              },
+            },
+          },
+        } as JsonSchema,
+        { id: 'p', title: 'P', items: ['site.domains.canonical'] },
+      ),
+      {},
+    );
+    expect(html).not.toMatch(/<input[^>]*\brequired\b/);
+    expect(html).toContain('field__optional');
   });
 });
 

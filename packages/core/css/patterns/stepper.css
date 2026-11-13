@@ -101,6 +101,10 @@ wc-stepper [data-step][hidden] {
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-block-start: 1.5rem;
+
+  &[hidden] {
+    display: none;
+  }
 }
 
 /* Forced colors replaces author colours, which would flatten the filled marker into an empty one.

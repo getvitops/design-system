@@ -270,6 +270,22 @@ test.describe('<wc-stepper> fallback', () => {
   });
 });
 
+test.describe('/configure fallback', () => {
+  test('is the whole onboarding form on one page, and says what needs JavaScript', async ({
+    page,
+  }) => {
+    await page.goto('/configure');
+    for (const id of ['identity', 'contact', 'brand', 'accessibility', 'privacy', 'review']) {
+      await expect(page.locator(`#cfg-${id}`)).toBeVisible();
+    }
+    await expect(page.locator('#cfg-identity [name="organization.name"]')).toBeVisible();
+    await expect(page.locator('#cfg-nojs')).toBeVisible();
+    // Nothing to copy until script builds it.
+    await expect(page.locator('#cfg-out')).toBeHidden();
+    await expect(page.locator('#cfg-actions')).toBeHidden();
+  });
+});
+
 test.describe('<wc-format> fallback', () => {
   test('shows the text the server wrote, over a real machine-readable <time>', async ({ page }) => {
     await page.goto('/patterns');
