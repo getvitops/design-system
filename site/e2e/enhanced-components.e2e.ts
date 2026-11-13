@@ -221,3 +221,45 @@ test.describe('<wc-config-form>', () => {
     await expect(page.locator('#pt-cf-organization-services .field__row')).toHaveCount(1);
   });
 });
+
+test.describe('<wc-stepper>', () => {
+  test('shows one step at a time and stops the way forward at a missing required field', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    const stepper = page.locator('wc-stepper');
+    await expect(stepper.locator('section[data-step]:not([hidden])')).toHaveCount(1);
+    await expect(stepper.getByRole('link', { name: 'Who' })).toHaveAttribute(
+      'aria-current',
+      'step',
+    );
+
+    await stepper.getByRole('button', { name: 'Next' }).click();
+    // `name` is required and empty: still on the first step.
+    await expect(stepper.locator('#pt-step-who')).toBeVisible();
+    await expect(stepper.locator('#pt-step-where')).toBeHidden();
+
+    await stepper.locator('[name="pt-step-name"]').fill('Ada');
+    await stepper.getByRole('button', { name: 'Next' }).click();
+    await expect(stepper.locator('#pt-step-where')).toBeVisible();
+    await expect(stepper.getByRole('link', { name: 'Where' })).toHaveAttribute(
+      'aria-current',
+      'step',
+    );
+    await expect(stepper.getByRole('link', { name: 'Who' }).locator('..')).toHaveClass(
+      /stepper__item--complete/,
+    );
+  });
+
+  test('will not jump over a step through the nav, but goes back freely', async ({ page }) => {
+    await page.goto('/patterns');
+    const stepper = page.locator('wc-stepper');
+    await stepper.getByRole('link', { name: 'Done' }).click();
+    await expect(stepper.locator('#pt-step-who')).toBeVisible();
+    await stepper.locator('[name="pt-step-name"]').fill('Ada');
+    await stepper.getByRole('link', { name: 'Done' }).click();
+    await expect(stepper.locator('#pt-step-done')).toBeVisible();
+    await stepper.getByRole('link', { name: 'Who' }).click();
+    await expect(stepper.locator('#pt-step-who')).toBeVisible();
+  });
+});

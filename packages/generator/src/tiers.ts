@@ -764,6 +764,31 @@ export const TIERS: Record<string, TierEntry> = {
       'configuration tooling for a site owner, not page content a visitor reads or an editor places',
     use: '`<ConfigForm id schema paths output><form method="post">…</form></ConfigForm>`, with the fields from `renderStepHtml` / `renderProjectionHtml` (`@getvitops/utils/forms`). With no JS it is a plain form posting the names `formToConfig` parses and the server validates. Its own Lit-free bundle (`@getvitops/core/config-form`): the validator and the form codec. Do NOT wrap it in `<wc-config-form>`: it emits its own. `paths` narrows the schema to the fields shown; `novalidate` lets the server decide a submit.',
   },
+  stepper: {
+    css: c(
+      [
+        'stepper',
+        'stepper__item',
+        'stepper__item--complete',
+        'stepper__item--invalid',
+        'stepper__actions',
+      ],
+      'patterns/stepper.css',
+    ),
+    wc: {
+      tag: 'wc-stepper',
+      registered: false,
+      bundle: '@getvitops/core/stepper',
+      adds: 'shows one section of a long form at a time with Back and Next, stops a forward move at the first invalid step, marks the current link `aria-current="step"`, and follows the URL fragment',
+    },
+    astro: [
+      { component: '@getvitops/astro/components/Stepper.astro', wraps: 'wc' },
+      { component: '@getvitops/astro/components/StepperNav.astro', wraps: 'css' },
+    ],
+    emdashExempt:
+      'onboarding and configuration flow for a site owner, not page content an editor places',
+    use: '`<Stepper steps>` around one `<form>` of `<section id data-step><h2>…</h2>…</section>`s: with no JS a complete long form with `#anchor` links, with JS one step at a time. `<StepperNav steps current status hrefFor>` is the same `.stepper` list for a flow where each step is its own page (no JS at all). Do NOT wrap `<Stepper>` in `<wc-stepper>`: it emits its own. Its own Lit-free bundle (`@getvitops/core/stepper`, ~1 KB gzipped), outside `elements.js`.',
+  },
   forms: {
     css: c(['form-group', 'input-group', 'fieldset', 'custom-check'], 'patterns/forms.css', true),
     use: 'Wrap text controls in `.form-group` or `.input-group` — a bare `<input>` gets browser defaults.',

@@ -9,8 +9,8 @@
  * Nothing before this measured either claim; a bundle could have doubled in
  * size from an accidental heavy import and nothing would have said so.
  *
- * Scoped to the 6 files this package actually AUTHORS — `elements.js`,
- * `consent.js`, `config-form.js`, `editor.js`, `deferred.js`, `polyfills.js` (the
+ * Scoped to the 7 files this package actually AUTHORS — `elements.js`,
+ * `consent.js`, `config-form.js`, `stepper.js`, `editor.js`, `deferred.js`, `polyfills.js` (the
  * feature-detection loader, not what it loads). `polyfills/*.js` — the
  * vendored third-party polyfill implementations themselves
  * (`css-anchor-positioning-fn.js` alone gzips to ~31 KB) — are deliberately
@@ -43,6 +43,8 @@ const BUDGETS: Record<string, number> = {
   // The validator, the form codec and `<wc-config-form>`; Lit-free, loaded only by a page with a
   // config form (3.6 KB gzipped, ~10% headroom).
   'config-form.js': 4_000,
+  // `<wc-stepper>`; Lit-free, outside `elements.js` because that bundle is at 99% of its budget.
+  'stepper.js': 2_000,
   'editor.js': 5_500,
   'deferred.js': 1_200,
   'polyfills.js': 1_200,

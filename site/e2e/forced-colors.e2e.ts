@@ -60,3 +60,16 @@ test('the selected tab is still distinguishable under forced-colors', async ({ p
   expect(b.underline).not.toContain('underline');
   expect(a.border).not.toBe(b.border);
 });
+
+test('the current step keeps a filled marker under forced-colors', async ({ page }) => {
+  // The marker is a disc the author colours; forced colors would flatten it, so `stepper.css` pins
+  // the current one to Highlight. The pseudo-element's computed background is the real answer.
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.goto('/patterns');
+  const nav = page.getByRole('navigation', { name: 'Onboarding progress' });
+  const marker = (el: ReturnType<typeof nav.locator>) =>
+    el.evaluate((node) => getComputedStyle(node, '::before').backgroundColor);
+  const current = await marker(nav.locator('[aria-current="step"]'));
+  const other = await marker(nav.getByRole('link', { name: 'Identity' }));
+  expect(current).not.toBe(other);
+});

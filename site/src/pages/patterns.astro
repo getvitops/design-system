@@ -21,6 +21,8 @@ import Breadcrumbs from '@getvitops/astro/components/Breadcrumbs.astro';
 import Carousel from '@getvitops/astro/components/Carousel.astro';
 import Combobox from '@getvitops/astro/components/Combobox.astro';
 import ConfigForm from '@getvitops/astro/components/ConfigForm.astro';
+import Stepper from '@getvitops/astro/components/Stepper.astro';
+import StepperNav from '@getvitops/astro/components/StepperNav.astro';
 import Field from '@getvitops/astro/components/Field.astro';
 import Counter from '@getvitops/astro/components/Counter.astro';
 import Format from '@getvitops/astro/components/Format.astro';
@@ -1071,6 +1073,55 @@ const configFields = configSteps
     </form>
   </ConfigForm>
   <pre id="pt-config-out" aria-label="The document the form describes"></pre>
+
+  <h3>Stepper</h3>
+  <p>
+    A long form, one step at a time. With no JS it is the whole form, every section in order, and
+    the links jump down it. With it, one section shows with Back and Next, and a step with a missing
+    required field stops the way forward.
+  </p>
+  <Stepper
+    steps={[
+      { id: 'pt-step-who', title: 'Who' },
+      { id: 'pt-step-where', title: 'Where' },
+      { id: 'pt-step-done', title: 'Done' },
+    ]}
+  >
+    <form id="pt-stepper-form" method="post" action="#pt-stepper-form" class="rhythm">
+      <section id="pt-step-who" data-step class="rhythm">
+        <h4>Who</h4>
+        <Field label="Name">
+          <input name="pt-step-name" required />
+        </Field>
+      </section>
+      <section id="pt-step-where" data-step class="rhythm">
+        <h4>Where</h4>
+        <Field label="City" optional>
+          <input name="pt-step-city" />
+        </Field>
+      </section>
+      <section id="pt-step-done" data-step class="rhythm">
+        <h4>Done</h4>
+        <p>That is everything.</p>
+        <button class="cta" type="submit">
+          Finish
+        </button>
+      </section>
+    </form>
+  </Stepper>
+
+  <h4>Stepper nav (one page per step)</h4>
+  <StepperNav
+    steps={[
+      { id: 'a', title: 'Identity' },
+      { id: 'b', title: 'Contact' },
+      { id: 'c', title: 'Review' },
+    ]}
+    current="b"
+    status={{ a: 'complete', c: 'invalid' }}
+    hrefFor={(step) => (step.id === 'c' ? undefined : `#pt-nav-${step.id}`)}
+    label="Onboarding progress"
+  />
 
   <h3>Range</h3>
   <p>

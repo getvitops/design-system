@@ -24,7 +24,8 @@
     "./deferred": "./dist/deferred.js",
     "./css/*": "./css/*",
     "./package.json": "./package.json",
-    "./config-form": "./dist/config-form.js"
+    "./config-form": "./dist/config-form.js",
+    "./stepper": "./dist/stepper.js"
   },
   "publishConfig": {
     "access": "public"

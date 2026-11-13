@@ -68,6 +68,14 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    enhances `<wc-field>` (in `elements.js`) without importing it, so the two load in either order. It
    cancels a submit that has errors unless it has `novalidate`.
 
+   **`<wc-stepper>` is the third element outside `elements.js`** (`@getvitops/core/stepper`, ~1 KB
+   gzipped, Lit-free), for budget rather than weight: `elements.js` sits at 99% of its ceiling, and a
+   plain `HTMLElement` needs nothing from it. The fallback is a complete long form (headed
+   `<section data-step>`s inside one `<form>`, `#anchor` links); the element shows one at a time and
+   stops a forward move at the first invalid step. Its silent validity check is `validity.valid`, not
+   `checkValidity()`, because that fires `invalid`, which the element itself listens for to reveal a
+   hidden step. Whether these standalone bundles become an auto-loader is an open decision (TODO.md).
+
    **Not registered in `elements.js` yet:** `WCColorWheel`, `WCOklchColorPicker`, `WCIconPicker`,
    `WCTypography` — they belong to the editor-v2 track.
 
@@ -109,7 +117,7 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    inline box around a block child — and, where the upgraded `:host` declares a different display,
    registering would shift the layout. Each pattern's partial now declares `display` for its element
    inside `:where()`, matched to the content it wraps and to its upgraded `:host`: `block` for
-   `wc-config-form`, `wc-entries`, `wc-image-compare`, `wc-split-panel`, `wc-multi-field`, `wc-dismissable` (which
+   `wc-config-form`, `wc-stepper`, `wc-entries`, `wc-image-compare`, `wc-split-panel`, `wc-multi-field`, `wc-dismissable` (which
    animates its own box, so `display: contents` is out), `wc-marquee`, `wc-tabs` and `wc-range`;
    `inline-flex` (column) for `wc-combobox` and `inline-flex` for `wc-copy`; `flex` (column) for
    `wc-field`, matching `.form-group`.

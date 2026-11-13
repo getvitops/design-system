@@ -245,6 +245,31 @@ test.describe('<wc-config-form> fallback', () => {
   });
 });
 
+test.describe('<wc-stepper> fallback', () => {
+  test('is the whole form: every section visible, in order, with working anchors', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    const stepper = page.locator('wc-stepper');
+    for (const id of ['pt-step-who', 'pt-step-where', 'pt-step-done']) {
+      await expect(stepper.locator(`#${id}`)).toBeVisible();
+    }
+    // No script, so no Back/Next buttons and no current step: the links just jump down the form.
+    await expect(stepper.getByRole('button', { name: 'Next' })).toHaveCount(0);
+    await expect(stepper.locator('[aria-current]')).toHaveCount(0);
+    await stepper.getByRole('link', { name: 'Done' }).click();
+    await expect(page).toHaveURL(/#pt-step-done$/);
+    await expect(stepper.getByRole('button', { name: 'Finish' })).toBeVisible();
+  });
+
+  test('loads no stepper bundle', async ({ page }) => {
+    const requests: string[] = [];
+    page.on('request', (req) => requests.push(req.url()));
+    await page.goto('/patterns');
+    expect(requests.filter((url) => /stepper/.test(url))).toEqual([]);
+  });
+});
+
 test.describe('<wc-format> fallback', () => {
   test('shows the text the server wrote, over a real machine-readable <time>', async ({ page }) => {
     await page.goto('/patterns');

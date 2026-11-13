@@ -1,0 +1,120 @@
+/**
+ * Stepper — the progress list for a sequence of steps a visitor works through (an onboarding flow,
+ * a long form split into stages). Not `.steps`: that is a static marketing list of what happens
+ * next; this one is navigation with state.
+ *
+ * It is an `<ol>` of links (`<a>` for a step that can be visited, `<span>` for one that cannot yet),
+ * so the order is semantic and announced with no CSS. The number is a CSS counter on the link's
+ * `::before`. State is carried by `aria-current="step"` (the step being shown) and the modifiers
+ * `--complete` / `--invalid` on the `<li>`; each also changes the marker's glyph, so none of them is
+ * colour alone. `StepperNav` (server driven, one page per step) and `<wc-stepper>` (one form, one
+ * section shown at a time) both emit this markup.
+ *
+ * The marker takes its colour from `.tone` (`--tone-solid` / `--tone-on-solid`).
+ */
+:where(wc-stepper) {
+  display: block;
+}
+
+/* A step the element has put away stays put away, whatever display the section's own classes set:
+   `.rhythm` and friends declare one, and would otherwise out-rank the `hidden` attribute. */
+wc-stepper [data-step][hidden] {
+  display: none !important;
+}
+
+.stepper {
+  --_marker: var(--stepper-marker-size, 1.75rem);
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: stepper;
+
+  .stepper__item {
+    display: flex;
+    align-items: center;
+    margin-block-start: 0; /* not `.rhythm li + li`'s step gap: the flex `gap` spaces them */
+    counter-increment: stepper;
+  }
+
+  .stepper__item > :is(a, span) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .stepper__item > a:hover {
+    text-decoration: underline;
+  }
+
+  /* The marker: an outlined disc holding the number. */
+  .stepper__item > :is(a, span)::before {
+    content: counter(stepper);
+    display: grid;
+    place-items: center;
+    flex: none;
+    inline-size: var(--_marker);
+    block-size: var(--_marker);
+    border-radius: 50%;
+    border: 2px solid var(--tone-solid, currentColor);
+    color: var(--tone-solid, currentColor);
+    font-size: 0.875em;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  /* Where the visitor is: filled marker, bold label. */
+  .stepper__item > [aria-current='step'] {
+    font-weight: 700;
+  }
+  .stepper__item > [aria-current='step']::before {
+    background-color: var(--tone-solid, currentColor);
+    color: var(--tone-on-solid, Canvas);
+  }
+
+  /* Done: a tick in place of the number. */
+  .stepper__item--complete > :is(a, span)::before {
+    content: '\2713';
+  }
+
+  /* Needs attention: a bang in place of the number, in the danger colour. */
+  .stepper__item--invalid > :is(a, span)::before {
+    content: '!';
+    border-color: var(--color-border-danger-bold, currentColor);
+    color: var(--color-text-danger, currentColor);
+  }
+
+  /* A step that cannot be visited yet: a span, not a link, and quieter. */
+  .stepper__item > span:not([aria-current]) {
+    opacity: 0.7;
+  }
+}
+
+/* The Back / Next row `<wc-stepper>` adds under each section. */
+.stepper__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-block-start: 1.5rem;
+}
+
+/* Forced colors replaces author colours, which would flatten the filled marker into an empty one.
+   System colours are honoured, and the current step is also bold, so it is not colour alone. */
+@media (forced-colors: active) {
+  .stepper .stepper__item > :is(a, span)::before {
+    border-color: ButtonText;
+    color: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .stepper .stepper__item > [aria-current='step']::before {
+    background-color: Highlight;
+    border-color: Highlight;
+    color: HighlightText;
+  }
+}

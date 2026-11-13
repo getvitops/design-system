@@ -11,7 +11,7 @@ import { defineConfig } from 'vite-plus';
 const { parse: parseLitCss, stringify: stringifyLitCss } = postcssLit;
 
 // Browser bundle build for @getvitops/core (the framework runtime), moved from the
-// repo root. Six independent ES-module entries (loaded via <script type="module">):
+// repo root. Seven independent ES-module entries (loaded via <script type="module">):
 //   • polyfills — feature-detected polyfill loader; belongs high in <head>.
 //   • deferred  — non-critical progressive-enhancement behaviour; loads late.
 //   • elements  — self-registering Lit web components.
@@ -20,6 +20,7 @@ const { parse: parseLitCss, stringify: stringifyLitCss } = postcssLit;
 //                 element bundle rather than behind it.
 //   • config-form — the opt-in `<wc-config-form>`; Lit-free, and it carries the JSON Schema
 //                 validator and the form codec, which a page with no config form shouldn't load.
+//   • stepper   — the opt-in `<wc-stepper>`; Lit-free and tiny, outside `elements.js` for budget.
 //   • editor    — the opt-in live theme editor; not part of the runtime.
 // ESM lets the bundler code-split each polyfill into its own async chunk, fetched
 // only when its feature test fails. The polyfill/lit/webcomponents deps are bundled
@@ -51,6 +52,7 @@ export default defineConfig({
       'src/js/elements.ts',
       'src/js/consent.ts',
       'src/js/config-form.ts',
+      'src/js/stepper.ts',
       'src/js/editor.ts',
     ],
     outDir: 'dist',

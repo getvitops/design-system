@@ -113,6 +113,7 @@ emit its tag.
 | `stack` | css | `.stack` for overlapping cards. |
 | `stats` | css · emdash | `<ul class="stats">` of `.stats__item`, each figure a `<Counter>`. `.stats--tiles` adds `.stats__group` and `.stats__delta`; `data-state="up\|down"` colours the delta through the success/danger roles. |
 | `status` | css | `.status` with a role variant. |
+| `stepper` | css · wc · astro | `<Stepper steps>` around one `<form>` of `<section id data-step><h2>…</h2>…</section>`s: with no JS a complete long form with `#anchor` links, with JS one step at a time. `<StepperNav steps current status hrefFor>` is the same `.stepper` list for a flow where each step is its own page (no JS at all). Do NOT wrap `<Stepper>` in `<wc-stepper>`: it emits its own. Its own Lit-free bundle (`@getvitops/core/stepper`, ~1 KB gzipped), outside `elements.js`. |
 | `steps` | css · emdash | `<ol class="steps tone">` of `<li class="steps__item">` each holding a `.steps__body` with a real heading. The number is a CSS counter and the connector line a pseudo-element; `.steps--row` runs it sideways when wide; `.steps--cards` puts each step in a card and `.steps--animated` draws the connector on scroll. The marker size and card geometry are the `steps` entry of `patterns.items` (`--steps-marker-size`, the `content` group tokens). |
 | `sticky` | css | `.sticky-header` etc. Pure CSS. |
 | `subgrid` | css · astro · emdash | `<Subgrid>` — emits `<ul class="subgrid" role="list">`; author `<li class="card subgrid-card">` items yourself, so tranches align across the set. |
@@ -159,6 +160,7 @@ is tooling and opt-in per consumer.
 | `<wc-oklch-color-picker>` | `oklch-color-picker` | `(none — editor-v2 track, not yet bundled)` | OKLCH L/C/H picker |
 | `<wc-range>` | `range` | `elements.js` | overlays two native range inputs on one track with thumbs that cannot cross and a filled span between them, and keeps an `<output>` current |
 | `<wc-split-panel>` | `split-panel` | `elements.js` | draggable divider between two panels |
+| `<wc-stepper>` | `stepper` | `@getvitops/core/stepper` | shows one section of a long form at a time with Back and Next, stops a forward move at the first invalid step, marks the current link `aria-current="step"`, and follows the URL fragment |
 | `<wc-tabs>` | `tabs` | `elements.js` | a WAI-ARIA tablist (arrow/Home/End keys, automatic activation, roving tabindex) built from the headings, one panel shown at a time, URL-fragment deep links |
 | `<wc-theme-editor>` | `theme-editor` | `@getvitops/core/editor` | live `:root` token overrides, export as CSS or a config patch |
 | `<wc-tree>` | `tree` | `elements.js` | WAI-ARIA tree semantics, roving-tabindex keyboard navigation, filter, expand/collapse all, hash deep-linking |
@@ -196,6 +198,8 @@ is tooling and opt-in per consumer.
 | `@getvitops/astro/components/ReviewCard.astro` | `review` | tier-1 markup — no web component |
 | `@getvitops/astro/components/SiteNav.astro` | `sitenav` | tier-1 markup — no web component |
 | `@getvitops/astro/components/SiteFooter.astro` | `sitenav` | tier-1 markup — no web component |
+| `@getvitops/astro/components/Stepper.astro` | `stepper` | the `<wc-stepper>` tag, fallback inside |
+| `@getvitops/astro/components/StepperNav.astro` | `stepper` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Subgrid.astro` | `subgrid` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Tabs.astro` | `tabs` | the `<wc-tabs>` tag, fallback inside |
 | `@getvitops/astro/components/Tree.astro` | `tree` | the `<wc-tree>` tag, fallback inside |
@@ -274,6 +278,7 @@ Every shipped `wc-*` element either has a block above or a stated reason here
 - `wc-multi-field` — repeats rows a visitor adds at submit time (several phone numbers, guests); `vitops_form` has a fixed, editor-defined field list and no such field type
 - `wc-range` — a form control, composed inside a form (vitops_form) rather than placed as page content
 - `wc-split-panel` — app UI (resizable panes), not editorial content; an editor does not drag-resize a published page
+- `wc-stepper` — onboarding and configuration flow for a site owner, not page content an editor places
 - `wc-theme-editor` — tooling, not content; it is mounted in the EmDash admin by `designSystemEditor`, never in a page
 
 ## CSS
@@ -348,6 +353,7 @@ rules that generate them all.
 | `stack` | `patterns/stack.css` | `stack`, `stack__card` | — |
 | `stats` | `patterns/stats.css` | `stats`, `stats__item`, `stats__figure`, `stats__label`, `stats__group`, `stats__delta`, `stats--tiles` | — |
 | `status` | `patterns/tag.css` | `status`, `status-dot--pulse` | declared |
+| `stepper` | `patterns/stepper.css` | `stepper`, `stepper__item`, `stepper__item--complete`, `stepper__item--invalid`, `stepper__actions` | — |
 | `steps` | `patterns/steps.css` | `steps`, `steps__item`, `steps__body`, `steps__title`, `steps__text`, `steps--row`, `steps--cards`, `steps--animated` | declared |
 | `sticky` | `patterns/sticky.css` | `sticky`, `sticky-header`, `sticky-nav` | — |
 | `subgrid` | `patterns/subgrid.css` | `subgrid`, `subgrid-card`, `pricing-grid` | — |

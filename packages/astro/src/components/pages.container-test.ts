@@ -23,6 +23,10 @@ import Range from './Range.astro';
 // @ts-ignore -- as above
 import ServicePage from './ServicePage.astro';
 // @ts-ignore -- as above
+import Stepper from './Stepper.astro';
+// @ts-ignore -- as above
+import StepperNav from './StepperNav.astro';
+// @ts-ignore -- as above
 import Tabs from './Tabs.astro';
 
 const PAGE = 'https://example.com/services/roofing';
@@ -437,5 +441,46 @@ describe('<ConfigForm />', () => {
     expect(await render(ConfigForm, { id: 'cf', schema, novalidate: true }, slot)).toMatch(
       /<wc-config-form[^>]*novalidate/,
     );
+  });
+});
+
+describe('<Stepper /> and <StepperNav />', () => {
+  const steps = [
+    { id: 'a', title: 'Identity' },
+    { id: 'b', title: 'Contact' },
+    { id: 'c', title: 'Review' },
+  ];
+
+  it('<Stepper> emits its own <wc-stepper> with an anchor list over the slotted form', async () => {
+    const html = await render(
+      Stepper,
+      { steps, hash: true },
+      { default: '<form><section id="a" data-step></section></form>' },
+    );
+    expect(html).toMatch(/<wc-stepper[^>]*hash/);
+    expect(html.match(/<a href="#[abc]">/g)).toHaveLength(3);
+    expect(html).toMatch(/<ol class="stepper">/);
+    expect(html).toContain('<section id="a" data-step>');
+  });
+
+  it('<StepperNav> marks the current step and the state of the others', async () => {
+    const html = await render(StepperNav, {
+      steps,
+      current: 'b',
+      status: { a: 'complete', c: 'invalid' },
+      hrefFor: (step: { id: string }) => `/s/${step.id}`,
+    });
+    expect(html).toMatch(/<a href="\/s\/b" aria-current="step">Contact<\/a>/);
+    expect(html).toMatch(/stepper__item--complete[^>]*>\s*<a href="\/s\/a">/);
+    expect(html).toMatch(/stepper__item--invalid[^>]*>\s*<a href="\/s\/c">/);
+  });
+
+  it('<StepperNav> makes a step with no URL a span, not a dead link', async () => {
+    const html = await render(StepperNav, {
+      steps,
+      current: 'a',
+      hrefFor: (step: { id: string }) => (step.id === 'c' ? undefined : `/s/${step.id}`),
+    });
+    expect(html).toContain('<span>Review</span>');
   });
 });
