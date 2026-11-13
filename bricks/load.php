@@ -152,9 +152,10 @@ add_shortcode(
 	'vitops_legal',
 	function ( $atts ) {
 		$allowed = array(
-			'privacy' => 'privacy-policy',
-			'terms'   => 'terms-of-service',
-			'cookies' => 'cookie-notice',
+			'privacy'       => 'privacy-policy',
+			'terms'         => 'terms-of-service',
+			'cookies'       => 'cookie-notice',
+			'accessibility' => 'accessibility-statement',
 		);
 
 		$atts = shortcode_atts( array( 'doc' => 'privacy' ), $atts, 'vitops_legal' );

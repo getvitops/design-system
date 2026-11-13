@@ -46,3 +46,17 @@ export function bullets(items: string[]): string {
 export function updatedLine(v: Pick<PolicyVars, 'lastUpdated'>): string {
   return v.lastUpdated ? `\nLast updated: ${v.lastUpdated}\n` : '';
 }
+
+/**
+ * A markdown link whose label and URL cannot break the markup.
+ *
+ * Both come from config, and the renderer's link syntax has no escaping: a `]` in the label or a
+ * space or `)` in the URL would end the link early and publish the fragment as literal text (the
+ * parser throws on that, which is right for a template bug and wrong for a config value). So the
+ * label loses brackets and the URL is percent-encoded where the syntax would read it as structure.
+ */
+export function link(label: string, url: string): string {
+  const text = label.replace(/[[\]]/g, '').trim();
+  const href = url.trim().replace(/\s/g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
+  return `[${text}](${href})`;
+}

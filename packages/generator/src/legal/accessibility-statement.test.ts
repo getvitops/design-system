@@ -6,48 +6,12 @@
  * sections, not for one hand-picked fixture.
  */
 import { describe, expect, test } from 'vite-plus/test';
-import { defaultConfig } from '../index.ts';
 import {
   accessibilityStatementWarnings,
   resolveAccessibilityContact,
   validateConfig,
-  type Config,
 } from '../config.ts';
-
-type Statement = NonNullable<NonNullable<Config['site']['legal']>['accessibilityStatement']>;
-
-/** A config with the statement enabled. `st` patches the statement, `site` the rest of the site. */
-export function statementConfig(
-  st: Partial<Statement> = {},
-  site: Partial<Config['site']> = {},
-  org: Partial<Config['organization']> = {},
-): Config {
-  return {
-    designSystem: { themes: { default: defaultConfig() } },
-    organization: {
-      name: 'Acme',
-      legalName: 'Acme Widgets Inc.',
-      email: 'access@acme.example',
-      phone: '+1 613 555 0100',
-      address: {
-        streetAddress: '1 Elgin St',
-        addressLocality: 'Ottawa',
-        addressRegion: 'ON',
-        postalCode: 'K1P 5K7',
-        addressCountry: 'Canada',
-      },
-      ...org,
-    },
-    site: {
-      defaultLocale: 'en',
-      locales: { en: { name: 'English' } },
-      environments: { production: { url: 'https://acme.example' } },
-      domains: { canonical: 'https://acme.example' },
-      legal: { accessibilityStatement: { enabled: true, ...st } },
-      ...site,
-    },
-  } as Config;
-}
+import { statementConfig } from './statement-fixture.ts';
 
 const messages = (cfg: unknown) =>
   validateConfig(cfg)
