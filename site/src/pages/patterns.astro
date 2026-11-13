@@ -981,10 +981,10 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   <h3>Multi field</h3>
   <wc-multi-field class="rhythm">
     <div class="form-group">
-      <label class="form-label" for="pt-mf">
+      <label class="form-group__label" for="pt-mf">
         Repeatable field
       </label>
-      <input class="form-control" id="pt-mf" name="item[]" type="text" placeholder="Add another" />
+      <input id="pt-mf" name="item[]" type="text" placeholder="Add another" />
     </div>
   </wc-multi-field>
 
@@ -1103,17 +1103,17 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   <h3>Form controls</h3>
   <form class="rhythm" onsubmit="return false">
     <div class="form-group">
-      <label class="form-label" for="pt-name">
+      <label class="form-group__label" for="pt-name">
         Name
       </label>
-      <input class="form-control" id="pt-name" name="name" type="text" placeholder="Ada Lovelace" />
-      <p class="form-helper">Helper text.</p>
+      <input id="pt-name" name="name" type="text" placeholder="Ada Lovelace" />
+      <p class="form-group__helper">Helper text.</p>
     </div>
     <div class="form-group">
-      <label class="form-label" for="pt-sel">
+      <label class="form-group__label" for="pt-sel">
         Format
       </label>
-      <select class="form-control" id="pt-sel" name="format">
+      <select class="custom-select" id="pt-sel" name="format">
         <option>css</option>
         <option>tailwind</option>
         <option>bricks</option>

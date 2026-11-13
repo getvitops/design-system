@@ -100,6 +100,12 @@ function typeMatches(value: unknown, type: string): boolean {
   }
 }
 
+/** Words for a pattern that has no `format` beside it. The regex itself is never shown. */
+function patternHint(pattern: string): string {
+  if (pattern === '^\\d{4}-\\d{2}-\\d{2}$') return 'Must be a date, as YYYY-MM-DD.';
+  return "Isn't in the expected format.";
+}
+
 const join = (path: string, key: string): string => (path ? `${path}.${key}` : key);
 
 /**
@@ -159,18 +165,33 @@ function walk(
   if ('const' in node && value !== node.const) fail(`Must be ${String(node.const)}.`);
 
   if (typeof value === 'string') {
-    if (node.pattern && !new RegExp(node.pattern).test(value)) {
-      fail(`Doesn't match the required format: ${node.pattern}`);
-    }
+    // A format and a pattern often describe the same thing (`format: email` plus the library's own
+    // regex). Say it once, in words: a visitor is never shown a regular expression.
+    const formatMessage =
+      node.format === 'uri'
+        ? 'Must be a full URL, including https://'
+        : node.format === 'email'
+          ? 'Must be an email address.'
+          : node.format === 'date'
+            ? 'Must be a date, as YYYY-MM-DD.'
+            : undefined;
+    const formatOk =
+      node.format === 'uri'
+        ? URI.test(value)
+        : node.format === 'email'
+          ? EMAIL.test(value)
+          : node.format === 'date'
+            ? DATE.test(value)
+            : true;
+    const patternOk = !node.pattern || new RegExp(node.pattern).test(value);
+    if (!formatOk) fail(formatMessage!);
+    else if (!patternOk) fail(formatMessage ?? patternHint(node.pattern!));
     if (node.minLength !== undefined && value.length < node.minLength) {
       fail(node.minLength === 1 ? 'Required.' : `Must be at least ${node.minLength} characters.`);
     }
     if (node.maxLength !== undefined && value.length > node.maxLength) {
       fail(`Must be at most ${node.maxLength} characters.`);
     }
-    if (node.format === 'uri' && !URI.test(value)) fail('Must be a full URL, including https://');
-    if (node.format === 'email' && !EMAIL.test(value)) fail('Must be an email address.');
-    if (node.format === 'date' && !DATE.test(value)) fail('Must be a date, as YYYY-MM-DD.');
   }
 
   if (typeof value === 'number') {

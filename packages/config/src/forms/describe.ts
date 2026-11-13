@@ -52,6 +52,11 @@ export interface FieldDescriptor {
   options?: readonly string[];
   /** The current value, when the path is concrete and the host supplied a document. */
   value?: unknown;
+  /**
+   * What the schema says an absent value means. A switch must start from this, not from "off": an
+   * unset `default: true` field rendered unchecked would be saved as an explicit `false`.
+   */
+  default?: unknown;
   /** For a `group`: its fields. For a `map`: the template of one row, with `*` in each path. */
   children?: readonly FieldDescriptor[];
   /** For a `map`: the rows the current value holds. */
@@ -103,6 +108,7 @@ export function describeField(
   const help = override?.help ?? meta?.help;
   if (help) descriptor.help = help;
   if (meta?.placeholder) descriptor.placeholder = meta.placeholder;
+  if (node.default !== undefined) descriptor.default = node.default;
   if (node.minimum !== undefined) descriptor.min = node.minimum;
   if (node.maximum !== undefined) descriptor.max = node.maximum;
   if (node.maxLength !== undefined) descriptor.maxLength = node.maxLength;

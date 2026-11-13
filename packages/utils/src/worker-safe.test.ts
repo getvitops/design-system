@@ -16,6 +16,7 @@ const WORKER_ENTRIES = [
   'schema/index.ts',
   'git/index.ts',
   'url/index.ts',
+  'forms/index.ts',
   'reviews/select.ts',
   'content.ts',
 ];
@@ -80,5 +81,35 @@ describe('Worker-safe subpaths', () => {
   it.each(WORKER_ENTRIES)('%s reaches no node: builtin', (entry) => {
     const root = resolve(import.meta.dirname, entry);
     expect(nodeImportsReachableFrom(root)).toEqual([]);
+  });
+});
+
+/**
+ * The forms renderer is meant for a Worker, where parse5 is dead weight: only the parse and
+ * serialize helpers in `html.ts` need it, and `html-render.ts` was split out so this entry can use
+ * the node-tree renderer without it. This holds that line: a `forms` import of `html.ts` would put
+ * parse5 back in the portal's bundle with every other test still green.
+ */
+describe('forms entry stays light', () => {
+  function bareSpecifiersReachableFrom(entry: string): string[] {
+    const seen = new Set<string>();
+    const found = new Set<string>();
+    const visit = (file: string): void => {
+      if (seen.has(file)) return;
+      seen.add(file);
+      for (const spec of specifiersOf(file)) {
+        if (spec.startsWith('.')) visit(resolve(dirname(file), spec));
+        else found.add(spec);
+      }
+    };
+    visit(entry);
+    return [...found];
+  }
+
+  it('reaches neither parse5 nor the zod-carrying config root', () => {
+    const specs = bareSpecifiersReachableFrom(resolve(import.meta.dirname, 'forms/index.ts'));
+    expect(specs).not.toContain('parse5');
+    expect(specs).not.toContain('@getvitops/config');
+    expect(specs).toContain('@getvitops/config/forms');
   });
 });

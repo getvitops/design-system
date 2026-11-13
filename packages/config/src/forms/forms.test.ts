@@ -157,6 +157,30 @@ describe('validateAgainstSchema', () => {
     expect(at(-1, 'organization.services.*.price')).toEqual(['Must be at least 0.']);
   });
 
+  it('says a format once, in words, and never shows a visitor a regular expression', () => {
+    const email: JsonSchema = {
+      type: 'string',
+      format: 'email',
+      pattern: "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@[a-z]+\\.[a-z]{2,}$",
+    };
+    // Fails both the format and the stricter library pattern: one message, the friendly one.
+    expect(validateAgainstSchema(email, 'nope')).toEqual([
+      { path: '', message: 'Must be an email address.' },
+    ]);
+    // Passes the loose format check but not the stricter pattern: still the friendly message.
+    expect(validateAgainstSchema(email, 'a@b')[0]?.message).toBe('Must be an email address.');
+    expect(validateAgainstSchema(email, 'ada@example.com')).toEqual([]);
+    // A pattern with no format beside it gets a generic sentence, not the regex.
+    expect(validateAgainstSchema({ type: 'string', pattern: '^[A-Z]{3}$' }, 'ab')[0]?.message).toBe(
+      "Isn't in the expected format.",
+    );
+    // The schema's own date pattern is recognised.
+    expect(
+      validateAgainstSchema({ type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, '2020')[0]
+        ?.message,
+    ).toBe('Must be a date, as YYYY-MM-DD.');
+  });
+
   it('flags an unknown field and an unknown path', () => {
     const [issue] = validateAgainstSchema(SCHEMA, { organization: { name: 'A', bogus: 1 } });
     expect(issue).toEqual({

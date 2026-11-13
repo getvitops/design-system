@@ -203,6 +203,47 @@ describe('prune', () => {
   });
 });
 
+describe('rows hold any field shape', () => {
+  test('a locale map inside a row', () => {
+    expect(
+      form({
+        'organization.services$map.0.$key': 'roof',
+        'organization.services$map.0.name$loc.0.code': 'en',
+        'organization.services$map.0.name$loc.0.value': 'Roofing',
+        'organization.services$map.0.name$loc.1.code': 'fr',
+        'organization.services$map.0.name$loc.1.value': 'Toiture',
+      }),
+    ).toEqual({ organization: { services: { roof: { name: { en: 'Roofing', fr: 'Toiture' } } } } });
+  });
+
+  test('a lines textarea inside a row', () => {
+    expect(
+      form({
+        'organization.locations$map.0.$key': 'ottawa',
+        'organization.locations$map.0.sameAs$lines': 'https://a.ca\nhttps://b.ca',
+      }),
+    ).toEqual({
+      organization: { locations: { ottawa: { sameAs: ['https://a.ca', 'https://b.ca'] } } },
+    });
+  });
+
+  test('a nested map, split on the outer marker', () => {
+    expect(
+      form({
+        'a$map.0.$key': 'outer',
+        'a$map.0.inner$map.0.$key': 'x',
+        'a$map.0.inner$map.0.n$num': '3',
+      }),
+    ).toEqual({ a: { outer: { inner: { x: { n: 3 } } } } });
+  });
+
+  test('a row whose only content is blank is still dropped', () => {
+    expect(
+      form({ 'a$map.0.$key': 'k', 'a$map.0.name': '  ', 'a$map.0.n$loc.0.code': 'en' }),
+    ).toEqual({});
+  });
+});
+
 describe('form names', () => {
   test('every builder produces a name formToConfig parses back to the same path', () => {
     const round = (name: string, value: string) => form({ [name]: value });

@@ -14,9 +14,9 @@
  *   site.experiments$map.0.splitRatio$num a number input, coerced to a JSON number
  *
  * `$` cannot appear in a config property name, so the markers need no escaping. Row indices are a
- * rendering detail: keyed maps are keyed by `$key`, never by position. `$bool`/`$num` compose with
- * `$map` (the marker lands on the sub-path), since a row's fields go through the same coercion as
- * a top-level field.
+ * rendering detail: keyed maps are keyed by `$key`, never by position. A row's fields are parsed by
+ * the same function that parses the whole form, so everything composes inside a row: `$bool`,
+ * `$num`, `$lines`, `$loc` and a nested `$map`, to any depth.
  *
  * The **name builders** below are the other half of the contract. `formToConfig` parses these names
  * and the renderer (`@getvitops/utils/forms`) writes them, so both import the same functions and
@@ -28,7 +28,8 @@ import { setPath, type Json, type JsonObject } from './json-schema.ts';
 
 const LOC = /^(?<path>.+)\$loc\.(?<index>\d+)\.(?<part>code|value)$/;
 const LINES = /^(?<path>.+)\$lines$/;
-const MAP = /^(?<path>.+)\$map\.(?<index>\d+)\.(?<sub>.+)$/;
+// Lazy path: in a nested map (`a$map.0.b$map.1.c`) the OUTER `$map` is the one that splits the name.
+const MAP = /^(?<path>.+?)\$map\.(?<index>\d+)\.(?<sub>.+)$/;
 const BOOL = /^(?<path>.+)\$bool$/;
 const NUM = /^(?<path>.+)\$num$/;
 
@@ -95,17 +96,35 @@ export function prune(value: Json): Json | undefined {
 
 type Entries = Iterable<[string, FormDataEntryValue | string]>;
 
+interface MapRow {
+  key?: string;
+  entries: [string, string][];
+}
+
 /** Turn submitted form fields into a config document. */
 export function formToConfig(entries: Entries): JsonObject {
   const out: JsonObject = {};
   const locales = new Map<string, Map<string, { code?: string; value?: string }>>();
-  const maps = new Map<string, Map<string, { key?: string; fields: JsonObject }>>();
+  const maps = new Map<string, Map<string, MapRow>>();
 
   for (const [name, raw] of entries) {
     if (typeof raw !== 'string') continue;
     // A framework's own action marker, and any other non-config control.
     if (name.startsWith('_') || name === 'intent') continue;
     const value = raw;
+
+    // `$map` first: a row's field may itself carry `$loc` (`x$map.0.name$loc.0.code`), and testing
+    // `$loc` first would read that whole string as a locale path.
+    const map = MAP.exec(name);
+    if (map?.groups) {
+      const rows = maps.get(map.groups.path!) ?? new Map<string, MapRow>();
+      const row = rows.get(map.groups.index!) ?? { entries: [] };
+      if (map.groups.sub === '$key') row.key = value.trim();
+      else row.entries.push([map.groups.sub!, value]);
+      rows.set(map.groups.index!, row);
+      maps.set(map.groups.path!, rows);
+      continue;
+    }
 
     const loc = LOC.exec(name);
     if (loc?.groups) {
@@ -114,17 +133,6 @@ export function formToConfig(entries: Entries): JsonObject {
       row[loc.groups.part as 'code' | 'value'] = value;
       rows.set(loc.groups.index!, row);
       locales.set(loc.groups.path!, rows);
-      continue;
-    }
-
-    const map = MAP.exec(name);
-    if (map?.groups) {
-      const rows = maps.get(map.groups.path!) ?? new Map();
-      const row = rows.get(map.groups.index!) ?? { fields: {} };
-      if (map.groups.sub === '$key') row.key = value.trim();
-      else coerceAndSet(row.fields, map.groups.sub!, value);
-      rows.set(map.groups.index!, row);
-      maps.set(map.groups.path!, rows);
       continue;
     }
 
@@ -153,13 +161,14 @@ export function formToConfig(entries: Entries): JsonObject {
 
   for (const [path, rows] of maps) {
     const entriesOut: JsonObject = {};
-    for (const { key, fields } of rows.values()) {
+    for (const { key, entries: rowEntries } of rows.values()) {
       if (!key) continue;
-      const pruned = prune(fields);
+      // The row is parsed by this same function, so its fields may be any shape a form field can be.
+      const fields = formToConfig(rowEntries);
       // A row with a key and nothing in it is the blank "add another" row someone typed a name
       // into and then thought better of.
-      if (pruned === undefined) continue;
-      entriesOut[key] = pruned;
+      if (Object.keys(fields).length === 0) continue;
+      entriesOut[key] = fields;
     }
     if (Object.keys(entriesOut).length) setPath(out, path, entriesOut);
   }

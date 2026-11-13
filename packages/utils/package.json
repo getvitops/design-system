@@ -105,6 +105,10 @@
     "./git": {
       "types": "./dist/git/index.d.mts",
       "import": "./dist/git/index.mjs"
+    },
+    "./forms": {
+      "types": "./dist/forms/index.d.mts",
+      "import": "./dist/forms/index.mjs"
     }
   },
   "publishConfig": {
