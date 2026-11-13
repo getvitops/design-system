@@ -13,18 +13,27 @@
  *
  * Supported, and nothing else:
  *   block   `#`/`##`/`###` headings, `- ` bullets, `> ` quote, paragraphs
- *   inline  `**strong**`, `` `code` ``
+ *   inline  `**strong**`, `` `code` ``, `[text](url)` links
+ *
+ * Links are the one addition made for a document that points somewhere (the accessibility statement's
+ * feedback form and policy documents). The URL is carried through untouched and made safe at the
+ * output: `nodesToHtml` runs every `href` through `safeHref`, which drops a `javascript:` URL and
+ * leaves the text, and Portable Text does the same. Images stay outside the subset, and so do
+ * tables: a template that grows one fails the test suite instead.
  *
  * HTML rendering delegates to `nodesToHtml` from `@getvitops/utils`, which
  * already solves escaping and void elements — this module maps to `ContentNode`
  * and stops there.
  */
 import { nodesToHtml, type ContentNode } from '@getvitops/utils';
+import { safeHref } from '@getvitops/utils/url';
 
 export interface Span {
   text: string;
   strong?: boolean;
   code?: boolean;
+  /** Present for a link; `text` is its label. */
+  href?: string;
 }
 
 export type Block =
@@ -43,8 +52,9 @@ const UNSUPPORTED: [RegExp, string][] = [
   [/^\s+-\s/, 'nested lists'],
 ];
 
-// Bold and code spans, in one pass so a `**` inside backticks stays literal.
-const INLINE = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+// Bold, code and link spans, in one pass so a `**` inside backticks stays literal.
+const INLINE = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\))/g;
+const LINK = /^\[([^\]]+)\]\(([^)\s]+)\)$/;
 
 function parseInline(text: string, where: string): Span[] {
   const spans: Span[] = [];
@@ -53,7 +63,13 @@ function parseInline(text: string, where: string): Span[] {
     const token = m[0];
     if (m.index > last) spans.push({ text: text.slice(last, m.index) });
     if (token.startsWith('`')) spans.push({ text: token.slice(1, -1), code: true });
-    else spans.push({ text: token.slice(2, -2), strong: true });
+    else if (token.startsWith('[')) {
+      // `![alt](src)` is an image, which would otherwise read as the text `!` followed by a link.
+      if (text[m.index - 1] === '!')
+        throw new Error(`legal template uses images, which are outside the subset: ${where}`);
+      const link = LINK.exec(token)!;
+      spans.push({ text: link[1]!, href: link[2]! });
+    } else spans.push({ text: token.slice(2, -2), strong: true });
     last = m.index + token.length;
   }
   if (last < text.length) spans.push({ text: text.slice(last) });
@@ -61,11 +77,13 @@ function parseInline(text: string, where: string): Span[] {
   // Check what's left as literal text, so `**bold**` doesn't trip the `*` guard
   // and a cookie name like `_ga` (already inside a code span) doesn't either.
   for (const span of spans) {
-    if (span.strong || span.code) continue;
-    if (/!?\[[^\]]*\]\(/.test(span.text))
-      throw new Error(
-        `legal template uses links or images, which are outside the subset: ${where}`,
-      );
+    if (span.strong || span.code || span.href != null) continue;
+    if (/!\[/.test(span.text))
+      throw new Error(`legal template uses images, which are outside the subset: ${where}`);
+    // A link that did not match `[text](url)` — a space in the URL, say — is a template bug, not
+    // prose: it would publish a literal bracket-and-paren string.
+    if (/\[[^\]]*\]\(/.test(span.text))
+      throw new Error(`legal template has a malformed link: ${where}`);
     if (span.text.includes('**'))
       throw new Error(`legal template has an unmatched \`**\`: ${where}`);
     if (span.text.includes('`'))
@@ -137,7 +155,13 @@ export function parseMarkdown(md: string): Block[] {
 
 function spanNodes(spans: Span[]): ContentNode[] {
   return spans.map((s) =>
-    s.strong ? { tag: 'strong', text: s.text } : s.code ? { tag: 'code', text: s.text } : s.text,
+    s.href != null
+      ? { tag: 'a', attrs: { href: s.href }, text: s.text }
+      : s.strong
+        ? { tag: 'strong', text: s.text }
+        : s.code
+          ? { tag: 'code', text: s.text }
+          : s.text,
   );
 }
 
@@ -199,18 +223,24 @@ export function toPortableText(blocks: Block[], prefix: string): unknown[] {
       return;
     }
 
-    const block = (spans: Span[], k: string, extra: Record<string, unknown>) => ({
-      _type: 'block',
-      _key: k,
-      markDefs: [],
-      children: spans.map((s, j) => ({
-        _type: 'span',
-        _key: `${k}-${j}`,
-        text: s.text,
-        marks: [s.strong && 'strong', s.code && 'code'].filter(Boolean),
-      })),
-      ...extra,
-    });
+    const block = (spans: Span[], k: string, extra: Record<string, unknown>) => {
+      // A link is a mark that names an annotation in `markDefs`. An unsafe URL (`javascript:`) is
+      // dropped, same as the HTML path: the label stays, the link does not.
+      const markDefs: { _type: 'link'; _key: string; href: string }[] = [];
+      const children = spans.map((s, j) => {
+        const href = s.href != null ? safeHref(s.href) : undefined;
+        const marks: string[] = [];
+        if (s.strong) marks.push('strong');
+        if (s.code) marks.push('code');
+        if (href != null) {
+          const _key = `${k}-${j}-link`;
+          markDefs.push({ _type: 'link', _key, href });
+          marks.push(_key);
+        }
+        return { _type: 'span', _key: `${k}-${j}`, text: s.text, marks };
+      });
+      return { _type: 'block', _key: k, markDefs, children, ...extra };
+    };
 
     if (b.kind === 'list') {
       b.items.forEach((item, j) =>
