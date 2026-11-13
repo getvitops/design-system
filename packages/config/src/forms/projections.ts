@@ -90,6 +90,18 @@ export const PROJECTIONS: readonly Projection[] = [
     items: [{ path: `${D}.colors.palette`, fields: ['seed'] }, `${D}.typography.families`],
   },
   {
+    // HOOK-UP POINT for the accessibility-requirements work (built separately). Two seams, both
+    // already wired, so adding it changes no form code:
+    //  1. The `accessibility.obligations` notice below renders whatever HTML a host passes as
+    //     `notices['accessibility.obligations']` to `renderProjectionHtml` / `renderStepHtml`
+    //     (`@getvitops/utils/forms`); until a host passes one, `DEFAULT_NOTICES` says the summary
+    //     is not available. The resolver (jurisdictions + headcount -> obligations) belongs to that
+    //     work; a host calls it with the draft and passes the rendered blurb in.
+    //  2. New fields it introduces (headcount, sector, audience regions, ...) are added to `items`
+    //     here. `forms-projection.test.ts` fails until every new `organization` / `site` key is
+    //     either listed in a projection or in `UNPROJECTED` with a reason, so it cannot be missed.
+    // Jurisdictions already live in the privacy step (`site.legal.jurisdiction`); read them from the
+    // draft rather than asking twice.
     id: 'site.accessibility',
     title: 'Accessibility',
     items: [
