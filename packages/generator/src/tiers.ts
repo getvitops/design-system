@@ -757,12 +757,36 @@ export const TIERS: Record<string, TierEntry> = {
       tag: 'wc-config-form',
       registered: false,
       bundle: '@getvitops/core/config-form',
-      adds: 'validates the form against a JSON Schema as you type and shows each message in its `<wc-field>`, stops a submit that has errors, adds a row to a keyed map as the blank one is used, and exposes the config document the form describes',
+      adds: 'validates the form against a JSON Schema as you type and shows each message in its `<wc-field>`, stops a submit that has errors, adds a row to a keyed map as the blank one is used (until `<wc-repeat>` takes over), and exposes the config document the form describes',
     },
     astro: a('ConfigForm', 'wc'),
     emdashExempt:
       'configuration tooling for a site owner, not page content a visitor reads or an editor places',
     use: '`<ConfigForm id schema paths output><form method="post">…</form></ConfigForm>`, with the fields from `renderStepHtml` / `renderProjectionHtml` (`@getvitops/utils/forms`). With no JS it is a plain form posting the names `formToConfig` parses and the server validates. Its own Lit-free bundle (`@getvitops/core/config-form`): the validator and the form codec. Do NOT wrap it in `<wc-config-form>`: it emits its own. `paths` narrows the schema to the fields shown; `novalidate` lets the server decide a submit.',
+  },
+  'color-field': {
+    css: c([]),
+    wc: {
+      tag: 'wc-color-field',
+      registered: false,
+      bundle: '@getvitops/core/color-field',
+      adds: 'offers the OKLCH picker beside a colour text input: dragging writes the hex into the input, typing a hex moves the picker',
+    },
+    emdashExempt:
+      'configuration tooling for a site owner, emitted by `renderProjectionHtml` rather than placed by an editor',
+    use: 'Not written by hand: `renderProjectionHtml` wraps a `color` widget in it. The text input is the whole fallback (and the only submitted control); the picker is `<wc-oklch-color-picker>`, the control the theme editor uses. Load it with `<ConfigForm colorPicker>` or `import "@getvitops/core/color-field"`. Its own bundle: the picker is a Lit element with a canvas, which a form with no colour field should not download.',
+  },
+  repeat: {
+    css: c([]),
+    wc: {
+      tag: 'wc-repeat',
+      registered: false,
+      bundle: '@getvitops/core/config-form',
+      adds: 'an Add button and a Remove button per row of a keyed map, row summaries that follow the row key, and unfolds a row a blocked submit is about',
+    },
+    emdashExempt:
+      'configuration tooling for a site owner, emitted by `renderProjectionHtml` rather than placed by an editor',
+    use: 'Not written by hand: `renderProjectionHtml` (`@getvitops/utils/forms`) wraps every keyed map in it. The rows are `<details class="field__row" open>`, the last one blank (`data-blank`), so with no JS a visitor adds an entry by filling in the blank row and drops one by emptying its key. Ships in `@getvitops/core/config-form` beside `<wc-config-form>`, which leaves adding rows to it once it has upgraded.',
   },
   stepper: {
     css: c(

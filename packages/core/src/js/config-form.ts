@@ -8,3 +8,4 @@
  * `<wc-field>` (in `elements.js`) but does not import it, so the two load in either order.
  */
 import '../web-components/WCConfigForm.js';
+import '../web-components/WCRepeat.js';

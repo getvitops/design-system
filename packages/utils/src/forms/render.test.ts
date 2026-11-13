@@ -419,6 +419,17 @@ describe('a keyed map', () => {
     expect(html).toContain('data-blank');
   });
 
+  it('wraps the map in <wc-repeat> and writes each row as an open, titled <details>', () => {
+    const html = render(['organization.services'], values, { locales: ['en'] });
+    expect(html).toContain('<wc-repeat');
+    expect(html).toContain('add-label="Add service"');
+    const rows = all(html, 'details');
+    expect(rows).toHaveLength(3);
+    expect(rows.every((row) => attr(row, 'open') !== undefined)).toBe(true);
+    expect(html).toContain('<span class="field__row-title">roof</span>');
+    expect(html).toContain('New service');
+  });
+
   it('round-trips an untouched form to the document it started from', () => {
     const html = render(['organization.services'], values, { locales: ['en', 'fr'] });
     // Two shape changes are inherent to the wire format and documented: with several languages a

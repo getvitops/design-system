@@ -21,6 +21,8 @@ const { parse: parseLitCss, stringify: stringifyLitCss } = postcssLit;
 //   • config-form — the opt-in `<wc-config-form>`; Lit-free, and it carries the JSON Schema
 //                 validator and the form codec, which a page with no config form shouldn't load.
 //   • stepper   — the opt-in `<wc-stepper>`; Lit-free and tiny, outside `elements.js` for budget.
+//   • color-field — the opt-in `<wc-color-field>` (OKLCH picker beside a colour input); Lit-based, so
+//                 it shares Lit's chunk with `elements.js` rather than carrying a second copy.
 //   • editor    — the opt-in live theme editor; not part of the runtime.
 // ESM lets the bundler code-split each polyfill into its own async chunk, fetched
 // only when its feature test fails. The polyfill/lit/webcomponents deps are bundled
@@ -53,6 +55,7 @@ export default defineConfig({
       'src/js/consent.ts',
       'src/js/config-form.ts',
       'src/js/stepper.ts',
+      'src/js/color-field.ts',
       'src/js/editor.ts',
     ],
     outDir: 'dist',

@@ -250,7 +250,9 @@ function renderControl(
         // A colour is a CSS colour string (hex or oklch()), which `<input type=color>` cannot hold.
         'data-widget': d.widget === 'color' ? 'color' : null,
       });
-      return shell(d, ctx, id, el('label', { class: 'field__control' }, labelText(d, ctx), input));
+      const label = el('label', { class: 'field__control' }, labelText(d, ctx), input);
+      // A colour is a text input first; `<wc-color-field>` offers the picker beside it.
+      return shell(d, ctx, id, d.widget === 'color' ? el('wc-color-field', {}, label) : label);
     }
 
     case 'textarea':
@@ -439,7 +441,15 @@ function renderLocale(d: FieldDescriptor, ctx: Ctx, id: string, value: unknown):
   );
 }
 
+/** `Locations` → `location`: what one row of a map is called in its Add and Remove buttons. */
+function itemNoun(label: string): string {
+  const lower = label.trim().toLowerCase();
+  if (lower.endsWith('ies')) return `${lower.slice(0, -3)}y`;
+  return lower.length > 3 && lower.endsWith('s') ? lower.slice(0, -1) : lower;
+}
+
 function renderMap(d: FieldDescriptor, ctx: Ctx, id: string): ContentNode | null {
+  const noun = itemNoun(d.label);
   const rows = [...(d.rows ?? [])];
   // One blank row is always offered: with no script this is how a visitor adds an entry.
   const all = [...rows, { key: '', value: undefined as unknown }];
@@ -460,26 +470,35 @@ function renderMap(d: FieldDescriptor, ctx: Ctx, id: string): ContentNode | null
         )
       : el('input', { type: 'text', name: keyName, id: keyId, value: av(row.key) });
     const fields = renderChildren(d.children ?? [], rowCtx);
+    const blank = row.key === '' && row.value === undefined;
+    // A row is a `<details>`: open by default (so every field is reachable and a required one can
+    // block a submit), foldable natively, and titled by its key so a folded row says which one it is.
     return el(
-      'fieldset',
-      {
-        class: 'field__row',
-        'data-blank': row.key === '' && row.value === undefined ? true : null,
-      },
+      'details',
+      { class: 'field__row', open: true, 'data-blank': blank ? true : null },
+      el('summary', {}, el('span', { class: 'field__row-title' }, row.key || `New ${noun}`)),
       el(
-        'wc-field',
-        { class: 'field' },
-        el('label', { class: 'field__control' }, keyLabel, keyControl),
+        'div',
+        { class: 'field__row-body' },
+        el(
+          'wc-field',
+          { class: 'field' },
+          el('label', { class: 'field__control' }, keyLabel, keyControl),
+        ),
+        ...fields,
       ),
-      ...fields,
     );
   });
   return el(
-    'fieldset',
-    { class: 'field__group', id },
-    el('legend', { class: 'field__label' }, d.label),
-    ...helpBlock(d),
-    ...body,
+    'wc-repeat',
+    { 'item-label': av(noun), 'add-label': av(`Add ${noun}`), 'delete-label': 'Remove' },
+    el(
+      'fieldset',
+      { class: 'field__group', id },
+      el('legend', { class: 'field__label' }, d.label),
+      ...helpBlock(d),
+      ...body,
+    ),
   );
 }
 

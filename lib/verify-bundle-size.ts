@@ -37,18 +37,44 @@ const CORE_DIST = join('packages', 'core', 'dist');
 const BUDGETS: Record<string, number> = {
   // 28.1 KB -> 31.8 KB gzipped with `<wc-tabs>`, `<wc-combobox>`, `<wc-format>` and `<wc-range>`
   // (about 0.9 KB each; they share Lit, `BaseElement` and `RovingTabindex`, which were already in
-  // the bundle). Intended growth, so the ceiling moves with ~4% headroom.
-  'elements.js': 33_000,
+  // the bundle). Intended growth, so the ceiling moves with ~4% headroom. Since `<wc-color-field>`
+  // shares Lit with it the bundler lifts Lit into `polyfills/BaseElement.js`; the figure counts that
+  // chunk (see `sharedSize`), and gzips it apart from the entry, hence the +600 B on 33,000.
+  'elements.js': 33_600,
   'consent.js': 3_500,
-  // The validator, the form codec and `<wc-config-form>`; Lit-free, loaded only by a page with a
-  // config form (3.6 KB gzipped, ~10% headroom).
-  'config-form.js': 4_000,
+  // The validator, the form codec, `<wc-config-form>` and `<wc-repeat>`; Lit-free, loaded only by a
+  // page with a config form (4.6 KB gzipped with the repeater, ~8% headroom).
+  'config-form.js': 5_000,
   // `<wc-stepper>`; Lit-free, outside `elements.js` because that bundle is at 99% of its budget.
   'stepper.js': 2_000,
+  // The glue only: the picker (~40 KB gzipped) is a dynamic import, fetched when the picker is opened.
+  'color-field.js': 1_500,
   'editor.js': 5_500,
   'deferred.js': 1_200,
   'polyfills.js': 1_200,
 };
+
+/**
+ * Gzipped size of the chunks an entry imports statically (`from"./polyfills/BaseElement.js"`), which
+ * the entry cannot run without. When two entries share a module the bundler lifts it into a chunk
+ * and each entry's own file shrinks, so measuring the entry alone would let a bundle grow without
+ * the number moving. A dynamic `import("./x.js")` is not counted: it is fetched on demand.
+ */
+function sharedSize(source: string, seen = new Set<string>()): number {
+  let total = 0;
+  for (const match of source.matchAll(/(?:^|[;}])import[^"';]*?from"\.\/([^"]+)"/g)) {
+    const file = match[1]!;
+    if (seen.has(file) || file in BUDGETS) continue;
+    seen.add(file);
+    try {
+      const chunk = readFileSync(join(CORE_DIST, file));
+      total += gzipSync(chunk).length + sharedSize(chunk.toString('utf8'), seen);
+    } catch {
+      // A missing chunk is the build's failure to report, not this budget's.
+    }
+  }
+  return total;
+}
 
 let failed = false;
 
@@ -63,7 +89,7 @@ for (const [file, budget] of Object.entries(BUDGETS)) {
     failed = true;
     continue;
   }
-  const gzipped = gzipSync(raw).length;
+  const gzipped = gzipSync(raw).length + sharedSize(raw.toString('utf8'));
   const over = gzipped > budget;
   if (over) failed = true;
   const pct = ((gzipped / budget) * 100).toFixed(0);

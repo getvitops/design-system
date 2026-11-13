@@ -56,7 +56,7 @@ const baseJson = JSON.stringify(base).replace(/</g, '\\u003c');
       title: step.title + (step.optional ? ' (optional)' : ''),
     }))}
   >
-    <ConfigForm id="cfg" schema={schema} paths={paths}>
+    <ConfigForm id="cfg" schema={schema} paths={paths} colorPicker>
       <form id="cfg-form" method="get" class="rhythm">
         {steps.map(({ step, id, html }) =>
           step.id === 'review' ? (

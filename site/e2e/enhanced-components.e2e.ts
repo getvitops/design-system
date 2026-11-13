@@ -206,19 +206,38 @@ test.describe('<wc-config-form>', () => {
     await expect(page.locator('#pt-config-form wc-field[data-invalid]').first()).toBeVisible();
   });
 
-  test('adds a row to a keyed map as the blank one is used', async ({ page }) => {
+  test('adds and removes rows of a keyed map with buttons', async ({ page }) => {
     await page.goto('/patterns');
-    // Scoped to the locations map: the services map beside it has its own blank row.
+    // Scoped to the locations map: the services map beside it has its own rows.
     const locations = page.locator('#pt-cf-organization-locations');
     const rows = locations.locator('.field__row');
+    // The blank row became a template: nothing to fill in until a row is asked for.
+    await expect(rows).toHaveCount(0);
+    await locations.getByRole('button', { name: 'Add location' }).click();
     await expect(rows).toHaveCount(1);
+    await expect(rows.first().locator('summary')).toHaveText('New location');
     await rows.first().locator('input[name$="$key"]').fill('ottawa');
+    await expect(rows.first().locator('summary')).toHaveText('ottawa');
+    await locations.getByRole('button', { name: 'Add location' }).click();
     await expect(rows).toHaveCount(2);
-    await expect(locations.locator('.field__row[data-blank]')).toHaveCount(1);
-    await rows.nth(1).locator('input[name$="$key"]').fill('gatineau');
-    await expect(rows).toHaveCount(3);
+    await rows.first().getByRole('button', { name: 'Remove' }).click();
+    await expect(rows).toHaveCount(1);
+    // Only the second row is left, and it kept its own name.
+    await expect(rows.first().locator('input[name$="$key"]')).toHaveAttribute(
+      'name',
+      /\$map\.1\.\$key$/,
+    );
     // The services map is untouched.
-    await expect(page.locator('#pt-cf-organization-services .field__row')).toHaveCount(1);
+    await expect(page.locator('#pt-cf-organization-services .field__row')).toHaveCount(0);
+  });
+
+  test('a row can be folded away', async ({ page }) => {
+    await page.goto('/patterns');
+    const locations = page.locator('#pt-cf-organization-locations');
+    await locations.getByRole('button', { name: 'Add location' }).click();
+    const row = locations.locator('.field__row').first();
+    await row.locator('summary').click();
+    await expect(row).not.toHaveAttribute('open', '');
   });
 });
 
@@ -265,6 +284,18 @@ test.describe('<wc-stepper>', () => {
 });
 
 test.describe('/configure', () => {
+  test('offers the colour picker beside a brand colour, fetched when it is opened', async ({
+    page,
+  }) => {
+    await page.goto('/configure#cfg-brand');
+    const field = page.locator('wc-color-field').first();
+    await expect(field.locator('wc-oklch-color-picker')).toHaveCount(0);
+    await field.locator('summary').click();
+    await expect(field.locator('wc-oklch-color-picker')).toHaveCount(1);
+    // The text input is still the one control that is submitted.
+    await expect(field.locator('input[data-widget="color"]')).toHaveAttribute('name', /seed$/);
+  });
+
   test('builds a site.json as the steps are filled in, and validates it for real', async ({
     page,
   }) => {

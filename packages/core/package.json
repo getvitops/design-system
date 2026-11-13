@@ -25,7 +25,8 @@
     "./css/*": "./css/*",
     "./package.json": "./package.json",
     "./config-form": "./dist/config-form.js",
-    "./stepper": "./dist/stepper.js"
+    "./stepper": "./dist/stepper.js",
+    "./color-field": "./dist/color-field.js"
   },
   "publishConfig": {
     "access": "public"

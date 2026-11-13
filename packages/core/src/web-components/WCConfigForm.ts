@@ -5,7 +5,8 @@ import {
   type JsonSchema,
   type ValidationIssue,
 } from '@getvitops/config/forms';
-import { docPathOf, messageAt, parseKeyName, renumber } from './utils/config-form.js';
+import { docPathOf, messageAt, parseKeyName } from './utils/config-form.js';
+import { scrubRow } from './utils/repeat.js';
 import { initFromLightDom } from './utils/upgrade.js';
 import type { WCField } from './WCField.js';
 
@@ -226,63 +227,13 @@ export class WCConfigForm extends HTMLElement {
     if (!parsed || key.value.trim() === '') return;
     const row = target.closest<HTMLElement>('.field__row[data-blank]');
     if (!row) return;
+    // `<wc-repeat>` has taken over adding rows (an Add button, and Delete): leave the blank one alone.
+    if (row.closest('wc-repeat[data-ready]')) return;
 
     const next = row.cloneNode(true) as HTMLElement;
     row.removeAttribute('data-blank');
-    this.#prepareRow(next, parsed.base, parsed.index);
+    scrubRow(next, parsed.base, parsed.index, parsed.index + 1);
     row.after(next);
-  }
-
-  /** Turn a clone of a used row into the next blank one. */
-  #prepareRow(row: HTMLElement, base: string, from: number): void {
-    const to = from + 1;
-    // The clone carries what `<wc-field>` added to the original; the new instance adds its own.
-    row.querySelectorAll('.field__counter').forEach((node) => node.remove());
-    row
-      .querySelectorAll('.field--enhanced')
-      .forEach((node) => node.classList.remove('field--enhanced'));
-    row.querySelectorAll('[data-invalid]').forEach((node) => node.removeAttribute('data-invalid'));
-    row.querySelectorAll('.field__error').forEach((node) => (node.textContent = ''));
-
-    // Ids `<wc-field>` generated for the original (`wc-field-3-error`) would be duplicated here. Drop
-    // them, and any `aria-describedby` token naming one; the clone's own element writes new ones.
-    const generated = /^wc-field-\d+-(?:help|error)$/;
-    for (const node of Array.from(row.querySelectorAll<HTMLElement>('[id], [aria-describedby]'))) {
-      if (generated.test(node.id)) node.removeAttribute('id');
-      const described = node.getAttribute('aria-describedby');
-      if (described !== null) {
-        const kept = described.split(/\s+/).filter((token) => token && !generated.test(token));
-        if (kept.length) node.setAttribute('aria-describedby', kept.join(' '));
-        else node.removeAttribute('aria-describedby');
-      }
-    }
-
-    for (const node of Array.from(row.querySelectorAll<HTMLElement>('*'))) {
-      for (const attribute of ['name', 'id', 'aria-describedby'] as const) {
-        const current = node.getAttribute(attribute);
-        if (current === null) continue;
-        node.setAttribute(
-          attribute,
-          renumber(current, base, from, to, attribute === 'name' ? 'name' : 'id'),
-        );
-      }
-      node.removeAttribute('aria-invalid');
-      if (node instanceof HTMLInputElement) {
-        // A hidden input is a fixed part of the row (a locale code, a switch's "false").
-        if (node.type === 'checkbox' || node.type === 'radio') node.checked = false;
-        else if (node.type !== 'hidden') node.value = '';
-        // `value=""` as an attribute too, or a cloned default would come back on reset.
-        if (node.type !== 'hidden' && node.type !== 'checkbox' && node.type !== 'radio') {
-          node.setAttribute('value', '');
-        }
-      } else if (node instanceof HTMLTextAreaElement) {
-        node.value = '';
-        node.textContent = '';
-      } else if (node instanceof HTMLSelectElement) {
-        node.selectedIndex = 0;
-        for (const option of Array.from(node.options)) option.removeAttribute('selected');
-      }
-    }
   }
 }
 

@@ -468,14 +468,47 @@ fieldset.field__control,
 }
 
 .field__row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--field-gap, var(--form-group-gap, 0.5rem));
   min-inline-size: 0;
   margin: 0;
   padding: 1rem;
   border: var(--b-default);
   border-radius: var(--br-default);
+
+  /* A row is a `<details>`: the summary names it, the body holds its fields. */
+  > summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  &[open] > summary {
+    margin-block-end: 0.75rem;
+  }
+}
+
+.field__group > [data-repeat-action='add'] {
+  align-self: flex-start;
+}
+
+.field__row-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--field-gap, var(--form-group-gap, 0.5rem));
+}
+
+.field__row-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The polite announcement of an added or removed row; present for assistive tech only. */
+.field__status {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* The always-present empty row: how a visitor adds an entry with no script. */
@@ -508,6 +541,28 @@ fieldset.field__control,
 
 /* `<wc-multi-field>` is a group of controls, a block. Its shadow `:host` declares no display. */
 :where(wc-multi-field) {
+  display: block;
+}
+
+/* `<wc-color-field>` wraps a labelled text input and the folded picker, a block. */
+:where(wc-color-field) {
+  display: block;
+}
+
+.field__picker {
+  margin-block-start: 0.5rem;
+
+  > summary {
+    cursor: pointer;
+  }
+
+  > wc-oklch-color-picker {
+    margin-block-start: 0.75rem;
+  }
+}
+
+/* `<wc-repeat>` wraps a fieldset of rows, a block. */
+:where(wc-repeat) {
   display: block;
 }
 

@@ -37,9 +37,11 @@ export interface Props {
   output?: string;
   /** Don't block a submit that has errors; the server decides. */
   novalidate?: boolean;
+  /** Offer the OKLCH picker beside colour fields (a second bundle: `@getvitops/core/color-field`). */
+  colorPicker?: boolean;
 }
 
-const { id, schema, paths, output, novalidate } = Astro.props;
+const { id, schema, paths, output, novalidate, colorPicker } = Astro.props;
 const narrowed = paths ? pickSchema(schema, paths) : schema;
 // A `<` in the JSON could close the script element early; `<` is the same string to JSON.parse.
 const json = JSON.stringify(narrowed).replace(/</g, '\\u003c');
@@ -53,3 +55,6 @@ const schemaId = `${id}-schema`;
 <script>
   import '@getvitops/core/config-form';
 </script>
+{colorPicker && <script>
+  import '@getvitops/core/color-field';
+</script>}
