@@ -990,14 +990,20 @@ const configFields = configSteps
   </p>
 
   <h3>Multi field</h3>
-  <wc-multi-field class="rhythm">
+  <wc-multifield
+    class="rhythm"
+    add-label="Add another"
+    delete-label="Remove"
+    item-label="item"
+    max="4"
+  >
     <div class="form-group">
       <label class="form-group__label" for="pt-mf">
         Repeatable field
       </label>
       <input id="pt-mf" name="item[]" type="text" placeholder="Add another" />
     </div>
-  </wc-multi-field>
+  </wc-multifield>
 
   <h3>Tabs</h3>
   <p>

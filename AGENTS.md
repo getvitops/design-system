@@ -30,7 +30,7 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      (`createRenderRoot() → this`) so the framework CSS applies to both the fallback and the enhanced
      result.
    - Exemplar: **`WCEntries`** — with no JS it renders semantic `<h3>` + `<dl>` pairs; with JS on a
-     wide container it parses them into a table. (Others: carousel, image-compare, wc-multi-field, …)
+     wide container it parses them into a table. (Others: carousel, image-compare, wc-multifield, …)
    - **`<wc-tree>` is the one element that discards slotted nodes rather than only hiding or
      appending alongside them** — the one deliberate exception to "augments... in place" above. On
      upgrade it unwraps every branch's `<details>`/`<summary>` entirely (see that element's own
@@ -68,15 +68,17 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    enhances `<wc-field>` (in `elements.js`) without importing it, so the two load in either order. It
    cancels a submit that has errors unless it has `novalidate`.
 
-   **`<wc-repeat>` ships in that same `config-form.js`** (a plain `HTMLElement`, ~1 KB gzipped), because
-   its row naming (`…$map.N.$key`) is the codec's. `renderProjectionHtml` wraps every keyed map in it,
-   each row a `<details class="field__row" open>` titled by its key, the last one blank (`data-blank`).
-   The fallback is those rows: fill in the blank one to add an entry, empty a row's key to drop it (a
-   row with no key is not sent). On upgrade it takes the blank row out as a template and adds Add and
-   Remove buttons; a new row is a scrubbed copy at the next free index (indices are a rendering
-   detail, so gaps after a delete are fine). `<wc-config-form>` stops adding blank rows itself once
-   `wc-repeat[data-ready]` holds the row. The shared copy-and-scrub is `utils/repeat.ts`. It is not
-   `<wc-multi-field>`, which stays what it was: a shadow-DOM list of plain string values.
+   **`<wc-multifield>` is in `elements.js`** (a plain `HTMLElement`, light DOM, Lit-free; it replaced
+   the earlier shadow-DOM `<wc-multi-field>` spike, keeping its `min`/`max`/`protect-defaults`, Clear,
+   label attributes and `multi-field-*` events). It repeats a field (each child is an entry) or a
+   fieldset: `renderProjectionHtml` wraps every keyed map in it, each row an open
+   `<details class="field__row">` titled by its key, the last one blank (`data-blank`). The fallback is
+   the markup itself: native named controls, so with no JS fill in the blank row to add an entry and
+   empty a row's key to drop it (a row with no key is not sent). On upgrade the blank row becomes a
+   template and Add / Remove (and Clear) appear; a new row is a scrubbed copy at the next free index
+   (indices are a rendering detail, so gaps after a delete are fine). `<wc-config-form>` stops adding
+   blank rows itself once `wc-multifield[data-ready]` holds the row. The shared copy-and-scrub is
+   `utils/repeat.ts`.
 
    **`<wc-color-field>` is the fourth element outside `elements.js`** (`@getvitops/core/color-field`,
    <1 KB gzipped). It wraps a colour text input (`data-widget="color"`, which is the fallback and the
@@ -135,7 +137,7 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    inline box around a block child — and, where the upgraded `:host` declares a different display,
    registering would shift the layout. Each pattern's partial now declares `display` for its element
    inside `:where()`, matched to the content it wraps and to its upgraded `:host`: `block` for
-   `wc-config-form`, `wc-repeat`, `wc-color-field`, `wc-stepper`, `wc-entries`, `wc-image-compare`, `wc-split-panel`, `wc-multi-field`, `wc-dismissable` (which
+   `wc-config-form`, `wc-color-field`, `wc-stepper`, `wc-entries`, `wc-image-compare`, `wc-split-panel`, `wc-multifield`, `wc-dismissable` (which
    animates its own box, so `display: contents` is out), `wc-marquee`, `wc-tabs` and `wc-range`;
    `inline-flex` (column) for `wc-combobox` and `inline-flex` for `wc-copy`; `flex` (column) for
    `wc-field`, matching `.form-group`.

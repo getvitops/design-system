@@ -227,8 +227,8 @@ export class WCConfigForm extends HTMLElement {
     if (!parsed || key.value.trim() === '') return;
     const row = target.closest<HTMLElement>('.field__row[data-blank]');
     if (!row) return;
-    // `<wc-repeat>` has taken over adding rows (an Add button, and Delete): leave the blank one alone.
-    if (row.closest('wc-repeat[data-ready]')) return;
+    // `<wc-multifield>` has taken over adding rows (an Add button, and Delete): leave the blank one alone.
+    if (row.closest('wc-multifield[data-ready]')) return;
 
     const next = row.cloneNode(true) as HTMLElement;
     row.removeAttribute('data-blank');

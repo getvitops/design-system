@@ -31,7 +31,7 @@ const ORDER = [
   'entries',
   'image-compare',
   'sitenav',
-  'wc-multi-field',
+  'wc-multifield',
   'split-link',
   'split-panel',
 ];

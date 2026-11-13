@@ -39,12 +39,12 @@ const BUDGETS: Record<string, number> = {
   // (about 0.9 KB each; they share Lit, `BaseElement` and `RovingTabindex`, which were already in
   // the bundle). Intended growth, so the ceiling moves with ~4% headroom. Since `<wc-color-field>`
   // shares Lit with it the bundler lifts Lit into `polyfills/BaseElement.js`; the figure counts that
-  // chunk (see `sharedSize`), and gzips it apart from the entry, hence the +600 B on 33,000.
-  'elements.js': 33_600,
+  // chunk (see `sharedSize`), and gzips it apart from the entry, hence the +600 B on 33,000. `<wc-multifield>` (light DOM, Lit-free, replacing the Lit `<wc-multi-field>`) and its row helper, a chunk shared with `config-form.js`, add ~400 B more.
+  'elements.js': 34_000,
   'consent.js': 3_500,
-  // The validator, the form codec, `<wc-config-form>` and `<wc-repeat>`; Lit-free, loaded only by a
-  // page with a config form (4.6 KB gzipped with the repeater, ~8% headroom).
-  'config-form.js': 5_000,
+  // The validator, the form codec and `<wc-config-form>`; Lit-free, loaded only by a page with a
+  // config form (3.6 KB gzipped, ~10% headroom). Counts the row helper it shares with `elements.js`.
+  'config-form.js': 4_500,
   // `<wc-stepper>`; Lit-free, outside `elements.js` because that bundle is at 99% of its budget.
   'stepper.js': 2_000,
   // The glue only: the picker (~40 KB gzipped) is a dynamic import, fetched when the picker is opened.

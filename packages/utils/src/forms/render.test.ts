@@ -419,9 +419,9 @@ describe('a keyed map', () => {
     expect(html).toContain('data-blank');
   });
 
-  it('wraps the map in <wc-repeat> and writes each row as an open, titled <details>', () => {
+  it('wraps the map in <wc-multifield> and writes each row as an open, titled <details>', () => {
     const html = render(['organization.services'], values, { locales: ['en'] });
-    expect(html).toContain('<wc-repeat');
+    expect(html).toContain('<wc-multifield');
     expect(html).toContain('add-label="Add service"');
     const rows = all(html, 'details');
     expect(rows).toHaveLength(3);

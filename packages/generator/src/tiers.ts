@@ -358,9 +358,13 @@ export const TIERS: Record<string, TierEntry> = {
     emdashExempt:
       'repeats rows a visitor adds at submit time (several phone numbers, guests); `vitops_form` has a fixed, editor-defined field list and no such field type',
     css: c(['form-group', 'input-group', 'fieldset'], 'patterns/forms.css'),
-    wc: { tag: 'wc-multi-field', registered: true, adds: 'add/remove repeating field rows' },
+    wc: {
+      tag: 'wc-multifield',
+      registered: true,
+      adds: 'Add, Remove and Clear for a repeated field or fieldset, with `min`, `max` and `protect-defaults`; a row of a keyed map is an open `<details>` titled by its key',
+    },
     bricks: 'vitops-multi-field',
-    use: '`<wc-multi-field>` around a field template. One row submits fine with no JS.',
+    use: "`<wc-multifield name type placeholder min max protect-defaults>` around the field(s) to repeat (each child is an entry), or around `.field__row` `<details>` fieldsets (what `renderProjectionHtml` writes for a keyed map: the last row blank, so with no JS filling it in adds an entry and emptying a row's key drops it). Light DOM: every control is native and submits with the form. Events `multi-field-change|add|delete|clear`.",
   },
   turnstile: {
     // Rendered by `vitops_form` when `site.security.turnstile.siteKey` is set; the block
@@ -757,7 +761,7 @@ export const TIERS: Record<string, TierEntry> = {
       tag: 'wc-config-form',
       registered: false,
       bundle: '@getvitops/core/config-form',
-      adds: 'validates the form against a JSON Schema as you type and shows each message in its `<wc-field>`, stops a submit that has errors, adds a row to a keyed map as the blank one is used (until `<wc-repeat>` takes over), and exposes the config document the form describes',
+      adds: 'validates the form against a JSON Schema as you type and shows each message in its `<wc-field>`, stops a submit that has errors, adds a row to a keyed map as the blank one is used (until `<wc-multifield>` takes over), and exposes the config document the form describes',
     },
     astro: a('ConfigForm', 'wc'),
     emdashExempt:
@@ -775,18 +779,6 @@ export const TIERS: Record<string, TierEntry> = {
     emdashExempt:
       'configuration tooling for a site owner, emitted by `renderProjectionHtml` rather than placed by an editor',
     use: 'Not written by hand: `renderProjectionHtml` wraps a `color` widget in it. The text input is the whole fallback (and the only submitted control); the picker is `<wc-oklch-color-picker>`, the control the theme editor uses. Load it with `<ConfigForm colorPicker>` or `import "@getvitops/core/color-field"`. Its own bundle: the picker is a Lit element with a canvas, which a form with no colour field should not download.',
-  },
-  repeat: {
-    css: c([]),
-    wc: {
-      tag: 'wc-repeat',
-      registered: false,
-      bundle: '@getvitops/core/config-form',
-      adds: 'an Add button and a Remove button per row of a keyed map, row summaries that follow the row key, and unfolds a row a blocked submit is about',
-    },
-    emdashExempt:
-      'configuration tooling for a site owner, emitted by `renderProjectionHtml` rather than placed by an editor',
-    use: 'Not written by hand: `renderProjectionHtml` (`@getvitops/utils/forms`) wraps every keyed map in it. The rows are `<details class="field__row" open>`, the last one blank (`data-blank`), so with no JS a visitor adds an entry by filling in the blank row and drops one by emptying its key. Ships in `@getvitops/core/config-form` beside `<wc-config-form>`, which leaves adding rows to it once it has upgraded.',
   },
   stepper: {
     css: c(

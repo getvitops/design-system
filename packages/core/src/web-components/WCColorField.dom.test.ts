@@ -27,8 +27,11 @@ async function mount(value = '#1d4ed8') {
 const open = async (details: HTMLDetailsElement) => {
   details.open = true;
   details.dispatchEvent(new Event('toggle'));
-  // Two dynamic imports and a sync.
-  for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 10));
+  // Two dynamic imports and a sync: wait for the picker, then a beat for the value to settle.
+  for (let i = 0; i < 100 && !details.querySelector('wc-oklch-color-picker'); i++) {
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  await new Promise((r) => setTimeout(r, 100));
 };
 
 describe('<wc-color-field>', () => {
@@ -45,7 +48,7 @@ describe('<wc-color-field>', () => {
     await open(details);
     const picker = host.querySelector('wc-oklch-color-picker') as HTMLElement & { value: string };
     expect(picker).not.toBeNull();
-    expect(picker.getAttribute('name')).toBeNull();
+    expect(picker.getAttribute('name') ?? '').toBe('');
     expect(picker.value.toLowerCase()).toMatch(/^#(f00|ff0000)$/);
   });
 

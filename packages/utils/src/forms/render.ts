@@ -490,7 +490,7 @@ function renderMap(d: FieldDescriptor, ctx: Ctx, id: string): ContentNode | null
     );
   });
   return el(
-    'wc-repeat',
+    'wc-multifield',
     { 'item-label': av(noun), 'add-label': av(`Add ${noun}`), 'delete-label': 'Remove' },
     el(
       'fieldset',
