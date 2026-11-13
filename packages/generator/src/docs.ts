@@ -8,6 +8,7 @@
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { renderInlineMarkdown } from '@getvitops/config/forms';
 import { jsonSchema, SCHEMA_URL, type DesignSystem } from './schema.ts';
 import { configJsonSchema, CONFIG_SCHEMA_URL } from './config.ts';
 import { BASE_HOOK, DARK_SEL, REQUIRED_ROLES, SYSTEM_DARK_SEL, TW_CLASH } from './shared.ts';
@@ -1031,61 +1032,12 @@ function schemaSections(schema: JsonSchemaNode, heading = '##', maxDepth = 3): s
 
 /* ── Schema → tree DATA (the second consumer of the same walk) ─────────────── */
 
-const escapeHtml = (s: string): string =>
-  s.replace(
-    /[&<>"]/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string,
-  );
-
 /**
- * Sentinel for a lifted code span. Cannot occur in authored schema prose.
- *
- * Written as an ESCAPE, never as the literal byte. A raw NUL here made this whole
- * file `data` rather than `text` to libmagic, so grep and ripgrep classified it
- * as binary and **silently skipped it** — every search for a string in the
- * largest doc emitter in the repo returned nothing, with no error and nothing to
- * notice. That is the failure mode this codebase is written against, aimed at the
- * tool an agent uses to find anything.
+ * Inline markdown for schema prose. It moved to `@getvitops/config/forms` so form renderers, which
+ * cannot load this package on a Worker, print the same description text; re-exported here so the
+ * docs site and every existing import are unchanged.
  */
-const CODE_SLOT = '\u0000';
-
-/**
- * The inline markdown the schema's `desc()` text actually uses, as HTML. Closed
- * on purpose, exactly like the legal renderer's subset: these strings are
- * authored in `schema.ts`, so the set is knowable rather than guessed at.
- *
- * Escaping happens before any markup is emitted, so a description containing `<`
- * cannot inject tags — several do (`<canonical>/<key>.txt`). Exported because the
- * only safe place for this is one tested function; a caller doing its own escaping
- * is how one of them eventually doesn't.
- *
- * **Code spans are lifted out FIRST, and that is load-bearing rather than tidy.**
- * `colors.utilities` describes the target families as `` `bg-*` ``, `` `text-*` ``,
- * `` `border-*` `` — literal asterisk WILDCARDS. Run emphasis over the raw string
- * and the `*` closing `bg-*` pairs with the one closing `text-*`, wrapping the
- * text between two unrelated utilities in `<em>` and eating both asterisks. The
- * prose then silently describes families that don't exist. Lifting code spans
- * first makes emphasis structurally unable to see inside them.
- */
-export const renderInlineMarkdown = (s: string): string => {
-  const spans: string[] = [];
-  const lifted = s.replace(/`([^`]+)`/g, (_, body: string) => {
-    spans.push(body);
-    return `${CODE_SLOT}${spans.length - 1}${CODE_SLOT}`;
-  });
-  return (
-    escapeHtml(lifted)
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      // Single-asterisk emphasis, after strong so `**x**` is already consumed. The
-      // schema uses it (`*presentation*`, `*domain properties*`), so omitting it
-      // printed the asterisks literally on the page.
-      .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
-      .replace(
-        new RegExp(`${CODE_SLOT}(\\d+)${CODE_SLOT}`, 'g'),
-        (_, i: string) => `<code>${escapeHtml(spans[Number(i)] ?? '')}</code>`,
-      )
-  );
-};
+export { renderInlineMarkdown };
 
 export interface SchemaTreeOptions {
   /** Dotted id prefix, so two trees on one page can't collide. */

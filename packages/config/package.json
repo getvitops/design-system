@@ -26,6 +26,10 @@
     "./providers": {
       "types": "./dist/providers.d.mts",
       "import": "./dist/providers.mjs"
+    },
+    "./forms": {
+      "types": "./dist/forms.d.mts",
+      "import": "./dist/forms.mjs"
     }
   },
   "publishConfig": {
