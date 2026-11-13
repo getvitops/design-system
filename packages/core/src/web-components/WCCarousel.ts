@@ -53,6 +53,7 @@ import { RovingTabindex } from './utils/RovingTabindex.js';
  *   <p class="carousel__hint" aria-hidden="true">Scroll for more</p>
  * </wc-carousel>
  * ```
+ * @fallback full a snapping, scrollable list; JS adds controls and indicators
  */
 export class WCCarousel extends BaseElement {
   static properties = {

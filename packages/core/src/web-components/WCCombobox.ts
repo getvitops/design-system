@@ -37,6 +37,8 @@ import { initFromLightDom } from './utils/upgrade.js';
  * Light DOM, because `.combobox`' CSS has to style both the fallback and the built list.
  *
  * @fires combobox-select `{ value, label }`, bubbles and composed, when an option is chosen.
+ *
+ * @fallback full `<input list>` and `<datalist>`
  */
 export class WCCombobox extends BaseElement {
   static properties = {

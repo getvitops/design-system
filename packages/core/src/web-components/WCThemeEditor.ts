@@ -124,6 +124,9 @@ const fnVar = (role: string, token: string): string => {
 
 const stepVar = (hue: string, step: string): string => `--color-${hue}-${step}`;
 
+/**
+ * @fallback none tooling, quarantined on purpose
+ */
 export class WCThemeEditor extends HTMLElement {
   /**
    * `manifest` — URL of the generator's design-manifest.json.

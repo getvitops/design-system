@@ -145,6 +145,8 @@ export interface WCTypography {
  * @csspart section-title - Section headers
  *
  * @fires typography-change - When any typography setting changes
+ *
+ * @fallback none a configuration tool with no meaning without JS
  */
 export class WCTypography extends BaseElement {
   static styles: CSSResultGroup = [

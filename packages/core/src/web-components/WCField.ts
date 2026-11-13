@@ -46,6 +46,8 @@ type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
  * Light DOM, because `forms.css` styles the fallback and the enhanced result alike.
  *
  * @fires field-change `{ name, value, valid }`, bubbles and composed, when a control's value is committed.
+ *
+ * @fallback full a label that nests the native control, with its help and error text
  */
 export class WCField extends BaseElement {
   override createRenderRoot(): HTMLElement {

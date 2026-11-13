@@ -96,6 +96,14 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    `checkValidity()`, because that fires `invalid`, which the element itself listens for to reveal a
    hidden step. Whether these standalone bundles become an auto-loader is an open decision (TODO.md).
 
+   **Every element states its no-JS standing with a `@fallback` tag in its docblock:**
+   `@fallback full <what it is>` (complete and usable with no JS, given its fallback markup),
+   `partial` (works, degraded: say how) or `none` (a canvas or tooling control with no meaning
+   without JS: stated, not excused; `wc-oklch-color-picker` is one, and `<wc-color-field>` is its
+   text-input counterpart). Not `@requires`, which JSDoc already uses for modules. `TierWc.fallback`
+   carries the same value into `components.md` and the docs table, and `tiers.test.ts` fails when an
+   element lacks the tag or the two disagree.
+
    **Not registered in `elements.js` yet:** `WCColorWheel`, `WCOklchColorPicker`, `WCIconPicker`,
    `WCTypography` — they belong to the editor-v2 track.
 

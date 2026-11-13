@@ -81,6 +81,8 @@ function observer(): IntersectionObserver {
  *   <span class="counter__value">94%</span>
  * </wc-counter>
  * ```
+ *
+ * @fallback full the finished figure is already in the text
  */
 export class WCCounter extends BaseElement {
   /** Light DOM — `.counter`/`.counter__value` CSS must style the slotted markup. */

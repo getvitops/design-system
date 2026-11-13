@@ -22,6 +22,8 @@ import { BaseElement } from './BaseElement.js';
  *   </div>
  * </wc-dismissable>
  * ```
+ *
+ * @fallback partial stays visible; the close button needs JS
  */
 export class WCDismissable extends BaseElement {
   static properties = {

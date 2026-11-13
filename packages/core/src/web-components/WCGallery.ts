@@ -67,6 +67,8 @@ interface GalleryItem {
  *   </dialog>
  * </wc-gallery>
  * ```
+ *
+ * @fallback full each trigger is a link to its slide, which works in the lightbox
  */
 export class WCGallery extends BaseElement {
   /** Light DOM — the framework's `.gallery` / `.lightbox-dialog` CSS must style the slotted markup. */

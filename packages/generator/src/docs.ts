@@ -1808,7 +1808,7 @@ function renderComponentsConcept(ds: DesignSystem): string {
     .map(({ name, entry }) => {
       const w = entry.wc!;
       const ships = w.registered ? code('elements.js') : w.bundle ? code(w.bundle) : 'nothing';
-      return `| ${code(`<${w.tag}>`)} | ${code(name)} | ${ships} | ${cell(w.adds)} |`;
+      return `| ${code(`<${w.tag}>`)} | ${code(name)} | ${ships} | ${w.fallback} | ${cell(w.adds)} |`;
     })
     .join('\n');
 
@@ -1933,8 +1933,8 @@ registered set; ${code('<wc-consent>')} and ${code('<wc-theme-editor>')} ship se
 first so a site needing consent does not download a rendering framework, the second because it
 is tooling and opt-in per consumer.
 
-| Tag | Pattern | Ships in | What JS adds over the fallback |
-| --- | --- | --- | --- |
+| Tag | Pattern | Ships in | With no JS | What JS adds over the fallback |
+| --- | --- | --- | --- | --- |
 ${wc}
 
 ${

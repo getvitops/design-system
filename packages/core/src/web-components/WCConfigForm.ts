@@ -42,6 +42,8 @@ type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
  * visitor is still reading the form. A submit with errors is cancelled and focuses the first one.
  *
  * @fires config-change `{ value, issues }`, bubbles, after every input, change or added row.
+ *
+ * @fallback full a complete `<form method="post">` the server validates
  */
 export class WCConfigForm extends HTMLElement {
   #form: HTMLFormElement | null = null;

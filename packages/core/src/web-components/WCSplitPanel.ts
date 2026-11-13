@@ -21,6 +21,8 @@ import { DragController } from './utils/DragController.js';
  * @cssprop --min-panel-size - Minimum panel size (default: 100px)
  *
  * @fires split-change - Position changed, detail: { position: number }
+ *
+ * @fallback partial both panels shown stacked; the draggable divider needs JS
  */
 export class WCSplitPanel extends BaseElement {
   static styles = [

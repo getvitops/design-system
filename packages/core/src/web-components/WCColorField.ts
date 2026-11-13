@@ -25,6 +25,7 @@ const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
  * into the input and fires `input` there, so everything listening to the field (a config form's live
  * validation) hears it as typing. Typing a hex moves the picker; a value the picker cannot show
  * (`oklch(…)`, a name) leaves it where it was.
+ * @fallback full a colour text input; JS adds the picker beside it
  */
 export class WCColorField extends HTMLElement {
   #ready = false;

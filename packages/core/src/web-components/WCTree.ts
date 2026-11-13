@@ -158,6 +158,8 @@ function moveAllChildren(from: Element, to: Element, before: Node | null): void 
  * ```
  * That markup is the no-JS contract — `<details>`/`<summary>`, exactly as
  * above. What this element renders on upgrade is a different, JS-owned shape.
+ *
+ * @fallback partial `<details>`/`<summary>` branches; filtering and keyboard navigation need JS
  */
 export class WCTree extends BaseElement {
   static properties = {

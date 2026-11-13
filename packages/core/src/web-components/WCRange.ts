@@ -28,6 +28,8 @@ import { initFromLightDom } from './utils/upgrade.js';
  * Light DOM, because `.range`'s CSS has to style the inputs themselves.
  *
  * @fires range-change `{ values: number[] }`, bubbles and composed, as either value changes.
+ *
+ * @fallback full one or two native range inputs
  */
 export class WCRange extends BaseElement {
   override createRenderRoot(): HTMLElement {

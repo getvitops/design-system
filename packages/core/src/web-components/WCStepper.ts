@@ -41,6 +41,8 @@ const HEADING = 'h1, h2, h3, h4, h5, h6';
  * without `elements.js` and in either order with `<wc-config-form>`.
  *
  * @fires stepper-change `{ index, id }`, bubbles, when the shown step changes.
+ *
+ * @fallback full a long form of headed sections with `#anchor` links
  */
 export class WCStepper extends HTMLElement {
   #ready = false;

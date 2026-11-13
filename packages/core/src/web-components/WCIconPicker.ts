@@ -84,6 +84,9 @@ interface IconResult {
 
 type PickerMode = 'semantic' | 'icon-name';
 
+/**
+ * @fallback none a browsing tool with no meaning without JS
+ */
 export class WCIconPicker extends BaseElement {
   static formAssociated = true;
   static shadowRootOptions = { ...LitElement.shadowRootOptions, delegatesFocus: true };

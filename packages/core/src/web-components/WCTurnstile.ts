@@ -61,6 +61,8 @@ function loadTurnstile(): Promise<TurnstileApi> {
  *   <p>This form needs JavaScript for its spam check. Email us instead.</p>
  * </wc-turnstile>
  * ```
+ *
+ * @fallback partial a paragraph saying the spam check needs JS
  */
 export class WCTurnstile extends BaseElement {
   /** Light DOM — the framework's form CSS must style the fallback and status text. */

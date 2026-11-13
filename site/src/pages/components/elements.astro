@@ -28,6 +28,7 @@ const rows: TierRow[] = tierPatterns('wc').map(({ name, entry }) => {
     cells: {
       Pattern: code(name),
       'Ships in': ships,
+      'With no JS': wc.fallback,
       'What JS adds': md(wc.adds),
       'Recommended call': md(entry.use),
       'Also in': alsoIn(name, 'wc', base),

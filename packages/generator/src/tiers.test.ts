@@ -118,6 +118,22 @@ describe('TIERS covers what is on disk', () => {
     }
   });
 
+  it('every element states `@fallback full|partial|none` in its docblock, and TIERS agrees', () => {
+    const known = new Map(tierTags().map((t) => [t.tag, TIERS[t.pattern]?.wc]));
+    for (const { tag, file } of definedTags()) {
+      const src = readFileSync(join(WC_DIR, file), 'utf8');
+      const m = /^\s*\*\s*@fallback\s+(full|partial|none)\b\s+\S/m.exec(src);
+      expect(
+        m,
+        `${file}: add \`@fallback full|partial|none <what the no-JS state is>\` to ${tag}'s docblock`,
+      ).not.toBeNull();
+      expect(
+        known.get(tag)?.fallback,
+        `${tag}: TIERS fallback differs from ${file}'s @fallback`,
+      ).toBe(m![1]);
+    }
+  });
+
   /**
    * "Not every web component has a block" was found by audit, after the fact: seven of the
    * thirteen shipped elements had one and nothing recorded that the rest were decisions. A

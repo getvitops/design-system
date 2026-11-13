@@ -91,7 +91,7 @@ emit its tag.
 | `masonry` | css | `.masonry` — CSS columns based. |
 | `masthead` | css · astro | `<Masthead config={site}>` from `site.chrome.masthead` (position `static\|sticky\|fixed`, behavior `always\|hide-on-scroll`, surface `solid\|glass\|transparent\|transparent-until-scrolled`, layout `full\|inset\|floating`, `inset` and `height` lengths — fluid ones like `clamp(3.5rem, 8cqi, 4.5rem)` are fine — elevation shadow/border, `onScroll`); a prop overrides one field for a layout. Slots `brand`, default (the `<SiteNav>`), `actions`. Pure CSS — hide-on-scroll and the *-on-scroll states are `scroll-state()` queries that only subtract from a settled bar, so a browser without them (Firefox today) shows a visible, solid, elevated one. It never takes `role="banner"`: a body-level `<header>` already is the landmark, and `.banner` means the announcement bar. |
 | `media` | css | `.media` for a figure/body pair; `.tile` for the stacked form. |
-| `multi-field` | css · wc · bricks | `<wc-multi-field>` around a field template. One row submits fine with no JS. |
+| `multi-field` | css · wc · bricks | `<wc-multifield name type placeholder min max protect-defaults>` around the field(s) to repeat (each child is an entry), or around `.field__row` `<details>` fieldsets (what `renderProjectionHtml` writes for a keyed map: the last row blank, so with no JS filling it in adds an entry and emptying a row's key drops it). Light DOM: every control is native and submits with the form. Events `multi-field-change\|add\|delete\|clear`. |
 | `nav` | css | `.menu` / `.navbar`. See `navbar` and `navshell` for the newer shells. |
 | `navbar` | css | `.navbar` with `--start/--center/--end`. |
 | `navshell` | css · astro | `<NavShell>` with a `nav` slot, plus `<NavShellToggle>` if the toggle must live outside the shell. |
@@ -101,7 +101,6 @@ emit its tag.
 | `popover` | css · astro | `<Popover>` — native Popover API + CSS Anchor Positioning. No JS. |
 | `pull-quote` | css | `.pull-quote`. Note the type role `quote` is separate. |
 | `range` | css · wc · astro | A single slider needs no element: a bare `<input type="range">` is themed by `forms.css` (accent-color). For its value shown, or for two thumbs, use `<Range name label min max value output />` or `<Range names labels values />`: with no JS those are native range inputs (two submit as two fields). Every input needs a label. Do NOT wrap it in `<wc-range>`: it emits its own. |
-| `repeat` | wc | Not written by hand: `renderProjectionHtml` (`@getvitops/utils/forms`) wraps every keyed map in it. The rows are `<details class="field__row" open>`, the last one blank (`data-blank`), so with no JS a visitor adds an entry by filling in the blank row and drops one by emptying its key. Ships in `@getvitops/core/config-form` beside `<wc-config-form>`, which leaves adding rows to it once it has upgraded. |
 | `reveal` | css | `.reveal` — scroll-driven, no JS. Hosts the `interpolate-size` that `<details>` animation needs. |
 | `review` | css · astro · emdash | `<ReviewCard review={…} />` — one card, from `vitops reviews`' `.vitops/reviews.json` cache. Put several inside `<Carousel>` slides or `<Marquee>` items; there is no group component and no `wc-review`. In EmDash, `vitops_reviews` is that whole row: it reads the cache as a build-time import (`virtual:getvitops/reviews`, served by `vitops()`; empty when the file is absent), picks reviews with `selectReviews()`, and lays them out as a grid, carousel or marquee. A new review appears after `vitops reviews` is re-run, committed and the site rebuilt. |
 | `scroll-based` | css | Scroll-timeline driven; no JS. |
@@ -139,37 +138,36 @@ registered set; `<wc-consent>` and `<wc-theme-editor>` ship separately, the
 first so a site needing consent does not download a rendering framework, the second because it
 is tooling and opt-in per consumer.
 
-| Tag | Pattern | Ships in | What JS adds over the fallback |
-| --- | --- | --- | --- |
-| `<wc-cards>` | `card` | `elements.js` | whole-card click that keeps the card text selectable |
-| `<wc-carousel>` | `carousel` | `elements.js` | opt-in cloned loop, autoplay, and real prev/next + dot controls where `::scroll-button()`/`::scroll-marker` are missing |
-| `<wc-color-field>` | `color-field` | `@getvitops/core/color-field` | offers the OKLCH picker beside a colour text input: dragging writes the hex into the input, typing a hex moves the picker |
-| `<wc-color-scheme-toggle>` | `color-scheme-toggle` | `elements.js` | segmented light/dark/system control; persists the choice (consent-gated) |
-| `<wc-color-wheel>` | `color-wheel` | `(none — editor-v2 track, not yet bundled)` | hue/chroma wheel input |
-| `<wc-combobox>` | `combobox` | `elements.js` | a filtered ARIA 1.2 listbox (aria-activedescendant, arrow/Enter/Escape keys, a live result count) in place of the browser datalist popup |
-| `<wc-config-form>` | `config-form` | `@getvitops/core/config-form` | validates the form against a JSON Schema as you type and shows each message in its `<wc-field>`, stops a submit that has errors, adds a row to a keyed map as the blank one is used (until `<wc-repeat>` takes over), and exposes the config document the form describes |
-| `<wc-consent>` | `consent` | `@getvitops/core/consent` | the permission gate itself — activates `type="text/plain"` tags on grant |
-| `<wc-copy>` | `copy` | `elements.js` | clipboard write plus success feedback |
-| `<wc-counter>` | `counter` | `elements.js` | animates from a start value to the value already in the fallback text, on intersection |
-| `<wc-dismissable>` | `dismissable` | `elements.js` | fade-out + removal, optional auto-dismiss |
-| `<wc-entries>` | `entries` | `elements.js` | parses heading + `<dl>` pairs into a table above a breakpoint |
-| `<wc-field>` | `field` | `elements.js` | links the help text and the error to the control with `aria-describedby`, writes validation messages under the field once the control is left or a submit reports it, accepts `setError()` from a host that validates against a schema, and adds a `maxlength` counter |
-| `<wc-format>` | `format` | `elements.js` | replaces the authored text with a locale-aware relative time, date, number, percentage or currency read from the machine value, and keeps a relative time current |
-| `<wc-gallery>` | `gallery` | `elements.js` | a real `showModal()` open, neighbour preload and the thumbnail→full-image view-transition morph |
-| `<wc-icon-picker>` | `icon-picker` | `(none — editor-v2 track, not yet bundled)` | browses the semantic icon map for the configured set |
-| `<wc-image-compare>` | `image-compare` | `elements.js` | drag handle revealing the before/after image |
-| `<wc-marquee>` | `marquee` | `elements.js` | fills the track with enough copies to scroll seamlessly |
-| `<wc-multi-field>` | `multi-field` | `elements.js` | add/remove repeating field rows |
-| `<wc-oklch-color-picker>` | `oklch-color-picker` | `(none — editor-v2 track, not yet bundled)` | OKLCH L/C/H picker |
-| `<wc-range>` | `range` | `elements.js` | overlays two native range inputs on one track with thumbs that cannot cross and a filled span between them, and keeps an `<output>` current |
-| `<wc-repeat>` | `repeat` | `@getvitops/core/config-form` | an Add button and a Remove button per row of a keyed map, row summaries that follow the row key, and unfolds a row a blocked submit is about |
-| `<wc-split-panel>` | `split-panel` | `elements.js` | draggable divider between two panels |
-| `<wc-stepper>` | `stepper` | `@getvitops/core/stepper` | shows one section of a long form at a time with Back and Next, stops a forward move at the first invalid step, marks the current link `aria-current="step"`, and follows the URL fragment |
-| `<wc-tabs>` | `tabs` | `elements.js` | a WAI-ARIA tablist (arrow/Home/End keys, automatic activation, roving tabindex) built from the headings, one panel shown at a time, URL-fragment deep links |
-| `<wc-theme-editor>` | `theme-editor` | `@getvitops/core/editor` | live `:root` token overrides, export as CSS or a config patch |
-| `<wc-tree>` | `tree` | `elements.js` | WAI-ARIA tree semantics, roving-tabindex keyboard navigation, filter, expand/collapse all, hash deep-linking |
-| `<wc-turnstile>` | `turnstile` | `elements.js` | loads Cloudflare Turnstile on first interaction with the form and holds a submit until its token arrives |
-| `<wc-typography-config>` | `typography-config` | `(none — editor-v2 track, not yet bundled)` | type role editor |
+| Tag | Pattern | Ships in | With no JS | What JS adds over the fallback |
+| --- | --- | --- | --- | --- |
+| `<wc-cards>` | `card` | `elements.js` | full | whole-card click that keeps the card text selectable |
+| `<wc-carousel>` | `carousel` | `elements.js` | full | opt-in cloned loop, autoplay, and real prev/next + dot controls where `::scroll-button()`/`::scroll-marker` are missing |
+| `<wc-color-field>` | `color-field` | `@getvitops/core/color-field` | full | offers the OKLCH picker beside a colour text input: dragging writes the hex into the input, typing a hex moves the picker |
+| `<wc-color-scheme-toggle>` | `color-scheme-toggle` | `elements.js` | partial | segmented light/dark/system control; persists the choice (consent-gated) |
+| `<wc-color-wheel>` | `color-wheel` | `(none — editor-v2 track, not yet bundled)` | none | hue/chroma wheel input |
+| `<wc-combobox>` | `combobox` | `elements.js` | full | a filtered ARIA 1.2 listbox (aria-activedescendant, arrow/Enter/Escape keys, a live result count) in place of the browser datalist popup |
+| `<wc-config-form>` | `config-form` | `@getvitops/core/config-form` | full | validates the form against a JSON Schema as you type and shows each message in its `<wc-field>`, stops a submit that has errors, adds a row to a keyed map as the blank one is used (until `<wc-multifield>` takes over), and exposes the config document the form describes |
+| `<wc-consent>` | `consent` | `@getvitops/core/consent` | full | the permission gate itself — activates `type="text/plain"` tags on grant |
+| `<wc-copy>` | `copy` | `elements.js` | partial | clipboard write plus success feedback |
+| `<wc-counter>` | `counter` | `elements.js` | full | animates from a start value to the value already in the fallback text, on intersection |
+| `<wc-dismissable>` | `dismissable` | `elements.js` | partial | fade-out + removal, optional auto-dismiss |
+| `<wc-entries>` | `entries` | `elements.js` | full | parses heading + `<dl>` pairs into a table above a breakpoint |
+| `<wc-field>` | `field` | `elements.js` | full | links the help text and the error to the control with `aria-describedby`, writes validation messages under the field once the control is left or a submit reports it, accepts `setError()` from a host that validates against a schema, and adds a `maxlength` counter |
+| `<wc-format>` | `format` | `elements.js` | full | replaces the authored text with a locale-aware relative time, date, number, percentage or currency read from the machine value, and keeps a relative time current |
+| `<wc-gallery>` | `gallery` | `elements.js` | full | a real `showModal()` open, neighbour preload and the thumbnail→full-image view-transition morph |
+| `<wc-icon-picker>` | `icon-picker` | `(none — editor-v2 track, not yet bundled)` | none | browses the semantic icon map for the configured set |
+| `<wc-image-compare>` | `image-compare` | `elements.js` | full | drag handle revealing the before/after image |
+| `<wc-marquee>` | `marquee` | `elements.js` | full | fills the track with enough copies to scroll seamlessly |
+| `<wc-multifield>` | `multi-field` | `elements.js` | full | Add, Remove and Clear for a repeated field or fieldset, with `min`, `max` and `protect-defaults`; a row of a keyed map is an open `<details>` titled by its key |
+| `<wc-oklch-color-picker>` | `oklch-color-picker` | `(none — editor-v2 track, not yet bundled)` | none | OKLCH L/C/H picker |
+| `<wc-range>` | `range` | `elements.js` | full | overlays two native range inputs on one track with thumbs that cannot cross and a filled span between them, and keeps an `<output>` current |
+| `<wc-split-panel>` | `split-panel` | `elements.js` | partial | draggable divider between two panels |
+| `<wc-stepper>` | `stepper` | `@getvitops/core/stepper` | full | shows one section of a long form at a time with Back and Next, stops a forward move at the first invalid step, marks the current link `aria-current="step"`, and follows the URL fragment |
+| `<wc-tabs>` | `tabs` | `elements.js` | full | a WAI-ARIA tablist (arrow/Home/End keys, automatic activation, roving tabindex) built from the headings, one panel shown at a time, URL-fragment deep links |
+| `<wc-theme-editor>` | `theme-editor` | `@getvitops/core/editor` | none | live `:root` token overrides, export as CSS or a config patch |
+| `<wc-tree>` | `tree` | `elements.js` | partial | WAI-ARIA tree semantics, roving-tabindex keyboard navigation, filter, expand/collapse all, hash deep-linking |
+| `<wc-turnstile>` | `turnstile` | `elements.js` | partial | loads Cloudflare Turnstile on first interaction with the form and holds a submit until its token arrives |
+| `<wc-typography-config>` | `typography-config` | `(none — editor-v2 track, not yet bundled)` | none | type role editor |
 
 `<wc-color-wheel>`, `<wc-icon-picker>`, `<wc-oklch-color-picker>`, `<wc-typography-config>` are **registered but in no bundle** (the editor-v2 track). The tags are inert in a consumer project — they are listed so that "the tag does nothing" is documented rather than discovered.
 
@@ -280,9 +278,8 @@ Every shipped `wc-*` element either has a block above or a stated reason here
 - `wc-consent` — site chrome: the layout renders `<CookieConsent />` once; an editor-placed copy would duplicate the gate
 - `wc-field` — a form control wrapper, composed inside a form (vitops_form) rather than placed as page content
 - `wc-format` — inline text formatting, used inside other content rather than placed as a block of its own
-- `wc-multi-field` — repeats rows a visitor adds at submit time (several phone numbers, guests); `vitops_form` has a fixed, editor-defined field list and no such field type
+- `wc-multifield` — repeats rows a visitor adds at submit time (several phone numbers, guests); `vitops_form` has a fixed, editor-defined field list and no such field type
 - `wc-range` — a form control, composed inside a form (vitops_form) rather than placed as page content
-- `wc-repeat` — configuration tooling for a site owner, emitted by `renderProjectionHtml` rather than placed by an editor
 - `wc-split-panel` — app UI (resizable panes), not editorial content; an editor does not drag-resize a published page
 - `wc-stepper` — onboarding and configuration flow for a site owner, not page content an editor places
 - `wc-theme-editor` — tooling, not content; it is mounted in the EmDash admin by `designSystemEditor`, never in a page

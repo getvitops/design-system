@@ -25,6 +25,9 @@
 import { BaseElement } from './BaseElement.js';
 import { initFromLightDom } from './utils/upgrade.js';
 
+/**
+ * @fallback full the authored content, static
+ */
 export class WCMarquee extends BaseElement {
   /** Light DOM: the framework CSS has to reach the slotted content. */
   protected override createRenderRoot() {

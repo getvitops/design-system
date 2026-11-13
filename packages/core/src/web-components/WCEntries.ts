@@ -51,6 +51,8 @@ import { scrollBehavior } from './utils/motion.js';
  *   <dl><dt>Email</dt><dd>bob@example.com</dd></dl>
  * </wc-entries>
  * ```
+ *
+ * @fallback full stacked heading and `<dl>` pairs
  */
 export class WCEntries extends BaseElement {
   static properties = {

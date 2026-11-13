@@ -38,6 +38,7 @@ type ColorScheme = 'system' | 'light' | 'dark';
  * goes through the `preferences` consent category when the site has a gate — see
  * `_persist()`. Picking a non-`system` scheme is therefore what raises the banner
  * on a site that gates nothing else.
+ * @fallback partial the page follows `prefers-color-scheme`; the toggle itself needs JS
  */
 export class WCColorSchemeToggle extends BaseElement {
   static styles: CSSResultGroup = [

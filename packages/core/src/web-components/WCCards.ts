@@ -44,6 +44,7 @@ import { initFromLightDom } from './utils/upgrade.js';
  *   </ul>
  * </wc-cards>
  * ```
+ * @fallback full the card link is an ordinary link; JS only extends the click target
  */
 export class WCCards extends BaseElement {
   static properties = {

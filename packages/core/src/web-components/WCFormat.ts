@@ -37,6 +37,8 @@ import { initFromLightDom } from './utils/upgrade.js';
  *
  * Inline, like `<wc-counter>`: it wraps one inline `<time>` or `<data>`, so the default display is
  * already right for what it holds.
+ *
+ * @fallback full a `<time>` or `<data>` with the text already in it
  */
 export class WCFormat extends BaseElement {
   static properties = {

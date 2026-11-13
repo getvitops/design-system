@@ -56,6 +56,9 @@ const SINGLE_CLASS = 'consent--single';
 
 type Mode = 'prompt' | 'settings';
 
+/**
+ * @fallback full shipped `hidden`: with no JS no gated tag loads, so there is nothing to consent to
+ */
 export class WCConsent extends HTMLElement {
   #unsubscribe: (() => void) | undefined;
   #mode: Mode = 'prompt';

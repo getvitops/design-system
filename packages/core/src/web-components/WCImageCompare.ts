@@ -22,6 +22,8 @@ import { DragController } from './utils/DragController.js';
  * @cssprop --line-width - Divider line width (default: 2px)
  *
  * @fires compare-change - Position changed, detail: { position: number }
+ *
+ * @fallback full the two images, readable one after the other
  */
 export class WCImageCompare extends BaseElement {
   static styles = [

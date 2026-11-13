@@ -14,6 +14,8 @@ import { BaseElement } from './BaseElement.js';
  *   <span>Fallback text</span>
  * </wc-copy>
  * ```
+ *
+ * @fallback partial the text is shown and selectable; the copy button needs JS
  */
 
 export class WCCopy extends BaseElement {

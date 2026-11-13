@@ -16,6 +16,9 @@ interface ColorOutput {
   l: number;
 }
 
+/**
+ * @fallback none a canvas control with no meaning without JS
+ */
 export class WCColorWheel extends BaseElement {
   static styles: CSSResultGroup = [
     BaseElement.styles,

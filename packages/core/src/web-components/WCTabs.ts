@@ -35,6 +35,8 @@ import { initFromLightDom } from './utils/upgrade.js';
  * Light DOM, because `.tabs`' CSS has to style both the fallback and the built list.
  *
  * @fires tabs-change `{ index, id }`, bubbles and composed, when the selection changes.
+ *
+ * @fallback full a stack of headed sections
  */
 export class WCTabs extends BaseElement {
   static properties = {

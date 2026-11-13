@@ -45,6 +45,8 @@ type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
  * @fires multi-field-delete `{ value }`, bubbles, when an entry is removed.
  * @fires multi-field-clear bubbles, when Clear empties the list.
  * @fires input bubbles, so a form-level listener (`<wc-config-form>`) revalidates and re-reads.
+ *
+ * @fallback full the authored native controls, which submit with the form
  */
 export class WCMultiField extends HTMLElement {
   #ready = false;

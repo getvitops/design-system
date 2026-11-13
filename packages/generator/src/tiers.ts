@@ -58,6 +58,11 @@ export interface TierCss {
 
 export interface TierWc {
   tag: string;
+  /**
+   * Whether it is usable with no JS, from the element's own `@fallback` tag (a drift test keeps
+   * the two equal): `full` is complete, `partial` works but is degraded, `none` needs JS.
+   */
+  fallback: 'full' | 'partial' | 'none';
   /** In `elements.js`. False = its own bundle, or not shipped at all. */
   registered: boolean;
   /** What JS adds over the fallback. The reason the tier exists for this pattern. */
@@ -140,6 +145,7 @@ export const TIERS: Record<string, TierEntry> = {
     ),
     wc: {
       tag: 'wc-tree',
+      fallback: 'partial',
       registered: true,
       adds: 'WAI-ARIA tree semantics, roving-tabindex keyboard navigation, filter, expand/collapse all, hash deep-linking',
     },
@@ -157,6 +163,7 @@ export const TIERS: Record<string, TierEntry> = {
     ),
     wc: {
       tag: 'wc-carousel',
+      fallback: 'full',
       registered: true,
       adds: 'opt-in cloned loop, autoplay, and real prev/next + dot controls where `::scroll-button()`/`::scroll-marker` are missing',
     },
@@ -179,6 +186,7 @@ export const TIERS: Record<string, TierEntry> = {
     ),
     wc: {
       tag: 'wc-gallery',
+      fallback: 'full',
       registered: true,
       adds: 'a real `showModal()` open, neighbour preload and the thumbnail→full-image view-transition morph',
     },
@@ -190,6 +198,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c(['entries__table', 'entries__scroll', 'entries__nav'], 'patterns/table.css'),
     wc: {
       tag: 'wc-entries',
+      fallback: 'full',
       registered: true,
       adds: 'parses heading + `<dl>` pairs into a table above a breakpoint',
     },
@@ -200,7 +209,12 @@ export const TIERS: Record<string, TierEntry> = {
   copy: {
     emdash: ['vitops_copyButton'],
     css: c(['copy', 'copy__button', 'copy__icon', 'copy__tooltip'], 'patterns/copy.css'),
-    wc: { tag: 'wc-copy', registered: true, adds: 'clipboard write plus success feedback' },
+    wc: {
+      tag: 'wc-copy',
+      fallback: 'partial',
+      registered: true,
+      adds: 'clipboard write plus success feedback',
+    },
     bricks: 'vitops-copy-button',
     use: '`<wc-copy>` around the content and a `[data-copy]` button.',
   },
@@ -210,6 +224,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c(['banner__close', 'notification__close'], 'patterns/banner.css'),
     wc: {
       tag: 'wc-dismissable',
+      fallback: 'partial',
       registered: true,
       adds: 'fade-out + removal, optional auto-dismiss',
     },
@@ -220,7 +235,12 @@ export const TIERS: Record<string, TierEntry> = {
     css: c(['splitter', 'splitter__panel', 'splitter__handle'], 'patterns/splitter.css'),
     emdashExempt:
       'app UI (resizable panes), not editorial content; an editor does not drag-resize a published page',
-    wc: { tag: 'wc-split-panel', registered: true, adds: 'draggable divider between two panels' },
+    wc: {
+      tag: 'wc-split-panel',
+      fallback: 'partial',
+      registered: true,
+      adds: 'draggable divider between two panels',
+    },
     bricks: 'vitops-split-panel',
     use: '`<wc-split-panel>` with two children. Unenhanced they simply stack.',
   },
@@ -233,6 +253,7 @@ export const TIERS: Record<string, TierEntry> = {
     ),
     wc: {
       tag: 'wc-image-compare',
+      fallback: 'full',
       registered: true,
       adds: 'drag handle revealing the before/after image',
     },
@@ -244,6 +265,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c(['marquee', 'marquee__content', 'marquee__item'], 'patterns/marquee.css'),
     wc: {
       tag: 'wc-marquee',
+      fallback: 'full',
       registered: true,
       adds: 'fills the track with enough copies to scroll seamlessly',
     },
@@ -346,6 +368,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c(['counter', 'counter__value', 'counter__presentation'], 'patterns/counter.css'),
     wc: {
       tag: 'wc-counter',
+      fallback: 'full',
       registered: true,
       adds: 'animates from a start value to the value already in the fallback text, on intersection',
     },
@@ -360,6 +383,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c(['form-group', 'input-group', 'fieldset'], 'patterns/forms.css'),
     wc: {
       tag: 'wc-multifield',
+      fallback: 'full',
       registered: true,
       adds: 'Add, Remove and Clear for a repeated field or fieldset, with `min`, `max` and `protect-defaults`; a row of a keyed map is an open `<details>` titled by its key',
     },
@@ -373,6 +397,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c(['form-group'], 'patterns/forms.css'),
     wc: {
       tag: 'wc-turnstile',
+      fallback: 'partial',
       registered: true,
       adds: 'loads Cloudflare Turnstile on first interaction with the form and holds a submit until its token arrives',
     },
@@ -383,6 +408,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c([], 'patterns/icon.css'),
     wc: {
       tag: 'wc-color-scheme-toggle',
+      fallback: 'partial',
       registered: true,
       adds: 'segmented light/dark/system control; persists the choice (consent-gated)',
     },
@@ -398,6 +424,7 @@ export const TIERS: Record<string, TierEntry> = {
     ),
     wc: {
       tag: 'wc-consent',
+      fallback: 'full',
       registered: false,
       bundle: '@getvitops/core/consent',
       adds: 'the permission gate itself — activates `type="text/plain"` tags on grant',
@@ -412,6 +439,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c(['ed-panel', 'ed-launch', 'ed-input'], 'patterns/theme-editor.css'),
     wc: {
       tag: 'wc-theme-editor',
+      fallback: 'none',
       registered: false,
       bundle: '@getvitops/core/editor',
       adds: 'live `:root` token overrides, export as CSS or a config patch',
@@ -430,6 +458,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c([]),
     wc: {
       tag: 'wc-color-wheel',
+      fallback: 'none',
       registered: false,
       adds: 'hue/chroma wheel input',
       bundle: '(none — editor-v2 track, not yet bundled)',
@@ -440,6 +469,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c([]),
     wc: {
       tag: 'wc-oklch-color-picker',
+      fallback: 'none',
       registered: false,
       adds: 'OKLCH L/C/H picker',
       bundle: '(none — editor-v2 track, not yet bundled)',
@@ -450,6 +480,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c([], 'patterns/icon.css'),
     wc: {
       tag: 'wc-icon-picker',
+      fallback: 'none',
       registered: false,
       adds: 'browses the semantic icon map for the configured set',
       bundle: '(none — editor-v2 track, not yet bundled)',
@@ -460,6 +491,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c([]),
     wc: {
       tag: 'wc-typography-config',
+      fallback: 'none',
       registered: false,
       adds: 'type role editor',
       bundle: '(none — editor-v2 track, not yet bundled)',
@@ -503,6 +535,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c(['card', 'card__title'], 'patterns/card.css', true),
     wc: {
       tag: 'wc-cards',
+      fallback: 'full',
       registered: true,
       adds: 'whole-card click that keeps the card text selectable',
     },
@@ -642,6 +675,7 @@ export const TIERS: Record<string, TierEntry> = {
     ),
     wc: {
       tag: 'wc-tabs',
+      fallback: 'full',
       registered: true,
       adds: 'a WAI-ARIA tablist (arrow/Home/End keys, automatic activation, roving tabindex) built from the headings, one panel shown at a time, URL-fragment deep links',
     },
@@ -704,6 +738,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c([]),
     wc: {
       tag: 'wc-format',
+      fallback: 'full',
       registered: true,
       adds: 'replaces the authored text with a locale-aware relative time, date, number, percentage or currency read from the machine value, and keeps a relative time current',
     },
@@ -720,6 +755,7 @@ export const TIERS: Record<string, TierEntry> = {
     ),
     wc: {
       tag: 'wc-combobox',
+      fallback: 'full',
       registered: true,
       adds: 'a filtered ARIA 1.2 listbox (aria-activedescendant, arrow/Enter/Escape keys, a live result count) in place of the browser datalist popup',
     },
@@ -732,6 +768,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c(['range', 'range--dual', 'range__track'], 'patterns/range.css'),
     wc: {
       tag: 'wc-range',
+      fallback: 'full',
       registered: true,
       adds: 'overlays two native range inputs on one track with thumbs that cannot cross and a filled span between them, and keeps an `<output>` current',
     },
@@ -747,6 +784,7 @@ export const TIERS: Record<string, TierEntry> = {
     ),
     wc: {
       tag: 'wc-field',
+      fallback: 'full',
       registered: true,
       adds: 'links the help text and the error to the control with `aria-describedby`, writes validation messages under the field once the control is left or a submit reports it, accepts `setError()` from a host that validates against a schema, and adds a `maxlength` counter',
     },
@@ -759,6 +797,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c([]),
     wc: {
       tag: 'wc-config-form',
+      fallback: 'full',
       registered: false,
       bundle: '@getvitops/core/config-form',
       adds: 'validates the form against a JSON Schema as you type and shows each message in its `<wc-field>`, stops a submit that has errors, adds a row to a keyed map as the blank one is used (until `<wc-multifield>` takes over), and exposes the config document the form describes',
@@ -772,6 +811,7 @@ export const TIERS: Record<string, TierEntry> = {
     css: c([]),
     wc: {
       tag: 'wc-color-field',
+      fallback: 'full',
       registered: false,
       bundle: '@getvitops/core/color-field',
       adds: 'offers the OKLCH picker beside a colour text input: dragging writes the hex into the input, typing a hex moves the picker',
@@ -793,6 +833,7 @@ export const TIERS: Record<string, TierEntry> = {
     ),
     wc: {
       tag: 'wc-stepper',
+      fallback: 'full',
       registered: false,
       bundle: '@getvitops/core/stepper',
       adds: 'shows one section of a long form at a time with Back and Next, stops a forward move at the first invalid step, marks the current link `aria-current="step"`, and follows the URL fragment',

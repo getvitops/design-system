@@ -13,6 +13,9 @@ const MAX_CHROMA = 0.4;
 /** Vertical sampling stride for rectangle mode block optimization. */
 const SAMPLE_BLOCK = 4;
 
+/**
+ * @fallback none a canvas control; use `<wc-color-field>` for a text fallback
+ */
 export class WCOklchColorPicker extends BaseElement {
   static formAssociated = true;
   static shadowRootOptions = { ...LitElement.shadowRootOptions, delegatesFocus: true };
