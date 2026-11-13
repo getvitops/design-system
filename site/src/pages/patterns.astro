@@ -20,6 +20,7 @@
 import Breadcrumbs from '@getvitops/astro/components/Breadcrumbs.astro';
 import Carousel from '@getvitops/astro/components/Carousel.astro';
 import Combobox from '@getvitops/astro/components/Combobox.astro';
+import Field from '@getvitops/astro/components/Field.astro';
 import Counter from '@getvitops/astro/components/Counter.astro';
 import Format from '@getvitops/astro/components/Format.astro';
 import Gallery from '@getvitops/astro/components/Gallery.astro';
@@ -1017,6 +1018,28 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
       options={['Ottawa', 'Gatineau', 'Toronto', 'Kingston', { value: 'MTL', label: 'Montréal' }]}
     />
   </div>
+
+  <h3>Field</h3>
+  <p>
+    A label that <em>nests</em> its control, so there is no <code>id</code>/<code>for</code> to
+    invent. With no JS it is a labelled control; with it, help text and the error are linked to the
+    control and the error appears once you leave the field. A server <code>error</code> is already
+    under the control.
+  </p>
+  <form id="pt-field-form" class="rhythm" action="#pt-field-form">
+    <Field label="Email" help="We reply within one business day." id="pt-field-email">
+      <input name="email" type="email" required autocomplete="email" />
+    </Field>
+    <Field label="About you" optional help="Plain text." id="pt-field-bio">
+      <textarea name="bio" rows="3" maxlength="80"></textarea>
+    </Field>
+    <Field label="Subscribe to the newsletter" id="pt-field-agree">
+      <input name="subscribe" type="checkbox" />
+    </Field>
+    <Field label="Phone" error="That doesn’t look like a phone number." id="pt-field-phone">
+      <input name="phone" type="tel" value="555" />
+    </Field>
+  </form>
 
   <h3>Range</h3>
   <p>

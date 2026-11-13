@@ -1,0 +1,59 @@
+---
+/**
+ * Field — a labelled form control with help text and an error, as `<wc-field>`.
+ *
+ * **This component emits its own `<wc-field>`** — do NOT wrap it in one. Same rule as
+ * `Combobox.astro` and `Tabs.astro`.
+ *
+ *   <Field label="First name" help="As it appears on your ID.">
+ *     <input name="firstName" required autocomplete="given-name" />
+ *   </Field>
+ *
+ * The default slot is the control (or several, for a radio group). The label **nests** it, so no
+ * `id`/`for` pair is needed and the same field can appear twice on a page. With no JS this is a
+ * labelled control; the element adds the `aria-describedby` wiring and writes validation messages
+ * under the field. An `error` set here is rendered server-side, which is what a no-JS form needs
+ * after a failed POST: the text sits directly under the control, and the element links it and keeps
+ * it until the visitor edits the value.
+ *
+ * A checkbox or radio needs no flag: `forms.css` lays a label that wraps one out on a single line.
+ */
+import type { HTMLAttributes } from 'astro/types';
+
+export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
+  /** The visible label. */
+  label: string;
+  /** Short help shown under the control. */
+  help?: string;
+  /** An error to show now, e.g. from a failed server-side validation. */
+  error?: string;
+  /** Add an "(optional)" suffix to the label. State it only when the control is not `required`. */
+  optional?: boolean;
+  /** The text `optional` shows. Default `(optional)`. */
+  optionalText?: string;
+}
+
+const {
+  label,
+  help,
+  error,
+  optional,
+  optionalText = '(optional)',
+  class: className,
+  ...rest
+} = Astro.props;
+---
+
+<wc-field class:list={['field', className]} data-invalid={error ? '' : undefined} {...rest}>
+  <label class="field__control">
+    <span class="field__label">
+      {label}
+      {optional && <span class="field__optional"> {optionalText}</span>}
+    </span>
+    <slot />
+  </label>
+  {help && <small class="field__help">{help}</small>}
+  <span class="field__error" aria-live="polite">
+    {error}
+  </span>
+</wc-field>

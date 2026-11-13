@@ -122,3 +122,53 @@ test.describe('<wc-format>', () => {
     await expect(time).toHaveAttribute('datetime', '2026-11-03T14:05:00Z');
   });
 });
+
+test.describe('<wc-field>', () => {
+  test('links help text to the control and keeps the control where it was', async ({ page }) => {
+    await page.goto('/patterns');
+    const field = page.locator('#pt-field-email');
+    const help = await field.locator('.field__help').getAttribute('id');
+    expect(help).toBeTruthy();
+    await expect(field.locator('input')).toHaveAttribute('aria-describedby', help!);
+    await expect(field.locator('label.field__control > input')).toHaveCount(1);
+  });
+
+  test('says nothing on arrival, then names the problem once the field is left', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    const field = page.locator('#pt-field-email');
+    const error = field.locator('.field__error');
+    await expect(error).toHaveText('');
+    await field.locator('input').focus();
+    await page.locator('#pt-field-bio textarea').focus();
+    await expect(error).not.toHaveText('');
+    await expect(field.locator('input')).toHaveAttribute('aria-invalid', 'true');
+    await expect(field).toHaveAttribute('data-invalid', '');
+    // Colour is never the only signal: there is text.
+    await expect(error).toBeVisible();
+
+    await field.locator('input').fill('ada@example.com');
+    await expect(error).toHaveText('');
+    await expect(field.locator('input')).not.toHaveAttribute('aria-invalid', 'true');
+  });
+
+  test('counts characters against maxlength', async ({ page }) => {
+    await page.goto('/patterns');
+    const counter = page.locator('#pt-field-bio .field__counter');
+    await expect(counter).toHaveText('0 / 80');
+    await page.locator('#pt-field-bio textarea').fill('hello');
+    await expect(counter).toHaveText('5 / 80');
+  });
+
+  test('keeps a server-rendered error until the value is edited', async ({ page }) => {
+    await page.goto('/patterns');
+    const field = page.locator('#pt-field-phone');
+    await expect(field.locator('.field__error')).toHaveText(
+      'That doesn’t look like a phone number.',
+    );
+    await expect(field.locator('input')).toHaveAttribute('aria-invalid', 'true');
+    await field.locator('input').fill('613-555-0100');
+    await expect(field.locator('.field__error')).toHaveText('');
+  });
+});

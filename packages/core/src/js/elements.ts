@@ -32,3 +32,4 @@ import '../web-components/WCTabs.js';
 import '../web-components/WCCombobox.js';
 import '../web-components/WCFormat.js';
 import '../web-components/WCRange.js';
+import '../web-components/WCField.js';

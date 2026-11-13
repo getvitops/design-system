@@ -61,7 +61,7 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    **Not registered in `elements.js` yet:** `WCColorWheel`, `WCOklchColorPicker`, `WCIconPicker`,
    `WCTypography` — they belong to the editor-v2 track.
 
-   **Foundational components, built:** combobox, tabs, breadcrumbs, format and range (the slider).
+   **Foundational components, built:** field, combobox, tabs, breadcrumbs, format and range (the slider).
    Each follows the tier-2 rule: the fallback is real and complete (`<input list>` + `<datalist>`; headed
    `<section>`s; a labelled `<ol>`; a `<time>`/`<data>` with the text already in it; one or two native
    range inputs), and the element only builds over it. `wc-tabs` hides each heading it turns into a tab
@@ -69,6 +69,18 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    keeps what is typed even when it matches no option — it suggests, it does not constrain.
    `wc-range` coordinates two native inputs rather than replacing them, so form submission, validation
    and keyboard stay the browser's.
+
+   **`<wc-field>` wraps a native control and is deliberately NOT form-associated.** The control it
+   wraps already submits with its form, validates, takes focus and is in the accessibility tree; a
+   form-associated host around it would submit twice or add nothing, and `delegatesFocus` is a
+   shadow-root option where this is light DOM. Its fallback is a label that **nests** the control (no
+   `id`/`for` to invent, so a generator can emit one field twice on a page). What it adds is what the
+   platform can't do alone: `aria-describedby` to the help text and the error, an inline message in a
+   polite live region once the control is left or a submit reports it (`:user-invalid`'s timing, and
+   the native bubble still appears), `setError()` for a host validating against a schema (via
+   `setCustomValidity`, so `reportValidity()` blocks submit; typing clears it), and a `maxlength`
+   counter. Form association belongs on a composite with no single native input (a keyed map, a
+   locale field); that is a separate element, and not built.
 
    **Foundational components not built yet** (`packages/core/src/js/elements.ts` used to carry this
    as a TODO docblock; moved here so it's a backlog, not a comment):
@@ -89,7 +101,8 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    inside `:where()`, matched to the content it wraps and to its upgraded `:host`: `block` for
    `wc-entries`, `wc-image-compare`, `wc-split-panel`, `wc-multi-field`, `wc-dismissable` (which
    animates its own box, so `display: contents` is out), `wc-marquee`, `wc-tabs` and `wc-range`;
-   `inline-flex` (column) for `wc-combobox` and `inline-flex` for `wc-copy`.
+   `inline-flex` (column) for `wc-combobox` and `inline-flex` for `wc-copy`; `flex` (column) for
+   `wc-field`, matching `.form-group`.
    **`<wc-turnstile>`** (in `elements.js`) loads Cloudflare Turnstile on the first interaction with
    its `<form>`, so a visitor who only reads the page makes no request to `challenges.cloudflare.com`.
    Turnstile is treated as category `necessary` (it protects the form being submitted) and is

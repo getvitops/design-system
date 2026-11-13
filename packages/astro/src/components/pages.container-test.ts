@@ -11,6 +11,8 @@ import Breadcrumbs from './Breadcrumbs.astro';
 // @ts-ignore -- as above
 import Combobox from './Combobox.astro';
 // @ts-ignore -- as above
+import Field from './Field.astro';
+// @ts-ignore -- as above
 import Format from './Format.astro';
 // @ts-ignore -- as above
 import LocationPage from './LocationPage.astro';
@@ -316,5 +318,62 @@ describe('<ServicePage />', () => {
     });
     expect(html).toContain('<h1>Réparation de toit</h1>');
     expect(html).not.toContain('service__offers');
+  });
+});
+
+describe('<Field />', () => {
+  const control = '<input name="email" type="email" required />';
+
+  it('emits its own <wc-field> with a label that NESTS the control, so no id/for is needed', async () => {
+    const html = await render(Field, { label: 'Email' }, { default: control });
+    expect(html).toMatch(/<wc-field[^>]*class="[^"]*\bfield\b/);
+    expect(html).toMatch(
+      /<label class="field__control">[\s\S]*Email[\s\S]*<input[^>]*name="email"[\s\S]*<\/label>/,
+    );
+    expect(html).not.toMatch(/<label[^>]*\sfor=/);
+    // The control is inside the label, not beside it.
+    expect(html.indexOf('<input')).toBeGreaterThan(html.indexOf('<label'));
+    expect(html.indexOf('<input')).toBeLessThan(html.indexOf('</label>'));
+  });
+
+  it('always renders an empty polite live region for the error, so a later message is announced', async () => {
+    const html = await render(Field, { label: 'Email' }, { default: control });
+    expect(html).toMatch(/<span class="field__error" aria-live="polite">\s*<\/span>/);
+    expect(html).not.toContain('data-invalid');
+  });
+
+  it('renders help text, an optional marker and a server error when given', async () => {
+    const html = await render(
+      Field,
+      {
+        label: 'Phone',
+        help: 'Include the area code.',
+        optional: true,
+        error: 'Not a phone number.',
+      },
+      { default: '<input name="phone" />' },
+    );
+    expect(html).toContain('class="field__help"');
+    expect(html).toContain('Include the area code.');
+    expect(html).toContain('field__optional');
+    expect(html).toContain('(optional)');
+    expect(html).toMatch(/class="field__error"[^>]*>\s*Not a phone number\./);
+    expect(html).toContain('data-invalid');
+  });
+
+  it('omits the help element and the optional marker when not asked for', async () => {
+    const html = await render(Field, { label: 'Name' }, { default: '<input name="n" />' });
+    expect(html).not.toContain('field__help');
+    expect(html).not.toContain('field__optional');
+  });
+
+  it('escapes the label', async () => {
+    const html = await render(
+      Field,
+      { label: '<img src=x onerror=alert(1)>' },
+      { default: control },
+    );
+    expect(html).not.toContain('<img src=x');
+    expect(html).toContain('&lt;img');
   });
 });

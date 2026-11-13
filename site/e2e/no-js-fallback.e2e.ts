@@ -169,6 +169,47 @@ test.describe('<wc-range> fallback', () => {
   });
 });
 
+test.describe('<wc-field> fallback', () => {
+  test('a nested label names its control and focuses it on click, with no id/for', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    const input = page.locator('#pt-field-email input');
+    await expect(page.getByLabel('Email')).toHaveAttribute('name', 'email');
+    await expect(page.locator('#pt-field-email label[for]')).toHaveCount(0);
+    await page.locator('#pt-field-email .field__label').click();
+    await expect(input).toBeFocused();
+  });
+
+  test('adds nothing the markup did not carry: no counter, no wiring, no error text', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    await expect(page.locator('#pt-field-bio .field__counter')).toHaveCount(0);
+    await expect(page.locator('#pt-field-email input')).not.toHaveAttribute(
+      'aria-describedby',
+      /.+/,
+    );
+    await expect(page.locator('#pt-field-email .field__error')).toHaveText('');
+    await expect(page.locator('#pt-field-email .field__error')).toBeHidden();
+  });
+
+  test('a server-rendered error is on the page, directly under its control', async ({ page }) => {
+    await page.goto('/patterns');
+    const error = page.locator('#pt-field-phone .field__error');
+    await expect(error).toBeVisible();
+    await expect(error).toHaveText('That doesn’t look like a phone number.');
+  });
+
+  test('the browser still validates a required field on submit', async ({ page }) => {
+    await page.goto('/patterns');
+    const valid = await page
+      .locator('#pt-field-email input')
+      .evaluate((el) => (el as HTMLInputElement).checkValidity());
+    expect(valid).toBe(false);
+  });
+});
+
 test.describe('<wc-format> fallback', () => {
   test('shows the text the server wrote, over a real machine-readable <time>', async ({ page }) => {
     await page.goto('/patterns');

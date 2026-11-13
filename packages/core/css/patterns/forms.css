@@ -79,7 +79,10 @@ fieldset.fieldset,
 .form-group > input:not([type='checkbox']):not([type='radio']),
 .form-group > textarea,
 .input-group > input,
-.input-group > textarea {
+.input-group > textarea,
+.field__control
+  > input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+.field__control > textarea {
   --_br: var(--br-input, var(--br-control, var(--br-default)));
   --_b: var(--b-input, var(--b-control, var(--b-default)));
   --_p: var(--p-input, var(--p-control, var(--p-default)));
@@ -376,6 +379,70 @@ select.custom-select {
     outline: 2px solid var(--select-focus-color, var(--color-border-focus));
     outline-offset: 2px;
   }
+}
+
+/* ── Field — a labelled control with help and an error, as `<wc-field>` ─────────
+ * The fallback is a label NESTING its control, so it needs no `id`/`for` pair and one field can be
+ * emitted any number of times on a page. `:where()` keeps the specificity at zero, so a pattern or a
+ * consumer's own rule wins without a fight. Same tokens as `.form-group`, so a page can mix the two.
+ * The element adds `aria-describedby` wiring and the error text; the layout does not need it.
+ */
+:where(wc-field, .field) {
+  --_field-gap: var(--field-gap, var(--form-group-gap, 0.5rem));
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--_field-gap);
+}
+
+.field__control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--_field-gap);
+}
+
+/* A checkbox or radio reads as one line: the box, then its words. */
+.field__control:has(> input[type='checkbox'], > input[type='radio']) {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.field__label {
+  font-weight: 500;
+  font-size: var(--fs-form-label, 0.875rem);
+}
+
+.field__optional {
+  font-weight: 400;
+  font-size: 0.75em;
+  opacity: 0.7;
+}
+
+.field__help {
+  font-size: var(--form-helper-size, 0.75rem);
+  opacity: 0.8;
+}
+
+.field__error {
+  font-size: var(--form-error-size, 0.75rem);
+  color: var(--color-text-danger);
+}
+
+/* An empty live region takes no room, so it adds no gap beneath a valid field. */
+.field__error:empty {
+  display: none;
+}
+
+.field__counter {
+  font-size: var(--form-counter-size, 0.75rem);
+  margin-inline-start: auto;
+  opacity: 0.7;
+}
+
+/* Invalid is shown by the border AND the text, so colour is never the only signal. */
+wc-field[data-invalid] .field__control > :is(input, textarea, select) {
+  border-color: var(--color-border-danger-bold, currentColor);
 }
 
 /* `<wc-multi-field>` is a group of controls, a block. Its shadow `:host` declares no display. */

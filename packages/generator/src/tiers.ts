@@ -736,6 +736,21 @@ export const TIERS: Record<string, TierEntry> = {
       'a form control, composed inside a form (vitops_form) rather than placed as page content',
     use: 'A single slider needs no element: a bare `<input type="range">` is themed by `forms.css` (accent-color). For its value shown, or for two thumbs, use `<Range name label min max value output />` or `<Range names labels values />`: with no JS those are native range inputs (two submit as two fields). Every input needs a label. Do NOT wrap it in `<wc-range>`: it emits its own.',
   },
+  field: {
+    css: c(
+      ['field', 'field__control', 'field__label', 'field__help', 'field__error', 'field__counter'],
+      'patterns/forms.css',
+    ),
+    wc: {
+      tag: 'wc-field',
+      registered: true,
+      adds: 'links the help text and the error to the control with `aria-describedby`, writes validation messages under the field once the control is left or a submit reports it, accepts `setError()` from a host that validates against a schema, and adds a `maxlength` counter',
+    },
+    astro: a('Field', 'wc'),
+    emdashExempt:
+      'a form control wrapper, composed inside a form (vitops_form) rather than placed as page content',
+    use: '`<Field label help error optional><input name … /></Field>`: the label nests the control, so no `id`/`for` is needed. With no JS it is a labelled control and a server `error` is already under it. It is not form-associated: the native control still submits, validates and takes focus. Do NOT wrap it in `<wc-field>`: it emits its own. By hand: `<wc-field class="field"><label class="field__control"><span class="field__label">Name</span><input name="n"></label><small class="field__help">…</small></wc-field>`. Use `.form-group` for a field whose label and control are siblings.',
+  },
   forms: {
     css: c(['form-group', 'input-group', 'fieldset', 'custom-check'], 'patterns/forms.css', true),
     use: 'Wrap text controls in `.form-group` or `.input-group` — a bare `<input>` gets browser defaults.',

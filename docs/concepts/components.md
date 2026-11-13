@@ -71,6 +71,7 @@ emit its tag.
 | `dropdown` | css | Not a component: a dropdown is the native Popover API plus anchor positioning. A trigger with `popovertarget`, a `[popover]` panel, and `anchor-name` / `position-anchor` (`<Popover anchorName positionArea>` sets them). Add `.dropdown--show-on-hover` to the wrapper to reveal on hover as well as click. The `.dropdown-trigger` / `.dropdown-menu` / `.dropdown-icon` helpers live in `patterns/nav.css`. |
 | `embed` | css · emdash | `.embed` around an `<iframe class="embed__frame" data-consent="marketing" data-consent-src="…">` with NO `src`, and a `.embed__placeholder`. The consent runtime assigns the address after the grant; the placeholder holds a real link. Never give the iframe a live `src`. |
 | `entries` | css · wc · astro · bricks · emdash | `<Entries entries={[{ heading, pairs: [{ term, value }] }]} />` — it emits `<wc-entries>` itself, so do NOT add your own wrapper. By hand: `<wc-entries>` around `<h3>` + `<dl>` pairs. The tier-2 exemplar: semantic pairs with no JS, a table with it. |
+| `field` | css · wc · astro | `<Field label help error optional><input name … /></Field>`: the label nests the control, so no `id`/`for` is needed. With no JS it is a labelled control and a server `error` is already under it. It is not form-associated: the native control still submits, validates and takes focus. Do NOT wrap it in `<wc-field>`: it emits its own. By hand: `<wc-field class="field"><label class="field__control"><span class="field__label">Name</span><input name="n"></label><small class="field__help">…</small></wc-field>`. Use `.form-group` for a field whose label and control are siblings. |
 | `format` | wc · astro | `<Format type="relative" value="2026-11-03T14:05:00Z">November 3, 2026</Format>`: the slot is the no-JS text, and `title` keeps it after upgrade. `type` is `relative`, `date`, `datetime`, `time`, `number`, `percent` or `currency` (needs `currency="CAD"`). Anything it cannot format is left as written. Do NOT wrap it in `<wc-format>`: it emits its own. By hand: `<wc-format type="relative"><time datetime="…">text</time></wc-format>`. |
 | `forms` | css | Wrap text controls in `.form-group` or `.input-group` — a bare `<input>` gets browser defaults. |
 | `gallery` | css · wc · astro · emdash | `<Gallery images={…} label="…" />` — it emits `<wc-gallery>` wrapping a `<Carousel />` (which emits its own `<wc-carousel>`) itself, so do NOT add your own wrapper around either. Each thumbnail is a plain `<a href="#slide-id">` into the carousel's own `<li id="slide-id">` inside a single `<dialog class="lightbox-dialog">` (see `lightbox`), so it is a working modal lightbox — WITH prev/next — before any script runs. Stepping between images is the carousel's job, not the gallery's. |
@@ -146,6 +147,7 @@ is tooling and opt-in per consumer.
 | `<wc-counter>` | `counter` | `elements.js` | animates from a start value to the value already in the fallback text, on intersection |
 | `<wc-dismissable>` | `dismissable` | `elements.js` | fade-out + removal, optional auto-dismiss |
 | `<wc-entries>` | `entries` | `elements.js` | parses heading + `<dl>` pairs into a table above a breakpoint |
+| `<wc-field>` | `field` | `elements.js` | links the help text and the error to the control with `aria-describedby`, writes validation messages under the field once the control is left or a submit reports it, accepts `setError()` from a host that validates against a schema, and adds a `maxlength` counter |
 | `<wc-format>` | `format` | `elements.js` | replaces the authored text with a locale-aware relative time, date, number, percentage or currency read from the machine value, and keeps a relative time current |
 | `<wc-gallery>` | `gallery` | `elements.js` | a real `showModal()` open, neighbour preload and the thumbnail→full-image view-transition morph |
 | `<wc-icon-picker>` | `icon-picker` | `(none — editor-v2 track, not yet bundled)` | browses the semantic icon map for the configured set |
@@ -176,6 +178,7 @@ is tooling and opt-in per consumer.
 | `@getvitops/astro/components/Details.astro` | `details` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Drawer.astro` | `drawer` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Entries.astro` | `entries` | the `<wc-entries>` tag, fallback inside |
+| `@getvitops/astro/components/Field.astro` | `field` | the `<wc-field>` tag, fallback inside |
 | `@getvitops/astro/components/Format.astro` | `format` | the `<wc-format>` tag, fallback inside |
 | `@getvitops/astro/components/Gallery.astro` | `gallery` | the `<wc-gallery>` tag, fallback inside |
 | `@getvitops/astro/components/Icon.astro` | `icon` | tier-1 markup — no web component |
@@ -262,6 +265,7 @@ Every shipped `wc-*` element either has a block above or a stated reason here
 - `wc-color-scheme-toggle` — site chrome (header/footer), not page content; belongs in the nav/layout
 - `wc-combobox` — a form control, composed inside a form (vitops_form) rather than placed as page content
 - `wc-consent` — site chrome: the layout renders `<CookieConsent />` once; an editor-placed copy would duplicate the gate
+- `wc-field` — a form control wrapper, composed inside a form (vitops_form) rather than placed as page content
 - `wc-format` — inline text formatting, used inside other content rather than placed as a block of its own
 - `wc-multi-field` — repeats rows a visitor adds at submit time (several phone numbers, guests); `vitops_form` has a fixed, editor-defined field list and no such field type
 - `wc-range` — a form control, composed inside a form (vitops_form) rather than placed as page content
@@ -302,6 +306,7 @@ rules that generate them all.
 | `dropdown` | `patterns/dropdown.css` | `dropdown--show-on-hover` | declared |
 | `embed` | `patterns/embed.css` | `embed`, `embed__frame`, `embed__placeholder` | — |
 | `entries` | `patterns/table.css` | `entries__table`, `entries__scroll`, `entries__nav` | — |
+| `field` | `patterns/forms.css` | `field`, `field__control`, `field__label`, `field__help`, `field__error`, `field__counter` | — |
 | `forms` | `patterns/forms.css` | `form-group`, `input-group`, `fieldset`, `custom-check` | declared |
 | `gallery` | `patterns/gallery.css` | `gallery`, `gallery__item`, `gallery__trigger`, `gallery__thumb` | declared |
 | `grouped` | `patterns/grouped.css` | `group`, `group-inline`, `bordered` | — |
