@@ -118,13 +118,14 @@ Use the existing mechanisms; do not restate them here.
 
 ## Topics
 
-| File                 | Load when                                                     |
-| -------------------- | ------------------------------------------------------------- |
-| `ontario-aoda.md`    | Ontario client; AODA, IASR s. 14, headcount, 20/50 thresholds |
-| `canada-federal.md`  | Federally regulated client; Accessible Canada Act, EN 301 549 |
-| `quebec.md`          | Quebec public body or Quebec audience; SGQRI 008              |
-| `other-provinces.md` | Manitoba, Nova Scotia, BC or other provinces                  |
-| `eu-eaa.md`          | Client sells to EU consumers; European Accessibility Act      |
-| `documents-pdf.md`   | PDFs, downloads, accessible formats on request                |
+| File                         | Load when                                                                                          |
+| ---------------------------- | -------------------------------------------------------------------------------------------------- |
+| `ontario-aoda.md`            | Ontario client; AODA, IASR s. 14, headcount, 20/50 thresholds                                      |
+| `canada-federal.md`          | Federally regulated client; Accessible Canada Act, EN 301 549                                      |
+| `quebec.md`                  | Quebec public body or Quebec audience; SGQRI 008                                                   |
+| `other-provinces.md`         | Manitoba, Nova Scotia, BC or other provinces                                                       |
+| `eu-eaa.md`                  | Client sells to EU consumers; European Accessibility Act                                           |
+| `documents-pdf.md`           | PDFs, downloads, accessible formats on request                                                     |
+| `accessibility-statement.md` | Generating a client's accessibility statement; its fields by headcount tier; what the page must do |
 
 If a question falls outside these, say it is not covered and has not been researched.

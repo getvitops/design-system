@@ -95,6 +95,10 @@ not readily available) is handled by explaining why and giving a summary. Feedba
 
 ## What to do with this
 
+The accessible-formats and feedback notices above are what the generated accessibility statement
+publishes (`vitops legal --doc accessibility`); see `accessibility-statement.md` for the fields to set
+at each headcount tier.
+
 - Ask the client: organization type, **peak Ontario headcount over the last 12 months** (count
   contract workers, not independent contractors; see above), and whether the site is public.
   Also tell a client at 20 or more employees about the compliance report.

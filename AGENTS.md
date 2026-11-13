@@ -476,7 +476,7 @@ entry must say why it isn't — the migration table in prose is the fallback, no
 ## Legal documents
 
 `generateLegal(site, { docs, output })` (`packages/generator/src/legal/`) renders a privacy
-policy, terms of service and cookie notice from a **`Config`**. It reads facts from two of its
+policy, terms of service, cookie notice and accessibility statement from a **`Config`**. It reads facts from two of its
 sections — the company from `organization`, what the site actually does from `site` — which is
 the split the documents already assumed. It is a sibling of
 `generateDocs`, **not** a `generate()` format, and that is structural rather than stylistic:
@@ -505,8 +505,10 @@ Four things here are load-bearing:
   excluded — neither is visitor-supplied, and describing them as collected would be untrue.
 - **The markdown subset is closed and the renderer throws outside it.** We author every
   template, so `render.ts` is exactly as capable as they are: `#`/`##`/`###`, `- ` bullets,
-  `> ` quote, `**strong**`, `` `code` ``. An unsupported construct is an error, not a silent
-  degrade — that is what stops a literal `| --- |` reaching a published page. HTML goes through
+  `> ` quote, `**strong**`, `` `code` ``, `[text](url)` links (added for the accessibility
+  statement; the URL is made safe at the output, not the input). An unsupported construct is an
+  error, not a silent degrade — that is what stops a literal `| --- |` reaching a published
+  page. HTML goes through
   `nodesToHtml` from `@getvitops/utils` (escaping already solved); Portable Text maps the `> `
   quote to `vitops_banner` and **drops the `# ` heading**, which is EmDash's `data.title` field.
 - **`JURISDICTIONS` in `config.ts` and `TEMPLATES` in `legal/templates/index.ts` are checked

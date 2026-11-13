@@ -357,6 +357,82 @@ From the 2026-11 architecture audit; each is a known gap, not a regression.
 - **e2e no-JS fallback coverage** (`site/e2e/no-js-fallback.e2e.ts`) missing for cards, consent and the other
   elements without a spec.
 
+### Translation (i18n): French legal documents and runtime strings — plan, not started
+
+The privacy policy, terms, cookie notice and accessibility statement (both `ca` and `qc`) are English
+only, and so is every runtime string we ship. A Quebec client needs French, and a `qc` site gets an
+English statement until this lands. This is a plan to approve on its own; nothing here is built.
+
+**Is Paraglide worth adding? For a narrow slice, yes; for the long legal prose, no.** Verified from its
+own docs (Paraglide JS 2; a few mirrors disagree on Cloudflare details, so confirm in the spike): it is a
+compiler that turns message files into typed, per-message, tree-shakeable functions; locale resolution is
+strategy based (`url`, `cookie`, `localStorage`, `preferredLanguage`, `baseLocale`) with a server
+middleware that scopes the locale per request, using `AsyncLocalStorage` unless disabled; it has an Astro
+guide and a Vite plugin.
+
+| Surface                                                                                                                                                                        | Strings                                                                                | Fit                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Visitor-facing runtime: `wc-*` labels (System/Light/Dark, carousel and lightbox controls), `<ContrastToggle />`, consent banner, Astro component defaults, EmDash block labels | short, many, parameterised                                                             | **Good.** The real need; tree-shaking matters because `consent.js` is a deliberately tiny Lit-free bundle (about 2.8 KB gzip)                                                                                                                                       |
+| Legal documents                                                                                                                                                                | long prose, structure differs by jurisdiction and language, reviewed whole by a lawyer | **Poor.** Per-sentence messages fragment what a reviewer must read top to bottom, and the `qc` French is not a translation of the `ca` text. Keep per-locale template files plus a small typed `Phrases` table (`satisfies Record<Locale, Phrases>`), no dependency |
+| Generator / CLI messages                                                                                                                                                       | many, developer-facing                                                                 | **Low value.** Consumers are developers and agents; revisit if a client asks                                                                                                                                                                                        |
+
+Costs to measure rather than assume:
+
+1. Locale state is global per request. Fine in Astro SSR, but the Worker-safe `@getvitops/utils/*`
+   subpaths and the Lit-free consent bundle must not pull in a runtime they do not need. Messages compiled
+   at our build with the locale passed in may be cleaner than shipping the runtime.
+2. Our packages are consumed prebuilt, so a consumer cannot add a language to `wc-color-scheme-toggle`
+   unless we expose an override (attribute or slot). Decide: fixed `en`/`fr` plus overrides, or ship the
+   message files for consumers to compile.
+3. The `cookie` and `localStorage` strategies are storage. They must go through the consent gate
+   (`preferences`) like `vitops-color-scheme`, or default to `url`/`preferredLanguage` only; a silently set
+   locale cookie is the undisclosed storage the gate exists to prevent, and the cookie notice would have to
+   disclose it.
+4. Bricks/WordPress has no Paraglide runtime; PHP fragments need strings of their own (a generated
+   `strings.php` from the same message files is plausible).
+5. A young, fast-moving compiler becomes a dependency of every package with messages. Pin it, and keep the
+   zero-dependency typed-catalog approach as the fallback.
+
+**Recommendation: a spike, not a commitment.** Prove Paraglide on two things: `<wc-color-scheme-toggle>`
+(shadow DOM) plus the `consent` bundle for the size budget, and `ContrastToggle.astro`. Pass: gzip delta on
+`consent.js` and `elements.js` within budget, works in a Cloudflare Worker, no storage without the gate, a
+consumer can override a string. If it fails any, adopt the typed catalog instead.
+
+Work, once the spike decides:
+
+1. Spike, with a written result.
+2. One `Locale` vocabulary for `legal` and runtime strings (`en`, `fr`; `fr-CA` resolves to `fr`), a
+   `validateConfig` rule that `site.defaultLocale` is supported, and how `site.locales` drives output.
+3. **Legal documents in French**: 4 documents × `ca`/`qc` = 8 new templates plus `casl`.
+   - `TEMPLATES[jurisdiction][locale][doc]` with a `satisfies` guard, so a missing translation is a compile
+     error.
+   - `legal/phrases/{en,fr}.ts` replacing the English literals in `derive.ts` (about 45 sentences), the
+     list connective ("and" / "et"), province and jurisdiction names.
+   - Consumer prose (`retention`, `privacyOfficerTitle`, `governingLaw`, processor `purpose`) becomes
+     `Localizable`; a plain string still validates and is used verbatim, and `validateConfig` warns when a
+     French document will print one. `KNOWN_PROCESSORS` purposes and countries get `fr`. The accessibility
+     statement's free-text fields (`limitations`, `formats`, …) need the same treatment.
+   - Output naming: the default locale stays unsuffixed so nothing changes for existing consumers; others
+     are suffixed (`privacy-policy.fr.md`); Bricks shortcode `lang`; CLI `--lang`; Portable Text keys carry
+     the locale.
+   - Drift guards: identical heading sequence between `en` and `fr`, no unreplaced `${…}`, no English
+     sentinel strings, `Phrases` completeness as a type error. The accessibility statement's AAA content
+     tests (reading level, abbreviations) need French equivalents.
+   - Terminology (Quebec French, **flagged for review by a qualified legal translator**):
+     `responsable de la protection des renseignements personnels`, `Loi 25`, `Commission d'accès à
+     l'information`, `évaluation des facteurs relatifs à la vie privée`; for `ca`, the `Commissariat à la
+     protection de la vie privée du Canada`; for the statement, the `LAPHO`.
+4. Runtime strings per the spike: `wc-*` labels first, then Astro components, EmDash blocks, the consent
+   banner (whose wording is also a legal artifact).
+5. Skills and docs: update `quebec-french-language.md` (French templates now ship), add a translation topic,
+   document how a consumer overrides a string.
+
+French drafting parallelizes well: one agent per document family, with the English template and phrases
+table as the contract and the drift guards as the acceptance test.
+
+Not decided: whether `fr` also covers the CLI's own output; whether consumers get a way to add a third
+language; who reviews the French (required before any client relies on it).
+
 ### Cloudflare `cf` CLI — evaluate when its beta ends
 
 `cf` has been in open beta since 2026-09-28 and is Wrangler's successor (typed `cloudflare.config.ts`, `cf migrate`
