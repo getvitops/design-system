@@ -92,6 +92,12 @@ export {
   validateConfig,
   resolveConfig,
   resolvePrivacyContact,
+  resolveAccessibilityContact,
+  accessibilityStatementWarnings,
+  ACCESSIBILITY_LAWS,
+  ACCESSIBILITY_TESTING,
+  ACCESSIBILITY_REVIEW_CADENCES,
+  GENERIC_LINK_TEXT,
   resolveTheme,
   // Every entry point that takes a config goes through these, so a consumer who
   // keeps their tokens inside the larger three-section config points the same
