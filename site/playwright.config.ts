@@ -92,6 +92,14 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
+      // The generated accessibility statement against the docs site's own CSS: axe including the
+      // AAA tag in the high-contrast appearance, plus line length, line height, 200% text and
+      // target size. The content criteria are unit-tested in `packages/generator`.
+      name: 'accessibility-statement',
+      testMatch: /accessibility-statement\.e2e\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
       name: 'masthead',
       testMatch: /masthead\.e2e\.ts$/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1400, height: 800 } },

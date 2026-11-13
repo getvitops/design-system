@@ -16,6 +16,7 @@
   "devDependencies": {
     "@astrojs/check": "catalog:",
     "@astrojs/sitemap": "catalog:",
+    "@axe-core/playwright": "catalog:",
     "@getvitops/astro": "workspace:*",
     "@getvitops/generator": "workspace:*",
     "@getvitops/utils": "workspace:*",
