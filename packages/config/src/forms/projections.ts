@@ -95,6 +95,16 @@ export const PROJECTIONS: readonly Projection[] = [
     ],
   },
   {
+    id: 'brand.shape',
+    title: 'Shadows and spacing',
+    description: 'How raised things look and how wide and airy the layout is.',
+    items: [
+      { path: `${D}.shadows`, fields: ['box', 'drop'] },
+      `${D}.layout.widths`,
+      `${D}.layout.regionSpace`,
+    ],
+  },
+  {
     // HOOK-UP POINT for the accessibility-requirements work (built separately). Two seams, both
     // already wired, so adding it changes no form code:
     //  1. The `accessibility.obligations` notice below renders whatever HTML a host passes as

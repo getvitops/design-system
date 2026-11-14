@@ -40,7 +40,7 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     id: 'brand',
     title: 'Brand',
     intro: 'Your colours and fonts. The theme editor covers everything finer.',
-    projections: ['brand.basics'],
+    projections: ['brand.basics', 'brand.shape'],
   },
   {
     id: 'accessibility',
