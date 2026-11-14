@@ -278,3 +278,16 @@ describe('form names', () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 });
+
+describe('a map of plain strings', () => {
+  test('reads a row’s `$value` as the entry, and drops an empty one', () => {
+    expect(
+      formToConfig([
+        ['t.fonts$map.0.$key', 'sans'],
+        ['t.fonts$map.0.$value', ' Arial, sans-serif '],
+        ['t.fonts$map.1.$key', 'mono'],
+        ['t.fonts$map.1.$value', ''],
+      ]),
+    ).toEqual({ t: { fonts: { sans: 'Arial, sans-serif' } } });
+  });
+});

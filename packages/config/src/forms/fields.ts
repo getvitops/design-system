@@ -26,7 +26,21 @@ export interface FieldMeta {
    * key added since is not offered until the form is rendered again.
    */
   optionsFrom?: string;
+  /** Values to suggest in a `combobox` (free text is still accepted). */
+  suggestions?: readonly string[];
 }
+
+/** The `--font-*` tokens a type role usually points at. */
+const FONT_TOKENS = ['var(--font-display)', 'var(--font-sans)', 'var(--font-mono)'];
+
+/** Safe system stacks, so a site with no webfont still has something sensible to pick. */
+const FONT_STACKS = [
+  'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  'ui-serif, Georgia, Cambria, "Times New Roman", serif',
+  'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+  'Georgia, "Times New Roman", serif',
+  '"Helvetica Neue", Arial, sans-serif',
+];
 
 export const FIELD_META: Readonly<Record<string, FieldMeta>> = {
   // organization
@@ -72,7 +86,24 @@ export const FIELD_META: Readonly<Record<string, FieldMeta>> = {
   },
   'designSystem.themes.default.colors.roles.*.kind': { label: 'Kind' },
   'designSystem.themes.default.colors.roles.*.foreground': { label: 'Text on this colour' },
-  'designSystem.themes.default.typography.families': { label: 'Font families' },
+  'designSystem.themes.default.typography.families': {
+    label: 'Type roles',
+    help: 'Which font each kind of text uses: a font token like var(--font-display), or a font stack.',
+  },
+  'designSystem.themes.default.typography.families.*': {
+    label: 'Font',
+    widget: 'combobox',
+    suggestions: FONT_TOKENS,
+  },
+  'designSystem.themes.default.fonts': {
+    label: 'Font stacks',
+    help: 'A stack names fonts to try in order. This does not load a webfont; declare one in the Astro fonts config.',
+  },
+  'designSystem.themes.default.fonts.*': {
+    label: 'Font stack',
+    widget: 'combobox',
+    suggestions: FONT_STACKS,
+  },
 
   // site
   'site.defaultLocale': { label: 'Default language' },

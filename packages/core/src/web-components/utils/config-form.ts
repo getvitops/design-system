@@ -24,7 +24,7 @@ export function docPathOf(name: string, keyOf: (keyName: string) => string): str
   let path = '';
   for (;;) {
     const match = MAP.exec(rest);
-    if (!match) return path + rest;
+    if (!match) return rest === '$value' && path ? path.slice(0, -1) : path + rest;
     const [, before, index, tail] = match as unknown as [string, string, string, string];
     raw += before;
     const key = keyOf(`${raw}$map.${index}.$key`).trim();

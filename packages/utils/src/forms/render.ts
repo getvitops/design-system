@@ -19,6 +19,7 @@ import {
   linesName,
   locName,
   mapFieldName,
+  mapValueName,
   mapKeyName,
   numName,
   projectionById,
@@ -153,7 +154,11 @@ function rowScope(
     path.startsWith(prefix) ? path.slice(prefix.length) : path;
   const base = parent.name(map.path, identity);
   return {
-    name: (path, wrap = scalarName) => mapFieldName(base, index, wrap(rel(path))),
+    name: (path, wrap = scalarName) =>
+      // A map of plain strings: the row's one field is the value itself.
+      path === `${map.path}.*`
+        ? mapValueName(base, index)
+        : mapFieldName(base, index, wrap(rel(path))),
     // A row that is a bare string is shorthand for the row's first field (a role's hue name).
     value: (d) =>
       typeof row === 'string'
@@ -259,6 +264,35 @@ function renderControl(
       const label = el('label', { class: 'field__control' }, labelText(d, ctx), input);
       // A colour is a text input first; `<wc-color-field>` offers the picker beside it.
       return shell(d, ctx, id, d.widget === 'color' ? el('wc-color-field', {}, label) : label);
+    }
+
+    case 'combobox': {
+      const name = ctx.scope.name(d.path);
+      const listId = `${id}-options`;
+      const input = el('input', {
+        ...controlAttrs(d, ctx, id, name),
+        type: 'text',
+        class: 'combobox__input',
+        list: listId,
+        value: value === undefined ? null : av(stringOf(value)),
+        placeholder: d.placeholder ? av(d.placeholder) : null,
+      });
+      const combobox = el(
+        'wc-combobox',
+        { class: 'combobox' },
+        input,
+        el(
+          'datalist',
+          { id: listId },
+          ...(d.suggestions ?? []).map((option) => el('option', { value: av(option) })),
+        ),
+      );
+      return shell(
+        d,
+        ctx,
+        id,
+        el('label', { class: 'field__control' }, labelText(d, ctx), combobox),
+      );
     }
 
     case 'textarea':

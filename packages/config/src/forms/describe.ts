@@ -30,6 +30,7 @@ export type Widget =
   | 'radio'
   | 'switch'
   | 'color'
+  | 'combobox'
   | 'locale'
   | 'lines'
   | 'map'
@@ -50,6 +51,8 @@ export interface FieldDescriptor {
   placeholder?: string;
   /** For `select` and `radio`; for a `map`, the closed set its keys must come from. */
   options?: readonly string[];
+  /** For a `combobox`: values to suggest. Free text is still accepted. */
+  suggestions?: readonly string[];
   /** The current value, when the path is concrete and the host supplied a document. */
   value?: unknown;
   /**
@@ -108,6 +111,7 @@ export function describeField(
   const help = override?.help ?? meta?.help;
   if (help) descriptor.help = help;
   if (meta?.placeholder) descriptor.placeholder = meta.placeholder;
+  if (meta?.suggestions) descriptor.suggestions = meta.suggestions;
   if (node.default !== undefined) descriptor.default = node.default;
   if (node.minimum !== undefined) descriptor.min = node.minimum;
   if (node.maximum !== undefined) descriptor.max = node.maximum;
@@ -145,6 +149,14 @@ export function describeField(
         depth: depth + 1,
       });
       if (child) children.push(child);
+    }
+    // A map of plain strings has no properties to list: its one child is the value itself.
+    if (descriptor.widget === 'map' && children.length === 0 && !only) {
+      const scalar = describeField(root, templatePath, {
+        values: options.values,
+        depth: depth + 1,
+      });
+      if (scalar && !['map', 'group', 'unsupported'].includes(scalar.widget)) children.push(scalar);
     }
     descriptor.children = children;
 

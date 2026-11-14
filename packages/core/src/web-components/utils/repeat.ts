@@ -57,8 +57,30 @@ export function freshEntry(entry: HTMLElement, serial: number): void {
  */
 function cleanCopy(
   row: HTMLElement,
-  rename: (value: string, attribute: 'name' | 'id' | 'for' | 'aria-describedby') => string,
+  rename: (value: string, attribute: 'name' | 'id' | 'for' | 'list' | 'aria-describedby') => string,
 ): void {
+  // A `<wc-combobox>` that upgraded before this copy was taken has built a listbox and taken `list`
+  // off its input. Put it back as authored, so the copy's own element builds its own.
+  row.querySelectorAll('.combobox__listbox, .combobox--enhanced > [role="status"]').forEach((n) => {
+    n.remove();
+  });
+  for (const combobox of Array.from(row.querySelectorAll('.combobox--enhanced'))) {
+    combobox.classList.remove('combobox--enhanced');
+    const input = combobox.querySelector('input');
+    const list = combobox.querySelector('datalist');
+    if (!input || !list) continue;
+    input.setAttribute('list', list.id);
+    for (const attribute of [
+      'role',
+      'autocomplete',
+      'aria-autocomplete',
+      'aria-expanded',
+      'aria-controls',
+      'aria-activedescendant',
+    ]) {
+      input.removeAttribute(attribute);
+    }
+  }
   row.querySelectorAll('.field__counter').forEach((node) => node.remove());
   row
     .querySelectorAll('.field--enhanced')
@@ -78,7 +100,7 @@ function cleanCopy(
   }
 
   for (const node of Array.from(row.querySelectorAll<HTMLElement>('*'))) {
-    for (const attribute of ['name', 'id', 'for', 'aria-describedby'] as const) {
+    for (const attribute of ['name', 'id', 'for', 'list', 'aria-describedby'] as const) {
       const current = node.getAttribute(attribute);
       if (current === null) continue;
       node.setAttribute(attribute, rename(current, attribute));

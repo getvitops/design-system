@@ -90,6 +90,7 @@ export const PROJECTIONS: readonly Projection[] = [
     items: [
       { path: `${D}.colors.palette`, fields: ['seed'] },
       { path: `${D}.colors.roles`, fields: ['hue', 'kind', 'foreground'] },
+      `${D}.fonts`,
       `${D}.typography.families`,
     ],
   },

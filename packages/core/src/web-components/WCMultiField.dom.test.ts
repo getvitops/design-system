@@ -275,3 +275,27 @@ describe('<wc-multifield> repeated fields', () => {
     expect(host.entries).toHaveLength(3);
   });
 });
+
+describe('<wc-multifield> rows holding a combobox', () => {
+  it('a new row gets its own datalist link and one listbox, not a copy of the built one', async () => {
+    await import('./WCCombobox.ts');
+    document.body.innerHTML = `<form><wc-multifield item-label="font"><fieldset class="field__group">
+      <details class="field__row" open><summary><span class="field__row-title">a</span></summary><div class="field__row-body">
+        <input name="f$map.0.$key" value="a">
+        <wc-combobox class="combobox"><input class="combobox__input" name="f$map.0.$value" id="f-map-0-value" list="f-map-0-value-options"><datalist id="f-map-0-value-options"><option value="x"></option></datalist></wc-combobox>
+      </div></details>
+      <details class="field__row" data-blank open><summary><span class="field__row-title">New font</span></summary><div class="field__row-body">
+        <input name="f$map.1.$key">
+        <wc-combobox class="combobox"><input class="combobox__input" name="f$map.1.$value" id="f-map-1-value" list="f-map-1-value-options"><datalist id="f-map-1-value-options"><option value="x"></option></datalist></wc-combobox>
+      </div></details></fieldset></wc-multifield></form>`;
+    for (let i = 0; i < 4; i++) await Promise.resolve();
+    const host = document.querySelector('wc-multifield') as WCMultiField;
+    host.querySelector<HTMLButtonElement>('[data-multifield-action="add"]')!.click();
+    expect(host.entries).toHaveLength(2);
+    const added = host.entries[1]!;
+    expect(added.querySelectorAll('.combobox__listbox')).toHaveLength(1);
+    const input = added.querySelector<HTMLInputElement>('.combobox__input')!;
+    expect(input.name).toBe('f$map.1.$value');
+    expect(added.querySelector('datalist')!.id).toBe('f-map-1-value-options');
+  });
+});

@@ -9,6 +9,7 @@
  *   organization.sameAs$lines             a textarea, one array item per line
  *   organization.services$map.0.$key      the key of a repeatable keyed map
  *   organization.services$map.0.name      a field inside that row
+ *   typography.families$map.0.$value      the value of a row of a map of plain strings
  *   site.ads.google.enabled$bool          a checkbox (native "omitted when unchecked", paired with
  *                                         a hidden "false" sibling so unchecking still submits)
  *   site.experiments$map.0.splitRatio$num a number input, coerced to a JSON number
@@ -46,6 +47,8 @@ export const locName = (path: string, index: number, part: 'code' | 'value'): st
   `${path}$loc.${index}.${part}`;
 /** Name of a keyed-map row's key input. */
 export const mapKeyName = (path: string, index: number): string => `${path}$map.${index}.$key`;
+/** Name of the value of a keyed-map row that is a plain string (the map's values are scalars). */
+export const mapValueName = (path: string, index: number): string => `${path}$map.${index}.$value`;
 /** Name of a field inside a keyed-map row (`sub` may carry its own `$bool`/`$num` marker). */
 export const mapFieldName = (path: string, index: number, sub: string): string =>
   `${path}$map.${index}.${sub}`;
@@ -98,6 +101,8 @@ type Entries = Iterable<[string, FormDataEntryValue | string]>;
 
 interface MapRow {
   key?: string;
+  /** Set when the row IS a scalar (`…$map.N.$value`): a map of plain strings. */
+  scalar?: string;
   entries: [string, string][];
 }
 
@@ -120,6 +125,7 @@ export function formToConfig(entries: Entries): JsonObject {
       const rows = maps.get(map.groups.path!) ?? new Map<string, MapRow>();
       const row = rows.get(map.groups.index!) ?? { entries: [] };
       if (map.groups.sub === '$key') row.key = value.trim();
+      else if (map.groups.sub === '$value') row.scalar = value.trim();
       else row.entries.push([map.groups.sub!, value]);
       rows.set(map.groups.index!, row);
       maps.set(map.groups.path!, rows);
@@ -161,8 +167,13 @@ export function formToConfig(entries: Entries): JsonObject {
 
   for (const [path, rows] of maps) {
     const entriesOut: JsonObject = {};
-    for (const { key, entries: rowEntries } of rows.values()) {
+    for (const { key, scalar, entries: rowEntries } of rows.values()) {
       if (!key) continue;
+      if (scalar !== undefined) {
+        // A map of plain strings (font stacks): an empty value is no entry.
+        if (scalar) entriesOut[key] = scalar;
+        continue;
+      }
       // The row is parsed by this same function, so its fields may be any shape a form field can be.
       const fields = formToConfig(rowEntries);
       // A row with a key and nothing in it is the blank "add another" row someone typed a name
