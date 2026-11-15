@@ -92,11 +92,16 @@ async function until(
 const log = (msg: string) => console.log(`prepare-db: ${msg}`);
 
 /**
- * `astro dev` daemonizes: the child outlives the command that started it, so capturing its
- * output through pipes would leave this process waiting on the daemon's inherited handles,
- * which looks exactly like a hang. Output is ignored and every call has a timeout.
+ * `astro dev --background` detaches: the server outlives the command that started it, so
+ * capturing its output through pipes would leave this process waiting on the daemon's inherited
+ * handles, which looks exactly like a hang. Output is ignored and every call has a timeout.
+ *
+ * `--background` is passed explicitly. Astro 7 only detaches on its own when it detects an AI
+ * agent, so without the flag this worked under an agent and blocked until the timeout in CI.
  */
 const DEV_LOG = '.vitops/prepare-db.log';
+/** Where Astro writes a background server's own output. */
+const ASTRO_DEV_LOG = '.astro/dev.log';
 const astro = (args: string[]) => {
   // Output goes to a file, not a pipe: the daemon keeps the handle open, and a pipe would make
   // this process wait on it (which looks exactly like a hang). The file is read back on failure.
@@ -112,13 +117,30 @@ const astro = (args: string[]) => {
     closeSync(fd);
   }
 };
-const logTail = (lines = 30) => {
+/** Arguments that start the dev server detached; see the note above on why `--background`. */
+export const astroDevArgs = (port: number) => [
+  'dev',
+  '--background',
+  '--port',
+  String(port),
+  '--host',
+  '127.0.0.1',
+];
+const readLog = (file: string) => {
   try {
-    return readFileSync(DEV_LOG, 'utf8').trimEnd().split('\n').slice(-lines).join('\n');
+    return readFileSync(file, 'utf8');
   } catch {
     return '';
   }
 };
+const logTail = (lines = 30) =>
+  [readLog(ASTRO_DEV_LOG), readLog(DEV_LOG)]
+    .filter((text) => text.trim())
+    .join('\n')
+    .trimEnd()
+    .split('\n')
+    .slice(-lines)
+    .join('\n');
 // An error line from the dev server, once it has printed one, means it is not coming up.
 const devError = () => {
   const tail = logTail(60);
@@ -159,12 +181,13 @@ async function cmdPrepareDb() {
     return;
   }
   checkSiteConfig();
+  mkdirSync('.vitops', { recursive: true });
   writeFileSync(DEV_LOG, '');
   const port = await freePort();
   const base = `http://127.0.0.1:${port}`;
 
   log(`starting astro dev on ${base} ...`);
-  const started = astro(['dev', '--port', String(port), '--host', '127.0.0.1']);
+  const started = astro(astroDevArgs(port));
   if ((started.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT')
     fail('`astro` is not on PATH. Run it through the package scripts (`vpr prepare-local-db`).');
   if (started.status !== 0)
@@ -206,7 +229,7 @@ async function cmdPrepareDb() {
   }
   if (failure) {
     const tail = logTail();
-    if (tail) console.error(`prepare-db: last of ${DEV_LOG}:\n${tail}\n`);
+    if (tail) console.error(`prepare-db: last of ${ASTRO_DEV_LOG} and ${DEV_LOG}:\n${tail}\n`);
   }
   if (failure)
     fail(
