@@ -34,7 +34,7 @@ if (process.env.SKIP_PULL_CONTENT) {
 /** wrangler.jsonc allows comments and trailing commas; JSON.parse does not. */
 function parseJsonc(text) {
   const out = text
-    .replace(/("(?:[^"\\]|\\.)*")|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (m, str) => str ?? '')
+    .replace(/("(?:[^"\\]|\\.)*")|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (_m, str) => str ?? '')
     .replace(/,(\s*[}\]])/g, '$1');
   return JSON.parse(out);
 }
