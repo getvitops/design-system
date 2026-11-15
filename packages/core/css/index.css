@@ -86,6 +86,7 @@
 @import './patterns/logos.css';
 @import './patterns/embed.css';
 @import './patterns/counter.css';
+@import './patterns/contrast-toggle.css';
 @import './patterns/nav.css';
 @import './patterns/carousel.css';
 @import './patterns/copy.css';

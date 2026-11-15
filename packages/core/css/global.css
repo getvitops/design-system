@@ -103,3 +103,53 @@ body {
     outline-offset: 2px !important;
   }
 }
+
+/* Floating surfaces keep an edge in forced-colors mode.
+
+   Elevation is a `box-shadow` (`--ds-*`), and forced-colors mode sets every box-shadow to `none`
+   while flattening backgrounds to the same `Canvas` as the page. A surface that rests on its border
+   survives that; one that rests on its shadow — a consumer's `b: none`, or a bare `[popover]`
+   (popover.css resets the UA border off) — becomes an invisible box over the page.
+
+   An `outline`, not a `border`: it adds no layout and does not clobber a border the author set, and
+   at `outline-offset: -1px` it lands on top of an existing 1px border instead of doubling it. The
+   `:focus-visible` rule above is `!important` and wins on a focused element. System colour keyword
+   on purpose: an author-specified system colour is kept as written. */
+@media (forced-colors: active) {
+  :is(dialog.dialog, .drawer, .tooltip, .notification, .consent, .combobox__listbox):not([hidden]),
+  [popover]:popover-open {
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
+  }
+}
+
+/* The high-contrast layer's non-token half. The generator re-points the colour tokens under
+   `prefers-contrast: more`, `[data-contrast="more"]` and the `.contrast-toggle` checkbox (see
+   `contrast-more.ts`); these are the parts a token cannot carry. A heavier outline that is always an
+   outline (the default ring is a box-shadow, which a bright background can swallow), and no
+   `backdrop-filter`: a blurred translucent surface is the opposite of a firm one, and the token
+   layer already makes `--surface-glass` opaque.
+
+   `data-contrast="standard"` opts out of the media query, same as for the tokens. `!important` for
+   the same reason as the forced-colors rule above: it has to outrank a `vitops.components` rule that
+   set `outline: none` or a blur, whatever layer that rule is in. */
+@media (prefers-contrast: more) {
+  :root:not([data-contrast='standard']) :focus-visible {
+    outline: 3px solid var(--color-border-focus) !important;
+    outline-offset: 2px !important;
+  }
+  :root:not([data-contrast='standard']) :is(.glass, [class*='glass']) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+:root[data-contrast='more'] :focus-visible,
+:root:has(:where(.contrast-toggle input:checked)) :focus-visible {
+  outline: 3px solid var(--color-border-focus) !important;
+  outline-offset: 2px !important;
+}
+:root[data-contrast='more'] :is(.glass, [class*='glass']),
+:root:has(:where(.contrast-toggle input:checked)) :is(.glass, [class*='glass']) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

@@ -33,7 +33,11 @@ export const AccessibilitySchema = z.strictObject({
   ),
   level: desc(
     z.optional(z.enum(WCAG_LEVELS)),
-    'The minimum conformance level the site is held to: `none`, `A`, `AA` or `AAA`. `AA`/`AAA` make a WCAG 2 contrast-ratio miss fail the build; `A` and `none` only warn (contrast is an AA criterion). `vitops audit` runs the axe tags for the chosen standard and level and fails on violations, except at `none`, where they are reported and never fail the run. Unset behaves like today: APCA failures fail the build, ratio misses warn. This records a target, not a claim of conformance.',
+    'The minimum conformance level the site is held to: `none`, `A`, `AA` or `AAA`. Unset, `AA` and `AAA` make a WCAG 2 contrast-ratio miss fail the build; `A` and `none` only warn (contrast is an AA criterion). `vitops audit` runs the axe tags for the chosen standard and level and fails on violations, except at `none`, where they are reported and never fail the run. This records a target, not a claim of conformance.',
+  ),
+  contrastToggle: desc(
+    z.optional(z.boolean()),
+    'Set `true` when the site ships the high-contrast toggle (`<ContrastToggle />` / `.contrast-toggle`), WCAG technique G174: a visible control that switches to a conforming version. A baseline WCAG 2 contrast miss then only warns, provided the generated high-contrast layer (`prefers-contrast: more` / `data-contrast="more"`) itself reaches 4.5:1 text and 3:1 non-text. `vitops audit` checks the toggle is actually present. Default `false`: a miss fails the build at AA.',
   ),
   acceptedRisk: desc(
     z.optional(z.string().check(z.minLength(1))),

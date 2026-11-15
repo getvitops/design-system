@@ -673,6 +673,132 @@ const ProcessorSchema = z.strictObject({
   privacyUrl: z.optional(z.url()),
 });
 
+// ── Accessibility statement ─────────────────────────────────────────────────────
+
+/** The statute a statement cites. A closed list: AODA wording is only printed when named. */
+export const ACCESSIBILITY_LAWS = ['aoda'] as const;
+export type AccessibilityLaw = (typeof ACCESSIBILITY_LAWS)[number];
+
+/** How the site was last checked, as the statement words it. */
+export const ACCESSIBILITY_TESTING = [
+  'automated',
+  'keyboard',
+  'screen-reader',
+  'external-audit',
+] as const;
+export const ACCESSIBILITY_REVIEW_CADENCES = ['annually', 'semi-annually', 'quarterly'] as const;
+
+/**
+ * http(s) only. `z.url()` accepts any scheme (`javascript:` parses as a URL), and these end up as
+ * links in a published page. The renderer drops an unsafe `href` regardless; this stops it being
+ * written down in the first place.
+ */
+const HttpUrl = z.url().check(z.regex(/^https?:\/\//i));
+
+const AccessibilityStatementSchema = z.strictObject({
+  enabled: z.boolean(),
+  url: z.optional(z.url()),
+  lastUpdated: z.optional(IsoDate),
+  law: desc(
+    z.optional(z.enum(ACCESSIBILITY_LAWS)),
+    'The accessibility statute the statement cites. `aoda` (Accessibility for Ontarians with Disabilities Act) is the only member today. AODA wording is printed **only** when this is set, so a client outside Ontario never gets a statutory claim that is not theirs.',
+  ),
+  mandatory: desc(
+    z.optional(z.boolean()),
+    'The organization is legally required to conform (for AODA: 50 or more Ontario employees, or a public sector organization). The statement then says conformance is required rather than a goal. Not inferred from headcount: statute thresholds are not encoded here (see the `vitops-accessibility` skill for the tiers).',
+  ),
+  conformance: desc(
+    z.optional(z.enum(['full', 'partial'])),
+    'The site is fully or partially conformant with the target in `site.accessibility`. When unset the statement makes **no** conformance claim, only a goal. A claim needs `testedOn`, and `full` cannot be combined with `limitations`.',
+  ),
+  testedOn: desc(
+    z.optional(IsoDate),
+    'When the site was last tested. Required for any `conformance` claim.',
+  ),
+  testing: desc(
+    z.optional(z.array(z.enum(ACCESSIBILITY_TESTING))),
+    'How it was tested: `automated`, `keyboard`, `screen-reader`, `external-audit`.',
+  ),
+  auditor: desc(
+    z.optional(z.string()),
+    'Who ran an external audit, when `testing` includes `external-audit`.',
+  ),
+  limitations: desc(
+    z.optional(
+      z.array(
+        z.strictObject({
+          content: desc(z.string().check(z.minLength(1)), 'What is affected, in plain words.'),
+          issue: desc(z.string().check(z.minLength(1)), 'What goes wrong, in plain words.'),
+          alternative: desc(
+            z.optional(z.string()),
+            'How a person gets the same thing another way.',
+          ),
+          plannedFix: desc(z.optional(z.string()), 'When or whether it will be fixed.'),
+        }),
+      ),
+    ),
+    'Real, current accessibility problems. Only list what is true today. An empty or absent list prints "we are not aware of any current issues".',
+  ),
+  testedWith: desc(
+    z.optional(
+      z.strictObject({
+        browsers: z.optional(z.array(z.string())),
+        assistiveTech: z.optional(z.array(z.string())),
+      }),
+    ),
+    'Overrides the browsers and assistive technology the statement lists as tested. The template has defaults; state only what was actually tested.',
+  ),
+  formats: desc(
+    z.optional(z.array(z.string())),
+    'Accessible formats offered on request, as plain nouns (`large print`, `accessible PDF`, `plain text`).',
+  ),
+  supports: desc(
+    z.optional(z.array(z.string())),
+    'Communication supports offered (`captioning`, `sign language interpretation`).',
+  ),
+  inPerson: desc(z.optional(z.string()), 'Where and when a person can ask in person.'),
+  responseDays: desc(
+    z.optional(z.int().check(z.positive())),
+    'Business days within which a request or piece of feedback is answered. Used for both.',
+  ),
+  contact: desc(
+    z.optional(ContactConfigSchema),
+    'Who accessibility requests and feedback go to: an `organization.locations` key, or an inline contact. Falls back to `organization.contact`, then the primary location, then the organization email and address. Offer more than an email address.',
+  ),
+  feedbackUrl: desc(
+    z.optional(HttpUrl),
+    'An accessibility feedback form. Must itself be accessible and never the only route.',
+  ),
+  feedbackOwner: desc(
+    z.optional(z.string()),
+    'The role or team that reads feedback (`our web manager`).',
+  ),
+  policies: desc(
+    z.optional(
+      z.array(
+        z.strictObject({
+          title: desc(
+            z.string().check(z.minLength(1)),
+            'The document name, which becomes the link text and so must make sense on its own (no "click here").',
+          ),
+          url: z.optional(HttpUrl),
+        }),
+      ),
+    ),
+    'Accessibility policies and plans published on the site. Without a `url` the title is listed as available on request.',
+  ),
+  policiesOnRequest: desc(
+    z.optional(z.boolean()),
+    'Policies are available on request but not posted. Ignored when `policies` is set.',
+  ),
+  reviewCadence: desc(
+    z.optional(z.enum(ACCESSIBILITY_REVIEW_CADENCES)),
+    'How often the statement is reviewed.',
+  ),
+});
+
+export type AccessibilityStatementConfig = z.infer<typeof AccessibilityStatementSchema>;
+
 // ── The `site` section ──────────────────────────────────────────────────────────
 // This published site: where it lives, what it says, how it is built. Everything
 // here is a fact about a *presentation* of the organization — swap the site and
@@ -898,6 +1024,10 @@ const SiteSectionSchema = z.strictObject({
               'Governing-law clause, in prose (e.g. "the Province of Ontario"). Defaults from the contact address.',
             ),
           }),
+        ),
+        accessibilityStatement: desc(
+          z.optional(AccessibilityStatementSchema),
+          'An accessibility statement generated from this block and `site.accessibility` (standard, level, high-contrast toggle). It asserts only what is declared: no conformance claim without `conformance` and `testedOn`, and `acceptedRisk` is never printed. Rendered by `vitops legal --doc accessibility`.',
         ),
         cookieConsent: z.optional(
           z.strictObject({
@@ -1381,6 +1511,56 @@ export function validateConfig(input: unknown): ConfigValidationResult {
       );
   }
 
+  // The accessibility statement. Same posture as the privacy policy: an enabled document is a public
+  // statement, so what it needs is required here, and a claim it cannot support is rejected rather
+  // than rendered.
+  const statement = site.legal?.accessibilityStatement;
+  const stPath = ['site', 'legal', 'accessibilityStatement'];
+  if (typeof statement?.contact === 'string' && !has(org?.locations, statement.contact))
+    errors.push(
+      issue(
+        [...stPath, 'contact'],
+        `contact "${statement.contact}" is not an organization.locations key`,
+      ),
+    );
+  if (statement?.enabled && resolveAccessibilityContact(cfg) == null)
+    errors.push(
+      issue(
+        stPath,
+        'accessibilityStatement.enabled requires a contact — set site.legal.accessibilityStatement.contact, organization.contact, or organization.email/address',
+      ),
+    );
+  if (statement?.conformance != null && statement.testedOn == null)
+    errors.push(
+      issue(
+        [...stPath, 'testedOn'],
+        'a conformance claim needs the date the site was tested — set accessibilityStatement.testedOn, or remove `conformance`',
+      ),
+    );
+  if (statement?.conformance === 'full' && (statement.limitations?.length ?? 0) > 0)
+    errors.push(
+      issue(
+        [...stPath, 'conformance'],
+        '`conformance: "full"` contradicts a non-empty `limitations` list — a site with known issues is partially conformant',
+      ),
+    );
+  const level = site.accessibility?.level;
+  if (statement?.mandatory && (level === 'none' || level === 'A'))
+    errors.push(
+      issue(
+        [...stPath, 'mandatory'],
+        `\`mandatory: true\` is incompatible with site.accessibility.level "${level}" — an organization required to conform is held to at least AA`,
+      ),
+    );
+  for (const [i, p] of (statement?.policies ?? []).entries())
+    if (GENERIC_LINK_TEXT.test(p.title.trim()))
+      errors.push(
+        issue(
+          [...stPath, 'policies', i, 'title'],
+          `policy title "${p.title}" is generic link text; it is read on its own by a screen reader, so name the document`,
+        ),
+      );
+
   // Indexing. Both defaults (the sitemap URL and the IndexNow key location) are
   // built from `domains.canonical`, so without it the block is unresolvable —
   // and the failure would otherwise surface at deploy time, as a submission
@@ -1650,6 +1830,71 @@ export function resolvePrivacyContact(cfg: Config): ContactObject | undefined {
   ];
   // A contact with no reachable channel is not a contact — skip to the next.
   return candidates.find((c) => c != null && (c.email != null || c.address != null));
+}
+
+/**
+ * Link text that means nothing on its own. A screen reader user often lists a page's links out of
+ * context, so each must name where it goes (WCAG 2.4.9). Exported for the statement's own test.
+ */
+export const GENERIC_LINK_TEXT =
+  /^(click here|click|here|link|this link|this|read more|more|learn more|details|info)$/i;
+
+/**
+ * Who accessibility requests and feedback go to. The same shape and precedence as
+ * `resolvePrivacyContact`: the statement's own contact, then the organization's. A contact with no
+ * reachable channel is skipped, since a statement that says "contact us" with nothing to contact is
+ * worse than no statement.
+ *
+ * Exported because `validateConfig` and the document derivation must agree on it exactly.
+ */
+export function resolveAccessibilityContact(cfg: Config): ContactObject | undefined {
+  const org = cfg.organization;
+  const deref = (c: string | ContactObject | undefined): ContactObject | undefined => {
+    if (c == null) return undefined;
+    if (typeof c !== 'string') return c;
+    const loc = org?.locations?.[c];
+    return loc && { email: loc.email, phone: loc.phone, address: loc.address };
+  };
+  const candidates = [
+    deref(cfg.site.legal?.accessibilityStatement?.contact),
+    deref(org?.contact),
+    deref(org?.primaryLocation),
+    org && { email: org.email, phone: org.phone, address: org.address },
+  ];
+  return candidates.find(
+    (c) => c != null && (c.email != null || c.phone != null || c.address != null),
+  );
+}
+
+/**
+ * Warnings for an enabled accessibility statement: things that are legal but probably not what the
+ * author meant. Not errors, so they never block a build, and a separate pure function rather than a
+ * `warnings` field on `ConfigValidationResult` (the shape `experimentDimensionWarnings` uses).
+ */
+export function accessibilityStatementWarnings(cfg: Config): string[] {
+  const st = cfg.site.legal?.accessibilityStatement;
+  if (!st?.enabled) return [];
+  const out: string[] = [];
+  const c = resolveAccessibilityContact(cfg);
+  const channels = [c?.email, c?.phone, c?.address].filter((x) => x != null).length;
+  if (channels === 1 && c?.email != null)
+    out.push(
+      'accessibilityStatement: the only contact channel is an email address. Offer at least one more (a phone number, a postal address) so asking for an accessible format is itself accessible.',
+    );
+  if (st.testing?.includes('external-audit') && st.auditor == null)
+    out.push(
+      'accessibilityStatement: `testing` includes `external-audit` but `auditor` is not set.',
+    );
+  if (st.conformance != null && st.lastUpdated == null)
+    out.push(
+      'accessibilityStatement: a conformance claim is stated without `lastUpdated`, so a reader cannot tell how current it is.',
+    );
+  const level = cfg.site.accessibility?.level;
+  if (level === 'none' || level === 'A')
+    out.push(
+      `accessibilityStatement: site.accessibility.level is "${level}", so the statement will name that as the target. Most accessibility law asks for AA.`,
+    );
+  return out;
 }
 
 // ── Theme resolution (extends) ──────────────────────────────────────────────────

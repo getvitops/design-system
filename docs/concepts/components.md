@@ -63,6 +63,7 @@ emit its tag.
 | `comment` | css | `.comment` inside `.comment-thread`. |
 | `config-form` | wc · astro | `<ConfigForm id schema paths output><form method="post">…</form></ConfigForm>`, with the fields from `renderStepHtml` / `renderProjectionHtml` (`@getvitops/utils/forms`). With no JS it is a plain form posting the names `formToConfig` parses and the server validates. Its own Lit-free bundle (`@getvitops/core/config-form`): the validator and the form codec. Do NOT wrap it in `<wc-config-form>`: it emits its own. `paths` narrows the schema to the fields shown; `novalidate` lets the server decide a submit. |
 | `consent` | css · wc · astro | `<CookieConsent />`. Its own Lit-free bundle so a site needing consent does not download a rendering framework. |
+| `contrast-toggle` | css · wc · astro | `<ContrastToggle />` — it emits `<wc-contrast-toggle>` itself, so do NOT add your own wrapper. Set `site.accessibility.contrastToggle: true` so a baseline contrast miss warns instead of failing the build (the generated `[data-contrast="more"]` layer is the conforming version it switches to). |
 | `copy` | css · wc · bricks · emdash | `<wc-copy>` around the content and a `[data-copy]` button. |
 | `counter` | css · wc · astro · emdash | `<Counter value="94%" />` — it emits `<wc-counter>` itself, so do NOT add your own wrapper. The final value is parsed from the fallback text, never passed separately. |
 | `cta` | css · emdash | `.cta` on any element — usually `<a>`, since a CTA navigates. Filled, with role variants. |
@@ -148,6 +149,7 @@ is tooling and opt-in per consumer.
 | `<wc-combobox>` | `combobox` | `elements.js` | full | a filtered ARIA 1.2 listbox (aria-activedescendant, arrow/Enter/Escape keys, a live result count) in place of the browser datalist popup |
 | `<wc-config-form>` | `config-form` | `@getvitops/core/config-form` | full | validates the form against a JSON Schema as you type and shows each message in its `<wc-field>`, stops a submit that has errors, adds a row to a keyed map as the blank one is used (until `<wc-multifield>` takes over), and exposes the config document the form describes |
 | `<wc-consent>` | `consent` | `@getvitops/core/consent` | full | the permission gate itself — activates `type="text/plain"` tags on grant |
+| `<wc-contrast-toggle>` | `contrast-toggle` | `elements.js` | full | starts checked under `prefers-contrast: more` and remembers the choice (consent-gated); the checkbox already works with no JS |
 | `<wc-copy>` | `copy` | `elements.js` | partial | clipboard write plus success feedback |
 | `<wc-counter>` | `counter` | `elements.js` | full | animates from a start value to the value already in the fallback text, on intersection |
 | `<wc-dismissable>` | `dismissable` | `elements.js` | partial | fade-out + removal, optional auto-dismiss |
@@ -181,6 +183,7 @@ is tooling and opt-in per consumer.
 | `@getvitops/astro/components/Combobox.astro` | `combobox` | the `<wc-combobox>` tag, fallback inside |
 | `@getvitops/astro/components/ConfigForm.astro` | `config-form` | the `<wc-config-form>` tag, fallback inside |
 | `@getvitops/astro/CookieConsent.astro` | `consent` | the `<wc-consent>` tag, fallback inside |
+| `@getvitops/astro/components/ContrastToggle.astro` | `contrast-toggle` | the `<wc-contrast-toggle>` tag, fallback inside |
 | `@getvitops/astro/components/Counter.astro` | `counter` | the `<wc-counter>` tag, fallback inside |
 | `@getvitops/astro/components/Details.astro` | `details` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Drawer.astro` | `drawer` | tier-1 markup — no web component |
@@ -276,6 +279,7 @@ Every shipped `wc-*` element either has a block above or a stated reason here
 - `wc-combobox` — a form control, composed inside a form (vitops_form) rather than placed as page content
 - `wc-config-form` — configuration tooling for a site owner, not page content a visitor reads or an editor places
 - `wc-consent` — site chrome: the layout renders `<CookieConsent />` once; an editor-placed copy would duplicate the gate
+- `wc-contrast-toggle` — site chrome (masthead/footer), not page content: it must be on every page to count as a WCAG G174 alternative, which a per-page editor block cannot guarantee
 - `wc-field` — a form control wrapper, composed inside a form (vitops_form) rather than placed as page content
 - `wc-format` — inline text formatting, used inside other content rather than placed as a block of its own
 - `wc-multifield` — repeats rows a visitor adds at submit time (several phone numbers, guests); `vitops_form` has a fixed, editor-defined field list and no such field type
@@ -308,6 +312,7 @@ rules that generate them all.
 | `combobox` | `patterns/combobox.css` | `combobox`, `combobox__input`, `combobox__listbox`, `combobox__option`, `combobox__empty` | declared |
 | `comment` | `patterns/comment.css` | `comment`, `comment__author`, `comment-thread` | declared |
 | `consent` | `patterns/consent.css` | `consent`, `consent__body`, `consent__options`, `consent__actions` | — |
+| `contrast-toggle` | `patterns/contrast-toggle.css` | `contrast-toggle` | — |
 | `copy` | `patterns/copy.css` | `copy`, `copy__button`, `copy__icon`, `copy__tooltip` | — |
 | `counter` | `patterns/counter.css` | `counter`, `counter__value`, `counter__presentation` | — |
 | `cta` | — | `cta`, `cta-danger` | declared |

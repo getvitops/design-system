@@ -42,6 +42,8 @@ import {
   generateLegal,
   enabledDocs,
   processorsMissingLocation,
+  accessibilityStatementWarnings,
+  DOC_ORDER,
   JURISDICTION_COUNTRIES,
   isConfig,
   resolveInput,
@@ -144,7 +146,7 @@ const LINT_FORMATS = new Set<StylesheetFormat>(['bricks', 'css', 'tailwind']);
 
 // `legal` reads a *site* config, not a design-system.json, and has its own
 // output set — it renders documents, not stylesheets.
-const LEGAL_DOCS = new Set<LegalDoc>(['privacy', 'terms', 'cookies']);
+const LEGAL_DOCS = new Set<LegalDoc>(DOC_ORDER);
 const LEGAL_OUTPUTS = new Set<LegalOutput>(['md', 'html', 'portable-text']);
 
 async function cmdGenerate(argv: string[]) {
@@ -579,7 +581,7 @@ async function cmdLegal(argv: string[]) {
   const docs = requested.length ? (requested as LegalDoc[]) : enabledDocs(site);
   if (docs.length === 0)
     fail(
-      'no legal documents are enabled — set site.legal.privacyPolicy.enabled (or termsOfService / cookieConsent) in your config, or name one with --doc',
+      'no legal documents are enabled — set site.legal.privacyPolicy.enabled (or termsOfService / cookieConsent / accessibilityStatement) in your config, or name one with --doc',
     );
 
   const files = generateLegal(site, { docs, output });
@@ -597,6 +599,11 @@ async function cmdLegal(argv: string[]) {
       console.error(
         `  ! ${name}: no country, storage or operatorCountry declared — it will not appear in the cross-border transfer disclosure. Add one, or state storage: [{ country: "${JURISDICTION_COUNTRIES[site.site.legal?.jurisdiction ?? 'ca']}" }] to say it does not leave the country.`,
       );
+
+  // The statement's own warnings (email as the only channel, an external audit with no auditor…).
+  // Legal but probably not intended, so they never block, and stderr for the same reason as above.
+  if (docs.includes('accessibility'))
+    for (const w of accessibilityStatementWarnings(site)) console.error(`  ! ${w}`);
 
   const REVIEW =
     '  These are generated from your config and are not legal advice — review them before publishing.';
@@ -621,6 +628,13 @@ async function cmdLegal(argv: string[]) {
   console.log(`✓ legal → ${outDir}`);
   for (const name of Object.keys(files))
     console.log(`    ${name}${added.includes(name) ? '  (new)' : ''}`);
+  // An accessibility statement only helps if it can be found: the footer link on every page is part
+  // of the obligation (and of the skill's checklist), and nothing else in the build will say so.
+  if (added.some((n) => n.startsWith('accessibility')))
+    console.log(
+      '\n  The accessibility statement must be linked from the footer of every page, labelled "Accessibility". ' +
+        'The page that shows it should carry the high-contrast toggle and set `lang`.',
+    );
   if (added.length)
     console.log(
       added.length === 1

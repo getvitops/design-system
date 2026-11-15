@@ -24,6 +24,7 @@ import { generateLegal } from './legal/index.ts';
 import { buildIconSprite } from './icons-sprite.ts';
 import { resolveInput, resolveConfig, type Config } from './config.ts';
 import { generateIconInclude, resolveIcon } from '@getvitops/utils';
+import { checkHighContrast, contrastMoreCss, highContrastRole } from './contrast-more.ts';
 import {
   BASE_HOOK,
   DARK_SEL,
@@ -134,7 +135,7 @@ const DEFAULT_ASSETS = join(HERE, '..', 'assets');
 // ── colour machinery ─────────────────────────────────────────────────────────
 /**
  * `--color-<hue>-<step>-on`: the readable text colour for a fill at that step, computed with the
- * same APCA pick as `text-on-<role>`. A role has one (`--color-text-on-<role>`); a raw hue step
+ * same contrast-ratio pick as `text-on-<role>`. A role has one (`--color-text-on-<role>`); a raw hue step
  * did not, so a block filling with `color: amber-500` had no site-defined foreground to use. These
  * live in a plain `:root`, never `@theme`: a `--color-*` theme key would mint `text-<hue>-<step>-on`
  * utilities nobody asked for.
@@ -482,11 +483,15 @@ export interface BuildOptions {
   darkOnly?: boolean;
   /**
    * Whether a WCAG 2 contrast-ratio miss fails the build (`fail`) or is reported and tolerated
-   * (`warn`). Derived from `site.accessibility.level` — `AA`/`AAA` fail, anything else (including
-   * no declared target) warns. APCA is judged separately and still fails regardless: that bar is
-   * this design system's own, not the client's legal target.
+   * (`warn`). Derived from `site.accessibility.level` — `A` and `none` warn, anything else
+   * (AA, AAA, and no declared target) fails. The ratio is the only contrast measure.
    */
   wcagRatio?: 'fail' | 'warn';
+  /**
+   * `site.accessibility.contrastToggle`: the site ships the high-contrast toggle (WCAG technique
+   * G174). A baseline ratio miss then only warns, provided the high-contrast layer itself conforms.
+   */
+  contrastToggle?: boolean;
 }
 
 export function build(
@@ -563,21 +568,35 @@ export function build(
           ),
         }
       : undefined;
+    const appearances = buildOpts.darkOnly ? (['dark'] as const) : undefined;
     const failures = scaleRoles.flatMap((fr) => {
       const spec = ds.colors.roles[fr.role];
       const tolerance = typeof spec === 'object' ? (spec.acknowledgeContrast ?? 0) : 0;
-      return checkContrast(
+      // The high-contrast layer is judged first: it must itself conform (a layer under the
+      // baseline is no use as a G174 alternative), and a conforming one is what lets
+      // `contrastToggle` downgrade a baseline miss to a warning.
+      const more = highContrastRole(fr, expandedPalette[fr.hue] as ExpandedHue, surfaceBg);
+      const moreResult = checkHighContrast(fr, more, numericOf, surfaceBg, appearances);
+      for (const w of moreResult.warnings) console.warn(`[vitops] ${w}`);
+      const viaToggle = buildOpts.contrastToggle === true && moreResult.failures.length === 0;
+      const base = checkContrast(
         fr,
         numericOf,
         surfaceBg,
-        buildOpts.darkOnly ? ['dark'] : undefined,
+        appearances,
         tolerance,
         (msg) => console.warn(`[vitops] contrast acknowledged: ${msg}`),
         {
-          mode: buildOpts.wcagRatio ?? 'warn',
-          onWarn: (msg) => console.warn(`[vitops] WCAG 2 contrast (not enforced): ${msg}`),
+          mode: viaToggle ? 'warn' : (buildOpts.wcagRatio ?? 'fail'),
+          onWarn: (msg) =>
+            console.warn(
+              `[vitops] WCAG 2 contrast ${
+                viaToggle ? '(conforming only via the contrast toggle)' : '(not enforced)'
+              }: ${msg}`,
+            ),
         },
       );
+      return [...base, ...moreResult.failures];
     });
     if (failures.length)
       throw new Error(
@@ -594,6 +613,41 @@ export function build(
     scaleRoles.forEach((fr, i) => {
       scaleRoles[i] = { ...fr, light: fr.dark };
     });
+  // The high-contrast layer (css and tailwind only: Bricks supplies its own colour tokens, so
+  // there is nothing here to re-point). Computed after the dark-only swap so it follows the
+  // appearance actually emitted.
+  const contrastMore = BRICKS
+    ? ''
+    : (() => {
+        const numeric = (h: string) => expandedPalette[h]?.numeric ?? {};
+        const hexOf = (val: string | undefined): string | undefined => {
+          const m = /^var\(--color-([a-z0-9-]+)-(\d+)\)$/.exec(val ?? '');
+          return m ? (numeric(m[1] as string)[m[2] as never] as string | undefined) : val;
+        };
+        const planes = (which: 'light' | 'dark') =>
+          surfaceRole
+            ? (['bg', 'bg-muted', 'bg-x-muted'] as const).flatMap((k) => {
+                const h = hexOf(surfaceRole[which][k]);
+                return h ? [h] : [];
+              })
+            : [];
+        const surfaceBg = surfaceRole
+          ? { light: planes('light'), dark: planes('dark') }
+          : undefined;
+        const mores = scaleRoles.map((fr) =>
+          highContrastRole(fr, expandedPalette[fr.hue] as ExpandedHue, surfaceBg),
+        );
+        const focusMore = mores.find((m) => m.role === focusRole?.role);
+        return contrastMoreCss(mores, {
+          systemColorScheme: buildOpts.systemColorScheme === true,
+          darkOnly: buildOpts.darkOnly === true,
+          ...(surfaceRole ? { surfaceHue: surfaceRole.hue } : {}),
+          focus: {
+            ...(focusMore?.light['bg-solid'] ? { light: focusMore.light['bg-solid'] } : {}),
+            ...(focusMore?.dark['bg-solid'] ? { dark: focusMore.dark['bg-solid'] } : {}),
+          },
+        });
+      })();
   const patterns = ds.patterns;
   // A shadow is a plain string (one value, safe for both `box-shadow` and
   // `drop-shadow()`) or `{ box, drop }` (separate grammars: `box` may carry
@@ -694,6 +748,7 @@ export function build(
             `  ${SYSTEM_DARK_SEL} {\n    color-scheme: dark;\n${fb.replace(/^ {2}/gm, '    ')}  }\n}\n\n`;
       }
     }
+    css += contrastMore ? `${contrastMore}\n` : '';
     // Raw hue steps, then the role set. One axis means every class here is
     // emitted exactly once by construction — no precedence rule, and no reliance
     // on the minifier dropping a shadowed rule.
@@ -1371,6 +1426,7 @@ export function build(
           systemColorScheme: buildOpts.systemColorScheme === true,
           sources: buildOpts.sources ?? [],
           darkOnly: buildOpts.darkOnly === true,
+          contrastMoreCss: contrastMore,
         });
 
   // ── DESIGN.md ────────────────────────────────────────────────────────────────
@@ -1422,6 +1478,8 @@ interface TwCtx {
   sources: string[];
   /** `BuildOptions.darkOnly`. */
   darkOnly: boolean;
+  /** The high-contrast layer's CSS (`contrastMoreCss`), empty when there is none. */
+  contrastMoreCss: string;
 }
 
 function emitTailwind(ctx: TwCtx): string {
@@ -1508,7 +1566,7 @@ function emitTailwind(ctx: TwCtx): string {
   // does so regardless of source order. Putting `--color-<role>-<stop>` in
   // @theme would therefore silently substitute the stop for the plane on the
   // five colliding classes — including `text-<role>-muted` (step 800 → 300) and
-  // `text-<role>-x-muted` (600 → 100), i.e. exactly the tokens tokens.ts's APCA
+  // `text-<role>-x-muted` (600 → 100), i.e. exactly the tokens tokens.ts's contrast
   // test guarantees are readable. Raw hue scales are safe in @theme because no
   // @utility competes for those names.
   if (scaleRoles.length) {
@@ -1559,6 +1617,8 @@ function emitTailwind(ctx: TwCtx): string {
           `    color-scheme: dark;\n${darkBlock.replace(/^ {2}/gm, '    ')}  }\n}\n`,
       );
   }
+
+  if (ctx.contrastMoreCss) parts.push(ctx.contrastMoreCss);
 
   parts.push(
     `/* State variant for the active flip (hover/focus-visible are built in). */\n` +
@@ -2225,9 +2285,13 @@ function loadInput(
   return { ds: result.data, ...(resolved.config ? { config: resolved.config } : {}) };
 }
 
-/** `site.accessibility.level` → how a WCAG 2 ratio miss is treated. See `BuildOptions.wcagRatio`. */
+/**
+ * `site.accessibility.level` → how a WCAG 2 ratio miss is treated. See `BuildOptions.wcagRatio`.
+ * Unset is treated as AA: a site that never declared a target is held to the legal baseline, and
+ * only an explicit `A` or `none` opts into warnings.
+ */
 export function wcagRatioMode(level: string | undefined): 'fail' | 'warn' {
-  return level === 'AA' || level === 'AAA' ? 'fail' : 'warn';
+  return level === 'A' || level === 'none' ? 'warn' : 'fail';
 }
 
 export async function generate(options: GenerateOptions): Promise<GenerateResult> {
@@ -2251,6 +2315,7 @@ export async function generate(options: GenerateOptions): Promise<GenerateResult
       options.systemColorScheme ?? config?.designSystem?.defaultColorScheme === 'system',
     darkOnly: config?.designSystem?.defaultColorScheme === 'dark',
     wcagRatio: wcagRatioMode(config?.site?.accessibility?.level),
+    contrastToggle: config?.site?.accessibility?.contrastToggle === true,
     ...(options.sources?.length ? { sources: options.sources } : {}),
   });
   mkdirSync(outDir, { recursive: true });

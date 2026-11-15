@@ -39,11 +39,30 @@ export interface PageMetrics {
 }
 
 export interface BudgetFailure {
-  kind: 'lcp' | 'cls' | 'tbt' | 'axe' | 'metric-missing' | 'page-error' | 'required-page-missing';
+  kind:
+    | 'lcp'
+    | 'cls'
+    | 'tbt'
+    | 'axe'
+    | 'metric-missing'
+    | 'page-error'
+    | 'required-page-missing'
+    | 'toggle-missing';
   message: string;
 }
 
 export type PageStatus = 'audited' | 'skipped' | 'error';
+
+/**
+ * The second axe pass, run with `data-contrast="more"` on `<html>`, for a site that declares
+ * `site.accessibility.contrastToggle` (WCAG technique G174).
+ */
+export interface PageContrast {
+  /** A `.contrast-toggle` checkbox is on the page. Without it the alternative is not offered. */
+  toggle: boolean;
+  /** Contrast rules that fail in the standard pass but clear with the layer on. */
+  viaToggle: string[];
+}
 
 export interface PageResult {
   path: string;
@@ -54,6 +73,8 @@ export interface PageResult {
   reason?: string;
   metrics?: PageMetrics;
   violations?: AxeViolation[];
+  /** Present only when the contrast toggle was declared; see `PageContrast`. */
+  contrast?: PageContrast;
   failures: BudgetFailure[];
 }
 
@@ -67,6 +88,8 @@ export interface AuditTarget {
   level: 'none' | 'A' | 'AA' | 'AAA';
   /** Who accepted a lower target, when and why. Printed, never read for logic. */
   acceptedRisk?: string | undefined;
+  /** `site.accessibility.contrastToggle`: the site offers the G174 toggle. Adds a second axe pass. */
+  contrastToggle?: boolean | undefined;
 }
 
 export type FormFactor = 'mobile' | 'desktop';

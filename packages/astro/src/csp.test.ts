@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { contentSecurityPolicy, cspScriptHash, inlineScriptHashes } from './csp.ts';
-import { CONSENT_STUB, THEME_SCRIPT } from './inline-scripts.ts';
+import { CONSENT_STUB, CONTRAST_SCRIPT, THEME_SCRIPT } from './inline-scripts.ts';
 
 const sha = (s: string) => `'sha256-${createHash('sha256').update(s, 'utf8').digest('base64')}'`;
 
@@ -25,6 +25,14 @@ describe('inlineScriptHashes', () => {
   it('drops the hash of a script the page will not emit', () => {
     expect(inlineScriptHashes({ consent: false })).toEqual([sha(THEME_SCRIPT)]);
     expect(inlineScriptHashes({ webComponents: false })).toEqual([sha(CONSENT_STUB)]);
+  });
+
+  it('adds the contrast-restore hash only when asked, so a default policy never changes', () => {
+    expect(inlineScriptHashes({ contrast: true })).toEqual([
+      sha(THEME_SCRIPT),
+      sha(CONSENT_STUB),
+      sha(CONTRAST_SCRIPT),
+    ]);
   });
 });
 

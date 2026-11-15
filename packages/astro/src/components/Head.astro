@@ -13,9 +13,15 @@
 import head from 'virtual:getvitops/head';
 // @ts-ignore — `Font` is provided by Astro's Fonts API (astro >= 7)
 import { Font } from 'astro:assets';
-import { CONSENT_STUB, THEME_SCRIPT } from '../inline-scripts.ts';
+import { CONSENT_STUB, CONTRAST_SCRIPT, THEME_SCRIPT } from '../inline-scripts.ts';
 
 interface Props {
+  /**
+   * Restore a remembered high-contrast choice before first paint (for sites that render
+   * `<ContrastToggle />`). Opt-in: it adds an inline script, so a site with a hash-pinned CSP also
+   * passes `inline: { contrast: true }` to `contentSecurityPolicy()`.
+   */
+  contrast?: boolean;
   favicons?: boolean;
   webComponents?: boolean;
   editor?: boolean;
@@ -23,6 +29,7 @@ interface Props {
   fonts?: boolean;
 }
 const {
+  contrast = false,
   favicons = head.favicons,
   webComponents = head.webComponents,
   editor = head.editor,
@@ -104,6 +111,7 @@ const wc = head.wcBase;
       localStorage throws in private/partitioned contexts.
     */}
     <script is:inline set:html={THEME_SCRIPT} />
+    {contrast && <script is:inline set:html={CONTRAST_SCRIPT} />}
     <link rel="modulepreload" href={`${wc}/polyfills.js`} />
     <script is:inline type="module" src={`${wc}/polyfills.js`}></script>
     <script is:inline defer src={`${wc}/deferred.js`}></script>

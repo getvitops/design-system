@@ -329,6 +329,26 @@ input[type='color'] {
   &:has(input:disabled) {
     cursor: not-allowed;
   }
+
+  /* Forced colours flatten the muted track and the white thumb to the same Canvas, and drop the
+     thumb's shadow, so an "on" switch and an "off" one differ by thumb position alone and the thumb
+     itself cannot be seen. Author-specified system colours are kept as written. */
+  @media (forced-colors: active) {
+    .switch__track {
+      border: 1px solid ButtonText;
+      background-color: ButtonFace;
+    }
+    .switch__thumb {
+      background-color: ButtonText;
+    }
+    input:checked + .switch__track {
+      border-color: Highlight;
+      background-color: Highlight;
+    }
+    input:checked + .switch__track .switch__thumb {
+      background-color: HighlightText;
+    }
+  }
 }
 
 /* ── Custom select (appearance: base-select) ───────────────────────────────── */

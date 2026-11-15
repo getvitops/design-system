@@ -14,6 +14,7 @@ import type {
   AxeViolation,
   BudgetFailure,
   FormFactor,
+  PageContrast,
   PageMetrics,
   PageResult,
 } from './types.ts';
@@ -321,6 +322,48 @@ export function unauditedPage(
   };
 }
 
+const isContrastRule = (id: string): boolean => id.startsWith('color-contrast');
+
+/**
+ * Judge a page that declares the contrast toggle (WCAG technique G174). Pure.
+ *
+ * A contrast violation in the standard pass is not a failure *if* the page offers the toggle and
+ * the high-contrast pass is clean of contrast violations: the conforming version exists and is
+ * reachable. Everything else about the standard pass still gates. Without the toggle on the page
+ * the alternative is not offered, so that is itself a failure (and the contrast violations stand);
+ * and a contrast violation that survives the layer means the layer is not conforming, so the
+ * standard pass's violations stand there too.
+ */
+export function resolveContrastToggle(
+  violations: AxeViolation[],
+  moreViolations: AxeViolation[],
+  togglePresent: boolean,
+): { gated: AxeViolation[]; contrast: PageContrast; failures: BudgetFailure[] } {
+  const failures: BudgetFailure[] = [];
+  const standardContrast = violations.filter((v) => isContrastRule(v.id));
+  const remaining = moreViolations.filter((v) => isContrastRule(v.id));
+  if (!togglePresent)
+    failures.push({
+      kind: 'toggle-missing',
+      message:
+        'site.accessibility.contrastToggle is set, but no `.contrast-toggle` control is on this page',
+    });
+  for (const v of remaining)
+    failures.push({
+      kind: 'axe',
+      message: `axe ${v.impact}: ${v.id} still fails with the high-contrast layer on — it is not a conforming alternative (${v.nodeCount} node${v.nodeCount === 1 ? '' : 's'})`,
+    });
+  const cleared = togglePresent && remaining.length === 0;
+  return {
+    gated: cleared ? violations.filter((v) => !isContrastRule(v.id)) : violations,
+    contrast: {
+      toggle: togglePresent,
+      viaToggle: cleared ? standardContrast.map((v) => v.id) : [],
+    },
+    failures,
+  };
+}
+
 export function auditedPage(
   path: string,
   url: string,
@@ -328,7 +371,12 @@ export function auditedPage(
   metrics: PageMetrics,
   violations: AxeViolation[],
   budgets: AuditBudgets,
+  /** The second axe pass, when the site declares the contrast toggle. */
+  more?: { violations: AxeViolation[]; toggle: boolean },
 ): PageResult {
+  const resolved = more
+    ? resolveContrastToggle(violations, more.violations, more.toggle)
+    : undefined;
   return {
     path,
     url,
@@ -336,7 +384,11 @@ export function auditedPage(
     httpStatus,
     metrics,
     violations,
-    failures: evaluatePage(metrics, violations, budgets),
+    ...(resolved ? { contrast: resolved.contrast } : {}),
+    failures: [
+      ...evaluatePage(metrics, resolved?.gated ?? violations, budgets),
+      ...(resolved?.failures ?? []),
+    ],
   };
 }
 
@@ -405,6 +457,19 @@ export function renderPageMarkdown(page: PageResult, budgets: AuditBudgets): str
       );
       for (const t of x.targets) lines.push(`  - \`${t}\``);
     }
+  }
+  if (page.contrast) {
+    const c = page.contrast;
+    lines.push(
+      '',
+      c.toggle
+        ? `Contrast toggle: present.${
+            c.viaToggle.length
+              ? ` Conforming only with the high-contrast layer on: ${c.viaToggle.map((id) => `\`${id}\``).join(', ')}.`
+              : ''
+          }`
+        : 'Contrast toggle: **missing** from this page.',
+    );
   }
   if (page.failures.length) {
     lines.push('', 'Failures:');
@@ -483,7 +548,19 @@ export function renderHtml(report: AuditReport): string {
         .join('');
       return `<section><h2><code>${esc(p.path)}</code> — ${verdict}</h2>${
         p.reason ? `<p>${esc(p.reason)}</p>` : ''
-      }${v ? `<ul>${v}</ul>` : p.status === 'audited' ? '<p>axe: no violations.</p>' : ''}</section>`;
+      }${v ? `<ul>${v}</ul>` : p.status === 'audited' ? '<p>axe: no violations.</p>' : ''}${
+        p.contrast
+          ? `<p>Contrast toggle: ${
+              p.contrast.toggle
+                ? `present${
+                    p.contrast.viaToggle.length
+                      ? `; conforming only with the high-contrast layer on: ${p.contrast.viaToggle.map(esc).join(', ')}`
+                      : ''
+                  }`
+                : '<strong>missing</strong>'
+            }.</p>`
+          : ''
+      }</section>`;
     })
     .join('');
   return `<!doctype html>

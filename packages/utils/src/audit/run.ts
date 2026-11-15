@@ -249,6 +249,12 @@ export interface RunOptions {
   formFactor: FormFactor;
   /** axe tags to run; default `AXE_TAGS`. See `axeTagsFor`. */
   axeTags?: string[];
+  /**
+   * `site.accessibility.contrastToggle`: also look for `.contrast-toggle` and run axe a second time
+   * with `data-contrast="more"` on `<html>`, so a contrast failure the toggle fixes is reported as
+   * conforming via the toggle instead of failing. See `resolveContrastToggle`.
+   */
+  contrastToggle?: boolean;
   onProgress?: (message: string) => void;
 }
 
@@ -263,6 +269,8 @@ export async function runAudit(opts: RunOptions): Promise<PageResult[]> {
             newPage(): Promise<{
               goto(u: string, o: { waitUntil: string }): Promise<unknown>;
               waitForFunction(fn: string, arg?: unknown, o?: { timeout: number }): Promise<unknown>;
+              evaluate(fn: string): Promise<unknown>;
+              locator(selector: string): { count(): Promise<number> };
             }>;
             close(): Promise<void>;
           }>;
@@ -320,6 +328,7 @@ export async function runAudit(opts: RunOptions): Promise<PageResult[]> {
       const context = await browser.newContext();
       const page = await context.newPage();
       let violations: AxeViolation[];
+      let more: { violations: AxeViolation[]; toggle: boolean } | undefined;
       try {
         await page.goto(url, { waitUntil: 'load' });
         // Let the page settle before axe reads colours. At `load` Chromium can still be running
@@ -327,16 +336,30 @@ export async function runAudit(opts: RunOptions): Promise<PageResult[]> {
         // colour), and axe then reports a contrast ratio no visitor sees. Measured on the e2e
         // `/blocks` page: 152 transitions at `load`, ten false contrast failures; none 300 ms
         // later. Bounded, so a page with a looping transition still gets audited.
-        await page
-          .waitForFunction(
-            "document.getAnimations().every((a) => a.constructor.name !== 'CSSTransition' || a.playState === 'finished')",
-            undefined,
-            { timeout: 2000 },
-          )
-          .catch(() => undefined);
-        violations = toViolations(
-          await new axe.AxeBuilder({ page }).withTags(opts.axeTags ?? AXE_TAGS).analyze(),
-        );
+        const settle = () =>
+          page
+            .waitForFunction(
+              "document.getAnimations().every((a) => a.constructor.name !== 'CSSTransition' || a.playState === 'finished')",
+              undefined,
+              { timeout: 2000 },
+            )
+            .catch(() => undefined);
+        await settle();
+        const analyze = async () =>
+          toViolations(
+            await new axe.AxeBuilder({ page }).withTags(opts.axeTags ?? AXE_TAGS).analyze(),
+          );
+        violations = await analyze();
+        if (opts.contrastToggle) {
+          // Look before changing anything: the toggle's presence is a fact about the page as
+          // shipped. Then switch the layer on the way a visitor would (the attribute the element
+          // sets) and settle again, since the token change starts the same transitions.
+          const toggle = (await page.locator('.contrast-toggle input').count()) > 0;
+          log(`${path}: axe (high contrast)`);
+          await page.evaluate("document.documentElement.dataset.contrast = 'more'");
+          await settle();
+          more = { violations: await analyze(), toggle };
+        }
       } finally {
         await context.close();
       }
@@ -370,7 +393,7 @@ export async function runAudit(opts: RunOptions): Promise<PageResult[]> {
       };
       const run = await lh.default(url, flags);
       const metrics: PageMetrics = run ? toMetrics(run) : { scores: {} };
-      results.push(auditedPage(path, url, httpStatus!, metrics, violations, opts.budgets));
+      results.push(auditedPage(path, url, httpStatus!, metrics, violations, opts.budgets, more));
     }
   } finally {
     await browser.close();

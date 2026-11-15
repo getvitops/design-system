@@ -31,6 +31,7 @@
 import Head from '@getvitops/astro/Head.astro';
 import NavShell from '@getvitops/astro/components/NavShell.astro';
 import NavShellToggle from '@getvitops/astro/components/NavShellToggle.astro';
+import ContrastToggle from '@getvitops/astro/components/ContrastToggle.astro';
 import Seo from '@getvitops/astro/Seo.astro';
 import { getCollection } from 'astro:content';
 import '../styles/styles.css';
@@ -109,7 +110,7 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
       og:/twitter: tags this site never had.
     */}
     <Seo title={title} description={description} />
-    <Head />
+    <Head contrast />
   </head>
 
   <body class="bg-surface-muted text-surface">
@@ -159,6 +160,7 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
                "system"` in a site config). Without it both the no-JS case and
                the toggle's own "System" position resolve to light. -->
             <wc-color-scheme-toggle></wc-color-scheme-toggle>
+            <ContrastToggle />
           </nav>
         </div>
       </div>

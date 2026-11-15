@@ -21,7 +21,9 @@ import {
   planPages,
   sitemapLocs,
   renderMarkdown,
+  renderPageMarkdown,
   reportFiles,
+  resolveContrastToggle,
   unauditedPage,
 } from './plan.ts';
 import type { AxeViolation, PageMetrics } from './types.ts';
@@ -302,5 +304,67 @@ describe('accessibility target', () => {
   it('writes only report-relative paths, so nothing can land in a build output by name', () => {
     for (const name of Object.keys(reportFiles(report())))
       expect(name, name).toMatch(/^(report\.(json|md|html)|pages\/[\w-]+\.(json|md))$/);
+  });
+});
+
+describe('contrast toggle (G174)', () => {
+  const contrast = violation('serious', 'color-contrast');
+  const other = violation('serious', 'image-alt');
+  const budgets = DEFAULT_BUDGETS;
+
+  it('a contrast failure the toggle fixes is conforming via the toggle, not a failure', () => {
+    const r = resolveContrastToggle([contrast], [], true);
+    expect(r.gated).toEqual([]);
+    expect(r.failures).toEqual([]);
+    expect(r.contrast).toEqual({ toggle: true, viaToggle: ['color-contrast'] });
+  });
+
+  it('everything that is not a contrast rule still gates', () => {
+    expect(resolveContrastToggle([contrast, other], [], true).gated).toEqual([other]);
+  });
+
+  it('without the toggle on the page the alternative is not offered: a failure, and the violation stands', () => {
+    const r = resolveContrastToggle([contrast], [], false);
+    expect(r.gated).toEqual([contrast]);
+    expect(r.failures.map((f) => f.kind)).toEqual(['toggle-missing']);
+    expect(r.contrast.viaToggle).toEqual([]);
+  });
+
+  it('a contrast failure that survives the layer means it is not conforming: it fails, and the standard violation stands', () => {
+    const r = resolveContrastToggle([contrast], [contrast], true);
+    expect(r.gated).toEqual([contrast]);
+    expect(r.failures.map((f) => f.message).join('\n')).toMatch(/not a conforming alternative/);
+    expect(r.contrast.viaToggle).toEqual([]);
+  });
+
+  it('auditedPage passes a page whose only violation the toggle fixes', () => {
+    const page = auditedPage('/', 'http://x/', 200, ok, [contrast], budgets, {
+      violations: [],
+      toggle: true,
+    });
+    expect(page.failures).toEqual([]);
+    // The violation is still REPORTED: the report is honest about the standard palette.
+    expect(page.violations).toEqual([contrast]);
+  });
+
+  it('auditedPage is unchanged for a site that does not declare the toggle', () => {
+    const page = auditedPage('/', 'http://x/', 200, ok, [contrast], budgets);
+    expect(page.failures.some((f) => f.kind === 'axe')).toBe(true);
+    expect(page.contrast).toBeUndefined();
+  });
+
+  it('the markdown and html reports say it, so a reader can see why a page passed', () => {
+    const page = auditedPage('/', 'http://x/', 200, ok, [contrast], budgets, {
+      violations: [],
+      toggle: true,
+    });
+    expect(renderPageMarkdown(page, budgets)).toMatch(
+      /Conforming only with the high-contrast layer on: `color-contrast`/,
+    );
+    const missing = auditedPage('/', 'http://x/', 200, ok, [], budgets, {
+      violations: [],
+      toggle: false,
+    });
+    expect(renderPageMarkdown(missing, budgets)).toMatch(/Contrast toggle: \*\*missing\*\*/);
   });
 });

@@ -542,7 +542,7 @@ entry must say why it isn't — the migration table in prose is the fallback, no
 ## Legal documents
 
 `generateLegal(site, { docs, output })` (`packages/generator/src/legal/`) renders a privacy
-policy, terms of service and cookie notice from a **`Config`**. It reads facts from two of its
+policy, terms of service, cookie notice and accessibility statement from a **`Config`**. It reads facts from two of its
 sections — the company from `organization`, what the site actually does from `site` — which is
 the split the documents already assumed. It is a sibling of
 `generateDocs`, **not** a `generate()` format, and that is structural rather than stylistic:
@@ -571,8 +571,10 @@ Four things here are load-bearing:
   excluded — neither is visitor-supplied, and describing them as collected would be untrue.
 - **The markdown subset is closed and the renderer throws outside it.** We author every
   template, so `render.ts` is exactly as capable as they are: `#`/`##`/`###`, `- ` bullets,
-  `> ` quote, `**strong**`, `` `code` ``. An unsupported construct is an error, not a silent
-  degrade — that is what stops a literal `| --- |` reaching a published page. HTML goes through
+  `> ` quote, `**strong**`, `` `code` ``, `[text](url)` links (added for the accessibility
+  statement; the URL is made safe at the output, not the input). An unsupported construct is an
+  error, not a silent degrade — that is what stops a literal `| --- |` reaching a published
+  page. HTML goes through
   `nodesToHtml` from `@getvitops/utils` (escaping already solved); Portable Text maps the `> `
   quote to `vitops_banner` and **drops the `# ` heading**, which is EmDash's `data.title` field.
 - **`JURISDICTIONS` in `config.ts` and `TEMPLATES` in `legal/templates/index.ts` are checked
@@ -1407,7 +1409,7 @@ install it); and it needs no user-level browser or extension setup.
 
   The kind decides the shape: a **surface** role has a bare `bg-<role>` (the card), `bg-<role>-muted` (the page), `bg-<role>-x-muted` (a well), the full text scale and `border-<role>-bold` as the guaranteed boundary. A **chromatic** role splits backgrounds into tints (`bg-<role>-x-muted`/`-muted`) and solids (`bg-<role>-solid[-bold|-x-bold]`) with **no bare `bg-<role>`**, plus `text-on-<role>` as the computed foreground. Also `--surface-glass`, `--overlay` and `--color-border-focus`.
 
-  Dark mode re-points which step each token reads under `DARK_SEL` (`shared.ts`) — `:root[data-brx-theme="dark"], :root[data-theme="dark"]`, Bricks' attribute plus the one `<wc-color-scheme-toggle>` writes. The solid family and `text-on-<role>` stay mode-stable so a filled button keeps its identity. Raw hue steps never re-point. Contrast (text ≥ APCA Lc 75, secondary ≥ 60, icons/boundaries ≥ 45, both appearances) is enforced **at build time** — a violation throws out of `generate`. There is no per-appearance scheme grammar and no named steps.
+  Dark mode re-points which step each token reads under `DARK_SEL` (`shared.ts`) — `:root[data-brx-theme="dark"], :root[data-theme="dark"]`, Bricks' attribute plus the one `<wc-color-scheme-toggle>` writes. The solid family and `text-on-<role>` stay mode-stable so a filled button keeps its identity. Raw hue steps never re-point. Contrast (WCAG 2 ratio: text ≥ 4.5:1, icons/boundaries ≥ 3:1, both appearances) is enforced **at build time** — a violation throws out of `generate` unless `site.accessibility.level` is `A` or `none`, which downgrades it to a warning. APCA is deliberately not used: it is perceptually better but off the W3C standards track, so no law or conformance claim tests it. There is no per-appearance scheme grammar and no named steps.
 
 - **shadows** (`shadows.css`) — `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Always emitted for the `css`/`bricks` formats.
 - **patterns** (`patterns.css`) — component CSS for entries under `patterns` in the JSON (cta, btn, link, badge, card). Each pattern has `base` declarations, `states` (hover/active/focus-visible) with shortcuts (`step`, `scale`, `lift`, `shadow`, `ring`, `css`), and `roles` (semantic colour variants). Always emitted.

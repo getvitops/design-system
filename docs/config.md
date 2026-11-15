@@ -442,7 +442,8 @@ Page furniture: the masthead (top bar — position, hide-on-scroll, glass/transp
 The accessibility target this site is held to: a WCAG `standard` and minimum `level` (`none`/`A`/`AA`/`AAA`), plus a recorded `acceptedRisk`. Sets whether a WCAG 2 contrast-ratio miss fails the build and whether `vitops audit` can fail. A target, not a claim of conformance.
 
 - `standard` (wcag20 | wcag21 | wcag22) — The WCAG version the target is measured against: `wcag20`, `wcag21` or `wcag22`. Default `wcag21`. Pick the version a statute or contract names (Ontario AODA names 2.0); a later version is a superset, so a higher choice is stricter, not different.
-- `level` (none | A | AA | AAA) — The minimum conformance level the site is held to: `none`, `A`, `AA` or `AAA`. `AA`/`AAA` make a WCAG 2 contrast-ratio miss fail the build; `A` and `none` only warn (contrast is an AA criterion). `vitops audit` runs the axe tags for the chosen standard and level and fails on violations, except at `none`, where they are reported and never fail the run. Unset behaves like today: APCA failures fail the build, ratio misses warn. This records a target, not a claim of conformance.
+- `level` (none | A | AA | AAA) — The minimum conformance level the site is held to: `none`, `A`, `AA` or `AAA`. Unset, `AA` and `AAA` make a WCAG 2 contrast-ratio miss fail the build; `A` and `none` only warn (contrast is an AA criterion). `vitops audit` runs the axe tags for the chosen standard and level and fails on violations, except at `none`, where they are reported and never fail the run. This records a target, not a claim of conformance.
+- `contrastToggle` (boolean) — Set `true` when the site ships the high-contrast toggle (`<ContrastToggle />` / `.contrast-toggle`), WCAG technique G174: a visible control that switches to a conforming version. A baseline WCAG 2 contrast miss then only warns, provided the generated high-contrast layer (`prefers-contrast: more` / `data-contrast="more"`) itself reaches 4.5:1 text and 3:1 non-text. `vitops audit` checks the toggle is actually present. Default `false`: a miss fails the build at AA.
 - `acceptedRisk` (string) — Free text recording who accepted a target below what applies to this site, when, and why (e.g. "Client accepted below AA until rebrand, per J. Smith, 2026-11-11"). Printed in the audit report header. Never read for logic.
 
 ### `seo` *(optional)*
@@ -642,6 +643,44 @@ Legal pages: which documents exist, where they live, and the facts the generated
   - `url` (string)
   - `lastUpdated` (string | null)
   - `governingLaw` (string) — Governing-law clause, in prose (e.g. "the Province of Ontario"). Defaults from the contact address.
+- `accessibilityStatement` (object) — An accessibility statement generated from this block and `site.accessibility` (standard, level, high-contrast toggle). It asserts only what is declared: no conformance claim without `conformance` and `testedOn`, and `acceptedRisk` is never printed. Rendered by `vitops legal --doc accessibility`.
+  - `enabled` (boolean, required)
+  - `url` (string)
+  - `lastUpdated` (string)
+  - `law` (aoda) — The accessibility statute the statement cites. `aoda` (Accessibility for Ontarians with Disabilities Act) is the only member today. AODA wording is printed **only** when this is set, so a client outside Ontario never gets a statutory claim that is not theirs.
+  - `mandatory` (boolean) — The organization is legally required to conform (for AODA: 50 or more Ontario employees, or a public sector organization). The statement then says conformance is required rather than a goal. Not inferred from headcount: statute thresholds are not encoded here (see the `vitops-accessibility` skill for the tiers).
+  - `conformance` (full | partial) — The site is fully or partially conformant with the target in `site.accessibility`. When unset the statement makes **no** conformance claim, only a goal. A claim needs `testedOn`, and `full` cannot be combined with `limitations`.
+  - `testedOn` (string) — When the site was last tested. Required for any `conformance` claim.
+  - `testing` (array of automated | keyboard | screen-reader | external-audit) — How it was tested: `automated`, `keyboard`, `screen-reader`, `external-audit`.
+  - `auditor` (string) — Who ran an external audit, when `testing` includes `external-audit`.
+  - `limitations` (array) — Real, current accessibility problems. Only list what is true today. An empty or absent list prints "we are not aware of any current issues".
+    - `[items]` (object)
+      - `content` (string, required) — What is affected, in plain words.
+      - `issue` (string, required) — What goes wrong, in plain words.
+      - `alternative` (string) — How a person gets the same thing another way.
+      - `plannedFix` (string) — When or whether it will be fixed.
+  - `testedWith` (object) — Overrides the browsers and assistive technology the statement lists as tested. The template has defaults; state only what was actually tested.
+    - `browsers` (array of string)
+    - `assistiveTech` (array of string)
+  - `formats` (array of string) — Accessible formats offered on request, as plain nouns (`large print`, `accessible PDF`, `plain text`).
+  - `supports` (array of string) — Communication supports offered (`captioning`, `sign language interpretation`).
+  - `inPerson` (string) — Where and when a person can ask in person.
+  - `responseDays` (integer) — Business days within which a request or piece of feedback is answered. Used for both.
+  - `contact` (one of) — Who accessibility requests and feedback go to: an `organization.locations` key, or an inline contact. Falls back to `organization.contact`, then the primary location, then the organization email and address. Offer more than an email address.
+    - *one of*
+    - *one of*
+      - `name` (string)
+      - `email` (string)
+      - `phone` (string)
+      - `address` (object) — schema.org `PostalAddress` field names, so JSON-LD generation is lossless.
+  - `feedbackUrl` (string) — An accessibility feedback form. Must itself be accessible and never the only route.
+  - `feedbackOwner` (string) — The role or team that reads feedback (`our web manager`).
+  - `policies` (array) — Accessibility policies and plans published on the site. Without a `url` the title is listed as available on request.
+    - `[items]` (object)
+      - `title` (string, required) — The document name, which becomes the link text and so must make sense on its own (no "click here").
+      - `url` (string)
+  - `policiesOnRequest` (boolean) — Policies are available on request but not posted. Ignored when `policies` is set.
+  - `reviewCadence` (annually | semi-annually | quarterly) — How often the statement is reviewed.
 - `cookieConsent` (object)
   - `enabled` (boolean, required)
   - `type` (opt-in | opt-out) — Consent model.

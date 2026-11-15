@@ -128,8 +128,8 @@ Lint options:
 Legal options:
   -i, --input <path>    Site config: .json, or a .js/.ts module with a default
                         export (default: ./site.json)
-  -d, --doc <name>      privacy | terms | cookies (repeatable; default: those
-                        enabled in the config)
+  -d, --doc <name>      privacy | terms | cookies | accessibility (repeatable;
+                        default: those enabled in the config)
   -f, --format <fmt>    md | html | portable-text (default: md)
                         html suits WordPress/Bricks and plain sites;
                         portable-text suits EmDash

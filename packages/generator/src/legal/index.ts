@@ -39,6 +39,7 @@ export function enabledDocs(cfg: Config): LegalDoc[] {
     privacy: !!legal?.privacyPolicy?.enabled,
     terms: !!legal?.termsOfService?.enabled,
     cookies: !!legal?.cookieConsent?.enabled,
+    accessibility: !!legal?.accessibilityStatement?.enabled,
   };
   return DOC_ORDER.filter((d) => on[d]);
 }

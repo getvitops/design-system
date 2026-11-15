@@ -22,6 +22,7 @@ import {
   type ContactObject,
   type Config,
 } from '../config.ts';
+import { deriveAccessibilityVars, type AccessibilityVars } from './accessibility.ts';
 import { resolveProcessors, type Processor } from './providers.ts';
 
 /**
@@ -127,6 +128,8 @@ export interface PolicyVars {
   trackingTechnologies: string[];
   /** A form asks for a newsletter/subscription — the one signal that the site sends commercial e-mail. */
   newsletterSignup: boolean;
+  /** What the accessibility statement asserts; see `accessibility.ts`. Only that document reads it. */
+  accessibility: AccessibilityVars;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
@@ -512,5 +515,6 @@ export function derivePolicyVars(cfg: Config): PolicyVars {
     transferAssessment: privacy?.impactAssessments === true,
     trackingTechnologies,
     newsletterSignup: fields.some((f) => /newsletter|subscribe|mailing/i.test(f.name)),
+    accessibility: deriveAccessibilityVars(cfg),
   };
 }

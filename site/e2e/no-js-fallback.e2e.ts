@@ -306,3 +306,22 @@ test.describe('<Breadcrumbs>', () => {
     await expect(nav.locator('li').first().locator('a')).toHaveAttribute('href', '/');
   });
 });
+
+test.describe('<wc-contrast-toggle> fallback', () => {
+  test('ticking the plain checkbox switches the high-contrast layer on, with no script', async ({
+    page,
+  }) => {
+    // The G174 promise: the control that offers a conforming version has to work for someone whose
+    // scripts are off. The layer answers `:root:has(.contrast-toggle input:checked)`.
+    await page.goto('/patterns');
+    const read = () =>
+      page.evaluate(() =>
+        getComputedStyle(document.documentElement)
+          .getPropertyValue('--color-text-ui-primary')
+          .trim(),
+      );
+    const standard = await read();
+    await page.locator('.contrast-toggle input').first().check();
+    expect(await read()).not.toBe(standard);
+  });
+});

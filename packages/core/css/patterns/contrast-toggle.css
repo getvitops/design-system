@@ -1,0 +1,47 @@
+/**
+ * Contrast toggle — the visible control for WCAG technique G174 (a control that switches the page
+ * to a conforming high-contrast version).
+ *
+ * `<label class="contrast-toggle"><input type="checkbox"> High contrast</label>` works with no JS:
+ * the generated colour layer answers `:root:has(.contrast-toggle input:checked)`, so ticking the box
+ * re-points the role tokens by itself. `<wc-contrast-toggle>` only adds starting checked under
+ * `prefers-contrast: more` and remembering the choice.
+ *
+ * The control has to meet contrast itself or a low-vision visitor cannot find it, so it is built from
+ * the `surface` role's text and its guaranteed boundary (`border-surface-bold`, held to 3:1 by the
+ * generator) — and both of those get firmer in the high-contrast layer it switches on.
+ *
+ * Forced colours: a real border and system colours, never a shadow or a tint.
+ */
+:where(wc-contrast-toggle) {
+  display: inline-flex;
+}
+
+.contrast-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--color-border-surface-bold);
+  border-radius: var(--br-control, 0.375rem);
+  background-color: var(--color-bg-surface);
+  color: var(--color-text-surface);
+  font-size: 0.875rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.contrast-toggle input {
+  inline-size: 1.125em;
+  block-size: 1.125em;
+  margin: 0;
+  accent-color: var(--color-bg-ui-primary-solid, currentColor);
+}
+
+@media (forced-colors: active) {
+  .contrast-toggle {
+    border-color: ButtonText;
+    background-color: ButtonFace;
+    color: ButtonText;
+  }
+}

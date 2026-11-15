@@ -1573,9 +1573,13 @@ ship. In both appearances:
 
 | tier | target | applies to |
 | --- | --- | --- |
-| text | APCA Lc ≥ 75 | \`text-<role>\` on the role's primary background |
-| secondary | Lc ≥ 60 | text on any other background plane; \`text-<role>-muted\`; \`text-on-<role>\` on its solid |
-| non-text | Lc ≥ 45 | \`icon-<role>\`, and a surface role's \`border-<role>-bold\` |
+| text | WCAG 2 ratio ≥ 4.5:1 | \`text-<role>\` and \`text-<role>-muted\` on any plane of the role; \`text-on-<role>\` on its solid |
+| non-text | ratio ≥ 3:1 | \`icon-<role>\`, and a surface role's \`border-<role>-bold\` |
+
+The measure is the WCAG 2 contrast ratio (1.4.3 text, 1.4.11 non-text), which is what AODA and
+most accessibility law test. APCA is perceptually better but is no longer on the W3C standards
+track, so it is not used. \`site.accessibility.level\` \`A\` or \`none\` downgrades a miss to a build
+warning; unset, \`AA\` and \`AAA\` fail it.
 
 Two deliberate exemptions: \`text-<role>-x-muted\` (placeholders) and \`-xx-muted\` (disabled
 text) are *required* to look unavailable, and holding them to the body-text bar would defeat
@@ -2528,17 +2532,18 @@ that installs into every consumer project. The JWT is minted with ~30 lines of \
 function renderLegalConcept(): string {
   return `${frontmatter({
     type: 'Design Concept',
-    title: 'Vitops legal documents — generated policy, terms and cookie notice',
+    title:
+      'Vitops legal documents — generated policy, terms, cookie notice and accessibility statement',
     description:
-      'How the privacy policy, terms of service and cookie notice are derived from config facts, why the provider table exists, and the four delivery paths.',
+      'How the privacy policy, terms of service, cookie notice and accessibility statement are derived from config facts, why the provider table exists, and the four delivery paths.',
     resource: CONFIG_PATH,
     tags: ['legal', 'privacy', 'cookies', 'pipeda', 'compliance'],
   })}
 
 # Legal documents
 
-A privacy policy, terms of service and cookie notice, rendered from a full config: the company
-from \`organization\`, what the site actually *does* from \`site\`.
+A privacy policy, terms of service, cookie notice and accessibility statement, rendered from a
+full config: the company from \`organization\`, what the site actually *does* from \`site\`.
 
 It is a **sibling of the docs generator, not a \`generate()\` format** — structurally, not
 stylistically. \`generate()\` is keyed to a design system, so a "legal format" would be a format
@@ -2591,10 +2596,31 @@ is overwritten by the next build.
 - **First-party cookies are declared, not detected.** The attribution cookie \`_ac\` is disclosed
   this way; see [tracking.md](tracking.md).
 
+## The accessibility statement
+
+Enabled with \`site.legal.accessibilityStatement.enabled\`, and read from two places:
+\`site.accessibility\` (the WCAG standard and level, and whether the high-contrast toggle exists)
+and the statement block (contact, test date, known limitations, formats offered, policies).
+
+It asserts **only what is declared**, which is the governing rule at its strictest because a
+false statement here is a claim about someone's ability to use the site. No conformance sentence
+without \`conformance\` **and** \`testedOn\`; \`full\` cannot sit beside a non-empty
+\`limitations\` list; AODA wording needs \`law: "aoda"\`; and \`site.accessibility.acceptedRisk\`
+is internal and **never printed**. Statute thresholds are not encoded: what the template calls
+"50+ or public sector" is the fact \`mandatory\`, and the headcount tiers live in the
+\`vitops-accessibility\` skill.
+
+The document is written to the **Level AAA content criteria** (plain language, abbreviations and
+unusual words explained where first used, link text that names its destination, real headings
+and lists, no tables), and \`accessibility-statement.content.test.ts\` enforces that over every
+combination of optional sections. Paint and layout are the site's: link it from every footer,
+carry the high-contrast toggle, set \`lang\`.
+
 ## The markdown subset is closed
 
 We author every template, so the renderer is exactly as capable as they are: \`#\`/\`##\`/\`###\`,
-\`- \` bullets, \`> \` quote, \`**strong**\`, \`\\\`code\\\`\`. **An unsupported construct is an error,
+\`- \` bullets, \`> \` quote, \`**strong**\`, \`\\\`code\\\`\`, and \`[text](url)\` links (made safe at the output;
+images and tables stay out). **An unsupported construct is an error,
 not a silent degrade** — that is what stops a literal \`| --- |\` reaching a published page.
 
 Portable Text maps the \`> \` quote to a banner block and **drops the \`# \` heading**, which is
@@ -2606,7 +2632,7 @@ Adding one is: author three templates, add one enum member, add one registry key
 checked against each other at compile time, so skipping either **fails to compile** rather than
 rendering against the wrong body of law.
 
-⚠️ Only **\`ca\` (PIPEDA)** ships. Its prose names the Office of the Privacy Commissioner of
+⚠️ **\`ca\` (PIPEDA)** and **\`qc\` (Quebec Law 25)** ship, English only (French is a TODO). The \`ca\` prose names the Office of the Privacy Commissioner of
 Canada and frames transfers as "outside of Canada" — **do not reuse it for another
 jurisdiction.**
 

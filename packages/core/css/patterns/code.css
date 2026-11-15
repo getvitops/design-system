@@ -10,7 +10,10 @@
 :where(:not(pre) > code) {
   font-family: var(--font-mono);
   font-size: 0.85em;
-  background: var(--color-border-neutral);
+  /* A background token, not `border-neutral`: a border colour is the wrong thing to fill with, and
+     the high-contrast layer makes borders as firm as icons, which turned this chip dark under its
+     own dark text (2.07:1, axe). `bg-neutral-x-muted` is the well tint meant for exactly this. */
+  background: var(--color-bg-neutral-x-muted);
   color: var(--color-text-neutral);
   padding: 0.1em 0.4em;
   border-radius: var(--br-default);

@@ -86,6 +86,7 @@ export async function cmdAudit(argv: string[]): Promise<void> {
         standard: a.standard ?? 'wcag21',
         level: a.level ?? 'AA',
         acceptedRisk: a.acceptedRisk,
+        contrastToggle: a.contrastToggle,
       };
   }
   const baseBudgets: AuditBudgets = {
@@ -173,6 +174,7 @@ export async function cmdAudit(argv: string[]): Promise<void> {
       budgets,
       formFactor,
       ...(target ? { axeTags: axeTagsFor(target) } : {}),
+      ...(target?.contrastToggle ? { contrastToggle: true } : {}),
       onProgress: (m) => console.log(`  ${m}`),
     });
     const report = buildReport({

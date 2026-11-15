@@ -599,7 +599,50 @@ describe('the markdown subset', () => {
     expect(() => parseMarkdown('#### too deep')).toThrow(/headings deeper/);
     expect(() => parseMarkdown('```js\n```')).toThrow(/code fences/);
     expect(() => parseMarkdown('* star bullet')).toThrow(/bullets other than/);
-    expect(() => parseMarkdown('see [here](https://x.example)')).toThrow(/links or images/);
+    expect(() => parseMarkdown('![alt](https://x.example/a.png)')).toThrow(/images/);
+    // A link the parser cannot read is a template bug, not prose: it would publish the brackets.
+    expect(() => parseMarkdown('see [a form](https://x.example/a b)')).toThrow(/malformed link/);
+  });
+
+  test('parses links, and makes the URL safe at the output rather than the input', () => {
+    const [p] = parseMarkdown(
+      'Use the [feedback form](https://x.example/f?a=1&b=2) or [email us](mailto:a@x.example).',
+    );
+    expect(p).toMatchObject({
+      kind: 'paragraph',
+      spans: [
+        { text: 'Use the ' },
+        { text: 'feedback form', href: 'https://x.example/f?a=1&b=2' },
+        { text: ' or ' },
+        { text: 'email us', href: 'mailto:a@x.example' },
+        { text: '.' },
+      ],
+    });
+    expect(toHtmlFragment([p!])).toBe(
+      '<p>Use the <a href="https://x.example/f?a=1&amp;b=2">feedback form</a> or <a href="mailto:a@x.example">email us</a>.</p>',
+    );
+  });
+
+  test('drops an unsafe URL but keeps its label, in HTML and in Portable Text', () => {
+    const blocks = parseMarkdown('Go [now](javascript:alert(1)) or [safe](https://x.example/s).');
+    // `javascript:alert(1)` contains a `)`, so the link is read up to it; what matters is that no
+    // `javascript:` URL survives into any output.
+    expect(toHtmlFragment(blocks)).not.toContain('javascript');
+    expect(JSON.stringify(toPortableText(blocks, 'x'))).not.toContain('javascript');
+    const safe = parseMarkdown('A [safe](https://x.example/s) link.');
+    const pt = toPortableText(safe, 'doc')[0] as {
+      markDefs: { _type: string; _key: string; href: string }[];
+      children: { text: string; marks: string[] }[];
+    };
+    expect(pt.markDefs).toEqual([
+      { _type: 'link', _key: 'doc-0-1-link', href: 'https://x.example/s' },
+    ]);
+    expect(pt.children[1]).toMatchObject({ text: 'safe', marks: ['doc-0-1-link'] });
+  });
+
+  test('a link in a quote becomes banner text without the URL', () => {
+    const out = toPortableText(parseMarkdown('> See [the notice](https://x.example/n).'), 'x');
+    expect(out[0]).toMatchObject({ _type: 'vitops_banner', message: 'See the notice.' });
   });
 
   test('parses what it does support', () => {

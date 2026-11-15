@@ -27,6 +27,43 @@ test('a keyboard-focused button keeps a real outline under forced-colors', async
   expect(outline.width).not.toBe('0px');
 });
 
+test('an open dialog keeps a visible edge under forced-colors, whatever its border', async ({
+  page,
+}) => {
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.goto('/patterns');
+  // Strip the author's border: the case where elevation (a box-shadow, which forced-colors zeroes)
+  // was the only thing separating the dialog from the page.
+  const outline = await page.evaluate(() => {
+    const d = document.createElement('dialog');
+    d.className = 'dialog';
+    d.style.border = 'none';
+    d.textContent = 'x';
+    document.body.append(d);
+    d.show();
+    const s = getComputedStyle(d);
+    return { style: s.outlineStyle, width: s.outlineWidth };
+  });
+  expect(outline.style).not.toBe('none');
+  expect(outline.width).not.toBe('0px');
+});
+
+test('a switch keeps a visible track and thumb under forced-colors', async ({ page }) => {
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.goto('/patterns');
+  const result = await page.evaluate(() => {
+    const label = document.createElement('label');
+    label.className = 'switch';
+    label.innerHTML =
+      '<input type="checkbox" checked><span class="switch__track"><span class="switch__thumb"></span></span>';
+    document.body.append(label);
+    const track = getComputedStyle(label.querySelector('.switch__track')!);
+    return { borderStyle: track.borderStyle, borderWidth: track.borderWidth };
+  });
+  expect(result.borderStyle).not.toBe('none');
+  expect(result.borderWidth).not.toBe('0px');
+});
+
 test('without forced-colors, the ordinary box-shadow ring is still what renders', async ({
   page,
 }) => {

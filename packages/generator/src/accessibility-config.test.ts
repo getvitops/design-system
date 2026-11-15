@@ -50,6 +50,6 @@ describe('wcagRatioMode', () => {
     expect(wcagRatioMode('AAA')).toBe('fail');
     expect(wcagRatioMode('A')).toBe('warn');
     expect(wcagRatioMode('none')).toBe('warn');
-    expect(wcagRatioMode(undefined)).toBe('warn');
+    expect(wcagRatioMode(undefined)).toBe('fail'); // unset is held to AA
   });
 });
