@@ -178,8 +178,8 @@ jobs:
       # --with-deps needs the runner's system libraries a plain `npx playwright
       # install` skips; ubuntu-latest has sudo, so this works here even though
       # it doesn't in every sandbox.
-      - name: Install Playwright's Chromium
-        run: vp exec --filter site playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: vp exec --filter site playwright install --with-deps chromium firefox
 
       - name: No-JS fallback e2e
         run: vp run docs:e2e
