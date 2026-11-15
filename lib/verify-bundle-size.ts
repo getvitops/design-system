@@ -44,11 +44,15 @@ const BUDGETS: Record<string, number> = {
   'consent.js': 3_500,
   // The validator, the form codec and `<wc-config-form>`; Lit-free, loaded only by a page with a
   // config form (3.6 KB gzipped, ~10% headroom). Counts the row helper it shares with `elements.js`.
-  'config-form.js': 4_500,
+  // `mergeOwned`/`ownedFromProjections` (the form's save merge, lifted from the portal) and the live
+  // refresh of selects built from another map add ~600 B, so 5,500.
+  'config-form.js': 5_500,
   // `<wc-stepper>`; Lit-free, outside `elements.js` because that bundle is at 99% of its budget.
   'stepper.js': 2_000,
   // The glue only: the picker (~40 KB gzipped) is a dynamic import, fetched when the picker is opened.
   'color-field.js': 1_500,
+  // `<wc-config-preview>`: the glue only; the generator it renders with is injected by the host.
+  'config-preview.js': 2_000,
   'editor.js': 5_500,
   'deferred.js': 1_200,
   'polyfills.js': 1_200,

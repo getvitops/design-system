@@ -56,6 +56,7 @@ export default defineConfig({
       'src/js/config-form.ts',
       'src/js/stepper.ts',
       'src/js/color-field.ts',
+      'src/js/config-preview.ts',
       'src/js/editor.ts',
     ],
     outDir: 'dist',

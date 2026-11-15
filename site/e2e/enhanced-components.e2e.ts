@@ -346,6 +346,34 @@ test.describe('/configure', () => {
     await expect(page.locator('#cfg-out')).not.toContainText('Ottawa Shop');
   });
 
+  test('previews a palette edit on the page as it is typed', async ({ page }) => {
+    await page.goto('/configure#cfg-brand');
+    const seed = page.locator('#cfg-brand input[data-widget="color"]').first();
+    const name = (await seed.getAttribute('name')) ?? '';
+    const hue = /palette\.\$map\.\d+\.|palette\.([^.$]+)\./.exec(name)?.[1];
+    // The first palette row is keyed by a `$key` input; read its value for the custom property.
+    const key = hue ?? (await page.locator('#cfg-brand input[name$="$key"]').first().inputValue());
+    const read = () =>
+      page.evaluate(
+        (k) =>
+          getComputedStyle(document.documentElement).getPropertyValue(`--color-${k}-500`).trim(),
+        key,
+      );
+    const before = await read();
+    // A seed the generator would refuse (its text-on pairing misses 4.5:1) is reported, not applied.
+    await seed.fill('#00aa44');
+    await expect(page.locator('wc-config-preview [role="status"]')).toContainText('contrast', {
+      timeout: 15_000,
+    });
+    await expect(page.locator('#vitops-preview')).toHaveCount(0);
+    await seed.fill('#0b6e2d');
+    await expect(page.locator('#vitops-preview')).toHaveCount(1, { timeout: 15_000 });
+    await expect.poll(read, { timeout: 10_000 }).not.toBe(before);
+    await page.getByRole('button', { name: 'Reset preview' }).click();
+    await expect(page.locator('#vitops-preview')).toHaveCount(0);
+    await expect.poll(read).toBe(before);
+  });
+
   test('will not move past a step with a bad email', async ({ page }) => {
     await page.goto('/configure#cfg-contact');
     const stepper = page.locator('wc-stepper');

@@ -15,6 +15,7 @@ import { ONBOARDING_STEPS, stepPaths, type JsonSchema } from '@getvitops/config/
 import { configJsonSchema, defaultSiteConfig } from '@getvitops/generator';
 import { renderStepHtml } from '@getvitops/utils/forms';
 import ConfigForm from '@getvitops/astro/components/ConfigForm.astro';
+import ConfigPreview from '@getvitops/astro/components/ConfigPreview.astro';
 import Stepper from '@getvitops/astro/components/Stepper.astro';
 import Docs from '../layouts/Docs.astro';
 
@@ -38,6 +39,16 @@ const steps = ONBOARDING_STEPS.map((step) => ({
   }),
 }));
 const paths = ONBOARDING_STEPS.flatMap((step) => stepPaths(step));
+const roles = Object.entries(
+  (
+    base as {
+      designSystem?: { themes?: { default?: { colors?: { roles?: Record<string, unknown> } } } };
+    }
+  ).designSystem?.themes?.default?.colors?.roles ?? {},
+)
+  .filter(([, spec]) => typeof spec === 'string' || (spec as { kind?: string }).kind !== 'surface')
+  .map(([role]) => role)
+  .slice(0, 6);
 const projections = ONBOARDING_STEPS.flatMap((step) => [...step.projections]);
 const baseJson = JSON.stringify(base).replace(/</g, '\\u003c');
 ---
@@ -93,6 +104,28 @@ const baseJson = JSON.stringify(base).replace(/</g, '\\u003c');
     </ConfigForm>
   </Stepper>
   <script type="application/json" id="cfg-base" set:html={baseJson} />
+  <aside class="rhythm" aria-labelledby="cfg-sample-h">
+    <h2 id="cfg-sample-h">Sample</h2>
+    <ConfigPreview for="cfg" base="cfg-base" />
+    <div class="card rhythm">
+      <p>
+        Changes to colours, fonts, shadows and spacing show here and on the rest of this page as you
+        make them.
+      </p>
+      <p>
+        {roles.map((role) => (
+          <a href="#cfg-sample-h" class={`cta cta-${role}`}>
+            {role}
+          </a>
+        ))}
+      </p>
+      <p>
+        {roles.map((role) => (
+          <span class={`badge badge-${role}`}>{role}</span>
+        ))}
+      </p>
+    </div>
+  </aside>
 </Docs>
 
 <script>

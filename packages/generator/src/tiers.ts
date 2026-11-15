@@ -797,6 +797,20 @@ export const TIERS: Record<string, TierEntry> = {
       'configuration tooling for a site owner, not page content a visitor reads or an editor places',
     use: '`<ConfigForm id schema paths output><form method="post">…</form></ConfigForm>`, with the fields from `renderStepHtml` / `renderProjectionHtml` (`@getvitops/utils/forms`). With no JS it is a plain form posting the names `formToConfig` parses and the server validates. Its own Lit-free bundle (`@getvitops/core/config-form`): the validator and the form codec. Do NOT wrap it in `<wc-config-form>`: it emits its own. `paths` narrows the schema to the fields shown; `novalidate` lets the server decide a submit.',
   },
+  'config-preview': {
+    css: c([]),
+    wc: {
+      tag: 'wc-config-preview',
+      fallback: 'none',
+      registered: false,
+      bundle: '@getvitops/core/config-preview',
+      adds: 'previews a config form’s edits on the page it is made on: regenerates the design system’s token layers from the document the form describes and injects them after the page stylesheet, with a toggle and a reset',
+    },
+    astro: a('ConfigPreview', 'wc'),
+    emdashExempt:
+      'configuration tooling for a site owner, not page content a visitor reads or an editor places',
+    use: '`<ConfigPreview for="<wc-config-form id>" base="<script id>" />` beside a `<ConfigForm>`; it emits its own `<wc-config-preview>`, so do NOT wrap it. It loads `@getvitops/generator/preview` (a colour engine) only when the first edit arrives, and no JS means no preview, stated rather than excused. A contrast failure or an unknown palette hue is reported and the last good CSS stays.',
+  },
   'color-field': {
     css: c([]),
     wc: {
