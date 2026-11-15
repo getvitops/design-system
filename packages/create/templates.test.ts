@@ -441,6 +441,22 @@ describe.each(templateNames)('template %s skills from @getvitops/skills', (templ
     expect(pkg.scripts.prepare).toContain('--no-frozen-lockfile');
   });
 
+  it('restores modern-web-guidance from a lock file on prepare, and ignores what it installs', () => {
+    // A GitHub-sourced skill, not an npm dependency: `skills experimental_install` restores it from
+    // `skills-lock.json` (lock version 2, which needs `skills` >= 1.8). `--no-frozen-lockfile` because
+    // CI is frozen by default and the skill is Google's, so a change upstream would otherwise fail
+    // every site's install until someone updated the lock. It runs before the sync so
+    // the sync merges the toolkit skills into the same lock instead of starting a second one.
+    const lock = JSON.parse(readFileSync(join(template, 'skills-lock.json'), 'utf8'));
+    expect(lock.skills['modern-web-guidance'].source).toBe('GoogleChrome/modern-web-guidance');
+    expect(pkg.scripts.prepare).toMatch(
+      /skills experimental_install -y -a claude-code --no-frozen-lockfile && skills experimental_sync/,
+    );
+    expect(pkg.devDependencies.skills).toMatch(/\^1\.(?:[89]|\d{2,})/);
+    expect(ignore).toContain('.agents/skills/modern-web-guidance');
+    expect(ignore).toContain('.claude/skills/modern-web-guidance');
+  });
+
   it.each(names)('%s has valid frontmatter and is not also scaffolded', (name) => {
     const text = readFileSync(join(SKILLS, name, 'SKILL.md'), 'utf8');
     const front = /^---\nname: (.+)\ndescription: (.+)\n---\n/.exec(text);
@@ -537,4 +553,10 @@ describe.each(templateNames)('template %s AGENTS.md stays lean', (name) => {
   it('carries no version stamp, which would churn the file on every release', () => {
     expect(text).not.toMatch(/managed by `vitops agents sync` · @getvitops\/cli@/);
   });
+});
+
+it('skills-lock.json is identical across templates', () => {
+  const lock = (dir: string) => readFileSync(join(dir, 'skills-lock.json'), 'utf8');
+  const [first, ...rest] = templateNames.map((t) => lock(join(TEMPLATES, t)));
+  for (const other of rest) expect(other).toBe(first);
 });
