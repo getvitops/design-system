@@ -94,3 +94,37 @@ describe('<wc-copy> announcements', () => {
     expect(status(el).textContent?.trim()).toBe('');
   });
 });
+
+describe('<wc-copy> events', () => {
+  it('fires copy-success with the text that was copied, and not an event named copy', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    // Text from the slot, with no `value` attribute: the detail used to be `undefined` here.
+    document.body.innerHTML = '<wc-copy>npx vitops generate</wc-copy>';
+    const el = document.body.firstElementChild as CopyEl;
+    await el.updateComplete;
+    const success = vi.fn();
+    const native = vi.fn();
+    el.addEventListener('copy-success', (e) => success((e as CustomEvent).detail));
+    // A bubbling CustomEvent named `copy` would reach every page-level clipboard listener.
+    document.addEventListener('copy', native);
+    button(el).click();
+    await flush(el);
+    expect(success).toHaveBeenCalledWith({ value: 'npx vitops generate' });
+    expect(native).not.toHaveBeenCalled();
+    document.removeEventListener('copy', native);
+  });
+
+  it('still fires copy-error when the clipboard refuses', async () => {
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const el = await mount();
+    const error = vi.fn();
+    el.addEventListener('copy-error', error);
+    button(el).click();
+    await flush(el);
+    expect(error).toHaveBeenCalledTimes(1);
+  });
+});

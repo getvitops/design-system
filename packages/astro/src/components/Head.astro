@@ -140,7 +140,7 @@ const wc = head.wcBase;
         head.polyfills?.disable?.length ? head.polyfills.disable.join(' ') : undefined
       }
     ></script>
-    <script is:inline defer src={`${wc}/deferred.js`}></script>
+    <script is:inline type="module" src={`${wc}/deferred.js`}></script>
     <script is:inline type="module" src={`${wc}/elements.js`}></script>
   </>
 )}

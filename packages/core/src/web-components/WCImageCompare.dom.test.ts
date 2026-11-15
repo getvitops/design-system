@@ -119,8 +119,13 @@ describe('<wc-image-compare>', () => {
   });
 
   it('responds to the axis it is oriented on, and says which in aria-orientation', async () => {
+    // `aria-orientation` on a separator describes the LINE, not the direction it travels. A handle
+    // that slides left and right is a vertical line, so the default says "vertical"; one that
+    // slides up and down (`vertical`) is a horizontal line. It used to say the reverse.
+    const across = await mount();
+    expect(handle(across).getAttribute('aria-orientation')).toBe('vertical');
     const el = await mount('vertical');
-    expect(handle(el).getAttribute('aria-orientation')).toBe('vertical');
+    expect(handle(el).getAttribute('aria-orientation')).toBe('horizontal');
     press(el, 'ArrowRight');
     expect(handle(el).getAttribute('aria-valuenow')).toBe('50');
     press(el, 'ArrowDown');

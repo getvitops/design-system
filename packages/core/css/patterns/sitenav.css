@@ -154,12 +154,12 @@
   .sitenav--drawer-end .sitenav__panel {
     inset-inline-end: 0;
     inset-inline-start: auto;
-    translate: 100% 0;
+    translate: calc(100% * var(--dir-sign, 1)) 0;
   }
   .sitenav--drawer-start .sitenav__panel {
     inset-inline-start: 0;
     inset-inline-end: auto;
-    translate: -100% 0;
+    translate: calc(-100% * var(--dir-sign, 1)) 0;
   }
 
   .sitenav__panel:is(:popover-open, .\:popover-open) {
@@ -170,11 +170,11 @@
   @starting-style {
     .sitenav--drawer-end .sitenav__panel:is(:popover-open, .\:popover-open) {
       opacity: 0;
-      translate: 100% 0;
+      translate: calc(100% * var(--dir-sign, 1)) 0;
     }
     .sitenav--drawer-start .sitenav__panel:is(:popover-open, .\:popover-open) {
       opacity: 0;
-      translate: -100% 0;
+      translate: calc(-100% * var(--dir-sign, 1)) 0;
     }
   }
 }
@@ -475,7 +475,7 @@
   .sitenav__submenu .sitenav__item--branch > .sitenav__submenu {
     inset-block-start: 0;
     inset-inline-start: 100%;
-    translate: 0.25rem 0;
+    translate: calc(0.25rem * var(--dir-sign, 1)) 0;
   }
   /* NOT `:focus-within`. That revealed the submenu whenever focus merely passed through the
      branch, so Tab past a top-level link popped its menu open and put every submenu link (every

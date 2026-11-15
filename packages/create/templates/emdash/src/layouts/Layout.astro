@@ -60,10 +60,13 @@ const nav = await loadNavMenus(getMenu);
 const footerSitemap = await getMenu('footer-sitemap');
 const footerLegal = await getMenu('footer-legal');
 const orgName = config.organization?.name || siteTitle;
+// The page language is the site's first declared locale, not a hard-coded one: screen readers pick
+// their pronunciation from it. A bilingual site sets `lang` per page from its own routing.
+const lang = Object.keys(config.site?.locales ?? {})[0] ?? 'en';
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -75,6 +78,9 @@ const orgName = config.organization?.name || siteTitle;
     <VitopsHead />
   </head>
   <body>
+    <a class="skip-link" href="#main">
+      Skip to content
+    </a>
     <!-- Widget areas (Widgets in the admin): the same content wherever they appear. -->
     <VitopsWidgetArea name="announcement" class="centered" />
     <!-- The masthead's look and the nav's behaviour come from `site.chrome` in site.json
@@ -91,7 +97,7 @@ const orgName = config.organization?.name || siteTitle;
       </div>
     </Masthead>
 
-    <main class="centered rhythm">
+    <main id="main" class="centered rhythm">
       <slot />
     </main>
 

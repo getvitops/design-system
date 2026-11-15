@@ -4,16 +4,18 @@
  */
 
 /* ── Tooltip — anchored popover shown on hover/focus ───────────────────────── */
-/* Shown in the top layer via the Popover API: deferred.ts opens it on
-   hover/focus, and the trigger's `popovertarget` is the no-JS click fallback.
+/* Shown in the top layer via the Popover API: `js/tooltip.ts` (loaded by deferred.js) opens it on
+   hover and keyboard focus and closes it on Escape, and the trigger's `popovertarget` is the no-JS
+   click fallback. The handler gives each pair its own anchor name, `role="tooltip"` and
+   `aria-describedby`; the name below is only the default for one tooltip with no JS.
+   TODO(support): `interestfor` + `popover="hint"` replace the handler once `interestfor` meets the
+   support threshold in AGENTS.md (Chromium-only today).
    The top layer is what makes the flip work — it escapes the page's
    container-query containment (`body { container-type }`), so the fixed
    tooltip's containing block is the viewport and the flip fallbacks resolve
    against the viewport edges (a plain :hover reveal stays trapped in that
    containment and can only shift, never flip). Trigger and tooltip are siblings
-   so the tooltip is not a descendant of its own anchor. Several tooltips on one
-   page each need a distinct --tooltip anchor name (or an `anchor-scope`
-   wrapper); the single shared name here is fine for one-off use. */
+   so the tooltip is not a descendant of its own anchor. */
 .tooltip-trigger {
   anchor-name: --tooltip-anchor;
 }
@@ -49,7 +51,7 @@
   font-size: var(--_fs);
   white-space: nowrap;
   max-inline-size: 20rem;
-  pointer-events: none;
+  /* Hoverable on purpose (WCAG 1.4.13): the pointer must be able to move onto it. */
 
   /* The Popover API toggles display; fade across the top-layer transition. */
   opacity: 0;

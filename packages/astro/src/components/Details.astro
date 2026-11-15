@@ -10,7 +10,8 @@ interface Item {
 interface Props {
   label: string;
   icon?: string;
-  items: Item[];
+  /** Links shown when the `content` slot is empty. */
+  items?: Item[];
   class?: string;
   /**
    * Map a semantic name onto a fully-qualified one before rendering.
@@ -23,7 +24,7 @@ interface Props {
   iconResolver?: (name: string) => string;
 }
 
-const { label, items, class: className, iconResolver = (name: string) => name } = Astro.props;
+const { label, items = [], class: className, iconResolver = (name: string) => name } = Astro.props;
 ---
 
 <details class={`details-collapse ${className || ''}`}>
@@ -33,7 +34,20 @@ const { label, items, class: className, iconResolver = (name: string) => name } 
       <Icon name={iconResolver('chevron-down')} class="details-icon" />
     </slot>
   </summary>
-  <slot name="content" />
+  <slot name="content">
+    {items.length > 0 && (
+      <ul class="details-content">
+        {items.map((item) => (
+          <li>
+            <a href={item.href}>
+              {item.icon && <Icon name={iconResolver(item.icon)} />}
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </slot>
 </details>
 
 <style>

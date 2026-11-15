@@ -52,7 +52,7 @@
     block-size: 100dvh;
     inline-size: min(100dvi, var(--drawer-max-inline-size, 280px));
     border-radius: 0;
-    --translate-x-from: -100%;
+    --translate-x-from: calc(-100% * var(--dir-sign, 1));
     --translate-y-from: 0;
   }
 
@@ -61,7 +61,7 @@
     inset-inline-end: 0;
     inset-inline-start: auto;
     inline-size: min(100dvi, var(--drawer-max-inline-size, 280px));
-    --translate-x-from: 100%;
+    --translate-x-from: calc(100% * var(--dir-sign, 1));
     --translate-y-from: 0;
   }
 

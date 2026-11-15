@@ -58,6 +58,13 @@ describe('<wc-combobox> upgrade', () => {
     expect(i.autocomplete).toBe('off');
   });
 
+  it('keeps an autocomplete token the author set', async () => {
+    const el = await mount(
+      MARKUP.replace('name="city"', 'name="city" autocomplete="address-level2"'),
+    );
+    expect(input(el).getAttribute('autocomplete')).toBe('address-level2');
+  });
+
   it('takes away the browser popup but keeps the datalist as the option source', async () => {
     const el = await mount();
     expect(input(el).hasAttribute('list')).toBe(false);

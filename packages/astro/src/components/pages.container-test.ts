@@ -367,6 +367,24 @@ describe('<Field />', () => {
     expect(html).toContain('data-invalid');
   });
 
+  it('renders a fieldset and legend for a group, linked to its help and error by id', async () => {
+    const html = await render(
+      Field,
+      { label: 'Contact by', group: true, id: 'contact', help: 'Pick one.', error: 'Required.' },
+      {
+        default:
+          '<input type="radio" name="c" value="a" /><input type="radio" name="c" value="b" />',
+      },
+    );
+    expect(html).toMatch(
+      /<fieldset class="field__control field__group"[^>]*aria-describedby="contact-help contact-error"/,
+    );
+    expect(html).toMatch(/<legend class="field__label">\s*Contact by/);
+    expect(html).not.toContain('<label');
+    expect(html).toContain('id="contact-help"');
+    expect(html).toContain('id="contact-error"');
+  });
+
   it('omits the help element and the optional marker when not asked for', async () => {
     const html = await render(Field, { label: 'Name' }, { default: '<input name="n" />' });
     expect(html).not.toContain('field__help');

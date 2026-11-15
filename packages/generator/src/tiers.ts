@@ -611,7 +611,7 @@ export const TIERS: Record<string, TierEntry> = {
   },
   tooltip: {
     css: c(['tooltip-trigger'], 'patterns/tooltip.css', true),
-    use: '`.tooltip-trigger` — CSS only, anchor-positioned.',
+    use: '`.tooltip-trigger` + `<div class="tooltip" popover="manual">`, linked by `popovertarget` (the no-JS click fallback). Anchor-positioned; `deferred.js` adds hover, keyboard focus and Escape, plus `role="tooltip"` and `aria-describedby`.',
   },
   dialog: {
     css: c(['dialog__header', 'dialog__body', 'dialog__footer'], 'patterns/dialog.css', true),

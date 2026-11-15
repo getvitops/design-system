@@ -68,6 +68,13 @@
       background: var(--color-bg-surface-muted);
     }
 
+    /* A cue that is not colour: the active option must be findable in forced colors and by
+       visitors who cannot tell the two surfaces apart. */
+    &[aria-selected='true'] {
+      outline: 2px solid currentColor;
+      outline-offset: -2px;
+    }
+
     &[aria-disabled='true'] {
       opacity: 0.5;
       cursor: not-allowed;

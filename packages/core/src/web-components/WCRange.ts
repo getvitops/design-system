@@ -115,6 +115,10 @@ export class WCRange extends BaseElement {
         Number(first.min || 0),
         Number(first.max || 100),
       );
+      // When both thumbs overlap in the upper half, the upper input sits on top and cannot move
+      // right (it is at the end) or left (it stops against the lower one), so the pair is stuck.
+      // Raising the lower input there lets it be dragged back down.
+      first.toggleAttribute('data-raised', start >= 50 && start === end);
       this.style.setProperty('--range-start', `${start}%`);
       this.style.setProperty('--range-end', `${end}%`);
     }

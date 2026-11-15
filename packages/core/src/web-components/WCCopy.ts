@@ -14,6 +14,11 @@ import { BaseElement } from './BaseElement.js';
  * whole time. Swapping it to "Copied!" is not an announcement, and a screen reader that does
  * read the change would say it twice. `copied-label` and `failed-label` set the spoken text.
  *
+ * @fires copy-success `{ value: string }`, bubbles and composed, after the text is on the clipboard.
+ *   (Not named `copy`: that is the native clipboard event, and a bubbling `CustomEvent` of the same
+ *   name would fire every `copy` listener on the page with an event that has no `clipboardData`.)
+ * @fires copy-error `{ error: unknown }`, bubbles and composed, when the clipboard refused.
+ *
  * @example
  * ```html
  * <wc-copy value="text to copy">
@@ -177,8 +182,8 @@ export class WCCopy extends BaseElement {
       this._announce(this.copiedLabel);
 
       this.dispatchEvent(
-        new CustomEvent('copy', {
-          detail: { value: this.value },
+        new CustomEvent('copy-success', {
+          detail: { value },
           bubbles: true,
           composed: true,
         }),

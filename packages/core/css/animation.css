@@ -63,12 +63,13 @@
  * View Transitions (page navigation)
  * =========================================== */
 
-@view-transition {
-  navigation: auto;
-}
-
-::view-transition-children(*) {
-  animation-duration: var(--animation-duration-xslow);
+/* A cross-fade between pages is motion the visitor did not ask for; reduced-motion visitors get an
+   instant navigation. (The `::view-transition-children(*)` rule that used to follow was not a
+   real pseudo-element, so engines dropped it and it set no duration for anyone.) */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
 }
 
 /* The gallery/lightbox thumbnail → full-image morph (see patterns/lightbox.css)
@@ -539,6 +540,23 @@
    property drops it. Without support, `auto` heights simply resize instantly. */
 :root {
   interpolate-size: allow-keywords;
+}
+
+/* Writing direction as a number: +1 left-to-right, -1 right-to-left.
+   Logical properties (`inset-inline-end`, `margin-inline-start`) flip for free; a `translate` does
+   NOT. A panel pinned to `inset-inline-end` that slides in with `translate: 100% 0` still comes
+   from the physical right in an RTL page, so it slides in from the wrong side. Multiply an x
+   offset that means "toward the inline end" by `var(--dir-sign, 1)`. Set on the root and on any
+   element with its own `dir`, so an RTL island inside an LTR page (and the reverse) is right.
+   Lives here, not in global.css, because every format reads this file and the tailwind format
+   skips global.css. */
+:root:dir(rtl),
+[dir='rtl'] {
+  --dir-sign: -1;
+}
+:root:dir(ltr),
+[dir='ltr'] {
+  --dir-sign: 1;
 }
 
 @supports (interpolate-size: allow-keywords) {

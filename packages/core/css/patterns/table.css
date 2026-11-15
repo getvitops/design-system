@@ -67,11 +67,20 @@ table,
   }
 
   &.table--striped > tbody > tr:nth-child(even) {
-    background: oklch(0 0 0 / var(--table-stripe-opacity, 0.04));
+    /* A tint of the text colour, not black: black at 4% is invisible on a dark surface. */
+    background: color-mix(
+      in oklch,
+      currentColor calc(var(--table-stripe-opacity, 0.04) * 100%),
+      transparent
+    );
   }
 
   &.table--hover > tbody > tr:hover {
-    background: oklch(0 0 0 / var(--table-hover-opacity, 0.08));
+    background: color-mix(
+      in oklch,
+      currentColor calc(var(--table-hover-opacity, 0.08) * 100%),
+      transparent
+    );
   }
 
   &.table--compact {
@@ -91,7 +100,9 @@ table,
     position: sticky;
     inset-block-start: 0;
     z-index: var(--z-tier-raised);
-    background: inherit;
+    /* Explicit: `inherit` from a `<th>` resolves to the row's background, which is transparent, so
+       body rows showed through the header as they scrolled under it. */
+    background: var(--table-header-bg, var(--color-bg-surface));
   }
 }
 

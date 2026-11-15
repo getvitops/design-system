@@ -1,3 +1,5 @@
+import { initTooltips } from './tooltip.ts';
+
 // Scroll-driven animation support is feature-detected by animation.css itself
 // (`@supports not (animation-timeline: view())`), and whether to pause a trigger
 // animation by `@media (scripting: enabled)`. Neither needs a class on <html>, so
@@ -109,6 +111,8 @@ function setHorizontalScrollTrackWidth(container: Element): void {
 
   (track as HTMLElement).style.width = `${contentWidth}px`;
 }
+
+initTooltips();
 
 // Close open dialogs when clicking same-document fragment links inside them
 document.addEventListener('click', (e) => {

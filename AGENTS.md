@@ -13,17 +13,23 @@ It's tables and diagrams, and it links back here for the reasoning behind each o
 
 Prefer using modern CSS/HTML features (e.g. CSS Anchor Positioning API, Dialog, Invoker Commands API, Scroll Timelines, etc.) over JavaScript.
 
-**Browser support policy.** A platform feature is safe to _depend on_ once it has been Baseline for
-about a year; a newer one is allowed only as an enhancement with a working fallback, feature-detected
-(`@supports`, a `test()` in `polyfills.ts`) so that an engine without it is degraded rather than
-broken. This is the rule behind two deliberate choices that the `modern-web-guidance` skill's guides
-would otherwise flag. **The carousel** keeps its cloned-slide loop and its `@supports`-gated
+**Browser support policy.** Depend on a platform feature only when it is Baseline widely available
+**and** real-world usage is high enough that a visitor on an engine without it is rare (about 95% of
+global usage). A feature that is Baseline-new, below that line even with a polyfill, or Chromium-only
+(`interestfor`, `popover="hint"`, `focusgroup`, `sibling-count()`, `sibling-index()`, `appearance:
+base-select`) gets a working fallback instead, feature-detected (`@supports`, a `test()` in
+`polyfills.ts`) so an engine without it is degraded rather than broken, and a `TODO(support):`
+comment naming the feature and what would let us revisit it. `grep -rn "TODO(support)"` lists every
+deferred upgrade. A polyfill does not change this: it makes a feature reachable, not safe to depend
+on. This is the rule behind the deliberate choices the `modern-web-guidance` skill's guides would
+otherwise flag. **The carousel** keeps its cloned-slide loop and its `@supports`-gated
 `::scroll-marker` / `::scroll-button()` branch instead of the guide's HTML-buttons-only,
 `order`-parking loop, because that loop needs `sibling-count()` and `sibling-index()`, which reached
-Baseline on 2026-08-18; revisit it once that has aged. **`interpolate-size`** is set once on `:root`
+Baseline on 2026-08-18. **Tooltips** are a `popover="manual"` driven by a small hover/focus/Escape
+handler (`js/tooltip.ts`) rather than `interestfor`. **`interpolate-size`** is set once on `:root`
 (`animation.css`) with no fallback, because without it an `auto` height simply resizes instantly,
-which is a correct degrade. The guide's advice is otherwise followed: a guide that says "do not use
-X for now" is a reason to check this rule, not to skip it.
+which is a correct degrade. A guide that says "do not use X for now" is a reason to check this rule,
+not to skip it.
 
 ## Component architecture
 
@@ -52,8 +58,8 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      `getElementById`, captured before upgrade — loses it; `tree-toggle` (mirroring the existing
      `tree-filter` event) is the replacement surface. Named here as a deliberate exception, not a
      silent divergence — same treatment as `<wc-consent>` and `<wc-theme-editor>` below.
-   - **Three elements render into a shadow root** — `<wc-image-compare>`, `<wc-color-scheme-toggle>`
-     and `<wc-copy>` — named exceptions to "use light DOM", not silent ones. The rule that separates
+   - **Four elements render into a shadow root** — `<wc-image-compare>`, `<wc-split-panel>`,
+     `<wc-color-scheme-toggle>` and `<wc-copy>` — named exceptions to "use light DOM", not silent ones. The rule that separates
      them from the rest: light DOM where there is **author markup to parse and augment**; a shadow
      root where the element **renders all of its own UI** and the light DOM is only a slot, so
      encapsulation protects the generated controls and nothing needs the framework CSS to reach
@@ -72,6 +78,9 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      `slot="after"`), which upgrading never touches: with no JS they are two readable images.
      `WCImageCompare.dom.test.ts` asserts that, and the keyboard/ARIA contract. Converting it to
      light DOM is possible but buys nothing a client can see; don't do it to tidy the rule.
+   - **`<wc-split-panel>`'s reason is the same:** it uses `DragController` through `renderRoot` and
+     draws its own divider; the two panes are slotted light-DOM children, so with no JS they are
+     two readable blocks.
    - Shipped as feature-detected, deferred ES-module bundles
      (`@getvitops/core/{polyfills,elements,deferred}`); polyfills load **only** when a native feature
      is missing (see `Polyfills.astro`).

@@ -313,7 +313,7 @@ export class WCSplitPanel extends BaseElement {
           part="handle"
           role="separator"
           aria-label="Panel resize handle"
-          aria-orientation="${this.vertical ? 'vertical' : 'horizontal'}"
+          aria-orientation="${this.vertical ? 'horizontal' : 'vertical'}"
         ></div>
         <div class="panel panel--end" part="panel-end">
           <slot name="end"></slot>

@@ -9,7 +9,10 @@
  *     <input name="firstName" required autocomplete="given-name" />
  *   </Field>
  *
- * The default slot is the control (or several, for a radio group). The label **nests** it, so no
+ * The default slot is the control. For a radio or checkbox **group** pass `group`: the controls are
+ * then wrapped in a `<fieldset>` with the label as its `<legend>`, which is what makes a screen
+ * reader announce the question with each choice (a single `<label>` around several radios names
+ * none of them properly). The label **nests** a single control, so no
  * `id`/`for` pair is needed and the same field can appear twice on a page. With no JS this is a
  * labelled control; the element adds the `aria-describedby` wiring and writes validation messages
  * under the field. An `error` set here is rendered server-side, which is what a no-JS form needs
@@ -31,6 +34,11 @@ export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
   optional?: boolean;
   /** The text `optional` shows. Default `(optional)`. */
   optionalText?: string;
+  /**
+   * The slot holds several radios or checkboxes answering one question: render a `<fieldset>` and
+   * `<legend>` instead of a wrapping `<label>`.
+   */
+  group?: boolean;
 }
 
 const {
@@ -39,21 +47,44 @@ const {
   error,
   optional,
   optionalText = '(optional)',
+  group = false,
   class: className,
   ...rest
 } = Astro.props;
+
+// Ids only when the author gives the field one: a generated id would make the build non-deterministic.
+// They let the group's fieldset point at its help text and at a server-rendered error, which is what
+// a no-JS form shows after a failed POST. (A single control is wired by `<wc-field>` on upgrade.)
+const id = typeof rest.id === 'string' && rest.id ? rest.id : undefined;
+const helpId = id && help ? `${id}-help` : undefined;
+const errorId = id ? `${id}-error` : undefined;
+const describedBy = [helpId, error ? errorId : undefined].filter(Boolean).join(' ') || undefined;
 ---
 
 <wc-field class:list={['field', className]} data-invalid={error ? '' : undefined} {...rest}>
-  <label class="field__control">
-    <span class="field__label">
-      {label}
-      {optional && <span class="field__optional"> {optionalText}</span>}
-    </span>
-    <slot />
-  </label>
-  {help && <small class="field__help">{help}</small>}
-  <span class="field__error" aria-live="polite">
+  {group ? (
+    <fieldset class="field__control field__group" aria-describedby={describedBy}>
+      <legend class="field__label">
+        {label}
+        {optional && <span class="field__optional"> {optionalText}</span>}
+      </legend>
+      <slot />
+    </fieldset>
+  ) : (
+    <label class="field__control">
+      <span class="field__label">
+        {label}
+        {optional && <span class="field__optional"> {optionalText}</span>}
+      </span>
+      <slot />
+    </label>
+  )}
+  {help && (
+    <small class="field__help" id={helpId}>
+      {help}
+    </small>
+  )}
+  <span class="field__error" id={errorId} aria-live="polite">
     {error}
   </span>
 </wc-field>

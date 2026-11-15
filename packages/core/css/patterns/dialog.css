@@ -27,7 +27,12 @@ dialog.dialog {
   box-shadow: var(--_ds);
   background: var(--color-bg-surface);
   color: var(--color-text-surface);
+  /* `dvh`, not `vh`: on a phone `100vh` is the viewport with the browser chrome RETRACTED, so a
+     tall dialog's bottom edge sat behind the address bar. The `vh` line is the fallback. */
   max-block-size: calc(100vh - 2rem);
+  max-block-size: calc(100dvh - 2rem);
+  /* Scrolling inside the dialog must not chain out to the page behind it. */
+  overscroll-behavior: contain;
 
   /* The scrim itself is one rule in popover.css; this only says how it should
      look for a dialog. It also fades in/out from there, so the bespoke
@@ -78,4 +83,12 @@ dialog.dialog {
     gap: 0.75rem;
     margin-block-start: 1.5rem;
   }
+}
+
+/* A modal's backdrop is not a scroll container, so a wheel or swipe over it scrolls the PAGE
+   behind. Freezing the root while any modal is open stops that; the stable gutter set in
+   global.css keeps the page from shifting sideways when the scrollbar goes. This covers every
+   `<dialog>` shown with `showModal()`, `<Drawer>` included. */
+:root:has(dialog:modal) {
+  overflow: hidden;
 }

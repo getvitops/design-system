@@ -30,6 +30,9 @@ type ColorScheme = 'system' | 'light' | 'dark';
  * @example
  * ```html
  * <wc-color-scheme-toggle></wc-color-scheme-toggle>
+ *
+ * For a page that is not English, name the group and the three choices: `group-label`,
+ * `system-label`, `light-label` and `dark-label` (the defaults are English).
  * ```
  *
  * @fires scheme-change - When the color scheme changes, with detail: { scheme: 'system' | 'light' | 'dark' }
@@ -146,15 +149,28 @@ export class WCColorSchemeToggle extends BaseElement {
 
   static properties = {
     scheme: { type: String, reflect: true },
+    groupLabel: { type: String, attribute: 'group-label' },
+    systemLabel: { type: String, attribute: 'system-label' },
+    lightLabel: { type: String, attribute: 'light-label' },
+    darkLabel: { type: String, attribute: 'dark-label' },
   };
 
   declare scheme: ColorScheme;
+  /** Accessible name of the group. Set the four label attributes for a non-English page. */
+  declare groupLabel: string;
+  declare systemLabel: string;
+  declare lightLabel: string;
+  declare darkLabel: string;
 
   private _mediaQuery: MediaQueryList | null = null;
   private _boundMediaHandler: ((e: MediaQueryListEvent) => void) | null = null;
 
   constructor() {
     super();
+    this.groupLabel = 'Color scheme';
+    this.systemLabel = 'System';
+    this.lightLabel = 'Light';
+    this.darkLabel = 'Dark';
     this.init();
   }
 
@@ -317,7 +333,7 @@ export class WCColorSchemeToggle extends BaseElement {
 
   render() {
     return html`
-      <div class="toggle__group" role="group" aria-label="Color scheme" part="group">
+      <div class="toggle__group" role="group" aria-label=${this.groupLabel} part="group">
         <button
           class="toggle__segment"
           part="system"
@@ -326,7 +342,7 @@ export class WCColorSchemeToggle extends BaseElement {
           @click=${() => this._handleSegmentClick('system')}
         >
           <span class="toggle__icon toggle__icon--system" aria-hidden="true"></span>
-          <span class="toggle__label">System</span>
+          <span class="toggle__label">${this.systemLabel}</span>
         </button>
         <button
           class="toggle__segment"
@@ -336,7 +352,7 @@ export class WCColorSchemeToggle extends BaseElement {
           @click=${() => this._handleSegmentClick('light')}
         >
           <span class="toggle__icon toggle__icon--light" aria-hidden="true"></span>
-          <span class="toggle__label">Light</span>
+          <span class="toggle__label">${this.lightLabel}</span>
         </button>
         <button
           class="toggle__segment"
@@ -346,7 +362,7 @@ export class WCColorSchemeToggle extends BaseElement {
           @click=${() => this._handleSegmentClick('dark')}
         >
           <span class="toggle__icon toggle__icon--dark" aria-hidden="true"></span>
-          <span class="toggle__label">Dark</span>
+          <span class="toggle__label">${this.darkLabel}</span>
         </button>
       </div>
     `;

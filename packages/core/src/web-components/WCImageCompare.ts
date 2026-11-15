@@ -323,7 +323,7 @@ export class WCImageCompare extends BaseElement {
           part="handle"
           role="separator"
           aria-label="Image comparison handle"
-          aria-orientation="${this.vertical ? 'vertical' : 'horizontal'}"
+          aria-orientation="${this.vertical ? 'horizontal' : 'vertical'}"
         >
           <div class="grip" part="grip">
             <span class="visually-hidden">Drag to compare</span>

@@ -1,6 +1,7 @@
 ---
 import VitopsHead from '@getvitops/astro/Head.astro';
 import Seo from '@getvitops/astro/Seo.astro';
+import config from '../../site.json' with { type: 'json' };
 import '../styles/styles.css';
 
 interface Props {
@@ -9,9 +10,11 @@ interface Props {
 }
 
 const { title, description } = Astro.props;
+// The page language is the site's first declared locale, not a hard-coded one.
+const lang = Object.keys(config.site?.locales ?? {})[0] ?? 'en';
 ---
 
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -19,7 +22,10 @@ const { title, description } = Astro.props;
     <Seo title={title} description={description} />
   </head>
   <body>
-    <main class="centered rhythm">
+    <a class="skip-link" href="#main">
+      Skip to content
+    </a>
+    <main id="main" class="centered rhythm">
       <slot />
     </main>
   </body>

@@ -102,7 +102,9 @@ export class WCCombobox extends BaseElement {
     // Take the browser's own popup away so there aren't two lists. The datalist stays, as the
     // options' source.
     input.removeAttribute('list');
-    input.autocomplete = 'off';
+    // Keep an author's choice (e.g. `autocomplete="email"`); `off` only stops the browser's own
+    // popup stacking on top of ours when nothing was said.
+    if (!input.hasAttribute('autocomplete')) input.autocomplete = 'off';
     input.setAttribute('role', 'combobox');
     input.setAttribute('aria-autocomplete', 'list');
     input.setAttribute('aria-expanded', 'false');

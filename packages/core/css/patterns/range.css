@@ -49,6 +49,11 @@
       appearance: none;
       pointer-events: none;
 
+      /* Set by <wc-range> when both thumbs overlap near the end: the lower one must be on top. */
+      &[data-raised] {
+        z-index: 1;
+      }
+
       &::-webkit-slider-runnable-track {
         background: none;
         block-size: var(--_height);
