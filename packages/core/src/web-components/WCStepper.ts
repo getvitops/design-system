@@ -152,6 +152,10 @@ export class WCStepper extends HTMLElement {
 
   #onKeydown = (event: KeyboardEvent): void => {
     if (event.key !== 'Enter' || event.defaultPrevented) return;
+    // Enter that confirms an IME conversion (Japanese, Chinese, Korean) is not a request to move
+    // on. `isComposing` is the standard signal; `keyCode 229` covers Safari, which reports
+    // `isComposing: false` on the keydown that ends a composition.
+    if (event.isComposing || event.keyCode === 229) return;
     const target = event.target;
     // Implicit submission is from a text-like input; a textarea's Enter is a newline.
     if (!(target instanceof HTMLInputElement) || ['submit', 'button'].includes(target.type)) return;
@@ -201,6 +205,33 @@ export class WCStepper extends HTMLElement {
     return landed;
   }
 
+  /**
+   * The state as TEXT inside the link. The tick and the bang are CSS `content`, which is not
+   * reliably exposed to assistive tech and is not text at all in forced-colors or reader modes,
+   * so "complete" and "needs attention" would otherwise be conveyed by a glyph alone (WCAG 1.4.1,
+   * and the generated-content rule that a decorative glyph must not be the only carrier).
+   */
+  #spokenState(link: HTMLAnchorElement, state: string): void {
+    let node = link.querySelector<HTMLElement>(':scope > .stepper__state');
+    const text =
+      state === 'complete'
+        ? (this.getAttribute('complete-label') ?? 'complete')
+        : state === 'invalid'
+          ? (this.getAttribute('invalid-label') ?? 'needs attention')
+          : '';
+    if (!text) {
+      node?.remove();
+      return;
+    }
+    if (!node) {
+      node = document.createElement('span');
+      node.className = 'stepper__state';
+      link.append(node);
+    }
+    const next = ` (${text})`;
+    if (node.textContent !== next) node.textContent = next;
+  }
+
   #show(index: number, byVisitor: boolean): void {
     const previous = this.#current;
     if (this.#started) this.#visited.add(previous);
@@ -220,6 +251,7 @@ export class WCStepper extends HTMLElement {
         const item = link.closest('li');
         item?.classList.toggle('stepper__item--complete', state === 'complete');
         item?.classList.toggle('stepper__item--invalid', state === 'invalid');
+        this.#spokenState(link, state);
       }
     });
 

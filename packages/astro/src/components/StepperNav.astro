@@ -32,9 +32,21 @@ export interface Props {
   hrefFor: (step: Step) => string | undefined;
   /** The list's accessible name. */
   label?: string;
+  /** Spoken after a completed step's title ("Contact (complete)"). Default "complete". */
+  completeLabel?: string;
+  /** Spoken after a step that needs attention ("Contact (needs attention)"). */
+  invalidLabel?: string;
 }
 
-const { steps, current, status = {}, hrefFor, label = 'Progress' } = Astro.props;
+const {
+  steps,
+  current,
+  status = {},
+  hrefFor,
+  label = 'Progress',
+  completeLabel = 'complete',
+  invalidLabel = 'needs attention',
+} = Astro.props;
 ---
 
 <nav aria-label={label}>
@@ -43,6 +55,14 @@ const { steps, current, status = {}, hrefFor, label = 'Progress' } = Astro.props
       const href = hrefFor(step);
       const isCurrent = step.id === current;
       const state = status[step.id];
+      // The tick and bang are CSS glyphs; the state is also real text for assistive tech.
+      const spoken = isCurrent
+        ? ''
+        : state === 'complete'
+          ? completeLabel
+          : state === 'invalid'
+            ? invalidLabel
+            : '';
       return (
         <li
           class:list={[
@@ -54,9 +74,13 @@ const { steps, current, status = {}, hrefFor, label = 'Progress' } = Astro.props
           {href ? (
             <a href={href} aria-current={isCurrent ? 'step' : undefined}>
               {step.title}
+              {spoken && <span class="stepper__state"> ({spoken})</span>}
             </a>
           ) : (
-            <span aria-current={isCurrent ? 'step' : undefined}>{step.title}</span>
+            <span aria-current={isCurrent ? 'step' : undefined}>
+              {step.title}
+              {spoken && <span class="stepper__state"> ({spoken})</span>}
+            </span>
           )}
         </li>
       );

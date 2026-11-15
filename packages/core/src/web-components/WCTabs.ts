@@ -137,6 +137,17 @@ export class WCTabs extends BaseElement {
     const list = document.createElement('div');
     list.className = 'tabs__list';
     list.setAttribute('role', 'tablist');
+    // A tablist needs an accessible name. The host has no role of its own (so an `aria-label` on
+    // it names nothing), which is why the label is MOVED here rather than left where it was
+    // written. `label` is the short form; `aria-label` / `aria-labelledby` work too.
+    const name = this.getAttribute('label') ?? this.getAttribute('aria-label');
+    if (name) list.setAttribute('aria-label', name);
+    const labelledby = this.getAttribute('aria-labelledby');
+    if (labelledby) list.setAttribute('aria-labelledby', labelledby);
+    if (name || labelledby) {
+      this.removeAttribute('aria-label');
+      this.removeAttribute('aria-labelledby');
+    }
 
     this.#tabs = sections.map((section, i) => {
       section.id = ids[i]!;
@@ -155,7 +166,12 @@ export class WCTabs extends BaseElement {
       section.classList.add('tabs__panel');
       section.setAttribute('role', 'tabpanel');
       section.setAttribute('aria-labelledby', tab.id);
-      section.hidden = true;
+      // `until-found`, not plain `hidden`: the browser's find-in-page can still reach text in an
+      // inactive panel (as it could in the no-JS fallback, where every panel is readable), and
+      // `beforematch` tells us which tab to bring forward. An engine without it treats the value as
+      // a plain `hidden`, so there is nothing to detect and nothing to polyfill.
+      section.setAttribute('hidden', 'until-found');
+      section.addEventListener('beforematch', () => this.#select(i, { focus: false }));
       // The tab names the panel; the heading would announce the same text a second time.
       if (headings[i]) headings[i]!.hidden = true;
       return tab;
@@ -211,7 +227,8 @@ export class WCTabs extends BaseElement {
 
     this.#tabs.forEach((tab, i) => tab.setAttribute('aria-selected', String(i === index)));
     this.#panels.forEach((panel, i) => {
-      panel.hidden = i !== index;
+      if (i === index) panel.removeAttribute('hidden');
+      else panel.setAttribute('hidden', 'until-found');
       if (i !== index) return;
       // APG: a panel with nothing focusable in it must be focusable itself, or a keyboard user
       // can't reach scrollable content. One that already has a focusable first stop doesn't need it.

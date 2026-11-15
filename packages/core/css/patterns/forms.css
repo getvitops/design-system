@@ -646,3 +646,15 @@ fieldset.field__control,
 .form-notice--target:not(:target) {
   display: none;
 }
+
+/* Mask icons paint with `background-color: currentColor` through a `mask-image`. Forced-colors
+   mode forces `background-color` to Canvas on everything it can, so the mask then paints the page
+   background onto the page background and the glyph vanishes: an icon-only button becomes an
+   invisible control. `forced-color-adjust: none` keeps OUR background, and `currentColor` is still
+   right because `color` is inherited from a parent that forced-colors has already set to a system
+   colour (CanvasText, LinkText or ButtonText). */
+@media (forced-colors: active) {
+  .multifield__delete::before {
+    forced-color-adjust: none;
+  }
+}

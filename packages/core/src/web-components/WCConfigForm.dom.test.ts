@@ -81,6 +81,8 @@ const type = (name: string, value: string) => {
   el.dispatchEvent(new Event('input', { bubbles: true }));
 };
 const leave = (name: string) => input(name).dispatchEvent(new Event('focusout', { bubbles: true }));
+/** One animation frame: a field clears its own message there, so a host's re-assert wins. */
+const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
 const rows = () => Array.from(document.querySelectorAll<HTMLElement>('.field__row'));
 
 beforeEach(() => {
@@ -132,8 +134,34 @@ describe('<wc-config-form> validation', () => {
     expect(input('organization.email').validity.customError).toBe(true);
 
     type('organization.email', 'ada@example.com');
+    await frame();
     expect(errorOf('organization.email').textContent).toBe('');
     expect(input('organization.email').validity.customError).toBe(false);
+  });
+
+  it('does not report a field the visitor only tabbed past', async () => {
+    // The seed value is invalid, but nobody has edited it: passing through is not an interaction.
+    await mount({ organization: { email: 'nope' } });
+    leave('organization.email');
+    expect(errorOf('organization.email').textContent).toBe('');
+    expect(input('organization.email').getAttribute('aria-invalid')).toBe('false');
+  });
+
+  it('keeps the same message in place across keystrokes instead of blanking and restoring it', async () => {
+    await mount();
+    type('organization.email', 'nope');
+    leave('organization.email');
+    await frame();
+    const el = errorOf('organization.email');
+    const mutations: MutationRecord[] = [];
+    const observer = new MutationObserver((records) => mutations.push(...records));
+    observer.observe(el, { childList: true, characterData: true, subtree: true });
+    type('organization.email', 'nope2');
+    type('organization.email', 'nope23');
+    await frame();
+    observer.disconnect();
+    expect(mutations).toHaveLength(0);
+    expect(el.textContent).toBe('Must be an email address.');
   });
 
   it('leaves a field it has no message for alone', async () => {

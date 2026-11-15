@@ -68,11 +68,18 @@ body {
   overflow-wrap: break-word;
 }
 
+/* Only the SMOOTHNESS depends on the motion preference. The scroll padding is what keeps an anchor
+   jump or a keyboard-focused element out from under a sticky masthead (WCAG 2.4.11), and the gutter
+   is layout: both used to sit inside this query, so a visitor who asked for reduced motion landed
+   under the bar. */
+html {
+  scrollbar-gutter: stable;
+  scroll-padding-block-start: var(--top-offset, 0);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html {
-    scrollbar-gutter: stable;
     scroll-behavior: smooth;
-    scroll-padding-block-start: var(--top-offset, 0);
   }
 }
 

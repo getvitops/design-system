@@ -20,6 +20,7 @@
 import Breadcrumbs from '@getvitops/astro/components/Breadcrumbs.astro';
 import Carousel from '@getvitops/astro/components/Carousel.astro';
 import Combobox from '@getvitops/astro/components/Combobox.astro';
+import Drawer from '@getvitops/astro/components/Drawer.astro';
 import ConfigForm from '@getvitops/astro/components/ConfigForm.astro';
 import Stepper from '@getvitops/astro/components/Stepper.astro';
 import StepperNav from '@getvitops/astro/components/StepperNav.astro';
@@ -393,6 +394,20 @@ const configFields = configSteps
       Close
     </button>
   </div>
+
+  {/* The component form: a named modal <dialog> with a built-in close button. */}
+  <h3>Drawer component</h3>
+  <p>
+    <code>&lt;Drawer&gt;</code> renders a modal <code>&lt;dialog&gt;</code> that has an accessible
+    name (<code>label</code>) and a visible close button, so a touch user on an engine without{' '}
+    <code>closedby</code> can still leave it.
+  </p>
+  <Drawer id="dr-component" label="Example drawer" trigger={{ label: 'Drawer component' }}>
+    <div class="rhythm">
+      <p class="font-heading">Drawer component</p>
+      <p class="font-caption text-surface-muted">Close button, Esc, or click outside.</p>
+    </div>
+  </Drawer>
 
   <dialog id="pt-dialog" class="dialog">
     <div class="dialog__header">
@@ -1013,6 +1028,7 @@ const configFields = configSteps
   </p>
   <Tabs
     id="pt-tabs"
+    label="About the system"
     items={[
       { label: 'Overview', id: 'pt-tab-overview', body: ['One system, three outputs.'] },
       { label: 'Pricing', id: 'pt-tab-pricing', body: ['Free to run; you bring the config.'] },

@@ -53,6 +53,22 @@ export function messageFor(state: FieldState): string {
   return state.touched || state.reported ? state.native : '';
 }
 
+/**
+ * Should `message` be announced now, given the last one announced for this field?
+ *
+ * Only a message that is new: an error that is still showing, and was already spoken, is not
+ * spoken again (that is what made every keystroke re-announce it).
+ */
+export function shouldAnnounce(lastAnnounced: string, message: string): boolean {
+  return message !== '' && message !== lastAnnounced;
+}
+
+/** What to say: the field's name, then its error, so it makes sense out of context. */
+export function spokenError(label: string, message: string): string {
+  const name = label.trim();
+  return name ? `${name}: ${message}` : message;
+}
+
 /** The value a control would submit, for `field-change`. A checkbox reports whether it is on. */
 export function controlValue(control: {
   type?: string;

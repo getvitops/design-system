@@ -39,6 +39,11 @@ export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
   orientation?: 'horizontal' | 'vertical';
   /** Write the selected panel's id into the URL as tabs change. */
   hash?: boolean;
+  /**
+   * The tablist's accessible name ("Company information"). A tablist with no name is announced as
+   * just "tab list", so say what the tabs are. `<wc-tabs>` moves it onto the tablist it builds.
+   */
+  label?: string;
 }
 
 const {
@@ -47,6 +52,7 @@ const {
   selected,
   orientation,
   hash,
+  label,
   class: className,
   ...rest
 } = Astro.props;
@@ -58,6 +64,7 @@ const Heading = `h${level}` as 'h3';
   selected={selected}
   orientation={orientation}
   hash={hash}
+  label={label}
   {...rest}
 >
   {items.map((item) => (

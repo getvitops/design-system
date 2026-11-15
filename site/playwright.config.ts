@@ -123,6 +123,16 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], javaScriptEnabled: false },
     },
     {
+      // The accessibility-audit fixes, each against a real browser: the things a happy-dom test
+      // cannot see (forced-colors rendering, reduced-motion scroll padding, RTL slide direction,
+      // find-in-page, a real keyboard path). Per-test `emulateMedia` / `test.use` picks the mode.
+      name: 'a11y',
+      // Anchored on the path separator: an unanchored `a11y-` also matched a checkout directory
+      // named `a11y-…` and ran every spec in this project.
+      testMatch: /[\\/]a11y-[^\\/]*\.e2e\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
       name: 'lightbox-fit',
       testMatch: /lightbox-fit\.e2e\.ts$/,
       use: { ...devices['Desktop Chrome'] },

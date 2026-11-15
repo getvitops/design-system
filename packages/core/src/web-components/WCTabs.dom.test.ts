@@ -243,3 +243,50 @@ describe('<wc-tabs> URL fragment', () => {
     expect(replace).toHaveBeenCalledWith(null, '', '#pricing');
   });
 });
+
+describe('<wc-tabs> accessible name and find-in-page', () => {
+  it('moves a label onto the tablist, which is what needs the name', async () => {
+    const el = await mount('label="Company information"');
+    const list = el.querySelector('[role="tablist"]')!;
+    expect(list.getAttribute('aria-label')).toBe('Company information');
+    // The host has no role of its own, so a label left on it would name nothing.
+    expect(el.hasAttribute('label')).toBe(true);
+    expect(el.hasAttribute('aria-label')).toBe(false);
+  });
+
+  it('moves aria-label and aria-labelledby off the host too', async () => {
+    document.body.innerHTML = `<h2 id="h">Info</h2><wc-tabs aria-label="Direct" aria-labelledby="h">${SECTIONS}</wc-tabs>`;
+    const el = document.querySelector('wc-tabs') as WCTabs;
+    await el.updateComplete;
+    const list = el.querySelector('[role="tablist"]')!;
+    expect(list.getAttribute('aria-label')).toBe('Direct');
+    expect(list.getAttribute('aria-labelledby')).toBe('h');
+    expect(el.hasAttribute('aria-label')).toBe(false);
+    expect(el.hasAttribute('aria-labelledby')).toBe(false);
+  });
+
+  it('leaves the tablist unnamed only when the author gave no name', async () => {
+    const el = await mount();
+    expect(el.querySelector('[role="tablist"]')!.hasAttribute('aria-label')).toBe(false);
+  });
+
+  it('hides inactive panels with until-found, so find-in-page can still reach them', async () => {
+    const el = await mount();
+    const [first, second, third] = panels(el);
+    expect(first!.hasAttribute('hidden')).toBe(false);
+    expect(second!.getAttribute('hidden')).toBe('until-found');
+    expect(third!.getAttribute('hidden')).toBe('until-found');
+    tabs(el)[1]!.click();
+    expect(first!.getAttribute('hidden')).toBe('until-found');
+    expect(second!.hasAttribute('hidden')).toBe(false);
+  });
+
+  it('brings the tab forward when the browser reveals a panel for a find-in-page match', async () => {
+    const el = await mount();
+    const target = panels(el)[2]!;
+    // The browser fires `beforematch` on the hidden panel, then removes `hidden` itself.
+    target.dispatchEvent(new Event('beforematch', { bubbles: true }));
+    expect(tabs(el)[2]!.getAttribute('aria-selected')).toBe('true');
+    expect(tabs(el)[0]!.getAttribute('aria-selected')).toBe('false');
+  });
+});

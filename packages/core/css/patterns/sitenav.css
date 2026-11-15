@@ -13,8 +13,8 @@
  * Desktop (≥ the breakpoint, gated against the nearest container — `body` per
  * layout.css): the hamburger + drawer chrome fall away, the `[popover]` panel is
  * forced back inline as a NAVBAR, the list turns horizontal, and each branch's
- * submenu promotes to a pop-out DROPDOWN revealed on hover, keyboard `:focus-within`,
- * OR click (native `[open]` pins it). Top-level submenus drop below their item;
+ * submenu promotes to a pop-out DROPDOWN revealed on hover OR by the caret disclosure
+ * (native `[open]` pins it, and is the keyboard path: Enter or Space on the caret). Top-level submenus drop below their item;
  * deeper (megamenu) submenus fly out to the inline-end side.
  *
  * The `<details>` is grid-placed at column 2 and the submenu `<ul>` is its SIBLING,
@@ -281,7 +281,7 @@
 }
 
 .sitenav__empty {
-  opacity: 0.6;
+  opacity: 0.7;
   font-style: italic;
 }
 
@@ -477,8 +477,12 @@
     inset-inline-start: 100%;
     translate: 0.25rem 0;
   }
+  /* NOT `:focus-within`. That revealed the submenu whenever focus merely passed through the
+     branch, so Tab past a top-level link popped its menu open and put every submenu link (every
+     column of a mega menu) into the Tab order, with nothing a keyboard user could do to dismiss
+     it but move on. The caret is a real disclosure button: Enter or Space opens it (`[open]`),
+     and that is the only thing that pins the menu for keyboard use. Hover still previews. */
   .sitenav__item--branch:hover > .sitenav__submenu,
-  .sitenav__item--branch:focus-within > .sitenav__submenu,
   .sitenav__item--branch:has(> .sitenav__disclosure[open]) > .sitenav__submenu {
     opacity: 1;
     visibility: visible;

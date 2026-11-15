@@ -144,6 +144,51 @@ describe('<wc-stepper> moving', () => {
     expect(el.current).toBe(1);
   });
 
+  it('does not treat the Enter that confirms an IME composition as Next', async () => {
+    const el = await mount();
+    input('a').value = 'x';
+    // `isComposing` is the standard signal.
+    const composing = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      isComposing: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    input('a').dispatchEvent(composing);
+    expect(composing.defaultPrevented).toBe(false);
+    expect(el.current).toBe(0);
+    // Safari reports `isComposing: false` on the keydown that ends a composition; keyCode 229
+    // is what identifies it.
+    const safari = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      keyCode: 229,
+      bubbles: true,
+      cancelable: true,
+    });
+    input('a').dispatchEvent(safari);
+    expect(safari.defaultPrevented).toBe(false);
+    expect(el.current).toBe(0);
+  });
+
+  it('puts "complete" and "needs attention" in the link as text, not only as a CSS glyph', async () => {
+    await mount();
+    input('a').value = 'x';
+    action('next', 'a').click(); // visits A, lands on B: A is complete
+    expect(link('a').querySelector('.stepper__state')?.textContent).toBe(' (complete)');
+    // The current step carries no state text, only aria-current.
+    expect(link('b').querySelector('.stepper__state')).toBeNull();
+    input('a').value = '';
+    action('next', 'b').click(); // A is now invalid
+    expect(link('a').querySelector('.stepper__state')?.textContent).toBe(' (needs attention)');
+  });
+
+  it('takes the spoken words from complete-label / invalid-label', async () => {
+    await mount(MARKUP.replace('<wc-stepper>', '<wc-stepper complete-label="terminé">'));
+    input('a').value = 'x';
+    action('next', 'a').click();
+    expect(link('a').querySelector('.stepper__state')?.textContent).toBe(' (terminé)');
+  });
+
   it('leaves Enter alone on the last step', async () => {
     const el = await mount(MARKUP, '#c');
     const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });

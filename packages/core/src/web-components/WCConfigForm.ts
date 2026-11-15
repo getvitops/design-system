@@ -56,6 +56,8 @@ export class WCConfigForm extends HTMLElement {
   #ready = false;
   #submitted = false;
   readonly #touched = new WeakSet<Element>();
+  /** Fields the visitor has edited. Passing through one is not an interaction. */
+  readonly #edited = new WeakSet<Element>();
   #issues: ValidationIssue[] = [];
 
   #owned: readonly OwnedItem[] | null = null;
@@ -174,21 +176,33 @@ export class WCConfigForm extends HTMLElement {
 
   /* ── Events ──────────────────────────────────────────────────────────────── */
 
+  #markEdited(target: EventTarget | null): void {
+    const field = (target as Element | null)?.closest('wc-field');
+    if (field) this.#edited.add(field);
+  }
+
   #onInput = (event: Event): void => {
+    this.#markEdited(event.target);
     this.#useBlankRow(event.target);
     this.#sync();
   };
 
   #onChange = (event: Event): void => {
     // A select's key is committed by `change`, not `input`.
+    this.#markEdited(event.target);
     this.#useBlankRow(event.target);
     this.#sync();
   };
 
   #onFocusOut = (event: FocusEvent): void => {
-    const field = (event.target as Element | null)?.closest('wc-field');
-    if (field) this.#touched.add(field);
+    const field = (event.target as Element | null)?.closest<WCField>('wc-field');
+    // Only a field the visitor changed becomes due: tabbing past an empty required field is not
+    // an interaction (`:user-invalid` waits for one too), so it must not start reporting errors.
+    const leftAfterEdit = !!field && this.#edited.has(field);
+    if (field && leftAfterEdit) this.#touched.add(field);
     this.#sync();
+    // The error that just became due is spoken once, through the page's shared polite region.
+    if (leftAfterEdit) field.announceError?.();
   };
 
   #onSubmit = (event: SubmitEvent): void => {

@@ -1,6 +1,14 @@
 import { noChange } from 'lit';
 import { BaseElement } from './BaseElement.js';
-import { controlValue, counterText, mergeDescribedBy, messageFor } from './utils/field.js';
+import { announce, ensureAnnouncer } from './utils/announcer.js';
+import {
+  controlValue,
+  counterText,
+  mergeDescribedBy,
+  messageFor,
+  shouldAnnounce,
+  spokenError,
+} from './utils/field.js';
 import { initFromLightDom } from './utils/upgrade.js';
 
 type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
@@ -25,10 +33,15 @@ type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
  *
  * **What it adds is only what the platform cannot do alone:**
  * - links the help text and the error to the control with `aria-describedby` (native has no way to
- *   point at help text without author-chosen ids), and sets `aria-invalid` while an error shows;
- * - writes an error under the field, in a polite live region, once the visitor has left the control
- *   or a submit has reported it. Not while they are still reading the form, which is `:user-invalid`'s
- *   timing, so an empty required field is not an error on arrival;
+ *   point at help text without author-chosen ids), and sets `aria-invalid="true"` while an error
+ *   shows and `"false"` otherwise (Firefox and Safari expose an empty `required` control as invalid
+ *   from page load when the attribute is merely absent);
+ * - writes an error under the field once the visitor has EDITED the control and left it, or a
+ *   submit has reported it. Not while they are still reading the form, and not for a field they
+ *   only tabbed past: that is `:user-invalid`'s timing. The text is not a live region. An error
+ *   that appears on leaving a field is spoken once, a moment later, through one polite region
+ *   shared by the whole page (`utils/announcer.ts`), so five errors after a failed submit do not
+ *   talk over the field that just took focus, whose `aria-describedby` already reads its error;
  * - `setError(message)` for a host that validates against something richer than HTML constraints (a
  *   schema). It goes through `setCustomValidity`, so the form's own `reportValidity()` blocks submit
  *   and reports it. Typing clears it, and the host asserts it again if it still applies;
@@ -71,6 +84,11 @@ export class WCField extends BaseElement {
   #server = '';
   #touched = false;
   #reported = false;
+  /** Has the visitor changed the value? Leaving an untouched control is not an interaction. */
+  #dirty = false;
+  /** The message last spoken for this field, so a message that is still showing is not repeated. */
+  #announced = '';
+  #renderQueued = false;
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -84,9 +102,25 @@ export class WCField extends BaseElement {
    * it is cleared. An empty string clears it.
    */
   setError(message: string): void {
+    // A host calls this on every `input`. Rewriting an unchanged message would remove and re-add
+    // the same text, which is exactly what assistive tech reads as a new error each keystroke.
+    if (message === this.#custom) return;
     this.#custom = message;
     this.#controls[0]?.setCustomValidity(message);
     this.#render();
+  }
+
+  /**
+   * Speak this field's current error through the page's shared polite region, if it has one that
+   * has not been spoken yet. For a host that validates (and so decides when the visitor has left
+   * the field) rather than the browser: `<wc-config-form>` calls it on blur.
+   */
+  announceError(): void {
+    const message = this.#error?.textContent ?? '';
+    if (!shouldAnnounce(this.#announced, message)) return;
+    this.#announced = message;
+    const label = this.querySelector('.field__label')?.textContent ?? '';
+    announce(spokenError(label, message), this.ownerDocument);
   }
 
   clearError(): void {
@@ -122,8 +156,10 @@ export class WCField extends BaseElement {
       this.append(error);
     }
     if (!error.id) error.id = `${base}-error`;
-    error.setAttribute('aria-live', 'polite');
+    // Deliberately NOT `aria-live`: see the class docblock. A server-rendered one is removed too.
+    error.removeAttribute('aria-live');
     this.#error = error;
+    ensureAnnouncer(this.ownerDocument);
     this.#server = error.textContent?.trim() ?? '';
 
     if (this.#help) this.#describe([this.#help.id], []);
@@ -141,6 +177,9 @@ export class WCField extends BaseElement {
     }
 
     for (const control of controls) {
+      // "false" until an error shows, not unset: see the class docblock. A server-rendered
+      // `aria-invalid="true"` (a failed no-JS POST) is the server's verdict and is kept.
+      if (!control.hasAttribute('aria-invalid')) control.setAttribute('aria-invalid', 'false');
       control.addEventListener('invalid', this.#onInvalid);
       control.addEventListener('input', this.#onInput);
       control.addEventListener('change', this.#onChange);
@@ -162,6 +201,7 @@ export class WCField extends BaseElement {
   };
 
   #onInput = (event: Event): void => {
+    this.#dirty = true;
     // Typing makes a host's message stale. Clear it so `reportValidity()` is not blocked by a
     // verdict on the previous value; the host asserts it again on its own `input` listener if the
     // new value is still wrong.
@@ -172,12 +212,17 @@ export class WCField extends BaseElement {
     // The server's verdict was on the value as submitted; the visitor has since changed it.
     this.#server = '';
     if (event.target === this.#controls[0]) this.#updateCounter();
-    this.#render();
+    // Deferred to the next frame, and only ever allowed to CLEAR. The host's own `input` listener
+    // (on an ancestor form, so it runs after this one) re-asserts an error that still applies; if
+    // this rendered now, the text would go blank and come back within one event, which a live
+    // region reads as a new error on every keystroke.
+    this.#renderSoon();
   };
 
   #onChange = (event: Event): void => {
+    this.#dirty = true;
     this.#touched = true;
-    this.#render();
+    this.#render({ announce: true });
     const control = event.target as Control;
     this.dispatchEvent(
       new CustomEvent('field-change', {
@@ -189,13 +234,25 @@ export class WCField extends BaseElement {
   };
 
   #onBlur = (): void => {
+    // Tabbing through a field is not interacting with it: `:user-invalid` waits for an edit too,
+    // so an untouched required field is not announced as an error just for being passed.
+    if (!this.#dirty) return;
     this.#touched = true;
-    this.#render();
+    this.#render({ announce: true });
   };
 
   /* ── Rendering ───────────────────────────────────────────────────────────── */
 
-  #render(): void {
+  #renderSoon(): void {
+    if (this.#renderQueued) return;
+    this.#renderQueued = true;
+    requestAnimationFrame(() => {
+      this.#renderQueued = false;
+      this.#render({ clearOnly: true });
+    });
+  }
+
+  #render({ announce: speak = false, clearOnly = false } = {}): void {
     if (!this.#error) return;
     const failing = this.#controls.find((control) => !control.validity.valid);
     const message = messageFor({
@@ -204,16 +261,20 @@ export class WCField extends BaseElement {
       touched: this.#touched,
       reported: this.#reported,
     });
+    // While typing, a message that is still wrong is left exactly as it is. Chromium's `minlength`
+    // text contains the current length, so refreshing it would change on every key.
+    if (clearOnly && message !== '') return;
 
     if (this.#error.textContent !== message) this.#error.textContent = message;
     const shown = message !== '';
+    if (!shown) this.#announced = '';
     this.toggleAttribute('data-invalid', shown);
     for (const control of this.#controls) {
-      if (shown) control.setAttribute('aria-invalid', 'true');
-      else control.removeAttribute('aria-invalid');
+      control.setAttribute('aria-invalid', shown ? 'true' : 'false');
     }
     if (shown) this.#describe([this.#error.id], []);
     else this.#describe([], [this.#error.id]);
+    if (speak && shown) this.announceError();
   }
 
   #describe(add: string[], remove: string[]): void {

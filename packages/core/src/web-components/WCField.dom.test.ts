@@ -6,8 +6,9 @@
  * the error appears at the right moment, a host message blocks `reportValidity()`, and the control
  * itself is never moved or replaced.
  */
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import type { WCField } from './WCField.ts';
+import { ANNOUNCE_DELAY_MS, resetAnnouncer } from './utils/announcer.ts';
 
 beforeAll(async () => {
   await import('./WCField.ts');
@@ -31,19 +32,39 @@ const control = (el: Element) => el.querySelector('input, select, textarea') as 
 const error = (el: Element) => el.querySelector('.field__error') as HTMLElement;
 const fire = (target: Element, type: string) =>
   target.dispatchEvent(new Event(type, { bubbles: false }));
+/** One animation frame: input-driven renders are deferred to it. */
+const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+const announcer = () => document.querySelector('[data-wc-announcer]') as HTMLElement | null;
 
 beforeEach(() => {
   document.body.innerHTML = '';
+  resetAnnouncer();
 });
 
 describe('<wc-field> wiring', () => {
-  it('links the help text to the control, and gives the error node an id and a live region', async () => {
+  it('links the help text to the control, and gives the error node an id but NOT a live region', async () => {
     const el = await mount();
     const help = el.querySelector('.field__help')!;
     expect(help.id).toMatch(/^wc-field-\d+-help$/);
     expect(control(el).getAttribute('aria-describedby')).toBe(help.id);
     expect(error(el).id).toMatch(/-error$/);
-    expect(error(el).getAttribute('aria-live')).toBe('polite');
+    // A node that is shown rather than changed is announced unreliably; one page-level region
+    // does the speaking instead (see the announcer tests below).
+    expect(error(el).hasAttribute('aria-live')).toBe(false);
+  });
+
+  it('starts every control at aria-invalid="false", not unset', async () => {
+    // Firefox and Safari expose an empty `required` control as invalid on arrival when the
+    // attribute is simply absent, announcing "invalid entry" before the visitor has done anything.
+    const el = await mount();
+    expect(control(el).getAttribute('aria-invalid')).toBe('false');
+  });
+
+  it('creates the shared announcer region at upgrade, before anything is written to it', async () => {
+    await mount();
+    expect(announcer()).not.toBeNull();
+    expect(announcer()!.getAttribute('aria-live')).toBe('polite');
+    expect(announcer()!.textContent).toBe('');
   });
 
   it('keeps an aria-describedby the author wrote', async () => {
@@ -81,9 +102,21 @@ describe('<wc-field> errors', () => {
     expect(el.hasAttribute('data-invalid')).toBe(false);
   });
 
-  it('shows the invalid message on blur and ties it to the control', async () => {
+  it('does not report a field the visitor only tabbed past', async () => {
+    // `:user-invalid` waits for an edit, and so does this: an empty required control that was
+    // merely passed through must not announce an error.
     const el = await mount();
     vi.spyOn(control(el), 'validationMessage', 'get').mockReturnValue('Fill this in.');
+    fire(control(el), 'blur');
+    expect(error(el).textContent).toBe('');
+    expect(control(el).getAttribute('aria-invalid')).toBe('false');
+    expect(el.hasAttribute('data-invalid')).toBe(false);
+  });
+
+  it('shows the invalid message on blur after an edit and ties it to the control', async () => {
+    const el = await mount();
+    vi.spyOn(control(el), 'validationMessage', 'get').mockReturnValue('Fill this in.');
+    fire(control(el), 'input');
     fire(control(el), 'blur');
     expect(error(el).textContent).toBe('Fill this in.');
     expect(control(el).getAttribute('aria-invalid')).toBe('true');
@@ -106,12 +139,14 @@ describe('<wc-field> errors', () => {
     // happy-dom reports an empty `validationMessage`; a real browser words it itself.
     vi.spyOn(input, 'validationMessage', 'get').mockReturnValue('Fill this in.');
     input.value = '';
+    fire(input, 'input');
     fire(input, 'blur');
     expect(error(el).textContent).not.toBe('');
     input.value = 'Ada';
     fire(input, 'input');
+    await frame();
     expect(error(el).textContent).toBe('');
-    expect(input.hasAttribute('aria-invalid')).toBe(false);
+    expect(input.getAttribute('aria-invalid')).toBe('false');
     expect(input.getAttribute('aria-describedby')).toBe(el.querySelector('.field__help')!.id);
   });
 });
@@ -138,8 +173,42 @@ describe('<wc-field> setError', () => {
     el.setError('Nope.');
     control(el).value = 'a@b.ca';
     fire(control(el), 'input');
+    // The validity is released at once, so the form is never blocked by a stale verdict...
     expect(control(el).validity.customError).toBe(false);
+    // ...and the text follows on the next frame, so a host that re-asserts it does not flicker.
+    await frame();
     expect(error(el).textContent).toBe('');
+  });
+
+  it('does not touch the text when a host re-asserts an unchanged message on every keystroke', async () => {
+    const el = await mount(FIELD('<input name="email" />'));
+    el.closest('form')!.addEventListener('input', () => el.setError('Still wrong.'));
+    control(el).dispatchEvent(new Event('input', { bubbles: true }));
+    await frame();
+    const mutations: MutationRecord[] = [];
+    const observer = new MutationObserver((records) => mutations.push(...records));
+    observer.observe(error(el), { childList: true, characterData: true, subtree: true });
+    for (let i = 0; i < 5; i++) {
+      control(el).dispatchEvent(new Event('input', { bubbles: true }));
+      await frame();
+    }
+    await Promise.resolve();
+    observer.disconnect();
+    // Blank-then-restore on each key is what a live region reads as a new error every time.
+    expect(mutations).toHaveLength(0);
+    expect(error(el).textContent).toBe('Still wrong.');
+  });
+
+  it('ignores setError with the message it already has', async () => {
+    const el = await mount(FIELD('<input name="email" />'));
+    el.setError('Nope.');
+    const mutations: MutationRecord[] = [];
+    const observer = new MutationObserver((records) => mutations.push(...records));
+    observer.observe(error(el), { childList: true, characterData: true, subtree: true });
+    el.setError('Nope.');
+    await Promise.resolve();
+    observer.disconnect();
+    expect(mutations).toHaveLength(0);
   });
 
   it('lets the host assert it again from its own input listener', async () => {
@@ -147,6 +216,7 @@ describe('<wc-field> setError', () => {
     el.closest('form')!.addEventListener('input', () => el.setError('Still wrong.'));
     control(el).value = 'x';
     control(el).dispatchEvent(new Event('input', { bubbles: true }));
+    await frame();
     expect(error(el).textContent).toBe('Still wrong.');
     expect(control(el).checkValidity()).toBe(false);
   });
@@ -170,8 +240,75 @@ describe('<wc-field> server-rendered error', () => {
     const el = await mount(WITH_ERROR);
     control(el).value = 'a@b.ca';
     fire(control(el), 'input');
+    await frame();
     expect(error(el).textContent).toBe('');
-    expect(control(el).hasAttribute('aria-invalid')).toBe(false);
+    expect(control(el).getAttribute('aria-invalid')).toBe('false');
+  });
+
+  it('removes the live region the server wrote on its error node', async () => {
+    const el = await mount(WITH_ERROR);
+    expect(error(el).hasAttribute('aria-live')).toBe(false);
+  });
+});
+
+describe('<wc-field> announcements', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('speaks an error once, a moment later, through the shared region, with the field name', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const el = await mount();
+    vi.spyOn(control(el), 'validationMessage', 'get').mockReturnValue('Fill this in.');
+    fire(control(el), 'input');
+    fire(control(el), 'blur');
+    // Not immediately: the field that receives focus next is announced first.
+    expect(announcer()!.textContent).toBe('');
+    vi.advanceTimersByTime(ANNOUNCE_DELAY_MS);
+    expect(announcer()!.textContent).toBe('First name: Fill this in.');
+  });
+
+  it('does not speak the same error again while it is still showing', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const el = await mount();
+    vi.spyOn(control(el), 'validationMessage', 'get').mockReturnValue('Fill this in.');
+    fire(control(el), 'input');
+    fire(control(el), 'blur');
+    vi.advanceTimersByTime(ANNOUNCE_DELAY_MS);
+    announcer()!.textContent = ''; // pretend the screen reader consumed it
+    fire(control(el), 'blur');
+    vi.advanceTimersByTime(ANNOUNCE_DELAY_MS);
+    expect(announcer()!.textContent).toBe('');
+  });
+
+  it('does not speak when a submit reports the control invalid (focus reads it instead)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const el = await mount();
+    vi.spyOn(control(el), 'validationMessage', 'get').mockReturnValue('Fill this in.');
+    control(el).dispatchEvent(new Event('invalid', { cancelable: true }));
+    vi.advanceTimersByTime(ANNOUNCE_DELAY_MS);
+    expect(error(el).textContent).toBe('Fill this in.');
+    expect(announcer()!.textContent).toBe('');
+  });
+
+  it('shares ONE region across every field on the page', async () => {
+    document.body.innerHTML = `<form>
+      <wc-field class="field">${FIELD('<input name="a" required />')}</wc-field>
+      <wc-field class="field">${FIELD('<input name="b" required />')}</wc-field>
+    </form>`;
+    await Promise.all(
+      Array.from(document.querySelectorAll<WCField>('wc-field')).map((f) => f.updateComplete),
+    );
+    expect(document.querySelectorAll('[data-wc-announcer]')).toHaveLength(1);
+  });
+
+  it('announceError() speaks a host-set message, once', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const el = await mount(FIELD('<input name="email" />'));
+    el.setError('Must be a full URL.');
+    el.announceError();
+    vi.advanceTimersByTime(ANNOUNCE_DELAY_MS);
+    expect(announcer()!.textContent).toBe('First name: Must be a full URL.');
   });
 });
 

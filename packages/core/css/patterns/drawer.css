@@ -82,3 +82,29 @@
     --translate-y-from: 100%;
   }
 }
+
+/* ── Close button ─────────────────────────────────────────────────────────────
+   `<Drawer>` always renders one: a modal with no visible close control strands a touch user on
+   an engine without `closedby` (no Esc key, no light dismiss) and gives voice-control users
+   nothing to name. Pinned to the inline-end corner at the 44px target size; the drawer's own
+   padding keeps content clear of it only if the author leaves room, so the block-start padding
+   is the one place to add it. */
+.drawer__close {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-end: 0.5rem;
+  display: grid;
+  place-items: center;
+  min-inline-size: 2.75rem;
+  min-block-size: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--br-control, 0.25rem);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-bg-surface-muted);
+  }
+}

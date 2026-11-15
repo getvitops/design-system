@@ -77,6 +77,21 @@ wc-stepper [data-step][hidden] {
     color: var(--tone-on-solid, Canvas);
   }
 
+  /* The state as text, for assistive tech: " (complete)", " (needs attention)". The tick and the
+     bang below are CSS `content`, which is a glyph and not a reliable carrier of state. Visually
+     hidden, never `display: none`, so it stays in the accessibility tree. */
+  .stepper__state {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
   /* Done: a tick in place of the number. */
   .stepper__item--complete > :is(a, span)::before {
     content: '\2713';
