@@ -57,6 +57,10 @@ export class DragController implements ReactiveController {
 
   hostConnected() {
     this.prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // A move (remove, then re-insert) disconnects and reconnects the host WITHOUT re-rendering it,
+    // so `hostUpdated` never fires again and the handle would stay unwired. `renderRoot` is
+    // undefined until the first render, which is the case `hostUpdated` already covers.
+    if (this.host.renderRoot) this.setupHandle();
   }
 
   hostUpdated() {
@@ -244,6 +248,9 @@ export class DragController implements ReactiveController {
     if (this.handleEl) {
       this.handleEl.removeEventListener('pointerdown', this.onPointerDown);
       this.handleEl.removeEventListener('keydown', this.onKeyDown);
+      // Forgotten, not just unwired: `setupHandle` returns early when the handle it finds is the
+      // one it already holds, so keeping the reference made a reconnect a permanent no-op.
+      this.handleEl = null;
     }
     document.removeEventListener('pointermove', this.onPointerMove);
     document.removeEventListener('pointerup', this.onPointerUp);

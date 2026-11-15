@@ -81,6 +81,29 @@ describe('<wc-entries>', () => {
     expect((window as unknown as { __pwned?: number }).__pwned).toBeUndefined();
   });
 
+  it('takes copied links out of the tab order and drops their ids', async () => {
+    document.body.innerHTML = `
+      <wc-entries>
+        <h3 id="title-id">Alpha</h3>
+        <dl><dt>Site</dt><dd><a id="dd-link" href="/a">link</a> <button type="button">go</button></dd></dl>
+      </wc-entries>`;
+    await customElements.whenDefined('wc-entries');
+    await new Promise((r) => requestAnimationFrame(r));
+    const el = document.querySelector('wc-entries') as HTMLElement;
+    const table = el.querySelector('table')!;
+    // aria-hidden, so nothing in it may take keyboard focus.
+    expect(table.getAttribute('aria-hidden')).toBe('true');
+    for (const focusable of table.querySelectorAll('a[href], button')) {
+      expect(focusable.getAttribute('tabindex')).toBe('-1');
+    }
+    // Each id exists once: the originals keep theirs, the copies have none.
+    expect(table.querySelector('[id]')).toBeNull();
+    expect(document.querySelectorAll('#dd-link')).toHaveLength(1);
+    expect(document.querySelectorAll('#title-id')).toHaveLength(1);
+    // And the originals are untouched, so the links remain operable from the <dl>.
+    expect(el.querySelector('dd a')!.hasAttribute('tabindex')).toBe(false);
+  });
+
   it('does not build the table twice', async () => {
     const el = await mount();
     el.remove();

@@ -136,3 +136,35 @@ describe('<wc-image-compare>', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+describe('<wc-image-compare> after a DOM move', () => {
+  it('keeps responding to the keyboard once removed and re-inserted', async () => {
+    // A move disconnects and reconnects the host without re-rendering it, so the controller's
+    // `hostUpdated` never ran again and its handle listeners were gone for good.
+    const el = await mount();
+    press(el, 'ArrowRight');
+    expect(handle(el).getAttribute('aria-valuenow')).toBe('51');
+
+    const parent = el.parentElement!;
+    el.remove();
+    parent.append(el);
+    await el.updateComplete;
+
+    press(el, 'ArrowRight');
+    expect(handle(el).getAttribute('aria-valuenow')).toBe('52');
+  });
+
+  it('does not double-fire after several moves', async () => {
+    const el = await mount();
+    const parent = el.parentElement!;
+    for (let i = 0; i < 3; i++) {
+      el.remove();
+      parent.append(el);
+    }
+    await el.updateComplete;
+    const onChange = vi.fn();
+    el.addEventListener('compare-change', onChange);
+    press(el, 'ArrowRight');
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+});

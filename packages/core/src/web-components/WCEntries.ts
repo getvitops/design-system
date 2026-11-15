@@ -12,8 +12,23 @@ import { scrollBehavior } from './utils/motion.js';
  * inline markup intact with no parser involved, and needs no sanitiser in the entry bundle.
  */
 function cloneContent(source: Element | undefined): Node[] {
-  return source ? Array.from(source.childNodes, (node) => node.cloneNode(true)) : [];
+  const nodes = source ? Array.from(source.childNodes, (node) => node.cloneNode(true)) : [];
+  // The table is `aria-hidden` (it duplicates the <dl>), so nothing inside it may be reachable by
+  // keyboard: a focusable control in an aria-hidden subtree is focus a screen reader cannot
+  // announce. The copies also drop their ids, which would otherwise exist twice in the document.
+  // The originals in the <dl> keep both, so the links are still operable from there.
+  for (const node of nodes) {
+    if (!(node instanceof Element)) continue;
+    for (const el of [node, ...node.querySelectorAll('*')]) {
+      el.removeAttribute('id');
+      if (el.matches(FOCUSABLE)) el.setAttribute('tabindex', '-1');
+    }
+  }
+  return nodes;
 }
+
+const FOCUSABLE =
+  'a[href], button, input, select, textarea, summary, [tabindex], [contenteditable]:not([contenteditable="false"])';
 
 /**
  * Adaptive data display that progressively enhances heading + <dl> pairs

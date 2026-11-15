@@ -286,8 +286,10 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
       }
       /* Markdown emits bare <table>, with nothing to hang `.table-wrapper` on.
          Wrapping it would need a rehype plugin; four lines is the cheaper trade
-         until a second consumer wants it. */
-      .docs-prose :global(table) {
+         until a second consumer wants it. Bare means classless: this rule is unlayered, so it
+         beats the framework's layered patterns, and `<wc-entries>`' generated table
+         (`.entries__table`) needs its own `display: none` to win. */
+      .docs-prose :global(table:not([class])) {
         display: block;
         max-inline-size: 100%;
         overflow-x: auto;

@@ -36,11 +36,11 @@ export class WCMarquee extends BaseElement {
 
   /** The author's first `.marquee__content`; every other one is ours. */
   #source: HTMLElement | null = null;
-  #observer?: ResizeObserver;
+  #observer: ResizeObserver | undefined;
   /** WCAG 2.2.2: motion that starts on its own and lasts over 5s needs a way to stop it. */
   #toggle: HTMLButtonElement | undefined;
   /** Last measurement `#fill` acted on, so a no-op resize does no work. */
-  #last?: { one: number; gap: number; container: number; vertical: boolean };
+  #last: { one: number; gap: number; container: number; vertical: boolean } | undefined;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -89,8 +89,11 @@ export class WCMarquee extends BaseElement {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'marquee__toggle';
-    button.setAttribute('aria-pressed', 'false');
-    button.textContent = 'Pause animation';
+    // From the host, not hard-coded: after a DOM move the host keeps its `data-paused` while the
+    // button is rebuilt, and a button that says "Pause" over a paused marquee is a wrong label.
+    const paused = this.hasAttribute('data-paused');
+    button.setAttribute('aria-pressed', String(paused));
+    button.textContent = paused ? 'Play animation' : 'Pause animation';
     button.addEventListener('click', () => {
       const paused = this.toggleAttribute('data-paused');
       button.setAttribute('aria-pressed', String(paused));
@@ -104,6 +107,12 @@ export class WCMarquee extends BaseElement {
     this.#toggle?.remove();
     this.#toggle = undefined;
     this.#observer?.disconnect();
+    this.#observer = undefined;
+    // Forgotten, so a reconnect runs `#setup` again. It used to return early on `#source`, leaving a
+    // moved marquee with no pause button (WCAG 2.2.2) and no observer. The clones stay in the
+    // DOM; `#fill` removes and rebuilds them on the first pass.
+    this.#source = null;
+    this.#last = undefined;
     super.disconnectedCallback();
   }
 

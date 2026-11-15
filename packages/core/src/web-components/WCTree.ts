@@ -250,6 +250,10 @@ export class WCTree extends BaseElement {
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
+    // The toolbar and its filter field are rebuilt empty on reconnect, so a filter that is still
+    // applying would leave nodes hidden behind a blank query with nothing to clear them. Clear it
+    // while the items are still known: it also restores the branch open state the visitor had.
+    if (this.#filtering) this.filter('');
     window.removeEventListener('hashchange', this.#onHashChange);
     this.#root?.removeEventListener('click', this.#onClick);
     this.#root?.removeEventListener('beforematch', this.#onBeforeMatch);

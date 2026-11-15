@@ -453,6 +453,45 @@ describe.each(SHAPES)('<wc-tree> (%s)', (_shape, MARKUP) => {
     });
   });
 
+  describe('after a DOM move', () => {
+    it('does not leave nodes hidden behind an empty filter', async () => {
+      type('clarity');
+      expect(visible('organization')).toBe(false);
+      const host = $('wc-tree');
+      const parent = host.parentElement!;
+      host.remove();
+      parent.append(host);
+      await new Promise((r) => requestAnimationFrame(r));
+      // The filter field was rebuilt empty, so the query it held must not still be applying.
+      expect($<HTMLInputElement>('.tree__filter').value).toBe('');
+      expect(visible('organization')).toBe(true);
+      expect(visible('site.analytics')).toBe(true);
+    });
+
+    it('restores the open state the visitor had before filtering', async () => {
+      expect(expanded('site.analytics')).toBe('false');
+      type('clarity');
+      expect(expanded('site.analytics')).toBe('true'); // opened by the filter
+      const host = $('wc-tree');
+      const parent = host.parentElement!;
+      host.remove();
+      parent.append(host);
+      await new Promise((r) => requestAnimationFrame(r));
+      expect(expanded('site.analytics')).toBe('false');
+    });
+
+    it('still filters after the move', async () => {
+      const host = $('wc-tree');
+      const parent = host.parentElement!;
+      host.remove();
+      parent.append(host);
+      await new Promise((r) => requestAnimationFrame(r));
+      type('clarity');
+      expect(visible('organization')).toBe(false);
+      expect(visible('site.analytics.clarityId')).toBe(true);
+    });
+  });
+
   describe('bulk toggle', () => {
     it('expands and collapses every branch', () => {
       click('Expand all');

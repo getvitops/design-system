@@ -195,7 +195,7 @@ export const TIERS: Record<string, TierEntry> = {
   },
   entries: {
     emdash: ['vitops_entries'],
-    css: c(['entries__table', 'entries__scroll', 'entries__nav'], 'patterns/table.css'),
+    css: c(['entries__table', 'entries__scroll', 'entries__nav'], 'patterns/entries.css'),
     wc: {
       tag: 'wc-entries',
       fallback: 'full',

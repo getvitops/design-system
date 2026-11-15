@@ -638,6 +638,12 @@ fieldset.field__control,
   display: block;
 }
 
+/* The status line is a live region that exists, empty, from upgrade; an empty one must take no
+   space. (It is never `hidden`: a node un-hidden as its text is set is not announced reliably.) */
+.turnstile__status:empty {
+  margin: 0;
+}
+
 /*
  * A message shown only when the URL fragment names it. A prerendered page cannot know whether a
  * no-JS post succeeded, so a form's success and error notices are always in the markup and the

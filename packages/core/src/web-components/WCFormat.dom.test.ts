@@ -138,3 +138,40 @@ describe('<wc-format> leaves the fallback alone when it cannot format', () => {
     expect(el.textContent).toBe('plain text');
   });
 });
+
+describe('<wc-format> after a DOM move', () => {
+  const MARKUP =
+    '<wc-format type="relative" locale="en"><time datetime="2026-11-11T11:55:00Z">November 11, 2026</time></wc-format>';
+
+  it('keeps updating a relative time once removed and re-inserted', async () => {
+    // Disconnecting cleared the refresh timer, and the guarded setup skipped on reconnect, so the
+    // text froze at whatever it said when the element was moved.
+    const el = await mount(MARKUP);
+    expect(text(el)).toBe('5 minutes ago');
+    const parent = el.parentElement!;
+    el.remove();
+    parent.append(el);
+    // Past the boundary rather than on it: the refresh lands just after the text would change.
+    vi.advanceTimersByTime(130_000);
+    expect(text(el)).toBe('7 minutes ago');
+  });
+
+  it('catches up at once on reconnect if the time moved on while it was away', async () => {
+    const el = await mount(MARKUP);
+    const parent = el.parentElement!;
+    el.remove();
+    vi.setSystemTime(NOW + 10 * 60_000);
+    parent.append(el);
+    expect(text(el)).toBe('15 minutes ago');
+  });
+
+  it('does not stack timers across several moves', async () => {
+    const el = await mount(MARKUP);
+    const parent = el.parentElement!;
+    for (let i = 0; i < 3; i++) {
+      el.remove();
+      parent.append(el);
+    }
+    expect(vi.getTimerCount()).toBe(1);
+  });
+});

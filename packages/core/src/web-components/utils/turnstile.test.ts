@@ -18,4 +18,8 @@ describe('turnstile helpers', () => {
     expect(holdSubmit({ live: true, token: 'x' })).toBe(false);
     expect(holdSubmit({ live: false, token: '' })).toBe(false);
   });
+  it('stops holding once the check has failed, so a blocked script cannot trap the form', () => {
+    expect(holdSubmit({ live: true, token: '', failed: true })).toBe(false);
+    expect(holdSubmit({ live: true, token: '', failed: false })).toBe(true);
+  });
 });

@@ -84,7 +84,11 @@ export class WCFormat extends BaseElement {
     document.addEventListener('visibilitychange', this.#onVisibility, {
       signal: this.connectionSignal,
     });
+    // A reconnect skips `#setup` (it is guarded), but disconnecting cleared the refresh timer, so
+    // a relative time would otherwise stop updating after a move. Render again to restart it.
+    const wasReady = this.#ready;
     initFromLightDom(this, () => this.#setup());
+    if (wasReady) this.#render();
   }
 
   override disconnectedCallback(): void {

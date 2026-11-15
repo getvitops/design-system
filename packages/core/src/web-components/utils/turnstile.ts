@@ -22,9 +22,14 @@ export function scriptSrc(onload: string): string {
 
 /**
  * Should a submit be held back until a token exists? Only when the widget is live
- * (JS ran, the key was valid) and no token has arrived yet. With no widget the
- * form submits as the no-JS path always did, and the server decides.
+ * (JS ran, the key was valid), no token has arrived yet, and the check has not FAILED.
+ * With no widget the form submits as the no-JS path always did, and the server decides.
+ *
+ * `failed` matters because a blocked script (an ad blocker, a CSP, a flaky network) would
+ * otherwise cancel every submit forever: the visitor with JS could never send the form at all,
+ * while the visitor with none could. A failed check falls back to exactly that no-JS path,
+ * token-less, and `createConversionRoute`'s `turnstile.required` decides what that means.
  */
-export function holdSubmit(state: { live: boolean; token: string }): boolean {
-  return state.live && !state.token;
+export function holdSubmit(state: { live: boolean; token: string; failed?: boolean }): boolean {
+  return state.live && !state.token && !state.failed;
 }

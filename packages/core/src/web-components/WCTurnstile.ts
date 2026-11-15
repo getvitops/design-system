@@ -81,6 +81,8 @@ export class WCTurnstile extends BaseElement {
   #live = false;
   #token = '';
   #wantsSubmit = false;
+  /** The check could not run (script blocked or errored): stop holding submits. */
+  #failed = false;
   #widgetId: string | undefined;
   #fallback: HTMLElement | null = null;
   #status: HTMLElement | null = null;
@@ -117,8 +119,10 @@ export class WCTurnstile extends BaseElement {
     this.#box.className = 'turnstile__widget';
     this.#status = document.createElement('p');
     this.#status.className = 'form-group__helper turnstile__status';
+    // Present and EMPTY from the start, never `hidden`: a live region announces changes to text, and
+    // a node that is un-hidden at the same moment its text is set is "shown", not "changed". An empty
+    // paragraph takes no space (see `.turnstile__status:empty` in forms.css).
     this.#status.setAttribute('role', 'status');
-    this.#status.hidden = true;
     this.append(this.#box, this.#status);
     return true;
   }
@@ -133,6 +137,8 @@ export class WCTurnstile extends BaseElement {
     this.#form = null;
     this.#live = false;
     this.#started = false;
+    this.#failed = false;
+    this.#wantsSubmit = false;
     this.#widgetId = undefined;
     this.#box?.remove();
     this.#status?.remove();
@@ -150,6 +156,7 @@ export class WCTurnstile extends BaseElement {
           sitekey,
           callback: (token: string) => {
             this.#token = token;
+            this.#failed = false;
             this.#say('');
             if (this.#wantsSubmit) {
               this.#wantsSubmit = false;
@@ -161,19 +168,31 @@ export class WCTurnstile extends BaseElement {
           },
           'error-callback': () => {
             this.#token = '';
-            this.#say('The spam check could not run. Reload the page, or contact us another way.');
+            this.#giveUp('The spam check could not run, so the form will be sent without it.');
           },
         });
       },
       () => {
         this.#started = false;
-        this.#say('The spam check could not load. Check your connection and try again.');
+        // Blocked or offline. Do not keep cancelling submits for a check that cannot run: say so
+        // and let the form post, token-less, as it does with no JS. The server decides.
+        this.#giveUp('The spam check could not load, so the form will be sent without it.');
       },
     );
   };
 
+  /** The check cannot run: release any submit it was holding and stop holding new ones. */
+  #giveUp(message: string): void {
+    this.#failed = true;
+    this.#say(message);
+    if (this.#wantsSubmit) {
+      this.#wantsSubmit = false;
+      this.#form?.requestSubmit();
+    }
+  }
+
   #onSubmit = (event: Event): void => {
-    if (!holdSubmit({ live: this.#live, token: this.#token })) return;
+    if (!holdSubmit({ live: this.#live, token: this.#token, failed: this.#failed })) return;
     // The token hasn't arrived yet. Posting now would send none; wait for it instead.
     event.preventDefault();
     this.#wantsSubmit = true;
@@ -184,7 +203,6 @@ export class WCTurnstile extends BaseElement {
   #say(message: string): void {
     if (!this.#status) return;
     this.#status.textContent = message;
-    this.#status.hidden = !message;
   }
 }
 

@@ -12,10 +12,13 @@ test.describe('<wc-tabs>', () => {
   test('builds a tablist and shows one panel, moving with the arrow keys', async ({ page }) => {
     await page.goto('/patterns');
     const tabs = page.locator('#pt-tabs');
+    // Inactive panels are `hidden="until-found"` (find-in-page can still reach them), which
+    // Playwright's role queries do not treat as hidden, so the one on screen is the one not hidden.
+    const panel = tabs.locator('[role="tabpanel"]:not([hidden])');
     await expect(tabs.getByRole('tablist')).toBeVisible();
     await expect(tabs.getByRole('tab')).toHaveCount(3);
-    await expect(tabs.getByRole('tabpanel')).toHaveCount(1);
-    await expect(tabs.getByRole('tabpanel')).toContainText('One system');
+    await expect(panel).toHaveCount(1);
+    await expect(panel).toContainText('One system');
 
     const first = tabs.getByRole('tab', { name: 'Overview' });
     await first.focus();
@@ -25,7 +28,7 @@ test.describe('<wc-tabs>', () => {
       'aria-selected',
       'true',
     );
-    await expect(tabs.getByRole('tabpanel')).toContainText('Free to run');
+    await expect(panel).toContainText('Free to run');
 
     await page.keyboard.press('End');
     await expect(tabs.getByRole('tab', { name: 'Support' })).toHaveAttribute(
@@ -141,6 +144,12 @@ test.describe('<wc-field>', () => {
     const error = field.locator('.field__error');
     await expect(error).toHaveText('');
     await field.locator('input').focus();
+    // Tabbing past an empty required field is not an interaction, so it still says nothing...
+    await page.locator('#pt-field-bio textarea').focus();
+    await expect(error).toHaveText('');
+    // ...an edit followed by leaving it is.
+    await field.locator('input').focus();
+    await page.keyboard.type('not-an-email');
     await page.locator('#pt-field-bio textarea').focus();
     await expect(error).not.toHaveText('');
     await expect(field.locator('input')).toHaveAttribute('aria-invalid', 'true');
@@ -150,7 +159,7 @@ test.describe('<wc-field>', () => {
 
     await field.locator('input').fill('ada@example.com');
     await expect(error).toHaveText('');
-    await expect(field.locator('input')).not.toHaveAttribute('aria-invalid', 'true');
+    await expect(field.locator('input')).toHaveAttribute('aria-invalid', 'false');
   });
 
   test('counts characters against maxlength', async ({ page }) => {

@@ -874,6 +874,32 @@ const configFields = configSteps
     content. <code>autoplay</code> implies it.
   </p>
 
+  <h3>Carousel — autoplay</h3>
+  <wc-carousel
+    id="pt-autoplay"
+    class="carousel carousel--scroll-buttons carousel--scroll-markers carousel--markers-below"
+    aria-label="Autoplay demo carousel"
+    autoplay="1500"
+    loop
+  >
+    <ul class="carousel__track" role="list">
+      <li class="card" id="carousel-auto-1">
+        <p class="font-heading">One</p>
+      </li>
+      <li class="card" id="carousel-auto-2">
+        <p class="font-heading">Two</p>
+      </li>
+      <li class="card" id="carousel-auto-3">
+        <p class="font-heading">Three</p>
+      </li>
+    </ul>
+  </wc-carousel>
+  <p class="font-caption text-surface-muted">
+    Pauses while the pointer or keyboard focus is inside it, while it is off screen and while the
+    tab is hidden. The Pause button is the visitor's choice and stays paused: only pressing Play
+    again resumes it.
+  </p>
+
   <h3>Carousel — the Astro wrapper</h3>
   <Carousel
     label="Placeholder gallery"
@@ -947,7 +973,7 @@ const configFields = configSteps
     The exemplar for the whole tier: semantic <code>&lt;h3&gt;</code> + <code>&lt;dl&gt;</code>
     pairs with no JS, parsed into a table when the container is wide enough.
   </p>
-  <wc-entries>
+  <wc-entries id="pt-entries" breakpoint="30rem">
     <h4>css</h4>
     <dl>
       <dt>Emits</dt>

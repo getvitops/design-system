@@ -54,6 +54,7 @@
 @import './patterns/range.css';
 /* was content.css */
 @import './patterns/table.css';
+@import './patterns/entries.css';
 @import './patterns/details.css';
 @import './patterns/comment.css';
 @import './patterns/review.css';
