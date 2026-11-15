@@ -46,3 +46,16 @@ describe('law skills', () => {
     });
   }
 });
+
+describe('every skill', () => {
+  for (const skill of readdirSync(SKILLS)) {
+    it(`${skill}: description is valid YAML (a plain scalar may not contain ": ")`, () => {
+      const line = /^description:[ \t]*(.*)$/m.exec(
+        frontmatter(readFileSync(join(SKILLS, skill, 'SKILL.md'), 'utf8')),
+      )?.[1];
+      expect(line).toBeTruthy();
+      // The sync step skips a skill it cannot parse, with only a warning.
+      if (!/^["']/.test(line ?? '')) expect(line).not.toMatch(/: |\s#/);
+    });
+  }
+});

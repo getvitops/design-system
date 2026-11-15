@@ -1,6 +1,6 @@
 ---
 name: vitops-compliance
-description: Load at the start of any client engagement, when a client mentions compliance, AODA, CASL, Law 25, PIPEDA, GDPR, accessibility, privacy or French-language requirements, or when asked "what do we need to do for client X". Intake and router: asks what applies, points to the topic files, says where decisions are recorded.
+description: Load at the start of any client engagement, when a client mentions compliance, AODA, CASL, Law 25, PIPEDA, GDPR, accessibility, privacy or French-language requirements, or when asked "what do we need to do for client X". Intake and router, asks what applies, points to the topic files, says where decisions are recorded.
 ---
 
 # Compliance intake and router
