@@ -320,6 +320,7 @@ describe('tierPatterns projects one tier at a time', () => {
     // CSS-less entries carry `c([])` — no partial, no classes, not generated — and listing
     // them on a CSS page would promise classes that don't exist.
     const css = new Set(tierPatterns('css').map((p) => p.name));
+    expect(css.has('color-wheel')).toBe(false);
     expect(css.has('oklch-color-picker')).toBe(false);
     expect(css.has('tree')).toBe(true);
     // A bare generated pattern has no partial and still belongs.

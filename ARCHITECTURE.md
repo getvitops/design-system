@@ -328,7 +328,7 @@ Five independent browser bundles, each separate for a reason:
 | `src/js/editor.ts`    | `<wc-theme-editor>` only              | Tooling, no no-JS fallback — quarantined, opt-in          |
 
 Elements under `src/web-components/`, all `wc-*`: `WCCards` `WCCarousel`
-`WCColorSchemeToggle` `WCConsent` `WCCopy` `WCCounter` `WCDismissable`
+`WCColorSchemeToggle` `WCColorWheel` `WCConsent` `WCCopy` `WCCounter` `WCDismissable`
 `WCEntries` `WCGallery` `WCImageCompare` `WCMarquee` `WCMultiField`
 `WCOklchColorPicker` `WCSplitPanel` `WCThemeEditor` `WCTree`. Support:
 `BaseElement.ts` (Lit + `SignalWatcher`),

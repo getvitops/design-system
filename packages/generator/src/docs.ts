@@ -1943,7 +1943,7 @@ ${wc}
 
 ${
   unshipped
-    ? `${unshipped} are **registered but in no bundle** (loaded on demand by another element, or unused). The tags are inert in a consumer project — they are listed so that "the tag does nothing" is documented rather than discovered.`
+    ? `${unshipped} are **registered but in no bundle** (loaded on demand by another element, or kept for the design-edit surface). The tags are inert in a consumer project — they are listed so that "the tag does nothing" is documented rather than discovered.`
     : ''
 }
 

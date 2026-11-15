@@ -464,6 +464,18 @@ export const TIERS: Record<string, TierEntry> = {
   //
   // `customElements.define`d by its own module and imported only by `<wc-color-field>`, so the
   // guards need it accounted for, and a reader needs telling the tag is not something to place.
+  // `color-wheel` is the same shape: kept for the design-edit surface (harmony colours), not yet bundled.
+  'color-wheel': {
+    css: c([]),
+    wc: {
+      tag: 'wc-color-wheel',
+      fallback: 'none',
+      registered: false,
+      adds: 'hue/chroma wheel with harmony strategies (complementary, triad, …)',
+      bundle: '(none — not yet bundled)',
+    },
+    use: 'Not shipped. Registered by its own module and imported by nothing yet, so the tag is inert in a consumer project.',
+  },
   'oklch-color-picker': {
     css: c([]),
     wc: {
