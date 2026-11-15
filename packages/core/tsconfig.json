@@ -11,13 +11,5 @@
     "useDefineForClassFields": false
   },
   "include": ["src/**/*.ts"],
-  "exclude": [
-    "src/web-components/WCColorWheel.ts",
-    "src/web-components/WCOklchColorPicker.ts",
-    "src/web-components/WCIconPicker.ts",
-    "src/web-components/WCTypography.ts",
-    "src/utils/colors.ts",
-    "src/utils/color-harmony.ts",
-    "src/utils/icons.ts"
-  ]
+  "exclude": ["src/web-components/WCOklchColorPicker.ts", "src/utils/colors.ts"]
 }

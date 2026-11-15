@@ -327,10 +327,10 @@ Five independent browser bundles, each separate for a reason:
 | `src/js/consent.ts`   | The consent gate + `<wc-consent>`     | Must load **ahead** of elements and must not drag in Lit  |
 | `src/js/editor.ts`    | `<wc-theme-editor>` only              | Tooling, no no-JS fallback — quarantined, opt-in          |
 
-Nineteen elements under `src/web-components/`, all `wc-*`: `WCCards` `WCCarousel`
-`WCColorSchemeToggle` `WCColorWheel` `WCConsent` `WCCopy` `WCCounter` `WCDismissable`
-`WCEntries` `WCGallery` `WCIconPicker` `WCImageCompare` `WCMarquee` `WCMultiField`
-`WCOklchColorPicker` `WCSplitPanel` `WCThemeEditor` `WCTree` `WCTypography`. Support:
+Elements under `src/web-components/`, all `wc-*`: `WCCards` `WCCarousel`
+`WCColorSchemeToggle` `WCConsent` `WCCopy` `WCCounter` `WCDismissable`
+`WCEntries` `WCGallery` `WCImageCompare` `WCMarquee` `WCMultiField`
+`WCOklchColorPicker` `WCSplitPanel` `WCThemeEditor` `WCTree`. Support:
 `BaseElement.ts` (Lit + `SignalWatcher`),
 `utils/{upgrade,card-click,tree-filter,tree-nav,keynav,carousel,counter,gallery,RovingTabindex,DragController}.ts`
 — `card-click`, `tree-filter`, `tree-nav`, `keynav`, `carousel`, `counter` and `gallery` are pure

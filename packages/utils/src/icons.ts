@@ -8,8 +8,6 @@
  *   - `generateIconInclude()` (below) — build time. Turns the semantic names a project
  *     declares into the `include` map astro-icon needs, so the icon set can be swapped
  *     without touching call sites.
- *   - `<wc-icon-picker>` (@getvitops/core) — browser. Its `semantic` mode lists these
- *     keys so an icon can be chosen by meaning rather than by set-specific name.
  *
  * `resolveIcon`/`resolveBrandIcon` map one semantic name to a fully-qualified
  * `prefix:name` string for a given set.

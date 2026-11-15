@@ -10,7 +10,7 @@
  * `src/web-components/`. `color-scheme-toggle` and `wc-multifield` were the two
  * that drifted, renamed in 4.0.
  *
- * What isn't registered here yet — the editor-v2 pickers, the unbuilt components,
+ * What isn't registered here yet — the unbuilt components,
  * the element-display gap — is tracked in AGENTS.md's "Component architecture"
  * section, not here.
  */

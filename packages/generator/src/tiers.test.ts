@@ -140,8 +140,8 @@ describe('TIERS covers what is on disk', () => {
    * shipped element must now carry a block OR a stated reason, so the gap is visible in the
    * manifest and the docs, and a new element cannot skip the question.
    *
-   * "Shipped" is `registered` (in `elements.js`) or a real own bundle — the editor-v2
-   * elements name `(none …)` as their bundle and are not shipped, so are not asked.
+   * "Shipped" is `registered` (in `elements.js`) or a real own bundle — an element
+   * that names `(none …)` as its bundle is not shipped, so is not asked.
    */
   it('every shipped web component has an EmDash block or says why not', () => {
     const shipped = Object.entries(TIERS).filter(
@@ -316,11 +316,10 @@ describe('tierPatterns projects one tier at a time', () => {
   });
 
   it('excludes patterns that carry no CSS at all', () => {
-    // `TierEntry.css` is required, so presence is not membership. The editor-v2
-    // entries carry `c([])` — no partial, no classes, not generated — and listing
+    // `TierEntry.css` is required, so presence is not membership. The
+    // CSS-less entries carry `c([])` — no partial, no classes, not generated — and listing
     // them on a CSS page would promise classes that don't exist.
     const css = new Set(tierPatterns('css').map((p) => p.name));
-    expect(css.has('color-wheel')).toBe(false);
     expect(css.has('oklch-color-picker')).toBe(false);
     expect(css.has('tree')).toBe(true);
     // A bare generated pattern has no partial and still belongs.

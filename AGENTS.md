@@ -104,8 +104,9 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    carries the same value into `components.md` and the docs table, and `tiers.test.ts` fails when an
    element lacks the tag or the two disagree.
 
-   **Not registered in `elements.js` yet:** `WCColorWheel`, `WCOklchColorPicker`, `WCIconPicker`,
-   `WCTypography` — they belong to the editor-v2 track.
+   **`WCOklchColorPicker` is not in `elements.js`:** `<wc-color-field>` imports it on first open. The
+   unused editor-v2 elements (`WCColorWheel`, `WCIconPicker`, `WCTypography`) were deleted; the
+   theme editor and the config form are the one place design edits happen.
 
    **Foundational components, built:** field, combobox, tabs, breadcrumbs, format and range (the slider).
    Each follows the tier-2 rule: the fallback is real and complete (`<input list>` + `<datalist>`; headed

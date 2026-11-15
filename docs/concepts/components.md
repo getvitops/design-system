@@ -58,7 +58,6 @@ emit its tag.
 | `code` | css | Element selectors on `pre`/`code`; no class needed. |
 | `color-field` | wc | Not written by hand: `renderProjectionHtml` wraps a `color` widget in it. The text input is the whole fallback (and the only submitted control); the picker is `<wc-oklch-color-picker>`, the control the theme editor uses. Load it with `<ConfigForm colorPicker>` or `import "@getvitops/core/color-field"`. Its own bundle: the picker is a Lit element with a canvas, which a form with no colour field should not download. |
 | `color-scheme-toggle` | css · wc · bricks | `<wc-color-scheme-toggle></wc-color-scheme-toggle>`. Renamed from `<color-scheme-toggle>` in 4.0. Shadow DOM, so it is absent rather than broken without JS. |
-| `color-wheel` | wc | Not shipped. Registered but absent from every bundle, so the tag is inert in a consumer project. |
 | `combobox` | css · wc · astro | `<Combobox name inputId options={[…]} />` with your own `<label for>`. With no JS it is an `<input list>` + `<datalist>`: native autocomplete. What is typed is what is submitted, so it suggests and does not constrain; use `<select>` for a closed set. Do NOT wrap it in `<wc-combobox>`: it emits its own. By hand: `<wc-combobox class="combobox"><input class="combobox__input" list="x"><datalist id="x">…</datalist></wc-combobox>`. |
 | `comment` | css | `.comment` inside `.comment-thread`. |
 | `config-form` | wc · astro | `<ConfigForm id schema paths output><form method="post">…</form></ConfigForm>`, with the fields from `renderStepHtml` / `renderProjectionHtml` (`@getvitops/utils/forms`). With no JS it is a plain form posting the names `formToConfig` parses and the server validates. Its own Lit-free bundle (`@getvitops/core/config-form`): the validator and the form codec. Do NOT wrap it in `<wc-config-form>`: it emits its own. `paths` narrows the schema to the fields shown; `novalidate` lets the server decide a submit. |
@@ -81,7 +80,6 @@ emit its tag.
 | `grouped` | css | `.group-inline` / `.group-block` to join adjacent controls. |
 | `horizontal-scroll` | css | `.horizontal-scroll` for a snap strip. |
 | `icon` | css · astro · bricks | `<Icon name="menu" />`. Names are semantic and resolve per configured set; a name containing `:` passes through. |
-| `icon-picker` | css · wc | Not shipped. See `color-wheel`. |
 | `image-compare` | css · wc · bricks · emdash | `<wc-image-compare>` with two images. Both are visible without JS. |
 | `lightbox` | css | The single `<dialog class="lightbox-dialog">` a gallery opens — it wraps ONE `.carousel` (`lightbox-dialog__track`) of every image, not one dialog per image. Use `gallery` for the thumbnail grid that drives it — `<Gallery />` emits both, and the carousel inside already owns prev/next/dots/keys/swipe. |
 | `link` | css · emdash | `<a>` gets it at zero specificity; `.link` for other tags. `.stretched-link` makes one link cover its positioned ancestor (whole-card click, no JS — but the card text stops being selectable); `.raised` lifts content back above that overlay. |
@@ -97,7 +95,7 @@ emit its tag.
 | `navbar` | css | `.navbar` with `--start/--center/--end`. |
 | `navshell` | css · astro | `<NavShell>` with a `nav` slot, plus `<NavShellToggle>` if the toggle must live outside the shell. |
 | `notification` | css | `.notification` with a role variant; wrap in `<wc-dismissable>` to make it dismissable. |
-| `oklch-color-picker` | wc | Not shipped. See `color-wheel`. |
+| `oklch-color-picker` | wc | Not used directly: `<wc-color-field>` imports it when its picker is first opened. It is a canvas control with no meaning without JS. |
 | `overlay` | css | `.overlay` for a scrim. |
 | `popover` | css · astro | `<Popover>` — native Popover API + CSS Anchor Positioning. No JS. |
 | `pull-quote` | css | `.pull-quote`. Note the type role `quote` is separate. |
@@ -129,7 +127,6 @@ emit its tag.
 | `tooltip` | css | `.tooltip-trigger` — CSS only, anchor-positioned. |
 | `tree` | css · wc · astro · emdash | `<Tree items={…} />` — it emits `<wc-tree>` itself, so do NOT add your own wrapper. In EmDash, `vitops_tree` takes an indented outline (one node per line, indent to nest, `\| badge` for a chip) and builds the tree from it; it never sets `descriptionHtml`. |
 | `turnstile` | css · wc · emdash | `<wc-turnstile sitekey="…">` inside a `<form>`, around a paragraph saying the spam check needs JavaScript. Pair it with `createConversionRoute({ turnstile })`; the `vitops_form` block does both. |
-| `typography-config` | wc | Not shipped. See `color-wheel`. |
 | `widget-area` | css · emdash | Editor-managed regions: `<VitopsWidgetArea name="footer-columns" />` (`@getvitops/emdash/astro`) renders an area from Widgets in the admin — titled groups, a menu as a labelled `<nav>`, content as Portable Text. In a page, the `vitops_widgetArea` block places one. An area holding a `core:*` component widget falls back to EmDash's own renderer, and an area cannot hold another. Prerendered pages show an edit after the next deploy. |
 
 ## Web components
@@ -145,7 +142,6 @@ is tooling and opt-in per consumer.
 | `<wc-carousel>` | `carousel` | `elements.js` | full | opt-in cloned loop, autoplay, and real prev/next + dot controls where `::scroll-button()`/`::scroll-marker` are missing |
 | `<wc-color-field>` | `color-field` | `@getvitops/core/color-field` | full | offers the OKLCH picker beside a colour text input: dragging writes the hex into the input, typing a hex moves the picker |
 | `<wc-color-scheme-toggle>` | `color-scheme-toggle` | `elements.js` | partial | segmented light/dark/system control; persists the choice (consent-gated) |
-| `<wc-color-wheel>` | `color-wheel` | `(none — editor-v2 track, not yet bundled)` | none | hue/chroma wheel input |
 | `<wc-combobox>` | `combobox` | `elements.js` | full | a filtered ARIA 1.2 listbox (aria-activedescendant, arrow/Enter/Escape keys, a live result count) in place of the browser datalist popup |
 | `<wc-config-form>` | `config-form` | `@getvitops/core/config-form` | full | validates the form against a JSON Schema as you type and shows each message in its `<wc-field>`, stops a submit that has errors, adds a row to a keyed map as the blank one is used (until `<wc-multifield>` takes over), and exposes the config document the form describes |
 | `<wc-consent>` | `consent` | `@getvitops/core/consent` | full | the permission gate itself — activates `type="text/plain"` tags on grant |
@@ -157,11 +153,10 @@ is tooling and opt-in per consumer.
 | `<wc-field>` | `field` | `elements.js` | full | links the help text and the error to the control with `aria-describedby`, writes validation messages under the field once the control is left or a submit reports it, accepts `setError()` from a host that validates against a schema, and adds a `maxlength` counter |
 | `<wc-format>` | `format` | `elements.js` | full | replaces the authored text with a locale-aware relative time, date, number, percentage or currency read from the machine value, and keeps a relative time current |
 | `<wc-gallery>` | `gallery` | `elements.js` | full | a real `showModal()` open, neighbour preload and the thumbnail→full-image view-transition morph |
-| `<wc-icon-picker>` | `icon-picker` | `(none — editor-v2 track, not yet bundled)` | none | browses the semantic icon map for the configured set |
 | `<wc-image-compare>` | `image-compare` | `elements.js` | full | drag handle revealing the before/after image |
 | `<wc-marquee>` | `marquee` | `elements.js` | full | fills the track with enough copies to scroll seamlessly |
 | `<wc-multifield>` | `multi-field` | `elements.js` | full | Add, Remove and Clear for a repeated field or fieldset, with `min`, `max` and `protect-defaults`; a row of a keyed map is an open `<details>` titled by its key |
-| `<wc-oklch-color-picker>` | `oklch-color-picker` | `(none — editor-v2 track, not yet bundled)` | none | OKLCH L/C/H picker |
+| `<wc-oklch-color-picker>` | `oklch-color-picker` | `(none of its own — a dynamic import from @getvitops/core/color-field, on first open)` | none | OKLCH L/C/H picker |
 | `<wc-range>` | `range` | `elements.js` | full | overlays two native range inputs on one track with thumbs that cannot cross and a filled span between them, and keeps an `<output>` current |
 | `<wc-split-panel>` | `split-panel` | `elements.js` | partial | draggable divider between two panels |
 | `<wc-stepper>` | `stepper` | `@getvitops/core/stepper` | full | shows one section of a long form at a time with Back and Next, stops a forward move at the first invalid step, marks the current link `aria-current="step"`, and follows the URL fragment |
@@ -169,9 +164,8 @@ is tooling and opt-in per consumer.
 | `<wc-theme-editor>` | `theme-editor` | `@getvitops/core/editor` | none | live `:root` token overrides, export as CSS or a config patch |
 | `<wc-tree>` | `tree` | `elements.js` | partial | WAI-ARIA tree semantics, roving-tabindex keyboard navigation, filter, expand/collapse all, hash deep-linking |
 | `<wc-turnstile>` | `turnstile` | `elements.js` | partial | loads Cloudflare Turnstile on first interaction with the form and holds a submit until its token arrives |
-| `<wc-typography-config>` | `typography-config` | `(none — editor-v2 track, not yet bundled)` | none | type role editor |
 
-`<wc-color-wheel>`, `<wc-icon-picker>`, `<wc-oklch-color-picker>`, `<wc-typography-config>` are **registered but in no bundle** (the editor-v2 track). The tags are inert in a consumer project — they are listed so that "the tag does nothing" is documented rather than discovered.
+`<wc-oklch-color-picker>` are **registered but in no bundle** (loaded on demand by another element, or unused). The tags are inert in a consumer project — they are listed so that "the tag does nothing" is documented rather than discovered.
 
 ## Astro components
 
@@ -329,7 +323,6 @@ rules that generate them all.
 | `grouped` | `patterns/grouped.css` | `group`, `group-inline`, `bordered` | — |
 | `horizontal-scroll` | `patterns/horizontal-scroll.css` | `horizontal-scroll` | — |
 | `icon` | `patterns/icon.css` | `icon`, `icon-button`, `icon-mask` | — |
-| `icon-picker` | `patterns/icon.css` | — | — |
 | `image-compare` | `patterns/splitter.css` | `image-compare`, `image-compare__before`, `image-compare__handle` | — |
 | `lightbox` | `patterns/lightbox.css` | `lightbox-dialog`, `lightbox-dialog__track`, `lightbox-dialog__close` | declared |
 | `link` | `patterns/anchor-link.css` | `link`, `skip-link`, `stretched-link`, `raised` | declared |

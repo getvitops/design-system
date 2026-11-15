@@ -158,7 +158,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
      * The icons are `combobox` — a searchable typeahead over a STATIC option
      * list, which is exactly what the semantic name list is. It is the closest
      * fit Block Kit offers: its element union is closed (no custom element, no
-     * raw HTML), so `<wc-icon-picker>` cannot be mounted inside a block modal
+     * raw HTML), so a custom icon picker cannot be mounted inside a block modal
      * however much nicer it would be. Revisit if EmDash opens that union.
      */
     type: 'vitops_actionLink',

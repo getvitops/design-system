@@ -460,24 +460,10 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`<wc-theme-editor manifest="…">`. TOOLING, not a page pattern — the one deliberate tier-2 exception, quarantined in its own opt-in bundle.',
   },
 
-  // ── editor-v2 track: defined, but shipped in no bundle ────────────────────
+  // ── Loaded on demand, in no bundle of its own ─────────────────────────────
   //
-  // Registered by their own modules and imported by nothing, so nothing can be
-  // consuming them. They are listed because the guards require every
-  // `customElements.define` to be accounted for — and because "exists but is not
-  // shipped" is exactly the kind of thing a reader needs told, rather than
-  // discovering the tag does nothing.
-  'color-wheel': {
-    css: c([]),
-    wc: {
-      tag: 'wc-color-wheel',
-      fallback: 'none',
-      registered: false,
-      adds: 'hue/chroma wheel input',
-      bundle: '(none — editor-v2 track, not yet bundled)',
-    },
-    use: 'Not shipped. Registered but absent from every bundle, so the tag is inert in a consumer project.',
-  },
+  // `customElements.define`d by its own module and imported only by `<wc-color-field>`, so the
+  // guards need it accounted for, and a reader needs telling the tag is not something to place.
   'oklch-color-picker': {
     css: c([]),
     wc: {
@@ -485,31 +471,10 @@ export const TIERS: Record<string, TierEntry> = {
       fallback: 'none',
       registered: false,
       adds: 'OKLCH L/C/H picker',
-      bundle: '(none — editor-v2 track, not yet bundled)',
+      bundle:
+        '(none of its own — a dynamic import from @getvitops/core/color-field, on first open)',
     },
-    use: 'Not shipped. See `color-wheel`.',
-  },
-  'icon-picker': {
-    css: c([], 'patterns/icon.css'),
-    wc: {
-      tag: 'wc-icon-picker',
-      fallback: 'none',
-      registered: false,
-      adds: 'browses the semantic icon map for the configured set',
-      bundle: '(none — editor-v2 track, not yet bundled)',
-    },
-    use: 'Not shipped. See `color-wheel`.',
-  },
-  'typography-config': {
-    css: c([]),
-    wc: {
-      tag: 'wc-typography-config',
-      fallback: 'none',
-      registered: false,
-      adds: 'type role editor',
-      bundle: '(none — editor-v2 track, not yet bundled)',
-    },
-    use: 'Not shipped. See `color-wheel`.',
+    use: 'Not used directly: `<wc-color-field>` imports it when its picker is first opened. It is a canvas control with no meaning without JS.',
   },
 
   // ── Astro-only conveniences over tier-1 markup (no web component) ──────────
@@ -963,9 +928,9 @@ export interface TierProjection {
  *
  * `css` needs a predicate rather than a presence check, which is the non-obvious
  * part. `TierEntry.css` is required, so *every* entry has one — including the
- * editor-v2 track, whose entries carry `c([])`: no partial, no classes, not
+ * entries with no stylesheet, which carry `c([])`: no partial, no classes, not
  * generated. Treating the field's presence as membership would list four patterns
- * on the CSS page with nothing to show for them, and `color-wheel` genuinely has
+ * on the CSS page with nothing to show for them, and `oklch-color-picker` genuinely has
  * no CSS. The other three tiers are optional fields, so presence is the test.
  */
 export function tierPatterns(tier: Tier): TierProjection[] {
