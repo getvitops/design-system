@@ -126,7 +126,7 @@ emit its tag.
 | `text-effects` | css | `.typing`, `.text-highlight`, … CSS animation only. |
 | `theme-editor` | css · wc | `<wc-theme-editor manifest="…">`. TOOLING, not a page pattern — the one deliberate tier-2 exception, quarantined in its own opt-in bundle. |
 | `tone` | css | Add `.tone` and set `--tone-bg` / `--tone-fg` / `--tone-border` / `--tone-solid` / `--tone-on-solid` as custom properties — never a class built from a value, which Tailwind cannot see. `@getvitops/emdash`'s `resolveTone(tone, color)` writes them: role, then semantic fallbacks, then `neutral`, or a palette `color` escape hatch. `.accent` colours a run inside a heading. |
-| `tooltip` | css | `.tooltip-trigger` + `<div class="tooltip" popover="manual">`, linked by `popovertarget` (the no-JS click fallback). Anchor-positioned; `deferred.js` adds hover, keyboard focus and Escape, plus `role="tooltip"` and `aria-describedby`. |
+| `tooltip` | css · astro | `<Tooltip id label>text</Tooltip>` for what a control does, `<Tooltip toggle>` for a "?" that reveals more than a phrase (touch and screen readers). Not an element: the markup is `.tooltip-trigger` + a `.tooltip` popover, linked by `popovertarget` (the no-JS click toggle), and `deferred.js` adds hover, keyboard focus and Escape, a per-pair anchor, `role="tooltip"`, and `aria-describedby` (plain) or `aria-expanded` (toggletip). |
 | `tree` | css · wc · astro · emdash | `<Tree items={…} />` — it emits `<wc-tree>` itself, so do NOT add your own wrapper. In EmDash, `vitops_tree` takes an indented outline (one node per line, indent to nest, `\| badge` for a chip) and builds the tree from it; it never sets `descriptionHtml`. |
 | `turnstile` | css · wc · emdash | `<wc-turnstile sitekey="…">` inside a `<form>`, around a paragraph saying the spam check needs JavaScript. Pair it with `createConversionRoute({ turnstile })`; the `vitops_form` block does both. |
 | `widget-area` | css · emdash | Editor-managed regions: `<VitopsWidgetArea name="footer-columns" />` (`@getvitops/emdash/astro`) renders an area from Widgets in the admin — titled groups, a menu as a labelled `<nav>`, content as Portable Text. In a page, the `vitops_widgetArea` block places one. An area holding a `core:*` component widget falls back to EmDash's own renderer, and an area cannot hold another. Prerendered pages show an edit after the next deploy. |
@@ -206,6 +206,7 @@ is tooling and opt-in per consumer.
 | `@getvitops/astro/components/StepperNav.astro` | `stepper` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Subgrid.astro` | `subgrid` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Tabs.astro` | `tabs` | the `<wc-tabs>` tag, fallback inside |
+| `@getvitops/astro/components/Tooltip.astro` | `tooltip` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Tree.astro` | `tree` | the `<wc-tree>` tag, fallback inside |
 
 ## Bricks elements
@@ -287,6 +288,7 @@ Every shipped `wc-*` element either has a block above or a stated reason here
 - `wc-split-panel` — app UI (resizable panes), not editorial content; an editor does not drag-resize a published page
 - `wc-stepper` — onboarding and configuration flow for a site owner, not page content an editor places
 - `wc-theme-editor` — tooling, not content; it is mounted in the EmDash admin by `designSystemEditor`, never in a page
+- `tooltip` — an affordance on a control, not content an editor places: a block would need the control it explains
 
 ## CSS
 
@@ -371,7 +373,7 @@ rules that generate them all.
 | `text-effects` | `patterns/text-effects.css` | `typing`, `text-highlight`, `text-gradient-animate`, `text-stagger` | — |
 | `theme-editor` | `patterns/theme-editor.css` | `ed-panel`, `ed-launch`, `ed-input` | — |
 | `tone` | `patterns/tone.css` | `tone`, `tone--solid`, `accent` | — |
-| `tooltip` | `patterns/tooltip.css` | `tooltip-trigger` | declared |
+| `tooltip` | `patterns/tooltip.css` | `tooltip-trigger`, `tooltip--toggle` | declared |
 | `tree` | `patterns/tree.css` | `tree`, `tree__item`, `tree__content`, `tree__summary`, `tree__toggle`, `tree__label` | declared |
 | `turnstile` | `patterns/forms.css` | `form-group` | — |
 | `widget-area` | `patterns/widget-area.css` | `widget-area`, `widget__title`, `widget__menu` | — |

@@ -26,7 +26,7 @@ otherwise flag. **The carousel** keeps its cloned-slide loop and its `@supports`
 `::scroll-marker` / `::scroll-button()` branch instead of the guide's HTML-buttons-only,
 `order`-parking loop, because that loop needs `sibling-count()` and `sibling-index()`, which reached
 Baseline on 2026-08-18. **Tooltips** are a `popover="manual"` driven by a small hover/focus/Escape
-handler (`js/tooltip.ts`) rather than `interestfor`. **`interpolate-size`** is set once on `:root`
+handler (`js/tooltip.ts`) rather than `interestfor`; a `.tooltip--toggle` toggletip (`<Tooltip toggle>`) is a `popover="auto"` that a click pins open and that reports `aria-expanded`. **`interpolate-size`** is set once on `:root`
 (`animation.css`) with no fallback, because without it an `auto` height simply resizes instantly,
 which is a correct degrade. A guide that says "do not use X for now" is a reason to check this rule,
 not to skip it.

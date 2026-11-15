@@ -332,3 +332,14 @@ test.describe('<wc-contrast-toggle> fallback', () => {
     expect(await read()).not.toBe(standard);
   });
 });
+
+test.describe('<Tooltip> fallback', () => {
+  test('a toggletip opens on click with no script, from the native popover', async ({ page }) => {
+    await page.goto('/patterns');
+    const trigger = page.locator('[popovertarget="pt-tip3"]');
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.click();
+    await expect(page.locator('#pt-tip3')).toBeVisible();
+    await expect(page.locator('#pt-tip3')).toContainText('Free over $50');
+  });
+});

@@ -610,8 +610,11 @@ export const TIERS: Record<string, TierEntry> = {
     use: '`.status` with a role variant.',
   },
   tooltip: {
-    css: c(['tooltip-trigger'], 'patterns/tooltip.css', true),
-    use: '`.tooltip-trigger` + `<div class="tooltip" popover="manual">`, linked by `popovertarget` (the no-JS click fallback). Anchor-positioned; `deferred.js` adds hover, keyboard focus and Escape, plus `role="tooltip"` and `aria-describedby`.',
+    css: c(['tooltip-trigger', 'tooltip--toggle'], 'patterns/tooltip.css', true),
+    astro: a('Tooltip', 'css'),
+    emdashExempt:
+      'an affordance on a control, not content an editor places: a block would need the control it explains',
+    use: '`<Tooltip id label>text</Tooltip>` for what a control does, `<Tooltip toggle>` for a "?" that reveals more than a phrase (touch and screen readers). Not an element: the markup is `.tooltip-trigger` + a `.tooltip` popover, linked by `popovertarget` (the no-JS click toggle), and `deferred.js` adds hover, keyboard focus and Escape, a per-pair anchor, `role="tooltip"`, and `aria-describedby` (plain) or `aria-expanded` (toggletip).',
   },
   dialog: {
     css: c(['dialog__header', 'dialog__body', 'dialog__footer'], 'patterns/dialog.css', true),

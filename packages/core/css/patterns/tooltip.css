@@ -53,6 +53,12 @@
   max-inline-size: 20rem;
   /* Hoverable on purpose (WCAG 1.4.13): the pointer must be able to move onto it. */
 
+  /* A toggletip carries more than a phrase, so it wraps (see js/tooltip.ts). */
+  &.tooltip--toggle {
+    white-space: normal;
+    inline-size: max-content;
+  }
+
   /* The Popover API toggles display; fade across the top-layer transition. */
   opacity: 0;
   transition:

@@ -66,3 +66,46 @@ test.describe('tooltip', () => {
     expect(names[0]).not.toBe(names[1]);
   });
 });
+
+test.describe('toggletip', () => {
+  test('opens on click, reports aria-expanded, and stays open when the pointer leaves', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    const trigger = page.locator('[popovertarget="pt-tip3"]');
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.click();
+    await expect.poll(() => open(page, 'pt-tip3')).toBe(true);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(trigger).not.toHaveAttribute('aria-describedby', /.+/);
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(400);
+    expect(await open(page, 'pt-tip3')).toBe(true);
+  });
+
+  test('Escape closes it and the trigger keeps focus', async ({ page }) => {
+    await page.goto('/patterns');
+    const trigger = page.locator('[popovertarget="pt-tip3"]');
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => open(page, 'pt-tip3')).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect.poll(() => open(page, 'pt-tip3')).toBe(false);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).toBeFocused();
+  });
+
+  test('a click outside dismisses it', async ({ page }) => {
+    await page.goto('/patterns');
+    const trigger = page.locator('[popovertarget="pt-tip3"]');
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.click();
+    await expect.poll(() => open(page, 'pt-tip3')).toBe(true);
+    await page
+      .locator('h1')
+      .first()
+      .click({ position: { x: 2, y: 2 }, force: true });
+    await expect.poll(() => open(page, 'pt-tip3')).toBe(false);
+  });
+});

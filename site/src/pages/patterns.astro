@@ -20,6 +20,7 @@
 import Breadcrumbs from '@getvitops/astro/components/Breadcrumbs.astro';
 import Carousel from '@getvitops/astro/components/Carousel.astro';
 import Combobox from '@getvitops/astro/components/Combobox.astro';
+import Tooltip from '@getvitops/astro/components/Tooltip.astro';
 import Drawer from '@getvitops/astro/components/Drawer.astro';
 import Stepper from '@getvitops/astro/components/Stepper.astro';
 import StepperNav from '@getvitops/astro/components/StepperNav.astro';
@@ -519,6 +520,13 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
     <span id="pt-tip2" class="tooltip" popover="manual">
       Makes this page public.
     </span>
+  </p>
+  <p>
+    A <strong>toggletip</strong> is for more than a phrase, and for touch and screen-reader users
+    who never hover: Shipping
+    <Tooltip id="pt-tip3" toggle label="More about shipping">
+      Free over $50. Orders placed before 2pm ship the same day.
+    </Tooltip>
   </p>
 
   <h3>Popover and dropdown</h3>

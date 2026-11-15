@@ -59,7 +59,8 @@ const BUDGETS: Record<string, number> = {
   'config-preview.js': 2_000,
   'editor.js': 5_500,
   // `js/tooltip.ts` (hover, keyboard focus and Escape for `.tooltip-trigger`) moved into this bundle.
-  'deferred.js': 1_600,
+  // Toggletip handling (click pin, aria-expanded) added ~165 B, so 1,800.
+  'deferred.js': 1_800,
   'polyfills.js': 1_200,
 };
 
