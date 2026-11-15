@@ -41,3 +41,7 @@ packages/create/templates/*/.astro/
 # playwright-cli: skill is regenerated from the pinned playwright by `prepare`; output is per-session scratch
 .claude/skills/playwright-cli/
 .playwright-cli/
+
+# Agent skills installed by `skills add` (re-created from skills-lock.json)
+.agents/
+.claude/skills/modern-web-guidance
