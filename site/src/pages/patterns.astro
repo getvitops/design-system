@@ -274,6 +274,88 @@ const configFields = configSteps
     </table>
   </div>
 
+  <h3>Bordered tables with spans and colgroups</h3>
+  <div class="table-wrapper">
+    <table class="table table--bordered" id="pt-table-simple">
+      <caption>A simple bordered table</caption>
+      <thead>
+        <tr>
+          <th>Pattern</th>
+          <th>Tier</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>card</td>
+          <td>CSS</td>
+        </tr>
+        <tr>
+          <td>drawer</td>
+          <td>CSS + Popover API</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="table-wrapper">
+    <table class="table table--bordered table--striped" id="pt-table-complex">
+      <caption>
+        Quarterly plan: grouped columns, a two-row header, spanning cells and a footer
+      </caption>
+      <colgroup>
+        <col />
+        <col span="2" />
+        <col span="2" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th rowspan="2" scope="col">
+            Team
+          </th>
+          <th colspan="2" scope="colgroup">
+            First half
+          </th>
+          <th colspan="2" scope="colgroup">
+            Second half
+          </th>
+        </tr>
+        <tr>
+          <th scope="col">Q1</th>
+          <th scope="col">Q2</th>
+          <th scope="col">Q3</th>
+          <th scope="col">Q4</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row" rowspan="2">
+            Design
+          </th>
+          <td>4</td>
+          <td colspan="2">Shared sprint (6)</td>
+          <td>3</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>5</td>
+          <td>1</td>
+          <td>2</td>
+        </tr>
+        <tr>
+          <th scope="row">Platform</th>
+          <td colspan="4">On call all year</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <th scope="row">Total</th>
+          <td>6</td>
+          <td colspan="2">11</td>
+          <td>5</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
   <h3>Separator</h3>
   <hr class="separator" />
   <hr class="separator separator--dashed" />
