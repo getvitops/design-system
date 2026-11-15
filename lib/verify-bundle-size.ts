@@ -39,8 +39,8 @@ const BUDGETS: Record<string, number> = {
   // (about 0.9 KB each; they share Lit, `BaseElement` and `RovingTabindex`, which were already in
   // the bundle). Intended growth, so the ceiling moves with ~4% headroom. Since `<wc-color-field>`
   // shares Lit with it the bundler lifts Lit into `polyfills/BaseElement.js`; the figure counts that
-  // chunk (see `sharedSize`), and gzips it apart from the entry, hence the +600 B on 33,000. `<wc-multifield>` (light DOM, Lit-free, replacing the Lit `<wc-multi-field>`) and its row helper, a chunk shared with `config-form.js`, add ~400 B more. `<wc-contrast-toggle>` (the WCAG G174 switch, merged from the accessibility branch) adds ~300 B more, so 34,500.
-  'elements.js': 34_500,
+  // chunk (see `sharedSize`), and gzips it apart from the entry, hence the +600 B on 33,000. `<wc-multifield>` (light DOM, Lit-free, replacing the Lit `<wc-multi-field>`) and its row helper, a chunk shared with `config-form.js`, add ~400 B more. `<wc-contrast-toggle>` (the WCAG G174 switch, merged from the accessibility branch) adds ~300 B more, so 34,500. `<wc-copy>`'s polite live region (copied-label/failed-label), `BaseElement.connectionSignal` and `initFromLightDom`'s second, DOMContentLoaded retry add ~300 B, so 35,000.
+  'elements.js': 35_000,
   'consent.js': 3_500,
   // The validator, the form codec and `<wc-config-form>`; Lit-free, loaded only by a page with a
   // config form (3.6 KB gzipped, ~10% headroom). Counts the row helper it shares with `elements.js`.

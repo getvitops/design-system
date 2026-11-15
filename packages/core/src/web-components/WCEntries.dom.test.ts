@@ -60,6 +60,27 @@ describe('<wc-entries>', () => {
     expect(table.querySelectorAll(FOCUSABLE)).toHaveLength(0);
   });
 
+  it('copies cell content as cloned nodes, not as re-parsed HTML', async () => {
+    document.body.innerHTML = `
+      <wc-entries>
+        <h3><em>Alpha</em></h3>
+        <dl><dt>Site</dt><dd><a href="/a" onclick="void 0">link</a> <img src="x" onerror="window.__pwned = 1"></dd></dl>
+      </wc-entries>`;
+    await customElements.whenDefined('wc-entries');
+    await new Promise((r) => requestAnimationFrame(r));
+    const el = document.querySelector('wc-entries') as HTMLElement;
+    const cells = el.querySelectorAll('table tbody td');
+    // Inline structure survives, in the title cell and the value cell.
+    expect(cells[0]!.querySelector('em')?.textContent).toBe('Alpha');
+    const copy = cells[1]!.querySelector('a')!;
+    expect(copy.getAttribute('href')).toBe('/a');
+    // A copy, not the original: the source `<dd>` still owns its own link.
+    expect(copy).not.toBe(el.querySelector('dd a'));
+    expect(el.querySelector('dd a')).not.toBeNull();
+    // The copy adds no behaviour the source markup did not already carry.
+    expect((window as unknown as { __pwned?: number }).__pwned).toBeUndefined();
+  });
+
   it('does not build the table twice', async () => {
     const el = await mount();
     el.remove();

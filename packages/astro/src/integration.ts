@@ -40,6 +40,11 @@ import {
 import { type GetvitopsAdsOptions, resolveAds } from './ads.ts';
 import { type HeadFont, resolveFonts } from './fonts.ts';
 import { localeConsistencyWarnings } from './i18n.ts';
+import {
+  type GetvitopsPolyfillOptions,
+  type HeadPolyfillData,
+  resolvePolyfills,
+} from './polyfills.ts';
 import type { GetvitopsSeoOptions } from './seo.ts';
 import { tailwindSources } from './tailwind-sources.ts';
 import { mergeSeoDefaults, resolveSeoDefaults } from './seo-defaults.ts';
@@ -260,6 +265,12 @@ export interface GetvitopsOptions {
   media?: GetvitopsMediaOptions;
   /** Copy + link the web-component bundles (default true). */
   webComponents?: boolean;
+  /**
+   * Which feature-detected polyfills the page may load. Everything core depends on is on by
+   * default; `disable` leaves one out, and `enable: ['temporal']` turns on the one opt-in
+   * polyfill. See `GetvitopsPolyfillOptions`. Needs `webComponents`.
+   */
+  polyfills?: GetvitopsPolyfillOptions;
   /** Generate + auto-inject the design-system CSS. Off unless provided. */
   css?: GetvitopsCssOptions;
   /**
@@ -507,6 +518,8 @@ interface HeadData {
   faviconLinks: FaviconLink[];
   themeColor: string | null;
   webComponents: boolean;
+  /** Written onto the polyfills `<script>` tag as `data-polyfills-enable` / `-disable`. */
+  polyfills: HeadPolyfillData;
   wcBase: string;
   editor: boolean;
   /** `<link rel="sitemap">` target, or null when no sitemap was registered. */
@@ -1031,6 +1044,10 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         const root = fileURLToPath(config.root);
         const publicDir = fileURLToPath(config.publicDir);
         const webComponents = opts.webComponents !== false;
+        // Validated here so a typo fails the build instead of silently loading the wrong set.
+        const polyfills = resolvePolyfills(opts.polyfills);
+        if (opts.polyfills && !webComponents)
+          logger.warn('polyfills has no effect with `webComponents: false` (no bundle to load).');
         const editor = opts.editor === true;
         if ((editor || opts.editorManifest) && !opts.css)
           logger.warn(
@@ -1669,6 +1686,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
                 faviconLinks: opts.favicon ? faviconLinks({ hasSvg, manifest: hasManifest }) : [],
                 themeColor: opts.favicon?.themeColor ?? null,
                 webComponents,
+                polyfills,
                 wcBase: '/vitops',
                 editor,
                 sitemap: sitemapHref,

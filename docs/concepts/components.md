@@ -58,12 +58,14 @@ emit its tag.
 | `code` | css | Element selectors on `pre`/`code`; no class needed. |
 | `color-field` | wc | Not written by hand: `renderProjectionHtml` wraps a `color` widget in it. The text input is the whole fallback (and the only submitted control); the picker is `<wc-oklch-color-picker>`, the control the theme editor uses. Load it with `<ConfigForm colorPicker>` or `import "@getvitops/core/color-field"`. Its own bundle: the picker is a Lit element with a canvas, which a form with no colour field should not download. |
 | `color-scheme-toggle` | css · wc · bricks | `<wc-color-scheme-toggle></wc-color-scheme-toggle>`. Renamed from `<color-scheme-toggle>` in 4.0. Shadow DOM, so it is absent rather than broken without JS. |
+| `color-wheel` | wc | Not shipped. Registered by its own module and imported by nothing yet, so the tag is inert in a consumer project. |
 | `combobox` | css · wc · astro | `<Combobox name inputId options={[…]} />` with your own `<label for>`. With no JS it is an `<input list>` + `<datalist>`: native autocomplete. What is typed is what is submitted, so it suggests and does not constrain; use `<select>` for a closed set. Do NOT wrap it in `<wc-combobox>`: it emits its own. By hand: `<wc-combobox class="combobox"><input class="combobox__input" list="x"><datalist id="x">…</datalist></wc-combobox>`. |
 | `comment` | css | `.comment` inside `.comment-thread`. |
 | `config-form` | wc · astro | `<ConfigForm id schema paths output><form method="post">…</form></ConfigForm>`, with the fields from `renderStepHtml` / `renderProjectionHtml` (`@getvitops/utils/forms`). With no JS it is a plain form posting the names `formToConfig` parses and the server validates. Its own Lit-free bundle (`@getvitops/core/config-form`): the validator and the form codec. Do NOT wrap it in `<wc-config-form>`: it emits its own. `paths` narrows the schema to the fields shown; `novalidate` lets the server decide a submit. |
+| `config-preview` | wc · astro | `<ConfigPreview for="<wc-config-form id>" base="<script id>" />` beside a `<ConfigForm>`; it emits its own `<wc-config-preview>`, so do NOT wrap it. It loads `@getvitops/generator/preview` (a colour engine) only when the first edit arrives, and no JS means no preview, stated rather than excused. A contrast failure or an unknown palette hue is reported and the last good CSS stays. |
 | `consent` | css · wc · astro | `<CookieConsent />`. Its own Lit-free bundle so a site needing consent does not download a rendering framework. |
 | `contrast-toggle` | css · wc · astro | `<ContrastToggle />` — it emits `<wc-contrast-toggle>` itself, so do NOT add your own wrapper. Set `site.accessibility.contrastToggle: true` so a baseline contrast miss warns instead of failing the build (the generated `[data-contrast="more"]` layer is the conforming version it switches to). |
-| `copy` | css · wc · bricks · emdash | `<wc-copy>` around the content and a `[data-copy]` button. |
+| `copy` | css · wc · bricks · emdash | `<wc-copy value="…">` around the text to copy; the element renders its own button and announces "Copied" or "Copy failed" (`copied-label` / `failed-label` set the words). |
 | `counter` | css · wc · astro · emdash | `<Counter value="94%" />` — it emits `<wc-counter>` itself, so do NOT add your own wrapper. The final value is parsed from the fallback text, never passed separately. |
 | `cta` | css · emdash | `.cta` on any element — usually `<a>`, since a CTA navigates. Filled, with role variants. |
 | `details` | css · astro · emdash | `<Details>` — or hand-write `<details>`. No JS at either tier; `::details-content` animates in CSS. |
@@ -100,7 +102,7 @@ emit its tag.
 | `popover` | css · astro | `<Popover>` — native Popover API + CSS Anchor Positioning. No JS. |
 | `pull-quote` | css | `.pull-quote`. Note the type role `quote` is separate. |
 | `range` | css · wc · astro | A single slider needs no element: a bare `<input type="range">` is themed by `forms.css` (accent-color). For its value shown, or for two thumbs, use `<Range name label min max value output />` or `<Range names labels values />`: with no JS those are native range inputs (two submit as two fields). Every input needs a label. Do NOT wrap it in `<wc-range>`: it emits its own. |
-| `reveal` | css | `.reveal` — scroll-driven, no JS. Hosts the `interpolate-size` that `<details>` animation needs. |
+| `reveal` | css | `.reveal` — scroll-driven, no JS. `.reveal-h` animates `height: auto` through the page-wide `interpolate-size` (set on `:root` by the animation engine). |
 | `review` | css · astro · emdash | `<ReviewCard review={…} />` — one card, from `vitops reviews`' `.vitops/reviews.json` cache. Put several inside `<Carousel>` slides or `<Marquee>` items; there is no group component and no `wc-review`. In EmDash, `vitops_reviews` is that whole row: it reads the cache as a build-time import (`virtual:getvitops/reviews`, served by `vitops()`; empty when the file is absent), picks reviews with `selectReviews()`, and lays them out as a grid, carousel or marquee. A new review appears after `vitops reviews` is re-run, committed and the site rebuilt. |
 | `scroll-based` | css | Scroll-timeline driven; no JS. |
 | `scroll-target` | css | `.scroll-target-group` for `:target-current` highlighting. |
@@ -142,8 +144,10 @@ is tooling and opt-in per consumer.
 | `<wc-carousel>` | `carousel` | `elements.js` | full | opt-in cloned loop, autoplay, and real prev/next + dot controls where `::scroll-button()`/`::scroll-marker` are missing |
 | `<wc-color-field>` | `color-field` | `@getvitops/core/color-field` | full | offers the OKLCH picker beside a colour text input: dragging writes the hex into the input, typing a hex moves the picker |
 | `<wc-color-scheme-toggle>` | `color-scheme-toggle` | `elements.js` | partial | segmented light/dark/system control; persists the choice (consent-gated) |
+| `<wc-color-wheel>` | `color-wheel` | `(none — not yet bundled)` | none | hue/chroma wheel with harmony strategies (complementary, triad, …) |
 | `<wc-combobox>` | `combobox` | `elements.js` | full | a filtered ARIA 1.2 listbox (aria-activedescendant, arrow/Enter/Escape keys, a live result count) in place of the browser datalist popup |
 | `<wc-config-form>` | `config-form` | `@getvitops/core/config-form` | full | validates the form against a JSON Schema as you type and shows each message in its `<wc-field>`, stops a submit that has errors, adds a row to a keyed map as the blank one is used (until `<wc-multifield>` takes over), and exposes the config document the form describes |
+| `<wc-config-preview>` | `config-preview` | `@getvitops/core/config-preview` | none | previews a config form’s edits on the page it is made on: regenerates the design system’s token layers from the document the form describes and injects them after the page stylesheet, with a toggle and a reset |
 | `<wc-consent>` | `consent` | `@getvitops/core/consent` | full | the permission gate itself — activates `type="text/plain"` tags on grant |
 | `<wc-contrast-toggle>` | `contrast-toggle` | `elements.js` | full | starts checked under `prefers-contrast: more` and remembers the choice (consent-gated); the checkbox already works with no JS |
 | `<wc-copy>` | `copy` | `elements.js` | partial | clipboard write plus success feedback |
@@ -165,7 +169,7 @@ is tooling and opt-in per consumer.
 | `<wc-tree>` | `tree` | `elements.js` | partial | WAI-ARIA tree semantics, roving-tabindex keyboard navigation, filter, expand/collapse all, hash deep-linking |
 | `<wc-turnstile>` | `turnstile` | `elements.js` | partial | loads Cloudflare Turnstile on first interaction with the form and holds a submit until its token arrives |
 
-`<wc-oklch-color-picker>` are **registered but in no bundle** (loaded on demand by another element, or unused). The tags are inert in a consumer project — they are listed so that "the tag does nothing" is documented rather than discovered.
+`<wc-color-wheel>`, `<wc-oklch-color-picker>` are **registered but in no bundle** (loaded on demand by another element, or kept for the design-edit surface). The tags are inert in a consumer project — they are listed so that "the tag does nothing" is documented rather than discovered.
 
 ## Astro components
 
@@ -176,6 +180,7 @@ is tooling and opt-in per consumer.
 | `@getvitops/astro/components/Carousel.astro` | `carousel` | the `<wc-carousel>` tag, fallback inside |
 | `@getvitops/astro/components/Combobox.astro` | `combobox` | the `<wc-combobox>` tag, fallback inside |
 | `@getvitops/astro/components/ConfigForm.astro` | `config-form` | the `<wc-config-form>` tag, fallback inside |
+| `@getvitops/astro/components/ConfigPreview.astro` | `config-preview` | the `<wc-config-preview>` tag, fallback inside |
 | `@getvitops/astro/CookieConsent.astro` | `consent` | the `<wc-consent>` tag, fallback inside |
 | `@getvitops/astro/components/ContrastToggle.astro` | `contrast-toggle` | the `<wc-contrast-toggle>` tag, fallback inside |
 | `@getvitops/astro/components/Counter.astro` | `counter` | the `<wc-counter>` tag, fallback inside |
@@ -272,6 +277,7 @@ Every shipped `wc-*` element either has a block above or a stated reason here
 - `wc-color-scheme-toggle` — site chrome (header/footer), not page content; belongs in the nav/layout
 - `wc-combobox` — a form control, composed inside a form (vitops_form) rather than placed as page content
 - `wc-config-form` — configuration tooling for a site owner, not page content a visitor reads or an editor places
+- `wc-config-preview` — configuration tooling for a site owner, not page content a visitor reads or an editor places
 - `wc-consent` — site chrome: the layout renders `<CookieConsent />` once; an editor-placed copy would duplicate the gate
 - `wc-contrast-toggle` — site chrome (masthead/footer), not page content: it must be on every page to count as a WCAG G174 alternative, which a per-page editor block cannot guarantee
 - `wc-field` — a form control wrapper, composed inside a form (vitops_form) rather than placed as page content

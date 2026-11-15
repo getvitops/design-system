@@ -76,15 +76,13 @@ export class WCCombobox extends BaseElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
-    // Here rather than in setup: a reconnect skips setup (it is guarded), and this listener is
-    // removed on disconnect. Adding the same function twice is a no-op.
-    document.addEventListener('pointerdown', this.#onOutside, true);
+    // Here rather than in setup: a reconnect skips setup (it is guarded), and the connection
+    // signal removes this listener on disconnect.
+    document.addEventListener('pointerdown', this.#onOutside, {
+      capture: true,
+      signal: this.connectionSignal,
+    });
     initFromLightDom(this, () => this.#setup());
-  }
-
-  override disconnectedCallback(): void {
-    document.removeEventListener('pointerdown', this.#onOutside, true);
-    super.disconnectedCallback();
   }
 
   /* ── Setup ───────────────────────────────────────────────────────────────── */

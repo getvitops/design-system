@@ -13,6 +13,18 @@ It's tables and diagrams, and it links back here for the reasoning behind each o
 
 Prefer using modern CSS/HTML features (e.g. CSS Anchor Positioning API, Dialog, Invoker Commands API, Scroll Timelines, etc.) over JavaScript.
 
+**Browser support policy.** A platform feature is safe to _depend on_ once it has been Baseline for
+about a year; a newer one is allowed only as an enhancement with a working fallback, feature-detected
+(`@supports`, a `test()` in `polyfills.ts`) so that an engine without it is degraded rather than
+broken. This is the rule behind two deliberate choices that the `modern-web-guidance` skill's guides
+would otherwise flag. **The carousel** keeps its cloned-slide loop and its `@supports`-gated
+`::scroll-marker` / `::scroll-button()` branch instead of the guide's HTML-buttons-only,
+`order`-parking loop, because that loop needs `sibling-count()` and `sibling-index()`, which reached
+Baseline on 2026-08-18; revisit it once that has aged. **`interpolate-size`** is set once on `:root`
+(`animation.css`) with no fallback, because without it an `auto` height simply resizes instantly,
+which is a correct degrade. The guide's advice is otherwise followed: a guide that says "do not use
+X for now" is a reason to check this rule, not to skip it.
+
 ## Component architecture
 
 Three tiers, chosen by **whether a pattern actually needs JavaScript**:
@@ -40,8 +52,21 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      `getElementById`, captured before upgrade — loses it; `tree-toggle` (mirroring the existing
      `tree-filter` event) is the replacement surface. Named here as a deliberate exception, not a
      silent divergence — same treatment as `<wc-consent>` and `<wc-theme-editor>` below.
-   - **`<wc-image-compare>` is the one element that renders into a shadow root** — a named exception
-     to "use light DOM", not a silent one. `DragController` finds its handle through `renderRoot`,
+   - **Three elements render into a shadow root** — `<wc-image-compare>`, `<wc-color-scheme-toggle>`
+     and `<wc-copy>` — named exceptions to "use light DOM", not silent ones. The rule that separates
+     them from the rest: light DOM where there is **author markup to parse and augment**; a shadow
+     root where the element **renders all of its own UI** and the light DOM is only a slot, so
+     encapsulation protects the generated controls and nothing needs the framework CSS to reach
+     in. `<wc-color-scheme-toggle>` is the pure case: it has no slotted content at all, its host is
+     `display: none` until it upgrades (absent rather than broken with no JS), and the page itself
+     follows `prefers-color-scheme` meanwhile. `<wc-copy>` builds its button and live status region
+     itself; the only light-DOM content is the text being copied, which stays visible and
+     selectable with no JS. Both state this as `@fallback partial`. `WCCopy.dom.test.ts` asserts
+     the live region sits beside the button in the same shadow root, because an `aria-live` node
+     cannot be referenced across a shadow boundary. Converting either to light DOM would touch
+     shipped, tested components for nothing a client can see; don't do it to tidy the rule. A
+     **new** element that parses author markup does not get to join this list.
+   - **`<wc-image-compare>`'s reason, specifically:** `DragController` finds its handle through `renderRoot`,
      and the divider's stacking and clip live in the element's own `static styles`. The fallback
      promise is unaffected, because the two images are the **light-DOM** children (`slot="before"` /
      `slot="after"`), which upgrading never touches: with no JS they are two readable images.

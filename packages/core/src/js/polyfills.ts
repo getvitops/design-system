@@ -37,6 +37,55 @@ export interface Polyfill {
   load: () => Promise<unknown>;
 }
 
+/**
+ * Polyfills that load only when a site asks for them (`vitops({ polyfills: { enable } })`).
+ *
+ * `temporal` is here because nothing in core reads the API (`<wc-format>` uses `Intl`), so
+ * loading it for every visitor on an engine without Temporal bought no feature the framework
+ * ships. Everything else stays on by default: a polyfill omitted by accident fails silently in
+ * an old browser, so the safe default for the ones core depends on is "on, opt out".
+ */
+export const OPT_IN_POLYFILLS: readonly string[] = ['temporal'];
+
+/** Which polyfills a page turns on or off, from `vitops({ polyfills })`. */
+export interface PolyfillSelection {
+  /** Opt-in polyfills to turn on (see `OPT_IN_POLYFILLS`). */
+  enable?: readonly string[];
+  /** Polyfills to leave out. Wins over `enable` if a name is somehow in both. */
+  disable?: readonly string[];
+}
+
+/**
+ * The polyfills that should run: everything except the opt-in set, plus anything `enable`d,
+ * minus anything `disable`d. Pure, so the policy is asserted without a DOM.
+ */
+export function selectPolyfills(list: Polyfill[], selection: PolyfillSelection = {}): Polyfill[] {
+  const enable = new Set(selection.enable ?? []);
+  const disable = new Set(selection.disable ?? []);
+  return list.filter(
+    ({ name }) => !disable.has(name) && (enable.has(name) || !OPT_IN_POLYFILLS.includes(name)),
+  );
+}
+
+/**
+ * Read the selection `<Head />` writes onto this script's own tag
+ * (`data-polyfills-enable` / `data-polyfills-disable`, space-separated).
+ *
+ * Looked up by a marker attribute rather than `document.currentScript`, which is `null` inside
+ * a module script. No tag, or no attributes, means the default set, so a site that loads this
+ * bundle by hand keeps working.
+ */
+export function readPolyfillSelection(
+  doc: Pick<Document, 'querySelector'> = document,
+): PolyfillSelection {
+  const tag = doc.querySelector<HTMLElement>('script[data-vitops-polyfills]');
+  const words = (value: string | undefined): string[] => value?.split(/\s+/).filter(Boolean) ?? [];
+  return {
+    enable: words(tag?.dataset.polyfillsEnable),
+    disable: words(tag?.dataset.polyfillsDisable),
+  };
+}
+
 export const prerenderPolyfills: Polyfill[] = [
   // {
   //   // Scroll-driven animations — animation-timeline: scroll()/view()
@@ -117,7 +166,9 @@ export interface PolyfillDegradedDetail {
  * logged and reported via a `POLYFILL_DEGRADED_EVENT` on `window` so the app
  * can notify the user about potentially degraded behaviour.
  */
-export async function loadPolyfills(list: Polyfill[] = prerenderPolyfills): Promise<void> {
+export async function loadPolyfills(
+  list: Polyfill[] = selectPolyfills(prerenderPolyfills),
+): Promise<void> {
   const pending = list.filter(({ test }) => !test());
   const results = await Promise.allSettled(pending.map(({ load }) => load()));
 
@@ -140,6 +191,9 @@ export async function loadPolyfills(list: Polyfill[] = prerenderPolyfills): Prom
 }
 
 if (typeof document !== 'undefined') {
-  void loadPolyfills(prerenderPolyfills);
-  document.addEventListener('DOMContentLoaded', () => loadPolyfills(postrenderPolyfills));
+  const selection = readPolyfillSelection();
+  void loadPolyfills(selectPolyfills(prerenderPolyfills, selection));
+  document.addEventListener('DOMContentLoaded', () =>
+    loadPolyfills(selectPolyfills(postrenderPolyfills, selection)),
+  );
 }

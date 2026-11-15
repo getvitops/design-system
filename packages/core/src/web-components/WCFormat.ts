@@ -81,12 +81,13 @@ export class WCFormat extends BaseElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
-    document.addEventListener('visibilitychange', this.#onVisibility);
+    document.addEventListener('visibilitychange', this.#onVisibility, {
+      signal: this.connectionSignal,
+    });
     initFromLightDom(this, () => this.#setup());
   }
 
   override disconnectedCallback(): void {
-    document.removeEventListener('visibilitychange', this.#onVisibility);
     this.#clearTimer();
     super.disconnectedCallback();
   }

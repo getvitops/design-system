@@ -52,6 +52,7 @@ export type {
 // a caveat that belongs at the call site.
 // Strict-CSP helpers: SHA-256 hashes of the inline scripts <Head /> emits, and a
 // starting policy built on them. Build-time (node:crypto), like gitLastmod.
+export type { GetvitopsPolyfillOptions, PolyfillName } from './polyfills.ts';
 export { contentSecurityPolicy, cspScriptHash, inlineScriptHashes } from './csp.ts';
 export type { ContentSecurityPolicyOptions, InlineScriptOptions } from './csp.ts';
 export { gitLastmod, routeFromPage, slugFromContent } from './lastmod.ts';

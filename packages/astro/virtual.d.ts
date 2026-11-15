@@ -22,6 +22,11 @@ declare module 'virtual:getvitops/head' {
     cookies: string[];
     abVariantCookie: string | null;
   }
+  /** Mirrors `HeadPolyfillData` in src/polyfills.ts. Named for the same reason as `HeadTrackingData`. */
+  interface HeadPolyfillData {
+    enable: string[];
+    disable: string[];
+  }
   // Keep these keys in step with `HeadData` in src/integration.ts — the two are
   // hand-duplicated (an ambient `declare module` in a shipped .d.ts cannot import
   // from src), and `head.test.ts` asserts the key sets match.
@@ -30,6 +35,7 @@ declare module 'virtual:getvitops/head' {
     faviconLinks: FaviconLink[];
     themeColor: string | null;
     webComponents: boolean;
+    polyfills: HeadPolyfillData;
     wcBase: string;
     editor: boolean;
     sitemap: string | null;

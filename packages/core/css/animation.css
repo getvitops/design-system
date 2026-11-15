@@ -512,7 +512,7 @@
 
    `height: 0 → auto` is not interpolable on its own: `auto` isn't a length, so
    the pair falls back to discrete and the transition doesn't run.
-   `interpolate-size: allow-keywords` (set on :root in utilities.css) is what
+   `interpolate-size: allow-keywords` (set on :root just below) is what
    makes `auto` a real endpoint — NOT `transition-behavior: allow-discrete`,
    which only permits genuinely discrete properties (display,
    content-visibility, overlay) to transition and would at best snap at the
@@ -531,6 +531,16 @@
    runs). That is specific to ::details-content, but the lesson generalises — a
    passing @supports query is not evidence the interaction works. Verify a real
    hover before trusting a change here. */
+/* Page-wide opt-in, so every `height: auto` / `block-size: auto` endpoint can
+   interpolate: `.transition`, `.reveal-h`, and `<details>`' `::details-content`.
+   It lives here rather than in global.css because this file reaches all three
+   formats (the tailwind format skips global.css), and it is a plain declaration
+   rather than an `@supports` block because an engine that doesn't know the
+   property drops it. Without support, `auto` heights simply resize instantly. */
+:root {
+  interpolate-size: allow-keywords;
+}
+
 @supports (interpolate-size: allow-keywords) {
   .transition {
     height: var(--t-height, var(--height-from, auto));

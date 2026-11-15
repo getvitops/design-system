@@ -1,5 +1,6 @@
 import { noChange } from 'lit';
 import { BaseElement } from './BaseElement.js';
+import { focusTargetAfterRemoval } from './utils/focus-return.js';
 
 /**
  * Light-DOM dismissable wrapper — progressive enhancement for any dismissable UI
@@ -8,6 +9,10 @@ import { BaseElement } from './BaseElement.js';
  * removes it, dispatching a cancelable `dismiss` event first. An optional
  * `duration` (ms) auto-dismisses; `exit` (ms) sets the fade-out time (skipped
  * under prefers-reduced-motion).
+ *
+ * When the dismissed element held focus (a keyboard user pressed the close button), focus
+ * moves to the next focusable element after it, or the nearest one before, instead of
+ * falling to `<body>` and losing the reader's place.
  *
  * Light DOM (no shadow root) so the wrapped component's framework CSS applies
  * directly and the close button sits in normal flow. Without JS the markup still
@@ -71,6 +76,14 @@ export class WCDismissable extends BaseElement {
     }
   };
 
+  /** Remove, handing focus to a neighbour first if it was inside (see the class docblock). */
+  #detach(): void {
+    const active = this.ownerDocument.activeElement;
+    const target = active && this.contains(active) ? focusTargetAfterRemoval(this) : null;
+    this.remove();
+    target?.focus();
+  }
+
   /** Dispatch `dismiss` (cancelable); if not prevented, fade out + remove. */
   dismiss(): void {
     if (this.#timer) {
@@ -82,7 +95,7 @@ export class WCDismissable extends BaseElement {
 
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (this.exit <= 0 || reduced) {
-      this.remove();
+      this.#detach();
       return;
     }
 
@@ -93,7 +106,7 @@ export class WCDismissable extends BaseElement {
     const finish = (): void => {
       if (removed) return;
       removed = true;
-      this.remove();
+      this.#detach();
     };
     this.addEventListener('transitionend', finish, { once: true });
     setTimeout(finish, this.exit + 50); // fallback if transitionend doesn't fire

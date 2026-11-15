@@ -22,6 +22,14 @@ interface Props {
    * passes `inline: { contrast: true }` to `contentSecurityPolicy()`.
    */
   contrast?: boolean;
+  /**
+   * Opt this page into the operating system's text-size setting (`<meta name="text-scale">`), so
+   * mobile browsers scale `1rem` to match Dynamic Type or Android font size instead of ignoring
+   * it. Opt-in because it changes how big every rem-based length renders for those visitors: the
+   * type and space scales are rem-based and scale cleanly, but a site with fixed-pixel layout
+   * should check a large setting first. Browsers without support ignore the tag.
+   */
+  textScale?: boolean;
   favicons?: boolean;
   webComponents?: boolean;
   editor?: boolean;
@@ -30,6 +38,7 @@ interface Props {
 }
 const {
   contrast = false,
+  textScale = false,
   favicons = head.favicons,
   webComponents = head.webComponents,
   editor = head.editor,
@@ -63,6 +72,7 @@ const wc = head.wcBase;
     <link rel={l.rel} href={l.href} type={l.type} sizes={l.sizes} />
   ))}
 {favicons && head.themeColor && <meta name="theme-color" content={head.themeColor} />}
+{textScale && <meta name="text-scale" content="scale" />}
 
 {/*
   Webfonts declared via vitops({ fonts }). Astro's `fonts:` config resolves and
@@ -113,7 +123,23 @@ const wc = head.wcBase;
     <script is:inline set:html={THEME_SCRIPT} />
     {contrast && <script is:inline set:html={CONTRAST_SCRIPT} />}
     <link rel="modulepreload" href={`${wc}/polyfills.js`} />
-    <script is:inline type="module" src={`${wc}/polyfills.js`}></script>
+    {/*
+      `data-vitops-polyfills` is how polyfills.js finds this tag (`document.currentScript` is null in
+      a module), and the two lists are `vitops({ polyfills })`. Both are omitted when empty, so
+      the default page's markup is unchanged.
+    */}
+    <script
+      is:inline
+      type="module"
+      src={`${wc}/polyfills.js`}
+      data-vitops-polyfills
+      data-polyfills-enable={
+        head.polyfills?.enable?.length ? head.polyfills.enable.join(' ') : undefined
+      }
+      data-polyfills-disable={
+        head.polyfills?.disable?.length ? head.polyfills.disable.join(' ') : undefined
+      }
+    ></script>
     <script is:inline defer src={`${wc}/deferred.js`}></script>
     <script is:inline type="module" src={`${wc}/elements.js`}></script>
   </>

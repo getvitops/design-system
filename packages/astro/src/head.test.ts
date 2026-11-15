@@ -96,3 +96,32 @@ describe('<html> class flags', () => {
     expect(SRC).not.toContain('classList');
   });
 });
+
+describe('polyfills script tag', () => {
+  it('carries the marker core looks it up by, and the two selection lists', () => {
+    // `readPolyfillSelection` in @getvitops/core queries `script[data-vitops-polyfills]` and reads
+    // `dataset.polyfillsEnable` / `polyfillsDisable`. Rename either side and the option silently
+    // stops doing anything, which is the failure this pins.
+    expect(SRC).toContain('data-vitops-polyfills');
+    expect(SRC).toContain('data-polyfills-enable=');
+    expect(SRC).toContain('data-polyfills-disable=');
+    const core = readFileSync(join(HERE, '../../core/src/js/polyfills.ts'), 'utf8');
+    expect(core).toContain('script[data-vitops-polyfills]');
+    expect(core).toContain('dataset.polyfillsEnable');
+    expect(core).toContain('dataset.polyfillsDisable');
+  });
+
+  it('omits both attributes when the lists are empty', () => {
+    expect(SRC).toContain('head.polyfills?.enable?.length ?');
+    expect(SRC).toContain(': undefined');
+  });
+});
+
+describe('text-scale meta', () => {
+  it('is opt-in and emits the OS text-size opt-in', () => {
+    // Off by default: it changes the rendered size of every rem for visitors with a large OS text
+    // setting, so no existing site gets it unasked.
+    expect(SRC).toContain('textScale = false');
+    expect(SRC).toContain('{textScale && <meta name="text-scale" content="scale" />}');
+  });
+});

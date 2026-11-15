@@ -216,7 +216,7 @@ export const TIERS: Record<string, TierEntry> = {
       adds: 'clipboard write plus success feedback',
     },
     bricks: 'vitops-copy-button',
-    use: '`<wc-copy>` around the content and a `[data-copy]` button.',
+    use: '`<wc-copy value="…">` around the text to copy; the element renders its own button and announces "Copied" or "Copy failed" (`copied-label` / `failed-label` set the words).',
   },
   dismissable: {
     // The banner block's `dismissible` toggle wraps it.
@@ -881,7 +881,7 @@ export const TIERS: Record<string, TierEntry> = {
   overlay: { css: c(['overlay'], 'patterns/overlay.css'), use: '`.overlay` for a scrim.' },
   reveal: {
     css: c(['reveal', 'reveal-fade', 'reveal-h'], 'patterns/reveal.css'),
-    use: '`.reveal` — scroll-driven, no JS. Hosts the `interpolate-size` that `<details>` animation needs.',
+    use: '`.reveal` — scroll-driven, no JS. `.reveal-h` animates `height: auto` through the page-wide `interpolate-size` (set on `:root` by the animation engine).',
   },
   'scroll-based': {
     css: c(['parallax', 'scroll-progress', 'scroll-spy'], 'patterns/scroll-based.css'),

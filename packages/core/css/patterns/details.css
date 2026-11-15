@@ -39,7 +39,7 @@ details,
 
   /**
    * Animated collapse — `block-size: 0 → auto`, backed by the
-   * `interpolate-size: allow-keywords` in patterns/reveal.css.
+   * `interpolate-size: allow-keywords` on :root in animation.css.
    *
    * This was previously disabled with a long note saying the transition
    * DEADLOCKS: `content-visibility` stays `hidden`, the content never gets

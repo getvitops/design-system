@@ -62,13 +62,14 @@ export class WCContrastToggle extends BaseElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
-    document.addEventListener(CONTRAST_CONSENT_EVENT, this.#onConsent);
+    document.addEventListener(CONTRAST_CONSENT_EVENT, this.#onConsent, {
+      signal: this.connectionSignal,
+    });
     initFromLightDom(this, () => this.#setup());
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
-    document.removeEventListener(CONTRAST_CONSENT_EVENT, this.#onConsent);
     this.#input?.removeEventListener('change', this.#onChange);
     this.#input = null;
     this.#tries = 0;

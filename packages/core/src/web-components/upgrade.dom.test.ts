@@ -247,3 +247,70 @@ describe('<wc-cards>', () => {
     expect(el.querySelector('[data-card-link]')).toBeNull();
   });
 });
+
+describe('initFromLightDom while the document is still parsing', () => {
+  const setReadyState = (value: DocumentReadyState): void => {
+    Object.defineProperty(document, 'readyState', { value, configurable: true });
+  };
+
+  it('retries once more at DOMContentLoaded when children arrive after the microtask', async () => {
+    const { initFromLightDom } = await import('./utils/upgrade.ts');
+    const el = document.createElement('div');
+    document.body.append(el);
+    let found = false;
+    let calls = 0;
+    setReadyState('loading');
+    try {
+      initFromLightDom(el, () => {
+        calls++;
+        return found;
+      });
+      await Promise.resolve(); // the microtask retry: still nothing to enhance
+      expect(calls).toBe(2);
+      found = true; // the parser finishes
+      document.dispatchEvent(new Event('DOMContentLoaded'));
+      expect(calls).toBe(3);
+    } finally {
+      delete (document as unknown as Record<string, unknown>).readyState;
+    }
+  });
+
+  it('does not wait for DOMContentLoaded once the document is parsed', async () => {
+    const { initFromLightDom } = await import('./utils/upgrade.ts');
+    const el = document.createElement('div');
+    document.body.append(el);
+    let calls = 0;
+    setReadyState('complete');
+    try {
+      initFromLightDom(el, () => {
+        calls++;
+        return false;
+      });
+      await Promise.resolve();
+      document.dispatchEvent(new Event('DOMContentLoaded'));
+      expect(calls).toBe(2); // first try + the microtask retry, nothing more
+    } finally {
+      delete (document as unknown as Record<string, unknown>).readyState;
+    }
+  });
+
+  it('skips the late retry if the element was removed meanwhile', async () => {
+    const { initFromLightDom } = await import('./utils/upgrade.ts');
+    const el = document.createElement('div');
+    document.body.append(el);
+    let calls = 0;
+    setReadyState('loading');
+    try {
+      initFromLightDom(el, () => {
+        calls++;
+        return false;
+      });
+      await Promise.resolve();
+      el.remove();
+      document.dispatchEvent(new Event('DOMContentLoaded'));
+      expect(calls).toBe(2);
+    } finally {
+      delete (document as unknown as Record<string, unknown>).readyState;
+    }
+  });
+});

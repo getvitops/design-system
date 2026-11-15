@@ -8,6 +8,12 @@ import { BaseElement } from './BaseElement.js';
  * The copy button is hidden until the component is connected,
  * ensuring JS has executed and the Clipboard API is available.
  *
+ * The outcome ("Copied", "Copy failed") is announced through a polite live region that sits
+ * beside the button, not inside it: a button's children are presentational, so a status node
+ * inside one is not reliably announced. The button's own accessible name stays `label` the
+ * whole time. Swapping it to "Copied!" is not an announcement, and a screen reader that does
+ * read the change would say it twice. `copied-label` and `failed-label` set the spoken text.
+ *
  * @example
  * ```html
  * <wc-copy value="text to copy">
@@ -61,6 +67,19 @@ export class WCCopy extends BaseElement {
         outline-offset: 2px;
       }
 
+      /* The status text is for assistive tech only. The success icon is the visible feedback.
+         Visually hidden rather than display:none, which would take it out of the a11y tree. */
+      .copy__status {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+
       .copy__icon {
         inline-size: 1.25em;
         block-size: 1.25em;
@@ -84,14 +103,20 @@ export class WCCopy extends BaseElement {
   static properties = {
     value: { type: String },
     label: { type: String },
+    copiedLabel: { type: String, attribute: 'copied-label' },
+    failedLabel: { type: String, attribute: 'failed-label' },
     _copied: { type: Boolean, state: true },
+    _status: { type: String, state: true },
   };
 
   // Reactive props are created by Lit from `static properties`; declare the
   // fields so TypeScript knows them without emitting shadowing class fields.
   declare value: string | undefined;
   declare label: string;
+  declare copiedLabel: string;
+  declare failedLabel: string;
   declare _copied: boolean;
+  declare _status: string;
 
   constructor() {
     super();
@@ -101,7 +126,10 @@ export class WCCopy extends BaseElement {
   init() {
     this.value = undefined;
     this.label = 'Copy to clipboard';
+    this.copiedLabel = 'Copied';
+    this.failedLabel = 'Copy failed';
     this._copied = false;
+    this._status = '';
   }
 
   private _timeoutId?: ReturnType<typeof setTimeout>;
@@ -113,6 +141,20 @@ export class WCCopy extends BaseElement {
     }
   }
 
+  /**
+   * Write `message` to the live region. A region announces CHANGES, so a repeat of the last
+   * message (a second click while it is still showing) is made different by a trailing
+   * no-break space, which is not spoken and which VoiceOver does count as a change.
+   */
+  private _announce(message: string): void {
+    this._status = message === this._status ? `${message}\u00A0` : message;
+    if (this._timeoutId) clearTimeout(this._timeoutId);
+    this._timeoutId = setTimeout(() => {
+      this._copied = false;
+      this._status = '';
+    }, 2000);
+  }
+
   private _handleCopy = async (): Promise<void> => {
     const value =
       this.value ??
@@ -121,14 +163,10 @@ export class WCCopy extends BaseElement {
         .join('')
         .trim();
     if (value == null || value === '') return;
-    console.log('copying value:', value);
     try {
       await navigator.clipboard.writeText(value);
       this._copied = true;
-
-      this._timeoutId = setTimeout(() => {
-        this._copied = false;
-      }, 2000);
+      this._announce(this.copiedLabel);
 
       this.dispatchEvent(
         new CustomEvent('copy', {
@@ -139,6 +177,8 @@ export class WCCopy extends BaseElement {
       );
     } catch (err) {
       console.error('Failed to copy:', err);
+      this._copied = false;
+      this._announce(this.failedLabel);
       this.dispatchEvent(
         new CustomEvent('copy-error', {
           detail: { error: err },
@@ -153,7 +193,6 @@ export class WCCopy extends BaseElement {
     const iconClass = this._copied
       ? 'copy__icon copy__icon--success'
       : 'copy__icon copy__icon--copy';
-    const buttonLabel = this._copied ? 'Copied!' : this.label;
 
     return html`
       <slot></slot>
@@ -161,11 +200,12 @@ export class WCCopy extends BaseElement {
         class="copy__button"
         part="button"
         type="button"
-        aria-label=${buttonLabel}
+        aria-label=${this.label}
         @click=${this._handleCopy}
       >
         <span class=${iconClass} part="icon" aria-hidden="true"></span>
       </button>
+      <span class="copy__status" role="status">${this._status}</span>
     `;
   }
 }

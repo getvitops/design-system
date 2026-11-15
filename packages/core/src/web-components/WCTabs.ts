@@ -91,13 +91,8 @@ export class WCTabs extends BaseElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
-    window.addEventListener('hashchange', this.#onHashChange);
+    window.addEventListener('hashchange', this.#onHashChange, { signal: this.connectionSignal });
     initFromLightDom(this, () => this.#setup());
-  }
-
-  override disconnectedCallback(): void {
-    window.removeEventListener('hashchange', this.#onHashChange);
-    super.disconnectedCallback();
   }
 
   protected override updated(changed: PropertyValues<this>): void {

@@ -29,13 +29,26 @@
  * twice — guard it with a flag if it generates DOM, or a retry after a genuine
  * empty state will duplicate whatever it appended.
  *
- * One retry, not a poll: the only case this covers is markup that lands in the
- * same task. A subtree that arrives later is a different problem and wants a
- * `MutationObserver` at the call site, not a busy-wait here.
+ * Two retries, not a poll. The first is a microtask, which covers markup that
+ * lands in the same task (an `innerHTML` write). The second only exists while the
+ * document is still being parsed: an element can be defined by an inline module
+ * or an early `import` before the parser has reached its children, and the HTML
+ * parser can yield mid-subtree, so a microtask later is still too early. Waiting
+ * for `DOMContentLoaded` is the point at which every child of a parsed element
+ * is guaranteed to exist. A subtree that arrives after that is a different
+ * problem and wants a `MutationObserver` at the call site, not a busy-wait here.
  */
 export function initFromLightDom(el: HTMLElement, setup: () => boolean): void {
   if (setup()) return;
   queueMicrotask(() => {
-    if (el.isConnected) setup();
+    if (!el.isConnected || setup()) return;
+    if (el.ownerDocument.readyState !== 'loading') return;
+    el.ownerDocument.addEventListener(
+      'DOMContentLoaded',
+      () => {
+        if (el.isConnected) setup();
+      },
+      { once: true },
+    );
   });
 }
