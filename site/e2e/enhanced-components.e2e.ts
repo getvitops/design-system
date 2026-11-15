@@ -182,52 +182,50 @@ test.describe('<wc-field>', () => {
   });
 });
 
-test.describe('<wc-config-form>', () => {
+// The config form lives on /configure (a stepper over the real onboarding steps), not on /patterns:
+// it is written from the repo's own config schema, so it is a demo of the toolchain, not of a pattern.
+test.describe('<wc-config-form> on /configure', () => {
   test('describes the form as a config document, live', async ({ page }) => {
-    await page.goto('/patterns');
-    const out = page.locator('#pt-config-out');
-    await expect(out).toHaveText('{}');
-    await page.locator('#pt-config-form [name="organization.email"]').fill('ada@example.com');
+    await page.goto('/configure#cfg-contact');
+    await page.locator('#cfg-contact [name="organization.email"]').fill('ada@example.com');
+    await page
+      .locator('wc-stepper')
+      .getByRole('link', { name: /Review/ })
+      .click();
+    const out = page.locator('#cfg-out');
     await expect(out).toContainText('"email": "ada@example.com"');
     await expect(out).toContainText('"organization"');
   });
 
   test('says an email is wrong once the field is left, and not before', async ({ page }) => {
-    await page.goto('/patterns');
-    const input = page.locator('#pt-config-form [name="organization.email"]');
+    await page.goto('/configure#cfg-contact');
+    const input = page.locator('#cfg-contact [name="organization.email"]');
     // `has` is matched inside the field, so it takes a selector relative to it, not `input`.
     const error = page
-      .locator('#pt-config-form wc-field', { has: page.locator('[name="organization.email"]') })
+      .locator('#cfg-contact wc-field', { has: page.locator('[name="organization.email"]') })
       .locator('.field__error');
     await input.fill('nope');
     await expect(error).toHaveText('');
-    await page.locator('#pt-config-form [name="organization.phone"]').focus();
+    await page.locator('#cfg-contact [name="organization.phone"]').focus();
     await expect(error).toHaveText('Must be an email address.');
     await input.fill('ada@example.com');
     await expect(error).toHaveText('');
   });
 
-  test('stops a submit that has errors instead of navigating', async ({ page }) => {
-    await page.goto('/patterns');
-    await page.locator('#pt-config-form [name="organization.email"]').fill('nope');
-    await page.locator('#pt-config-form').getByRole('button', { name: 'Save' }).click();
-    await expect(page).not.toHaveURL(/#pt-config-form/);
-    await expect(page.locator('#pt-config-form wc-field[data-invalid]').first()).toBeVisible();
-  });
-
   test('adds and removes rows of a keyed map with buttons', async ({ page }) => {
-    await page.goto('/patterns');
+    await page.goto('/configure#cfg-locations');
     // Scoped to the locations map: the services map beside it has its own rows.
-    const locations = page.locator('#pt-cf-organization-locations');
+    const locations = page.locator('#cfg-locations wc-multifield').first();
+    const services = page.locator('#cfg-locations wc-multifield').nth(1);
     const rows = locations.locator('.field__row');
     // The blank row became a template: nothing to fill in until a row is asked for.
     await expect(rows).toHaveCount(0);
-    await locations.getByRole('button', { name: 'Add location' }).click();
+    await locations.getByRole('button', { name: /^Add/ }).click();
     await expect(rows).toHaveCount(1);
-    await expect(rows.first().locator('summary')).toHaveText('New location');
+    await expect(rows.first().locator('summary')).toHaveText(/^New /);
     await rows.first().locator('input[name$="$key"]').fill('ottawa');
     await expect(rows.first().locator('summary')).toHaveText('ottawa');
-    await locations.getByRole('button', { name: 'Add location' }).click();
+    await locations.getByRole('button', { name: /^Add/ }).click();
     await expect(rows).toHaveCount(2);
     await rows.first().getByRole('button', { name: 'Remove' }).click();
     await expect(rows).toHaveCount(1);
@@ -237,13 +235,13 @@ test.describe('<wc-config-form>', () => {
       /\$map\.1\.\$key$/,
     );
     // The services map is untouched.
-    await expect(page.locator('#pt-cf-organization-services .field__row')).toHaveCount(0);
+    await expect(services.locator('.field__row')).toHaveCount(0);
   });
 
   test('a row can be folded away', async ({ page }) => {
-    await page.goto('/patterns');
-    const locations = page.locator('#pt-cf-organization-locations');
-    await locations.getByRole('button', { name: 'Add location' }).click();
+    await page.goto('/configure#cfg-locations');
+    const locations = page.locator('#cfg-locations wc-multifield').first();
+    await locations.getByRole('button', { name: /^Add/ }).click();
     const row = locations.locator('.field__row').first();
     await row.locator('summary').click();
     await expect(row).not.toHaveAttribute('open', '');

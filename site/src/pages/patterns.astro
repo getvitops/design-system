@@ -21,7 +21,6 @@ import Breadcrumbs from '@getvitops/astro/components/Breadcrumbs.astro';
 import Carousel from '@getvitops/astro/components/Carousel.astro';
 import Combobox from '@getvitops/astro/components/Combobox.astro';
 import Drawer from '@getvitops/astro/components/Drawer.astro';
-import ConfigForm from '@getvitops/astro/components/ConfigForm.astro';
 import Stepper from '@getvitops/astro/components/Stepper.astro';
 import StepperNav from '@getvitops/astro/components/StepperNav.astro';
 import Field from '@getvitops/astro/components/Field.astro';
@@ -43,6 +42,11 @@ const roles = Object.entries(ds.colors.roles)
   .filter(([, v]) => (typeof v === 'string' ? true : (v as { kind?: string }).kind !== 'surface'))
   .map(([name]) => name);
 
+/** Only the roles the badge pattern generates a class for: any other falls back to the neutral badge. */
+const badgeRoles = (
+  (ds.patterns as { items: Record<string, { roles?: string[] }> }).items.badge.roles ?? []
+).filter((r) => roles.includes(r));
+
 const SECTIONS = [
   ['controls', 'Controls'],
   ['content', 'Content'],
@@ -56,14 +60,6 @@ const SECTIONS = [
 ] as const;
 
 const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
-import { ONBOARDING_STEPS, stepPaths, type JsonSchema } from '@getvitops/config/forms';
-import { configJsonSchema } from '@getvitops/generator';
-import { renderStepHtml } from '@getvitops/utils/forms';
-const configSchema = configJsonSchema as unknown as JsonSchema;
-const configSteps = ONBOARDING_STEPS.filter((step) => ['contact', 'locations'].includes(step.id));
-const configFields = configSteps
-  .map((step) => renderStepHtml(configSchema, step, { idPrefix: 'pt-cf', locales: ['en'] }))
-  .join('');
 ---
 
 <Docs
@@ -168,7 +164,7 @@ const configFields = configSteps
     namespace.
   </p>
   <div class="cluster-start">
-    {roles.map((r) => (
+    {badgeRoles.map((r) => (
       <span class={`badge badge-${r}`}>{r}</span>
     ))}
   </div>
@@ -1199,28 +1195,6 @@ const configFields = configSteps
       <input name="phone" type="tel" value="555" />
     </Field>
   </form>
-
-  <h3>Config form</h3>
-  <p>
-    Fields written from the config schema by <code>renderStepHtml</code>, inside a plain
-    <code>&lt;form method="post"&gt;</code>. With no JS it posts the names <code>formToConfig</code>
-    parses. With it, the schema validates as you type, a keyed map gains a row as the blank one is
-    used, and the document the form describes is shown below.
-  </p>
-  <ConfigForm
-    id="pt-config"
-    schema={configSchema}
-    paths={configSteps.flatMap((step) => stepPaths(step))}
-    output="#pt-config-out"
-  >
-    <form id="pt-config-form" method="post" action="#pt-config-form" class="rhythm">
-      <Fragment set:html={configFields} />
-      <button class="cta" type="submit">
-        Save
-      </button>
-    </form>
-  </ConfigForm>
-  <pre id="pt-config-out" aria-label="The document the form describes"></pre>
 
   <h3>Stepper</h3>
   <p>

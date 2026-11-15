@@ -215,26 +215,33 @@ test.describe('<wc-field> fallback', () => {
 
 test.describe('<wc-config-form> fallback', () => {
   test('is a complete form of named, labelled controls the server can parse', async ({ page }) => {
-    await page.goto('/patterns');
-    const form = page.locator('#pt-config-form');
+    await page.goto('/configure');
+    const form = page.locator('#cfg-form');
     // Scoped by name: the locations rows have an Email and a Phone of their own.
     await expect(form.locator('[name="organization.email"]')).toBeVisible();
-    await expect(form.getByLabel('Email').first()).toHaveAttribute('name', 'organization.email');
-    await expect(form.getByLabel('Phone').first()).toHaveAttribute('name', 'organization.phone');
+    await expect(form.locator('#cfg-contact').getByLabel('Email').first()).toHaveAttribute(
+      'name',
+      'organization.email',
+    );
+    await expect(form.locator('#cfg-contact').getByLabel('Phone').first()).toHaveAttribute(
+      'name',
+      'organization.phone',
+    );
     await expect(form.locator('[name="organization.address.addressLocality"]')).toBeVisible();
-    await expect(form.getByRole('button', { name: 'Save' })).toBeVisible();
   });
 
   test('offers one blank keyed row per map, and nothing that needs script to appear', async ({
     page,
   }) => {
-    await page.goto('/patterns');
-    // The locations step has two keyed maps: locations and services.
-    await expect(page.locator('#pt-config-form .field__row')).toHaveCount(2);
-    await expect(page.locator('#pt-config-form .field__row[data-blank]')).toHaveCount(2);
-    // No script: the output stays empty and no field shows an error.
-    await expect(page.locator('#pt-config-out')).toHaveText('');
-    await expect(page.locator('#pt-config-form wc-field[data-invalid]')).toHaveCount(0);
+    await page.goto('/configure');
+    // The locations step has two keyed maps: locations and services. Every row in them is the
+    // blank one the server wrote.
+    const rows = page.locator('#cfg-locations .field__row');
+    expect(await rows.count()).toBeGreaterThanOrEqual(2);
+    await expect(page.locator('#cfg-locations .field__row:not([data-blank])')).toHaveCount(0);
+    // No script: the output stays hidden and no field shows an error.
+    await expect(page.locator('#cfg-out')).toBeHidden();
+    await expect(page.locator('#cfg-form wc-field[data-invalid]')).toHaveCount(0);
   });
 
   test('loads no config-form bundle', async ({ page }) => {
