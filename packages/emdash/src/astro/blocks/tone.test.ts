@@ -61,3 +61,14 @@ describe('solid fill from a hue and step', () => {
     expect(resolveTone('', 'navy').className).toBe('tone');
   });
 });
+
+describe('the scheme of a fill', () => {
+  it('reads the generated scheme token for a hue step and for a role chain', () => {
+    expect(resolveTone('', 'navy').style).toContain(
+      '--tone-solid-scheme: var(--color-navy-600-scheme)',
+    );
+    expect(resolveTone('danger').style).toContain(
+      '--tone-solid-scheme: var(--color-scheme-danger, var(--color-scheme-neutral))',
+    );
+  });
+});

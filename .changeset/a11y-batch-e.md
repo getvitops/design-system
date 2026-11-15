@@ -1,7 +1,8 @@
 ---
 '@getvitops/core': minor
 '@getvitops/astro': minor
-'@getvitops/generator': patch
+'@getvitops/generator': minor
+'@getvitops/emdash': patch
 '@getvitops/create': minor
 ---
 
@@ -31,6 +32,7 @@
 - **`<wc-dismissable>`'s countdown pauses** while the pointer is over it or keyboard focus is inside, and resumes with the time that was left (WCAG 2.2.1).
 - **`<wc-combobox>`'s active option** has an outline as well as a background, so it is visible in forced colors.
 - **`.table--bordered` has a rounded frame and draws each seam once.** `border-radius` did nothing under `border-collapse: collapse`. The table is now `separate`, draws the outer frame itself, and each cell draws only the lines between cells, with `overflow: clip` rounding the corners without breaking `.table--sticky-header`. Checked for `colspan`, `rowspan`, a two-row header, `<colgroup>` and `<tfoot>` at three device pixel ratios. The visible change is slightly different corner rendering, and a consumer rule that borders `td`/`th` on all sides will double the lines again. All formats.
+- **`.tone--solid` sets `color-scheme` from its fill.** Native form controls and scrollbars inside a dark fill were drawn for the page's scheme, so a light-scheme input sat on a dark solid. The generator now emits `--color-<hue>-<step>-scheme` and `--color-scheme-<role>` (`dark` or `light`, read off the foreground it already picked, so the two cannot disagree, and mode-stable like the solid). `resolveTone()` in `@getvitops/emdash` passes it as `--tone-solid-scheme`, and `tone.css` applies it; unset, nothing changes. These are plain `:root` properties, outside the role-token grammar, so no utility classes appear. All formats; the tailwind output carries the properties too.
 - **`<wc-range>`:** when both thumbs sit together near the end, the lower one is raised so the pair can be dragged apart again. They were stuck.
 
-**Packages.** `@getvitops/generator` only carries the refreshed asset snapshot and the tooltip line in the component manifest. Other fixed-group packages: no consumer-facing change in this package.
+**Packages.** `@getvitops/generator` carries the new scheme tokens, the refreshed asset snapshot and the tooltip line in the component manifest; `@getvitops/emdash` carries the `resolveTone()` change. Other fixed-group packages: no consumer-facing change in this package.

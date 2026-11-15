@@ -5,7 +5,7 @@
  * the input and the framework partials, bundles with lightningcss and writes files, and hands
  * this module the two things it must not do itself (`hash`, `emitTailwind`).
  */
-import { pickOn } from '@getvitops/utils/color';
+import { hexToOklch, pickOn } from '@getvitops/utils/color';
 import type { DesignSystem } from './schema.ts';
 import { emitDesignMd } from './design-md.ts';
 import { checkHighContrast, contrastMoreCss, highContrastRole } from './contrast-more.ts';
@@ -66,6 +66,39 @@ export function toneTintRule(tint?: { mix: string }): string {
 
 export const blockSet =
   'wc-cards, ul[class], ol[class], details, form, table, figure, .accordion, .section__body';
+
+/**
+ * The `color-scheme` a fill calls for, read off the foreground already chosen for it: light text
+ * means the fill is dark, so native controls and scrollbars drawn over it should be dark too.
+ * No luminance rule of its own: it follows `pickOn`, so the two can never disagree.
+ */
+export function schemeForOn(onHex: string): 'dark' | 'light' {
+  return hexToOklch(onHex).l > 0.5 ? 'dark' : 'light';
+}
+
+/**
+ * `--color-<hue>-<step>-scheme`: `dark` or `light`, beside each `-on`. Plain `:root` for the same
+ * reason as `-on` (a `--color-*` theme key would mint utilities nobody asked for). `.tone--solid`
+ * reads it as `color-scheme`.
+ */
+export function hueSchemeTokens(
+  palette: Record<string, { numeric: Record<string, string> }>,
+): string[] {
+  const out: string[] = [];
+  for (const [name, hue] of Object.entries(palette))
+    for (const [n, hex] of Object.entries(hue.numeric))
+      out.push(`--color-${name}-${n}-scheme: ${schemeForOn(pickOn(hex))};`);
+  return out;
+}
+
+/** `--color-scheme-<role>`: the scheme of the role's solid, from its `text-on`. Mode-stable, like the solid. */
+export function roleSchemeTokens(
+  roles: { role: string; light: Record<string, string> }[],
+): string[] {
+  return roles.flatMap((r) =>
+    r.light['text-on'] ? [`--color-scheme-${r.role}: ${schemeForOn(r.light['text-on'])};`] : [],
+  );
+}
 
 export function hueOnTokens(
   palette: Record<string, { numeric: Record<string, string> }>,
@@ -640,6 +673,8 @@ export function build(
         css += `  --color-${name}-${n}: ${hex};\n`;
     css += `\n  /* Foreground for a fill at a hue step (--color-<hue>-<step>-on) */\n`;
     for (const line of hueOnTokens(expandedPalette)) css += `  ${line}\n`;
+    for (const line of [...hueSchemeTokens(expandedPalette), ...roleSchemeTokens(scaleRoles)])
+      css += `  ${line}\n`;
     css += `\n  /* Role tokens (the public API) */\n`;
     for (const fr of scaleRoles)
       for (const [t, val] of Object.entries(fr.light))

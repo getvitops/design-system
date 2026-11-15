@@ -15,6 +15,8 @@
  * tone a site never defined degrades to a neutral surface instead of to nothing.
  * `@getvitops/emdash`'s `resolveTone()` writes the chains. Unset, `.tone` is inert.
  *
+ * `--tone-solid-scheme` (`dark` or `light`) is the fill's own scheme, read off its computed foreground.
+ *
  * `.tone--tint` paints the tint (surfaces only); `--solid` fills with the role's solid and its `on`
  * colour. `--tone-tint` overrides the tint's colour.
  */
@@ -34,6 +36,8 @@
   &.tone--solid {
     background-color: var(--tone-solid, var(--tone-bg, transparent));
     color: var(--tone-on-solid, var(--_fg));
+    /* Native controls and scrollbars inside a fill follow the fill's lightness, not the page's. */
+    color-scheme: var(--tone-solid-scheme, normal);
   }
 
   /* A filled call to action inside a toned surface (the classes are only added with a tone set) takes that block's colour. */

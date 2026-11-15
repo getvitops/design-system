@@ -1,5 +1,7 @@
 import { LIGHTNESS_LADDER, contrastRatio, hexToOklch } from '@getvitops/utils/color';
 import { describe, expect, it } from 'vite-plus/test';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { build } from './generate.ts';
 import { defaultConfig } from './index.ts';
 import { roleHue, roleKind, roleSolidOptions } from './shared.ts';
@@ -449,6 +451,42 @@ describe('hueOnTokens', () => {
     // light fill → dark text, dark fill → light text
     expect(hexToOklch(on50.match(/#[0-9a-f]{6}/i)![0]).l).toBeLessThan(0.3);
     expect(hexToOklch(on950.match(/#[0-9a-f]{6}/i)![0]).l).toBeGreaterThan(0.9);
+  });
+});
+
+const ASSETS = join(dirname(fileURLToPath(import.meta.url)), '..', 'assets');
+
+describe('scheme tokens', () => {
+  it('say dark for a fill that takes light text, and light for one that takes dark text', async () => {
+    const { hueSchemeTokens } = await import('./generate.ts');
+    const expanded = expandPalette({ amber: { seed: '#d97706' } } as never);
+    const lines = hueSchemeTokens(expanded as never);
+    expect(lines).toHaveLength(NUMERIC_STEPS.length);
+    expect(lines.find((l) => l.startsWith('--color-amber-50-scheme'))).toContain(': light;');
+    expect(lines.find((l) => l.startsWith('--color-amber-950-scheme'))).toContain(': dark;');
+  });
+
+  it('agree with the foreground pickOn chose, for every step of every hue', async () => {
+    const { hueSchemeTokens, hueOnTokens } = await import('./generate.ts');
+    const expanded = expandPalette({
+      navy: { seed: '#1e3a8a' },
+      amber: { seed: '#d97706' },
+    } as never);
+    const on = hueOnTokens(expanded as never);
+    const scheme = hueSchemeTokens(expanded as never);
+    expect(scheme).toHaveLength(on.length);
+    on.forEach((line, i) => {
+      const light = hexToOklch(line.match(/#[0-9a-f]{6}/i)![0]).l > 0.5;
+      expect(scheme[i]).toContain(light ? ': dark;' : ': light;');
+    });
+  });
+
+  it('are emitted for every role, in both the css and tailwind output', () => {
+    for (const format of ['css', 'tailwind'] as const) {
+      const css = JSON.stringify(build(defaultConfig(), format, ASSETS).generated);
+      expect(css, format).toContain('--color-scheme-ui-primary:');
+      expect(css, format).toContain('--color-brand-600-scheme:');
+    }
   });
 });
 

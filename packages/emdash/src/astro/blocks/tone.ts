@@ -103,6 +103,7 @@ export function resolveTone(tone?: unknown, color?: unknown): ResolvedTone {
         `--tone-border: ${flip('300', '700')}`,
         `--tone-solid: ${at(fill)}`,
         `--tone-on-solid: ${at(`${fill}-on`)}`,
+        `--tone-solid-scheme: ${at(`${fill}-scheme`)}`,
       ].join('; '),
     };
   }
@@ -122,6 +123,7 @@ export function resolveTone(tone?: unknown, color?: unknown): ResolvedTone {
       // A surface role has no `-solid`, only a bare `bg-<role>`; the solid chain ends there.
       `--tone-solid: ${chain([...roles.map((r) => `--color-bg-${r}-solid`), ...roles.map((r) => `--color-bg-${r}`)])}`,
       `--tone-on-solid: ${chain(roles.map((r) => `--color-text-on-${r}`))}`,
+      `--tone-solid-scheme: ${chain(roles.map((r) => `--color-scheme-${r}`))}`,
     ].join('; '),
   };
 }

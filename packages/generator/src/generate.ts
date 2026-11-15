@@ -40,6 +40,8 @@ import {
   BREAKPOINTS,
   gapUtilities,
   hueOnTokens,
+  hueSchemeTokens,
+  roleSchemeTokens,
   roleColorUtilities,
   toneTintRule,
   CSS_LAYERS,
@@ -52,6 +54,8 @@ import { tokenVar } from './tokens.ts';
 export {
   toneTintRule,
   hueOnTokens,
+  hueSchemeTokens,
+  roleSchemeTokens,
   roleColorUtilities,
   BREAKPOINTS,
   CSS_LAYERS,
@@ -252,6 +256,8 @@ function emitTailwind(ctx: TwCtx): string {
       fn += `  --overlay: color-mix(in oklch, var(--color-${surface.hue}-950) 45%, transparent);\n`;
     }
     for (const line of hueOnTokens(expandedPalette)) fn += `  ${line}\n`;
+    for (const line of [...hueSchemeTokens(expandedPalette), ...roleSchemeTokens(scaleRoles)])
+      fn += `  ${line}\n`;
     if (ctx.darkOnly) fn = `  color-scheme: dark;\n${fn}`;
     parts.push(`/* Role tokens (the public API) */\n:root {\n${fn}}\n`);
     if (ds.colors.tint) parts.push(toneTintRule(ds.colors.tint));
