@@ -24,7 +24,13 @@
  * `@getvitops/core/config-form`, its own Lit-free bundle, so a page without a config form pays
  * nothing for the validator.
  */
-import { pickSchema, type JsonSchema } from '@getvitops/config/forms';
+import {
+  ownedFromProjections,
+  pickSchema,
+  projectionById,
+  type JsonSchema,
+  type Projection,
+} from '@getvitops/config/forms';
 
 export interface Props {
   /** Unique on the page: the id of the `<script type="application/json">` holding the schema. */
@@ -33,6 +39,12 @@ export interface Props {
   schema: JsonSchema;
   /** Dotted paths the form edits. Omit to validate against the whole schema. */
   paths?: readonly string[];
+  /**
+   * Ids of the projections the form renders. They say what the form OWNS, so
+   * `element.merged(base)` replaces those paths (and removes what the form dropped) and leaves the
+   * rest of `base` alone. Without it, `merged` has nothing to go on.
+   */
+  projections?: readonly string[];
   /** A selector for an element that receives the document as JSON on every change. */
   output?: string;
   /** Don't block a submit that has errors; the server decides. */
@@ -41,17 +53,29 @@ export interface Props {
   colorPicker?: boolean;
 }
 
-const { id, schema, paths, output, novalidate, colorPicker } = Astro.props;
+const { id, schema, paths, projections, output, novalidate, colorPicker } = Astro.props;
 const narrowed = paths ? pickSchema(schema, paths) : schema;
 // A `<` in the JSON could close the script element early; `<` is the same string to JSON.parse.
 const json = JSON.stringify(narrowed).replace(/</g, '\\u003c');
 const schemaId = `${id}-schema`;
+const ownedId = `${id}-owned`;
+const owned = projections
+  ? JSON.stringify(
+      ownedFromProjections(projections.flatMap((p) => projectionById(p) ?? ([] as Projection[]))),
+    ).replace(/</g, '\\u003c')
+  : null;
 ---
 
-<wc-config-form schema={schemaId} output={output} novalidate={novalidate}>
+<wc-config-form
+  schema={schemaId}
+  owned={owned ? ownedId : undefined}
+  output={output}
+  novalidate={novalidate}
+>
   <slot />
 </wc-config-form>
 <script type="application/json" id={schemaId} set:html={json} />
+{owned && <script type="application/json" id={ownedId} set:html={owned} />}
 <script>
   import '@getvitops/core/config-form';
 </script>

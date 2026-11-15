@@ -263,3 +263,54 @@ describe('<wc-config-form> keyed-map rows', () => {
     expect(added.querySelector('.field__error:not(:empty)')).toBeNull();
   });
 });
+
+describe('a select built from another map', () => {
+  const mountPicker = async (): Promise<WCConfigForm> => {
+    document.body.innerHTML = `
+      <wc-config-form><form>
+        <input name="organization.services$map.0.$key" value="roof">
+        <input name="organization.services$map.0.name" value="Roofing">
+        <input name="organization.services$map.1.$key" value="">
+        <input name="organization.services$map.1.name" value="">
+        <select name="organization.pick" data-options-from="organization.services">
+          <option value="">—</option><option value="roof" selected>roof</option>
+        </select>
+      </form></wc-config-form>`;
+    await Promise.resolve();
+    return document.querySelector('wc-config-form') as WCConfigForm;
+  };
+  const offered = () =>
+    Array.from(document.querySelectorAll<HTMLOptionElement>('select option')).map((o) => o.value);
+
+  it('offers a key as soon as the map has it, and keeps the choice', async () => {
+    await mountPicker();
+    type('organization.services$map.1.$key', 'gutters');
+    type('organization.services$map.1.name', 'Gutters');
+    expect(offered()).toEqual(['', 'roof', 'gutters']);
+    expect((document.querySelector('select') as HTMLSelectElement).value).toBe('roof');
+  });
+
+  it('keeps a stored value the map no longer has, rather than silently changing it', async () => {
+    await mountPicker();
+    type('organization.services$map.0.$key', '');
+    type('organization.services$map.0.name', '');
+    expect(offered()).toContain('roof');
+    expect((document.querySelector('select') as HTMLSelectElement).value).toBe('roof');
+  });
+});
+
+describe('merged()', () => {
+  it('removes what the form no longer has instead of bringing it back from the base', async () => {
+    const el = await mount({ organization: { name: 'Acme' } }, 'schema="s"');
+    el.ownedItems = [{ path: 'organization.name' }, { path: 'organization.services' }];
+    type('organization.name', 'Acme Inc');
+    const base = {
+      organization: { name: 'Acme', services: { gone: { name: 'Gone' } }, legalName: 'Acme Corp' },
+      site: { defaultLocale: 'en' },
+    };
+    expect(el.merged(base)).toEqual({
+      organization: { name: 'Acme Inc', legalName: 'Acme Corp' },
+      site: { defaultLocale: 'en' },
+    });
+  });
+});

@@ -38,6 +38,7 @@ const steps = ONBOARDING_STEPS.map((step) => ({
   }),
 }));
 const paths = ONBOARDING_STEPS.flatMap((step) => stepPaths(step));
+const projections = ONBOARDING_STEPS.flatMap((step) => [...step.projections]);
 const baseJson = JSON.stringify(base).replace(/</g, '\\u003c');
 ---
 
@@ -56,7 +57,7 @@ const baseJson = JSON.stringify(base).replace(/</g, '\\u003c');
       title: step.title + (step.optional ? ' (optional)' : ''),
     }))}
   >
-    <ConfigForm id="cfg" schema={schema} paths={paths} colorPicker>
+    <ConfigForm id="cfg" schema={schema} paths={paths} projections={projections} colorPicker>
       <form id="cfg-form" method="get" class="rhythm">
         {steps.map(({ step, id, html }) =>
           step.id === 'review' ? (
@@ -97,21 +98,9 @@ const baseJson = JSON.stringify(base).replace(/</g, '\\u003c');
 <script>
   type Json = Record<string, unknown>;
 
-  const isObject = (v: unknown): v is Json =>
-    typeof v === 'object' && v !== null && !Array.isArray(v);
-  /** Objects merge key by key; anything else (arrays included) replaces. */
-  function merge(base: Json, over: Json): Json {
-    const out: Json = { ...base };
-    for (const [key, value] of Object.entries(over)) {
-      const current = out[key];
-      out[key] = isObject(current) && isObject(value) ? merge(current, value) : value;
-    }
-    return out;
-  }
-
   const form = document.getElementById('cfg-form') as HTMLFormElement | null;
   const element = document.querySelector('wc-config-form') as
-    | (HTMLElement & { value?: Json })
+    | (HTMLElement & { value?: Json; merged?: (base: Json) => Json })
     | null;
   const out = document.getElementById('cfg-out');
   const status = document.getElementById('cfg-status');
@@ -125,7 +114,9 @@ const baseJson = JSON.stringify(base).replace(/</g, '\\u003c');
     noJs?.remove();
     for (const node of [out, actions]) node.hidden = false;
 
-    const current = (): Json => merge(base, element.value ?? {});
+    // `merged` owns what the form shows: a row removed or a field cleared is removed from the
+    // result, where a plain deep merge would bring it back from the starter.
+    const current = (): Json => element.merged?.(base) ?? base;
     const text = (): string => JSON.stringify(current(), null, 2) + '\n';
 
     let timer: ReturnType<typeof setTimeout> | undefined;

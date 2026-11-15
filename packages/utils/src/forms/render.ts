@@ -331,7 +331,11 @@ function renderControl(
       }
       const select = el(
         'select',
-        { ...controlAttrs(d, ctx, id, name), class: 'custom-select' },
+        {
+          ...controlAttrs(d, ctx, id, name),
+          class: 'custom-select',
+          'data-options-from': d.optionsFrom ?? null,
+        },
         ...options,
       );
       return shell(d, ctx, id, el('label', { class: 'field__control' }, labelText(d, ctx), select));

@@ -53,6 +53,12 @@ export interface FieldDescriptor {
   options?: readonly string[];
   /** For a `combobox`: values to suggest. Free text is still accepted. */
   suggestions?: readonly string[];
+  /**
+   * Set on a select whose options are the keys of another map in the document: the dotted path of
+   * that map. A live form re-reads it as the map changes (`<wc-config-form>`), because the options
+   * above are only as current as the values the form was rendered from.
+   */
+  optionsFrom?: string;
   /** The current value, when the path is concrete and the host supplied a document. */
   value?: unknown;
   /**
@@ -133,6 +139,7 @@ export function describeField(
       options.values !== undefined ? valueAt(options.values, meta.optionsFrom) : undefined;
     if (typeof source === 'object' && source !== null && !Array.isArray(source)) {
       descriptor.widget = 'select';
+      descriptor.optionsFrom = meta.optionsFrom;
       descriptor.options = Object.keys(source);
     }
   }

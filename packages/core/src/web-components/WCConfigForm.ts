@@ -1,6 +1,9 @@
 import {
   formToConfig,
+  mergeOwned,
   validateAgainstSchema,
+  valueAt,
+  type OwnedItem,
   type JsonObject,
   type JsonSchema,
   type ValidationIssue,
@@ -36,6 +39,8 @@ type Control = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
  *   Narrow it to the fields the form shows (`pickSchema`), or a required field the form never
  *   displays will be reported against it. The `jsonSchema` property sets it from script instead.
  * - `output`: a selector for an element that receives `JSON.stringify(value, null, 2)` on every change.
+ * - `owned`: the id of a `<script type="application/json">` listing what the form owns (`OwnedItem[]`,
+ *   from `ownedFromProjections`). `merged(base)` needs it; see there.
  * - `novalidate`: don't block a submit that has errors (the server decides).
  *
  * A message shows once its field has been left, or a submit has been attempted; never while the
@@ -53,16 +58,20 @@ export class WCConfigForm extends HTMLElement {
   readonly #touched = new WeakSet<Element>();
   #issues: ValidationIssue[] = [];
 
+  #owned: readonly OwnedItem[] | null = null;
+
   static get observedAttributes(): string[] {
-    return ['schema'];
+    return ['schema', 'owned'];
   }
 
   connectedCallback(): void {
     initFromLightDom(this, () => this.#setup());
   }
 
-  attributeChangedCallback(): void {
-    if (this.#ready) this.#loadSchema();
+  attributeChangedCallback(name: string): void {
+    if (!this.#ready) return;
+    if (name === 'owned') this.#loadOwned();
+    else this.#loadSchema();
   }
 
   /* ── Public API ──────────────────────────────────────────────────────────── */
@@ -70,6 +79,23 @@ export class WCConfigForm extends HTMLElement {
   /** The config document the form currently describes (what `formToConfig` makes of it). */
   get value(): JsonObject {
     return this.#form ? formToConfig(new FormData(this.#form)) : {};
+  }
+
+  /**
+   * `base` with this form's submission merged in. Only what the form owns is touched, and a value
+   * the form no longer has (cleared, or a row removed) is removed from the result rather than
+   * coming back from `base`; see `mergeOwned`. Without an `owned` list the whole `value` replaces
+   * the matching top-level keys, which is what a form that owns everything it shows would want.
+   */
+  merged<T extends JsonObject>(base: T): T {
+    const value = this.value;
+    if (this.#owned) return mergeOwned(base, value, this.#owned);
+    return { ...base, ...value } as T;
+  }
+
+  /** What the form owns, set from script instead of the `owned` attribute. */
+  set ownedItems(items: readonly OwnedItem[] | null) {
+    this.#owned = items;
   }
 
   /** The issues from the last validation. */
@@ -103,9 +129,20 @@ export class WCConfigForm extends HTMLElement {
     form.addEventListener('submit', this.#onSubmit);
 
     this.#ready = true;
+    this.#loadOwned();
     this.#loadSchema();
     this.#sync();
     return true;
+  }
+
+  #loadOwned(): void {
+    const ref = this.getAttribute('owned');
+    if (!ref) return;
+    try {
+      this.#owned = JSON.parse(document.getElementById(ref)?.textContent ?? '') as OwnedItem[];
+    } catch {
+      this.#owned = null;
+    }
   }
 
   #loadSchema(): void {
@@ -170,6 +207,7 @@ export class WCConfigForm extends HTMLElement {
     const form = this.#form;
     if (!form) return [];
     const value = this.value;
+    this.#refreshOptions(value);
     this.#issues = this.#schema ? validateAgainstSchema(this.#schema, value) : [];
 
     const keyOf = (keyName: string): string =>
@@ -196,6 +234,38 @@ export class WCConfigForm extends HTMLElement {
       }),
     );
     return this.#issues;
+  }
+
+  /**
+   * A select built from another map's keys (a colour role's hue, from the palette) was rendered
+   * from the values at that moment. When the map gains or loses a key, offer the new list, keeping
+   * the choice. A stored value the list no longer offers stays, as it does on first render.
+   */
+  #refreshOptions(value: JsonObject): void {
+    const form = this.#form;
+    if (!form) return;
+    for (const select of Array.from(
+      form.querySelectorAll<HTMLSelectElement>('select[data-options-from]'),
+    )) {
+      const source = valueAt(value, select.dataset.optionsFrom ?? '');
+      if (typeof source !== 'object' || source === null || Array.isArray(source)) continue;
+      const wanted = Object.keys(source);
+      const current = select.value;
+      if (current && !wanted.includes(current)) wanted.push(current);
+      const have = Array.from(select.options)
+        .map((o) => o.value)
+        .filter(Boolean);
+      if (have.length === wanted.length && have.every((v, i) => v === wanted[i])) continue;
+      const blank = select.options[0]?.value === '' ? select.options[0] : null;
+      select.replaceChildren(...(blank ? [blank] : []));
+      for (const key of wanted) {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = key;
+        select.append(option);
+      }
+      select.value = current;
+    }
   }
 
   #messageFor(field: WCField, keyOf: (keyName: string) => string): string {

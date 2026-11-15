@@ -314,6 +314,38 @@ test.describe('/configure', () => {
     await expect(page.locator('#cfg-status')).toHaveText('This site.json is valid.');
   });
 
+  test('a colour role offers a hue as soon as it is added to the palette', async ({ page }) => {
+    await page.goto('/configure#cfg-brand');
+    const brand = page.locator('#cfg-brand');
+    const palette = brand.locator('wc-multifield', {
+      has: page.locator('input[name$="$key"][name*="palette"]'),
+    });
+    await palette.getByRole('button', { name: /^Add/ }).click();
+    const blank = palette.locator('.field__row').last();
+    await blank.locator('input[name$="$key"]').fill('plum');
+    await blank.locator('input[name$="seed"]').fill('#8e4585');
+    const roleHue = brand.locator('select[data-options-from]').first();
+    await expect(roleHue.locator('option[value="plum"]')).toHaveCount(1);
+  });
+
+  test('a removed row is gone from the site.json, not merged back from the starter', async ({
+    page,
+  }) => {
+    await page.goto('/configure#cfg-locations');
+    const locations = page.locator('#cfg-locations wc-multifield').first();
+    await locations.getByRole('button', { name: /^Add/ }).click();
+    const row = locations.locator('.field__row').first();
+    await row.locator('input[name$="$key"]').fill('ottawa');
+    await row.locator('input[name$="name"]').first().fill('Ottawa Shop');
+    const stepper = page.locator('wc-stepper');
+    await stepper.getByRole('link', { name: /Review/ }).click();
+    await expect(page.locator('#cfg-out')).toContainText('Ottawa Shop');
+    await stepper.getByRole('link', { name: /Locations/ }).click();
+    await row.getByRole('button', { name: 'Remove' }).click();
+    await stepper.getByRole('link', { name: /Review/ }).click();
+    await expect(page.locator('#cfg-out')).not.toContainText('Ottawa Shop');
+  });
+
   test('will not move past a step with a bad email', async ({ page }) => {
     await page.goto('/configure#cfg-contact');
     const stepper = page.locator('wc-stepper');

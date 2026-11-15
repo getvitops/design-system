@@ -15,3 +15,4 @@ export * from './forms/steps.ts';
 export * from './forms/describe.ts';
 export * from './forms/status.ts';
 export * from './forms/markdown.ts';
+export * from './forms/merge.ts';
