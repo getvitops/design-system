@@ -59,6 +59,7 @@ catalog:
   postcss: ^8.5.26
   postcss-lit: ^1.4.1
   publint: ^0.3.23
+  skills: ^1.8.1
   react: ^19.3.0
   react-dom: ^19.3.0
   scroll-timeline-polyfill: ^1.1.0

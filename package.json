@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "postinstall": "node scripts/link-template-deps.mjs",
-    "prepare": "playwright cli install --skills"
+    "prepare": "skills experimental_install -y -a claude-code --no-frozen-lockfile && playwright cli install --skills"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
@@ -19,6 +19,7 @@
     "lighthouse": "catalog:",
     "playwright": "catalog:",
     "publint": "catalog:",
+    "skills": "catalog:",
     "typescript": "catalog:",
     "verdaccio": "catalog:",
     "vite-plus": "catalog:",
