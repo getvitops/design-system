@@ -1,5 +1,72 @@
 # @getvitops/emdash
 
+## 2.0.0-alpha.6
+
+### Minor Changes
+
+- a95a4fc: **Added: tabs, breadcrumbs, combobox, format and range.** Each is tier 1 or a tier-2 element whose fallback is real and complete, and each has an Astro wrapper.
+
+  - **`<Breadcrumbs>`** (CSS + Astro, no JS): `<nav aria-label="Breadcrumb" class="breadcrumbs"><ol>`, the last item `aria-current="page"` and never a link, and the `BreadcrumbList` JSON-LD from the same items (`schema={false}` to omit). CSS: **all formats**.
+  - **`<Tabs>` / `<wc-tabs>`**: headed `<section>`s that are all readable with no JS; with it, a WAI-ARIA tablist (arrows on the axis `orientation` names, Home/End, automatic activation, wrapping), URL-fragment deep links including to something inside a panel, `hash` to write the fragment, `tabs-change`. The heading it turns into a tab label is hidden so the name isn't announced twice. EmDash: new `vitops_tabs` block. CSS: **all formats**. This replaces the "generated pattern only" `tabs` entry: the `tabs` config pattern still supplies the `panel` group tokens, now consumed by `patterns/tabs.css`.
+  - **`<Combobox>` / `<wc-combobox>`**: `<input list>` + `<datalist>` with no JS; with it, an ARIA 1.2 combobox (`aria-activedescendant`, Down/Up wrap, Enter chooses without submitting, Escape closes then clears, a live result count). A value that matches no option is kept: it suggests, it does not constrain. Replaces the CSS-only shell; `combobox.css` now opens on `:not([hidden])` so Escape can close it. CSS: **all formats**.
+  - **`<Format>` / `<wc-format>`**: a real `<time datetime>` / `<data value>` with the text already in it; with JS, a locale-aware relative time, date, number, percentage or currency read from the machine value, kept current at the next minute/hour boundary and paused while the tab is hidden. Anything it can't format is left as written. No CSS.
+  - **`<Range>` / `<wc-range>`**: one or two native range inputs (two submit as two fields) with no JS; with it, one track, thumbs that can't cross, the filled span and an `<output>`. A single slider needs no element: `forms.css` already themes `input[type='range']`. CSS: **all formats**.
+
+  `elements.js` grows from 28.1 KB to 31.8 KB gzipped for these four elements; the size budget moves to 33 KB.
+
+  **Fixed:** `<wc-image-compare position="25">` was ignored on first render (see the earlier entry).
+
+  **Not built:** dialog and a `role="menu"` dropdown. A dropdown is the native Popover API plus anchor positioning (`.dropdown--show-on-hover` for hover), which is how it is built today, so nothing was added.
+
+  `@getvitops/utils`, `cli`, `vite`, `config` and `create` — no consumer-facing change in these packages.
+
+- d380b78: **Added: the `vitops_tree` block, and landing pages in the emdash template.**
+
+  - **`vitops_tree`** (`@getvitops/emdash`): an expandable outline for a file tree, a site map or nested sections. Block fields can't nest, so the editor types an indented outline (one node per line, indent to nest, `| badge` for a chip) and the block builds the `<Tree />` from it. Only plain label, badge and a derived id reach the tree: it never sets `descriptionHtml`, which `<Tree />` renders as raw HTML, so markup typed into the outline is shown as text. Capped at 500 nodes and six levels. The `tree` manifest entry no longer carries an `emdashExempt` reason.
+  - **Landing pages** (`@getvitops/create`, emdash template): new scaffolds ship a `landings` collection whose `layout` is a `blocks` field of `vitops_section`, the `vitops_section` block type in `seed/seed.json`, and `src/pages/landings/[slug].astro` (prerendered, like `pages`). Create a landing in the admin and stack sections, each holding any Vitops block. No sample landing is seeded. `templates.test.ts` fails if the seeded block type drifts from `vitopsBlockTypes()`.
+
+  ### Migration
+
+  A seed is applied once, at a site's first boot, so an existing site gets none of this automatically. Either run `vitops emdash schema apply --from <a site that has it> --to <your site>` for the collection, add `...vitopsBlockTypes()` to the seed's `blockTypes` (a new environment only), or add the collection by hand with `emdash schema create landings` and a `blocks` field allowing `vitops_section`, and copy `src/pages/landings/[slug].astro`. Block types are not replayed by `schema apply` (they are reported); add `vitops_section` from the admin or the seed.
+
+  `@getvitops/generator`, `core`, `astro`, `utils`, `cli`, `vite` and `config` — no consumer-facing change in these packages. No CSS changed, so no format is affected.
+
+### Patch Changes
+
+- Updated dependencies [19f9a53]
+- Updated dependencies [8b823d5]
+- Updated dependencies [a95a4fc]
+- Updated dependencies [dbc4dda]
+- Updated dependencies [3a5aa13]
+- Updated dependencies [333880e]
+- Updated dependencies [237a9fd]
+- Updated dependencies [0a3a01f]
+- Updated dependencies [0b7e7f1]
+- Updated dependencies [d380b78]
+- Updated dependencies [0b7e7f1]
+- Updated dependencies [6763587]
+- Updated dependencies [8d00032]
+- Updated dependencies [a5754c1]
+- Updated dependencies [1e5edfc]
+- Updated dependencies [37ea039]
+- Updated dependencies [0b7e7f1]
+- Updated dependencies [e12086a]
+- Updated dependencies [0b7e7f1]
+- Updated dependencies [0e525b8]
+- Updated dependencies [a9d00c9]
+- Updated dependencies [0b7e7f1]
+- Updated dependencies [50ea0f6]
+- Updated dependencies [82774d1]
+- Updated dependencies [0f5c3cc]
+- Updated dependencies [fdbec9c]
+- Updated dependencies [798a04a]
+- Updated dependencies [53683a2]
+- Updated dependencies [1f1a3dd]
+  - @getvitops/generator@9.0.0-alpha.6
+  - @getvitops/utils@9.0.0-alpha.6
+  - @getvitops/core@9.0.0-alpha.6
+  - @getvitops/astro@9.0.0-alpha.6
+
 ## 2.0.0-alpha.5
 
 ### Minor Changes

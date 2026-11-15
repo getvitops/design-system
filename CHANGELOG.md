@@ -11,6 +11,34 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 9.0.0-alpha.6 (+ `@getvitops/emdash` 2.0.0-alpha.6, `@getvitops/create` 0.9.0-alpha.6, `@getvitops/skills` 0.1.0-alpha.3) — alpha channel
+
+A WCAG 2-only contrast contract, a high-contrast layer and accessibility statement, the config form (fields, stepper, rows, colour picker, live validation and a live preview in the browser), location and service pages, EmDash environments, and a set of foundational elements (tabs, breadcrumbs, combobox, format, range). Major because the contrast contract changed.
+
+### Breaking
+
+- **The contrast contract is the WCAG 2 contrast ratio and nothing else; APCA is removed** (`@getvitops/generator`, `@getvitops/utils`). Text, including `text-<role>-muted`, must reach **4.5:1**, icons and a surface role's `border-<role>-bold` **3:1**, and `text-on-<role>` **4.5:1** on its solid. **A site with no `site.accessibility.level` now fails the build on a ratio miss** (only an explicit `A` or `none` downgrades it to a warning). Migration: fix the palette, or set `level` and record why in `acceptedRisk`. `colors.roles.<role>.acknowledgeContrast` is now in ratio points, not Lc, and `vitops lint --fix` cannot convert it: re-measure and set a new value. `contrastLc()` is removed from `@getvitops/utils/color`; use `contrastRatio()`. Token values move: surface roles' light `text-muted` goes from step 700 to 800, and the starter config pins `solid: 700` on `info` and `danger`. Affects **all formats** (emitted token values; layers and class names unchanged).
+- **`<wc-multi-field>` is renamed `<wc-multifield>`** and is now a light-DOM, Lit-free element in `elements.js` (it keeps `min`, `max`, `protect-defaults`, Clear, the label attributes and the `multi-field-*` events). Migration: rename the tag; the Bricks element key is renamed to match.
+- **The Temporal polyfill is opt-in.** `polyfills.js` no longer loads `temporal-polyfill` for engines without `Temporal`, since nothing in core reads it. A site whose own scripts call `Temporal` adds `vitops({ polyfills: { enable: ['temporal'] } })`. The same option's `disable` leaves any other feature-detected polyfill out.
+
+### Added
+
+- **Accessibility:** `site.accessibility` (`standard`, `level`, `acceptedRisk`); a **high-contrast layer** (`prefers-contrast: more`, `data-contrast="more"`, `.contrast-toggle`) with `<ContrastToggle />` / `<wc-contrast-toggle>` and `<Head contrast />` (CSS and tailwind formats; `site.accessibility.contrastToggle`, with a second axe pass in `vitops audit`); a generated **accessibility statement**, the fourth legal document (`vitops legal --doc accessibility`); `<Head textScale />`; forced-colors outlines on floating surfaces. New `vitops-compliance`, `vitops-accessibility` and `vitops-privacy` skills (AODA headcount rules, CASL, PIPEDA, Law 25, GDPR).
+- **The config form**, which edits a `site.json`: `@getvitops/config/forms` (fields, projections, steps, validator, form codec, `mergeOwned`), `@getvitops/utils/forms` (a renderer producing a complete no-JS form), `<wc-field>`, `<wc-config-form>` (live validation, `merged(base)`), `<wc-stepper>` and `.stepper`/`<StepperNav>`, `<wc-multifield>` (add/remove rows, fieldset rows in `<details>`), `<wc-color-field>` (the OKLCH picker, fetched on first open), and the brand step (palette seeds, roles, fonts, shadows, layout). **`<wc-config-preview>` / `<ConfigPreview>`** regenerate the token layers in the browser (`@getvitops/generator/preview`) and show an edit on the page before anything is built. `/configure` on the docs site is the working example. The generator is now split into a pure `build.ts` (no `node:*`) and the Node-side `generate.ts`; `generate()` output is unchanged.
+- **Every element states its no-JS standing** with a `@fallback full|partial|none` docblock tag, surfaced in the components reference.
+- **Foundational elements:** `<Breadcrumbs>`, `<wc-tabs>`, `<wc-combobox>`, `<wc-format>` and `<wc-range>`, each with a real fallback and an Astro wrapper; `vitops_tabs` and `vitops_tree` blocks.
+- **Location and service pages:** `<LocationPage>` and `<ServicePage>` turn an `organization.locations` / `services` entry into a page with the right JSON-LD.
+- **EmDash environments:** promotion rehearses on a throwaway copy of production, and syncing production into dev no longer wipes dev (`vitops emdash db`, `schema apply`).
+- `vitops({ polyfills })` and the `@fallback` column are described above; the Google Business Profile API approval is a step in `SETUP.html`; scaffolded sites format `.astro` files with Oxfmt.
+
+### Fixed
+
+- `vitops emdash prepare-db` on a clean runner: it created `.vitops/` after writing its log and relied on `astro dev` detaching by itself (Astro 7 does that only when it detects an AI agent), so it ran in the foreground until a 5-minute timeout.
+- `<wc-image-compare position>` was ignored on first render; `<wc-copy>` announces its result through a live region; `<wc-entries>` clones cells instead of copying `innerHTML`; `interpolate-size` is set once, page-wide, in the animation engine; a form field is marked required only when everything above it is; a config form's save no longer resurrects a removed row or a cleared value.
+- `vitops-compliance`'s skill frontmatter was invalid YAML, so the skill was skipped on sync.
+
+Removed with no consumer impact: the unregistered, unshipped `WCIconPicker` and `WCTypography`. `@getvitops/vite` — no consumer-facing change in this package.
+
 ## 8.3.0-alpha.5 (+ `@getvitops/emdash` 2.0.0-alpha.5, `@getvitops/create` 0.9.0-alpha.5, `@getvitops/skills` 0.1.0-alpha.2) — alpha channel
 
 Site chrome, call-tracking numbers, a leaner scaffold `AGENTS.md`, and a plainer release cooldown in the templates.
