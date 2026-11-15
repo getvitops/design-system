@@ -243,6 +243,11 @@ it('every template ships the same public/_headers security baseline', () => {
   for (const file of files) {
     expect(file).toContain('X-Content-Type-Options: nosniff');
     expect(file).toContain('Referrer-Policy:');
+    expect(file).toContain('Strict-Transport-Security: max-age=');
+    // `includeSubDomains` / `preload` commit every subdomain to HTTPS and are hard to undo, so they
+    // are the site owner's decision, not a scaffold default.
+    expect(file).not.toMatch(/Strict-Transport-Security:.*(includeSubDomains|preload)/);
+    expect(file).toContain('Cross-Origin-Opener-Policy: same-origin-allow-popups');
     expect(file).not.toMatch(/^\s*Content-Security-Policy:/m);
     expect(rules(file)).toBe(rules(files[0]!));
   }

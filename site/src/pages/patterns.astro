@@ -914,9 +914,11 @@ const configFields = configSteps
   <p class="font-caption text-surface-muted">
     Three images of three different aspect ratios, all the same height —
     <code>--carousel-slide-aspect</code> gives each slide's media box a known ratio and the image
-    covers it. The first is <code>eager</code>/<code>fetchpriority="high"</code> as the LCP
-    candidate; the rest are <code>lazy</code>, which a horizontal scroll container honours, so they
-    defer with no JavaScript involved.
+    covers it. Every image is <code>lazy</code>, which a horizontal scroll container honours, so
+    they defer with no JavaScript involved. On a hero carousel, pass <code>priority</code>: the
+    first image is then <code>eager</code>/<code>fetchpriority="high"</code> as the LCP candidate.
+    It is off by default because boosting an image that is not the LCP element only competes with
+    the one that is.
   </p>
 
   <h3 id="enhanced-gallery">Gallery — the Astro wrapper</h3>

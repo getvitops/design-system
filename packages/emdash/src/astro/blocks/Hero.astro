@@ -86,7 +86,8 @@ import { rootAttrs } from './attrs.ts';
           </p>
         ) : null}
       </div>
-      {split && <img src={image} alt={imageAlt} loading="eager" />}
+      {/* The hero image is the page's likely LCP element: eager AND high priority. */}
+      {split && <img src={image} alt={imageAlt} loading="eager" fetchpriority="high" />}
     </div>
     {cards.length > 0 && (
       <ul

@@ -118,6 +118,16 @@ document.addEventListener('click', (e) => {
   if (dialog) (dialog as HTMLDialogElement).close();
 });
 
+// Triggers are observed as soon as this script runs, NOT after `window.load`. An
+// `.animate-trigger` is `opacity: 0` and paused until `.is-active` is added, so waiting for `load`
+// (after every image and font on the page) held an above-the-fold trigger invisible for that whole
+// time, which is what delayed LCP. An IntersectionObserver is asynchronous and forces no layout,
+// so there is no reflow cost to starting it early; the work below that DOES read layout stays on
+// `load`. A script that is `defer`red runs after the document is parsed, so the elements exist.
+document.querySelectorAll('.animate-trigger').forEach((el) => {
+  triggerObserver.observe(el);
+});
+
 // we use load and an rAF to ensure all styles and layouts are settled first.
 // these operations can cause forced reflows if done too early.
 window.addEventListener('load', () => {
@@ -127,10 +137,6 @@ window.addEventListener('load', () => {
     window.addEventListener('resize', handleResize);
 
     document.querySelectorAll('.horizontal-scroll').forEach(setHorizontalScrollTrackWidth);
-
-    document.querySelectorAll('.animate-trigger').forEach((el) => {
-      triggerObserver.observe(el);
-    });
 
     const currentYear = new Date().getFullYear();
     document.querySelectorAll('[data-current-year]').forEach((el) => {

@@ -82,6 +82,16 @@ export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
    */
   enhance?: boolean;
   /**
+   * This gallery is the page's first screen of content, so its first thumbnail is the likely Largest
+   * Contentful Paint candidate: load it eagerly and at high priority. Default `false`.
+   *
+   * Off by default because priority is zero-sum. Boosting an image that is NOT the LCP element
+   * competes with the one that is, so a gallery below the fold used to slow the page down for
+   * nothing. With it off every image is `loading="lazy"` and carries no priority hint, which a
+   * horizontal scroll container honours with no JavaScript. Set it on a hero gallery only.
+   */
+  priority?: boolean;
+  /**
    * Id prefix for the dialog and slide ids. Defaults to a slug of `label`. Astro
    * has no `useId`, and a random one would change on every build — so this is
    * derived, deterministic and overridable when two galleries on a page share a
@@ -99,6 +109,7 @@ const {
   aspect,
   loop = false,
   enhance = true,
+  priority = false,
   id,
   class: className,
   role,
@@ -146,9 +157,9 @@ const Shell = enhance ? 'wc-gallery' : 'div';
               formats={formats}
               class="gallery__thumb"
               width={typeof thumb === 'string' ? undefined : (img.thumbWidth ?? 400)}
-              loading={i === 0 ? 'eager' : 'lazy'}
-              fetchpriority={i === 0 ? 'high' : 'low'}
-              decoding={i === 0 ? undefined : 'async'}
+              loading={priority && i === 0 ? 'eager' : 'lazy'}
+              fetchpriority={priority && i === 0 ? 'high' : undefined}
+              decoding={priority && i === 0 ? undefined : 'async'}
             />
             <span class="visually-hidden">View full size</span>
           </a>
