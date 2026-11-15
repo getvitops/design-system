@@ -40,7 +40,10 @@ const BUDGETS: Record<string, number> = {
   // the bundle). Intended growth, so the ceiling moves with ~4% headroom. Since `<wc-color-field>`
   // shares Lit with it the bundler lifts Lit into `polyfills/BaseElement.js`; the figure counts that
   // chunk (see `sharedSize`), and gzips it apart from the entry, hence the +600 B on 33,000. `<wc-multifield>` (light DOM, Lit-free, replacing the Lit `<wc-multi-field>`) and its row helper, a chunk shared with `config-form.js`, add ~400 B more. `<wc-contrast-toggle>` (the WCAG G174 switch, merged from the accessibility branch) adds ~300 B more, so 34,500. `<wc-copy>`'s polite live region (copied-label/failed-label), `BaseElement.connectionSignal` and `initFromLightDom`'s second, DOMContentLoaded retry add ~300 B, so 35,000.
-  'elements.js': 35_000,
+  // The accessibility audit batches (announcer, field groups, lifecycle fixes) added ~900 B to the
+  // merged bundle (35,877 B). The ceiling is a working figure, not a target: it varies with what a
+  // client's build includes, and how components are delivered is being investigated separately.
+  'elements.js': 37_000,
   'consent.js': 3_500,
   // The validator, the form codec and `<wc-config-form>`; Lit-free, loaded only by a page with a
   // config form (3.6 KB gzipped, ~10% headroom). Counts the row helper it shares with `elements.js`.
@@ -48,13 +51,15 @@ const BUDGETS: Record<string, number> = {
   // refresh of selects built from another map add ~600 B, so 5,500.
   'config-form.js': 5_500,
   // `<wc-stepper>`; Lit-free, outside `elements.js` because that bundle is at 99% of its budget.
-  'stepper.js': 2_000,
+  // 2,008 B after the audit's focus and validity-timing fixes.
+  'stepper.js': 2_200,
   // The glue only: the picker (~40 KB gzipped) is a dynamic import, fetched when the picker is opened.
   'color-field.js': 1_500,
   // `<wc-config-preview>`: the glue only; the generator it renders with is injected by the host.
   'config-preview.js': 2_000,
   'editor.js': 5_500,
-  'deferred.js': 1_200,
+  // `js/tooltip.ts` (hover, keyboard focus and Escape for `.tooltip-trigger`) moved into this bundle.
+  'deferred.js': 1_600,
   'polyfills.js': 1_200,
 };
 

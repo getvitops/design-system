@@ -126,7 +126,7 @@ emit its tag.
 | `text-effects` | css | `.typing`, `.text-highlight`, … CSS animation only. |
 | `theme-editor` | css · wc | `<wc-theme-editor manifest="…">`. TOOLING, not a page pattern — the one deliberate tier-2 exception, quarantined in its own opt-in bundle. |
 | `tone` | css | Add `.tone` and set `--tone-bg` / `--tone-fg` / `--tone-border` / `--tone-solid` / `--tone-on-solid` as custom properties — never a class built from a value, which Tailwind cannot see. `@getvitops/emdash`'s `resolveTone(tone, color)` writes them: role, then semantic fallbacks, then `neutral`, or a palette `color` escape hatch. `.accent` colours a run inside a heading. |
-| `tooltip` | css | `.tooltip-trigger` — CSS only, anchor-positioned. |
+| `tooltip` | css | `.tooltip-trigger` + `<div class="tooltip" popover="manual">`, linked by `popovertarget` (the no-JS click fallback). Anchor-positioned; `deferred.js` adds hover, keyboard focus and Escape, plus `role="tooltip"` and `aria-describedby`. |
 | `tree` | css · wc · astro · emdash | `<Tree items={…} />` — it emits `<wc-tree>` itself, so do NOT add your own wrapper. In EmDash, `vitops_tree` takes an indented outline (one node per line, indent to nest, `\| badge` for a chip) and builds the tree from it; it never sets `descriptionHtml`. |
 | `turnstile` | css · wc · emdash | `<wc-turnstile sitekey="…">` inside a `<form>`, around a paragraph saying the spam check needs JavaScript. Pair it with `createConversionRoute({ turnstile })`; the `vitops_form` block does both. |
 | `widget-area` | css · emdash | Editor-managed regions: `<VitopsWidgetArea name="footer-columns" />` (`@getvitops/emdash/astro`) renders an area from Widgets in the admin — titled groups, a menu as a labelled `<nav>`, content as Portable Text. In a page, the `vitops_widgetArea` block places one. An area holding a `core:*` component widget falls back to EmDash's own renderer, and an area cannot hold another. Prerendered pages show an edit after the next deploy. |
@@ -322,7 +322,7 @@ rules that generate them all.
 | `drawer` | `patterns/drawer.css` | `drawer`, `drawer--start`, `drawer--end` | declared |
 | `dropdown` | `patterns/dropdown.css` | `dropdown--show-on-hover` | declared |
 | `embed` | `patterns/embed.css` | `embed`, `embed__frame`, `embed__placeholder` | — |
-| `entries` | `patterns/table.css` | `entries__table`, `entries__scroll`, `entries__nav` | — |
+| `entries` | `patterns/entries.css` | `entries__table`, `entries__scroll`, `entries__nav` | — |
 | `field` | `patterns/forms.css` | `field`, `field__control`, `field__label`, `field__help`, `field__error`, `field__counter` | — |
 | `forms` | `patterns/forms.css` | `form-group`, `input-group`, `fieldset`, `custom-check` | declared |
 | `gallery` | `patterns/gallery.css` | `gallery`, `gallery__item`, `gallery__trigger`, `gallery__thumb` | declared |
