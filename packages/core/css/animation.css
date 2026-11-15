@@ -596,7 +596,7 @@
 /* The open flip. Mirrors what the generated `open-<fx>` variants do, so the
    common case needs no effect class at all; an explicit `open-<fx>` still wins
    on specificity and can pick a different effect. */
-:where([popover]:popover-open, dialog[open]) {
+:where([popover]:is(:popover-open, .\:popover-open), dialog[open]) {
   --t-opacity: var(--opacity-to, 1);
   --t-translate-x: var(--translate-x-to, 0);
   --t-translate-y: var(--translate-y-to, 0);
@@ -618,7 +618,7 @@
  * the (0,0,0) base rule above, which it beats regardless of what any effect
  * class does. */
 @starting-style {
-  :is([popover], dialog):is(:popover-open, [open]) {
+  :is([popover], dialog):is(:is(:popover-open, .\:popover-open), [open]) {
     opacity: var(--opacity-from, 1);
     translate: var(--translate-x-from, 0) var(--translate-y-from, 0);
     scale: var(--scale-x-from, 1) var(--scale-y-from, 1);

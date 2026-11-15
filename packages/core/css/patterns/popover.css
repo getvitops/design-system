@@ -41,7 +41,7 @@
  * fade to 1. The `open-<fx>` driver cannot work while it exists.
  */
 [popover] {
-  &:not(:popover-open):not([open]) {
+  &:not(:is(:popover-open, .\:popover-open)):not([open]) {
     display: none;
   }
 }
@@ -70,11 +70,11 @@
     overlay var(--scrim-duration, 0.3s) allow-discrete,
     display var(--scrim-duration, 0.3s) allow-discrete;
 }
-:where([popover], dialog):not(:popover-open):not([open])::backdrop {
+:where([popover], dialog):not(:is(:popover-open, .\:popover-open)):not([open])::backdrop {
   background-color: transparent;
 }
 @starting-style {
-  :where([popover], dialog):is(:popover-open, [open])::backdrop {
+  :where([popover], dialog):is(:is(:popover-open, .\:popover-open), [open])::backdrop {
     background-color: transparent;
   }
 }

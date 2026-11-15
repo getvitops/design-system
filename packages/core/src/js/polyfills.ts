@@ -134,7 +134,10 @@ export const prerenderPolyfills: Polyfill[] = [
     // patterns/gallery.css), and `Drawer.astro` already emits `command="show-modal"`
     // unconditionally — both need this covered rather than merely "preferred".
     name: 'invoker-commands',
-    test: () => 'command' in HTMLButtonElement.prototype,
+    // `commandForElement`, the reflected property of the `commandfor` attribute, rather than
+    // `command`: the pair shipped together in every engine that has the feature, and this is the
+    // one the polyfill's own README tests. Checked on the prototype, not on `window`/`document`.
+    test: () => 'commandForElement' in HTMLButtonElement.prototype,
     load: () => import('invokers-polyfill'),
   },
   // Deliberately omitted — universally supported across the framework's targets,

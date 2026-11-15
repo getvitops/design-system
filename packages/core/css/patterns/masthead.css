@@ -178,7 +178,10 @@
 /* Slide away while the last scroll was downward; back when it reverses. Never while the
    visitor is inside it: focus, an open popover or an open disclosure keeps it on screen. */
 @container masthead-page scroll-state(scrolled: block-end) {
-  .masthead--hide-on-scroll:not(:focus-within, :has(:popover-open, details[open])) {
+  .masthead--hide-on-scroll:not(
+    :focus-within,
+    :has(:is(:popover-open, .\:popover-open), details[open])
+  ) {
     translate: 0 calc(-100% - var(--_masthead-inset) - 1px);
   }
 }

@@ -41,3 +41,24 @@ test.describe('<Drawer> component', () => {
     await expect(dialog).toBeHidden();
   });
 });
+
+test.describe('popover polyfill class', () => {
+  test.use({ viewport: { width: 700, height: 800 } });
+
+  test('a popover marked with the polyfill class takes its open-state styling', async ({
+    page,
+  }) => {
+    // The Popover polyfill cannot define `:popover-open`; it marks an open popover with the class
+    // `.\:popover-open`. An engine without the pseudo-class drops any rule that names it bare, so
+    // every open-state rule is written `:is(:popover-open, .\:popover-open)`. Chromium has the
+    // pseudo-class, so the class path is the half to prove here: apply it by hand to a CLOSED
+    // popover and the open-state rule must win.
+    await page.goto('/demo/masthead/mega/');
+    const panel = page.locator('.sitenav__panel').first();
+    await expect(panel).toHaveCSS('opacity', '0');
+    await panel.evaluate((el) => el.classList.add(':popover-open'));
+    // Past the 0.15s transition: it starts from the closed value.
+    await expect(panel).toHaveCSS('opacity', '1');
+    await expect(panel).toHaveCSS('translate', /^(0px|0px 0px|none)$/);
+  });
+});

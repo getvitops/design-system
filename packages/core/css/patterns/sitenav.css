@@ -136,7 +136,7 @@
       display 0.3s allow-discrete;
   }
 
-  &:popover-open::backdrop {
+  &:is(:popover-open, .\:popover-open)::backdrop {
     background: rgb(0 0 0 / 25%);
   }
 }
@@ -162,17 +162,17 @@
     translate: -100% 0;
   }
 
-  .sitenav__panel:popover-open {
+  .sitenav__panel:is(:popover-open, .\:popover-open) {
     opacity: 1;
     translate: 0 0;
   }
 
   @starting-style {
-    .sitenav--drawer-end .sitenav__panel:popover-open {
+    .sitenav--drawer-end .sitenav__panel:is(:popover-open, .\:popover-open) {
       opacity: 0;
       translate: 100% 0;
     }
-    .sitenav--drawer-start .sitenav__panel:popover-open {
+    .sitenav--drawer-start .sitenav__panel:is(:popover-open, .\:popover-open) {
       opacity: 0;
       translate: -100% 0;
     }
@@ -206,11 +206,11 @@
     box-shadow: var(--ds-panel);
     translate: 0 -0.5rem;
   }
-  .sitenav--panel-dropdown .sitenav__panel:popover-open {
+  .sitenav--panel-dropdown .sitenav__panel:is(:popover-open, .\:popover-open) {
     translate: 0 0;
   }
   @starting-style {
-    .sitenav--panel-dropdown .sitenav__panel:popover-open {
+    .sitenav--panel-dropdown .sitenav__panel:is(:popover-open, .\:popover-open) {
       opacity: 0;
       translate: 0 -0.5rem;
     }
@@ -225,7 +225,7 @@
   .sitenav--panel-dropdown .sitenav__panel::backdrop {
     background: transparent;
   }
-  .sitenav--panel-dropdown .sitenav__panel:popover-open::backdrop {
+  .sitenav--panel-dropdown .sitenav__panel:is(:popover-open, .\:popover-open)::backdrop {
     background: transparent;
   }
   .sitenav--panel-dropdown .sitenav__list {

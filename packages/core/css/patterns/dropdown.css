@@ -9,7 +9,7 @@
   position: relative;
 
   /* Override the [popover] display:none (specificity 0,2,1 > 0,1,2) */
-  > [popover]:not(:popover-open) {
+  > [popover]:not(:is(:popover-open, .\:popover-open)) {
     display: block;
     opacity: 0;
     visibility: hidden;
@@ -35,7 +35,7 @@
     margin: 0;
   }
 
-  &:hover > [popover]:not(:popover-open) {
+  &:hover > [popover]:not(:is(:popover-open, .\:popover-open)) {
     opacity: 1;
     visibility: visible;
     translate: 0;
@@ -43,7 +43,7 @@
     z-index: var(--z-tier-overlay);
   }
 
-  > [popover]:popover-open {
+  > [popover]:is(:popover-open, .\:popover-open) {
     opacity: 1;
     visibility: visible;
     translate: 0;

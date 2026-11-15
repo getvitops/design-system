@@ -163,7 +163,7 @@ nav:has(> .nav-items) {
   --translate-x-from: -100%;
 
   &[open],
-  &:popover-open {
+  &:is(:popover-open, .\:popover-open) {
     display: flex;
   }
 }

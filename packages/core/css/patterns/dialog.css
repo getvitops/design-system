@@ -6,7 +6,7 @@
 /* ── Dialog — native <dialog> ──────────────────────────────────────────────── */
 /* Keep the `:not(:popover-open)` guard so a <dialog popover> opened via the
    Popover API (which sets :popover-open, NOT the [open] attribute) still shows. */
-dialog:not([open]):not(:popover-open) {
+dialog:not([open]):not(:is(:popover-open, .\:popover-open)) {
   display: none;
 }
 

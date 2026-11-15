@@ -93,7 +93,7 @@
     overlay 0.15s allow-discrete,
     display 0.15s allow-discrete;
 
-  &:popover-open {
+  &:is(:popover-open, .\:popover-open) {
     opacity: 1;
 
     @starting-style {

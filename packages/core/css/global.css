@@ -124,7 +124,7 @@ html {
    on purpose: an author-specified system colour is kept as written. */
 @media (forced-colors: active) {
   :is(dialog.dialog, .drawer, .tooltip, .notification, .consent, .combobox__listbox):not([hidden]),
-  [popover]:popover-open {
+  [popover]:is(:popover-open, .\:popover-open) {
     outline: 1px solid CanvasText;
     outline-offset: -1px;
   }

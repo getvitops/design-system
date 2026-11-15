@@ -1079,7 +1079,10 @@ export function build(
       // in transition-property with `allow-discrete`, plus the `@starting-style`
       // that makes the entry run at all — is not per-effect, so it lives once in
       // animation.css rather than being multiplied across every effect here.
-      ['open', (s) => `.${s}:popover-open, .${s}[open]`],
+      // `:is(:popover-open, .\:popover-open)`, not a bare `:popover-open`: an engine that lacks the
+      // pseudo-class (the ones that load the Popover polyfill, which marks an open popover with the
+      // class instead) drops a selector LIST containing it entirely, taking the `[open]` half with it.
+      ['open', (s) => `.${s}:is(:popover-open, .\\:popover-open), .${s}[open]`],
     ];
     out += `\n/* State-flip variants — compose with .transition (hover-/focus-/active-<fx>). */\n`;
     // Every keyframe family gets state variants, `layout` included: `.transition`
