@@ -33,6 +33,10 @@
       "types": "./dist/tokens.d.mts",
       "import": "./dist/tokens.mjs"
     },
+    "./preview": {
+      "types": "./dist/preview.d.mts",
+      "import": "./dist/preview.mjs"
+    },
     "./icons-sprite": {
       "types": "./dist/icons-sprite.d.mts",
       "import": "./dist/icons-sprite.mjs"

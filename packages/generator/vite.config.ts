@@ -43,7 +43,18 @@ export default defineConfig({
     // `.node` binary, so every request 500'd. Published as
     // `@getvitops/generator/icons-sprite`; `Icon.astro` imports from there
     // now, not the root.
-    entry: ['src/index.ts', 'src/config.ts', 'src/tokens.ts', 'src/icons-sprite.ts'],
+    //
+    // `src/preview.ts` is a fifth: `previewCss(config)` runs the pure `build.ts` (everything that
+    // turns a design system into CSS, with the Node-only parts injected by `generate.ts`) so a
+    // browser or Worker can regenerate the token layers from an edited config. Published as
+    // `@getvitops/generator/preview`; `preview-worker-safe.test.ts` holds it to no `node:*`.
+    entry: [
+      'src/index.ts',
+      'src/config.ts',
+      'src/tokens.ts',
+      'src/icons-sprite.ts',
+      'src/preview.ts',
+    ],
     outDir: 'dist',
     format: ['es'],
     platform: 'node',
