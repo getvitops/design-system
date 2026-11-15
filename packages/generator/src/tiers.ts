@@ -630,7 +630,16 @@ export const TIERS: Record<string, TierEntry> = {
       'patterns/notification.css',
       true,
     ),
-    use: '`.notification` with a role variant; wrap in `<wc-dismissable>` to make it dismissable.',
+    wc: {
+      tag: 'wc-notifications',
+      fallback: 'full',
+      registered: true,
+      adds: "the one labelled, top-layer region a page's notifications stack in: `show()` and a `vitops:notify` event, persistent unless `duration` is set, a countdown that pauses on hover and focus, announced through `ariaNotify()` or the shared live region, held back while a modal dialog is open, focus handed to a neighbour on close",
+    },
+    astro: a('Notifications', 'wc'),
+    emdashExempt:
+      'site chrome: the layout renders one `<Notifications />` in the same place on every page, like `<CookieConsent />`; an editor-placed copy would duplicate the region',
+    use: '`<Notifications />` once per layout, in the same place on every page; it emits its own `<wc-notifications>`, so do NOT wrap it. Show one with `element.show({ message, title?, tone?, duration?, actions? })` or `document.dispatchEvent(new CustomEvent("vitops:notify", { detail }))`. A server-rendered `<div class="notification" role="status">` inside it is the no-JS fallback and is adopted into the stack on upgrade. `tone` is `info`, `success`, `warning` or `danger`. For something the visitor must act on use a banner or a dialog, not this; for one message that closes itself without a stack use `.notification` in `<wc-dismissable>`.',
   },
   lightbox: {
     css: c(

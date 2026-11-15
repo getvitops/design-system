@@ -20,6 +20,7 @@
 import Breadcrumbs from '@getvitops/astro/components/Breadcrumbs.astro';
 import Carousel from '@getvitops/astro/components/Carousel.astro';
 import Combobox from '@getvitops/astro/components/Combobox.astro';
+import Notifications from '@getvitops/astro/components/Notifications.astro';
 import Tooltip from '@getvitops/astro/components/Tooltip.astro';
 import Drawer from '@getvitops/astro/components/Drawer.astro';
 import Stepper from '@getvitops/astro/components/Stepper.astro';
@@ -1305,12 +1306,45 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   </div>
 
   <h3>Notification</h3>
-  <div class="notification card rhythm">
-    <p class="font-heading">Saved</p>
-    <p class="font-caption text-surface-muted">
-      Toast shell — entry, exit and an auto-dismiss progress bar.
-    </p>
-  </div>
+  <p>
+    A <code>&lt;Notifications /&gt;</code> region stacks them in one labelled place. They stay until
+    closed unless given a duration, pause while hovered or focused, and wait while a modal dialog is
+    open. The one below was rendered by the server, so it reads inline with no script.
+  </p>
+  <Notifications position="bottom end">
+    <div class="notification" role="status" data-tone="info">
+      <div class="notification__content">
+        <p class="notification__title">Server message</p>
+        <p class="notification__message">
+          This one is in the page markup, and is adopted into the stack.
+        </p>
+      </div>
+    </div>
+  </Notifications>
+  <p class="cluster-start">
+    <button class="btn" type="button" id="pt-notify-persist">
+      Notify (stays)
+    </button>
+    <button class="btn" type="button" id="pt-notify-timed">
+      Notify (6 s)
+    </button>
+    <button class="btn" type="button" id="pt-notify-action">
+      Notify with an action
+    </button>
+    <button class="btn" type="button" id="pt-notify-modal">
+      Open a modal, then notify
+    </button>
+  </p>
+  <dialog id="pt-notify-dialog" class="dialog">
+    <div class="dialog__body">
+      <p>A notification raised now waits until this closes.</p>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn" type="button" id="pt-notify-dialog-close">
+        Close
+      </button>
+    </div>
+  </dialog>
 
   <h3>Form controls</h3>
   <form class="rhythm" onsubmit="return false">
@@ -1336,6 +1370,34 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
       Submit
     </button>
   </form>
+
+  <script>
+    const region = () =>
+      document.querySelector('wc-notifications') as
+        | (HTMLElement & { show(input: Record<string, unknown>): string })
+        | null;
+    const on = (id: string, run: () => void) =>
+      document.getElementById(id)?.addEventListener('click', run);
+    on('pt-notify-persist', () =>
+      region()?.show({ title: 'Saved', message: 'Your draft is safe.', tone: 'success' }),
+    );
+    on('pt-notify-timed', () =>
+      region()?.show({ message: 'This one closes itself.', tone: 'info', duration: 6000 }),
+    );
+    on('pt-notify-action', () =>
+      region()?.show({
+        message: 'Moved to the trash.',
+        tone: 'warning',
+        actions: [{ label: 'Undo' }],
+      }),
+    );
+    const dialog = document.getElementById('pt-notify-dialog') as HTMLDialogElement | null;
+    on('pt-notify-modal', () => {
+      dialog?.showModal();
+      region()?.show({ message: 'Raised while the dialog was open.', tone: 'danger' });
+    });
+    on('pt-notify-dialog-close', () => dialog?.close());
+  </script>
 
   <style>
     /* Demo scaffolding only — spacing between a heading and the example under it.

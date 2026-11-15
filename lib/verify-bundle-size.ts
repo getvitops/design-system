@@ -43,7 +43,9 @@ const BUDGETS: Record<string, number> = {
   // The accessibility audit batches (announcer, field groups, lifecycle fixes) added ~900 B to the
   // merged bundle (35,877 B). The ceiling is a working figure, not a target: it varies with what a
   // client's build includes, and how components are delivered is being investigated separately.
-  'elements.js': 37_000,
+  // `<wc-notifications>` (the stacking region, countdown, announcements, modal gating) added ~1.7 KB
+  // (37,564 B total); 39,000 leaves room without a ceiling that hides the next addition.
+  'elements.js': 39_000,
   'consent.js': 3_500,
   // The validator, the form codec and `<wc-config-form>`; Lit-free, loaded only by a page with a
   // config form (3.6 KB gzipped, ~10% headroom). Counts the row helper it shares with `elements.js`.

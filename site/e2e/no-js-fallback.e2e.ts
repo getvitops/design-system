@@ -343,3 +343,20 @@ test.describe('<Tooltip> fallback', () => {
     await expect(page.locator('#pt-tip3')).toContainText('Free over $50');
   });
 });
+
+test.describe('<Notifications> fallback', () => {
+  test('a server-rendered notification is an ordinary inline message with no script', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    const message = page.locator('wc-notifications .notification');
+    await expect(message).toBeVisible();
+    await expect(message).toContainText('Server message');
+    await expect(message).toHaveAttribute('role', 'status');
+    // Un-upgraded: no region role, no top-layer popover, and it sits in the page flow.
+    await expect(page.locator('wc-notifications')).not.toHaveAttribute('popover', /.*/);
+    expect(
+      await page.locator('wc-notifications').evaluate((el) => getComputedStyle(el).position),
+    ).toBe('static');
+  });
+});

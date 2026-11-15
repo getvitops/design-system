@@ -37,17 +37,26 @@ export function ensureAnnouncer(doc: Document = document): HTMLElement {
 }
 
 /**
- * Announce `text` after a short delay. A newer call replaces a pending one, so a burst of errors
+ * Announce `text` after a short delay (`delay`, default `ANNOUNCE_DELAY_MS`). A newer call replaces a pending one, so a burst of errors
  * collapses to the last rather than queueing a pile of speech.
  */
-export function announce(text: string, doc: Document = document): void {
+export function announce(
+  text: string,
+  options: Document | { doc?: Document; delay?: number } = {},
+): void {
+  // A bare `Document` is the older signature, kept so existing callers do not change.
+  const { doc = document, delay = ANNOUNCE_DELAY_MS } =
+    'createElement' in options ? { doc: options } : options;
   const el = ensureAnnouncer(doc);
   clearTimeout(timer);
   // Cleared first so an identical message is still a change.
   el.textContent = '';
+  // `delay: 0` still waits a task: a region written in the same task it was cleared in is not
+  // reliably read as a change. A form field wants the long default so the control that takes
+  // focus next is announced first; a notification has no such neighbour and speaks at once.
   timer = setTimeout(() => {
     el.textContent = text;
-  }, ANNOUNCE_DELAY_MS);
+  }, delay);
 }
 
 /** Test seam: forget the region and any pending message. */

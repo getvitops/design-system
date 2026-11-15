@@ -89,3 +89,19 @@ describe('spokenError', () => {
     expect(spokenError('', 'Fill this in.')).toBe('Fill this in.');
   });
 });
+
+describe('announce with a delay of its own', () => {
+  it('speaks sooner than the form-field default when asked to', () => {
+    announce('Draft saved.', { delay: 0 });
+    const region = ensureAnnouncer();
+    expect(region.textContent).toBe('');
+    vi.advanceTimersByTime(0);
+    expect(region.textContent).toBe('Draft saved.');
+  });
+
+  it('still accepts a Document as its second argument', () => {
+    announce('Hello', document);
+    vi.advanceTimersByTime(ANNOUNCE_DELAY_MS);
+    expect(ensureAnnouncer().textContent).toBe('Hello');
+  });
+});

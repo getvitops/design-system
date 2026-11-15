@@ -96,7 +96,7 @@ emit its tag.
 | `nav` | css | `.menu` / `.navbar`. See `navbar` and `navshell` for the newer shells. |
 | `navbar` | css | `.navbar` with `--start/--center/--end`. |
 | `navshell` | css · astro | `<NavShell>` with a `nav` slot, plus `<NavShellToggle>` if the toggle must live outside the shell. |
-| `notification` | css | `.notification` with a role variant; wrap in `<wc-dismissable>` to make it dismissable. |
+| `notification` | css · wc · astro | `<Notifications />` once per layout, in the same place on every page; it emits its own `<wc-notifications>`, so do NOT wrap it. Show one with `element.show({ message, title?, tone?, duration?, actions? })` or `document.dispatchEvent(new CustomEvent("vitops:notify", { detail }))`. A server-rendered `<div class="notification" role="status">` inside it is the no-JS fallback and is adopted into the stack on upgrade. `tone` is `info`, `success`, `warning` or `danger`. For something the visitor must act on use a banner or a dialog, not this; for one message that closes itself without a stack use `.notification` in `<wc-dismissable>`. |
 | `oklch-color-picker` | wc | Not used directly: `<wc-color-field>` imports it when its picker is first opened. It is a canvas control with no meaning without JS. |
 | `overlay` | css | `.overlay` for a scrim. |
 | `popover` | css · astro | `<Popover>` — native Popover API + CSS Anchor Positioning. No JS. |
@@ -160,6 +160,7 @@ is tooling and opt-in per consumer.
 | `<wc-image-compare>` | `image-compare` | `elements.js` | full | drag handle revealing the before/after image |
 | `<wc-marquee>` | `marquee` | `elements.js` | full | fills the track with enough copies to scroll seamlessly |
 | `<wc-multifield>` | `multi-field` | `elements.js` | full | Add, Remove and Clear for a repeated field or fieldset, with `min`, `max` and `protect-defaults`; a row of a keyed map is an open `<details>` titled by its key |
+| `<wc-notifications>` | `notification` | `elements.js` | full | the one labelled, top-layer region a page's notifications stack in: `show()` and a `vitops:notify` event, persistent unless `duration` is set, a countdown that pauses on hover and focus, announced through `ariaNotify()` or the shared live region, held back while a modal dialog is open, focus handed to a neighbour on close |
 | `<wc-oklch-color-picker>` | `oklch-color-picker` | `(none of its own — a dynamic import from @getvitops/core/color-field, on first open)` | none | OKLCH L/C/H picker |
 | `<wc-range>` | `range` | `elements.js` | full | overlays two native range inputs on one track with thumbs that cannot cross and a filled span between them, and keeps an `<output>` current |
 | `<wc-split-panel>` | `split-panel` | `elements.js` | partial | draggable divider between two panels |
@@ -197,6 +198,7 @@ is tooling and opt-in per consumer.
 | `@getvitops/astro/components/Masthead.astro` | `masthead` | tier-1 markup — no web component |
 | `@getvitops/astro/components/NavShell.astro` | `navshell` | tier-1 markup — no web component |
 | `@getvitops/astro/components/NavShellToggle.astro` | `navshell` | tier-1 markup — no web component |
+| `@getvitops/astro/components/Notifications.astro` | `notification` | the `<wc-notifications>` tag, fallback inside |
 | `@getvitops/astro/components/Popover.astro` | `popover` | tier-1 markup — no web component |
 | `@getvitops/astro/components/Range.astro` | `range` | the `<wc-range>` tag, fallback inside |
 | `@getvitops/astro/components/ReviewCard.astro` | `review` | tier-1 markup — no web component |
@@ -284,6 +286,7 @@ Every shipped `wc-*` element either has a block above or a stated reason here
 - `wc-field` — a form control wrapper, composed inside a form (vitops_form) rather than placed as page content
 - `wc-format` — inline text formatting, used inside other content rather than placed as a block of its own
 - `wc-multifield` — repeats rows a visitor adds at submit time (several phone numbers, guests); `vitops_form` has a fixed, editor-defined field list and no such field type
+- `wc-notifications` — site chrome: the layout renders one `<Notifications />` in the same place on every page, like `<CookieConsent />`; an editor-placed copy would duplicate the region
 - `wc-range` — a form control, composed inside a form (vitops_form) rather than placed as page content
 - `wc-split-panel` — app UI (resizable panes), not editorial content; an editor does not drag-resize a published page
 - `wc-stepper` — onboarding and configuration flow for a site owner, not page content an editor places

@@ -151,6 +151,14 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    `wc-range` coordinates two native inputs rather than replacing them, so form submission, validation
    and keyboard stay the browser's.
 
+   **`<wc-notifications>` is in `elements.js`** (plain `HTMLElement`, light DOM, Lit-free): the one
+   labelled `popover="manual"` region a page's notifications stack in, one per page in the same place.
+   Its fallback is the slot: a server-rendered `.notification` with `role="status"` is an inline
+   message with no JS and is adopted into the stack on upgrade. It never takes focus, pauses its
+   countdown on hover and focus, holds notifications back while a modal dialog is open, and announces
+   through `ariaNotify()` or the shared live region in `utils/announcer.ts`; the rules are in its
+   docblock.
+
    **`<wc-field>` wraps a native control and is deliberately NOT form-associated.** The control it
    wraps already submits with its form, validates, takes focus and is in the accessibility tree; a
    form-associated host around it would submit twice or add nothing, and `delegatesFocus` is a
