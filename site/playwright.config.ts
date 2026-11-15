@@ -61,9 +61,10 @@ export default defineConfig({
   },
   // `build` first: `preview` serves whatever is already in dist/, and running
   // it against a stale or absent build would test yesterday's markup, or fail
-  // outright on a clean checkout.
+  // outright on a clean checkout. CI sets `E2E_REUSE_BUILD` because the job downloads the
+  // `site/dist` that Build & test already made, and building it a second time proves nothing.
   webServer: {
-    command: `pnpm run build && pnpm exec astro preview --port ${PORT}`,
+    command: `${process.env.E2E_REUSE_BUILD ? '' : 'pnpm run build && '}pnpm exec astro preview --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

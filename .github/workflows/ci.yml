@@ -181,8 +181,11 @@ jobs:
       - name: Install Playwright browsers
         run: vp exec --filter site playwright install --with-deps chromium firefox
 
+      # Serve the downloaded `site/dist` rather than letting Playwright's web server rebuild it.
       - name: No-JS fallback e2e
         run: vp run docs:e2e
+        env:
+          E2E_REUSE_BUILD: '1'
 
       - name: Upload the Playwright report on failure
         if: failure()
