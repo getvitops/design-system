@@ -4,6 +4,7 @@ import {
   isCurrencyCode,
   isFormatType,
   nextRefreshDelay,
+  parseFields,
   parseInstant,
   parseNumber,
   relativeParts,
@@ -118,5 +119,24 @@ describe('formatValue', () => {
     expect(
       formatValue('date', { date: new Date('2026-01-01') }, NOW, { locale: 'not a locale!!' }),
     ).toBeNull();
+  });
+});
+
+describe('fields', () => {
+  const date = new Date(2026, 10, 11, 12);
+  it('drops unknown fields', () => {
+    expect(parseFields('year, bogus,month')).toEqual(['year', 'month']);
+    expect(parseFields(undefined)).toEqual([]);
+  });
+  it('formats only the named parts', () => {
+    expect(formatValue('date', { date }, NOW, { locale: 'en-CA', fields: ['year'] })).toBe('2026');
+    expect(formatValue('date', { date }, NOW, { locale: 'en', fields: ['month', 'year'] })).toBe(
+      'November 2026',
+    );
+  });
+  it('overrides dateStyle', () => {
+    expect(
+      formatValue('date', { date }, NOW, { locale: 'en', dateStyle: 'full', fields: ['year'] }),
+    ).toBe('2026');
   });
 });

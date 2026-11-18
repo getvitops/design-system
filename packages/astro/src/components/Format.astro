@@ -13,6 +13,8 @@
  *   <Format type="relative" value="2026-11-03T14:05:00Z">November 3, 2026</Format>
  *   <Format type="currency" currency="CAD" value={1234.5}>$1,234.50 CAD</Format>
  *
+ *   <Format type="date" fields="year" now>2026</Format>   (stays current on a prerendered page)
+ *
  * The slot is the fallback text, so write it the way you'd want it read with no JS. With no slot
  * the raw value is shown, which is correct but rarely what anyone wants.
  */
@@ -21,7 +23,7 @@ import type { HTMLAttributes } from 'astro/types';
 export interface Props extends Omit<HTMLAttributes<'span'>, 'slot'> {
   type?: 'relative' | 'date' | 'datetime' | 'time' | 'number' | 'percent' | 'currency';
   /** An ISO date/time for `relative`, `date`, `datetime` and `time`; a number for the rest. */
-  value: string | number | Date;
+  value?: string | number | Date;
   locale?: string;
   /** `full`, `long`, `medium` or `short`, for `date` and `datetime`. */
   dateStyle?: 'full' | 'long' | 'medium' | 'short';
@@ -29,6 +31,10 @@ export interface Props extends Omit<HTMLAttributes<'span'>, 'slot'> {
   timeStyle?: 'full' | 'long' | 'medium' | 'short';
   /** ISO 4217 code. Required for `currency`; without one the fallback text is left as written. */
   currency?: string;
+  /** Only these date parts, comma separated: `year`, `month`, `day`, `weekday`, `hour`, `minute`. */
+  fields?: string;
+  /** Format the current date, not `value`: `<wc-format>` keeps it current after a prerender. */
+  now?: boolean;
   /** `1.5M` rather than `1,500,000`. */
   compact?: boolean;
 }
@@ -41,10 +47,18 @@ const {
   timeStyle,
   currency,
   compact,
+  fields,
+  now,
   ...rest
 } = Astro.props;
 const temporal = ['relative', 'date', 'datetime', 'time'].includes(type);
-const machine = value instanceof Date ? value.toISOString() : String(value);
+const resolved = value ?? (now ? new Date() : '');
+const machine = resolved instanceof Date ? resolved.toISOString() : String(resolved);
+// A year-only `now` carries just the year, matching what `<wc-format>` writes back.
+const datetime =
+  now && fields?.trim() === 'year' && resolved instanceof Date
+    ? String(resolved.getFullYear())
+    : machine;
 ---
 
 <wc-format
@@ -54,10 +68,12 @@ const machine = value instanceof Date ? value.toISOString() : String(value);
   time-style={timeStyle}
   currency={currency}
   compact={compact}
+  fields={fields}
+  now={now}
   {...rest}
 >
   {temporal ? (
-    <time datetime={machine}>
+    <time datetime={datetime}>
       <slot>{machine}</slot>
     </time>
   ) : (

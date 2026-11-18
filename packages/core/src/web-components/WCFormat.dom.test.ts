@@ -175,3 +175,20 @@ describe('<wc-format> after a DOM move', () => {
     expect(vi.getTimerCount()).toBe(1);
   });
 });
+
+describe('<wc-format> now', () => {
+  const MARKUP = `<wc-format type="date" fields="year" now locale="en"><time datetime="2020">2020</time></wc-format>`;
+
+  it('replaces a stale year with the current one and updates datetime', async () => {
+    const el = await mount(MARKUP);
+    expect(text(el)).toBe(String(new Date(NOW).getFullYear()));
+    expect(el.querySelector('time')!.getAttribute('datetime')).toBe(
+      String(new Date(NOW).getFullYear()),
+    );
+  });
+
+  it('does not copy the stale text into title', async () => {
+    const el = await mount(MARKUP);
+    expect(el.querySelector('time')!.hasAttribute('title')).toBe(false);
+  });
+});

@@ -74,7 +74,28 @@ export function nextRefreshDelay(now: number, then: number): number {
   return Math.max(1000, toNext + 50);
 }
 
+export type DateField = 'year' | 'month' | 'day' | 'weekday' | 'hour' | 'minute';
+
+const FIELD_OPTIONS: Record<DateField, Intl.DateTimeFormatOptions> = {
+  year: { year: 'numeric' },
+  month: { month: 'long' },
+  day: { day: 'numeric' },
+  weekday: { weekday: 'long' },
+  hour: { hour: 'numeric' },
+  minute: { minute: 'numeric' },
+};
+
+/** The known fields of a comma list (`"year,month"`); anything else is dropped. */
+export function parseFields(attr: string | null | undefined): DateField[] {
+  return (attr ?? '')
+    .split(',')
+    .map((f) => f.trim())
+    .filter((f): f is DateField => f in FIELD_OPTIONS);
+}
+
 export interface FormatOptions {
+  /** Only these parts of a date/time, replacing `dateStyle`/`timeStyle` (`Intl` cannot mix them). */
+  fields?: DateField[] | undefined;
   locale?: string | undefined;
   dateStyle?: 'full' | 'long' | 'medium' | 'short' | undefined;
   timeStyle?: 'full' | 'long' | 'medium' | 'short' | undefined;
@@ -104,8 +125,9 @@ export function formatValue(
     }
     if (type === 'date' || type === 'datetime' || type === 'time') {
       if (!input.date) return null;
-      const style: Intl.DateTimeFormatOptions =
-        type === 'date'
+      const style: Intl.DateTimeFormatOptions = opts.fields?.length
+        ? Object.assign({}, ...opts.fields.map((f) => FIELD_OPTIONS[f]))
+        : type === 'date'
           ? { dateStyle: opts.dateStyle ?? 'medium' }
           : type === 'time'
             ? { timeStyle: opts.timeStyle ?? 'short' }

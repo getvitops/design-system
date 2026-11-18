@@ -5,7 +5,9 @@ import {
   isFormatType,
   nextRefreshDelay,
   parseInstant,
+  parseFields,
   parseNumber,
+  type DateField,
   type FormatOptions,
   type FormatType,
 } from './utils/format.js';
@@ -33,6 +35,16 @@ import { initFromLightDom } from './utils/upgrade.js';
  * not on a fixed poll) and not at all while the tab is hidden; it catches up when the tab returns.
  * Anything it can't parse or format (no date, a currency with no code) is left exactly as authored.
  *
+ * `fields="year"` (comma list of `year`, `month`, `day`, `weekday`, `hour`, `minute`) shows only
+ * those parts and replaces `date-style`/`time-style`. `now` formats the current date instead of the
+ * `datetime`, so a prerendered page never shows a stale one; the authored text is the no-JS
+ * fallback, and `datetime` is updated to match. Uses `new Date()` (the visitor's local calendar),
+ * not Temporal, which is not yet widely available.
+ *
+ * ```html
+ * <wc-format type="date" fields="year" now><time datetime="2026">2026</time></wc-format>
+ * ```
+ *
  * Locale: the `locale` attribute, else the nearest `lang`, else the browser's.
  *
  * Inline, like `<wc-counter>`: it wraps one inline `<time>` or `<data>`, so the default display is
@@ -48,6 +60,8 @@ export class WCFormat extends BaseElement {
     timeStyle: { type: String, attribute: 'time-style' },
     currency: { type: String },
     compact: { type: Boolean },
+    fields: { type: String },
+    now: { type: Boolean },
   };
 
   declare type: FormatType;
@@ -56,6 +70,8 @@ export class WCFormat extends BaseElement {
   declare timeStyle: FormatOptions['timeStyle'];
   declare currency: string | undefined;
   declare compact: boolean;
+  declare fields: string | undefined;
+  declare now: boolean;
 
   override createRenderRoot(): HTMLElement {
     return this;
@@ -77,6 +93,8 @@ export class WCFormat extends BaseElement {
     this.timeStyle = undefined;
     this.currency = undefined;
     this.compact = false;
+    this.fields = undefined;
+    this.now = false;
   }
 
   override connectedCallback(): void {
@@ -110,7 +128,7 @@ export class WCFormat extends BaseElement {
     if (!source) return false;
     // Keep what the server wrote, once, so the absolute value stays reachable and a re-render
     // never loses it.
-    if (!source.hasAttribute('title') && source.textContent?.trim()) {
+    if (!this.now && !source.hasAttribute('title') && source.textContent?.trim()) {
       source.setAttribute('title', source.textContent.trim());
       source.dataset.formatFallback = '';
     }
@@ -128,7 +146,9 @@ export class WCFormat extends BaseElement {
     const source = this.#source();
     if (!source || !isFormatType(this.type)) return;
 
-    const date = parseInstant(source.getAttribute('datetime'));
+    const fields: DateField[] = parseFields(this.fields);
+    // `now`: the clock, not the markup, is the value; the authored text was only a stale render of it.
+    const date = this.now ? new Date() : parseInstant(source.getAttribute('datetime'));
     const number = parseNumber(source.getAttribute('value'));
     const now = Date.now();
     const text = formatValue(this.type, { date, number }, now, {
@@ -137,10 +157,16 @@ export class WCFormat extends BaseElement {
       timeStyle: this.timeStyle,
       currency: this.currency,
       compact: this.compact,
+      fields,
     });
     // Nothing usable: the authored text stays, untouched.
     if (text === null) return;
     if (source.textContent !== text) source.textContent = text;
+    if (this.now && date) {
+      const iso = date.toISOString();
+      const only = fields.length === 1 && fields[0] === 'year' ? String(date.getFullYear()) : iso;
+      if (source.getAttribute('datetime') !== only) source.setAttribute('datetime', only);
+    }
 
     if (this.type === 'relative' && date && !document.hidden) {
       this.#timer = setTimeout(() => this.#render(), nextRefreshDelay(now, date.getTime()));
