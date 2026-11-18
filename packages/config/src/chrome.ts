@@ -14,7 +14,7 @@ import { desc } from './desc.ts';
  */
 
 export const MASTHEAD_POSITIONS = ['static', 'sticky', 'fixed'] as const;
-export const MASTHEAD_BEHAVIORS = ['always', 'hide-on-scroll'] as const;
+export const MASTHEAD_BEHAVIORS = ['always', 'hide-on-scroll', 'reveal-on-scroll'] as const;
 export const MASTHEAD_SURFACES = [
   'solid',
   'glass',
@@ -55,7 +55,7 @@ export const MastheadSchema = z.strictObject({
   ),
   behavior: desc(
     z.optional(z.enum(MASTHEAD_BEHAVIORS)),
-    '`hide-on-scroll` slides the masthead away while scrolling down and back on scrolling up. Ignored when `position` is `static`. It never hides while a menu inside it is open or has focus. Uses `scroll-state()`; in a browser without it (Firefox today) the masthead just stays visible. Default `always`.',
+    '`hide-on-scroll` slides the masthead away while scrolling down and back on scrolling up. `reveal-on-scroll` keeps the masthead off-screen while the page is at the top (so a hero fills the viewport) and slides it in once scrolling starts; it implies `position: fixed`, and a page too short to scroll keeps it visible. Ignored when `position` is `static`. It never hides while a menu inside it is open or has focus. Uses `scroll-state()`; in a browser without it (Firefox today) the masthead just stays visible. Default `always`.',
   ),
   surface: desc(
     z.optional(z.enum(MASTHEAD_SURFACES)),
@@ -115,14 +115,27 @@ export const ChromeNavSchema = z.strictObject({
   ),
 });
 
+export const BackToTopSchema = z.strictObject({
+  label: desc(z.optional(z.string()), 'Accessible name and text. Default `Back to top`.'),
+  target: desc(
+    z.optional(z.string()),
+    'In-page anchor to scroll to, e.g. `#top` (default) or `#main`.',
+  ),
+});
+
 export const ChromeSchema = z.strictObject({
   masthead: desc(
     z.optional(MastheadSchema),
     'The top bar: position, scroll behaviour, surface, layout, elevation.',
   ),
   nav: desc(z.optional(ChromeNavSchema), 'How the masthead navigation behaves at each width.'),
+  backToTop: desc(
+    z.optional(z.union([z.boolean(), BackToTopSchema])),
+    'A floating back-to-top link, rendered by `<SiteFooter>`, visible once the page has scrolled. `true` for defaults. A browser without `scroll-state()` (Firefox today) shows it always.',
+  ),
 });
 
 export type MastheadConfig = z.infer<typeof MastheadSchema>;
+export type BackToTopConfig = z.infer<typeof BackToTopSchema>;
 export type ChromeNavConfig = z.infer<typeof ChromeNavSchema>;
 export type ChromeConfig = z.infer<typeof ChromeSchema>;

@@ -145,6 +145,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
     imageAlt: 'Wireframe of a finished landscape',
     layout: 'split',
     tone: '',
+    scrollCue: true,
   },
   vitops_marquee: {
     items: [

@@ -1,0 +1,55 @@
+---
+/**
+ * Toc — an "on this page" list that marks the section being read.
+ *
+ *   const { headings } = await render(entry);
+ *   <Toc {headings} />
+ *
+ * A labelled `<nav>` of fragment links, so with no JS it is a plain table of contents. The
+ * current section is highlighted by `:target-current` where `scroll-target-group` exists
+ * (Chromium); elsewhere `polyfills.js` loads a small IntersectionObserver that sets
+ * `.is-current` and `aria-current="location"`. `headings` is Astro's `MarkdownHeading[]`.
+ */
+import type { MarkdownHeading } from 'astro';
+
+interface Props {
+  headings: Pick<MarkdownHeading, 'depth' | 'slug' | 'text'>[];
+  /** Shallowest and deepest heading levels to list. Default 2–3. */
+  minDepth?: number;
+  maxDepth?: number;
+  /** Accessible name of the `<nav>`. */
+  label?: string;
+  /** Marker style. */
+  variant?: 'plain' | 'indicator' | 'bar';
+  class?: string;
+}
+
+const {
+  headings,
+  minDepth = 2,
+  maxDepth = 3,
+  label = 'On this page',
+  variant = 'bar',
+  class: className,
+} = Astro.props;
+const items = headings.filter((h) => h.depth >= minDepth && h.depth <= maxDepth);
+---
+
+{items.length > 0 && (
+  <nav
+    aria-label={label}
+    class:list={[
+      'scroll-target-group',
+      variant !== 'plain' && `scroll-target-group--${variant}`,
+      className,
+    ]}
+  >
+    <ol>
+      {items.map((h) => (
+        <li style={`padding-inline-start: ${(h.depth - minDepth) * 0.75}rem`}>
+          <a href={`#${h.slug}`}>{h.text}</a>
+        </li>
+      ))}
+    </ol>
+  </nav>
+)}

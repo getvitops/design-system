@@ -789,7 +789,15 @@
   }
 }
 
-.sitefooter__copy {
+.sitefooter__base {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  justify-content: space-between;
+}
+
+.sitefooter__copy,
+.sitefooter__credit {
   margin: 0;
   font-size: 0.875em;
   opacity: 0.8;

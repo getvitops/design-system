@@ -4,6 +4,7 @@ import {
   mastheadClass,
   mastheadRootCss,
   mastheadStyle,
+  resolveBackToTop,
   resolveMasthead,
   resolveNavOptions,
 } from './masthead.ts';
@@ -55,6 +56,26 @@ describe('resolveMasthead', () => {
   it('ignores hide-on-scroll for a static masthead', () => {
     const m = resolveMasthead(cfg({ position: 'static', behavior: 'hide-on-scroll' }));
     expect(mastheadClass(m)).not.toContain('masthead--hide-on-scroll');
+  });
+
+  it('promotes reveal-on-scroll to a fixed bar, even from static or sticky', () => {
+    for (const position of ['static', 'sticky'] as const) {
+      const m = resolveMasthead(cfg({ position, behavior: 'reveal-on-scroll' }));
+      expect(m.position).toBe('fixed');
+      expect(mastheadClass(m)).toEqual(['masthead', 'masthead--fixed', 'masthead--hidden-at-top']);
+    }
+  });
+
+  it('resolves site.chrome.backToTop', () => {
+    const c = (backToTop: unknown) => ({ site: { chrome: { backToTop } } }) as never;
+    expect(resolveBackToTop(undefined)).toBeUndefined();
+    expect(resolveBackToTop(c(false))).toBeUndefined();
+    expect(resolveBackToTop(c(true))).toEqual({ label: 'Back to top', target: '#top' });
+    expect(resolveBackToTop(c({ label: 'Up', target: '#main' }))).toEqual({
+      label: 'Up',
+      target: '#main',
+    });
+    expect(() => resolveBackToTop(c({ target: 'javascript:x' }))).toThrow(/anchor/);
   });
 
   it('writes tone chains, solid using the role fill and its computed foreground', () => {

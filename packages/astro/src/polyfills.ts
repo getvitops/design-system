@@ -17,6 +17,7 @@ export const POLYFILL_NAMES = [
   'constructed-stylesheets',
   'invoker-commands',
   'css-anchor-positioning',
+  'scroll-target-group',
 ] as const;
 
 export type PolyfillName = (typeof POLYFILL_NAMES)[number];

@@ -95,7 +95,10 @@ describe('<SiteFooter />', () => {
     expect(html).toContain('aria-label="Site map"');
     expect(html).toContain('aria-label="Legal"');
     expect(html).toMatch(/href="\/privacy"[^>]*aria-current="page"/);
-    expect(html).toContain('&copy; 2030 Acme');
+    expect(html).toContain('&copy;');
+    expect(html).toMatch(
+      /<wc-format type="date" fields="year" now[^>]*>\s*<time datetime="2030">2030<\/time>\s*<\/wc-format>\s*Acme/,
+    );
   });
 
   it('turns a top-level item with children into a named column, one level only', async () => {
@@ -133,6 +136,20 @@ describe('<SiteFooter />', () => {
     expect(html).not.toContain('<nav');
     expect(html).not.toContain('sitefooter__brand');
     expect(html).toContain('sitefooter__copy');
+  });
+
+  it('renders a string year as plain text, not a wc-format', async () => {
+    const html = await renderFooter({ name: 'Acme', year: '2019–2030' });
+    expect(html).toContain('2019–2030');
+    expect(html).not.toContain('wc-format');
+  });
+
+  it('credits Vitops by default and drops the link with credit={false}', async () => {
+    const on = await renderFooter({ name: 'Acme', year: 2030 });
+    expect(on).toMatch(/<a [^>]*href="https:\/\/vitops\.ca"[^>]*>\s*Powered by Vitops\s*<\/a>/);
+    const off = await renderFooter({ name: 'Acme', year: 2030, credit: false });
+    expect(off).not.toContain('vitops.ca');
+    expect(off).toContain('sitefooter__copy');
   });
 
   it("renders a brand slot as the first column, in the site's own markup", async () => {

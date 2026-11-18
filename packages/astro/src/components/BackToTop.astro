@@ -1,0 +1,34 @@
+---
+/**
+ * BackToTop — a floating link to the top of the page, shown once the page has scrolled.
+ *
+ *   <BackToTop />
+ *   <BackToTop label="Up" target="#main" />
+ *
+ * A plain `<a href="#top">` (tier 1, no JS): `patterns/scroll-button.css` hides it with a
+ * `scroll-state()` query while the page is at the top, and a browser without the feature
+ * (Firefox today) simply shows it always. `<SiteFooter config={site}>` renders one from
+ * `site.chrome.backToTop`; use this directly for a layout of your own. Place it last in the
+ * body so it is the last tab stop, not an early one.
+ *
+ * The target must exist: `#top` is the document itself and always works.
+ */
+import Icon from './Icon.astro';
+
+interface Props {
+  /** Accessible name and visible text. */
+  label?: string;
+  /** An in-page `#anchor`. `#top` scrolls to the very top. */
+  target?: string;
+  class?: string;
+}
+
+const { label = 'Back to top', target = '#top', class: className } = Astro.props;
+if (!/^#[A-Za-z][\w-]*$/.test(target))
+  throw new Error(`BackToTop: target "${target}" must be an in-page "#anchor".`);
+---
+
+<a class:list={['back-to-top', 'btn', className]} href={target}>
+  <Icon name="arrow-up" />
+  <span class="sr-only">{label}</span>
+</a>

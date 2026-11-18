@@ -551,6 +551,13 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
           { label: 'Text and image side by side', value: 'split' },
         ],
       },
+      {
+        type: 'toggle',
+        action_id: 'scrollCue',
+        label: 'Scroll cue: a down arrow at the bottom that scrolls to the next section',
+        initial_value: false,
+      },
+      { type: 'text_input', action_id: 'scrollCueLabel', label: 'Scroll cue accessible name' },
       ...toneFields(),
       {
         type: 'repeater',

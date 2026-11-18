@@ -19,7 +19,16 @@
  *
  * Every `<nav>` is named (a column by its heading, the others "Site map" / "Legal") so the
  * landmark list is not a pile of unlabeled regions, and the copyright is plain text, never a link.
+ *
+ * **The year stays current.** A numeric `year` (the default, the build year) is a
+ * `<wc-format fields="year" now>`: no JS shows the render-time year, JS shows the visitor's, so a
+ * prerendered page never goes stale. A string `year` (a "2019–2026" range) is plain text.
+ *
+ * **Attribution.** A "Powered by Vitops" link to vitops.ca follows the copyright by default
+ * (`credit={false}` removes it; a white-label config option will drive that later).
  */
+import BackToTop from './BackToTop.astro';
+import { resolveBackToTop, type ChromeSource } from './masthead.ts';
 import { isCurrent, linkRel, menuItems, type NavMenuInput } from './sitenav.ts';
 
 interface Props {
@@ -31,10 +40,17 @@ interface Props {
   name: string;
   /** Override the year (tests, or a "since" range string). Default: build year. */
   year?: number | string;
+  /**
+   * Render the "Powered by Vitops" credit link (https://vitops.ca). On by default.
+   * TODO: the white-label feature will turn this off from config (`site.*`), not per layout.
+   */
+  credit?: boolean;
   /** Accessible names. */
   sitemapLabel?: string;
   legalLabel?: string;
   current?: string;
+  /** The site config; `site.chrome.backToTop` adds a floating back-to-top link after the footer. */
+  config?: ChromeSource;
   class?: string;
 }
 
@@ -43,11 +59,14 @@ const {
   legal,
   name,
   year = new Date().getFullYear(),
+  credit = true,
   sitemapLabel = 'Site map',
   legalLabel = 'Legal',
   current = Astro.url.pathname,
+  config,
   class: className,
 } = Astro.props;
+const backToTop = resolveBackToTop(config);
 
 const hasBrand = Astro.slots.has('brand');
 const sitemapItems = menuItems(sitemap);
@@ -112,7 +131,25 @@ const groups = [
       ))}
     </div>
   )}
-  <p class="sitefooter__copy">
-    &copy; {year} {name}
-  </p>
+  <div class="sitefooter__base">
+    <p class="sitefooter__copy">
+      &copy;
+      {typeof year === 'number' ? (
+        <wc-format type="date" fields="year" now>
+          <time datetime={String(year)}>{year}</time>
+        </wc-format>
+      ) : (
+        year
+      )}
+      {name}
+    </p>
+    {credit && (
+      <p class="sitefooter__credit">
+        <a class="sitefooter__link" href="https://vitops.ca">
+          Powered by Vitops
+        </a>
+      </p>
+    )}
+  </div>
 </footer>
+{backToTop && <BackToTop label={backToTop.label} target={backToTop.target} />}

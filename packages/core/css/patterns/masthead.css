@@ -151,6 +151,7 @@
    site that uses none pays nothing. */
 :root:has(
   .masthead--hide-on-scroll,
+  .masthead--hidden-at-top,
   .masthead--transparent-until-scrolled,
   .masthead--shadow-on-scroll,
   .masthead--border-on-scroll
@@ -179,6 +180,19 @@
    visitor is inside it: focus, an open popover or an open disclosure keeps it on screen. */
 @container masthead-page scroll-state(scrolled: block-end) {
   .masthead--hide-on-scroll:not(
+    :focus-within,
+    :has(:is(:popover-open, .\:popover-open), details[open])
+  ) {
+    translate: 0 calc(-100% - var(--_masthead-inset) - 1px);
+  }
+}
+
+/* Off-screen while the page is at the top, so a hero owns the whole viewport; in once the
+   visitor scrolls. `scrollable: bottom` keeps it visible on a page too short to scroll, where
+   it could otherwise never appear. `not scrollable: top` is "at the top", as above. Not `visibility: hidden`: it stays in the tab order, and
+   `:focus-within` below brings it in the moment a keyboard user tabs to it. */
+@container masthead-page (not scroll-state(scrollable: top)) and scroll-state(scrollable: bottom) {
+  .masthead--hidden-at-top:not(
     :focus-within,
     :has(:is(:popover-open, .\:popover-open), details[open])
   ) {

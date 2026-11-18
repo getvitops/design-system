@@ -707,7 +707,7 @@ export const TIERS: Record<string, TierEntry> = {
       'patterns/masthead.css',
     ),
     astro: a('Masthead', 'css'),
-    use: '`<Masthead config={site}>` from `site.chrome.masthead` (position `static|sticky|fixed`, behavior `always|hide-on-scroll`, surface `solid|glass|transparent|transparent-until-scrolled`, layout `full|inset|floating`, `inset` and `height` lengths — fluid ones like `clamp(3.5rem, 8cqi, 4.5rem)` are fine — elevation shadow/border, `onScroll`); a prop overrides one field for a layout. Slots `brand`, default (the `<SiteNav>`), `actions`. Pure CSS — hide-on-scroll and the *-on-scroll states are `scroll-state()` queries that only subtract from a settled bar, so a browser without them (Firefox today) shows a visible, solid, elevated one. It never takes `role="banner"`: a body-level `<header>` already is the landmark, and `.banner` means the announcement bar.',
+    use: '`<Masthead config={site}>` from `site.chrome.masthead` (position `static|sticky|fixed`, behavior `always|hide-on-scroll|reveal-on-scroll` (reveal-on-scroll keeps the bar off-screen at the top of the page so a hero fills the viewport, slides it in on first scroll, implies `fixed`, and stays visible on a page too short to scroll), surface `solid|glass|transparent|transparent-until-scrolled`, layout `full|inset|floating`, `inset` and `height` lengths — fluid ones like `clamp(3.5rem, 8cqi, 4.5rem)` are fine — elevation shadow/border, `onScroll`); a prop overrides one field for a layout. Slots `brand`, default (the `<SiteNav>`), `actions`. Pure CSS — hide-on-scroll and the *-on-scroll states are `scroll-state()` queries that only subtract from a settled bar, so a browser without them (Firefox today) shows a visible, solid, elevated one. It never takes `role="banner"`: a body-level `<header>` already is the landmark, and `.banner` means the announcement bar.',
   },
   navbar: {
     css: c(['navbar', 'navbar--sticky', 'nav-items'], 'patterns/navbar.css'),
@@ -742,12 +742,12 @@ export const TIERS: Record<string, TierEntry> = {
       tag: 'wc-format',
       fallback: 'full',
       registered: true,
-      adds: 'replaces the authored text with a locale-aware relative time, date, number, percentage or currency read from the machine value, and keeps a relative time current',
+      adds: 'replaces the authored text with a locale-aware relative time, date, number, percentage or currency read from the machine value, and keeps a relative time current; `fields` limits a date to parts of it and `now` formats the current date, so a prerendered copyright year stays current',
     },
     astro: a('Format', 'wc'),
     emdashExempt:
       'inline text formatting, used inside other content rather than placed as a block of its own',
-    use: '`<Format type="relative" value="2026-11-03T14:05:00Z">November 3, 2026</Format>`: the slot is the no-JS text, and `title` keeps it after upgrade. `type` is `relative`, `date`, `datetime`, `time`, `number`, `percent` or `currency` (needs `currency="CAD"`). Anything it cannot format is left as written. Do NOT wrap it in `<wc-format>`: it emits its own. By hand: `<wc-format type="relative"><time datetime="…">text</time></wc-format>`.',
+    use: '`<Format type="relative" value="2026-11-03T14:05:00Z">November 3, 2026</Format>`: the slot is the no-JS text, and `title` keeps it after upgrade. `type` is `relative`, `date`, `datetime`, `time`, `number`, `percent` or `currency` (needs `currency="CAD"`). `fields="year"` shows only those date parts and `now` formats the current date instead of `value` (`<Format type="date" fields="year" now>2026</Format>`). Anything it cannot format is left as written. Do NOT wrap it in `<wc-format>`: it emits its own. By hand: `<wc-format type="relative"><time datetime="…">text</time></wc-format>`.',
   },
   combobox: {
     css: c(
@@ -901,7 +901,13 @@ export const TIERS: Record<string, TierEntry> = {
   },
   'scroll-target': {
     css: c(['scroll-target-group', 'toc-sidebar'], 'patterns/scroll-target.css'),
-    use: '`.scroll-target-group` for `:target-current` highlighting.',
+    astro: a('Toc', 'css'),
+    use: '`<Toc headings={headings} />` (Astro\'s `MarkdownHeading[]`) or `.scroll-target-group` by hand. The current section is `:target-current` where `scroll-target-group` exists (Chromium); elsewhere `polyfills.js` loads an IntersectionObserver that sets `.is-current` + `aria-current="location"`.',
+  },
+  'scroll-button': {
+    css: c(['back-to-top', 'scroll-cue', 'scroll-cue__end'], 'patterns/scroll-button.css'),
+    astro: [...a('BackToTop', 'css'), ...a('ScrollCue', 'css')],
+    use: '`<BackToTop />` (or `site.chrome.backToTop`, rendered by `<SiteFooter config>`) for a floating link that shows once the page has scrolled; `<ScrollCue />` as the LAST child of a `position: relative` hero, a chevron to the end of that section that hides once scrolling starts. Plain `<a href="#…">`; hiding is a `scroll-state()` query, so a browser without it (Firefox today) shows both always. The hero block has a `scrollCue` toggle.',
   },
   separator: {
     css: c(['separator', 'separator__text', 'separator__ornament'], 'patterns/separator.css'),

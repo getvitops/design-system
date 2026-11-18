@@ -73,6 +73,7 @@
 /* was scroll.css */
 @import './patterns/scroll-based.css';
 @import './patterns/horizontal-scroll.css';
+@import './patterns/scroll-button.css';
 @import './patterns/scroll-target.css';
 @import './patterns/text-effects.css';
 @import './patterns/svg.css';

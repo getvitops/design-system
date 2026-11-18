@@ -143,13 +143,15 @@ export function resolveMasthead(
   if (elevation.shadow !== undefined && !SHADOW.test(elevation.shadow))
     throw new Error(`Masthead: elevation.shadow "${elevation.shadow}" is not a shadow name.`);
 
+  const requested = oneOf(pick('behavior'), MASTHEAD_BEHAVIORS, 'masthead.behavior') ?? 'always';
+  // `reveal-on-scroll` is the one behaviour that implies a position: a sticky bar keeps its space
+  // in flow and would leave an empty band over the hero, so it is promoted to `fixed`.
+  const revealed = requested === 'reveal-on-scroll';
+
   return {
-    position,
+    position: revealed ? 'fixed' : position,
     // Nothing to hide when the bar scrolls away with the page anyway.
-    behavior:
-      position === 'static'
-        ? 'always'
-        : (oneOf(pick('behavior'), MASTHEAD_BEHAVIORS, 'masthead.behavior') ?? 'always'),
+    behavior: position === 'static' && !revealed ? 'always' : requested,
     surface: oneOf(pick('surface'), MASTHEAD_SURFACES, 'masthead.surface') ?? 'solid',
     tone,
     layout: oneOf(pick('layout'), MASTHEAD_LAYOUTS, 'masthead.layout') ?? 'full',
@@ -169,6 +171,7 @@ export function mastheadClass(m: ResolvedMasthead): string[] {
     'masthead',
     ...(m.position !== 'static' ? [`masthead--${m.position}`] : []),
     ...(m.behavior === 'hide-on-scroll' ? ['masthead--hide-on-scroll'] : []),
+    ...(m.behavior === 'reveal-on-scroll' ? ['masthead--hidden-at-top'] : []),
     m.surface !== 'solid' ? `masthead--${m.surface}` : '',
     m.layout !== 'full' ? `masthead--${m.layout}` : '',
     ...(m.shadow
@@ -218,6 +221,19 @@ export function mastheadRootCss(m: ResolvedMasthead): string | undefined {
     m.layout !== 'full' ? `--masthead-inset:${m.inset ?? '0.75rem'}` : '',
   ].filter(Boolean);
   return decls.length ? `:root{${decls.join(';')}}` : undefined;
+}
+
+/** `site.chrome.backToTop` resolved: `undefined` when off, else the label and target. */
+export function resolveBackToTop(
+  config: ChromeSource | undefined,
+): { label: string; target: string } | undefined {
+  const v = (config?.site?.chrome as { backToTop?: unknown } | undefined)?.backToTop;
+  if (!v) return undefined;
+  const o = typeof v === 'object' ? (v as { label?: string; target?: string }) : {};
+  const target = o.target ?? '#top';
+  if (!/^#[A-Za-z][\w-]*$/.test(target))
+    throw new Error(`site.chrome backToTop.target: "${target}" must be an in-page "#anchor".`);
+  return { label: o.label ?? 'Back to top', target };
 }
 
 /** `<SiteNav>` props from `site.chrome.nav`, with an optional override. */

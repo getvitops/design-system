@@ -14,15 +14,16 @@
   color: var(--scroll-target-inactive-color, currentColor);
 }
 
-/* `.is-current` is a MANUAL hook, mirroring `:target-current` for anything that
-   sets it itself.
+/* `.is-current` mirrors `:target-current` for anything that sets it. `polyfills.js` does,
+   where `scroll-target-group` is missing (everything but Chromium today): see
+   `js/scrollspy.ts`, which also sets `aria-current="location"`. `:target-current` is visual
+   only, so the native path carries no `aria-current`. */
+.scroll-target-group ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 
-   It previously claimed to be "the JS scroll-spy fallback (deferred.ts)". There
-   is no such code — nothing in the repo sets `.is-current`, and deferred.ts has
-   no scroll-spy. Highlighting is therefore `:target-current` only, which today
-   means Chrome; other engines get no highlight until they ship
-   `scroll-target-group`, which is a deliberate choice, not an oversight. Set
-   `.is-current` yourself if you need it sooner. */
 .scroll-target-group a:target-current,
 .scroll-target-group a.is-current {
   color: var(--scroll-target-active-color, var(--color-bg-brand-primary-solid));

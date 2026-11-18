@@ -140,6 +140,14 @@ export const prerenderPolyfills: Polyfill[] = [
     test: () => 'commandForElement' in HTMLButtonElement.prototype,
     load: () => import('invokers-polyfill'),
   },
+  {
+    // TODO(support): `scroll-target-group` is Chromium-only. This highlights the current
+    // section of a `.scroll-target-group` / `.toc-sidebar` list (`.is-current` + aria-current)
+    // where `:target-current` is missing; drop it when the feature is Baseline widely available.
+    name: 'scroll-target-group',
+    test: () => cssSupports('scroll-target-group: auto'),
+    load: async () => (await import('./scrollspy.ts')).initScrollspy(),
+  },
   // Deliberately omitted — universally supported across the framework's targets,
   // so a polyfill would be dead weight:
   //   • <dialog> / showModal()      • :has()          • container queries
