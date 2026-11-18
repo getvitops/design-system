@@ -4,7 +4,7 @@
  *
  * Run with Node's native env loading:
  *   node --env-file=.env lib/deploy.ts
- * (wired into `npx vp run deploy`).
+ * (wired into `vp run deploy`).
  *
  * Local mode (e.g. WPLocal): set DEPLOY_LOCAL_PATH to the target dir and the
  * script symlinks it to this repo's dist/. One-time setup; later builds need

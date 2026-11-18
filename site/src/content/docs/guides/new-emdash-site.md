@@ -13,8 +13,8 @@ Cloudflare resources, the domain, Search Console, ads, legal — lives in the sc
 
 ## Before you start
 
-- **Node 24** and **[Vite+](https://viteplus.dev) (`vp`)**. The scaffold pins its Node version in
-  `.node-version`; `vp` reads it.
+- **Node 26** and **[Vite+](https://viteplus.dev) (`vp`)**. The scaffold pins its Node version in
+  `engines.node` and `devEngines` in `package.json`; `vp` reads it.
 - **`gh`** (GitHub CLI), logged in: `gh auth login`.
 - A **Cloudflare account** and `vp exec wrangler login`. Local development needs neither — `vp dev` runs the
   Worker with local D1/R2 emulation — but the hand-off checklist does.

@@ -101,18 +101,15 @@ describe.each(templateNames)('template %s', (name) => {
     }
   });
 
-  it('pins Node in .node-version, agreeing with .nvmrc and devEngines', () => {
-    // Version managers read `.node-version` (fnm, mise, asdf, Volta), the reusable CI workflows
-    // read `.nvmrc`, and pnpm reads `devEngines`. Three spellings of one fact: a scaffold that
-    // disagrees with itself gets a different Node locally than it builds with in CI.
-    const read = (file: string) => readFileSync(join(TEMPLATES, name, file), 'utf8').trim();
-    const major = String(pkg.devEngines?.runtime?.version).split('.')[0];
-    expect(read('.node-version')).toBe('24');
-    expect(read('.nvmrc')).toBe(read('.node-version'));
-    expect(major).toBe(read('.node-version'));
-    // Major only: an exact pin disagrees with the floating `.node-version` (24 resolves to the
-    // latest 24.x) and made `vp` warn on every command in a fresh scaffold.
-    expect(pkg.devEngines?.runtime?.version).toBe(major);
+  it('pins Node via engines and devEngines, with no version files', () => {
+    // `engines.node` is what the reusable CI workflows and Vite+ read; `devEngines` is what pnpm
+    // enforces. One fact in two fields: they must agree, and no `.nvmrc` / `.node-version` may
+    // exist to disagree with them.
+    expect(pkg.engines?.node).toBe('^26');
+    expect(pkg.devEngines?.runtime).toEqual({ name: 'node', version: '^26', onFail: 'download' });
+    for (const f of ['.nvmrc', '.node-version']) {
+      expect(existsSync(join(TEMPLATES, name, f))).toBe(false);
+    }
   });
 
   it("applies the repo's release cooldown and exempts only our own toolchain", () => {

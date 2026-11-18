@@ -35,11 +35,19 @@
     "wrangler": "^4.111.0"
   },
   "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^12.16.1",
+      "onFail": "download"
+    },
     "runtime": {
       "name": "node",
-      "version": "24",
+      "version": "^26",
       "onFail": "download"
     }
+  },
+  "engines": {
+    "node": "^26"
   },
   "packageManager": "pnpm@12.16.1"
 }

@@ -37,7 +37,7 @@
  *     does for the toolchain, and this throws if one stops. Everything else is held
  *     to the cooldown, so the install resolves what a client would today (Astro
  *     included) rather than whatever shipped an hour ago.
- *   • Drops `packageManager` and `devEngines` — they make pnpm/Node try to
+ *   • Drops `packageManager`, `engines` and `devEngines` — they make pnpm/Node try to
  *     download other versions than the runner has.
  *
  * Fails on: a non-zero step, or EmDash's adapter-version-mismatch warning in the

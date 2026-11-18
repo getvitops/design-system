@@ -238,7 +238,7 @@ each pattern is `packages/generator/src/tiers.ts` — see
 | `.changeset/`        | Changesets config (the `fixed` group lives here)                                                                                                                                                                          |
 | `.github/workflows/` | `ci.yml`; `site-{ci,deploy-static,deploy-emdash,promote}.yml` (reusable, `@v1`); `deploy-{dev,prod}.yml` + `promote.yml` (this repo's own docs deploy); `release-workflows.yml`; `docs.yml` (Pages, manual fallback only) |
 
-**The root `package.json` has no `scripts` block.** Everything goes through `npx vp run <task>`
+**The root `package.json` has no `scripts` block.** Everything goes through `vp run <task>`
 (`vite-plus`). The root depends on `@getvitops/generator` as a workspace dev dep — that's the
 dogfooding link `lib/build-theme.ts` uses.
 
@@ -378,7 +378,7 @@ adding a component (notably: there is deliberately no site-model layer here).
 
 ## 2.4 Build pipeline
 
-Every task is `npx vp run <name>`, defined in [`vite.config.ts`](vite.config.ts).
+Every task is `vp run <name>`, defined in [`vite.config.ts`](vite.config.ts).
 
 | Task                | Command                                                     | dependsOn                                                           | Notable output                            |
 | ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------- |
@@ -542,11 +542,11 @@ These five shapes repeat everywhere. Knowing them makes an unfamiliar file predi
 ## Development quick reference
 
 ```sh
-npx vp run build            # → build:bricks → the full dist/ payload
-npx vp run build:packages   # everything publishable
-npx vp run docs:dev         # the docs site (restart it after a core CSS edit)
-npx vp test run             # Vitest, once
-npx vp check                # lint + fmt + typecheck — run this before committing
+vp run build            # → build:bricks → the full dist/ payload
+vp run build:packages   # everything publishable
+vp run docs:dev         # the docs site (restart it after a core CSS edit)
+vp test run             # Vitest, once
+vp check                # lint + fmt + typecheck — run this before committing
 ```
 
 Formatting and mechanical lint fixes apply automatically on save and via a `PostToolUse` hook, so

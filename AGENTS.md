@@ -531,8 +531,8 @@ the repo's `bricks/` PHP) into `packages/generator/assets/` and emits `schema.js
 (`build:bricks` → `build:theme` → `lib/build-theme.ts` → the generator; no lightningcss CLI) — see
 the Build system section.
 
-Build/publish: `npx vp run build:packages` (core → generator → utils → cli → vite → astro; each task
-`dependsOn` the packages it imports) and `npx vp run release` (`build:packages && changeset publish`).
+Build/publish: `vp run build:packages` (core → generator → utils → cli → vite → astro; each task
+`dependsOn` the packages it imports) and `vp run release` (`build:packages && changeset publish`).
 Versioning is via Changesets (`.changeset/config.json`): `config`/`core`/`generator`/`utils`/`cli`/`vite`/`astro`
 are **fixed** together — one version for the whole toolchain; `@getvitops/emdash` and
 `@getvitops/create` version independently; the root and `site/` stay private/ignored.
@@ -557,13 +557,13 @@ the group without solving that skew.
 
 1. `npx changeset` — describe the change in consumer-facing terms (this text becomes the published
    changelog; name breaking changes and their migration explicitly).
-2. `npx vp run release:version` — `changeset version`: bumps every package and writes the
+2. `vp run release:version` — `changeset version`: bumps every package and writes the
    per-package `CHANGELOG.md` files.
 3. **Write the matching entry in the root `CHANGELOG.md`** — the curated, toolchain-level notes
    (Breaking / Added / Fixed + migrations). Summarise what step 2 generated; don't transcribe
    dependency bumps. Every package ships its own `CHANGELOG.md` in its tarball via `files`, so both
    layers reach consumers.
-4. `npx vp run release` — `build:packages && changeset publish`.
+4. `vp run release` — `build:packages && changeset publish`.
 
 **Two rules for what those entries must say**, both from downstream reports of time lost
 reading changelogs that were accurate and still unanswerable:
@@ -1341,14 +1341,14 @@ emitted. The Astro integration passes them (`tailwind-sources.ts` → `generate(
 
 ## Development
 
-The build system uses `vite-plus` (`vp`), which is a wrapper for common tools for SDLC tasks:
+The build system uses `vite-plus` (`vp`), which is a wrapper for common tools for SDLC tasks. **Vite+ must be installed globally** (a toolkit requirement, for this repo and every scaffolded site): invoke it as plain `vp`, never `npx vp` — npm rejects a `devEngines.packageManager` that names pnpm (`EBADDEVENGINES`), and `vp` uses the project-installed version when there is one and the global one otherwise. Node and pnpm are pinned by `engines.node` / `devEngines` / `packageManager` in `package.json`, not by `.nvmrc` / `.node-version`:
 
-- `vite-task` (`npx vp run ...`) - task orchestration with caching, even across monorepo packages
-- `oxfmt` (`npx vp fmt`) - formatting md/css/js/ts/html
-- `oxlint` (`npx vp lint`) - linting js/ts
-- `vitest` (`npx vp test`) - unit/integration testing
-- `vite` (`npx vp build`) - libraries/application build meta-tool for web runtimes
-- `tsdown` (`npx vp pack`) - libraries/applications build meta-tool for server runtimes
+- `vite-task` (`vp run ...`) - task orchestration with caching, even across monorepo packages
+- `oxfmt` (`vp fmt`) - formatting md/css/js/ts/html
+- `oxlint` (`vp lint`) - linting js/ts
+- `vitest` (`vp test`) - unit/integration testing
+- `vite` (`vp build`) - libraries/application build meta-tool for web runtimes
+- `tsdown` (`vp pack`) - libraries/applications build meta-tool for server runtimes
 
 It also supports:
 
@@ -1359,7 +1359,7 @@ They are all configured with their respective keys in `vite.config.ts`
 Other tools used:
 
 - `lightningcss` - css minification/bundling
-- `playwright` - e2e testing. Two narrow suites exist (`npx vp run docs:e2e`, both `*.e2e.ts` —
+- `playwright` - e2e testing. Two narrow suites exist (`vp run docs:e2e`, both `*.e2e.ts` —
   not `*.spec.ts` — as two Playwright projects against `site/`):
   `site/e2e/no-js-fallback.e2e.ts` (real Chromium with `javaScriptEnabled: false`, proving the
   tier-2 no-JS-fallback promise above rather than assuming it — the promise `*.dom.test.ts` files
@@ -1369,7 +1369,7 @@ Other tools used:
   Runs on a dedicated port (`playwright.config.ts` explains why 4321, Astro's default, is the
   wrong one); wired into CI as its own `e2e` job, separate from `test`, because it needs a
   browser binary the unit-test job has no other reason to carry.
-- `npx vp run verify:e2e` — the whole-toolchain end-to-end (`scripts/e2e-audit.mjs`): scaffolds the
+- `vp run verify:e2e` — the whole-toolchain end-to-end (`scripts/e2e-audit.mjs`): scaffolds the
   emdash template against THIS checkout's packages (shared Verdaccio plumbing in
   `scripts/lib/scaffold.mjs`, same as `verify:scaffold`), lays the **test-only** overlay from
   `packages/create/e2e/` over the scaffold's copy (a `/blocks` page with every plugin block, a
@@ -1559,8 +1559,8 @@ The generator takes `--format <css|bricks|tailwind|design>` (default `bricks`; `
 
 - **`bricks`** — `color.css` and `type-tokens.css` are one-line stubs; Bricks provides the colour `:root` tokens, dark overrides, utility classes, fonts, and type/space scales live from the imported palette + Variables JSONs. `patterns.css`, `shadows.css`, `tokens.css`, `typography.css`, `typography-headings.css`, `animation-effects.css`, and the Bricks JSONs emit. Pattern `states` reference shadows via `"shadow": "<name>"`, compiled to `filter: drop-shadow(var(--shadow-<name>))`.
 - **`css`** — same set, but `color.css`/`type-tokens.css` emit the full standalone colour + font/scale layer (self-contained; used by the docs build and non-Bricks consumers).
-- **`tailwind`** — bypasses all the per-file outputs and emits **one** self-contained `dist/tailwind.css` for Tailwind v4 (Astro): `@import "tailwindcss"` + `@theme` tokens (colours, `--font-*`, `--text-*`, `--spacing-*`, `--shadow-*`, `--container-{sm,md,lg,xl}`), a dark block, `@custom-variant is-active`, and `@utility` for the bespoke families (type roles, animation effects + `flip-<fx>`, split ratios, track placement) with the animation engine + structural CSS + patterns inlined. Tailwind's own engine expands `@md:`/`hover:`/… on demand, so no pre-expanded per-breakpoint/pseudo classes are emitted; native families (`flex`/`items`/`justify`/`text`/`bg`/`p`/`gap`) come from Tailwind + `@theme`. Run via `npx vp run build:tailwind` (standalone; not in the default `build` chain, not piped through lightningcss).
-- **`design`** — emits **one** file, `DESIGN.md`, and no CSS: the agent-facing brief in [google-labs-code/design.md](https://github.com/google-labs-code/design.md) format (YAML token front matter — `colors`/`typography`/`rounded`/`spacing`/`components` with `{group.token}` refs — then a prose body). Emitter: `packages/generator/src/design-md.ts`. Meant to be run with `--out .`, since DESIGN.md conventionally sits at a repo root beside `AGENTS.md`; run via `npx vp run build:design`, which writes the **tracked root `DESIGN.md`** (the one `build:*` target that doesn't write to `dist/`).
+- **`tailwind`** — bypasses all the per-file outputs and emits **one** self-contained `dist/tailwind.css` for Tailwind v4 (Astro): `@import "tailwindcss"` + `@theme` tokens (colours, `--font-*`, `--text-*`, `--spacing-*`, `--shadow-*`, `--container-{sm,md,lg,xl}`), a dark block, `@custom-variant is-active`, and `@utility` for the bespoke families (type roles, animation effects + `flip-<fx>`, split ratios, track placement) with the animation engine + structural CSS + patterns inlined. Tailwind's own engine expands `@md:`/`hover:`/… on demand, so no pre-expanded per-breakpoint/pseudo classes are emitted; native families (`flex`/`items`/`justify`/`text`/`bg`/`p`/`gap`) come from Tailwind + `@theme`. Run via `vp run build:tailwind` (standalone; not in the default `build` chain, not piped through lightningcss).
+- **`design`** — emits **one** file, `DESIGN.md`, and no CSS: the agent-facing brief in [google-labs-code/design.md](https://github.com/google-labs-code/design.md) format (YAML token front matter — `colors`/`typography`/`rounded`/`spacing`/`components` with `{group.token}` refs — then a prose body). Emitter: `packages/generator/src/design-md.ts`. Meant to be run with `--out .`, since DESIGN.md conventionally sits at a repo root beside `AGENTS.md`; run via `vp run build:design`, which writes the **tracked root `DESIGN.md`** (the one `build:*` target that doesn't write to `dist/`).
 
   Three things the spec can't hold, resolved the same way every time and **stated in the emitted prose** so the file is self-describing: fluid `clamp()` sizes → the **max** value (a `Dimension` is a bare number + px/em/rem); the automatic dark flip → **light values only**, with the flip explained (an agent that flattens role tokens to hexes breaks dark mode, which is the whole hazard); a `50%` radius → dropped from `rounded` and named in the Shapes prose rather than emitted as an invalid `Dimension`. Role tokens are `{colors.<hue>-<step>}` **references** into the raw ramps, not flattened hexes, so the role → ramp lineage survives — `on-solid` excepted, being a computed contrast literal. `meta.name`/`meta.description` (optional, in `design-system.json`) supply the brand name + Overview paragraph; everything else derives from the config. `design.md lint` reports zero errors on the emitted file; its ~190 `orphaned-tokens` warnings are inherent (our tokens are consumed by utility classes, not by the `components` block) and the file says so.
 
@@ -1614,7 +1614,7 @@ Container breakpoints are bare prefixes (`sm-`/`md-`/`lg-`/`xl-` = 30/48/64/80re
 
 ## Build system
 
-All tasks go through `npx vp run <name>` (see [vite.config.ts](vite.config.ts)). `build` delegates to `build:bricks` (the default target); format-specific full builds are separate `build:<type>` tasks rather than a `--format` flag on `build` (vp appends forwarded args to the command tail, which would corrupt the last sub-task, and it only resolves `vp run <task>` in-process when that appears literally in the command).
+All tasks go through `vp run <name>` (see [vite.config.ts](vite.config.ts)). `build` delegates to `build:bricks` (the default target); format-specific full builds are separate `build:<type>` tasks rather than a `--format` flag on `build` (vp appends forwarded args to the command tail, which would corrupt the last sub-task, and it only resolves `vp run <task>` in-process when that appears literally in the command).
 
 **The root build dogfoods `@getvitops/generator`.** `build:bricks` runs `build:theme`, which invokes `lib/build-theme.ts` → `generate({ format: 'bricks', outDir: 'dist' })` (from `@getvitops/generator`). The generator owns the lightningcss _library_ and does the CSS bundling in-process, so the root no longer shells out to the lightningcss CLI (removed from deps). `build:theme` `dependsOn build:generator` (which `dependsOn build:core`), so the framework JS bundles are built in `@getvitops/core` and snapshotted into the generator's package assets before `generate` copies them (plus the Bricks PHP + `docs/`) into `dist/`. `build:docs` and `build:tailwind` likewise call `lib/build-theme.ts --format css|tailwind`. The single-file emit contract per format is unchanged.
 
@@ -1930,7 +1930,7 @@ approval before publishing.
 - **Remote (default):** rsync over SSH using `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_PATH` (+ optional `DEPLOY_PORT`, `DEPLOY_KEY`). `--dry` previews via `rsync -n`.
 - **Local symlink:** set `DEPLOY_LOCAL_PATH` to a theme `dist/` directory (e.g. a WPLocal site) and the script idempotently symlinks it to this repo's `dist/`. One-time setup; subsequent builds are "auto-deployed" because the symlink follows them. The script refuses to clobber a non-symlink, so it's safe to point at an existing path.
 
-`npx vp run deploy` chains `build` first, so it always ships a fresh `dist/`.
+`vp run deploy` chains `build` first, so it always ships a fresh `dist/`.
 
 This deploy has nothing to do with the client-site CI/CD model above — it ships this
 repo's own Bricks theme output, not a scaffolded site.

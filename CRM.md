@@ -310,9 +310,9 @@ options:` block in `HELP`.
 
 ## Verification
 
-1. `npx vp check` — type-check + lint at a complete point, reading the output rather than
+1. `vp check` — type-check + lint at a complete point, reading the output rather than
    trusting hook silence (the `PostToolUse` hook ends in `|| true`).
-2. `npx vp test run` — new pure suites must cover:
+2. `vp test run` — new pure suites must cover:
    - `crm/plan.test.ts`: every skip reason stated, including a `jobber` config with no `jobber`
      block.
    - `crm/map.test.ts`: the identity cascade; the Bigin last-name fallback chain including the
@@ -350,4 +350,4 @@ options:` block in `HELP`.
    `dedupe: true` and confirm no duplicate client is created.
 6. **Confirm the no-JS path still works**: submit with JavaScript disabled and check the 303 to
    `redirectTo` lands, the CRM record is written, and the email arrives.
-7. `npx vp run build:packages` to confirm the new subpath resolves from `@getvitops/utils/crm`.
+7. `vp run build:packages` to confirm the new subpath resolves from `@getvitops/utils/crm`.

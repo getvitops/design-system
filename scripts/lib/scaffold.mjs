@@ -218,6 +218,7 @@ export function prepareSite(name, site, registry) {
   const manifest = JSON.parse(readFileSync(pkgPath, 'utf8'));
   delete manifest.packageManager;
   delete manifest.devEngines;
+  delete manifest.engines;
   writeFileSync(pkgPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
   writeFileSync(join(site, '.npmrc'), `registry=${registry.url}/\n`);
