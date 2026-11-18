@@ -214,7 +214,18 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     label: 'Image compare',
     placeholder: 'Before/after image slider',
     fields: [
-      { type: 'text_input', action_id: 'before', label: 'Before image URL' },
+      {
+        type: 'media_picker',
+        action_id: 'before',
+        label: 'Before image',
+        mime_type_filter: 'image/',
+      },
+      {
+        type: 'text_input',
+        action_id: 'ratio',
+        label: 'Image shape of both images (e.g. 16:9; enables responsive AVIF)',
+        placeholder: '16:9',
+      },
       { type: 'text_input', action_id: 'beforeAlt', label: 'Before alt text' },
       {
         type: 'text_input',
@@ -222,7 +233,12 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         label: 'Before label',
         initial_value: 'Before',
       },
-      { type: 'text_input', action_id: 'after', label: 'After image URL' },
+      {
+        type: 'media_picker',
+        action_id: 'after',
+        label: 'After image',
+        mime_type_filter: 'image/',
+      },
       { type: 'text_input', action_id: 'afterAlt', label: 'After alt text' },
       { type: 'text_input', action_id: 'afterLabel', label: 'After label', initial_value: 'After' },
     ],
@@ -387,6 +403,12 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
             multiline: true,
           },
           { type: 'text_input', action_id: 'image', label: 'Image URL' },
+          {
+            type: 'text_input',
+            action_id: 'imageRatio',
+            label: 'Image shape (e.g. 16:9; sizes the image and enables responsive AVIF)',
+            placeholder: '16:9',
+          },
           { type: 'text_input', action_id: 'imageAlt', label: 'Image alt text' },
           {
             type: 'text_input',
@@ -539,7 +561,18 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
       { type: 'text_input', action_id: 'primaryHref', label: 'Main button URL' },
       { type: 'text_input', action_id: 'secondaryLabel', label: 'Second link text' },
       { type: 'text_input', action_id: 'secondaryHref', label: 'Second link URL' },
-      { type: 'text_input', action_id: 'image', label: 'Image URL (split layout)' },
+      {
+        type: 'media_picker',
+        action_id: 'image',
+        label: 'Image (split layout)',
+        mime_type_filter: 'image/',
+      },
+      {
+        type: 'text_input',
+        action_id: 'imageRatio',
+        label: 'Image shape (e.g. 16:9; sizes the image and enables responsive AVIF)',
+        placeholder: '16:9',
+      },
       { type: 'text_input', action_id: 'imageAlt', label: 'Image alt text' },
       {
         type: 'select',

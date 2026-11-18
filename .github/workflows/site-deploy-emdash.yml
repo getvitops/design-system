@@ -139,6 +139,34 @@ jobs:
           cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
 
+      # Astro's processed-image cache for repo-local `astro:assets` imports
+      # (content-addressed; see site-ci.yml). CMS media is transformed at request
+      # time by the Images binding and never passes through here.
+      - name: Cache Astro assets
+        uses: actions/cache@v4
+        with:
+          path: ${{ inputs.working-directory }}/node_modules/.astro
+          key: astro-${{ runner.os }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', inputs.working-directory), format('{0}/src/assets/**', inputs.working-directory)) }}
+          restore-keys: astro-${{ runner.os }}-
+
+      # EmDash authorizes image transforms for the site's own origin only when it
+      # knows it at `astro build`, and bakes the answer into the build, so each
+      # environment's build needs its own URL: dev.<domain> for the dev deploy,
+      # <domain> for prod, both read from site.json. Set for the build step only
+      # (a build-time variable, not a runtime one), so it cannot move sign-in to
+      # another origin. Without a URL, block images render with no srcset.
+      - name: Resolve site URL for image transforms
+        env:
+          SITE_ENV: ${{ inputs.is-dev && 'dev' || 'production' }}
+        run: |
+          url=$(jq -r --arg e "$SITE_ENV" '.site.environments[$e].url // empty' site.json)
+          if [ -n "$url" ]; then
+            echo "EMDASH_SITE_URL=$url" >> "$GITHUB_ENV"
+            echo "Image transforms authorized for $url ($SITE_ENV)"
+          else
+            echo "::notice::site.json has no site.environments.$SITE_ENV.url; block images will render without a srcset."
+          fi
+
       # ── dev ──────────────────────────────────────────────────────────────
       - name: Pull content for prerender (dev)
         if: inputs.is-dev

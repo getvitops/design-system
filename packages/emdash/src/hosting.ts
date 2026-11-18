@@ -100,7 +100,11 @@ export async function vitopsHosting(options: VitopsHostingOptions = {}): Promise
     const { d1, r2 } = await importFor(target, '@emdash-cms/cloudflare', install);
     return {
       target,
-      adapter: cloudflare(),
+      // Stated rather than inherited from the adapter default: CMS media is
+      // resized at request time by the Images binding (EmDash wraps Astro's
+      // image endpoint to read bytes from R2), so no build ever re-encodes it
+      // and `sharp` is not needed in CI.
+      adapter: cloudflare({ imageService: 'cloudflare-binding' }),
       database: d1({
         binding: cf.dbBinding ?? 'DB',
         session: cf.session ?? 'auto',

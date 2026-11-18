@@ -84,6 +84,17 @@ tested `>=1.0.0 <2` line. Left:
   deleted in `201bfb9`; `NavShell.astro` is a markup-only layout primitive, not that adapter).
 - Carousel field UX: replace the newline-separated-URLs workaround if EmDash grows
   media-picker/repeater PT block fields.
+- Block images: `vitops_logos`, `vitops_marquee`, `vitops_gallery`, `vitops_carousel` still render a
+  plain `<img>` (`BlockImage.astro` covers hero, cards, image compare). Cards' image field is still a URL input: EmDash 1.4.0's repeater sub-fields exclude `media_picker` (its docs say newer versions allow it), so switch it on upgrade. Local `astro build`/`astro dev` from the
+  template sets no `EMDASH_SITE_URL`, so the ratio field only takes effect in the deploy workflow
+  (dev already authorizes any host). The build also always uses `siteEnv: 'production'` for the
+  rest of `site.json` (SEO, robots), even for the dev deploy; the URL is the only per-environment
+  fact wired so far. Spike on EmDash's own `Image`: a Block Kit `media_picker` stores a URL
+  string only and the admin drops the picked item's width/height/blurhash
+  (`@emdash-cms/admin` `BlockKitMediaPickerField`), so `emdash/ui` `Image` cannot render a block
+  field without an upstream change (object-valued media pickers; no issue exists yet). Nested PT
+  `image` nodes work for schema-level block types such as `vitops_section`. A render-time lookup via
+  `normalizeMediaValue(url, getMediaProvider)` from `emdash` is possible but unverified.
 
 ---
 

@@ -8,6 +8,7 @@
  * Flat fields, because a block cannot contain other blocks.
  */
 import ScrollCue from '@getvitops/astro/components/ScrollCue.astro';
+import BlockImage from './BlockImage.astro';
 import RichText from './RichText.astro';
 import { joinStyle, resolveTheme, resolveTone, rowTone } from './tone.ts';
 import { accentRuns, outlineTag, resolveBlockValue, rows, safeHref, text } from './value.ts';
@@ -23,6 +24,7 @@ interface Value {
   secondaryHref?: string;
   image?: string;
   imageAlt?: string;
+  imageRatio?: string;
   layout?: string;
   tone?: string;
   color?: string;
@@ -98,7 +100,16 @@ import { rootAttrs } from './attrs.ts';
         ) : null}
       </div>
       {/* The hero image is the page's likely LCP element: eager AND high priority. */}
-      {split && <img src={image} alt={imageAlt} loading="eager" fetchpriority="high" />}
+      {split && (
+        <BlockImage
+          src={image}
+          alt={imageAlt}
+          ratio={value.imageRatio}
+          displayWidth={960}
+          loading="eager"
+          fetchpriority="high"
+        />
+      )}
     </div>
     {cards.length > 0 && (
       <ul

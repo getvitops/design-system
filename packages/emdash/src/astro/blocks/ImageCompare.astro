@@ -1,7 +1,9 @@
 ---
+import BlockImage from './BlockImage.astro';
 import { resolveBlockValue, safeHref } from './value.ts';
 
 interface Value {
+  ratio?: string;
   before?: string;
   beforeAlt?: string;
   beforeLabel?: string;
@@ -20,7 +22,7 @@ import { rootAttrs } from './attrs.ts';
 
 {before && after && (
   <wc-image-compare {...rootAttrs(value)} before-label={beforeLabel} after-label={afterLabel}>
-    <img slot="before" src={before} alt={beforeAlt} loading="lazy" />
-    <img slot="after" src={after} alt={afterAlt} loading="lazy" />
+    <BlockImage slot="before" src={before} alt={beforeAlt} ratio={value.ratio} loading="lazy" />
+    <BlockImage slot="after" src={after} alt={afterAlt} ratio={value.ratio} loading="lazy" />
   </wc-image-compare>
 )}

@@ -75,6 +75,14 @@ jobs:
           cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
 
+      # Astro's processed-image cache (content-addressed; see site-ci.yml).
+      - name: Cache Astro assets
+        uses: actions/cache@v4
+        with:
+          path: ${{ inputs.working-directory }}/node_modules/.astro
+          key: astro-${{ runner.os }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', inputs.working-directory), format('{0}/src/assets/**', inputs.working-directory)) }}
+          restore-keys: astro-${{ runner.os }}-
+
       - run: pnpm run build
 
       # Suffix the worker name and any custom-domain route pattern in place,

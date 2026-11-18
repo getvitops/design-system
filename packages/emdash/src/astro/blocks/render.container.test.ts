@@ -829,3 +829,32 @@ describe('per-card theme', () => {
     expect(second).not.toContain('--tone-bg');
   }, 60_000);
 });
+
+describe('block images (BlockImage)', () => {
+  const hero = {
+    heading: 'Hi',
+    layout: 'split',
+    image: '/_emdash/api/media/file/a.jpg',
+    imageAlt: 'A',
+  };
+
+  it('renders the plain eager <img> when no ratio is stated, as before', async () => {
+    const html = await render(Hero, hero);
+    expect(html).toContain('src="/_emdash/api/media/file/a.jpg"');
+    expect(html).toContain('loading="eager"');
+    expect(html).toContain('fetchpriority="high"');
+    expect(html).not.toContain('srcset');
+  });
+
+  it('falls back to the plain <img> when the ratio is stated but the host is not authorized', async () => {
+    // No `siteUrl`, so no `image.remotePatterns` entry: the service hands the URL back unchanged.
+    const html = await render(Hero, { ...hero, imageRatio: '16:9' });
+    expect(html).toContain('src="/_emdash/api/media/file/a.jpg"');
+    expect(html).not.toContain('srcset');
+  });
+
+  it('ignores a ratio it cannot read', async () => {
+    const html = await render(Hero, { ...hero, imageRatio: 'wide' });
+    expect(html).not.toContain('srcset');
+  });
+});

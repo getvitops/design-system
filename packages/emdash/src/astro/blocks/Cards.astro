@@ -18,6 +18,7 @@
  */
 import Cards from '@getvitops/astro/components/Cards.astro';
 import Subgrid from '@getvitops/astro/components/Subgrid.astro';
+import BlockImage from './BlockImage.astro';
 import RichText from './RichText.astro';
 import { joinStyle, resolveTheme, resolveTone, rowTone } from './tone.ts';
 import { headingTag, lines, resolveBlockValue, rows, safeHref, text } from './value.ts';
@@ -38,6 +39,7 @@ const cards = rows<Record<string, unknown>>(value.cards)
     body: text(row.body),
     image: safeHref(row.image),
     imageAlt: text(row.imageAlt),
+    imageRatio: row.imageRatio,
     href: safeHref(row.href),
     linkLabel: text(row.linkLabel) || 'Read more',
     checklist: lines(row.checklist),
@@ -62,7 +64,15 @@ import { rootAttrs } from './attrs.ts';
         class:list={['card', 'subgrid-card', panel && tone.surface, card.theme?.className]}
         style={joinStyle(panel ? joinStyle(tone.style, card.style) : card.style, card.theme?.style)}
       >
-        {card.image && <img src={card.image} alt={card.imageAlt} loading="lazy" />}
+        {card.image && (
+          <BlockImage
+            src={card.image}
+            alt={card.imageAlt}
+            ratio={card.imageRatio}
+            displayWidth={640}
+            loading="lazy"
+          />
+        )}
         {card.title && <Heading class="card__title font-heading">{card.title}</Heading>}
         {card.body && (
           <p>

@@ -41,6 +41,8 @@ describe('the EmDash hero block', () => {
       join(HERE, '..', '..', '..', 'emdash', 'src', 'astro', 'blocks', 'Hero.astro'),
       'utf8',
     );
-    expect(hero).toContain('loading="eager" fetchpriority="high"');
+    // The image is a <BlockImage> now, so the attributes sit on separate lines; the rendered
+    // markup is asserted in emdash's render.container.test.ts ("block images").
+    expect(hero).toMatch(/<BlockImage[^>]*loading="eager"[^>]*fetchpriority="high"/s);
   });
 });

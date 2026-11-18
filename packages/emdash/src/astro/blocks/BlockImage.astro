@@ -1,0 +1,101 @@
+---
+/**
+ * One block image: a plain `<img>`, or a responsive AVIF `srcset` when the editor stated the
+ * image's aspect ratio. Every block image goes through here so they cannot drift apart.
+ *
+ * **Why a ratio.** A block field stores a URL (EmDash's `media_picker` yields a string), so the
+ * file's size is unknown, and without width and height there is no honest `srcset` or reserved
+ * box. Probing the file on every render (Astro's `inferSize`) would be an HTTP fetch per image.
+ * So the size is the editor's to state, and with none stated this renders exactly the `<img>` it
+ * always did: existing content is unchanged until someone opts in.
+ *
+ * **Why AVIF only.** One format is one billed Cloudflare transformation per image and width
+ * (AVIF + WebP would double the monthly count) and AVIF is at ~97% support, close to WebP's, and
+ * compresses smaller. The cost is that an engine without AVIF shows a broken image rather than a
+ * degraded one.
+ * TODO(support): AVIF-only is a deliberate trade; to restore the fallback pass
+ * `formats: ['avif', 'jpeg']` through `<Picture>` here. Revisit if a client's audience skews old.
+ *
+ * **Where the transform happens.** Not in the build. Astro's image endpoint is wrapped by EmDash
+ * and resizes R2 bytes through the Cloudflare `IMAGES` binding at request time, so this adds no
+ * CI work. It only transforms a URL on an authorized host: EmDash registers the site origin in
+ * `image.remotePatterns` when `siteUrl` / `EMDASH_SITE_URL` is known at build, and without it
+ * the service hands the URL back unchanged. That case is detected and falls back to the plain
+ * `<img>`; setting `siteUrl` is what turns the srcset on.
+ */
+import { getImage } from 'astro:assets';
+import type { HTMLAttributes } from 'astro/types';
+import { absoluteMediaUrl, parseRatio, srcsetWidths } from './image.ts';
+
+export interface Props extends Omit<
+  HTMLAttributes<'img'>,
+  'src' | 'alt' | 'width' | 'height' | 'srcset'
+> {
+  src: string;
+  alt: string;
+  /** What the editor typed: `16:9`, `1200x800`, `1.5`. Absent or invalid renders a plain `<img>`. */
+  ratio?: unknown;
+  /** The widest this image is shown, in CSS pixels. Drives `sizes` and the widths requested. */
+  displayWidth?: number;
+}
+
+const { src, alt, ratio: rawRatio, displayWidth = 1200, loading = 'lazy', ...rest } = Astro.props;
+
+const ratio = parseRatio(rawRatio);
+let responsive:
+  | { src: string; srcset: string | undefined; sizes: string; width: number; height: number }
+  | undefined;
+
+if (ratio) {
+  const emdash = (Astro.locals as { emdash?: { config?: { siteUrl?: string } } }).emdash;
+  // The build-time URL first: a prerendered page has no real request, so `Astro.url` is
+  // localhost there, which is not the host EmDash authorized. At request time on a Worker
+  // `process.env` does not carry it, so the request's own origin applies (the right host).
+  const buildUrl = typeof process === 'undefined' ? undefined : process.env.EMDASH_SITE_URL;
+  const origin = emdash?.config?.siteUrl ?? buildUrl ?? Astro.site?.origin ?? Astro.url.origin;
+  const absolute = absoluteMediaUrl(src, origin);
+  const width = Math.round(displayWidth);
+  const height = Math.round(width / ratio);
+  const sizes = `(min-width: ${width}px) ${width}px, 100vw`;
+  if (/^https?:\/\//i.test(absolute)) {
+    try {
+      const image = await getImage({
+        src: absolute,
+        width,
+        height,
+        widths: srcsetWidths(width),
+        sizes,
+        format: 'avif',
+      });
+      // An unauthorized host comes back unchanged: no srcset beats a srcset of one URL.
+      if (image.src && image.src !== absolute) {
+        responsive = {
+          src: image.src,
+          srcset: image.srcSet.attribute || undefined,
+          sizes,
+          width,
+          height,
+        };
+      }
+    } catch {
+      // No image service, or it refused the source: fall through to the plain <img>.
+    }
+  }
+}
+---
+
+{responsive ? (
+  <img
+    {...rest}
+    src={responsive.src}
+    srcset={responsive.srcset}
+    sizes={responsive.sizes}
+    width={responsive.width}
+    height={responsive.height}
+    alt={alt}
+    loading={loading}
+    decoding="async"
+  />
+) : (
+  <img {...rest} src={src} alt={alt} loading={loading} />
+)}
