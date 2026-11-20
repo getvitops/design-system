@@ -1,5 +1,6 @@
 import * as z from '@zod/mini';
 import { desc } from './desc.ts';
+import type { ScrollState } from './scroll-states.ts';
 
 /**
  * `site.chrome` — the site's page-level furniture: the **masthead** (the top bar holding brand,
@@ -14,13 +15,7 @@ import { desc } from './desc.ts';
  */
 
 export const MASTHEAD_POSITIONS = ['static', 'sticky', 'fixed'] as const;
-export const MASTHEAD_BEHAVIORS = ['always', 'hide-on-scroll', 'reveal-on-scroll'] as const;
-export const MASTHEAD_SURFACES = [
-  'solid',
-  'glass',
-  'transparent',
-  'transparent-until-scrolled',
-] as const;
+export const MASTHEAD_SURFACES = ['solid', 'glass', 'transparent'] as const;
 export const MASTHEAD_LAYOUTS = ['full', 'inset', 'floating'] as const;
 export const MASTHEAD_WIDTHS = ['full', 'content'] as const;
 export const NAV_BREAKPOINTS = ['sm', 'md', 'lg', 'xl'] as const;
@@ -28,7 +23,6 @@ export const NAV_COMPACT_MODES = ['drawer', 'dropdown'] as const;
 export const NAV_DRAWER_SIDES = ['start', 'end'] as const;
 
 export type MastheadPosition = (typeof MASTHEAD_POSITIONS)[number];
-export type MastheadBehavior = (typeof MASTHEAD_BEHAVIORS)[number];
 export type MastheadSurface = (typeof MASTHEAD_SURFACES)[number];
 export type MastheadLayout = (typeof MASTHEAD_LAYOUTS)[number];
 export type MastheadWidth = (typeof MASTHEAD_WIDTHS)[number];
@@ -42,24 +36,66 @@ export const MastheadElevationSchema = z.strictObject({
     z.optional(z.boolean()),
     'A bottom border (a full outline when `layout` is not `full`).',
   ),
-  onScroll: desc(
+});
+
+export const MastheadStateElevationSchema = z.union([z.literal(false), MastheadElevationSchema]);
+
+/**
+ * What a masthead looks like in one scroll state: any of these REPLACE the settled value while the
+ * state holds; anything omitted stays as settled. Shadow and border can be removed or restyled
+ * (`elevation: false`); a border the settled look does not have is not added.
+ */
+export const MastheadStateSchema = z.strictObject({
+  layout: desc(
+    z.optional(z.enum(MASTHEAD_LAYOUTS)),
+    'Layout in this state, e.g. `full` at the top and `inset` once scrolled (set the settled `layout` to `inset`). Animated.',
+  ),
+  height: desc(
+    z.optional(z.string()),
+    'Row height in this state. Same length grammar as the settled `height`. Animated.',
+  ),
+  inset: desc(
+    z.optional(z.string()),
+    'Gap to the viewport edge in this state (only meaningful for an `inset`/`floating` layout). Animated.',
+  ),
+  surface: desc(
+    z.optional(z.enum(MASTHEAD_SURFACES)),
+    'Surface in this state, e.g. `transparent` over a hero.',
+  ),
+  elevation: desc(
+    z.optional(MastheadStateElevationSchema),
+    '`false` removes the shadow and border; `{ shadow }` swaps the shadow.',
+  ),
+  hidden: desc(
     z.optional(z.boolean()),
-    'Apply the shadow/border only once the page has scrolled, so the masthead sits flush with the page at the top. Uses `scroll-state()` container queries; in a browser without them (Firefox today) the elevation is simply always on.',
+    'Slide the bar off-screen. Never while it has focus or a menu inside it is open. `atStart: { hidden: true }` also needs a page that can scroll, so a short page keeps the bar.',
   ),
 });
+
+/** One optional entry per `SCROLL_STATES` member (spelled out so the inferred type stays exact). */
+export const MastheadStatesSchema = z.strictObject({
+  atStart: z.optional(MastheadStateSchema),
+  atEnd: z.optional(MastheadStateSchema),
+  scrollingToEnd: z.optional(MastheadStateSchema),
+  scrollingToStart: z.optional(MastheadStateSchema),
+});
+// Fails to compile when `SCROLL_STATES` and the schema's keys diverge.
+type StateKey = keyof z.infer<typeof MastheadStatesSchema>;
+const _statesMatch: [StateKey] extends [ScrollState]
+  ? [ScrollState] extends [StateKey]
+    ? true
+    : never
+  : never = true;
+void _statesMatch;
 
 export const MastheadSchema = z.strictObject({
   position: desc(
     z.optional(z.enum(MASTHEAD_POSITIONS)),
-    '`static` scrolls away; `sticky` stays in flow and pins to the top; `fixed` is out of flow and overlays the first section (for a transparent masthead over a hero). Default `static`.',
-  ),
-  behavior: desc(
-    z.optional(z.enum(MASTHEAD_BEHAVIORS)),
-    '`hide-on-scroll` slides the masthead away while scrolling down and back on scrolling up. `reveal-on-scroll` keeps the masthead off-screen while the page is at the top (so a hero fills the viewport) and slides it in once scrolling starts; it implies `position: fixed`, and a page too short to scroll keeps it visible. Ignored when `position` is `static`. It never hides while a menu inside it is open or has focus. Uses `scroll-state()`; in a browser without it (Firefox today) the masthead just stays visible. Default `always`.',
+    '`static` scrolls away; `sticky` stays in flow and pins to the top; `fixed` is out of flow and overlays the first section (for a masthead over a hero). A masthead with `states` that change its size, layout or visibility is promoted to `fixed`, because on a sticky bar a size change would reflow the page at the threshold. Default `static`.',
   ),
   surface: desc(
     z.optional(z.enum(MASTHEAD_SURFACES)),
-    '`solid`, `glass` (blurred + tinted via `--surface-glass`), `transparent`, or `transparent-until-scrolled` (clear while the page is at the top, solid once it scrolls; a browser without `scroll-state()` shows it solid throughout). Default `solid`.',
+    '`solid`, `glass` (blurred + tinted via `--surface-glass`) or `transparent`. Default `solid`. For a bar that is clear at the top and solid after, set `states.atStart.surface: transparent`.',
   ),
   tone: desc(
     z.optional(z.string()),
@@ -74,6 +110,10 @@ export const MastheadSchema = z.strictObject({
     "`content` keeps the masthead row on the page's `.centered` track; `full` lets it span the masthead. Default `content`.",
   ),
   elevation: desc(z.optional(MastheadElevationSchema), 'Shadow and border.'),
+  states: desc(
+    z.optional(MastheadStatesSchema),
+    'How the masthead looks in each scroll state, as partial overrides of the settled look: `atStart` (page at the top), `atEnd`, `scrollingToEnd` (scrolling down), `scrollingToStart` (scrolling up); later states win. Animated. Uses `scroll-state()`; a browser without it (Firefox today) keeps the settled look. E.g. `{ "atStart": { "layout": "full", "height": "6rem", "surface": "transparent" }, "scrollingToEnd": { "hidden": true } }` with a settled `layout: inset`.',
+  ),
   height: desc(
     z.optional(z.string()),
     'CSS length for the masthead row (default `4rem`). `calc()`, `clamp()`, `min()` and `max()` are accepted, so it can be fluid: `clamp(3.5rem, 8cqi, 4.5rem)`. `cqi` resolves against the nearest size container (`body`, the same one the nav breakpoints use), `vw` against the viewport. Becomes `--masthead-height` and, when the masthead is sticky or fixed, `--header-offset` so in-page anchors land below it.',

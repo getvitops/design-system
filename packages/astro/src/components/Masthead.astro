@@ -2,7 +2,7 @@
 /**
  * Masthead — the site's top bar, from `site.chrome.masthead` with per-layout overrides. Markup
  * and classes only, no runtime JS: position, glass/transparent surfaces, inset/floating layout,
- * shadow/border and hide-on-scroll are all `patterns/masthead.css` (scroll-state queries).
+ * shadow/border and per-scroll-state looks (`states`) are all `patterns/masthead.css` (scroll-state queries).
  *
  *   import site from '../../site.json';
  *   import { resolveNavOptions } from '@getvitops/astro/components/masthead.ts';
@@ -13,7 +13,7 @@
  *   </Masthead>
  *
  * A prop overrides the same field from the config for this layout — e.g. a landing page that
- * sets `position="fixed" surface="transparent-until-scrolled"` over a hero. The element is a
+ * sets `position="fixed" states={{ atStart: { surface: 'transparent' } }}` over a hero. The element is a
  * plain header with no `role="banner"`: a body-level header already is the banner landmark,
  * and an explicit role is what auditors flag.
  */

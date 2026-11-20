@@ -6,6 +6,9 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 
+/** Not translated away: the bar sets `translate` from a hide factor, so rest reads `0px`, not `none`. */
+const AT_REST = /^(0px|0px 0px|0px 0%|none)$/;
+
 const url = (variant: string) => `/demo/masthead/${variant}/`;
 const bar = (page: Page) => page.locator('header.masthead');
 
@@ -18,16 +21,16 @@ async function scrollBy(page: Page, dy: number) {
 test.describe('hide-on-scroll', () => {
   test('slides away scrolling down and returns scrolling up', async ({ page }) => {
     await page.goto(url('hide-on-scroll'));
-    await expect(bar(page)).toHaveCSS('translate', 'none');
+    await expect(bar(page)).toHaveCSS('translate', AT_REST);
 
     await scrollBy(page, 700);
-    await expect(bar(page)).not.toHaveCSS('translate', 'none');
+    await expect(bar(page)).not.toHaveCSS('translate', AT_REST);
     expect(await bar(page).evaluate((el) => el.getBoundingClientRect().bottom)).toBeLessThanOrEqual(
       0,
     );
 
     await scrollBy(page, -200);
-    await expect(bar(page)).toHaveCSS('translate', 'none');
+    await expect(bar(page)).toHaveCSS('translate', AT_REST);
     expect(await bar(page).evaluate((el) => el.getBoundingClientRect().top)).toBeGreaterThanOrEqual(
       0,
     );
@@ -37,7 +40,7 @@ test.describe('hide-on-scroll', () => {
     await page.goto(url('hide-on-scroll'));
     await page.getByRole('link', { name: 'Get in touch' }).focus();
     await scrollBy(page, 700);
-    await expect(bar(page)).toHaveCSS('translate', 'none');
+    await expect(bar(page)).toHaveCSS('translate', AT_REST);
   });
 });
 
@@ -51,7 +54,7 @@ test.describe('elevation and surface follow the scroll position', () => {
     await expect(bar(page)).toHaveCSS('box-shadow', 'none');
   });
 
-  test('transparent-until-scrolled is clear over the hero, then solid', async ({ page }) => {
+  test('an at-start transparent surface is clear over the hero, then solid', async ({ page }) => {
     await page.goto(url('transparent-hero'));
     await expect(bar(page)).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     await scrollBy(page, 600);
@@ -66,6 +69,71 @@ test.describe('elevation and surface follow the scroll position', () => {
       .first()
       .evaluate((el) => el.getBoundingClientRect().top);
     expect(heroTop).toBe(0);
+  });
+});
+
+test.describe('expand-on-scroll', () => {
+  test('is a full-width banner at the top and floats once scrolled', async ({ page }) => {
+    await page.goto(url('expand-on-scroll'));
+    const box = (): Promise<{ left: number; right: number; height: number; radius: string }> =>
+      bar(page).evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          left: r.left,
+          right: document.documentElement.clientWidth - r.right,
+          height: r.height,
+          radius: getComputedStyle(el).borderRadius,
+        };
+      });
+    await page.waitForTimeout(500);
+    const top = await box();
+    expect(top.left).toBe(0);
+    expect(top.radius).toBe('0px');
+
+    await scrollBy(page, 400);
+    const scrolled = await box();
+    expect(scrolled.left).toBeGreaterThan(0);
+    expect(scrolled.right).toBeGreaterThan(0);
+    expect(scrolled.radius).not.toBe('0px');
+    expect(scrolled.height).toBeLessThan(top.height);
+
+    await scrollBy(page, -2000);
+    expect((await box()).left).toBe(0);
+  });
+});
+
+test.describe('submenus are not clipped by the bar', () => {
+  // The submenu hangs below the bar as an absolutely positioned descendant, so anything that
+  // clips the masthead (an `overflow` set for rounded corners, once) cuts it off.
+  for (const variant of ['floating', 'expand-on-scroll', 'sticky-glass']) {
+    test(`${variant}: an open submenu extends below the bar`, async ({ page }) => {
+      await page.setViewportSize({ width: 1400, height: 800 });
+      await page.goto(url(variant));
+      await page.waitForTimeout(400);
+      const branch = bar(page).locator('.sitenav__item--branch').first();
+      await branch.hover();
+      const submenu = branch.locator('.sitenav__submenu').first();
+      await expect(submenu).toBeVisible();
+      const [barBox, subBox] = await Promise.all([
+        bar(page).evaluate((el) => el.getBoundingClientRect().bottom),
+        submenu.evaluate((el) => el.getBoundingClientRect().bottom),
+      ]);
+      expect(subBox).toBeGreaterThan(barBox + 20);
+      // Visible at its bottom edge, not only its top: nothing in the chain clips it.
+      const clipped = await submenu.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.bottom - 4);
+        return !(hit && (el === hit || el.contains(hit)));
+      });
+      expect(clipped).toBe(false);
+    });
+  }
+
+  test('a masthead without states never translates, so it is no containing block', async ({
+    page,
+  }) => {
+    await page.goto(url('floating'));
+    await expect(bar(page)).toHaveCSS('translate', 'none');
   });
 });
 

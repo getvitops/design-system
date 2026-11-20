@@ -4,11 +4,17 @@
  * the markup contract the CSS depends on survives a real render.
  */
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 // @ts-ignore -- this package's tsconfig has no `*.astro` module declaration (container.test.ts has the same gap)
 import SiteFooter from './SiteFooter.astro';
 // @ts-ignore -- as above
 import SiteNav from './SiteNav.astro';
+
+// `SiteFooter` renders `BackToTop` -> `Icon`, which reads the integration's virtual module; see
+// `container.test.ts` for why this minimal shape.
+vi.mock('virtual:getvitops/icons', () => ({
+  default: { ui: 'ph', brand: 'ph', overrides: {}, engine: 'none' },
+}));
 
 const primary = {
   items: [

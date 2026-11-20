@@ -418,10 +418,10 @@
     "chrome": {
       "masthead": {
         "position": "sticky",
-        "behavior": "always",
         "surface": "glass",
         "layout": "full",
-        "elevation": { "shadow": "sm", "onScroll": true },
+        "elevation": { "shadow": "sm" },
+        "states": { "atStart": { "elevation": false } },
         "height": "4rem"
       },
       "nav": { "compact": "drawer", "drawerSide": "end" }

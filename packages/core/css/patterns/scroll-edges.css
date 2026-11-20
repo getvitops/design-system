@@ -1,0 +1,121 @@
+/**
+ * Scroll edges — a horizontal strip (tab list, chip row, wide table, code block) that fades at an
+ * edge while there is more to scroll that way, and not once it has run out. The same scroll-state
+ * vocabulary as the masthead (`@getvitops/config` `scroll-states.ts`), on the inline axis.
+ *
+ *   <div class="scroll-edges">
+ *     <span class="scroll-edges__start" aria-hidden="true"></span>
+ *     …items…
+ *     <span class="scroll-edges__end" aria-hidden="true"></span>
+ *   </div>
+ *
+ * `scroll-state()` can style a container's descendants and its own pseudo-elements but not the
+ * container itself, so the fades are two zero-size sticky children; that is why the markup carries
+ * them (`<ScrollEdges>` in `@getvitops/astro` emits it). They hold no content and are `aria-hidden`.
+ *
+ * SAFE BASE, SUBTRACTIVE: settled, both fades show — a harmless "there may be more" hint. Where
+ * `scroll-state()` is unsupported (Firefox today) that is all you get. `at-start` removes the start
+ * fade, `at-end` the end fade. Hooks: `--scroll-edges-fade` (size), `--scroll-edges-bg` (what the
+ * fade blends into; set it when the strip sits on something other than the surface), and
+ * `--scroll-edges-at-start-fade-opacity` / `--scroll-edges-at-end-fade-opacity` (default `0`).
+ */
+.scroll-edges {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  container-type: scroll-state;
+  scrollbar-width: thin;
+  overscroll-behavior-inline: contain;
+}
+
+/* A scroller's items keep their size; shrinking them would remove the overflow. */
+.scroll-edges > :not(.scroll-edges__start, .scroll-edges__end) {
+  flex: none;
+}
+
+.scroll-edges__start,
+.scroll-edges__end {
+  position: sticky;
+  z-index: 1;
+  flex: none;
+  inline-size: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.scroll-edges__start {
+  inset-inline-start: 0;
+}
+
+.scroll-edges__end {
+  inset-inline-end: 0;
+}
+
+.scroll-edges__start::after,
+.scroll-edges__end::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inline-size: var(--scroll-edges-fade, 2rem);
+  background: linear-gradient(
+    to right,
+    var(--scroll-edges-bg, var(--color-bg-surface, Canvas)),
+    transparent
+  );
+}
+
+.scroll-edges__start::after {
+  inset-inline-start: 0;
+}
+
+.scroll-edges__end::after {
+  inset-inline-end: 0;
+  background: linear-gradient(
+    to left,
+    var(--scroll-edges-bg, var(--color-bg-surface, Canvas)),
+    transparent
+  );
+}
+
+/* The gradients are physical, so mirror them where the inline axis is. */
+:dir(rtl) > .scroll-edges__start::after {
+  background: linear-gradient(
+    to left,
+    var(--scroll-edges-bg, var(--color-bg-surface, Canvas)),
+    transparent
+  );
+}
+:dir(rtl) > .scroll-edges__end::after {
+  background: linear-gradient(
+    to right,
+    var(--scroll-edges-bg, var(--color-bg-surface, Canvas)),
+    transparent
+  );
+}
+
+@container not scroll-state(scrollable: inline-start) {
+  .scroll-edges__start {
+    opacity: var(--scroll-edges-at-start-fade-opacity, 0);
+  }
+}
+
+@container not scroll-state(scrollable: inline-end) {
+  .scroll-edges__end {
+    opacity: var(--scroll-edges-at-end-fade-opacity, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-edges__start,
+  .scroll-edges__end {
+    transition: none;
+  }
+}
+
+/* A fade is a tint; forced colors draws none, and the scrollbar is the cue. */
+@media (forced-colors: active) {
+  .scroll-edges__start::after,
+  .scroll-edges__end::after {
+    display: none;
+  }
+}

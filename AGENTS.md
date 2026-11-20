@@ -776,6 +776,28 @@ Six things are load-bearing:
   rather than stamping the build time: Google weighs lastmod only while it stays consistent with
   what changed, so a site that stamps every page every deploy teaches it to distrust the field
   site-wide.
+
+  **On an EmDash site `gitLastmod()` is not the lever, and the answer is two sitemaps.** EmDash
+  serves `/sitemap.xml` (an index of `/sitemap-<collection>.xml`) from its database and dates every
+  entry from the row's `updated_at`, so CMS content needs nothing from us. It has **no extension
+  point** for anything else — no option for extra URLs, no merge with `@astrojs/sitemap` — so
+  plain `src/pages/*.astro` routes are simply absent, and the only documented escape (a user
+  `src/pages/sitemap.xml.ts`) _replaces the whole index_, discarding its dates and paging. Never
+  override it. `vitops({ sitemap })` therefore does something different when `emdash()` is
+  registered: a build writes `public/pages-sitemap.xml` for exactly the `src/pages` routes
+  (`packages/astro/src/pages-sitemap.ts`), dated by `gitLastmod()`, and **writes nothing when there
+  are none** — an empty second sitemap in Search Console is noise, so a CMS-only site (and a fresh
+  scaffold, whose `sitemap: { exclude: ['/'] }` drops the `index.astro` that only renders the
+  `home` entry) has no pages sitemap. Three rules: the name must not match `sitemap-*.xml`
+  (EmDash's route claims it, and a file there silently loses to the CMS's document); only a file
+  carrying the marker comment is ever replaced or removed, so a hand-written one is left alone;
+  and the git history must be full (`fetch-depth: 0`), or every date is missing. `search notify`
+  **discovers** rather than lists when `sitemapUrl` is unset — `sitemap-index.xml` (Astro),
+  `sitemap.xml` (EmDash), `pages-sitemap.xml` — and uses whichever exist with at least one
+  `<url>`; an explicit `sitemapUrl` (a string or a list) turns discovery off. It prints each
+  sitemap it will submit with a reason (the pages one reads "required for non-EmDash content"), so
+  a second sitemap in Search Console is never a surprise, and names up to three undated URLs.
+
 - **The `noindex` gate reads the environment, so the URLs must too.** `plan()` refuses the whole
   run when the resolved environment's `robots` contains `noindex` — submitting a staging host to
   IndexNow publishes it to several engines and invites them to crawl it, which a later directive
@@ -1207,15 +1229,29 @@ menus and widget areas, the design owns how they present.
   emits `sitenav--panel-dropdown` **instead of** a `drawer-*` class — both are narrow-state rules at
   the same specificity, so emitting both would leave the winner to source order
   (`state-branch.test.ts` guards the shape).
-- **Scroll behaviour only ever subtracts, and the base is the settled bar.** The un-modified
-  `.masthead` is visible, solid (or glass), elevated and in flow. `scroll-state()` container queries
-  on the root only take things away from it: `*-on-scroll` clears the surface, shadow or border
-  while `not scroll-state(scrollable: top)` (the page is at the top), and `hide-on-scroll` slides
-  the bar away. A browser without the feature (Firefox today) therefore keeps a visible, solid,
-  elevated bar. This used to be written the other way round — base clear, query reveals — which left
-  such a browser with a transparent bar over body text forever; `masthead-fallback.e2e.ts` (a
-  Firefox project) is the regression test. A masthead with focus inside it, or an open
-  popover/disclosure, never slides away. Don't add a JS path for the missing browsers: the
+- **Scroll behaviour is `states`: partial looks over a settled base.** The un-modified `.masthead`
+  is visible, solid (or glass), elevated and in flow. `site.chrome.masthead.states` names a partial
+  override per scroll state — `atStart`, `atEnd`, `scrollingToEnd`, `scrollingToStart`, later wins —
+  with `layout`, `height`, `inset`, `surface`, `elevation` (or `false`) and `hidden`. The
+  vocabulary is **shared, not the masthead's**: `SCROLL_STATES` / `scrollStateQuery()`
+  (`@getvitops/config` `scroll-states.ts`) is the one place a state is tied to its `scroll-state()`
+  query, and `.scroll-edges` (horizontal strips) uses the same words on the inline axis. A state's
+  override is the custom property `--<pattern>-<state>-<prop>` (`--masthead-at-start-height`); the
+  partial reads it inside the matching `@container page …` query and falls through to the settled
+  value when it is unset, so **states only ever override and a browser without `scroll-state()`
+  (Firefox today) keeps the settled, readable bar**. This used to be written the other way round —
+  base clear, query reveals — which left such a browser with a transparent bar over body text
+  forever; `masthead-fallback.e2e.ts` (a Firefox project) is the regression test. Three details
+  bite: a state's custom properties are written on the **element**, not `:root`, because they
+  reference element-level properties (`--_masthead-base`) a root declaration cannot resolve; the
+  state `--_<state>-*` publish-then-chain in `masthead.css` relies on an unset `var()` being
+  guaranteed-invalid so the chain falls through; and a state that hides the bar at the start, or
+  changes size or layout, promotes it to `fixed` (a sticky bar would reflow the page at the
+  threshold and flip back). A masthead with focus inside it, or an open popover/disclosure, never
+  slides away, and `atStart.hidden` needs a page that can scroll. The masthead must never set `overflow` (clip/hidden) or a non-`none` `translate` when it has no states: the wide submenu and mega panels are absolutely positioned descendants that hang below the bar, and a clip cut them off in `floating` until this was caught. `behavior`, `surface:
+  transparent-until-scrolled` and `elevation.onScroll` were replaced by `states`;
+  `resolveMasthead` throws naming each move, and the old `.masthead--*-on-scroll` classes stay in
+  the CSS as aliases for hand-written markup. Don't add a JS path for the missing browsers: the
   effect arrives with the feature, the degrade is already correct.
 - **`height` and `inset` take fluid lengths, and are validated as a closed grammar.** Both are
   written into a `<style>` on `:root` (`mastheadRootCss()`), so `isSafeLength()` admits only
@@ -1419,7 +1455,7 @@ install it); and it needs no user-level browser or extension setup.
   either, `.astro` files are skipped silently — a transitive copy via `astro` is not a contract.
   `templates.test.ts` guards both for the scaffolds. `site/` is formatted too, minus its generated paths.
 
-- do not run format or lint as verifications, these are done automatically on save and PostToolUse hooks.
+- there is no format-on-edit hook: formatting and mechanical lint fixes run in the pre-commit hook (`vp check --fix`). Run `vp check` yourself once a change is complete, and read its output.
 - if `vp check` passes locally but CI's `vp check` reports formatting issues, suspect a stale hoisted `node_modules/oxfmt`
   (or `oxlint`/`vite`) left by an old `npm install`: `vp` resolves the formatter from the project root, so it shadows
   the version pnpm pinned. `ls node_modules/oxfmt` should not exist — `node_modules` is pnpm-owned; reinstall with
@@ -1721,9 +1757,7 @@ Two non-obvious caching/ordering gotchas:
 
   If the second prints it and the first doesn't, it is the cache, not the manifest.
 
-Formatting and mechanical lint fixes are applied automatically on save and via a `PostToolUse` hook on `Edit|Write` (`.claude/settings.json`) — don't invoke `vp fmt` to tidy a file you just wrote. The `staged` key wires `vp check --fix` into the pre-commit hook, which is the real gate.
-
-**The hook is not a typecheck gate, deliberately.** `vp check` always type-checks — `lint.options.typeCheck` drives it and no flag separates the two (`--no-lint` skips lint _rules_ only; verified) — but TypeScript is a project-wide analysis being run after a single edit, so any change spanning more than one edit is legitimately type-broken in between. That reported every correct intermediate state as a failure. The hook therefore ends in `|| true`: fixes are still applied and errors are still _printed_, they just don't fail the tool call. So **do** run `vp check` yourself at a verification point — after a change is complete, before committing — and read its output rather than trusting hook silence.
+There is no format-on-edit hook (a `PostToolUse` hook was tried and removed: it ran a project-wide typecheck after every single edit, so any multi-edit change reported a correct intermediate state as a failure). The `staged` key wires `vp check --fix` into the pre-commit hook, which is the real gate. **Do** run `vp check` yourself at a verification point — after a change is complete, before committing — and read its output.
 
 ## CI/CD
 

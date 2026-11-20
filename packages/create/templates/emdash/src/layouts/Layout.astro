@@ -84,7 +84,7 @@ const lang = Object.keys(config.site?.locales ?? {})[0] ?? 'en';
     <!-- Widget areas (Widgets in the admin): the same content wherever they appear. -->
     <VitopsWidgetArea name="announcement" class="centered" />
     <!-- The masthead's look and the nav's behaviour come from `site.chrome` in site.json
-         (position, hide-on-scroll, glass, inset, shadow, drawer vs dropdown). A prop here
+         (position, scroll states, glass, inset, shadow, drawer vs dropdown). A prop here
          overrides one field for this layout. -->
     <Masthead config={config}>
       <a slot="brand" class="brand flex items-center" href="/" aria-label={`${siteTitle} home`}>

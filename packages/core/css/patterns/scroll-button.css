@@ -16,11 +16,11 @@
  * `.scroll-cue` once it is not. Hidden means `visibility: hidden` too, so an invisible link is
  * never a tab stop. Smooth scrolling is `global.css`'s `scroll-behavior`.
  *
- * The container name is shared with the masthead; declaring it twice is the same value.
+ * The `page` container is shared with the masthead; declaring it twice is the same value.
  */
 
 :root:has(.back-to-top, .scroll-cue) {
-  container: masthead-page / scroll-state;
+  container: page / scroll-state;
 }
 
 .back-to-top {
@@ -35,7 +35,7 @@
 }
 
 /* At the top of a page that can scroll there is nothing to go back to. */
-@container masthead-page (not scroll-state(scrollable: top)) and scroll-state(scrollable: bottom) {
+@container page (not scroll-state(scrollable: top)) and scroll-state(scrollable: bottom) {
   .back-to-top {
     opacity: 0;
     visibility: hidden;
@@ -77,7 +77,7 @@
 }
 
 /* Once scrolling has started the cue has done its job. */
-@container masthead-page scroll-state(scrollable: top) {
+@container page scroll-state(scrollable: top) {
   .scroll-cue {
     opacity: 0;
     visibility: hidden;

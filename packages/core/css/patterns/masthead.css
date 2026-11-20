@@ -1,46 +1,79 @@
 /**
  * Masthead — the site's top bar: brand, navigation, actions. Pure CSS (tier 1); `<Masthead>`
- * (`@getvitops/astro`) only emits the classes below from `site.chrome.masthead`.
+ * (`@getvitops/astro`) only emits the classes and custom properties below from
+ * `site.chrome.masthead`.
  *
- *   <header class="masthead masthead--sticky masthead--glass masthead--shadow-on-scroll">
+ *   <header class="masthead masthead--sticky masthead--glass masthead--shadow masthead--states">
  *     <div class="masthead__row navbar centered">brand · nav · actions</div>
  *   </header>
  *
  * Named "masthead", not "header"/"banner": `<header>` is valid in any section, and `.banner` is
  * the announcement bar. The element is a plain `<header>` with no explicit `role`.
  *
- * ── SAFE BASE, SUBTRACTIVE ENHANCEMENTS ──
- * The un-modified rule is the settled state: visible, solid (or glass), elevated, in flow.
- * Scroll behaviour is layered on with `scroll-state()` container queries that only ever
- * SUBTRACT from it — `*-on-scroll` clears the surface/shadow/border while the page is at the
- * top; `hide-on-scroll` slides the bar away. Where the query is unsupported (Firefox today)
- * nothing subtracts, so the bar stays visible, solid and elevated: a query can change how the
- * bar looks, never leave it unreadable or take the nav away. (Writing these the other way
- * round — base clear, query reveals — leaves an unsupporting browser with a transparent bar
- * over body text forever.)
+ * ── SCROLL STATES ──
+ * The un-modified rule is the SETTLED look: visible, solid (or glass), elevated, in flow.
+ * `.masthead--states` lets the look change per scroll state, with the vocabulary every
+ * scroll-aware pattern shares (`@getvitops/config` `scroll-states.ts`): `at-start`, `at-end`,
+ * `scrolling-to-end`, `scrolling-to-start`. A state overrides parts of the settled look through
+ * custom properties named `--masthead-<state>-<prop>` (set on `:root` by `mastheadRootCss()`, or
+ * on the element by hand):
  *
- * Hooks (all optional custom properties): `--masthead-height`, `--masthead-bg`, `--masthead-fg`,
+ *   height  inset  radius  bg  blur  shadow  border-color  hidden (1 | 0)
+ *
+ * Later states win over earlier ones. Each property animates (see `transition`). Where
+ * `scroll-state()` is unsupported (Firefox today) no state applies and the settled look stays: a
+ * query can change how the bar looks, never leave it unreadable or take the nav away. (Writing
+ * this the other way round — base clear, query reveals — leaves an unsupporting browser with a
+ * transparent bar over body text forever.) A bar with focus inside it, or an open
+ * popover/disclosure, never slides away.
+ *
+ * Other hooks (all optional): `--masthead-height`, `--masthead-bg`, `--masthead-fg`,
  * `--masthead-blur`, `--masthead-glass-opacity`, `--masthead-inset`, `--masthead-shadow`,
- * `--masthead-border`. `site.chrome.masthead` sets `--masthead-height` and `--masthead-inset`
- * on `:root` (see `mastheadRootCss()`), so a clamp()/cqi length there reaches `--header-offset`.
+ * `--masthead-border`.
  */
 
 /* Zero-specificity colour defaults, so a `.tone` (or any class) on the element wins. */
 :where(.masthead) {
   --_masthead-base: var(--tone-bg, var(--color-bg-surface));
 
-  background-color: var(--masthead-bg, var(--_masthead-base));
   color: var(--masthead-fg, var(--tone-fg, var(--color-text-surface)));
 }
 
+/* Each look is a `-s` ("settled") value; the real property reads the `--_masthead-*` one, which
+   `.masthead--states` re-points per scroll state (see the end of the file). */
 .masthead {
-  --_masthead-h: var(--masthead-height, 4rem);
-  --_masthead-inset: 0px;
+  --_h-s: var(--masthead-height, 4rem);
+  --_inset-s: 0px;
+  --_radius-s: 0px;
+  --_bg-s: var(--masthead-bg, var(--_masthead-base));
+  --_blur-s: none;
+  --_shadow-s: none;
+  --_bc-s: var(--tone-border, var(--color-border-surface));
+  --_hide-s: 0;
+  --_masthead-h: var(--_h-s);
+  --_masthead-inset: var(--_inset-s);
+  --_masthead-radius: var(--_radius-s);
+  --_masthead-bg: var(--_bg-s);
+  --_masthead-blur: var(--_blur-s);
+  --_masthead-shadow: var(--_shadow-s);
+  --_masthead-bc: var(--_bc-s);
+  --_masthead-hide: var(--_hide-s);
 
   position: relative;
   z-index: var(--z-tier-sticky);
   display: block;
   box-sizing: border-box;
+  /* Geometry is var-driven for every layout, so a scroll state can change it (all `0` for `full`). */
+  margin-inline: var(--_masthead-inset);
+  margin-block-start: var(--_masthead-inset);
+  border-radius: var(--_masthead-radius);
+  background-color: var(--_masthead-bg);
+  backdrop-filter: var(--_masthead-blur);
+  -webkit-backdrop-filter: var(--_masthead-blur);
+  box-shadow: var(--_masthead-shadow);
+  /* `none`, not `0px`: any other value makes the bar a containing block and a stacking context.
+     Only a bar with scroll states (below) ever translates. */
+  translate: none;
   transition:
     translate 0.25s ease,
     background-color 0.25s ease,
@@ -68,11 +101,13 @@
   inset-block-start: var(--_masthead-inset);
 }
 
-/* Out of flow: overlays the first section. Pair with `--transparent*`. */
+/* Out of flow: overlays the first section. Pair with `--transparent` or an at-start state. It has
+   no flow to margin against, so it is pinned in by its insets instead. */
 .masthead--fixed {
   position: fixed;
   inset-block-start: var(--_masthead-inset);
-  inset-inline: 0;
+  inset-inline: var(--_masthead-inset);
+  margin: 0;
 }
 
 /* Anchors and `scroll-padding` land below a pinned masthead. Sticky keeps its space in
@@ -84,124 +119,233 @@
 
 /* ── Surface ───────────────────────────────────────────────────────────────── */
 .masthead--glass {
-  background-color: color-mix(
+  --_bg-s: color-mix(
     in oklch,
     var(--masthead-bg, var(--_masthead-base)) var(--masthead-glass-opacity, 72%),
     transparent
   );
-  backdrop-filter: blur(var(--masthead-blur, 12px));
-  -webkit-backdrop-filter: blur(var(--masthead-blur, 12px));
+  --_blur-s: blur(var(--masthead-blur, 12px));
 }
 
 /* A browser without backdrop-filter would show page content through a tint. Go solid. */
 @supports not (backdrop-filter: blur(1px)) {
   .masthead--glass {
-    background-color: var(--masthead-bg, var(--_masthead-base));
+    --_bg-s: var(--masthead-bg, var(--_masthead-base));
+    --_blur-s: none;
   }
 }
 
 .masthead--transparent {
-  background-color: transparent;
+  --_bg-s: transparent;
 }
 
 /* ── Layout ────────────────────────────────────────────────────────────────── */
 .masthead--inset,
 .masthead--floating {
-  --_masthead-inset: var(--masthead-inset, 0.75rem);
-
-  margin-inline: var(--_masthead-inset);
-  margin-block-start: var(--_masthead-inset);
-}
-
-/* `fixed` has no flow to margin against: pin the box in by its insets instead. */
-.masthead--fixed.masthead--inset,
-.masthead--fixed.masthead--floating {
-  margin: 0;
-  inset-inline: var(--_masthead-inset);
+  --_inset-s: var(--masthead-inset, 0.75rem);
 }
 
 .masthead--inset {
-  border-radius: var(--br-control, 0.375rem);
+  --_radius-s: var(--br-control, 0.375rem);
 }
 
 .masthead--floating {
-  border-radius: var(--br-panel, 1rem);
-  overflow: clip;
+  --_radius-s: var(--br-panel, 1rem);
+  /* Deliberately no `overflow: clip` for the corners: the bar paints its own background, shadow,
+     border and backdrop-filter, all of which follow the radius, and the submenu / mega panel hang
+     below the bar as absolutely positioned descendants, which a clip would cut off. */
 }
 
 /* ── Elevation ─────────────────────────────────────────────────────────────── */
 .masthead--shadow {
-  box-shadow: var(--masthead-shadow, var(--shadow-sm));
+  --_shadow-s: var(--masthead-shadow, var(--shadow-sm));
 }
 
 .masthead--border {
-  border-block-end: var(
-    --masthead-border,
-    1px solid var(--tone-border, var(--color-border-surface))
-  );
+  border-block-end: var(--masthead-border, 1px solid var(--_masthead-bc));
 }
 
 /* A full outline once the masthead is detached from the viewport edge. */
 .masthead--border:is(.masthead--inset, .masthead--floating) {
-  border: var(--masthead-border, 1px solid var(--tone-border, var(--color-border-surface)));
+  border: var(--masthead-border, 1px solid var(--_masthead-bc));
 }
 
-/* ── Scroll behaviour ───────────────────────────────────────────────────────
-   The page is the scroll-state container. Only when a masthead asks for one, so a
-   site that uses none pays nothing. */
+/* ── Scroll states ──────────────────────────────────────────────────────────
+   The page is the scroll-state container, declared only when something asks for one so a site
+   that uses none pays nothing. The legacy `*-on-scroll` classes are kept as aliases that set the
+   state properties below (a hand-written `<header>` keeps working); `<Masthead>` no longer emits
+   them. */
+.masthead--hide-on-scroll {
+  --masthead-scrolling-to-end-hidden: 1;
+}
+.masthead--hidden-at-top {
+  --masthead-at-start-hidden: 1;
+}
+.masthead--transparent-until-scrolled {
+  --masthead-at-start-bg: transparent;
+  --masthead-at-start-blur: none;
+}
+.masthead--shadow-on-scroll {
+  --masthead-at-start-shadow: none;
+}
+.masthead--border-on-scroll {
+  --masthead-at-start-border-color: transparent;
+}
+
 :root:has(
+  .masthead--states,
   .masthead--hide-on-scroll,
   .masthead--hidden-at-top,
   .masthead--transparent-until-scrolled,
   .masthead--shadow-on-scroll,
   .masthead--border-on-scroll
 ) {
-  container: masthead-page / scroll-state;
+  container: page / scroll-state;
 }
 
-/* At the top of the page, the *-on-scroll modifiers subtract their settled look. `not
-   scroll-state(scrollable: top)` is "nothing above the viewport", i.e. scrollY = 0. */
-@container masthead-page not scroll-state(scrollable: top) {
-  .masthead--transparent-until-scrolled {
-    background-color: transparent;
-    /* A glass bar would otherwise blur the hero behind an otherwise clear bar. */
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-  .masthead--shadow-on-scroll {
-    box-shadow: none;
-  }
-  .masthead--border-on-scroll {
-    border-color: transparent;
+/* Each state first publishes its overrides to `--_<state>-*` (an unset property resolves to the
+   guaranteed-invalid value, which makes the `var()` chain below fall through to the settled
+   look), then `.masthead--states`-family rules read them, last state winning. */
+:is(
+  .masthead--states,
+  .masthead--hide-on-scroll,
+  .masthead--hidden-at-top,
+  .masthead--transparent-until-scrolled,
+  .masthead--shadow-on-scroll,
+  .masthead--border-on-scroll
+) {
+  --_masthead-h: var(
+    --_to-start-h,
+    var(--_to-end-h, var(--_at-end-h, var(--_at-start-h, var(--_h-s))))
+  );
+  --_masthead-inset: var(
+    --_to-start-inset,
+    var(--_to-end-inset, var(--_at-end-inset, var(--_at-start-inset, var(--_inset-s))))
+  );
+  --_masthead-radius: var(
+    --_to-start-radius,
+    var(--_to-end-radius, var(--_at-end-radius, var(--_at-start-radius, var(--_radius-s))))
+  );
+  --_masthead-bg: var(
+    --_to-start-bg,
+    var(--_to-end-bg, var(--_at-end-bg, var(--_at-start-bg, var(--_bg-s))))
+  );
+  --_masthead-blur: var(
+    --_to-start-blur,
+    var(--_to-end-blur, var(--_at-end-blur, var(--_at-start-blur, var(--_blur-s))))
+  );
+  --_masthead-shadow: var(
+    --_to-start-shadow,
+    var(--_to-end-shadow, var(--_at-end-shadow, var(--_at-start-shadow, var(--_shadow-s))))
+  );
+  --_masthead-bc: var(
+    --_to-start-bc,
+    var(--_to-end-bc, var(--_at-end-bc, var(--_at-start-bc, var(--_bc-s))))
+  );
+  --_masthead-hide: var(
+    --_to-start-hide,
+    var(--_to-end-hide, var(--_at-end-hide, var(--_at-start-hide, var(--_hide-s))))
+  );
+  translate: 0 calc(var(--_masthead-hide) * (-100% - var(--_masthead-inset) - 1px));
+}
+
+@container page not scroll-state(scrollable: block-start) {
+  :is(
+    .masthead--states,
+    .masthead--hidden-at-top,
+    .masthead--transparent-until-scrolled,
+    .masthead--shadow-on-scroll,
+    .masthead--border-on-scroll
+  ) {
+    --_at-start-h: var(--masthead-at-start-height);
+    --_at-start-inset: var(--masthead-at-start-inset);
+    --_at-start-radius: var(--masthead-at-start-radius);
+    --_at-start-bg: var(--masthead-at-start-bg);
+    --_at-start-blur: var(--masthead-at-start-blur);
+    --_at-start-shadow: var(--masthead-at-start-shadow);
+    --_at-start-bc: var(--masthead-at-start-border-color);
   }
 }
 
-/* Slide away while the last scroll was downward; back when it reverses. Never while the
-   visitor is inside it: focus, an open popover or an open disclosure keeps it on screen. */
-@container masthead-page scroll-state(scrolled: block-end) {
-  .masthead--hide-on-scroll:not(
+/* Hidden at the start needs a page that can scroll: on one too short to, the bar could otherwise
+   never appear. Never while the visitor is inside it. */
+@container page (not scroll-state(scrollable: block-start)) and scroll-state(scrollable: block-end) {
+  :is(.masthead--states, .masthead--hidden-at-top):not(
     :focus-within,
     :has(:is(:popover-open, .\:popover-open), details[open])
   ) {
-    translate: 0 calc(-100% - var(--_masthead-inset) - 1px);
+    --_at-start-hide: var(--masthead-at-start-hidden);
   }
 }
 
-/* Off-screen while the page is at the top, so a hero owns the whole viewport; in once the
-   visitor scrolls. `scrollable: bottom` keeps it visible on a page too short to scroll, where
-   it could otherwise never appear. `not scrollable: top` is "at the top", as above. Not `visibility: hidden`: it stays in the tab order, and
-   `:focus-within` below brings it in the moment a keyboard user tabs to it. */
-@container masthead-page (not scroll-state(scrollable: top)) and scroll-state(scrollable: bottom) {
-  .masthead--hidden-at-top:not(
+@container page not scroll-state(scrollable: block-end) {
+  .masthead--states {
+    --_at-end-h: var(--masthead-at-end-height);
+    --_at-end-inset: var(--masthead-at-end-inset);
+    --_at-end-radius: var(--masthead-at-end-radius);
+    --_at-end-bg: var(--masthead-at-end-bg);
+    --_at-end-blur: var(--masthead-at-end-blur);
+    --_at-end-shadow: var(--masthead-at-end-shadow);
+    --_at-end-bc: var(--masthead-at-end-border-color);
+  }
+  .masthead--states:not(:focus-within, :has(:is(:popover-open, .\:popover-open), details[open])) {
+    --_at-end-hide: var(--masthead-at-end-hidden);
+  }
+}
+
+@container page scroll-state(scrolled: block-end) {
+  :is(.masthead--states, .masthead--hide-on-scroll) {
+    --_to-end-h: var(--masthead-scrolling-to-end-height);
+    --_to-end-inset: var(--masthead-scrolling-to-end-inset);
+    --_to-end-radius: var(--masthead-scrolling-to-end-radius);
+    --_to-end-bg: var(--masthead-scrolling-to-end-bg);
+    --_to-end-blur: var(--masthead-scrolling-to-end-blur);
+    --_to-end-shadow: var(--masthead-scrolling-to-end-shadow);
+    --_to-end-bc: var(--masthead-scrolling-to-end-border-color);
+  }
+  :is(.masthead--states, .masthead--hide-on-scroll):not(
     :focus-within,
     :has(:is(:popover-open, .\:popover-open), details[open])
   ) {
-    translate: 0 calc(-100% - var(--_masthead-inset) - 1px);
+    --_to-end-hide: var(--masthead-scrolling-to-end-hidden);
   }
+}
+
+@container page scroll-state(scrolled: block-start) {
+  .masthead--states {
+    --_to-start-h: var(--masthead-scrolling-to-start-height);
+    --_to-start-inset: var(--masthead-scrolling-to-start-inset);
+    --_to-start-radius: var(--masthead-scrolling-to-start-radius);
+    --_to-start-bg: var(--masthead-scrolling-to-start-bg);
+    --_to-start-blur: var(--masthead-scrolling-to-start-blur);
+    --_to-start-shadow: var(--masthead-scrolling-to-start-shadow);
+    --_to-start-bc: var(--masthead-scrolling-to-start-border-color);
+    --_to-start-hide: var(--masthead-scrolling-to-start-hidden);
+  }
+}
+
+/* Geometry animates only where a state can change it: a plain bar must not lag behind a
+   resize (its inset and height can be fluid `cqi` lengths), and nothing here moves otherwise. */
+.masthead--states {
+  transition:
+    translate 0.25s ease,
+    margin 0.25s ease,
+    inset 0.25s ease,
+    border-radius 0.25s ease,
+    background-color 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease,
+    backdrop-filter 0.25s ease;
+}
+
+.masthead--states .masthead__row > .navbar {
+  transition: min-block-size 0.25s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .masthead {
+  .masthead,
+  .masthead--states,
+  .masthead__row > .navbar {
     transition: none;
   }
 }

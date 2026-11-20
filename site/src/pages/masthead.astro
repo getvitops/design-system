@@ -10,12 +10,12 @@ const VARIANTS = [
   {
     slug: 'sticky-glass',
     title: 'Sticky glass, shadow once scrolled',
-    config: `"masthead": { "position": "sticky", "surface": "glass",\n  "elevation": { "shadow": "sm", "onScroll": true } }`,
+    config: `"masthead": { "position": "sticky", "surface": "glass",\n  "elevation": { "shadow": "sm" },\n  "states": { "atStart": { "elevation": false } } }`,
   },
   {
     slug: 'hide-on-scroll',
     title: 'Hide on scroll down, back on scroll up',
-    config: `"masthead": { "position": "sticky", "behavior": "hide-on-scroll",\n  "elevation": { "border": true } }`,
+    config: `"masthead": { "position": "sticky", "elevation": { "border": true },\n  "states": { "scrollingToEnd": { "hidden": true } } }`,
   },
   {
     slug: 'floating',
@@ -30,7 +30,12 @@ const VARIANTS = [
   {
     slug: 'transparent-hero',
     title: 'Transparent over a hero, solid once scrolled',
-    config: `"masthead": { "position": "fixed",\n  "surface": "transparent-until-scrolled",\n  "elevation": { "shadow": "sm", "onScroll": true } }`,
+    config: `"masthead": { "position": "fixed", "elevation": { "shadow": "sm" },\n  "states": { "atStart": { "surface": "transparent", "elevation": false } } }`,
+  },
+  {
+    slug: 'expand-on-scroll',
+    title: 'Full-width banner at the top, floating once scrolled',
+    config: `"masthead": { "position": "fixed", "surface": "glass",\n  "layout": "floating", "height": "4rem", "elevation": { "shadow": "sm" },\n  "states": { "atStart": { "layout": "full", "height": "6rem",\n    "surface": "transparent", "elevation": false } } }`,
   },
   {
     slug: 'dropdown',
@@ -86,10 +91,13 @@ const headings = [
         </tr>
         <tr>
           <td>
-            <code>masthead.behavior</code>
+            <code>masthead.states</code>
           </td>
           <td>
-            <code>always</code> · <code>hide-on-scroll</code>
+            <code>atStart</code> · <code>atEnd</code> · <code>scrollingToEnd</code> ·{' '}
+            <code>scrollingToStart</code>, each a partial look: <code>layout</code>,{' '}
+            <code>height</code>, <code>inset</code>, <code>surface</code>, <code>elevation</code>{' '}
+            (or <code>false</code>), <code>hidden</code>. Later states win; changes animate.
           </td>
         </tr>
         <tr>
@@ -97,8 +105,7 @@ const headings = [
             <code>masthead.surface</code>
           </td>
           <td>
-            <code>solid</code> · <code>glass</code> · <code>transparent</code> ·{' '}
-            <code>transparent-until-scrolled</code>
+            <code>solid</code> · <code>glass</code> · <code>transparent</code>
           </td>
         </tr>
         <tr>
@@ -114,7 +121,7 @@ const headings = [
             <code>masthead.elevation</code>
           </td>
           <td>
-            <code>shadow</code> (a shadows key), <code>border</code>, <code>onScroll</code>
+            <code>shadow</code> (a shadows key), <code>border</code>
           </td>
         </tr>
         <tr>
@@ -157,7 +164,7 @@ const headings = [
     </table>
   </div>
   <p>
-    <strong>Browser support.</strong> Hide-on-scroll and the <code>onScroll</code> states use
+    <strong>Browser support.</strong> Every <code>states</code> look uses
     <code>scroll-state()</code> container queries, which only ever take things away from a settled
     bar. Chromium gets all of it. A browser without them (Firefox today) shows the settled bar:
     solid, elevated and always visible — never a transparent one over the page. The effect appears

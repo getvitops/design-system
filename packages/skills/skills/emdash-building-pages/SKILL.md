@@ -71,11 +71,16 @@ Reference, rendered from this project: `vp exec vitops docs blocks` (every block
 ## The header: `site.chrome`
 
 The header is configuration, not markup. `site.chrome.masthead` sets position
-(`static|sticky|fixed`), `behavior` (`always|hide-on-scroll`), `surface`
-(`solid|glass|transparent|transparent-until-scrolled`), `layout` (`full|inset|floating`), `height`,
-`inset` and `elevation`; `site.chrome.nav` sets `compact` (`drawer|dropdown`), `drawerSide`,
+(`static|sticky|fixed`), `surface` (`solid|glass|transparent`), `layout` (`full|inset|floating`),
+`height`, `inset` and `elevation`, plus `states`: a partial look per scroll state (`atStart`, `atEnd`,
+`scrollingToEnd`, `scrollingToStart`; later wins; animated) taking `layout`, `height`, `inset`,
+`surface`, `elevation` and `hidden`. A full-width banner that floats once scrolled is
+`layout: "floating"` with `states.atStart: { layout: "full", height: "6rem", surface: "transparent" }`;
+hide-on-scroll is `states.scrollingToEnd.hidden`; a bar hidden until first scroll is
+`states.atStart.hidden`. A state that hides at the start, or changes size or layout, makes the bar
+`fixed`; `site.chrome.nav` sets `compact` (`drawer|dropdown`), `drawerSide`,
 breakpoints and depths. A `<Masthead>` prop overrides one field for a layout (a landing page can be
-`position="fixed" surface="transparent-until-scrolled"`). A sticky masthead sets `--header-offset`
+`position="fixed" states={{ atStart: { surface: 'transparent' } }}`). A sticky masthead sets `--header-offset`
 itself, so anchors clear it. Nav tiers are menus: `primary`, optional `primary-mobile` and
 `primary-mega`. For the mega panel's featured column, create a widget area named
 `mega-<item url slug>` (e.g. `mega-services`), or put `mega-area:<name>` in the menu item's CSS

@@ -1,0 +1,38 @@
+---
+/**
+ * ScrollEdges — a horizontally scrolling strip (tab list, chip row, wide table, code block) that
+ * fades at an edge while there is more to scroll that way. Pure CSS (`patterns/scroll-edges.css`);
+ * this only emits the markup, including the two zero-size `aria-hidden` edge elements the fades
+ * hang off (`scroll-state()` cannot style the scroller itself, only its descendants).
+ *
+ *   <ScrollEdges><a class="btn">One</a><a class="btn">Two</a>…</ScrollEdges>
+ *
+ * The strip is a flex row and its items keep their size. Set `--scroll-edges-bg` when it sits on
+ * something other than the surface colour. Without `scroll-state()` (Firefox today) both fades
+ * stay on.
+ *
+ * A scroller must be reachable by keyboard: when its content has no focusable item (a table, a
+ * code block), pass `focusable` (gives it `tabindex="0"`) and a `label`.
+ */
+interface Props {
+  /** Make the scroller itself a tab stop, for content with nothing focusable in it. */
+  focusable?: boolean;
+  /** Accessible name; required with `focusable`. */
+  label?: string;
+  class?: string;
+}
+
+const { focusable = false, label, class: className } = Astro.props;
+if (focusable && !label) throw new Error('ScrollEdges: `focusable` needs a `label`.');
+---
+
+<div
+  class:list={['scroll-edges', className]}
+  tabindex={focusable ? 0 : undefined}
+  role={focusable ? 'region' : undefined}
+  aria-label={focusable ? label : undefined}
+>
+  <span class="scroll-edges__start" aria-hidden="true"></span>
+  <slot />
+  <span class="scroll-edges__end" aria-hidden="true"></span>
+</div>

@@ -7,6 +7,9 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 
+/** Not translated away: the bar sets `translate` from a hide factor, so rest reads `0px`, not `none`. */
+const AT_REST = /^(0px|0px 0px|0px 0%|none)$/;
+
 const bar = (page: Page) => page.locator('header.masthead');
 
 async function scrollBy(page: Page, dy: number) {
@@ -15,7 +18,9 @@ async function scrollBy(page: Page, dy: number) {
   await page.waitForTimeout(500);
 }
 
-test('transparent-until-scrolled is never transparent without scroll-state()', async ({ page }) => {
+test('an at-start transparent surface is never transparent without scroll-state()', async ({
+  page,
+}) => {
   await page.goto('/demo/masthead/transparent-hero/');
   const supported = await page.evaluate(() => CSS.supports('container-type', 'scroll-state'));
   test.skip(supported, 'this browser supports scroll-state(); the Chromium project covers it');
@@ -24,15 +29,17 @@ test('transparent-until-scrolled is never transparent without scroll-state()', a
   await expect(bar(page)).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 });
 
-test('shadow-on-scroll keeps its shadow without scroll-state()', async ({ page }) => {
+test('an at-start shadow state keeps its shadow without scroll-state()', async ({ page }) => {
   await page.goto('/demo/masthead/sticky-glass/');
   const supported = await page.evaluate(() => CSS.supports('container-type', 'scroll-state'));
   test.skip(supported, 'this browser supports scroll-state(); the Chromium project covers it');
   await expect(bar(page)).not.toHaveCSS('box-shadow', 'none');
 });
 
-test('hide-on-scroll never hides the bar without scroll-state()', async ({ page }) => {
+test('a scrolling-to-end hidden state never hides the bar without scroll-state()', async ({
+  page,
+}) => {
   await page.goto('/demo/masthead/hide-on-scroll/');
   await scrollBy(page, 700);
-  await expect(bar(page)).toHaveCSS('translate', 'none');
+  await expect(bar(page)).toHaveCSS('translate', AT_REST);
 });

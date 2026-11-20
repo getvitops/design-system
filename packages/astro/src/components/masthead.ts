@@ -6,7 +6,6 @@
  * leaf for these constants) and nothing from the generator, so it cannot drag it into a Worker bundle.
  */
 import {
-  MASTHEAD_BEHAVIORS,
   MASTHEAD_LAYOUTS,
   MASTHEAD_POSITIONS,
   MASTHEAD_SURFACES,
@@ -14,31 +13,44 @@ import {
   NAV_BREAKPOINTS,
   NAV_COMPACT_MODES,
   NAV_DRAWER_SIDES,
+  SCROLL_STATES,
+  scrollStateSlug,
   type ChromeNavConfig,
-  type MastheadBehavior,
   type MastheadConfig,
   type MastheadLayout,
   type MastheadPosition,
   type MastheadSurface,
   type MastheadWidth,
+  type ScrollState,
 } from '@getvitops/config';
 import type { NavBreakpoint, NavCompactMode, NavDrawerSide } from './sitenav.ts';
 
 /** A masthead override: any `site.chrome.masthead` field, plus `elevation` merged key-by-key. */
 export type MastheadOptions = MastheadConfig;
 
+/** One scroll state's overrides, validated. Anything omitted stays as the settled look. */
+export interface ResolvedMastheadState {
+  layout?: MastheadLayout;
+  height?: string;
+  inset?: string;
+  surface?: MastheadSurface;
+  /** `false` removes the shadow and border; an object swaps the shadow / border colour. */
+  elevation?: false | { shadow?: string; border?: boolean };
+  hidden?: boolean;
+}
+
 export interface ResolvedMasthead {
   position: MastheadPosition;
-  behavior: MastheadBehavior;
   surface: MastheadSurface;
   tone: string | undefined;
   layout: MastheadLayout;
   width: MastheadWidth;
   shadow: string | undefined;
   border: boolean;
-  elevateOnScroll: boolean;
   height: string | undefined;
   inset: string | undefined;
+  /** Per-scroll-state overrides; a state with nothing to say is absent. */
+  states: Partial<Record<ScrollState, ResolvedMastheadState>>;
 }
 
 /**
@@ -117,11 +129,78 @@ export function isSafeLength(value: string): boolean {
 const ROLE = /^[a-z][a-z0-9-]*$/;
 const SHADOW = /^[a-z0-9][a-z0-9-]*$/;
 
+/** The 9.0 alpha moved scroll behaviour into `states`; each old spelling says where it went. */
+const MOVED_SCROLL_FIELDS: Record<string, string> = {
+  'behavior: "reveal-on-scroll"': 'states.atStart.hidden: true',
+  'behavior: "hide-on-scroll"': 'states.scrollingToEnd.hidden: true',
+  'surface: "transparent-until-scrolled"':
+    'surface (the settled one) + states.atStart.surface: "transparent"',
+  'elevation.onScroll': 'states.atStart.elevation: false',
+};
+
+function rejectMovedFields(masthead: Record<string, any>): void {
+  const found: string[] = [];
+  if (masthead.behavior === 'reveal-on-scroll') found.push('behavior: "reveal-on-scroll"');
+  else if (masthead.behavior === 'hide-on-scroll') found.push('behavior: "hide-on-scroll"');
+  else if (masthead.behavior !== undefined && masthead.behavior !== 'always')
+    found.push(`behavior: "${String(masthead.behavior)}"`);
+  if (masthead.surface === 'transparent-until-scrolled')
+    found.push('surface: "transparent-until-scrolled"');
+  if (masthead.elevation?.onScroll !== undefined) found.push('elevation.onScroll');
+  if (masthead.behavior === 'always') found.push('behavior: "always"');
+  if (!found.length) return;
+  const moves = found
+    .map(
+      (f) => `  ${f} → ${MOVED_SCROLL_FIELDS[f] ?? 'remove it (the settled look is the default)'}`,
+    )
+    .join('\n');
+  throw new Error(
+    `site.chrome.masthead: scroll behaviour is now described by \`states\`, one partial look per scroll state (atStart, atEnd, scrollingToEnd, scrollingToStart). These moved:\n${moves}`,
+  );
+}
+
+function resolveState(raw: Record<string, any>, field: string): ResolvedMastheadState {
+  const known = ['layout', 'height', 'inset', 'surface', 'elevation', 'hidden'];
+  for (const k of Object.keys(raw))
+    if (!known.includes(k))
+      throw new Error(`site.chrome ${field}: unknown field "${k}" (one of ${known.join(', ')}).`);
+  const out: ResolvedMastheadState = {};
+  const layout = oneOf(raw.layout, MASTHEAD_LAYOUTS, `${field}.layout`);
+  if (layout) out.layout = layout;
+  for (const k of ['height', 'inset'] as const) {
+    const v = raw[k];
+    if (v === undefined) continue;
+    if (typeof v !== 'string' || !isSafeLength(v))
+      throw new Error(`site.chrome ${field}.${k}: "${String(v)}" is not a plain CSS length.`);
+    out[k] = v;
+  }
+  const surface = oneOf(raw.surface, MASTHEAD_SURFACES, `${field}.surface`);
+  if (surface) out.surface = surface;
+  if (raw.elevation !== undefined) {
+    if (raw.elevation === false) out.elevation = false;
+    else {
+      const { shadow, border, ...rest } = raw.elevation as Record<string, any>;
+      if (Object.keys(rest).length)
+        throw new Error(`site.chrome ${field}.elevation: unknown field "${Object.keys(rest)[0]}".`);
+      if (shadow !== undefined && !SHADOW.test(shadow))
+        throw new Error(`site.chrome ${field}.elevation.shadow "${shadow}" is not a shadow name.`);
+      out.elevation = {
+        ...(shadow !== undefined ? { shadow } : {}),
+        ...(border !== undefined ? { border: Boolean(border) } : {}),
+      };
+    }
+  }
+  if (raw.hidden !== undefined) out.hidden = Boolean(raw.hidden);
+  return out;
+}
+
 export function resolveMasthead(
   config: ChromeSource | undefined,
   override: MastheadOptions = {},
 ): ResolvedMasthead {
   const base: MastheadConfig = config?.site?.chrome?.masthead ?? {};
+  rejectMovedFields(base as Record<string, any>);
+  rejectMovedFields(override as Record<string, any>);
   const pick = <K extends keyof MastheadConfig>(k: K): MastheadConfig[K] =>
     override[k] !== undefined ? override[k] : base[k];
   const elevation = { ...base.elevation, ...override.elevation };
@@ -143,43 +222,61 @@ export function resolveMasthead(
   if (elevation.shadow !== undefined && !SHADOW.test(elevation.shadow))
     throw new Error(`Masthead: elevation.shadow "${elevation.shadow}" is not a shadow name.`);
 
-  const requested = oneOf(pick('behavior'), MASTHEAD_BEHAVIORS, 'masthead.behavior') ?? 'always';
-  // `reveal-on-scroll` is the one behaviour that implies a position: a sticky bar keeps its space
-  // in flow and would leave an empty band over the hero, so it is promoted to `fixed`.
-  const revealed = requested === 'reveal-on-scroll';
+  const rawStates = { ...base.states } as Record<string, Record<string, any> | undefined>;
+  for (const [k, v] of Object.entries(override.states ?? {}))
+    rawStates[k] = { ...rawStates[k], ...v };
+  const states: Partial<Record<ScrollState, ResolvedMastheadState>> = {};
+  for (const key of Object.keys(rawStates)) {
+    if (!(SCROLL_STATES as readonly string[]).includes(key))
+      throw new Error(
+        `site.chrome masthead.states: "${key}" is not one of ${SCROLL_STATES.join(' | ')}.`,
+      );
+    const resolved = resolveState(rawStates[key] ?? {}, `masthead.states.${key}`);
+    if (Object.keys(resolved).length) states[key as ScrollState] = resolved;
+  }
+
+  // A state that hides the bar at the start, or changes its size or layout, implies `fixed`: a
+  // sticky bar keeps its space in flow, so hiding it leaves an empty band over the hero and a size
+  // change would reflow the page at the threshold, flipping the state back and forth.
+  const needsFixed = Object.entries(states).some(
+    ([key, st]) =>
+      st.height !== undefined ||
+      st.layout !== undefined ||
+      st.inset !== undefined ||
+      (key === 'atStart' && st.hidden === true),
+  );
+  const resolvedPosition = needsFixed ? 'fixed' : position;
+  // Nothing to hide when the bar scrolls away with the page anyway.
+  if (resolvedPosition === 'static')
+    for (const [key, st] of Object.entries(states)) {
+      delete st.hidden;
+      if (!Object.keys(st).length) delete states[key as ScrollState];
+    }
 
   return {
-    position: revealed ? 'fixed' : position,
-    // Nothing to hide when the bar scrolls away with the page anyway.
-    behavior: position === 'static' && !revealed ? 'always' : requested,
+    position: resolvedPosition,
     surface: oneOf(pick('surface'), MASTHEAD_SURFACES, 'masthead.surface') ?? 'solid',
     tone,
     layout: oneOf(pick('layout'), MASTHEAD_LAYOUTS, 'masthead.layout') ?? 'full',
     width: oneOf(pick('width'), MASTHEAD_WIDTHS, 'masthead.width') ?? 'content',
     shadow: elevation.shadow,
     border: elevation.border ?? false,
-    elevateOnScroll: elevation.onScroll ?? false,
     height,
     inset,
+    states,
   };
 }
 
 /** Modifier classes on `.masthead`. */
 export function mastheadClass(m: ResolvedMasthead): string[] {
-  const scrollOnly = m.elevateOnScroll;
   return [
     'masthead',
     ...(m.position !== 'static' ? [`masthead--${m.position}`] : []),
-    ...(m.behavior === 'hide-on-scroll' ? ['masthead--hide-on-scroll'] : []),
-    ...(m.behavior === 'reveal-on-scroll' ? ['masthead--hidden-at-top'] : []),
+    ...(Object.keys(m.states).length ? ['masthead--states'] : []),
     m.surface !== 'solid' ? `masthead--${m.surface}` : '',
     m.layout !== 'full' ? `masthead--${m.layout}` : '',
-    ...(m.shadow
-      ? ['masthead--shadow', ...(scrollOnly ? ['masthead--shadow-on-scroll'] : [])]
-      : []),
-    ...(m.border
-      ? ['masthead--border', ...(scrollOnly ? ['masthead--border-on-scroll'] : [])]
-      : []),
+    ...(m.shadow ? ['masthead--shadow'] : []),
+    ...(m.border ? ['masthead--border'] : []),
     ...(m.tone ? ['tone'] : []),
   ].filter(Boolean);
 }
@@ -205,7 +302,66 @@ export function mastheadStyle(m: ResolvedMasthead): string | undefined {
     );
   }
   if (m.shadow) parts.push(`--masthead-shadow: var(--shadow-${m.shadow})`);
+  parts.push(...mastheadStateDecls(m));
   return parts.length ? parts.join('; ') : undefined;
+}
+
+/**
+ * One state's overrides as `--masthead-<state>-<prop>` declarations, the hooks `masthead.css` reads
+ * inside the matching `scroll-state()` query. Written on the ELEMENT (not `:root`) because several
+ * values reference element-level properties (`--_masthead-base`, `--tone-border`), which a `:root`
+ * declaration could not resolve. Enum fields expand to the properties they stand for: a `full`
+ * layout is zero inset and radius, `transparent` is a clear background with no blur.
+ */
+export function mastheadStateDecls(m: ResolvedMasthead): string[] {
+  const out: string[] = [];
+  for (const state of SCROLL_STATES) {
+    const st = m.states[state];
+    if (!st) continue;
+    const p = `--masthead-${scrollStateSlug(state)}`;
+    if (st.height) out.push(`${p}-height: ${st.height}`);
+    if (st.layout) {
+      const inset = st.inset ?? m.inset ?? '0.75rem';
+      out.push(`${p}-inset: ${st.layout === 'full' ? '0px' : inset}`);
+      out.push(
+        `${p}-radius: ${
+          st.layout === 'full'
+            ? '0px'
+            : st.layout === 'inset'
+              ? 'var(--br-control, 0.375rem)'
+              : 'var(--br-panel, 1rem)'
+        }`,
+      );
+    } else if (st.inset) out.push(`${p}-inset: ${st.inset}`);
+    if (st.surface) {
+      const solid = 'var(--masthead-bg, var(--_masthead-base))';
+      out.push(
+        `${p}-bg: ${
+          st.surface === 'glass'
+            ? `color-mix(in oklch, ${solid} var(--masthead-glass-opacity, 72%), transparent)`
+            : st.surface === 'transparent'
+              ? 'transparent'
+              : solid
+        }`,
+      );
+      out.push(
+        `${p}-blur: ${st.surface === 'glass' ? 'blur(var(--masthead-blur, 12px))' : 'none'}`,
+      );
+    }
+    if (st.elevation === false) {
+      out.push(`${p}-shadow: none`, `${p}-border-color: transparent`);
+    } else if (st.elevation) {
+      if (st.elevation.shadow) out.push(`${p}-shadow: var(--shadow-${st.elevation.shadow})`);
+      if (st.elevation.border !== undefined)
+        out.push(
+          `${p}-border-color: ${
+            st.elevation.border ? 'var(--tone-border, var(--color-border-surface))' : 'transparent'
+          }`,
+        );
+    }
+    if (st.hidden !== undefined) out.push(`${p}-hidden: ${st.hidden ? 1 : 0}`);
+  }
+  return out;
 }
 
 /**

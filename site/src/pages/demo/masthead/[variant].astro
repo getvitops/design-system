@@ -75,7 +75,8 @@ export function getStaticPaths() {
           masthead: {
             position: 'sticky',
             surface: 'glass',
-            elevation: { shadow: 'sm', onScroll: true },
+            elevation: { shadow: 'sm' },
+            states: { atStart: { elevation: false } },
           },
         },
       },
@@ -85,7 +86,11 @@ export function getStaticPaths() {
       props: {
         nav,
         chrome: {
-          masthead: { position: 'sticky', behavior: 'hide-on-scroll', elevation: { border: true } },
+          masthead: {
+            position: 'sticky',
+            elevation: { border: true },
+            states: { scrollingToEnd: { hidden: true } },
+          },
         },
       },
     },
@@ -129,8 +134,32 @@ export function getStaticPaths() {
         chrome: {
           masthead: {
             position: 'fixed',
-            surface: 'transparent-until-scrolled',
-            elevation: { shadow: 'sm', onScroll: true },
+            elevation: { shadow: 'sm' },
+            states: { atStart: { surface: 'transparent', elevation: false } },
+          },
+        },
+      },
+    },
+    {
+      params: { variant: 'expand-on-scroll' },
+      props: {
+        nav,
+        hero: true,
+        chrome: {
+          masthead: {
+            position: 'fixed',
+            surface: 'glass',
+            layout: 'floating',
+            height: '4rem',
+            elevation: { shadow: 'sm' },
+            states: {
+              atStart: {
+                layout: 'full',
+                height: '6rem',
+                surface: 'transparent',
+                elevation: false,
+              },
+            },
           },
         },
       },

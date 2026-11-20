@@ -23,47 +23,139 @@ describe('resolveMasthead', () => {
     const m = resolveMasthead(
       cfg({
         position: 'sticky',
-        behavior: 'hide-on-scroll',
         surface: 'glass',
         layout: 'floating',
-        elevation: { shadow: 'sm', border: true, onScroll: true },
+        elevation: { shadow: 'sm', border: true },
+        states: { scrollingToEnd: { hidden: true } },
       }),
     );
     expect(mastheadClass(m)).toEqual([
       'masthead',
       'masthead--sticky',
-      'masthead--hide-on-scroll',
+      'masthead--states',
       'masthead--glass',
       'masthead--floating',
       'masthead--shadow',
-      'masthead--shadow-on-scroll',
       'masthead--border',
-      'masthead--border-on-scroll',
     ]);
-    expect(mastheadStyle(m)).toBe('--masthead-shadow: var(--shadow-sm)');
+    expect(mastheadStyle(m)).toBe(
+      '--masthead-shadow: var(--shadow-sm); --masthead-scrolling-to-end-hidden: 1',
+    );
   });
 
-  it('lets a prop override the config, and merges elevation key by key', () => {
+  it('lets a prop override the config, and merges elevation and each state key by key', () => {
     const m = resolveMasthead(
-      cfg({ position: 'sticky', surface: 'glass', elevation: { shadow: 'sm', border: true } }),
-      { surface: 'transparent-until-scrolled', elevation: { border: false } },
+      cfg({
+        position: 'sticky',
+        surface: 'glass',
+        elevation: { shadow: 'sm', border: true },
+        states: { scrollingToEnd: { hidden: true, elevation: false } },
+      }),
+      {
+        surface: 'transparent',
+        elevation: { border: false },
+        states: { scrollingToEnd: { hidden: false } },
+      },
     );
-    expect(m.surface).toBe('transparent-until-scrolled');
+    expect(m.surface).toBe('transparent');
     expect(m.shadow).toBe('sm');
     expect(m.border).toBe(false);
+    expect(m.states.scrollingToEnd).toEqual({ hidden: false, elevation: false });
   });
 
-  it('ignores hide-on-scroll for a static masthead', () => {
-    const m = resolveMasthead(cfg({ position: 'static', behavior: 'hide-on-scroll' }));
-    expect(mastheadClass(m)).not.toContain('masthead--hide-on-scroll');
+  it('drops hidden for a static masthead, which scrolls away anyway', () => {
+    const m = resolveMasthead(cfg({ states: { scrollingToEnd: { hidden: true } } }));
+    expect(m.position).toBe('static');
+    expect(m.states).toEqual({});
+    expect(mastheadClass(m)).not.toContain('masthead--states');
   });
 
-  it('promotes reveal-on-scroll to a fixed bar, even from static or sticky', () => {
-    for (const position of ['static', 'sticky'] as const) {
-      const m = resolveMasthead(cfg({ position, behavior: 'reveal-on-scroll' }));
-      expect(m.position).toBe('fixed');
-      expect(mastheadClass(m)).toEqual(['masthead', 'masthead--fixed', 'masthead--hidden-at-top']);
-    }
+  it('promotes a bar that hides at the start, or changes size or layout, to fixed', () => {
+    const states = [
+      { atStart: { hidden: true } },
+      { atStart: { height: '6rem' } },
+      { atStart: { layout: 'full' } },
+      { atEnd: { inset: '1rem' } },
+    ];
+    for (const position of ['static', 'sticky'] as const)
+      for (const s of states) {
+        const m = resolveMasthead(cfg({ position, layout: 'inset', states: s }));
+        expect(m.position).toBe('fixed');
+        expect(mastheadClass(m)).toContain('masthead--states');
+      }
+  });
+
+  it('does not promote a sticky bar whose states only change its look', () => {
+    const m = resolveMasthead(
+      cfg({ position: 'sticky', states: { atStart: { surface: 'transparent' } } }),
+    );
+    expect(m.position).toBe('sticky');
+  });
+
+  it('expands a state to the custom properties masthead.css reads', () => {
+    const m = resolveMasthead(
+      cfg({
+        layout: 'inset',
+        inset: '1rem',
+        surface: 'glass',
+        elevation: { shadow: 'sm', border: true },
+        states: {
+          atStart: {
+            layout: 'full',
+            height: '6rem',
+            surface: 'transparent',
+            elevation: false,
+          },
+          scrollingToStart: { layout: 'floating', elevation: { shadow: 'md', border: true } },
+        },
+      }),
+    );
+    const style = mastheadStyle(m)!;
+    for (const decl of [
+      '--masthead-at-start-height: 6rem',
+      '--masthead-at-start-inset: 0px',
+      '--masthead-at-start-radius: 0px',
+      '--masthead-at-start-bg: transparent',
+      '--masthead-at-start-blur: none',
+      '--masthead-at-start-shadow: none',
+      '--masthead-at-start-border-color: transparent',
+      '--masthead-scrolling-to-start-inset: 1rem',
+      '--masthead-scrolling-to-start-radius: var(--br-panel, 1rem)',
+      '--masthead-scrolling-to-start-shadow: var(--shadow-md)',
+      '--masthead-scrolling-to-start-border-color: var(--tone-border, var(--color-border-surface))',
+    ])
+      expect(style, decl).toContain(decl);
+  });
+
+  it('rejects an unknown state and unsafe state values', () => {
+    expect(() => resolveMasthead(cfg({ states: { atMiddle: { hidden: true } } }))).toThrow(
+      /atMiddle/,
+    );
+    expect(() => resolveMasthead(cfg({ states: { atStart: { height: '4rem;}' } } }))).toThrow(
+      /plain CSS length/,
+    );
+    expect(() => resolveMasthead(cfg({ states: { atStart: { color: 'red' } } }))).toThrow(/color/);
+    expect(() =>
+      resolveMasthead(cfg({ states: { atStart: { elevation: { shadow: 'x;y' } } } })),
+    ).toThrow(/shadow/);
+  });
+
+  it('names where each removed scroll-behaviour field moved', () => {
+    expect(() => resolveMasthead(cfg({ behavior: 'reveal-on-scroll' }))).toThrow(
+      /states\.atStart\.hidden/,
+    );
+    expect(() => resolveMasthead(cfg({ behavior: 'hide-on-scroll' }))).toThrow(
+      /states\.scrollingToEnd\.hidden/,
+    );
+    expect(() => resolveMasthead(cfg({ surface: 'transparent-until-scrolled' }))).toThrow(
+      /states\.atStart\.surface/,
+    );
+    expect(() => resolveMasthead(cfg({ elevation: { onScroll: true } }))).toThrow(
+      /states\.atStart\.elevation/,
+    );
+    expect(() => resolveMasthead(undefined, { behavior: 'hide-on-scroll' } as never)).toThrow(
+      /states/,
+    );
   });
 
   it('resolves site.chrome.backToTop', () => {

@@ -707,7 +707,7 @@ export const TIERS: Record<string, TierEntry> = {
       'patterns/masthead.css',
     ),
     astro: a('Masthead', 'css'),
-    use: '`<Masthead config={site}>` from `site.chrome.masthead` (position `static|sticky|fixed`, behavior `always|hide-on-scroll|reveal-on-scroll` (reveal-on-scroll keeps the bar off-screen at the top of the page so a hero fills the viewport, slides it in on first scroll, implies `fixed`, and stays visible on a page too short to scroll), surface `solid|glass|transparent|transparent-until-scrolled`, layout `full|inset|floating`, `inset` and `height` lengths — fluid ones like `clamp(3.5rem, 8cqi, 4.5rem)` are fine — elevation shadow/border, `onScroll`); a prop overrides one field for a layout. Slots `brand`, default (the `<SiteNav>`), `actions`. Pure CSS — hide-on-scroll and the *-on-scroll states are `scroll-state()` queries that only subtract from a settled bar, so a browser without them (Firefox today) shows a visible, solid, elevated one. It never takes `role="banner"`: a body-level `<header>` already is the landmark, and `.banner` means the announcement bar.',
+    use: '`<Masthead config={site}>` from `site.chrome.masthead` (position `static|sticky|fixed`, surface `solid|glass|transparent`, layout `full|inset|floating`, `inset` and `height` lengths — fluid ones like `clamp(3.5rem, 8cqi, 4.5rem)` are fine — elevation shadow/border, and `states`: a partial look per scroll state — `atStart`, `atEnd`, `scrollingToEnd`, `scrollingToStart`, later wins, animated — taking `layout`, `height`, `inset`, `surface`, `elevation` (or `false`) and `hidden`; e.g. a full-width banner at the top that floats once scrolled, a bar hidden until first scroll, hide-on-scroll). A prop overrides one field for a layout. A state that hides the bar at the start, or changes its size or layout, makes it `fixed`. Slots `brand`, default (the `<SiteNav>`), `actions`. Pure CSS: states are `scroll-state()` queries that only override a settled bar, so a browser without them (Firefox today) shows a visible, solid, elevated one. It never takes `role="banner"`: a body-level `<header>` already is the landmark, and `.banner` means the announcement bar.',
   },
   navbar: {
     css: c(['navbar', 'navbar--sticky', 'nav-items'], 'patterns/navbar.css'),
@@ -903,6 +903,14 @@ export const TIERS: Record<string, TierEntry> = {
     css: c(['scroll-target-group', 'toc-sidebar'], 'patterns/scroll-target.css'),
     astro: a('Toc', 'css'),
     use: '`<Toc headings={headings} />` (Astro\'s `MarkdownHeading[]`) or `.scroll-target-group` by hand. The current section is `:target-current` where `scroll-target-group` exists (Chromium); elsewhere `polyfills.js` loads an IntersectionObserver that sets `.is-current` + `aria-current="location"`.',
+  },
+  'scroll-edges': {
+    css: c(
+      ['scroll-edges', 'scroll-edges__start', 'scroll-edges__end'],
+      'patterns/scroll-edges.css',
+    ),
+    astro: a('ScrollEdges', 'css'),
+    use: "`<ScrollEdges>` (or `.scroll-edges` with the two `aria-hidden` `.scroll-edges__start` / `__end` children by hand) for a horizontally scrolling strip that fades at an edge while there is more that way. The scroll-state vocabulary is the masthead's (`at-start`, `at-end`) on the inline axis; hooks `--scroll-edges-fade`, `--scroll-edges-bg`, `--scroll-edges-<state>-fade-opacity`. `scroll-state()` cannot style the scroller itself, so the fades are sticky child elements. Without it (Firefox today) both fades stay on. Give a strip with nothing focusable in it `focusable` + a `label`.",
   },
   'scroll-button': {
     css: c(['back-to-top', 'scroll-cue', 'scroll-cue__end'], 'patterns/scroll-button.css'),

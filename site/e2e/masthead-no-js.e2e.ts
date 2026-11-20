@@ -4,13 +4,16 @@
  */
 import { expect, test } from '@playwright/test';
 
+/** Not translated away: the bar sets `translate` from a hide factor, so rest reads `0px`, not `none`. */
+const AT_REST = /^(0px|0px 0px|0px 0%|none)$/;
+
 test('hide-on-scroll still hides with JavaScript disabled', async ({ page }) => {
   await page.goto('/demo/masthead/hide-on-scroll/');
   const bar = page.locator('header.masthead');
   await page.mouse.move(700, 500);
   await page.mouse.wheel(0, 700);
   await page.waitForTimeout(500);
-  await expect(bar).not.toHaveCSS('translate', 'none');
+  await expect(bar).not.toHaveCSS('translate', AT_REST);
 });
 
 test('the compact toggle opens its panel with no script', async ({ page }) => {

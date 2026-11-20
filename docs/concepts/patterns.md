@@ -125,3 +125,24 @@ patterns set `background-color: var(--color-bg-<role>-solid)` +
 `color: var(--color-text-on-<role>)`; text patterns use `var(--color-text-<role>)`, the
 token guaranteed legible over a surface in both appearances. `default_role` colours the
 bare, unsuffixed pattern. States re-apply per variant with the variant's role.
+
+## 5 — Scroll states
+
+Scroll-aware patterns (the masthead, `.scroll-edges`) share one vocabulary rather than each
+inventing flags. A pattern has a **settled look** — its ordinary rules — and may override parts of
+it per named state. Overrides are custom properties named `--<pattern>-<state>-<prop>`
+(`--masthead-at-start-height`), read inside the matching `scroll-state()` container query; when one
+is unset the settled value applies. Overrides only ever replace, so a browser without
+`scroll-state()` (Firefox today) keeps the settled look, which is always a readable one.
+Later states win over earlier ones.
+
+| State | Slug | Query (block axis) | Holds when |
+| ----- | ---- | ------------------ | ---------- |
+| `atStart` | `at-start` | `not scroll-state(scrollable: block-start)` | Nothing is scrolled before the viewport (scrollY = 0 for the page). |
+| `atEnd` | `at-end` | `not scroll-state(scrollable: block-end)` | Nothing is left to scroll after the viewport. |
+| `scrollingToEnd` | `scrolling-to-end` | `scroll-state(scrolled: block-end)` | The last scroll moved toward the end (down the page). |
+| `scrollingToStart` | `scrolling-to-start` | `scroll-state(scrolled: block-start)` | The last scroll moved back toward the start (up the page). |
+
+The inline axis (`.scroll-edges`) swaps `block-*` for `inline-*`. In config,
+`site.chrome.masthead.states.<state>` takes `layout`, `height`, `inset`, `surface`,
+`elevation` and `hidden`, and the transition between looks is animated.

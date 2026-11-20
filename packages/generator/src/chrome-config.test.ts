@@ -28,11 +28,14 @@ describe('site.chrome', () => {
         fixture({
           masthead: {
             position: 'sticky',
-            behavior: 'hide-on-scroll',
             surface: 'glass',
             layout: 'floating',
             width: 'content',
-            elevation: { border: true, onScroll: true },
+            elevation: { border: true },
+            states: {
+              atStart: { layout: 'full', height: '6rem', surface: 'transparent', elevation: false },
+              scrollingToEnd: { hidden: true },
+            },
             height: 'clamp(3.5rem, 8cqi, 4.5rem)',
             inset: '0.75rem',
           },
@@ -46,6 +49,21 @@ describe('site.chrome', () => {
     expect(errorsFor(fixture({ masthead: { position: 'absolute' } })).join()).toMatch(/position/);
     expect(errorsFor(fixture({ masthead: { sticky: true } })).join()).toMatch(/sticky/);
     expect(errorsFor(fixture({ nav: { depth: 4 } })).join()).toMatch(/depth/);
+  });
+
+  test('rejects an unknown state, a state field it does not take and the removed fields', () => {
+    expect(errorsFor(fixture({ masthead: { states: { atMiddle: {} } } })).join()).toMatch(
+      /atMiddle/,
+    );
+    expect(errorsFor(fixture({ masthead: { states: { atStart: { tone: 'x' } } } })).join()).toMatch(
+      /tone/,
+    );
+    expect(errorsFor(fixture({ masthead: { behavior: 'hide-on-scroll' } })).join()).toMatch(
+      /behavior/,
+    );
+    expect(errorsFor(fixture({ masthead: { elevation: { onScroll: true } } })).join()).toMatch(
+      /onScroll/,
+    );
   });
 
   test('rejects a tone that is not a role and a shadow that is not defined', () => {

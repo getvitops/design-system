@@ -924,7 +924,7 @@ const SiteSectionSchema = z.strictObject({
   ),
   chrome: desc(
     z.optional(ChromeSchema),
-    'Page furniture: the masthead (top bar — position, hide-on-scroll, glass/transparent surface, inset/floating layout, shadow/border) and how its navigation behaves at each width (compact drawer or dropdown, mega tier). Read by `<Masthead />` and `<SiteNav />` via `resolveMasthead()` / `resolveNavOptions()`; a prop overrides a field per layout.',
+    'Page furniture: the masthead (top bar — position, glass/transparent surface, inset/floating layout, shadow/border, and a partial look per scroll state) and how its navigation behaves at each width (compact drawer or dropdown, mega tier). Read by `<Masthead />` and `<SiteNav />` via `resolveMasthead()` / `resolveNavOptions()`; a prop overrides a field per layout.',
   ),
   accessibility: desc(
     z.optional(AccessibilitySchema),
@@ -1679,15 +1679,22 @@ export function validateConfig(input: unknown): ConfigValidationResult {
           `"${role}" is not a colors.roles key — a masthead tone must name one of: ${Object.keys(roles).join(', ')}`,
         ),
       );
-    const shadow = mast.elevation?.shadow;
     const shadows = dsTheme.shadows;
-    if (shadow != null && shadows != null && !has(shadows, shadow))
-      errors.push(
-        issue(
-          ['site', 'chrome', 'masthead', 'elevation', 'shadow'],
-          `"${shadow}" is not a designSystem.shadows key — one of: ${Object.keys(shadows).join(', ')}`,
-        ),
-      );
+    const named: Array<[string[], string | undefined]> = [
+      [['elevation', 'shadow'], mast.elevation?.shadow],
+      ...Object.entries(mast.states ?? {}).map(([state, st]): [string[], string | undefined] => [
+        ['states', state, 'elevation', 'shadow'],
+        st?.elevation ? st.elevation.shadow : undefined,
+      ]),
+    ];
+    for (const [path, shadow] of named)
+      if (shadow != null && shadows != null && !has(shadows, shadow))
+        errors.push(
+          issue(
+            ['site', 'chrome', 'masthead', ...path],
+            `"${shadow}" is not a designSystem.shadows key — one of: ${Object.keys(shadows).join(', ')}`,
+          ),
+        );
   }
 
   // Review locations. Each key must name a real physical location, and one with

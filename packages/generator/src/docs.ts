@@ -8,6 +8,12 @@
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import {
+  SCROLL_STATES,
+  SCROLL_STATE_MEANING,
+  scrollStateQuery,
+  scrollStateSlug,
+} from '@getvitops/config';
 import { renderInlineMarkdown } from '@getvitops/config/forms';
 import { jsonSchema, SCHEMA_URL, type DesignSystem } from './schema.ts';
 import { configJsonSchema, CONFIG_SCHEMA_URL } from './config.ts';
@@ -1768,6 +1774,27 @@ patterns set \`background-color: var(--color-bg-<role>-solid)\` +
 \`color: var(--color-text-on-<role>)\`; text patterns use \`var(--color-text-<role>)\`, the
 token guaranteed legible over a surface in both appearances. \`default_role\` colours the
 bare, unsuffixed pattern. States re-apply per variant with the variant's role.
+
+## 5 — Scroll states
+
+Scroll-aware patterns (the masthead, \`.scroll-edges\`) share one vocabulary rather than each
+inventing flags. A pattern has a **settled look** — its ordinary rules — and may override parts of
+it per named state. Overrides are custom properties named \`--<pattern>-<state>-<prop>\`
+(\`--masthead-at-start-height\`), read inside the matching \`scroll-state()\` container query; when one
+is unset the settled value applies. Overrides only ever replace, so a browser without
+\`scroll-state()\` (Firefox today) keeps the settled look, which is always a readable one.
+Later states win over earlier ones.
+
+| State | Slug | Query (block axis) | Holds when |
+| ----- | ---- | ------------------ | ---------- |
+${SCROLL_STATES.map(
+  (st) =>
+    `| \`${st}\` | \`${scrollStateSlug(st)}\` | \`${scrollStateQuery(st)}\` | ${SCROLL_STATE_MEANING[st]} |`,
+).join('\n')}
+
+The inline axis (\`.scroll-edges\`) swaps \`block-*\` for \`inline-*\`. In config,
+\`site.chrome.masthead.states.<state>\` takes \`layout\`, \`height\`, \`inset\`, \`surface\`,
+\`elevation\` and \`hidden\`, and the transition between looks is animated.
 `;
 }
 
@@ -2419,6 +2446,13 @@ indexed. That last part is what actually replaces the manual Search Console visi
   stamping the build time: Google weighs lastmod only while it stays consistent with what
   actually changed, so a site that stamps every page every deploy teaches it to distrust the
   field site-wide.
+
+  **On an EmDash site** the CMS dates its own entries (\`/sitemap.xml\`, from \`updated_at\`) and
+  offers no way to add other URLs, so \`vitops({ sitemap })\` writes a second
+  \`pages-sitemap.xml\` for \`src/pages\` routes only — git-dated, and not written at all when
+  there are none. Never override EmDash's \`/sitemap.xml\`: that discards its dates. When
+  \`sitemapUrl\` is unset, \`search notify\` finds whichever of \`sitemap-index.xml\`,
+  \`sitemap.xml\` and \`pages-sitemap.xml\` exist, and prints each one with why it is there.
 - **The \`noindex\` gate reads the environment, so the URLs must too.** The run is refused
   entirely when the resolved environment's \`robots\` contains \`noindex\` — submitting a staging
   host to IndexNow publishes it to several engines and invites them to crawl it, which a later

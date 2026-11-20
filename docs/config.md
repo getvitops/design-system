@@ -413,19 +413,46 @@ Site navigation settings (which nav template renders where).
 
 ### `chrome` *(optional)*
 
-Page furniture: the masthead (top bar — position, hide-on-scroll, glass/transparent surface, inset/floating layout, shadow/border) and how its navigation behaves at each width (compact drawer or dropdown, mega tier). Read by `<Masthead />` and `<SiteNav />` via `resolveMasthead()` / `resolveNavOptions()`; a prop overrides a field per layout.
+Page furniture: the masthead (top bar — position, glass/transparent surface, inset/floating layout, shadow/border, and a partial look per scroll state) and how its navigation behaves at each width (compact drawer or dropdown, mega tier). Read by `<Masthead />` and `<SiteNav />` via `resolveMasthead()` / `resolveNavOptions()`; a prop overrides a field per layout.
 
 - `masthead` (object) — The top bar: position, scroll behaviour, surface, layout, elevation.
-  - `position` (static | sticky | fixed) — `static` scrolls away; `sticky` stays in flow and pins to the top; `fixed` is out of flow and overlays the first section (for a transparent masthead over a hero). Default `static`.
-  - `behavior` (always | hide-on-scroll) — `hide-on-scroll` slides the masthead away while scrolling down and back on scrolling up. Ignored when `position` is `static`. It never hides while a menu inside it is open or has focus. Uses `scroll-state()`; in a browser without it (Firefox today) the masthead just stays visible. Default `always`.
-  - `surface` (solid | glass | transparent | transparent-until-scrolled) — `solid`, `glass` (blurred + tinted via `--surface-glass`), `transparent`, or `transparent-until-scrolled` (clear while the page is at the top, solid once it scrolls; a browser without `scroll-state()` shows it solid throughout). Default `solid`.
+  - `position` (static | sticky | fixed) — `static` scrolls away; `sticky` stays in flow and pins to the top; `fixed` is out of flow and overlays the first section (for a masthead over a hero). A masthead with `states` that change its size, layout or visibility is promoted to `fixed`, because on a sticky bar a size change would reflow the page at the threshold. Default `static`.
+  - `surface` (solid | glass | transparent) — `solid`, `glass` (blurred + tinted via `--surface-glass`) or `transparent`. Default `solid`. For a bar that is clear at the top and solid after, set `states.atStart.surface: transparent`.
   - `tone` (string) — A `colors.roles` key, optionally `<role>:solid`, applied as the masthead `.tone` so text contrast stays the generator's guarantee.
   - `layout` (full | inset | floating) — `full` is flush to the viewport edges; `inset` leaves a gap to them; `floating` is inset with a panel radius. Default `full`.
   - `width` (full | content) — `content` keeps the masthead row on the page's `.centered` track; `full` lets it span the masthead. Default `content`.
   - `elevation` (object) — Shadow and border.
     - `shadow` (string) — A `designSystem.shadows` key (e.g. `sm`). Omit for no shadow.
     - `border` (boolean) — A bottom border (a full outline when `layout` is not `full`).
-    - `onScroll` (boolean) — Apply the shadow/border only once the page has scrolled, so the masthead sits flush with the page at the top. Uses `scroll-state()` container queries; in a browser without them (Firefox today) the elevation is simply always on.
+  - `states` (object) — How the masthead looks in each scroll state, as partial overrides of the settled look: `atStart` (page at the top), `atEnd`, `scrollingToEnd` (scrolling down), `scrollingToStart` (scrolling up); later states win. Animated. Uses `scroll-state()`; a browser without it (Firefox today) keeps the settled look. E.g. `{ "atStart": { "layout": "full", "height": "6rem", "surface": "transparent" }, "scrollingToEnd": { "hidden": true } }` with a settled `layout: inset`.
+    - `atStart` (object)
+      - `layout` (full | inset | floating) — Layout in this state, e.g. `full` at the top and `inset` once scrolled (set the settled `layout` to `inset`). Animated.
+      - `height` (string) — Row height in this state. Same length grammar as the settled `height`. Animated.
+      - `inset` (string) — Gap to the viewport edge in this state (only meaningful for an `inset`/`floating` layout). Animated.
+      - `surface` (solid | glass | transparent) — Surface in this state, e.g. `transparent` over a hero.
+      - `elevation` (one of) — `false` removes the shadow and border; `{ shadow }` swaps the shadow.
+      - `hidden` (boolean) — Slide the bar off-screen. Never while it has focus or a menu inside it is open. `atStart: { hidden: true }` also needs a page that can scroll, so a short page keeps the bar.
+    - `atEnd` (object)
+      - `layout` (full | inset | floating) — Layout in this state, e.g. `full` at the top and `inset` once scrolled (set the settled `layout` to `inset`). Animated.
+      - `height` (string) — Row height in this state. Same length grammar as the settled `height`. Animated.
+      - `inset` (string) — Gap to the viewport edge in this state (only meaningful for an `inset`/`floating` layout). Animated.
+      - `surface` (solid | glass | transparent) — Surface in this state, e.g. `transparent` over a hero.
+      - `elevation` (one of) — `false` removes the shadow and border; `{ shadow }` swaps the shadow.
+      - `hidden` (boolean) — Slide the bar off-screen. Never while it has focus or a menu inside it is open. `atStart: { hidden: true }` also needs a page that can scroll, so a short page keeps the bar.
+    - `scrollingToEnd` (object)
+      - `layout` (full | inset | floating) — Layout in this state, e.g. `full` at the top and `inset` once scrolled (set the settled `layout` to `inset`). Animated.
+      - `height` (string) — Row height in this state. Same length grammar as the settled `height`. Animated.
+      - `inset` (string) — Gap to the viewport edge in this state (only meaningful for an `inset`/`floating` layout). Animated.
+      - `surface` (solid | glass | transparent) — Surface in this state, e.g. `transparent` over a hero.
+      - `elevation` (one of) — `false` removes the shadow and border; `{ shadow }` swaps the shadow.
+      - `hidden` (boolean) — Slide the bar off-screen. Never while it has focus or a menu inside it is open. `atStart: { hidden: true }` also needs a page that can scroll, so a short page keeps the bar.
+    - `scrollingToStart` (object)
+      - `layout` (full | inset | floating) — Layout in this state, e.g. `full` at the top and `inset` once scrolled (set the settled `layout` to `inset`). Animated.
+      - `height` (string) — Row height in this state. Same length grammar as the settled `height`. Animated.
+      - `inset` (string) — Gap to the viewport edge in this state (only meaningful for an `inset`/`floating` layout). Animated.
+      - `surface` (solid | glass | transparent) — Surface in this state, e.g. `transparent` over a hero.
+      - `elevation` (one of) — `false` removes the shadow and border; `{ shadow }` swaps the shadow.
+      - `hidden` (boolean) — Slide the bar off-screen. Never while it has focus or a menu inside it is open. `atStart: { hidden: true }` also needs a page that can scroll, so a short page keeps the bar.
   - `height` (string) — CSS length for the masthead row (default `4rem`). `calc()`, `clamp()`, `min()` and `max()` are accepted, so it can be fluid: `clamp(3.5rem, 8cqi, 4.5rem)`. `cqi` resolves against the nearest size container (`body`, the same one the nav breakpoints use), `vw` against the viewport. Becomes `--masthead-height` and, when the masthead is sticky or fixed, `--header-offset` so in-page anchors land below it.
   - `inset` (string) — Gap between a `layout: inset` or `floating` masthead and the viewport edge (default `0.75rem`). Same length grammar as `height`, e.g. `clamp(0.5rem, 2cqi, 1.5rem)`. Ignored when `layout` is `full`. Becomes `--masthead-inset` and is counted in `--header-offset`.
 - `nav` (object) — How the masthead navigation behaves at each width.
@@ -436,6 +463,11 @@ Page furniture: the masthead (top bar — position, hide-on-scroll, glass/transp
   - `megaDepth` (integer) — Levels in the mega panel (1–3). Default 3.
   - `compact` (drawer | dropdown) — What the toggle opens below its breakpoint: an edge `drawer`, or a columnar `dropdown` panel anchored under the toggle. Default `drawer`.
   - `drawerSide` (start | end) — Edge the drawer slides from when `compact` is `drawer`. Default `end`.
+- `backToTop` (one of) — A floating back-to-top link, rendered by `<SiteFooter>`, visible once the page has scrolled. `true` for defaults. A browser without `scroll-state()` (Firefox today) shows it always.
+  - *one of*
+  - *one of*
+    - `label` (string) — Accessible name and text. Default `Back to top`.
+    - `target` (string) — In-page anchor to scroll to, e.g. `#top` (default) or `#main`.
 
 ### `accessibility` *(optional)*
 
@@ -482,7 +514,9 @@ SEO defaults: site name, title/description defaults, robots policy, verification
   - `site` (string) — The site's own handle, e.g. "@acme".
   - `creator` (string) — Default author handle, e.g. "@ada".
 - `indexing` (object) — How `vitops search notify` tells search engines about a deploy: which sitemap, IndexNow key, Search Console property, and which pages to verify afterwards.
-  - `sitemapUrl` (string) — The sitemap to submit and to diff for changed URLs. Defaults to `<canonical>/sitemap-index.xml`.
+  - `sitemapUrl` (one of) — The sitemap(s) to submit and to diff for changed URLs — one URL, or a list when a site serves more than one (an EmDash site's `/sitemap.xml` plus the `pages-sitemap.xml` `vitops()` writes for `src/pages` routes). Unset, `search notify` looks for `<canonical>/sitemap-index.xml` (Astro), `<canonical>/sitemap.xml` (EmDash) and `<canonical>/pages-sitemap.xml` and uses whichever exist; listing URLs here turns that discovery off.
+    - *one of*
+    - *one of*
   - `indexNow` (object) — IndexNow submission (Bing, Yandex, Naver, Seznam, Yep — not Google). Omit to skip the channel.
     - `key` (string, required) — IndexNow key (8–128 chars, hex is conventional). NOT a secret — it is served publicly at `keyLocation` so the engine can verify you own the host. Generate one with `vitops search notify --new-key`.
     - `keyLocation` (string) — Absolute URL of the key file. Defaults to `<canonical>/<key>.txt`; set it only when the file lives elsewhere.
