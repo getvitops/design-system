@@ -1,5 +1,11 @@
 # @getvitops/utils
 
+## 9.0.0-alpha.7
+
+### Patch Changes
+
+- @getvitops/config@9.0.0-alpha.7
+
 ## 9.0.0-alpha.6
 
 ### Major Changes

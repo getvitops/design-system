@@ -1,5 +1,15 @@
 # @getvitops/cli
 
+## 9.0.0-alpha.7
+
+### Patch Changes
+
+- Updated dependencies [7d5efa0]
+- Updated dependencies [d34ac50]
+- Updated dependencies [16a63d0]
+  - @getvitops/generator@9.0.0-alpha.7
+  - @getvitops/utils@9.0.0-alpha.7
+
 ## 9.0.0-alpha.6
 
 ### Minor Changes

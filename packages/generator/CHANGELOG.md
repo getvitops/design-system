@@ -1,5 +1,63 @@
 # @getvitops/generator
 
+## 9.0.0-alpha.7
+
+### Minor Changes
+
+- 16a63d0: **Right-to-left, dark-mode, tooltip and form fixes from a web-standards audit, batch E.** Checked in a real browser where the behaviour is visible (RTL slide direction, tooltip hover, focus and Escape).
+
+  **Breaking**
+
+  - **`<wc-copy>` fires `copy-success`, not `copy`.** A bubbling `CustomEvent` named `copy` ran every page-level clipboard listener with an event that has no `clipboardData`. The detail is now `{ value }` and carries the copied text even when it came from the slot rather than a `value` attribute. **Migration:** rename `addEventListener('copy', …)` on a `<wc-copy>` to `'copy-success'`. There is no `vitops lint --fix` rule, because the event name lives in consumer JavaScript, not in a class or token.
+  - **`<wc-combobox>` keeps an author's `autocomplete`.** It used to overwrite it with `off`. It now sets `off` only when the attribute is absent. **Migration:** none for a combobox that never set one; one that did gets what it asked for.
+  - **`aria-orientation` on `<wc-image-compare>` and `<wc-split-panel>` is the orientation of the separator line, not the direction it slides.** A handle that slides left and right is a vertical separator, so the default now says `vertical` (it said `horizontal`). Anything keyed on the old value, such as an e2e selector, needs the flip.
+  - **`@getvitops/astro`'s `<Head />` loads `deferred.js` as `type="module"`** instead of a classic `defer` script, so its top-level declarations no longer share a global scope with other scripts on the page. **Migration:** none for `<Head />` users. A hand-written `<script defer src=".../deferred.js">` should become `<script type="module" …>`.
+
+  **Added**
+
+  - **Tooltips respond to hover and keyboard focus, and Escape closes them** (WCAG 1.4.13). The comment above the pattern said `deferred.ts` did this; that code was gone, so a tooltip opened only on click. `js/tooltip.ts` (in `deferred.js`) now opens a `popover="manual"` `.tooltip` on hover and on `:focus-visible`, keeps it open while the pointer is on the tooltip itself (it no longer sets `pointer-events: none`), and gives each trigger its own anchor name plus `role="tooltip"` and `aria-describedby`. The `popovertarget` click toggle remains the no-JS fallback. `TODO(support)`: move to `interestfor` and `popover="hint"` once `interestfor` meets the support threshold in AGENTS.md (Chromium-only today). Marking the tooltip `popover="manual"` rather than a bare `popover` is the one markup change. Browser bundle, all formats; the CSS change is all formats.
+  - **`<wc-color-scheme-toggle>` labels are overridable** with `group-label`, `system-label`, `light-label` and `dark-label` (English defaults), for a non-English page.
+  - **`<Field group>`** renders a `<fieldset>` with the label as its `<legend>` for a radio or checkbox group, linked by `aria-describedby` to its help text and a server-rendered error when the field has an `id`.
+  - **Scaffolded layouts** (both templates) gain a skip link and an `id` on `<main>`, and take `<html lang>` from the first locale in `site.json` instead of a hard-coded `en`.
+  - **`<Details>`** now renders its `items` as a link list when the `content` slot is empty. It declared a required `items` prop and never used it; the prop is optional now.
+
+  **Fixed**
+
+  - **RTL slide direction.** Panels pinned to the inline end slid in from the physical right in an RTL page, because a `translate` does not flip with logical insets. `animation.css` defines `--dir-sign` (`1` or `-1`, following `dir` on any element, so a nested `dir="ltr"` island is handled) and the site nav, nav, drawer, tag and notification translates multiply by it. Progress-bar `transform-origin` is logical. css/bricks and tailwind (patterns are inlined in all formats).
+  - **Dialogs:** `dvh` instead of `vh` so a tall dialog is not hidden behind a phone's address bar, `overscroll-behavior: contain`, and the page behind a modal no longer scrolls. `.sticky` sidebars use `dvh` too. All formats.
+  - **Dark mode:** the badge indicator used the danger text colour (pale in dark mode) behind white text; it now uses the solid and its computed foreground, which the build contrast-checks in both appearances. Table stripes and hover tint the text colour instead of black, and a sticky header has an opaque background. All formats.
+  - **Motion:** `.status-dot--pulse` only animates under `prefers-reduced-motion: no-preference`, and so does the cross-document `@view-transition`. The `::view-transition-children(*)` rule that followed it was not a real pseudo-element and set nothing; it is removed. The scroll progress bar is hidden where `animation-timeline` is unsupported rather than stuck at zero.
+  - **`<wc-dismissable>`'s countdown pauses** while the pointer is over it or keyboard focus is inside, and resumes with the time that was left (WCAG 2.2.1).
+  - **`<wc-combobox>`'s active option** has an outline as well as a background, so it is visible in forced colors.
+  - **`.table--bordered` has a rounded frame and draws each seam once.** `border-radius` did nothing under `border-collapse: collapse`. The table is now `separate`, draws the outer frame itself, and each cell draws only the lines between cells, with `overflow: clip` rounding the corners without breaking `.table--sticky-header`. Checked for `colspan`, `rowspan`, a two-row header, `<colgroup>` and `<tfoot>` at three device pixel ratios. The visible change is slightly different corner rendering, and a consumer rule that borders `td`/`th` on all sides will double the lines again. All formats.
+  - **`.tone--solid` sets `color-scheme` from its fill.** Native form controls and scrollbars inside a dark fill were drawn for the page's scheme, so a light-scheme input sat on a dark solid. The generator now emits `--color-<hue>-<step>-scheme` and `--color-scheme-<role>` (`dark` or `light`, read off the foreground it already picked, so the two cannot disagree, and mode-stable like the solid). `resolveTone()` in `@getvitops/emdash` passes it as `--tone-solid-scheme`, and `tone.css` applies it; unset, nothing changes. These are plain `:root` properties, outside the role-token grammar, so no utility classes appear. All formats; the tailwind output carries the properties too.
+  - **`<wc-range>`:** when both thumbs sit together near the end, the lower one is raised so the pair can be dragged apart again. They were stuck.
+
+  **Packages.** `@getvitops/generator` carries the new scheme tokens, the refreshed asset snapshot and the tooltip line in the component manifest; `@getvitops/emdash` carries the `resolveTone()` change. Other fixed-group packages: no consumer-facing change in this package.
+
+### Patch Changes
+
+- 7d5efa0: **Accessibility fixes from a web-standards audit, batch B: component lifecycle.** Each was checked in a real browser (the `a11y` Playwright project), including moving the element in the DOM, which disconnects and reconnects it without re-rendering.
+
+  **Fixed**
+
+  - **`<wc-entries>` has its enhanced-state stylesheet back.** `patterns/entries.css` was lost in the move to `@getvitops/core` (it lived in `old-css-lib/`), so an upgraded element showed the stacked pairs _and_ the generated table at every width and the breakpoint did nothing. Restored and modernised: the `<dl>` is visually hidden (never `display: none`, so it stays in the accessibility tree) while the table is on screen, the column buttons are a real touch target, and the old `@apply sr-only` (which only ever worked under Tailwind) is plain declarations. All formats. The copies of each `<dd>` in the table now drop their `id`s and take any link or control out of the tab order, because the table is `aria-hidden` and focus on something a screen reader cannot announce is a trap.
+  - **`<wc-carousel>` Pause now sticks.** Hover, focus and the Pause button shared one flag, so pressing Pause while the pointer was over the carousel was undone the moment it left. The visitor's choice is now separate from transient holds, which are keyboard focus (not a mouse click's), pointer, being scrolled out of view, and a hidden tab. Holds no longer flip the button's label under the pointer, and the button no longer sets `aria-pressed` on top of a label that already changes between "Pause" and "Play" (which announced a pressed "Play").
+  - **Elements broke after a DOM move** (a view-transition swap, a client router, a reorder): `<wc-image-compare>` and `<wc-split-panel>` handles stopped responding to pointer and keyboard (`DragController` kept a stale handle reference), `<wc-marquee>` lost its Pause button and its resize observer (WCAG 2.2.2), `<wc-format>` stopped refreshing relative times, and `<wc-tree>` left nodes hidden behind a filter field that had been rebuilt empty.
+  - **`<wc-turnstile>` no longer traps the form when its script is blocked** (an ad blocker, a CSP, no network). It used to cancel every submit for ever, so a visitor with JavaScript could not send the form at all while one without could. A failed check now says so, releases a submit it was holding, and lets the form post token-less exactly as it does with no JS; `createConversionRoute`'s `turnstile.required` decides what that means. Its status line is a live region that exists, empty, from upgrade, instead of one un-hidden as its text is set.
+
+  Docs site: `.docs-prose table { display: block }` is now `table:not([class])`, because that unlayered rule was beating the framework's layered `display: none` on the entries table.
+
+  Affects all formats (CSS in css, bricks and tailwind alike; the web-component bundle in all formats). **Migration:** none. A consumer that styled `wc-entries` themselves should check it against the restored `patterns/entries.css`. Other fixed-group packages: no consumer-facing change.
+
+- d34ac50: **Popover open-state rules now work in engines that load the Popover polyfill.** An engine without `:popover-open` (Safari below 17, Firefox below 125, the engines `polyfills.js` exists for) drops any rule whose selector contains it, or the whole selector list. The polyfill cannot define the pseudo-class; it marks an open popover with the class `.\:popover-open` instead, so every open-state rule was lost there: the narrow site-nav drawer opened and stayed at `opacity: 0`, and the same went for the dropdown, consent banner, tooltip, split-link panel, drawer and the `open-<fx>` animation variants. All 22 occurrences across the partials, and the generated `open-<fx>` classes, are now `:is(:popover-open, .\:popover-open)` (same specificity, and `:is()` parses forgivingly so the unknown half is dropped on its own). `css-popover-pairing.test.ts` fails on a bare `:popover-open` in any partial.
+
+  Also: the Invoker Commands polyfill is now feature-detected with `commandForElement` on `HTMLButtonElement.prototype`, the property the polyfill and the platform guidance test, instead of `command`.
+
+  Affects all formats (CSS in css, bricks and tailwind alike; the generated `open-<fx>` classes in all three). No markup or class changes; nothing to migrate. Other fixed-group packages: no consumer-facing change.
+  - @getvitops/config@9.0.0-alpha.7
+  - @getvitops/utils@9.0.0-alpha.7
+
 ## 9.0.0-alpha.6
 
 ### Major Changes
