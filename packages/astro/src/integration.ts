@@ -38,6 +38,7 @@ import {
   resolveAnalytics,
 } from './analytics.ts';
 import { type GetvitopsAdsOptions, resolveAds } from './ads.ts';
+import { writePagesSitemap } from './pages-sitemap.ts';
 import { type HeadFont, resolveFonts } from './fonts.ts';
 import { localeConsistencyWarnings } from './i18n.ts';
 import {
@@ -203,6 +204,12 @@ export interface GetvitopsSitemapOptions {
   filter?: (page: string) => boolean;
   /** Absolute URLs of pages Astro doesn't build but the site serves. */
   customPages?: string[];
+  /**
+   * Routes to leave out of `pages-sitemap.xml` on an EmDash site, e.g. `['/']` for an `index.astro`
+   * that renders a CMS entry (its git date would be the template's, not the content's). Only read
+   * there; with `@astrojs/sitemap` use `filter`.
+   */
+  exclude?: string[];
   /** Absolute URLs of externally-generated sitemaps to list in the index. */
   customSitemaps?: string[];
   /** Max entries per file before it splits (default 45000). */
@@ -344,10 +351,14 @@ export interface GetvitopsOptions {
    * Needs `@astrojs/sitemap` (an optional peer — install it yourself) and the
    * `site` astro.config option, since a sitemap lists absolute URLs.
    *
-   * Skipped with a warning when `emdash()` is registered — EmDash serves its own
-   * database-driven `/sitemap.xml` — and deferred to when you already list
-   * `@astrojs/sitemap` yourself. Note it enumerates **prerendered** routes only,
-   * so on-demand pages of an `output: 'server'` site are not listed.
+   * With `emdash()` registered this does something different: EmDash serves its own
+   * database-driven `/sitemap.xml` (dated from each entry's `updated_at`), which cannot
+   * list `src/pages` routes, so a build writes `public/pages-sitemap.xml` for exactly
+   * those, with git dates — and writes nothing when there are none. `vitops search
+   * notify` finds and submits it alongside EmDash's. It defers to `@astrojs/sitemap`
+   * when you already list it yourself. Note `@astrojs/sitemap` enumerates
+   * **prerendered** routes only, so on-demand pages of an `output: 'server'` site are
+   * not listed.
    */
   sitemap?: boolean | GetvitopsSitemapOptions;
   /**
@@ -1040,7 +1051,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
   return {
     name: '@getvitops/astro',
     hooks: {
-      'astro:config:setup': async ({ config, updateConfig, injectScript, logger }) => {
+      'astro:config:setup': async ({ command, config, updateConfig, injectScript, logger }) => {
         const root = fileURLToPath(config.root);
         const publicDir = fileURLToPath(config.publicDir);
         const webComponents = opts.webComponents !== false;
@@ -1428,11 +1439,26 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
               'sitemap: @astrojs/sitemap is already in your integrations — leaving yours in charge.',
             );
           } else if (registered.includes('emdash')) {
-            logger.warn(
-              'sitemap: emdash() already serves /sitemap.xml from the database, which also covers ' +
-                'on-demand pages a static sitemap cannot. Skipping — drop the `sitemap` option, or ' +
-                'add @astrojs/sitemap to `integrations` yourself to run both.',
-            );
+            // EmDash owns /sitemap.xml and dates every CMS entry itself. What it cannot list is
+            // `src/pages` — see pages-sitemap.ts for why that gets its own file, and why the file
+            // is not written when there is nothing to put in it.
+            if (!config.site) {
+              logger.warn(
+                'sitemap: needs the `site` astro.config option (your deployed URL) — a sitemap ' +
+                  'lists absolute URLs. Skipping.',
+              );
+            } else if (command === 'build') {
+              const o = opts.sitemap === true ? undefined : opts.sitemap;
+              await writePagesSitemap({
+                root,
+                publicDir,
+                site: config.site,
+                exclude: o?.exclude,
+                customPages: o?.customPages,
+                log: (m) => logger.info(`sitemap: ${m}`),
+                warn: (m) => logger.warn(`sitemap: ${m}`),
+              });
+            }
           } else if (!config.site) {
             logger.warn(
               'sitemap: needs the `site` astro.config option (your deployed URL) — a sitemap lists ' +

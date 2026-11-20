@@ -49,6 +49,13 @@ indexed. That last part is what actually replaces the manual Search Console visi
   stamping the build time: Google weighs lastmod only while it stays consistent with what
   actually changed, so a site that stamps every page every deploy teaches it to distrust the
   field site-wide.
+
+  **On an EmDash site** the CMS dates its own entries (`/sitemap.xml`, from `updated_at`) and
+  offers no way to add other URLs, so `vitops({ sitemap })` writes a second
+  `pages-sitemap.xml` for `src/pages` routes only — git-dated, and not written at all when
+  there are none. Never override EmDash's `/sitemap.xml`: that discards its dates. When
+  `sitemapUrl` is unset, `search notify` finds whichever of `sitemap-index.xml`,
+  `sitemap.xml` and `pages-sitemap.xml` exist, and prints each one with why it is there.
 - **The `noindex` gate reads the environment, so the URLs must too.** The run is refused
   entirely when the resolved environment's `robots` contains `noindex` — submitting a staging
   host to IndexNow publishes it to several engines and invites them to crawl it, which a later

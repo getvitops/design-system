@@ -257,8 +257,10 @@ where no provider covers the family.
   Never tell a user this makes Google re-index faster; it automates the sanctioned steps
   and makes the result visible.
   Two things decide whether it works at all: the sitemap needs real per-page `<lastmod>`
-  (wire `gitLastmod()` from `@getvitops/astro` into the `sitemap` option — without it
-  only added/removed pages are detectable, never an edit), and `.vitops/` must persist
+  (plain Astro: wire `gitLastmod()` from `@getvitops/astro` into the `sitemap` option; an
+  **EmDash** site dates CMS entries itself, and `vitops({ sitemap })` writes a git-dated
+  `pages-sitemap.xml` for `src/pages` routes only — never override EmDash's `/sitemap.xml`.
+  Without dates only added/removed pages are detectable, never an edit), and `.vitops/` must persist
   between runs or every run submits everything. Google's **Indexing API is deliberately
   not wired**: it is scoped to `JobPosting`/`BroadcastEvent`, and using it for ordinary
   pages violates its terms — don't suggest it as a workaround.

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { INDEXNOW_BATCH, plan, resolveKeyLocation, resolveSitemapUrl } from './plan.ts';
+import {
+  INDEXNOW_BATCH,
+  formatPlan,
+  plan,
+  resolveKeyLocation,
+  resolveSitemapUrl,
+  resolveSitemapUrls,
+  sitemapCandidates,
+} from './plan.ts';
 import { toSnapshot } from './snapshot.ts';
 import type { IndexingConfig, SitemapEntry } from './types.ts';
 
@@ -293,5 +301,71 @@ describe('foreign sitemap', () => {
       current: [entry('/'), { loc: 'https://cms.example/pages/contact' }],
     });
     expect(p.notes.join(' ')).toMatch(/1 URL\(s\) on cms\.example/);
+  });
+});
+
+describe('multiple sitemaps', () => {
+  const report = (role: 'astro' | 'cms' | 'pages', used: boolean, entries = 0, skip?: string) => ({
+    url: `https://acme.ca/${role === 'pages' ? 'pages-sitemap' : role === 'cms' ? 'sitemap' : 'sitemap-index'}.xml`,
+    role,
+    used,
+    entries,
+    ...(skip ? { skip } : {}),
+  });
+
+  it('accepts a list, and an explicit one turns discovery off', () => {
+    const urls = ['https://acme.ca/a.xml', 'https://acme.ca/b.xml'];
+    expect(resolveSitemapUrls({ canonical: CANONICAL, sitemapUrl: urls })).toEqual(urls);
+    expect(sitemapCandidates({ canonical: CANONICAL, sitemapUrl: urls })).toEqual([
+      { url: urls[0], role: 'configured' },
+      { url: urls[1], role: 'configured' },
+    ]);
+  });
+
+  it('looks for Astro, EmDash and the pages companion when nothing is set', () => {
+    expect(sitemapCandidates({ canonical: CANONICAL }).map((c) => c.role)).toEqual([
+      'astro',
+      'cms',
+      'pages',
+    ]);
+  });
+
+  it('prints each used sitemap with its reason, naming the pages one as required for non-EmDash content', () => {
+    const p = plan({
+      config: config(),
+      current: [entry('/', 'a')],
+      sitemaps: [
+        report('astro', false, 0, 'not found'),
+        report('cms', true, 14),
+        report('pages', true, 3),
+      ],
+    });
+    const text = formatPlan(p);
+    expect(text).toMatch(/sitemap\.xml\s+EmDash content · 14 urls/);
+    expect(text).toMatch(
+      /pages-sitemap\.xml\s+required for non-EmDash content \(src\/pages\) · 3 urls/,
+    );
+    expect(text).not.toMatch(/sitemap-index/);
+    expect(p.searchConsole.sitemapUrls).toHaveLength(2);
+  });
+
+  it('does not call /sitemap.xml EmDash unless the pages companion is in use, and says when it is absent', () => {
+    const p = plan({
+      config: config(),
+      current: [entry('/', 'a')],
+      sitemaps: [report('cms', true, 14), report('pages', false, 0, 'not found')],
+    });
+    const text = formatPlan(p);
+    expect(text).toMatch(/sitemap\.xml\s+derived · 14 urls/);
+    expect(text).toMatch(/pages-sitemap\.xml not found — no non-EmDash content/);
+    expect(p.searchConsole.sitemapUrls).toEqual(['https://acme.ca/sitemap.xml']);
+  });
+
+  it('names which entries lack a lastmod', () => {
+    const p = plan({
+      config: config(),
+      current: [entry('/a', 'x'), { loc: 'https://acme.ca/b' }, { loc: 'https://acme.ca/c' }],
+    });
+    expect(p.notes.join('\n')).toMatch(/2 of 3 .*https:\/\/acme\.ca\/b, https:\/\/acme\.ca\/c/);
   });
 });

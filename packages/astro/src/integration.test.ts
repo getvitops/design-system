@@ -140,12 +140,14 @@ describe('vitops({ sitemap })', () => {
     expect(headData(h.updates).sitemap).toBeNull();
   });
 
-  it('warns and skips when emdash() is registered', async () => {
-    // EmDash injects its own database-driven /sitemap.xml.
+  it('does not register @astrojs/sitemap when emdash() is registered, and writes no empty pages sitemap', async () => {
+    // EmDash injects its own database-driven /sitemap.xml; the integration's job there is the
+    // companion for `src/pages` routes, which has nothing to list in this (empty) project.
     const h = harness({ sitemap: true }, { integrations: [integration('emdash')] });
     await h.run();
     expect(added(h.updates)).toEqual([]);
-    expect(warned(h.logs, 'emdash()')).toBe(true);
+    expect(warned(h.logs, 'sitemap')).toBe(false);
+    expect(h.logs.some((l) => l.level === 'info' && l.msg.includes('covers the site'))).toBe(true);
   });
 
   it('defers to an @astrojs/sitemap the consumer registered, without warning', async () => {

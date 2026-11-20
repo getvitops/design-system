@@ -118,6 +118,13 @@ when the sitemap lists URLs the build has no page for. Set the pattern on the co
   General → Change domain**, then **Continue on**.
 - Link entries by `entry.data.slug`, never `entry.id` (multilingual sites prefix `id` with a locale).
 - Submit `/sitemap.xml` to search engines, not a per-collection sitemap.
+- **Sitemaps and `<lastmod>`.** EmDash's `/sitemap.xml` dates every CMS entry from `updated_at` but
+  cannot list `src/pages` routes, and has no hook to add them. Don't write a `src/pages/sitemap.xml.ts`
+  to fix that: it replaces the whole index and drops those dates. Set `vitops({ sitemap: { exclude:
+  ['/'] } })` (the template does): a build then writes `public/pages-sitemap.xml` for the routes
+  outside the CMS with git dates, and nothing when there are none. `vitops search notify` finds both and
+  prints why each is submitted. Needs a full git clone in CI (`fetch-depth: 0`). A second `Sitemap:`
+  line can go in Settings → SEO → robots.txt; EmDash only appends its own when none is present.
 - Clear a stuck D1 migration lock with `vp exec emdash migrate --take-over-lock <id>` (needs
   `--expected-target-fingerprint` non-interactively).
 

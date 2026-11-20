@@ -131,6 +131,9 @@ jobs:
           # '' falls back to the event's default ref, so callers that do not
           # pass `ref` are unchanged.
           ref: ${{ inputs.ref }}
+          # Full history: `vitops({ sitemap })` dates src/pages routes from `git log`, and a
+          # shallow clone silently yields no dates at all.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:

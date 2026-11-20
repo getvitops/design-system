@@ -87,6 +87,12 @@ export default defineConfig({
       migrations: { runtime: 'check', dev: 'auto' },
     }),
     vitops({
+      // EmDash serves /sitemap.xml from the database, dating each entry from its updated_at.
+      // It cannot list src/pages routes, so a build writes public/pages-sitemap.xml for those
+      // (git-dated) — and nothing at all while there are none. `/` is excluded because
+      // index.astro only renders the `home` entry, so its commit date would be the template's,
+      // not the content's. `vitops search notify` finds and submits both.
+      sitemap: { exclude: ['/'] },
       favicon: {
         source: 'src/assets/logo.svg',
         name: organizationName,

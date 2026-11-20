@@ -27,8 +27,11 @@ export type { IndexNowConfig, SearchConsoleConfig };
 export interface IndexingConfig {
   /** `domains.canonical` — the origin every default is derived from. */
   canonical?: string | undefined;
-  /** Overrides the derived `<canonical>/sitemap-index.xml`. */
-  sitemapUrl?: string | undefined;
+  /**
+   * Explicit sitemap URL(s). Set, discovery is off and exactly these are read; unset, the CLI
+   * discovers them (see `sitemapCandidates`).
+   */
+  sitemapUrl?: string | string[] | undefined;
   indexNow?: IndexNowConfig | undefined;
   searchConsole?: SearchConsoleConfig | undefined;
   /** Pages `--check` verifies. Explicit because URL Inspection is quota-bound. */
@@ -53,4 +56,27 @@ export interface Snapshot {
   takenAt: string;
   /** `loc` → `lastmod`, or `''` when the entry carried none. */
   entries: Record<string, string>;
+}
+
+/**
+ * Why a sitemap is being read — drives the label `search notify` prints beside it.
+ *
+ * - `configured`: listed in `seo.indexing.sitemapUrl` or passed as `--sitemap`.
+ * - `astro`: `<canonical>/sitemap-index.xml`, what `@astrojs/sitemap` writes.
+ * - `cms`: `<canonical>/sitemap.xml`, what EmDash serves from its database.
+ * - `pages`: `<canonical>/pages-sitemap.xml`, the build-time sitemap `vitops()` writes for the
+ *   routes a CMS sitemap cannot see (`src/pages`).
+ */
+export type SitemapRole = 'configured' | 'astro' | 'cms' | 'pages';
+
+/** One sitemap `search notify` looked at, and what it found there. */
+export interface SitemapReport {
+  url: string;
+  role: SitemapRole;
+  /** Fetched, parsed and held at least one `<url>`. Only these are submitted and diffed. */
+  used: boolean;
+  /** Entries found (0 when not `used`). */
+  entries: number;
+  /** Why it was not used, when it was not: `not found`, `empty`, … */
+  skip?: string | undefined;
 }

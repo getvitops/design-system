@@ -61,8 +61,8 @@ export const SearchConsoleSchema = z.strictObject({
 
 export const IndexingSchema = z.strictObject({
   sitemapUrl: desc(
-    z.optional(z.url()),
-    'The sitemap to submit and to diff for changed URLs. Defaults to `<canonical>/sitemap-index.xml`.',
+    z.optional(z.union([z.url(), z.array(z.url())])),
+    "The sitemap(s) to submit and to diff for changed URLs — one URL, or a list when a site serves more than one (an EmDash site's `/sitemap.xml` plus the `pages-sitemap.xml` `vitops()` writes for `src/pages` routes). Unset, `search notify` looks for `<canonical>/sitemap-index.xml` (Astro), `<canonical>/sitemap.xml` (EmDash) and `<canonical>/pages-sitemap.xml` and uses whichever exist; listing URLs here turns that discovery off.",
   ),
   indexNow: desc(
     z.optional(IndexNowSchema),
