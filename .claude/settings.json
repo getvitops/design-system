@@ -8,19 +8,5 @@
       "Bash(npx --no-install playwright cli:*)"
     ],
     "deny": ["mcp__claude-in-chrome__*", "mcp__playwright__*"]
-  },
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq -r '.tool_input.file_path' | { read -r f; npx vp check --fix --no-error-on-unmatched-pattern \"$f\"; } || true",
-            "statusMessage": "Formatting"
-          }
-        ]
-      }
-    ]
   }
 }

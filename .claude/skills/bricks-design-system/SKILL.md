@@ -112,5 +112,5 @@ property values are one-off and drift; reserve them for genuinely bespoke cases.
   `vp run release` versions + publishes via Changesets. The schema lives in
   `packages/generator/src/schema.ts` (single source of truth) → emits `packages/generator/schema.json`.
 
-Lint/format/typecheck run automatically on save and via a PostToolUse hook — don't invoke
-`vp check`/`fmt`/`lint` as a manual verification step.
+Formatting is applied by the pre-commit hook (`vp check --fix`); run `vp check` yourself once a
+change is complete.

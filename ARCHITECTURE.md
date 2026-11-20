@@ -549,7 +549,6 @@ vp test run             # Vitest, once
 vp check                # lint + fmt + typecheck — run this before committing
 ```
 
-Formatting and mechanical lint fixes apply automatically on save and via a `PostToolUse` hook, so
-don't invoke `vp fmt` to tidy a file you just wrote. The hook ends in `|| true` on purpose — a
-multi-edit change is legitimately type-broken in between — so **hook silence proves nothing**. Run
-`vp check` yourself at a verification point and read its output.
+There is no format-on-edit hook. The `staged` key in `vite.config.ts` runs `vp check --fix` in the
+pre-commit hook, which is the real gate. Run `vp check` yourself at a verification point (a change
+is complete, before committing) and read its output.
