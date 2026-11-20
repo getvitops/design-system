@@ -1,5 +1,15 @@
 # @getvitops/vite
 
+## 9.0.0-alpha.8
+
+### Patch Changes
+
+- Updated dependencies [c66bda9]
+- Updated dependencies [0414685]
+- Updated dependencies [c38ce48]
+  - @getvitops/utils@9.0.0-alpha.8
+  - @getvitops/generator@9.0.0-alpha.8
+
 ## 9.0.0-alpha.7
 
 ### Patch Changes

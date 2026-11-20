@@ -11,6 +11,35 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 9.0.0-alpha.8 (+ `@getvitops/emdash` 2.0.0-alpha.8, `@getvitops/create` 0.9.0-alpha.8) — alpha channel
+
+Scroll-aware chrome, sitemaps that work on EmDash sites, and responsive AVIF block images. Prerelease on the `alpha` dist-tag; not on `latest`.
+
+**Breaking**
+
+- **`site.chrome.masthead` scroll flags are replaced by `states`** (css/bricks/tailwind, all formats). `behavior`, `surface: "transparent-until-scrolled"` and `elevation.onScroll` are gone; `resolveMasthead` throws naming each move. `behavior: "reveal-on-scroll"` → `states.atStart.hidden: true`; `"hide-on-scroll"` → `states.scrollingToEnd.hidden: true`; `transparent-until-scrolled` → the settled `surface` plus `states.atStart.surface: "transparent"`; `elevation.onScroll` → `states.atStart.elevation: false`. The old `.masthead--*-on-scroll` classes remain as aliases for hand-written markup.
+  **Added**
+
+- `.scroll-edges` / `<ScrollEdges>`, `<BackToTop>` / `site.chrome.backToTop`, `<ScrollCue>`, `<Toc>`, and a scrollspy polyfill (`scroll-target-group`) for engines without `:target-current` (all formats).
+- `<SiteFooter>` renders a "Powered by Vitops" credit by default; `credit={false}` removes it.
+- **EmDash sitemaps:** with `emdash()` registered, `vitops({ sitemap })` writes a git-dated `public/pages-sitemap.xml` for `src/pages` routes (nothing when there are none). `seo.indexing.sitemapUrl` accepts a list, `search notify` discovers and submits every sitemap present, and `vitops robots` emits one `Sitemap:` line each. CI needs `fetch-depth: 0`; the shared deploy workflow does this.
+- `@getvitops/emdash`: `vitops_hero` (split) and `vitops_imageCompare` take media-picker images, and those plus `vitops_cards` take an optional image shape that turns on a responsive AVIF `srcset`. Existing content is unchanged.
+
+`@getvitops/vite`, `@getvitops/utils`, `@getvitops/config`, `@getvitops/cli`: no consumer-facing change beyond the above. Per-package detail ships in each package's `CHANGELOG.md`.
+
+## 9.0.0-alpha.7 (+ `@getvitops/emdash` 2.0.0-alpha.7, `@getvitops/create` 0.9.0-alpha.7) — alpha channel
+
+Accessibility fixes from a web-standards audit (batches A–E), plus `<Tooltip>` and `<wc-notifications>` / `<Notifications>`. Prerelease on the `alpha` dist-tag.
+
+**Breaking**
+
+- `<Drawer>` always renders a close button and the dialog is named.
+- Form errors are announced through one page-level region; `<wc-field>` no longer puts `aria-live` on its error node.
+- `<SiteNav>` desktop submenus no longer open on `:focus-within`; the caret disclosure is the keyboard path.
+- `<wc-copy>` fires `copy-success`, not `copy`.
+
+**Fixed:** `<wc-entries>` enhanced-state stylesheet restored; `<wc-carousel>` Pause sticks; elements survive a DOM move; `<wc-turnstile>` no longer traps the form when its script is blocked; popover open-state rules work under the polyfill; RTL slide direction, dialog `dvh`, dark-mode and reduced-motion fixes. Full lists, with the formats each reaches, are in `@getvitops/core`'s `CHANGELOG.md`.
+
 ## 9.0.0-alpha.6 (+ `@getvitops/emdash` 2.0.0-alpha.6, `@getvitops/create` 0.9.0-alpha.6, `@getvitops/skills` 0.1.0-alpha.3) — alpha channel
 
 A WCAG 2-only contrast contract, a high-contrast layer and accessibility statement, the config form (fields, stepper, rows, colour picker, live validation and a live preview in the browser), location and service pages, EmDash environments, and a set of foundational elements (tabs, breadcrumbs, combobox, format, range). Major because the contrast contract changed.

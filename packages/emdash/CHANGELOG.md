@@ -1,5 +1,35 @@
 # @getvitops/emdash
 
+## 2.0.0-alpha.8
+
+### Minor Changes
+
+- d09d9b5: **Image blocks can serve a responsive AVIF `srcset`, and their image fields are now media pickers.** `vitops_hero` (split layout) and `vitops_imageCompare` pick their image from the media library instead of asking for a URL, and those two plus `vitops_cards` gain an optional **image shape** field (`16:9`, `1200x800`, `1.5`). With a shape stated, the block renders `srcset`/`sizes`/`width`/`height` in AVIF (eight widths, 640–1920) through Astro's image endpoint, which EmDash wraps so the resize happens at request time through the Cloudflare `IMAGES` binding. No build re-encodes the images, so CI has nothing to cache for CMS media. With no shape stated the block renders the same plain `<img>` as before: **existing content is unchanged and nothing needs migrating.**
+
+  - **Needs the site's URL when `astro build` runs.** EmDash only authorizes the site origin for image transforms when it knows it at build time; without it the block falls back to the plain `<img>` (nothing breaks, nothing is optimized). `site-deploy-emdash.yml` now reads it from `site.json` (`site.environments.dev.url` for the dev deploy, `site.environments.production.url` for prod) and sets `EMDASH_SITE_URL` for the build. A build outside that workflow sets `EMDASH_SITE_URL` itself.
+  - **Cost:** Cloudflare bills each unique source image × width once per month (5,000 free). AVIF only, so one format per width; up to eight widths per image.
+  - **AVIF only is deliberate:** a browser without AVIF (~3%) shows a broken image rather than a degraded one. See `TODO(support)` in `BlockImage.astro`.
+  - `vitops_cards` keeps a URL field for its image: the `@emdash-cms/blocks` types in EmDash 1.4.0 allow only text, number, select and toggle sub-fields in a repeater, so a media picker there waits for a newer EmDash (its docs describe one). The shape field works with a pasted URL.
+  - Not changed: `vitops_logos`, `vitops_marquee`, `vitops_gallery` and `vitops_carousel` still take URLs and render plain `<img>`.
+  - `@getvitops/create`: the emdash template declares the `IMAGES` binding explicitly in `wrangler.jsonc` (a missing binding silently serves full-size originals), and `@getvitops/emdash`'s `vitopsHosting()` states `imageService: 'cloudflare-binding'` instead of inheriting the adapter default. Formats reached: n/a (no pattern CSS).
+
+- c38ce48: Scroll-aware chrome (new CSS: all formats).
+
+  - **Scroll states (BREAKING for `site.chrome.masthead`).** `masthead.states` describes the bar as a partial look per scroll state — `atStart`, `atEnd`, `scrollingToEnd`, `scrollingToStart`, later wins — with `layout`, `height`, `inset`, `surface`, `elevation` (or `false`) and `hidden`, and every change animates. That makes a full-width banner at the top that floats once scrolled, a bar hidden until first scroll (a hero fills the viewport), and hide-on-scroll all the same feature. A state that hides the bar at the start, or changes size or layout, implies `position: fixed`; the bar never hides while focused or a menu is open; Firefox (no `scroll-state()`) keeps the settled look. The vocabulary is shared (`SCROLL_STATES` / `scrollStateQuery()` from `@getvitops/config`; the custom-property hooks are `--<pattern>-<state>-<prop>`), and the page container is now named `page`.
+    - **Migration** (`resolveMasthead` throws naming each): `behavior: "reveal-on-scroll"` → `states.atStart.hidden: true`; `behavior: "hide-on-scroll"` → `states.scrollingToEnd.hidden: true`; `surface: "transparent-until-scrolled"` → the settled `surface` plus `states.atStart.surface: "transparent"`; `elevation.onScroll` → `states.atStart.elevation: false`. The old `.masthead--hide-on-scroll` / `--transparent-until-scrolled` / `--shadow-on-scroll` / `--border-on-scroll` classes remain in the CSS as aliases for hand-written markup; `<Masthead>` no longer emits them.
+  - **`.scroll-edges`, `<ScrollEdges>`** (new `scroll-edges.css`): a horizontal strip that fades at an edge while there is more to scroll that way, using the same `at-start` / `at-end` states on the inline axis. Both fades show where `scroll-state()` is unsupported.
+  - **`<BackToTop>`, `site.chrome.backToTop`** (rendered by `<SiteFooter config={site}>`) and **`<ScrollCue>`** (`.back-to-top`, `.scroll-cue`, new `scroll-button.css`). Plain `#anchor` links; hidden by `scroll-state()` queries, always shown where unsupported.
+  - **`<Toc headings>`** and a scrollspy fallback: `polyfills.js` now loads a small IntersectionObserver (`scroll-target-group` polyfill) that sets `.is-current` and `aria-current="location"` where `:target-current` is missing. New polyfill name `scroll-target-group` is valid in `vitops({ polyfills: { disable } })`.
+  - **`vitops_hero`** gains `scrollCue` and `scrollCueLabel` fields.
+
+### Patch Changes
+
+- Updated dependencies [c66bda9]
+- Updated dependencies [0414685]
+- Updated dependencies [c38ce48]
+  - @getvitops/utils@9.0.0-alpha.8
+  - @getvitops/generator@9.0.0-alpha.8
+
 ## 2.0.0-alpha.7
 
 ### Patch Changes

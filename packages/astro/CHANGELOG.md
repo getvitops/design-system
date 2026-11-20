@@ -1,5 +1,44 @@
 # @getvitops/astro
 
+## 9.0.0-alpha.8
+
+### Minor Changes
+
+- c66bda9: Sitemap `<lastmod>` on EmDash sites (all formats — no CSS change).
+
+  EmDash dates every CMS entry in its own `/sitemap.xml`, but cannot list `src/pages` routes and offers no way to add them; the only escape (a hand-written `sitemap.xml` route) discards its dates. Hybrid sites were left with undated pages and `search notify` advice (`gitLastmod()` in the `sitemap` option) that did nothing under EmDash.
+
+  - **`vitops({ sitemap })` now works with `emdash()` registered** (it used to warn and skip). A build writes `public/pages-sitemap.xml` for the `src/pages` routes only, dated from git, and writes **nothing** when there are none. New `sitemap.exclude` option for a page that only renders a CMS entry. A file without the generated marker is never replaced. CI needs full history (`fetch-depth: 0`); the shared `site-deploy-emdash.yml` now does this.
+  - **`seo.indexing.sitemapUrl` accepts a list.** Unset, `search notify` discovers `sitemap-index.xml` (Astro), `sitemap.xml` (EmDash) and `pages-sitemap.xml` and uses the ones that exist and hold a `<url>`; an explicit value turns discovery off. Previously an EmDash site with no `sitemapUrl` derived `sitemap-index.xml`, which EmDash does not serve.
+  - **`search notify` output lists every sitemap** with why it is there (`required for non-EmDash content (src/pages)`), submits each to Search Console, and names up to three URLs missing a `<lastmod>`. `vitops robots` emits one `Sitemap:` line per listed URL.
+  - Migration: none required. `@getvitops/emdash`, `@getvitops/core`, `@getvitops/vite`: No consumer-facing change in this package.
+
+- 0414685: `<SiteFooter>` now renders a "Powered by Vitops" link to https://vitops.ca after the copyright line, on by default. Pass `credit={false}` to remove it; a white-label config option will drive this later. If you hand-write a footer, add the attribution yourself.
+
+  Pattern CSS (`sitenav.css`): new `.sitefooter__base` row wrapping `.sitefooter__copy` and `.sitefooter__credit`. Reaches css/bricks and tailwind formats (all formats).
+
+  `<wc-format>` / `<Format>` gain `fields` (show only `year`, `month`, `day`, `weekday`, `hour`, `minute`; replaces `date-style`/`time-style`) and `now` (format the current date instead of the `datetime`, which is updated to match). `<SiteFooter>` uses them for its copyright year, so a prerendered page shows the visitor's current year with JS and the build year without.
+
+- c38ce48: Scroll-aware chrome (new CSS: all formats).
+
+  - **Scroll states (BREAKING for `site.chrome.masthead`).** `masthead.states` describes the bar as a partial look per scroll state — `atStart`, `atEnd`, `scrollingToEnd`, `scrollingToStart`, later wins — with `layout`, `height`, `inset`, `surface`, `elevation` (or `false`) and `hidden`, and every change animates. That makes a full-width banner at the top that floats once scrolled, a bar hidden until first scroll (a hero fills the viewport), and hide-on-scroll all the same feature. A state that hides the bar at the start, or changes size or layout, implies `position: fixed`; the bar never hides while focused or a menu is open; Firefox (no `scroll-state()`) keeps the settled look. The vocabulary is shared (`SCROLL_STATES` / `scrollStateQuery()` from `@getvitops/config`; the custom-property hooks are `--<pattern>-<state>-<prop>`), and the page container is now named `page`.
+    - **Migration** (`resolveMasthead` throws naming each): `behavior: "reveal-on-scroll"` → `states.atStart.hidden: true`; `behavior: "hide-on-scroll"` → `states.scrollingToEnd.hidden: true`; `surface: "transparent-until-scrolled"` → the settled `surface` plus `states.atStart.surface: "transparent"`; `elevation.onScroll` → `states.atStart.elevation: false`. The old `.masthead--hide-on-scroll` / `--transparent-until-scrolled` / `--shadow-on-scroll` / `--border-on-scroll` classes remain in the CSS as aliases for hand-written markup; `<Masthead>` no longer emits them.
+  - **`.scroll-edges`, `<ScrollEdges>`** (new `scroll-edges.css`): a horizontal strip that fades at an edge while there is more to scroll that way, using the same `at-start` / `at-end` states on the inline axis. Both fades show where `scroll-state()` is unsupported.
+  - **`<BackToTop>`, `site.chrome.backToTop`** (rendered by `<SiteFooter config={site}>`) and **`<ScrollCue>`** (`.back-to-top`, `.scroll-cue`, new `scroll-button.css`). Plain `#anchor` links; hidden by `scroll-state()` queries, always shown where unsupported.
+  - **`<Toc headings>`** and a scrollspy fallback: `polyfills.js` now loads a small IntersectionObserver (`scroll-target-group` polyfill) that sets `.is-current` and `aria-current="location"` where `:target-current` is missing. New polyfill name `scroll-target-group` is valid in `vitops({ polyfills: { disable } })`.
+  - **`vitops_hero`** gains `scrollCue` and `scrollCueLabel` fields.
+
+### Patch Changes
+
+- Updated dependencies [c66bda9]
+- Updated dependencies [0414685]
+- Updated dependencies [c38ce48]
+  - @getvitops/config@9.0.0-alpha.8
+  - @getvitops/utils@9.0.0-alpha.8
+  - @getvitops/generator@9.0.0-alpha.8
+  - @getvitops/core@9.0.0-alpha.8
+  - @getvitops/vite@9.0.0-alpha.8
+
 ## 9.0.0-alpha.7
 
 ### Minor Changes
