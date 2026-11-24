@@ -46,8 +46,14 @@ const tokenVar = (role: string, key: string): string => {
  * be wrong for one of them. Grouped by target so each row is one comparable axis.
  */
 const targetOf = (key: string) => (key.includes('-') ? key.slice(0, key.indexOf('-')) : key);
+// The manifest is a JSON import, so its ramp and kind keys are literal types; a role names its
+// ramp and kind as plain strings, so index it through a looser view of the same data.
+const roleTokens = manifest.colors.roleTokens as Record<
+  string,
+  Record<string, { light?: Record<string, string> } | undefined> | undefined
+>;
 const tokensFor = (role: { name: string; ramp: string; kind: string }, target: string) =>
-  Object.keys(manifest.colors.roleTokens[role.ramp]?.[role.kind]?.light ?? {}).filter(
+  Object.keys(roleTokens[role.ramp]?.[role.kind]?.light ?? {}).filter(
     (k) => targetOf(k) === target && !k.startsWith('text-on'),
   );
 
