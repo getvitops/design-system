@@ -11,6 +11,47 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 9.0.0 (+ `@getvitops/emdash` 2.0.0, `@getvitops/create` 0.9.0, `@getvitops/skills` 0.1.0) — unreleased
+
+> Draft: written from the changesets pending since `9.0.0-alpha.8`, ahead of the stable cut. Version numbers are confirmed when `changeset version` runs. A site coming from 8.x also needs the `9.0.0-alpha.*` entries below, which hold the rest of the 9.0 cycle (contrast contract, scroll-aware chrome, the config form, EmDash environments).
+
+The first stable 9.0: Astro 7.4 is the floor, `tailwind` is the default format, and the EmDash block set covers section bands, FAQ and review markup, locations and rich accordion bodies. Tested against the first sites onboarded onto the toolchain.
+
+**Breaking**
+
+- **The `astro` peer floor is `>=7.4`** (`@getvitops/astro`, `@getvitops/emdash`; was `>=7`). The integration is built and tested only against 7.4+. Migration: a site pinned below 7.4 raises `astro` to `^7.4.13`; a caret range already resolves there.
+- **The default output format is `tailwind`, not `bricks`** (`@getvitops/generator`, `@getvitops/cli`). `generate({ input })`, `vitops generate` and `vitops lint` with no format now target Tailwind. The Astro integration and `@getvitops/vite` already defaulted to it. Migration: a Bricks/WordPress pipeline that relied on the implicit default passes `--format bricks`. The `bricks` format itself is unchanged and is now labelled **not actively maintained**: it keeps building but gets no new patterns until it is rebuilt on the tailwind/css foundation.
+- **Behaviour change:** `vitops({ analytics })` and the consent categories now default from the site config (`@getvitops/astro`). A provider named in `site.analytics` now loads its tag even when `vitops()` omits `analytics`, so the cookie notice and the page agree; to keep one out, remove it from `site.analytics`. An object `consent` option no longer discards `site.legal.cookieConsent.categories`. Migration: delete the copied `analytics` option and any `consent: { categories }` that only worked around the replacement.
+
+**Added**
+
+- **EmDash blocks** (`@getvitops/emdash`; no CSS change unless noted):
+  - `vitops_band` and `<VitopsContent>`: full-width sections inside a Portable Text field. A band is a marker that opens a section around the blocks after it; render the field with `<VitopsContent value={content} />` where you used `<PortableText>`. Both scaffolded pages now do.
+  - A **backdrop image** on `vitops_section` and `vitops_band`, darkened by the tone's solid so text contrast stays the tone's guarantee. CSS in **all formats** (`@getvitops/core`). The section block type moves to version 2; version 1 is kept, so existing databases stay valid.
+  - `vitops_testimonial` (quote, attribution, stars) and `vitops_location` (one `organization.locations` entry with `LocalBusiness` JSON-LD, served through a new `virtual:getvitops/organization` module from `vitops()`).
+  - `vitops_accordion` can emit `FAQPage` JSON-LD and `vitops_testimonial` can emit `Review` JSON-LD. Both are **off by default**: Google shows FAQ rich results only for government and health sites and ignores reviews a business writes about itself.
+  - Accordion and details bodies take lists and `**bold**` as well as paragraphs and links, rendered as elements, never as HTML. `**bold**` now also works wherever a block reads `[text](url)` links.
+  - `vitops emdash check-seed [seed.json]` checks every `vitops_*` block in a seed (unknown types, misspelled fields with a suggestion, bad select values, empty rows), which EmDash's own `validateSeed` does not.
+- **`<ContactForm />`** (`@getvitops/astro`) is a no-JS contact form that posts to `createConversionRoute()` and keeps clear of the route's reserved field names (a field named `phone` is dropped; a filled `website`/`honeypot` is answered as success and delivers nothing). It is also what `vitops_form` renders. The pure decisions are in `@getvitops/utils/contact-form`. Migration: none required; a hand-written `api/contact.ts` and form can be replaced.
+- **`<SiteFooter>` and `<Masthead>` read `organization`**: the logo, and a contact column with address, phone, email, hours and profile links. A footer gutter (`--sitefooter-gutter`) and logo hooks arrive with them. CSS in **all formats**; a site with its own `brand` slot keeps its markup.
+- **`vitops report`** (`@getvitops/cli`) drafts a redacted issue for the toolchain's public tracker, and a triage bot labels what arrives. It files nothing without a person's confirmation. The `vitops-report-issue` skill (`@getvitops/skills`) teaches the sequence.
+- **`vitops:tag`** (`@getvitops/core`, `@getvitops/astro`): the consent runtime announces each gated tag it activates, and a Google Ads conversion that happens before the tag has loaded is queued and sent instead of dropped. `consent.js` grows by about 100 bytes gzipped, all formats.
+
+**Fixed**
+
+- `<Breadcrumbs>` accepts the `<nav>`'s HTML attributes in its types (types only).
+- Consent revoke deletes cookies with an `expires` date as well as `max-age=0`; no change on a real page, and it ends an intermittent failure in the DOM tests (all formats).
+- `vitops_embed` accepts the classic `maps.google.com/maps?...&output=embed` address.
+- The "`<EmDashHead>` emits the same tags" warning fires only when `vitops({ seo })` is passed explicitly.
+- The EmDash template ignores `src/styles/design-manifest.json`, and its `promote.yml` grants the permissions the reusable promote workflow needs. Existing sites add `contents: write` and `pull-requests: write` to the `promote` job.
+
+**Templates and tooling**
+
+- Both templates move to **Vite+ 1.7** (`vite-plus ^1.7.0` and `vite: npm:@voidzero-dev/vite-plus-core@^8.3.8000`, which must move together) and to current ranges for `astro ^7.4.13`, `wrangler`, `playwright`, `emdash`, `@astrojs/cloudflare`, `@astrojs/react` and Tailwind. `@cloudflare/workers-types` moves from 4.x to 5.x together with `wrangler`. The repo's own catalog moved to the same levels, including `zod` 4.6.7. TypeScript 7 is not yet the template floor: `astro check` does not support it before TypeScript 7.1.
+- `emdash-building-pages` now says how to choose a section's width and layout, and the `vitops-consent` and `emdash-contact-form` skills describe the new behaviour.
+
+`@getvitops/vite`, `@getvitops/config`: no consumer-facing change. Per-package detail ships in each package's `CHANGELOG.md`.
+
 ## 9.0.0-alpha.8 (+ `@getvitops/emdash` 2.0.0-alpha.8, `@getvitops/create` 0.9.0-alpha.8) — alpha channel
 
 Scroll-aware chrome, sitemaps that work on EmDash sites, and responsive AVIF block images. Prerelease on the `alpha` dist-tag; not on `latest`.
