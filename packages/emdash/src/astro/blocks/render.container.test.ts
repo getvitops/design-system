@@ -222,7 +222,7 @@ describe('vitops_tabs', () => {
     const html = await render(Tabs, { level: '4', tabs });
     expect(html).toContain('<wc-tabs');
     expect(html).toContain('class="tabs"');
-    expect(html).toContain('<section><h4>Overview</h4><p>About us.</p></section>');
+    expect(html).toContain('<section id="overview"><h4>Overview</h4><p>About us.</p></section>');
     expect(html).toContain('<h4>Pricing</h4>');
   });
 
