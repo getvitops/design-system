@@ -24,8 +24,11 @@ depending on a separate TypeScript install for its type pass.
   through `@astrojs/ts-content-mapper`, and `astro check` is to be deprecated. So 7.1 is what unblocks
   this: switch both templates' `typecheck` script to that setup, then raise `typescript` to `^7`, and
   confirm `vp run verify:scaffold` typechecks both.
-- Check whether `site/` (on the catalog's TypeScript 7.0.2 with `@astrojs/check`) type-checks anywhere;
-  `vp check` and the scaffold do not cover it.
+- `site/` is pinned to `typescript ^6.0.3` in its own `package.json` (not the catalog) because
+  `astro check` refuses 7.0. Point it back at `catalog:` in the same change. Its typecheck is covered by
+  neither `vp check` nor the scaffold, and currently reports 2 errors from before the TypeScript 7 bump
+  (`src/pages/patterns.astro:1289`, the `<Breadcrumbs schema={false}>` prop; `src/pages/theme.astro:50`,
+  indexing `manifest.colors.roleTokens` by a string): fix those, and consider running it in CI.
 - Check whether the type pass still needs the `@types/node` and DOM lib settings it has today.
 
 ## vNext release scope
