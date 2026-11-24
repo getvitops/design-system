@@ -139,6 +139,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
     sub: 'A band opens a section; the blocks after it sit inside.',
     layout: 'stack',
     width: 'measure',
+    backdrop: IMG.wide,
     tone: 'surface',
   },
   vitops_testimonial: {

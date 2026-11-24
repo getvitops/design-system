@@ -233,10 +233,14 @@ describe('semantic icon options', () => {
 describe('vitops_section block type', () => {
   const [section] = vitopsBlockTypes();
 
-  it('is a valid block-type slug (no dot) and versioned from 1', () => {
+  it('is a valid block-type slug (no dot) and versioned from 1, with each shipped version kept', () => {
     expect(section!.slug).toMatch(/^[a-z][a-z0-9_]*$/);
-    expect(section!.currentVersion).toBe(1);
-    expect(section!.versions.map((v) => v.version)).toEqual([1]);
+    expect(section!.currentVersion).toBe(2);
+    expect(section!.versions.map((v) => v.version)).toEqual([1, 2]);
+    // v1 is what existing databases hold: it must not gain a field (the backdrop is v2).
+    const v1 = section!.versions[0]!.fields.map((f) => f.slug);
+    expect(v1).not.toContain('backdrop');
+    expect(section!.versions[1]!.fields.map((f) => f.slug)).toContain('backdrop');
   });
 
   it('has a Portable Text body — the reason it is a block type, not a Portable Text block', () => {

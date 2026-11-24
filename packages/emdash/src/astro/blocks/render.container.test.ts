@@ -618,6 +618,26 @@ describe('vitops_section', () => {
     expect(html).toContain('alt="Acme"');
   }, 60_000);
 
+  it('puts a decorative backdrop image behind the band, from a URL or an object', async () => {
+    const { default: Section } = await import('./Section.astro');
+    const container = await AstroContainer.create();
+    const go = async (backdrop: unknown) =>
+      container.renderToString(Section as unknown as Component, {
+        props: { value: { heading: 'Our work', tone: 'brand-primary', backdrop } },
+      });
+    for (const backdrop of ['/img/yard.jpg', { src: '/img/yard.jpg' }]) {
+      const html = await go(backdrop);
+      expect(html).toContain('section--backdrop');
+      const img = /<img[^>]*>/.exec(html)![0];
+      expect(img).toContain('class="section__backdrop"');
+      // Astro writes an empty alt as a bare `alt`, which HTML reads as alt="" (decorative).
+      expect(img).toMatch(/\salt(="")?[\s>]/);
+      expect(html).toContain('/img/yard.jpg');
+    }
+    expect(await go(undefined)).not.toContain('section--backdrop');
+    expect(await go('javascript:alert(1)')).not.toContain('section--backdrop');
+  }, 60_000);
+
   it('is a page opener: accent heading, two actions and a rhythm stack', async () => {
     const { default: Section } = await import('./Section.astro');
     const container = await AstroContainer.create();

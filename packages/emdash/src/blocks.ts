@@ -597,6 +597,12 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
           { label: 'Edge to edge', value: 'fullbleed' },
         ],
       },
+      {
+        type: 'media_picker',
+        action_id: 'backdrop',
+        label: 'Backdrop image (decorative, behind the heading and content; the tone darkens it)',
+        mime_type_filter: 'image/',
+      },
       ...toneFields(),
       {
         type: 'toggle',

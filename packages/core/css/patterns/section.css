@@ -43,6 +43,37 @@
   }
 }
 
+/* A decorative photo behind the whole band. The scrim is the tone's solid (black with no tone) at
+   --section-scrim-strength, and the text is that solid's computed foreground (white with no tone),
+   so contrast is the tone's guarantee rather than the photo's. `isolation` keeps the negative
+   z-index images inside the band. */
+.section.section--backdrop {
+  position: relative;
+  isolation: isolate;
+  color: var(--tone-on-solid, #fff);
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: color-mix(
+      in oklab,
+      var(--tone-solid, #000) var(--section-scrim-strength, 60%),
+      transparent
+    );
+  }
+
+  .section__backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+}
+
 @container (min-width: 48rem) {
   .section.section--split .section__inner {
     grid-template-columns:
