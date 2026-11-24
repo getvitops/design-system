@@ -18,8 +18,14 @@ depending on a separate TypeScript install for its type pass.
   the comment in `pnpm-workspace.yaml`).
 - Re-run the full gate: `vp check`, `vp test run`, `vp run build:packages`, `vp run verify:packages`,
   `vp run verify:scaffold`.
-- Decide then whether the two templates leave TypeScript 6 (`^6.0.3`). They stayed on 6 when the repo
-  moved to 7.0 because `@astrojs/check` support for 7 was not confirmed; recheck that first.
+- **Make TypeScript 7 the templates' floor** (they are on `^6.0.3`). Tried on 7.0.2 and it fails:
+  `astro check` exits with "astro check does not currently support TypeScript 7.0" (and
+  `@astrojs/check` 0.9.12 peers `typescript ^5 || ^6`). Astro's stated path is experimental 7.1+ support
+  through `@astrojs/ts-content-mapper`, and `astro check` is to be deprecated. So 7.1 is what unblocks
+  this: switch both templates' `typecheck` script to that setup, then raise `typescript` to `^7`, and
+  confirm `vp run verify:scaffold` typechecks both.
+- Check whether `site/` (on the catalog's TypeScript 7.0.2 with `@astrojs/check`) type-checks anywhere;
+  `vp check` and the scaffold do not cover it.
 - Check whether the type pass still needs the `@types/node` and DOM lib settings it has today.
 
 ## vNext release scope
