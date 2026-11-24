@@ -8,6 +8,12 @@
  *   <SiteFooter {sitemap} {legal} name={siteTitle} />
  *
  * A `brand` slot (a logo, a blurb) renders as the first column, so the markup stays the site's own.
+ * With no slot, `organization.logo` from `config` fills that column, and a **contact column**
+ * follows the menus: the address, a dialable phone, the email, the opening hours of one location
+ * and the public profile links, all read from the same `organization` (`footer.ts`). Name the
+ * location with `location` (default: the one `organization.contact` points at, else the first);
+ * `contact={false}` and `logo={false}` turn each off. A column only appears for facts the config
+ * states, so a site that gives none gets the footer it had.
  *
  * Both menus are optional and each renders only if it has items, so a one-page site
  * gets just the copyright line. `name` is `organization.name`.
@@ -29,6 +35,7 @@
  */
 import BackToTop from './BackToTop.astro';
 import { resolveBackToTop, type ChromeSource } from './masthead.ts';
+import { resolveContact, resolveLogo } from './footer.ts';
 import { isCurrent, linkRel, menuItems, type NavMenuInput } from './sitenav.ts';
 
 interface Props {
@@ -49,8 +56,21 @@ interface Props {
   sitemapLabel?: string;
   legalLabel?: string;
   current?: string;
-  /** The site config; `site.chrome.backToTop` adds a floating back-to-top link after the footer. */
+  /**
+   * The site config. `site.chrome.backToTop` adds a floating back-to-top link after the footer;
+   * `organization` supplies the logo and the contact column.
+   */
   config?: ChromeSource;
+  /** Render the contact column (address, phone, email, hours, profile links). Default true. */
+  contact?: boolean;
+  /** Which `organization.locations` key supplies the hours (and any fact the organization omits). */
+  location?: string;
+  /** Show `organization.logo` in the brand column when there is no `brand` slot. Default true. */
+  logo?: boolean;
+  /** Accessible names and headings for the contact column. */
+  contactLabel?: string;
+  hoursLabel?: string;
+  socialLabel?: string;
   class?: string;
 }
 
@@ -64,11 +84,20 @@ const {
   legalLabel = 'Legal',
   current = Astro.url.pathname,
   config,
+  contact: showContact = true,
+  location,
+  logo: showLogo = true,
+  contactLabel = 'Contact',
+  hoursLabel = 'Hours',
+  socialLabel = 'Social',
   class: className,
 } = Astro.props;
 const backToTop = resolveBackToTop(config);
 
-const hasBrand = Astro.slots.has('brand');
+const hasBrandSlot = Astro.slots.has('brand');
+const logo = showLogo && !hasBrandSlot ? resolveLogo(config?.organization) : null;
+const hasBrand = hasBrandSlot || logo !== null;
+const contactInfo = showContact ? resolveContact(config?.organization, location) : null;
 const sitemapItems = menuItems(sitemap);
 const columns = sitemapItems
   .filter((item) => (item.children?.length ?? 0) > 0)
@@ -81,11 +110,24 @@ const groups = [
 ---
 
 <footer class:list={['sitefooter', className]}>
-  {(groups.length > 0 || columns.length > 0 || hasBrand) && (
+  {(groups.length > 0 || columns.length > 0 || hasBrand || contactInfo) && (
     <div class="sitefooter__nav">
       {hasBrand && (
         <div class="sitefooter__brand">
-          <slot name="brand" />
+          <slot name="brand">
+            {logo && (
+              <a class="sitefooter__logo" href="/">
+                <img
+                  src={logo.src}
+                  alt={logo.alt || 'Home'}
+                  width={logo.width}
+                  height={logo.height}
+                  loading="lazy"
+                  decoding="async"
+                />
+              </a>
+            )}
+          </slot>
         </div>
       )}
       {columns.map((col) => (
@@ -110,6 +152,64 @@ const groups = [
           </ul>
         </nav>
       ))}
+      {contactInfo && (
+        <div class="sitefooter__group sitefooter__group--contact">
+          <p class="sitefooter__heading font-eyebrow" id="sitefooter-contact">
+            {contactLabel}
+          </p>
+          {contactInfo.address.length > 0 && (
+            <address class="sitefooter__address">
+              {contactInfo.address.map((line, i) => (
+                <>
+                  {i > 0 && <br />}
+                  {line}
+                </>
+              ))}
+            </address>
+          )}
+          {(contactInfo.phone || contactInfo.email) && (
+            <ul class="sitefooter__list sitefooter__list--column" role="list">
+              {contactInfo.phone && (
+                <li>
+                  <a class="sitefooter__link" href={contactInfo.phone.href}>
+                    {contactInfo.phone.display}
+                  </a>
+                </li>
+              )}
+              {contactInfo.email && (
+                <li>
+                  <a class="sitefooter__link" href={`mailto:${contactInfo.email}`}>
+                    {contactInfo.email}
+                  </a>
+                </li>
+              )}
+            </ul>
+          )}
+          {contactInfo.hours.length > 0 && (
+            <dl class="sitefooter__hours" aria-label={hoursLabel}>
+              {contactInfo.hours.map((h) => (
+                <div>
+                  <dt>{h.days}</dt>
+                  <dd>{h.time}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {contactInfo.links.length > 0 && (
+            <nav aria-label={socialLabel}>
+              <ul class="sitefooter__list" role="list">
+                {contactInfo.links.map((l) => (
+                  <li>
+                    <a class="sitefooter__link" href={l.href} rel="noopener noreferrer">
+                      {l.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
+        </div>
+      )}
       {groups.map((g) => (
         <nav class={`sitefooter__group sitefooter__group--${g.kind}`} aria-label={g.label}>
           <ul class="sitefooter__list" role="list">

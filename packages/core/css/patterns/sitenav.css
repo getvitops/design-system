@@ -738,6 +738,13 @@
   border-block-start: 1px solid var(--color-border-neutral, currentColor);
 }
 
+/* A footer that is not itself a `.centered` grid has no track to supply a gutter, so the logo and
+   columns would sit flush against the viewport edge on a wide screen. Same rule the masthead
+   applies to its `width: full` row. */
+.sitefooter:not(.centered) {
+  padding-inline: var(--sitefooter-gutter, 1rem);
+}
+
 .sitefooter__nav {
   display: flex;
   flex-wrap: wrap;
@@ -751,6 +758,48 @@
   display: grid;
   gap: 0.75rem;
   align-content: start;
+}
+
+.sitefooter__logo {
+  display: inline-flex;
+  align-self: start;
+
+  & img {
+    block-size: var(--sitefooter-logo-h, 3rem);
+    inline-size: auto;
+    max-inline-size: 100%;
+  }
+}
+
+.sitefooter__group--contact {
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+}
+
+.sitefooter__address {
+  font-style: normal;
+}
+
+/* Hours: day on the left, times on the right, one row per schedule. */
+.sitefooter__hours {
+  display: grid;
+  gap: 0.125rem;
+  margin: 0;
+
+  & > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.75rem;
+  }
+
+  & dt {
+    font-weight: 600;
+  }
+
+  & dd {
+    margin: 0;
+  }
 }
 
 .sitefooter__list {
