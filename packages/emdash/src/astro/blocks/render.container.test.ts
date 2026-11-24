@@ -398,6 +398,19 @@ vi.mock('virtual:getvitops/reviews', () => ({
     return fixtures.cache;
   },
 }));
+vi.mock('virtual:getvitops/organization', () => ({
+  default: {
+    defaultLocale: 'en',
+    locations: {
+      ottawa: {
+        name: 'Acme Ottawa',
+        phone: '613-555-0100',
+        address: { streetAddress: '1 Main St', addressLocality: 'Ottawa', addressRegion: 'ON' },
+      },
+      kanata: { name: 'Acme Kanata' },
+    },
+  },
+}));
 vi.mock('virtual:getvitops/icons', () => ({
   default: { ui: 'ph', brand: 'ph', overrides: {}, engine: 'none' },
 }));
@@ -932,5 +945,33 @@ describe('vitops_testimonial', () => {
     expect(
       await render(Testimonial, { ...base, rating: '', schema: true, itemName: 'x' }),
     ).not.toContain('ld+json');
+  });
+});
+
+describe('vitops_location', () => {
+  it('renders the named location with LocalBusiness JSON-LD, and escape hatches on its root', async () => {
+    const { default: Location } = await import('./Location.astro');
+    const html = await render(Location, { location: 'ottawa', anchor: 'visit', level: '3' });
+    expect(html).toMatch(/<article[^>]*id="visit"/);
+    expect(html).toContain('<h3>Acme Ottawa</h3>');
+    expect(html).toContain('1 Main St');
+    const ld = JSON.parse(/<script[^>]*ld\+json[^>]*>([\s\S]*?)<\/script>/.exec(html)![1]!);
+    expect(ld['@type']).toBe('LocalBusiness');
+    expect(ld.name).toBe('Acme Ottawa');
+  });
+
+  it('a blank key is the first location, and schema can be turned off', async () => {
+    const { default: Location } = await import('./Location.astro');
+    const html = await render(Location, { schema: false });
+    expect(html).toContain('Acme Ottawa');
+    expect(html).not.toContain('Acme Kanata');
+    expect(html).not.toContain('ld+json');
+  });
+
+  it('renders nothing for an unknown key outside dev', async () => {
+    const { default: Location } = await import('./Location.astro');
+    expect(
+      (await render(Location, { location: 'nope' })).replace(/<!--.*?-->/g, '').trim(),
+    ).toMatch(/^(<p>.*<\/p>)?$/);
   });
 });

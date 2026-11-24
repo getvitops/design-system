@@ -667,7 +667,8 @@ export const TIERS: Record<string, TierEntry> = {
     // No stylesheet: semantic HTML in the framework's existing vocabulary (`rhythm`, `table`, `cluster`).
     css: c([]),
     astro: [...a('LocationPage', 'css'), ...a('ServicePage', 'css')],
-    use: "`<LocationPage location={…} defaultLocale>` and `<ServicePage service={…} defaultLocale providerName>`: one `organization.locations` / `organization.services` entry as a page (name, address, hours table, photos, offers) plus its `LocalBusiness` / `Service` JSON-LD, with a slot for your own copy. Nothing scaffolds the route: write `src/pages/locations/[slug].astro` with `getStaticPaths()` over the record and `resolveSlug()` from `@getvitops/astro/schemas/graph-adapters.ts` (the idiom is in LocationPage's docblock). The key of the record, not the `slug`, is the entry's identity.",
+    emdash: ['vitops_location'],
+    use: "`<LocationPage location={…} defaultLocale>` and `<ServicePage service={…} defaultLocale providerName>`: one `organization.locations` / `organization.services` entry as a page (name, address, hours table, photos, offers) plus its `LocalBusiness` / `Service` JSON-LD, with a slot for your own copy. In EmDash, `vitops_location` places one location in content (a build-time import of `organization.locations`, `virtual:getvitops/organization`, served by `vitops()`). Nothing scaffolds the route: write `src/pages/locations/[slug].astro` with `getStaticPaths()` over the record and `resolveSlug()` from `@getvitops/astro/schemas/graph-adapters.ts` (the idiom is in LocationPage's docblock). The key of the record, not the `slug`, is the entry's identity.",
   },
   tabs: {
     css: c(

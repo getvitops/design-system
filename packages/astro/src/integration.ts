@@ -1001,6 +1001,45 @@ function virtualIconsPlugin(data: IconsData) {
   };
 }
 
+const ORGANIZATION_ID = 'virtual:getvitops/organization';
+const RESOLVED_ORGANIZATION_ID = `\0${ORGANIZATION_ID}`;
+
+/**
+ * `organization.locations` and the default locale as a build-time import, for server-rendered
+ * components that cannot read the config file (the EmDash `vitops_location` block runs in a
+ * Worker). Only the locations are exposed, not the rest of the config. With no site config, or a
+ * file that fails to resolve, it serves an empty set, so the block renders an editor placeholder
+ * and the build does not fail. The config is a watch file, so an edit reaches a dev server.
+ */
+function virtualOrganizationPlugin(configPath: string | undefined, siteEnv: string) {
+  return {
+    name: '@getvitops/astro:virtual-organization',
+    resolveId(id: string) {
+      return id === ORGANIZATION_ID ? RESOLVED_ORGANIZATION_ID : null;
+    },
+    load(this: { addWatchFile?: (id: string) => void } | void, id: string) {
+      if (id !== RESOLVED_ORGANIZATION_ID) return null;
+      let data: { defaultLocale: string; locations: Record<string, unknown> } = {
+        defaultLocale: 'en',
+        locations: {},
+      };
+      if (configPath) {
+        this?.addWatchFile?.(configPath);
+        try {
+          const cfg = resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv);
+          data = {
+            defaultLocale: cfg.site.defaultLocale,
+            locations: cfg.organization?.locations ?? {},
+          };
+        } catch {
+          // Serve the empty set: the block says why it is empty, and a build must not fail here.
+        }
+      }
+      return `export default ${JSON.stringify(data)};`;
+    },
+  };
+}
+
 const REVIEWS_ID = 'virtual:getvitops/reviews';
 const RESOLVED_REVIEWS_ID = `\0${REVIEWS_ID}`;
 
@@ -1782,6 +1821,10 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
             },
             plugins: [
               virtualReviewsPlugin(root),
+              virtualOrganizationPlugin(
+                siteInput ? resolve(root, siteInput) : undefined,
+                opts.site?.siteEnv ?? 'production',
+              ),
               virtualIconsPlugin(
                 iconsData ?? {
                   engine: 'none',

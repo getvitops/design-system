@@ -148,6 +148,12 @@ export const FIXTURES: Record<string, BlockFixture> = {
     rating: '5',
     tone: '',
   },
+  vitops_location: {
+    location: '',
+    level: '2',
+    schema: true,
+    tone: '',
+  },
   vitops_hero: {
     eyebrow: 'Ottawa and area',
     heading: 'Landscapes that last',

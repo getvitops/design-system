@@ -642,6 +642,27 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
+    type: 'vitops_location',
+    label: 'Location',
+    placeholder: 'A business location: address, phone, email, hours and photos',
+    category: 'Sections',
+    fields: [
+      {
+        type: 'text_input',
+        action_id: 'location',
+        label: 'Location key (an organization.locations key from site.json; blank = the first)',
+      },
+      levelField('2'),
+      ...toneFields(),
+      {
+        type: 'toggle',
+        action_id: 'schema',
+        label: 'Mark up for search engines (LocalBusiness)',
+        initial_value: true,
+      },
+    ],
+  },
+  {
     type: 'vitops_hero',
     label: 'Hero',
     placeholder: 'Page opener: heading, text, buttons and an optional image',

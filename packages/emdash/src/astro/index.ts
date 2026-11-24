@@ -25,6 +25,7 @@ import Form from './blocks/Form.astro';
 import Gallery from './blocks/Gallery.astro';
 import Hero from './blocks/Hero.astro';
 import ImageCompare from './blocks/ImageCompare.astro';
+import Location from './blocks/Location.astro';
 import Logos from './blocks/Logos.astro';
 import Marquee from './blocks/Marquee.astro';
 import Nav from './blocks/Nav.astro';
@@ -53,6 +54,7 @@ export const blockComponents = {
   vitops_tree: Tree,
   vitops_hero: Hero,
   vitops_marquee: Marquee,
+  vitops_location: Location,
   vitops_logos: Logos,
   vitops_steps: Steps,
   vitops_stats: Stats,
