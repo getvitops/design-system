@@ -11,6 +11,18 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 9.0.0-alpha.11 (+ `@getvitops/emdash` 2.0.0-alpha.12, `@getvitops/create` 0.9.0-alpha.10, `@getvitops/skills` 0.1.0-alpha.5) — alpha channel
+
+Prerelease on the `alpha` dist-tag; not on `latest`. `@getvitops/config`, `generator`, `utils` and `vite` carry **no consumer-facing change** beyond the `fixed` version bump.
+
+**Breaking**
+
+- **`<main>` is a landmark, not a layout: remove `centered` from it** (`@getvitops/cli`, `@getvitops/create`, `@getvitops/emdash`). With `<main class="centered">` every section, band and hero was a grid item in the reading-width track, so a tone or backdrop stopped at the text column. Bands now own their width. **Migration:** run `vitops lint --fix`. `vitops lint` now reports `<main class="centered …">` as an **error** in any `.astro`/`.html`/`.tsx`/`.vue`/`.svelte` file, and `--fix` removes the `centered` token (other classes stay). It cannot wrap hand-written page content, which is a per-page decision: give that content its own `<div class="centered">`. Content rendered through `<VitopsContent>` needs nothing.
+  - `@getvitops/emdash`: `<VitopsContent>` wraps each run of plain blocks (before, between or after bands) in `<div class="centered rhythm">`.
+  - `@getvitops/create`: both templates render `<main id="main">`; their pages put `centered` on the page content. Existing sites keep their layout until `--fix` is run.
+  - `@getvitops/core` (**all formats**): the `.centered > .section { grid-column: fullbleed }` rule added in alpha.10 is removed. A layout that still has `<main class="centered">` holds its sections to the reading width again until migrated.
+  - `@getvitops/skills`: `emdash-building-pages` explains the rule.
+
 ## `@getvitops/emdash` 2.0.0-alpha.11 — alpha channel
 
 Prerelease on the `alpha` dist-tag. Only `@getvitops/emdash` changes; the `fixed` toolchain group stays at 9.0.0-alpha.10, which is the version it needs (peer `@getvitops/astro >=9.0.0-alpha.6`).
