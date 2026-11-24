@@ -165,11 +165,7 @@ from the repo root instead. It still deploys through the identical `wrangler.jso
 environment-gate mechanism every client site uses — that mechanism is what's being
 dogfooded, not the specific workflow file. `docs.vitops.ca` moved here from GitHub Pages
 for exactly that reason: Pages was a deploy path no client site used, so the toolchain's
-real deploy code was never exercised by its own docs build. `.github/workflows/docs.yml`
-(the old Pages workflow) is kept only as a manual `workflow_dispatch` fallback — never on
-`push`, since both would otherwise race to claim `docs.vitops.ca` on two different
-platforms — and should be deleted outright once the Cloudflare prod deploy has succeeded
-at least once.
+real deploy code was never exercised by its own docs build. The old Pages workflow (`docs.yml`) was deleted once the Cloudflare prod deploy had succeeded.
 
 **The `scaffold` CI job is the only thing that installs a template the way a client does.** A
 template's `@getvitops/*` deps are `latest` (see `templates.test.ts` for why), so a plain scaffold

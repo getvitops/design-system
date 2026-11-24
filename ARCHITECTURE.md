@@ -225,19 +225,19 @@ each pattern is `packages/generator/src/tiers.ts` — see
 
 ## 2.1 Repo map
 
-| Path                 | What's in it                                                                                                                                                                                                              |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/`          | The eight workspace packages                                                                                                                                                                                              |
-| `site/`              | The public docs site (private, isolated from the release DAG)                                                                                                                                                             |
-| `lib/`               | `build-theme.ts` (dogfoods the generator), `deploy.ts` (rsync/symlink)                                                                                                                                                    |
-| `src/`               | **Only** `design-system.json` — this repo's dev/example config                                                                                                                                                            |
-| `bricks/`            | `load.php` + `elements/*.php` (13 Bricks elements). No `packages/bricks` yet.                                                                                                                                             |
-| `docs/`              | The OKF documentation bundle — **generated and tracked**                                                                                                                                                                  |
-| `dist/`              | The deployable Bricks payload — gitignored                                                                                                                                                                                |
-| `public/`            | The repo's own favicon set                                                                                                                                                                                                |
-| `index.html`         | Human/local-dev docsite; dogfoods the built `css` format                                                                                                                                                                  |
-| `.changeset/`        | Changesets config (the `fixed` group lives here)                                                                                                                                                                          |
-| `.github/workflows/` | `ci.yml`; `site-{ci,deploy-static,deploy-emdash,promote}.yml` (reusable, `@v1`); `deploy-{dev,prod}.yml` + `promote.yml` (this repo's own docs deploy); `release-workflows.yml`; `docs.yml` (Pages, manual fallback only) |
+| Path                 | What's in it                                                                                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/`          | The eight workspace packages                                                                                                                                                    |
+| `site/`              | The public docs site (private, isolated from the release DAG)                                                                                                                   |
+| `lib/`               | `build-theme.ts` (dogfoods the generator), `deploy.ts` (rsync/symlink)                                                                                                          |
+| `src/`               | **Only** `design-system.json` — this repo's dev/example config                                                                                                                  |
+| `bricks/`            | `load.php` + `elements/*.php` (13 Bricks elements). No `packages/bricks` yet.                                                                                                   |
+| `docs/`              | The OKF documentation bundle — **generated and tracked**                                                                                                                        |
+| `dist/`              | The deployable Bricks payload — gitignored                                                                                                                                      |
+| `public/`            | The repo's own favicon set                                                                                                                                                      |
+| `index.html`         | Human/local-dev docsite; dogfoods the built `css` format                                                                                                                        |
+| `.changeset/`        | Changesets config (the `fixed` group lives here)                                                                                                                                |
+| `.github/workflows/` | `ci.yml`; `site-{ci,deploy-static,deploy-emdash,promote}.yml` (reusable, `@v1`); `deploy-{dev,prod}.yml` + `promote.yml` (this repo's own docs deploy); `release-workflows.yml` |
 
 **The root `package.json` has no `scripts` block.** Everything goes through `vp run <task>`
 (`vite-plus`). The root depends on `@getvitops/generator` as a workspace dev dep — that's the
@@ -486,9 +486,7 @@ then regenerate.
 `.github/workflows/deploy-dev.yml` / `deploy-prod.yml` build `site/` and deploy to Cloudflare
 Workers static assets at `docs.vitops.ca` (apex custom domain configured in `site/wrangler.jsonc`,
 which is what lets the integration's absolute asset paths resolve with no Astro `base`).
-`.github/workflows/docs.yml` is the superseded GitHub Pages path — kept only as a manual
-`workflow_dispatch` fallback until the Cloudflare prod deploy has run at least once (see AGENTS.md's
-CI/CD section).
+The old GitHub Pages workflow (`docs.yml`) was deleted after the Cloudflare prod deploy succeeded.
 
 Versioning is Changesets: one `fixed` group of six (`core` `generator` `utils` `cli` `vite`
 `astro`), `emdash`/`create` outside it, `ignore: ["site"]`, root private. Dependency versions are
