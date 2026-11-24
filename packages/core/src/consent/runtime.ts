@@ -316,6 +316,14 @@ function scan(): void {
  * A trailing `*` matches a prefix — GA4's per-stream `_ga_XXXX` cookies have no
  * fixed name.
  */
+/**
+ * How a cookie is deleted: `max-age=0` and a date in the past together. Browsers honour either;
+ * happy-dom (what the `*.dom.test.ts` suites run on) only reliably honours the date — with
+ * `max-age=0` alone an expiry of "now" can read as not yet expired, and which cookie survived
+ * varied by version and run, so the revoke test failed intermittently for no product reason.
+ */
+const EXPIRE = 'max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+
 function clearCookies(categories: ConsentCategory[]): void {
   const patterns = new Set<string>();
   for (const category of categories) {
@@ -337,7 +345,7 @@ function clearCookies(categories: ConsentCategory[]): void {
     );
     if (!matched) continue;
     for (const domain of domains) {
-      document.cookie = `${name}=; path=/; max-age=0${domain}`;
+      document.cookie = `${name}=; path=/; ${EXPIRE}${domain}`;
     }
   }
 }
@@ -350,7 +358,7 @@ function commit(next: ConsentState, persist: boolean): void {
   state = next;
 
   if (persist) document.cookie = `${COOKIE_NAME}=${serialize(next)}${cookieAttributes(SECURE)}`;
-  else document.cookie = `${COOKIE_NAME}=; path=/; max-age=0`;
+  else document.cookie = `${COOKIE_NAME}=; path=/; ${EXPIRE}`;
 
   publish();
   scan();
