@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { fieldName, resolveFields, safeAction, safeNext, slugName } from './form.ts';
+import { fieldName, resolveFields, safeAction, safeNext, slugName } from './fields.ts';
 
 describe('field names', () => {
   it('derives a safe name from the label', () => {

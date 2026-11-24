@@ -13,7 +13,7 @@
  * with its choices as `options`: the policy's schema has no group type and both read as
  * "your answers to the questions we ask".
  */
-import { resolveFields, safeAction } from './astro/blocks/form.ts';
+import { resolveFields, safeAction } from '@getvitops/utils/contact-form';
 
 /** The `fields` row shape of a `site.templates` form entry (`FormFieldSchema`). */
 export interface FormTemplateField {

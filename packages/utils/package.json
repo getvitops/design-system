@@ -109,6 +109,10 @@
     "./forms": {
       "types": "./dist/forms/index.d.mts",
       "import": "./dist/forms/index.mjs"
+    },
+    "./contact-form": {
+      "types": "./dist/contact-form/index.d.mts",
+      "import": "./dist/contact-form/index.mjs"
     }
   },
   "publishConfig": {
