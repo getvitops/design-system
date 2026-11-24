@@ -1,0 +1,56 @@
+name: Improvement
+description: A missing pattern, a rough edge or a better way to do something.
+title: '[improvement] '
+labels: [enhancement, triage:new]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This tracker is public. Leave out client names, domains, contact details and tokens.
+  - type: textarea
+    id: toolchain-version
+    attributes:
+      label: Toolchain version
+      description: Installed `@getvitops/*` versions (`vitops report` fills this in).
+      placeholder: '- @getvitops/cli 9.0.0'
+    validations:
+      required: true
+  - type: dropdown
+    id: affected-package
+    attributes:
+      label: Affected package
+      options: [core, generator, utils, cli, vite, astro, config, create, skills, emdash, Not sure]
+    validations:
+      required: true
+  - type: dropdown
+    id: output-format
+    attributes:
+      label: Output format
+      options: [css, bricks, tailwind, design, Not applicable]
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [EmDash, Static Astro, Bricks / WordPress, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: problem-or-opportunity
+    attributes:
+      label: Problem or opportunity
+      description: What you had to work around or write by hand.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+  - type: dropdown
+    id: reported-by
+    attributes:
+      label: Reported by
+      options: [human, agent]
+    validations:
+      required: true

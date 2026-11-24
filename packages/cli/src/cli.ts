@@ -120,6 +120,7 @@ import { cmdCrm } from './commands/crm.ts';
 import { cmdEmail } from './commands/email.ts';
 import { cmdEmdash } from './commands/emdash.ts';
 import { cmdSetup } from './commands/setup.ts';
+import { cmdReport } from './commands/report.ts';
 import {
   AGENTS_END,
   AGENTS_START,
@@ -1227,6 +1228,8 @@ async function main() {
       return cmdMedia(rest);
     case 'audit':
       return cmdAudit(rest);
+    case 'report':
+      return cmdReport(rest);
     default:
       fail(`unknown command "${command}" (expected: ${COMMANDS.join(' | ')}). Try: vitops --help`);
   }

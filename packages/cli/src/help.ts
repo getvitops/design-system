@@ -32,6 +32,7 @@ Usage:
   vitops email <sub> [opts]     Sender-domain onboarding: check (setup) + deploy guard (check)
   vitops media [options]       Encode raw video into web-ready WebM + MP4 + poster
   vitops audit [options]       Performance + accessibility budgets over a built site (Lighthouse + axe)
+  vitops report [options]      Draft a redacted issue against the toolchain (files only on --submit)
 
 Generate options:
   -i, --input <path>    design-system.json or site config (default: ./design-system.json)
@@ -471,6 +472,26 @@ Media options:
   ffmpeg output is not reproducible across versions, so re-encoding in CI churns
   the diff on every toolchain bump. Use --force when you mean to re-encode.
 
+Report options:
+      --type <t>        bug | deprecation | improvement (required)
+      --title <text>    Issue title (required)
+      --body-file <p>   Your draft, in your own words (required). Text with no \`###\`
+                        headings becomes the type's main field; \`### <Field>\` sections
+                        are kept as written.
+      --package <name>  Affected package: core, generator, utils, cli, vite, astro,
+                        config, create, skills or emdash
+      --format <f>      Output format involved (css, bricks, tailwind, design)
+      --platform <p>    Default: detected from package.json (EmDash / Static Astro / Other)
+  -i, --input <path>    Site config whose names, domains and contact details are
+                        redacted from the draft (default: ./site.json, skipped if absent)
+      --search          List possible duplicate issues first (needs \`gh\`)
+      --submit          File the issue publicly, after a confirmation on a TTY
+      --yes             Skip that confirmation. Only after the person approved the draft.
+      --reported-by <w> agent (default) | human
+
+  The issue tracker is public. Without --submit this files nothing: it prints the
+  redacted draft and a prefilled new-issue URL. Redaction is a net, not a guarantee.
+
 Audit options:
       --build           Run \`astro build\` first (default: audit the existing build)
       --url <base>      Audit an already-running server instead of \`astro preview\`
@@ -610,6 +631,7 @@ export const COMMANDS = [
   'emdash',
   'media',
   'audit',
+  'report',
 ] as const;
 
 /** Commands that group subcommands instead of taking options directly. */

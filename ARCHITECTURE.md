@@ -92,6 +92,7 @@ Fifteen commands, dispatched in `packages/cli/src/cli.ts`.
 | `robots`   | `cmdRobots`   | **Config** | Render `robots.txt` from the resolved environment's directive                         |
 | `reviews`  | `cmdReviews`  | **Config** | Fetch + cache Google Business Profile reviews                                         |
 | `agents`   | `cmdAgents`   | —          | Link the shipped agent skill into a consumer project                                  |
+| `report`   | `cmdReport`   | either     | Draft a redacted toolchain issue; files only on `--submit`                            |
 | `docs`     | `cmdDocs`     | either     | Print one reference doc to stdout, rendered from your config                          |
 | `lint`     | `cmdLint`     | either     | Find framework classes that resolve to nothing                                        |
 | `search`   | `cmdSearch`   | **Config** | `setup` (onboard into Search Console) · `notify` (post-deploy)                        |
@@ -479,6 +480,8 @@ then regenerate.
 | `scaffold`  | Matrix over `emdash`/`static`: copies the template, publishes this checkout's packed `@getvitops/*` to a throwaway Verdaccio registry and installs from it, then typechecks, builds and `vitops lint --strict`s it — the install-and-build a client gets from `vp create`, which nothing else reproduces |
 | `generated` | Runs `build:theme` + `build:design`, fails if `git diff` shows changes in `docs/` or `DESIGN.md`; then `docs:sync`, which throws if the generator emits a doc the site doesn't carry                                                                                                                     |
 | `e2e`       | Real Chromium, scripting disabled, against `site/` — verifies the tier-2 `<wc-*>` no-JS-fallback promise (see AGENTS.md's "Web components" section)                                                                                                                                                      |
+
+`.github/workflows/issue-triage.yml` runs a read-only Claude triage over new issues (see AGENTS.md's "Issue reporting and triage"); its instructions are `.github/triage/prompt.md`.
 
 `.github/workflows/deploy-dev.yml` / `deploy-prod.yml` build `site/` and deploy to Cloudflare
 Workers static assets at `docs.vitops.ca` (apex custom domain configured in `site/wrangler.jsonc`,

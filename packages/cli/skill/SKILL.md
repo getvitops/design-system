@@ -279,3 +279,4 @@ where no provider covers the family.
   survive version bumps; re-run only if they were deleted.
 
 Consent gating of third-party tags: the `vitops-consent` skill. Ad pixels and conversions: `vitops-ads`.
+A bug, deprecation or missing pattern in the toolchain itself: `vitops-report-issue` (drafts a redacted report; never file without the person's yes).

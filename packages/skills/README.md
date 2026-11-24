@@ -42,6 +42,7 @@ Names carry scope: `emdash-*` only apply to an EmDash site, `vitops-*` to any si
 | `vitops-csp`                 | The Report-Only CSP and what to check before enforcing it                                      |
 | `vitops-ads`                 | Ad pixels, conversions, attribution and call-tracking numbers (`site.ads`)                     |
 | `vitops-see-the-page`        | Looking at a rendered page with `playwright-cli`                                               |
+| `vitops-report-issue`        | Reporting a toolchain bug, deprecation or gap to the public tracker, redacted and confirmed    |
 | `vitops-compliance`          | Intake and routing: which accessibility, privacy and language obligations a client may have    |
 | `vitops-accessibility`       | Everyday accessibility practice plus dated AODA / federal / Quebec / EU topic files            |
 | `vitops-privacy`             | CASL, PIPEDA, Quebec Law 25, other provinces and GDPR, tied to the consent gate and legal docs |
