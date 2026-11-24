@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vite-plus/test';
 import {
   CONSENT_EVENT,
+  TAG_EVENT,
   COOKIE_VERSION,
   cookieAttributes,
   decide,
@@ -49,6 +50,28 @@ describe('CONSENT_EVENT', () => {
       'utf8',
     );
     expect(src).toContain(`const CONSENT_EVENT = '${CONSENT_EVENT}'`);
+  });
+});
+
+describe('TAG_EVENT', () => {
+  it("matches the copy in @getvitops/astro's tracking script", () => {
+    // The tracking script is inlined into the document, so it mirrors this string rather than
+    // importing it. Drifting means a conversion that arrives before the Google tag is held and
+    // never sent, with nothing logged.
+    const src = readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        '..',
+        '..',
+        '..',
+        'astro',
+        'src',
+        'scripts',
+        'tracking.ts',
+      ),
+      'utf8',
+    );
+    expect(src).toContain(`const TAG_EVENT = '${TAG_EVENT}'`);
   });
 });
 

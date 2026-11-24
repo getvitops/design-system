@@ -22,6 +22,12 @@ The four that bite:
   denied. (A synchronous stub in `<head>` covers the window before the runtime loads, so
   absence is reliable. Listen for the `vitops:consent` event rather than calling
   `subscribe()`, which the stub lacks.)
+- **Need a gated global (`gtag`)? Listen for `vitops:tag`, don't poll.** The runtime fires it on
+  `document` each time it activates a gated tag (`detail.category`). A tag's global exists only after
+  that, so a script that fires an event into it (a conversion) holds the event, then re-checks on
+  each `vitops:tag`; there is no timeout to outlive a visitor who accepts late. `window.vitopsConsent`
+  absent means no gate, so call straight through. `window.vitopsFormConversion(form)` already does
+  this for the Google Ads `form` conversion.
 - **Patch exactly the categories you put on screen.** `acceptAll()` / `rejectAll()` mean
   literally every optional category — using one to answer a single-category prompt records
   consent nobody gave. "Not asked" is a third value (`null`), distinct from declined, and

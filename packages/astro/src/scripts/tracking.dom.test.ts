@@ -475,6 +475,89 @@ describe('vitopsFormConversion — the form conversion action', () => {
   });
 });
 
+describe('a conversion that arrives before the Google tag has loaded', () => {
+  function clickOn(href: string) {
+    const anchor = { href, getAttribute: () => null };
+    return {
+      target: {
+        closest: (sel: string) => (sel.includes(`${href.split(':')[0]}:`) ? anchor : null),
+      },
+    };
+  }
+  function fakeForm(): HTMLFormElement {
+    const attrs = new Map<string, string>();
+    return {
+      hasAttribute: (name: string) => attrs.has(name),
+      setAttribute: (name: string, value: string) => void attrs.set(name, value),
+    } as unknown as HTMLFormElement;
+  }
+  /** What the gated bootstrap defines when it finally activates. */
+  function tagLoads(calls: unknown[][], conversions: Record<string, string>) {
+    Object.assign(globalThis.window as object, {
+      gtag: (...args: unknown[]) => calls.push(args),
+      vitopsAdsConversions: { google: conversions },
+    });
+  }
+
+  it('holds a tel: tap and sends it when the runtime announces the tag', async () => {
+    const dom = stubDom('');
+    await run();
+    const calls: unknown[][] = [];
+    dom.fire('click', clickOn('tel:+15551234567'));
+    expect(calls).toEqual([]);
+    tagLoads(calls, { call: 'AW-1/call' });
+    dom.fire('vitops:tag');
+    expect(calls).toEqual([['event', 'conversion', { send_to: 'AW-1/call' }]]);
+  });
+
+  it('holds a form conversion the same way, and sends it once', async () => {
+    const dom = stubDom('');
+    await run();
+    const calls: unknown[][] = [];
+    const { vitopsFormConversion } = globalThis.window as unknown as {
+      vitopsFormConversion: (form: HTMLFormElement) => void;
+    };
+    vitopsFormConversion(fakeForm());
+    tagLoads(calls, { form: 'AW-1/form' });
+    dom.fire('vitops:tag');
+    dom.fire('vitops:tag');
+    expect(calls).toEqual([['event', 'conversion', { send_to: 'AW-1/form' }]]);
+  });
+
+  it('keeps waiting while another gated tag activates first, then sends', async () => {
+    const dom = stubDom('');
+    await run();
+    const calls: unknown[][] = [];
+    dom.fire('click', clickOn('mailto:sales@acme.ca'));
+    dom.fire('vitops:tag'); // an unrelated tag: `gtag` is still not defined
+    expect(calls).toEqual([]);
+    tagLoads(calls, { email: 'AW-1/email' });
+    dom.fire('vitops:tag');
+    expect(calls).toEqual([['event', 'conversion', { send_to: 'AW-1/email' }]]);
+  });
+
+  it('reports several taps on one action before the tag loads once, not once each', async () => {
+    const dom = stubDom('');
+    await run();
+    const calls: unknown[][] = [];
+    dom.fire('click', clickOn('tel:+15551234567'));
+    dom.fire('click', clickOn('tel:+15551234567'));
+    tagLoads(calls, { call: 'AW-1/call' });
+    dom.fire('vitops:tag');
+    expect(calls).toHaveLength(1);
+  });
+
+  it('drops a held action the site never gave a label, instead of firing an empty target', async () => {
+    const dom = stubDom('');
+    await run();
+    const calls: unknown[][] = [];
+    dom.fire('click', clickOn('tel:+15551234567'));
+    tagLoads(calls, { form: 'AW-1/form' }); // no `call` label
+    dom.fire('vitops:tag');
+    expect(calls).toEqual([]);
+  });
+});
+
 describe('call-tracking numbers', () => {
   const phone = {
     number: '613-555-0100',

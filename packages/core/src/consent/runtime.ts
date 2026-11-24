@@ -31,6 +31,7 @@ import {
   cookieAttributes,
   CATEGORIES,
   CONSENT_EVENT,
+  TAG_EVENT,
   CONSENT_OPEN_EVENT,
   decide,
   decideAll,
@@ -47,7 +48,7 @@ import {
 // Defined in the pure half so listeners don't have to import this module — see
 // the note on CONSENT_EVENT there. Re-exported because this is where consumers
 // have always imported them from.
-export { CONSENT_EVENT, CONSENT_OPEN_EVENT };
+export { CONSENT_EVENT, CONSENT_OPEN_EVENT, TAG_EVENT };
 
 export type ConsentStrategy = 'idle' | 'async' | 'interaction';
 
@@ -277,6 +278,7 @@ function activate(el: Element): void {
     if (src) el.setAttribute('src', src);
   }
   el.setAttribute('data-vitops-activated', '');
+  document.dispatchEvent(new CustomEvent(TAG_EVENT, { detail: { category: categoryOf(el) } }));
 }
 
 /**
