@@ -280,6 +280,18 @@
   }
 }
 
+/* A menu item given the `cta` class (EmDash `cssClasses`) is a button: the link's inherited
+   colour, padding and hover wash must not override the button's own. */
+.sitenav__link.cta {
+  color: var(--color-text-on-ui-primary);
+  padding: var(--p-cta, var(--p-cta-group));
+  border-radius: var(--br-cta, var(--br-cta-group));
+
+  &:hover {
+    background: var(--bg-cta, var(--color-bg-ui-primary-solid));
+  }
+}
+
 .sitenav__empty {
   opacity: 0.7;
   font-style: italic;
