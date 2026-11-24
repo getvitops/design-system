@@ -21,6 +21,7 @@ Reference, rendered from this project: `vp exec vitops docs blocks` (every block
   `secondary_label`) and `stack: rhythm`; don't nest a `vitops_hero` or another section wrapper in a
   section body, which renders two layers of `section > .centered`. `vitops_hero` is for a hero
   that stands alone (it carries option cards).
+- **`<main>` is a landmark, not a layout.** The layout's `<main id="main">` carries no `centered` class: a band owns its own width, so a `.centered` main would hold every band's background to the text column. Plain content takes its own `<div class="centered">` (`<VitopsContent>` wraps the text between bands for you); hand-written page content needs the wrapper added. A site scaffolded before 9.0 that still has `<main class="centered">` gets an error from `vitops lint`, and `vitops lint --fix` removes the class.
 - **Width and layout: pick them on purpose.** `width: measure` (about 65ch) and `layout: stack`
   suit running, blog-like text, and they are the defaults, so a section keeps them unless
   something chooses otherwise. A top-level section of a marketing page (services, features, stats,

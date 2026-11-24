@@ -43,8 +43,6 @@ const content = page.data.content as ComponentProps<typeof PortableText>['value'
 ---
 
 <Layout title={title}>
-  <article class="rhythm">
-    <h1>{title}</h1>
-    {content && <VitopsContent value={content} />}
-  </article>
+  <h1 class="centered">{title}</h1>
+  {content && <VitopsContent value={content} />}
 </Layout>

@@ -30,8 +30,6 @@ const components = defineBlockComponents(blockTypeComponents as never);
 ---
 
 <Layout title={title}>
-  <article class="rhythm">
-    <h1>{title}</h1>
-    <Blocks value={page.data.layout as never} components={components} />
-  </article>
+  <h1 class="centered">{title}</h1>
+  <Blocks value={page.data.layout as never} components={components} />
 </Layout>

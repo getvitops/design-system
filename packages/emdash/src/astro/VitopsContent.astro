@@ -5,8 +5,10 @@
  *
  *     <VitopsContent value={page.data.content} />
  *
- * Content with no band renders exactly as `<PortableText>` would. Imported lazily for the same
- * cycle `Section.astro` explains.
+ * Content with no band renders exactly as `<PortableText>` would, in a `.centered` reading column.
+ * A run of blocks between (or before) bands gets that column here because `<main>` is a plain
+ * landmark, not a layout: a band owns its width, so nothing above it may constrain it. Imported
+ * lazily for the same cycle `Section.astro` explains.
  */
 const { PortableText } = await import('emdash/ui');
 import Section from './blocks/Section.astro';
@@ -20,6 +22,8 @@ const groups = groupBands(value);
   group.kind === 'band' ? (
     <Section node={bandToSection(group.band, group.body)} />
   ) : (
-    <PortableText value={group.blocks as never} />
+    <div class="centered rhythm">
+      <PortableText value={group.blocks as never} />
+    </div>
   ),
 )}

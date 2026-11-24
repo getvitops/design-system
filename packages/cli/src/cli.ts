@@ -135,6 +135,7 @@ import {
 } from './agents.ts';
 import { COMMANDS, HELP, helpFor, wantsHelp } from './help.ts';
 import { lintCss } from './lint-css.ts';
+import { fixMainLayout, lintMainLayout } from './lint-layout.ts';
 import { lintMarkup } from './lint-markup.ts';
 import { applyRenames, lintTokens } from './lint-tokens.ts';
 import { lintSource, vocabulary } from './lint.ts';
@@ -968,6 +969,7 @@ function cmdLint(argv: string[]) {
   // design system by token rather than by class, and the half nothing checked.
   const renames = movedTokens(ds.colors.roles);
   const tokenFindings = lintTokens(cssFiles, renames);
+  const layoutFindings = lintMainLayout(files);
   const findings = [
     ...lintSource(files, vocabulary(ds, roleClasses), format),
     ...lintCss(cssFiles, format),
@@ -977,6 +979,7 @@ function cmdLint(argv: string[]) {
     // has no markup, and passing the doubled list would report each component
     // twice.
     ...lintMarkup(files),
+    ...layoutFindings,
     ...tokenFindings,
   ];
 
@@ -992,10 +995,16 @@ function cmdLint(argv: string[]) {
       const subset = Object.fromEntries([...names].map((n) => [n, renames[n] as string]));
       writeFileSync(file, applyRenames(readFileSync(file, 'utf8'), subset));
     }
-    const remaining = findings.length - tokenFindings.length;
+    // `<main class="centered">` is the other mechanical fix: removing one class token.
+    const layoutFiles = new Set(layoutFindings.map((f) => f.file));
+    for (const file of layoutFiles) writeFileSync(file, fixMainLayout(readFileSync(file, 'utf8')));
+    const remaining = findings.length - tokenFindings.length - layoutFindings.length;
     console.log(
       `✓ rewrote ${tokenFindings.length} token reference${tokenFindings.length === 1 ? '' : 's'} ` +
         `in ${byFile.size} file${byFile.size === 1 ? '' : 's'}` +
+        (layoutFiles.size
+          ? `; removed .centered from <main> in ${layoutFiles.size} file${layoutFiles.size === 1 ? '' : 's'} (wrap hand-written page content in <div class="centered">)`
+          : '') +
         (remaining
           ? `\n! ${remaining} other finding${remaining === 1 ? '' : 's'} need a decision — ` +
             `re-run without --fix to see ${remaining === 1 ? 'it' : 'them'}`

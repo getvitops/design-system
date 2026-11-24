@@ -9,9 +9,10 @@
  * Backdrop and colour come from `.tone` (tone.css), never from here.
  */
 .section {
-  /* A section sits as a direct child of a `.centered` parent (the template's <main>). Its
-     background and tone must span the viewport, so it takes the full-bleed track; its own
-     `.centered` inner element re-establishes the reading tracks for the content. */
+  /* Compatibility for a layout whose <main> is still `.centered` (sites scaffolded before 9.0;
+     `vitops lint` flags it and `--fix` removes it). A section there is a grid item in the reading
+     track, so it takes the full-bleed track to let its tone and backdrop span the viewport; its
+     own `.centered` inner element re-establishes the reading tracks for the content. */
   .centered > & {
     grid-column: fullbleed;
   }
