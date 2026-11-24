@@ -28,6 +28,11 @@ on:
 
 jobs:
   promote:
+    # A reusable workflow only gets permissions its caller grants, and a repo's default token is
+    # read-only, so without this the run fails at startup. Opening the PR needs both.
+    permissions:
+      contents: write
+      pull-requests: write
     uses: getvitops/design-system/.github/workflows/site-promote.yml@v1
     with:
       rehearse: ${{ inputs.rehearse }}

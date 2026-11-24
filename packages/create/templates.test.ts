@@ -352,6 +352,21 @@ describe('emdash template landing pages', () => {
 });
 
 /**
+ * A reusable workflow only gets permissions its caller grants, and a repo's default token is read-only,
+ * so a caller of `site-promote.yml` without them fails at startup (a red run with no logs). Both
+ * templates call it, and the promote job opens a PR, which needs both scopes.
+ */
+describe.each(templateNames)('%s promote.yml permissions', (name) => {
+  it('grants what site-promote.yml asks for', () => {
+    const promote = readFileSync(
+      join(TEMPLATES, name, '.github', 'workflows', 'promote.yml'),
+      'utf8',
+    );
+    expect(promote).toMatch(/permissions:\s*\n\s*contents: write\n\s*pull-requests: write/);
+  });
+});
+
+/**
  * The environment split (AGENTS.md, CI/CD): promotion rehearses on a THROWAWAY copy of production and never
  * touches the long-lived dev site, and a scheduled run must never reset dev. The copy's own safety checks are
  * asserted in `@getvitops/utils` (`hosting/d1-copy.test.ts`); here the wiring that would quietly undo them.
