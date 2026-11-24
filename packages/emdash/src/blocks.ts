@@ -517,7 +517,13 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         min_items: 2,
         fields: [
           { type: 'text_input', action_id: 'label', label: 'Tab label (also the panel heading)' },
-          { type: 'text_input', action_id: 'body', label: 'Panel text', multiline: true },
+          {
+            type: 'text_input',
+            action_id: 'body',
+            label:
+              'Panel text (blank line between paragraphs; - for a list; [text](url) for a link)',
+            multiline: true,
+          },
         ],
       },
       levelField('3'),

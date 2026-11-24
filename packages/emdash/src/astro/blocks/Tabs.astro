@@ -2,10 +2,12 @@
 /**
  * Thin adapter over `@getvitops/astro`'s `<Tabs />`, which emits `<wc-tabs>` itself — so this must
  * not add its own wrapper. Every panel is a headed section with no JS, a tablist with it. The
- * editor writes each tab's label and text; richer panels belong in a layout block.
+ * editor writes each tab's label and text; the text takes paragraphs, `- ` lists, `[link](url)` and
+ * `**bold**` like an accordion body, so each panel is written as a slot `<section>`.
  */
 import Tabs from '@getvitops/astro/components/Tabs.astro';
-import { headingTag, paragraphs, resolveBlockValue, rows, text } from './value.ts';
+import RichBody from './RichBody.astro';
+import { headingTag, resolveBlockValue, rows, text } from './value.ts';
 
 interface Value {
   tabs?: unknown;
@@ -16,19 +18,28 @@ interface Value {
 
 const value = resolveBlockValue<Value>(Astro.props);
 const items = rows<Record<string, unknown>>(value.tabs)
-  .map((row) => ({ label: text(row.label), body: paragraphs(row.body) }))
+  .map((row) => ({
+    label: text(row.label),
+    body: row.body,
+    id: text(row.label)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, ''),
+  }))
   .filter((item) => item.label);
 const level = Number(headingTag(value.level, 3).slice(1)) as 2 | 3 | 4 | 5 | 6;
+const Heading = headingTag(value.level, 3);
 const orientation = value.orientation === 'vertical' ? 'vertical' : 'horizontal';
 import { rootAttrs } from './attrs.ts';
 ---
 
 {items.length > 0 && (
-  <Tabs
-    items={items}
-    level={level}
-    orientation={orientation}
-    hash={Boolean(value.hash)}
-    {...rootAttrs(value)}
-  />
+  <Tabs level={level} orientation={orientation} hash={Boolean(value.hash)} {...rootAttrs(value)}>
+    {items.map((item, i) => (
+      <section id={item.id || `tab-${i + 1}`}>
+        <Heading>{item.label}</Heading>
+        <RichBody text={item.body} />
+      </section>
+    ))}
+  </Tabs>
 )}
