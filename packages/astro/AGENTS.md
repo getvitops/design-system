@@ -173,7 +173,7 @@ back-compat, but new code should import them from `@getvitops/utils`.
   `import()`** — a static `astro-icon/components` import made the optional peer mandatory for anyone
   rendering these components, which is the bug `<Icon />` fixes. Text is `Localizable`; resolve with
   `t(value, locale, defaultLocale)`.
-- Deps use the workspace `catalog:`; `astro` is a peer (`>=7`), with `astro-icon` and
+- Deps use the workspace `catalog:`; `astro` is a peer (`>=7.4`), with `astro-icon` and
   `@astrojs/sitemap` **optional** peers. Versioned in **lockstep** with the `fixed` group —
   `core`/`generator`/`utils`/`cli`/`vite`/`astro` share one version (see `.changeset/config.json`).
   (This line previously claimed independent versioning; it was wrong.)

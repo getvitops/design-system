@@ -5,6 +5,23 @@ build — WordPress/Bricks **and** Cloudflare EmDash (Astro/Tailwind). Keep toke
 names platform-agnostic so the same schema round-trips through both the Bricks generators and
 the Tailwind (`--format=tailwind`) output.
 
+## Priority: move to TypeScript 7.1 and the `tsrs`-based Vite+
+
+Do this as soon as **TypeScript 7.1** is released **and** has cleared the 3-day release cooldown
+(`minimumReleaseAge: 4320` in `pnpm-workspace.yaml`), then bump the Vite+ release that follows it.
+Vite+ 1.7.0 already depends on a beta of `tsrs` (`7.1.0-beta.tsrs2`); the next Vite+ is expected to
+ship an Oxc that type-checks through `tsrs`, built on the TypeScript 7.1 API, so `vp check` would stop
+depending on a separate TypeScript install for its type pass.
+
+- Bump `typescript` in the catalog (it is on 7.0.2 now) and the Vite+ pins together, one commit each:
+  `vite-plus`, the `vite` core alias, `vitest` and `@vitest/coverage-v8` (these four move as a set, see
+  the comment in `pnpm-workspace.yaml`).
+- Re-run the full gate: `vp check`, `vp test run`, `vp run build:packages`, `vp run verify:packages`,
+  `vp run verify:scaffold`.
+- Decide then whether the two templates leave TypeScript 6 (`^6.0.3`). They stayed on 6 when the repo
+  moved to 7.0 because `@astrojs/check` support for 7 was not confirmed; recheck that first.
+- Check whether the type pass still needs the `@types/node` and DOM lib settings it has today.
+
 ## vNext release scope
 
 Full design detail lives in the vNext release plan
