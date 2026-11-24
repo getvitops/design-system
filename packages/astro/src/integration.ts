@@ -404,6 +404,12 @@ export interface GetvitopsOptions {
    * Analytics tags for `<Analytics />` — Google Analytics, Microsoft Clarity,
    * Matomo, Plausible. Off unless provided.
    *
+   * **Read from `site.analytics` by default** (`googleAnalyticsId`, `clarityId`,
+   * `plausibleDomain`, `matomo`), the block the cookie notice discloses providers from, so a
+   * provider the config names is the tag that loads and the two cannot drift. Pass this option
+   * to add one the config does not state, to override one, or to set `strategy`; it wins per
+   * provider. A provider given here but absent from the config still warns.
+   *
    * Every tag loads off the critical path (`strategy`, default `'idle'`: after
    * `load`, on an idle callback) and, when it sets cookies, only after consent.
    *
@@ -804,6 +810,79 @@ function readSiteConsentTracking(
 }
 
 /**
+ * The analytics providers a site config already states, as `<Analytics />` options.
+ *
+ * `site.analytics` is what the generated cookie notice discloses providers from, and
+ * `vitops({ analytics })` is what loads the tags: two declarations of one fact, with only a
+ * one-way check (a provider in the option but not the config warns). A site that copied
+ * `clarityId` out of its own `site.json` into the option, as vitops-website did, was keeping the
+ * pair in step by hand. Reading the config as the default removes the copy; an explicit option
+ * still wins per provider (see `mergeAnalytics`). `googleTagManagerId` has no `<Analytics />`
+ * provider, so it is left to the notice alone.
+ */
+export function analyticsFromSite(
+  site:
+    | {
+        googleAnalyticsId?: string | undefined;
+        plausibleDomain?: string | undefined;
+        clarityId?: string | undefined;
+        matomo?: { url: string; siteId: string; cookies?: boolean | undefined } | undefined;
+      }
+    | undefined,
+): GetvitopsAnalyticsOptions {
+  if (!site) return {};
+  return {
+    ...(site.googleAnalyticsId ? { googleAnalytics: site.googleAnalyticsId } : {}),
+    ...(site.clarityId ? { clarity: site.clarityId } : {}),
+    ...(site.plausibleDomain ? { plausible: site.plausibleDomain } : {}),
+    ...(site.matomo
+      ? {
+          matomo: {
+            url: site.matomo.url,
+            siteId: site.matomo.siteId,
+            ...(site.matomo.cookies !== undefined ? { cookies: site.matomo.cookies } : {}),
+          },
+        }
+      : {}),
+  };
+}
+
+/** Config providers as defaults, the option over them per provider (and for `strategy`). */
+export function mergeAnalytics(
+  fromSite: GetvitopsAnalyticsOptions,
+  option: GetvitopsAnalyticsOptions | undefined,
+): GetvitopsAnalyticsOptions | undefined {
+  const merged = { ...fromSite, ...option };
+  return Object.keys(merged).length ? merged : undefined;
+}
+
+/**
+ * The consent options with the config's `categories` filled in when the option does not state
+ * its own. An object `consent` option used to replace the config's list outright, so a site that
+ * passed `{ policyUrl }` silently lost the categories its cookie notice already named, and the
+ * banner fell back to the provider-derived default (which always includes `preferences`).
+ */
+export function mergeConsentOptions(
+  option: boolean | GetvitopsConsentOptions | undefined,
+  siteCategories: string[] | undefined,
+): GetvitopsConsentOptions {
+  const fromSite = siteCategories
+    ? ({ categories: siteCategories } as GetvitopsConsentOptions)
+    : {};
+  return typeof option === 'object' ? { ...fromSite, ...option } : fromSite;
+}
+
+/** Best-effort read of `site.analytics`, the shape `readSiteConsentTracking` has. */
+function readSiteAnalytics(configPath: string, siteEnv: string): GetvitopsAnalyticsOptions {
+  try {
+    const cfg = resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv);
+    return analyticsFromSite(cfg.site.analytics);
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Contradictions between the config and an explicit integration option.
  *
  * Absent-vs-present is a default and resolves silently. `true` vs `false` on the
@@ -1153,16 +1232,18 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         }
         const consentEnabled =
           opts.consent !== undefined ? !!opts.consent : !!siteConsent?.consentEnabled;
-        const consentOpts: GetvitopsConsentOptions =
-          typeof opts.consent === 'object'
-            ? opts.consent
-            : // A `categories` list the notice already states is the banner's
-              // row set: the two must agree, and the notice is the document a
-              // regulator reads.
-              siteConsent?.categories
-              ? ({ categories: siteConsent.categories } as GetvitopsConsentOptions)
-              : {};
-        const analytics = resolveAnalytics(opts.analytics, { consent: consentEnabled });
+        // A `categories` list the notice already states is the banner's row set: the two must
+        // agree, and the notice is the document a regulator reads. An explicit `categories` in an
+        // object option still wins; the rest of the object no longer discards the config's list.
+        const consentOpts = mergeConsentOptions(opts.consent, siteConsent?.categories);
+        // The providers the config declares are the tags that load; an option adds or overrides.
+        const analyticsOpts = mergeAnalytics(
+          siteInput
+            ? readSiteAnalytics(resolve(root, siteInput), opts.site?.siteEnv ?? 'production')
+            : {},
+          opts.analytics,
+        );
+        const analytics = resolveAnalytics(analyticsOpts, { consent: consentEnabled });
         // What the banner *can* ask, not what it will. Since `<wc-consent>` reveals
         // only the rows something has demanded and the visitor hasn't answered, an
         // unused row costs a hidden `<label>` and nothing else — so the default is
@@ -1720,7 +1801,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
                 fonts: headFonts,
                 site: config.site ?? null,
                 seo: seoDefaults,
-                analytics: opts.analytics ?? {},
+                analytics: analyticsOpts ?? {},
                 consent: consentEnabled,
                 consentCategories: offeredCategories,
                 consentPolicyUrl: consentOpts.policyUrl ?? null,

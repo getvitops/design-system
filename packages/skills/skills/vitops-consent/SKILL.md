@@ -37,5 +37,12 @@ The banner is **demand-driven**: it appears when something actually asks, not on
 A site whose only analytics provider is cookieless never interrupts anyone. Don't "fix" a
 missing banner by forcing it to show — find out what should have demanded a category.
 
+**The site config is the default for the integration, so don't copy it into `astro.config`.**
+`vitops()` reads `site.legal.cookieConsent` (`enabled`, `categories`), `site.tracking`, `site.ads`
+and `site.analytics` (`googleAnalyticsId`, `clarityId`, `plausibleDomain`, `matomo`) itself; the
+`analytics` and `consent` options only add to or override them. An object `consent` option that sets
+just `policyUrl` keeps the config's `categories`; an explicit `categories` in it wins. A `true` /
+`false` that contradicts `cookieConsent.enabled` fails the build.
+
 Whatever loads must match what the **generated cookie notice** discloses; the Astro
 integration warns when they disagree, and that is a compliance defect, not a doc nit.
