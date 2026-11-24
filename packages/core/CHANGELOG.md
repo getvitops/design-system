@@ -1,5 +1,37 @@
 # @getvitops/core
 
+## 9.0.0-alpha.9
+
+### Minor Changes
+
+- e4262a8: **`<SiteFooter>` and `<Masthead>` read `organization` from the site config, so a site no longer rewrites its logo and contact column by hand.** Pass `config={site}` (the same value `<Masthead>` already takes for `site.chrome`).
+
+  - **`<SiteFooter>`**: the brand column shows `organization.logo` (linked home, `loading="lazy"`) when there is no `brand` slot, and a new **contact column** follows the menus: the postal address as an `<address>`, a `tel:` link built from the phone number, a `mailto:` link, the opening hours of one location (grouped to `Mon–Fri  8 am–5 pm`), and the public profile links (`organization.links`) in a labelled `<nav>`. A column only appears for facts the config states, so a config that states none renders the footer it did before. New props: `contact` and `logo` (both default true), `location` (which `organization.locations` key supplies the hours; default the one `organization.contact` names, else the first), and `contactLabel` / `hoursLabel` / `socialLabel`.
+  - **`<Masthead>`**: with no `brand` slot it shows `organization.logo` as a link to `brandHref` (default `/`); `logo={false}` omits it. A logo link is named by the logo's `alt`, else the organization name, else "Home".
+  - **Gutter.** `.sitefooter:not(.centered)` now has `padding-inline: var(--sitefooter-gutter, 1rem)`, matching the masthead's `width: full` row, so the logo and columns no longer sit flush against the viewport edge on a wide screen. A footer with `class="centered"` is unchanged (the track is its gutter). New hooks: `--sitefooter-gutter`, `--sitefooter-logo-h` (3rem), `--masthead-logo-h` (2rem).
+
+  Every URL that reaches an `href` or `src` (the logo, the profile links) must be a same-site path or an http(s) URL; anything else (`javascript:`, `data:`, `//host`) is dropped. Affects css, bricks and tailwind alike (the partials are shared). **Migration:** none required; a site that fills the `brand` slot keeps its own markup. A site with a hand-built footer contact column can delete it. Other fixed-group packages: no consumer-facing change.
+
+- 7da3eea: **A Google Ads conversion that happens before the Google tag has loaded is held and sent, not dropped.** `gtag` and the per-action `send_to` map are defined by the consent-gated bootstrap, so a `tel:`/`mailto:` tap or a `vitopsFormConversion(form)` call that arrived first (consent not given yet, or an `idle` tag not yet at its turn) used to find neither, skip silently, and, for the form, mark the form as converted so a retry could not recover it. The tracking script now queues the action and flushes it when the runtime announces the tag, so the wait is tied to consent instead of a polling deadline. Several taps on one action before the tag loads report once. jblsigns' `AdConversions.astro` poll-for-`gtag` loop is no longer needed.
+
+  **New: `vitops:tag`.** `<wc-consent>`'s runtime dispatches a `vitops:tag` event on `document` each time it activates a gated tag, with `detail.category`. It is the "this tag has loaded" counterpart of `vitops:consent`; `TAG_EVENT` is exported from `@getvitops/core/consent` beside `CONSENT_EVENT`. `consent.js` grows by about 100 bytes gzipped (3177 of 3500 B budget). Affects all formats (the web-component and script bundles are the same in each). Other fixed-group packages: no consumer-facing change.
+
+- 4c149cf: `vitops_section` and `vitops_band` take a backdrop image: a decorative photo behind the whole band.
+
+  The image sits behind the heading and content (`.section--backdrop` with a `.section__backdrop` image) and is darkened by the tone's solid colour at `--section-scrim-strength` (default 60%; black with no tone). The text uses that solid's computed foreground (white with no tone), so readable contrast comes from the tone and not from the photo. The image is always decorative (empty `alt`); an image that carries meaning belongs in the band's body. CSS: all formats (css, bricks and tailwind). The section block type moves to version 2 to add the field; version 1 is kept as shipped, so existing databases stay valid, and the scaffolded seed carries both versions.
+
+### Patch Changes
+
+- b071515: **Consent revoke deletes cookies with an `expires` date as well as `max-age=0`.** Browsers treat the two the same, so there is no behaviour change on a real page. A DOM implementation that reads an expiry of "now" as not yet expired (happy-dom, which the `*.dom.test.ts` suites run on) kept a `_ga` cookie after a revoke on some runs, which made `WCConsent.dom.test.ts` fail intermittently. All formats (the consent bundle is the same in each). Other fixed-group packages: no consumer-facing change.
+- 7b463e5: **Four small fixes from the first migration of an existing site (wilsonlandscaping.ca).**
+
+  - **`@getvitops/create` (emdash template):** `_gitignore` now ignores `src/styles/design-manifest.json`. The tailwind format has emitted it beside `tailwind.css` since the editor manifest change, and it showed up as untracked in every new site. The static template already ignores all of `src/styles/`.
+  - **`@getvitops/astro`:** the "emdash() is registered, and its `<EmDashHead>` emits the same tags" warning fires only when `vitops({ seo })` is passed explicitly. It used to fire on config-derived defaults too, but `site.seo` also feeds indexing and robots, so any site with a configured environment `robots` or a `site.seo` block was warned about a `<Seo />` it never rendered. The message now says how to silence it (drop the `seo` option).
+  - **`@getvitops/emdash`:** `vitops_embed`'s map provider accepts the classic `https://maps.google.com/maps?q=…&output=embed` address, the form Google's own embed snippet produced for years, so a migrated page's iframe URL is no longer rejected silently. It is accepted on an explicit `output=embed` and a google.com host only; the same URL without it, and any other host, are still refused. The README's tested-against note moves to `emdash@1.5.x`.
+  - **`@getvitops/core`:** a comment on the carousel's `::column` rules records why lightningcss warns about them on every build (it does not know the pseudo-element, through 1.33) and that the warning is harmless; `@supports selector(::column)` does not silence it. No CSS change in any format.
+
+  **Migration:** none. Other fixed-group packages: no consumer-facing change.
+
 ## 9.0.0-alpha.8
 
 ### Minor Changes

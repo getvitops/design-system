@@ -1,5 +1,32 @@
 # @getvitops/create
 
+## 0.9.0-alpha.9
+
+### Minor Changes
+
+- 1e2c49f: Add the `vitops_band` block and `<VitopsContent>`, so a Portable Text page can have full-width tinted sections.
+
+  `vitops_section` only works in a `blocks` field, because a Portable Text block cannot hold other blocks. `vitops_band` is a marker instead: it opens a section (kicker, heading, lead-in, buttons, layout, width, tone or theme) and every block after it, up to the next band, goes inside. Render the field with `<VitopsContent value={content} />` from `@getvitops/emdash/astro` where you used `<PortableText>`; content with no band renders exactly as before, and without `<VitopsContent>` a marker renders only its own heading. Both scaffolded pages now use it. The generator's `section` pattern lists the new block. Reaches the EmDash renderer only; no CSS change.
+
+- 4c149cf: `vitops_section` and `vitops_band` take a backdrop image: a decorative photo behind the whole band.
+
+  The image sits behind the heading and content (`.section--backdrop` with a `.section__backdrop` image) and is darkened by the tone's solid colour at `--section-scrim-strength` (default 60%; black with no tone). The text uses that solid's computed foreground (white with no tone), so readable contrast comes from the tone and not from the photo. The image is always decorative (empty `alt`); an image that carries meaning belongs in the band's body. CSS: all formats (css, bricks and tailwind). The section block type moves to version 2 to add the field; version 1 is kept as shipped, so existing databases stay valid, and the scaffolded seed carries both versions.
+
+- 3d69008: **Templates move to current dependency ranges.** Both templates now float `astro ^7.4.13`, `wrangler ^4.166.0`, `playwright ^1.65.1`, `skills ^1.9.0` and `@astrojs/compiler-rs ^0.5.3`; the EmDash template also moves to `emdash` and `@emdash-cms/cloudflare ^1.5.0`, `@astrojs/cloudflare ^14.4.9`, `@astrojs/react ^7.1.9`, `tailwindcss` and `@tailwindcss/vite ^4.3.5`, and `@cloudflare/workers-types ^5.20260722.1` (the range `wrangler` now peers on). **Migration:** an existing scaffolded site raises the same ranges, and moves `@cloudflare/workers-types` from 4.x to 5.x together with `wrangler`. No consumer-facing change to the toolchain packages in this release: the repo's own catalog moved to the same patch levels, including `zod` and `@zod/mini` at 4.6.7 (one copy, so the generator's declaration emit stays clean).
+- d3da575: **Templates move to Vite+ 1.7.** Both templates now pin `vite-plus: ^1.7.0` and `vite: npm:@voidzero-dev/vite-plus-core@^8.3.8000`. From 1.7.0 the core package is versioned on Vite's own 8.3.x line while `vite-plus` stays 1.x, so the old `^1.5.1` alias would have resolved to core 1.6.0 beside vite-plus 1.7.0. **Migration:** an existing scaffolded site changes both `vite` and `vite-plus` together (and in its `pnpm-workspace.yaml` catalog if it has one); bumping only one leaves a mismatched pair. No consumer-facing change to the toolchain packages in this release.
+
+### Patch Changes
+
+- 262742a: **Scaffolded `promote.yml` now grants the permissions the reusable promote workflow needs.** A reusable workflow can only use permissions its caller grants, and a repository's default token is read-only, so "Promote dev → main" failed at startup with no logs. Both templates now give the `promote` job `contents: write` and `pull-requests: write`. Existing sites: add that `permissions:` block to the `promote` job in `.github/workflows/promote.yml`, or set the repository's workflow permissions to read and write.
+- 7b463e5: **Four small fixes from the first migration of an existing site (wilsonlandscaping.ca).**
+
+  - **`@getvitops/create` (emdash template):** `_gitignore` now ignores `src/styles/design-manifest.json`. The tailwind format has emitted it beside `tailwind.css` since the editor manifest change, and it showed up as untracked in every new site. The static template already ignores all of `src/styles/`.
+  - **`@getvitops/astro`:** the "emdash() is registered, and its `<EmDashHead>` emits the same tags" warning fires only when `vitops({ seo })` is passed explicitly. It used to fire on config-derived defaults too, but `site.seo` also feeds indexing and robots, so any site with a configured environment `robots` or a `site.seo` block was warned about a `<Seo />` it never rendered. The message now says how to silence it (drop the `seo` option).
+  - **`@getvitops/emdash`:** `vitops_embed`'s map provider accepts the classic `https://maps.google.com/maps?q=…&output=embed` address, the form Google's own embed snippet produced for years, so a migrated page's iframe URL is no longer rejected silently. It is accepted on an explicit `output=embed` and a google.com host only; the same URL without it, and any other host, are still refused. The README's tested-against note moves to `emdash@1.5.x`.
+  - **`@getvitops/core`:** a comment on the carousel's `::column` rules records why lightningcss warns about them on every build (it does not know the pseudo-element, through 1.33) and that the warning is harmless; `@supports selector(::column)` does not silence it. No CSS change in any format.
+
+  **Migration:** none. Other fixed-group packages: no consumer-facing change.
+
 ## 0.9.0-alpha.8
 
 ### Patch Changes

@@ -1,5 +1,36 @@
 # @getvitops/cli
 
+## 9.0.0-alpha.9
+
+### Minor Changes
+
+- 2406333: **Breaking: the default output format is `tailwind`, not `bricks`.** `generate({ input })` with no `format`, `vitops generate` with no `-f`, and `vitops lint` with no `-f` now target Tailwind (`tailwind.css` plus `tokens.json`), which is what EmDash and Astro sites build. The Astro integration (`css.format`) and `@getvitops/vite` already defaulted to `tailwind`, so a site using either is unaffected. **Migration:** a build that relied on the implicit default (a WordPress/Bricks pipeline, or a script calling `vitops generate` with no flag) passes `--format bricks` / `format: 'bricks'`; the Bricks output itself is unchanged and still supported by name. `vitops lint` on a Bricks site passes `-f bricks` for the same reason. Affects the generator library and the CLI only; no CSS changes in any format. Other fixed-group packages: no consumer-facing change.
+- 6a63172: Add `vitops emdash check-seed [seed.json]`, which checks the `vitops_*` blocks inside a seed.
+
+  EmDash's `validateSeed` knows the collections but not this plugin's blocks, so a misspelled field (`primaryLabl`) or an unknown block type passed it and then rendered nothing. The command walks every content entry, including section bodies, and reports unknown block types, unknown or misspelled fields (with a suggestion), select values outside their options and rows with no content. Unknown types and fields are errors and exit 1; a select value or a gallery image with an empty `src` is a warning, because a seed written before the photos exist leaves those empty on purpose. The checker is `checkSeedBlocks()` from `@getvitops/emdash`, built from the same block definitions the renderers use. No CSS change.
+
+- c66ac13: **Downstream agents can report toolchain issues, and a bot triages them.**
+
+  - **`@getvitops/cli`: new `vitops report`** drafts an issue against the toolchain's public tracker. It adds the installed `@getvitops/*` versions and detected platform, redacts the site config's organization name, domains, environment URLs and contact details plus generic secrets (tokens, emails, home paths, IPs), and prints the draft, what it redacted and a prefilled new-issue URL. It files nothing by default; `--submit` files it after a TTY confirmation (`--yes` skips that and is for an agent whose user has approved the draft), and `--search` lists possible duplicates first. Needs `gh` only for `--search` and `--submit`.
+  - **`@getvitops/skills`: new `vitops-report-issue` skill** says when to report, when not to, and the draft → show the person → file-on-yes sequence. Existing sites: `vp install` links it; nothing to change.
+
+  No consumer-facing change in the other packages of the fixed group. Repo-side (not shipped): issue forms under `.github/ISSUE_TEMPLATE/` and a read-only triage workflow, `.github/workflows/issue-triage.yml`.
+
+### Patch Changes
+
+- 65c30b1: **The `bricks` format is labelled not actively maintained.** The generated `formats.md` and Bricks index and `vitops generate --help` now say it: Bricks was the original target, sites are built on `tailwind`, and `bricks` keeps building and working but gets no new patterns or fixes until Bricks support is rebuilt on the `tailwind`/`css` foundation. Documentation only: no output changes in any format. Other fixed-group packages: no consumer-facing change.
+- Updated dependencies [1e2c49f]
+- Updated dependencies [65c30b1]
+- Updated dependencies [e4262a8]
+- Updated dependencies [29f5aca]
+- Updated dependencies [200a4a7]
+- Updated dependencies [2406333]
+- Updated dependencies [8329394]
+- Updated dependencies [4c149cf]
+- Updated dependencies [d2c8dff]
+  - @getvitops/generator@9.0.0-alpha.9
+  - @getvitops/utils@9.0.0-alpha.9
+
 ## 9.0.0-alpha.8
 
 ### Minor Changes

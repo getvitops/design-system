@@ -11,11 +11,11 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
-## 9.0.0 (+ `@getvitops/emdash` 2.0.0, `@getvitops/create` 0.9.0, `@getvitops/skills` 0.1.0) — unreleased
+## 9.0.0-alpha.9 (+ `@getvitops/emdash` 2.0.0-alpha.9, `@getvitops/create` 0.9.0-alpha.9, `@getvitops/skills` 0.1.0-alpha.4) — alpha channel
 
-> Draft: written from the changesets pending since `9.0.0-alpha.8`, ahead of the stable cut. Version numbers are confirmed when `changeset version` runs. A site coming from 8.x also needs the `9.0.0-alpha.*` entries below, which hold the rest of the 9.0 cycle (contrast contract, scroll-aware chrome, the config form, EmDash environments).
+Prerelease on the `alpha` dist-tag; not on `latest`. A site coming from 8.x also needs the earlier `9.0.0-alpha.*` entries below, which hold the rest of the 9.0 cycle (contrast contract, scroll-aware chrome, the config form, EmDash environments).
 
-The first stable 9.0: Astro 7.4 is the floor, `tailwind` is the default format, and the EmDash block set covers section bands, FAQ and review markup, locations and rich accordion bodies. Tested against the first sites onboarded onto the toolchain.
+The release candidate for 9.0: Astro 7.4 is the floor, `tailwind` is the default format, and the EmDash block set covers section bands, FAQ and review markup, locations and rich accordion bodies. Tested against the first sites onboarded onto the toolchain.
 
 **Breaking**
 
