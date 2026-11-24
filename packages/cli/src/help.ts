@@ -36,7 +36,8 @@ Usage:
 
 Generate options:
   -i, --input <path>    design-system.json or site config (default: ./design-system.json)
-  -f, --format <list>   bricks | css | tailwind | design (comma-separated; default: tailwind)
+  -f, --format <list>   bricks | css | tailwind | design (comma-separated; default: tailwind;
+                        bricks is kept working but not actively maintained)
                         design emits DESIGN.md only (the agent-facing brief) — pair it
                         with --out . to write it beside AGENTS.md, or compose:
                         --format css,design
