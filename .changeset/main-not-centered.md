@@ -1,4 +1,5 @@
 ---
+'@getvitops/core': patch
 '@getvitops/cli': minor
 '@getvitops/emdash': minor
 '@getvitops/create': minor
@@ -11,5 +12,5 @@
 
 - `@getvitops/emdash`: `<VitopsContent>` wraps each run of plain blocks (before, between or after bands) in `<div class="centered rhythm">`. A split hero in such a run still goes edge to edge.
 - `@getvitops/create`: both templates' layouts render `<main id="main">`; their pages put `centered` on the page content instead. Existing sites keep their layout until `vitops lint --fix` is run.
-- `@getvitops/core`: the `.centered > .section` rule stays as compatibility for layouts not yet migrated (patch-level, all formats, already shipped in alpha.10).
+- `@getvitops/core` (all formats): the `.centered > .section { grid-column: fullbleed }` rule added in alpha.10 is removed. It only compensated for a `.centered` `<main>`, which is now the thing `vitops lint --fix` removes. A layout that still has `<main class="centered">` holds its sections to the reading width again until migrated.
 - `@getvitops/skills`: `emdash-building-pages` explains the rule.
