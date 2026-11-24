@@ -285,8 +285,9 @@ export interface GetvitopsOptions {
    *
    * Copies `editor.js` into `public/vitops/`, loads it from `<Head />`, and mirrors
    * the generated `design-manifest.json` next to it so `<wc-theme-editor>` resolves
-   * its default `/vitops/design-manifest.json`. Requires `css` (the manifest is a
-   * `css`-format output) — place the `<wc-theme-editor>` tag in your layout yourself.
+   * its default `/vitops/design-manifest.json`. Requires the `css` option, in any format (the
+   * manifest is emitted by `tailwind` and `css` alike) — place the `<wc-theme-editor>` tag in
+   * your layout yourself.
    *
    * Editing is live on any deploy; **saving back** to `design-system.json` needs the
    * dev server, so on a static build that button simply isn't rendered.
@@ -300,7 +301,7 @@ export interface GetvitopsOptions {
    * For hosts outside the site's own pages, such as the EmDash admin
    * (`@getvitops/emdash`'s `designSystemEditor`, which iframes that page so the design
    * system never leaks into the admin's styles). Public pages don't pay for the bundle.
-   * Requires `css`.
+   * Requires the `css` option, in any format.
    */
   editorManifest?: boolean;
   /**
