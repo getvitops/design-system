@@ -1,5 +1,11 @@
 # @getvitops/emdash
 
+## 2.0.0-alpha.11
+
+### Patch Changes
+
+- 6d497c0: A split `vitops_hero` is now an equal two-column split with the image capped in height (`clamp(22rem, 60vh, 38rem)`, cropped to fill), instead of a 1:2 split whose tall image dominated the page.
+
 ## 2.0.0-alpha.10
 
 ### Patch Changes

@@ -11,6 +11,14 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## `@getvitops/emdash` 2.0.0-alpha.11 — alpha channel
+
+Prerelease on the `alpha` dist-tag. Only `@getvitops/emdash` changes; the `fixed` toolchain group stays at 9.0.0-alpha.10, which is the version it needs (peer `@getvitops/astro >=9.0.0-alpha.6`).
+
+**Fixed**
+
+- **A split `vitops_hero` is an equal two-column split with a capped image** (`clamp(22rem, 60vh, 38rem)`, cropped to fill). alpha.10 made it full-bleed but kept a 1:2 split, so a portrait photo made the hero several screens tall. A hero without an image, or single-column, is unchanged.
+
 ## 9.0.0-alpha.10 (+ `@getvitops/emdash` 2.0.0-alpha.10) — alpha channel
 
 Prerelease on the `alpha` dist-tag; not on `latest`. Fixes found upgrading two sites onto alpha.9 (a landscaping site and a signage site). `@getvitops/create` and `@getvitops/skills` are unchanged and stay at 0.9.0-alpha.9 and 0.1.0-alpha.4. `@getvitops/config`, `utils`, `vite` and `cli` carry **no consumer-facing change** beyond the `fixed` version bump, except the `vitops emdash check-seed` and `form-template` fix below.
