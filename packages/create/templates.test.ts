@@ -78,10 +78,16 @@ describe.each(templateNames)('template %s', (name) => {
     }
   });
 
-  it('floats vite and vite-plus together, and keeps emdash inside the plugin peer range', () => {
+  it('floats vite and vite-plus at what this repo tests, and keeps emdash inside the plugin peer range', () => {
     const dev = { ...pkg.dependencies, ...pkg.devDependencies };
     const floor = (r: string) => /(\d+\.\d+\.\d+)$/.exec(r)?.[1];
-    expect(floor(dev['vite'])).toBe(floor(dev['vite-plus']));
+    // The two share no version number any more: from vite-plus 1.7.0 the core alias is versioned
+    // 8.3.x (Vite's own line) while vite-plus stays 1.x. The invariant is therefore "the template
+    // floors equal the root catalog's pins", which is what `vp check` and the tests ran against.
+    const root = readFileSync(join(import.meta.dirname, '..', '..', 'pnpm-workspace.yaml'), 'utf8');
+    const catalog = (key: string) => new RegExp(`^  ${key}: (.+)$`, 'm').exec(root)?.[1]?.trim();
+    expect(floor(dev['vite'])).toBe(floor(catalog('vite')!));
+    expect(floor(dev['vite-plus'])).toBe(floor(catalog('vite-plus')!));
     expect(dev['vite']).toMatch(/^npm:@voidzero-dev\/vite-plus-core@\^/);
     const ws = readFileSync(join(TEMPLATES, name, 'pnpm-workspace.yaml'), 'utf8');
     if (ws.includes('catalog:')) {
