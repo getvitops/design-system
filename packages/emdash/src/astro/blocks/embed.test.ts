@@ -24,6 +24,13 @@ describe('resolveEmbed', () => {
       'Google Maps',
     );
     expect(resolveEmbed('map', 'https://www.google.com/maps/place/Ottawa')).toBeNull();
+    // The classic embed form is accepted on `output=embed`; the same URL without it is a share
+    // link that refuses framing.
+    expect(
+      resolveEmbed('map', 'https://maps.google.com/maps?q=Ottawa&output=embed')?.provider,
+    ).toBe('Google Maps');
+    expect(resolveEmbed('map', 'https://maps.google.com/maps?q=Ottawa')).toBeNull();
+    expect(resolveEmbed('map', 'https://evil.example/maps?q=x&output=embed')).toBeNull();
     expect(
       resolveEmbed('map', 'https://www.openstreetmap.org/export/embed.html?bbox=1')?.src,
     ).toContain('openstreetmap.org/export/embed');

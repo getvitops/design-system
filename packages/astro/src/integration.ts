@@ -1206,11 +1206,15 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
               'seo: needs the `site` astro.config option (your deployed URL) — without it <Seo /> ' +
                 'omits canonical, og:url and any relative og:image rather than guessing an origin.',
             );
-          if (config.integrations.some((i) => i.name === 'emdash'))
+          // Only an explicit `seo` option says `<Seo />` is wanted. Config-derived defaults do
+          // not: `site.seo` also feeds indexing and robots, and `environments.*.robots` alone makes
+          // the defaults non-empty, so keying this on them made the stock template warn about a
+          // component it never renders.
+          if (opts.seo && config.integrations.some((i) => i.name === 'emdash'))
             logger.warn(
               'seo: emdash() is registered, and its <EmDashHead> emits the same title/description/' +
                 'canonical/og tags from the CMS. Use one or the other — rendering both duplicates ' +
-                'every tag.',
+                'every tag. Drop the `seo` option to let <EmDashHead> own them.',
             );
         }
         // Analytics + consent are resolved here rather than in the component:

@@ -168,7 +168,13 @@ wc-carousel {
 }
 
 /* Paged — CSS multicol. `::column` is left ungated: an engine without it renders
-   a plain multicol strip, which still scrolls and snaps. */
+   a plain multicol strip, which still scrolls and snaps.
+   TODO(support): lightningcss (through 1.33) does not know `::column` and prints
+   "'column' is not recognized as a valid pseudo-element" for it, and for
+   `::column::scroll-marker` below, on every build that minifies this partial. It is a warning,
+   not a failure, and the rules are passed through intact. `@supports selector(::column)` does
+   not silence it (the inner rule is still parsed), so drop this note when lightningcss learns
+   the pseudo-element. */
 .carousel--auto-pages > .carousel__track,
 .carousel--auto-pages:not(:has(> .carousel__track)) {
   columns: var(--carousel-columns, 1);
