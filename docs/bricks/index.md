@@ -2,6 +2,10 @@
 
 # Bricks Builder integration
 
+> **Status: not actively maintained.** Bricks was the original target; sites are now built on
+> `tailwind` (EmDash and Astro). The elements below still build and are kept working, but get no new
+> patterns or fixes until Bricks support is rebuilt on the `tailwind` / `css` foundation.
+
 # Styling
 
 Prefer adding the framework **CSS classes** — see [/css/classes.md](../css/classes.md) — in a
