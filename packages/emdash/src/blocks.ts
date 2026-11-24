@@ -471,7 +471,12 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         min_items: 1,
         fields: [
           { type: 'text_input', action_id: 'summary', label: 'Summary (always visible)' },
-          { type: 'text_input', action_id: 'body', label: 'Body (revealed)', multiline: true },
+          {
+            type: 'text_input',
+            action_id: 'body',
+            label: 'Body (revealed). [text](url) makes a link; a blank line starts a paragraph',
+            multiline: true,
+          },
           { type: 'toggle', action_id: 'open', label: 'Open by default', initial_value: false },
         ],
       },
@@ -479,6 +484,13 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         type: 'toggle',
         action_id: 'exclusive',
         label: 'Only one open at a time',
+        initial_value: false,
+      },
+      {
+        type: 'toggle',
+        action_id: 'schema',
+        label:
+          'Mark up as FAQ for search engines (Google shows these only for government and health sites)',
         initial_value: false,
       },
     ],

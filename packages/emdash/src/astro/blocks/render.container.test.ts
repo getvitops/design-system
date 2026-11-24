@@ -858,3 +858,26 @@ describe('block images (BlockImage)', () => {
     expect(html).not.toContain('srcset');
   });
 });
+
+describe('vitops_accordion', () => {
+  const items = [
+    { summary: 'When do you plant?', body: 'In [spring](/seasons) and fall.\n\nBook early.' },
+    { summary: 'Do you offer quotes?', body: 'Yes.' },
+  ];
+
+  it('renders links in the body and no JSON-LD by default', async () => {
+    const { default: Accordion } = await import('./Accordion.astro');
+    const html = await render(Accordion, { items });
+    expect(html).toContain('<a class="link" href="/seasons">spring</a>');
+    expect(html).not.toContain('application/ld+json');
+  });
+
+  it('emits FAQPage JSON-LD only when schema is on, with links flattened to text', async () => {
+    const { default: Accordion } = await import('./Accordion.astro');
+    const html = await render(Accordion, { items, schema: true });
+    const ld = JSON.parse(/<script[^>]*ld\+json[^>]*>([\s\S]*?)<\/script>/.exec(html)![1]!);
+    expect(ld['@type']).toBe('FAQPage');
+    expect(ld.mainEntity).toHaveLength(2);
+    expect(ld.mainEntity[0].acceptedAnswer.text).toBe('In spring and fall. Book early.');
+  });
+});
