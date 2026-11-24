@@ -53,6 +53,27 @@ import { cmdEmdashDb, cmdEmdashSchema } from './emdash-env.ts';
 import { fail } from './shared.ts';
 import { EMDASH_HELP } from '../help.ts';
 
+/**
+ * Import `@getvitops/emdash` as the project installed it. `require.resolve('@getvitops/emdash')`
+ * throws for a package whose `exports` carry only an `import` condition, so resolve its
+ * `package.json` (always exported) and read the ESM entry from there.
+ */
+async function importProjectEmdash<T>(): Promise<T | undefined> {
+  try {
+    const req = createRequire(join(process.cwd(), 'noop.js'));
+    const manifestPath = req.resolve('@getvitops/emdash/package.json');
+    const pkg = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      exports?: { '.'?: { import?: string } | string };
+    };
+    const root = pkg.exports?.['.'];
+    const entry = typeof root === 'string' ? root : root?.import;
+    if (!entry) return undefined;
+    return (await import(pathToFileURL(join(manifestPath, '..', entry)).href)) as T;
+  } catch {
+    return undefined;
+  }
+}
+
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
@@ -394,13 +415,8 @@ async function cmdFormTemplate(argv: string[]) {
     );
   const name = requested ?? 'contact';
 
-  let emdash: { formTemplateFromBlock: (b: unknown) => unknown };
-  try {
-    const resolved = createRequire(join(process.cwd(), 'noop.js')).resolve('@getvitops/emdash');
-    emdash = await import(pathToFileURL(resolved).href);
-  } catch {
-    fail('@getvitops/emdash is not installed in this project (run from the site root).');
-  }
+  const emdash = await importProjectEmdash<{ formTemplateFromBlock: (b: unknown) => unknown }>();
+  if (!emdash) fail('@getvitops/emdash is not installed in this project (run from the site root).');
   const template = emdash!.formTemplateFromBlock(blocks[0]);
   const { config, changed } = withTemplate(
     JSON.parse(readFileSync(siteFile, 'utf8')),
@@ -463,15 +479,10 @@ async function cmdBuild(argv: string[]) {
 async function cmdCheckSeed(args: string[]) {
   const file = args.find((a) => !a.startsWith('-')) ?? 'seed/seed.json';
   if (!existsSync(file)) fail(`${file} does not exist (pass the seed path).`);
-  let emdash: {
+  const emdash = await importProjectEmdash<{
     checkSeedBlocks: (seed: unknown) => { level: string; path: string; message: string }[];
-  };
-  try {
-    const resolved = createRequire(join(process.cwd(), 'noop.js')).resolve('@getvitops/emdash');
-    emdash = await import(pathToFileURL(resolved).href);
-  } catch {
-    fail('@getvitops/emdash is not installed in this project (run from the site root).');
-  }
+  }>();
+  if (!emdash) fail('@getvitops/emdash is not installed in this project (run from the site root).');
   const problems = emdash!.checkSeedBlocks(JSON.parse(readFileSync(file, 'utf8')));
   for (const p of problems) console.log(`${p.level}: ${file} ${p.path}: ${p.message}`);
   const errors = problems.filter((p) => p.level === 'error').length;
