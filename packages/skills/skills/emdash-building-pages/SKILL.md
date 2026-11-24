@@ -21,6 +21,14 @@ Reference, rendered from this project: `vp exec vitops docs blocks` (every block
   `secondary_label`) and `stack: rhythm`; don't nest a `vitops_hero` or another section wrapper in a
   section body, which renders two layers of `section > .centered`. `vitops_hero` is for a hero
   that stands alone (it carries option cards).
+- **Width and layout: pick them on purpose.** `width: measure` (about 65ch) and `layout: stack`
+  suit running, blog-like text, and they are the defaults, so a section keeps them unless
+  something chooses otherwise. A top-level section of a marketing page (services, features, stats,
+  pricing, logos, reviews, a call to action) often reads better wider (`spotlight` or `breakout`)
+  or with a layout such as `split` (heading beside its content) or `center`; consider that first,
+  and keep `measure` where the content is narrow by nature. A full-bleed band with its content in
+  the `measure` column shows as a narrow strip on a wide page, and nothing flags it. A section
+  nested inside another follows its parent's width.
 - **Section, block or widget area?** Copy-and-edit content is an EmDash Section. The same content
   everywhere (announcement bar, pre-footer call to action, sidebar, footer columns) is a **widget
   area**: define it under Widgets in the admin and render it with `<VitopsWidgetArea name="…" />`
