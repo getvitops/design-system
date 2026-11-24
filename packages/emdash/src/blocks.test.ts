@@ -38,6 +38,16 @@ async function codeOf(file: string): Promise<string> {
 
 const componentFiles = await componentFilesFromIndex();
 
+/**
+ * Blocks that are adapters over a shared implementation: the fields they declare are consumed
+ * there, not in the block's own `.astro` file. Paths are relative to the package root, like
+ * `componentFiles`, and the delegate is read alongside the block (never instead of it).
+ */
+const DELEGATES: Record<string, string[]> = {
+  // `<ContactForm>` renders the form; `contact-form` decides what each field row becomes.
+  vitops_form: ['../astro/src/components/ContactForm.astro', '../utils/src/contact-form/fields.ts'],
+};
+
 /** Every `action_id` a block saves, including the sub-fields of a repeater's rows. */
 function actionIds(fields: NonNullable<(typeof BLOCKS)[number]['fields']>): string[] {
   return fields.flatMap((f) => [
@@ -100,7 +110,8 @@ describe('block ↔ component agreement', () => {
   it.each(BLOCKS.map((b) => [b.type, b] as const))(
     '%s: every field action_id is consumed by its component',
     async (type, block) => {
-      const source = await codeOf(componentFiles[type]!);
+      const files = [componentFiles[type]!, ...(DELEGATES[type] ?? [])];
+      const source = (await Promise.all(files.map(codeOf))).join('\n');
       for (const id of actionIds(block.fields ?? [])) {
         // The escape hatches are applied by rootAttrs in each renderer (see the test below).
         if (COMMON.has(id)) continue;

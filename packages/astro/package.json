@@ -77,7 +77,8 @@
     "src/exports/tracking.ts",
     "src/components/ReviewCard.astro",
     "src/components/ReviewCardBody.astro",
-    "src/components/Marquee.astro"
+    "src/components/Marquee.astro",
+    "src/components/ContactForm.astro"
   ],
   "type": "module",
   "types": "./dist/index.d.mts",
@@ -104,6 +105,7 @@
     "./Ads.astro": "./src/components/Ads.astro",
     "./CookieConsent.astro": "./src/components/CookieConsent.astro",
     "./Tracking.astro": "./src/components/Tracking.astro",
+    "./components/ContactForm.astro": "./src/components/ContactForm.astro",
     "./components/Subgrid.astro": "./src/components/Subgrid.astro",
     "./components/Cards.astro": "./src/components/Cards.astro",
     "./components/Carousel.astro": "./src/components/Carousel.astro",

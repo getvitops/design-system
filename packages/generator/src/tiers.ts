@@ -864,7 +864,9 @@ export const TIERS: Record<string, TierEntry> = {
   },
   forms: {
     css: c(['form-group', 'input-group', 'fieldset', 'custom-check'], 'patterns/forms.css', true),
-    use: 'Wrap text controls in `.form-group` or `.input-group` — a bare `<input>` gets browser defaults.',
+    astro: a('ContactForm', 'css'),
+    emdash: ['vitops_form'],
+    use: 'Wrap text controls in `.form-group` or `.input-group` — a bare `<input>` gets browser defaults. For a contact or enquiry form use `<ContactForm />` (name, email, phone, message, or `fields={[{ label, type, required }]}`): a real `<form method="post">` to `createConversionRoute()` with the honeypot and, when `site.security.turnstile.siteKey` is set, Turnstile. Do not hand-write that form: the route drops a field named `phone` (it is the tel-click payload) and treats `website`/`honeypot` as bot traps, and `<ContactForm>` submits a phone as `tel`. In EmDash, `vitops_form` is the same form with editor-defined fields.',
   },
   cluster: {
     css: c(['cluster', 'cluster-between', 'cluster-start'], 'patterns/cluster.css'),

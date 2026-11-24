@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { fieldName, resolveFields, safeAction, safeNext, slugName } from './fields.ts';
+import {
+  DEFAULT_CONTACT_ROWS,
+  fieldName,
+  resolveFields,
+  safeAction,
+  safeNext,
+  slugName,
+} from './fields.ts';
 
 describe('field names', () => {
   it('derives a safe name from the label', () => {
@@ -51,5 +58,20 @@ describe('same-site paths only', () => {
     expect(safeNext('/contact')).toBe('/contact');
     expect(safeAction(undefined)).toBe('/api/track');
     expect(safeAction('/api/enquiry')).toBe('/api/enquiry');
+  });
+});
+
+describe('the default contact fields', () => {
+  const fields = resolveFields(DEFAULT_CONTACT_ROWS);
+
+  it('are name, email, phone and message, in that order', () => {
+    expect(fields.map((f) => f.label)).toEqual(['Name', 'Email', 'Phone', 'Message']);
+  });
+  it('submit under names the route reads: the phone as `tel`, never the reserved `phone`', () => {
+    expect(fields.map((f) => f.name)).toEqual(['name', 'email', 'tel', 'message']);
+    expect(fields.map((f) => f.name)).not.toContain('phone');
+  });
+  it('require the three a lead cannot do without, and let the phone be optional', () => {
+    expect(fields.map((f) => f.required)).toEqual([true, true, false, true]);
   });
 });
