@@ -81,7 +81,8 @@
   .parallax__layer {
     position: absolute;
     inset: calc(-50% * var(--_parallax-speed)) 0;
-    animation: parallax-scroll linear;
+    animation-name: parallax-scroll;
+    animation-timing-function: linear;
     animation-timeline: scroll(root);
 
     @media (prefers-reduced-motion: reduce) {
@@ -125,7 +126,8 @@
     block-size: 100%;
     background: var(--scroll-progress-color, var(--color-bg-brand-primary-solid));
     transform-origin: calc(50% - 50% * var(--dir-sign, 1)) 50%;
-    animation: scroll-progress-grow linear;
+    animation-name: scroll-progress-grow;
+    animation-timing-function: linear;
     animation-timeline: scroll(root);
   }
 }
@@ -151,7 +153,9 @@
 
 /* ── Scroll reveal — view()-driven entrance ───────────────────────────────── */
 .scroll-reveal {
-  animation: scroll-reveal linear both;
+  animation-name: scroll-reveal;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
   animation-timeline: view();
   animation-range: entry 0% cover 40%;
 

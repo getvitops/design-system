@@ -562,13 +562,17 @@ wc-carousel {
    shell hoisted with `timeline-scope`. */
 @supports (animation-timeline: scroll()) {
   .carousel__hint {
-    animation: carousel-hint-dim linear both;
+    animation-name: carousel-hint-dim;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
     animation-timeline: --carousel-scroll;
     animation-range: 0 var(--carousel-hint-range, 12%);
   }
 
   .carousel__track {
-    animation: carousel-scrollbar-dim linear both;
+    animation-name: carousel-scrollbar-dim;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
     animation-timeline: --carousel-scroll;
     animation-range: 0 var(--carousel-hint-range, 12%);
   }
@@ -654,7 +658,9 @@ wc-carousel {
 
 .carousel--inert.carousel--auto-pages > .carousel__track > *,
 .carousel--inert.carousel--auto-pages:not(:has(> .carousel__track)) > * {
-  animation: carousel-offscreen-inert linear both;
+  animation-name: carousel-offscreen-inert;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
   animation-timeline: view(x);
 }
 

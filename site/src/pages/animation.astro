@@ -483,7 +483,35 @@ const headings = [
   {TEXT_EFFECTS.map((t) => (
     <div class="an-textrow">
       <code class="font-footnote text-surface-x-muted">.{t}</code>
-      <p class={`font-heading ${t}`}>Design systems in motion</p>
+      {t === 'text-rotate' || t === 'text-flip' ? (
+        // Word lists: each word is a `__item` child, stacked and cycled by the parent.
+        <p class="font-heading">
+          Design systems in{' '}
+          <span class={t}>
+            {['motion', 'style', 'sync'].map((w) => (
+              <span class={`${t}__item`}>{w}</span>
+            ))}
+          </span>
+        </p>
+      ) : t === 'text-stagger' ? (
+        // One span per character; the pop-in plays once, so the script below replays it on view.
+        <p class="font-heading">
+          <span class={t}>
+            {[...'Staggered'].map((ch) => (
+              <span class={`${t}__char`}>{ch}</span>
+            ))}
+          </span>
+        </p>
+      ) : t === 'typing' ? (
+        // Looped so it is moving whenever it is on screen; `--typing-steps` is the character count.
+        <p class="font-heading">
+          <span class="typing typing--loop" style="--typing-steps: 24">
+            Design systems in motion
+          </span>
+        </p>
+      ) : (
+        <p class={`font-heading ${t}`}>Design systems in motion</p>
+      )}
     </div>
   ))}
   <div class="an-textrow">
@@ -491,6 +519,25 @@ const headings = [
     <p class="font-title text-reveal">Scroll to fill this line from one colour to the other</p>
   </div>
 </Docs>
+
+<script>
+  // `.text-stagger` plays its pop-in once, at load, which is long over by the time a reader scrolls
+  // to it. Restart it each time it comes into view.
+  const stagger = document.querySelectorAll('.text-stagger');
+  if (stagger.length && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        for (const el of entry.target.querySelectorAll('.text-stagger__char'))
+          for (const a of el.getAnimations()) {
+            a.cancel();
+            a.play();
+          }
+      }
+    });
+    stagger.forEach((el) => io.observe(el));
+  }
+</script>
 
 <style>
   /* Demo scaffolding: the effects under test only supply motion, so the tiles,

@@ -123,7 +123,9 @@
   @media (prefers-reduced-motion: no-preference) {
     .steps.steps--animated {
       .steps__item {
-        animation: steps-progress linear both;
+        animation-name: steps-progress;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
         animation-timeline: view();
         animation-range: entry 15% cover 40%;
       }

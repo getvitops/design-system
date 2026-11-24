@@ -30,7 +30,9 @@
           height: 100cqb;
           width: 150cqi;
           will-change: transform;
-          animation: linear horizontal-scroll-move forwards;
+          animation-name: horizontal-scroll-move;
+          animation-timing-function: linear;
+          animation-fill-mode: forwards;
           animation-timeline: --horizontal-scroll-tl;
           animation-range: contain 0% contain 100%;
         }
