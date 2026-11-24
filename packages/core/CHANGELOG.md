@@ -1,5 +1,14 @@
 # @getvitops/core
 
+## 9.0.0-alpha.10
+
+### Patch Changes
+
+- 3b78c4f: **Fix: scroll-driven animations silently did nothing in Chromium.** lightningcss folds `animation: x linear both; animation-timeline: view()` into one `animation: linear both x view()` when it minifies, and Chromium does not accept a timeline inside the `animation` shorthand, so it dropped the whole declaration. The affected rules never ran: `.text-reveal`, `.scroll-size`, `.scroll-reveal`, the `.steps--animated` items, `.parallax__layer`, the scroll-progress bar, `.stack` cards, `.horizontal-scroll` and the carousel's hint and scrollbar dimming and offscreen-inert rules. They are now written as `animation-name`, `animation-timing-function`, `animation-fill-mode` and `animation-timeline` longhands, which lightningcss leaves alone. All formats (the partials are shared); the visible change is that those effects now run. A new test fails if any bundle carries a timeline inside an `animation:` shorthand. Other fixed-group packages: no consumer-facing change.
+- 04d97e7: A `.cta` or `.btn` placed directly in a `.section` body is sized to its label (start-aligned, centered in `section--center`) instead of stretching across the grid. Reaches all formats.
+- cd9e1b4: A `.section` that is a direct child of a `.centered` parent (the emdash template's `<main>`) now takes the full-bleed track, so its tone and backdrop span the viewport instead of stopping at the reading width. Its content is still laid out on its own inner `.centered` tracks. Reaches all formats.
+- 1907f39: A `<SiteNav>` menu item with the `cta` class now keeps the button's text colour, padding and radius. The link's inherited colour used to win, giving dark text on the dark button. Reaches all formats.
+
 ## 9.0.0-alpha.9
 
 ### Minor Changes

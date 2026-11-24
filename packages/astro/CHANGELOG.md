@@ -1,5 +1,19 @@
 # @getvitops/astro
 
+## 9.0.0-alpha.10
+
+### Patch Changes
+
+- Updated dependencies [3b78c4f]
+- Updated dependencies [04d97e7]
+- Updated dependencies [cd9e1b4]
+- Updated dependencies [1907f39]
+  - @getvitops/core@9.0.0-alpha.10
+  - @getvitops/generator@9.0.0-alpha.10
+  - @getvitops/vite@9.0.0-alpha.10
+  - @getvitops/config@9.0.0-alpha.10
+  - @getvitops/utils@9.0.0-alpha.10
+
 ## 9.0.0-alpha.9
 
 ### Minor Changes

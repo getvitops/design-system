@@ -1,5 +1,14 @@
 # @getvitops/cli
 
+## 9.0.0-alpha.10
+
+### Patch Changes
+
+- 0dccb01: **Fix: `vitops emdash check-seed` and `form-template` reported `@getvitops/emdash is not installed` when it was.** Both resolved the package with `require.resolve`, which throws for a package whose `exports` carry only an `import` condition, as `@getvitops/emdash` does. They now resolve its `package.json` and import its ESM entry. No change to what either command checks. Other fixed-group packages: no consumer-facing change.
+- Updated dependencies [3b78c4f]
+  - @getvitops/generator@9.0.0-alpha.10
+  - @getvitops/utils@9.0.0-alpha.10
+
 ## 9.0.0-alpha.9
 
 ### Minor Changes

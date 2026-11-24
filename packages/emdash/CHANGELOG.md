@@ -1,5 +1,15 @@
 # @getvitops/emdash
 
+## 2.0.0-alpha.10
+
+### Patch Changes
+
+- cd9e1b4: `vitops_hero` with the `split` layout and an image now spans the viewport edge to edge (`fullbleed`), with the text column centered and padded and the image filling its half, instead of sitting inside the reading column. A hero without an image, or in the single-column layout, is unchanged.
+- 03ba4a1: `vitops_tabs` panel text now takes everything an accordion body does: paragraphs separated by a blank line, `- ` lists, `[text](url)` links and `**bold**`. Plain-text panels render as before.
+- Updated dependencies [3b78c4f]
+  - @getvitops/generator@9.0.0-alpha.10
+  - @getvitops/utils@9.0.0-alpha.10
+
 ## 2.0.0-alpha.9
 
 ### Minor Changes

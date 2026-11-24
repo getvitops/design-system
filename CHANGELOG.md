@@ -11,6 +11,20 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 9.0.0-alpha.10 (+ `@getvitops/emdash` 2.0.0-alpha.10) — alpha channel
+
+Prerelease on the `alpha` dist-tag; not on `latest`. Fixes found upgrading two sites onto alpha.9 (a landscaping site and a signage site). `@getvitops/create` and `@getvitops/skills` are unchanged and stay at 0.9.0-alpha.9 and 0.1.0-alpha.4. `@getvitops/config`, `utils`, `vite` and `cli` carry **no consumer-facing change** beyond the `fixed` version bump, except the `vitops emdash check-seed` and `form-template` fix below.
+
+**Fixed**
+
+- **A `.section` directly under a `.centered` parent now spans the viewport** (`@getvitops/core`, **all formats**). The emdash template's `<main class="centered">` held every band to the reading width, so tones and backdrops stopped at the text column. The section takes the full-bleed track; its own inner `.centered` still lays out the content.
+- **A split `vitops_hero` with an image is full-bleed** (`@getvitops/emdash`): text column centered and padded, image filling its half. A hero without an image, or single-column, is unchanged.
+- **A `cta` item in `<SiteNav>` keeps the button's text colour, padding and radius** (`@getvitops/core`, **all formats**). The link's inherited colour used to win: dark text on a dark button.
+- **A `.cta` or `.btn` directly in a section body is sized to its label** (`@getvitops/core`, **all formats**) instead of stretching across the grid.
+- **`vitops_tabs` panels take rich text** (`@getvitops/emdash`): paragraphs, `- ` lists, `[text](url)` and `**bold**`, like an accordion body.
+- **Scroll-driven animations ran nowhere in Chromium from the published CSS** (`@getvitops/core`, **all formats**): lightningcss merged `animation-timeline` into the `animation` shorthand, which Chromium drops whole. The 12 affected declarations (`.text-reveal`, `.scroll-size`, steps, parallax, scroll progress, `.stack`, `.horizontal-scroll`, carousel) are longhands now; a guard test fails if a bundle regresses.
+- **`vitops emdash check-seed` and `form-template` failed with "not installed"** (`@getvitops/cli`) when `@getvitops/emdash` was present: it is ESM-only and `require.resolve` cannot find it.
+
 ## 9.0.0-alpha.9 (+ `@getvitops/emdash` 2.0.0-alpha.9, `@getvitops/create` 0.9.0-alpha.9, `@getvitops/skills` 0.1.0-alpha.4) — alpha channel
 
 Prerelease on the `alpha` dist-tag; not on `latest`. A site coming from 8.x also needs the earlier `9.0.0-alpha.*` entries below, which hold the rest of the 9.0 cycle (contrast contract, scroll-aware chrome, the config form, EmDash environments).
