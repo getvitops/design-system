@@ -75,7 +75,7 @@ import { rootAttrs } from './attrs.ts';
       joinStyle(tone.style, scrollCue && 'position: relative'),
     )}
   >
-    <div class={split ? 'split split-1-2' : 'centered'}>
+    <div class={split ? 'split' : 'centered'}>
       <div
         class="rhythm"
         style={
@@ -115,7 +115,7 @@ import { rootAttrs } from './attrs.ts';
           displayWidth={960}
           loading="eager"
           fetchpriority="high"
-          style="display:block;inline-size:100%;block-size:100%;object-fit:cover"
+          style="display:block;inline-size:100%;block-size:clamp(22rem, 60vh, 38rem);object-fit:cover"
         />
       )}
     </div>
