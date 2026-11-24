@@ -79,6 +79,8 @@ export function outlineTag(
 export interface Run {
   text: string;
   href?: string;
+  /** Written `**like this**`. */
+  strong?: boolean;
 }
 
 /**
@@ -94,13 +96,62 @@ export function linkRuns(input: unknown): Run[] {
   const runs: Run[] = [];
   let last = 0;
   for (const m of source.matchAll(/\[([^\]]+)\]\(([^)\s]+)\)/g)) {
-    if (m.index > last) runs.push({ text: source.slice(last, m.index) });
+    if (m.index > last) runs.push(...strongRuns(source.slice(last, m.index)));
     const href = safeHref(m[2]);
     runs.push(href ? { text: m[1]!, href } : { text: m[1]! });
     last = m.index + m[0].length;
   }
+  if (last < source.length) runs.push(...strongRuns(source.slice(last)));
+  return runs;
+}
+
+/** `**bold**` spans as `strong` runs. Unbalanced stars stay literal. */
+function strongRuns(source: string): Run[] {
+  const runs: Run[] = [];
+  let last = 0;
+  for (const m of source.matchAll(/\*\*([^*]+)\*\*/g)) {
+    if (m.index > last) runs.push({ text: source.slice(last, m.index) });
+    runs.push({ text: m[1]!, strong: true });
+    last = m.index + m[0].length;
+  }
   if (last < source.length) runs.push({ text: source.slice(last) });
   return runs;
+}
+
+/** One block of a rich body: a paragraph, or a list whose items are lines. */
+export type BodyBlock = { kind: 'p'; text: string } | { kind: 'ul' | 'ol'; items: string[] };
+
+/**
+ * A multiline editor field as paragraphs and lists. Blank lines separate blocks; a block whose
+ * every line starts `- ` or `* ` is a bullet list, one whose every line starts `1. ` (any
+ * number) is a numbered list, and anything else is a paragraph (its lines joined by a space).
+ * Each text is for `linkRuns()`, so links and `**bold**` work in all of them and nothing is HTML.
+ */
+export function bodyBlocks(input: unknown): BodyBlock[] {
+  return text(input)
+    .split(/\n\s*\n/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map((chunk): BodyBlock => {
+      const lines = chunk
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+      if (lines.every((l) => /^[-*] +\S/.test(l)))
+        return { kind: 'ul', items: lines.map((l) => l.replace(/^[-*] +/, '')) };
+      if (lines.every((l) => /^\d+[.)] +\S/.test(l)))
+        return { kind: 'ol', items: lines.map((l) => l.replace(/^\d+[.)] +/, '')) };
+      return { kind: 'p', text: lines.join(' ') };
+    });
+}
+
+/** A rich body as plain text, for structured data: links and bold flattened, list items joined. */
+export function bodyPlainText(blocks: BodyBlock[]): string {
+  const flat = (t: string) =>
+    linkRuns(t)
+      .map((r) => r.text)
+      .join('');
+  return blocks.map((b) => (b.kind === 'p' ? flat(b.text) : b.items.map(flat).join(' '))).join(' ');
 }
 
 /**

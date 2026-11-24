@@ -898,6 +898,24 @@ describe('vitops_accordion', () => {
     { summary: 'Do you offer quotes?', body: 'Yes.' },
   ];
 
+  it('renders bold and lists in a body, and the FAQ answer carries the list as text', async () => {
+    const { default: Accordion } = await import('./Accordion.astro');
+    const rich = [
+      {
+        summary: 'When?',
+        body: '**Spring:** plant early.\n\n- April: shrubs\n- May: annuals',
+      },
+    ];
+    const html = await render(Accordion, { items: rich, schema: true });
+    expect(html).toContain('<strong>Spring:</strong>');
+    expect(html).toContain('<ul>');
+    expect(html).toContain('<li>April: shrubs</li>');
+    const ld = JSON.parse(/<script[^>]*ld\+json[^>]*>([\s\S]*?)<\/script>/.exec(html)![1]!);
+    expect(ld.mainEntity[0].acceptedAnswer.text).toBe(
+      'Spring: plant early. April: shrubs May: annuals',
+    );
+  });
+
   it('renders links in the body and no JSON-LD by default', async () => {
     const { default: Accordion } = await import('./Accordion.astro');
     const html = await render(Accordion, { items });

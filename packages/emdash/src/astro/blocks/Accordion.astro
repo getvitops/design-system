@@ -5,7 +5,8 @@
  * comes from the block's `_key`, so two accordions on a page never close each other.
  */
 import FAQ from '@getvitops/astro/schemas/FAQ.astro';
-import { linkRuns, paragraphs, resolveBlockValue, rows, text } from './value.ts';
+import RichBody from './RichBody.astro';
+import { bodyBlocks, bodyPlainText, resolveBlockValue, rows, text } from './value.ts';
 
 interface Value {
   _key?: string;
@@ -18,7 +19,8 @@ const value = resolveBlockValue<Value>(Astro.props);
 const items = rows<Record<string, unknown>>(value.items)
   .map((row) => ({
     summary: text(row.summary),
-    body: paragraphs(row.body),
+    body: row.body,
+    blocks: bodyBlocks(row.body),
     open: Boolean(row.open),
   }))
   .filter((item) => item.summary);
@@ -27,13 +29,7 @@ const items = rows<Record<string, unknown>>(value.items)
 const faqItems = value.schema
   ? items.map((item) => ({
       question: item.summary,
-      answer: item.body
-        .map((p) =>
-          linkRuns(p)
-            .map((r) => r.text)
-            .join(''),
-        )
-        .join(' '),
+      answer: bodyPlainText(item.blocks),
     }))
   : [];
 const { spriteBase = '/vitops' } = Astro.props as { spriteBase?: string };
@@ -55,19 +51,7 @@ import { rootAttrs } from './attrs.ts';
             </svg>
           </span>
         </summary>
-        {item.body.map((p) => (
-          <p>
-            {linkRuns(p).map((run) =>
-              run.href ? (
-                <a class="link" href={run.href}>
-                  {run.text}
-                </a>
-              ) : (
-                run.text
-              ),
-            )}
-          </p>
-        ))}
+        <RichBody text={item.body} />
       </details>
     ))}
   </div>

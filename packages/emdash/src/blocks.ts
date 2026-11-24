@@ -290,7 +290,13 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     placeholder: 'Collapsible details/summary',
     fields: [
       { type: 'text_input', action_id: 'summary', label: 'Summary (always visible)' },
-      { type: 'text_input', action_id: 'body', label: 'Body (revealed)', multiline: true },
+      {
+        type: 'text_input',
+        action_id: 'body',
+        label:
+          'Body (revealed). A blank line starts a paragraph; lines starting with - or 1. make a list; **bold** and [text](url) work',
+        multiline: true,
+      },
       { type: 'toggle', action_id: 'open', label: 'Open by default', initial_value: false },
     ],
   },
@@ -474,7 +480,8 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
           {
             type: 'text_input',
             action_id: 'body',
-            label: 'Body (revealed). [text](url) makes a link; a blank line starts a paragraph',
+            label:
+              'Body (revealed). A blank line starts a paragraph; lines starting with - or 1. make a list; **bold** and [text](url) work',
             multiline: true,
           },
           { type: 'toggle', action_id: 'open', label: 'Open by default', initial_value: false },
