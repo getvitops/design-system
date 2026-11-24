@@ -78,7 +78,8 @@
     "src/components/ReviewCard.astro",
     "src/components/ReviewCardBody.astro",
     "src/components/Marquee.astro",
-    "src/components/ContactForm.astro"
+    "src/components/ContactForm.astro",
+    "src/components/footer.ts"
   ],
   "type": "module",
   "types": "./dist/index.d.mts",
