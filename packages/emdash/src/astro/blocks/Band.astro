@@ -1,0 +1,14 @@
+---
+/**
+ * `vitops_band` on its own (no `<VitopsContent>` around the field): the band's head and
+ * backdrop, with nothing inside it. See `band.ts`; `<VitopsContent>` is what fills a band.
+ */
+import Section from './Section.astro';
+import { bandToSection } from './band.ts';
+import { resolveBlockValue } from './value.ts';
+
+const value = resolveBlockValue<Record<string, unknown>>(Astro.props);
+const section = bandToSection(value, []);
+---
+
+<Section node={section} />

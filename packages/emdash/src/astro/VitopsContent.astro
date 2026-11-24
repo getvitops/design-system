@@ -1,0 +1,25 @@
+---
+/**
+ * Renders a `portableText` field, turning each `vitops_band` marker into a full section that
+ * holds the blocks after it. Use it where a page would use `<PortableText value={…} />`:
+ *
+ *     <VitopsContent value={page.data.content} />
+ *
+ * Content with no band renders exactly as `<PortableText>` would. Imported lazily for the same
+ * cycle `Section.astro` explains.
+ */
+const { PortableText } = await import('emdash/ui');
+import Section from './blocks/Section.astro';
+import { bandToSection, groupBands } from './blocks/band.ts';
+
+const { value } = Astro.props as { value: unknown };
+const groups = groupBands(value);
+---
+
+{groups.map((group) =>
+  group.kind === 'band' ? (
+    <Section node={bandToSection(group.band, group.body)} />
+  ) : (
+    <PortableText value={group.blocks as never} />
+  ),
+)}

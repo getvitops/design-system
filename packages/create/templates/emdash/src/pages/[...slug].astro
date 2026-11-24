@@ -1,6 +1,7 @@
 ---
 import { getEmDashCollection } from 'emdash';
 import { PortableText } from 'emdash/ui';
+import { VitopsContent } from '@getvitops/emdash/astro';
 import type { ComponentProps } from 'astro/types';
 import Layout from '../layouts/Layout.astro';
 
@@ -44,6 +45,6 @@ const content = page.data.content as ComponentProps<typeof PortableText>['value'
 <Layout title={title}>
   <article class="rhythm">
     <h1>{title}</h1>
-    {content && <PortableText value={content} />}
+    {content && <VitopsContent value={content} />}
   </article>
 </Layout>

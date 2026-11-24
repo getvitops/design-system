@@ -12,6 +12,7 @@ import { resolveTheme } from './blocks/tone.ts';
 import WidgetArea from './blocks/WidgetArea.astro';
 import Accordion from './blocks/Accordion.astro';
 import ActionLink from './blocks/ActionLink.astro';
+import Band from './blocks/Band.astro';
 import Banner from './blocks/Banner.astro';
 import Callout from './blocks/Callout.astro';
 import Cards from './blocks/Cards.astro';
@@ -39,6 +40,7 @@ export const blockComponents = {
   vitops_actionLink: ActionLink,
   vitops_imageCompare: ImageCompare,
   vitops_copyButton: CopyButton,
+  vitops_band: Band,
   vitops_banner: Banner,
   vitops_details: Details,
   vitops_carousel: Carousel,
@@ -67,6 +69,9 @@ export const blockComponents = {
 export const blockTypeComponents = {
   vitops_section: Section,
 };
+
+/** Renders a `portableText` field and turns `vitops_band` markers into sections around the blocks after them. */
+export { default as VitopsContent } from './VitopsContent.astro';
 
 /** The framework-styled widget area, for a site layout (the block form is `vitops_widgetArea`). */
 export { default as VitopsWidgetArea } from './WidgetArea.astro';

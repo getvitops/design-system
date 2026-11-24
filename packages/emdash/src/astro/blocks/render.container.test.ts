@@ -881,3 +881,30 @@ describe('vitops_accordion', () => {
     expect(ld.mainEntity[0].acceptedAnswer.text).toBe('In spring and fall. Book early.');
   });
 });
+
+describe('vitops_band', () => {
+  it('turns the marker into a section around the blocks after it', async () => {
+    const { default: Content } = await import('../VitopsContent.astro');
+    const container = await AstroContainer.create();
+    const text = (key: string, t: string) => ({
+      _type: 'block',
+      _key: key,
+      style: 'normal',
+      children: [{ _type: 'span', _key: `${key}s`, text: t }],
+    });
+    const html = await container.renderToString(Content as unknown as Component, {
+      props: {
+        value: [
+          text('a', 'Before'),
+          { _type: 'vitops_band', _key: 'b', heading: 'Our work', level: '2', tone: 'surface' },
+          text('c', 'Inside the band'),
+        ],
+      },
+    });
+    const band = /<section[\s\S]*<\/section>/.exec(html)![0];
+    expect(band).toContain('Our work');
+    expect(band).toContain('Inside the band');
+    expect(html.indexOf('Before')).toBeLessThan(html.indexOf('<section'));
+    expect(html).toContain('tone');
+  }, 60_000);
+});

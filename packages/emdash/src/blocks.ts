@@ -556,6 +556,57 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
+    type: 'vitops_band',
+    label: 'Band (full-width section)',
+    placeholder:
+      'Starts a section: every block after it, up to the next band, goes inside. Needs <VitopsContent> on the page',
+    category: 'Sections',
+    fields: [
+      { type: 'text_input', action_id: 'kicker', label: 'Kicker (small line above the heading)' },
+      {
+        type: 'text_input',
+        action_id: 'heading',
+        label: 'Heading (wrap words in *stars* to accent them)',
+      },
+      titleLevelField('2'),
+      { type: 'text_input', action_id: 'sub', label: 'Lead-in text', multiline: true },
+      { type: 'text_input', action_id: 'primaryLabel', label: 'Main button text' },
+      { type: 'text_input', action_id: 'primaryHref', label: 'Main button URL' },
+      { type: 'text_input', action_id: 'secondaryLabel', label: 'Second link text' },
+      { type: 'text_input', action_id: 'secondaryHref', label: 'Second link URL' },
+      {
+        type: 'select',
+        action_id: 'layout',
+        label: 'Layout',
+        initial_value: 'stack',
+        options: [
+          { label: 'Heading above content', value: 'stack' },
+          { label: 'Centered', value: 'center' },
+          { label: 'Heading left, content right', value: 'split' },
+        ],
+      },
+      {
+        type: 'select',
+        action_id: 'width',
+        label: 'Width',
+        initial_value: 'measure',
+        options: [
+          { label: 'Reading width', value: 'measure' },
+          { label: 'Wider than text', value: 'breakout' },
+          { label: 'Spotlight', value: 'spotlight' },
+          { label: 'Edge to edge', value: 'fullbleed' },
+        ],
+      },
+      ...toneFields(),
+      {
+        type: 'toggle',
+        action_id: 'solid',
+        label: 'Fill with the solid colour',
+        initial_value: false,
+      },
+    ],
+  },
+  {
     type: 'vitops_hero',
     label: 'Hero',
     placeholder: 'Page opener: heading, text, buttons and an optional image',

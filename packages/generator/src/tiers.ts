@@ -282,7 +282,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: "Add `.tone` and set `--tone-bg` / `--tone-fg` / `--tone-border` / `--tone-solid` / `--tone-on-solid` as custom properties — never a class built from a value, which Tailwind cannot see. `@getvitops/emdash`'s `resolveTone(tone, color)` writes them: role, then semantic fallbacks, then `neutral`, or a palette `color` escape hatch. `.accent` colours a run inside a heading.",
   },
   section: {
-    emdash: ['vitops_section'],
+    emdash: ['vitops_section', 'vitops_band'],
     css: c(
       [
         'section',
@@ -297,7 +297,7 @@ export const TIERS: Record<string, TierEntry> = {
       ],
       'patterns/section.css',
     ),
-    use: '`.section.region` > `.centered` > `.section__inner` holding `.section__head` (kicker, heading, sub) and `.section__body`. `.section--split` puts the head beside the body when wide. In EmDash it is a block TYPE (`vitops_section`) with a Portable Text body that accepts any other block — see `vitopsBlockTypes()`.',
+    use: '`.section.region` > `.centered` > `.section__inner` holding `.section__head` (kicker, heading, sub) and `.section__body`. `.section--split` puts the head beside the body when wide. In EmDash it is a block TYPE (`vitops_section`) with a Portable Text body that accepts any other block — see `vitopsBlockTypes()`. In a Portable Text field, where a block cannot hold blocks, `vitops_band` is a marker that opens a section around the blocks after it; render the field with `<VitopsContent>` (`@getvitops/emdash/astro`).',
   },
   steps: {
     emdash: ['vitops_steps'],

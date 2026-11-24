@@ -132,6 +132,15 @@ export const FIXTURES: Record<string, BlockFixture> = {
       { summary: 'Is the quote binding?', body: 'It is fixed unless the scope changes.' },
     ],
   },
+  vitops_band: {
+    kicker: 'Our work',
+    heading: 'Built to last',
+    level: '2',
+    sub: 'A band opens a section; the blocks after it sit inside.',
+    layout: 'stack',
+    width: 'measure',
+    tone: 'surface',
+  },
   vitops_hero: {
     eyebrow: 'Ottawa and area',
     heading: 'Landscapes that last',

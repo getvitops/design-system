@@ -44,9 +44,17 @@ const componentFiles = await componentFilesFromIndex();
  * `componentFiles`, and the delegate is read alongside the block (never instead of it).
  */
 const DELEGATES: Record<string, string[]> = {
+  // A band marker is mapped onto `Section` (`band.ts`), which renders the head and backdrop.
+  vitops_band: ['src/astro/blocks/Section.astro', 'src/astro/blocks/band.ts'],
   // `<ContactForm>` renders the form; `contact-form` decides what each field row becomes.
   vitops_form: ['../astro/src/components/ContactForm.astro', '../utils/src/contact-form/fields.ts'],
 };
+
+/** A block's own component source plus the delegates it renders through. */
+async function blockSource(type: string): Promise<string> {
+  const files = [componentFiles[type]!, ...(DELEGATES[type] ?? [])];
+  return (await Promise.all(files.map(codeOf))).join('\n');
+}
 
 /** Every `action_id` a block saves, including the sub-fields of a repeater's rows. */
 function actionIds(fields: NonNullable<(typeof BLOCKS)[number]['fields']>): string[] {
@@ -127,7 +135,7 @@ describe('block ↔ component agreement', () => {
     async (type) => {
       // One rule for every block: id/class/style go on the outermost element it renders, via
       // rootAttrs — never an extra wrapper node, so the DOM shape does not depend on the fields set.
-      const source = await codeOf(componentFiles[type]!);
+      const source = await blockSource(type);
       expect(source).toContain('rootAttrs(');
       expect(source).not.toContain('BlockShell');
     },
@@ -179,7 +187,7 @@ describe('blocks ↔ the TIERS manifest', () => {
   it.each(BLOCKS.map((b) => b.type))(
     '%s renders through the pattern it is listed under',
     async (type) => {
-      const source = await codeOf(componentFiles[type]!);
+      const source = await blockSource(type);
       // The adapter must reach its pattern by something the manifest names: the Astro
       // component it wraps, the web component's tag, or one of the pattern's classes.
       // A block that hand-writes unrelated markup would fail all three.
@@ -290,7 +298,7 @@ describe('the shared tone convention', () => {
 
   it('components resolve tone through resolveTone, never a class built from the value', async () => {
     for (const b of colouring) {
-      const source = await codeOf(componentFiles[b.type]!);
+      const source = await blockSource(b.type);
       expect(source, b.type).toContain('resolveTone(');
       expect(source, b.type).not.toMatch(/bg-\$\{|text-\$\{/);
     }
