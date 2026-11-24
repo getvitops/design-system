@@ -155,7 +155,7 @@ async function cmdGenerate(argv: string[]) {
     args: argv,
     options: {
       input: { type: 'string', short: 'i', default: 'design-system.json' },
-      format: { type: 'string', short: 'f', default: 'bricks' },
+      format: { type: 'string', short: 'f', default: 'tailwind' },
       out: { type: 'string', short: 'o', default: 'dist' },
       site: { type: 'string' },
       theme: { type: 'string' },
@@ -897,7 +897,7 @@ function cmdLint(argv: string[]) {
     options: {
       input: { type: 'string', short: 'i', default: 'design-system.json' },
       theme: { type: 'string' },
-      format: { type: 'string', short: 'f', default: 'bricks' },
+      format: { type: 'string', short: 'f', default: 'tailwind' },
       src: { type: 'string', short: 's', default: 'src' },
       // Suggestions are advisory: a reuse rule that failed CI the day it shipped
       // would be a worse defect than the drift it reports.

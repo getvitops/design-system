@@ -1622,7 +1622,7 @@ a regression here fails a test rather than waiting to be noticed again.
 
 ### `--format` mode
 
-The generator takes `--format <css|bricks|tailwind|design>` (default `bricks`; `--bricks` is a back-compat alias for `--format=bricks`).
+The generator takes `--format <css|bricks|tailwind|design>` (default `tailwind`; `--bricks` is a back-compat alias for `--format=bricks`).
 
 - **`bricks`** — `color.css` and `type-tokens.css` are one-line stubs; Bricks provides the colour `:root` tokens, dark overrides, utility classes, fonts, and type/space scales live from the imported palette + Variables JSONs. `patterns.css`, `shadows.css`, `tokens.css`, `typography.css`, `typography-headings.css`, `animation-effects.css`, and the Bricks JSONs emit. Pattern `states` reference shadows via `"shadow": "<name>"`, compiled to `filter: drop-shadow(var(--shadow-<name>))`.
 - **`css`** — same set, but `color.css`/`type-tokens.css` emit the full standalone colour + font/scale layer (self-contained; used by the docs build and non-Bricks consumers).
