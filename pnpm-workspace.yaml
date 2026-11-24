@@ -34,7 +34,7 @@ catalog:
   # bundles). From 1.7.0 the core alias (`vite:` below) is versioned 8.3.x, not 1.x.
   '@vitest/coverage-v8': 5.1.0
   '@tailwindcss/vite': ^4.3.5
-  '@types/node': ^25.9.9
+  '@types/node': ^26.6.6
   '@webcomponents/template-shadowroot': ^0.2.1
   '@webcomponents/webcomponentsjs': ^2.8.1
   # Oxfmt's optional peer: `fmt.astro: true` needs it declared in the project, not only
