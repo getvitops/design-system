@@ -33,6 +33,7 @@ import Reviews from './blocks/Reviews.astro';
 import Section from './blocks/Section.astro';
 import Stats from './blocks/Stats.astro';
 import Steps from './blocks/Steps.astro';
+import Testimonial from './blocks/Testimonial.astro';
 import Tabs from './blocks/Tabs.astro';
 import Tree from './blocks/Tree.astro';
 
@@ -48,6 +49,7 @@ export const blockComponents = {
   vitops_cards: Cards,
   vitops_accordion: Accordion,
   vitops_tabs: Tabs,
+  vitops_testimonial: Testimonial,
   vitops_tree: Tree,
   vitops_hero: Hero,
   vitops_marquee: Marquee,

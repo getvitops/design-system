@@ -908,3 +908,29 @@ describe('vitops_band', () => {
     expect(html).toContain('tone');
   }, 60_000);
 });
+
+describe('vitops_testimonial', () => {
+  const base = { quote: 'Great work.', author: 'Dana R.', role: 'Homeowner', rating: '5' };
+
+  it('renders the quote, attribution and stars with no JSON-LD by default', async () => {
+    const { default: Testimonial } = await import('./Testimonial.astro');
+    const html = await render(Testimonial, base);
+    expect(html).toContain('<blockquote class="pull-quote">');
+    expect(html).toContain('Dana R., Homeowner');
+    expect(html).toContain('aria-label="5 out of 5 stars"');
+    expect(html).not.toContain('application/ld+json');
+  });
+
+  it('emits Review JSON-LD only with schema, a rating and the reviewed business', async () => {
+    const { default: Testimonial } = await import('./Testimonial.astro');
+    const html = await render(Testimonial, { ...base, schema: true, itemName: 'Acme Landscaping' });
+    const ld = JSON.parse(/<script[^>]*ld\+json[^>]*>([\s\S]*?)<\/script>/.exec(html)![1]!);
+    expect(ld['@type']).toBe('Review');
+    expect(ld.itemReviewed.name).toBe('Acme Landscaping');
+    expect(ld.reviewRating.ratingValue).toBe(5);
+    expect(await render(Testimonial, { ...base, schema: true })).not.toContain('ld+json');
+    expect(
+      await render(Testimonial, { ...base, rating: '', schema: true, itemName: 'x' }),
+    ).not.toContain('ld+json');
+  });
+});

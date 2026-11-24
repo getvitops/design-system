@@ -728,7 +728,8 @@ export const TIERS: Record<string, TierEntry> = {
   },
   'pull-quote': {
     css: c(['pull-quote', 'pull-quote__attribution'], 'patterns/pull-quote.css', true),
-    use: '`.pull-quote`. Note the type role `quote` is separate.',
+    emdash: ['vitops_testimonial'],
+    use: '`.pull-quote`. Note the type role `quote` is separate. In EmDash, `vitops_testimonial` is a quote with attribution and optional stars; its `Review` JSON-LD is opt-in, because Google ignores reviews a business writes about itself.',
   },
   breadcrumbs: {
     css: c(['breadcrumbs'], 'patterns/breadcrumbs.css'),

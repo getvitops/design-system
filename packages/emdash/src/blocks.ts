@@ -607,6 +607,41 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     ],
   },
   {
+    type: 'vitops_testimonial',
+    label: 'Testimonial',
+    placeholder: 'A customer quote with who said it and an optional star rating',
+    category: 'Sections',
+    fields: [
+      { type: 'text_input', action_id: 'quote', label: 'Quote', multiline: true },
+      { type: 'text_input', action_id: 'author', label: 'Name' },
+      { type: 'text_input', action_id: 'role', label: 'Role or place (e.g. Homeowner, Kanata)' },
+      {
+        type: 'select',
+        action_id: 'rating',
+        label: 'Stars',
+        initial_value: '',
+        options: [
+          { label: 'None', value: '' },
+          ...['5', '4', '3', '2', '1'].map((n) => ({ label: `${n} out of 5`, value: n })),
+        ],
+      },
+      { type: 'text_input', action_id: 'date', label: 'Date (YYYY-MM-DD, optional)' },
+      ...toneFields(),
+      {
+        type: 'toggle',
+        action_id: 'schema',
+        label:
+          'Mark up as a review for search engines (Google ignores reviews a business writes about itself; needs stars and the business name)',
+        initial_value: false,
+      },
+      {
+        type: 'text_input',
+        action_id: 'itemName',
+        label: 'Business or service reviewed (for the markup)',
+      },
+    ],
+  },
+  {
     type: 'vitops_hero',
     label: 'Hero',
     placeholder: 'Page opener: heading, text, buttons and an optional image',

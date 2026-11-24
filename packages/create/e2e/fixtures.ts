@@ -141,6 +141,13 @@ export const FIXTURES: Record<string, BlockFixture> = {
     width: 'measure',
     tone: 'surface',
   },
+  vitops_testimonial: {
+    quote: 'They finished a week early and left the yard cleaner than they found it.',
+    author: 'Dana R.',
+    role: 'Homeowner, Kanata',
+    rating: '5',
+    tone: '',
+  },
   vitops_hero: {
     eyebrow: 'Ottawa and area',
     heading: 'Landscapes that last',
