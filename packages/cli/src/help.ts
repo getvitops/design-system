@@ -569,6 +569,11 @@ export const EMDASH_HELP = `vitops emdash — build-time steps for an EmDash sit
   vitops emdash form-template --from <seed.json> [--name contact] [--site site.json] [--dry]
                                      Copy a vitops_form block into site.templates (the privacy
                                      policy's "what we collect" and a check-prerender input)
+  vitops emdash check-seed [seed.json]
+                                     Check every vitops_* block in a seed (default seed/seed.json):
+                                     unknown types, misspelled fields, bad select values, a gallery
+                                     image with no src. EmDash's own validateSeed does not look
+                                     inside these blocks. Exits 1 on an error
   vitops emdash schema diff --from <url|file> --to <url> [--json|--markdown] [--check]
                                      What would be replayed from one instance's collections and
                                      fields onto another's (additions only; differences and

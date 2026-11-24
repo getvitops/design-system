@@ -456,6 +456,31 @@ async function cmdBuild(argv: string[]) {
   cmdCheckPrerender(argv);
 }
 
+/**
+ * `vitops emdash check-seed [file]`: check the `vitops_*` blocks in a seed against the plugin's
+ * definitions (EmDash's `validateSeed` does not know them). Exits 1 on any error.
+ */
+async function cmdCheckSeed(args: string[]) {
+  const file = args.find((a) => !a.startsWith('-')) ?? 'seed/seed.json';
+  if (!existsSync(file)) fail(`${file} does not exist (pass the seed path).`);
+  let emdash: {
+    checkSeedBlocks: (seed: unknown) => { level: string; path: string; message: string }[];
+  };
+  try {
+    const resolved = createRequire(join(process.cwd(), 'noop.js')).resolve('@getvitops/emdash');
+    emdash = await import(pathToFileURL(resolved).href);
+  } catch {
+    fail('@getvitops/emdash is not installed in this project (run from the site root).');
+  }
+  const problems = emdash!.checkSeedBlocks(JSON.parse(readFileSync(file, 'utf8')));
+  for (const p of problems) console.log(`${p.level}: ${file} ${p.path}: ${p.message}`);
+  const errors = problems.filter((p) => p.level === 'error').length;
+  console.log(
+    `check-seed: ${errors} error${errors === 1 ? '' : 's'}, ${problems.length - errors} warning${problems.length - errors === 1 ? '' : 's'} in ${file}.`,
+  );
+  if (errors > 0) process.exit(1);
+}
+
 export async function cmdEmdash(argv: string[]) {
   const [sub, ...rest] = argv;
   switch (sub) {
@@ -467,6 +492,8 @@ export async function cmdEmdash(argv: string[]) {
       return cmdBuild(rest);
     case 'form-template':
       return cmdFormTemplate(rest);
+    case 'check-seed':
+      return cmdCheckSeed(rest);
     case 'schema':
       return cmdEmdashSchema(rest);
     case 'db':
@@ -478,7 +505,7 @@ export async function cmdEmdash(argv: string[]) {
       return;
     default:
       fail(
-        `unknown "emdash" subcommand "${sub}" (expected: prepare-db | check-prerender | build | form-template | schema | db). Try: vitops --help`,
+        `unknown "emdash" subcommand "${sub}" (expected: prepare-db | check-prerender | build | form-template | check-seed | schema | db). Try: vitops --help`,
       );
   }
 }

@@ -49,6 +49,8 @@ import {
 export { BLOCKS } from './blocks.ts';
 export { selectBlocks } from './blocks.ts';
 export { renderBlocksDoc } from './blocks-doc.ts';
+export { checkSeedBlocks } from './seed-check.ts';
+export type { SeedProblem } from './seed-check.ts';
 export { formTemplateFromBlock } from './form-template.ts';
 export type { FormTemplate, FormTemplateField } from './form-template.ts';
 export { SECTION_BLOCK_TYPE, SECTION_SLUG, vitopsBlockTypes } from './block-types.ts';
