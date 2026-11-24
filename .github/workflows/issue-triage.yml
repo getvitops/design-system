@@ -4,9 +4,12 @@
 # assigning or editing anything but labels. See AGENTS.md "Issue reporting and triage".
 #
 # Why the gate: the issue body is untrusted text from a public tracker (prompt injection, and every
-# run costs money). So it runs automatically only for OWNER/MEMBER/COLLABORATOR authors, which is
-# what `vitops report --submit` from a maintainer's machine is. Anyone else's issue waits as
-# `triage:new` until a maintainer adds `triage:run` (only people with triage rights can label).
+# run costs money). So it runs automatically only for authors with triage/write/maintain/admin
+# access on this repo, which is what `vitops report --submit` from a maintainer's machine is.
+# Anyone else's issue waits as `triage:new` until a maintainer adds `triage:run` (only people with
+# triage rights can label). The gate asks the collaborator-permission API rather than reading
+# `author_association`: an org member whose membership is private is reported there as a
+# contributor, so the cheap check silently skipped the maintainer's own issues.
 #
 # One-time setup: `claude setup-token` locally, then
 #   gh secret set CLAUDE_CODE_OAUTH_TOKEN -R getvitops/design-system
@@ -26,11 +29,31 @@ permissions:
   issues: write
 
 jobs:
+  gate:
+    # Other labels (the forms and `vitops report` apply several at creation) need no decision.
+    if: github.event.action != 'labeled' || github.event.label.name == 'triage:run'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      trusted: ${{ steps.check.outputs.trusted }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTHOR: ${{ github.event.issue.user.login }}
+          ACTION: ${{ github.event.action }}
+        run: |
+          # A maintainer adding `triage:run` is the opt-in; the job's `if` already matched it.
+          if [ "$ACTION" = labeled ]; then echo trusted=true >> "$GITHUB_OUTPUT"; exit 0; fi
+          perm=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$AUTHOR/permission" --jq .permission 2>/dev/null || echo none)
+          case "$perm" in
+            admin|maintain|write|triage) echo trusted=true >> "$GITHUB_OUTPUT" ;;
+            *) echo trusted=false >> "$GITHUB_OUTPUT"; echo "author has '$perm' access: waiting for a maintainer to add triage:run" ;;
+          esac
+
   triage:
-    if: >-
-      (github.event.action != 'labeled'
-        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
-      || (github.event.action == 'labeled' && github.event.label.name == 'triage:run')
+    needs: gate
+    if: needs.gate.outputs.trusted == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -47,6 +70,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Our own token, so the action skips its OIDC exchange for a Claude GitHub App token
+          # (which needs `id-token: write`) and the job keeps only `contents: read, issues: write`.
+          github_token: ${{ github.token }}
           # Only the number is interpolated: the issue's own text is read through `gh`, as data.
           prompt: |
             Triage issue #${{ github.event.issue.number }} in ${{ github.repository }}.

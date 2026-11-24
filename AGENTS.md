@@ -886,8 +886,9 @@ taught by the `vitops-report-issue` skill. Four rules carry the design:
   to the command but not to particular labels, so the label allowlist is the prompt's, not the
   sandbox's.
 - **Only trusted authors trigger it automatically.** An issue body is untrusted input and a run costs
-  money, so it runs for `OWNER`/`MEMBER`/`COLLABORATOR` authors; anyone else's waits as `triage:new`
-  until a maintainer adds `triage:run`.
+  money, so it runs for authors with triage/write/maintain/admin access; anyone else's waits as
+  `triage:new` until a maintainer adds `triage:run`. The gate reads the collaborator-permission API,
+  not `author_association`, which reports a private org member as a contributor.
 
 Labels the forms, CLI and prompt rely on must exist (`agent-report`, `deprecation`, `triage:new`,
 `triage:run`, `triage:needs-info`, `triage:ready`, `triage:duplicate`, `pkg:<name>` per package);
