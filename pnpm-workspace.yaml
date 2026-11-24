@@ -5,26 +5,26 @@ packages:
 # these via the `catalog:` protocol so a version is bumped in exactly one place.
 catalog:
   '@arethetypeswrong/cli': ^0.18.5
-  '@axe-core/playwright': ^4.10.0
-  '@astrojs/check': ^0.9.7
-  '@astrojs/cloudflare': ^14.0.0
+  '@axe-core/playwright': ^4.14.0
+  '@astrojs/check': ^0.9.12
+  '@astrojs/cloudflare': ^14.4.9
   # Only for @getvitops/emdash's opt-in `designSystemEditor` admin page —
   # EmDash's own docs require @astrojs/react + react + react-dom for any
   # native plugin's React admin surface.
-  '@astrojs/react': ^7.0.0
-  '@astrojs/sitemap': ^3.7.3
-  '@changesets/cli': ^2.27.0
-  '@emdash-cms/cloudflare': ^1.4.0
+  '@astrojs/react': ^7.1.9
+  '@astrojs/sitemap': ^3.7.6
+  '@changesets/cli': ^2.31.1
+  '@emdash-cms/cloudflare': ^1.5.0
   '@iconify-json/fa7-solid': ^1.2.5
-  '@iconify-json/lucide': ^1.2.121
-  '@iconify-json/material-symbols': ^1.2.88
+  '@iconify-json/lucide': ^1.2.157
+  '@iconify-json/material-symbols': ^1.2.101
   '@iconify-json/ph': ^1.2.2
   '@iconify/types': ^2.0.0
   '@iconify/utils': ^2.3.0
   '@lit-labs/signals': ^0.3.0
   '@oddbird/css-anchor-positioning': ^0.9.0
-  '@oddbird/popover-polyfill': ^0.7.0
-  '@playwright/test': ^1.62.1
+  '@oddbird/popover-polyfill': ^0.7.3
+  '@playwright/test': ^1.65.1
   # Pinned exact, not ^: vite-plus bundles vitest@5.1.0 internally and asserts
   # the coverage provider matches it exactly — a caret range resolved
   # 4.1.10 here and vite-plus refused to start rather than run mixed versions
@@ -33,39 +33,39 @@ catalog:
   # the vite-plus bump below, to match what vite-plus 1.7.0 actually
   # bundles). From 1.7.0 the core alias (`vite:` below) is versioned 8.3.x, not 1.x.
   '@vitest/coverage-v8': 5.1.0
-  '@tailwindcss/vite': ^4.3.3
-  '@types/node': ^25.9.3
+  '@tailwindcss/vite': ^4.3.5
+  '@types/node': ^25.9.9
   '@webcomponents/template-shadowroot': ^0.2.1
-  '@webcomponents/webcomponentsjs': ^2.8.0
+  '@webcomponents/webcomponentsjs': ^2.8.1
   # Oxfmt's optional peer: `fmt.astro: true` needs it declared in the project, not only
   # reachable transitively through astro. Keep inside oxfmt's accepted range.
-  '@astrojs/compiler-rs': ^0.5.2
-  astro: ^7.4.4
-  astro-icon: ^1.1.5
-  baseline-status: ^1.1.1
+  '@astrojs/compiler-rs': ^0.5.3
+  astro: ^7.4.13
+  astro-icon: ^1.2.0
+  baseline-status: ^1.2.0
   colorjs.io: ^0.5.2
   construct-style-sheets-polyfill: ^3.1.0
-  cssnano: ^8.0.5
-  emdash: ^1.4.0
-  happy-dom: ^20.0.0
-  invokers-polyfill: ^1.0.3
+  cssnano: ^8.0.10
+  emdash: ^1.5.0
+  happy-dom: ^20.14.6
+  invokers-polyfill: ^1.0.4
   parse5: ^7.3.0
-  lighthouse: ^13.0.0
-  lightningcss: ^1.32.0
+  lighthouse: ^13.6.0
+  lightningcss: ^1.33.0
   lit: ^3.3.3
   minify-html-literals: ^1.3.5
-  playwright: ^1.62.1
+  playwright: ^1.65.1
   png-to-ico: ^3.0.2
-  postcss: ^8.5.26
+  postcss: ^8.5.33
   postcss-lit: ^1.4.1
-  publint: ^0.3.23
-  skills: ^1.8.1
-  react: ^19.3.0
-  react-dom: ^19.3.0
+  publint: ^0.3.25
+  skills: ^1.9.0
+  react: ^19.3.1
+  react-dom: ^19.3.1
   scroll-timeline-polyfill: ^1.1.0
-  sharp: ^0.35.3
-  tailwindcss: ^4.3.3
-  temporal-polyfill: ^1.0.1
+  sharp: ^0.35.5
+  tailwindcss: ^4.3.5
+  temporal-polyfill: ^1.0.8
   typescript: ^6.0.3
   '@types/react': ^19.3.0
   '@types/react-dom': ^19.3.0
@@ -75,9 +75,9 @@ catalog:
   verdaccio: 7.0.2
   vitest: 5.1.0
   vite-plus: 1.7.0
-  wrangler: ^4.111.0
+  wrangler: ^4.166.0
   zod: ^4.6.7
-  '@zod/mini': ^4.6.5
+  '@zod/mini': ^4.6.7
 allowBuilds:
   '@parcel/watcher': false
   better-sqlite3: true
@@ -88,29 +88,6 @@ allowBuilds:
 # Supply-chain cooldown: nothing is installed within 3 days of its publish. Every scaffolded
 # template carries the same value (templates.test.ts asserts they agree).
 minimumReleaseAge: 4320
-minimumReleaseAgeExclude:
-  # Transitive, resolved before the 3-day policy: Astro 7.4.4 -> shiki, Vitest -> tinybench. They
-  # clear the cooldown on 2026-11-05, so delete these exact-version lines then (exact on purpose —
-  # a range here would also exempt every later release).
-  - '@shikijs/core@4.6.0'
-  - '@shikijs/engine-javascript@4.6.0'
-  - '@shikijs/engine-oniguruma@4.6.0'
-  - '@shikijs/langs@4.6.0'
-  - '@shikijs/primitive@4.6.0'
-  - '@shikijs/themes@4.6.0'
-  - '@shikijs/types@4.6.0'
-  - shiki@4.6.0
-  - tinybench@6.2.3
-  - '@emdash-cms/admin@1.4.0'
-  - '@emdash-cms/auth@1.4.0'
-  - '@emdash-cms/blocks@1.4.0'
-  - '@emdash-cms/cloudflare@1.4.0'
-  - '@emdash-cms/gutenberg-to-portable-text@1.4.0'
-  - '@emdash-cms/plugin-types@0.5.0'
-  - '@emdash-cms/registry-client@0.7.0'
-  - '@emdash-cms/registry-lexicons@0.7.0'
-  - '@emdash-cms/registry-verification@0.3.3'
-  - emdash@1.4.0
 overrides:
   vite@*: 'catalog:'
   vitest@*: 'catalog:'

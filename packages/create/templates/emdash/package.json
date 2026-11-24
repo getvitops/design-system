@@ -21,32 +21,32 @@
     "prepare": "vp config && skills experimental_install -y -a claude-code --no-frozen-lockfile && skills experimental_sync -y -a claude-code --no-frozen-lockfile && playwright cli install --skills && vitops agents sync -i site.json"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^14.0.0",
-    "@astrojs/react": "^7.1.2",
-    "@emdash-cms/cloudflare": "^1.4.0",
+    "@astrojs/cloudflare": "^14.4.9",
+    "@astrojs/react": "^7.1.9",
+    "@emdash-cms/cloudflare": "^1.5.0",
     "@getvitops/astro": "latest",
     "@getvitops/core": "latest",
     "@getvitops/emdash": "latest",
     "@getvitops/skills": "latest",
-    "@tailwindcss/vite": "^4.3.3",
-    "astro": "^7.4.4",
-    "emdash": "^1.4.0",
+    "@tailwindcss/vite": "^4.3.5",
+    "astro": "^7.4.13",
+    "emdash": "^1.5.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.5"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
-    "@astrojs/compiler-rs": "^0.5.2",
-    "@cloudflare/workers-types": "^4.20260305.1",
+    "@astrojs/compiler-rs": "^0.5.3",
+    "@cloudflare/workers-types": "^5.20260722.1",
     "@getvitops/cli": "latest",
     "@iconify-json/fa7-solid": "^1.2.5",
-    "playwright": "^1.62.1",
-    "skills": "^1.8.1",
+    "playwright": "^1.65.1",
+    "skills": "^1.9.0",
     "typescript": "^6.0.3",
     "vite": "npm:@voidzero-dev/vite-plus-core@^8.3.8000",
     "vite-plus": "^1.7.0",
-    "wrangler": "^4.111.0"
+    "wrangler": "^4.166.0"
   },
   "devEngines": {
     "packageManager": {
