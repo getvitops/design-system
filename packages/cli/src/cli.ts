@@ -15,7 +15,10 @@
  *   vitops search    setup [--domain <name>] [--dry] [--check]  |  notify [--dry] [--all] [--check]
  *   vitops ads       setup [--provider <name>] [--dry] [--check]  |  tags  |  lint
  *   vitops setup     repo | hosting | domain | search | ads | all [--dry] [--check]
+ *   vitops email     setup [domain] [--dry] [--check]  |  check [--strict] [--skip]
+ *   vitops emdash    prepare-db  |  check-prerender [dir]
  *   vitops media     [--raw <dir>] [--out <dir>] [--force] [--dry]
+ *   vitops audit     [--url <base>] [--build] [--pages <list>] [--warn] [--out <dir>]
  *
  * Thin wrapper over @getvitops/generator (generation) and @getvitops/utils (favicons).
  * Every client brings their own consumer-editable design-system.json.
@@ -25,6 +28,7 @@
  * Everything else stays here.
  */
 import { parseArgs } from 'node:util';
+import { pathToFileURL } from 'node:url';
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { resolve, join, dirname, relative, extname } from 'node:path';
 import { createRequire } from 'node:module';
@@ -38,6 +42,8 @@ import {
   generateLegal,
   enabledDocs,
   processorsMissingLocation,
+  accessibilityStatementWarnings,
+  DOC_ORDER,
   JURISDICTION_COUNTRIES,
   isConfig,
   resolveInput,
@@ -109,8 +115,24 @@ import {
 } from './commands/shared.ts';
 import { cmdSearch } from './commands/search.ts';
 import { cmdAds } from './commands/ads.ts';
+import { cmdAudit } from './commands/audit.ts';
+import { cmdCrm } from './commands/crm.ts';
+import { cmdEmail } from './commands/email.ts';
+import { cmdEmdash } from './commands/emdash.ts';
 import { cmdSetup } from './commands/setup.ts';
-import { findSkillTarget, linkSkill, SKILL_NAME, TOPICS } from './agents.ts';
+import { cmdReport } from './commands/report.ts';
+import {
+  AGENTS_END,
+  AGENTS_START,
+  discoverBlockSkills,
+  findSkillTarget,
+  linkPackagedSkills,
+  linkSkill,
+  renderAgentsBlock,
+  SKILL_NAME,
+  TOPICS,
+  upsertAgentsBlock,
+} from './agents.ts';
 import { COMMANDS, HELP, helpFor, wantsHelp } from './help.ts';
 import { lintCss } from './lint-css.ts';
 import { lintMarkup } from './lint-markup.ts';
@@ -125,7 +147,7 @@ const LINT_FORMATS = new Set<StylesheetFormat>(['bricks', 'css', 'tailwind']);
 
 // `legal` reads a *site* config, not a design-system.json, and has its own
 // output set — it renders documents, not stylesheets.
-const LEGAL_DOCS = new Set<LegalDoc>(['privacy', 'terms', 'cookies']);
+const LEGAL_DOCS = new Set<LegalDoc>(DOC_ORDER);
 const LEGAL_OUTPUTS = new Set<LegalOutput>(['md', 'html', 'portable-text']);
 
 async function cmdGenerate(argv: string[]) {
@@ -560,7 +582,7 @@ async function cmdLegal(argv: string[]) {
   const docs = requested.length ? (requested as LegalDoc[]) : enabledDocs(site);
   if (docs.length === 0)
     fail(
-      'no legal documents are enabled — set site.legal.privacyPolicy.enabled (or termsOfService / cookieConsent) in your config, or name one with --doc',
+      'no legal documents are enabled — set site.legal.privacyPolicy.enabled (or termsOfService / cookieConsent / accessibilityStatement) in your config, or name one with --doc',
     );
 
   const files = generateLegal(site, { docs, output });
@@ -578,6 +600,11 @@ async function cmdLegal(argv: string[]) {
       console.error(
         `  ! ${name}: no country, storage or operatorCountry declared — it will not appear in the cross-border transfer disclosure. Add one, or state storage: [{ country: "${JURISDICTION_COUNTRIES[site.site.legal?.jurisdiction ?? 'ca']}" }] to say it does not leave the country.`,
       );
+
+  // The statement's own warnings (email as the only channel, an external audit with no auditor…).
+  // Legal but probably not intended, so they never block, and stderr for the same reason as above.
+  if (docs.includes('accessibility'))
+    for (const w of accessibilityStatementWarnings(site)) console.error(`  ! ${w}`);
 
   const REVIEW =
     '  These are generated from your config and are not legal advice — review them before publishing.';
@@ -602,6 +629,13 @@ async function cmdLegal(argv: string[]) {
   console.log(`✓ legal → ${outDir}`);
   for (const name of Object.keys(files))
     console.log(`    ${name}${added.includes(name) ? '  (new)' : ''}`);
+  // An accessibility statement only helps if it can be found: the footer link on every page is part
+  // of the obligation (and of the skill's checklist), and nothing else in the build will say so.
+  if (added.some((n) => n.startsWith('accessibility')))
+    console.log(
+      '\n  The accessibility statement must be linked from the footer of every page, labelled "Accessibility". ' +
+        'The page that shows it should carry the high-contrast toggle and set `lang`.',
+    );
   if (added.length)
     console.log(
       added.length === 1
@@ -762,18 +796,6 @@ async function cmdReviews(argv: string[]) {
   if (failed) process.exit(1);
 }
 
-// This CLI's own version (dist/cli.mjs → package-root package.json).
-function cliVersion(): string {
-  try {
-    return (
-      JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version ??
-      '0.0.0'
-    );
-  } catch {
-    return '0.0.0';
-  }
-}
-
 // The framework asset root shipped inside @getvitops/generator (holds the Bricks
 // PHP that generateDocs reads for the element reference).
 function generatorAssetsDir(): string {
@@ -781,11 +803,25 @@ function generatorAssetsDir(): string {
   return join(dirname(pkg), 'assets');
 }
 
-const AGENTS_START = '<!-- vitops:start -->';
-const AGENTS_END = '<!-- vitops:end -->';
+/**
+ * Input path for the read-only commands (`docs`, `lint`) when `-i` is absent.
+ *
+ * `site.json` is the file `vitops init --site` and every scaffold write, so it
+ * is the default; a bare `design-system.json` is the fallback for projects that
+ * keep tokens on their own. An explicit `-i` is never second-guessed. If
+ * neither exists the legacy name is returned so the "config not found" message
+ * names a path a reader recognises.
+ */
+function defaultDesignInput(argv: string[], value: string): string {
+  const explicit = argv.some((a) => a === '-i' || a === '--input' || a.startsWith('--input='));
+  if (explicit) return value;
+  for (const name of ['site.json', 'design-system.json'])
+    if (existsSync(resolve(name))) return name;
+  return value;
+}
 
 /** Print a live reference doc (rendered from the project's config) to stdout. */
-function cmdDocs(argv: string[]) {
+async function cmdDocs(argv: string[]) {
   const { values, positionals } = parseArgs({
     args: argv,
     options: {
@@ -807,12 +843,52 @@ function cmdDocs(argv: string[]) {
     return;
   }
   if (topic && !TOPICS[topic]) fail(`unknown topic "${topic}". Valid topics:\n${topicList()}`);
-  const ds = loadDesignSystem(resolve(values.input as string), values.theme as string | undefined);
-  const docs = generateDocs(ds, generatorAssetsDir());
-  const paths = values.all
-    ? Object.values(TOPICS).map((t) => t.path)
-    : [TOPICS[topic as string]!.path];
-  process.stdout.write(paths.map((p) => docs[p]).join('\n'));
+  const names = values.all ? Object.keys(TOPICS) : [topic as string];
+  // An external topic (blocks) needs no design system, so don't demand a config for it.
+  const docs = names.every((n) => TOPICS[n]!.external)
+    ? {}
+    : generateDocs(
+        loadDesignSystem(
+          resolve(defaultDesignInput(argv, values.input as string)),
+          values.theme as string | undefined,
+        ),
+        generatorAssetsDir(),
+      );
+  const parts: string[] = [];
+  for (const name of names) {
+    const t = TOPICS[name]!;
+    if (!t.external) {
+      parts.push((docs as Record<string, string>)[t.path]!);
+      continue;
+    }
+    // Rendered by the plugin that owns the data; the generator cannot import it.
+    const doc = await externalDoc(t.external);
+    if (doc) parts.push(doc);
+    else if (!values.all)
+      fail(`topic "${name}" needs @getvitops/${t.external} installed in this project`);
+  }
+  process.stdout.write(parts.join('\n'));
+}
+
+/** Render a topic owned by an optional package, resolved from the project, not from the CLI. */
+async function externalDoc(pkg: 'emdash'): Promise<string | null> {
+  try {
+    // `require.resolve` rejects an ESM-only `exports` map, but `./package.json` is exported
+    // for exactly this: find the package, then read its `import` entry from the manifest.
+    const manifest = createRequire(join(process.cwd(), 'package.json')).resolve(
+      `@getvitops/${pkg}/package.json`,
+    );
+    const exp = (
+      JSON.parse(readFileSync(manifest, 'utf8')) as {
+        exports: Record<string, { import: string }>;
+      }
+    ).exports['.']!.import;
+    const entry = join(dirname(manifest), exp);
+    const mod = (await import(pathToFileURL(entry).href)) as { renderBlocksDoc?: () => string };
+    return mod.renderBlocksDoc?.() ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function cmdLint(argv: string[]) {
@@ -839,7 +915,10 @@ function cmdLint(argv: string[]) {
   const format = values.format as StylesheetFormat;
   if (!LINT_FORMATS.has(format))
     fail(`unknown format "${format}" (expected: bricks | css | tailwind)`);
-  const ds = loadDesignSystem(resolve(values.input as string), values.theme as string | undefined);
+  const ds = loadDesignSystem(
+    resolve(defaultDesignInput(argv, values.input as string)),
+    values.theme as string | undefined,
+  );
   const srcDir = resolve(values.src as string);
   if (!positionals.length && !existsSync(srcDir)) fail(`source directory not found: ${srcDir}`);
 
@@ -994,7 +1073,9 @@ function discoverConfig(cwd: string): string | undefined {
   return undefined;
 }
 
-function cmdAgents(argv: string[]) {
+function cmdAgents(rawArgv: string[]) {
+  // `vitops agents sync` is the explicit verb; bare `vitops agents` does the same.
+  const argv = rawArgv[0] === 'sync' ? rawArgv.slice(1) : rawArgv;
   const { values } = parseArgs({
     args: argv,
     options: {
@@ -1036,7 +1117,7 @@ function cmdAgents(argv: string[]) {
   // Explicit --docs-dir = legacy layout: write the docs bundle as files, no skill.
   const legacyDocsDir = values['docs-dir'] as string | undefined;
   let summary: string;
-  let pointer: string[];
+  let legacyBlock: string | undefined;
 
   if (legacyDocsDir) {
     if (!ds) fail(`--docs-dir needs a config to render docs from (${inputRel} not found)`);
@@ -1052,14 +1133,17 @@ function cmdAgents(argv: string[]) {
       writeFileSync(p, content);
     }
     summary = `wrote ${Object.keys(docs).length} docs to ${legacyDocsDir}/`;
-    pointer = [
-      'Prefer the framework’s utility + component classes over hand-written CSS.',
-      `Reference docs (regenerate with \`vitops agents --docs-dir ${legacyDocsDir}\`): \`${legacyDocsDir}/css/classes.md\`,`,
-      `\`${legacyDocsDir}/authoring.md\`, \`${legacyDocsDir}/formats.md\`, \`${legacyDocsDir}/bricks/elements.md\`.`,
-    ];
+    legacyBlock = [
+      AGENTS_START,
+      `Built with the Vitops design system (\`@getvitops/*\`); tokens and site facts live in \`${inputRel}\`.`,
+      `Prefer its classes and patterns over hand-written CSS. Reference docs are in \`${legacyDocsDir}/\``,
+      `(\`css/classes.md\`, \`authoring.md\`, \`formats.md\`, \`bricks/elements.md\`); regenerate with \`vitops agents --docs-dir ${legacyDocsDir}\`.`,
+      AGENTS_END,
+    ].join('\n');
   } else {
     // Link the packaged skill (ships inside @getvitops/cli) into the agent
     // discovery locations; nothing is generated into the repo.
+    for (const warn of linkPackagedSkills(process.cwd())) console.warn(`  ⚠ ${warn}`);
     const target = findSkillTarget(process.cwd());
     if (target) {
       for (const dir of ['.agents', '.claude']) {
@@ -1073,63 +1157,24 @@ function cmdAgents(argv: string[]) {
       );
       summary = 'no skill linked';
     }
-    pointer = [
-      'Prefer the framework’s utility + component classes over hand-written CSS.',
-      `Full design-system context lives in the \`${SKILL_NAME}\` skill (linked from`,
-      '`.agents/skills/` and `.claude/skills/` into the installed `@getvitops/cli`;',
-      're-link with `vitops agents` if the links are deleted — they survive version',
-      'bumps). Reference docs print live, from this project’s config, via:',
-      '',
-      ...Object.entries(TOPICS).map(([name, t]) => `- \`vitops docs ${name}\` — ${t.summary}`),
-    ];
   }
 
-  // Only spelled out when it isn't the default the commands already assume.
-  const inputFlag = inputRel === 'design-system.json' ? '' : ` --input ${inputRel}`;
-  const block = [
-    AGENTS_START,
-    '## Vitops design system',
-    '',
-    `Styled with the Vitops design system (\`@getvitops/*\`); tokens live in \`${inputRel}\`.`,
-    'Generate output with the CLI:',
-    '',
-    // Interpolated, not hard-coded: `generate` defaults --input to
-    // design-system.json and hard-fails when it is absent, so an emitted command
-    // without the flag is copy-paste-broken in exactly the projects that most
-    // need the block to be right.
-    `- \`vitops generate${inputFlag} --format tailwind --out src/styles\` — Tailwind v4 / Astro`,
-    `- \`vitops generate${inputFlag} --format css --out dist\` — standalone CSS`,
-    `- \`vitops generate${inputFlag} --format bricks --out <theme>/dist\` — WordPress / Bricks`,
-    `- \`vitops generate${inputFlag} --format design --out .\` — \`DESIGN.md\`, the agent-facing brief`,
-    `- \`vitops init\` · \`vitops validate${inputFlag}\` · \`vitops favicon\``,
-    '',
-    ...pointer,
-    '',
-    `<!-- regenerate: vitops agents · @getvitops/cli@${cliVersion()} -->`,
-    AGENTS_END,
-  ].join('\n');
+  const block =
+    legacyBlock ??
+    renderAgentsBlock({
+      config: inputRel,
+      skills: discoverBlockSkills(process.cwd()),
+    });
 
   const outPath = resolve(values.out as string);
-  let next: string;
-  let action: string;
-  if (existsSync(outPath)) {
-    const cur = readFileSync(outPath, 'utf8');
-    const s = cur.indexOf(AGENTS_START);
-    const e = cur.indexOf(AGENTS_END);
-    if (s !== -1 && e !== -1 && e > s) {
-      next = cur.slice(0, s) + block + cur.slice(e + AGENTS_END.length);
-      action = 'updated block in';
-    } else {
-      next = cur.replace(/\s*$/, '') + '\n\n' + block + '\n';
-      action = 'appended block to';
-    }
-  } else {
-    mkdirSync(dirname(outPath), { recursive: true });
-    next = block + '\n';
-    action = 'created';
-  }
-  writeFileSync(outPath, next);
-  console.log(`✓ ${action} ${values.out} + ${summary}`);
+  const existing = existsSync(outPath) ? readFileSync(outPath, 'utf8') : undefined;
+  const { text, action } = upsertAgentsBlock(existing, block);
+  if (existing === undefined) mkdirSync(dirname(outPath), { recursive: true });
+  writeFileSync(outPath, text);
+  const verb = { created: 'created', updated: 'updated block in', added: 'added block to top of' }[
+    action
+  ];
+  console.log(`✓ ${verb} ${values.out} + ${summary}`);
 }
 
 async function main() {
@@ -1171,10 +1216,20 @@ async function main() {
       return cmdSearch(rest);
     case 'ads':
       return cmdAds(rest);
+    case 'crm':
+      return cmdCrm(rest);
+    case 'email':
+      return cmdEmail(rest);
+    case 'emdash':
+      return cmdEmdash(rest);
     case 'setup':
       return cmdSetup(rest);
     case 'media':
       return cmdMedia(rest);
+    case 'audit':
+      return cmdAudit(rest);
+    case 'report':
+      return cmdReport(rest);
     default:
       fail(`unknown command "${command}" (expected: ${COMMANDS.join(' | ')}). Try: vitops --help`);
   }

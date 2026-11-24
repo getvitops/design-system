@@ -1,123 +1,74 @@
-This is an EmDash CMS website (Astro SSR on Cloudflare Workers, D1 + R2)
-styled by the Vitops design system.
+<!-- vitops:start -->
+
+Built with the Vitops design system (`@getvitops/*`); tokens and site facts live in `site.json`.
+Prefer its classes and patterns over hand-written CSS. Load the skill that matches the task:
+
+- [emdash-building-pages](.agents/skills/emdash-building-pages/SKILL.md) — Use when authoring or changing a page's layout or content on this EmDash site — composing `vitops_*` blocks
+- [emdash-contact-form](.agents/skills/emdash-contact-form/SKILL.md) — Use when adding or changing a form, fixing submissions that don't arrive, setting up notifications, CRM or Turnstile
+- [emdash-content-and-deploys](.agents/skills/emdash-content-and-deploys/SKILL.md) — Use for any deploy or build problem, stale or missing content, "my publish isn't live", scheduled posts, previews
+- [emdash-custom-blocks](.agents/skills/emdash-custom-blocks/SKILL.md) — Use before creating, renaming or deleting any block type, any `src/components/blocks/*` renderer
+- [vitops-ads](.agents/skills/vitops-ads/SKILL.md) — Use when adding or changing a Google/Meta/LinkedIn/TikTok/Microsoft/Reddit/Pinterest/Snapchat pixel
+- [vitops-consent](.agents/skills/vitops-consent/SKILL.md) — Use before gating, adding or changing any non-essential third-party tag, cookie, embed
+- [vitops-csp](.agents/skills/vitops-csp/SKILL.md) — Use when changing `public/_headers`, adding an embed, tracking snippet or third-party script, turning the CSP on
+- [vitops-design-system](.agents/skills/vitops-design-system/SKILL.md) — Use when styling or authoring pages or components (choosing utility/pattern classes, colours, spacing, typography)
+- [vitops-see-the-page](.agents/skills/vitops-see-the-page/SKILL.md) — How to look at a rendered page of this site
+
+Reference, rendered from this project: `vp exec vitops docs [topic]` (no topic lists them).
+<!-- vitops:end -->
+
+This is an EmDash CMS website (Astro on Cloudflare Workers, D1 + R2: public pages prerendered, the
+Worker serving the admin and API) styled by the Vitops design system.
 
 ## Ground rules
 
-- `site.json` is the single source of truth — organization + site facts, and
-  the design system (colors, type, spacing, patterns, animations) under
-  `designSystem.themes.default`. Never edit `src/styles/tailwind.css` — it is
-  generated from `site.json` by the `vitops()` integration on every dev/build
-  and is gitignored. (There is no separate `design-system.json`: a scaffolded
-  config can't merely reference a sibling file, so the token set lives inside
-  `site.json` — see `AGENTS.md`'s "Client onboarding" section in the toolchain
-  repo for why.)
-- `src/assets/placeholder/` holds neutral wireframe stand-ins (square,
-  portrait, landscape; SVG + PNG) for layout work before real imagery
-  exists. Delete the directory once real assets land — it's separate from
-  `src/assets/logo.svg`, the actual brand asset.
-- Content lives in the EmDash database, not in the repo. Query it with
-  `getEmDashCollection` / `getEmDashEntry` from `emdash`; render Portable Text
-  with `<PortableText />` from `emdash/ui` (the Vitops blocks from
-  `@getvitops/emdash` are merged in automatically).
-- `seed/seed.json` only applies against an empty database: structure
-  (collections, menus, settings) on first boot; the `content` entries only
-  when the setup wizard's "include sample content" option is chosen. Changing
-  the seed does not migrate an existing site — use the admin
-  (`/_emdash/admin`) or the site's MCP server (`/_emdash/api/mcp`) to change
-  the content model of a running site.
-- Prefer framework CSS classes (utilities, patterns, type roles like
-  `font-heading`) over bespoke CSS. Run `npx vitops agents` to append the
-  full generated class-vocabulary reference to this file.
-- **Layout foundations — these are the answer, not a starting point.** Six
-  substitutions carry the structure of nearly every page:
-  | About to write… | Write instead |
-  | --- | --- |
-  | a `wrap`/`wrapper`/`container`/`inner` class | **`centered`** |
-  | `max-width` + `margin-inline: auto` | **`centered`** |
-  | `padding-block` on a section | **`region`** |
-  | margins between headings/paragraphs/lists | **`rhythm`** |
-  | `display: grid` + `grid-template-columns: repeat(n, …)` | **`subgrid`** |
-  | `repeat(auto-fit, minmax(…))` | **`grid-auto`** |
-  | `display: flex` + `gap` for a row of controls | **`cluster`** |
+- `site.json` is the single source of truth: organization + site facts, and the design system under
+  `designSystem.themes.default`. Never edit the generated stylesheet (`src/styles/tailwind.css`,
+  rebuilt from `site.json` on every dev/build, gitignored); put your own CSS in a separate file
+  (e.g. `src/site.css`, imported from the layout) and commit it.
+- Content lives in the EmDash database, not the repo. Read it with `getEmDashCollection` /
+  `getEmDashEntry` from `emdash`; render Portable Text with `<PortableText />` from `emdash/ui`.
+- **Where truth lives:** content (entries, media, menus) is **production's**, edited there; code,
+  `site.json` and schema are **git's** (`dev` → `main`). The dev database is a disposable copy
+  refreshed from prod, never promoted back.
+- `seed/seed.json` applies only to an empty database. To change a running site's content model, use
+  the admin (`/_emdash/admin`) or its MCP server (`/_emdash/api/mcp`).
+- Hosting comes from `vitopsHosting()` in `astro.config.mjs`; never hard-code an adapter or
+  d1/r2/sqlite. Keep the Worker cron trigger in `wrangler.jsonc`: it publishes scheduled content.
+- Prefer framework classes (utilities, patterns, type roles like `font-heading`) over bespoke CSS.
+  `vpr lint:design` fails the pre-commit hook on unresolvable classes and layout primitives you
+  hand-rolled (`centered`, `region`, `rhythm`, `subgrid`, `grid-auto`, `cluster` exist for those).
+- `src/assets/placeholder/` is wireframe stand-in imagery; delete it once real assets land.
+- Sample legal pages (`/terms`, `/privacy`) are deliberately short, unfinished placeholders; don't
+  "improve" them into something that reads as a finished policy.
+- `SETUP.html` is the onboarding checklist (the `setup` skill). Tick a box only for a step you
+  completed, never for a human-only one (the Cloudflare API token, domain cutover, legal documents).
 
-  `centered` is a grid of _named tracks_, not a max-width box — a child widens
-  itself with `breakout`/`spotlight`/`fullbleed` without the parent knowing, which
-  is the thing a bespoke `.wrap` can never do. **More than one card means
-  `subgrid`**: a plain grid aligns the outer boxes but not the tranches inside
-  them, so headings and CTAs land at different heights across the set. Write
-  `<ul class="subgrid subgrid-cols-3" role="list">` with
-  `<li class="card subgrid-card">` items, or `<Subgrid />` (which renders the slot
-  verbatim — author the `<li>`s yourself; it adds `role="list"` for you, and a
-  hand-written one needs it because a marker-less `<ul>` stops being announced as a
-  list in Safari).
+## Branches
 
-  **When the whole card is a link the card is still the item**, and pick by whether
-  the card's text must stay selectable: `stretched-link` on a link inside it is
-  zero-JS but kills text selection, while `<Cards>` (which wraps the list in
-  `<wc-cards>`) keeps selection and falls back to that same link with no JS. Never
-  both — the overlay wins and the JS never runs. Never `<li><a class="card">`: the
-  `li` is the grid item, so the anchor's tranches never align and it does not fill
-  the cell; it renders fine, which is why it keeps getting written.
-
-  `npm run lint:design` reports all of these, and the pre-commit hook fails on them
-  — the fix is the class, not a justification for the CSS.
-
-- **Prerender by default.** `output: 'server'` is required (the admin, media/API
-  routes, preview and scheduled publishing need a server), so prerendering is
-  opt-in per route: put `export const prerender = true` on every page that
-  doesn't need per-request data, and give dynamic routes a `getStaticPaths()`
-  that queries the collection at build time. A route with no `prerender` export
-  is re-rendered for every visitor on every request. The cost is that a
-  prerendered page reflects the database as of the last build, so an admin
-  publish needs a redeploy — leave a route server-rendered only where that is
-  unacceptable (preview, personalised content, must-be-live-in-seconds).
-- The Worker cron trigger in `wrangler.jsonc` drives scheduled publishing —
-  don't remove it.
-- Hosting (adapter + EmDash database/storage) comes from `vitopsHosting()`
-  (`@getvitops/emdash`) in astro.config.mjs — never hard-code an adapter or
-  d1/r2/sqlite there. Switch targets via `vitopsHosting({ target })` or the
-  `HOSTING` env var (see README "Hosting"); the `node` target needs
-  `@astrojs/node` + `better-sqlite3` installed first.
-- **`SETUP.html` is the client-onboarding checklist.** When working it via the
-  `.agents/skills/setup/` skill, tick a box only for a step you actually
-  completed — never on the operator's behalf for a step marked human-only
-  (the Cloudflare API token, the domain cutover, publishing legal documents).
-
-## Branch model
-
-- Work on **`dev`** (the integration branch). Every push auto-deploys the
-  isolated `-dev` worker (own D1/R2; `dev.<domain>` with a custom domain).
-- **`main`** is production and branch-protected — never push or merge to it
-  directly. Production ships only via the manual **promote** flow: the
-  `promote` skill (`.agents/skills/promote/SKILL.md`) dispatches
-  `.github/workflows/promote.yml`, which opens a `dev → main` PR with
-  auto-merge; merging deploys prod. Only run it when the user explicitly asks
-  to promote/ship to production.
-- Sample legal pages (`/terms`, `/privacy`) ship as seeded placeholder content
-  — remind the user to replace them before launch. They are deliberately short
-  and obviously unfinished; do not "improve" them into something that reads as
-  a finished policy, because the risk here is a plausible-looking document
-  getting shipped unread.
-  To replace them properly, fill in `site.json`'s `organization`/`site.legal`
-  fields and run `npx vitops legal --format portable-text --out ./legal`, then
-  paste each document's blocks into the page in the admin. That renders a real
-  policy from what the site actually does — the analytics provider it uses,
-  the fields its forms collect, where it deploys — rather than from guesses.
-  It still needs review before launch.
-
-## Docs MCP servers
-
-`.mcp.json` preconfigures the Astro docs and EmDash docs MCP servers — prefer
-searching them over pre-trained knowledge for Astro/EmDash questions.
+Work on **`dev`**; every push auto-deploys the isolated `-dev` worker. **`main`** is production and
+protected: never push or merge to it. It ships only through the `promote` skill, and only when the
+user explicitly asks. Shipping is not a package release: no changeset or version bump.
 
 ## Commands
 
-- `pnpm dev` — local dev with local D1/R2 emulation (no Cloudflare account)
-- `pnpm typecheck` — `astro check`
-- `pnpm deploy` — build + `wrangler deploy` prod (provisions D1/R2 on first run)
-- `pnpm deploy:dev` — build + deploy the isolated dev worker (needs `DEV_D1_ID`)
-- `pnpm run init:github` — one-time: create + push the GitHub repo (main + dev,
-  dev default). Only run when the user asks to set up GitHub.
-- `pnpm run init:hosting` — one-time: provision the hosting platform (dev
-  D1/R2 + repo secrets on cloudflare). Only run when the user asks for it.
-- `npx vitops validate site.json` — schema-check the site config
+This is a **Vite+** project: use `vp` (and `vpr` for scripts), not `pnpm`/`npm`/`npx`. Scripts that
+wrap Astro go through `vpr` (`vpr dev`, `vpr build`), because `vp dev`/`vp build` skip Astro.
+`vpr dev` returns immediately (the server runs in the background): check it with
+`vp exec astro dev status`, read `vp exec astro dev logs --follow`, stop with
+`vp exec astro dev stop`; the site is at <http://localhost:4321>. `package.json` lists the scripts;
+`vp check` and `vpr typecheck` verify a change. `vpr init:github` and `vpr init:hosting` are one-time
+setup, only when the user asks.
+
+## Where to look
+
+- **Skills** are listed in the block at the top; load the one matching the task before starting.
+- **Reference** for this project's own tokens, classes, blocks and config: `vp exec vitops docs`.
+- `.mcp.json` preconfigures the Astro and EmDash docs MCP servers; search them before relying on
+  pre-trained knowledge. The EmDash skills (`building-emdash-site`, `emdash-cli`, …) are installed
+  per project to match the pinned `emdash`; if `.agents/skills/building-emdash-site/` is missing:
+  `vp dlx skills add emdash-cms/skills --skill '*' -y`.
+- **Improving the toolkit:** when you work around a framework built-in, add bespoke CSS or a
+  site-local block, or find a doc wrong or missing, and the need is **not** unique to this site,
+  record it in `UPSTREAM.md` at the repo root: what you tried, what failed or was missing, the
+  workaround (file path), the change you'd propose, and the package. Mention new entries in your
+  end-of-task summary. Never patch `node_modules`.

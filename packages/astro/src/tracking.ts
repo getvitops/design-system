@@ -12,23 +12,19 @@
  * under `analytics`, and that is the consumer's call to make, not ours to guess.
  */
 
-/** Which consent category the attribution cookie waits on. */
-export type TrackingCategory = 'marketing' | 'analytics';
+import type { TrackingConfig } from '@getvitops/config';
 
-export interface GetvitopsTrackingOptions {
-  /** Capture ad click IDs and UTMs into `_ac`. */
-  enabled?: boolean;
-  /** Default `marketing`. */
-  category?: TrackingCategory;
-  /** Informational; capture recognises every known click-ID parameter regardless. */
-  platforms?: string[];
-}
+/** Which consent category the attribution cookie waits on. */
+export type TrackingCategory = NonNullable<TrackingConfig['category']>;
+
+/** The `site.tracking` block — the schema's own type from `@getvitops/config`, not a copy. */
+export type GetvitopsTrackingOptions = TrackingConfig;
 
 /** The cookie the capture script writes. Mirrors `TRACKING_COOKIE` in utils. */
 export const TRACKING_COOKIE = '_ac';
 
 /**
- * Where the capture script sends its `tel:` conversion beacon.
+ * Where the capture script sends its `tel:`/`mailto:` conversion beacons.
  *
  * The route itself is the consumer's to write (`createConversionRoute()` in
  * `@getvitops/astro/routes`), so this is the one place the two halves agree on

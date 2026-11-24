@@ -1,64 +1,52 @@
-This is a static Astro website styled by the Vitops design system, deployed
-as Cloudflare Workers static assets (no server runtime, no database).
+<!-- vitops:start -->
+
+Built with the Vitops design system (`@getvitops/*`); tokens and site facts live in `site.json`.
+Prefer its classes and patterns over hand-written CSS. Load the skill that matches the task:
+
+- [vitops-ads](.agents/skills/vitops-ads/SKILL.md) — Use when adding or changing a Google/Meta/LinkedIn/TikTok/Microsoft/Reddit/Pinterest/Snapchat pixel
+- [vitops-consent](.agents/skills/vitops-consent/SKILL.md) — Use before gating, adding or changing any non-essential third-party tag, cookie, embed
+- [vitops-csp](.agents/skills/vitops-csp/SKILL.md) — Use when changing `public/_headers`, adding an embed, tracking snippet or third-party script, turning the CSP on
+- [vitops-design-system](.agents/skills/vitops-design-system/SKILL.md) — Use when styling or authoring pages or components (choosing utility/pattern classes, colours, spacing, typography)
+- [vitops-see-the-page](.agents/skills/vitops-see-the-page/SKILL.md) — How to look at a rendered page of this site
+
+Reference, rendered from this project: `vp exec vitops docs [topic]` (no topic lists them).
+<!-- vitops:end -->
+
+This is a static Astro website styled by the Vitops design system, deployed as Cloudflare Workers
+static assets (no server runtime, no database).
 
 ## Ground rules
 
-- `site.json` is the single source of truth — organization + site facts, and
-  the design system (colors, type, spacing, patterns, animations) under
-  `designSystem.themes.default`. Never edit `src/styles/` by hand — it is
-  generated from `site.json` by the `vitops()` integration on every dev/build
-  and is gitignored. (There is no separate `design-system.json`: a scaffolded
-  config can't merely reference a sibling file, so the token set lives inside
-  `site.json`.)
-- `src/assets/placeholder/` holds neutral wireframe stand-ins (square,
-  portrait, landscape; SVG + PNG) for layout work before real imagery
-  exists. Delete the directory once real assets land.
-- Prefer framework CSS classes (utilities, patterns, type roles like
-  `font-heading`) over bespoke CSS. Run `npx vitops agents` to append the
-  full generated class-vocabulary reference to this file.
-- **Layout foundations — these are the answer, not a starting point.** Six
-  substitutions carry the structure of nearly every page:
-  | About to write… | Write instead |
-  | --- | --- |
-  | a `wrap`/`wrapper`/`container`/`inner` class | **`centered`** |
-  | `max-width` + `margin-inline: auto` | **`centered`** |
-  | `padding-block` on a section | **`region`** |
-  | margins between headings/paragraphs/lists | **`rhythm`** |
-  | `display: grid` + `grid-template-columns: repeat(n, …)` | **`subgrid`** |
-  | `repeat(auto-fit, minmax(…))` | **`grid-auto`** |
-  | `display: flex` + `gap` for a row of controls | **`cluster`** |
-- Every page is prerendered by default (`output: 'static'`) — there is no
-  server to fall back to, so nothing here can read request-time data
-  (cookies, headers, query params) at render time. If a page genuinely needs
-  that, it needs an adapter and a different template — this one stays pure
-  static on purpose.
-- **`SETUP.html` is the client-onboarding checklist.** When working it via the
-  `.agents/skills/setup/` skill, tick a box only for a step you actually
-  completed — never on the operator's behalf for a step marked human-only
-  (the Cloudflare API token, the domain cutover, publishing legal documents).
+- `site.json` is the single source of truth: organization + site facts, and the design system under
+  `designSystem.themes.default`. Never edit `src/styles/`: it is generated from `site.json` on every
+  dev/build and gitignored.
+- Every page is prerendered (`output: 'static'`): nothing can read request-time data (cookies,
+  headers, query params). A page that needs that needs an adapter and a different template.
+- Prefer framework classes (utilities, patterns, type roles like `font-heading`) over bespoke CSS.
+  `vpr lint:design` fails the pre-commit hook on unresolvable classes and layout primitives you
+  hand-rolled (`centered`, `region`, `rhythm`, `subgrid`, `grid-auto`, `cluster` exist for those).
+- `src/assets/placeholder/` is wireframe stand-in imagery; delete it once real assets land.
+- `SETUP.html` is the onboarding checklist (the `setup` skill). Tick a box only for a step you
+  completed, never for a human-only one (the Cloudflare API token, domain cutover, legal documents).
 
-## Branch model
+## Branches
 
-- Work on **`dev`** (the integration branch). Every push auto-deploys the
-  isolated `-dev` worker (`dev.<domain>` with a custom domain).
-- **`main`** is production and branch-protected — never push or merge to it
-  directly. Production ships only via the manual **promote** flow:
-  `.github/workflows/promote.yml`, dispatched manually, opens a `dev → main`
-  PR with auto-merge; merging deploys prod. Only run it when the user
-  explicitly asks to promote/ship to production.
+Work on **`dev`**; every push auto-deploys the isolated `-dev` worker. **`main`** is production and
+protected: never push or merge to it directly; production ships only through the manual `promote`
+workflow (`.github/workflows/promote.yml`), only when the user explicitly asks. Shipping is not a
+package release: no changeset or version bump.
 
 ## Commands
 
-- `pnpm dev` — local dev
-- `pnpm typecheck` — `astro check`
-- `pnpm run build:css` — regenerate the framework CSS from `site.json`
-- `pnpm deploy` — build + `wrangler deploy` to prod
-- `pnpm run deploy:dev` — build + deploy the isolated dev worker
-- `pnpm run init:github` — one-time: create + push the GitHub repo (main +
-  dev, dev default, branch protection + environment policy). Only run when
-  the user asks to set up GitHub.
-- `pnpm run init:hosting` — one-time: read the Cloudflare account id and set
-  it as a repo secret. Only run when the user asks for it.
-- `npx vitops validate site.json` — schema-check the site config
-- `npx vitops lint -i site.json -f css` — find framework classes in
-  source that resolve to nothing under this format
+This is a **Vite+** project: use `vp` (and `vpr` for scripts), not `pnpm`/`npm`/`npx`. Scripts that
+wrap Astro go through `vpr` (`vpr dev`, `vpr build`), because `vp dev`/`vp build` skip Astro.
+`vpr dev` returns immediately (the server runs in the background): check it with
+`vp exec astro dev status`, read `vp exec astro dev logs --follow`, stop with
+`vp exec astro dev stop`; the site is at <http://localhost:4321>. `package.json` lists the scripts;
+`vp check` and `vpr typecheck` verify a change. `vpr init:github` and `vpr init:hosting` are one-time
+setup, only when the user asks.
+
+## Where to look
+
+- **Skills** are listed in the block at the top; load the one matching the task before starting.
+- **Reference** for this project's own tokens, classes and config: `vp exec vitops docs`.

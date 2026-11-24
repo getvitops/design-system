@@ -160,10 +160,10 @@ nav:has(> .nav-items) {
      Timing moved with them: this was a hand-set 0.4s / 0.7s pair and is now the
      framework's `--animation-duration` + `--custom-ease-out`, like every other
      transition in the system. */
-  --translate-x-from: -100%;
+  --translate-x-from: calc(-100% * var(--dir-sign, 1));
 
   &[open],
-  &:popover-open {
+  &:is(:popover-open, .\:popover-open) {
     display: flex;
   }
 }

@@ -22,6 +22,8 @@ import { DragController } from './utils/DragController.js';
  * @cssprop --line-width - Divider line width (default: 2px)
  *
  * @fires compare-change - Position changed, detail: { position: number }
+ *
+ * @fallback full the two images, readable one after the other
  */
 export class WCImageCompare extends BaseElement {
   static styles = [
@@ -272,7 +274,10 @@ export class WCImageCompare extends BaseElement {
   }
 
   willUpdate(changed: PropertyValues) {
-    if (changed.has('position') && !changed.has('_offset')) {
+    // Not guarded on `_offset`: a drag only ever sets `_offset`, so `position` changing is always an
+    // author change. The first update has BOTH in `changed` (the constructor assigns `_offset`), so
+    // a guard on it made `position="25"` ignored until something changed it a second time.
+    if (changed.has('position')) {
       this._offset = this.position / 100;
       this.dragController.setPosition(this._offset);
     }
@@ -307,10 +312,10 @@ export class WCImageCompare extends BaseElement {
   render() {
     return html`
       <div class="container" part="container" style="--_offset: ${this._offset}">
-        <div class="after" part="after" aria-label="${this.afterLabel}">
+        <div class="after" part="after" role="group" aria-label="${this.afterLabel}">
           <slot name="after"></slot>
         </div>
-        <div class="before" part="before" aria-label="${this.beforeLabel}">
+        <div class="before" part="before" role="group" aria-label="${this.beforeLabel}">
           <slot name="before"></slot>
         </div>
         <div
@@ -318,7 +323,7 @@ export class WCImageCompare extends BaseElement {
           part="handle"
           role="separator"
           aria-label="Image comparison handle"
-          aria-orientation="${this.vertical ? 'vertical' : 'horizontal'}"
+          aria-orientation="${this.vertical ? 'horizontal' : 'vertical'}"
         >
           <div class="grip" part="grip">
             <span class="visually-hidden">Drag to compare</span>

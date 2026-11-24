@@ -1,16 +1,35 @@
-This repo is responsible for generating design systems for use in websites (primarily Astro and WordPress with Bricks Builder).
+This repo is responsible for generating design systems for use in websites (primarily EmDash CMS and WordPress with Bricks Builder).
 
 It is composed of:
 
 - TS-based utilities
 - Variable-based lightweight CSS Framework for high level design patterns and common utilities (e.g. track-based centering of content, vertical rhythm, UI patterns)
 - Lit-based Web Components for patterns that benefit from progressive enhancement (they are styled via the CSS Framework, and are fully operable, although degraded, in non-JS environments)
+- Wrappers for the Web Components and additional components for each platform (e.g. EmDash Blocks/Widgets, Astro components, PHP fragments, ...)
 
 **This file is the _why_.** For the structural map — package matrix, key files, the `vp` task graph,
 the asset snapshot chain, what's generated vs hand-written — see [ARCHITECTURE.md](ARCHITECTURE.md).
 It's tables and diagrams, and it links back here for the reasoning behind each one.
 
 Prefer using modern CSS/HTML features (e.g. CSS Anchor Positioning API, Dialog, Invoker Commands API, Scroll Timelines, etc.) over JavaScript.
+
+**Browser support policy.** Depend on a platform feature only when it is Baseline widely available
+**and** real-world usage is high enough that a visitor on an engine without it is rare (about 95% of
+global usage). A feature that is Baseline-new, below that line even with a polyfill, or Chromium-only
+(`interestfor`, `popover="hint"`, `focusgroup`, `sibling-count()`, `sibling-index()`, `appearance:
+base-select`) gets a working fallback instead, feature-detected (`@supports`, a `test()` in
+`polyfills.ts`) so an engine without it is degraded rather than broken, and a `TODO(support):`
+comment naming the feature and what would let us revisit it. `grep -rn "TODO(support)"` lists every
+deferred upgrade. A polyfill does not change this: it makes a feature reachable, not safe to depend
+on. This is the rule behind the deliberate choices the `modern-web-guidance` skill's guides would
+otherwise flag. **The carousel** keeps its cloned-slide loop and its `@supports`-gated
+`::scroll-marker` / `::scroll-button()` branch instead of the guide's HTML-buttons-only,
+`order`-parking loop, because that loop needs `sibling-count()` and `sibling-index()`, which reached
+Baseline on 2026-08-18. **Tooltips** are a `popover="manual"` driven by a small hover/focus/Escape
+handler (`js/tooltip.ts`) rather than `interestfor`; a `.tooltip--toggle` toggletip (`<Tooltip toggle>`) is a `popover="auto"` that a click pins open and that reports `aria-expanded`. **`interpolate-size`** is set once on `:root`
+(`animation.css`) with no fallback, because without it an `auto` height simply resizes instantly,
+which is a correct degrade. A guide that says "do not use X for now" is a reason to check this rule,
+not to skip it.
 
 ## Component architecture
 
@@ -29,7 +48,7 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      (`createRenderRoot() → this`) so the framework CSS applies to both the fallback and the enhanced
      result.
    - Exemplar: **`WCEntries`** — with no JS it renders semantic `<h3>` + `<dl>` pairs; with JS on a
-     wide container it parses them into a table. (Others: carousel, image-compare, wc-multi-field, …)
+     wide container it parses them into a table. (Others: carousel, image-compare, wc-multifield, …)
    - **`<wc-tree>` is the one element that discards slotted nodes rather than only hiding or
      appending alongside them** — the one deliberate exception to "augments... in place" above. On
      upgrade it unwraps every branch's `<details>`/`<summary>` entirely (see that element's own
@@ -39,6 +58,29 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      `getElementById`, captured before upgrade — loses it; `tree-toggle` (mirroring the existing
      `tree-filter` event) is the replacement surface. Named here as a deliberate exception, not a
      silent divergence — same treatment as `<wc-consent>` and `<wc-theme-editor>` below.
+   - **Four elements render into a shadow root** — `<wc-image-compare>`, `<wc-split-panel>`,
+     `<wc-color-scheme-toggle>` and `<wc-copy>` — named exceptions to "use light DOM", not silent ones. The rule that separates
+     them from the rest: light DOM where there is **author markup to parse and augment**; a shadow
+     root where the element **renders all of its own UI** and the light DOM is only a slot, so
+     encapsulation protects the generated controls and nothing needs the framework CSS to reach
+     in. `<wc-color-scheme-toggle>` is the pure case: it has no slotted content at all, its host is
+     `display: none` until it upgrades (absent rather than broken with no JS), and the page itself
+     follows `prefers-color-scheme` meanwhile. `<wc-copy>` builds its button and live status region
+     itself; the only light-DOM content is the text being copied, which stays visible and
+     selectable with no JS. Both state this as `@fallback partial`. `WCCopy.dom.test.ts` asserts
+     the live region sits beside the button in the same shadow root, because an `aria-live` node
+     cannot be referenced across a shadow boundary. Converting either to light DOM would touch
+     shipped, tested components for nothing a client can see; don't do it to tidy the rule. A
+     **new** element that parses author markup does not get to join this list.
+   - **`<wc-image-compare>`'s reason, specifically:** `DragController` finds its handle through `renderRoot`,
+     and the divider's stacking and clip live in the element's own `static styles`. The fallback
+     promise is unaffected, because the two images are the **light-DOM** children (`slot="before"` /
+     `slot="after"`), which upgrading never touches: with no JS they are two readable images.
+     `WCImageCompare.dom.test.ts` asserts that, and the keyboard/ARIA contract. Converting it to
+     light DOM is possible but buys nothing a client can see; don't do it to tidy the rule.
+   - **`<wc-split-panel>`'s reason is the same:** it uses `DragController` through `renderRoot` and
+     draws its own divider; the two panes are slotted light-DOM children, so with no JS they are
+     two readable blocks.
    - Shipped as feature-detected, deferred ES-module bundles
      (`@getvitops/core/{polyfills,elements,deferred}`); polyfills load **only** when a native feature
      is missing (see `Polyfills.astro`).
@@ -50,41 +92,120 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
      ships `hidden` — with no JS the gate never runs, no gated tag loads and no non-essential cookie
      is set, so there is genuinely nothing to consent to. That fallback isn't empty, it's _moot_.
 
-   **Not registered in `elements.js` yet:** `WCColorWheel`, `WCOklchColorPicker`, `WCIconPicker`,
-   `WCTypography` — they belong to the editor-v2 track.
+   **`<wc-config-form>` is the second element outside `elements.js`** (`@getvitops/core/config-form`,
+   ~3.6 KB gzipped, Lit-free, a plain `HTMLElement`), for the reason `<wc-consent>` has its own bundle:
+   it carries what a page with no config form should not download (the JSON Schema validator and the
+   `formToConfig` codec, bundled from `@getvitops/config/forms`). It meets the tier-2 bar: the form it
+   wraps is a complete `<form method="post">` (`renderProjectionHtml`, `@getvitops/utils/forms`) that
+   posts the names `formToConfig` parses with scripting off, and the server validates. The element only
+   adds feedback while typing, a new row for a keyed map as the blank one is used, and `value`. It
+   enhances `<wc-field>` (in `elements.js`) without importing it, so the two load in either order. It
+   cancels a submit that has errors unless it has `novalidate`.
+
+   **`<wc-multifield>` is in `elements.js`** (a plain `HTMLElement`, light DOM, Lit-free; it replaced
+   the earlier shadow-DOM `<wc-multi-field>` spike, keeping its `min`/`max`/`protect-defaults`, Clear,
+   label attributes and `multi-field-*` events). It repeats a field (each child is an entry) or a
+   fieldset: `renderProjectionHtml` wraps every keyed map in it, each row an open
+   `<details class="field__row">` titled by its key, the last one blank (`data-blank`). The fallback is
+   the markup itself: native named controls, so with no JS fill in the blank row to add an entry and
+   empty a row's key to drop it (a row with no key is not sent). On upgrade the blank row becomes a
+   template and Add / Remove (and Clear) appear; a new row is a scrubbed copy at the next free index
+   (indices are a rendering detail, so gaps after a delete are fine). `<wc-config-form>` stops adding
+   blank rows itself once `wc-multifield[data-ready]` holds the row. The shared copy-and-scrub is
+   `utils/repeat.ts`.
+
+   **`<wc-color-field>` is the fourth element outside `elements.js`** (`@getvitops/core/color-field`,
+   <1 KB gzipped). It wraps a colour text input (`data-widget="color"`, which is the fallback and the
+   only submitted control) and offers the theme editor's `<wc-oklch-color-picker>` in a `<details>`.
+   **The picker is a dynamic import, fetched when the details is first opened**: it is a Lit element
+   over a colour-science library, ~40 KB gzipped, which a visitor who types a hex must not pay for. That
+   split is also why Lit now sits in a shared chunk (`polyfills/BaseElement.js`); `verify-bundle-size`
+   counts an entry's static chunks for that reason. `<ConfigForm colorPicker>` loads it.
+
+   **`<wc-stepper>` is the third element outside `elements.js`** (`@getvitops/core/stepper`, ~1 KB
+   gzipped, Lit-free), for budget rather than weight: `elements.js` sits at 99% of its ceiling, and a
+   plain `HTMLElement` needs nothing from it. The fallback is a complete long form (headed
+   `<section data-step>`s inside one `<form>`, `#anchor` links); the element shows one at a time and
+   stops a forward move at the first invalid step. Its silent validity check is `validity.valid`, not
+   `checkValidity()`, because that fires `invalid`, which the element itself listens for to reveal a
+   hidden step. Whether these standalone bundles become an auto-loader is an open decision (TODO.md).
+
+   **Every element states its no-JS standing with a `@fallback` tag in its docblock:**
+   `@fallback full <what it is>` (complete and usable with no JS, given its fallback markup),
+   `partial` (works, degraded: say how) or `none` (a canvas or tooling control with no meaning
+   without JS: stated, not excused; `wc-oklch-color-picker` is one, and `<wc-color-field>` is its
+   text-input counterpart). Not `@requires`, which JSDoc already uses for modules. `TierWc.fallback`
+   carries the same value into `components.md` and the docs table, and `tiers.test.ts` fails when an
+   element lacks the tag or the two disagree.
+
+   **Not registered in `elements.js`:** `WCOklchColorPicker` (`<wc-color-field>` imports it on first
+   open) and `WCColorWheel` (with `utils/color-harmony.ts`: pick harmony colours by strategy, kept
+   for the design-edit surface). `WCIconPicker` and `WCTypography` were deleted as unused.
+
+   **Foundational components, built:** field, combobox, tabs, breadcrumbs, format and range (the slider).
+   Each follows the tier-2 rule: the fallback is real and complete (`<input list>` + `<datalist>`; headed
+   `<section>`s; a labelled `<ol>`; a `<time>`/`<data>` with the text already in it; one or two native
+   range inputs), and the element only builds over it. `wc-tabs` hides each heading it turns into a tab
+   label (the tab already names the panel; leaving it would announce the text twice). `wc-combobox`
+   keeps what is typed even when it matches no option — it suggests, it does not constrain.
+   `wc-range` coordinates two native inputs rather than replacing them, so form submission, validation
+   and keyboard stay the browser's.
+
+   **`<wc-notifications>` is in `elements.js`** (plain `HTMLElement`, light DOM, Lit-free): the one
+   labelled `popover="manual"` region a page's notifications stack in, one per page in the same place.
+   Its fallback is the slot: a server-rendered `.notification` with `role="status"` is an inline
+   message with no JS and is adopted into the stack on upgrade. It never takes focus, pauses its
+   countdown on hover and focus, holds notifications back while a modal dialog is open, and announces
+   through `ariaNotify()` or the shared live region in `utils/announcer.ts`; the rules are in its
+   docblock.
+
+   **`<wc-field>` wraps a native control and is deliberately NOT form-associated.** The control it
+   wraps already submits with its form, validates, takes focus and is in the accessibility tree; a
+   form-associated host around it would submit twice or add nothing, and `delegatesFocus` is a
+   shadow-root option where this is light DOM. Its fallback is a label that **nests** the control (no
+   `id`/`for` to invent, so a generator can emit one field twice on a page). What it adds is what the
+   platform can't do alone: `aria-describedby` to the help text and the error, an inline message in a
+   polite live region once the control is left or a submit reports it (`:user-invalid`'s timing, and
+   the native bubble still appears), `setError()` for a host validating against a schema (via
+   `setCustomValidity`, so `reportValidity()` blocks submit; typing clears it), and a `maxlength`
+   counter. Form association belongs on a composite with no single native input (a keyed map, a
+   locale field); that is a separate element, and not built.
 
    **Foundational components not built yet** (`packages/core/src/js/elements.ts` used to carry this
    as a TODO docblock; moved here so it's a backlog, not a comment):
-   - **Combobox** — CSS shell only (`patterns/combobox.css`); the Lit component that makes it
-     interactive doesn't exist.
-   - **Dropdown / dropdown-item** — `.dropdown` (`patterns/dropdown.css`) is CSS/Popover-only,
-     hover-or-click; a menu with roving-tabindex arrow keys, type-ahead and Escape-returns-focus
-     (the ARIA `menu`/`menuitem` pattern) needs a component over it.
-   - **Tabs / tab / tab-panel** — `tabs` is a generated pattern with no structural partial and no
-     component (see `tiers.ts`); needs the WAI-ARIA tabs pattern (roving tabindex, arrow keys,
-     `aria-selected`, `aria-controls`).
-   - **Breadcrumbs** — no pattern at all yet. (`schemas/Breadcrumb.astro` is unrelated — Schema.org
-     JSON-LD, not visual nav.) Likely CSS/astro only, no JS: a breadcrumb trail is
-     `<nav aria-label="Breadcrumb"><ol>…` and needs nothing dynamic.
+   - **Not a gap — Dropdown.** A dropdown is not a component: it is the native Popover API plus
+     anchor positioning, which is how downstream apps already build them (`.dropdown--show-on-hover`
+     in `patterns/dropdown.css` is the hover variant; `<Popover>` sets the anchor). Navigation
+     menus follow the WAI-ARIA disclosure pattern, not `role="menu"`. A roving-tabindex menu
+     component is an explicit later decision, not backlog.
    - **Markdown** — render/enhance markdown content client-side. Library unchosen.
    - **OTP** — segmented one-time-passcode input: auto-advance between digits, paste-splitting a
      full code across them. Fallback is a plain `<input>`.
    - **QR** — QR code generation/display.
-   - **Slider** — a range control, distinct from `<wc-split-panel>`'s drag divider (that resizes two
-     panes; this picks a value).
-   - **Format** — reads a machine value and renders a presentation of it, e.g. a relative date over
-     `<time datetime>` (`"5 minutes ago"`), re-rendering as it goes stale. Fallback is the value
-     already in the markup.
 
-   **Known gap — element display.** An unregistered custom element is `display: inline`, and most
-   of these wrap block content, so before upgrade (or with `elements.js` absent entirely) the tag
-   forms an inline box around a block child. Only `wc-tree` (`patterns/tree.css`), `wc-cards`
-   (`patterns/card.css`), `wc-carousel` (`patterns/carousel.css`), `wc-gallery`
-   (`patterns/gallery.css`) and `wc-theme-editor` (`patterns/theme-editor.css`) currently declare
-   `display`; `wc-color-scheme-toggle` and `wc-consent` manage their own visibility, so the
-   remaining seven are unaddressed. Fixing them means checking each pattern's intended flow rather
-   than blanket-setting `display: block`, since an element used inline would regress — match the
-   declaration to the content the element wraps.
+   **Element display.** An unregistered custom element is `display: inline`, and most of these wrap
+   block content, so before upgrade (or with `elements.js` absent entirely) the tag would form an
+   inline box around a block child — and, where the upgraded `:host` declares a different display,
+   registering would shift the layout. Each pattern's partial now declares `display` for its element
+   inside `:where()`, matched to the content it wraps and to its upgraded `:host`: `block` for
+   `wc-config-form`, `wc-color-field`, `wc-stepper`, `wc-entries`, `wc-image-compare`, `wc-split-panel`, `wc-multifield`, `wc-dismissable` (which
+   animates its own box, so `display: contents` is out), `wc-marquee`, `wc-tabs` and `wc-range`;
+   `inline-flex` (column) for `wc-combobox` and `inline-flex` for `wc-copy`; `flex` (column) for
+   `wc-field`, matching `.form-group`.
+   **`<wc-turnstile>`** (in `elements.js`) loads Cloudflare Turnstile on the first interaction with
+   its `<form>`, so a visitor who only reads the page makes no request to `challenges.cloudflare.com`.
+   Turnstile is treated as category `necessary` (it protects the form being submitted) and is
+   therefore **not** behind the consent gate; it is a `wc-*` rather than an inline script because
+   loading a third-party script on interaction is behaviour. Its slotted fallback says the spam
+   check needs JavaScript; whether a token-less submit is accepted is `createConversionRoute`'s
+   `turnstile.required`, not the element's. It declares `display: block` in `forms.css`.
+
+   **`wc-counter` and `wc-format` are deliberately left `inline`**: `wc-counter` wraps one inline
+   `.counter__value` `<span>` (its docblock's example) and `wc-format` one inline `<time>`/`<data>`,
+   so the default display is already right for what they hold. `wc-format` has no stylesheet at all.
+   `wc-color-scheme-toggle` and `wc-consent` manage their own visibility. A new element must declare
+   its display in its pattern's partial — an element used inline would regress under a blanket
+   `display: block`, so match the declaration to the content it wraps.
 
 3. **Platform wrappers** (`@getvitops/astro` components; future `@getvitops/bricks`) — thin
    **authoring conveniences (DX)** for the pure-HTML/CSS patterns: they render the correct
@@ -303,10 +424,25 @@ packages under `packages/` (a pnpm workspace), by layer:
   (`MOVED_KEYS` in `config.ts`), short-circuiting before zod would report a dozen
   `unrecognized_keys`; that error is the migration.
 
+- **`@getvitops/config`** — the **site-config provider blocks** as zod schemas and inferred types:
+  `site.crm`, `site.ads`, `site.reviews`, `site.seo.indexing`, `site.searchConsole`,
+  `site.notifications`, `site.tracking`, `site.security`, `site.deployment`. A **leaf** — it imports
+  `@zod/mini` and nothing else in the workspace — which is the whole point: `@getvitops/utils` (the
+  provider code) can import its own configuration types instead of keeping a hand-copied mirror beside
+  each module, so the type an executor accepts and the document `validateConfig` accepts cannot drift.
+  Two entries, and the split is load-bearing: `.` carries the schemas (zod), `./providers` carries the
+  closed lists (`AD_PROVIDERS`, `CRM_PROVIDERS`, `BIGIN_DATA_CENTERS`) as bare literals, because Worker
+  code needs them as runtime values and must not pull zod along — `worker-safe.test.ts` fails a Worker
+  subpath that takes a value from the root. **The umbrella `Config` is NOT here**: it embeds the
+  design-system schema, whose `tokenRefIssues` calls the token engine, so moving it would have dragged
+  most of the generator down. `generator` re-exports the moved names, so no import path changed. Declare
+  `zod` here too: leaving `@zod/mini`'s peer to auto-install gave this package zod 4.6.7 beside the
+  generator's 4.6.5, and the two copies made the generator's declaration emit fail with TS2883.
 - **`@getvitops/utils`** — shared build-time utilities (favicon generation via `sharp` +
   `png-to-ico`, loaded lazily; `oxipng` crush optional). Consumed by cli/vite/astro.
 - **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint|legal|robots|reviews|
-icons|search|ads|media` (bin `vitops`), a thin wrapper over the generator + utils. `legal`/`search`/`ads`
+  icons|search|ads|crm|email|emdash|setup|media` (bin `vitops`), a thin wrapper over the generator + utils.
+  `legal`/`search`/`ads`/`crm`/`email`
   are covered in their own sections below; `robots` (`vitops robots [--input <site.json>]
   [--site-env <name>] [--out <dir>]`) is `legal`'s sibling — same `Config`-anchoring, same
   stdout-or-`--out` shape — rendering `robots.txt` from the resolved environment's robots
@@ -368,6 +504,8 @@ icons|search|ads|media` (bin `vitops`), a thin wrapper over the generator + util
   drift-guarded by `templates.test.ts` — `vp create` copies only the one directory a template names,
   so nothing can copy a sibling `assets/` for it at scaffold time.
 
+- **`@getvitops/skills`** — agent skills as data (`skills/<name>/SKILL.md`, no build), for knowledge about the toolkit that must update after a site is scaffolded. A site depends on it and runs `skills experimental_sync` (the `skills` CLI's preview command; pin its version) from `prepare`, which links each skill into `.agents/skills/` and `.claude/skills/` and relinks on every run. The sync never replaces a directory it did not create, so a site overrides a skill by name. Skills tied to a site's own files (`promote`, `setup`) stay in the template; `vitops-design-system` still ships in `@getvitops/cli`. Independent version, like `emdash` and `create`.
+
 Dependency versions are centralized in `pnpm-workspace.yaml`'s `catalog:` (referenced via the
 `catalog:` protocol); internal deps use `workspace:*`. Both are rewritten to concrete versions on
 publish.
@@ -393,9 +531,9 @@ the repo's `bricks/` PHP) into `packages/generator/assets/` and emits `schema.js
 (`build:bricks` → `build:theme` → `lib/build-theme.ts` → the generator; no lightningcss CLI) — see
 the Build system section.
 
-Build/publish: `npx vp run build:packages` (core → generator → utils → cli → vite → astro; each task
-`dependsOn` the packages it imports) and `npx vp run release` (`build:packages && changeset publish`).
-Versioning is via Changesets (`.changeset/config.json`): `core`/`generator`/`utils`/`cli`/`vite`/`astro`
+Build/publish: `vp run build:packages` (core → generator → utils → cli → vite → astro; each task
+`dependsOn` the packages it imports) and `vp run release` (`build:packages && changeset publish`).
+Versioning is via Changesets (`.changeset/config.json`): `config`/`core`/`generator`/`utils`/`cli`/`vite`/`astro`
 are **fixed** together — one version for the whole toolchain; `@getvitops/emdash` and
 `@getvitops/create` version independently; the root and `site/` stay private/ignored.
 
@@ -419,13 +557,13 @@ the group without solving that skew.
 
 1. `npx changeset` — describe the change in consumer-facing terms (this text becomes the published
    changelog; name breaking changes and their migration explicitly).
-2. `npx vp run release:version` — `changeset version`: bumps every package and writes the
+2. `vp run release:version` — `changeset version`: bumps every package and writes the
    per-package `CHANGELOG.md` files.
 3. **Write the matching entry in the root `CHANGELOG.md`** — the curated, toolchain-level notes
    (Breaking / Added / Fixed + migrations). Summarise what step 2 generated; don't transcribe
    dependency bumps. Every package ships its own `CHANGELOG.md` in its tarball via `files`, so both
    layers reach consumers.
-4. `npx vp run release` — `build:packages && changeset publish`.
+4. `vp run release` — `build:packages && changeset publish`.
 
 **Two rules for what those entries must say**, both from downstream reports of time lost
 reading changelogs that were accurate and still unanswerable:
@@ -437,7 +575,7 @@ reading changelogs that were accurate and still unanswerable:
   change in this package"** rather than leaving the absence to be inferred; a lockstep major
   is otherwise indistinguishable from one whose notes were forgotten.
 - **Every pattern-CSS entry names the formats it reaches** — `css/bricks only`, `tailwind
-only`, `all formats`. The `.rhythm` heading-spacing change was written as a plain breaking
+  only`, `all formats`. The `.rhythm` heading-spacing change was written as a plain breaking
   change and never reached the tailwind output; a consumer diffed builds to establish that.
   One clause settles it.
 
@@ -447,7 +585,7 @@ entry must say why it isn't — the migration table in prose is the fallback, no
 ## Legal documents
 
 `generateLegal(site, { docs, output })` (`packages/generator/src/legal/`) renders a privacy
-policy, terms of service and cookie notice from a **`Config`**. It reads facts from two of its
+policy, terms of service, cookie notice and accessibility statement from a **`Config`**. It reads facts from two of its
 sections — the company from `organization`, what the site actually does from `site` — which is
 the split the documents already assumed. It is a sibling of
 `generateDocs`, **not** a `generate()` format, and that is structural rather than stylistic:
@@ -476,16 +614,20 @@ Four things here are load-bearing:
   excluded — neither is visitor-supplied, and describing them as collected would be untrue.
 - **The markdown subset is closed and the renderer throws outside it.** We author every
   template, so `render.ts` is exactly as capable as they are: `#`/`##`/`###`, `- ` bullets,
-  `> ` quote, `**strong**`, `` `code` ``. An unsupported construct is an error, not a silent
-  degrade — that is what stops a literal `| --- |` reaching a published page. HTML goes through
+  `> ` quote, `**strong**`, `` `code` ``, `[text](url)` links (added for the accessibility
+  statement; the URL is made safe at the output, not the input). An unsupported construct is an
+  error, not a silent degrade — that is what stops a literal `| --- |` reaching a published
+  page. HTML goes through
   `nodesToHtml` from `@getvitops/utils` (escaping already solved); Portable Text maps the `> `
-  quote to `vitops.banner` and **drops the `# ` heading**, which is EmDash's `data.title` field.
+  quote to `vitops_banner` and **drops the `# ` heading**, which is EmDash's `data.title` field.
 - **`JURISDICTIONS` in `config.ts` and `TEMPLATES` in `legal/templates/index.ts` are checked
   against each other** by `satisfies`. Adding a jurisdiction is: author three templates, add
   one enum member, add one registry key — skip either and it fails to compile rather than
-  rendering against the wrong body of law. Only `ca` (PIPEDA) ships; its prose names the
-  Office of the Privacy Commissioner of Canada and frames transfers as "outside of Canada",
-  so do not reuse it elsewhere.
+  rendering against the wrong body of law. `ca` (PIPEDA) and `qc` (Quebec Law 25) ship. The
+  `ca` prose names the Office of the Privacy Commissioner of Canada and frames transfers as
+  "outside of Canada", so do not reuse it elsewhere; `qc` is its own text (Commission d'accès
+  à l'information, transfers "outside Quebec") and carries a second review banner naming
+  counsel review, the person in charge of privacy and French availability.
 
 Delivery is one renderer, four consumers — the CLI is the load-bearing one, because it is the
 surface every consumer has regardless of stack:
@@ -504,8 +646,8 @@ a build tool; the one failure mode with real consequences is a consumer publishi
 
 A visitor arrives on an ad with a click ID in the URL; `<Tracking />`
 (`@getvitops/astro`) captures it into the first-party **`_ac`** cookie; when they later
-submit a form or tap a `tel:` link, `createConversionRoute()` reads the cookie back and
-notifies whoever the config names. Three packages, split along the seams the rest of the
+submit a form or tap a `tel:`/`mailto:` link, `createConversionRoute()` reads the cookie back
+and notifies whoever the config names. Three packages, split along the seams the rest of the
 toolchain already uses:
 
 | Layer                                         | Where                       | Why there                                                |
@@ -517,8 +659,9 @@ toolchain already uses:
 Both `utils` entries are separate subpaths because they are the only modules that run in a
 **Worker** rather than at build time — keeping them off `src/index.ts` is what stops a
 conversion endpoint pulling `sharp` into its bundle. Neither may use a Node builtin.
-`TrackingConfig`/`NotificationsConfig` mirror the `site.*` blocks structurally, since utils
-cannot import from the generator — the same arrangement as `IndexingConfig`.
+`TrackingConfig`/`NotificationsConfig` are the inferred types of `@getvitops/config`'s
+`TrackingSchema`/`NotificationsSchema` — utils imports its own configuration types rather than
+mirroring them (see `@getvitops/config` above).
 
 Eight things are load-bearing:
 
@@ -565,7 +708,7 @@ Eight things are load-bearing:
   Cloudflare's siteverify endpoint via `verifyTurnstileToken()` (`@getvitops/utils/security` — a
   Worker-safe subpath for the same reason `notify`/`tracking` are). The **secret** key is an env
   var, never config, mirroring every other credential in the toolchain; `site.security.turnstile
-.siteKey` stays public config and is what the legal templates read to name Turnstile in the
+  .siteKey` stays public config and is what the legal templates read to name Turnstile in the
   generated privacy policy (see the Legal documents section). Before this existed, that field made
   the policy assert something nothing in the toolchain checked — a bare token in the submission
   is, by default, treated as absent-because-no-JS rather than rejected (`required: true` opts a
@@ -633,6 +776,28 @@ Six things are load-bearing:
   rather than stamping the build time: Google weighs lastmod only while it stays consistent with
   what changed, so a site that stamps every page every deploy teaches it to distrust the field
   site-wide.
+
+  **On an EmDash site `gitLastmod()` is not the lever, and the answer is two sitemaps.** EmDash
+  serves `/sitemap.xml` (an index of `/sitemap-<collection>.xml`) from its database and dates every
+  entry from the row's `updated_at`, so CMS content needs nothing from us. It has **no extension
+  point** for anything else — no option for extra URLs, no merge with `@astrojs/sitemap` — so
+  plain `src/pages/*.astro` routes are simply absent, and the only documented escape (a user
+  `src/pages/sitemap.xml.ts`) _replaces the whole index_, discarding its dates and paging. Never
+  override it. `vitops({ sitemap })` therefore does something different when `emdash()` is
+  registered: a build writes `public/pages-sitemap.xml` for exactly the `src/pages` routes
+  (`packages/astro/src/pages-sitemap.ts`), dated by `gitLastmod()`, and **writes nothing when there
+  are none** — an empty second sitemap in Search Console is noise, so a CMS-only site (and a fresh
+  scaffold, whose `sitemap: { exclude: ['/'] }` drops the `index.astro` that only renders the
+  `home` entry) has no pages sitemap. Three rules: the name must not match `sitemap-*.xml`
+  (EmDash's route claims it, and a file there silently loses to the CMS's document); only a file
+  carrying the marker comment is ever replaced or removed, so a hand-written one is left alone;
+  and the git history must be full (`fetch-depth: 0`), or every date is missing. `search notify`
+  **discovers** rather than lists when `sitemapUrl` is unset — `sitemap-index.xml` (Astro),
+  `sitemap.xml` (EmDash), `pages-sitemap.xml` — and uses whichever exist with at least one
+  `<url>`; an explicit `sitemapUrl` (a string or a list) turns discovery off. It prints each
+  sitemap it will submit with a reason (the pages one reads "required for non-EmDash content"), so
+  a second sitemap in Search Console is never a surprise, and names up to three undated URLs.
+
 - **The `noindex` gate reads the environment, so the URLs must too.** `plan()` refuses the whole
   run when the resolved environment's `robots` contains `noindex` — submitting a staging host to
   IndexNow publishes it to several engines and invites them to crawl it, which a later directive
@@ -691,9 +856,42 @@ Console does not care which, and a consumer who ran `search setup` already holds
 credential — making them provision a second, unrelated one for the other half of the same command
 bought nothing. `search setup` is the only thing that genuinely requires a specific grant.
 
-`@getvitops/utils` cannot import from `@getvitops/generator` (the generator already depends on
-it), so `IndexingConfig` mirrors the `site.seo.indexing` block structurally and the CLI adapts — the
-same arrangement, for the same reason, as `GetvitopsSeoOptions` in `@getvitops/astro`.
+`IndexingConfig` is the inferred type of `@getvitops/config`'s `IndexingSchema`, so the type the
+executor accepts and the document `validateConfig` accepts cannot drift. `site.seo` is the single source
+of site-level SEO defaults (ADR-0002): `SeoSchema` lives in `@getvitops/config`, and `@getvitops/astro`'s
+`resolveSeoDefaults()` resolves it (with `organization.name` as the site name) into the `GetvitopsSeoOptions`
+shape `<Seo />` reads; `vitops({ seo })` is only an override merged over that. `seo-defaults.test.ts` fails
+when a `site.seo` field is added and not read, which is how four fields once sat in the schema doing nothing.
+
+## Issue reporting and triage
+
+Agents in downstream sites report toolchain bugs, deprecations and missing patterns to this repo's
+**public** tracker with `vitops report` (`packages/cli/src/report.ts` pure, `commands/report.ts` I/O),
+taught by the `vitops-report-issue` skill. Four rules carry the design:
+
+- **The tracker is public and the client repo is not, so the agent drafts and the person confirms.**
+  The default run files nothing: it prints a redacted draft and a prefilled new-issue URL.
+  `--submit` still asks on a TTY, and `--yes` exists only for an agent the person has already said
+  yes to. Redaction (`redact()`, terms read loosely from the raw `site.json` so it works when the
+  config is the broken thing) is a net, not a guarantee, which is why the draft is shown first.
+- **One body shape, two producers.** `FORM_FIELDS` in `report.ts` mirrors the labels in
+  `.github/ISSUE_TEMPLATE/*.yml`; `report.test.ts` reads the forms and fails on drift, so the bot parses
+  the same `### <label>` headings whether an issue came from the web form or the CLI.
+- **The bot triages and nothing else.** `.github/workflows/issue-triage.yml` runs
+  `claude-code-action` (pinned to a commit: it holds `CLAUDE_CODE_OAUTH_TOKEN`) with read-only repo
+  access and an allowlisted tool set, against `dev`, where fixes land. Its instructions live in
+  `.github/triage/prompt.md`: classify, label from a fixed list, find duplicates, check whether `dev`
+  already fixed it, locate code, ask for what is missing, one comment. It never closes, assigns or
+  edits, and the prompt treats the issue text as data. The tool allowlist can restrict `gh issue edit`
+  to the command but not to particular labels, so the label allowlist is the prompt's, not the
+  sandbox's.
+- **Only trusted authors trigger it automatically.** An issue body is untrusted input and a run costs
+  money, so it runs for `OWNER`/`MEMBER`/`COLLABORATOR` authors; anyone else's waits as `triage:new`
+  until a maintainer adds `triage:run`.
+
+Labels the forms, CLI and prompt rely on must exist (`agent-report`, `deprecation`, `triage:new`,
+`triage:run`, `triage:needs-info`, `triage:ready`, `triage:duplicate`, `pkg:<name>` per package);
+`gh issue create --label` fails on a missing one.
 
 ## Search Console onboarding
 
@@ -736,8 +934,8 @@ Credentials follow the same env-var pattern as `lib/deploy.ts` and never live in
 Cloudflare via `CLOUDFLARE_API_TOKEN` (a `Zone:DNS:Edit` token — the standard "Edit zone DNS"
 template also carries the `Zone:Read` that the zone-by-name lookup needs), Google via
 `VITOPS_GOOGLE_CLIENT_ID` / `VITOPS_GOOGLE_CLIENT_SECRET` / `VITOPS_GOOGLE_REFRESH_TOKEN`. As with
-`IndexingConfig`, the util-side `DomainSetup`/`DomainState` types are structural mirrors (utils
-cannot import the generator) and the CLI's `toSearchConsoleSetup` adapts.
+`IndexingConfig`, the util-side onboarding types derive from `@getvitops/config`; the CLI's
+`toSearchConsoleSetup` only reshapes the config for the planner.
 
 ## Ad-platform linking
 
@@ -786,11 +984,9 @@ Five things are load-bearing:
 - **`AD_PLATFORMS` is the single source, and it feeds three surfaces that must agree.** The cookie
   list reaches `data-consent-cookies` (what a revoke clears) _and_ the generated cookie notice via
   `adProcessors()` in `legal/providers.ts`; the click-ID list is checked against `PLATFORM_PARAMS`;
-  the tag is emitted inert (`type="text/plain"` + `data-src`, never a live `src`). The generator
-  mirrors the provider list as the `AD_PROVIDERS` enum — a `z.enum` needs literals to reach the
-  published JSON Schema — and `ads-config.test.ts` asserts the two are the same set. Note the
-  generator **imports** the capability table (that direction is allowed); only `utils`-side types
-  are structural mirrors.
+  the tag is emitted inert (`type="text/plain"` + `data-src`, never a live `src`). `AD_PROVIDERS`
+  lives in `@getvitops/config/providers` as bare literals (a `z.enum` needs literals to reach the
+  published JSON Schema), and `ads-config.test.ts` asserts it matches the capability table.
 
 Credentials follow the same env-var pattern as everything else: `CLOUDFLARE_API_TOKEN` for the DNS
 write, and nothing else — no platform API is called, so no ad-platform credential exists to leak.
@@ -806,6 +1002,177 @@ answer for tags it doesn't govern; and the environment switch is its own — `en
 cascading to `analytics` then true, because a preview deployment sending pageviews is survivable and
 one firing conversion pixels is not. The integration resolves ads **before** choosing offered consent
 categories, since a pixel is a `marketing` demand and the banner must already have a row for it.
+
+## Sender-domain onboarding (`vitops email`)
+
+`site.notifications.email.from` (see Conversion tracking above) names an address, but nothing
+connected that to whether its domain is actually onboarded onto an outbound provider —
+`EMAIL.send()` throws `E_SENDER_NOT_VERIFIED` at runtime with no build or deploy-time warning.
+`vitops email setup [domain]` (`@getvitops/utils/email` → `packages/cli/src/commands/email.ts`)
+onboards a sending domain and waits for its DNS to resolve; `vitops email check` is the
+non-blocking deploy guard both templates' `deploy` script runs first. Same pure-planner/executor
+split as `ads/`, `onboarding/` and `hosting/` — `plan.ts` decides everything, `cloudflare.ts`
+executes Cloudflare's REST API and decides nothing, `dns.ts` is a read-only DoH propagation probe,
+`scan.ts` is the best-effort static source scan.
+
+Three things here are load-bearing:
+
+- **The onboarded entity is an exact name, and it is usually a subdomain — never the apex a `from`
+  address names.** Checked live against this account: `send.vitops.ca` is onboarded, and
+  `wrangler email sending dns get vitops.ca` fails with "No sending subdomain found for
+  `vitops.ca`" — Cloudflare matches `subdomains.find(s => s.name === name)`, no fallback to a
+  parent zone. So a config whose `from` is `noreply@vitops.ca` is **not** covered by an onboarded
+  `send.vitops.ca`, and the planner's single most valuable report is naming that mismatch: absent
+  exact name + an onboarded sibling in the same zone → `blocked`, not `create`.
+- **Why `send.<domain>` rather than the apex is NOT about MX conflict** — checked live: every
+  record Cloudflare adds sits under its own label (`cf-bounce.<sending>`, `cf-bounce._domainkey
+  .<sending>`), which collides with neither an apex MX nor `mail.<domain>`. What actually recommends
+  a subdomain is the DMARC record: `_dmarc.<sending>` sets `p=reject`, and onboarding the apex
+  would overwrite the domain's real `_dmarc.<domain>` — for `vitops.ca` that would replace an
+  existing `p=none` policy covering Zoho-hosted mail with `p=reject`, which fails every message
+  that isn't SPF/DKIM-aligned for this sender. A blocked report's fix therefore recommends sending
+  from the onboarded subdomain first, and names enabling the apex as the second option with that
+  caveat — never the reverse.
+- **This calls Cloudflare's REST API directly, not `wrangler email sending list`** — checked
+  against wrangler 4.119.0: that command has no `--json`, only a text table, and scraping it was
+  ruled out the way every other executor here avoids parsing CLI prose. `findZoneForHost` mirrors
+  wrangler's own `resolveDomain` label-walk (try the full host as a zone name, then each shorter
+  suffix) rather than a public-suffix-list dependency, because a sending name is usually a
+  subdomain and Cloudflare zones are registered at the apex.
+
+`vitops email check` warns and exits 0 by default — `--strict` makes it a real gate — because a
+false positive (a `from` the scan can't see is actually correct, e.g. built dynamically) must not
+block every deploy; `site.notifications.email.verifySender: false` or `VITOPS_SKIP_EMAIL_CHECK`
+opt out per-site. Candidates come from config first (`site.notifications.email.from`, or
+`resolveSender()`'s derived `noreply@<canonical>`), with the source scan (`email/scan.ts`, modelled
+on `icons-scan.ts`) only a supplement — a computed `from` value in source is reported as dynamic,
+never guessed at, the same rule `icons-scan.ts` and `vitops lint` already follow.
+
+## CRM submissions
+
+`site.crm` (`@getvitops/utils/crm`) pushes a form submission into a client's CRM — HubSpot, Zoho
+Bigin, or Jobber — server-side, hung off the same `createConversionRoute()` every conversion already
+reaches, rather than a client-side iframe/JS embed. That distinction is the whole reason it exists: a
+cross-origin iframe can't read the first-party `_ac` cookie, and a HubSpot-hosted script posts
+straight to `api.hsforms.com` — either way the lead reaches the CRM with no record of the ad that
+paid for it and no notification email, and the markup can't be white-labelled against this design
+system. Tier-1 all the way down: a client form is `<form method="post" action="/api/track">`
+against `css/patterns/forms.css`'s existing field vocabulary — no new `/core` component, and
+`<wc-form>` stays deliberately deferred.
+
+Four external facts settle most of the design:
+
+- **Zoho Bigin has no unauthenticated submission endpoint.** Every write is OAuth refresh-token
+  only, so a browser-side path cannot exist for Bigin at all.
+- **HubSpot's unauthenticated forms endpoint is rate-limited per _portal_** and rejects any field
+  not already declared on the form. A bot on one client's site would starve every other form
+  sharing that portal — the "configure it in their UI first" coupling this feature exists to avoid.
+- **Bigin's `Contacts.Last_Name` is mandatory and `Email` is the unique field.** A bare name/email
+  form 400s on insert unless a last name is derived.
+- **Jobber is a GraphQL API that answers `200 OK` for failures.** A rejected `clientCreate`
+  returns `userErrors[]`, and a malformed request returns top-level `errors[]` — both with HTTP
+  200, so `jobber.ts` classifies on the body, not the status. Its refresh tokens also rotate by
+  default: Refresh Token Rotation must be turned **off** in the app's Developer Center settings,
+  since a Worker reading a static `VITOPS_JOBBER_REFRESH_TOKEN` cannot persist a rotated one. A
+  per-client private app is never published to Jobber's Marketplace (where rotation ON is
+  mandatory), so this is a legitimate setup requirement, not a workaround — `jobber-token.ts`
+  detects a rotated token at exchange time and names the fix rather than failing an hour later
+  as an opaque 401.
+
+Seven things are load-bearing:
+
+- **CRM-before-notify, and the notification states the outcome.** `createConversionRoute()` calls
+  `deliverToCrm()` after the honeypot/Turnstile/`validate` gates (a honeypot trip must never reach
+  the CRM) and before `notify()`, then folds the result into `notify`'s fourth arg —
+  `describeCrmResult()` becomes one line in the email's "Delivery" section
+  (`Written to HubSpot (contact 1234)` / `⚠ Not written to HubSpot: access token rejected (401)`).
+  The email is the durability floor: a failed CRM write must still reach a human with the full
+  submission and a stated reason, which is only possible once the outcome is known.
+- **A failed CRM write never fails the request.** The visitor has already submitted; refusing them
+  because a CRM token expired turns a lost write into a lost conversion — the same rule
+  `notify()`'s own docblock states for the email channel.
+- **Consent gates `_ac`, never the CRM write.** A visitor filling in a form is deliberately handing
+  over their data — that's the necessary processing of their own submission. `event.tracking` is
+  `null` for a visitor who declined `marketing`, and `map.ts`'s `mapSubmission()` simply writes no
+  attribution fields; absence is not an error, and the CRM write proceeds regardless.
+- **Bigin's last-name fallback**, in `crm/map.ts`'s `deriveLastName()`: an explicit `lastName` field
+  wins; failing that, the last space-separated token of the full name; failing that, the email
+  local-part; failing all three, a stated refusal rather than a fabricated name or a 400 Bigin would
+  otherwise return.
+- **Credentials are a function of `locals`, never config** — `createConversionRoute()`'s `crm`
+  option takes `credentials?: (locals) => CrmCredentials`, matching `binding?: (locals) =>
+  EmailBinding` exactly, so a consumer reads `VITOPS_HUBSPOT_ACCESS_TOKEN` /
+  `VITOPS_ZOHO_CLIENT_ID`/`_CLIENT_SECRET`/`_REFRESH_TOKEN` /
+  `VITOPS_JOBBER_CLIENT_ID`/`_CLIENT_SECRET`/`_REFRESH_TOKEN` from `cloudflare:workers`'s `env`.
+  That rule is absolute in this toolchain.
+- **`vitops crm check` is the drift guard, and the reason a separate CLI command exists at all.**
+  HubSpot _rejects_ a submission naming a property that isn't on the form; Bigin _silently ignores_
+  one. A typo'd `site.crm.fieldMap`/`trackingFields` entry is therefore invisible in one CRM and
+  fatal in the other, and only fetching the live field/property list can tell you which.
+  `vitops crm setup` creates missing HubSpot properties; Bigin has no such API, so it always
+  resolves to a manual reminder, matching how `ads setup` handles a platform with no verification
+  API. Jobber currently renders `fieldMap`/`trackingFields` values as note-text lines rather than
+  app-configured custom fields (see below), so both subcommands say so rather than checking an
+  unverified endpoint.
+
+Compliance is not optional here, and follows the rule Legal documents already set: **the config
+records facts; the template owns prose.** `legal/providers.ts` names HubSpot, Zoho Bigin or Jobber
+once `site.crm` picks one — the same reasoning `site.ads` already established for ad platforms,
+since `site.crm` makes the toolchain the thing deciding whether a submission reaches any of them.
+Bigin's cross-border-transfer sentence derives from `bigin.dataCenter` exactly as `matomoLocation()`
+derives Matomo Cloud's: `dataCenter: 'ca'` asserts `storage: [{ country: 'Canada' }]`, which
+`derive.ts`'s `foreign()` then correctly omits from the disclosure — a real win for an Ontario
+client running Bigin's Canadian data centre. HubSpot's `operatorCountry` is verified (Delaware
+corporation, Cambridge, MA); Zoho's is deliberately left unset pending verification, since Zoho
+Corporation has both an Indian and a US entity and which one controls a given account is not
+something the config can see — don't invent a jurisdiction there. **Jobber's operator is Canadian
+but its storage is not** — Octopusapp Inc. d/b/a Jobber, Edmonton AB, verified from its own
+published privacy policy, which is exactly why `KNOWN_PROCESSORS.jobber` sets `operatorCountry:
+'Canada'` **and** `storage: [{ country: 'the United States' }, { country: 'Canada' }]` rather than
+inheriting Bigin's Canadian-data-centre win: that same policy names the United States as a
+processing location, so a Canadian operator must not be read as Canadian-only storage. Unlike
+Bigin's `dataCenter`, this isn't derived from a config field — Jobber gives the config nothing to
+derive from, so it's asserted once, directly in the table.
+
+`packages/utils/src/crm/` follows the pure-planner/executor split every other module here does
+(`plan.ts` decides whether the channel is on, from one `PROVIDER_REQUIREMENTS` table rather than a
+hand-written `if` per provider; `map.ts` decides how one submission becomes a provider-neutral
+`CrmRecord`; `hubspot.ts`/`bigin.ts`/`jobber.ts` execute and decide nothing beyond the last-name
+refusal and Jobber's own GraphQL-body classification). `identifySubmitter()` — pulling first/last
+name, email, phone, company out of a form's fields by its aliases — was promoted out of
+`notify/render.ts`'s private `submitterName()` into `tracking/identity.ts`, because `crm/map.ts`
+needed the whole identity, not just a display name, and a second independent alias cascade is
+exactly the bug `render.ts`'s own comment records: a downstream site had five of six forms carrying
+`first_name`/`last_name`, and a name-only cascade read every one of them as "Unknown".
+
+Three CRMs is also the point where the binary `hubspot ? … : bigin` branches a second provider
+could get away with had to go: `describeCrmResult`'s provider label, `deliverToCrm`'s executor
+dispatch, and `planCrm`'s block/credential checks are each one small table now
+(`PROVIDER_LABELS`, a `switch` with a `never` exhaustiveness check, `PROVIDER_REQUIREMENTS`), so a
+fourth provider added to `CrmProvider` with no matching entry is a compile error rather than a
+silently mislabelled email or a runtime crash on a missing config block.
+
+No durable retry queue (the notification email is the durability floor, matching `notify`'s own
+restraint), no client-side path (impossible for Bigin, actively harmful for HubSpot's rate limit),
+and no generic connector framework — three CRMs with three genuinely different transports (a
+form-submission POST, a REST upsert, a GraphQL mutation) is evidence against a shared abstraction,
+not for one, the same restraint `notify`'s own TODO records for its unimplemented channels.
+
+**Jobber-specific, and each an open item rather than a silent guess:**
+
+- Only `clientCreate` is verified against Jobber's own published docs. The best-effort note
+  (`noteCreate`) and the dedupe lookup (`clients` search) are **not** — Jobber's changelog records
+  `requestNoteCreate`/`requestUpsert` being _removed_, so the note surface is genuinely in flux.
+  Both are wrapped so a wrong guess degrades rather than breaks: a failed note never downgrades a
+  successful client write, and `dedupe` defaults to `false` until the search shape is confirmed
+  against a live account's GraphiQL schema — turn it on once verified, and update `jobber.ts`'s
+  docblock with what was found.
+- Attribution and any unmapped extra fields render into the note body by default, not a Jobber
+  custom field — Jobber's app-configured custom fields need the Connect plan or higher, and their
+  `clientCreate` input shape is a further unverified surface. `fieldMap`/`trackingFields` values
+  still land as note lines rather than a guessed custom-field mutation input.
+- A resubmitting visitor creates a second Jobber client unless `crm.jobber.dedupe: true` is set
+  (once verified) — Jobber's `clientCreate` has no upsert, unlike Bigin's.
 
 ## Client onboarding
 
@@ -874,6 +1241,65 @@ copies of the same content would drift. `SETUP.html`'s checkbox state persists i
 today, behind one named seam (`window.__vitopsSopStore`) so a later EmDash-backed store is a
 swap, not a rewrite — that store does not exist yet; don't build it speculatively.
 
+## Site chrome: the masthead and nav behaviour
+
+`site.chrome` (`@getvitops/config`'s `ChromeSchema`) is where a site states how its top bar looks and
+how its navigation behaves; `<Masthead>` and `<SiteNav>` (`@getvitops/astro`) read it through
+`resolveMasthead()` / `resolveNavOptions()`, and a prop overrides one field for one layout. It is
+git-owned design (`site.json`, promoted `dev → main`), not an EmDash admin setting: editors own the
+menus and widget areas, the design owns how they present.
+
+- **The name is deliberate.** `chrome`, and `masthead` for the bar itself. `<header>` is valid inside
+  any section or article, so it does not identify the site bar; `banner` already means the
+  announcement bar (`.banner`, `vitops_banner`) and is the ARIA landmark role auditors flag when it
+  is written explicitly on a `<header>`. `<Masthead>` emits a plain `<header>` and never a `role`.
+- **Three nav sizes are three menus, not three settings.** `primary-mobile`, `primary`, `primary-mega`
+  (`sitenav.ts`'s `MENU_NAMES`) each render as their own tier in a width window; `site.chrome.nav`
+  only tunes them. `compact: 'dropdown'` swaps the narrow drawer for an anchored columnar panel and
+  emits `sitenav--panel-dropdown` **instead of** a `drawer-*` class — both are narrow-state rules at
+  the same specificity, so emitting both would leave the winner to source order
+  (`state-branch.test.ts` guards the shape).
+- **Scroll behaviour is `states`: partial looks over a settled base.** The un-modified `.masthead`
+  is visible, solid (or glass), elevated and in flow. `site.chrome.masthead.states` names a partial
+  override per scroll state — `atStart`, `atEnd`, `scrollingToEnd`, `scrollingToStart`, later wins —
+  with `layout`, `height`, `inset`, `surface`, `elevation` (or `false`) and `hidden`. The
+  vocabulary is **shared, not the masthead's**: `SCROLL_STATES` / `scrollStateQuery()`
+  (`@getvitops/config` `scroll-states.ts`) is the one place a state is tied to its `scroll-state()`
+  query, and `.scroll-edges` (horizontal strips) uses the same words on the inline axis. A state's
+  override is the custom property `--<pattern>-<state>-<prop>` (`--masthead-at-start-height`); the
+  partial reads it inside the matching `@container page …` query and falls through to the settled
+  value when it is unset, so **states only ever override and a browser without `scroll-state()`
+  (Firefox today) keeps the settled, readable bar**. This used to be written the other way round —
+  base clear, query reveals — which left such a browser with a transparent bar over body text
+  forever; `masthead-fallback.e2e.ts` (a Firefox project) is the regression test. Three details
+  bite: a state's custom properties are written on the **element**, not `:root`, because they
+  reference element-level properties (`--_masthead-base`) a root declaration cannot resolve; the
+  state `--_<state>-*` publish-then-chain in `masthead.css` relies on an unset `var()` being
+  guaranteed-invalid so the chain falls through; and a state that hides the bar at the start, or
+  changes size or layout, promotes it to `fixed` (a sticky bar would reflow the page at the
+  threshold and flip back). A masthead with focus inside it, or an open popover/disclosure, never
+  slides away, and `atStart.hidden` needs a page that can scroll. The masthead must never set `overflow` (clip/hidden) or a non-`none` `translate` when it has no states: the wide submenu and mega panels are absolutely positioned descendants that hang below the bar, and a clip cut them off in `floating` until this was caught. `behavior`, `surface:
+  transparent-until-scrolled` and `elevation.onScroll` were replaced by `states`;
+  `resolveMasthead` throws naming each move, and the old `.masthead--*-on-scroll` classes stay in
+  the CSS as aliases for hand-written markup. Don't add a JS path for the missing browsers: the
+  effect arrives with the feature, the degrade is already correct.
+- **`height` and `inset` take fluid lengths, and are validated as a closed grammar.** Both are
+  written into a `<style>` on `:root` (`mastheadRootCss()`), so `isSafeLength()` admits only
+  numbers-with-units, `calc|clamp|min|max`, balanced parentheses — never `var()`, `url()`, `;` or
+  braces. `cqi` resolves against `body` (the container the nav breakpoints use), `vw` against the
+  viewport. `--masthead-inset` is written only for a non-`full` layout and always then (defaulted to
+  `0.75rem`), because `--header-offset` adds it unconditionally and must agree with the element.
+- **Config is read loosely, checked at runtime.** A plain `import site from './site.json'` types every
+  enum as `string`, which a strict `Config` rejects (the `resolveOrganizationName` trap), so
+  `ChromeSource` is structural and `resolveMasthead` validates each value against the schema's
+  literal lists. Height, tone and shadow are also checked to be a plain length / role / name, because
+  they are written into CSS.
+- **Mega panels get rich content from widget areas.** `megaPanel={VitopsMegaPanel}`
+  (`@getvitops/emdash/astro`) renders the area `mega-<last URL segment>`, or the item's
+  `mega-area:<name>` class (which wins: labels are translated). The prop keeps `@getvitops/astro`
+  free of a CMS dependency. Absent area, absent column.
+- `site.navigation` (`activeTemplate`) is still unread by any renderer. This is not it.
+
 ## Google reviews
 
 `vitops reviews` (`packages/cli` → `@getvitops/utils/reviews`) fetches a client's Google Business
@@ -893,7 +1319,9 @@ enhancement.
   one place that assumption lives.
 - **The calling GCP project must be allowlisted by Google before any call succeeds** — a one-time
   access-request form, turnaround measured in days to weeks. `gbp.ts` treats a `403` as that known
-  state and says so, rather than surfacing a raw failure.
+  state and says so, rather than surfacing a raw failure. It is
+  per Google Cloud project, not per site, and cannot be done in code, so it is a checklist step
+  (`connections.gbp` in `SETUP.html`, and a hard stop in the setup skill) to file at kickoff.
 - **Auth is always user OAuth**, the same `VITOPS_GOOGLE_CLIENT_ID` / `_CLIENT_SECRET` /
   `_REFRESH_TOKEN` (or ADC login) `search setup` uses, scoped to `business.manage`
   (`SCOPES.businessProfile`, `@getvitops/utils/google/token.ts`). Reading a client's own reviews is
@@ -947,16 +1375,46 @@ Each review already carries a unique `id` (the GBP review id) and a `location` k
 `getCollection('reviews', ({ data }) => data.location === 'ottawa')` works with no further plumbing.
 Non-Astro consumers read the same JSON directly.
 
+### Block escape hatches and widget areas
+
+Every `vitops_*` block carries `anchor` (an `id`), `className` and `style`, applied by each renderer
+to its **own outermost element** through `rootAttrs()` and validated in `astro/blocks/attrs.ts`.
+There is deliberately no wrapper node: one that appeared only when a field was set would make a
+block's DOM shape depend on content, and break CSS and JS selectors written against it. The one
+nuance is `vitops_cards`, whose default variant is a `<wc-cards>` host and whose attributes go on
+the grid inside it (the panel variant has no host), so they sit on the same element in both. **`style` is
+custom properties only**, and that is the point: `--p-card: 2rem` tunes a hook the design system
+already defines, while a free-form declaration would let one page diverge from the tokens and
+`url(` is a request to wherever an editor points it. **`className` has one caveat**: under the
+`tailwind` format a class typed in the CMS exists only if some source already used it (Tailwind
+scans files, not content); css and bricks ship every class. Every block (and widget area) has a `theme`, `<role>` or
+`<role>:solid`, applied by `rootAttrs()` to the block's own root as `.tone` classes and `--tone-*`
+properties, so contrast stays the generator's guarantee and a site's raised or glass role styling
+reaches every block; `tone`/`color`/`solid` remain because a block-type field cannot be renamed.
+
+**Widget areas** are EmDash's synced regions (an EmDash Section is copied, so later edits do not
+reach earlier uses). `<VitopsWidgetArea>` renders one in the framework's vocabulary — titles at a
+chosen heading level, a menu as a labelled `<nav>` — and the `vitops_widgetArea` block places one
+in content. An area cannot hold another (a request-scoped depth counter cannot be kept honest
+while Astro streams children), and one holding a `core:*` component widget is handed whole to
+EmDash's renderer, whose per-widget renderer is not exported. Prerendered pages bake an area at
+build time, like menus.
+
+The `tailwind` format needs `@source` lines for the packages whose renderers carry classes:
+Tailwind v4 does not scan `node_modules`, so `font-display` (used only by `vitops_stats`) was never
+emitted. The Astro integration passes them (`tailwind-sources.ts` → `generate({ sources })`), and
+`vitops emdash check-prerender` warns when a type-role class has no rule as a backstop.
+
 ## Development
 
-The build system uses `vite-plus` (`vp`), which is a wrapper for common tools for SDLC tasks:
+The build system uses `vite-plus` (`vp`), which is a wrapper for common tools for SDLC tasks. **Vite+ must be installed globally** (a toolkit requirement, for this repo and every scaffolded site): invoke it as plain `vp`, never `npx vp` — npm rejects a `devEngines.packageManager` that names pnpm (`EBADDEVENGINES`), and `vp` uses the project-installed version when there is one and the global one otherwise. Node and pnpm are pinned by `engines.node` / `devEngines` / `packageManager` in `package.json`, not by `.nvmrc` / `.node-version`:
 
-- `vite-task` (`npx vp run ...`) - task orchestration with caching, even across monorepo packages
-- `oxfmt` (`npx vp fmt`) - formatting md/css/js/ts/html
-- `oxlint` (`npx vp lint`) - linting js/ts
-- `vitest` (`npx vp test`) - unit/integration testing
-- `vite` (`npx vp build`) - libraries/application build meta-tool for web runtimes
-- `tsdown` (`npx vp pack`) - libraries/applications build meta-tool for server runtimes
+- `vite-task` (`vp run ...`) - task orchestration with caching, even across monorepo packages
+- `oxfmt` (`vp fmt`) - formatting md/css/js/ts/html
+- `oxlint` (`vp lint`) - linting js/ts
+- `vitest` (`vp test`) - unit/integration testing
+- `vite` (`vp build`) - libraries/application build meta-tool for web runtimes
+- `tsdown` (`vp pack`) - libraries/applications build meta-tool for server runtimes
 
 It also supports:
 
@@ -967,7 +1425,7 @@ They are all configured with their respective keys in `vite.config.ts`
 Other tools used:
 
 - `lightningcss` - css minification/bundling
-- `playwright` - e2e testing. Two narrow suites exist (`npx vp run docs:e2e`, both `*.e2e.ts` —
+- `playwright` - e2e testing. Two narrow suites exist (`vp run docs:e2e`, both `*.e2e.ts` —
   not `*.spec.ts` — as two Playwright projects against `site/`):
   `site/e2e/no-js-fallback.e2e.ts` (real Chromium with `javaScriptEnabled: false`, proving the
   tier-2 no-JS-fallback promise above rather than assuming it — the promise `*.dom.test.ts` files
@@ -977,10 +1435,61 @@ Other tools used:
   Runs on a dedicated port (`playwright.config.ts` explains why 4321, Astro's default, is the
   wrong one); wired into CI as its own `e2e` job, separate from `test`, because it needs a
   browser binary the unit-test job has no other reason to carry.
+- `vp run verify:e2e` — the whole-toolchain end-to-end (`scripts/e2e-audit.mjs`): scaffolds the
+  emdash template against THIS checkout's packages (shared Verdaccio plumbing in
+  `scripts/lib/scaffold.mjs`, same as `verify:scaffold`), lays the **test-only** overlay from
+  `packages/create/e2e/` over the scaffold's copy (a `/blocks` page with every plugin block, a
+  `/landings/showcase` page of `vitops_section` block types — fixtures keyed by block type,
+  `fixtures.test.ts` fails until a new block in `BLOCKS` has one), builds, serves `dist/client`
+  with `public/_headers` applied and runs `vitops audit`. The overlay must never reach
+  `templates/**` or the package's `files` (`templates.test.ts` guards it). The report lands in
+  `.vitops/e2e-audit/` (`report.md`, `report.json`); extra flags go after `--`: `--warn` (report
+  without failing — CI's current mode, see the `e2e-audit` job), `--out`, `--pages`, `--keep`.
+  **`--pause`** (or `VITOPS_E2E_PAUSE=1`) runs the audit, prints the results, then keeps the
+  server up and waits for Ctrl+C so you can browse the site and the report; it keeps the temp
+  scaffold unless `--no-keep`, and is **refused when `CI` is set**. `--serve-only` skips the audit
+  and pauses. A seed's sample content is only applied by EmDash's setup wizard, never by a build,
+  and the template's `runtime: 'check'` prerenders a pending-migrations page against an
+  unmigrated database — so the script seeds the local D1 through the dev-bypass setup endpoint
+  before building.
+
+### Seeing rendered pages
+
+**`playwright-cli` is the one sanctioned way for an agent to look at a rendered page** — not the
+Claude-in-Chrome extension, not Playwright MCP or any other browser MCP server
+(`.claude/settings.json` denies `mcp__claude-in-chrome__*` and `mcp__playwright__*`). Three reasons:
+a CLI + skill keeps the model's context free of tool schemas and full accessibility trees (output
+goes to files under `.playwright-cli/`, gitignored); it is reproducible, since it is the `playwright`
+this repo already pins in the catalog and `vitops audit`/`site/e2e` already use (the standalone
+`@playwright/cli` package pins its own alpha `playwright` and a second browser download, so we don't
+install it); and it needs no user-level browser or extension setup.
+
+- Invoke as `pnpm exec playwright cli …` (`npx --no-install playwright cli …` also works). `prepare`
+  runs `playwright cli install --skills`, writing the upstream command reference to
+  `.claude/skills/playwright-cli/` (gitignored — regenerated from the pinned version). Defaults live
+  in the committed `.playwright/cli.config.json` (headless Chromium).
+- Serve first, then look: `docs:dev` (4321) for `site/`, `verify:e2e --pause` for the scaffolded
+  EmDash site, or open `index.html` as a `file://` page only with `PLAYWRIGHT_MCP_ALLOW_UNRESTRICTED_FILE_ACCESS=1`.
+  Remember a running `docs:dev` serves stale framework CSS (see Build system) — check the served
+  file before blaming the CSS.
+- `snapshot` before `screenshot`: the snapshot is text and cheap; screenshot only when the question
+  is visual (layout, colour, dark mode via `data-theme="dark"`). One named session per task
+  (`-s=<task>`), `close` when done.
+- Tier-2 no-JS fallbacks: prove them with a config setting `javaScriptEnabled: false`
+  (`open --config=…`), the same promise `site/e2e/no-js-fallback.e2e.ts` asserts.
 
 ### Task Notes
 
-- do not run format or lint as verifications, these are done automatically on save and PostToolUse hooks.
+- `.astro` formatting is Oxfmt's, and is **opt-in twice**: `fmt.astro: true` in `vite.config.ts` _and_
+  `@astrojs/compiler-rs` declared as a devDependency (catalog here; plain range in templates). Without
+  either, `.astro` files are skipped silently — a transitive copy via `astro` is not a contract.
+  `templates.test.ts` guards both for the scaffolds. `site/` is formatted too, minus its generated paths.
+
+- there is no format-on-edit hook: formatting and mechanical lint fixes run in the pre-commit hook (`vp check --fix`). Run `vp check` yourself once a change is complete, and read its output.
+- if `vp check` passes locally but CI's `vp check` reports formatting issues, suspect a stale hoisted `node_modules/oxfmt`
+  (or `oxlint`/`vite`) left by an old `npm install`: `vp` resolves the formatter from the project root, so it shadows
+  the version pnpm pinned. `ls node_modules/oxfmt` should not exist — `node_modules` is pnpm-owned; reinstall with
+  `pnpm install --frozen-lockfile`.
 - `index.html` is the evergreen docsite that should dogfood the output of the build. Make sure it's kept up to date
 
 ## Output
@@ -1009,16 +1518,17 @@ Other tools used:
 
   The kind decides the shape: a **surface** role has a bare `bg-<role>` (the card), `bg-<role>-muted` (the page), `bg-<role>-x-muted` (a well), the full text scale and `border-<role>-bold` as the guaranteed boundary. A **chromatic** role splits backgrounds into tints (`bg-<role>-x-muted`/`-muted`) and solids (`bg-<role>-solid[-bold|-x-bold]`) with **no bare `bg-<role>`**, plus `text-on-<role>` as the computed foreground. Also `--surface-glass`, `--overlay` and `--color-border-focus`.
 
-  Dark mode re-points which step each token reads under `DARK_SEL` (`shared.ts`) — `:root[data-brx-theme="dark"], :root[data-theme="dark"]`, Bricks' attribute plus the one `<wc-color-scheme-toggle>` writes. The solid family and `text-on-<role>` stay mode-stable so a filled button keeps its identity. Raw hue steps never re-point. Contrast (text ≥ APCA Lc 75, secondary ≥ 60, icons/boundaries ≥ 45, both appearances) is enforced **at build time** — a violation throws out of `generate`. There is no per-appearance scheme grammar and no named steps.
+  Dark mode re-points which step each token reads under `DARK_SEL` (`shared.ts`) — `:root[data-brx-theme="dark"], :root[data-theme="dark"]`, Bricks' attribute plus the one `<wc-color-scheme-toggle>` writes. The solid family and `text-on-<role>` stay mode-stable so a filled button keeps its identity. Raw hue steps never re-point. Contrast (WCAG 2 ratio: text ≥ 4.5:1, icons/boundaries ≥ 3:1, both appearances) is enforced **at build time** — a violation throws out of `generate` unless `site.accessibility.level` is `A` or `none`, which downgrades it to a warning. APCA is deliberately not used: it is perceptually better but off the W3C standards track, so no law or conformance claim tests it. There is no per-appearance scheme grammar and no named steps.
 
 - **shadows** (`shadows.css`) — `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities. Always emitted for the `css`/`bricks` formats.
 - **patterns** (`patterns.css`) — component CSS for entries under `patterns` in the JSON (cta, btn, link, badge, card). Each pattern has `base` declarations, `states` (hover/active/focus-visible) with shortcuts (`step`, `scale`, `lift`, `shadow`, `ring`, `css`), and `roles` (semantic colour variants). Always emitted.
 
   **Geometry must resolve through the group alias layer — never hard-code the group token.** For
   every grouped pattern the generator emits `--<prop>-<name>-group` aliases (`--br-btn-group:
-var(--br-control)`), and `overrides` replace an alias with a literal. So a pattern's `base` writes
+  var(--br-control)`), and `overrides` replace an alias with a literal. So a pattern's `base` writes
   `"border-radius": "var(--br-btn-group)"`, **not** `"var(--br-control, 0.25rem)"`. Both render the
   same, but only the first keeps the pattern → group mapping in CSS, where it is inspectable and
+
   editable in devtools; a hard-coded fallback bakes it into the rule and is unreachable. The full
   chain is `--p-btn` (consumer hook, from `BASE_HOOK`) → `--p-btn-group` (pattern/`overrides`) →
   `--p-control` (group) → `--p-default`. State the tier's _deviations_ in `overrides` and let
@@ -1115,8 +1625,8 @@ The generator takes `--format <css|bricks|tailwind|design>` (default `bricks`; `
 
 - **`bricks`** — `color.css` and `type-tokens.css` are one-line stubs; Bricks provides the colour `:root` tokens, dark overrides, utility classes, fonts, and type/space scales live from the imported palette + Variables JSONs. `patterns.css`, `shadows.css`, `tokens.css`, `typography.css`, `typography-headings.css`, `animation-effects.css`, and the Bricks JSONs emit. Pattern `states` reference shadows via `"shadow": "<name>"`, compiled to `filter: drop-shadow(var(--shadow-<name>))`.
 - **`css`** — same set, but `color.css`/`type-tokens.css` emit the full standalone colour + font/scale layer (self-contained; used by the docs build and non-Bricks consumers).
-- **`tailwind`** — bypasses all the per-file outputs and emits **one** self-contained `dist/tailwind.css` for Tailwind v4 (Astro): `@import "tailwindcss"` + `@theme` tokens (colours, `--font-*`, `--text-*`, `--spacing-*`, `--shadow-*`, `--container-{sm,md,lg,xl}`), a dark block, `@custom-variant is-active`, and `@utility` for the bespoke families (type roles, animation effects + `flip-<fx>`, split ratios, track placement) with the animation engine + structural CSS + patterns inlined. Tailwind's own engine expands `@md:`/`hover:`/… on demand, so no pre-expanded per-breakpoint/pseudo classes are emitted; native families (`flex`/`items`/`justify`/`text`/`bg`/`p`/`gap`) come from Tailwind + `@theme`. Run via `npx vp run build:tailwind` (standalone; not in the default `build` chain, not piped through lightningcss).
-- **`design`** — emits **one** file, `DESIGN.md`, and no CSS: the agent-facing brief in [google-labs-code/design.md](https://github.com/google-labs-code/design.md) format (YAML token front matter — `colors`/`typography`/`rounded`/`spacing`/`components` with `{group.token}` refs — then a prose body). Emitter: `packages/generator/src/design-md.ts`. Meant to be run with `--out .`, since DESIGN.md conventionally sits at a repo root beside `AGENTS.md`; run via `npx vp run build:design`, which writes the **tracked root `DESIGN.md`** (the one `build:*` target that doesn't write to `dist/`).
+- **`tailwind`** — bypasses all the per-file outputs and emits **one** self-contained `dist/tailwind.css` for Tailwind v4 (Astro): `@import "tailwindcss"` + `@theme` tokens (colours, `--font-*`, `--text-*`, `--spacing-*`, `--shadow-*`, `--container-{sm,md,lg,xl}`), a dark block, `@custom-variant is-active`, and `@utility` for the bespoke families (type roles, animation effects + `flip-<fx>`, split ratios, track placement) with the animation engine + structural CSS + patterns inlined. Tailwind's own engine expands `@md:`/`hover:`/… on demand, so no pre-expanded per-breakpoint/pseudo classes are emitted; native families (`flex`/`items`/`justify`/`text`/`bg`/`p`/`gap`) come from Tailwind + `@theme`. Run via `vp run build:tailwind` (standalone; not in the default `build` chain, not piped through lightningcss).
+- **`design`** — emits **one** file, `DESIGN.md`, and no CSS: the agent-facing brief in [google-labs-code/design.md](https://github.com/google-labs-code/design.md) format (YAML token front matter — `colors`/`typography`/`rounded`/`spacing`/`components` with `{group.token}` refs — then a prose body). Emitter: `packages/generator/src/design-md.ts`. Meant to be run with `--out .`, since DESIGN.md conventionally sits at a repo root beside `AGENTS.md`; run via `vp run build:design`, which writes the **tracked root `DESIGN.md`** (the one `build:*` target that doesn't write to `dist/`).
 
   Three things the spec can't hold, resolved the same way every time and **stated in the emitted prose** so the file is self-describing: fluid `clamp()` sizes → the **max** value (a `Dimension` is a bare number + px/em/rem); the automatic dark flip → **light values only**, with the flip explained (an agent that flattens role tokens to hexes breaks dark mode, which is the whole hazard); a `50%` radius → dropped from `rounded` and named in the Shapes prose rather than emitted as an invalid `Dimension`. Role tokens are `{colors.<hue>-<step>}` **references** into the raw ramps, not flattened hexes, so the role → ramp lineage survives — `on-solid` excepted, being a computed contrast literal. `meta.name`/`meta.description` (optional, in `design-system.json`) supply the brand name + Overview paragraph; everything else derives from the config. `design.md lint` reports zero errors on the emitted file; its ~190 `orphaned-tokens` warnings are inherent (our tokens are consumed by utility classes, not by the `components` block) and the file says so.
 
@@ -1170,7 +1680,7 @@ Container breakpoints are bare prefixes (`sm-`/`md-`/`lg-`/`xl-` = 30/48/64/80re
 
 ## Build system
 
-All tasks go through `npx vp run <name>` (see [vite.config.ts](vite.config.ts)). `build` delegates to `build:bricks` (the default target); format-specific full builds are separate `build:<type>` tasks rather than a `--format` flag on `build` (vp appends forwarded args to the command tail, which would corrupt the last sub-task, and it only resolves `vp run <task>` in-process when that appears literally in the command).
+All tasks go through `vp run <name>` (see [vite.config.ts](vite.config.ts)). `build` delegates to `build:bricks` (the default target); format-specific full builds are separate `build:<type>` tasks rather than a `--format` flag on `build` (vp appends forwarded args to the command tail, which would corrupt the last sub-task, and it only resolves `vp run <task>` in-process when that appears literally in the command).
 
 **The root build dogfoods `@getvitops/generator`.** `build:bricks` runs `build:theme`, which invokes `lib/build-theme.ts` → `generate({ format: 'bricks', outDir: 'dist' })` (from `@getvitops/generator`). The generator owns the lightningcss _library_ and does the CSS bundling in-process, so the root no longer shells out to the lightningcss CLI (removed from deps). `build:theme` `dependsOn build:generator` (which `dependsOn build:core`), so the framework JS bundles are built in `@getvitops/core` and snapshotted into the generator's package assets before `generate` copies them (plus the Bricks PHP + `docs/`) into `dist/`. `build:docs` and `build:tailwind` likewise call `lib/build-theme.ts --format css|tailwind`. The single-file emit contract per format is unchanged.
 
@@ -1277,9 +1787,7 @@ Two non-obvious caching/ordering gotchas:
 
   If the second prints it and the first doesn't, it is the cache, not the manifest.
 
-Formatting and mechanical lint fixes are applied automatically on save and via a `PostToolUse` hook on `Edit|Write` (`.claude/settings.json`) — don't invoke `vp fmt` to tidy a file you just wrote. The `staged` key wires `vp check --fix` into the pre-commit hook, which is the real gate.
-
-**The hook is not a typecheck gate, deliberately.** `vp check` always type-checks — `lint.options.typeCheck` drives it and no flag separates the two (`--no-lint` skips lint _rules_ only; verified) — but TypeScript is a project-wide analysis being run after a single edit, so any change spanning more than one edit is legitimately type-broken in between. That reported every correct intermediate state as a failure. The hook therefore ends in `|| true`: fixes are still applied and errors are still _printed_, they just don't fail the tool call. So **do** run `vp check` yourself at a verification point — after a change is complete, before committing — and read its output rather than trusting hook silence.
+There is no format-on-edit hook (a `PostToolUse` hook was tried and removed: it ran a project-wide typecheck after every single edit, so any multi-edit change reported a correct intermediate state as a failure). The `staged` key wires `vp check --fix` into the pre-commit hook, which is the real gate. **Do** run `vp check` yourself at a verification point — after a change is complete, before committing — and read its output.
 
 ## CI/CD
 
@@ -1288,12 +1796,11 @@ Two unrelated deploy stories live in this repo, and they must not be confused:
 - **This repo's own theme deploy** (`lib/deploy.ts`, below) — rsync/symlink of the Bricks
   theme `dist/`. Unrelated to everything in this section.
 - **The `dev → main` model** for every site this toolchain builds — this repo's own docs
-  site (`site/`) and every `@getvitops/create` template — described here. **Not yet adopted in
-  this repo's own remote as of this writing:** `origin/main` has no `dev` branch and carries
-  only `ci.yml` + `docs.yml`, so the reusable workflows and the `dev`/`main` split described below
-  are the intended model for a scaffolded site, still to be pushed here. Treat this section as
-  the target, and check `git branch -a` / `origin/main`'s own workflow files before assuming it's
-  live.
+  site (`site/`) and every `@getvitops/create` template — described here. **Partly adopted in
+  this repo's own remote:** `origin/dev` exists and carries the reusable workflows
+  (`site-*.yml`, `deploy-dev.yml`, `deploy-prod.yml`, …), but `origin/main` does not have them
+  until the next `dev → main` promote lands. Check `git branch -a` / each branch's own workflow
+  files before assuming either is live.
 
 **Branch model.** `dev` is the integration branch: unprotected, so an agent (or anyone
 with push access) commits and merges there directly, and every push auto-deploys the
@@ -1302,10 +1809,12 @@ check required) and gated by a `production` GitHub Environment whose required re
 are the repo's admin collaborators — so a merge to `main` starts the prod deploy but it
 **pauses for an admin's approval** before it runs. Promotion is manual and one-directional:
 the `promote` workflow opens a `dev → main` PR with auto-merge; nothing pushes to `main`
-directly. `scripts/init-github.mjs` in each template provisions all of this (branch
-protection, both environments) at scaffold time — see its docblock for what it sets and
-what it can't (branch protection / environment reviewers need GitHub Pro/Team on a
-private repo; the script prints the manual equivalent when it 403s).
+directly. `vitops setup repo` (absorbing the old template-local `scripts/init-github.mjs`,
+removed in `@getvitops/create` 0.7.0 — see "Client onboarding" above) provisions all of
+this (branch protection, both environments) at scaffold time — see
+`packages/utils/src/hosting/github.ts` for what it sets and what it can't (branch
+protection / environment reviewers need GitHub Pro/Team on a private repo; the command
+reports the manual equivalent when it 403s).
 
 **Reusable workflows, not copy-pasted ones.** `.github/workflows/site-ci.yml`,
 `site-deploy-static.yml`, `site-deploy-emdash.yml` and `site-promote.yml` in _this_ repo
@@ -1320,13 +1829,120 @@ input: `site-deploy-emdash.yml` needs a `DEV_D1_ID` secret and a config rewrite
 (`scripts/build-dev-wrangler.mjs`, documented on that script) that make no sense for
 `site-deploy-static.yml`'s plain static-assets path.
 
-**EmDash has no migration step, on purpose — and that's not a gap left unaddressed.**
-EmDash applies its migrations and `seed/seed.json` at **first boot of the worker**, not at
-deploy time — there is no `.sql` file and no `wrangler d1 migrations apply` anywhere in this
-toolchain. `site-deploy-emdash.yml`'s optional `health-check-url` input is what turns that
-from a promise into a checked fact: it curls the deployed URL after `wrangler deploy`,
-forcing first boot inside the job, so a broken migration fails the deploy instead of
-surfacing to the first real visitor.
+**EmDash 1.0 migrations run before traffic, not on the first visitor's request.**
+Pre-1.0, EmDash applied its core migrations and `seed/seed.json` at first boot of the
+worker with no separate step — there was no `.sql` file and no `wrangler d1 migrations
+apply` anywhere in this toolchain, and `site-deploy-emdash.yml`'s optional
+`health-check-url` input turned that into a checked fact by curling the deployed URL after
+`wrangler deploy`, forcing first boot inside the job so a broken migration failed the
+deploy instead of surfacing to the first real visitor. EmDash 1.0 makes this explicit
+instead of implicit: `migrations.runtime` in `emdash()`'s config defaults to `'auto'`
+(same first-request behaviour as before) but the documented production pattern is
+`'check'` (the worker 503s on pending migrations rather than applying them) plus a real
+`emdash migrate` step in CI — `emdash migrate --status`, then `emdash migrate
+--expected-target-fingerprint <sha>` before `wrangler deploy`, then `emdash migrate
+--check` after. `site-deploy-emdash.yml` runs this sequence explicitly now; the
+`health-check-url` boot probe remains as a defence-in-depth check, not the only guard.
+
+**The `dev → main` flow is for code, not content: truth runs a different direction per kind of
+data.** Code, Astro pages, `site.json` and the design system live in git, so `dev` is their truth
+and they promote `dev → main`. EmDash content (entries, media, menus, settings) lives in D1/R2 and
+**production is its truth** — editors work there, and drafts, "Publish changes" on a live entry,
+signed preview links and scheduling _are_ the staging step. The EmDash **schema** (collections and
+fields) lives in the same database, so it travels with a database copy and with nothing in git.
+
+That gives three databases, each with one job, and the design follows from keeping them apart:
+
+| Database      | Job                                                               | Lifetime                     |
+| ------------- | ----------------------------------------------------------------- | ---------------------------- |
+| **prod**      | content truth                                                     | permanent                    |
+| **dev**       | long-lived staging site: schema and code are developed here       | permanent, never wiped blind |
+| **rehearsal** | `<db>-rehearse-<run id>`: a copy of prod a promotion rehearses on | one promote run              |
+
+**Promotion never touches dev.** An earlier arrangement used dev for both, so a promote and a
+staging session overwrote each other. `site-promote.yml` with `rehearse: true` (the emdash template)
+builds dev's code, creates a rehearsal database, copies prod into it (`vitops emdash db copy
+--target rehearse`), runs `emdash migrate` against it, diffs dev's schema against prod's into the PR
+body, and deletes the database. A core migration that breaks on real data fails the promote, not the
+prod deploy. **This is the one place the toolchain deletes anything**, and it is held to a resource
+this run created: `rehearseDatabaseName` only produces `<db>-rehearse-<digits>`, so `db rehearsal
+drop` cannot name another database. It is EmDash's own "rehearse on a disposable copy" pattern.
+
+**Pulling prod into dev is a separate, guarded sync** (`site-sync-dev.yml`, `vitops emdash db`). A
+D1 dump restores a whole database with no row-level merge, so "don't lose dev's work" means:
+refuse if dev content changed since the last sync, snapshot dev, capture its schema, reset it to
+prod, redeploy so core migrations run, then replay dev's collections and fields (`vitops emdash
+schema apply`). A scheduled run only _reports_ drift; it never resets. The unscheduled reset is the
+whole point — a weekly blind copy is exactly what wipes someone's staging work.
+
+Load-bearing, in the order they bite:
+
+- **A reset is one-way and guarded, because it drops every table in its target.**
+  `assertSafeTarget` (`@getvitops/utils/hosting`, asserted in `d1-copy.test.ts`) refuses a database
+  that isn't named `*-dev` (or `*-rehearse-<digits>` for the rehearsal kind), whose id isn't the one
+  we were told, or whose id is production's — the same instinct as `build-dev-wrangler.mjs`
+  refusing to run without `DEV_D1_ID`. The sync runs in the `dev` GitHub Environment, not
+  `production`: it only reads prod, and one waiting on an admin's approval would never get run.
+- **The copy is a four-file dump, not `wrangler d1 export`.** That command refuses any database
+  with a virtual table, and EmDash keeps its search index in FTS5 tables, so the old script failed as
+  soon as a collection had search on. `d1-copy.ts` follows EmDash's backup guide: tables by name
+  (the index is rebuilt on first search), `media_folders` before the rows that reference it, indexes
+  and triggers last. It scans for a statement D1 would reject as `SQLITE_TOOBIG` and stops before the
+  first write rather than leaving a half-imported target.
+- **Content is refused, not merged; schema is replayed, additions only.** Content is prod-owned, so
+  an edited dev is a reason to stop (`--force` is the explicit discard, and a snapshot is always
+  taken first). "Edited since" needs a baseline that survives the reset: a one-row `_vitops_sync`
+  table written after each sync (`sync-dev.ts`); with none, the first run needs `--force`, because
+  nothing can tell a copy from work in progress. Schema replay (`emdash-schema/plan.ts`) only ever
+  plans additions. A field defined differently on both sides is reported, and a field present only
+  on the target is information: removing a field deletes its column and values, and nothing can
+  restore them. Block types are reported but not replayed (they carry a version history the REST
+  API can't be handed back whole).
+- **Replay goes through the REST API, not `emdash schema add-field`.** The CLI command carries only
+  type, label and required, so a select's options, a repeater's sub-fields, a widget or a validation
+  rule would be silently dropped. `client.ts` posts the full field definition the schema export
+  returns, over https only (a bearer token is never sent to a remote `http://`). Credentials are
+  `EMDASH_TOKEN_*` env vars, never config.
+- **Applying dev's schema to production is opt-in and behind the production approval.**
+  `site-deploy-emdash.yml`'s `schema-from-url` runs `schema apply` after the core migrations and
+  before the deploy (additive first, EmDash's own ordering), in the `production` environment, so it
+  waits for the same reviewers. The template wires it to repository variables and restricts it to a
+  `push`, so a content-publish rebuild never touches the schema.
+- **The back-merge compares trees, not ancestry.** Promotion merges `dev` into `main` with a merge
+  commit, so `main` is never an ancestor of `dev` right after a release even though the content is
+  identical; an ancestry check would open a no-op PR on every promote. `git merge-tree
+  --write-tree` says whether merging would change `dev`. A merge made with the default
+  `GITHUB_TOKEN` triggers no workflows, so without `BACKMERGE_TOKEN` the PR is left for a human —
+  otherwise `dev` would take the fix without Deploy dev running and sit silently stale.
+- **Sign-in must work on both origins, so the template ships magic link, not just passkeys.** A
+  passkey only works at the origin it was registered on, so a synced dev site would lock every
+  editor out. Magic link needs only a working email provider — the template registers
+  `cloudflareEmail()` and an `EMAIL` `send_email` binding — and the cloned users already exist, so
+  the same address signs in on both origins with nothing per-origin to create. It was chosen over
+  EmDash's GitHub provider, which needs a separate OAuth app and two secrets for each origin (one
+  callback URL each), all by hand. The `from` must be on a domain onboarded with Cloudflare Email
+  Sending (`vitops email setup`, and usually the `send.` subdomain — see "Sender-domain
+  onboarding"); until it is, magic link answers "Email is not configured" and the only way in on a
+  synced dev site is a passkey registered there.
+- **No PII scrub on sync.** Dev is the same organisation, platform and access as prod, so the
+  copy carries the same handling obligations; it must stay gated like prod and `noindex`. Sessions
+  are in the Astro session store (KV), not D1, so none are carried over.
+- **Two things in D1 would leak across.** The preview-link secret is stored in the database, so a
+  sync copies prod's and prod preview links would open drafts on dev — set
+  `EMDASH_PREVIEW_SECRET` on the dev worker. Scheduled publishes and plugin jobs are copied too, so
+  `build-dev-wrangler.mjs` drops the cron trigger from the dev config; the cost is that scheduled
+  publishing can't be exercised on dev.
+
+`<wc-theme-editor>`'s "Save to source" is the sanctioned prod → git path for design tokens: it
+commits to `site.deployment.branch` (default `dev`), so it rides the next promote. Keep that off
+`main`, or a prod edit becomes a hotfix that skips review.
+
+Not built: per-PR preview environments. Static sites could have them cheaply (`wrangler versions
+upload`), but an EmDash preview needs a database each; a persistent dev plus the per-promote
+rehearsal database covers the need until contention on `dev` is real. Also not built: deploying a
+Worker Preview during rehearsal and replaying the schema there — it needs per-site preview
+infrastructure (a `previews` block, a KV namespace, a site URL) the templates don't carry, so the
+schema diff is computed read-only and applied to production only behind its approval.
 
 **This repo's own docs site is the one exception to "thin caller."**
 `.github/workflows/deploy-dev.yml` / `deploy-prod.yml` at the repo root deploy `site/`
@@ -1344,9 +1960,30 @@ real deploy code was never exercised by its own docs build. `.github/workflows/d
 platforms — and should be deleted outright once the Cloudflare prod deploy has succeeded
 at least once.
 
+**The `scaffold` CI job is the only thing that installs a template the way a client does.** A
+template's `@getvitops/*` deps are `latest` (see `templates.test.ts` for why), so a plain scaffold
+resolves the last _release_ and would test nothing new; `scripts/scaffold-check.mjs` (`vp run
+verify:scaffold`) instead `pnpm pack`s this checkout's packages, **publishes them to a throwaway
+Verdaccio registry** under `latest`, and installs the scaffold from it, then typechecks, builds and
+`vitops lint --strict`s it. `@getvitops/*` is served from that registry only (no uplink, so it cannot
+fall back to a release) and everything else proxies to npmjs. It replaced `overrides` pointing at
+`file:` tarballs, which never resolved the scaffold's own `latest` specifiers and needed
+`blockExoticSubdeps` switched off. The template's release cooldown is left in force — the script
+throws if a template stops exempting `@getvitops/*` from it — so the install resolves what a client
+would today, Astro included. It copies the template directory rather than calling `vp create`,
+because `vp create @getvitops:<name>` resolves the _published_ `@getvitops/create` from npm and
+refuses `--directory` for a local path. It also drops `packageManager` and `devEngines` (they make
+pnpm/Node try to download other versions than the runner has) and fails on EmDash's
+adapter-version-mismatch warning, which is how an
+upgrade of `emdash` without `@emdash-cms/cloudflare` shows up. It exists because it found real
+defects the first time it ran: `resolveOrganizationName` demanded the full `Config`, which a plain
+`import site from './site.json'` cannot satisfy; `page.data` was `unknown` before `emdash types`
+had run; and the templates declared `neutral`/`surface` as chromatic roles while using
+`text-neutral-muted`, a class that resolved to nothing.
+
 **Verifying a change to the reusable workflows**, before running `release-workflows.yml`:
 `vp check` / `vp test run` (covers `templates.test.ts`); scaffold each template fresh in a
-scratch dir and run `node scripts/init-github.mjs --dry-run`; push a no-op commit to `dev`
+scratch dir and run `vitops setup repo --dry`; push a no-op commit to `dev`
 and confirm the dev worker updates; run `promote` and confirm the prod job **pauses** for
 approval before publishing.
 
@@ -1357,7 +1994,7 @@ approval before publishing.
 - **Remote (default):** rsync over SSH using `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_PATH` (+ optional `DEPLOY_PORT`, `DEPLOY_KEY`). `--dry` previews via `rsync -n`.
 - **Local symlink:** set `DEPLOY_LOCAL_PATH` to a theme `dist/` directory (e.g. a WPLocal site) and the script idempotently symlinks it to this repo's `dist/`. One-time setup; subsequent builds are "auto-deployed" because the symlink follows them. The script refuses to clobber a non-symlink, so it's safe to point at an existing path.
 
-`npx vp run deploy` chains `build` first, so it always ships a fresh `dist/`.
+`vp run deploy` chains `build` first, so it always ships a fresh `dist/`.
 
 This deploy has nothing to do with the client-site CI/CD model above — it ships this
 repo's own Bricks theme output, not a scaffolded site.

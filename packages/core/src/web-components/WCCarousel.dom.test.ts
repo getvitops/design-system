@@ -13,7 +13,7 @@
  * Per-file environment rather than a global one: the other ~800 tests are pure and
  * have no reason to pay for a DOM.
  */
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 
 const SLIDES = ['one', 'two', 'three']
   .map((t, i) => `<li class="carousel__slide" id="slide-${i + 1}">${t}</li>`)
@@ -234,12 +234,130 @@ describe('<wc-carousel> autoplay', () => {
     const button = el.querySelector<HTMLElement>('.carousel__autoplay');
     expect(button).not.toBeNull();
     expect(button?.parentElement).toBe(el);
-    expect(button?.getAttribute('aria-pressed')).toBe('true');
+    // Playing, so the control offers Pause. The name changes; there is no `aria-pressed` on top of
+    // it, which would announce a pressed "Play" button.
+    expect(button?.getAttribute('aria-label')).toBe('Pause');
+    expect(button?.hasAttribute('aria-pressed')).toBe(false);
   });
 
   it('adds no toggle without an interval', async () => {
     const el = await mount(markup());
     expect(el.querySelector('.carousel__autoplay')).toBeNull();
+  });
+});
+
+describe("<wc-carousel> autoplay holds and the visitor's choice", () => {
+  const fire = (target: Element, type: string, init: EventInit = {}) =>
+    target.dispatchEvent(new Event(type, { bubbles: false, ...init }));
+  const button = (el: HTMLElement) => el.querySelector<HTMLElement>('.carousel__autoplay')!;
+  /**
+   * happy-dom does not implement `:focus-visible`, which decides whether focus counts as keyboard
+   * focus. Say what the browser would for the one target under test.
+   */
+  const focusVisible = (target: Element, visible: boolean) => {
+    const real = Element.prototype.matches;
+    vi.spyOn(target, 'matches').mockImplementation(function (this: Element, selector: string) {
+      return selector === ':focus-visible' ? visible : real.call(this, selector);
+    });
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** How many steps the timer fires in `ms`, observed through scrolling the track. */
+  async function mountPlaying(attrs = 'autoplay="1000"') {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] });
+    const el = await mount(markup(attrs));
+    const step = vi.spyOn(track(el), 'scrollTo').mockImplementation(() => {});
+    const into = vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {});
+    const ticks = () => step.mock.calls.length + into.mock.calls.length;
+    return { el, ticks };
+  }
+
+  it('pauses while the pointer is over it and resumes on leave, without touching the button', async () => {
+    const { el, ticks } = await mountPlaying();
+    fire(el, 'pointerenter');
+    const before = ticks();
+    vi.advanceTimersByTime(3000);
+    expect(ticks()).toBe(before);
+    // The visitor has not chosen anything, so the control must not flip under their pointer.
+    expect(button(el).getAttribute('aria-label')).toBe('Pause');
+    fire(el, 'pointerleave');
+    vi.advanceTimersByTime(1000);
+    expect(ticks()).toBeGreaterThan(before);
+  });
+
+  it('keeps Pause pressed through a pointer leave: only the button resumes it', async () => {
+    const { el, ticks } = await mountPlaying();
+    fire(el, 'pointerenter');
+    button(el).click(); // Pause, with the pointer still inside
+    expect(button(el).getAttribute('aria-label')).toBe('Play');
+    fire(el, 'pointerleave'); // used to restart autoplay here
+    const before = ticks();
+    vi.advanceTimersByTime(5000);
+    expect(ticks()).toBe(before);
+    expect(button(el).getAttribute('aria-label')).toBe('Play');
+    // Focus leaving and re-entering does not resume it either.
+    focusVisible(el, true);
+    fire(el, 'focusin');
+    fire(el, 'focusout');
+    vi.advanceTimersByTime(5000);
+    expect(ticks()).toBe(before);
+    // Pressing Play does.
+    button(el).click();
+    expect(button(el).getAttribute('aria-label')).toBe('Pause');
+    vi.advanceTimersByTime(1000);
+    expect(ticks()).toBeGreaterThan(before);
+  });
+
+  it('does not treat focus moving between two controls inside it as leaving', async () => {
+    const { el, ticks } = await mountPlaying();
+    focusVisible(el, true);
+    fire(el, 'focusin');
+    const inside = el.querySelector('.carousel__button') ?? track(el);
+    const before = ticks();
+    el.dispatchEvent(new FocusEvent('focusout', { relatedTarget: inside }));
+    vi.advanceTimersByTime(3000);
+    expect(ticks()).toBe(before);
+    el.dispatchEvent(new FocusEvent('focusout', { relatedTarget: document.body }));
+    vi.advanceTimersByTime(1000);
+    expect(ticks()).toBeGreaterThan(before);
+  });
+
+  it('does not hold for focus that came from a mouse click', async () => {
+    // Clicking Play leaves focus on the button. Holding on that would make Play do nothing until
+    // the visitor clicked elsewhere; only keyboard (`:focus-visible`) focus is a reason to wait.
+    const { el, ticks } = await mountPlaying();
+    focusVisible(el, false);
+    const before = ticks();
+    fire(el, 'focusin');
+    vi.advanceTimersByTime(3000);
+    expect(ticks()).toBeGreaterThan(before);
+  });
+
+  it('holds while the tab is hidden and resumes when it is shown', async () => {
+    const { el, ticks } = await mountPlaying();
+    const state = vi.spyOn(document, 'visibilityState', 'get');
+    state.mockReturnValue('hidden');
+    document.dispatchEvent(new Event('visibilitychange'));
+    const before = ticks();
+    vi.advanceTimersByTime(4000);
+    expect(ticks()).toBe(before);
+    state.mockReturnValue('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+    vi.advanceTimersByTime(1000);
+    expect(ticks()).toBeGreaterThan(before);
+    expect(button(el).getAttribute('aria-label')).toBe('Pause');
+    state.mockRestore();
+  });
+
+  it('stops everything when removed', async () => {
+    const { el, ticks } = await mountPlaying();
+    el.remove();
+    const before = ticks();
+    vi.advanceTimersByTime(5000);
+    expect(ticks()).toBe(before);
   });
 });
 

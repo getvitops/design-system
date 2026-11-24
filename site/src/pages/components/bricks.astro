@@ -42,20 +42,25 @@ const description =
   </p>
   <p class="font-footnote">
     Tier 3 has two platforms and these are one of them — the
-    <a class="link" href={href(TIER_PAGES.astro.path, base)}>Astro components</a> are the other, at
-    the same tier rather than below it. Both generate HTML from the classes and elements of tiers 1
-    and 2; which you use is decided by your platform, and no project uses both.
+    <a class="link" href={href(TIER_PAGES.astro.path, base)}>
+      Astro components
+    </a>{' '}
+    are the other, at the same tier rather than below it. Both generate HTML from the classes and
+    elements of tiers 1 and 2; which you use is decided by your platform, and no project uses both.
   </p>
   <p>
-    <strong>Prefer the framework's classes over hand-tuning Bricks' own property controls.</strong>
-    A class encodes the tokens, the spacing grammar and the interaction states, so it stays
-    consistent and reacts to theme and dark mode; a value typed into a property control is a one-off
-    that drifts from the system and doesn't. Reserve those for genuinely bespoke, one-element cases.
+    <strong>Prefer the framework's classes over hand-tuning Bricks' own property controls.</strong>A
+    class encodes the tokens, the spacing grammar and the interaction states, so it stays consistent
+    and reacts to theme and dark mode; a value typed into a property control is a one-off that
+    drifts from the system and doesn't. Reserve those for genuinely bespoke, one-element cases.
   </p>
   <p>
     Bricks provides some of the system natively — its Color, Font, Spacing and Typography managers —
     so those layers are delivered as JSON to import rather than as CSS. See
-    <a class="link" href={href('reference/formats', base)}>Output formats</a> for what the
+    <a class="link" href={href('reference/formats', base)}>
+      Output formats
+    </a>{' '}
+    for what the
     <code>bricks</code> format emits.
   </p>
 
@@ -63,6 +68,9 @@ const description =
 
   <p class="font-footnote">
     Controls, defaults, seeded children and keywords for each element are in the generated
-    <a class="link" href={href('reference/bricks-elements', base)}>Bricks elements reference</a>.
+    <a class="link" href={href('reference/bricks-elements', base)}>
+      Bricks elements reference
+    </a>
+    .
   </p>
 </Docs>

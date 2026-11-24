@@ -1,0 +1,134 @@
+---
+/**
+ * `vitops_section` — the editorial wrapper: kicker, heading, lead-in, then a body of other
+ * blocks. It renders a block TYPE (a `blocks` field entry), not a Portable Text block — see
+ * `block-types.ts` for why — so it is mapped through `blockTypeComponents`, not
+ * `blockComponents`.
+ *
+ * Composed from the framework's layout primitives: `.region` for vertical rhythm, `.centered`
+ * for the tracks (the `width` field picks `breakout`/`spotlight`/`fullbleed`), `.section` for
+ * the head and the heading-left `split` layout, `.tone` for the backdrop. The heading is a
+ * real heading at the editor's `level`, with `*accent*` runs. Level 1 plus `cta_label`/`secondary_label`
+ * make it the page opener, so a hero is not nested in a section. `stack: rhythm` puts `.rhythm` on the
+ * inner element so head and body are spaced by the vertical-rhythm scale.
+ *
+ * The body is rendered by EmDash's `<PortableText>`, which merges this plugin's
+ * `blockComponents`, so a `vitops_cards` or `vitops_actionLink` placed in it renders with its
+ * web component. Class names never come from field values (Tailwind could not see them): the
+ * width and layout are looked up in closed tables, colour is `--tone-*` custom properties.
+ */
+// Imported lazily on purpose. `emdash/ui` statically imports `virtual:emdash/block-components`,
+// which is this package's `index.ts`, which imports this file: a static import here is a cycle
+// that evaluates the virtual module before `blockComponents` exists, so the static build ships
+// an empty plugin block map and drops every `vitops_*` block in a section body.
+const { PortableText } = await import('emdash/ui');
+import { unrenderedTypes } from './unrendered.ts';
+import { joinStyle, resolveTone } from './tone.ts';
+import { accentRuns, outlineTag, resolveBlockValue, safeHref, text } from './value.ts';
+
+interface Value {
+  kicker?: string;
+  heading?: string;
+  level?: string | number;
+  sub?: string;
+  body?: unknown;
+  layout?: string;
+  width?: string;
+  tone?: string;
+  color?: string;
+  solid?: boolean;
+  theme?: string;
+  // A block TYPE's slugs must be lowercase (like `class_name`), so these are snake_case.
+  cta_label?: string;
+  cta_href?: string;
+  secondary_label?: string;
+  secondary_href?: string;
+  stack?: string;
+}
+
+const WIDTHS: Record<string, string> = {
+  breakout: 'breakout',
+  spotlight: 'spotlight',
+  fullbleed: 'fullbleed',
+};
+
+const value = resolveBlockValue<Value>(Astro.props);
+const kicker = text(value.kicker);
+const heading = text(value.heading);
+const sub = text(value.sub);
+const body = Array.isArray(value.body) ? value.body : [];
+const Heading = outlineTag(value.level, 2);
+const missing = await unrenderedTypes(body);
+// `theme` (every block's backdrop) is applied by `rootAttrs`, and wins over the older
+// `tone`/`color`/`solid` fields, which stay for content that already uses them.
+const tone = resolveTone(value.tone, value.color);
+const solid = Boolean(value.solid);
+const layout = text(value.layout);
+const width = WIDTHS[text(value.width)];
+const headingRuns = accentRuns(heading);
+const ctaLabel = text(value.cta_label);
+const ctaHref = safeHref(value.cta_href);
+const secondaryLabel = text(value.secondary_label);
+const secondaryHref = safeHref(value.secondary_href);
+const hasActions = Boolean((ctaLabel && ctaHref) || (secondaryLabel && secondaryHref));
+const stacked = text(value.stack) === 'rhythm';
+const hasHead = Boolean(kicker || heading || sub || hasActions);
+import { rootAttrs } from './attrs.ts';
+---
+
+{(hasHead || body.length > 0) && (
+  <section
+    {...rootAttrs(
+      value,
+      [
+        'section',
+        'region',
+        tone.style && (solid ? tone.className : tone.surface),
+        tone.style && solid && 'tone--solid',
+        layout === 'split' && 'section--split',
+        layout === 'center' && 'section--center',
+      ],
+      joinStyle(tone.style),
+    )}
+  >
+    <div class="centered">
+      <div class:list={['section__inner', width, stacked && 'rhythm']}>
+        {hasHead && (
+          <header class="section__head">
+            {kicker && <p class="section__kicker font-eyebrow">{kicker}</p>}
+            {heading && (
+              <Heading class="section__title font-title">
+                {headingRuns.map((run) =>
+                  run.accent ? <em class="accent">{run.text}</em> : run.text,
+                )}
+              </Heading>
+            )}
+            {sub && <p class="section__sub font-lead">{sub}</p>}
+            {hasActions && (
+              <p class="section__actions cluster">
+                {ctaLabel && ctaHref && (
+                  <a class="cta" href={ctaHref}>
+                    {ctaLabel}
+                  </a>
+                )}
+                {secondaryLabel && secondaryHref && (
+                  <a class="link" href={secondaryHref}>
+                    {secondaryLabel}
+                  </a>
+                )}
+              </p>
+            )}
+          </header>
+        )}
+        {body.length > 0 && (
+          <div class="section__body">
+            <PortableText value={body} />
+            {missing.map((type) => (
+              <template data-vitops-unrendered={type} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </section>
+)}

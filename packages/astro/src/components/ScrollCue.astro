@@ -1,0 +1,37 @@
+---
+/**
+ * ScrollCue — a chevron at the foot of a section that scrolls to what follows, hidden once the
+ * visitor has started scrolling.
+ *
+ *   <section class="hero" style="position: relative">
+ *     …hero content…
+ *     <ScrollCue />
+ *   </section>
+ *
+ * Put it as the **last child** of the section it leaves. It emits the link plus a zero-height
+ * sentinel (`.scroll-cue__end`) the link points at, so no id is needed from the author and the
+ * next Tab after activating it lands inside the next section. Pass `target` to point at a
+ * named anchor instead (and no sentinel is emitted). The section must be `position: relative`.
+ * Pure `<a href>`, no JS; hiding is a `scroll-state()` query (always shown without it).
+ */
+import Icon from './Icon.astro';
+
+interface Props {
+  /** Accessible name. */
+  label?: string;
+  /** An in-page `#anchor` to scroll to instead of the end of the section. */
+  target?: string;
+  class?: string;
+}
+
+const { label = 'Scroll to content', target, class: className } = Astro.props;
+if (target !== undefined && !/^#[A-Za-z][\w-]*$/.test(target))
+  throw new Error(`ScrollCue: target "${target}" must be an in-page "#anchor".`);
+const endId = `scroll-cue-end-${Math.random().toString(36).slice(2, 8)}`;
+---
+
+<a class:list={['scroll-cue', className]} href={target ?? `#${endId}`}>
+  <Icon name="chevron-down" />
+  <span class="sr-only">{label}</span>
+</a>
+{target === undefined && <span class="scroll-cue__end" id={endId} />}

@@ -27,6 +27,43 @@ test('a keyboard-focused button keeps a real outline under forced-colors', async
   expect(outline.width).not.toBe('0px');
 });
 
+test('an open dialog keeps a visible edge under forced-colors, whatever its border', async ({
+  page,
+}) => {
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.goto('/patterns');
+  // Strip the author's border: the case where elevation (a box-shadow, which forced-colors zeroes)
+  // was the only thing separating the dialog from the page.
+  const outline = await page.evaluate(() => {
+    const d = document.createElement('dialog');
+    d.className = 'dialog';
+    d.style.border = 'none';
+    d.textContent = 'x';
+    document.body.append(d);
+    d.show();
+    const s = getComputedStyle(d);
+    return { style: s.outlineStyle, width: s.outlineWidth };
+  });
+  expect(outline.style).not.toBe('none');
+  expect(outline.width).not.toBe('0px');
+});
+
+test('a switch keeps a visible track and thumb under forced-colors', async ({ page }) => {
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.goto('/patterns');
+  const result = await page.evaluate(() => {
+    const label = document.createElement('label');
+    label.className = 'switch';
+    label.innerHTML =
+      '<input type="checkbox" checked><span class="switch__track"><span class="switch__thumb"></span></span>';
+    document.body.append(label);
+    const track = getComputedStyle(label.querySelector('.switch__track')!);
+    return { borderStyle: track.borderStyle, borderWidth: track.borderWidth };
+  });
+  expect(result.borderStyle).not.toBe('none');
+  expect(result.borderWidth).not.toBe('0px');
+});
+
 test('without forced-colors, the ordinary box-shadow ring is still what renders', async ({
   page,
 }) => {
@@ -38,4 +75,38 @@ test('without forced-colors, the ordinary box-shadow ring is still what renders'
   await button.focus();
   const style = await button.evaluate((el) => getComputedStyle(el).outlineStyle);
   expect(style).toBe('none');
+});
+
+test('the selected tab is still distinguishable under forced-colors', async ({ page }) => {
+  // Forced colors replaces author colours, so an indicator drawn only by colour would vanish and
+  // every tab would look alike. `tabs.css` switches the selected one to a system colour and
+  // underlines it; this is the real computed result, not a reading of the stylesheet.
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.goto('/patterns');
+  const tabs = page.locator('#pt-tabs');
+  const selected = tabs.getByRole('tab', { selected: true });
+  const other = tabs.getByRole('tab', { selected: false }).first();
+  const look = (el: typeof selected) =>
+    el.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return { border: style.borderBlockEndColor, underline: style.textDecorationLine };
+    });
+  const a = await look(selected);
+  const b = await look(other);
+  expect(a.underline).toContain('underline');
+  expect(b.underline).not.toContain('underline');
+  expect(a.border).not.toBe(b.border);
+});
+
+test('the current step keeps a filled marker under forced-colors', async ({ page }) => {
+  // The marker is a disc the author colours; forced colors would flatten it, so `stepper.css` pins
+  // the current one to Highlight. The pseudo-element's computed background is the real answer.
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.goto('/patterns');
+  const nav = page.getByRole('navigation', { name: 'Onboarding progress' });
+  const marker = (el: ReturnType<typeof nav.locator>) =>
+    el.evaluate((node) => getComputedStyle(node, '::before').backgroundColor);
+  const current = await marker(nav.locator('[aria-current="step"]'));
+  const other = await marker(nav.getByRole('link', { name: 'Identity' }));
+  expect(current).not.toBe(other);
 });

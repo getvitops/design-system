@@ -1,0 +1,118 @@
+---
+/**
+ * A widget area rendered in the framework's vocabulary, in place of `emdash/ui`'s
+ * `<WidgetArea>`: titles at a chosen heading level (the stock one is always `h3`), a menu as a
+ * labelled `<nav>` of `.link`s, content through `<PortableText>` so every `vitops_*` block
+ * works inside it. Renders nothing when the area is missing or empty.
+ *
+ * Two limits, both deliberate:
+ * - **No widget area inside a widget area.** A content widget that held a `vitops_widgetArea`
+ *   block could name its own area and recurse, and a request-scoped depth counter cannot be kept
+ *   honest while Astro streams children, so the block is simply not rendered in here.
+ * - **`component` widgets** (`core:recent-posts`, …) are EmDash's closed map and its renderer is
+ *   not exported, so an area that holds one is handed whole to the stock `<WidgetArea>`.
+ *
+ * Prerendered pages bake the area at build time: an edit in the admin shows after the next deploy.
+ */
+import { getMenu, getWidgetArea } from 'emdash';
+import Nothing from './Nothing.astro';
+import { unrenderedTypes } from './blocks/unrendered.ts';
+import { joinStyle, resolveTheme } from './blocks/tone.ts';
+import { headingTag, safeHref, text } from './blocks/value.ts';
+// Lazy for the same reason as `blocks/Section.astro`: a static `emdash/ui` import makes a cycle
+// through `virtual:emdash/block-components` and empties the plugin block map in a static build.
+const { PortableText, WidgetArea: StockWidgetArea } = await import('emdash/ui');
+
+interface Props {
+  /** The area's `name` as set under Widgets. */
+  name: string;
+  /** Level of each widget's title; default `3`. */
+  level?: number | string;
+  class?: string;
+  id?: string;
+  style?: string;
+  /** A backdrop for the area, from the site's colour roles: `surface`, `brand-primary:solid`, … */
+  theme?: string;
+}
+
+const { name, level, class: className, id, style, theme } = Astro.props;
+const themed = resolveTheme(theme);
+const area = name ? await getWidgetArea(name) : null;
+const widgets = area?.widgets ?? [];
+const delegated = widgets.some((w) => w.type === 'component');
+const Heading = headingTag(level, 3);
+const menus = Object.fromEntries(
+  await Promise.all(
+    widgets
+      .filter((w) => w.type === 'menu' && w.menuName)
+      .map(async (w) => [w.id, await getMenu(w.menuName!)] as const),
+  ),
+);
+/** A content widget with no text and no blocks is what the admin creates by default; showing its title alone is noise. */
+const hasBody = (content: unknown) =>
+  Array.isArray(content) &&
+  content.some(
+    (b: any) =>
+      b?._type !== 'block' ||
+      (Array.isArray(b.children) && b.children.some((c: any) => text(c?.text).trim())),
+  );
+const shown = widgets.filter((w) => w.type !== 'content' || hasBody(w.content));
+const missing = [
+  ...new Set((await Promise.all(shown.map((w) => unrenderedTypes(w.content)))).flat()),
+];
+const inner = { type: { vitops_widgetArea: Nothing } };
+---
+
+{shown.length > 0 && (
+  <div
+    id={id}
+    class:list={['widget-area', themed?.className, className]}
+    style={joinStyle(themed?.style, style)}
+    data-widget-area={area?.name}
+  >
+    {delegated ? (
+      <StockWidgetArea name={name} />
+    ) : (
+      <>
+        {shown.map((widget) => (
+          <section class="widget" data-widget-type={widget.type}>
+            {text(widget.title) && widget.type !== 'menu' && (
+              <Heading class="widget__title font-heading">{widget.title}</Heading>
+            )}
+            {widget.type === 'content' && (
+              <div class="widget__content rhythm">
+                <PortableText value={widget.content} components={inner} />
+              </div>
+            )}
+            {widget.type === 'menu' && menus[widget.id] && (
+              <>
+                {text(widget.title) && (
+                  <Heading class="widget__title font-heading">{widget.title}</Heading>
+                )}
+                <nav class="widget__menu" aria-label={text(widget.title) || area?.label}>
+                  <ul role="list">
+                    {menus[widget.id]!.items.map((item) => {
+                      const href = safeHref(item.url);
+                      return (
+                        href && (
+                          <li>
+                            <a class="link" href={href} title={item.titleAttr || undefined}>
+                              {item.label}
+                            </a>
+                          </li>
+                        )
+                      );
+                    })}
+                  </ul>
+                </nav>
+              </>
+            )}
+          </section>
+        ))}
+        {missing.map((type) => (
+          <template data-vitops-unrendered={type} />
+        ))}
+      </>
+    )}
+  </div>
+)}

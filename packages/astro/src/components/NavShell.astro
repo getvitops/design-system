@@ -92,13 +92,22 @@ const edge = side === 'end' ? 'drawer--right' : 'drawer--left';
 ---
 
 <div
-  class:list={['navshell', `navshell--bp-${breakpoint}`, side === 'end' && 'navshell--end', className]}
+  class:list={[
+    'navshell',
+    `navshell--bp-${breakpoint}`,
+    side === 'end' && 'navshell--end',
+    className,
+  ]}
   style={style}
 >
   {toggle === 'inline' && (
     <div class="navshell__bar">
       <slot name="toggle">
-        <button class="navshell__toggle" popovertarget={id} aria-label={toggleLabel ?? `Open ${label}`}>
+        <button
+          class="navshell__toggle"
+          popovertarget={id}
+          aria-label={toggleLabel ?? `Open ${label}`}
+        >
           <slot name="toggle-label">{label}</slot>
         </button>
       </slot>
@@ -110,8 +119,10 @@ const edge = side === 'end' ? 'drawer--right' : 'drawer--left';
       class="navshell__close"
       popovertarget={id}
       popovertargetaction="hide"
-      aria-label={`Close ${label}`}>&times;</button
+      aria-label={`Close ${label}`}
     >
+      &times;
+    </button>
     <nav class="navshell__nav" aria-label={label}>
       <slot name="nav" />
     </nav>

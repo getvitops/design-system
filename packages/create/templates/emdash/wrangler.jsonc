@@ -30,6 +30,16 @@
       "bucket_name": "my-emdash-site-media",
     },
   ],
+  // Cloudflare Images binding: EmDash resizes and re-encodes R2 media at
+  // request time through it (billed as Images transformations, once per unique
+  // source + parameters per month). @astrojs/cloudflare adds it on its own while
+  // the image service is `cloudflare-binding`, but a missing binding fails
+  // silently — every image is served full-size — so it is declared here.
+  "images": { "binding": "IMAGES" },
+  // Outbound mail for EmDash's magic-link sign-in, invites and recovery
+  // (cloudflareEmail() in astro.config.mjs). The binding does nothing until the
+  // sender domain is onboarded: `npx vitops email setup send.<your-domain>`.
+  "send_email": [{ "name": "EMAIL" }],
   // Drives scheduled publishing, plugin cron, and maintenance (see
   // src/worker.ts). Without it, content scheduled in the admin never
   // publishes on Cloudflare Workers. Local `astro dev` doesn't need it.

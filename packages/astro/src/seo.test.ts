@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { type GetvitopsSeoOptions, resolveSeo, type SeoProps } from './seo.ts';
 
 const SITE = new URL('https://example.com');

@@ -1,0 +1,12 @@
+---
+import { jsonLdScript } from '../json-ld.ts';
+import { serviceGraph } from '@getvitops/utils/schema';
+import type { ServiceGraphOptions } from '@getvitops/utils/schema';
+
+export type Props = ServiceGraphOptions;
+
+const jsonLd = serviceGraph(Astro.props);
+---
+
+<script is:inline type="application/ld+json" set:html={jsonLdScript(jsonLd)} />
+<slot />

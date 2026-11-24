@@ -1,0 +1,109 @@
+/**
+ * Scroll buttons — two in-page links that depend on where the visitor is on the page. Pure CSS
+ * (tier 1); both are plain `<a href="#…">`, so with no JS and no `scroll-state()` they are
+ * ordinary links that always show.
+ *
+ *   <a class="back-to-top btn" href="#top">Back to top</a>
+ *
+ *   <section class="hero">
+ *     …
+ *     <a class="scroll-cue" href="#hero-end" aria-label="Scroll to content">↓</a>
+ *     <span class="scroll-cue__end" id="hero-end"></span>   <!-- last child: the anchor target -->
+ *   </section>
+ *
+ * SAFE BASE, SUBTRACTIVE (as `masthead.css`): the un-modified rule is visible. `scroll-state()`
+ * queries on the page container only hide `.back-to-top` while the page is at the top and
+ * `.scroll-cue` once it is not. Hidden means `visibility: hidden` too, so an invisible link is
+ * never a tab stop. Smooth scrolling is `global.css`'s `scroll-behavior`.
+ *
+ * The `page` container is shared with the masthead; declaring it twice is the same value.
+ */
+
+:root:has(.back-to-top, .scroll-cue) {
+  container: page / scroll-state;
+}
+
+.back-to-top {
+  position: fixed;
+  inset-block-end: var(--back-to-top-inset, 1rem);
+  inset-inline-end: var(--back-to-top-inset, 1rem);
+  z-index: var(--z-tier-sticky);
+  transition:
+    opacity 0.25s ease,
+    translate 0.25s ease,
+    visibility 0s;
+}
+
+/* At the top of a page that can scroll there is nothing to go back to. */
+@container page (not scroll-state(scrollable: top)) and scroll-state(scrollable: bottom) {
+  .back-to-top {
+    opacity: 0;
+    visibility: hidden;
+    translate: 0 0.5rem;
+    transition:
+      opacity 0.25s ease,
+      translate 0.25s ease,
+      visibility 0s 0.25s;
+  }
+}
+
+/* A cue sits at the foot of the section it leaves. */
+:where(.scroll-cue) {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: var(--scroll-cue-inset, 1.5rem);
+  inline-size: fit-content;
+  margin-inline: auto;
+}
+
+.scroll-cue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: inherit;
+  text-decoration: none;
+  animation: scroll-cue-bob 2s ease-in-out infinite;
+  transition:
+    opacity 0.25s ease,
+    visibility 0s;
+}
+
+/* Zero-height sentinel the cue links to. Must be the section's last child (the section is
+   `position: relative`), so the anchor lands at its end and the next Tab enters what follows. */
+.scroll-cue__end {
+  display: block;
+  block-size: 0;
+}
+
+/* Once scrolling has started the cue has done its job. */
+@container page scroll-state(scrollable: top) {
+  .scroll-cue {
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 0.25s ease,
+      visibility 0s 0.25s;
+  }
+}
+
+@keyframes scroll-cue-bob {
+  50% {
+    translate: 0 0.35rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back-to-top,
+  .scroll-cue {
+    transition: none;
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .back-to-top,
+  .scroll-cue {
+    border: 1px solid CanvasText;
+  }
+}

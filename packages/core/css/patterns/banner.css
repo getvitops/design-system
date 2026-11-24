@@ -69,3 +69,23 @@
 .banner[hidden] {
   display: none;
 }
+
+/*
+ * `<wc-dismissable>` wraps a banner or notification — block content — and animates its own
+ * opacity/scale on dismiss, so it needs a box of its own: `display: contents` would drop
+ * that animation. Pre-upgrade it would otherwise be an inline box around a block child.
+ */
+:where(wc-dismissable) {
+  display: block;
+}
+
+/*
+ * A dismiss button does nothing until `<wc-dismissable>` upgrades — an inert control that
+ * looks live is worse than none. `:not(:defined)` is true with no JS (and until elements.js
+ * has run), so the close affordance only appears once something can act on it. The banner
+ * itself stays fully readable. Markup that puts a `[data-dismiss]` button inside the element
+ * gets the same treatment, whatever its class.
+ */
+wc-dismissable:not(:defined) :is(.banner__close, .notification__close, [data-dismiss]) {
+  display: none;
+}

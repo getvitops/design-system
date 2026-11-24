@@ -283,6 +283,19 @@
   margin-top: 0;
 }
 
+/* Opt-in second stack: add `rhythm-flex` beside `rhythm` (a block's `className`) where the margin
+   stack fails. Flex items are blockified, so margins apply to every child, bare links included.
+   No `gap`: the `.rhythm` pair rules still decide the spacing. */
+.rhythm-flex {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.rhythm-flex
+  > :is(wc-cards, ul[class], ol[class], details, form, table, figure, .accordion, .section__body) {
+  align-self: stretch;
+}
+
 /* ── Flex direction (display + direction; tiered classes set both) ── */
 .flex {
   display: flex;

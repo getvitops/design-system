@@ -28,13 +28,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
 
       # `docs:build` pulls in the whole chain it needs: build:core →
       # build:generator → build:utils → build:vite-plugin → build:astro, plus
       # docs:sync, which regenerates the Reference section from the generator so
       # the published site can't describe output the toolchain doesn't emit.
-      - run: pnpm exec vp run docs:build
+      - run: vp run docs:build
 
       - uses: actions/configure-pages@v6
 

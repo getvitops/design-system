@@ -11,6 +11,22 @@ declare module 'virtual:getvitops/head' {
     cssVariable: string;
     preload: boolean | { weight?: string | number; style?: string }[];
   }
+  /**
+   * Mirrors `HeadTrackingData` in src/integration.ts. Its own named interface
+   * (not inlined into `HeadData` below) so the drift guard's line-by-line key
+   * regex doesn't pick up its fields as false top-level `HeadData` matches.
+   */
+  interface HeadTrackingData {
+    enabled: boolean;
+    category: string;
+    cookies: string[];
+    abVariantCookie: string | null;
+  }
+  /** Mirrors `HeadPolyfillData` in src/polyfills.ts. Named for the same reason as `HeadTrackingData`. */
+  interface HeadPolyfillData {
+    enable: string[];
+    disable: string[];
+  }
   // Keep these keys in step with `HeadData` in src/integration.ts — the two are
   // hand-duplicated (an ambient `declare module` in a shipped .d.ts cannot import
   // from src), and `head.test.ts` asserts the key sets match.
@@ -19,6 +35,7 @@ declare module 'virtual:getvitops/head' {
     faviconLinks: FaviconLink[];
     themeColor: string | null;
     webComponents: boolean;
+    polyfills: HeadPolyfillData;
     wcBase: string;
     editor: boolean;
     sitemap: string | null;
@@ -40,16 +57,38 @@ declare module 'virtual:getvitops/head' {
     // integration rather than the component because its warnings belong beside
     // the others, and the offered consent categories it checks against are known
     // only there.
-    tracking: { enabled: boolean; category: string; cookies: string[] } | null;
+    tracking: HeadTrackingData | null;
+    // Enabled `site.experiments`, keyed the same way, resolved to their cookie
+    // names — re-typed by <Analytics /> on the way into `resolveAnalytics`.
+    experiments: Record<string, { cookieName: string }>;
+    // `site.analytics.matomo.abVariantDimensions`, passed through unchanged.
+    matomoAbVariantDimensions: Record<string, number>;
     // The site config's `site.ads` block plus this environment's switch —
     // structurally `{ enabled, properties }` (src/ads.ts), re-typed by <Ads /> on
     // the way into `resolveAds`. Read in the integration because that is where the
     // site config is already parsed, and because a pixel is a `marketing` demand
     // the banner must have a row for.
     ads: { enabled: boolean; properties: Record<string, unknown> } | null;
+    turnstileSiteKey: string | null;
   }
   const data: HeadData;
   export default data;
+}
+
+/**
+ * The committed `.vitops/reviews.json` cache as a build-time import — for components that
+ * render in a Worker and so cannot read the file (the EmDash `vitops_reviews` block). Always
+ * defined: with no cache file it is `{ version: 1, locations: {} }`.
+ */
+declare module 'virtual:getvitops/reviews' {
+  // Structurally `ReviewCache` from `@getvitops/utils/reviews` (an ambient module in a
+  // shipped .d.ts cannot import from src). Kept loose on purpose: callers re-type it on the
+  // way into `selectReviews`, which is where the real contract is.
+  const cache: {
+    version: 1;
+    locations: Record<string, { reviews: Record<string, unknown>[] } & Record<string, unknown>>;
+  };
+  export default cache;
 }
 
 /** Types for the virtual module the getvitops() integration provides to <Icon />. */

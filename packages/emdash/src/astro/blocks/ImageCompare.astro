@@ -1,7 +1,9 @@
 ---
-import { resolveBlockValue } from './value.ts';
+import BlockImage from './BlockImage.astro';
+import { resolveBlockValue, safeHref } from './value.ts';
 
 interface Value {
+  ratio?: string;
   before?: string;
   beforeAlt?: string;
   beforeLabel?: string;
@@ -11,12 +13,16 @@ interface Value {
 }
 
 const value = resolveBlockValue<Value>(Astro.props);
-const { before, beforeAlt = '', beforeLabel = 'Before', after, afterAlt = '', afterLabel = 'After' } = value;
+const { beforeAlt = '', beforeLabel = 'Before', afterAlt = '', afterLabel = 'After' } = value;
+// A `javascript:`/`data:` src is dropped, so the block renders nothing rather than that image.
+const before = safeHref(value.before);
+const after = safeHref(value.after);
+import { rootAttrs } from './attrs.ts';
 ---
 
 {before && after && (
-  <wc-image-compare before-label={beforeLabel} after-label={afterLabel}>
-    <img slot="before" src={before} alt={beforeAlt} loading="lazy" />
-    <img slot="after" src={after} alt={afterAlt} loading="lazy" />
+  <wc-image-compare {...rootAttrs(value)} before-label={beforeLabel} after-label={afterLabel}>
+    <BlockImage slot="before" src={before} alt={beforeAlt} ratio={value.ratio} loading="lazy" />
+    <BlockImage slot="after" src={after} alt={afterAlt} ratio={value.ratio} loading="lazy" />
   </wc-image-compare>
 )}

@@ -8,6 +8,7 @@ import {
   type TreeNavNode,
 } from './utils/tree-nav.js';
 import { RovingTabindex, type RovingContext, type RovingMove } from './utils/RovingTabindex.js';
+import { scrollBehavior } from './utils/motion.js';
 import { initFromLightDom } from './utils/upgrade.js';
 
 /** A node this element has parsed out of the DOM. Static fields only — `hidden`
@@ -157,6 +158,8 @@ function moveAllChildren(from: Element, to: Element, before: Node | null): void 
  * ```
  * That markup is the no-JS contract — `<details>`/`<summary>`, exactly as
  * above. What this element renders on upgrade is a different, JS-owned shape.
+ *
+ * @fallback partial `<details>`/`<summary>` branches; filtering and keyboard navigation need JS
  */
 export class WCTree extends BaseElement {
   static properties = {
@@ -247,6 +250,10 @@ export class WCTree extends BaseElement {
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
+    // The toolbar and its filter field are rebuilt empty on reconnect, so a filter that is still
+    // applying would leave nodes hidden behind a blank query with nothing to clear them. Clear it
+    // while the items are still known: it also restores the branch open state the visitor had.
+    if (this.#filtering) this.filter('');
     window.removeEventListener('hashchange', this.#onHashChange);
     this.#root?.removeEventListener('click', this.#onClick);
     this.#root?.removeEventListener('beforematch', this.#onBeforeMatch);
@@ -656,7 +663,7 @@ export class WCTree extends BaseElement {
     const row =
       target.querySelector<HTMLElement>(':scope > .tree__summary, :scope > .tree__content') ??
       target;
-    row.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    row.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
   }
 
   /* ── Accessibility-tree revelation (find-in-page, fragment nav) ── */

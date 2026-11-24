@@ -1,5 +1,5 @@
 import { AD_PLATFORMS } from '@getvitops/utils/ads';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { resolveAds } from './ads.ts';
 import { consentCategories } from './analytics.ts';
 
@@ -50,6 +50,54 @@ describe('resolveAds', () => {
     expect(r.warnings[0]).toMatch(/not a valid ID/);
   });
 
+  it('threads a valid bare-string conversionLabel into the bootstrap as the call action', () => {
+    const { tags } = resolveAds(
+      { google: { pixelId: 'AW-123', conversionLabel: 'abcDEF' } },
+      gated,
+    );
+    expect(tags[0]?.inline).toContain(
+      'window.vitopsAdsConversions.google={"call":"AW-123/abcDEF"};',
+    );
+  });
+
+  it('threads a conversionLabel map, one send_to target per action', () => {
+    const { tags } = resolveAds(
+      { google: { pixelId: 'AW-123', conversionLabel: { call: 'c', email: 'e', form: 'f' } } },
+      gated,
+    );
+    expect(tags[0]?.inline).toContain(
+      'window.vitopsAdsConversions.google={"call":"AW-123/c","email":"AW-123/e","form":"AW-123/f"};',
+    );
+  });
+
+  it('strips a conversionLabel that could break out of the inline script — tag still emits', () => {
+    const r = resolveAds(
+      { google: { pixelId: 'AW-123', conversionLabel: "x');</script><script>alert(1)" } },
+      gated,
+    );
+    // The tag itself isn't sunk by a bad label — only conversion firing is.
+    expect(r.tags).toHaveLength(1);
+    expect(r.tags[0]?.inline).not.toContain('vitopsAdsConversions');
+    expect(r.warnings[0]).toMatch(/conversionLabel\.call .* not a valid label/);
+  });
+
+  it('drops only the invalid action from a conversionLabel map, keeping the rest', () => {
+    const r = resolveAds(
+      {
+        google: {
+          pixelId: 'AW-123',
+          conversionLabel: { call: 'goodCall', form: "x');</script><script>alert(1)" },
+        },
+      },
+      gated,
+    );
+    expect(r.tags).toHaveLength(1);
+    expect(r.tags[0]?.inline).toContain(
+      'window.vitopsAdsConversions.google={"call":"AW-123/goodCall"};',
+    );
+    expect(r.warnings[0]).toMatch(/conversionLabel\.form .* not a valid label/);
+  });
+
   it('honours the per-property switch', () => {
     expect(resolveAds({ meta: { pixelId: '1', enabled: false } }, gated).tags).toEqual([]);
   });
@@ -84,5 +132,37 @@ describe('resolveAds', () => {
     // the banner must already have a row for it.
     const { tags } = resolveAds({ meta: { pixelId: '1' } }, gated);
     expect(consentCategories(tags)).toEqual(['marketing']);
+  });
+});
+
+describe('resolveAds: website call tracking', () => {
+  const base = { pixelId: 'AW-1' };
+
+  it('emits the call-conversion config when label and number are valid', () => {
+    const r = resolveAds(
+      { google: { ...base, callTracking: { label: 'lbl-1', number: '(613) 555-0100' } } },
+      { consent: true },
+    );
+    expect(r.tags[0]!.inline).toContain("gtag('config','AW-1/lbl-1'");
+    expect(r.warnings.join()).not.toMatch(/callTracking/);
+  });
+
+  it('drops only call tracking for a label that could break out of the script', () => {
+    const r = resolveAds(
+      { google: { ...base, callTracking: { label: "x');alert(1)//", number: '613-555-0100' } } },
+      { consent: true },
+    );
+    expect(r.tags).toHaveLength(1);
+    expect(r.tags[0]!.inline).not.toContain('phone_conversion');
+    expect(r.warnings.join()).toMatch(/callTracking\.label/);
+  });
+
+  it('drops only call tracking for a number that is not a phone number', () => {
+    const r = resolveAds(
+      { google: { ...base, callTracking: { label: 'lbl', number: '</script>' } } },
+      { consent: true },
+    );
+    expect(r.tags[0]!.inline).not.toContain('phone_conversion');
+    expect(r.warnings.join()).toMatch(/callTracking\.number/);
   });
 });

@@ -112,3 +112,251 @@ test.describe('<wc-tree> fallback', () => {
     expect(await branch.getAttribute('open')).not.toBeNull();
   });
 });
+
+test.describe('<wc-tabs> fallback', () => {
+  test('every panel is readable, in order, under its own heading, with no tablist', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    const tabs = page.locator('#pt-tabs');
+    await expect(tabs.locator('[role="tablist"]')).toHaveCount(0);
+    const sections = tabs.locator(':scope > section');
+    await expect(sections).toHaveCount(3);
+    for (let i = 0; i < 3; i++) {
+      await expect(sections.nth(i)).toBeVisible();
+      await expect(sections.nth(i).locator('h3')).toBeVisible();
+    }
+    await expect(sections.nth(1)).toContainText('Free to run');
+  });
+
+  test('a #fragment still lands on its panel', async ({ page }) => {
+    await page.goto('/patterns#pt-tab-support');
+    await expect(page.locator('#pt-tab-support')).toBeInViewport();
+  });
+});
+
+test.describe('<wc-combobox> fallback', () => {
+  test('is a native input with a datalist the browser can suggest from', async ({ page }) => {
+    await page.goto('/patterns');
+    const input = page.locator('#pt-city');
+    await expect(input).toBeVisible();
+    await expect(input).toHaveAttribute('list', 'pt-city-options');
+    await expect(page.locator('#pt-city-options option')).toHaveCount(5);
+    await expect(page.locator('#pt-city-options option[value="MTL"]')).toHaveAttribute(
+      'label',
+      'Montréal',
+    );
+    await expect(input).not.toHaveAttribute('role', 'combobox');
+  });
+
+  test('typed text is what is submitted, matching an option or not', async ({ page }) => {
+    await page.goto('/patterns');
+    await page.locator('#pt-city').fill('Peterborough');
+    await expect(page.locator('#pt-city')).toHaveValue('Peterborough');
+  });
+});
+
+test.describe('<wc-range> fallback', () => {
+  test('two real, labelled sliders that both submit, with no track overlay', async ({ page }) => {
+    await page.goto('/patterns');
+    const range = page.locator('#pt-range');
+    await expect(range.locator('input[type="range"]')).toHaveCount(2);
+    await expect(range.getByRole('slider', { name: 'Minimum price' })).toBeVisible();
+    await expect(range.getByRole('slider', { name: 'Maximum price' })).toBeVisible();
+    await expect(range.locator('.range__track')).toHaveCount(0);
+    await expect(range.locator('input[name="min"]')).toHaveValue('200');
+    await expect(range.locator('input[name="max"]')).toHaveValue('800');
+  });
+});
+
+test.describe('<wc-field> fallback', () => {
+  test('a nested label names its control and focuses it on click, with no id/for', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    const input = page.locator('#pt-field-email input');
+    await expect(page.locator('#pt-field-email').getByLabel('Email')).toHaveAttribute(
+      'name',
+      'email',
+    );
+    await expect(page.locator('#pt-field-email label[for]')).toHaveCount(0);
+    await page.locator('#pt-field-email .field__label').click();
+    await expect(input).toBeFocused();
+  });
+
+  test('adds nothing the markup did not carry: no counter, no wiring, no error text', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    await expect(page.locator('#pt-field-bio .field__counter')).toHaveCount(0);
+    await expect(page.locator('#pt-field-email input')).not.toHaveAttribute(
+      'aria-describedby',
+      /.+/,
+    );
+    await expect(page.locator('#pt-field-email .field__error')).toHaveText('');
+    await expect(page.locator('#pt-field-email .field__error')).toBeHidden();
+  });
+
+  test('a server-rendered error is on the page, directly under its control', async ({ page }) => {
+    await page.goto('/patterns');
+    const error = page.locator('#pt-field-phone .field__error');
+    await expect(error).toBeVisible();
+    await expect(error).toHaveText('That doesn’t look like a phone number.');
+  });
+
+  test('the browser still validates a required field on submit', async ({ page }) => {
+    await page.goto('/patterns');
+    const valid = await page
+      .locator('#pt-field-email input')
+      .evaluate((el) => (el as HTMLInputElement).checkValidity());
+    expect(valid).toBe(false);
+  });
+});
+
+test.describe('<wc-config-form> fallback', () => {
+  test('is a complete form of named, labelled controls the server can parse', async ({ page }) => {
+    await page.goto('/configure');
+    const form = page.locator('#cfg-form');
+    // Scoped by name: the locations rows have an Email and a Phone of their own.
+    await expect(form.locator('[name="organization.email"]')).toBeVisible();
+    await expect(form.locator('#cfg-contact').getByLabel('Email').first()).toHaveAttribute(
+      'name',
+      'organization.email',
+    );
+    await expect(form.locator('#cfg-contact').getByLabel('Phone').first()).toHaveAttribute(
+      'name',
+      'organization.phone',
+    );
+    await expect(form.locator('[name="organization.address.addressLocality"]')).toBeVisible();
+  });
+
+  test('offers one blank keyed row per map, and nothing that needs script to appear', async ({
+    page,
+  }) => {
+    await page.goto('/configure');
+    // The locations step has two keyed maps: locations and services. Every row in them is the
+    // blank one the server wrote.
+    const rows = page.locator('#cfg-locations .field__row');
+    expect(await rows.count()).toBeGreaterThanOrEqual(2);
+    await expect(page.locator('#cfg-locations .field__row:not([data-blank])')).toHaveCount(0);
+    // No script: the output stays hidden and no field shows an error.
+    await expect(page.locator('#cfg-out')).toBeHidden();
+    await expect(page.locator('#cfg-form wc-field[data-invalid]')).toHaveCount(0);
+  });
+
+  test('loads no config-form bundle', async ({ page }) => {
+    const requests: string[] = [];
+    page.on('request', (req) => requests.push(req.url()));
+    await page.goto('/patterns');
+    expect(requests.filter((url) => /config-form/.test(url))).toEqual([]);
+  });
+});
+
+test.describe('<wc-stepper> fallback', () => {
+  test('is the whole form: every section visible, in order, with working anchors', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    const stepper = page.locator('wc-stepper');
+    for (const id of ['pt-step-who', 'pt-step-where', 'pt-step-done']) {
+      await expect(stepper.locator(`#${id}`)).toBeVisible();
+    }
+    // No script, so no Back/Next buttons and no current step: the links just jump down the form.
+    await expect(stepper.getByRole('button', { name: 'Next' })).toHaveCount(0);
+    await expect(stepper.locator('[aria-current]')).toHaveCount(0);
+    await stepper.getByRole('link', { name: 'Done' }).click();
+    await expect(page).toHaveURL(/#pt-step-done$/);
+    await expect(stepper.getByRole('button', { name: 'Finish' })).toBeVisible();
+  });
+
+  test('loads no stepper bundle', async ({ page }) => {
+    const requests: string[] = [];
+    page.on('request', (req) => requests.push(req.url()));
+    await page.goto('/patterns');
+    expect(requests.filter((url) => /stepper/.test(url))).toEqual([]);
+  });
+});
+
+test.describe('/configure fallback', () => {
+  test('is the whole onboarding form on one page, and says what needs JavaScript', async ({
+    page,
+  }) => {
+    await page.goto('/configure');
+    for (const id of ['identity', 'contact', 'brand', 'accessibility', 'privacy', 'review']) {
+      await expect(page.locator(`#cfg-${id}`)).toBeVisible();
+    }
+    await expect(page.locator('#cfg-identity [name="organization.name"]')).toBeVisible();
+    await expect(page.locator('#cfg-nojs')).toBeVisible();
+    // Nothing to copy until script builds it.
+    await expect(page.locator('#cfg-out')).toBeHidden();
+    await expect(page.locator('#cfg-actions')).toBeHidden();
+  });
+});
+
+test.describe('<wc-format> fallback', () => {
+  test('shows the text the server wrote, over a real machine-readable <time>', async ({ page }) => {
+    await page.goto('/patterns');
+    const time = page.locator('#pt-format time');
+    await expect(time).toHaveText('November 3, 2026');
+    await expect(time).toHaveAttribute('datetime', '2026-11-03T14:05:00Z');
+  });
+});
+
+test.describe('<Breadcrumbs>', () => {
+  test('is a labelled list whose last item is the current page, not a link', async ({ page }) => {
+    await page.goto('/patterns');
+    const nav = page.locator('#pt-breadcrumbs');
+    await expect(nav).toHaveAttribute('aria-label', 'Breadcrumb');
+    await expect(nav.locator('li')).toHaveCount(3);
+    await expect(nav.locator('li').last().locator('[aria-current="page"]')).toHaveText('Patterns');
+    await expect(nav.locator('li').last().locator('a')).toHaveCount(0);
+    await expect(nav.locator('li').first().locator('a')).toHaveAttribute('href', '/');
+  });
+});
+
+test.describe('<wc-contrast-toggle> fallback', () => {
+  test('ticking the plain checkbox switches the high-contrast layer on, with no script', async ({
+    page,
+  }) => {
+    // The G174 promise: the control that offers a conforming version has to work for someone whose
+    // scripts are off. The layer answers `:root:has(.contrast-toggle input:checked)`.
+    await page.goto('/patterns');
+    const read = () =>
+      page.evaluate(() =>
+        getComputedStyle(document.documentElement)
+          .getPropertyValue('--color-text-ui-primary')
+          .trim(),
+      );
+    const standard = await read();
+    await page.locator('.contrast-toggle input').first().check();
+    expect(await read()).not.toBe(standard);
+  });
+});
+
+test.describe('<Tooltip> fallback', () => {
+  test('a toggletip opens on click with no script, from the native popover', async ({ page }) => {
+    await page.goto('/patterns');
+    const trigger = page.locator('[popovertarget="pt-tip3"]');
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.click();
+    await expect(page.locator('#pt-tip3')).toBeVisible();
+    await expect(page.locator('#pt-tip3')).toContainText('Free over $50');
+  });
+});
+
+test.describe('<Notifications> fallback', () => {
+  test('a server-rendered notification is an ordinary inline message with no script', async ({
+    page,
+  }) => {
+    await page.goto('/patterns');
+    const message = page.locator('wc-notifications .notification');
+    await expect(message).toBeVisible();
+    await expect(message).toContainText('Server message');
+    await expect(message).toHaveAttribute('role', 'status');
+    // Un-upgraded: no region role, no top-layer popover, and it sits in the page flow.
+    await expect(page.locator('wc-notifications')).not.toHaveAttribute('popover', /.*/);
+    expect(
+      await page.locator('wc-notifications').evaluate((el) => getComputedStyle(el).position),
+    ).toBe('static');
+  });
+});

@@ -1,0 +1,91 @@
+---
+/**
+ * ServicePage — one `organization.services` entry as a page: its name, description, price offers and
+ * the `Service` JSON-LD for it, with a slot for the page copy you write around them.
+ *
+ * Tier 3, thin and orthogonal to `<Seo />`, like `<LocationPage />` and with the same routing idiom
+ * (see its docblock): the page looks the entry up and passes it in. Pass the business name as
+ * `providerName` (`resolveOrganizationName(site)`) so the JSON-LD says who provides the service.
+ *
+ *   <ServicePage service={service} defaultLocale="en" providerName={resolveOrganizationName(site)}>
+ *     <p>Your own copy.</p>
+ *   </ServicePage>
+ */
+import Service from '../schemas/Service.astro';
+import { t } from '@getvitops/utils';
+import { serviceToGraph, type ServiceSource } from '../schemas/graph-adapters.ts';
+import { formatPrice } from './location.ts';
+
+export interface Labels {
+  offers: string;
+}
+
+export interface Props {
+  service: ServiceSource;
+  locale?: string;
+  defaultLocale: string;
+  /** The business providing it → JSON-LD `provider`. */
+  providerName?: string;
+  /** Where the service is offered → JSON-LD `areaServed`. */
+  areaServed?: readonly string[];
+  /** This page's canonical URL → JSON-LD `url`. Defaults to the current URL. */
+  url?: string;
+  /** Heading level for the service's name (its sections use the next one down). Default 1. */
+  level?: 1 | 2 | 3 | 4 | 5;
+  /** Emit the `Service` JSON-LD. Default true. */
+  schema?: boolean;
+  labels?: Partial<Labels>;
+}
+
+const {
+  service,
+  locale,
+  defaultLocale,
+  providerName,
+  areaServed,
+  url = Astro.url.href,
+  level = 1,
+  schema = true,
+  labels: labelOverrides,
+} = Astro.props;
+const labels = { offers: 'Pricing', ...labelOverrides };
+const active = locale ?? defaultLocale;
+const name = t(service.name, active, defaultLocale);
+const description = t(service.description, active, defaultLocale);
+const Heading = `h${level}` as 'h1';
+const Sub = `h${Math.min(level + 1, 6)}` as 'h2';
+const offers = (service.offers ?? []).map((offer) => ({
+  name: t(offer.name, active, defaultLocale),
+  price:
+    offer.price !== undefined ? formatPrice(offer.price, offer.priceCurrency, active) : undefined,
+  url: offer.url,
+}));
+const graph = serviceToGraph(service, { locale, defaultLocale, providerName, areaServed, url });
+---
+
+<article class="rhythm service">
+  <slot name="heading">
+    <Heading>{name}</Heading>
+  </slot>
+  {description && <p>{description}</p>}
+
+  {offers.length > 0 && (
+    <section class="service__offers">
+      <Sub>{labels.offers}</Sub>
+      <ul>
+        {offers.map((offer) => (
+          <li>
+            {offer.url ? <a href={offer.url}>{offer.name || offer.price}</a> : offer.name}
+            {offer.name && offer.price && ' — '}
+            {offer.name && offer.price}
+            {!offer.name && !offer.url && offer.price}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <slot />
+</article>
+
+{schema && <Service {...graph} />}

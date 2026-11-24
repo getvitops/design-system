@@ -1,0 +1,32 @@
+---
+/**
+ * Thin adapter over `@getvitops/astro`'s `<Tree />`, which emits `<wc-tree>` itself — so this must
+ * not add its own wrapper. Real nested `<ul>`/`<details>` with no JS; with it, WAI-ARIA tree
+ * semantics, arrow-key navigation, a filter and expand/collapse all.
+ *
+ * Block fields can't nest, so the editor types an indented outline and `outline()` turns it into
+ * the tree. Only plain `label`, `badge` and a derived `id` ever reach `<Tree />`: it renders
+ * `descriptionHtml` as raw HTML, and this adapter never sets it.
+ */
+import Tree from '@getvitops/astro/components/Tree.astro';
+import { outline, resolveBlockValue, text } from './value.ts';
+
+interface Value {
+  _key?: string;
+  outline?: unknown;
+  label?: string;
+  openDepth?: number | string;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+// Ids are prefixed with the block's own key so two trees on a page never collide.
+const idPrefix = `tree-${String(value._key ?? 'block').replace(/[^a-z0-9]+/gi, '-')}`;
+const items = outline(value.outline, { idPrefix });
+const label = text(value.label) || undefined;
+const openDepth = Math.min(Math.max(Number.parseInt(String(value.openDepth ?? 0), 10) || 0, 0), 6);
+import { rootAttrs } from './attrs.ts';
+---
+
+{items.length > 0 && (
+  <Tree items={items} label={label} ariaLabel={label} openDepth={openDepth} {...rootAttrs(value)} />
+)}

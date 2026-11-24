@@ -1,7 +1,7 @@
 ---
-title: "@getvitops/core"
-description: "The framework runtime: CSS partials, Lit web components, feature-detected polyfills."
-section: "Packages"
+title: '@getvitops/core'
+description: 'The framework runtime: CSS partials, Lit web components, feature-detected polyfills.'
+section: 'Packages'
 order: 50
 ---
 

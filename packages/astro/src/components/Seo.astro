@@ -56,13 +56,21 @@ const seo = resolveSeo(head.seo ?? {}, Astro.props, {
 {/* Omitted when it would only restate `index, follow`, which crawlers assume. */}
 {seo.robots && <meta name="robots" content={seo.robots} />}
 
-{seo.openGraph.map((t) => <meta property={t.property} content={t.content} />)}
-{seo.twitter.map((t) => <meta name={t.name} content={t.content} />)}
+{seo.openGraph.map((t) => (
+  <meta property={t.property} content={t.content} />
+))}
+{seo.twitter.map((t) => (
+  <meta name={t.name} content={t.content} />
+))}
 
 {/*
   Explicit only — see SeoProps.alternates. Nothing is inferred from a locale list,
   because only the page knows where its own translations live.
 */}
-{seo.alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
+{seo.alternates.map((a) => (
+  <link rel="alternate" hreflang={a.hreflang} href={a.href} />
+))}
 
-{seo.verification.map((t) => <meta name={t.name} content={t.content} />)}
+{seo.verification.map((t) => (
+  <meta name={t.name} content={t.content} />
+))}

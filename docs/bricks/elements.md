@@ -377,7 +377,7 @@ live while editing.
 
 ## Multi Field — `vitops-multi-field` · not nestable
 
-Renders the <wc-multi-field> Lit component (src/web-components/WCMultiField.ts): a
+Renders the <wc-multifield> light-DOM component (src/web-components/WCMultiField.ts): a
 form-associated repeatable input group (add / remove entries, min / max). Default
 entries are supplied as slotted <input value="…"> children, which the component reads
 on connect.

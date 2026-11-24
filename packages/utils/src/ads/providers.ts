@@ -30,6 +30,7 @@
  * snippet that creates its own `<script>`; those declare no `src`, and their body
  * stays inert until activation, so an undecided visitor still issues no request.
  */
+import { normalizeConversionActionIds, normalizeConversionLabels } from './types.ts';
 import type { AdConsentCategory, AdProvider, AdPropertySetup } from './types.ts';
 
 /** How a platform proves you own the domain. */
@@ -81,6 +82,14 @@ export interface AdPlatform {
   operatorCountry: string;
   /** Click-ID parameters this platform stamps on an ad landing URL. */
   clickIdParams: string[];
+  /**
+   * Can the platform itself swap a forwarding number into the website for its own
+   * visitors? Only Google can (website call conversions, Canada included). Microsoft's
+   * forwarding numbers exist only inside the ad, and only in the US/UK/AU; every other
+   * platform offers none. A site wanting a per-platform number provisions its own and
+   * states it in `site.tracking.phoneNumbers`.
+   */
+  websiteCallTracking: boolean;
   /** Where the operator manages the property. */
   consoleUrl: string;
   verification: AdVerificationSpec;
@@ -89,10 +98,79 @@ export interface AdPlatform {
   manualSteps: (entry: AdPropertySetup) => string[];
 }
 
-/** `gtag` is shared by every Google tag; the id shape (`AW-…`) is what differs. */
-const gtagBootstrap = (id: string): string =>
-  `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}` +
-  `gtag('js',new Date());gtag('config','${id}');`;
+/**
+ * `gtag` is shared by every Google tag; the id shape (`AW-…`) is what differs.
+ *
+ * `gtag('config', id)` only loads the tag — it never reports a conversion. When
+ * `entry.conversionLabel` names one or more actions, this also exposes a
+ * `{action: 'id/label'}` map on `window.vitopsAdsConversions.google` — one entry
+ * per configured action, so a call, an email click and a form submission each
+ * carry their own `send_to` target instead of all three sharing one (that
+ * sharing was a real bug: a call and an email click used to report as the same
+ * Google Ads conversion action, indistinguishable in the account). Bootstrap
+ * time only loads the tag; `scripts/tracking.ts`'s click handler and
+ * `vitopsFormConversion()` each read their own action's key and fire
+ * `gtag('event', 'conversion', …)` at the moment of the actual interaction —
+ * bootstrap-time firing would count every pageview as a conversion.
+ *
+ * `entry` is trusted here — `resolveAds()` validates every configured label
+ * against `SAFE_ID` before it reaches this function, the same guard `id`
+ * already gets.
+ *
+ * **`entry.reporting === 'server'` suppresses an action here, never
+ * silently.** An action fires client-side unless reporting is `'server'`
+ * *and* that same action has a `conversionActionId` configured — so turning
+ * reporting to `'server'` before the id is filled in leaves the action firing
+ * client-side rather than dropping the conversion. Once both are set, the
+ * server-side upload (`@getvitops/utils/notify`'s `uploadClickConversion`,
+ * wired in by `createConversionRoute`'s `googleAdsOffline` option) is the one
+ * place that action reports from — this is what avoids double-counting.
+ */
+const gtagBootstrap = (id: string, entry: AdPropertySetup): string => {
+  const labels = normalizeConversionLabels(entry.conversionLabel);
+  const actionIds = normalizeConversionActionIds(entry.conversionActionId);
+  const actions = Object.entries(labels).filter(
+    (pair): pair is [string, string] =>
+      !!pair[1] &&
+      !(entry.reporting === 'server' && !!actionIds[pair[0] as keyof typeof actionIds]),
+  );
+  return (
+    `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}` +
+    `gtag('js',new Date());gtag('config','${id}');` +
+    callTrackingConfig(id, entry) +
+    (actions.length
+      ? `window.vitopsAdsConversions=window.vitopsAdsConversions||{};` +
+        `window.vitopsAdsConversions.google=${JSON.stringify(
+          Object.fromEntries(actions.map(([action, label]) => [action, `${id}/${label}`])),
+        )};`
+      : '')
+  );
+};
+
+/**
+ * Google's website call conversions: `gtag('config', 'AW-…/<label>', { phone_conversion_number })`.
+ *
+ * Google fetches a forwarding number for a visitor who arrived from a Google ad and
+ * replaces the displayed number's **text** — never the `tel:` href, which Google says
+ * needs the callback. The callback hands the result to `vitopsSwapPhone`
+ * (`@getvitops/astro`'s tracking script) through a queue, because this inline body and
+ * that module load in no guaranteed order: a call that lands first is replayed when the
+ * script defines the function, rather than lost.
+ *
+ * `entry.callTracking` is trusted — `resolveAds()` checks the label against `SAFE_ID`
+ * and the number against a phone pattern before it reaches here.
+ */
+const callTrackingConfig = (id: string, entry: AdPropertySetup): string => {
+  const call = entry.callTracking;
+  if (!call) return '';
+  const options = call.cache === false ? ',phone_conversion_options:{cache:false}' : '';
+  return (
+    `window.vitopsPhoneSwaps=window.vitopsPhoneSwaps||[];` +
+    `gtag('config','${id}/${call.label}',{phone_conversion_number:${JSON.stringify(call.number)},` +
+    `phone_conversion_callback:function(f,m){var a=[f,m,${JSON.stringify(call.number)}];` +
+    `window.vitopsSwapPhone?window.vitopsSwapPhone.apply(null,a):window.vitopsPhoneSwaps.push(a)}${options}});`
+  );
+};
 
 /** The queue-stub shape shared by fbq/ttq/rdt/snaptr/pintrk. */
 const queueStub = (global: string, methods: string): string =>
@@ -104,6 +182,7 @@ export const AD_PLATFORMS: Record<AdProvider, AdPlatform> = {
     name: 'Google Ads',
     operatorCountry: 'the United States',
     clickIdParams: ['gclid', 'gbraid', 'wbraid'],
+    websiteCallTracking: true,
     consoleUrl: 'https://ads.google.com/',
     verification: {
       method: 'none',
@@ -121,10 +200,19 @@ export const AD_PLATFORMS: Record<AdProvider, AdPlatform> = {
       optOut: 'https://adssettings.google.com/',
     },
     manualSteps: (e) => [
-      ...(e.conversionLabel
-        ? []
+      ...(Object.keys(normalizeConversionLabels(e.conversionLabel)).length
+        ? [
+            'confirm each conversion action\'s category in Google Ads (call → "Phone call lead", email → "Contact", form → "Submit lead form"); the tag cannot set it, and a wrong one reports under the wrong goal',
+          ]
         : ['create a conversion action in Google Ads and record its label as `conversionLabel`']),
       'link the Google Ads account to Search Console / GA4 in the UI if you want imported conversions',
+      ...(e.callTracking
+        ? [
+            'in Google Ads, create a conversion action of type "Calls from a phone number on your website", set its minimum call length, and make either it or the `conversionLabel.call` (tap) action secondary so one call is not counted twice',
+            "verify the domain through Search Console, not the tag — Google cannot scan a page whose number is swapped (a tag installed through Google Tag Manager can't verify it either)",
+            'test with `#google-wcc-debug` appended to a landing URL after granting marketing consent',
+          ]
+        : []),
     ],
   },
 
@@ -132,6 +220,7 @@ export const AD_PLATFORMS: Record<AdProvider, AdPlatform> = {
     name: 'Meta',
     operatorCountry: 'the United States',
     clickIdParams: ['fbclid'],
+    websiteCallTracking: false,
     consoleUrl: 'https://business.facebook.com/settings/owned-domains',
     verification: {
       method: 'dns-txt',
@@ -157,6 +246,7 @@ export const AD_PLATFORMS: Record<AdProvider, AdPlatform> = {
     name: 'LinkedIn',
     operatorCountry: 'the United States',
     clickIdParams: ['li_fat_id'],
+    websiteCallTracking: false,
     consoleUrl: 'https://www.linkedin.com/campaignmanager/',
     verification: {
       method: 'none',
@@ -183,6 +273,7 @@ export const AD_PLATFORMS: Record<AdProvider, AdPlatform> = {
     name: 'Reddit',
     operatorCountry: 'the United States',
     clickIdParams: ['rdt_cid'],
+    websiteCallTracking: false,
     consoleUrl: 'https://ads.reddit.com/',
     verification: {
       method: 'none',
@@ -203,6 +294,7 @@ export const AD_PLATFORMS: Record<AdProvider, AdPlatform> = {
     name: 'TikTok',
     operatorCountry: 'Singapore',
     clickIdParams: ['ttclid'],
+    websiteCallTracking: false,
     consoleUrl: 'https://ads.tiktok.com/',
     verification: {
       method: 'dns-txt',
@@ -227,6 +319,7 @@ export const AD_PLATFORMS: Record<AdProvider, AdPlatform> = {
     name: 'Microsoft Ads',
     operatorCountry: 'the United States',
     clickIdParams: ['msclkid'],
+    websiteCallTracking: false,
     consoleUrl: 'https://ads.microsoft.com/',
     verification: {
       method: 'none',
@@ -253,6 +346,7 @@ export const AD_PLATFORMS: Record<AdProvider, AdPlatform> = {
     name: 'Pinterest',
     operatorCountry: 'the United States',
     clickIdParams: ['epik'],
+    websiteCallTracking: false,
     consoleUrl: 'https://ads.pinterest.com/',
     verification: {
       method: 'dns-txt',
@@ -279,6 +373,7 @@ export const AD_PLATFORMS: Record<AdProvider, AdPlatform> = {
     name: 'Snapchat',
     operatorCountry: 'the United States',
     clickIdParams: ['ScCid'],
+    websiteCallTracking: false,
     consoleUrl: 'https://ads.snapchat.com/',
     verification: {
       method: 'dns-txt',

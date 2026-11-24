@@ -8,6 +8,13 @@
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import {
+  SCROLL_STATES,
+  SCROLL_STATE_MEANING,
+  scrollStateQuery,
+  scrollStateSlug,
+} from '@getvitops/config';
+import { renderInlineMarkdown } from '@getvitops/config/forms';
 import { jsonSchema, SCHEMA_URL, type DesignSystem } from './schema.ts';
 import { configJsonSchema, CONFIG_SCHEMA_URL } from './config.ts';
 import { BASE_HOOK, DARK_SEL, REQUIRED_ROLES, SYSTEM_DARK_SEL, TW_CLASH } from './shared.ts';
@@ -30,7 +37,7 @@ const ORDER = [
   'entries',
   'image-compare',
   'sitenav',
-  'wc-multi-field',
+  'wc-multifield',
   'split-link',
   'split-panel',
 ];
@@ -1031,61 +1038,12 @@ function schemaSections(schema: JsonSchemaNode, heading = '##', maxDepth = 3): s
 
 /* ── Schema → tree DATA (the second consumer of the same walk) ─────────────── */
 
-const escapeHtml = (s: string): string =>
-  s.replace(
-    /[&<>"]/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string,
-  );
-
 /**
- * Sentinel for a lifted code span. Cannot occur in authored schema prose.
- *
- * Written as an ESCAPE, never as the literal byte. A raw NUL here made this whole
- * file `data` rather than `text` to libmagic, so grep and ripgrep classified it
- * as binary and **silently skipped it** — every search for a string in the
- * largest doc emitter in the repo returned nothing, with no error and nothing to
- * notice. That is the failure mode this codebase is written against, aimed at the
- * tool an agent uses to find anything.
+ * Inline markdown for schema prose. It moved to `@getvitops/config/forms` so form renderers, which
+ * cannot load this package on a Worker, print the same description text; re-exported here so the
+ * docs site and every existing import are unchanged.
  */
-const CODE_SLOT = '\u0000';
-
-/**
- * The inline markdown the schema's `desc()` text actually uses, as HTML. Closed
- * on purpose, exactly like the legal renderer's subset: these strings are
- * authored in `schema.ts`, so the set is knowable rather than guessed at.
- *
- * Escaping happens before any markup is emitted, so a description containing `<`
- * cannot inject tags — several do (`<canonical>/<key>.txt`). Exported because the
- * only safe place for this is one tested function; a caller doing its own escaping
- * is how one of them eventually doesn't.
- *
- * **Code spans are lifted out FIRST, and that is load-bearing rather than tidy.**
- * `colors.utilities` describes the target families as `` `bg-*` ``, `` `text-*` ``,
- * `` `border-*` `` — literal asterisk WILDCARDS. Run emphasis over the raw string
- * and the `*` closing `bg-*` pairs with the one closing `text-*`, wrapping the
- * text between two unrelated utilities in `<em>` and eating both asterisks. The
- * prose then silently describes families that don't exist. Lifting code spans
- * first makes emphasis structurally unable to see inside them.
- */
-export const renderInlineMarkdown = (s: string): string => {
-  const spans: string[] = [];
-  const lifted = s.replace(/`([^`]+)`/g, (_, body: string) => {
-    spans.push(body);
-    return `${CODE_SLOT}${spans.length - 1}${CODE_SLOT}`;
-  });
-  return (
-    escapeHtml(lifted)
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      // Single-asterisk emphasis, after strong so `**x**` is already consumed. The
-      // schema uses it (`*presentation*`, `*domain properties*`), so omitting it
-      // printed the asterisks literally on the page.
-      .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
-      .replace(
-        new RegExp(`${CODE_SLOT}(\\d+)${CODE_SLOT}`, 'g'),
-        (_, i: string) => `<code>${escapeHtml(spans[Number(i)] ?? '')}</code>`,
-      )
-  );
-};
+export { renderInlineMarkdown };
 
 export interface SchemaTreeOptions {
   /** Dotted id prefix, so two trees on one page can't collide. */
@@ -1219,9 +1177,13 @@ export function schemaTreeNodes(
   };
 
   const required = schema.required ?? [];
-  return Object.entries(schema.properties ?? {})
-    .filter(([key]) => key !== '$schema')
-    .map(([key, child]) => build(key, child, required.includes(key), join(idPrefix, key), 0));
+  return (
+    Object.entries(schema.properties ?? {})
+      // `$schema`/`configVersion` describe the DOCUMENT, not the site — envelope
+      // metadata, not one of the three sections this tree is meant to walk.
+      .filter(([key]) => key !== '$schema' && key !== 'configVersion')
+      .map(([key, child]) => build(key, child, required.includes(key), join(idPrefix, key), 0))
+  );
 }
 
 function renderAuthoring(): string {
@@ -1617,9 +1579,13 @@ ship. In both appearances:
 
 | tier | target | applies to |
 | --- | --- | --- |
-| text | APCA Lc ≥ 75 | \`text-<role>\` on the role's primary background |
-| secondary | Lc ≥ 60 | text on any other background plane; \`text-<role>-muted\`; \`text-on-<role>\` on its solid |
-| non-text | Lc ≥ 45 | \`icon-<role>\`, and a surface role's \`border-<role>-bold\` |
+| text | WCAG 2 ratio ≥ 4.5:1 | \`text-<role>\` and \`text-<role>-muted\` on any plane of the role; \`text-on-<role>\` on its solid |
+| non-text | ratio ≥ 3:1 | \`icon-<role>\`, and a surface role's \`border-<role>-bold\` |
+
+The measure is the WCAG 2 contrast ratio (1.4.3 text, 1.4.11 non-text), which is what AODA and
+most accessibility law test. APCA is perceptually better but is no longer on the W3C standards
+track, so it is not used. \`site.accessibility.level\` \`A\` or \`none\` downgrades a miss to a build
+warning; unset, \`AA\` and \`AAA\` fail it.
 
 Two deliberate exemptions: \`text-<role>-x-muted\` (placeholders) and \`-xx-muted\` (disabled
 text) are *required* to look unavailable, and holding them to the body-text bar would defeat
@@ -1808,6 +1774,27 @@ patterns set \`background-color: var(--color-bg-<role>-solid)\` +
 \`color: var(--color-text-on-<role>)\`; text patterns use \`var(--color-text-<role>)\`, the
 token guaranteed legible over a surface in both appearances. \`default_role\` colours the
 bare, unsuffixed pattern. States re-apply per variant with the variant's role.
+
+## 5 — Scroll states
+
+Scroll-aware patterns (the masthead, \`.scroll-edges\`) share one vocabulary rather than each
+inventing flags. A pattern has a **settled look** — its ordinary rules — and may override parts of
+it per named state. Overrides are custom properties named \`--<pattern>-<state>-<prop>\`
+(\`--masthead-at-start-height\`), read inside the matching \`scroll-state()\` container query; when one
+is unset the settled value applies. Overrides only ever replace, so a browser without
+\`scroll-state()\` (Firefox today) keeps the settled look, which is always a readable one.
+Later states win over earlier ones.
+
+| State | Slug | Query (block axis) | Holds when |
+| ----- | ---- | ------------------ | ---------- |
+${SCROLL_STATES.map(
+  (st) =>
+    `| \`${st}\` | \`${scrollStateSlug(st)}\` | \`${scrollStateQuery(st)}\` | ${SCROLL_STATE_MEANING[st]} |`,
+).join('\n')}
+
+The inline axis (\`.scroll-edges\`) swaps \`block-*\` for \`inline-*\`. In config,
+\`site.chrome.masthead.states.<state>\` takes \`layout\`, \`height\`, \`inset\`, \`surface\`,
+\`elevation\` and \`hidden\`, and the transition between looks is animated.
 `;
 }
 
@@ -1839,7 +1826,7 @@ function renderComponentsConcept(ds: DesignSystem): string {
   const list = (xs: string[]) => xs.map(code).join(', ');
 
   const tiersOf = (name: string): string[] =>
-    (['css', 'wc', 'astro', 'bricks'] as const).filter((t) =>
+    (['css', 'wc', 'astro', 'bricks', 'emdash'] as const).filter((t) =>
       tierPatterns(t).some((p) => p.name === name),
     );
 
@@ -1852,7 +1839,7 @@ function renderComponentsConcept(ds: DesignSystem): string {
     .map(({ name, entry }) => {
       const w = entry.wc!;
       const ships = w.registered ? code('elements.js') : w.bundle ? code(w.bundle) : 'nothing';
-      return `| ${code(`<${w.tag}>`)} | ${code(name)} | ${ships} | ${cell(w.adds)} |`;
+      return `| ${code(`<${w.tag}>`)} | ${code(name)} | ${ships} | ${w.fallback} | ${cell(w.adds)} |`;
     })
     .join('\n');
 
@@ -1871,6 +1858,28 @@ function renderComponentsConcept(ds: DesignSystem): string {
 
   const bricks = tierPatterns('bricks')
     .map(({ name, entry }) => `| ${code(entry.bricks!)} | ${code(name)} |`)
+    .join('\n');
+
+  const emdash = tierPatterns('emdash')
+    .flatMap(({ name, entry }) =>
+      entry.emdash!.map(
+        (type) =>
+          `| ${code(type)} | ${code(name)} | ${
+            entry.astro?.length
+              ? list(
+                  entry.astro.map(
+                    (a) => `<${a.component.split('/').pop()!.replace('.astro', '')} />`,
+                  ),
+                )
+              : 'tier-1 markup'
+          } |`,
+      ),
+    )
+    .join('\n');
+
+  // The decisions, not just the members: a shipped web component with no block says why.
+  const exempt = TIER_NAMES.filter((n) => TIERS[n]!.emdashExempt)
+    .map((n) => `- ${code(TIERS[n]!.wc?.tag ?? n)} — ${TIERS[n]!.emdashExempt}`)
     .join('\n');
 
   const css = tierPatterns('css')
@@ -1902,9 +1911,9 @@ function renderComponentsConcept(ds: DesignSystem): string {
     type: 'Design Concept',
     title: 'Vitops components — which tier provides a pattern, and what to write',
     description:
-      'Every UI pattern across the three tiers (CSS classes, wc-* web components, and the platform wrappers: Astro components and Bricks elements): which tiers provide it, which call to make, and how the tiers compose.',
+      'Every UI pattern across the three tiers (CSS classes, wc-* web components, and the platform wrappers: Astro components, Bricks elements and EmDash blocks): which tiers provide it, which call to make, and how the tiers compose.',
     resource: DS_PATH,
-    tags: ['components', 'web-components', 'astro', 'bricks', 'tiers', 'design-system'],
+    tags: ['components', 'web-components', 'astro', 'bricks', 'emdash', 'tiers', 'design-system'],
   })}
 
 # Components
@@ -1918,13 +1927,17 @@ A pattern is provided by up to **three tiers**, and they **compose** rather than
 3. **Platform wrappers** — authoring conveniences that generate the correct markup at build
    time, using the classes and elements of tiers 1 and 2. They must not require runtime JS.
    Where a pattern has a web component, the wrapper emits that tag **with the accessible
-   fallback inside it**. Two platforms:
+   fallback inside it**. Three platforms:
    - **Astro components** (${code('@getvitops/astro')})
    - **Bricks elements** (WordPress / Bricks Builder)
+   - **EmDash blocks** (${code('@getvitops/emdash')}) — Portable Text blocks an editor inserts;
+     each is an adapter over the pattern's Astro component
 
-**Astro and Bricks are the same tier**, not tiers 3 and 4. They are siblings chosen by which
-platform you are on — no project uses both, and neither outranks the other. The tables below
-give them separate columns because they are separate packages, not separate levels.
+**Astro, Bricks and EmDash are the same tier**, not tiers 3, 4 and 5. They are siblings chosen
+by which platform you are on — neither outranks the others. (An EmDash site is an Astro site,
+so it uses the Astro components directly in templates and the blocks inside editor content.)
+The tables below give them separate columns because they are separate packages, not separate
+levels.
 
 ## Choosing
 
@@ -1951,13 +1964,13 @@ registered set; ${code('<wc-consent>')} and ${code('<wc-theme-editor>')} ship se
 first so a site needing consent does not download a rendering framework, the second because it
 is tooling and opt-in per consumer.
 
-| Tag | Pattern | Ships in | What JS adds over the fallback |
-| --- | --- | --- | --- |
+| Tag | Pattern | Ships in | With no JS | What JS adds over the fallback |
+| --- | --- | --- | --- | --- |
 ${wc}
 
 ${
   unshipped
-    ? `${unshipped} are **registered but in no bundle** (the editor-v2 track). The tags are inert in a consumer project — they are listed so that "the tag does nothing" is documented rather than discovered.`
+    ? `${unshipped} are **registered but in no bundle** (loaded on demand by another element, or kept for the design-edit surface). The tags are inert in a consumer project — they are listed so that "the tag does nothing" is documented rather than discovered.`
     : ''
 }
 
@@ -1974,6 +1987,24 @@ Controls, defaults and seeded children for each are in [the elements reference](
 | Element | Pattern |
 | --- | --- |
 ${bricks}
+
+## EmDash blocks
+
+Portable Text block ${code('_type')}s from ${code('@getvitops/emdash')}. Repeating patterns are
+repeater fields. A Portable Text block cannot contain other blocks, so a pattern that must hold
+them is a schema-level block TYPE with a Portable Text body instead — ${code('vitops_section')},
+from ${code('vitopsBlockTypes()')}. Its body accepts every ${code('vitops_*')} block below.
+
+| Block | Pattern | Renders via |
+| --- | --- | --- |
+${emdash}
+
+### Web components with no block, on purpose
+
+Every shipped ${code('wc-*')} element either has a block above or a stated reason here
+(${code('emdashExempt')} in the manifest, enforced by ${code('tiers.test.ts')}):
+
+${exempt}
 
 ## CSS
 
@@ -2415,6 +2446,13 @@ indexed. That last part is what actually replaces the manual Search Console visi
   stamping the build time: Google weighs lastmod only while it stays consistent with what
   actually changed, so a site that stamps every page every deploy teaches it to distrust the
   field site-wide.
+
+  **On an EmDash site** the CMS dates its own entries (\`/sitemap.xml\`, from \`updated_at\`) and
+  offers no way to add other URLs, so \`vitops({ sitemap })\` writes a second
+  \`pages-sitemap.xml\` for \`src/pages\` routes only — git-dated, and not written at all when
+  there are none. Never override EmDash's \`/sitemap.xml\`: that discards its dates. When
+  \`sitemapUrl\` is unset, \`search notify\` finds whichever of \`sitemap-index.xml\`,
+  \`sitemap.xml\` and \`pages-sitemap.xml\` exist, and prints each one with why it is there.
 - **The \`noindex\` gate reads the environment, so the URLs must too.** The run is refused
   entirely when the resolved environment's \`robots\` contains \`noindex\` — submitting a staging
   host to IndexNow publishes it to several engines and invites them to crawl it, which a later
@@ -2528,17 +2566,18 @@ that installs into every consumer project. The JWT is minted with ~30 lines of \
 function renderLegalConcept(): string {
   return `${frontmatter({
     type: 'Design Concept',
-    title: 'Vitops legal documents — generated policy, terms and cookie notice',
+    title:
+      'Vitops legal documents — generated policy, terms, cookie notice and accessibility statement',
     description:
-      'How the privacy policy, terms of service and cookie notice are derived from config facts, why the provider table exists, and the four delivery paths.',
+      'How the privacy policy, terms of service, cookie notice and accessibility statement are derived from config facts, why the provider table exists, and the four delivery paths.',
     resource: CONFIG_PATH,
     tags: ['legal', 'privacy', 'cookies', 'pipeda', 'compliance'],
   })}
 
 # Legal documents
 
-A privacy policy, terms of service and cookie notice, rendered from a full config: the company
-from \`organization\`, what the site actually *does* from \`site\`.
+A privacy policy, terms of service, cookie notice and accessibility statement, rendered from a
+full config: the company from \`organization\`, what the site actually *does* from \`site\`.
 
 It is a **sibling of the docs generator, not a \`generate()\` format** — structurally, not
 stylistically. \`generate()\` is keyed to a design system, so a "legal format" would be a format
@@ -2591,10 +2630,31 @@ is overwritten by the next build.
 - **First-party cookies are declared, not detected.** The attribution cookie \`_ac\` is disclosed
   this way; see [tracking.md](tracking.md).
 
+## The accessibility statement
+
+Enabled with \`site.legal.accessibilityStatement.enabled\`, and read from two places:
+\`site.accessibility\` (the WCAG standard and level, and whether the high-contrast toggle exists)
+and the statement block (contact, test date, known limitations, formats offered, policies).
+
+It asserts **only what is declared**, which is the governing rule at its strictest because a
+false statement here is a claim about someone's ability to use the site. No conformance sentence
+without \`conformance\` **and** \`testedOn\`; \`full\` cannot sit beside a non-empty
+\`limitations\` list; AODA wording needs \`law: "aoda"\`; and \`site.accessibility.acceptedRisk\`
+is internal and **never printed**. Statute thresholds are not encoded: what the template calls
+"50+ or public sector" is the fact \`mandatory\`, and the headcount tiers live in the
+\`vitops-accessibility\` skill.
+
+The document is written to the **Level AAA content criteria** (plain language, abbreviations and
+unusual words explained where first used, link text that names its destination, real headings
+and lists, no tables), and \`accessibility-statement.content.test.ts\` enforces that over every
+combination of optional sections. Paint and layout are the site's: link it from every footer,
+carry the high-contrast toggle, set \`lang\`.
+
 ## The markdown subset is closed
 
 We author every template, so the renderer is exactly as capable as they are: \`#\`/\`##\`/\`###\`,
-\`- \` bullets, \`> \` quote, \`**strong**\`, \`\\\`code\\\`\`. **An unsupported construct is an error,
+\`- \` bullets, \`> \` quote, \`**strong**\`, \`\\\`code\\\`\`, and \`[text](url)\` links (made safe at the output;
+images and tables stay out). **An unsupported construct is an error,
 not a silent degrade** — that is what stops a literal \`| --- |\` reaching a published page.
 
 Portable Text maps the \`> \` quote to a banner block and **drops the \`# \` heading**, which is
@@ -2606,7 +2666,7 @@ Adding one is: author three templates, add one enum member, add one registry key
 checked against each other at compile time, so skipping either **fails to compile** rather than
 rendering against the wrong body of law.
 
-⚠️ Only **\`ca\` (PIPEDA)** ships. Its prose names the Office of the Privacy Commissioner of
+⚠️ **\`ca\` (PIPEDA)** and **\`qc\` (Quebec Law 25)** ship, English only (French is a TODO). The \`ca\` prose names the Office of the Privacy Commissioner of
 Canada and frames transfers as "outside of Canada" — **do not reuse it for another
 jurisdiction.**
 

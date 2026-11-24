@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { build } from './generate.ts';
-import { defaultConfig, validate } from './index.ts';
+import { buildReverseIndex, defaultConfig, validate } from './index.ts';
 import type { DesignSystem } from './schema.ts';
 
 /**
@@ -217,5 +217,37 @@ describe('validate: token-namespace warnings', () => {
     const ds = defaultConfig();
     ds.patterns!.radii = { circle: '50%' };
     expect(validate(ds).warnings).toEqual([]);
+  });
+});
+
+describe('buildReverseIndex (standalone, Worker-safe)', () => {
+  it("matches generate()/build()'s own reverseIndex exactly, for the shipped config", () => {
+    const ds = defaultConfig();
+    expect(buildReverseIndex(ds)).toEqual(manifestOf(ds).reverseIndex);
+  });
+
+  it('still matches after a role/pattern/typography edit', () => {
+    const ds = defaultConfig();
+    ds.patterns!.radii = { ...ds.patterns?.radii, pill: '999px' };
+    ds.typography!.roles = { ...ds.typography?.roles, caption: { size: '0.8rem' } };
+    expect(buildReverseIndex(ds)).toEqual(manifestOf(ds).reverseIndex);
+  });
+});
+
+describe('design-manifest: emitted by every stylesheet format the editor can sit on', () => {
+  // The manifest describes the design system, not the CSS. The tailwind format omitted it,
+  // so a tailwind EmDash site's /design-system admin page fetched a file nothing wrote.
+  it.each(['css', 'tailwind'] as const)('%s writes design-manifest.json', async (format) => {
+    const { mkdtempSync, readdirSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { generate } = await import('./generate.ts');
+    const out = mkdtempSync(join(tmpdir(), 'vitops-manifest-'));
+    try {
+      await generate({ input: defaultConfig(), format, outDir: out });
+      expect(readdirSync(out)).toContain('design-manifest.json');
+    } finally {
+      rmSync(out, { recursive: true, force: true });
+    }
   });
 });

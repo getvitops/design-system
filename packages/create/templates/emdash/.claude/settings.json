@@ -1,6 +1,11 @@
 {
   "permissions": {
-    "allow": ["mcp__astro-docs__search_astro_docs", "mcp__emdash-docs__search_docs"]
+    "allow": [
+      "mcp__astro-docs__search_astro_docs",
+      "mcp__emdash-docs__search_docs",
+      "Bash(vp exec playwright cli:*)"
+    ],
+    "deny": ["mcp__claude-in-chrome__*", "mcp__playwright__*"]
   },
   "hooks": {
     "SessionStart": [

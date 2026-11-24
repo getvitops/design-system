@@ -66,6 +66,12 @@ cfg.r2_buckets = (cfg.r2_buckets ?? []).map((r) =>
   r.binding === 'MEDIA' ? { ...r, bucket_name: `${r.bucket_name}-dev` } : r,
 );
 
+// No cron on dev. Dev's database is a copy of prod (scripts/refresh-dev.mjs),
+// so it carries prod's scheduled publishes and plugin jobs; leaving the trigger
+// on would run them a second time against the copy. The cost: scheduled
+// publishing can't be exercised on dev.
+delete cfg.triggers;
+
 // Flat config — no nested environments.
 delete cfg.env;
 

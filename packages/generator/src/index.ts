@@ -2,7 +2,7 @@
  * @getvitops/generator — public API.
  *
  * Turn a `design-system.json` into platform outputs (Bricks, standalone CSS,
- * Tailwind v4). The `zod/mini` schema is the single source of truth: types,
+ * Tailwind v4). The `@zod/mini` schema is the single source of truth: types,
  * validation, and the published JSON Schema all derive from it.
  */
 export { generate, roleColorUtilities } from './generate.ts';
@@ -18,6 +18,12 @@ export type {
 // re-deriving the vocabulary and drifting from it.
 export { expandPalette, functionalRole } from './tokens.ts';
 export type { ExpandedHue, FunctionalRole } from './tokens.ts';
+export {
+  buildReverseIndex,
+  checkContrast,
+  patchToOverrideCss,
+  validateColorContract,
+} from './tokens.ts';
 
 export {
   generateDocs,
@@ -55,8 +61,10 @@ export {
   DARK_SEL,
   REQUIRED_ROLES,
   ROLE_TOKEN_KEYS,
+  TYPO_KEYMAP,
   roleHue,
   roleKind,
+  roleSolidOptions,
 } from './shared.ts';
 export type { RoleSpec } from './shared.ts';
 export { tokenVar, tokenClass, CONTRAST } from './tokens.ts';
@@ -80,9 +88,16 @@ export {
   configJsonSchema,
   CONFIG_SCHEMA_URL,
   CONFIG_SCHEMA_LOCAL_PATH,
+  CONFIG_VERSION,
   validateConfig,
   resolveConfig,
   resolvePrivacyContact,
+  resolveAccessibilityContact,
+  accessibilityStatementWarnings,
+  ACCESSIBILITY_LAWS,
+  ACCESSIBILITY_TESTING,
+  ACCESSIBILITY_REVIEW_CADENCES,
+  GENERIC_LINK_TEXT,
   resolveTheme,
   // Every entry point that takes a config goes through these, so a consumer who
   // keeps their tokens inside the larger three-section config points the same
@@ -94,6 +109,17 @@ export {
   JURISDICTIONS,
   JURISDICTION_COUNTRIES,
   AD_PROVIDERS,
+  CRM_PROVIDERS,
+  BIGIN_DATA_CENTERS,
+  PLAN_CAPABILITIES,
+  experimentDimensionWarnings,
+  // Design-system patch write-back — shared by @getvitops/vite's dev endpoint
+  // and the EmDash design-system-editor plugin route.
+  designSystemPath,
+  getAt,
+  setAt,
+  mergePatch,
+  formatConfig,
 } from './config.ts';
 export type {
   AdProvider,
@@ -109,7 +135,14 @@ export type {
   SiteIndexNow,
   SiteIndexing,
   SiteSearchConsole,
+  SiteSearchConsoleSetup,
+  SiteReviews,
+  SiteReviewLocation,
+  SitePlan,
+  PlanCapability,
+  SiteExperiment,
   ConfigValidationResult,
+  CrmProviderConfig,
 } from './config.ts';
 
 // Legal documents. A sibling of `generateDocs`, not a `generate()` format:
@@ -151,7 +184,7 @@ export { renderRobotsTxt } from './robots.ts';
 export type { RenderRobotsOptions } from './robots.ts';
 
 import { SCHEMA_LOCAL_PATH, type DesignSystem } from './schema.ts';
-import { CONFIG_SCHEMA_LOCAL_PATH, type Config } from './config.ts';
+import { CONFIG_SCHEMA_LOCAL_PATH, CONFIG_VERSION, type Config } from './config.ts';
 
 /**
  * A minimal but complete starter design system, used by `vitops init`. It
@@ -181,10 +214,12 @@ export function defaultConfig(): DesignSystem {
         surface: { hue: 'ink', kind: 'surface' },
         'ui-primary': 'brand',
         'brand-primary': 'brand',
-        info: 'sky',
+        // `solid: 700` on the two whose seed lands at step 600 under 4.5:1 against its white
+        // `text-on-<role>` (4.35:1 and 4.40:1): the WCAG 2 AA gate would refuse the starter config.
+        info: { hue: 'sky', kind: 'chromatic', solid: 700 },
         success: 'brand',
         warning: 'sun',
-        danger: 'rose',
+        danger: { hue: 'rose', kind: 'chromatic', solid: 700 },
       },
       utilities: ['bg', 'text', 'icon', 'border'],
     },
@@ -410,6 +445,7 @@ export function defaultSiteConfig(opts?: {
   return {
     // The installed copy, not the unpinned unpkg URL — see CONFIG_SCHEMA_LOCAL_PATH.
     $schema: CONFIG_SCHEMA_LOCAL_PATH,
+    configVersion: CONFIG_VERSION,
     designSystem: {
       themes: { default: defaultConfig() },
       defaultColorScheme: 'light',
@@ -419,6 +455,8 @@ export function defaultSiteConfig(opts?: {
     },
     site: {
       defaultLocale: locale,
+      // A new site starts strict. Lowering it is a recorded decision (`acceptedRisk`), not a default.
+      accessibility: { standard: 'wcag21', level: 'AA' },
       locales: { [locale]: { name: 'English' } },
       environments: {
         production: { url },

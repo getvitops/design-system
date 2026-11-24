@@ -1,7 +1,7 @@
 ---
 title: Your design system
 description: How design-system.json is structured — colours, scales, patterns and animations — and what each section generates.
-section: "Start here"
+section: 'Start here'
 order: 20
 ---
 
@@ -18,14 +18,14 @@ and the JSON Schema is published so editors give you autocomplete and hover docs
 
 ## What each section drives
 
-| Section | Generates |
-| --- | --- |
-| `colors` | 11-step OKLCH scales per hue, functional role tokens, automatic dark mode, colour utilities |
-| `typeScale` / `spaceScale` | Fluid modular scales as `clamp()` steps |
-| `typography` | Font families and semantic type roles → `font-<role>` utilities |
-| `patterns` | Component CSS (`.cta`, `.btn`, `.card`, `.badge`, …) plus the token cascade |
-| `animations` | Effect and journey classes, layered over the hand-written animation engine |
-| `shadows` | `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities |
+| Section                    | Generates                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------- |
+| `colors`                   | 11-step OKLCH scales per hue, functional role tokens, automatic dark mode, colour utilities |
+| `typeScale` / `spaceScale` | Fluid modular scales as `clamp()` steps                                                     |
+| `typography`               | Font families and semantic type roles → `font-<role>` utilities                             |
+| `patterns`                 | Component CSS (`.cta`, `.btn`, `.card`, `.badge`, …) plus the token cascade                 |
+| `animations`               | Effect and journey classes, layered over the hand-written animation engine                  |
+| `shadows`                  | `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities                                |
 
 The [Config reference](/reference/config/) documents every field, rendered from the schema itself —
 so it can't fall out of step with what validation accepts. The token fields are under
@@ -48,9 +48,9 @@ That yields `--color-pine-50 … 950` on the shared lightness ladder, plus role 
 `--color-<target>-<role>[-<variant>]` (`--color-bg-brand-primary-solid`,
 `--color-text-on-brand-primary`, `--color-text-brand-primary`, …) and matching utilities —
 the class name is the token name minus `--color-`. Dark mode re-points which step each token
-reads, not a second palette you maintain. Contrast targets — text at APCA Lc ≥ 75, secondary
-≥ 60, icons and boundaries ≥ 45, in both appearances — are enforced **at build time**, so a
-violation fails `generate` rather than shipping.
+reads, not a second palette you maintain. Contrast targets — the WCAG 2 ratio, text at 4.5:1 and
+icons and boundaries at 3:1, in both appearances — are enforced **at build time**, so a
+violation fails `generate` rather than shipping (unless `site.accessibility.level` is `A` or `none`).
 
 A role is either `kind: "surface"` (a page or panel colour, with a bare `bg-<role>`) or
 chromatic — the default, and what the bare-string form above means — whose backgrounds split

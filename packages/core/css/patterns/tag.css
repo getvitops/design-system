@@ -40,8 +40,11 @@
   font-weight: 600;
   line-height: 1;
   border-radius: var(--br-badge-indicator, 999px);
-  background: var(--color-text-danger);
-  color: #fff;
+  /* The solid and its computed foreground, a pair the build checks in both appearances. This was
+     `--color-text-danger` (which flips LIGHT in dark mode) behind a hard-coded white label, i.e.
+     white on a pale red exactly when the page is dark. */
+  background: var(--color-bg-danger-solid);
+  color: var(--color-text-on-danger);
 
   &.badge-indicator--dot {
     --_size: 0.5rem;
@@ -52,13 +55,17 @@
     position: absolute;
     inset-block-start: 0;
     inset-inline-end: 0;
-    translate: 50% -50%;
+    translate: calc(50% * var(--dir-sign, 1)) -50%;
   }
 }
 
 /* ── Status dot pulse — modifier + keyframe over the generated .status-dot ─── */
 .status-dot--pulse {
-  animation: status-pulse 2s ease-in-out infinite;
+  /* Persistent motion: only for visitors who have not asked for less (WCAG 2.3.3). The dot is still
+     there and still coloured; it just does not pulse. */
+  @media (prefers-reduced-motion: no-preference) {
+    animation: status-pulse 2s ease-in-out infinite;
+  }
 }
 
 @keyframes status-pulse {

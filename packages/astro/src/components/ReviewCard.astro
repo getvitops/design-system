@@ -42,19 +42,17 @@ export interface Props extends Omit<HTMLAttributes<'article'>, 'slot'> {
 const { review, schema = false, itemReviewed, avatar = false, ...rest } = Astro.props;
 ---
 
-{
-  schema && itemReviewed ? (
-    <SchemaReview
-      itemReviewed={itemReviewed}
-      reviewRating={{ ratingValue: review.rating }}
-      author={{ name: review.author }}
-      datePublished={review.publishedAt}
-      reviewBody={review.text}
-      publisher={{ name: 'Google', type: 'Organization' }}
-    >
-      <ReviewCardBody review={review} avatar={avatar} {...rest} />
-    </SchemaReview>
-  ) : (
+{schema && itemReviewed ? (
+  <SchemaReview
+    itemReviewed={itemReviewed}
+    reviewRating={{ ratingValue: review.rating }}
+    author={{ name: review.author }}
+    datePublished={review.publishedAt}
+    reviewBody={review.text}
+    publisher={{ name: 'Google', type: 'Organization' }}
+  >
     <ReviewCardBody review={review} avatar={avatar} {...rest} />
-  )
-}
+  </SchemaReview>
+) : (
+  <ReviewCardBody review={review} avatar={avatar} {...rest} />
+)}

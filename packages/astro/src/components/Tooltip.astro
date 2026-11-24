@@ -1,0 +1,64 @@
+---
+/**
+ * Tooltip: a trigger and the popover it opens, as siblings.
+ *
+ *   <Tooltip id="save-tip" label="Save draft">Keeps this page as a draft.</Tooltip>
+ *   <Tooltip id="ship-help" toggle label="More about shipping">
+ *     Free over $50. Orders placed before 2pm ship the same day.
+ *   </Tooltip>
+ *
+ * There is no element behind this: the markup is the whole component, and `deferred.js`
+ * (`js/tooltip.ts`) adds hover, keyboard focus and Escape, a per-pair anchor, `role="tooltip"` and
+ * the ARIA below. With no JS the trigger's `popovertarget` is a click toggle, so the text is still
+ * reachable.
+ *
+ * - **Plain (default):** `label` is the visible text of a button, and the default slot is a short
+ *   clarification of what it does. It opens on hover and keyboard focus; the trigger is described
+ *   by it (`aria-describedby`). Keep it to a phrase a user can afford to miss.
+ * - **`toggle`:** a "?" button that reveals more than a phrase, for touch and screen-reader users
+ *   who never hover. `label` is its accessible name (a "?" alone is not one). It opens on click
+ *   and Enter as well, stays open once clicked until Escape or a click outside, and reports
+ *   `aria-expanded` instead of a description.
+ *
+ * Whether to use a tooltip at all: one on the control itself for what it does; a toggletip for
+ * why or how; inline text for anything most users need in order to act.
+ */
+export interface Props {
+  /** Unique on the page: the id of the popover. */
+  id: string;
+  /** A plain tooltip: the trigger's visible text. A toggletip: its accessible name. */
+  label: string;
+  /** Render a "?" toggletip instead of a plain tooltip. */
+  toggle?: boolean;
+  /** Extra classes on the trigger (a plain tooltip's trigger is a `.btn`). */
+  class?: string;
+}
+
+const { id, label, toggle = false, class: className } = Astro.props;
+---
+
+{toggle ? (
+  <>
+    <button
+      type="button"
+      class:list={['btn', 'tooltip-trigger', className]}
+      popovertarget={id}
+      popovertargetaction="show"
+      aria-label={label}
+    >
+      ?
+    </button>
+    <div id={id} class="tooltip tooltip--toggle" popover="auto">
+      <slot />
+    </div>
+  </>
+) : (
+  <>
+    <button type="button" class:list={['btn', 'tooltip-trigger', className]} popovertarget={id}>
+      {label}
+    </button>
+    <span id={id} class="tooltip" popover="manual">
+      <slot />
+    </span>
+  </>
+)}

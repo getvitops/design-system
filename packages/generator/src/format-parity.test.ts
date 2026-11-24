@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   build,
   CHUNK_LAYER,
@@ -710,5 +710,22 @@ describe('layout split — knock-on invariants', () => {
     expect(TW_CLASH.has('sticky'), 'the collision is real').toBe(true);
     expect(tw, '.sticky survives the clash strip').toMatch(/^\.sticky \{/m);
     expect(tw, 'and so do its variants').toContain('sticky--bottom');
+  });
+});
+
+describe('tailwind `sources`', () => {
+  it('emits one @source per entry, right after the tailwind import', () => {
+    const css = build(ds(), 'tailwind', ASSETS, {
+      sources: ['../../node_modules/@getvitops/emdash/src/astro'],
+    }).tailwind;
+    expect(css).toMatch(
+      /@import "tailwindcss";\n@source "\.\.\/\.\.\/node_modules\/@getvitops\/emdash\/src\/astro";/,
+    );
+  });
+
+  it('emits none when none are given, and the css format ignores them', () => {
+    expect(build(ds(), 'tailwind', ASSETS).tailwind).not.toContain('@source');
+    const css = build(ds(), 'css', ASSETS, { sources: ['x'] });
+    expect(JSON.stringify(css.generated)).not.toContain('@source');
   });
 });

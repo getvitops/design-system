@@ -1,0 +1,39 @@
+---
+/**
+ * ConfigPreview: shows a config form's edits on the page they are made on.
+ *
+ * **This component emits its own `<wc-config-preview>`**: do NOT wrap it in one.
+ *
+ *   <ConfigForm id="cfg" … projections={[…]}>…</ConfigForm>
+ *   <script type="application/json" id="cfg-base" set:html={baseJson} />
+ *   <ConfigPreview for="cfg-form" base="cfg-base" />
+ *
+ * `for` is the id of the `<wc-config-form>` (give the element an id, or use the form's wrapper id
+ * your page assigned). On each edit the element regenerates the design system's token layers in the
+ * browser (`@getvitops/generator/preview`) and injects them after the page's stylesheet. The
+ * generator, a colour engine, is a dynamic import fetched on the first edit, so a page that never
+ * edits pays nothing for it. With no JS the element renders nothing: a live preview has no
+ * meaning without script.
+ */
+export interface Props {
+  /** Id of the `<wc-config-form>` whose edits are previewed. */
+  for: string;
+  /** Id of a `<script type="application/json">` holding the document the form is merged over. */
+  base?: string;
+}
+
+const { for: source, base } = Astro.props;
+---
+
+<wc-config-preview for={source} base={base}></wc-config-preview>
+<script>
+  import '@getvitops/core/config-preview';
+
+  for (const el of document.querySelectorAll('wc-config-preview')) {
+    // Only the first load per element: the import is cached, so this is cheap on later ones.
+    (el as HTMLElement & { render: unknown }).render = async (config: unknown) => {
+      const { previewCss } = await import('@getvitops/generator/preview');
+      return previewCss(config);
+    };
+  }
+</script>

@@ -7,5 +7,10 @@ on:
 
 jobs:
   promote:
+    # A reusable workflow can only use permissions its caller grants, and this repo's default
+    # token is read-only, so without this the run fails at startup.
+    permissions:
+      contents: write
+      pull-requests: write
     uses: ./.github/workflows/site-promote.yml
     secrets: inherit

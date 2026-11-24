@@ -11,7 +11,13 @@
  * DOM wiring, for the same reason: the consequential logic has to be testable
  * without the environment it runs in.
  */
-import type { IndexingConfig, SitemapEntry, Snapshot } from './types.ts';
+import type {
+  IndexingConfig,
+  SitemapEntry,
+  SitemapReport,
+  SitemapRole,
+  Snapshot,
+} from './types.ts';
 
 export const INDEXNOW_ENDPOINT = 'https://api.indexnow.org/indexnow';
 
@@ -43,13 +49,17 @@ export interface IndexNowPlan extends ChannelPlan {
 
 export interface SearchConsolePlan extends ChannelPlan {
   siteUrl?: string | undefined;
+  /** Every sitemap to resubmit — one `sitemaps.submit` each. */
+  sitemapUrls: string[];
 }
 
 export interface IndexingPlan {
   /** Set when the whole run is refused. Nothing is submitted. */
   blocked?: string;
-  /** Always computed; `undefined` when nothing in the config resolves to one. */
+  /** The first sitemap in use; `undefined` when nothing in the config resolves to one. */
   sitemapUrl: string | undefined;
+  /** Every sitemap looked at, used or not — what the plan prints so nothing is submitted unseen. */
+  sitemaps: SitemapReport[];
   /** URLs that changed and should be submitted. */
   urls: string[];
   reason: UrlReason;
@@ -71,6 +81,11 @@ export interface PlanInput {
   explicitUrls?: string[] | undefined;
   /** `--all`: submit every URL in the sitemap. */
   all?: boolean | undefined;
+  /**
+   * What reading the sitemaps found. Supplied by the CLI (which did the fetching); absent in a
+   * caller that only has `config.sitemapUrl`, in which case the configured URLs stand in.
+   */
+  sitemaps?: SitemapReport[] | undefined;
 }
 
 const trimSlash = (s: string) => s.replace(/\/+$/, '');
@@ -91,17 +106,72 @@ function chunk<T>(items: T[], size: number): T[][] {
 }
 
 /**
- * Resolve the sitemap URL.
+ * Resolve the sitemap URLs a config names, without looking at the network.
  *
- * `sitemap-index.xml` is @astrojs/sitemap's default filename and is what
- * `vitops({ sitemap })` registers, so it is the right default here. It resolves to
- * a flat `<urlset>` on a small site, which `parseSitemap` handles by reading the
- * root element rather than the name.
+ * Explicit wins and is exact: a string or a list, each one `configured`. Unset, this is the
+ * Astro default — `sitemap-index.xml` is `@astrojs/sitemap`'s filename and what
+ * `vitops({ sitemap })` registers; it resolves to a flat `<urlset>` on a small site, which
+ * `parseSitemap` handles by reading the root element rather than the name. `vitops robots` uses
+ * this directly: it cannot probe, so it states what a build is known to produce.
  */
+export function resolveSitemapUrls(config: IndexingConfig): string[] {
+  const explicit = config.sitemapUrl;
+  if (explicit) return Array.isArray(explicit) ? explicit : [explicit];
+  if (!config.canonical) return [];
+  return [`${trimSlash(config.canonical)}/sitemap-index.xml`];
+}
+
+/** The first of `resolveSitemapUrls` — the sitemap a single-sitemap caller means. */
 export function resolveSitemapUrl(config: IndexingConfig): string | undefined {
-  if (config.sitemapUrl) return config.sitemapUrl;
-  if (!config.canonical) return undefined;
-  return `${trimSlash(config.canonical)}/sitemap-index.xml`;
+  return resolveSitemapUrls(config)[0];
+}
+
+/**
+ * Every sitemap worth looking for, in the order they are read.
+ *
+ * Explicit `sitemapUrl` turns discovery off — an author who lists URLs gets exactly those. Unset,
+ * three conventional places, each judged by whether it exists and holds a `<url>`:
+ *
+ * - `sitemap-index.xml` — Astro (`@astrojs/sitemap`).
+ * - `sitemap.xml` — EmDash, which serves a database-driven index there.
+ * - `pages-sitemap.xml` — the companion `vitops()` writes for `src/pages` routes an EmDash
+ *   sitemap cannot see. The name must not match `sitemap-*.xml`: EmDash claims that route
+ *   pattern, and a file under it silently loses to the CMS's own document.
+ *
+ * Nothing here is "required": a CMS-only site has no pages sitemap, and a 404 there is the
+ * expected answer rather than a failure. The CLI refuses to run only when none exist.
+ */
+export function sitemapCandidates(config: IndexingConfig): { url: string; role: SitemapRole }[] {
+  if (config.sitemapUrl)
+    return resolveSitemapUrls(config).map((url) => ({ url, role: 'configured' }));
+  if (!config.canonical) return [];
+  const origin = trimSlash(config.canonical);
+  return [
+    { url: `${origin}/sitemap-index.xml`, role: 'astro' },
+    { url: `${origin}/sitemap.xml`, role: 'cms' },
+    { url: `${origin}/pages-sitemap.xml`, role: 'pages' },
+  ];
+}
+
+/**
+ * The words printed beside a sitemap.
+ *
+ * `pages` is "required for non-EmDash content" because that is the reason it exists, and the
+ * reason a reader seeing a second sitemap in Search Console needs. `cms` is only called EmDash
+ * once the pages companion is in use: `/sitemap.xml` alone could be any generator, and naming a
+ * platform the evidence doesn't support would be a guess printed as a fact.
+ */
+export function describeSitemap(r: SitemapReport, all: SitemapReport[]): string {
+  switch (r.role) {
+    case 'pages':
+      return 'required for non-EmDash content (src/pages)';
+    case 'cms':
+      return all.some((o) => o.role === 'pages' && o.used) ? 'EmDash content' : 'derived';
+    case 'astro':
+      return 'Astro pages';
+    case 'configured':
+      return 'configured';
+  }
 }
 
 /** Resolve the IndexNow key file URL. */
@@ -138,7 +208,16 @@ export function plan(input: PlanInput): IndexingPlan {
   const { config, current, previous, explicitUrls, all } = input;
   const notes: string[] = [];
 
-  const sitemapUrl = resolveSitemapUrl(config);
+  const sitemaps: SitemapReport[] =
+    input.sitemaps ??
+    resolveSitemapUrls(config).map((url) => ({
+      url,
+      role: 'configured' as const,
+      used: true,
+      entries: current.length,
+    }));
+  const used = sitemaps.filter((r) => r.used).map((r) => r.url);
+  const sitemapUrl = used[0] ?? resolveSitemapUrl(config);
   const check = config.priorityUrls ?? [];
 
   /*
@@ -154,11 +233,12 @@ export function plan(input: PlanInput): IndexingPlan {
     return {
       blocked: `environment robots policy is "${config.robots}" — refusing to ask search engines to index an environment marked noindex`,
       sitemapUrl,
+      sitemaps,
       urls: [],
       reason: 'diff',
       cold: false,
       indexNow: { enabled: false, skip: 'blocked', endpoint: INDEXNOW_ENDPOINT, batches: [] },
-      searchConsole: { enabled: false, skip: 'blocked' },
+      searchConsole: { enabled: false, skip: 'blocked', sitemapUrls: [] },
       check: [],
       notes,
     };
@@ -204,8 +284,8 @@ export function plan(input: PlanInput): IndexingPlan {
     if (foreign.length)
       notes.push(
         `sitemap contains ${urls.length - urls.filter((u) => hostOf(u) === own).length} URL(s) on ` +
-          `${foreign.join(', ')} rather than ${own} — check that ${sitemapUrl} is this site's own ` +
-          `sitemap and not another route answering that path.`,
+          `${foreign.join(', ')} rather than ${own} — check that ${used.join(', ') || sitemapUrl} ` +
+          `is this site's own sitemap and not another route answering that path.`,
       );
   }
 
@@ -218,15 +298,23 @@ export function plan(input: PlanInput): IndexingPlan {
    * the output otherwise looks identical to the healthy case.
    */
   if (reason === 'diff' || reason === 'cold') {
-    const withLastmod = current.filter((e) => e.lastmod).length;
-    if (current.length > 0 && withLastmod === 0)
+    const undated = current.filter((e) => !e.lastmod);
+    if (current.length > 0 && undated.length === current.length)
       notes.push(
-        'no <lastmod> in the sitemap — only added/removed pages can be detected, never an edit. Wire `gitLastmod()` into your sitemap options, or pass --all.',
+        'no <lastmod> in the sitemap — only added/removed pages can be detected, never an edit. ' +
+          'Routes outside the CMS get git dates from `vitops({ sitemap })` (an EmDash site writes ' +
+          '`pages-sitemap.xml` for them); on a plain Astro site pass `gitLastmod()` as the sitemap ' +
+          '`serialize`. Or pass --all.',
       );
-    else if (withLastmod < current.length)
+    else if (undated.length > 0) {
+      const shown = undated.slice(0, 3).map((e) => e.loc);
+      const more = undated.length - shown.length;
       notes.push(
-        `${current.length - withLastmod} of ${current.length} sitemap entries have no <lastmod> — edits to those pages cannot be detected.`,
+        `${undated.length} of ${current.length} sitemap entries have no <lastmod> — edits to those pages cannot be detected ` +
+          `(${shown.join(', ')}${more > 0 ? `, +${more} more` : ''}). ` +
+          'A page outside the CMS needs `vitops({ sitemap })` so it is listed with a git date; a CMS entry is dated by the CMS.',
       );
+    }
   }
 
   // ── IndexNow ────────────────────────────────────────────────────────────────
@@ -277,25 +365,32 @@ export function plan(input: PlanInput): IndexingPlan {
   // no per-URL submission to gate on, because Google exposes none.
   let searchConsole: SearchConsolePlan;
   if (!config.searchConsole) {
-    searchConsole = { enabled: false, skip: 'not configured (seo.indexing.searchConsole)' };
+    searchConsole = {
+      enabled: false,
+      skip: 'not configured (seo.indexing.searchConsole)',
+      sitemapUrls: [],
+    };
   } else if (config.searchConsole.resubmitSitemap === false) {
     searchConsole = {
       enabled: false,
       skip: 'resubmitSitemap is false',
       siteUrl: config.searchConsole.siteUrl,
+      sitemapUrls: [],
     };
-  } else if (!sitemapUrl) {
+  } else if (used.length === 0) {
     searchConsole = {
       enabled: false,
       skip: 'no sitemapUrl and no domains.canonical to derive one',
       siteUrl: config.searchConsole.siteUrl,
+      sitemapUrls: [],
     };
   } else {
-    searchConsole = { enabled: true, siteUrl: config.searchConsole.siteUrl };
+    searchConsole = { enabled: true, siteUrl: config.searchConsole.siteUrl, sitemapUrls: used };
   }
 
   return {
     sitemapUrl,
+    sitemaps,
     urls,
     reason,
     cold,
@@ -306,6 +401,33 @@ export function plan(input: PlanInput): IndexingPlan {
   };
 }
 
+/**
+ * The `sitemaps` block: every sitemap looked at, why it is there, and what was found.
+ *
+ * One line per sitemap so a second one in Search Console is never a surprise, and an absent
+ * companion is said once rather than left to be inferred from a missing line.
+ */
+function formatSitemaps(sitemaps: SitemapReport[]): string[] {
+  if (sitemaps.length === 0) return ['sitemaps   (none)'];
+  const used = sitemaps.filter((r) => r.used);
+  const lines: string[] = [];
+  const width = Math.max(...used.map((r) => r.url.length), 0);
+  used.forEach((r, i) => {
+    lines.push(
+      `${i === 0 ? 'sitemaps  ' : '          '} ${r.url.padEnd(width)}  ${describeSitemap(r, sitemaps)} · ${r.entries} url${r.entries === 1 ? '' : 's'}`,
+    );
+  });
+  if (used.length === 0) lines.push('sitemaps   (none found)');
+  const pages = sitemaps.find((r) => r.role === 'pages');
+  if (pages && !pages.used && pages.skip === 'not found')
+    lines.push(
+      `           ${pages.url.split('/').pop()} not found — no non-EmDash content, the other sitemap covers the site`,
+    );
+  else if (pages && !pages.used)
+    lines.push(`           ${pages.url.split('/').pop()} skipped — ${pages.skip}`);
+  return lines;
+}
+
 /** Render a plan as the human-readable block `--dry` prints. */
 export function formatPlan(p: IndexingPlan): string {
   const lines: string[] = [];
@@ -313,7 +435,7 @@ export function formatPlan(p: IndexingPlan): string {
     lines.push(`✗ blocked — ${p.blocked}`);
     return lines.join('\n');
   }
-  lines.push(`sitemap    ${p.sitemapUrl ?? '(none)'}`);
+  lines.push(...formatSitemaps(p.sitemaps));
   lines.push(`urls       ${p.urls.length} (${p.reason})`);
 
   lines.push(
@@ -323,7 +445,7 @@ export function formatPlan(p: IndexingPlan): string {
   );
   lines.push(
     p.searchConsole.enabled
-      ? `Search Console  resubmit sitemap → ${p.searchConsole.siteUrl}`
+      ? `Search Console  resubmit ${p.searchConsole.sitemapUrls.length} sitemap(s) → ${p.searchConsole.siteUrl}`
       : `Search Console  skipped — ${p.searchConsole.skip}`,
   );
   for (const n of p.notes) lines.push(`  ! ${n}`);

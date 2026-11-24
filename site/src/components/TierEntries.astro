@@ -31,19 +31,17 @@ const { rows, breakpoint = '55rem' } = Astro.props;
 ---
 
 <wc-entries projection breakpoint={breakpoint}>
-  {
-    rows.map((row) => (
-      <Fragment>
-        <h3 id={row.id} set:html={row.headingHtml} />
-        <dl>
-          {Object.entries(row.cells).map(([term, html]) => (
-            <Fragment>
-              <dt>{term}</dt>
-              <dd set:html={html} />
-            </Fragment>
-          ))}
-        </dl>
-      </Fragment>
-    ))
-  }
+  {rows.map((row) => (
+    <Fragment>
+      <h3 id={row.id} set:html={row.headingHtml} />
+      <dl>
+        {Object.entries(row.cells).map(([term, html]) => (
+          <Fragment>
+            <dt>{term}</dt>
+            <dd set:html={html} />
+          </Fragment>
+        ))}
+      </dl>
+    </Fragment>
+  ))}
 </wc-entries>

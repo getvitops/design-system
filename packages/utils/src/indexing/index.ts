@@ -14,8 +14,11 @@ export {
   INDEXNOW_ENDPOINT,
   formatPlan,
   plan,
+  describeSitemap,
   resolveKeyLocation,
   resolveSitemapUrl,
+  resolveSitemapUrls,
+  sitemapCandidates,
 } from './plan.ts';
 export type {
   ChannelPlan,
@@ -54,5 +57,7 @@ export type {
   IndexNowConfig,
   SearchConsoleConfig,
   SitemapEntry,
+  SitemapReport,
+  SitemapRole,
   Snapshot,
 } from './types.ts';

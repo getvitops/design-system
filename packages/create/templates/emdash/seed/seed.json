@@ -6,6 +6,157 @@
     "description": "An EmDash website wired to the Vitops design system",
     "author": "Vitops"
   },
+  "blockTypes": [
+    {
+      "slug": "vitops_section",
+      "label": "Section",
+      "description": "A titled page section whose body can hold any other blocks.",
+      "category": "Sections",
+      "icon": "layout",
+      "currentVersion": 1,
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "slug": "kicker",
+              "label": "Kicker (small line above the heading)",
+              "type": "string"
+            },
+            {
+              "slug": "heading",
+              "label": "Heading",
+              "type": "string"
+            },
+            {
+              "slug": "level",
+              "label": "Heading level (p: styled like a heading, not in the outline)",
+              "type": "select",
+              "defaultValue": "2",
+              "validation": {
+                "options": ["1", "2", "3", "4", "5", "6", "p"]
+              }
+            },
+            {
+              "slug": "sub",
+              "label": "Lead-in text under the heading",
+              "type": "text"
+            },
+            {
+              "slug": "cta_label",
+              "label": "Button text (filled)",
+              "type": "string"
+            },
+            {
+              "slug": "cta_href",
+              "label": "Button URL",
+              "type": "string"
+            },
+            {
+              "slug": "secondary_label",
+              "label": "Second link text",
+              "type": "string"
+            },
+            {
+              "slug": "secondary_href",
+              "label": "Second link URL",
+              "type": "string"
+            },
+            {
+              "slug": "body",
+              "label": "Content (any blocks)",
+              "type": "portableText"
+            },
+            {
+              "slug": "layout",
+              "label": "Layout",
+              "type": "select",
+              "defaultValue": "stack",
+              "validation": {
+                "options": ["stack", "center", "split"]
+              }
+            },
+            {
+              "slug": "stack",
+              "label": "Spacing (rhythm: head and body use the vertical-rhythm scale, as a page opener or prose stack)",
+              "type": "select",
+              "defaultValue": "grid",
+              "validation": {
+                "options": ["grid", "rhythm"]
+              }
+            },
+            {
+              "slug": "width",
+              "label": "Width",
+              "type": "select",
+              "defaultValue": "measure",
+              "validation": {
+                "options": ["measure", "breakout", "spotlight", "fullbleed"]
+              }
+            },
+            {
+              "slug": "tone",
+              "label": "Backdrop tone (a colour role from the site, e.g. surface or brand-primary)",
+              "type": "string"
+            },
+            {
+              "slug": "color",
+              "label": "Palette colour instead of a tone (e.g. amber or amber-300)",
+              "type": "string"
+            },
+            {
+              "slug": "solid",
+              "label": "Fill with the solid colour",
+              "type": "boolean",
+              "defaultValue": false
+            },
+            {
+              "slug": "theme",
+              "label": "Theme (backdrop and readable text in one pick; overrides the tone fields)",
+              "type": "select",
+              "defaultValue": "none",
+              "validation": {
+                "options": [
+                  "none",
+                  "neutral",
+                  "surface",
+                  "brand-primary",
+                  "brand-secondary",
+                  "info",
+                  "success",
+                  "warning",
+                  "danger",
+                  "neutral:solid",
+                  "surface:solid",
+                  "brand-primary:solid",
+                  "brand-secondary:solid",
+                  "info:solid",
+                  "success:solid",
+                  "warning:solid",
+                  "danger:solid"
+                ]
+              }
+            },
+            {
+              "slug": "anchor",
+              "label": "Anchor id (so a link can point here with #id)",
+              "type": "string"
+            },
+            {
+              "slug": "class_name",
+              "label": "Extra CSS classes",
+              "type": "string"
+            },
+            {
+              "slug": "style",
+              "label": "CSS custom properties, e.g. --p-card: 2rem",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "settings": {
     "title": "My EmDash Site",
     "tagline": "An EmDash website with the Vitops design system"
@@ -15,6 +166,7 @@
       "slug": "pages",
       "label": "Pages",
       "labelSingular": "Page",
+      "urlPattern": "/{slug}",
       "supports": ["drafts", "revisions", "seo"],
       "fields": [
         {
@@ -29,6 +181,30 @@
           "type": "portableText"
         }
       ]
+    },
+    {
+      "slug": "landings",
+      "label": "Landings",
+      "labelSingular": "Landing",
+      "urlPattern": "/landings/{slug}",
+      "supports": ["drafts", "revisions", "seo"],
+      "fields": [
+        {
+          "slug": "title",
+          "label": "Title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "slug": "layout",
+          "label": "Layout",
+          "type": "blocks",
+          "validation": {
+            "allowedTypes": ["vitops_section"],
+            "maxItems": 20
+          }
+        }
+      ]
     }
   ],
   "menus": [
@@ -36,16 +212,90 @@
       "name": "primary",
       "label": "Primary Navigation",
       "items": [
-        { "type": "custom", "label": "Home", "url": "/" },
-        { "type": "custom", "label": "About", "url": "/about" }
+        {
+          "type": "custom",
+          "label": "Contact",
+          "url": "/contact"
+        }
       ]
     },
     {
-      "name": "footer",
-      "label": "Footer",
+      "name": "footer-sitemap",
+      "label": "Footer: Site Map",
       "items": [
-        { "type": "custom", "label": "Terms & Conditions", "url": "/terms" },
-        { "type": "custom", "label": "Privacy Policy", "url": "/privacy" }
+        {
+          "type": "custom",
+          "label": "Home",
+          "url": "/"
+        },
+        {
+          "type": "custom",
+          "label": "Contact",
+          "url": "/contact"
+        }
+      ]
+    },
+    {
+      "name": "footer-legal",
+      "label": "Footer: Legal",
+      "items": [
+        {
+          "type": "custom",
+          "label": "Privacy Policy",
+          "url": "/privacy"
+        },
+        {
+          "type": "custom",
+          "label": "Terms & Conditions",
+          "url": "/terms"
+        },
+        {
+          "type": "custom",
+          "label": "Cookie Notice",
+          "url": "/cookies"
+        }
+      ]
+    }
+  ],
+  "widgetAreas": [
+    {
+      "name": "announcement",
+      "label": "Announcement bar",
+      "description": "Shown above the header on every page. Empty until you add a widget.",
+      "widgets": []
+    },
+    {
+      "name": "pre-footer",
+      "label": "Above the footer",
+      "description": "A call to action shown above the footer on every page (Widgets in the admin).",
+      "widgets": [
+        {
+          "type": "content",
+          "title": "Ready to talk?",
+          "content": [
+            {
+              "_type": "block",
+              "_key": "pf-text",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "pf-text-s",
+                  "text": "Tell us what you need and we will reply within one business day.",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "vitops_actionLink",
+              "_key": "pf-cta",
+              "label": "Contact us",
+              "href": "/contact",
+              "variant": "cta"
+            }
+          ]
+        }
       ]
     }
   ],
@@ -87,14 +337,93 @@
               ]
             },
             {
-              "_type": "vitops.banner",
+              "_type": "vitops_hero",
+              "_key": "demo-hero",
+              "eyebrow": "Vitops blocks",
+              "heading": "Build pages from design-system patterns",
+              "level": "2",
+              "body": "Every block below renders a framework pattern, so it follows your tokens and works without JavaScript.",
+              "primaryLabel": "Open the admin",
+              "primaryHref": "/_emdash/admin",
+              "secondaryLabel": "Docs",
+              "secondaryHref": "https://docs.vitops.ca",
+              "layout": "centered"
+            },
+            {
+              "_type": "vitops_cards",
+              "_key": "demo-cards",
+              "columns": "3",
+              "cards": [
+                {
+                  "_key": "c1",
+                  "title": "Tokens",
+                  "body": "Colour, type and spacing come from site.json.",
+                  "href": "https://docs.vitops.ca",
+                  "linkLabel": "Read more"
+                },
+                {
+                  "_key": "c2",
+                  "title": "Patterns",
+                  "body": "Cards, carousels and dialogs share one vocabulary."
+                },
+                {
+                  "_key": "c3",
+                  "title": "Accessible",
+                  "body": "Semantic HTML first, enhanced when JavaScript loads."
+                }
+              ]
+            },
+            {
+              "_type": "vitops_accordion",
+              "_key": "demo-accordion",
+              "exclusive": true,
+              "items": [
+                {
+                  "_key": "a1",
+                  "summary": "What is a block?",
+                  "body": "A reusable section an editor inserts from the slash menu.",
+                  "open": true
+                },
+                {
+                  "_key": "a2",
+                  "summary": "Can I add my own?",
+                  "body": "Yes. Pass blocks.extra to the plugin and map a component for it."
+                }
+              ]
+            },
+            {
+              "_type": "vitops_marquee",
+              "_key": "demo-marquee",
+              "pauseOnHover": true,
+              "reverse": false,
+              "items": [
+                {
+                  "_key": "m1",
+                  "text": "Fast"
+                },
+                {
+                  "_key": "m2",
+                  "text": "Accessible"
+                },
+                {
+                  "_key": "m3",
+                  "text": "Editable"
+                },
+                {
+                  "_key": "m4",
+                  "text": "Yours"
+                }
+              ]
+            },
+            {
+              "_type": "vitops_banner",
               "_key": "welcome-banner",
               "message": "This banner is a Vitops block — dismiss it, then edit this page in the EmDash admin.",
               "tone": "info",
               "dismissible": true
             },
             {
-              "_type": "vitops.details",
+              "_type": "vitops_details",
               "_key": "next-steps",
               "summary": "Next steps",
               "body": "Adjust site.json (under designSystem.themes.default) to your brand (colors, type, patterns), replace src/assets/logo.svg, then deploy with `pnpm deploy`.",
@@ -135,7 +464,7 @@
           "title": "Terms & Conditions",
           "content": [
             {
-              "_type": "vitops.banner",
+              "_type": "vitops_banner",
               "_key": "terms-placeholder",
               "message": "Placeholder text — replace with your own terms before launch. This is not legal advice.",
               "tone": "warning",
@@ -161,7 +490,12 @@
               "style": "h2",
               "markDefs": [],
               "children": [
-                { "_type": "span", "_key": "terms-use-h-1", "text": "Use of the site", "marks": [] }
+                {
+                  "_type": "span",
+                  "_key": "terms-use-h-1",
+                  "text": "Use of the site",
+                  "marks": []
+                }
               ]
             },
             {
@@ -231,7 +565,7 @@
           "title": "Privacy Policy",
           "content": [
             {
-              "_type": "vitops.banner",
+              "_type": "vitops_banner",
               "_key": "privacy-placeholder",
               "message": "Placeholder text — replace with your own privacy policy before launch. This is not legal advice.",
               "tone": "warning",
@@ -331,6 +665,130 @@
                   "_type": "span",
                   "_key": "privacy-rights-1",
                   "text": "You may request access to, correction of, or deletion of your personal information by contacting the site owner. Edit this page in the EmDash admin.",
+                  "marks": []
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "contact",
+        "slug": "contact",
+        "status": "published",
+        "data": {
+          "title": "Contact",
+          "content": [
+            {
+              "_type": "vitops_banner",
+              "_key": "contact-placeholder",
+              "message": "Placeholder text — replace with your contact details before launch.",
+              "tone": "warning",
+              "dismissible": false
+            },
+            {
+              "_type": "block",
+              "_key": "contact-body",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "contact-body-1",
+                  "text": "Tell visitors how to reach you: an email address, a phone number, a street address or a form. This page exists so the Contact link in the header and footer resolves; edit it in the EmDash admin.",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "vitops_form",
+              "_key": "contact-form",
+              "heading": "Send us a message",
+              "level": "2",
+              "fields": [
+                {
+                  "label": "Your name",
+                  "name": "name",
+                  "type": "text",
+                  "required": true
+                },
+                {
+                  "label": "Email",
+                  "name": "email",
+                  "type": "email",
+                  "required": true
+                },
+                {
+                  "label": "Phone",
+                  "name": "phone",
+                  "type": "tel",
+                  "required": false
+                },
+                {
+                  "label": "Message",
+                  "name": "message",
+                  "type": "textarea",
+                  "required": true
+                }
+              ],
+              "submitLabel": "Send message",
+              "successMessage": "Thanks. Your message has been sent and we will reply soon."
+            }
+          ]
+        }
+      },
+      {
+        "id": "cookies",
+        "slug": "cookies",
+        "status": "published",
+        "data": {
+          "title": "Cookie Notice",
+          "content": [
+            {
+              "_type": "vitops_banner",
+              "_key": "cookies-placeholder",
+              "message": "Placeholder text — replace with your own cookie notice before launch. This is not legal advice. `vitops legal` can generate a draft from site.json.",
+              "tone": "warning",
+              "dismissible": false
+            },
+            {
+              "_type": "block",
+              "_key": "cookies-intro",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "cookies-intro-1",
+                  "text": "This site uses a small number of cookies. Essential cookies keep the site working; others are only set if you choose to allow them.",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "cookies-h",
+              "style": "h2",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "cookies-h-1",
+                  "text": "What cookies we use",
+                  "marks": []
+                }
+              ]
+            },
+            {
+              "_type": "block",
+              "_key": "cookies-body",
+              "style": "normal",
+              "markDefs": [],
+              "children": [
+                {
+                  "_type": "span",
+                  "_key": "cookies-body-1",
+                  "text": "List each cookie, who sets it and why. Replace this paragraph with the real list before launch.",
                   "marks": []
                 }
               ]

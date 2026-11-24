@@ -67,15 +67,18 @@ const headings = [
   headings={headings}
 >
   <p class="font-body">
-    Open the <strong>Theme</strong> panel (bottom right) and edit — this page is the target. The panel is
-    modeless (no scrim, no light-dismiss), so you can keep clicking around while it's open.
+    Open the <strong>Theme</strong> panel (bottom right) and edit — this page is the target. The
+    panel is modeless (no scrim, no light-dismiss), so you can keep clicking around while it's open.
   </p>
 
   <!-- ── Colour ──────────────────────────────────────────────────────────── -->
-  <h2 id="colour" class="font-title">Colour</h2>
+  <h2 id="colour" class="font-title">
+    Colour
+  </h2>
   <p class="font-body text-surface-muted">
-    A role resolves to tokens named <code>--color-&lt;target&gt;-&lt;role&gt;[-&lt;variant&gt;]</code>,
-    not to a ramp. The labels below are the <em>class names</em> — the token name minus
+    A role resolves to tokens named{' '}
+    <code>--color-&lt;target&gt;-&lt;role&gt;[-&lt;variant&gt;]</code>, not to a ramp. The labels
+    below are the <em>class names</em> — the token name minus
     <code>--color-</code>. A <b>surface</b> role has a bare <code>bg-</code> and the full range; a
     <b>chromatic</b> role has tints and solids and no bare <code>bg-</code>. Dark mode re-points
     each token; the solid family stays mode-stable so a filled button keeps its identity, and
@@ -84,7 +87,9 @@ const headings = [
 
   {roles.map((role) => (
     <section class="rhythm tp-role">
-      <p class="font-eyebrow">{role.name} <span class="tp-kind">{role.kind}</span></p>
+      <p class="font-eyebrow">
+        {role.name} <span class="tp-kind">{role.kind}</span>
+      </p>
       <div class="tp-swatches">
         {tokensFor(role, 'bg').map((t) => (
           <div class="tp-swatch">
@@ -96,7 +101,9 @@ const headings = [
           <span
             class="tp-chip tp-chip--label"
             style={`background: var(--color-bg-${role.name}-solid); color: var(--color-text-on-${role.name})`}
-          >Aa</span>
+          >
+            Aa
+          </span>
           <code class="font-footnote">text-on-{role.name}</code>
         </div>
       </div>
@@ -140,7 +147,9 @@ const headings = [
   </div>
 
   <!-- ── Typography ──────────────────────────────────────────────────────── -->
-  <h2 id="typography" class="font-title">Typography</h2>
+  <h2 id="typography" class="font-title">
+    Typography
+  </h2>
   <p class="font-body text-surface-muted">
     Semantic roles, not sizes. Each is a bundle of family, size, weight, leading, tracking and
     transform — so changing <code>heading</code> changes every heading, everywhere.
@@ -153,7 +162,9 @@ const headings = [
   ))}
 
   <!-- ── Scales ──────────────────────────────────────────────────────────── -->
-  <h2 id="scales" class="font-title">Scales</h2>
+  <h2 id="scales" class="font-title">
+    Scales
+  </h2>
   <p class="font-body text-surface-muted">
     Both scales are fluid: each step is a <code>clamp()</code> that interpolates with viewport
     width, so resizing the window moves them too.
@@ -187,9 +198,13 @@ const headings = [
   </div>
 
   <!-- ── Layout ──────────────────────────────────────────────────────────── -->
-  <h2 id="layout" class="font-title">Layout</h2>
+  <h2 id="layout" class="font-title">
+    Layout
+  </h2>
 
-  <h3 class="font-heading">Tracks (<code>.centered</code>)</h3>
+  <h3 class="font-heading">
+    Tracks (<code>.centered</code>)
+  </h3>
   <p class="font-body text-surface-muted">
     A track grid: children land in <code>measure</code> by default, and opt out to a wider track.
     Widths are the <code>--width-*</code> knobs in the editor.
@@ -221,12 +236,16 @@ const headings = [
   <h3 class="font-heading">Auto grid</h3>
   <div class="grid-auto">
     {[1, 2, 3, 4, 5, 6].map((n) => (
-      <div class="card"><p class="font-body">Card {n}</p></div>
+      <div class="card">
+        <p class="font-body">Card {n}</p>
+      </div>
     ))}
   </div>
 
   <!-- ── Patterns ────────────────────────────────────────────────────────── -->
-  <h2 id="patterns" class="font-title">Patterns</h2>
+  <h2 id="patterns" class="font-title">
+    Patterns
+  </h2>
   <p class="font-body text-surface-muted">
     Geometry (padding, radius, border, shadow, size) resolves through each pattern's group, so the
     editor's <em>Pattern groups</em> section moves whole families at once and <em>Components</em>
@@ -234,17 +253,26 @@ const headings = [
   </p>
   <p class="font-body text-surface-muted">
     The components themselves — buttons, labels, cards, overlays, navigation and the
-    progressively-enhanced elements — live on <a class="link" href="/patterns">Patterns</a>,
-    where each one is interactive. They used to be duplicated here, which meant two galleries
-    to keep in step and neither of them complete.
+    progressively-enhanced elements — live on{' '}
+    <a class="link" href="/patterns">
+      Patterns
+    </a>
+    , where each one is interactive. They used to be duplicated here, which meant two galleries to
+    keep in step and neither of them complete.
   </p>
 
-  <h2 id="surfaces" class="font-title">Radii &amp; shadows</h2>
+  <h2 id="surfaces" class="font-title">
+    Radii &amp; shadows
+  </h2>
   <div class="cluster-start tp-cluster">
     {radii.map((r) => (
-      <span class="tp-radius" style={`border-radius: var(--br-${r})`}>{r}</span>
+      <span class="tp-radius" style={`border-radius: var(--br-${r})`}>
+        {r}
+      </span>
     ))}
-    <span class="tp-radius" style="border-radius: var(--br-default)">default</span>
+    <span class="tp-radius" style="border-radius: var(--br-default)">
+      default
+    </span>
   </div>
   <div class="cluster-start tp-cluster tp-shadows">
     {shadows.map((s) => (

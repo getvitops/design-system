@@ -36,6 +36,8 @@
   --rhythm-li-li: 0.3;
   --rhythm-text-media: 1.2;
   --rhythm-media-text: 1.2;
+  --rhythm-block: 2; /* a card row, list, accordion or form under prose */
+  --rhythm-block-action: 1.6; /* a button row after the lead */
 }
 
 /* .rhythm establishes a flow-root: contains child top-margins (no collapse-out)
@@ -172,6 +174,27 @@
 }
 .rhythm > :where(figure, img, picture, video) + :where(p, h1, h2, h3, h4, h5, h6, ul, ol) {
   margin-top: calc(var(--rhythm-base) * var(--rhythm-media-text));
+}
+
+/* Block-level children are a block gap apart, not a paragraph apart: a card row, a stats list, an
+   accordion or a form under a lead sat flush at the prose spacing. `:is()` takes its most specific
+   argument (0-1-1), so this beats the paragraph-to-list pairs above (0-1-2 would not tie it).
+   Classless `ul`/`ol` stay prose. A form's own `.rhythm` holds `div` fields, which are not listed,
+   so its tight field spacing is untouched. */
+.rhythm
+  > *
+  + :is(wc-cards, ul[class], ol[class], details, form, table, figure, .accordion, .section__body) {
+  margin-top: calc(var(--rhythm-base) * var(--rhythm-block));
+}
+/* A row of buttons after the lead. */
+.rhythm > * + p.cluster {
+  margin-top: calc(var(--rhythm-base) * var(--rhythm-block-action));
+}
+/* A bare link is inline, and an inline box ignores `margin-top`, so it sat flush under the
+   paragraph above. Buttons (`.cta`, `.btn`) are inline-flex and already space. */
+.rhythm > :where(a:not(.cta, .btn)) {
+  display: block;
+  inline-size: fit-content;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

@@ -489,8 +489,8 @@ becomes dark and \`text-<role>\` becomes light on their own. The solid family an
 them to hexes breaks it.**
 
 Contrast is enforced at build time, not by convention — a violation fails the build.
-Text is held to APCA Lc 75 on a role's primary background and Lc 60 on its secondary
-planes; icons and the surface boundary to Lc 45; and chromatic text is checked against
+Text is held to a WCAG 2 contrast ratio of 4.5:1 on every background plane it sits on;
+icons and the surface boundary to 3:1; and chromatic text is checked against
 the *surface* planes it actually sits on, not just its own tints. Pairing
 \`text-<role>\` with \`bg-<role>\`, or \`text-on-<role>\` with \`bg-<role>-solid\`, is always
 safe. Pairing a raw ramp step with another raw ramp step is not.

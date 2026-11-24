@@ -19,7 +19,7 @@
  * blocks.test.ts checks by literal substring, so reaching them via a spread would
  * pass type-checking and fail the contract test.
  */
-import { resolveBlockValue } from './value.ts';
+import { resolveBlockValue, safeHref } from './value.ts';
 
 interface Value {
   label?: string;
@@ -37,7 +37,9 @@ interface Props {
 }
 
 const value = resolveBlockValue<Value>(Astro.props);
-const { label, href, variant = 'link', startIcon, endIcon, role, newTab = false } = value;
+const { label, variant = 'link', startIcon, endIcon, role, newTab = false } = value;
+// A `javascript:`/`data:` href is dropped, so the block renders nothing rather than a script link.
+const href = safeHref(value.href);
 const { spriteBase = '/vitops' } = Astro.props as Props;
 
 const sprite = `${spriteBase}/icons.svg`;
@@ -49,29 +51,29 @@ const classes = [variant, role ? `${variant}-${role}` : null, newTab ? 'link--ex
 // Only render when there is somewhere to go and something to read — a bare icon
 // with no label would be an unlabelled link.
 const renderable = Boolean(label && href);
+import { rootAttrs } from './attrs.ts';
 ---
 
-{
-  renderable && (
-    <a
-      class={classes}
-      href={href}
-      {...(newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
-      {startIcon && (
-        <span class="icon" aria-hidden="true">
-          <svg>
-            <use href={`${sprite}#icon-${startIcon}`} />
-          </svg>
-        </span>
-      )}
-      <span>{label}</span>
-      {endIcon && (
-        <span class="icon" aria-hidden="true">
-          <svg>
-            <use href={`${sprite}#icon-${endIcon}`} />
-          </svg>
-        </span>
-      )}
-    </a>
-  )
-}
+{renderable && (
+  <a
+    {...rootAttrs(value, [classes])}
+    href={href}
+    {...(newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+  >
+    {startIcon && (
+      <span class="icon" aria-hidden="true">
+        <svg>
+          <use href={`${sprite}#icon-${startIcon}`} />
+        </svg>
+      </span>
+    )}
+    <span>{label}</span>
+    {endIcon && (
+      <span class="icon" aria-hidden="true">
+        <svg>
+          <use href={`${sprite}#icon-${endIcon}`} />
+        </svg>
+      </span>
+    )}
+  </a>
+)}

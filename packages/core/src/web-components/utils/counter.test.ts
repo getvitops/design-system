@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { easingToken, formatterFor, parseFigure } from './counter.ts';
+import { describe, expect, it } from 'vite-plus/test';
+import { easingToken, formatterFor, isAnimatableFigure, parseFigure } from './counter.ts';
 
 describe('parseFigure', () => {
   it('parses a bare integer', () => {
@@ -77,6 +77,16 @@ describe('parseFigure', () => {
   it('falls back to zero for text with no digits', () => {
     expect(parseFigure('—').value).toBe(0);
   });
+
+  it('keeps the space between the number and a word suffix', () => {
+    expect(parseFigure('5 months')).toEqual({
+      prefix: '',
+      suffix: ' months',
+      value: 5,
+      decimals: 0,
+      grouping: false,
+    });
+  });
 });
 
 describe('formatterFor', () => {
@@ -101,5 +111,16 @@ describe('easingToken', () => {
     expect(easingToken('bounce-house')).toBeUndefined();
     expect(easingToken(null)).toBeUndefined();
     expect(easingToken(undefined)).toBeUndefined();
+  });
+});
+
+describe('isAnimatableFigure', () => {
+  it('accepts one figure with its affixes', () => {
+    for (const t of ['94', '94%', '$1,234.50', '+250', '3×', '5 months'])
+      expect(isAnimatableFigure(t), t).toBe(true);
+  });
+  it('rejects text that is not one figure, so it is left as authored', () => {
+    for (const t of ['1 in 6', '24/7', '—', '', '2 of 3 sites'])
+      expect(isAnimatableFigure(t), t).toBe(false);
   });
 });

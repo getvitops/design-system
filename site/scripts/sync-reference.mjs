@@ -116,7 +116,9 @@ function splitFrontmatter(md) {
 }
 
 const yaml = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
-const SLUG = new Map(PAGES.map(([path]) => [path, `/reference/${path.replace(/\//g, '-').replace(/\.md$/, '')}/`]));
+const SLUG = new Map(
+  PAGES.map(([path]) => [path, `/reference/${path.replace(/\//g, '-').replace(/\.md$/, '')}/`]),
+);
 
 /**
  * The two schema references resolve into the one interactive page that replaced
@@ -151,23 +153,26 @@ SLUG.set('concepts/components.md', '/components/');
  */
 function rewriteLinks(md, fromPath) {
   const fromDir = fromPath.includes('/') ? fromPath.slice(0, fromPath.lastIndexOf('/')) : '';
-  return md.replace(/\[([^\]]+)\]\(([^)\s]+\.md)(#[^)\s]*)?\)/g, (whole, text, target, hash = '') => {
-    const segs = (fromDir ? `${fromDir}/${target}` : target).split('/');
-    const stack = [];
-    for (const s of segs) {
-      if (s === '..') stack.pop();
-      else if (s !== '.' && s !== '') stack.push(s);
-    }
-    const resolved = stack.join('/');
-    if (resolved.endsWith('index.md')) return text; // listing page — no equivalent here
-    const slug = SLUG.get(resolved);
-    if (!slug) return whole;
-    // A slug may already carry an anchor (the schema references land on a section
-    // of the config tree). A source hash is more specific, so it wins; otherwise
-    // keep the slug's. Appending blindly would emit `#designSystem#colors`.
-    const href = hash ? `${slug.replace(/#.*$/, '')}${hash}` : slug;
-    return `[${text}](${href})`;
-  });
+  return md.replace(
+    /\[([^\]]+)\]\(([^)\s]+\.md)(#[^)\s]*)?\)/g,
+    (whole, text, target, hash = '') => {
+      const segs = (fromDir ? `${fromDir}/${target}` : target).split('/');
+      const stack = [];
+      for (const s of segs) {
+        if (s === '..') stack.pop();
+        else if (s !== '.' && s !== '') stack.push(s);
+      }
+      const resolved = stack.join('/');
+      if (resolved.endsWith('index.md')) return text; // listing page — no equivalent here
+      const slug = SLUG.get(resolved);
+      if (!slug) return whole;
+      // A slug may already carry an anchor (the schema references land on a section
+      // of the config tree). A source hash is more specific, so it wins; otherwise
+      // keep the slug's. Appending blindly would emit `#designSystem#colors`.
+      const href = hash ? `${slug.replace(/#.*$/, '')}${hash}` : slug;
+      return `[${text}](${href})`;
+    },
+  );
 }
 
 let written = 0;

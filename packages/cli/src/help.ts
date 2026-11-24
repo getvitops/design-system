@@ -19,7 +19,7 @@ Usage:
   vitops init [options]         Scaffold a starter design-system.json
   vitops validate <file>        Validate a config against the schema it says it is
   vitops favicon [options]      Generate a favicon set from a source image
-  vitops agents [options]       Link the design-system agent skill + AGENTS.md pointer
+  vitops agents [sync] [options] Link the agent skills + keep a short managed block at the top of AGENTS.md
   vitops docs [topic]           Print live design-system reference docs to stdout
   vitops lint [opts] [files]    Report classes that resolve to nothing + primitives you re-implemented
   vitops legal [options]        Render legal documents from a site config
@@ -29,7 +29,10 @@ Usage:
   vitops search <sub> [opts]    Search Console: onboard domains (setup) + notify deploys (notify)
   vitops ads <sub> [opts]       Ad properties: verify domains (setup) + emit pixels (tags) + lint
   vitops setup <sub> [opts]     Scripted onboarding: repo, hosting, domain, search, ads, all
+  vitops email <sub> [opts]     Sender-domain onboarding: check (setup) + deploy guard (check)
   vitops media [options]       Encode raw video into web-ready WebM + MP4 + poster
+  vitops audit [options]       Performance + accessibility budgets over a built site (Lighthouse + axe)
+  vitops report [options]      Draft a redacted issue against the toolchain (files only on --submit)
 
 Generate options:
   -i, --input <path>    design-system.json or site config (default: ./design-system.json)
@@ -78,14 +81,19 @@ Agents options:
   -i, --input <path>    design-system.json or site config (default: ./design-system.json;
                         validated if present)
       --theme <name>    Theme to read, when --input is a site config
-  -o, --out <path>      Doc file to update, idempotently (default: ./AGENTS.md)
+  -o, --out <path>      Doc file to update, idempotently (default: ./AGENTS.md). Only the fenced
+                        \`<!-- vitops:start -->\` block is written: added at the top when absent,
+                        replaced in place when present, everything else left alone. It names the
+                        config and links the vitops skills linked under .agents/skills (the CLI's own
+                        and those of an installed @getvitops/skills, which this command also links).
       --docs-dir <dir>  Legacy layout: write the docs bundle as files to this dir
                         instead of linking the packaged skill
 
 Docs options:
   <topic>               classes | authoring | formats | color | scales | patterns | elements
                         (no topic: list topics with summaries)
-  -i, --input <path>    design-system.json or site config (default: ./design-system.json)
+  -i, --input <path>    site config or design-system.json (default: ./site.json, else
+                        ./design-system.json)
       --theme <name>    Theme to render docs from, when --input is a site config
       --all             Print every topic, concatenated
 
@@ -98,7 +106,8 @@ Icons options:
       --json            Machine-readable report on stdout
 
 Lint options:
-  -i, --input <path>    design-system.json or site config (default: ./design-system.json)
+  -i, --input <path>    site config or design-system.json (default: ./site.json, else
+                        ./design-system.json)
       --theme <name>    Theme to judge classes against, when --input is a site config
   -f, --format <fmt>    Format you build (bricks | css | tailwind; default: bricks).
                         Responsive md-* classes are real in css/bricks, inert in tailwind.
@@ -120,8 +129,8 @@ Lint options:
 Legal options:
   -i, --input <path>    Site config: .json, or a .js/.ts module with a default
                         export (default: ./site.json)
-  -d, --doc <name>      privacy | terms | cookies (repeatable; default: those
-                        enabled in the config)
+  -d, --doc <name>      privacy | terms | cookies | accessibility (repeatable;
+                        default: those enabled in the config)
   -f, --format <fmt>    md | html | portable-text (default: md)
                         html suits WordPress/Bricks and plain sites;
                         portable-text suits EmDash
@@ -277,6 +286,33 @@ Ads lint options:
   off (every conversion arrives unattributed), and a configured property with no
   tag ID. Exits non-zero on a finding.
 
+Crm check options:
+  -i, --input <path>    Site config carrying site.crm (default: ./site.json)
+      --site-env <env>  Environment to resolve (default: production)
+
+  Fetches the live field/property list (HubSpot: crm/v3/properties/contacts;
+  Bigin: bigin/v2/settings/fields) and reports every fieldMap/trackingFields
+  target that doesn't exist there. HubSpot rejects a submission naming an
+  unrecognised property; Bigin silently ignores it — this is the only way to
+  see a broken mapping before a real submission finds it. Needs
+  VITOPS_HUBSPOT_ACCESS_TOKEN, VITOPS_ZOHO_CLIENT_ID/_CLIENT_SECRET/
+  _REFRESH_TOKEN, or (unused for now) VITOPS_JOBBER_CLIENT_ID/_CLIENT_SECRET/
+  _REFRESH_TOKEN, matching whichever provider site.crm names. Jobber currently
+  renders fieldMap/trackingFields as note-text lines rather than app-configured
+  custom fields, so there is nothing live to check there yet. Exits non-zero
+  on any missing target.
+
+Crm setup options:
+  -i, --input <path>    Site config carrying site.crm (default: ./site.json)
+      --site-env <env>  Environment to resolve (default: production)
+      --dry             Print what would be created and exit. Creates nothing.
+
+  HubSpot: creates missing contact properties named by fieldMap/trackingFields.
+  Bigin: no such API exists, so this always prints a manual reminder listing
+  the fields to add in Zoho Bigin's field editor, then re-run "crm check".
+  Jobber: app-configured custom fields aren't wired up yet, so this prints a
+  reminder instead of creating anything.
+
 Setup repo options:
       --dry             Print the plan and exit
       --check           Report drift/blocked steps and exit non-zero, mutating nothing
@@ -314,6 +350,22 @@ Setup domain options:
   or deploys. Cutover overwrites the zone's DNS record and can take an existing live
   site down; that step is manual, on purpose. See SETUP.html's "Domain strategy" stage.
 
+Setup turnstile options:
+  -i, --input <path>    Site config (default: ./site.json)
+      --site-env <env>  Environment to read (default: production)
+      --dry             Print the plan and exit (needs no token)
+      --check           Exit non-zero if no widget/site key is set up; mutates nothing
+      --no-write        Do not write site.security.turnstile.siteKey back to the config
+      --no-secret       Do not run \`wrangler secret put\` for the new widget's secret
+
+  Creates a managed Turnstile widget for the site's hostnames (canonical + each
+  environment URL) unless one already covers them, and writes the PUBLIC site key to
+  site.security.turnstile.siteKey. The SECRET is returned once at creation: it is piped
+  to \`wrangler secret put VITOPS_TURNSTILE_SECRET\` and never written to a config file.
+  Never edits, rotates or deletes an existing widget.
+  Needs CLOUDFLARE_API_TOKEN with "Account > Turnstile > Edit", plus CLOUDFLARE_ACCOUNT_ID
+  (or a token that can list accounts), and \`wrangler login\` for the secret.
+
 Setup search options:
   Forwards every option to \`vitops search setup\` unchanged — see "Search setup
   options:" above.
@@ -331,6 +383,69 @@ Setup all options:
 
   Runs repo, hosting, search, ads in order. Stops at the first stage that fails;
   a blocked step (the API token, GitHub Pro/Team gating) is reported, not fatal.
+
+Emdash subcommands:
+  vitops emdash prepare-db           Migrate and seed the local D1 the build prerenders from
+  vitops emdash check-prerender [d]  Fail if a prerendered page is not a real page
+  vitops emdash build [d]            astro build, then check-prerender; fails on blocks with no renderer
+
+Emdash prepare-db options:
+  (none)  Starts \`astro dev\` once, calls EmDash's dev-bypass setup (migrates, applies the
+          seed's sample content), checks the home page renders, stops. Only writes the
+          disposable .wrangler/state. SKIP_PREPARE_LOCAL_DB=1 skips it.
+
+Emdash check-prerender options:
+  [dir]   Build output to check (default: dist/client). Fails on a page that carries the
+          pending-migrations message, is not an HTML document, or has no <title>.
+  --strict  Also fail (not just warn) when a page uses a type-role class (font-display, …)
+          the built CSS has no rule for, links to pages the build did not produce, a page without
+          exactly one <h1>, or a form with nowhere to send it (reads ./site.json, or --site=<path>).
+
+Emdash build options:
+  [dir]   Runs \`astro build\`, then check-prerender on [dir] (default: dist/client). Also fails
+          when the build reports a block type with no component ("PortableText
+          [components.type] is missing …"): the page was published without that content.
+  --strict  Passed through to check-prerender.
+
+Email subcommands:
+  vitops email setup [domain]  Onboard a from-address domain, waiting for its DNS to resolve
+  vitops email check [opts]    Non-blocking deploy guard: warn if a from domain isn't onboarded
+
+Email setup options:
+  -i, --input <path>    Site config carrying site.notifications.email (default: ./site.json)
+      --site-env <env>  Environment whose A/B variant applies (default: production)
+  [domain]              Onboard this exact name instead of deriving candidates from
+                        config + a source scan
+      --src <dir>       Source to scan for from: literals as a supplement to config
+                        (default: ./src)
+      --dry             Print the plan and exit. Needs no credential — plans from
+                        scratch and says so.
+      --check           Report drift and exit non-zero. Mutates nothing.
+      --no-prompt       Never ask before enabling a domain (the default when
+                        stdin is not a TTY, e.g. in CI — it just enables)
+      --timeout <s>     Cap on each DNS-propagation poll wait, in seconds (default: 5)
+
+  The onboarded entity is an EXACT name, and it is usually a subdomain
+  (send.example.com), never the apex a from address names. When the exact
+  domain is absent but a sibling in the same zone is already onboarded, this
+  is reported blocked rather than silently enabling the apex too — enabling
+  it rewrites _dmarc.<domain>, which can tighten policy on every OTHER mail
+  sent from that domain. Sending from the onboarded sibling is the
+  recommended fix. Needs CLOUDFLARE_API_TOKEN (Zone:Read + an Email Sending
+  scope — broader than the "Edit zone DNS" template other commands use).
+
+Email check options:
+  -i, --input <path>    Site config carrying site.notifications.email (default: ./site.json)
+      --site-env <env>  Environment whose A/B variant applies (default: production)
+      --src <dir>       Source to scan for from: literals (default: ./src)
+      --strict          Exit non-zero on drift (the default just warns and exits 0)
+      --skip            Skip the check entirely (same as VITOPS_SKIP_EMAIL_CHECK)
+
+  Meant to run before a deploy. With no CLOUDFLARE_API_TOKEN it reports "not
+  checked" and exits 0, so a CI job without the secret never fails on the
+  check itself. Skip per-site with site.notifications.email.verifySender: false
+  when the scan can't see the real from address and the warning would be a
+  false positive.
 
 Media options:
       --raw <dir>       Directory of unprocessed video, walked recursively
@@ -357,6 +472,54 @@ Media options:
   ffmpeg output is not reproducible across versions, so re-encoding in CI churns
   the diff on every toolchain bump. Use --force when you mean to re-encode.
 
+Report options:
+      --type <t>        bug | deprecation | improvement (required)
+      --title <text>    Issue title (required)
+      --body-file <p>   Your draft, in your own words (required). Text with no \`###\`
+                        headings becomes the type's main field; \`### <Field>\` sections
+                        are kept as written.
+      --package <name>  Affected package: core, generator, utils, cli, vite, astro,
+                        config, create, skills or emdash
+      --format <f>      Output format involved (css, bricks, tailwind, design)
+      --platform <p>    Default: detected from package.json (EmDash / Static Astro / Other)
+  -i, --input <path>    Site config whose names, domains and contact details are
+                        redacted from the draft (default: ./site.json, skipped if absent)
+      --search          List possible duplicate issues first (needs \`gh\`)
+      --submit          File the issue publicly, after a confirmation on a TTY
+      --yes             Skip that confirmation. Only after the person approved the draft.
+      --reported-by <w> agent (default) | human
+
+  The issue tracker is public. Without --submit this files nothing: it prints the
+  redacted draft and a prefilled new-issue URL. Redaction is a net, not a guarantee.
+
+Audit options:
+      --build           Run \`astro build\` first (default: audit the existing build)
+      --url <base>      Audit an already-running server instead of \`astro preview\`
+      --port <n>        Port for \`astro preview\` (default: 4398; aborts if taken)
+      --dir <path>      Project directory (default: .)
+      --pages <list>    Extra comma-separated paths. The page list is the built sitemap
+                        plus links in seed/seed.json's primary* and footer* menus; only
+                        when neither exists are / /privacy /terms /cookies /contact
+                        guessed. A 404 skips a page (with its reason in the report); a
+                        404 on / fails the run.
+      --no-defaults     Never guess the default pages
+      --seed <path>     EmDash seed to read menus from (default: seed/seed.json if present)
+      --lcp <ms>        LCP budget (default: 2500)
+      --cls <n>         CLS budget (default: 0.1)
+      --tbt <ms>        Total Blocking Time budget, the INP proxy (default: 200)
+      --impact <list>   axe impacts that fail a page (default: serious,critical)
+      --form-factor <f> mobile | desktop Lighthouse profile (default: mobile)
+  -i, --input <file>    site.json to read \`site.accessibility\` from (default: site.json, optional):
+                        sets the axe tags and whether violations fail the run (\`none\` = report only)
+  -o, --out <dir>       Report directory (default: .vitops/audit): report.json, report.md,
+                        report.html and pages/<page>.{json,md}. An artifact, not site content:
+                        it lists every violation, so never copy it into the build output.
+      --warn            Report without failing (exit 0), for first adoption
+
+  Needs the optional packages: vp add -D playwright @axe-core/playwright lighthouse
+  && vp exec playwright install chromium (checked before any server starts). A pass means no automated axe violations and the
+  budgets held — it is NOT AODA certification; report.md lists the manual checks.
+
 Common:
   -h, --help            Show this help
 `;
@@ -374,6 +537,58 @@ export const ADS_HELP = `vitops ads — link this site to its ad properties
   vitops ads setup [opts]       Ensure each platform's domain-verification DNS record
   vitops ads tags [opts]        Print the consent-gated pixel snippets
   vitops ads lint [opts]        Report ad properties the rest of the config can't see
+
+Run \`vitops --help\` for the full option list for each subcommand.
+`;
+
+export const CRM_HELP = `vitops crm — push form submissions into a client CRM
+
+  vitops crm check [opts]       Compare site.crm's fieldMap/trackingFields against the live CRM
+  vitops crm setup [opts]       Create missing HubSpot properties (Bigin/Jobber have no such API)
+
+Run \`vitops --help\` for the full option list for each subcommand.
+`;
+
+export const EMAIL_HELP = `vitops email — sender-domain onboarding checks
+
+  vitops email setup [domain]  Onboard a from-address domain, waiting for its DNS to resolve
+  vitops email check [opts]    Non-blocking deploy guard: warn if a from domain isn't onboarded
+
+Run \`vitops --help\` for the full option list for each subcommand.
+`;
+
+export const EMDASH_HELP = `vitops emdash — build-time steps for an EmDash site
+
+  vitops emdash prepare-db           Migrate and seed the local D1 the build prerenders from
+                                     (SKIP_PREPARE_LOCAL_DB=1 skips)
+  vitops emdash check-prerender [d]  Fail if a prerendered page under [d] (default dist/client)
+                                     is not a real page
+  vitops emdash build [d]            astro build, then check-prerender; also fails when the build
+                                     reports a block type with no component (content dropped)
+  vitops emdash form-template --from <seed.json> [--name contact] [--site site.json] [--dry]
+                                     Copy a vitops_form block into site.templates (the privacy
+                                     policy's "what we collect" and a check-prerender input)
+  vitops emdash schema diff --from <url|file> --to <url> [--json|--markdown] [--check]
+                                     What would be replayed from one instance's collections and
+                                     fields onto another's (additions only; differences and
+                                     target-only items are reported, never changed). --check exits 1
+                                     on drift. Tokens: EMDASH_TOKEN_FROM / EMDASH_TOKEN_TO
+  vitops emdash schema apply --from <url|file> --to <url> [--dry]
+                                     Apply those additions to --to. Stops at the first failure
+  vitops emdash schema export --url <site> --out <file>
+                                     Save a site's schema (EMDASH_TOKEN) to compare after a reset
+  vitops emdash db copy --target dev|rehearse [--id <run>] [--dry]
+                                     Copy production's D1 into the dev database (wiped first) or a
+                                     rehearsal database. Refuses a target that is production
+  vitops emdash db snapshot --out <dir> [--target dev|prod]
+                                     Dump a database to four SQL files
+  vitops emdash db guard-dev [--force]
+                                     Exit 1 if dev content changed since the last sync
+  vitops emdash db mark-synced       Record that dev now equals production
+  vitops emdash db rehearsal create|drop --id <run>
+                                     Create or delete the throwaway rehearsal database
+  vitops emdash db rewrite-config --id <run> --out <file> [--in dist/server/wrangler.json]
+                                     Point a wrangler config's DB binding at a rehearsal database
 
 Run \`vitops --help\` for the full option list for each subcommand.
 `;
@@ -410,15 +625,23 @@ export const COMMANDS = [
   'icons',
   'search',
   'ads',
+  'crm',
   'setup',
+  'email',
+  'emdash',
   'media',
+  'audit',
+  'report',
 ] as const;
 
 /** Commands that group subcommands instead of taking options directly. */
 export const SUBCOMMANDS: Record<string, readonly string[]> = {
   search: ['setup', 'notify'],
   ads: ['setup', 'tags', 'lint'],
-  setup: ['repo', 'hosting', 'domain', 'search', 'ads', 'all'],
+  crm: ['check', 'setup'],
+  setup: ['repo', 'hosting', 'domain', 'turnstile', 'search', 'ads', 'all'],
+  email: ['setup', 'check'],
+  emdash: ['prepare-db', 'check-prerender', 'build'],
 };
 
 /**
@@ -461,9 +684,15 @@ export function helpFor(command: string, argv: string[]): string {
       ? SEARCH_HELP
       : command === 'ads'
         ? ADS_HELP
-        : command === 'setup'
-          ? SETUP_HELP
-          : undefined) ??
+        : command === 'crm'
+          ? CRM_HELP
+          : command === 'setup'
+            ? SETUP_HELP
+            : command === 'email'
+              ? EMAIL_HELP
+              : command === 'emdash'
+                ? EMDASH_HELP
+                : undefined) ??
     HELP
   );
 }

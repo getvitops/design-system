@@ -55,7 +55,7 @@
 
 .sticky-sidebar {
   --_sticky-offset: var(--sticky-sidebar-offset, 1rem);
-  --_sticky-max-height: var(--sticky-sidebar-max-height, calc(100vh - 2rem));
+  --_sticky-max-height: var(--sticky-sidebar-max-height, calc(100dvh - 2rem));
 
   position: sticky;
   inset-block-start: var(--_sticky-offset);

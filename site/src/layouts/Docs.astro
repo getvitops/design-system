@@ -31,6 +31,7 @@
 import Head from '@getvitops/astro/Head.astro';
 import NavShell from '@getvitops/astro/components/NavShell.astro';
 import NavShellToggle from '@getvitops/astro/components/NavShellToggle.astro';
+import ContrastToggle from '@getvitops/astro/components/ContrastToggle.astro';
 import Seo from '@getvitops/astro/Seo.astro';
 import { getCollection } from 'astro:content';
 import '../styles/styles.css';
@@ -65,17 +66,23 @@ const PAGES = [
   { id: 'animation', data: { title: 'Animation library', section: 'Live preview', order: 20 } },
   { id: 'icons', data: { title: 'Icons', section: 'Live preview', order: 30 } },
   { id: 'patterns', data: { title: 'Patterns', section: 'Live preview', order: 40 } },
+  { id: 'masthead', data: { title: 'Masthead', section: 'Live preview', order: 50 } },
+  { id: 'configure', data: { title: 'Configure a site', section: 'Live preview', order: 60 } },
   // Renders the config JSON Schema as a live `<wc-tree>`; see the page's own note
   // on why it isn't a generated markdown entry like its Reference siblings.
   { id: 'reference/config', data: { title: 'Config reference', section: 'Reference', order: 15 } },
   // One page per tier, projected from the generator's TIERS manifest. The agent-facing
-  // bundle keeps all four in ONE doc (`vitops docs components`) — see the section
+  // bundle keeps every tier in ONE doc (`vitops docs components`) — see the section
   // overview for why the two shapes are opposite on purpose.
   { id: 'components', data: { title: 'Overview', section: 'Components', order: 10 } },
   { id: 'components/css', data: { title: 'CSS classes', section: 'Components', order: 20 } },
-  { id: 'components/elements', data: { title: 'Web components', section: 'Components', order: 30 } },
+  {
+    id: 'components/elements',
+    data: { title: 'Web components', section: 'Components', order: 30 },
+  },
   { id: 'components/astro', data: { title: 'Astro components', section: 'Components', order: 40 } },
   { id: 'components/bricks', data: { title: 'Bricks elements', section: 'Components', order: 50 } },
+  { id: 'components/emdash', data: { title: 'EmDash blocks', section: 'Components', order: 60 } },
 ];
 
 const all = [...(await getCollection('docs')), ...PAGES];
@@ -87,7 +94,8 @@ const nav = SECTIONS.map((section) => ({
 })).filter((g) => g.items.length);
 
 const here = Astro.url.pathname.replace(/\/$/, '');
-const href = (id: string) => `${import.meta.env.BASE_URL}${id === 'index' ? '' : id}`.replace(/\/$/, '') || '/';
+const href = (id: string) =>
+  `${import.meta.env.BASE_URL}${id === 'index' ? '' : id}`.replace(/\/$/, '') || '/';
 // Only h2/h3 make a useful on-page TOC; deeper headings are detail.
 const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
 ---
@@ -102,42 +110,60 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
       og:/twitter: tags this site never had.
     */}
     <Seo title={title} description={description} />
-    <Head />
+    <Head contrast />
   </head>
 
   <body class="bg-surface-muted text-surface">
-    <a class="link skip-link" href="#content">Skip to content</a>
+    <a class="link skip-link" href="#content">
+      Skip to content
+    </a>
 
     <header class="sticky-header docs-header bg-surface-x-muted">
-      <div class="centered"><div class="spotlight cluster-between" style="align-items: center; gap: 1rem">
-        <!-- The site nav's toggle, hoisted out of the shell into the header.
+      <div class="centered">
+        <div class="spotlight cluster-between" style="align-items: center; gap: 1rem">
+          <!-- The site nav's toggle, hoisted out of the shell into the header.
              Two nested shells each rendering their own sticky bar put both at
              the same offset, overlapping; the header is already sticky, so this
              leaves exactly one in-flow bar (the TOC's). `breakpoint` must match
              the shell's — outside `.navshell` the toggle can't read its flag. -->
-        <div class="cluster-start" style="align-items: center; gap: 0.5rem">
-          <NavShellToggle for="site-nav" label="Menu" breakpoint="md" />
-          <a class="font-title docs-brand" href={href('index')}>Vitops</a>
-        </div>
+          <div class="cluster-start" style="align-items: center; gap: 0.5rem">
+            <NavShellToggle for="site-nav" label="Menu" breakpoint="md" />
+            <a class="font-title docs-brand" href={href('index')}>
+              Vitops
+            </a>
+          </div>
 
-        <nav class="cluster-start docs-header__links" style="gap: 1rem; align-items: center">
-          <a class="link" href={href('guides/installation')}>Guides</a>
-          <a class="link" href={href('components')}>Components</a>
-          <a class="link" href={href('packages/cli')}>Packages</a>
-          <a class="link" href={href('theme')}>Theme</a>
-          <a class="link" href={href('reference/config')}>Reference</a>
-          <a class="link" href={href('changelog')}>Changelog</a>
-          <!-- Self-contained (shadow DOM, renders its own segmented control) and
+          <nav class="cluster-start docs-header__links" style="gap: 1rem; align-items: center">
+            <a class="link" href={href('guides/installation')}>
+              Guides
+            </a>
+            <a class="link" href={href('components')}>
+              Components
+            </a>
+            <a class="link" href={href('packages/cli')}>
+              Packages
+            </a>
+            <a class="link" href={href('theme')}>
+              Theme
+            </a>
+            <a class="link" href={href('reference/config')}>
+              Reference
+            </a>
+            <a class="link" href={href('changelog')}>
+              Changelog
+            </a>
+            <!-- Self-contained (shadow DOM, renders its own segmented control) and
                `display: none` until `:defined`, so with no JS it simply isn't
                there. Colour scheme then follows the OS via prefers-color-scheme,
                which the generated stylesheet emits because this site opts in
                (`css.systemColorScheme`, or `designSystem.defaultColorScheme:
                "system"` in a site config). Without it both the no-JS case and
                the toggle's own "System" position resolve to light. -->
-          <wc-color-scheme-toggle></wc-color-scheme-toggle>
-        </nav>
-
-      </div></div>
+            <wc-color-scheme-toggle></wc-color-scheme-toggle>
+            <ContrastToggle />
+          </nav>
+        </div>
+      </div>
     </header>
 
     <!-- `.centered` is a *track* grid (fullbleed/spotlight/breakout/measure) and
@@ -164,7 +190,9 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
                     class="navshell__link"
                     aria-current={here === href(item.id) ? 'page' : undefined}
                     href={href(item.id)}
-                  >{item.data.title}</a>
+                  >
+                    {item.data.title}
+                  </a>
                 ))}
               </>
             ))}
@@ -178,7 +206,8 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
               <aside class="card bg-info-muted">
                 <p class="font-caption">
                   <strong>Generated page.</strong> Rendered from this project’s
-                  <code>design-system.json</code> by <code>@getvitops/generator</code> — the same bundle
+                  <code>design-system.json</code> by <code>@getvitops/generator</code> — the same
+                  bundle
                   <code>vitops docs</code> prints against your own config. Don’t edit it by hand.
                 </p>
               </aside>
@@ -191,13 +220,19 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
                       :target-current. CSS-only and Chrome-only today; other engines
                       simply show no highlight until they ship scroll-target-group. */}
                   {toc.map((h) => (
-                    <a class="navshell__link" data-depth={h.depth} href={`#${h.slug}`}>{h.text}</a>
+                    <a class="navshell__link" data-depth={h.depth} href={`#${h.slug}`}>
+                      {h.text}
+                    </a>
                   ))}
                 </Fragment>
-                <div class="rhythm docs-prose"><slot /></div>
+                <div class="rhythm docs-prose">
+                  <slot />
+                </div>
               </NavShell>
             ) : (
-              <div class="rhythm docs-prose"><slot /></div>
+              <div class="rhythm docs-prose">
+                <slot />
+              </div>
             )}
           </main>
         </NavShell>
@@ -211,10 +246,16 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
     <wc-theme-editor></wc-theme-editor>
 
     <footer class="docs-footer bg-surface-x-muted">
-      <div class="centered"><div class="spotlight cluster-between font-footnote text-surface-muted">
-        <p>Built with the design system it documents.</p>
-        <p><a class="link" href="https://www.npmjs.com/org/getvitops">@getvitops on npm</a></p>
-      </div></div>
+      <div class="centered">
+        <div class="spotlight cluster-between font-footnote text-surface-muted">
+          <p>Built with the design system it documents.</p>
+          <p>
+            <a class="link" href="https://www.npmjs.com/org/getvitops">
+              @getvitops on npm
+            </a>
+          </p>
+        </div>
+      </div>
     </footer>
 
     <style>
@@ -245,8 +286,10 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
       }
       /* Markdown emits bare <table>, with nothing to hang `.table-wrapper` on.
          Wrapping it would need a rehype plugin; four lines is the cheaper trade
-         until a second consumer wants it. */
-      .docs-prose :global(table) {
+         until a second consumer wants it. Bare means classless: this rule is unlayered, so it
+         beats the framework's layered patterns, and `<wc-entries>`' generated table
+         (`.entries__table`) needs its own `display: none` to win. */
+      .docs-prose :global(table:not([class])) {
         display: block;
         max-inline-size: 100%;
         overflow-x: auto;

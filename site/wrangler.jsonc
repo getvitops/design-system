@@ -7,11 +7,15 @@
   // dogfoods the client deploy path rather than the GitHub Pages path it used
   // to deploy through.
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist",
   },
   // Apex custom domain. Cloudflare provisions the DNS record + TLS cert on
   // deploy (the zone must already exist in the account). The dev deploy
   // (deploy-dev.yml) rewrites this to `dev.docs.vitops.ca` and the worker
   // name to `vitops-docs-dev` before deploying — see that workflow.
-  "routes": [{ "pattern": "docs.vitops.ca", "custom_domain": true }],
+  // TEMPORARILY DISABLED during the admin@monad.media account migration —
+  // this Worker never existed on alex@vitops.ca (docs.vitops.ca has been
+  // served by GitHub Pages, not Cloudflare, until now); this is a fresh
+  // deploy, not a migration. Restore once the DEST zone is active (Phase 5).
+  // "routes": [{ "pattern": "docs.vitops.ca", "custom_domain": true }],
 }

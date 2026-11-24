@@ -22,6 +22,7 @@ import {
   type ContactObject,
   type Config,
 } from '../config.ts';
+import { deriveAccessibilityVars, type AccessibilityVars } from './accessibility.ts';
 import { resolveProcessors, type Processor } from './providers.ts';
 
 /**
@@ -113,6 +114,22 @@ export interface PolicyVars {
   countries: string | undefined;
   consentModel: 'opt-in' | 'opt-out' | 'none';
   cookieCategories: string[];
+  /** Name of the privacy contact, when `privacyOfficer` is an inline contact with one. */
+  privacyOfficerName: string | undefined;
+  /** Title of the person in charge of privacy, as declared (`privacyOfficerTitle`). */
+  privacyOfficerTitle: string | undefined;
+  /** `legal.privacyPolicy.impactAssessments === true` — an attestation, never inferred. */
+  transferAssessment: boolean;
+  /**
+   * Technologies on the site that can identify or profile a visitor, as noun
+   * phrases: providers that set cookies, session replay, ad attribution, ad pixels.
+   * Derived from what the config already enables; empty when none is.
+   */
+  trackingTechnologies: string[];
+  /** A form asks for a newsletter/subscription — the one signal that the site sends commercial e-mail. */
+  newsletterSignup: boolean;
+  /** What the accessibility statement asserts; see `accessibility.ts`. Only that document reads it. */
+  accessibility: AccessibilityVars;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
@@ -183,6 +200,7 @@ function fieldPhrase(name: string, type: string): string | undefined {
     case 'select':
     case 'radio':
     case 'checkbox':
+    case 'checkboxes':
       return 'your answers to the questions we ask';
     default:
       break;
@@ -446,6 +464,15 @@ export function derivePolicyVars(cfg: Config): PolicyVars {
 
   const address = contact?.address ?? org?.address;
 
+  const trackingTechnologies = uniq([
+    ...cookieProcessors.map((p) => `${p.name} (${p.purpose})`),
+    hasSessionReplay ? 'session recording of how you interact with a page' : undefined,
+    hasAdTracking
+      ? 'advertising attribution (the `_ac` cookie described in our Cookie Notice)'
+      : undefined,
+    ...Object.keys(site.ads ?? {}).map((a) => `${a} advertising measurement`),
+  ]);
+
   return {
     businessName,
     url: site.domains?.canonical ?? '',
@@ -483,5 +510,11 @@ export function derivePolicyVars(cfg: Config): PolicyVars {
     countries: countries || undefined,
     consentModel: consent?.enabled ? (consent.type ?? 'opt-in') : 'none',
     cookieCategories: consent?.categories ?? [],
+    privacyOfficerName: contact?.name,
+    privacyOfficerTitle: privacy?.privacyOfficerTitle,
+    transferAssessment: privacy?.impactAssessments === true,
+    trackingTechnologies,
+    newsletterSignup: fields.some((f) => /newsletter|subscribe|mailing/i.test(f.name)),
+    accessibility: deriveAccessibilityVars(cfg),
   };
 }

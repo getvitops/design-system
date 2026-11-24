@@ -25,25 +25,33 @@
  * Everything decidable is here and unit-tested; `Ads.astro` renders what this
  * returns and chooses nothing.
  */
-import { AD_PLATFORMS, AD_PROVIDER_KEYS, type AdProvider } from '@getvitops/utils/ads';
+import {
+  AD_PLATFORMS,
+  AD_PROVIDER_KEYS,
+  normalizeConversionLabels,
+  type AdProvider,
+  type ConversionLabelMap,
+} from '@getvitops/utils/ads';
+import type { AdPropertyConfig } from '@getvitops/config';
 import type { AnalyticsStrategy, ConsentCategory, GatedTag } from './analytics.ts';
 
 /**
- * One ad property, mirroring a `site.ads` entry field for field.
- *
- * Structural rather than `SiteAdProperty` imported from the generator, matching
- * how `GetvitopsSeoOptions` and `GetvitopsTrackingOptions` already work: the
- * component surface must stay usable by a consumer who passes a plain object.
+ * One ad property, as `<Ads />` reads it: the fields of a `site.ads` entry that decide what is
+ * emitted. A subset of `AdPropertyConfig` from `@getvitops/config` — the schema's own inferred
+ * type, not a copy — so a plain object is still enough for a consumer to pass, and a field the
+ * schema renames fails here instead of silently reading `undefined`.
  */
-export interface GetvitopsAdProperty {
-  accountId?: string;
-  pixelId?: string;
-  conversionLabel?: string;
-  /** Default `marketing`. `analytics` for a property used purely for measurement. */
-  category?: 'marketing' | 'analytics';
-  /** False keeps the property on record without emitting its tag. */
-  enabled?: boolean;
-}
+export type GetvitopsAdProperty = Pick<
+  AdPropertyConfig,
+  | 'accountId'
+  | 'pixelId'
+  | 'conversionLabel'
+  | 'conversionActionId'
+  | 'callTracking'
+  | 'reporting'
+  | 'category'
+  | 'enabled'
+>;
 
 export type GetvitopsAdsOptions = Partial<Record<AdProvider, GetvitopsAdProperty>>;
 
@@ -79,6 +87,9 @@ export interface ResolveAdsContext {
  */
 const SAFE_ID = /^[\w.-]+$/;
 
+/** A displayed phone number: digits and the punctuation people write around them. */
+const SAFE_PHONE = /^\+?[\d\s().-]{7,20}$/;
+
 /** Resolve the configured ad properties into the tags `<Ads />` emits. */
 export function resolveAds(
   ads: GetvitopsAdsOptions | undefined,
@@ -113,6 +124,53 @@ export function resolveAds(
       continue;
     }
 
+    // `conversionLabel` lands inside the same inline `<script>` as `id` (Google's
+    // bootstrap embeds it to expose a conversion `send_to` target per action) —
+    // same injection surface, so every configured label gets the same check.
+    // Unlike an invalid `id`, an invalid label doesn't sink the whole tag: it
+    // just means that one action's conversion doesn't fire, which is worth a
+    // warning rather than dropping every other configured action too.
+    let safeEntry = entry;
+    const labels = normalizeConversionLabels(entry.conversionLabel);
+    const invalidActions = Object.entries(labels)
+      .filter(([, label]) => label && !SAFE_ID.test(label))
+      .map(([action]) => action);
+    if (invalidActions.length) {
+      for (const action of invalidActions) {
+        warnings.push(
+          `ads: ${provider} conversionLabel.${action} "${labels[action as keyof ConversionLabelMap]}" ` +
+            'is not a valid label. Conversion firing skipped for that action.',
+        );
+      }
+      const cleanLabels = Object.fromEntries(
+        Object.entries(labels).filter(([action]) => !invalidActions.includes(action)),
+      );
+      // Omit the key entirely rather than setting it `undefined` —
+      // `exactOptionalPropertyTypes` treats the two differently.
+      const { conversionLabel: _drop, ...rest } = entry;
+      safeEntry = Object.keys(cleanLabels).length
+        ? { ...rest, conversionLabel: cleanLabels }
+        : rest;
+    }
+
+    // `callTracking` lands in the same inline `<script>`. Its label gets `SAFE_ID`; its
+    // number gets a phone pattern. A bad one drops only call tracking, not the tag.
+    if (entry.callTracking) {
+      const { label, number } = entry.callTracking;
+      const bad = !SAFE_ID.test(label)
+        ? `callTracking.label "${label}" is not a valid label`
+        : !SAFE_PHONE.test(number)
+          ? `callTracking.number "${number}" is not a valid phone number`
+          : !platform.websiteCallTracking
+            ? `${platform.name} has no website call tracking`
+            : null;
+      if (bad) {
+        warnings.push(`ads: ${provider} ${bad}. Website call tracking skipped.`);
+        const { callTracking: _drop, ...rest } = safeEntry;
+        safeEntry = rest;
+      }
+    }
+
     const category: ConsentCategory = entry.category ?? 'marketing';
     tags.push({
       key: provider,
@@ -125,7 +183,7 @@ export function resolveAds(
       cookies: platform.tag.cookies,
       strategy,
       gated: ctx.consent === true,
-      inline: platform.tag.bootstrap(id, { provider, ...entry }),
+      inline: platform.tag.bootstrap(id, { provider, ...safeEntry }),
       src: platform.tag.src ? platform.tag.src(id) : null,
       attrs: {},
     });

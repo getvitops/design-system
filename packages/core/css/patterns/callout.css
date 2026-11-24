@@ -1,0 +1,39 @@
+/**
+ * Callout — a call-to-action band: a short message and the action it points at, set
+ * apart from the page. Not a banner: `banner` is a dismissible announcement; this is
+ * content that stays.
+ *
+ * Message left and actions right when there is room, stacked when there is not. Colour
+ * is `.tone` (tone.css); `--center` stacks and centres at every width.
+ */
+.callout {
+  display: grid;
+  gap: var(--callout-gap, 1rem 2rem);
+  align-items: center;
+  padding: var(--callout-padding, clamp(1.25rem, 4cqi, 2.5rem));
+  border: var(--b-card, var(--b-card-group, var(--b-default)));
+  border-radius: var(--br-card, var(--br-card-group, var(--br-default)));
+
+  .callout__body {
+    display: grid;
+    gap: 0.5rem;
+    min-inline-size: 0;
+  }
+
+  .callout__title,
+  .callout__text,
+  .callout__actions {
+    margin: 0;
+  }
+
+  &.callout--center {
+    text-align: center;
+    justify-items: center;
+  }
+}
+
+@container (min-width: 48rem) {
+  .callout:not(.callout--center) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}

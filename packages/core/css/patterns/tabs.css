@@ -1,0 +1,112 @@
+/**
+ * Tabs — the structure `<wc-tabs>` builds, and the fallback it builds from.
+ *
+ * Before upgrade (or with no JS) the element is a stack of headed `<section>`s and none of this
+ * applies: every panel is readable in order. The tab list, tab buttons and `[hidden]` panels exist
+ * only once the element has enhanced it, and `tabs--enhanced` is what says so.
+ *
+ * Consumes the `panel` group's tokens through the pattern's own cascade (`--p-tabs-group`, …), and
+ * the hooks `--tabs-indicator-color`, `--tabs-gap`, `--tabs-tab-padding`.
+ */
+:where(wc-tabs) {
+  display: block;
+}
+
+.tabs {
+  --_p: var(--p-tabs, var(--p-tabs-group, var(--p-panel, var(--p-default))));
+  --_br: var(--br-tabs, var(--br-tabs-group, var(--br-panel, var(--br-default))));
+  --_rule: var(--tabs-rule-color, var(--color-border-surface-muted));
+  --_indicator: var(--tabs-indicator-color, var(--color-bg-brand-primary-solid));
+
+  &.tabs--vertical {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: var(--_p);
+    align-items: start;
+  }
+
+  .tabs__list {
+    display: flex;
+    gap: var(--tabs-gap, 0.25rem);
+    overflow-x: auto;
+    border-block-end: 2px solid var(--_rule);
+  }
+
+  &.tabs--vertical .tabs__list {
+    flex-direction: column;
+    overflow-x: visible;
+    border-block-end: 0;
+    border-inline-end: 2px solid var(--_rule);
+  }
+
+  .tabs__tab {
+    flex: none;
+    padding: var(--tabs-tab-padding, 0.6em 1em);
+    border: 0;
+    border-block-end: 2px solid transparent;
+    margin-block-end: -2px;
+    background: none;
+    color: var(--color-text-surface-muted);
+    font: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+
+    &:hover {
+      color: var(--color-text-surface);
+    }
+
+    &[aria-selected='true'] {
+      color: var(--color-text-surface);
+      border-block-end-color: var(--_indicator);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-border-focus);
+      outline-offset: -2px;
+      border-radius: calc(var(--_br) / 2);
+    }
+  }
+
+  &.tabs--vertical .tabs__tab {
+    margin-block-end: 0;
+    margin-inline-end: -2px;
+    border-block-end: 0;
+    border-inline-end: 2px solid transparent;
+    text-align: start;
+
+    &[aria-selected='true'] {
+      border-inline-end-color: var(--_indicator);
+    }
+  }
+
+  .tabs__panel {
+    padding-block: var(--_p);
+
+    &:focus-visible {
+      outline: 2px solid var(--color-border-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  &.tabs--vertical .tabs__panel {
+    padding-block-start: 0;
+  }
+}
+
+/* Forced colors replaces author colours, so the selected tab's indicator would vanish. A system
+   colour keyword is honoured, and the selected tab is also underlined, so it isn't colour alone. */
+@media (forced-colors: active) {
+  .tabs .tabs__tab[aria-selected='true'] {
+    border-block-end-color: Highlight;
+    text-decoration: underline;
+    text-underline-offset: 0.3em;
+  }
+
+  .tabs.tabs--vertical .tabs__tab[aria-selected='true'] {
+    border-block-end-color: transparent;
+    border-inline-end-color: Highlight;
+  }
+}

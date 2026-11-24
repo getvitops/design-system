@@ -1,0 +1,155 @@
+---
+/**
+ * SiteFooter — a `contentinfo` landmark with a site map, legal links and a copyright
+ * line. Markup + classes only; styles are `patterns/sitenav.css`'s `.sitefooter*`.
+ *
+ *   const sitemap = await getMenu('footer-sitemap');
+ *   const legal = await getMenu('footer-legal');
+ *   <SiteFooter {sitemap} {legal} name={siteTitle} />
+ *
+ * A `brand` slot (a logo, a blurb) renders as the first column, so the markup stays the site's own.
+ *
+ * Both menus are optional and each renders only if it has items, so a one-page site
+ * gets just the copyright line. `name` is `organization.name`.
+ *
+ * **One level of grouping in the site map.** A top-level item with children becomes a column:
+ * its label is the column heading and its children are the links. A childless item stays in the
+ * flat list ahead of the columns. Deeper levels are ignored; a footer that nests further is a
+ * site map and wants a page. The legal menu is always flat.
+ *
+ * Every `<nav>` is named (a column by its heading, the others "Site map" / "Legal") so the
+ * landmark list is not a pile of unlabeled regions, and the copyright is plain text, never a link.
+ *
+ * **The year stays current.** A numeric `year` (the default, the build year) is a
+ * `<wc-format fields="year" now>`: no JS shows the render-time year, JS shows the visitor's, so a
+ * prerendered page never goes stale. A string `year` (a "2019–2026" range) is plain text.
+ *
+ * **Attribution.** A "Powered by Vitops" link to vitops.ca follows the copyright by default
+ * (`credit={false}` removes it; a white-label config option will drive that later).
+ */
+import BackToTop from './BackToTop.astro';
+import { resolveBackToTop, type ChromeSource } from './masthead.ts';
+import { isCurrent, linkRel, menuItems, type NavMenuInput } from './sitenav.ts';
+
+interface Props {
+  /** `footer-sitemap` menu. */
+  sitemap?: NavMenuInput;
+  /** `footer-legal` menu. */
+  legal?: NavMenuInput;
+  /** Company/site name for the copyright line (`organization.name`). */
+  name: string;
+  /** Override the year (tests, or a "since" range string). Default: build year. */
+  year?: number | string;
+  /**
+   * Render the "Powered by Vitops" credit link (https://vitops.ca). On by default.
+   * TODO: the white-label feature will turn this off from config (`site.*`), not per layout.
+   */
+  credit?: boolean;
+  /** Accessible names. */
+  sitemapLabel?: string;
+  legalLabel?: string;
+  current?: string;
+  /** The site config; `site.chrome.backToTop` adds a floating back-to-top link after the footer. */
+  config?: ChromeSource;
+  class?: string;
+}
+
+const {
+  sitemap,
+  legal,
+  name,
+  year = new Date().getFullYear(),
+  credit = true,
+  sitemapLabel = 'Site map',
+  legalLabel = 'Legal',
+  current = Astro.url.pathname,
+  config,
+  class: className,
+} = Astro.props;
+const backToTop = resolveBackToTop(config);
+
+const hasBrand = Astro.slots.has('brand');
+const sitemapItems = menuItems(sitemap);
+const columns = sitemapItems
+  .filter((item) => (item.children?.length ?? 0) > 0)
+  .map((item, i) => ({ id: `sitefooter-col-${i}`, heading: item, items: item.children! }));
+const flat = sitemapItems.filter((item) => !(item.children?.length ?? 0));
+const groups = [
+  { label: sitemapLabel, items: flat, kind: 'sitemap' },
+  { label: legalLabel, items: menuItems(legal), kind: 'legal' },
+].filter((g) => g.items.length > 0);
+---
+
+<footer class:list={['sitefooter', className]}>
+  {(groups.length > 0 || columns.length > 0 || hasBrand) && (
+    <div class="sitefooter__nav">
+      {hasBrand && (
+        <div class="sitefooter__brand">
+          <slot name="brand" />
+        </div>
+      )}
+      {columns.map((col) => (
+        <nav class="sitefooter__group sitefooter__group--column" aria-labelledby={col.id}>
+          <p class="sitefooter__heading font-eyebrow" id={col.id}>
+            {col.heading.label}
+          </p>
+          <ul class="sitefooter__list sitefooter__list--column" role="list">
+            {col.items.map((item) => (
+              <li>
+                <a
+                  class="sitefooter__link"
+                  href={item.url || '#'}
+                  target={item.target || undefined}
+                  rel={linkRel(item)}
+                  aria-current={isCurrent(item.url, current) ? 'page' : undefined}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))}
+      {groups.map((g) => (
+        <nav class={`sitefooter__group sitefooter__group--${g.kind}`} aria-label={g.label}>
+          <ul class="sitefooter__list" role="list">
+            {g.items.map((item) => (
+              <li>
+                <a
+                  class="sitefooter__link"
+                  href={item.url || '#'}
+                  target={item.target || undefined}
+                  rel={linkRel(item)}
+                  aria-current={isCurrent(item.url, current) ? 'page' : undefined}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))}
+    </div>
+  )}
+  <div class="sitefooter__base">
+    <p class="sitefooter__copy">
+      &copy;
+      {typeof year === 'number' ? (
+        <wc-format type="date" fields="year" now>
+          <time datetime={String(year)}>{year}</time>
+        </wc-format>
+      ) : (
+        year
+      )}
+      {name}
+    </p>
+    {credit && (
+      <p class="sitefooter__credit">
+        <a class="sitefooter__link" href="https://vitops.ca">
+          Powered by Vitops
+        </a>
+      </p>
+    )}
+  </div>
+</footer>
+{backToTop && <BackToTop label={backToTop.label} target={backToTop.target} />}

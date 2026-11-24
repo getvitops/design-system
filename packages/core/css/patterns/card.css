@@ -33,3 +33,9 @@ wc-cards {
 [data-card-link] {
   cursor: pointer;
 }
+
+/* A card's title keeps the heading role's size unless `--card-title-size` is set on the block
+   (its `style` field). The role utility reads --heading-fs; `inherit` passes through the site's. */
+.card__title {
+  --heading-fs: var(--card-title-size, inherit);
+}

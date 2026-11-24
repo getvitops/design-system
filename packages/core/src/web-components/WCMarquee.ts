@@ -25,6 +25,9 @@
 import { BaseElement } from './BaseElement.js';
 import { initFromLightDom } from './utils/upgrade.js';
 
+/**
+ * @fallback full the authored content, static
+ */
 export class WCMarquee extends BaseElement {
   /** Light DOM: the framework CSS has to reach the slotted content. */
   protected override createRenderRoot() {
@@ -33,9 +36,11 @@ export class WCMarquee extends BaseElement {
 
   /** The author's first `.marquee__content`; every other one is ours. */
   #source: HTMLElement | null = null;
-  #observer?: ResizeObserver;
+  #observer: ResizeObserver | undefined;
+  /** WCAG 2.2.2: motion that starts on its own and lasts over 5s needs a way to stop it. */
+  #toggle: HTMLButtonElement | undefined;
   /** Last measurement `#fill` acted on, so a no-op resize does no work. */
-  #last?: { one: number; gap: number; container: number; vertical: boolean };
+  #last: { one: number; gap: number; container: number; vertical: boolean } | undefined;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -62,6 +67,7 @@ export class WCMarquee extends BaseElement {
     // own width and we supply enough copies to cover the track.
     this.style.setProperty('--_marquee-min', 'auto');
 
+    this.#addToggle();
     this.#fill();
     // The host's own size is one reason to re-measure; the source's is
     // another — an image finishing load or a font swapping in changes the
@@ -73,8 +79,40 @@ export class WCMarquee extends BaseElement {
     return true;
   }
 
+  /**
+   * A pause button beside the track, not inside it: the track is `overflow: hidden` with an edge
+   * mask, which would clip or fade a control placed within. It is an enhancement — the CSS
+   * already pauses on hover/focus and stops under `prefers-reduced-motion`.
+   */
+  #addToggle() {
+    if (this.#toggle) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'marquee__toggle';
+    // From the host, not hard-coded: after a DOM move the host keeps its `data-paused` while the
+    // button is rebuilt, and a button that says "Pause" over a paused marquee is a wrong label.
+    const paused = this.hasAttribute('data-paused');
+    button.setAttribute('aria-pressed', String(paused));
+    button.textContent = paused ? 'Play animation' : 'Pause animation';
+    button.addEventListener('click', () => {
+      const paused = this.toggleAttribute('data-paused');
+      button.setAttribute('aria-pressed', String(paused));
+      button.textContent = paused ? 'Play animation' : 'Pause animation';
+    });
+    this.after(button);
+    this.#toggle = button;
+  }
+
   override disconnectedCallback() {
+    this.#toggle?.remove();
+    this.#toggle = undefined;
     this.#observer?.disconnect();
+    this.#observer = undefined;
+    // Forgotten, so a reconnect runs `#setup` again. It used to return early on `#source`, leaving a
+    // moved marquee with no pause button (WCAG 2.2.2) and no observer. The clones stay in the
+    // DOM; `#fill` removes and rebuilds them on the first pass.
+    this.#source = null;
+    this.#last = undefined;
     super.disconnectedCallback();
   }
 

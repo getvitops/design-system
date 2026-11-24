@@ -44,6 +44,13 @@ export interface VitopsHostingOptions {
     mediaBinding?: string;
     /** D1 Sessions API read-replication mode (default 'auto'). */
     session?: string;
+    /**
+     * Batch reads issued together into one D1 round trip (default true).
+     * Experimental in emdash: a read and a write started together may run
+     * write-first, so await a read before a write that must not affect it.
+     * No effect without a session.
+     */
+    coalesce?: boolean;
   };
   node?: {
     /** SQLite URL (default `DATABASE_PATH` env or 'file:./data/emdash.db'). */
@@ -93,8 +100,16 @@ export async function vitopsHosting(options: VitopsHostingOptions = {}): Promise
     const { d1, r2 } = await importFor(target, '@emdash-cms/cloudflare', install);
     return {
       target,
-      adapter: cloudflare(),
-      database: d1({ binding: cf.dbBinding ?? 'DB', session: cf.session ?? 'auto' }),
+      // Stated rather than inherited from the adapter default: CMS media is
+      // resized at request time by the Images binding (EmDash wraps Astro's
+      // image endpoint to read bytes from R2), so no build ever re-encodes it
+      // and `sharp` is not needed in CI.
+      adapter: cloudflare({ imageService: 'cloudflare-binding' }),
+      database: d1({
+        binding: cf.dbBinding ?? 'DB',
+        session: cf.session ?? 'auto',
+        coalesce: cf.coalesce ?? true,
+      }),
       storage: r2({ binding: cf.mediaBinding ?? 'MEDIA' }),
     };
   }

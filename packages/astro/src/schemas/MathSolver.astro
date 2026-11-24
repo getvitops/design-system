@@ -1,4 +1,5 @@
 ---
+import { jsonLdScript } from '../json-ld.ts';
 export interface Props {
   name: string;
   url: string;
@@ -6,7 +7,15 @@ export interface Props {
   potentialAction: {
     target: string;
     mathExpression?: string;
-    eduQuestionType?: ('Polynomial' | 'Arithmetic' | 'Calculus' | 'Geometry' | 'Statistics' | 'Algebra' | 'Trigonometry')[];
+    eduQuestionType?: (
+      | 'Polynomial'
+      | 'Arithmetic'
+      | 'Calculus'
+      | 'Geometry'
+      | 'Statistics'
+      | 'Algebra'
+      | 'Trigonometry'
+    )[];
   };
   applicationCategory?: string;
   operatingSystem?: string;
@@ -16,15 +25,8 @@ export interface Props {
   };
 }
 
-const {
-  name,
-  url,
-  description,
-  potentialAction,
-  applicationCategory,
-  operatingSystem,
-  offers,
-} = Astro.props;
+const { name, url, description, potentialAction, applicationCategory, operatingSystem, offers } =
+  Astro.props;
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -44,11 +46,13 @@ const jsonLd = {
   potentialAction: {
     '@type': 'SolveMathAction',
     target: potentialAction.target,
-    ...(potentialAction.mathExpression && { 'mathExpression-input': `required name=${potentialAction.mathExpression}` }),
+    ...(potentialAction.mathExpression && {
+      'mathExpression-input': `required name=${potentialAction.mathExpression}`,
+    }),
     ...(potentialAction.eduQuestionType && { eduQuestionType: potentialAction.eduQuestionType }),
   },
 };
 ---
 
-<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<script is:inline type="application/ld+json" set:html={jsonLdScript(jsonLd)} />
 <slot />

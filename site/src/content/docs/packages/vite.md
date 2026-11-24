@@ -1,14 +1,13 @@
 ---
-title: "@getvitops/vite"
-description: "Vite plugin that regenerates design-system output on build and dev."
-section: "Packages"
+title: '@getvitops/vite'
+description: 'Vite plugin that regenerates design-system output on build and dev.'
+section: 'Packages'
 order: 30
 ---
 
 ```sh
 npm i -D @getvitops/vite
 ```
-
 
 A Vite plugin that generates Vitops design-system output from a `design-system.json` during a
 Vite/Astro (EmDash) build — and hot-regenerates when the config changes in dev.

@@ -1,0 +1,52 @@
+# DEPRECATED alias for site-sync-dev.yml, kept for one major so `@v1` callers keep working.
+#
+# This used to drop and re-import every dev table, on a schedule if the caller asked, which threw away
+# any collection, field or content a person had added to the dev site. It now runs the guarded sync:
+# it refuses when dev content changed since the last sync, snapshots dev first, and the first run
+# needs `force: true` because a dev site with no sync marker can't be told apart from work in
+# progress. It does NOT replay dev's schema here (no URL or token is passed to an old caller); move
+# to site-sync-dev.yml to get that.
+#
+#   jobs:
+#     sync:
+#       uses: getvitops/design-system/.github/workflows/site-sync-dev.yml@v1
+#       with: { dev-url: https://dev.example.com }
+#       secrets: inherit
+#
+# It also needs an `@getvitops/cli` that has `vitops emdash db` (the release that added this).
+name: Site refresh dev (deprecated)
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        type: string
+        default: '.'
+      force:
+        type: boolean
+        default: false
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+      DEV_D1_ID:
+        required: true
+      R2_ACCESS_KEY_ID:
+        required: false
+      R2_SECRET_ACCESS_KEY:
+        required: false
+
+jobs:
+  sync:
+    uses: ./.github/workflows/site-sync-dev.yml
+    with:
+      working-directory: ${{ inputs.working-directory }}
+      force: ${{ inputs.force }}
+      skip-schema: true
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DEV_D1_ID: ${{ secrets.DEV_D1_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}

@@ -1,9 +1,10 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { AstroIntegration, HookParameters } from 'astro';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
+import { defaultSiteConfig } from '@getvitops/generator';
 import vitops, { type GetvitopsOptions } from './integration.ts';
 
 type Params = HookParameters<'astro:config:setup'>;
@@ -93,6 +94,23 @@ const warned = (logs: { level: string; msg: string }[], needle: string) =>
 
 const integration = (name: string): AstroIntegration => ({ name, hooks: {} });
 
+describe('vitops() dev runtime', () => {
+  it('pre-bundles icons-sprite for the SSR environment', async () => {
+    // `<Icon>` reaches `@iconify/utils` through icons-sprite; un-prebundled, workerd's dev
+    // runner answers "module is not defined" on every route that renders it (any site using
+    // `<Icon>`, or a plugin block that renders `<ReviewCard>`). The build is unaffected, so
+    // only this config line and a real `astro dev` keep it fixed.
+    const { updates, run } = harness();
+    await run();
+    const include = updates.flatMap(
+      (u) =>
+        (u.vite as { ssr?: { optimizeDeps?: { include?: string[] } } } | undefined)?.ssr
+          ?.optimizeDeps?.include ?? [],
+    );
+    expect(include).toContain('@getvitops/astro > @getvitops/generator/icons-sprite');
+  });
+});
+
 describe('vitops({ sitemap })', () => {
   it('registers nothing unless asked', async () => {
     const h = harness();
@@ -122,12 +140,14 @@ describe('vitops({ sitemap })', () => {
     expect(headData(h.updates).sitemap).toBeNull();
   });
 
-  it('warns and skips when emdash() is registered', async () => {
-    // EmDash injects its own database-driven /sitemap.xml.
+  it('does not register @astrojs/sitemap when emdash() is registered, and writes no empty pages sitemap', async () => {
+    // EmDash injects its own database-driven /sitemap.xml; the integration's job there is the
+    // companion for `src/pages` routes, which has nothing to list in this (empty) project.
     const h = harness({ sitemap: true }, { integrations: [integration('emdash')] });
     await h.run();
     expect(added(h.updates)).toEqual([]);
-    expect(warned(h.logs, 'emdash()')).toBe(true);
+    expect(warned(h.logs, 'sitemap')).toBe(false);
+    expect(h.logs.some((l) => l.level === 'info' && l.msg.includes('covers the site'))).toBe(true);
   });
 
   it('defers to an @astrojs/sitemap the consumer registered, without warning', async () => {
@@ -181,6 +201,43 @@ describe('vitops({ seo })', () => {
     const h = harness({ seo: { siteName: 'Acme' } }, { integrations: [integration('emdash')] });
     await h.run();
     expect(warned(h.logs, 'EmDashHead')).toBe(true);
+  });
+});
+
+describe('site.seo as the source of <Seo /> defaults', () => {
+  // The harness's `site.input` points at a real file so the integration reads it like a consumer's.
+  it('derives defaults from the site config, with organization.name as the site name', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-seo-'));
+    const cfg = defaultSiteConfig() as unknown as {
+      organization: Record<string, unknown>;
+      site: Record<string, unknown>;
+    };
+    cfg.organization.name = 'Acme';
+    cfg.site.seo = { titleTemplate: '%s · Acme', openGraph: { locale: 'en_CA' } };
+    writeFileSync(join(dir, 'site.json'), JSON.stringify(cfg));
+    const h = harness({ site: { input: 'site.json' } }, { root: pathToFileURL(`${dir}/`) });
+    await h.run();
+    expect(headData(h.updates).seo).toMatchObject({
+      siteName: 'Acme',
+      titleTemplate: '%s · Acme',
+      openGraph: { locale: 'en_CA' },
+    });
+  });
+
+  it('lets vitops({ seo }) override one field without discarding the config', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-seo-'));
+    const cfg = defaultSiteConfig() as unknown as { site: Record<string, unknown> };
+    cfg.site.seo = { titleTemplate: '%s · Acme', siteName: 'Acme' };
+    writeFileSync(join(dir, 'site.json'), JSON.stringify(cfg));
+    const h = harness(
+      { site: { input: 'site.json' }, seo: { siteName: 'Override' } },
+      { root: pathToFileURL(`${dir}/`) },
+    );
+    await h.run();
+    expect(headData(h.updates).seo).toMatchObject({
+      siteName: 'Override',
+      titleTemplate: '%s · Acme',
+    });
   });
 });
 
@@ -307,6 +364,21 @@ describe('a site config at css.input', () => {
     // The warning fires only when nothing was declared anywhere — its absence is
     // the evidence the site config was found and read.
     expect(h.logs.filter((l) => l.msg.startsWith('fonts: nothing declared'))).toHaveLength(0);
+  });
+
+  it('turns webfonts on by default when the site config declares site.fonts (U11)', async () => {
+    const h = at({ css: { input: 'company.json', format: 'css' } });
+    await h.run();
+    expect(
+      h.updates.some((u) => Array.isArray(u.fonts) && (u.fonts as unknown[]).length === 1),
+    ).toBe(true);
+    expect(h.logs.some((l) => l.msg.includes('declares site.fonts'))).toBe(true);
+  });
+
+  it('lets `fonts: false` opt out of the site.fonts default', async () => {
+    const h = at({ css: { input: 'company.json', format: 'css' }, fonts: false });
+    await h.run();
+    expect(h.updates.some((u) => 'fonts' in u)).toBe(false);
   });
 
   it('still demands a path when css.input is a plain design system', async () => {
@@ -518,5 +590,42 @@ describe('vitops({ analytics, consent })', () => {
     );
     await h.run();
     expect(h.logs.some((l) => l.msg.includes('cookie notice'))).toBe(false);
+  });
+});
+
+describe('virtual:getvitops/reviews', () => {
+  const REVIEWS = '\0virtual:getvitops/reviews';
+  const reviewsData = (updates: Record<string, unknown>[]) =>
+    virtualData(updates, '@getvitops/astro:virtual-reviews', REVIEWS);
+  const rootOf = (dir: string) => ({
+    root: pathToFileURL(`${dir}/`),
+    publicDir: pathToFileURL(`${dir}/public/`),
+  });
+
+  it('serves an EMPTY cache when the file is absent, so a fresh scaffold builds', async () => {
+    const h = harness();
+    await h.run();
+    expect(reviewsData(h.updates)).toEqual({ version: 1, locations: {} });
+  });
+
+  it('serves the committed cache from the project root', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-'));
+    mkdirSync(join(dir, '.vitops'));
+    const cache = { version: 1, locations: { ottawa: { reviews: [{ id: 'a', rating: 5 }] } } };
+    writeFileSync(join(dir, '.vitops/reviews.json'), JSON.stringify(cache));
+
+    const h = harness({}, rootOf(dir));
+    await h.run();
+    expect(reviewsData(h.updates)).toEqual(cache);
+  });
+
+  it('reads a corrupt file as absent rather than failing the build', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-'));
+    mkdirSync(join(dir, '.vitops'));
+    writeFileSync(join(dir, '.vitops/reviews.json'), '{ not json');
+
+    const h = harness({}, rootOf(dir));
+    await h.run();
+    expect(reviewsData(h.updates)).toEqual({ version: 1, locations: {} });
   });
 });

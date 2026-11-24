@@ -17,13 +17,25 @@ on:
   workflow_call:
     inputs:
       working-directory:
-        description: Directory containing the site's package.json and .nvmrc.
+        description: Directory containing the site's package.json (its engines.node picks the Node version).
         type: string
         default: '.'
       run-lint-design:
         description: Run `pnpm run lint:design` (requires the script to exist).
         type: boolean
         default: true
+      # OPT-IN, default off: callers pinned to `@v1` that do not pass it are unaffected.
+      run-audit:
+        description: >-
+          Run `vitops audit` (Lighthouse + axe budgets) against the built site after the
+          build. Requires `playwright`, `@axe-core/playwright` and `lighthouse` in the
+          site's devDependencies. A pass is NOT AODA certification.
+        type: boolean
+        default: false
+      audit-args:
+        description: Extra flags for `vitops audit`, e.g. `--warn` while first adopting it.
+        type: string
+        default: ''
 
 jobs:
   ci:
@@ -36,13 +48,12 @@ jobs:
 
       - uses: pnpm/action-setup@v6
 
-      # Every template ships its own `.nvmrc` — see AGENTS.md's CI/CD section
-      # for why this reusable workflow requires one rather than taking a
-      # `node-version` input: a version input and a checked-in `.nvmrc` can
-      # silently disagree, and `local dev` already reads the file.
+      # Node comes from the site's own package.json `engines.node` — see AGENTS.md's CI/CD
+      # section for why this reusable workflow reads it rather than taking a `node-version`
+      # input: an input and a checked-in version can silently disagree.
       - uses: actions/setup-node@v7
         with:
-          node-version-file: ${{ inputs.working-directory }}/.nvmrc
+          node-version-file: ${{ inputs.working-directory }}/package.json
           cache: pnpm
           cache-dependency-path: ${{ inputs.working-directory }}/pnpm-lock.yaml
 
@@ -59,5 +70,33 @@ jobs:
         if: inputs.run-lint-design
         run: pnpm run lint:design
 
+      # Astro's processed-image cache. Content-addressed, so a restore-key hit
+      # still reuses every unchanged image; only new or edited sources re-encode.
+      - name: Cache Astro assets
+        uses: actions/cache@v4
+        with:
+          path: ${{ inputs.working-directory }}/node_modules/.astro
+          key: astro-${{ runner.os }}-${{ hashFiles(format('{0}/pnpm-lock.yaml', inputs.working-directory), format('{0}/src/assets/**', inputs.working-directory)) }}
+          restore-keys: astro-${{ runner.os }}-
+
       - name: Build
         run: pnpm run build
+
+      # Opt-in perf + a11y budgets over the build just made (`astro preview` serves the
+      # prerendered output). Chromium comes from Playwright; the report is uploaded even
+      # when the audit fails, which is when it is wanted.
+      - name: Install audit browser
+        if: inputs.run-audit
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Audit (performance + accessibility)
+        if: inputs.run-audit
+        run: pnpm exec vitops audit ${{ inputs.audit-args }}
+
+      - name: Upload audit report
+        if: ${{ always() && inputs.run-audit }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitops-audit
+          path: ${{ inputs.working-directory }}/.vitops/audit
+          if-no-files-found: ignore

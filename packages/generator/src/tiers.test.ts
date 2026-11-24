@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { TIERS, TIER_NAMES, tierPatterns, tierTags } from './tiers.ts';
 import { defaultConfig } from './index.ts';
 
@@ -116,6 +116,52 @@ describe('TIERS covers what is on disk', () => {
         bundled.has(tag),
       );
     }
+  });
+
+  it('every element states `@fallback full|partial|none` in its docblock, and TIERS agrees', () => {
+    const known = new Map(tierTags().map((t) => [t.tag, TIERS[t.pattern]?.wc]));
+    for (const { tag, file } of definedTags()) {
+      const src = readFileSync(join(WC_DIR, file), 'utf8');
+      const m = /^\s*\*\s*@fallback\s+(full|partial|none)\b\s+\S/m.exec(src);
+      expect(
+        m,
+        `${file}: add \`@fallback full|partial|none <what the no-JS state is>\` to ${tag}'s docblock`,
+      ).not.toBeNull();
+      expect(
+        known.get(tag)?.fallback,
+        `${tag}: TIERS fallback differs from ${file}'s @fallback`,
+      ).toBe(m![1]);
+    }
+  });
+
+  /**
+   * "Not every web component has a block" was found by audit, after the fact: seven of the
+   * thirteen shipped elements had one and nothing recorded that the rest were decisions. A
+   * shipped element must now carry a block OR a stated reason, so the gap is visible in the
+   * manifest and the docs, and a new element cannot skip the question.
+   *
+   * "Shipped" is `registered` (in `elements.js`) or a real own bundle — an element
+   * that names `(none …)` as its bundle is not shipped, so is not asked.
+   */
+  it('every shipped web component has an EmDash block or says why not', () => {
+    const shipped = Object.entries(TIERS).filter(
+      ([, e]) => e.wc && (e.wc.registered || (e.wc.bundle && !e.wc.bundle.startsWith('(none'))),
+    );
+    expect(shipped.length).toBeGreaterThan(10);
+    const silent = shipped
+      .filter(([, e]) => !e.emdash?.length && !e.emdashExempt)
+      .map(([name, e]) => `${name} (${e.wc!.tag})`);
+    expect(
+      silent,
+      `no \`emdash\` block and no \`emdashExempt\` reason: ${silent.join(', ')}`,
+    ).toEqual([]);
+    const both = Object.entries(TIERS)
+      .filter(([, e]) => e.emdash?.length && e.emdashExempt)
+      .map(([name]) => name);
+    expect(both, `set both \`emdash\` and \`emdashExempt\`: ${both.join(', ')}`).toEqual([]);
+    for (const [name, e] of Object.entries(TIERS))
+      if (e.emdashExempt)
+        expect(e.emdashExempt.length, `TIERS.${name}.emdashExempt is too thin`).toBeGreaterThan(20);
   });
 
   it('every pattern-bearing Astro component is in TIERS', () => {
@@ -253,19 +299,25 @@ describe('TIERS entries are usable', () => {
 
 describe('tierPatterns projects one tier at a time', () => {
   it('agrees with the optional fields for the three component tiers', () => {
-    for (const tier of ['wc', 'astro', 'bricks'] as const) {
+    for (const tier of ['wc', 'astro', 'bricks', 'emdash'] as const) {
       const projected = new Set(tierPatterns(tier).map((p) => p.name));
       const expected = TIER_NAMES.filter((n) => {
         const e = TIERS[n]!;
-        return tier === 'wc' ? !!e.wc : tier === 'astro' ? !!e.astro?.length : !!e.bricks;
+        return tier === 'wc'
+          ? !!e.wc
+          : tier === 'astro'
+            ? !!e.astro?.length
+            : tier === 'bricks'
+              ? !!e.bricks
+              : !!e.emdash?.length;
       });
       expect([...projected], `tierPatterns('${tier}')`).toEqual(expected);
     }
   });
 
   it('excludes patterns that carry no CSS at all', () => {
-    // `TierEntry.css` is required, so presence is not membership. The editor-v2
-    // entries carry `c([])` — no partial, no classes, not generated — and listing
+    // `TierEntry.css` is required, so presence is not membership. The
+    // CSS-less entries carry `c([])` — no partial, no classes, not generated — and listing
     // them on a CSS page would promise classes that don't exist.
     const css = new Set(tierPatterns('css').map((p) => p.name));
     expect(css.has('color-wheel')).toBe(false);
@@ -284,7 +336,7 @@ describe('tierPatterns projects one tier at a time', () => {
     // A pattern in no projection is in the manifest and on no page — the silent
     // omission the guards above exist to prevent, one level up.
     const seen = new Set(
-      (['css', 'wc', 'astro', 'bricks'] as const).flatMap((t) =>
+      (['css', 'wc', 'astro', 'bricks', 'emdash'] as const).flatMap((t) =>
         tierPatterns(t).map((p) => p.name),
       ),
     );

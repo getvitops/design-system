@@ -567,20 +567,34 @@ export function generateOklchPalette(
 
 // ── Contrast + endpoints (for the functional-token layer) ────────────────────
 
-/** APCA lightness-contrast (Lc) magnitude between a foreground and background. */
-export function contrastLc(fg: string, bg: string): number {
-  return Math.abs(new Color(bg).contrast(fg, 'APCA'));
+/**
+ * WCAG 2.x contrast ratio (1–21) between a foreground and background, from relative luminance.
+ *
+ * This is what WCAG 2.0 AA (and so AODA) tests: 4.5:1 for normal text, 3:1 for large text (1.4.3)
+ * and for UI components and graphics (1.4.11, 2.1+). It is the only contrast measure the toolkit
+ * uses. APCA is perceptually better but is no longer on the W3C standards track, so it is not what
+ * any law or conformance claim tests.
+ */
+export function contrastRatio(fg: string, bg: string): number {
+  return new Color(bg).contrast(fg, 'WCAG21');
 }
 
 /**
  * Pick a tinted near-white or near-black foreground for best contrast on `bg`
  * (a whisper of the background's hue mixed into off-white/off-black).
+ *
+ * `prefer` forces the polarity instead of choosing the better one — for a role
+ * whose author wants dark text on a bright fill (or the reverse). Whether that
+ * pairing is legible is the caller's contrast check to decide, not this
+ * function's.
  */
-export function pickOn(bg: string, hue?: number): string {
+export function pickOn(bg: string, hue?: number, prefer?: 'light' | 'dark'): string {
   const h = hue ?? hexToOklch(bg).h;
   const white = oklchToHex({ l: 0.98, c: 0.01, h });
   const black = oklchToHex({ l: 0.16, c: 0.02, h });
-  return contrastLc(white, bg) >= contrastLc(black, bg) ? white : black;
+  if (prefer === 'light') return white;
+  if (prefer === 'dark') return black;
+  return contrastRatio(white, bg) >= contrastRatio(black, bg) ? white : black;
 }
 
 /**

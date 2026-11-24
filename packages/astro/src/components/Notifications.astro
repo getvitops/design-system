@@ -1,0 +1,37 @@
+---
+/**
+ * Notifications: the one region a page's notifications appear and stack in.
+ *
+ * **This component emits its own `<wc-notifications>`**: do NOT wrap it in one. Same rule as
+ * `Combobox.astro` and `Tabs.astro`.
+ *
+ *   <Notifications />                                  <!-- once, in the layout -->
+ *
+ *   <Notifications position="top end">
+ *     <div class="notification" role="status">Your draft was saved.</div>
+ *   </Notifications>
+ *
+ * Render it in the same place on every page, so a screen reader user always knows where to look.
+ * The slot is for messages the SERVER has: each is an ordinary inline notification with no script,
+ * and with script it is adopted into the stack. Give it `role="status"`, and `data-duration="6000"`
+ * to have it dismiss itself. Anything raised in the browser goes through the element:
+ *
+ *   document.querySelector('wc-notifications').show({ message: 'Saved', tone: 'success' });
+ *   document.dispatchEvent(new CustomEvent('vitops:notify', { detail: { message: 'Saved' } }));
+ *
+ * Not for anything a visitor must act on (use a banner or a dialog), and nothing is shown while a
+ * modal dialog is open: it waits until the dialog closes.
+ */
+export interface Props {
+  /** The region's accessible name. Default "Notifications". */
+  label?: string;
+  /** Words from `top`/`bottom` and `start`/`center`/`end`. Default `bottom end`. */
+  position?: string;
+}
+
+const { label = 'Notifications', position } = Astro.props;
+---
+
+<wc-notifications label={label} position={position}>
+  <slot />
+</wc-notifications>

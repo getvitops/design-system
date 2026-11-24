@@ -7,6 +7,7 @@
  */
 import type { HTMLAttributes } from 'astro/types';
 import type { Review } from '@getvitops/utils/reviews';
+import { safeHref } from '@getvitops/utils/url';
 import Icon from './Icon.astro';
 
 export interface Props extends Omit<HTMLAttributes<'article'>, 'slot'> {
@@ -23,19 +24,22 @@ const initials = review.author
   .map((w) => w[0]?.toUpperCase())
   .join('');
 
+// Google-hosted and fetched from outside the repo, so never trusted as a URL.
+const authorPhoto = safeHref(review.authorPhoto);
+const sourceUrl = safeHref(review.url);
 const full = Math.floor(review.rating);
 const hasHalf = review.rating - full >= 0.5;
 ---
 
 <article class:list={['review', className]} {...rest}>
   <header class="review__header">
-    {
-      avatar && review.authorPhoto ? (
-        <img class="review__avatar" src={review.authorPhoto} alt="" loading="lazy" />
-      ) : (
-        <span class="review__initials" aria-hidden="true">{initials}</span>
-      )
-    }
+    {avatar && authorPhoto ? (
+      <img class="review__avatar" src={authorPhoto} alt="" loading="lazy" />
+    ) : (
+      <span class="review__initials" aria-hidden="true">
+        {initials}
+      </span>
+    )}
     <div class="review__identity">
       <cite class="review__author">{review.author}</cite>
       <time class="review__date" datetime={review.publishedAt}>
@@ -56,12 +60,18 @@ const hasHalf = review.rating - full >= 0.5;
     </span>
   </header>
   {review.text && <blockquote class="review__body">{review.text}</blockquote>}
-  {
-    review.reply && (
-      <footer class="review__reply">
-        <p class="review__reply-author">Response from the owner</p>
-        <p>{review.reply.text}</p>
-      </footer>
-    )
-  }
+  {sourceUrl && (
+    // `nofollow`: the link is to a third party's page about the business itself, and
+    // Google's guidance for duplicated review content is to not pass it endorsement.
+    <a class="review__source link" href={sourceUrl} rel="nofollow noopener noreferrer">
+      View on Google
+      <span class="sr-only"> (review by {review.author})</span>
+    </a>
+  )}
+  {review.reply && (
+    <footer class="review__reply">
+      <p class="review__reply-author">Response from the owner</p>
+      <p>{review.reply.text}</p>
+    </footer>
+  )}
 </article>

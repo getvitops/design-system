@@ -1,0 +1,141 @@
+/**
+ * @vitest-environment happy-dom
+ *
+ * `<wc-entries>` upgrade wiring: the semantic `<h3>` + `<dl>` fallback must survive, the
+ * generated table is presentation only, and the column selector is the one part of it a
+ * keyboard user touches — so it must not be hidden from assistive tech while focusable.
+ *
+ * Per-file environment: see WCCards.dom.test.ts.
+ */
+import { beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test';
+
+const MARKUP = (attrs = '') => `
+  <wc-entries ${attrs}>
+    <h3>Alpha</h3>
+    <dl><dt>Price</dt><dd>$10</dd><dt data-label="Wt">Weight</dt><dd>1 kg</dd></dl>
+    <h3>Beta</h3>
+    <dl><dt>Price</dt><dd>$20</dd><dt>Weight</dt><dd>2 kg</dd></dl>
+  </wc-entries>`;
+
+const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex]';
+
+async function mount(attrs = ''): Promise<HTMLElement> {
+  document.body.innerHTML = MARKUP(attrs);
+  await customElements.whenDefined('wc-entries');
+  await new Promise((r) => requestAnimationFrame(r));
+  return document.querySelector('wc-entries') as HTMLElement;
+}
+
+beforeAll(async () => {
+  await import('./WCEntries.ts');
+});
+
+describe('<wc-entries>', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('keeps the semantic heading + dl fallback in the DOM after upgrade', async () => {
+    const el = await mount();
+    expect(el.querySelectorAll(':scope > h3')).toHaveLength(2);
+    expect(el.querySelectorAll(':scope > dl')).toHaveLength(2);
+  });
+
+  it('builds one row per entry and one column per distinct key', async () => {
+    const el = await mount();
+    const table = el.querySelector('table')!;
+    expect(table.querySelectorAll('tbody tr')).toHaveLength(2);
+    // First header cell is the (empty) title column, then Price and Weight.
+    expect([...table.querySelectorAll('thead th')].map((th) => th.textContent)).toEqual([
+      '',
+      'Price',
+      'Weight',
+    ]);
+  });
+
+  it('hides the duplicate table from assistive tech, and it holds nothing focusable', async () => {
+    const el = await mount();
+    const table = el.querySelector('table')!;
+    expect(table.getAttribute('aria-hidden')).toBe('true');
+    expect(table.querySelectorAll(FOCUSABLE)).toHaveLength(0);
+  });
+
+  it('copies cell content as cloned nodes, not as re-parsed HTML', async () => {
+    document.body.innerHTML = `
+      <wc-entries>
+        <h3><em>Alpha</em></h3>
+        <dl><dt>Site</dt><dd><a href="/a" onclick="void 0">link</a> <img src="x" onerror="window.__pwned = 1"></dd></dl>
+      </wc-entries>`;
+    await customElements.whenDefined('wc-entries');
+    await new Promise((r) => requestAnimationFrame(r));
+    const el = document.querySelector('wc-entries') as HTMLElement;
+    const cells = el.querySelectorAll('table tbody td');
+    // Inline structure survives, in the title cell and the value cell.
+    expect(cells[0]!.querySelector('em')?.textContent).toBe('Alpha');
+    const copy = cells[1]!.querySelector('a')!;
+    expect(copy.getAttribute('href')).toBe('/a');
+    // A copy, not the original: the source `<dd>` still owns its own link.
+    expect(copy).not.toBe(el.querySelector('dd a'));
+    expect(el.querySelector('dd a')).not.toBeNull();
+    // The copy adds no behaviour the source markup did not already carry.
+    expect((window as unknown as { __pwned?: number }).__pwned).toBeUndefined();
+  });
+
+  it('takes copied links out of the tab order and drops their ids', async () => {
+    document.body.innerHTML = `
+      <wc-entries>
+        <h3 id="title-id">Alpha</h3>
+        <dl><dt>Site</dt><dd><a id="dd-link" href="/a">link</a> <button type="button">go</button></dd></dl>
+      </wc-entries>`;
+    await customElements.whenDefined('wc-entries');
+    await new Promise((r) => requestAnimationFrame(r));
+    const el = document.querySelector('wc-entries') as HTMLElement;
+    const table = el.querySelector('table')!;
+    // aria-hidden, so nothing in it may take keyboard focus.
+    expect(table.getAttribute('aria-hidden')).toBe('true');
+    for (const focusable of table.querySelectorAll('a[href], button')) {
+      expect(focusable.getAttribute('tabindex')).toBe('-1');
+    }
+    // Each id exists once: the originals keep theirs, the copies have none.
+    expect(table.querySelector('[id]')).toBeNull();
+    expect(document.querySelectorAll('#dd-link')).toHaveLength(1);
+    expect(document.querySelectorAll('#title-id')).toHaveLength(1);
+    // And the originals are untouched, so the links remain operable from the <dl>.
+    expect(el.querySelector('dd a')!.hasAttribute('tabindex')).toBe(false);
+  });
+
+  it('does not build the table twice', async () => {
+    const el = await mount();
+    el.remove();
+    document.body.append(el);
+    await new Promise((r) => requestAnimationFrame(r));
+    expect(el.querySelectorAll('table')).toHaveLength(1);
+  });
+
+  describe('projection mode', () => {
+    it('exposes the column selector — focusable buttons are never aria-hidden', async () => {
+      const el = await mount('projection');
+      const nav = el.querySelector('nav.entries__nav')!;
+      expect(nav).not.toBeNull();
+      expect(nav.getAttribute('aria-label')).toBe('Column selector');
+      const buttons = [...nav.querySelectorAll('button')];
+      expect(buttons.map((b) => b.textContent)).toEqual(['Price', 'Wt']);
+      for (const button of buttons) {
+        expect(
+          button.closest('[aria-hidden="true"]'),
+          `${button.textContent} is hidden`,
+        ).toBeNull();
+      }
+    });
+
+    it('marks the active column button as pressed', async () => {
+      const el = await mount('projection');
+      const [first, second] = [...el.querySelectorAll<HTMLButtonElement>('nav button')];
+      expect(first!.getAttribute('aria-pressed')).toBe('true');
+      expect(second!.getAttribute('aria-pressed')).toBe('false');
+      second!.click();
+      expect(first!.getAttribute('aria-pressed')).toBe('false');
+      expect(second!.getAttribute('aria-pressed')).toBe('true');
+    });
+  });
+});

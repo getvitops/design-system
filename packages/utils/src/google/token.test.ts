@@ -9,7 +9,7 @@
  * discovered in CI.
  */
 import { generateKeyPairSync } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { googleAccessToken, SCOPES, type ServiceAccount } from './token.ts';
 
 const res = (status: number, body: unknown = {}) =>

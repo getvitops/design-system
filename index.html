@@ -2482,20 +2482,65 @@
                 </div>
               </div>
               <div class="api-row">
+                <div class="api-sig"><code>.field</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  <code>&lt;wc-field class="field"&gt;</code> around a label that <em>nests</em> its
+                  control, so no <code>id</code>/<code>for</code> is needed. With no JS it is a
+                  labelled control; with it, the help text and the error are linked to the control,
+                  the error shows once the field is left, and a <code>maxlength</code> gets a
+                  counter. Not form-associated: the native control still submits and validates.<span
+                    class="sub"
+                    ><strong>Parts:</strong> <code>__control</code>, <code>__label</code>,
+                    <code>__optional</code>, <code>__help</code>, <code>__error</code>,
+                    <code>__counter</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
                 <div class="api-sig">
                   <code>.combobox</code><span class="t t-state">state</span>
                 </div>
                 <div class="api-desc">
-                  Filterable listbox shell. <strong>TODO:</strong> the Lit component (<code
-                    >&lt;wc-combobox&gt;</code
-                  >
-                  for filtering/selection) is not built yet — the CSS shell renders but is
-                  inert.<span class="sub"
+                  A text input with suggestions. With no JS it is an
+                  <code>&lt;input list&gt;</code> over a <code>&lt;datalist&gt;</code> (the
+                  browser's own autocomplete); <code>&lt;wc-combobox&gt;</code> replaces the popup
+                  with a filtered ARIA listbox that keeps focus in the input.<span class="sub"
                     ><strong>Parts:</strong> <code>__input</code>, <code>__listbox</code>,
                     <code>__option</code>, <code>__empty</code>, <code>__clear</code>.
                     <strong>Modifiers:</strong> <code>--loading</code>,
                     <code>--clearable</code>.</span
                   >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.tabs</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  <code>&lt;wc-tabs class="tabs"&gt;</code> over headed
+                  <code>&lt;section&gt;</code>s. With no JS every panel is readable under its
+                  heading; with it, a WAI-ARIA tablist (arrows, Home, End).<span class="sub"
+                    ><strong>Parts:</strong> <code>__list</code>, <code>__tab</code>,
+                    <code>__panel</code>. <strong>Modifiers:</strong> <code>--vertical</code>.</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig"><code>.range</code><span class="t t-state">state</span></div>
+                <div class="api-desc">
+                  <code>&lt;wc-range class="range"&gt;</code> over two native range inputs: with no
+                  JS, two sliders that both submit; with it, one track with thumbs that cannot cross
+                  and the value shown. A single slider needs no class.<span class="sub"
+                    ><strong>Parts:</strong> <code>__track</code>. <strong>Modifiers:</strong>
+                    <code>--dual</code> (added on upgrade).</span
+                  >
+                </div>
+              </div>
+              <div class="api-row">
+                <div class="api-sig">
+                  <code>.breadcrumbs</code>
+                </div>
+                <div class="api-desc">
+                  <code>&lt;nav aria-label="Breadcrumb" class="breadcrumbs"&gt;&lt;ol&gt;</code>,
+                  the last item <code>aria-current="page"</code>. Plain HTML, no JS.
                 </div>
               </div>
             </dl>

@@ -23,14 +23,27 @@
             }
           },
           "roles": {
-            "neutral": "ink",
-            "surface": "ink",
+            "neutral": {
+              "hue": "ink",
+              "kind": "surface"
+            },
+            "surface": {
+              "hue": "ink",
+              "kind": "surface"
+            },
             "ui-primary": "brand",
             "brand-primary": "brand",
-            "info": "sky",
+            "info": {
+              "hue": "sky",
+              "solid": 700
+            },
             "success": "brand",
             "warning": "sun",
-            "danger": "rose"
+            "danger": {
+              "hue": "rose",
+              "solid": 700
+            },
+            "ui-accent": "sun"
           },
           "utilities": ["bg", "text", "icon", "border"]
         },
@@ -93,6 +106,20 @@
               "br": "0.5rem",
               "p": "1rem",
               "fs": "var(--fs-default)"
+            },
+            "label": {
+              "ds": "var(--ds-default)",
+              "b": "none",
+              "br": "0.25rem",
+              "p": "0.25em 0.5em",
+              "fs": "0.75rem"
+            },
+            "content": {
+              "ds": "var(--ds-default)",
+              "b": "var(--b-default)",
+              "br": "0.5rem",
+              "p": "1rem",
+              "fs": "var(--fs-default)"
             }
           },
           "z": {
@@ -102,25 +129,100 @@
             "top": 1000
           },
           "items": {
-            "button": {
+            "btn": {
               "group": "control",
               "element": "button",
-              "default_role": "brand-primary",
+              "class": "btn",
+              "fill": false,
+              "overrides": {
+                "b": "1px solid transparent",
+                "fs": "inherit"
+              },
               "base": {
-                "padding": "0.6em 1.2em",
-                "border-radius": "var(--br-control, 0.25rem)",
-                "border": "none",
+                "display": "inline-flex",
+                "align-items": "center",
+                "justify-content": "center",
+                "gap": "0.4em",
+                "padding": "var(--p-btn-group)",
+                "border-radius": "var(--br-btn-group)",
+                "border": "var(--b-btn-group)",
+                "box-shadow": "var(--ds-btn-group)",
+                "background": "transparent",
+                "color": "inherit",
+                "font-family": "inherit",
+                "font-size": "var(--fs-btn-group)",
+                "font-weight": "inherit",
+                "text-decoration": "none",
+                "cursor": "pointer"
+              },
+              "states": {
+                "hover": {
+                  "step": 1,
+                  "css": {
+                    "background-color": "var(--color-bg-surface-muted)"
+                  }
+                },
+                "focus-visible": {
+                  "ring": true
+                }
+              },
+              "roles": []
+            },
+            "cta": {
+              "group": "control",
+              "class": "cta",
+              "fill": true,
+              "default_role": "ui-primary",
+              "overrides": {
+                "p": "0.75em 1.5em",
+                "b": "none",
+                "ds": "var(--shadow-sm)",
+                "fs": "inherit"
+              },
+              "base": {
+                "display": "inline-flex",
+                "align-items": "center",
+                "justify-content": "center",
+                "gap": "0.5em",
+                "padding": "var(--p-cta-group)",
+                "border-radius": "var(--br-cta-group)",
+                "border": "var(--b-cta-group)",
+                "font-family": "inherit",
+                "font-size": "var(--fs-cta-group)",
                 "font-weight": "600",
-                "color": "#fff",
+                "line-height": "inherit",
+                "text-decoration": "none",
                 "cursor": "pointer",
-                "box-shadow": "var(--shadow-sm)"
+                "color": "var(--color-text-on-ui-primary)",
+                "box-shadow": "var(--ds-cta-group)"
+              },
+              "states": {
+                "hover": {
+                  "step": 1,
+                  "lift": "1px"
+                },
+                "active": {
+                  "scale": 0.97
+                },
+                "focus-visible": {
+                  "ring": true
+                }
+              },
+              "roles": ["success", "danger", "warning", "info"]
+            },
+            "link": {
+              "group": "control",
+              "element": "a",
+              "class": "link",
+              "default_role": "ui-primary",
+              "base": {
+                "color": "var(--color-text-ui-primary)",
+                "text-decoration": "underline",
+                "text-underline-offset": "0.15em"
               },
               "states": {
                 "hover": {
                   "step": 1
-                },
-                "active": {
-                  "scale": 0.97
                 },
                 "focus-visible": {
                   "ring": true
@@ -140,6 +242,68 @@
               },
               "states": {},
               "roles": []
+            },
+            "badge": {
+              "group": "label",
+              "class": "badge",
+              "default_role": "brand-primary",
+              "overrides": {
+                "p": "0.2em 0.6em",
+                "br": "999px",
+                "fs": "0.85em"
+              },
+              "base": {
+                "display": "inline-block",
+                "padding": "var(--p-badge-group)",
+                "border-radius": "var(--br-badge-group)",
+                "font-size": "var(--fs-badge-group)",
+                "font-weight": "600",
+                "color": "var(--color-text-on-brand-primary)"
+              },
+              "states": {},
+              "roles": ["success", "danger", "warning", "info"]
+            },
+            "tag": {
+              "group": "label",
+              "class": "tag",
+              "default_role": "neutral",
+              "overrides": {
+                "p": "0.25em 0.6em",
+                "b": "1px solid currentColor",
+                "fs": "0.85em"
+              },
+              "base": {
+                "display": "inline-flex",
+                "align-items": "center",
+                "gap": "0.25em",
+                "padding": "var(--p-tag-group)",
+                "border": "var(--b-tag-group)",
+                "border-radius": "var(--br-tag-group)",
+                "font-size": "var(--fs-tag-group)",
+                "font-weight": "500",
+                "line-height": "1.2",
+                "white-space": "nowrap",
+                "color": "var(--color-text-neutral-bold)"
+              },
+              "states": {},
+              "roles": ["success", "danger", "warning", "info"]
+            },
+            "details": {
+              "group": "content"
+            },
+            "steps": {
+              "group": "content",
+              "class": "steps",
+              "overrides": {
+                "b": "1px solid var(--color-border-surface-muted)",
+                "br": "0.75rem",
+                "p": "1.5rem",
+                "ds": "none"
+              },
+              "base": {
+                "--steps-marker-size": "2.5rem",
+                "--steps-line-width": "2px"
+              }
             }
           }
         },
@@ -168,6 +332,46 @@
               "size": "var(--text-m)",
               "weight": 400,
               "line-height": "1.55"
+            },
+            "title": {
+              "family": "display",
+              "size": "var(--text-2xl)",
+              "weight": 600,
+              "line-height": "1.15",
+              "tracking": "-0.025em",
+              "text-wrap": "balance"
+            },
+            "lead": {
+              "family": "sans",
+              "size": "var(--text-l)",
+              "weight": 400,
+              "line-height": "1.5",
+              "text-wrap": "pretty"
+            },
+            "caption": {
+              "family": "sans",
+              "size": "var(--text-s)",
+              "weight": 400,
+              "line-height": "1.3",
+              "text-wrap": "pretty",
+              "color": "var(--color-text-neutral-muted)"
+            },
+            "eyebrow": {
+              "family": "sans",
+              "size": "var(--text-s)",
+              "weight": 600,
+              "line-height": "1.3",
+              "tracking": "0.08em",
+              "text-transform": "uppercase",
+              "text-wrap": "balance"
+            },
+            "footnote": {
+              "family": "sans",
+              "size": "var(--text-xs)",
+              "weight": 400,
+              "line-height": "1.4",
+              "text-wrap": "pretty",
+              "color": "var(--color-text-neutral-muted)"
             }
           },
           "headings": {
@@ -210,6 +414,44 @@
   },
   "site": {
     "defaultLocale": "en",
+    "accessibility": { "standard": "wcag21", "level": "AA" },
+    "chrome": {
+      "masthead": {
+        "position": "sticky",
+        "surface": "glass",
+        "layout": "full",
+        "elevation": { "shadow": "sm" },
+        "states": { "atStart": { "elevation": false } },
+        "height": "4rem"
+      },
+      "nav": { "compact": "drawer", "drawerSide": "end" }
+    },
+    "templates": {
+      "contact": {
+        "type": "form",
+        "fields": [
+          {
+            "name": "name",
+            "type": "text",
+            "required": true
+          },
+          {
+            "name": "email",
+            "type": "email",
+            "required": true
+          },
+          {
+            "name": "tel",
+            "type": "tel"
+          },
+          {
+            "name": "message",
+            "type": "textarea",
+            "required": true
+          }
+        ]
+      }
+    },
     "locales": {
       "en": {
         "name": "English"
@@ -223,6 +465,81 @@
         "url": "https://dev.my-emdash-site.example.com",
         "robots": "noindex,nofollow"
       }
+    },
+    "icons": {
+      "sprite": true,
+      "semantic": [
+        "menu",
+        "close",
+        "home",
+        "settings",
+        "search",
+        "add",
+        "remove",
+        "delete",
+        "edit",
+        "save",
+        "copy",
+        "paste",
+        "attach",
+        "upload",
+        "download",
+        "share",
+        "bookmark",
+        "favorite",
+        "star",
+        "login",
+        "logout",
+        "email",
+        "phone",
+        "location",
+        "globe",
+        "link",
+        "clock",
+        "calendar",
+        "schedule",
+        "person",
+        "group",
+        "file",
+        "folder",
+        "image",
+        "export",
+        "import",
+        "backup",
+        "compress",
+        "check",
+        "error",
+        "warning",
+        "info",
+        "help",
+        "cart",
+        "tag",
+        "receipt",
+        "leaf",
+        "tree",
+        "seedling",
+        "trowel",
+        "droplet",
+        "snowflake",
+        "sun",
+        "cloud",
+        "grid",
+        "list",
+        "filter",
+        "sort",
+        "fullscreen",
+        "collapse",
+        "building",
+        "video",
+        "lock",
+        "unlock",
+        "eye",
+        "print",
+        "code",
+        "palette",
+        "lightbulb",
+        "lightning"
+      ]
     }
   }
 }

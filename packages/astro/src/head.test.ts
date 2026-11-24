@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 
 /**
  * Drift guards over the two inline `<head>` scripts in `<Head />`.
@@ -15,7 +15,11 @@ import { describe, expect, it } from 'vitest';
  * loudly at home.
  */
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SRC = readFileSync(join(HERE, 'components', 'Head.astro'), 'utf8');
+// The inline scripts are constants in inline-scripts.ts (so csp.ts can hash the very
+// same bytes), imported by Head.astro; read both so the guards see script + wiring.
+const SRC =
+  readFileSync(join(HERE, 'inline-scripts.ts'), 'utf8') +
+  readFileSync(join(HERE, 'components', 'Head.astro'), 'utf8');
 
 describe('THEME_SCRIPT', () => {
   it('uses the same localStorage key as WCColorSchemeToggle', () => {
@@ -27,6 +31,19 @@ describe('THEME_SCRIPT', () => {
   it('applies the scheme before paint, not after hydration', () => {
     expect(SRC).toContain('document.documentElement.dataset.theme');
     expect(SRC).toContain('colorScheme');
+  });
+});
+
+describe('CONTRAST_SCRIPT', () => {
+  it('uses the same localStorage key as WCContrastToggle and sets data-contrast', () => {
+    // `CONTRAST_STORAGE_KEY` in @getvitops/core's `contrast-toggle.ts`.
+    expect(SRC).toContain("localStorage.getItem('vitops-contrast')");
+    expect(SRC).toContain('document.documentElement.dataset.contrast');
+  });
+
+  it('is opt-in, so no existing site gains an inline script (and a CSP hash) unasked', () => {
+    expect(SRC).toContain('{contrast && <script is:inline set:html={CONTRAST_SCRIPT} />}');
+    expect(SRC).toContain('contrast = false');
   });
 });
 
@@ -77,5 +94,34 @@ describe('<html> class flags', () => {
     // component names both to explain their absence, so a bare substring check
     // would trip on its own documentation.
     expect(SRC).not.toContain('classList');
+  });
+});
+
+describe('polyfills script tag', () => {
+  it('carries the marker core looks it up by, and the two selection lists', () => {
+    // `readPolyfillSelection` in @getvitops/core queries `script[data-vitops-polyfills]` and reads
+    // `dataset.polyfillsEnable` / `polyfillsDisable`. Rename either side and the option silently
+    // stops doing anything, which is the failure this pins.
+    expect(SRC).toContain('data-vitops-polyfills');
+    expect(SRC).toContain('data-polyfills-enable=');
+    expect(SRC).toContain('data-polyfills-disable=');
+    const core = readFileSync(join(HERE, '../../core/src/js/polyfills.ts'), 'utf8');
+    expect(core).toContain('script[data-vitops-polyfills]');
+    expect(core).toContain('dataset.polyfillsEnable');
+    expect(core).toContain('dataset.polyfillsDisable');
+  });
+
+  it('omits both attributes when the lists are empty', () => {
+    expect(SRC).toContain('head.polyfills?.enable?.length ?');
+    expect(SRC).toContain(': undefined');
+  });
+});
+
+describe('text-scale meta', () => {
+  it('is opt-in and emits the OS text-size opt-in', () => {
+    // Off by default: it changes the rendered size of every rem for visitors with a large OS text
+    // setting, so no existing site gets it unasked.
+    expect(SRC).toContain('textScale = false');
+    expect(SRC).toContain('{textScale && <meta name="text-scale" content="scale" />}');
   });
 });

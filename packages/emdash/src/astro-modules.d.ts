@@ -8,3 +8,14 @@ declare module '*.astro' {
   const Component: (props: Record<string, unknown>) => unknown;
   export default Component;
 }
+
+/** Supplied by the `vitops()` integration (`@getvitops/astro`); only the field the form block reads. */
+declare module 'virtual:getvitops/head' {
+  const head: { turnstileSiteKey: string | null } & Record<string, unknown>;
+  export default head;
+}
+
+/** Supplied by EmDash's integration: the merged plugin `blockComponents` maps. */
+declare module 'virtual:emdash/block-components' {
+  export const pluginBlockComponents: Record<string, unknown>;
+}

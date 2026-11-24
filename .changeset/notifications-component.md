@@ -1,0 +1,6 @@
+---
+'@getvitops/core': minor
+'@getvitops/astro': minor
+---
+
+Add `<wc-notifications>` and `<Notifications>`: the one labelled, top-layer region a page's notifications stack in. `element.show({ message, title?, tone?, duration?, actions? })`, or `document.dispatchEvent(new CustomEvent('vitops:notify', { detail }))` from anywhere, builds a `.notification`. They persist until closed unless a `duration` is set; a countdown pauses while the pointer is over a notification or focus is inside it; they are announced through `ariaNotify()` where the browser has it and the page's shared live region otherwise; they never take focus; a modal dialog holds them back until it closes; closing the one with focus hands focus to a neighbour. The fallback is the slot: a server-rendered `<div class="notification" role="status">` is an inline message with no JS and is adopted into the stack on upgrade (`data-duration` to dismiss it). `.notification[data-tone]` styles `info`, `success`, `warning` and `danger` from each role's own tint, and the exit animation is skipped under `prefers-reduced-motion`. `announce()` in `utils/announcer.ts` takes a `delay` so a notification speaks at once while form fields keep their 500 ms. CSS (`notification.css`): all formats. `elements.js` grows; its size budget moves up. Other fixed-group packages: no consumer-facing change.

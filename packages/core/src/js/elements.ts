@@ -10,7 +10,7 @@
  * `src/web-components/`. `color-scheme-toggle` and `wc-multifield` were the two
  * that drifted, renamed in 4.0.
  *
- * What isn't registered here yet — the editor-v2 pickers, the unbuilt components,
+ * What isn't registered here yet — the unbuilt components,
  * the element-display gap — is tracked in AGENTS.md's "Component architecture"
  * section, not here.
  */
@@ -21,9 +21,17 @@ import '../web-components/WCCopy.js';
 import '../web-components/WCCarousel.js';
 import '../web-components/WCEntries.js';
 import '../web-components/WCColorSchemeToggle.js';
+import '../web-components/WCContrastToggle.js';
 import '../web-components/WCMultiField.js';
 import '../web-components/WCMarquee.js';
 import '../web-components/WCTree.js';
 import '../web-components/WCCards.js';
 import '../web-components/WCGallery.js';
 import '../web-components/WCCounter.js';
+import '../web-components/WCTurnstile.js';
+import '../web-components/WCTabs.js';
+import '../web-components/WCCombobox.js';
+import '../web-components/WCFormat.js';
+import '../web-components/WCRange.js';
+import '../web-components/WCField.js';
+import '../web-components/WCNotifications.js';

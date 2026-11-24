@@ -13,8 +13,23 @@
 import head from 'virtual:getvitops/head';
 // @ts-ignore — `Font` is provided by Astro's Fonts API (astro >= 7)
 import { Font } from 'astro:assets';
+import { CONSENT_STUB, CONTRAST_SCRIPT, THEME_SCRIPT } from '../inline-scripts.ts';
 
 interface Props {
+  /**
+   * Restore a remembered high-contrast choice before first paint (for sites that render
+   * `<ContrastToggle />`). Opt-in: it adds an inline script, so a site with a hash-pinned CSP also
+   * passes `inline: { contrast: true }` to `contentSecurityPolicy()`.
+   */
+  contrast?: boolean;
+  /**
+   * Opt this page into the operating system's text-size setting (`<meta name="text-scale">`), so
+   * mobile browsers scale `1rem` to match Dynamic Type or Android font size instead of ignoring
+   * it. Opt-in because it changes how big every rem-based length renders for those visitors: the
+   * type and space scales are rem-based and scale cleanly, but a site with fixed-pixel layout
+   * should check a large setting first. Browsers without support ignore the tag.
+   */
+  textScale?: boolean;
   favicons?: boolean;
   webComponents?: boolean;
   editor?: boolean;
@@ -22,6 +37,8 @@ interface Props {
   fonts?: boolean;
 }
 const {
+  contrast = false,
+  textScale = false,
   favicons = head.favicons,
   webComponents = head.webComponents,
   editor = head.editor,
@@ -29,44 +46,12 @@ const {
 } = Astro.props;
 const wc = head.wcBase;
 
-/**
- * Applies the remembered colour scheme before first paint.
- *
- * The key MUST match `WCColorSchemeToggle.STORAGE_KEY` in @getvitops/core;
- * `head.test.ts` asserts they stay in step. try/catch because localStorage
- * throws in private/partitioned contexts.
+/*
+ * The two inline scripts below (THEME_SCRIPT, CONSENT_STUB) are defined in
+ * `../inline-scripts.ts`, with the reasoning for each. They are imported rather
+ * than written here so `csp.ts` hashes the very same constants this emits — a
+ * strict Content-Security-Policy names inline scripts by hash of their bytes.
  */
-const THEME_SCRIPT =
-  `try{var s=localStorage.getItem('vitops-color-scheme');` +
-  `if(s==='light'||s==='dark'){document.documentElement.dataset.theme=s;` +
-  `document.documentElement.style.colorScheme=s+' only'}}catch(e){}`;
-
-/**
- * The consent gate's build-time signal: "something on this page may need
- * permission, and the real gate hasn't loaded yet."
- *
- * `consent.js` and `elements.js` are both deferred modules with no ordering
- * guarantee between them, so `<wc-color-scheme-toggle>` can upgrade and be clicked
- * before the gate exists. Without this, a caller probing for
- * `window.vitopsConsent` in that window would see nothing, correctly conclude
- * that sites without the gate should just store — and store. The stub closes the
- * window by making the gate's *existence* known synchronously in `<head>`, which
- * is the only place that beats every deferred bundle.
- *
- * It answers `false` to everything, because nothing is granted until the store
- * has been read, and queues what it was asked so `consent/runtime.ts` can replay
- * it on evaluation. `q` entries are `[category]` for `require()` and
- * `[category, resolve]` for `request()`. Same shape as the `dataLayer`/`gtag`
- * stub in `analytics.ts` and for the same reason.
- *
- * Emitted only when the gate is on: its absence is what tells a caller the site
- * has no gate at all.
- */
-const CONSENT_STUB =
-  `window.vitopsConsent=window.vitopsConsent||{q:[],` +
-  `require:function(c){this.q.push([c]);return false},` +
-  `request:function(c){var s=this;return new Promise(function(r){s.q.push([c,r])})},` +
-  `granted:function(){return false},needed:function(){return false}};`;
 
 /*
  * No `<html>` class flips here on purpose. `animation.css` used to need `no-js`
@@ -82,10 +67,12 @@ const CONSENT_STUB =
  */
 ---
 
-{favicons && head.faviconLinks.map((l: { rel: string; href: string; type?: string; sizes?: string }) => (
-  <link rel={l.rel} href={l.href} type={l.type} sizes={l.sizes} />
-))}
+{favicons &&
+  head.faviconLinks.map((l: { rel: string; href: string; type?: string; sizes?: string }) => (
+    <link rel={l.rel} href={l.href} type={l.type} sizes={l.sizes} />
+  ))}
 {favicons && head.themeColor && <meta name="theme-color" content={head.themeColor} />}
+{textScale && <meta name="text-scale" content="scale" />}
 
 {/*
   Webfonts declared via vitops({ fonts }). Astro's `fonts:` config resolves and
@@ -100,9 +87,10 @@ const CONSENT_STUB =
   `preload` comes from the declaration, so which faces get a preload link is a property
   of the font, not something re-decided in every layout.
 */}
-{fonts && head.fonts.map((f: { cssVariable: string; preload: boolean | object[] }) => (
-  <Font cssVariable={f.cssVariable} preload={f.preload} />
-))}
+{fonts &&
+  head.fonts.map((f: { cssVariable: string; preload: boolean | object[] }) => (
+    <Font cssVariable={f.cssVariable} preload={f.preload} />
+  ))}
 
 {/* Set by vitops({ sitemap }); null when no sitemap was registered. */}
 {head.sitemap && <link rel="sitemap" type="application/xml" href={head.sitemap} />}
@@ -133,9 +121,26 @@ const CONSENT_STUB =
       localStorage throws in private/partitioned contexts.
     */}
     <script is:inline set:html={THEME_SCRIPT} />
+    {contrast && <script is:inline set:html={CONTRAST_SCRIPT} />}
     <link rel="modulepreload" href={`${wc}/polyfills.js`} />
-    <script is:inline type="module" src={`${wc}/polyfills.js`}></script>
-    <script is:inline defer src={`${wc}/deferred.js`}></script>
+    {/*
+      `data-vitops-polyfills` is how polyfills.js finds this tag (`document.currentScript` is null in
+      a module), and the two lists are `vitops({ polyfills })`. Both are omitted when empty, so
+      the default page's markup is unchanged.
+    */}
+    <script
+      is:inline
+      type="module"
+      src={`${wc}/polyfills.js`}
+      data-vitops-polyfills
+      data-polyfills-enable={
+        head.polyfills?.enable?.length ? head.polyfills.enable.join(' ') : undefined
+      }
+      data-polyfills-disable={
+        head.polyfills?.disable?.length ? head.polyfills.disable.join(' ') : undefined
+      }
+    ></script>
+    <script is:inline type="module" src={`${wc}/deferred.js`}></script>
     <script is:inline type="module" src={`${wc}/elements.js`}></script>
   </>
 )}

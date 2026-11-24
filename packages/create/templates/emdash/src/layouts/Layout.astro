@@ -1,8 +1,16 @@
 ---
 import VitopsHead from '@getvitops/astro/Head.astro';
+import { resolveOrganizationName } from '@getvitops/astro/routes';
 import { getMenu, getSiteSettings } from 'emdash';
 import { createPublicPageContext } from 'emdash/page';
+import SiteFooter from '@getvitops/astro/components/SiteFooter.astro';
+import SiteNav from '@getvitops/astro/components/SiteNav.astro';
+import Masthead from '@getvitops/astro/components/Masthead.astro';
+import { resolveNavOptions } from '@getvitops/astro/components/masthead.ts';
+import { loadNavMenus } from '@getvitops/astro/components/sitenav.ts';
 import { EmDashHead } from 'emdash/ui';
+import { VitopsMegaPanel, VitopsWidgetArea } from '@getvitops/emdash/astro';
+import config from '../../site.json' with { type: 'json' };
 // Design-system CSS, layout-scoped (vitops css.inject: false): only pages
 // rendered through this layout get it — keeps it out of /_emdash/admin, while
 // EmDash previews (rendered through this layout) keep it.
@@ -19,7 +27,11 @@ interface Props {
 
 const { title, description, image } = Astro.props;
 const settings = await getSiteSettings();
-const siteTitle = settings?.title || 'My EmDash Site';
+// getSiteSettings().title is the editable, client-facing display name (set in
+// the EmDash admin) — it wins whenever it's set. resolveOrganizationName(config)
+// is the fallback rather than a second hardcoded string, so a fresh scaffold
+// shows organization.name (from site.json) before anyone's touched the admin.
+const siteTitle = settings?.title || resolveOrganizationName(config) || 'My EmDash Site';
 const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
 const siteDescription = settings?.tagline || 'An EmDash website with the Vitops design system';
 
@@ -36,22 +48,25 @@ const pageCtx = createPublicPageContext({
   siteName: siteTitle,
 });
 
-// Editor-managed navigation (seeded as "primary" and "footer"; edit under
-// Menus in the admin). Falls back to a bare home link if the menu is deleted.
-const menu = await getMenu('primary');
-const navLinks = menu?.items?.length
-  ? menu.items.map((item) => ({ label: item.label, href: item.url ?? '/' }))
-  : [{ label: 'Home', href: '/' }];
-const footerMenu = await getMenu('footer');
-const footerLinks = (footerMenu?.items ?? []).map((item) => ({
-  label: item.label,
-  href: item.url ?? '/',
-}));
-const year = new Date().getFullYear();
+// Editor-managed navigation, read from EmDash menus (edit under Menus in the admin):
+//   `primary`         header nav (the logo is the home link, so it holds no Home item).
+//                     Nested items become dropdowns; an item's `titleAttr` is its description.
+//   `primary-mobile`  OPTIONAL — a simpler depth-1 nav that replaces `primary` below `md`.
+//   `primary-mega`    OPTIONAL — a mega menu that replaces `primary` from `xl`.
+//   `footer-sitemap`, `footer-legal`  footer columns.
+// Variants need no code change: create the menu and <SiteNav> picks it up. A missing menu
+// renders nothing rather than failing (a fresh DB before the seed has applied).
+const nav = await loadNavMenus(getMenu);
+const footerSitemap = await getMenu('footer-sitemap');
+const footerLegal = await getMenu('footer-legal');
+const orgName = config.organization?.name || siteTitle;
+// The page language is the site's first declared locale, not a hard-coded one: screen readers pick
+// their pronunciation from it. A bilingual site sets `lang` per page from its own routing.
+const lang = Object.keys(config.site?.locales ?? {})[0] ?? 'en';
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -63,48 +78,32 @@ const year = new Date().getFullYear();
     <VitopsHead />
   </head>
   <body>
-    <header class="navbar-sticky centered">
-      <div class="navbar">
-        <a class="brand flex items-center" href="/" aria-label={`${siteTitle} home`}>
-          <span class="brand-mark" set:html={logo} aria-hidden="true" />
-          <span class="font-heading">{siteTitle}</span>
-        </a>
-        <nav aria-label="Primary">
-          <ul class="nav-items justify-center">
-            {
-              navLinks.map((link) => (
-                <li>
-                  <a href={link.href}>{link.label}</a>
-                </li>
-              ))
-            }
-          </ul>
-        </nav>
+    <a class="skip-link" href="#main">
+      Skip to content
+    </a>
+    <!-- Widget areas (Widgets in the admin): the same content wherever they appear. -->
+    <VitopsWidgetArea name="announcement" class="centered" />
+    <!-- The masthead's look and the nav's behaviour come from `site.chrome` in site.json
+         (position, scroll states, glass, inset, shadow, drawer vs dropdown). A prop here
+         overrides one field for this layout. -->
+    <Masthead config={config}>
+      <a slot="brand" class="brand flex items-center" href="/" aria-label={`${siteTitle} home`}>
+        <span class="brand-mark" set:html={logo} aria-hidden="true" />
+        <span class="font-heading">{siteTitle}</span>
+      </a>
+      <div class="header-end flex items-center">
+        <SiteNav {...nav} {...resolveNavOptions(config)} megaPanel={VitopsMegaPanel} />
+        <wc-color-scheme-toggle></wc-color-scheme-toggle>
       </div>
-    </header>
+    </Masthead>
 
-    <main class="centered rhythm">
+    <main id="main" class="centered rhythm">
       <slot />
     </main>
 
-    <footer class="centered">
-      {
-        footerLinks.length > 0 && (
-          <nav aria-label="Footer">
-            <ul class="nav-items justify-center">
-              {footerLinks.map((link) => (
-                <li>
-                  <a class="font-caption" href={link.href}>
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )
-      }
-      <p class="font-caption text-neutral-muted">© {year} {siteTitle}</p>
-    </footer>
+    <VitopsWidgetArea name="pre-footer" class="centered" />
+
+    <SiteFooter class="centered" sitemap={footerSitemap} legal={footerLegal} name={orgName} />
 
     <style>
       .brand {
@@ -119,14 +118,8 @@ const year = new Date().getFullYear();
         block-size: 1.75rem;
       }
 
-      .navbar {
-        block-size: 64px;
-      }
-
-      footer {
-        margin-block-start: var(--space-2xl);
-        padding-block: var(--space-l);
-        border-block-start: 1px solid var(--color-border-neutral);
+      .header-end {
+        gap: var(--space-s, 0.75rem);
       }
     </style>
   </body>

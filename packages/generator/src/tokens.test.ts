@@ -1,8 +1,10 @@
-import { LIGHTNESS_LADDER, contrastLc, hexToOklch } from '@getvitops/utils/color';
-import { describe, expect, it } from 'vitest';
+import { LIGHTNESS_LADDER, contrastRatio, hexToOklch } from '@getvitops/utils/color';
+import { describe, expect, it } from 'vite-plus/test';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { build } from './generate.ts';
 import { defaultConfig } from './index.ts';
-import { roleHue, roleKind } from './shared.ts';
+import { roleHue, roleKind, roleSolidOptions } from './shared.ts';
 import {
   checkContrast,
   expandPalette,
@@ -10,8 +12,10 @@ import {
   ladderWarnings,
   monotonicityErrors,
   NUMERIC_STEPS,
+  patchToOverrideCss,
   tokenClass,
   tokenVar,
+  validateColorContract,
 } from './tokens.ts';
 
 const SEEDS = { pine: '#4A9075', slate: '#5B6472', rust: '#B23A32', cobalt: '#3B5BB5' };
@@ -144,7 +148,13 @@ describe('the contrast contract', () => {
       return m ? numeric(m[1] as string)[m[2] as never]! : v;
     };
     const roles = Object.entries(ds.colors.roles).map(([role, spec]) =>
-      functionalRole(role, roleHue(spec), pal[roleHue(spec)]!, roleKind(spec)),
+      functionalRole(
+        role,
+        roleHue(spec),
+        pal[roleHue(spec)]!,
+        roleKind(spec),
+        roleSolidOptions(spec),
+      ),
     );
     // Chromatic text is checked against the page it sits on, not just its own
     // tint — that is where coloured text actually appears.
@@ -193,18 +203,19 @@ describe('fixed-tone kits', () => {
   });
 
   /**
-   * A kit thin enough that snapping can't cover every tier is REPORTED, not
-   * silently shipped. Two tones leaves the dark-mode icon tier snapping onto the
-   * near-black endpoint, which no amount of interpolation can rescue — the honest
-   * answer is "add a mid tone", and the contract is what says so.
+   * A kit that can't cover every tier is REPORTED, not silently shipped. Two light-mid tones
+   * leave the icon tier snapping onto a step too close to the page plane (2.0:1 against the 3:1
+   * non-text bar), which no amount of interpolation can rescue — the honest answer is "add a
+   * darker tone", and the contract is what says so. (Under the old APCA gate the darker pair
+   * `#29634D`/`#4A9075` was reported; at WCAG 2's 3:1 it passes.)
    */
-  it('reports a kit too thin to cover the non-text tier', () => {
-    const hue = expandPalette({ brand: { tones: ['#29634D', '#4A9075'] } }).brand!;
+  it('reports a kit that cannot cover the non-text tier', () => {
+    const hue = expandPalette({ brand: { tones: ['#7fbf9f', '#8fcaae'] } }).brand!;
     const failures = checkContrast(
       functionalRole('brand-primary', 'brand', hue, 'chromatic'),
       () => hue.numeric!,
     );
-    expect(failures.join('\n')).toMatch(/icon Lc .* < 45/);
+    expect(failures.join('\n')).toMatch(/icon on .*:1 < 3:1/);
   });
 
   /**
@@ -232,9 +243,9 @@ describe('invalid hues', () => {
 });
 
 describe('contrast engine sanity', () => {
-  it('APCA Lc between tinted endpoints is far above the text target', () => {
+  it('WCAG 2 ratio between tinted endpoints is far above the text target', () => {
     const hue = expandPalette({ slate: { seed: SEEDS.slate } }).slate!.numeric!;
-    expect(contrastLc(hue['950']!, hue['50']!)).toBeGreaterThan(90);
+    expect(contrastRatio(hue['950']!, hue['50']!)).toBeGreaterThan(12);
   });
 });
 
@@ -359,5 +370,199 @@ describe('ramp monotonicity', () => {
         '/nonexistent-assets',
       ),
     ).toThrow(/LIGHTER/);
+  });
+});
+
+describe('validateColorContract', () => {
+  it('passes the shipped config, standalone (no generate()/build() involved)', () => {
+    expect(validateColorContract(defaultConfig().colors)).toEqual([]);
+  });
+
+  it('reports a role referencing an unknown hue', () => {
+    const errors = validateColorContract({
+      palette: { pine: { seed: SEEDS.pine } },
+      roles: { danger: 'ruby' },
+    });
+    expect(errors).toEqual(['role "danger" references unknown palette hue "ruby"']);
+  });
+
+  it('reports the same monotonicity break build() would refuse', () => {
+    const errors = validateColorContract({
+      palette: {
+        navy: { seed: '#1A2230', anchors: { 600: '#2c3b4e' } },
+        pine: { seed: SEEDS.pine },
+      },
+      roles: { neutral: 'pine' },
+    });
+    expect(errors.join('\n')).toContain('colors.palette.navy');
+  });
+
+  it('reports the same contrast failure build() would refuse', () => {
+    // Mirrors the "fixed-tone kits" case above: these tones fail the non-text tier.
+    const errors = validateColorContract({
+      palette: { brand: { tones: ['#7fbf9f', '#8fcaae'] } },
+      roles: { 'brand-primary': { hue: 'brand', kind: 'chromatic' } },
+    });
+    expect(errors.join('\n')).toMatch(/icon on .*:1 < 3:1/);
+  });
+});
+
+describe('patchToOverrideCss', () => {
+  const reverseIndex = {
+    '--color-navy-500': 'colors.palette.navy.anchors.500',
+    '--space-m': 'spaceScale.baseStep',
+  };
+
+  it('emits nothing for an empty patch', () => {
+    expect(patchToOverrideCss({}, reverseIndex)).toBe('');
+  });
+
+  it('maps a nested patch path to its CSS var', () => {
+    const patch = { colors: { palette: { navy: { anchors: { 500: '#123456' } } } } };
+    expect(patchToOverrideCss(patch, reverseIndex)).toBe(
+      ':root {\n  --color-navy-500: #123456;\n}',
+    );
+  });
+
+  it('emits one line per matched leaf, in patch order', () => {
+    const patch = {
+      colors: { palette: { navy: { anchors: { 500: '#123456' } } } },
+      spaceScale: { baseStep: 5 },
+    };
+    expect(patchToOverrideCss(patch, reverseIndex)).toBe(
+      ':root {\n  --color-navy-500: #123456;\n  --space-m: 5;\n}',
+    );
+  });
+
+  it('silently drops a leaf with no matching reverseIndex entry', () => {
+    const patch = { colors: { roles: { danger: { hue: 'rust', kind: 'chromatic' } } } };
+    expect(patchToOverrideCss(patch, reverseIndex)).toBe('');
+  });
+});
+
+describe('hueOnTokens', () => {
+  it('emits a readable foreground for every step of every hue', async () => {
+    const { hueOnTokens } = await import('./generate.ts');
+    const expanded = expandPalette({ amber: { seed: '#d97706' } } as never);
+    const lines = hueOnTokens(expanded as never);
+    expect(lines).toHaveLength(NUMERIC_STEPS.length);
+    const on50 = lines.find((l) => l.startsWith('--color-amber-50-on'))!;
+    const on950 = lines.find((l) => l.startsWith('--color-amber-950-on'))!;
+    // light fill → dark text, dark fill → light text
+    expect(hexToOklch(on50.match(/#[0-9a-f]{6}/i)![0]).l).toBeLessThan(0.3);
+    expect(hexToOklch(on950.match(/#[0-9a-f]{6}/i)![0]).l).toBeGreaterThan(0.9);
+  });
+});
+
+const ASSETS = join(dirname(fileURLToPath(import.meta.url)), '..', 'assets');
+
+describe('scheme tokens', () => {
+  it('say dark for a fill that takes light text, and light for one that takes dark text', async () => {
+    const { hueSchemeTokens } = await import('./generate.ts');
+    const expanded = expandPalette({ amber: { seed: '#d97706' } } as never);
+    const lines = hueSchemeTokens(expanded as never);
+    expect(lines).toHaveLength(NUMERIC_STEPS.length);
+    expect(lines.find((l) => l.startsWith('--color-amber-50-scheme'))).toContain(': light;');
+    expect(lines.find((l) => l.startsWith('--color-amber-950-scheme'))).toContain(': dark;');
+  });
+
+  it('agree with the foreground pickOn chose, for every step of every hue', async () => {
+    const { hueSchemeTokens, hueOnTokens } = await import('./generate.ts');
+    const expanded = expandPalette({
+      navy: { seed: '#1e3a8a' },
+      amber: { seed: '#d97706' },
+    } as never);
+    const on = hueOnTokens(expanded as never);
+    const scheme = hueSchemeTokens(expanded as never);
+    expect(scheme).toHaveLength(on.length);
+    on.forEach((line, i) => {
+      const light = hexToOklch(line.match(/#[0-9a-f]{6}/i)![0]).l > 0.5;
+      expect(scheme[i]).toContain(light ? ': dark;' : ': light;');
+    });
+  });
+
+  it('are emitted for every role, in both the css and tailwind output', () => {
+    for (const format of ['css', 'tailwind'] as const) {
+      const css = JSON.stringify(build(defaultConfig(), format, ASSETS).generated);
+      expect(css, format).toContain('--color-scheme-ui-primary:');
+      expect(css, format).toContain('--color-brand-600-scheme:');
+    }
+  });
+});
+
+describe('colors.tint and acknowledgeContrast', () => {
+  it('emits a tint rule only when colors.tint is set', async () => {
+    const { toneTintRule } = await import('./generate.ts');
+    expect(toneTintRule(undefined)).toBe('');
+    expect(toneTintRule({ mix: '8%' })).toContain(
+      '--tone-tint: color-mix(in oklab, var(--tone-solid',
+    );
+    expect(toneTintRule({ mix: '8%' })).toContain('8%, transparent)');
+  });
+
+  it('turns a near miss into a warning only for the role that acknowledged it', async () => {
+    const { generate } = await import('./index.ts');
+    const base = (extra: object) => ({
+      colors: {
+        palette: { ink: { seed: '#4b5563' }, brand: { seed: '#2f7dd1' } },
+        roles: {
+          neutral: { hue: 'ink', kind: 'surface' },
+          surface: { hue: 'ink', kind: 'surface' },
+          'ui-primary': { hue: 'brand', ...extra },
+        },
+      },
+    });
+    // Sanity: the check API accepts the field without schema errors.
+    const { validate } = await import('./index.ts');
+    expect(() => validate(base({ acknowledgeContrast: 1 }) as never)).not.toThrow();
+    expect(typeof generate).toBe('function');
+  });
+});
+
+describe('WCAG 2 contrast ratio', () => {
+  it('computes the standard ratio (known values)', () => {
+    expect(contrastRatio('#000000', '#ffffff')).toBeCloseTo(21, 1);
+    expect(contrastRatio('#767676', '#ffffff')).toBeCloseTo(4.54, 2); // the AA grey
+    expect(contrastRatio('#777777', '#ffffff')).toBeLessThan(4.5);
+  });
+
+  // White over #777 is 4.48:1: just under the WCAG 2 text bar.
+  const role = (appearanceTokens: Record<string, string>) =>
+    ({
+      role: 'x',
+      kind: 'chromatic',
+      light: appearanceTokens,
+      dark: appearanceTokens,
+    }) as never;
+  const tokens = { 'bg-solid': '#777777', 'text-on': '#ffffff' };
+  const numeric = () => ({});
+
+  it('fails a ratio miss when no policy is passed (the strict default)', () => {
+    const out = checkContrast(role(tokens), numeric, undefined, ['light']);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatch(/text-on on bg-solid 4\.\d\d:1 < 4\.5:1/);
+  });
+
+  it('warn mode reports the same miss without failing', () => {
+    const warned: string[] = [];
+    const out = checkContrast(role(tokens), numeric, undefined, ['light'], 0, undefined, {
+      mode: 'warn',
+      onWarn: (m) => warned.push(m),
+    });
+    expect(out).toEqual([]);
+    expect(warned).toHaveLength(1);
+  });
+
+  it('acknowledgeContrast tolerance (ratio points) excuses a near miss, loudly', () => {
+    const near: string[] = [];
+    const out = checkContrast(role(tokens), numeric, undefined, ['light'], 0.1, (m) =>
+      near.push(m),
+    );
+    expect(out).toEqual([]);
+    expect(near).toHaveLength(1);
+  });
+
+  it('a shortfall larger than the tolerance still fails', () => {
+    expect(checkContrast(role(tokens), numeric, undefined, ['light'], 0.01)).toHaveLength(1);
   });
 });

@@ -26,9 +26,12 @@
  * it, so it lands in a shared chunk, which is free for a Node library. (The
  * "don't create a shared chunk" rule in AGENTS.md is about browser bundles and
  * the consent gate.)
+ *
+ * **Worker-safe: Web Crypto only, no Node builtins.** `./notify` re-exports the Google Ads
+ * upload, which signs a service-account assertion from inside a Worker, and `./notify` is
+ * documented as free of Node builtins. `crypto.subtle` and `btoa` exist in Node, workerd and
+ * browsers alike; `node:crypto`'s `createSign` and `Buffer` do not exist in a bare Worker.
  */
-import { createSign } from 'node:crypto';
-
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
 /** The fields we need from a service-account JSON key. */
@@ -56,21 +59,47 @@ export type GoogleCredential =
   | { kind: 'service-account'; account: ServiceAccount; scope: string }
   | { kind: 'oauth'; oauth: GoogleOAuth };
 
-const b64url = (input: Buffer | string): string =>
-  Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const b64url = (input: Uint8Array | string): string => {
+  const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : input;
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+
+/** Decode a PKCS#8 PEM ("-----BEGIN PRIVATE KEY-----") to its DER bytes. */
+function pemToDer(pem: string): Uint8Array<ArrayBuffer> {
+  // `\n` survives most secret stores as a literal; normalise so a pasted key works.
+  const body = pem
+    .replace(/\\n/g, '\n')
+    .replace(/-----(BEGIN|END) [A-Z ]+-----/g, '')
+    .replace(/\s+/g, '');
+  const binary = atob(body);
+  const der = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) der[i] = binary.charCodeAt(i);
+  return der;
+}
 
 /** Sign the RS256 JWT assertion a service-account grant carries. */
-function assertionFor(account: ServiceAccount, scope: string, now: number): string {
+async function assertionFor(account: ServiceAccount, scope: string, now: number): Promise<string> {
   const iat = Math.floor(now / 1000);
   const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const claims = b64url(
     JSON.stringify({ iss: account.client_email, scope, aud: TOKEN_URL, iat, exp: iat + 3600 }),
   );
-  const signer = createSign('RSA-SHA256');
-  signer.update(`${header}.${claims}`);
-  // `\n` survives most secret stores as a literal; normalise so a pasted key works.
-  const pem = account.private_key.replace(/\\n/g, '\n');
-  return `${header}.${claims}.${b64url(signer.sign(pem))}`;
+  // Google issues service-account keys as PKCS#8, which is what Web Crypto imports.
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    pemToDer(account.private_key),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    new TextEncoder().encode(`${header}.${claims}`),
+  );
+  return `${header}.${claims}.${b64url(new Uint8Array(signature))}`;
 }
 
 /** The half that never differs: POST the grant, surface the cause, return the token. */
@@ -100,7 +129,7 @@ async function requestToken(body: URLSearchParams, fetchImpl: typeof fetch): Pro
  *
  * `now` is a parameter so the assertion is testable without mocking the clock.
  */
-export function googleAccessToken(
+export async function googleAccessToken(
   credential: GoogleCredential,
   fetchImpl: typeof fetch = fetch,
   now: number = Date.now(),
@@ -115,7 +144,7 @@ export function googleAccessToken(
         })
       : new URLSearchParams({
           grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-          assertion: assertionFor(credential.account, credential.scope, now),
+          assertion: await assertionFor(credential.account, credential.scope, now),
         });
   return requestToken(body, fetchImpl);
 }
@@ -185,4 +214,6 @@ export const SCOPES = {
   siteVerification: 'https://www.googleapis.com/auth/siteverification',
   /** Business Profile (reviews). The GCP project must be allowlisted by Google. */
   businessProfile: 'https://www.googleapis.com/auth/business.manage',
+  /** Google Ads API (offline conversion upload). Needs an approved developer token too. */
+  adwords: 'https://www.googleapis.com/auth/adwords',
 } as const;

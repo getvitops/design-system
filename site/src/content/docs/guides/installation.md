@@ -1,12 +1,15 @@
 ---
 title: Installation
 description: Install the Vitops toolchain and generate your first output — for Astro, Tailwind, WordPress/Bricks, or plain CSS.
-section: "Start here"
+section: 'Start here'
 order: 10
 ---
 
 Every package in the toolchain shares one version. Install `@getvitops/cli` and let it pull the
 rest, or add the integration for your platform directly.
+
+Starting a client site on EmDash? Skip to [Start a new EmDash site](/guides/new-emdash-site) — it
+covers `vp create`, the agent tooling and the first run end to end.
 
 ## Pick your entry point
 
@@ -46,9 +49,14 @@ web-component runtime in the right order:
 ---
 import Head from '@getvitops/astro/Head.astro';
 ---
+
 <html lang="en">
-  <head><Head /></head>
-  <body><slot /></body>
+  <head>
+    <Head />
+  </head>
+  <body>
+    <slot />
+  </body>
 </html>
 ```
 
@@ -77,12 +85,13 @@ export default { plugins: [vitops({ input: 'design-system.json', out: 'src/style
 
 `@getvitops/core`, `generator`, `utils`, `cli`, `vite` and `astro` are released together and are
 only supported at **matching versions**. This isn't a convention — the generator embeds a snapshot
-of core's CSS and web-component bundles, while the Astro integration copies the *installed* core's
+of core's CSS and web-component bundles, while the Astro integration copies the _installed_ core's
 bundles into your `public/`. Mixing versions can leave the stylesheet and the components
 disagreeing about what a class means.
 
-`@getvitops/emdash` and `@getvitops/create` have no `@getvitops/*` dependencies and version
-independently.
+`@getvitops/emdash` and `@getvitops/create` version independently. `@getvitops/create` has no
+`@getvitops/*` dependencies; `@getvitops/emdash` depends on `@getvitops/utils` and peers on
+`@getvitops/astro`, so installing it pins you to a matching toolchain generation.
 
 ## Teach your coding agent
 
@@ -92,5 +101,5 @@ npx vitops agents
 
 This links the packaged `vitops-design-system` skill into `.agents/skills/` and `.claude/skills/`,
 and writes a managed pointer block into your `AGENTS.md`. The skill teaches agents to fetch
-reference docs live from *your* config with `vitops docs <topic>` — so they get your colours, your
+reference docs live from _your_ config with `vitops docs <topic>` — so they get your colours, your
 scales and your class vocabulary rather than a generic guess.

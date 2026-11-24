@@ -1,0 +1,18 @@
+# Carry changes made directly on `main` (a hotfix) back into `dev`, so the
+# integration branch doesn't silently drift from what is live. Runs on every
+# push to `main`, including each promotion, and opens a PR only when merging
+# main into dev would actually change dev.
+#
+# Deploys via the vitops toolchain's reusable workflow — see
+# https://github.com/getvitops/design-system/blob/main/.github/workflows/site-backmerge.yml
+# for why the PR is left for a human unless BACKMERGE_TOKEN is set.
+name: Back-merge main → dev
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  backmerge:
+    uses: getvitops/design-system/.github/workflows/site-backmerge.yml@v1
+    secrets: inherit

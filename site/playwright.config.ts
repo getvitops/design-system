@@ -15,6 +15,10 @@ import { defineConfig, devices } from '@playwright/test';
  *     for every `:focus-visible` element in the framework until that rule
  *     existed. CSS-only, so it needs JS enabled only to read
  *     `getComputedStyle` back out; the effect itself doesn't depend on it.
+ *   - the `masthead` projects: that `site.chrome` produces the behaviour it claims in a real
+ *     browser — hide-on-scroll, scroll-state elevation, header-offset anchoring, the dropdown
+ *     and mega panels. Computed style and layout facts no happy-dom test can see; the
+ *     `masthead-no-js` project proves the same page needs no script at all.
  *   - the `lightbox-fit` project: that an opened lightbox image is always
  *     scaled to fit the viewport, never cropped, never overflowing it — a
  *     computed-layout fact no `*.dom.test.ts` (happy-dom, no real layout) can
@@ -34,7 +38,10 @@ import { defineConfig, devices } from '@playwright/test';
 // wrong site, silently, with no error at all beyond every locator timing out
 // against a page that carries none of the expected markup. A dedicated port
 // makes a collision a `EADDRINUSE` a developer would get to notice.
-const PORT = 4399;
+// Overridable so two checkouts (a worktree, another repo's preview) can run at once: with
+// `reuseExistingServer` on, a second run on the same port would silently attach to the first one's
+// server and test its build.
+const PORT = Number(process.env.E2E_PORT ?? 4399);
 const BASE_URL = `http://localhost:${PORT}`;
 
 export default defineConfig({
@@ -54,9 +61,10 @@ export default defineConfig({
   },
   // `build` first: `preview` serves whatever is already in dist/, and running
   // it against a stale or absent build would test yesterday's markup, or fail
-  // outright on a clean checkout.
+  // outright on a clean checkout. CI sets `E2E_REUSE_BUILD` because the job downloads the
+  // `site/dist` that Build & test already made, and building it a second time proves nothing.
   webServer: {
-    command: `pnpm run build && pnpm exec astro preview --port ${PORT}`,
+    command: `${process.env.E2E_REUSE_BUILD ? '' : 'pnpm run build && '}pnpm exec astro preview --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
@@ -73,8 +81,55 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], javaScriptEnabled: false },
     },
     {
+      name: 'enhanced',
+      testMatch: /enhanced-components\.e2e\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
       name: 'forced-colors',
       testMatch: /forced-colors\.e2e\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      // The high-contrast layer, JS on: the three triggers, the opt-out, dark crossing, and the
+      // toggle's persistence. The no-script half lives in `no-js-fallback.e2e.ts`.
+      name: 'prefers-contrast',
+      testMatch: /prefers-contrast\.e2e\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      // The generated accessibility statement against the docs site's own CSS: axe including the
+      // AAA tag in the high-contrast appearance, plus line length, line height, 200% text and
+      // target size. The content criteria are unit-tested in `packages/generator`.
+      name: 'accessibility-statement',
+      testMatch: /accessibility-statement\.e2e\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'masthead',
+      testMatch: /masthead\.e2e\.ts$/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1400, height: 800 } },
+    },
+    {
+      // Firefox has no `scroll-state()`. The masthead must degrade to a solid, elevated,
+      // always-visible bar there, not to a transparent one over body text.
+      name: 'masthead-firefox',
+      testMatch: /masthead-fallback\.e2e\.ts$/,
+      use: { ...devices['Desktop Firefox'], viewport: { width: 1400, height: 800 } },
+    },
+    {
+      name: 'masthead-no-js',
+      testMatch: /masthead-no-js\.e2e\.ts$/,
+      use: { ...devices['Desktop Chrome'], javaScriptEnabled: false },
+    },
+    {
+      // The accessibility-audit fixes, each against a real browser: the things a happy-dom test
+      // cannot see (forced-colors rendering, reduced-motion scroll padding, RTL slide direction,
+      // find-in-page, a real keyboard path). Per-test `emulateMedia` / `test.use` picks the mode.
+      name: 'a11y',
+      // Anchored on the path separator: an unanchored `a11y-` also matched a checkout directory
+      // named `a11y-…` and ran every spec in this project.
+      testMatch: /[\\/]a11y-[^\\/]*\.e2e\.ts$/,
       use: { ...devices['Desktop Chrome'] },
     },
     {

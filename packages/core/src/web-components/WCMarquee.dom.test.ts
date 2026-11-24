@@ -16,7 +16,7 @@
  * Per-file environment rather than a global one: the other ~800 tests are pure and
  * have no reason to pay for a DOM.
  */
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 type ROCallback = () => void;
 
@@ -171,5 +171,83 @@ describe('<wc-marquee>', () => {
     // Same nodes, not merely the same count — a no-op resize must not
     // remove-and-recreate the clones.
     expect(after).toEqual(before);
+  });
+
+  it('adds a pause button beside the track that toggles data-paused', async () => {
+    const el = await mount(
+      '<wc-marquee><div class="marquee__content"><span>a</span></div></wc-marquee>',
+    );
+    const button = el.nextElementSibling as HTMLButtonElement;
+    expect(button.matches('button.marquee__toggle')).toBe(true);
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    button.click();
+    expect(el.hasAttribute('data-paused')).toBe(true);
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    button.click();
+    expect(el.hasAttribute('data-paused')).toBe(false);
+  });
+
+  it('removes its pause button when disconnected', async () => {
+    const el = await mount(
+      '<wc-marquee><div class="marquee__content"><span>a</span></div></wc-marquee>',
+    );
+    const button = el.nextElementSibling;
+    el.remove();
+    expect(button?.isConnected).toBe(false);
+  });
+});
+
+describe('<wc-marquee> after a DOM move', () => {
+  const MARKUP = '<wc-marquee><div class="marquee__content"><span>a</span></div></wc-marquee>';
+
+  it('gets its pause button back, since a moving animation needs a way to stop (WCAG 2.2.2)', async () => {
+    const el = await mount(MARKUP);
+    const parent = el.parentElement!;
+    el.remove();
+    expect(el.nextElementSibling?.classList.contains('marquee__toggle')).toBeFalsy();
+    parent.append(el);
+    await new Promise((r) => requestAnimationFrame(r));
+    const button = el.nextElementSibling as HTMLButtonElement | null;
+    expect(button?.classList.contains('marquee__toggle')).toBe(true);
+    button!.click();
+    expect(el.hasAttribute('data-paused')).toBe(true);
+  });
+
+  it('starts the new button in the state the marquee is in', async () => {
+    const el = await mount(MARKUP);
+    (el.nextElementSibling as HTMLButtonElement).click(); // paused
+    const parent = el.parentElement!;
+    el.remove();
+    parent.append(el);
+    await new Promise((r) => requestAnimationFrame(r));
+    const button = el.nextElementSibling as HTMLButtonElement;
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.textContent).toBe('Play animation');
+  });
+
+  it('re-measures on resize again, rather than watching nothing', async () => {
+    stubGeometry({ hostWidth: 1000, sourceWidth: 100, gap: 10 });
+    const el = await mount(MARKUP);
+    const parent = el.parentElement!;
+    el.remove();
+    parent.append(el);
+    await new Promise((r) => requestAnimationFrame(r));
+    expect(el.style.getPropertyValue('--_marquee-distance')).toBe('110px');
+    stubGeometry({ sourceWidth: 400 });
+    triggerResize();
+    expect(el.style.getPropertyValue('--_marquee-distance')).toBe('410px');
+  });
+
+  it('does not accumulate clones across moves', async () => {
+    stubGeometry({ hostWidth: 1000, sourceWidth: 100, gap: 10 });
+    const el = await mount(MARKUP);
+    const parent = el.parentElement!;
+    for (let i = 0; i < 3; i++) {
+      el.remove();
+      parent.append(el);
+    }
+    await new Promise((r) => requestAnimationFrame(r));
+    expect(el.querySelectorAll('[data-marquee-clone]')).toHaveLength(11);
+    expect(document.querySelectorAll('.marquee__toggle')).toHaveLength(1);
   });
 });

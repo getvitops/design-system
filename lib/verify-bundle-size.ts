@@ -9,8 +9,8 @@
  * Nothing before this measured either claim; a bundle could have doubled in
  * size from an accidental heavy import and nothing would have said so.
  *
- * Scoped to the 5 files this package actually AUTHORS — `elements.js`,
- * `consent.js`, `editor.js`, `deferred.js`, `polyfills.js` (the
+ * Scoped to the 7 files this package actually AUTHORS — `elements.js`,
+ * `consent.js`, `config-form.js`, `stepper.js`, `editor.js`, `deferred.js`, `polyfills.js` (the
  * feature-detection loader, not what it loads). `polyfills/*.js` — the
  * vendored third-party polyfill implementations themselves
  * (`css-anchor-positioning-fn.js` alone gzips to ~31 KB) — are deliberately
@@ -35,12 +35,58 @@ const CORE_DIST = join('packages', 'core', 'dist');
 
 /** Gzipped-byte ceilings. Bump deliberately; see this file's docblock. */
 const BUDGETS: Record<string, number> = {
-  'elements.js': 30_000,
+  // 28.1 KB -> 31.8 KB gzipped with `<wc-tabs>`, `<wc-combobox>`, `<wc-format>` and `<wc-range>`
+  // (about 0.9 KB each; they share Lit, `BaseElement` and `RovingTabindex`, which were already in
+  // the bundle). Intended growth, so the ceiling moves with ~4% headroom. Since `<wc-color-field>`
+  // shares Lit with it the bundler lifts Lit into `polyfills/BaseElement.js`; the figure counts that
+  // chunk (see `sharedSize`), and gzips it apart from the entry, hence the +600 B on 33,000. `<wc-multifield>` (light DOM, Lit-free, replacing the Lit `<wc-multi-field>`) and its row helper, a chunk shared with `config-form.js`, add ~400 B more. `<wc-contrast-toggle>` (the WCAG G174 switch, merged from the accessibility branch) adds ~300 B more, so 34,500. `<wc-copy>`'s polite live region (copied-label/failed-label), `BaseElement.connectionSignal` and `initFromLightDom`'s second, DOMContentLoaded retry add ~300 B, so 35,000.
+  // The accessibility audit batches (announcer, field groups, lifecycle fixes) added ~900 B to the
+  // merged bundle (35,877 B). The ceiling is a working figure, not a target: it varies with what a
+  // client's build includes, and how components are delivered is being investigated separately.
+  // `<wc-notifications>` (the stacking region, countdown, announcements, modal gating) added ~1.7 KB
+  // (37,564 B total); 39,000 leaves room without a ceiling that hides the next addition.
+  'elements.js': 39_000,
   'consent.js': 3_500,
+  // The validator, the form codec and `<wc-config-form>`; Lit-free, loaded only by a page with a
+  // config form (3.6 KB gzipped, ~10% headroom). Counts the row helper it shares with `elements.js`.
+  // `mergeOwned`/`ownedFromProjections` (the form's save merge, lifted from the portal) and the live
+  // refresh of selects built from another map add ~600 B, so 5,500.
+  'config-form.js': 5_500,
+  // `<wc-stepper>`; Lit-free, outside `elements.js` because that bundle is at 99% of its budget.
+  // 2,008 B after the audit's focus and validity-timing fixes.
+  'stepper.js': 2_200,
+  // The glue only: the picker (~40 KB gzipped) is a dynamic import, fetched when the picker is opened.
+  'color-field.js': 1_500,
+  // `<wc-config-preview>`: the glue only; the generator it renders with is injected by the host.
+  'config-preview.js': 2_000,
   'editor.js': 5_500,
-  'deferred.js': 1_200,
+  // `js/tooltip.ts` (hover, keyboard focus and Escape for `.tooltip-trigger`) moved into this bundle.
+  // Toggletip handling (click pin, aria-expanded) added ~165 B, so 1,800.
+  'deferred.js': 1_800,
   'polyfills.js': 1_200,
 };
+
+/**
+ * Gzipped size of the chunks an entry imports statically (`from"./polyfills/BaseElement.js"`), which
+ * the entry cannot run without. When two entries share a module the bundler lifts it into a chunk
+ * and each entry's own file shrinks, so measuring the entry alone would let a bundle grow without
+ * the number moving. A dynamic `import("./x.js")` is not counted: it is fetched on demand.
+ */
+function sharedSize(source: string, seen = new Set<string>()): number {
+  let total = 0;
+  for (const match of source.matchAll(/(?:^|[;}])import[^"';]*?from"\.\/([^"]+)"/g)) {
+    const file = match[1]!;
+    if (seen.has(file) || file in BUDGETS) continue;
+    seen.add(file);
+    try {
+      const chunk = readFileSync(join(CORE_DIST, file));
+      total += gzipSync(chunk).length + sharedSize(chunk.toString('utf8'), seen);
+    } catch {
+      // A missing chunk is the build's failure to report, not this budget's.
+    }
+  }
+  return total;
+}
 
 let failed = false;
 
@@ -55,7 +101,7 @@ for (const [file, budget] of Object.entries(BUDGETS)) {
     failed = true;
     continue;
   }
-  const gzipped = gzipSync(raw).length;
+  const gzipped = gzipSync(raw).length + sharedSize(raw.toString('utf8'));
   const over = gzipped > budget;
   if (over) failed = true;
   const pct = ((gzipped / budget) * 100).toFixed(0);

@@ -7,29 +7,45 @@
  * otherwise name a jurisdiction with no templates behind it and silently render
  * against the wrong body of law.
  *
- * Every jurisdiction owes all three documents. A partial set would mean
+ * Every jurisdiction owes every document. A partial set would mean
  * `legal.termsOfService.enabled` silently emitting nothing.
  */
 import type { Jurisdiction } from '../../config.ts';
 import type { PolicyVars } from '../derive.ts';
+import { accessibilityStatement } from './accessibility.ts';
 import { cookiesCa } from './cookies.ca.ts';
+import { cookiesQc } from './cookies.qc.ts';
 import { privacyCa } from './privacy.ca.ts';
+import { privacyQc } from './privacy.qc.ts';
 import { termsCa } from './terms.ca.ts';
+import { termsQc } from './terms.qc.ts';
 
-export type LegalDoc = 'privacy' | 'terms' | 'cookies';
+export type LegalDoc = 'privacy' | 'terms' | 'cookies' | 'accessibility';
 
 export type DocSet = Record<LegalDoc, (v: PolicyVars) => string>;
 
 export const TEMPLATES = {
-  ca: { privacy: privacyCa, terms: termsCa, cookies: cookiesCa },
+  ca: {
+    privacy: privacyCa,
+    terms: termsCa,
+    cookies: cookiesCa,
+    accessibility: accessibilityStatement,
+  },
+  qc: {
+    privacy: privacyQc,
+    terms: termsQc,
+    cookies: cookiesQc,
+    accessibility: accessibilityStatement,
+  },
 } satisfies Record<Jurisdiction, DocSet>;
 
 /** Stable output order, independent of which docs a given config enables. */
-export const DOC_ORDER: LegalDoc[] = ['privacy', 'terms', 'cookies'];
+export const DOC_ORDER: LegalDoc[] = ['privacy', 'terms', 'cookies', 'accessibility'];
 
 /** Output filename stem per document — also the Bricks shortcode's allowlist. */
 export const DOC_SLUGS: Record<LegalDoc, string> = {
   privacy: 'privacy-policy',
   terms: 'terms-of-service',
   cookies: 'cookie-notice',
+  accessibility: 'accessibility-statement',
 };

@@ -19,7 +19,7 @@
  * or `--out`; the Astro integration writes `public/robots.txt` directly,
  * mirroring how it already writes the IndexNow key file.
  */
-import { resolveSitemapUrl } from '@getvitops/utils/indexing';
+import { resolveSitemapUrls } from '@getvitops/utils/indexing';
 import type { Config } from './config.ts';
 
 export interface RenderRobotsOptions {
@@ -63,11 +63,12 @@ export function renderRobotsTxt(cfg: Config, options: RenderRobotsOptions = {}):
 
   lines.push('Allow: /');
 
-  const sitemapUrl = resolveSitemapUrl({
+  // One line per sitemap: a site listing several (CMS + pages) states all of them.
+  const sitemapUrls = resolveSitemapUrls({
     canonical: env?.url ?? site.domains?.canonical,
     sitemapUrl: site.seo?.indexing?.sitemapUrl,
   });
-  if (sitemapUrl) lines.push('', `Sitemap: ${sitemapUrl}`);
+  if (sitemapUrls.length) lines.push('', ...sitemapUrls.map((u) => `Sitemap: ${u}`));
 
   return lines.join('\n') + '\n';
 }

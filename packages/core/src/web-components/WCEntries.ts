@@ -1,5 +1,34 @@
 import { BaseElement } from './BaseElement.js';
 import { initFromLightDom } from './utils/upgrade.js';
+import { scrollBehavior } from './utils/motion.js';
+
+/**
+ * Copies of an element's child nodes, for the table projection.
+ *
+ * Cells are built from the author's own nodes rather than from `innerHTML` strings. A string
+ * round-trip (serialise, then parse into a new parent) is where HTML sanitisers get bypassed by
+ * mutation, and it buys nothing here: the content is already live in the document, so re-parsing
+ * it can only differ from the original by accident. Cloning keeps links, `<time>`, `<data>` and
+ * inline markup intact with no parser involved, and needs no sanitiser in the entry bundle.
+ */
+function cloneContent(source: Element | undefined): Node[] {
+  const nodes = source ? Array.from(source.childNodes, (node) => node.cloneNode(true)) : [];
+  // The table is `aria-hidden` (it duplicates the <dl>), so nothing inside it may be reachable by
+  // keyboard: a focusable control in an aria-hidden subtree is focus a screen reader cannot
+  // announce. The copies also drop their ids, which would otherwise exist twice in the document.
+  // The originals in the <dl> keep both, so the links are still operable from there.
+  for (const node of nodes) {
+    if (!(node instanceof Element)) continue;
+    for (const el of [node, ...node.querySelectorAll('*')]) {
+      el.removeAttribute('id');
+      if (el.matches(FOCUSABLE)) el.setAttribute('tabindex', '-1');
+    }
+  }
+  return nodes;
+}
+
+const FOCUSABLE =
+  'a[href], button, input, select, textarea, summary, [tabindex], [contenteditable]:not([contenteditable="false"])';
 
 /**
  * Adaptive data display that progressively enhances heading + <dl> pairs
@@ -50,6 +79,8 @@ import { initFromLightDom } from './utils/upgrade.js';
  *   <dl><dt>Email</dt><dd>bob@example.com</dd></dl>
  * </wc-entries>
  * ```
+ *
+ * @fallback full stacked heading and `<dl>` pairs
  */
 export class WCEntries extends BaseElement {
   static properties = {
@@ -67,8 +98,7 @@ export class WCEntries extends BaseElement {
   declare projection: boolean;
   declare singular: boolean;
 
-  #entries: { title: string; heading: Element; dl: Element; properties: Map<string, string> }[] =
-    [];
+  #entries: { heading: Element; dl: Element; properties: Map<string, Element> }[] = [];
   #columnHeaders: string[] = [];
   #columnLabels: string[] = [];
   #table: HTMLTableElement | null = null;
@@ -161,22 +191,21 @@ export class WCEntries extends BaseElement {
       if (/^h[1-6]$/.test(tag)) {
         currentHeading = child;
       } else if (tag === 'dl' && currentHeading) {
-        const properties = new Map<string, string>();
+        const properties = new Map<string, Element>();
         const dts = child.querySelectorAll('dt');
         const dds = child.querySelectorAll('dd');
         for (let i = 0; i < dts.length; i++) {
           const dt = dts[i] as Element;
           const key = dt.textContent?.trim() ?? '';
-          const value = dds[i]?.innerHTML ?? '';
+          const value = dds[i];
           if (key) {
-            properties.set(key, value);
+            if (value) properties.set(key, value);
             columnSet.add(key);
             const label = dt.getAttribute('data-label');
             if (label && !labelMap.has(key)) labelMap.set(key, label);
           }
         }
         this.#entries.push({
-          title: currentHeading.innerHTML,
           heading: currentHeading,
           dl: child,
           properties,
@@ -225,13 +254,13 @@ export class WCEntries extends BaseElement {
       const tr = document.createElement('tr');
 
       const titleTd = document.createElement('td');
-      titleTd.innerHTML = entry.title;
+      titleTd.append(...cloneContent(entry.heading));
       titleTd.style.fontWeight = '600';
       tr.appendChild(titleTd);
 
       for (const header of this.#columnHeaders) {
         const td = document.createElement('td');
-        td.innerHTML = entry.properties.get(header) ?? '';
+        td.append(...cloneContent(entry.properties.get(header)));
         tr.appendChild(td);
       }
       tbody.appendChild(tr);
@@ -259,7 +288,10 @@ export class WCEntries extends BaseElement {
     const nav = document.createElement('nav');
     nav.classList.add('entries__nav');
     nav.setAttribute('aria-label', 'Column selector');
-    nav.setAttribute('aria-hidden', 'true');
+    // Not `aria-hidden`: these are real, focusable buttons, and hiding a focusable element
+    // from assistive tech leaves a keyboard user on a control nothing announces. The table
+    // they steer stays `aria-hidden` (it duplicates the `<dl>`, which is what AT reads) and
+    // holds nothing focusable.
 
     this.#navButtons = this.#columnHeaders.map((header, i) => {
       const btn = document.createElement('button');
@@ -291,7 +323,7 @@ export class WCEntries extends BaseElement {
       /* Scroll the column header into view within the scroll container */
       const th = this.#headerCells[index];
       if (th && this.#tableWrapper) {
-        th.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+        th.scrollIntoView({ behavior: scrollBehavior(), block: 'nearest', inline: 'start' });
       }
     }
 

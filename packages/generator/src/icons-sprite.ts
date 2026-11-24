@@ -11,6 +11,15 @@
  * peers loaded dynamically: `@iconify-json/ph` alone is ~4.5 MB and the semantic
  * map spans five sets, so depending on them directly would be indefensible for
  * every consumer who never asks for a sprite.
+ *
+ * **Also its own pack entry, published as `@getvitops/generator/icons-sprite`** —
+ * Worker-safe (only `node:module`/`node:path`/`node:url` + `@iconify/utils`, no
+ * lightningcss), for `@getvitops/astro`'s `Icon.astro` to import instead of the
+ * root entry. The root entry also re-exports `generate.ts`, whose lightningcss
+ * dependency needs a native `.node` binary — a *static* import of the root from
+ * an SSR component drags that into the bundle unconditionally, and Cloudflare
+ * Workers has no `require()` for it. This 500'd every request on a real
+ * consumer before the import was moved to this subpath.
  */
 import { createRequire } from 'node:module';
 import { join } from 'node:path';

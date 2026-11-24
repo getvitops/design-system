@@ -9,6 +9,7 @@ import {
   type CarouselPlan,
 } from './utils/carousel.js';
 import { initFromLightDom } from './utils/upgrade.js';
+import { scrollBehavior } from './utils/motion.js';
 import { RovingTabindex } from './utils/RovingTabindex.js';
 
 /**
@@ -52,6 +53,7 @@ import { RovingTabindex } from './utils/RovingTabindex.js';
  *   <p class="carousel__hint" aria-hidden="true">Scroll for more</p>
  * </wc-carousel>
  * ```
+ * @fallback full a snapping, scrollable list; JS adds controls and indicators
  */
 export class WCCarousel extends BaseElement {
   static properties = {
@@ -90,7 +92,15 @@ export class WCCarousel extends BaseElement {
   #observer: ResizeObserver | null = null;
   #timer: ReturnType<typeof setInterval> | null = null;
   #settleTimer: ReturnType<typeof setTimeout> | null = null;
-  #paused = false;
+  /** Does the page's own plan want this to play (false under reduced motion until asked)? */
+  #autoplayPlanned = false;
+  /** The visitor pressed Pause. Only the button clears it: hover and focus never do. */
+  #userPaused = false;
+  /** The visitor pressed Play. Outranks reduced motion for the rest of the session. */
+  #userPlayed = false;
+  /** Why autoplay is held for now (pointer, focus, off screen, hidden tab). Transient. */
+  readonly #holds = new Set<string>();
+  #viewObserver: IntersectionObserver | null = null;
   #reducedMotion = false;
   #jumping = false;
   #lastDispatchedIndex: number | null = null;
@@ -253,10 +263,16 @@ export class WCCarousel extends BaseElement {
     this.#settleTimer = null;
 
     this.#stopAutoplay();
-    this.removeEventListener('pointerenter', this.#pause);
-    this.removeEventListener('pointerleave', this.#resume);
-    this.removeEventListener('focusin', this.#pause);
-    this.removeEventListener('focusout', this.#resume);
+    this.removeEventListener('pointerenter', this.#holdPointer);
+    this.removeEventListener('pointerleave', this.#releasePointer);
+    this.removeEventListener('focusin', this.#holdFocus);
+    this.removeEventListener('focusout', this.#releaseFocus);
+    document.removeEventListener('visibilitychange', this.#onVisibility);
+    this.#viewObserver?.disconnect();
+    this.#viewObserver = null;
+    this.#holds.clear();
+    this.#userPaused = false;
+    this.#userPlayed = false;
 
     if (this.#autoplayBtn) {
       this.#autoplayBtn.removeEventListener('click', this.#toggleAutoplay);
@@ -365,7 +381,7 @@ export class WCCarousel extends BaseElement {
     if (!children.length) return;
     const next = this.#currentIndex() + delta;
     const target = children[Math.max(0, Math.min(children.length - 1, next))];
-    target?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    target?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: scrollBehavior() });
   }
 
   #scrollToFirstReal(): void {
@@ -530,7 +546,7 @@ export class WCCarousel extends BaseElement {
       marker.setAttribute('aria-selected', String(i === 0));
       if (slide.id) marker.setAttribute('aria-controls', slide.id);
       marker.addEventListener('click', () => {
-        slide.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+        slide.scrollIntoView({ inline: 'center', block: 'nearest', behavior: scrollBehavior() });
       });
       return marker;
     });
@@ -570,18 +586,27 @@ export class WCCarousel extends BaseElement {
   /* ── Autoplay ────────────────────────────────────────────────────────────── */
 
   #setupAutoplay(plan: CarouselPlan): void {
+    this.#autoplayPlanned = plan.play;
+    this.#userPaused = false;
+    this.#userPlayed = false;
+    this.#holds.clear();
     this.#resolveAutoplayBtn();
-    if (plan.play) {
-      this.#startAutoplay();
-    } else {
-      this.#paused = true;
-      this.setAttribute('aria-live', 'polite');
-      this.#syncAutoplayBtn();
+
+    this.addEventListener('pointerenter', this.#holdPointer);
+    this.addEventListener('pointerleave', this.#releasePointer);
+    this.addEventListener('focusin', this.#holdFocus);
+    this.addEventListener('focusout', this.#releaseFocus);
+    // Motion that nobody can see is wasted work, and for a hidden tab it keeps a timer firing.
+    document.addEventListener('visibilitychange', this.#onVisibility);
+    if (typeof IntersectionObserver !== 'undefined') {
+      this.#viewObserver = new IntersectionObserver((entries) => {
+        const last = entries[entries.length - 1];
+        if (last) this.#hold('offscreen', !last.isIntersecting);
+      });
+      this.#viewObserver.observe(this);
     }
-    this.addEventListener('pointerenter', this.#pause);
-    this.addEventListener('pointerleave', this.#resume);
-    this.addEventListener('focusin', this.#pause);
-    this.addEventListener('focusout', this.#resume);
+    if (document.visibilityState === 'hidden') this.#holds.add('hidden');
+    this.#applyAutoplay();
   }
 
   #resolveAutoplayBtn(): void {
@@ -603,22 +628,41 @@ export class WCCarousel extends BaseElement {
     this.#syncAutoplayBtn();
   }
 
+  /**
+   * What the VISITOR has chosen, as opposed to what is happening this instant. Hover and focus
+   * only hold the timer; they must not flip the button, or its label would change under a pointer
+   * that is about to press it, and pressing Pause while hovering would be undone by leaving.
+   */
+  #wantsPlay(): boolean {
+    if (this.autoplay <= 0 || this.#userPaused) return false;
+    return this.#userPlayed || this.#autoplayPlanned;
+  }
+
+  /** The one place the timer is started or stopped: intent, minus any transient hold. */
+  #applyAutoplay(): void {
+    const playing = this.#wantsPlay();
+    if (playing && this.#holds.size === 0) this.#startAutoplay();
+    else this.#stopAutoplay();
+    // `off` while the visitor has it playing, so a screen reader is not narrating a slideshow they
+    // did not ask to hear; `polite` otherwise, so manual navigation is announced.
+    this.setAttribute('aria-live', playing ? 'off' : 'polite');
+    this.#syncAutoplayBtn();
+  }
+
   #syncAutoplayBtn(): void {
     const button = this.#autoplayBtn;
     if (!button) return;
-    button.setAttribute('aria-label', this.#paused ? 'Play' : 'Pause');
-    button.setAttribute('aria-pressed', String(!this.#paused));
-    if (this.#ownsAutoplayBtn) button.textContent = this.#paused ? '▶' : '⏸';
+    const playing = this.#wantsPlay();
+    button.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    // No `aria-pressed`: the label already changes between Pause and Play, and a pressed state on
+    // top of it makes a screen reader announce a pressed "Play" button.
+    button.removeAttribute('aria-pressed');
+    if (this.#ownsAutoplayBtn) button.textContent = playing ? '\u23F8' : '\u25B6';
   }
 
   #startAutoplay(): void {
     if (this.#timer || this.autoplay <= 0) return;
-    this.#paused = false;
     this.#timer = setInterval(() => this.#step(1), this.autoplay);
-    // `off` while playing, so a screen reader is not narrating a slideshow the
-    // visitor did not ask to hear; `polite` when paused, so manual navigation is.
-    this.setAttribute('aria-live', 'off');
-    this.#syncAutoplayBtn();
   }
 
   #stopAutoplay(): void {
@@ -626,28 +670,46 @@ export class WCCarousel extends BaseElement {
     this.#timer = null;
   }
 
-  #pause = (): void => {
-    if (!this.#timer && this.#paused) return;
-    this.#stopAutoplay();
-    this.#paused = true;
-    this.setAttribute('aria-live', 'polite');
-    this.#syncAutoplayBtn();
-  };
+  #hold(reason: string, on: boolean): void {
+    const had = this.#holds.has(reason);
+    if (on === had) return;
+    if (on) this.#holds.add(reason);
+    else this.#holds.delete(reason);
+    this.#applyAutoplay();
+  }
 
-  #resume = (): void => {
-    if (this.#reducedMotion) return;
-    this.#startAutoplay();
+  #holdPointer = (): void => this.#hold('pointer', true);
+  #releasePointer = (): void => this.#hold('pointer', false);
+  #holdFocus = (event: FocusEvent): void => {
+    // Keyboard focus only. A mouse click on the Play button also leaves focus inside the carousel,
+    // and holding on that would make Play do nothing until the visitor clicked elsewhere.
+    // `:focus-visible` is the platform's "this focus came from the keyboard"; an engine that
+    // throws on it gets the safe answer (hold).
+    let keyboard = true;
+    try {
+      keyboard = !(event.target instanceof Element) || event.target.matches(':focus-visible');
+    } catch {
+      /* unsupported selector: treat as keyboard focus */
+    }
+    if (keyboard) this.#hold('focus', true);
   };
+  #releaseFocus = (event: FocusEvent): void => {
+    // Focus moving between two controls inside the carousel is not focus leaving it.
+    if (event.relatedTarget instanceof Node && this.contains(event.relatedTarget)) return;
+    this.#hold('focus', false);
+  };
+  #onVisibility = (): void => this.#hold('hidden', document.visibilityState === 'hidden');
 
   #toggleAutoplay = (): void => {
-    if (this.#paused) {
+    if (this.#wantsPlay()) {
+      this.#userPaused = true;
+    } else {
       // An explicit press outranks the media query for the rest of the session:
       // the visitor has asked for this specific animation.
-      this.#reducedMotion = false;
-      this.#startAutoplay();
-    } else {
-      this.#pause();
+      this.#userPaused = false;
+      this.#userPlayed = true;
     }
+    this.#applyAutoplay();
   };
 }
 

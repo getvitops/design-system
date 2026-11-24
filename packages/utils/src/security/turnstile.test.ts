@@ -4,7 +4,7 @@
  * (`createConversionRoute`) has to decide what a failure means for a real
  * visitor's submission, not catch an exception from three layers down.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { verifyTurnstileToken } from './turnstile.ts';
 
 function fakeFetch(response: { ok: boolean; status?: number; body?: unknown }): typeof fetch {

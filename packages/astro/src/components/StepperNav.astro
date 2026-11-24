@@ -1,0 +1,89 @@
+---
+/**
+ * StepperNav — the progress list of a multi-page flow: one `<ol>` of steps, the current one marked.
+ *
+ * For a flow where each step is its own page (a POST that saves a draft, then a redirect to the
+ * next), so there is no JS and nothing to enhance: it is a list of links. A flow that is one long
+ * form shown a step at a time is `<Stepper>` (`<wc-stepper>`) instead. Same `.stepper` markup.
+ *
+ *   <StepperNav
+ *     steps={ONBOARDING_STEPS}
+ *     current="contact"
+ *     status={{ identity: 'complete', contact: 'incomplete' }}
+ *     hrefFor={(step) => `/app/onboarding/${step.id}`}
+ *   />
+ *
+ * `status` is what `allStepStatuses` (`@getvitops/config/forms`) returns: `complete` and `invalid`
+ * steps get their modifier (a tick, a bang). A step with no `hrefFor` result renders as a plain
+ * `<span>`, not a dead link.
+ */
+export interface Step {
+  id: string;
+  title: string;
+}
+
+export interface Props {
+  steps: readonly Step[];
+  /** The id of the step being shown. */
+  current: string;
+  /** `complete` | `invalid` | anything else, by step id. */
+  status?: Record<string, string>;
+  /** The URL of a step; return nothing to make it unvisitable (a `<span>`). */
+  hrefFor: (step: Step) => string | undefined;
+  /** The list's accessible name. */
+  label?: string;
+  /** Spoken after a completed step's title ("Contact (complete)"). Default "complete". */
+  completeLabel?: string;
+  /** Spoken after a step that needs attention ("Contact (needs attention)"). */
+  invalidLabel?: string;
+}
+
+const {
+  steps,
+  current,
+  status = {},
+  hrefFor,
+  label = 'Progress',
+  completeLabel = 'complete',
+  invalidLabel = 'needs attention',
+} = Astro.props;
+---
+
+<nav aria-label={label}>
+  <ol class="stepper">
+    {steps.map((step) => {
+      const href = hrefFor(step);
+      const isCurrent = step.id === current;
+      const state = status[step.id];
+      // The tick and bang are CSS glyphs; the state is also real text for assistive tech.
+      const spoken = isCurrent
+        ? ''
+        : state === 'complete'
+          ? completeLabel
+          : state === 'invalid'
+            ? invalidLabel
+            : '';
+      return (
+        <li
+          class:list={[
+            'stepper__item',
+            !isCurrent && state === 'complete' && 'stepper__item--complete',
+            !isCurrent && state === 'invalid' && 'stepper__item--invalid',
+          ]}
+        >
+          {href ? (
+            <a href={href} aria-current={isCurrent ? 'step' : undefined}>
+              {step.title}
+              {spoken && <span class="stepper__state"> ({spoken})</span>}
+            </a>
+          ) : (
+            <span aria-current={isCurrent ? 'step' : undefined}>
+              {step.title}
+              {spoken && <span class="stepper__state"> ({spoken})</span>}
+            </span>
+          )}
+        </li>
+      );
+    })}
+  </ol>
+</nav>

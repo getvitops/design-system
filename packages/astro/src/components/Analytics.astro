@@ -29,7 +29,11 @@ const { enabled = true, strategy } = Astro.props;
 
 const options = strategy ? { ...head.analytics, strategy } : head.analytics;
 const { tags } = enabled
-  ? resolveAnalytics(options, { consent: head.consent })
+  ? resolveAnalytics(options, {
+      consent: head.consent,
+      experiments: head.experiments,
+      matomoAbVariantDimensions: head.matomoAbVariantDimensions,
+    })
   : { tags: [] };
 ---
 

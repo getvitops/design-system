@@ -1,14 +1,13 @@
 ---
-title: "@getvitops/utils"
-description: "Shared build-time utilities — favicons, video encoding, search-engine submission."
-section: "Packages"
+title: '@getvitops/utils'
+description: 'Shared build-time utilities — favicons, video encoding, search-engine submission.'
+section: 'Packages'
 order: 60
 ---
 
 ```sh
 npm i -D @getvitops/utils
 ```
-
 
 Shared build-time utilities for the Vitops toolchain. Used under the hood by
 [`@getvitops/cli`](https://www.npmjs.com/package/@getvitops/cli) and
@@ -40,14 +39,14 @@ Also available via the CLI (`vitops favicon -i logo.svg -o public`) and the Vite
 The heavy modules are their own entry points, so importing the content helpers doesn't drag in an
 encoder or a network client:
 
-| import                       | what it does                                                             |
-| ---------------------------- | ------------------------------------------------------------------------ |
-| `@getvitops/utils`           | content model, HTML helpers, icon resolution, JSON-LD, source scanning    |
-| `@getvitops/utils/favicon`   | `generateFavicons()` — lazily loads `sharp` + `png-to-ico`               |
-| `@getvitops/utils/color`     | the OKLCH ramp + contrast primitives                                      |
-| `@getvitops/utils/media`      | `processMedia()` — video encoding; shells out to `ffmpeg`                |
-| `@getvitops/utils/indexing`   | sitemap diffing, IndexNow, Search Console submission + inspection         |
-| `@getvitops/utils/onboarding` | Cloudflare DNS + Google Site Verification + Search Console onboarding     |
+| import                        | what it does                                                           |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| `@getvitops/utils`            | content model, HTML helpers, icon resolution, JSON-LD, source scanning |
+| `@getvitops/utils/favicon`    | `generateFavicons()` — lazily loads `sharp` + `png-to-ico`             |
+| `@getvitops/utils/color`      | the OKLCH ramp + contrast primitives                                   |
+| `@getvitops/utils/media`      | `processMedia()` — video encoding; shells out to `ffmpeg`              |
+| `@getvitops/utils/indexing`   | sitemap diffing, IndexNow, Search Console submission + inspection      |
+| `@getvitops/utils/onboarding` | Cloudflare DNS + Google Site Verification + Search Console onboarding  |
 
 `media`, `indexing` and `onboarding` share a shape worth knowing if you're extending any of them: a
 pure `plan.ts` that decides everything and touches nothing, with the executor beside it deciding

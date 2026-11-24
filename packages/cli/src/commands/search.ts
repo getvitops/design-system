@@ -17,7 +17,7 @@ import {
   plan,
   readSnapshot,
   resolveKeyLocation,
-  resolveSitemapUrl,
+  sitemapCandidates,
   submitBatch,
   submitSitemap,
   toSnapshot,
@@ -26,6 +26,9 @@ import {
   type GoogleAuthLike,
   type GoogleCredential,
   type IndexingConfig,
+  type SitemapEntry,
+  type SitemapReport,
+  type SitemapRole,
 } from '@getvitops/utils/indexing';
 import {
   addSite,
@@ -66,10 +69,9 @@ import type { Config } from '@getvitops/generator';
 /**
  * Adapt a `Config` to the indexing module's own option shape.
  *
- * A flat field map, as intended: `@getvitops/utils` cannot import from the
- * generator (the generator already depends on it), so `IndexingConfig` mirrors the
- * `seo.indexing` block rather than being it. The one piece of judgment here is the
- * origin — see below.
+ * `IndexNowConfig` and `SearchConsoleConfig` are the schema's own types now, so those blocks pass
+ * straight through. What this adapter still does is genuine resolution — the origin and the
+ * robots policy come from the resolved environment, not from the `seo.indexing` block — see below.
  */
 function toIndexingConfig(cfg: Config, siteEnv: string): IndexingConfig {
   const site = cfg.site;
@@ -100,21 +102,72 @@ function toIndexingConfig(cfg: Config, siteEnv: string): IndexingConfig {
 /**
  * Adapt a `Config` to the onboarding module's own option shape.
  *
- * The same flat field map as `toIndexingConfig`, and for the same reason — utils
- * cannot import the generator. `--domain` scopes to a single `site.searchConsole`
- * entry, and a name that isn't there is an error, not an empty run.
+ * `DomainSetup` is the `site.searchConsole.<domain>` block plus its key, so this is a spread and a
+ * filter. `--domain` scopes to a single entry, and a name that isn't there is an error, not an
+ * empty run.
  */
 function toSearchConsoleSetup(cfg: Config, domainFilter: string | undefined): DomainSetup[] {
   const entries = cfg.site.searchConsole ?? {};
-  const setups: DomainSetup[] = Object.entries(entries).map(([domain, e]) => ({
-    domain,
-    ...(e.delegatedOwners ? { delegatedOwners: e.delegatedOwners } : {}),
-    ...(e.fullUserGroup ? { fullUserGroup: e.fullUserGroup } : {}),
-  }));
+  const setups: DomainSetup[] = Object.entries(entries).map(([domain, e]) => ({ ...e, domain }));
   return pickOne(setups, domainFilter, (s) => s.domain, {
     flag: 'domain',
     source: 'site.searchConsole',
   });
+}
+
+/**
+ * Read every candidate sitemap, and report what each one held.
+ *
+ * Discovery is only the CLI's half of the job — which places to look is `sitemapCandidates`
+ * (pure); here each is fetched and judged. A configured URL that cannot be read is an error: the
+ * author named it. A *derived* one that is absent is expected (a CMS-only site has no pages
+ * sitemap, an Astro site has no `/sitemap.xml`), so it is reported and skipped, and a 200 with no
+ * `<url>` is skipped rather than submitted — an empty second sitemap in Search Console is noise.
+ * Only when nothing at all was usable does the run stop.
+ */
+async function discoverSitemaps(
+  candidates: { url: string; role: SitemapRole }[],
+): Promise<{ reports: SitemapReport[]; entries: SitemapEntry[] }> {
+  const reports: SitemapReport[] = [];
+  const byLoc = new Map<string, SitemapEntry>();
+  for (const { url, role } of candidates) {
+    let xml: string;
+    try {
+      if (/^https?:\/\//i.test(url)) {
+        const res = await fetch(url);
+        if (!res.ok) {
+          if (role === 'configured') fail(`could not fetch ${url}: ${res.status}`);
+          reports.push({
+            url,
+            role,
+            used: false,
+            entries: 0,
+            skip: res.status === 404 ? 'not found' : `HTTP ${res.status}`,
+          });
+          continue;
+        }
+        xml = await res.text();
+      } else {
+        xml = await readSitemap(url);
+      }
+    } catch (err) {
+      if (role === 'configured') throw err;
+      reports.push({ url, role, used: false, entries: 0, skip: 'unreachable' });
+      continue;
+    }
+    // A reader bound to the text already fetched, so a sitemap index is followed without a refetch
+    // of its own URL.
+    const { entries } = await collectEntries(url, (source) =>
+      source === url ? Promise.resolve(xml) : readSitemap(source),
+    );
+    if (entries.length === 0) {
+      reports.push({ url, role, used: false, entries: 0, skip: 'empty' });
+      continue;
+    }
+    reports.push({ url, role, used: true, entries: entries.length });
+    for (const e of entries) if (!byLoc.has(e.loc)) byLoc.set(e.loc, e);
+  }
+  return { reports, entries: [...byLoc.values()] };
 }
 
 /** Read a sitemap from a URL or a local path. */
@@ -203,8 +256,10 @@ async function cmdSearchNotify(argv: string[]) {
     return;
   }
 
-  const sitemapUrl = a.opt('sitemap') ?? resolveSitemapUrl(config);
-  if (!sitemapUrl)
+  // `--sitemap` is an explicit choice, so it turns discovery off like a configured URL does.
+  const flagged = a.opt('sitemap');
+  const candidates = sitemapCandidates(flagged ? { ...config, sitemapUrl: flagged } : config);
+  if (candidates.length === 0)
     fail(
       'no sitemap to read — set seo.indexing.sitemapUrl or domains.canonical, or pass --sitemap',
     );
@@ -215,19 +270,24 @@ async function cmdSearchNotify(argv: string[]) {
     .map((u) => u.trim())
     .filter(Boolean);
 
-  // The sitemap is only needed when the URL set comes from it.
-  const current =
-    explicitUrls?.length && !a.flag('check')
-      ? []
-      : (await collectEntries(sitemapUrl, readSitemap)).entries;
+  // The sitemaps are only needed when the URL set comes from them.
+  const found =
+    explicitUrls?.length && !a.flag('check') ? undefined : await discoverSitemaps(candidates);
+  const current = found?.entries ?? [];
+  if (found && found.reports.every((r) => !r.used))
+    fail(
+      `no usable sitemap — ${found.reports.map((r) => `${r.url} (${r.skip})`).join(', ')}. ` +
+        'Set seo.indexing.sitemapUrl, or pass --sitemap.',
+    );
 
   const snapshotPath = a.path('snapshot');
   const p = plan({
-    config: { ...config, sitemapUrl },
+    config: { ...config, ...(flagged ? { sitemapUrl: flagged } : {}) },
     current,
     previous: readSnapshot(snapshotPath),
     explicitUrls,
     all: a.flag('all'),
+    sitemaps: found?.reports,
   });
 
   const keepGoing = printPlanAndDryGate({
@@ -311,11 +371,15 @@ async function cmdSearchNotify(argv: string[]) {
         site,
         a.str('input'),
       );
-      const r = await submitSitemap(auth, p.searchConsole.siteUrl!, sitemapUrl);
-      if (r.ok) console.log(`✓ Search Console: sitemap resubmitted`);
-      else {
-        console.error(`✖ Search Console: ${r.message}`);
-        failed = true;
+      // One submission per sitemap, each reported by name, so a second sitemap in Search
+      // Console is accounted for in the output that put it there.
+      for (const url of p.searchConsole.sitemapUrls) {
+        const r = await submitSitemap(auth, p.searchConsole.siteUrl!, url);
+        if (r.ok) console.log(`✓ Search Console: ${url} resubmitted`);
+        else {
+          console.error(`✖ Search Console: ${url} — ${r.message}`);
+          failed = true;
+        }
       }
     }
   }
@@ -330,7 +394,7 @@ async function cmdSearchNotify(argv: string[]) {
    * from every future run, silently and permanently.
    */
   if (current.length > 0) {
-    writeSnapshot(snapshotPath, toSnapshot(sitemapUrl, current, new Date().toISOString()));
+    writeSnapshot(snapshotPath, toSnapshot(p.sitemapUrl ?? '', current, new Date().toISOString()));
     console.log(`  state → ${relative(process.cwd(), snapshotPath)}`);
   }
   if (p.check.length > 0)

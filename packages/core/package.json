@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/core",
-  "version": "8.1.0",
+  "version": "9.0.0-alpha.8",
   "description": "The Vitops design-system framework — CSS partials, Lit web components, and browser polyfills.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",
@@ -23,12 +23,17 @@
     "./polyfills": "./dist/polyfills.js",
     "./deferred": "./dist/deferred.js",
     "./css/*": "./css/*",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./config-form": "./dist/config-form.js",
+    "./stepper": "./dist/stepper.js",
+    "./color-field": "./dist/color-field.js",
+    "./config-preview": "./dist/config-preview.js"
   },
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
+    "@getvitops/config": "workspace:*",
     "@getvitops/utils": "workspace:*",
     "@lit-labs/signals": "catalog:",
     "@oddbird/css-anchor-positioning": "catalog:",
@@ -45,8 +50,7 @@
     "postcss": "catalog:",
     "postcss-lit": "catalog:",
     "scroll-timeline-polyfill": "catalog:",
-    "temporal-polyfill": "catalog:",
-    "vitest": "catalog:"
+    "temporal-polyfill": "catalog:"
   },
   "engines": {
     "node": ">=24"

@@ -15,7 +15,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { defaultConfig } from './index.ts';
 import { type DesignSystem, validate } from './schema.ts';
 import { FRAMEWORK_OWNED, emittedTokens, extractVarRefs, movedTokens } from './token-refs.ts';

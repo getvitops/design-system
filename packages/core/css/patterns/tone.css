@@ -1,0 +1,54 @@
+/**
+ * Tone — one convention for "colour this block", shared by every block that colours
+ * anything (section, callout, stats, steps, cards `panel`, hero).
+ *
+ * A block never names a colour class. Class names cannot be built from a field value
+ * (Tailwind only sees literals), so a renderer sets custom properties on the element
+ * and `.tone` reads them:
+ *
+ *   --tone-bg      a tint of the role (`--color-bg-<role>-muted`)
+ *   --tone-fg      its readable text (`--color-text-<role>`)
+ *   --tone-border  its boundary (`--color-border-<role>`)
+ *   --tone-solid / --tone-on-solid   the filled variant and its computed foreground
+ *
+ * Each is a `var()` chain — the role, then its semantic fallbacks, then `neutral` — so a
+ * tone a site never defined degrades to a neutral surface instead of to nothing.
+ * `@getvitops/emdash`'s `resolveTone()` writes the chains. Unset, `.tone` is inert.
+ *
+ * `--tone-solid-scheme` (`dark` or `light`) is the fill's own scheme, read off its computed foreground.
+ *
+ * `.tone--tint` paints the tint (surfaces only); `--solid` fills with the role's solid and its `on`
+ * colour. `--tone-tint` overrides the tint's colour.
+ */
+.tone {
+  --_fg: var(--tone-fg, inherit);
+
+  color: var(--_fg);
+  border-color: var(--tone-border, currentColor);
+
+  /* A tone is colour variables first. Only a surface paints, so a steps list, a stat row or a
+     form that carries a tone is not turned into a padding-less band. A site can swap the tint for
+     something else (a mix of the solid, glass, …) through `--tone-tint`; see `colors.tint`. */
+  &.tone--tint {
+    background-color: var(--tone-tint, var(--tone-bg, transparent));
+  }
+
+  &.tone--solid {
+    background-color: var(--tone-solid, var(--tone-bg, transparent));
+    color: var(--tone-on-solid, var(--_fg));
+    /* Native controls and scrollbars inside a fill follow the fill's lightness, not the page's. */
+    color-scheme: var(--tone-solid-scheme, normal);
+  }
+
+  /* A filled call to action inside a toned surface (the classes are only added with a tone set) takes that block's colour. */
+  &:is(.tone--tint, .tone--solid) .cta {
+    background-color: var(--tone-solid);
+    color: var(--tone-on-solid);
+  }
+}
+
+/* An accent run inside a heading (`<em class="accent">`): colour, not italics. */
+.accent {
+  font-style: normal;
+  color: var(--accent-color, var(--color-text-ui-accent, currentColor));
+}

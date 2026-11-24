@@ -28,17 +28,17 @@ one without it is a bare `design-system.json`. Nothing breaks when you rename it
 
 ## The three sections
 
-| Section | Holds | Changes when |
-| --- | --- | --- |
-| `designSystem` | the token set — named themes, which theme, which appearance | the brand's design changes |
-| `organization` | the company — name, contact, locations, services, public profiles | the company changes |
-| `site` | this published site — locales, domains, environments, templates, SEO, analytics, legal, icons, favicon, deployment | this site changes |
+| Section        | Holds                                                                                                              | Changes when               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------- |
+| `designSystem` | the token set — named themes, which theme, which appearance                                                        | the brand's design changes |
+| `organization` | the company — name, contact, locations, services, public profiles                                                  | the company changes        |
+| `site`         | this published site — locales, domains, environments, templates, SEO, analytics, legal, icons, favicon, deployment | this site changes          |
 
 The split is not filing for its own sake. It is what makes the multi-site case expressible: a
 marketing site and a support site can carry the **same** `organization` and differ only in `site`.
 
 It is also what the generated legal documents rest on. A privacy policy asserts facts about the
-*company* — who a privacy request goes to, where it is held — and facts about the *site* — which
+_company_ — who a privacy request goes to, where it is held — and facts about the _site_ — which
 forms exist, which analytics run, whether cookies are set. Those two are separately true, and
 keeping them in separate sections is why changing your analytics provider cannot accidentally
 rewrite your registered address.
@@ -63,13 +63,13 @@ its own input to the same file. Keeping the two files separate works too; point 
 
 ## What reads it
 
-| Command | Reads |
-| --- | --- |
-| `vitops legal` | `site.legal`, `site.templates`, `site.analytics`, `organization` |
-| `vitops icons` | `site.icons` |
-| `vitops search notify` | `site.seo.indexing`, `site.environments`, `site.domains` |
-| `vitops search setup` | `site.searchConsole` |
-| `vitops validate` | all of it — shape plus the cross-field integrity a JSON Schema can't express |
+| Command                | Reads                                                                        |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `vitops legal`         | `site.legal`, `site.templates`, `site.analytics`, `organization`             |
+| `vitops icons`         | `site.icons`                                                                 |
+| `vitops search notify` | `site.seo.indexing`, `site.environments`, `site.domains`                     |
+| `vitops search setup`  | `site.searchConsole`                                                         |
+| `vitops validate`      | all of it — shape plus the cross-field integrity a JSON Schema can't express |
 
 Everything else (`generate`, `docs`, `lint`) needs only the tokens, and accepts either kind of file.
 

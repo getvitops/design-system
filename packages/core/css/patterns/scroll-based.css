@@ -124,9 +124,19 @@
   .scroll-progress__bar {
     block-size: 100%;
     background: var(--scroll-progress-color, var(--color-bg-brand-primary-solid));
-    transform-origin: left;
+    transform-origin: calc(50% - 50% * var(--dir-sign, 1)) 50%;
     animation: scroll-progress-grow linear;
     animation-timeline: scroll(root);
+  }
+}
+
+/* The bar is driven ONLY by the scroll timeline. Where `animation-timeline` is unsupported the
+   animation runs as a 0s time-based one and ends on its last keyframe, so the bar would sit
+   permanently full width: a progress indicator that says "done" from the first pixel. Better
+   nothing than that. */
+@supports not (animation-timeline: scroll()) {
+  .scroll-progress {
+    display: none;
   }
 }
 

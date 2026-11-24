@@ -12,6 +12,10 @@
  * `CLOUDFLARE_API_TOKEN` and the same create-only contract (no update verb, no
  * delete verb). Two copies would be two places for "never delete a record" to stop
  * being true.
+ *
+ * Those verbs are **not** re-exported from here: this subpath is imported by the generator
+ * and by Worker code for the capability table, and a re-export would drag the Cloudflare
+ * network executors into both. Import them from `@getvitops/utils/onboarding`.
  */
 export { formatPlan, formatSummary, hasDrift, missingFields, plan, planProperty } from './plan.ts';
 export type {
@@ -34,13 +38,14 @@ export {
 } from './providers.ts';
 export type { AdPlatform, AdTagSpec, AdVerificationSpec } from './providers.ts';
 
-// The DNS verbs, re-exported rather than reimplemented — see the note above.
-export { createApexTxt, findZoneId, listApexTxt } from '../onboarding/cloudflare.ts';
-
+export { normalizeConversionActionIds, normalizeConversionLabels } from './types.ts';
 export type {
   AdConsentCategory,
   AdDomainState,
   AdProvider,
   AdPropertySetup,
   AdsConfig,
+  ConversionAction,
+  ConversionActionIdMap,
+  ConversionLabelMap,
 } from './types.ts';

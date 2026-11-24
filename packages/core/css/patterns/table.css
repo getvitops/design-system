@@ -53,25 +53,53 @@ table,
     border-block-start: var(--_b);
   }
 
+  /* Bordered: the table draws the OUTER frame and each cell draws only the lines BETWEEN cells, so a
+     seam is drawn once. `separate` (not `collapse`) is what lets `border-radius` round the frame, and
+     `overflow: clip` (not `hidden`) trims cell backgrounds at the corners without making the table a
+     scroll container, which would stop `.table--sticky-header` sticking to the viewport.
+     Spans need nothing special: a cell that spans still has one inline end and one block end.
+     "Last" is positional, not `:last-child`, because a `<caption>` or a `<colgroup>` can also be a
+     table's last child and a `<tfoot>` can follow the `<tbody>`. */
   &.table--bordered {
+    border-collapse: separate;
+    border-spacing: 0;
     border: var(--_b);
     border-radius: var(--_br);
-    overflow: hidden;
+    overflow: clip;
 
-    > thead > tr > th,
-    > tbody > tr > td,
-    > tfoot > tr > td,
-    > tfoot > tr > th {
-      border: var(--_b);
+    > thead > tr > :is(th, td),
+    > tbody > tr > :is(th, td),
+    > tfoot > tr > :is(th, td) {
+      border: 0;
+      border-inline-end: var(--_b);
+      border-block-end: var(--_b);
+    }
+
+    /* The frame is the table's own border: no cell line on the outer edge. */
+    > :is(thead, tbody, tfoot) > tr > :is(th, td):last-child {
+      border-inline-end: 0;
+    }
+
+    > :is(thead, tbody, tfoot):not(:has(~ :is(thead, tbody, tfoot))) > tr:last-child > :is(th, td) {
+      border-block-end: 0;
     }
   }
 
   &.table--striped > tbody > tr:nth-child(even) {
-    background: oklch(0 0 0 / var(--table-stripe-opacity, 0.04));
+    /* A tint of the text colour, not black: black at 4% is invisible on a dark surface. */
+    background: color-mix(
+      in oklch,
+      currentColor calc(var(--table-stripe-opacity, 0.04) * 100%),
+      transparent
+    );
   }
 
   &.table--hover > tbody > tr:hover {
-    background: oklch(0 0 0 / var(--table-hover-opacity, 0.08));
+    background: color-mix(
+      in oklch,
+      currentColor calc(var(--table-hover-opacity, 0.08) * 100%),
+      transparent
+    );
   }
 
   &.table--compact {
@@ -91,7 +119,9 @@ table,
     position: sticky;
     inset-block-start: 0;
     z-index: var(--z-tier-raised);
-    background: inherit;
+    /* Explicit: `inherit` from a `<th>` resolves to the row's background, which is transparent, so
+       body rows showed through the header as they scrolled under it. */
+    background: var(--table-header-bg, var(--color-bg-surface));
   }
 }
 
@@ -104,3 +134,5 @@ table,
     min-inline-size: var(--table-min-inline-size, 100%);
   }
 }
+
+/* `<wc-entries>`' own display and its enhanced views are in entries.css. */

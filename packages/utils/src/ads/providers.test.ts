@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vite-plus/test';
 import { PLATFORM_PARAMS } from '../tracking/params.ts';
 import { AD_PLATFORMS, AD_PROVIDER_KEYS, categoryOf, renderTag } from './providers.ts';
 
@@ -75,5 +75,122 @@ describe('renderTag', () => {
   test('honours an explicit consent category', () => {
     expect(categoryOf({ provider: 'meta', category: 'analytics' })).toBe('analytics');
     expect(renderTag({ ...meta, category: 'analytics' })).toContain('data-consent="analytics"');
+  });
+
+  test('google with a bare-string conversionLabel exposes it as the call action', () => {
+    const html = renderTag({ provider: 'google', pixelId: 'AW-123', conversionLabel: 'abcDEF' })!;
+    expect(html).toContain('window.vitopsAdsConversions.google={"call":"AW-123/abcDEF"};');
+  });
+
+  test('google with a conversionLabel map exposes one send_to target per action', () => {
+    const html = renderTag({
+      provider: 'google',
+      pixelId: 'AW-123',
+      conversionLabel: { call: 'callLbl', email: 'emailLbl', form: 'formLbl' },
+    })!;
+    expect(html).toContain(
+      'window.vitopsAdsConversions.google=' +
+        '{"call":"AW-123/callLbl","email":"AW-123/emailLbl","form":"AW-123/formLbl"};',
+    );
+  });
+
+  test('a partial conversionLabel map exposes only the actions it names', () => {
+    const html = renderTag({
+      provider: 'google',
+      pixelId: 'AW-123',
+      conversionLabel: { form: 'formLbl' },
+    })!;
+    expect(html).toContain('window.vitopsAdsConversions.google={"form":"AW-123/formLbl"};');
+    expect(html).not.toContain('"call"');
+  });
+
+  test('google with no conversionLabel exposes nothing — gtag still bootstraps', () => {
+    const html = renderTag({ provider: 'google', pixelId: 'AW-123' })!;
+    expect(html).toContain("gtag('config','AW-123');");
+    expect(html).not.toContain('vitopsAdsConversions');
+  });
+
+  describe('reporting: "server" suppresses only the actions with a matching conversionActionId', () => {
+    test('an action with both reporting=server and a conversionActionId is suppressed client-side', () => {
+      const html = renderTag({
+        provider: 'google',
+        pixelId: 'AW-123',
+        conversionLabel: { call: 'callLbl', email: 'emailLbl' },
+        conversionActionId: { call: '999' },
+        reporting: 'server',
+      })!;
+      expect(html).not.toContain('"call"');
+      // `email` has no conversionActionId, so it keeps firing client-side
+      // rather than silently dropping the conversion.
+      expect(html).toContain('"email":"AW-123/emailLbl"');
+    });
+
+    test('reporting=server with no conversionActionId at all changes nothing', () => {
+      const html = renderTag({
+        provider: 'google',
+        pixelId: 'AW-123',
+        conversionLabel: { call: 'callLbl' },
+        reporting: 'server',
+      })!;
+      expect(html).toContain('"call":"AW-123/callLbl"');
+    });
+
+    test('a conversionActionId with reporting left at the default (client) changes nothing', () => {
+      const html = renderTag({
+        provider: 'google',
+        pixelId: 'AW-123',
+        conversionLabel: { call: 'callLbl' },
+        conversionActionId: { call: '999' },
+      })!;
+      expect(html).toContain('"call":"AW-123/callLbl"');
+    });
+  });
+});
+
+describe('Google website call conversions', () => {
+  const entry = {
+    provider: 'google' as const,
+    pixelId: 'AW-123',
+    callTracking: { label: 'lbl_1', number: '613-555-0100' },
+  };
+  const body = AD_PLATFORMS.google.tag.bootstrap('AW-123', entry);
+
+  test('configures the call-conversion action beside the tag', () => {
+    expect(body).toContain("gtag('config','AW-123/lbl_1'");
+    expect(body).toContain('phone_conversion_number:"613-555-0100"');
+  });
+
+  test('hands the swap to the capture script through a queue, so load order cannot lose it', () => {
+    expect(body).toContain('window.vitopsPhoneSwaps');
+    expect(body).toContain('window.vitopsSwapPhone');
+  });
+
+  test('only turns off the cookie cache when asked', () => {
+    expect(body).not.toContain('phone_conversion_options');
+    const off = AD_PLATFORMS.google.tag.bootstrap('AW-123', {
+      ...entry,
+      callTracking: { ...entry.callTracking, cache: false },
+    });
+    expect(off).toContain('phone_conversion_options:{cache:false}');
+  });
+
+  test('emits nothing extra without callTracking', () => {
+    const plain = AD_PLATFORMS.google.tag.bootstrap('AW-123', {
+      provider: 'google',
+      pixelId: 'AW-123',
+    });
+    expect(plain).not.toContain('phone_conversion');
+    expect(plain).not.toContain('vitopsPhoneSwaps');
+  });
+
+  test('is a Google-only capability', () => {
+    expect(AD_PROVIDER_KEYS.filter((p) => AD_PLATFORMS[p].websiteCallTracking)).toEqual(['google']);
+  });
+
+  test('tells the operator what Google needs done by hand', () => {
+    const steps = AD_PLATFORMS.google.manualSteps(entry).join('\n');
+    expect(steps).toMatch(/Calls from a phone number on your website/);
+    expect(steps).toMatch(/secondary/);
+    expect(steps).toMatch(/Search Console/);
   });
 });

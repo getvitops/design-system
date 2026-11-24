@@ -63,12 +63,13 @@
  * View Transitions (page navigation)
  * =========================================== */
 
-@view-transition {
-  navigation: auto;
-}
-
-::view-transition-children(*) {
-  animation-duration: var(--animation-duration-xslow);
+/* A cross-fade between pages is motion the visitor did not ask for; reduced-motion visitors get an
+   instant navigation. (The `::view-transition-children(*)` rule that used to follow was not a
+   real pseudo-element, so engines dropped it and it set no duration for anyone.) */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
 }
 
 /* The gallery/lightbox thumbnail → full-image morph (see patterns/lightbox.css)
@@ -512,7 +513,7 @@
 
    `height: 0 → auto` is not interpolable on its own: `auto` isn't a length, so
    the pair falls back to discrete and the transition doesn't run.
-   `interpolate-size: allow-keywords` (set on :root in utilities.css) is what
+   `interpolate-size: allow-keywords` (set on :root just below) is what
    makes `auto` a real endpoint — NOT `transition-behavior: allow-discrete`,
    which only permits genuinely discrete properties (display,
    content-visibility, overlay) to transition and would at best snap at the
@@ -531,6 +532,33 @@
    runs). That is specific to ::details-content, but the lesson generalises — a
    passing @supports query is not evidence the interaction works. Verify a real
    hover before trusting a change here. */
+/* Page-wide opt-in, so every `height: auto` / `block-size: auto` endpoint can
+   interpolate: `.transition`, `.reveal-h`, and `<details>`' `::details-content`.
+   It lives here rather than in global.css because this file reaches all three
+   formats (the tailwind format skips global.css), and it is a plain declaration
+   rather than an `@supports` block because an engine that doesn't know the
+   property drops it. Without support, `auto` heights simply resize instantly. */
+:root {
+  interpolate-size: allow-keywords;
+}
+
+/* Writing direction as a number: +1 left-to-right, -1 right-to-left.
+   Logical properties (`inset-inline-end`, `margin-inline-start`) flip for free; a `translate` does
+   NOT. A panel pinned to `inset-inline-end` that slides in with `translate: 100% 0` still comes
+   from the physical right in an RTL page, so it slides in from the wrong side. Multiply an x
+   offset that means "toward the inline end" by `var(--dir-sign, 1)`. Set on the root and on any
+   element with its own `dir`, so an RTL island inside an LTR page (and the reverse) is right.
+   Lives here, not in global.css, because every format reads this file and the tailwind format
+   skips global.css. */
+:root:dir(rtl),
+[dir='rtl'] {
+  --dir-sign: -1;
+}
+:root:dir(ltr),
+[dir='ltr'] {
+  --dir-sign: 1;
+}
+
 @supports (interpolate-size: allow-keywords) {
   .transition {
     height: var(--t-height, var(--height-from, auto));
@@ -586,7 +614,7 @@
 /* The open flip. Mirrors what the generated `open-<fx>` variants do, so the
    common case needs no effect class at all; an explicit `open-<fx>` still wins
    on specificity and can pick a different effect. */
-:where([popover]:popover-open, dialog[open]) {
+:where([popover]:is(:popover-open, .\:popover-open), dialog[open]) {
   --t-opacity: var(--opacity-to, 1);
   --t-translate-x: var(--translate-x-to, 0);
   --t-translate-y: var(--translate-y-to, 0);
@@ -608,7 +636,7 @@
  * the (0,0,0) base rule above, which it beats regardless of what any effect
  * class does. */
 @starting-style {
-  :is([popover], dialog):is(:popover-open, [open]) {
+  :is([popover], dialog):is(:is(:popover-open, .\:popover-open), [open]) {
     opacity: var(--opacity-from, 1);
     translate: var(--translate-x-from, 0) var(--translate-y-from, 0);
     scale: var(--scale-x-from, 1) var(--scale-y-from, 1);

@@ -1,8 +1,10 @@
 // Ad conversion tracking: capture click IDs from the landing URL, track tel:
-// clicks. Form submission itself goes through `createConversionRoute()`
-// (`@getvitops/astro/routes`), which handles both the no-JS `<form
-// method="post">` path and a fetch-based one — there is no separate
-// form-enhancement script here.
+// and mailto: clicks. Form submission itself goes through
+// `createConversionRoute()` (`@getvitops/astro/routes`), which handles both
+// the no-JS `<form method="post">` path and a fetch-based one — there is no
+// form-enhancement script here, only `window.vitopsFormConversion()` (below),
+// which a consumer's own fetch-based submit handler may call once that POST
+// succeeds, to report the `form` Google Ads conversion action client-side.
 //
 // Runs early and ungated on purpose. Reading the query string is not storage and
 // needs nobody's permission; *keeping* it does. So the capture is synchronous —
@@ -27,9 +29,12 @@
 
 const COOKIE_NAME = '_ac';
 const COOKIE_DAYS = 90;
-const AB_COOKIE = '_ab';
+// Default when no experiment is configured, or the marker (below) carries no
+// `data-ab-cookie` override — kept as a literal fallback so a site with no
+// `site.experiments` behaves exactly as before.
+const DEFAULT_AB_COOKIE = '_ab';
 
-// Where the `tel:` conversion beacon goes. Mirrors TRACKING_ENDPOINT in
+// Where the `tel:`/`mailto:` conversion beacons go. Mirrors TRACKING_ENDPOINT in
 // ../tracking.ts (pinned by `tracking.test.ts`), copied for the same reason as
 // the parameter lists below — this file is inlined into the document.
 //
@@ -56,6 +61,43 @@ const CLICK_ID_PARAMS = [
   'epik', // Pinterest
 ] as const;
 
+// Mirrors PROVIDER_BY_PARAM, UTM_SOURCE_ALIASES, PAID_MEDIUM and DEFAULT_PAID in
+// @getvitops/utils/tracking/phone — copied for the same reason; `tracking.test.ts`
+// pins them. They decide which call-tracking number a visitor is shown (section 4).
+const PROVIDER_BY_PARAM: Record<string, string> = {
+  gclid: 'google',
+  gbraid: 'google',
+  wbraid: 'google',
+  fbclid: 'meta',
+  li_fat_id: 'linkedin',
+  rdt_cid: 'reddit',
+  ttclid: 'tiktok',
+  msclkid: 'microsoft',
+  epik: 'pinterest',
+  ScCid: 'snapchat',
+};
+const UTM_SOURCE_ALIASES: Record<string, string> = {
+  google: 'google',
+  facebook: 'meta',
+  instagram: 'meta',
+  meta: 'meta',
+  fb: 'meta',
+  ig: 'meta',
+  bing: 'microsoft',
+  microsoft: 'microsoft',
+  linkedin: 'linkedin',
+  reddit: 'reddit',
+  tiktok: 'tiktok',
+  pinterest: 'pinterest',
+  snapchat: 'snapchat',
+  snap: 'snapchat',
+};
+const PAID_MEDIUM = /^(cpc|ppc|paid.*|cpm|display|paidsocial|paid_social)$/i;
+const DEFAULT_PAID = 'default-paid';
+// Set on a `tel:` link whose number was swapped, so the click beacon can say which
+// platform's number the visitor called.
+const PHONE_SOURCE_ATTR = 'data-vitops-phone-source';
+
 const UTM_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;
 
 // ---------------------------------------------------------------------------
@@ -70,17 +112,35 @@ for (const key of [...CLICK_ID_PARAMS, ...UTM_PARAMS]) {
   if (value) trackingData[key] = value;
 }
 
-// Include A/B variant if assigned by the router Worker. A cookie present but
-// valueless yields undefined, which must not be written into the record.
-const abMatch = document.cookie.split(';').find((c) => c.trim().startsWith(`${AB_COOKIE}=`));
-const abVariant = abMatch?.split('=')[1]?.trim();
+/**
+ * Reads a raw cookie value by name. Splits on the *first* `=` only (a prior
+ * version split on every `=`, silently truncating any value containing one)
+ * and URL-decodes the result — a prior version didn't, so a variant name or
+ * attribution value containing a reserved character came back mangled.
+ */
+function rawCookie(name: string): string | undefined {
+  const match = document.cookie.split(';').find((c) => c.trim().startsWith(`${name}=`));
+  if (!match) return undefined;
+  const eq = match.indexOf('=');
+  const value = match.slice(eq + 1).trim();
+  return value ? decodeURIComponent(value) : undefined;
+}
+
+// <Tracking /> writes the experiment cookie name onto this marker (the first
+// *enabled* `site.experiments` entry — see `readSiteExperiments`'s own
+// docblock for why only one reaches the lead-attribution pipeline), so a
+// site with no experiments configured falls back to the same default this
+// always used.
+const trackingMarker = document.querySelector('[data-vitops-tracking]');
+const abCookieName = trackingMarker?.getAttribute('data-ab-cookie') || DEFAULT_AB_COOKIE;
+const abVariant = rawCookie(abCookieName);
 if (abVariant) trackingData['ab_variant'] = abVariant;
 
 function readCookie(): Record<string, unknown> | null {
-  const match = document.cookie.split(';').find((c) => c.trim().startsWith(`${COOKIE_NAME}=`));
-  if (!match) return null;
+  const raw = rawCookie(COOKIE_NAME);
+  if (!raw) return null;
   try {
-    const data: unknown = JSON.parse(decodeURIComponent(match.split('=').slice(1).join('=')));
+    const data: unknown = JSON.parse(raw);
     return typeof data === 'object' && data !== null && !Array.isArray(data)
       ? (data as Record<string, unknown>)
       : null;
@@ -121,10 +181,9 @@ const gate = (): ConsentLike | undefined =>
   (window as unknown as { vitopsConsent?: ConsentLike }).vitopsConsent;
 
 if (Object.keys(trackingData).length > 0) {
-  // <Tracking /> writes the category onto this marker, which also carries
-  // `data-consent-cookies` so revoking clears `_ac`.
-  const marker = document.querySelector('[data-vitops-tracking]');
-  const category = marker?.getAttribute('data-consent') ?? 'marketing';
+  // <Tracking /> writes the category onto this marker (looked up once,
+  // above), which also carries `data-consent-cookies` so revoking clears `_ac`.
+  const category = trackingMarker?.getAttribute('data-consent') ?? 'marketing';
 
   if (!gate()) {
     // No gate on this site: behave as it always has.
@@ -147,15 +206,222 @@ if (Object.keys(trackingData).length > 0) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Tel: click tracking via sendBeacon
+// 2. Tel:/mailto: click tracking via sendBeacon, plus a Google Ads conversion
 // ---------------------------------------------------------------------------
 
+/**
+ * Typed locally, matching `ConsentLike` above: a global augmentation here
+ * would widen `Window` package-wide for a shape only this file uses.
+ *
+ * `gtag` is a plain function global — it's declared inside the classic
+ * (non-module) inline `<script>` `gtagBootstrap` emits (`@getvitops/utils/ads`),
+ * which attaches it to `window`. This file runs as a module (`<Tracking />`
+ * imports it), so it must go through `window.gtag`, not a bare `gtag(...)` call.
+ * `vitopsAdsConversions.google` is the same bootstrap's per-action `send_to`
+ * map (`{call?, email?, form?}`) — each action carries its own target, so a
+ * call, an email click and a form submission report as distinct Google Ads
+ * conversion actions instead of all three sharing one.
+ */
+interface AdsGlobal {
+  gtag?: (...args: unknown[]) => void;
+  vitopsAdsConversions?: Record<string, Partial<Record<'call' | 'email' | 'form', string>>>;
+}
+const adsGlobal = (): AdsGlobal => window as unknown as AdsGlobal;
+
 document.addEventListener('click', (e) => {
-  const link = (e.target as Element).closest?.('a[href^="tel:"]') as HTMLAnchorElement | null;
+  const link = (e.target as Element).closest?.(
+    'a[href^="tel:"], a[href^="mailto:"]',
+  ) as HTMLAnchorElement | null;
   if (!link) return;
 
-  // Fire-and-forget beacon; don't block the tel: navigation
+  const isEmail = link.href.startsWith('mailto:');
+
+  // Fire-and-forget beacon; don't block the tel:/mailto: navigation.
   if (navigator.sendBeacon) {
-    navigator.sendBeacon(TRACK_ENDPOINT, JSON.stringify({ event: 'call', phone: link.href }));
+    const phoneSource = link.getAttribute(PHONE_SOURCE_ATTR);
+    const body = isEmail
+      ? { event: 'email', email: link.href }
+      : { event: 'call', phone: link.href, ...(phoneSource ? { phoneSource } : {}) };
+    navigator.sendBeacon(TRACK_ENDPOINT, JSON.stringify(body));
+  }
+
+  // Report the same click as a Google Ads conversion, when that action's
+  // `conversionLabel` is configured. `sendTo` is absent whenever the tag never
+  // loaded (gated and undecided, or `site.ads.google` unset) or that specific
+  // action has no label — silently skipped, same as every other
+  // optional-runtime check in this file.
+  const sendTo = adsGlobal().vitopsAdsConversions?.['google']?.[isEmail ? 'email' : 'call'];
+  if (sendTo && typeof adsGlobal().gtag === 'function') {
+    adsGlobal().gtag!('event', 'conversion', { send_to: sendTo });
   }
 });
+
+// ---------------------------------------------------------------------------
+// 3. Form-submission conversion, for a consumer's own fetch-based submit handler
+// ---------------------------------------------------------------------------
+
+const CONVERTED_ATTR = 'data-vitops-converted';
+
+/**
+ * Fires the Google Ads `form` conversion action (see `AdsGlobal` above) for a
+ * consumer's own fetch-based submit handler to call once its own POST to
+ * `createConversionRoute()` has succeeded — mirroring the tel:/mailto: click
+ * handler above, but for a form, which has no click to hook.
+ *
+ * Idempotent per element (`data-vitops-converted`): a handler that fires this
+ * more than once for the same submission (a retried network call, a
+ * double-invoked effect) reports the conversion once, not twice.
+ *
+ * Call it from the fetch handler after a successful POST — not from a
+ * success-page query parameter (`?sent=1`). That replays on refresh/back, and
+ * the honeypot deliberately redirects to the same success URL, so bots would
+ * count as leads. For no-JS forms use `reporting: 'server'` instead.
+ *
+ * There is deliberately no server-side equivalent for a no-JS
+ * `<form method="post">` submission — that path is a full-page redirect with no
+ * script execution to fire from, and reporting a Google-Ads-labelled
+ * conversion from the server needs the Google Ads API's click-conversion
+ * upload (developer token + MCC access), not a client-side pixel call. See the
+ * vNext backlog's §16 for that follow-up.
+ */
+function vitopsFormConversion(formEl: HTMLFormElement): void {
+  if (formEl.hasAttribute(CONVERTED_ATTR)) return;
+  formEl.setAttribute(CONVERTED_ATTR, '');
+  const sendTo = adsGlobal().vitopsAdsConversions?.['google']?.['form'];
+  if (sendTo && typeof adsGlobal().gtag === 'function') {
+    adsGlobal().gtag!('event', 'conversion', { send_to: sendTo });
+  }
+}
+
+(window as unknown as { vitopsFormConversion?: typeof vitopsFormConversion }).vitopsFormConversion =
+  vitopsFormConversion;
+
+// ---------------------------------------------------------------------------
+// 4. Call-tracking numbers: show a visitor from an ad the number provisioned for it
+// ---------------------------------------------------------------------------
+//
+// The server-rendered HTML always carries the real number (crawlers, JSON-LD and
+// visitors without JavaScript see it); this only ever *swaps*. Two callers:
+//
+//   - **Google**, when `site.ads.google.callTracking` is set: Google's own tag fetches
+//     a forwarding number and calls `vitopsSwapPhone` (via a queue, because the inline
+//     tag and this module load in no fixed order). Google replaces text only — this
+//     rewrites the `tel:` href too.
+//   - **Everyone else**, from `site.tracking.phoneNumbers`: the number for the
+//     platform that sent the visitor. The landing page decides from the URL, which is
+//     not storage and needs no permission; later pages decide from `_ac`, which exists
+//     only once `marketing` was granted. A visitor who declined therefore sees a
+//     tracking number on the landing page only.
+
+interface PhoneConfig {
+  number: string;
+  sources: Record<string, string | undefined>;
+}
+
+const PHONE_TEXT = /\+?\d[\d\s().-]{5,18}\d/g;
+
+/** Mirrors `phoneDigits`: digits only, a leading North American `1` dropped. */
+function phoneDigits(value: string): string {
+  const d = value.replace(/\D/g, '');
+  return d.length === 11 && d.startsWith('1') ? d.slice(1) : d;
+}
+
+/** Mirrors `telUri`. */
+function telUri(display: string): string {
+  const d = display.replace(/\D/g, '');
+  return d.length === 10 ? `tel:+1${d}` : `tel:+${d}`;
+}
+
+/** Replace every phone-looking run in `node`'s text that names `target` with `display`. */
+function swapText(node: Node, target: string, display: string): void {
+  if (node.nodeType === 3) {
+    const text = node as Text;
+    const next = text.data.replace(PHONE_TEXT, (m) => (phoneDigits(m) === target ? display : m));
+    if (next !== text.data) text.data = next;
+    return;
+  }
+  for (const child of Array.from(node.childNodes)) swapText(child, target, display);
+}
+
+/**
+ * Swap `original` for `display` in every matching `tel:` link (href and text) and in
+ * every `[data-vitops-phone]` element's text. Called by Google's tag, so the
+ * signature is `(formatted, tel, original)` with the second argument unused: Google's
+ * own docs disagree about whether it carries a `+`, so the href is built locally.
+ */
+function swapPhone(display: string, _tel: unknown, original: string, source = 'google'): void {
+  const target = phoneDigits(original);
+  if (!target || phoneDigits(display) === target) return;
+  const uri = telUri(display);
+  for (const a of Array.from(document.querySelectorAll('a[href^="tel:"]'))) {
+    if (phoneDigits((a.getAttribute('href') ?? '').slice(4)) !== target) continue;
+    a.setAttribute('href', uri);
+    a.setAttribute(PHONE_SOURCE_ATTR, source);
+    swapText(a, target, display);
+  }
+  for (const el of Array.from(document.querySelectorAll('[data-vitops-phone]')))
+    swapText(el, target, display);
+}
+
+/** Mirrors `selectPhoneNumber`. */
+function selectPhone(
+  current: Record<string, unknown> | null,
+  stored: Record<string, unknown> | null,
+  config: PhoneConfig,
+  googleNative: boolean,
+): { number: string; source: string } | null {
+  const providerOf = (data: Record<string, unknown>): string | null => {
+    for (const param of Object.keys(PROVIDER_BY_PARAM))
+      if (data[param]) return PROVIDER_BY_PARAM[param]!;
+    const source = data['utm_source'];
+    return typeof source === 'string'
+      ? (UTM_SOURCE_ALIASES[source.trim().toLowerCase()] ?? null)
+      : null;
+  };
+  const isPaid = (data: Record<string, unknown>): boolean => {
+    if (Object.keys(PROVIDER_BY_PARAM).some((p) => data[p])) return true;
+    const medium = data['utm_medium'];
+    return typeof medium === 'string' && PAID_MEDIUM.test(medium.trim());
+  };
+  for (const data of [current, stored]) {
+    if (!data) continue;
+    const provider = providerOf(data);
+    if (provider === 'google' && googleNative) return null;
+    const specific = provider ? config.sources[provider] : undefined;
+    if (specific && phoneDigits(specific) !== phoneDigits(config.number))
+      return { number: specific, source: provider! };
+    if (isPaid(data) || provider) {
+      const fallback = config.sources[DEFAULT_PAID];
+      return fallback && phoneDigits(fallback) !== phoneDigits(config.number)
+        ? { number: fallback, source: DEFAULT_PAID }
+        : null;
+    }
+  }
+  return null;
+}
+
+type SwapFn = (display: string, tel: unknown, original: string) => void;
+const phoneGlobal = window as unknown as {
+  vitopsSwapPhone?: SwapFn;
+  vitopsPhoneSwaps?: [string, unknown, string][];
+};
+phoneGlobal.vitopsSwapPhone = swapPhone;
+// Google's tag may have called before this module ran; replay what it queued.
+for (const args of phoneGlobal.vitopsPhoneSwaps ?? []) swapPhone(...args);
+phoneGlobal.vitopsPhoneSwaps = [];
+
+const phoneAttr = trackingMarker?.getAttribute('data-phone-numbers');
+if (phoneAttr) {
+  try {
+    const config = JSON.parse(phoneAttr) as PhoneConfig;
+    const picked = selectPhone(
+      Object.keys(trackingData).length ? trackingData : null,
+      readCookie(),
+      config,
+      trackingMarker?.hasAttribute('data-google-call-tracking') ?? false,
+    );
+    if (picked) swapPhone(picked.number, null, config.number, picked.source);
+  } catch {
+    // A malformed attribute leaves the real number in place, which is the safe state.
+  }
+}

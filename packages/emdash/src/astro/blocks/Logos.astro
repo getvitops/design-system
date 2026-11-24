@@ -1,0 +1,82 @@
+---
+/**
+ * A still row of partner/client marks on the framework's `.logos` pattern. `vitops_marquee`
+ * is the scrolling version; this one holds still. A list, so the count is announced, and
+ * each mark is an image with the editor's name as its alt text — a logo with no alt is a
+ * link or a fact the page silently drops. An entry with a name and no image renders the name as
+ * text in the same list (`.logos__name`), for partners who have no wordmark.
+ */
+import { resolveBlockValue, rows, safeHref, text } from './value.ts';
+
+interface Value {
+  label?: string;
+  logos?: unknown;
+  grayscale?: boolean;
+  size?: string;
+  kicker?: string;
+  note?: string;
+  linkLabel?: string;
+  linkHref?: string;
+}
+
+const HEIGHTS: Record<string, string> = { sm: '1.75rem', md: '2.5rem', lg: '3.5rem' };
+
+const value = resolveBlockValue<Value>(Astro.props);
+const label = text(value.label) || 'Partners';
+const logos = rows<Record<string, unknown>>(value.logos)
+  .map((row) => ({ image: safeHref(row.image), alt: text(row.alt), href: safeHref(row.href) }))
+  .filter((logo) => logo.image || logo.alt);
+const height = HEIGHTS[text(value.size)];
+const kicker = text(value.kicker);
+const note = text(value.note);
+const linkLabel = text(value.linkLabel);
+const linkHref = safeHref(value.linkHref);
+const hasLink = Boolean(linkLabel && linkHref);
+// A wrapper exists only when there is a kicker, note or link to hold. The attributes stay on the
+// list in both cases, as they do on `vitops_cards`, so a selector on the list works either way.
+const framed = Boolean(kicker || note || hasLink);
+const Wrap = framed ? 'div' : Fragment;
+const wrapProps = framed ? { class: 'logos-block' } : {};
+import { rootAttrs } from './attrs.ts';
+---
+
+{logos.length > 0 && (
+  <Wrap {...wrapProps}>
+    {kicker && <p class="logos__kicker font-eyebrow">{kicker}</p>}
+    <ul
+      {...rootAttrs(
+        value,
+        ['logos', value.grayscale && 'logos--grayscale'],
+        height ? `--logos-height: ${height}` : undefined,
+      )}
+      role="list"
+      aria-label={label}
+    >
+      {logos.map((logo) => (
+        <li class="logos__item">
+          {logo.href ? (
+            <a href={logo.href}>
+              {logo.image ? (
+                <img src={logo.image} alt={logo.alt} loading="lazy" />
+              ) : (
+                <span class="logos__name font-heading">{logo.alt}</span>
+              )}
+            </a>
+          ) : logo.image ? (
+            <img src={logo.image} alt={logo.alt} loading="lazy" />
+          ) : (
+            <span class="logos__name font-heading">{logo.alt}</span>
+          )}
+        </li>
+      ))}
+    </ul>
+    {note && <p class="logos__note font-caption">{note}</p>}
+    {hasLink && (
+      <p class="logos__link">
+        <a class="link" href={linkHref}>
+          {linkLabel}
+        </a>
+      </p>
+    )}
+  </Wrap>
+)}

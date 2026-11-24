@@ -210,3 +210,14 @@
     }
   }
 }
+
+/*
+ * Pre-upgrade display for the two elements that live in this partial — see the note on
+ * `wc-entries` in table.css. Both are a framed block of content (two panes; two images),
+ * and `wc-image-compare`'s upgraded `:host` is already `display: block`, so declaring it
+ * here removes the layout shift when it registers. `wc-split-panel` has no `:host` display
+ * at all, so this also fixes it after upgrade.
+ */
+:where(wc-split-panel, wc-image-compare) {
+  display: block;
+}

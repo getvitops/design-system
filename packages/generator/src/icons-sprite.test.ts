@@ -2,7 +2,7 @@ import type { IconifyJSON } from '@iconify/types';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { buildIconSprite, spriteId } from './icons-sprite.ts';
 
 /**

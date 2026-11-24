@@ -1,0 +1,49 @@
+---
+/**
+ * `<Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Services', href: '/services' }, { label: 'Roofing' }]} />`
+ *
+ * A trail of ancestors ending at the current page: `<nav aria-label="Breadcrumb" class="breadcrumbs">`
+ * over an `<ol>`, the last item `aria-current="page"` and never a link. Tier 1 — no JS, no web
+ * component, because a trail is navigation to a fixed place and needs nothing dynamic.
+ *
+ * `schema` (default true) also emits the `BreadcrumbList` JSON-LD from the SAME items, so the
+ * visible trail and the markup search engines read cannot disagree. Turn it off when the page
+ * already renders its own `<Breadcrumb>` schema block.
+ *
+ * Name the landmark if a page has more than one trail: `label` is the `aria-label`.
+ */
+import BreadcrumbSchema from '../schemas/Breadcrumb.astro';
+import { resolveCrumbs, schemaCrumbs, type Crumb } from './breadcrumbs.ts';
+
+export interface Props {
+  items: Crumb[];
+  /** The landmark's accessible name. Default `Breadcrumb`. */
+  label?: string;
+  /** Emit `BreadcrumbList` JSON-LD from `items`. Default true. */
+  schema?: boolean;
+  class?: string;
+}
+
+const { items, label = 'Breadcrumb', schema = true, class: className, ...rest } = Astro.props;
+const crumbs = resolveCrumbs(items);
+const ld = schema ? schemaCrumbs(items, Astro.url) : [];
+---
+
+{items.length > 0 && (
+  <nav {...rest} class:list={['breadcrumbs', className]} aria-label={label}>
+    <ol>
+      {crumbs.map((crumb) => (
+        <li>
+          {crumb.current ? (
+            <span aria-current="page">{crumb.label}</span>
+          ) : crumb.href ? (
+            <a href={crumb.href}>{crumb.label}</a>
+          ) : (
+            <span>{crumb.label}</span>
+          )}
+        </li>
+      ))}
+    </ol>
+  </nav>
+)}
+{ld.length > 0 && <BreadcrumbSchema items={ld} />}

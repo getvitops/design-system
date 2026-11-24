@@ -1,0 +1,58 @@
+/**
+ * Breadcrumbs — a trail of ancestors ending at the current page.
+ *
+ * Plain HTML, no JS: `<nav aria-label="Breadcrumb" class="breadcrumbs"><ol>…</ol></nav>`, the last
+ * item marked `aria-current="page"`. A trail is navigation to a fixed place and needs nothing
+ * dynamic, which is why this is tier 1 and not a web component.
+ *
+ * The separator is generated content, so it never becomes part of a link's text. It is also given
+ * an empty alternative where supported (`content: … / ''`), which stops a screen reader announcing
+ * "slash" between every item; the `<ol>` already says how many items there are. That is behind
+ * `@supports` because a `var()` that fails at computed-value time does NOT fall back to the
+ * declaration above it, so a plain second `content` would blank the separator in a browser that
+ * can't parse the alternative.
+ *
+ * Hooks: `--breadcrumbs-separator` (a quoted string, default `'/'`), `--breadcrumbs-gap`,
+ * `--breadcrumbs-separator-color`, `--breadcrumbs-current-weight`, `--breadcrumbs-current-color`.
+ */
+.breadcrumbs {
+  --_gap: var(--breadcrumbs-gap, 0.5rem);
+  --_separator: var(--breadcrumbs-separator, '/');
+
+  font-size: var(--breadcrumbs-font-size, 0.875em);
+
+  > ol {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: var(--_gap);
+    row-gap: 0.25em;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Wraps cleanly: the separator belongs to the item it precedes, so a wrapped line starts with
+     an item, not a stray slash (it would otherwise dangle at the end of the previous line). */
+  li {
+    display: inline-flex;
+    align-items: baseline;
+    column-gap: var(--_gap);
+  }
+
+  li + li::before {
+    content: var(--_separator);
+    color: var(--breadcrumbs-separator-color, color-mix(in oklab, currentColor 55%, transparent));
+  }
+
+  @supports (content: '' / '') {
+    li + li::before {
+      content: var(--_separator) / '';
+    }
+  }
+
+  [aria-current='page'] {
+    color: var(--breadcrumbs-current-color, inherit);
+    font-weight: var(--breadcrumbs-current-weight, 600);
+  }
+}

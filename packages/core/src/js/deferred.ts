@@ -1,3 +1,5 @@
+import { initTooltips } from './tooltip.ts';
+
 // Scroll-driven animation support is feature-detected by animation.css itself
 // (`@supports not (animation-timeline: view())`), and whether to pause a trigger
 // animation by `@media (scripting: enabled)`. Neither needs a class on <html>, so
@@ -110,12 +112,24 @@ function setHorizontalScrollTrackWidth(container: Element): void {
   (track as HTMLElement).style.width = `${contentWidth}px`;
 }
 
+initTooltips();
+
 // Close open dialogs when clicking same-document fragment links inside them
 document.addEventListener('click', (e) => {
   const link = (e.target as Element).closest?.('a[href^="#"]');
   if (!link) return;
   const dialog = link.closest('dialog[open]');
   if (dialog) (dialog as HTMLDialogElement).close();
+});
+
+// Triggers are observed as soon as this script runs, NOT after `window.load`. An
+// `.animate-trigger` is `opacity: 0` and paused until `.is-active` is added, so waiting for `load`
+// (after every image and font on the page) held an above-the-fold trigger invisible for that whole
+// time, which is what delayed LCP. An IntersectionObserver is asynchronous and forces no layout,
+// so there is no reflow cost to starting it early; the work below that DOES read layout stays on
+// `load`. A script that is `defer`red runs after the document is parsed, so the elements exist.
+document.querySelectorAll('.animate-trigger').forEach((el) => {
+  triggerObserver.observe(el);
 });
 
 // we use load and an rAF to ensure all styles and layouts are settled first.
@@ -127,10 +141,6 @@ window.addEventListener('load', () => {
     window.addEventListener('resize', handleResize);
 
     document.querySelectorAll('.horizontal-scroll').forEach(setHorizontalScrollTrackWidth);
-
-    document.querySelectorAll('.animate-trigger').forEach((el) => {
-      triggerObserver.observe(el);
-    });
 
     const currentYear = new Date().getFullYear();
     document.querySelectorAll('[data-current-year]').forEach((el) => {

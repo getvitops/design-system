@@ -11,6 +11,8 @@ import {
   hasDrift as hasAdsDrift,
   isAdProvider,
   missingFields,
+  normalizeConversionActionIds,
+  normalizeConversionLabels,
   plan as planAds,
   renderTag,
   tagId,
@@ -32,9 +34,10 @@ import { ADS_HELP } from '../help.ts';
 /**
  * Adapt a `Config` to the ads module's own option shape.
  *
- * The same flat field map as `toSearchConsoleSetup` and `toIndexingConfig`, for the
- * same reason — utils cannot import the generator. The domain default is the one
- * derived value: a platform verifies the host the site is published at, so
+ * `AdPropertySetup` is the `site.ads.<provider>` block plus its key, so this spreads the block.
+ * (It used to copy a hand-picked subset of fields, which silently dropped `conversionActionId` and
+ * `reporting` on the way to the planner.) The domain default is the one derived value: a platform
+ * verifies the host the site is published at, so
  * `domains.canonical` answers it, and only an ad account verified against some
  * other host needs `site.ads.<provider>.domain` stated.
  */
@@ -54,16 +57,7 @@ function toAdProperties(cfg: Config, providerFilter: string | undefined): AdProp
     (provider) => {
       const e = entries[provider]!;
       const domain = e.domain ?? canonicalHost;
-      return {
-        provider,
-        ...(e.accountId ? { accountId: e.accountId } : {}),
-        ...(e.pixelId ? { pixelId: e.pixelId } : {}),
-        ...(e.conversionLabel ? { conversionLabel: e.conversionLabel } : {}),
-        ...(domain ? { domain } : {}),
-        ...(e.domainVerification ? { domainVerification: e.domainVerification } : {}),
-        ...(e.category ? { category: e.category } : {}),
-        ...(e.enabled != null ? { enabled: e.enabled } : {}),
-      };
+      return { ...e, provider, ...(domain ? { domain } : {}) };
     },
   );
 
@@ -287,12 +281,14 @@ async function cmdAdsLint(argv: string[]) {
 
   const cfg = await siteConfig(a);
   const properties = toAdProperties(cfg, undefined);
-  if (properties.length === 0) {
+  const phones = cfg.site.tracking?.phoneNumbers;
+  if (properties.length === 0 && !phones) {
     console.log('· no site.ads properties — nothing to check');
     return;
   }
 
   const findings: string[] = [];
+  const notes: string[] = [];
   const trackingOn = cfg.site.tracking?.enabled === true;
 
   for (const p of properties) {
@@ -314,7 +310,48 @@ async function cmdAdsLint(argv: string[]) {
       findings.push(
         `${p.provider}: site.tracking.enabled is not true, so ${platform.clickIdParams.join('/')} is never captured — conversions will be unattributed`,
       );
+
+    // `reporting: 'server'` with no matching `conversionActionId` isn't a bug —
+    // `gtagBootstrap` keeps that action firing client-side rather than
+    // dropping it — but it does mean the setting is a no-op today, worth
+    // surfacing rather than leaving someone to wonder why nothing changed.
+    if (p.provider === 'google' && p.reporting === 'server') {
+      const labels = normalizeConversionLabels(p.conversionLabel);
+      const actionIds = normalizeConversionActionIds(p.conversionActionId);
+      const configuredNoId = (Object.keys(labels) as (keyof typeof labels)[]).filter(
+        (action) => labels[action] && !actionIds[action],
+      );
+      if (configuredNoId.length)
+        findings.push(
+          `google: reporting is "server" but conversionActionId.${configuredNoId.join(', .')} ` +
+            `is not set — ${configuredNoId.length === 1 ? 'that action' : 'those actions'} still ` +
+            `fire client-side, not a failure but not what "server" asked for either`,
+        );
+    }
   }
+
+  // Call tracking. A tracking-number provider records every caller's number, so it is a
+  // processor the generated privacy policy must name; nothing else in the config says it
+  // is there, which makes an undeclared one a silent compliance gap.
+  if (phones) {
+    const declared = (cfg.site.legal?.privacyPolicy?.processors ?? []).map((p) =>
+      p.name.toLowerCase(),
+    );
+    if (!phones.provider)
+      findings.push(
+        'site.tracking.phoneNumbers has no provider — state which call-tracking service holds these numbers (twilio, callrail, …) so the privacy policy can name it',
+      );
+    else if (!declared.some((n) => n.includes(phones.provider!.toLowerCase())))
+      findings.push(
+        `site.tracking.phoneNumbers.provider "${phones.provider}" records callers' numbers but is not in site.legal.privacyPolicy.processors — the generated privacy policy will not name it`,
+      );
+  }
+  const google = properties.find((p) => p.provider === 'google' && p.enabled !== false);
+  if (google?.callTracking && normalizeConversionLabels(google.conversionLabel).call)
+    notes.push(
+      'google: callTracking and conversionLabel.call are both set — one call can count twice. In Google Ads, make one of the two conversion actions secondary.',
+    );
+  for (const n of notes) console.warn(`! ${n}`);
 
   if (findings.length === 0) {
     console.log(

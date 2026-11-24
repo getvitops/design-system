@@ -17,9 +17,20 @@
  * Role names come from `design-system.json` so the colour variants can't drift
  * from what the generator emits.
  */
+import Breadcrumbs from '@getvitops/astro/components/Breadcrumbs.astro';
 import Carousel from '@getvitops/astro/components/Carousel.astro';
+import Combobox from '@getvitops/astro/components/Combobox.astro';
+import Notifications from '@getvitops/astro/components/Notifications.astro';
+import Tooltip from '@getvitops/astro/components/Tooltip.astro';
+import Drawer from '@getvitops/astro/components/Drawer.astro';
+import Stepper from '@getvitops/astro/components/Stepper.astro';
+import StepperNav from '@getvitops/astro/components/StepperNav.astro';
+import Field from '@getvitops/astro/components/Field.astro';
 import Counter from '@getvitops/astro/components/Counter.astro';
+import Format from '@getvitops/astro/components/Format.astro';
 import Gallery from '@getvitops/astro/components/Gallery.astro';
+import Range from '@getvitops/astro/components/Range.astro';
+import Tabs from '@getvitops/astro/components/Tabs.astro';
 import Docs from '../layouts/Docs.astro';
 import designSystem from '../../../src/design-system.json';
 
@@ -32,6 +43,11 @@ const ds = designSystem as unknown as {
 const roles = Object.entries(ds.colors.roles)
   .filter(([, v]) => (typeof v === 'string' ? true : (v as { kind?: string }).kind !== 'surface'))
   .map(([name]) => name);
+
+/** Only the roles the badge pattern generates a class for: any other falls back to the neutral badge. */
+const badgeRoles = (
+  (ds.patterns as { items: Record<string, { roles?: string[] }> }).items.badge.roles ?? []
+).filter((r) => roles.includes(r));
 
 const SECTIONS = [
   ['controls', 'Controls'],
@@ -55,9 +71,9 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
 >
   <aside class="card bg-info-muted">
     <p class="font-caption">
-      Every demo below is the real pattern. The overlays in particular are worth
-      opening and closing: they are driven by the top-layer animation driver, and
-      this page is where that behaviour is checked by hand.
+      Every demo below is the real pattern. The overlays in particular are worth opening and
+      closing: they are driven by the top-layer animation driver, and this page is where that
+      behaviour is checked by hand.
     </p>
   </aside>
 
@@ -66,25 +82,45 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
 
   <h3>Buttons</h3>
   <p>
-    <code>.cta</code> is <em>persuasion</em> — filled and larger. <code>btn</code> is <em>affordance</em>:
-    it pairs <code>element: "button"</code> with <code>class: "btn"</code>,
-    so a bare <code>&lt;button&gt;</code> gets it with no class at all, at zero specificity.
+    <code>.cta</code> is <em>persuasion</em> — filled and larger. <code>btn</code> is{' '}
+    <em>affordance</em>: it pairs <code>element: "button"</code> with <code>class: "btn"</code>, so
+    a bare <code>&lt;button&gt;</code> gets it with no class at all, at zero specificity.
   </p>
   <div class="cluster-start">
     <button>Bare button</button>
     <span class="btn">.btn on a span</span>
-    <a class="cta" href="#controls">.cta on a link</a>
+    <a class="cta" href="#controls">
+      .cta on a link
+    </a>
   </div>
 
   <h3>CTA roles</h3>
   <div class="cluster-start">
-    {roles.map((r) => <a class={`cta cta-${r}`} href="#controls">{r}</a>)}
+    {roles.map((r) => (
+      <a class={`cta cta-${r}`} href="#controls">
+        {r}
+      </a>
+    ))}
   </div>
 
   <h3>Links</h3>
   <p class="rhythm">
-    A <a class="link" href="#controls">plain link</a>, an <a class="link link--external" href="https://example.com" target="_blank" rel="noopener">external one</a>,
-    a <a class="link" href="mailto:hi@example.com">mailto</a> and a <a class="link" href="tel:+15550100">tel</a>
+    A{' '}
+    <a class="link" href="#controls">
+      plain link
+    </a>
+    , an{' '}
+    <a class="link link--external" href="https://example.com" target="_blank" rel="noopener">
+      external one
+    </a>
+    , a{' '}
+    <a class="link" href="mailto:hi@example.com">
+      mailto
+    </a>{' '}
+    and a{' '}
+    <a class="link" href="tel:+15550100">
+      tel
+    </a>
     — each gets its own affordance from
     <code>anchor-link.css</code> with no extra class.
   </p>
@@ -92,8 +128,8 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   <h3>Icon</h3>
   <p>
     <code>.icon</code> sizes in <code>em</code> and inherits <code>currentColor</code>. Because
-    <code>.cta</code> and <code>btn</code> are already <code>inline-flex</code> with a gap, a
-    start or end icon is <strong>child order</strong>, not a modifier class.
+    <code>.cta</code> and <code>btn</code> are already <code>inline-flex</code> with a gap, a start
+    or end icon is <strong>child order</strong>, not a modifier class.
   </p>
 
   <!-- ── Content ───────────────────────────────────────────────────────────── -->
@@ -103,59 +139,98 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   <ul class="grid-auto" style="--grid-min: 14rem">
     <li class="card rhythm">
       <p class="font-heading">Card</p>
-      <p class="font-caption text-surface-muted">A surface with padding, radius and a border, all from the pattern's token chain.</p>
+      <p class="font-caption text-surface-muted">
+        A surface with padding, radius and a border, all from the pattern's token chain.
+      </p>
     </li>
     <li class="card bg-info-muted rhythm">
       <p class="font-heading">With a utility</p>
-      <p class="font-caption">A colour utility overrides the pattern because utilities sit in a later cascade layer.</p>
+      <p class="font-caption">
+        A colour utility overrides the pattern because utilities sit in a later cascade layer.
+      </p>
     </li>
     <li class="card rhythm">
       <p class="font-heading">Third</p>
-      <p class="font-caption text-surface-muted">Sized by <code>.grid-auto</code> and <code>--grid-min</code>.</p>
+      <p class="font-caption text-surface-muted">
+        Sized by <code>.grid-auto</code> and <code>--grid-min</code>.
+      </p>
     </li>
   </ul>
 
   <h3>Badge and tag</h3>
   <p>
-    Split by behaviour, not by looks: a <strong>badge</strong> is a static label; a <strong>tag</strong>
-    is editable or dismissable. Their shared group is named <code>label</code> — deliberately
-    not <code>tag</code>, because a pattern whose key equals its group name collides in the
-    token namespace.
+    Split by behaviour, not by looks: a <strong>badge</strong> is a static label; a{' '}
+    <strong>tag</strong>
+    is editable or dismissable. Their shared group is named <code>label</code> — deliberately not{' '}
+    <code>tag</code>, because a pattern whose key equals its group name collides in the token
+    namespace.
   </p>
   <div class="cluster-start">
-    {roles.map((r) => <span class={`badge badge-${r}`}>{r}</span>)}
+    {badgeRoles.map((r) => (
+      <span class={`badge badge-${r}`}>{r}</span>
+    ))}
   </div>
   <ul class="tag-list">
-    <li class="tag">Design<button class="tag__remove" aria-label="Remove">&times;</button></li>
-    <li class="tag">System<button class="tag__remove" aria-label="Remove">&times;</button></li>
+    <li class="tag">
+      Design
+      <button class="tag__remove" aria-label="Remove">
+        &times;
+      </button>
+    </li>
+    <li class="tag">
+      System
+      <button class="tag__remove" aria-label="Remove">
+        &times;
+      </button>
+    </li>
   </ul>
 
   <h3>Media object and tile</h3>
   <div class="media card">
-    <div class="media__figure"><span class="badge">fig</span></div>
+    <div class="media__figure">
+      <span class="badge">fig</span>
+    </div>
     <div class="media__body rhythm">
       <p class="font-heading">Media object</p>
-      <p class="font-caption text-surface-muted">Figure beside body, the oldest layout primitive there is.</p>
+      <p class="font-caption text-surface-muted">
+        Figure beside body, the oldest layout primitive there is.
+      </p>
     </div>
   </div>
   <a class="tile card" href="#content">
-    <div class="tile__figure"><span class="badge">tile</span></div>
-    <div class="tile__body"><p class="font-heading">Clickable tile</p><p class="font-caption text-surface-muted">The whole surface is the target.</p></div>
+    <div class="tile__figure">
+      <span class="badge">tile</span>
+    </div>
+    <div class="tile__body">
+      <p class="font-heading">Clickable tile</p>
+      <p class="font-caption text-surface-muted">The whole surface is the target.</p>
+    </div>
   </a>
 
   <h3>Comment thread</h3>
   <ul class="comment-thread">
     <li class="comment">
-      <div class="comment__avatar"><span class="badge">AG</span></div>
+      <div class="comment__avatar">
+        <span class="badge">AG</span>
+      </div>
       <div class="comment__body">
-        <div class="comment__header"><span class="comment__author font-heading">Alex</span><span class="comment__date font-footnote text-surface-muted">2 days ago</span></div>
-        <p class="font-caption">A threaded comment, laid out on a grid so the avatar column stays aligned.</p>
+        <div class="comment__header">
+          <span class="comment__author font-heading">Alex</span>
+          <span class="comment__date font-footnote text-surface-muted">2 days ago</span>
+        </div>
+        <p class="font-caption">
+          A threaded comment, laid out on a grid so the avatar column stays aligned.
+        </p>
       </div>
     </li>
     <li class="comment comment--compact">
-      <div class="comment__avatar"><span class="badge">VT</span></div>
+      <div class="comment__avatar">
+        <span class="badge">VT</span>
+      </div>
       <div class="comment__body">
-        <div class="comment__header"><span class="comment__author font-heading">Vitops</span></div>
+        <div class="comment__header">
+          <span class="comment__author font-heading">Vitops</span>
+        </div>
         <p class="font-caption">The compact variant.</p>
       </div>
     </li>
@@ -163,19 +238,119 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
 
   <h3>Pull quote</h3>
   <blockquote class="pull-quote">
-    A pattern whose responsive behaviour lives in a container query keyed on its own
-    classes survives the tailwind strip; one keyed on breakpoint prefixes does not.
+    A pattern whose responsive behaviour lives in a container query keyed on its own classes
+    survives the tailwind strip; one keyed on breakpoint prefixes does not.
   </blockquote>
 
   <h3>Table</h3>
   <div class="table-wrapper">
     <table class="table">
-      <thead><tr><th>Pattern</th><th>Tier</th><th>Needs JS</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Pattern</th>
+          <th>Tier</th>
+          <th>Needs JS</th>
+        </tr>
+      </thead>
       <tbody>
-        <tr><td>card</td><td>CSS</td><td>No</td></tr>
-        <tr><td>drawer</td><td>CSS + Popover API</td><td>No</td></tr>
-        <tr><td>theme editor</td><td>Web component</td><td>Yes — quarantined</td></tr>
+        <tr>
+          <td>card</td>
+          <td>CSS</td>
+          <td>No</td>
+        </tr>
+        <tr>
+          <td>drawer</td>
+          <td>CSS + Popover API</td>
+          <td>No</td>
+        </tr>
+        <tr>
+          <td>theme editor</td>
+          <td>Web component</td>
+          <td>Yes — quarantined</td>
+        </tr>
       </tbody>
+    </table>
+  </div>
+
+  <h3>Bordered tables with spans and colgroups</h3>
+  <div class="table-wrapper">
+    <table class="table table--bordered" id="pt-table-simple">
+      <caption>A simple bordered table</caption>
+      <thead>
+        <tr>
+          <th>Pattern</th>
+          <th>Tier</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>card</td>
+          <td>CSS</td>
+        </tr>
+        <tr>
+          <td>drawer</td>
+          <td>CSS + Popover API</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="table-wrapper">
+    <table class="table table--bordered table--striped" id="pt-table-complex">
+      <caption>
+        Quarterly plan: grouped columns, a two-row header, spanning cells and a footer
+      </caption>
+      <colgroup>
+        <col />
+        <col span="2" />
+        <col span="2" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th rowspan="2" scope="col">
+            Team
+          </th>
+          <th colspan="2" scope="colgroup">
+            First half
+          </th>
+          <th colspan="2" scope="colgroup">
+            Second half
+          </th>
+        </tr>
+        <tr>
+          <th scope="col">Q1</th>
+          <th scope="col">Q2</th>
+          <th scope="col">Q3</th>
+          <th scope="col">Q4</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row" rowspan="2">
+            Design
+          </th>
+          <td>4</td>
+          <td colspan="2">Shared sprint (6)</td>
+          <td>3</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>5</td>
+          <td>1</td>
+          <td>2</td>
+        </tr>
+        <tr>
+          <th scope="row">Platform</th>
+          <td colspan="4">On call all year</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <th scope="row">Total</th>
+          <td>6</td>
+          <td colspan="2">11</td>
+          <td>5</td>
+        </tr>
+      </tfoot>
     </table>
   </div>
 
@@ -186,8 +361,8 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   <h3>Counter, hand-authored</h3>
   <p>
     Hand-written — no <code>&lt;Counter /&gt;</code>, no <code>&lt;wc-counter&gt;</code>. The
-    finished figure is the only markup; see <code>enhanced</code> below for the same figure
-    counting up to it.
+    finished figure is the only markup; see <code>enhanced</code> below for the same figure counting
+    up to it.
   </p>
   <span class="counter font-display">
     <span class="counter__value">94%</span>
@@ -198,8 +373,8 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   <p>
     Native <code>&lt;details&gt;</code>. Note the pattern deliberately ships <em>no</em>
     <code>::details-content</code> transition: it deadlocks in Chrome 149, because
-    <code>content-visibility: hidden</code> means no layout, so <code>auto</code> resolves
-    to <code>0</code> and the disclosure never opens at all.
+    <code>content-visibility: hidden</code> means no layout, so <code>auto</code> resolves to{' '}
+    <code>0</code> and the disclosure never opens at all.
   </p>
   <details class="details">
     <summary>What the framework guarantees</summary>
@@ -209,7 +384,9 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   </details>
   <details class="details" open>
     <summary>Open by default</summary>
-    <div class="rhythm"><p>State lives in the DOM, so it survives with scripting off.</p></div>
+    <div class="rhythm">
+      <p>State lives in the DOM, so it survives with scripting off.</p>
+    </div>
   </details>
 
   <h3>Reveal</h3>
@@ -219,8 +396,12 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
     trick, so it works where <code>::details-content</code> can't reach.
   </p>
   <div class="card rhythm">
-    <p class="font-caption text-surface-muted"><code>.reveal.is-open</code> — shown open here; the framework animates the flip.</p>
-    <div class="reveal reveal-fade is-open"><p class="font-caption">Revealed content.</p></div>
+    <p class="font-caption text-surface-muted">
+      <code>.reveal.is-open</code> — shown open here; the framework animates the flip.
+    </p>
+    <div class="reveal reveal-fade is-open">
+      <p class="font-caption">Revealed content.</p>
+    </div>
   </div>
 
   <h3>Tree</h3>
@@ -229,7 +410,15 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
       <details open>
         <summary>packages</summary>
         <ul>
-          <li><details><summary>core</summary><ul><li>css/</li><li>src/</li></ul></details></li>
+          <li>
+            <details>
+              <summary>core</summary>
+              <ul>
+                <li>css/</li>
+                <li>src/</li>
+              </ul>
+            </details>
+          </li>
           <li>generator</li>
         </ul>
       </details>
@@ -239,56 +428,122 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   <!-- ── Overlays ──────────────────────────────────────────────────────────── -->
   <h2 id="overlays">Overlays</h2>
   <p>
-    All four edges, plus a dialog. Each states only where it <em>starts</em>
-    (<code>--translate-x-from</code>); the transition, the <code>@starting-style</code> and the
-    scrim come from the top-layer driver and <code>popover.css</code>. They animate
+    All four edges, plus a dialog. Each states only where it <em>starts</em>(
+    <code>--translate-x-from</code>); the transition, the <code>@starting-style</code> and the scrim
+    come from the top-layer driver and <code>popover.css</code>. They animate
     <strong>out</strong> as well as in — which the keyframe versions never did.
   </p>
   <div class="cluster-start">
-    <button class="btn" popovertarget="dr-left">Drawer left</button>
-    <button class="btn" popovertarget="dr-right">Drawer right</button>
-    <button class="btn" popovertarget="dr-top">Drawer top</button>
-    <button class="btn" popovertarget="dr-bottom">Drawer bottom</button>
-    <button class="btn" popovertarget="dr-fade">Right + fade</button>
-    <button class="btn" commandfor="pt-dialog" command="show-modal">Dialog</button>
+    <button class="btn" popovertarget="dr-left">
+      Drawer left
+    </button>
+    <button class="btn" popovertarget="dr-right">
+      Drawer right
+    </button>
+    <button class="btn" popovertarget="dr-top">
+      Drawer top
+    </button>
+    <button class="btn" popovertarget="dr-bottom">
+      Drawer bottom
+    </button>
+    <button class="btn" popovertarget="dr-fade">
+      Right + fade
+    </button>
+    <button class="btn" commandfor="pt-dialog" command="show-modal">
+      Dialog
+    </button>
   </div>
 
   {(['left', 'right', 'top', 'bottom'] as const).map((edge) => (
     <div id={`dr-${edge}`} popover class={`drawer drawer--${edge} rhythm`}>
       <p class="font-heading">drawer--{edge}</p>
       <p class="font-caption text-surface-muted">Esc or click outside to dismiss.</p>
-      <button class="btn" popovertarget={`dr-${edge}`} popovertargetaction="hide">Close</button>
+      <button class="btn" popovertarget={`dr-${edge}`} popovertargetaction="hide">
+        Close
+      </button>
     </div>
   ))}
 
   {/* Effects compose: the edge supplies the slide, `open-fade-in` adds opacity. */}
   <div id="dr-fade" popover class="drawer drawer--right open-fade-in rhythm">
     <p class="font-heading">Composed</p>
-    <p class="font-caption text-surface-muted"><code>drawer--right open-fade-in</code></p>
-    <button class="btn" popovertarget="dr-fade" popovertargetaction="hide">Close</button>
+    <p class="font-caption text-surface-muted">
+      <code>drawer--right open-fade-in</code>
+    </p>
+    <button class="btn" popovertarget="dr-fade" popovertargetaction="hide">
+      Close
+    </button>
   </div>
+
+  {/* The component form: a named modal <dialog> with a built-in close button. */}
+  <h3>Drawer component</h3>
+  <p>
+    <code>&lt;Drawer&gt;</code> renders a modal <code>&lt;dialog&gt;</code> that has an accessible
+    name (<code>label</code>) and a visible close button, so a touch user on an engine without{' '}
+    <code>closedby</code> can still leave it.
+  </p>
+  <Drawer id="dr-component" label="Example drawer" trigger={{ label: 'Drawer component' }}>
+    <div class="rhythm">
+      <p class="font-heading">Drawer component</p>
+      <p class="font-caption text-surface-muted">Close button, Esc, or click outside.</p>
+    </div>
+  </Drawer>
 
   <dialog id="pt-dialog" class="dialog">
     <div class="dialog__header">
       <p class="dialog__title font-heading">Dialog</p>
-      <button class="dialog__close" commandfor="pt-dialog" command="close" aria-label="Close">&times;</button>
+      <button class="dialog__close" commandfor="pt-dialog" command="close" aria-label="Close">
+        &times;
+      </button>
     </div>
     <div class="dialog__body rhythm">
-      <p>Entry and exit both animate now — the old <code>animation:</code> on <code>[open]</code> only ever played once.</p>
-      <p class="font-caption text-surface-muted">Scrim via <code>--scrim-filter</code>.</p>
+      <p>
+        Entry and exit both animate now — the old <code>animation:</code> on <code>[open]</code>{' '}
+        only ever played once.
+      </p>
+      <p class="font-caption text-surface-muted">
+        Scrim via <code>--scrim-filter</code>.
+      </p>
     </div>
   </dialog>
+
+  <h3>Tooltip</h3>
+  <p>
+    <button class="btn tooltip-trigger" id="pt-tip-trigger" popovertarget="pt-tip">
+      Save draft
+    </button>
+    <span id="pt-tip" class="tooltip" popover="manual">
+      Keeps this page as a draft.
+    </span>
+    <button class="btn tooltip-trigger" id="pt-tip2-trigger" popovertarget="pt-tip2">
+      Publish
+    </button>
+    <span id="pt-tip2" class="tooltip" popover="manual">
+      Makes this page public.
+    </span>
+  </p>
+  <p>
+    A <strong>toggletip</strong> is for more than a phrase, and for touch and screen-reader users
+    who never hover: Shipping
+    <Tooltip id="pt-tip3" toggle label="More about shipping">
+      Free over $50. Orders placed before 2pm ship the same day.
+    </Tooltip>
+  </p>
 
   <h3>Popover and dropdown</h3>
   <div class="cluster-start">
     <span class="popover-anchor">
-      <button class="btn" popovertarget="pt-pop">Anchored popover</button>
+      <button class="btn" popovertarget="pt-pop">
+        Anchored popover
+      </button>
       <div id="pt-pop" popover class="popover popover--bottom card rhythm">
         <p class="font-caption">Positioned with the Anchor Positioning API.</p>
       </div>
     </span>
     <span class="dropdown dropdown--show-on-hover">
-      <button class="btn" popovertarget="pt-drop">Hover dropdown</button>
+      <button class="btn" popovertarget="pt-drop">
+        Hover dropdown
+      </button>
       <div id="pt-drop" popover class="card rhythm">
         <p class="font-caption">Revealed on hover, no scrim.</p>
       </div>
@@ -317,19 +572,27 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
     <div class="carousel lightbox-dialog__track">
       <ul class="carousel__track" role="list" tabindex="0">
         <li class="carousel__slide" id="pt-gal-square">
-          <figure class="carousel__media"><img src="/demo/demo-square.svg" alt="A square placeholder" /></figure>
+          <figure class="carousel__media">
+            <img src="/demo/demo-square.svg" alt="A square placeholder" />
+          </figure>
         </li>
         <li class="carousel__slide" id="pt-gal-wide">
-          <figure class="carousel__media"><img src="/demo/demo-wide.svg" alt="A wide placeholder" /></figure>
+          <figure class="carousel__media">
+            <img src="/demo/demo-wide.svg" alt="A wide placeholder" />
+          </figure>
         </li>
         <!-- Portrait ratio is the case that overflows the viewport first when
              the lightbox's sizing chain breaks — see lightbox.css. -->
         <li class="carousel__slide" id="pt-gal-tall">
-          <figure class="carousel__media"><img src="/demo/demo-tall.svg" alt="A tall placeholder" /></figure>
+          <figure class="carousel__media">
+            <img src="/demo/demo-tall.svg" alt="A tall placeholder" />
+          </figure>
         </li>
       </ul>
     </div>
-    <a class="lightbox-dialog__close" href="#" aria-label="Close">&times;</a>
+    <a class="lightbox-dialog__close" href="#" aria-label="Close">
+      &times;
+    </a>
   </dialog>
   <p class="font-caption text-surface-muted">
     Hand-written — no <code>&lt;Gallery /&gt;</code>, no <code>&lt;wc-gallery&gt;</code>. Each
@@ -348,102 +611,214 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   <h2 id="navigation">Navigation</h2>
 
   <h3>Navbar</h3>
-  <p>A horizontal row of links, with alignment. The primitive <code>sitenav</code>'s wide state is shaped like.</p>
-  <nav class="navbar card"><a class="link" href="#navigation">Home</a><a class="link" href="#navigation">Docs</a><span class="navbar__spacer"></span><a class="link" href="#navigation">Login</a></nav>
+  <p>
+    A horizontal row of links, with alignment. The primitive <code>sitenav</code>'s wide state is
+    shaped like.
+  </p>
+  <nav class="navbar card">
+    <a class="link" href="#navigation">
+      Home
+    </a>
+    <a class="link" href="#navigation">
+      Docs
+    </a>
+    <span class="navbar__spacer"></span>
+    <a class="link" href="#navigation">
+      Login
+    </a>
+  </nav>
 
   <h3>Sitenav</h3>
   <p>
-    One markup tree, two presentations, switched purely by <em>container</em> width: a
-    toggle + drawer below the breakpoint, an inline navbar with dropdowns above it. These
-    demos use <code>sitenav--bp-sm</code> (<code>30rem</code>) rather than the
-    <code>md</code> default, because the measured container here is this prose column —
-    not the window. A <code>bp-md</code> sitenav in a column this narrow would stay a
-    drawer at every window size, which is the pattern working, not failing.
+    One markup tree, two presentations, switched purely by <em>container</em> width: a toggle +
+    drawer below the breakpoint, an inline navbar with dropdowns above it. These demos use{' '}
+    <code>sitenav--bp-sm</code> (<code>30rem</code>) rather than the
+    <code>md</code> default, because the measured container here is this prose column — not the
+    window. A <code>bp-md</code> sitenav in a column this narrow would stay a drawer at every window
+    size, which is the pattern working, not failing.
   </p>
   <div class="sitenav sitenav--bp-sm sitenav--drawer-start card">
-    <button class="sitenav__toggle" popovertarget="pt-sitenav" aria-label="Menu">☰</button>
+    <button class="sitenav__toggle" popovertarget="pt-sitenav" aria-label="Menu">
+      ☰
+    </button>
     <div id="pt-sitenav" popover class="sitenav__panel">
-      <button class="sitenav__close" popovertarget="pt-sitenav" popovertargetaction="hide" aria-label="Close">&times;</button>
+      <button
+        class="sitenav__close"
+        popovertarget="pt-sitenav"
+        popovertargetaction="hide"
+        aria-label="Close"
+      >
+        &times;
+      </button>
       <ul class="sitenav__list">
-        <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Home</a></li>
+        <li class="sitenav__item">
+          <a class="sitenav__link" href="#navigation">
+            Home
+          </a>
+        </li>
         <li class="sitenav__item sitenav__item--branch">
-          <a class="sitenav__link split-link__link" href="#navigation">Products</a>
-          <details class="sitenav__disclosure"><summary class="sitenav__subtoggle"><span class="split-link__caret">▾</span></summary></details>
+          <a class="sitenav__link split-link__link" href="#navigation">
+            Products
+          </a>
+          <details class="sitenav__disclosure">
+            <summary class="sitenav__subtoggle">
+              <span class="split-link__caret">▾</span>
+            </summary>
+          </details>
           <ul class="sitenav__submenu">
             <!-- Third level. At width this flies out to the inline-end side, which is
                  what makes it the demo's canary for anything between it and its
                  containing block clipping. -->
             <li class="sitenav__item sitenav__item--branch">
-              <a class="sitenav__link split-link__link" href="#navigation">Toolchain</a>
-              <details class="sitenav__disclosure"><summary class="sitenav__subtoggle"><span class="split-link__caret">▾</span></summary></details>
+              <a class="sitenav__link split-link__link" href="#navigation">
+                Toolchain
+              </a>
+              <details class="sitenav__disclosure">
+                <summary class="sitenav__subtoggle">
+                  <span class="split-link__caret">▾</span>
+                </summary>
+              </details>
               <ul class="sitenav__submenu">
-                <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Generator</a></li>
-                <li class="sitenav__item"><a class="sitenav__link" href="#navigation">CLI</a></li>
+                <li class="sitenav__item">
+                  <a class="sitenav__link" href="#navigation">
+                    Generator
+                  </a>
+                </li>
+                <li class="sitenav__item">
+                  <a class="sitenav__link" href="#navigation">
+                    CLI
+                  </a>
+                </li>
               </ul>
             </li>
-            <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Components</a></li>
+            <li class="sitenav__item">
+              <a class="sitenav__link" href="#navigation">
+                Components
+              </a>
+            </li>
           </ul>
         </li>
         <!-- Depth cap: the caret + dropdown exist only at width; below it, a plain link. -->
         <li class="sitenav__item sitenav__item--branch sitenav__item--desktop-branch">
-          <a class="sitenav__link split-link__link" href="#navigation">Resources</a>
-          <details class="sitenav__disclosure"><summary class="sitenav__subtoggle"><span class="split-link__caret">▾</span></summary></details>
+          <a class="sitenav__link split-link__link" href="#navigation">
+            Resources
+          </a>
+          <details class="sitenav__disclosure">
+            <summary class="sitenav__subtoggle">
+              <span class="split-link__caret">▾</span>
+            </summary>
+          </details>
           <ul class="sitenav__submenu">
-            <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Guides</a></li>
-            <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Changelog</a></li>
+            <li class="sitenav__item">
+              <a class="sitenav__link" href="#navigation">
+                Guides
+              </a>
+            </li>
+            <li class="sitenav__item">
+              <a class="sitenav__link" href="#navigation">
+                Changelog
+              </a>
+            </li>
           </ul>
         </li>
-        <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Pricing</a></li>
+        <li class="sitenav__item">
+          <a class="sitenav__link" href="#navigation">
+            Pricing
+          </a>
+        </li>
       </ul>
     </div>
   </div>
 
   <p>
-    The same tree with <code>sitenav--drawer-end</code>. Only the drawer's resting edge
-    differs; at width both must reach the identical navbar.
+    The same tree with <code>sitenav--drawer-end</code>. Only the drawer's resting edge differs; at
+    width both must reach the identical navbar.
   </p>
   <div class="sitenav sitenav--bp-sm sitenav--drawer-end card">
-    <button class="sitenav__toggle" popovertarget="pt-sitenav-end" aria-label="Menu">☰</button>
+    <button class="sitenav__toggle" popovertarget="pt-sitenav-end" aria-label="Menu">
+      ☰
+    </button>
     <div id="pt-sitenav-end" popover class="sitenav__panel">
-      <button class="sitenav__close" popovertarget="pt-sitenav-end" popovertargetaction="hide" aria-label="Close">&times;</button>
+      <button
+        class="sitenav__close"
+        popovertarget="pt-sitenav-end"
+        popovertargetaction="hide"
+        aria-label="Close"
+      >
+        &times;
+      </button>
       <ul class="sitenav__list">
-        <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Home</a></li>
+        <li class="sitenav__item">
+          <a class="sitenav__link" href="#navigation">
+            Home
+          </a>
+        </li>
         <li class="sitenav__item sitenav__item--branch">
-          <a class="sitenav__link split-link__link" href="#navigation">Products</a>
-          <details class="sitenav__disclosure"><summary class="sitenav__subtoggle"><span class="split-link__caret">▾</span></summary></details>
+          <a class="sitenav__link split-link__link" href="#navigation">
+            Products
+          </a>
+          <details class="sitenav__disclosure">
+            <summary class="sitenav__subtoggle">
+              <span class="split-link__caret">▾</span>
+            </summary>
+          </details>
           <ul class="sitenav__submenu">
-            <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Toolchain</a></li>
-            <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Components</a></li>
+            <li class="sitenav__item">
+              <a class="sitenav__link" href="#navigation">
+                Toolchain
+              </a>
+            </li>
+            <li class="sitenav__item">
+              <a class="sitenav__link" href="#navigation">
+                Components
+              </a>
+            </li>
           </ul>
         </li>
-        <li class="sitenav__item"><a class="sitenav__link" href="#navigation">Pricing</a></li>
+        <li class="sitenav__item">
+          <a class="sitenav__link" href="#navigation">
+            Pricing
+          </a>
+        </li>
       </ul>
     </div>
   </div>
 
   <h3>Navshell</h3>
   <p>
-    A nav aside beside content, collapsing to a toggle + drawer. This whole page is
-    already inside two of them — the site nav and the on-this-page nav — so the demo
-    below is a <em>third</em>, nested one level deeper, which is the point: it promotes
-    independently of both.
+    A nav aside beside content, collapsing to a toggle + drawer. This whole page is already inside
+    two of them — the site nav and the on-this-page nav — so the demo below is a <em>third</em>,
+    nested one level deeper, which is the point: it promotes independently of both.
   </p>
   <div class="navshell navshell--bp-lg card" style="--navshell-size: 10rem; --navshell-gap: 1.5rem">
     <div class="navshell__bar">
-      <button class="navshell__toggle" popovertarget="pt-navshell">Sections</button>
+      <button class="navshell__toggle" popovertarget="pt-navshell">
+        Sections
+      </button>
     </div>
     <div id="pt-navshell" popover class="navshell__panel drawer drawer--left">
-      <button class="navshell__close" popovertarget="pt-navshell" popovertargetaction="hide" aria-label="Close">&times;</button>
+      <button
+        class="navshell__close"
+        popovertarget="pt-navshell"
+        popovertargetaction="hide"
+        aria-label="Close"
+      >
+        &times;
+      </button>
       <nav class="navshell__nav" aria-label="Demo sections">
-        <a class="navshell__link" aria-current="page" href="#navigation">Overview</a>
-        <a class="navshell__link" href="#navigation">Details</a>
+        <a class="navshell__link" aria-current="page" href="#navigation">
+          Overview
+        </a>
+        <a class="navshell__link" href="#navigation">
+          Details
+        </a>
       </nav>
     </div>
     <div class="navshell__main rhythm">
       <p class="font-caption text-surface-muted">
-        Its own <code>--_navshell-wide</code> flag is reset at this root, and the content
-        column it sits in is a container — so it measures the space it actually has, not
-        the viewport, and stays stacked here regardless of the two shells around it.
+        Its own <code>--_navshell-wide</code> flag is reset at this root, and the content column it
+        sits in is a container — so it measures the space it actually has, not the viewport, and
+        stays stacked here regardless of the two shells around it.
       </p>
     </div>
   </div>
@@ -453,36 +828,58 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
 
   <h3>Cluster</h3>
   <div class="cluster-between card">
-    <span class="badge">start</span><span class="badge">middle</span><span class="badge">end</span>
+    <span class="badge">start</span>
+    <span class="badge">middle</span>
+    <span class="badge">end</span>
   </div>
 
   <h3>Split</h3>
   <p>
-    <code>class="split flex-col md-split-1-2"</code> — stacked below <code>48rem</code>, 1:2
-    above. <code>.flex-col</code> beats <code>.split</code> by layer; <code>.md-split-1-2</code>
+    <code>class="split flex-col md-split-1-2"</code> — stacked below <code>48rem</code>, 1:2 above.{' '}
+    <code>.flex-col</code> beats <code>.split</code> by layer; <code>.md-split-1-2</code>
     beats <code>.flex-col</code> by sitting later in the same file.
   </p>
   <div class="split flex-col md-split-1-2">
-    <div class="card"><p class="font-caption">1</p></div>
-    <div class="card"><p class="font-caption">2</p></div>
+    <div class="card">
+      <p class="font-caption">1</p>
+    </div>
+    <div class="card">
+      <p class="font-caption">2</p>
+    </div>
   </div>
 
   <h3>Subgrid</h3>
   <ul class="subgrid pt-subgrid">
-    <li class="card rhythm"><p class="font-heading">Short</p><p class="font-caption">One line.</p><p class="font-footnote text-surface-muted">Footer</p></li>
-    <li class="card rhythm"><p class="font-heading">Longer heading that wraps</p><p class="font-caption">Two lines of body copy so the tranches have something to align against.</p><p class="font-footnote text-surface-muted">Footer</p></li>
-    <li class="card rhythm"><p class="font-heading">Third</p><p class="font-caption">Body.</p><p class="font-footnote text-surface-muted">Footer</p></li>
+    <li class="card rhythm">
+      <p class="font-heading">Short</p>
+      <p class="font-caption">One line.</p>
+      <p class="font-footnote text-surface-muted">Footer</p>
+    </li>
+    <li class="card rhythm">
+      <p class="font-heading">Longer heading that wraps</p>
+      <p class="font-caption">
+        Two lines of body copy so the tranches have something to align against.
+      </p>
+      <p class="font-footnote text-surface-muted">Footer</p>
+    </li>
+    <li class="card rhythm">
+      <p class="font-heading">Third</p>
+      <p class="font-caption">Body.</p>
+      <p class="font-footnote text-surface-muted">Footer</p>
+    </li>
   </ul>
   <p class="font-caption text-surface-muted">
-    Headings, bodies and footers sit on shared row lines because each card's rows
-    are <code>subgrid</code> — not because anything was measured.
+    Headings, bodies and footers sit on shared row lines because each card's rows are{' '}
+    <code>subgrid</code> — not because anything was measured.
   </p>
-
 
   <h3>Masonry</h3>
   <ul class="masonry" style="--masonry-columns: 3">
     {[6, 3, 5, 2, 4, 3].map((n, i) => (
-      <li class="masonry__item card"><p class="font-caption">Item {i + 1}</p><p class="font-footnote text-surface-muted">{'▪ '.repeat(n)}</p></li>
+      <li class="masonry__item card">
+        <p class="font-caption">Item {i + 1}</p>
+        <p class="font-footnote text-surface-muted">{'▪ '.repeat(n)}</p>
+      </li>
     ))}
   </ul>
 
@@ -493,29 +890,39 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
     knows which corners to round without being told.
   </p>
   <div class="group group-inline bordered">
-    <button class="btn">One</button><button class="btn">Two</button><button class="btn">Three</button>
+    <button class="btn">One</button>
+    <button class="btn">Two</button>
+    <button class="btn">Three</button>
   </div>
 
   <!-- ── Motion & text ─────────────────────────────────────────────────────── -->
   <h2 id="motion">Motion &amp; text</h2>
   <p>
-    Typographic effects from <code>text-effects.css</code>. All CSS-only — the animation
-    engine drives them, so they respect <code>prefers-reduced-motion</code> without a script.
+    Typographic effects from <code>text-effects.css</code>. All CSS-only — the animation engine
+    drives them, so they respect <code>prefers-reduced-motion</code> without a script.
   </p>
   <ul class="rhythm">
-    <li><span class="typing">A typewriter line.</span></li>
-    <li><span class="text-gradient-animate font-heading">Animated gradient</span></li>
-    <li><span class="text-highlight">Highlighted phrase</span></li>
-    <li><span class="text-stagger">Staggered letters</span></li>
+    <li>
+      <span class="typing">A typewriter line.</span>
+    </li>
+    <li>
+      <span class="text-gradient-animate font-heading">Animated gradient</span>
+    </li>
+    <li>
+      <span class="text-highlight">Highlighted phrase</span>
+    </li>
+    <li>
+      <span class="text-stagger">Staggered letters</span>
+    </li>
   </ul>
 
   <!-- ── Progressive enhancement ───────────────────────────────────────────── -->
   <h2 id="enhanced">Progressive enhancement</h2>
   <p>
-    The tier-2 elements. Every one of these renders <em>something usable</em> before its
-    bundle loads — that is the bar for existing at all. Turn JavaScript off and the
-    carousel is a scroll-snap strip, the compare slider is two images, the entries are
-    headings and definition lists.
+    The tier-2 elements. Every one of these renders <em>something usable</em> before its bundle
+    loads — that is the bar for existing at all. Turn JavaScript off and the carousel is a
+    scroll-snap strip, the compare slider is two images, the entries are headings and definition
+    lists.
   </p>
 
   <h3>Carousel</h3>
@@ -524,18 +931,26 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
     aria-label="Demo carousel"
   >
     <ul class="carousel__track" role="list">
-      <li class="card" id="carousel-demo-1"><p class="font-heading">One</p></li>
-      <li class="card" id="carousel-demo-2"><p class="font-heading">Two</p></li>
-      <li class="card" id="carousel-demo-3"><p class="font-heading">Three</p></li>
+      <li class="card" id="carousel-demo-1">
+        <p class="font-heading">One</p>
+      </li>
+      <li class="card" id="carousel-demo-2">
+        <p class="font-heading">Two</p>
+      </li>
+      <li class="card" id="carousel-demo-3">
+        <p class="font-heading">Three</p>
+      </li>
     </ul>
-    <p class="carousel__hint font-footnote" aria-hidden="true">Scroll for more</p>
+    <p class="carousel__hint font-footnote" aria-hidden="true">
+      Scroll for more
+    </p>
   </wc-carousel>
   <p class="font-caption text-surface-muted">
-    <code>.carousel</code> is the shell and <code>.carousel__track</code> the scroller, so the
-    hint and the controls sit outside the scrollport. Scroll-snap, the scrollbar and the hint
-    are pure CSS; where the browser has <code>::scroll-button()</code> and
-    <code>::scroll-marker</code> (Chromium today) so are the arrows and dots, and where it
-    doesn't the element builds matching real ones.
+    <code>.carousel</code> is the shell and <code>.carousel__track</code> the scroller, so the hint
+    and the controls sit outside the scrollport. Scroll-snap, the scrollbar and the hint are pure
+    CSS; where the browser has <code>::scroll-button()</code> and
+    <code>::scroll-marker</code> (Chromium today) so are the arrows and dots, and where it doesn't
+    the element builds matching real ones.
   </p>
 
   <h3>Carousel — looping</h3>
@@ -545,15 +960,47 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
     loop
   >
     <ul class="carousel__track" role="list">
-      <li class="card" id="carousel-loop-1"><p class="font-heading">One</p></li>
-      <li class="card" id="carousel-loop-2"><p class="font-heading">Two</p></li>
-      <li class="card" id="carousel-loop-3"><p class="font-heading">Three</p></li>
+      <li class="card" id="carousel-loop-1">
+        <p class="font-heading">One</p>
+      </li>
+      <li class="card" id="carousel-loop-2">
+        <p class="font-heading">Two</p>
+      </li>
+      <li class="card" id="carousel-loop-3">
+        <p class="font-heading">Three</p>
+      </li>
     </ul>
   </wc-carousel>
   <p class="font-caption text-surface-muted">
     <code>loop</code> is opt-in: it clones the slides at both ends, which triples the markup and
-    duplicates every image, so the default is an honest finite strip whose scrollbar reflects
-    real content. <code>autoplay</code> implies it.
+    duplicates every image, so the default is an honest finite strip whose scrollbar reflects real
+    content. <code>autoplay</code> implies it.
+  </p>
+
+  <h3>Carousel — autoplay</h3>
+  <wc-carousel
+    id="pt-autoplay"
+    class="carousel carousel--scroll-buttons carousel--scroll-markers carousel--markers-below"
+    aria-label="Autoplay demo carousel"
+    autoplay="1500"
+    loop
+  >
+    <ul class="carousel__track" role="list">
+      <li class="card" id="carousel-auto-1">
+        <p class="font-heading">One</p>
+      </li>
+      <li class="card" id="carousel-auto-2">
+        <p class="font-heading">Two</p>
+      </li>
+      <li class="card" id="carousel-auto-3">
+        <p class="font-heading">Three</p>
+      </li>
+    </ul>
+  </wc-carousel>
+  <p class="font-caption text-surface-muted">
+    Pauses while the pointer or keyboard focus is inside it, while it is off screen and while the
+    tab is hidden. The Pause button is the visitor's choice and stays paused: only pressing Play
+    again resumes it.
   </p>
 
   <h3>Carousel — the Astro wrapper</h3>
@@ -570,9 +1017,11 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   <p class="font-caption text-surface-muted">
     Three images of three different aspect ratios, all the same height —
     <code>--carousel-slide-aspect</code> gives each slide's media box a known ratio and the image
-    covers it. The first is <code>eager</code>/<code>fetchpriority="high"</code> as the LCP
-    candidate; the rest are <code>lazy</code>, which a horizontal scroll container honours, so they
-    defer with no JavaScript involved.
+    covers it. Every image is <code>lazy</code>, which a horizontal scroll container honours, so
+    they defer with no JavaScript involved. On a hero carousel, pass <code>priority</code>: the
+    first image is then <code>eager</code>/<code>fetchpriority="high"</code> as the LCP candidate.
+    It is off by default because boosting an image that is not the LCP element only competes with
+    the one that is.
   </p>
 
   <h3 id="enhanced-gallery">Gallery — the Astro wrapper</h3>
@@ -587,12 +1036,12 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   />
   <p class="font-caption text-surface-muted">
     Same fallback as the hand-authored gallery above — <code>&lt;Gallery /&gt;</code> just emits it
-    for you, inside its own <code>&lt;wc-gallery&gt;</code> wrapping a <code>&lt;Carousel /&gt;</code>.
-    Prev/next, arrow keys and swipe are already there without JavaScript; once it loads, a click
-    opens the dialog via <code>showModal()</code>, warms the next/previous image in the background,
-    and morphs the thumbnail into the full image via <code>document.startViewTransition</code> where
-    supported — starting immediately rather than waiting on the full image to decode, so the open is
-    never stuttery.
+    for you, inside its own <code>&lt;wc-gallery&gt;</code> wrapping a{' '}
+    <code>&lt;Carousel /&gt;</code>. Prev/next, arrow keys and swipe are already there without
+    JavaScript; once it loads, a click opens the dialog via <code>showModal()</code>, warms the
+    next/previous image in the background, and morphs the thumbnail into the full image via{' '}
+    <code>document.startViewTransition</code> where supported — starting immediately rather than
+    waiting on the full image to decode, so the open is never stuttery.
   </p>
 
   <h3 id="enhanced-counter">Counter — the Astro wrapper</h3>
@@ -605,8 +1054,14 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
 
   <h3>Split panel</h3>
   <wc-split-panel class="splitter">
-    <div slot="start" class="card rhythm"><p class="font-heading">Start</p><p class="font-caption">Drag the divider.</p></div>
-    <div slot="end" class="card rhythm"><p class="font-heading">End</p><p class="font-caption">Resizable panes.</p></div>
+    <div slot="start" class="card rhythm">
+      <p class="font-heading">Start</p>
+      <p class="font-caption">Drag the divider.</p>
+    </div>
+    <div slot="end" class="card rhythm">
+      <p class="font-heading">End</p>
+      <p class="font-caption">Resizable panes.</p>
+    </div>
   </wc-split-panel>
 
   <h3>Image compare</h3>
@@ -623,13 +1078,28 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
     The exemplar for the whole tier: semantic <code>&lt;h3&gt;</code> + <code>&lt;dl&gt;</code>
     pairs with no JS, parsed into a table when the container is wide enough.
   </p>
-  <wc-entries>
+  <wc-entries id="pt-entries" breakpoint="30rem">
     <h4>css</h4>
-    <dl><dt>Emits</dt><dd>styles.css</dd><dt>Tokens</dt><dd>Yes</dd></dl>
+    <dl>
+      <dt>Emits</dt>
+      <dd>styles.css</dd>
+      <dt>Tokens</dt>
+      <dd>Yes</dd>
+    </dl>
     <h4>tailwind</h4>
-    <dl><dt>Emits</dt><dd>tailwind.css</dd><dt>Tokens</dt><dd>@theme</dd></dl>
+    <dl>
+      <dt>Emits</dt>
+      <dd>tailwind.css</dd>
+      <dt>Tokens</dt>
+      <dd>@theme</dd>
+    </dl>
     <h4>bricks</h4>
-    <dl><dt>Emits</dt><dd>full payload</dd><dt>Tokens</dt><dd>JSON import</dd></dl>
+    <dl>
+      <dt>Emits</dt>
+      <dd>full payload</dd>
+      <dt>Tokens</dt>
+      <dd>JSON import</dd>
+    </dl>
   </wc-entries>
 
   <h3>Copy button</h3>
@@ -640,8 +1110,12 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
   <h3>Dismissable</h3>
   <wc-dismissable>
     <div class="banner banner--dismissible bg-warning-muted">
-      <div class="banner__content font-caption">Dismiss me — the element removes the node and fires a cancelable event.</div>
-      <button class="banner__close" data-dismiss aria-label="Dismiss">&times;</button>
+      <div class="banner__content font-caption">
+        Dismiss me — the element removes the node and fires a cancelable event.
+      </div>
+      <button class="banner__close" data-dismiss aria-label="Dismiss">
+        &times;
+      </button>
     </div>
   </wc-dismissable>
 
@@ -657,43 +1131,273 @@ const headings = SECTIONS.map(([slug, text]) => ({ depth: 2, slug, text }));
       ))}
     </div>
   </wc-marquee>
-  <p class="font-caption text-surface-muted">Hover to pause (<code>marquee--pause-hover</code>).</p>
+  <p class="font-caption text-surface-muted">
+    Hover to pause (<code>marquee--pause-hover</code>).
+  </p>
 
   <h3>Multi field</h3>
-  <wc-multi-field class="rhythm">
+  <wc-multifield
+    class="rhythm"
+    add-label="Add another"
+    delete-label="Remove"
+    item-label="item"
+    max="4"
+  >
     <div class="form-group">
-      <label class="form-label" for="pt-mf">Repeatable field</label>
-      <input class="form-control" id="pt-mf" name="item[]" type="text" placeholder="Add another" />
+      <label class="form-group__label" for="pt-mf">
+        Repeatable field
+      </label>
+      <input id="pt-mf" name="item[]" type="text" placeholder="Add another" />
     </div>
-  </wc-multi-field>
+  </wc-multifield>
+
+  <h3>Tabs</h3>
+  <p>
+    A run of headed sections. With no JS every panel is readable, in order, under its heading; with
+    it they become a WAI-ARIA tablist (arrows, Home and End; try <code>#pt-tab-pricing</code>
+    in the address bar).
+  </p>
+  <Tabs
+    id="pt-tabs"
+    label="About the system"
+    items={[
+      { label: 'Overview', id: 'pt-tab-overview', body: ['One system, three outputs.'] },
+      { label: 'Pricing', id: 'pt-tab-pricing', body: ['Free to run; you bring the config.'] },
+      { label: 'Support', id: 'pt-tab-support', body: ['Docs, the CLI and the changelog.'] },
+    ]}
+  />
+
+  <h3>Combobox</h3>
+  <p>
+    An <code>&lt;input list&gt;</code> with a <code>&lt;datalist&gt;</code> — the browser's own
+    autocomplete with no JS; a filtered listbox that keeps focus in the input with it.
+  </p>
+  <div class="form-group">
+    <label class="form-group__label" for="pt-city">
+      City
+    </label>
+    <Combobox
+      name="city"
+      inputId="pt-city"
+      options={['Ottawa', 'Gatineau', 'Toronto', 'Kingston', { value: 'MTL', label: 'Montréal' }]}
+    />
+  </div>
+
+  <h3>Field</h3>
+  <p>
+    A label that <em>nests</em> its control, so there is no <code>id</code>/<code>for</code> to
+    invent. With no JS it is a labelled control; with it, help text and the error are linked to the
+    control and the error appears once you leave the field. A server <code>error</code> is already
+    under the control.
+  </p>
+  <form id="pt-field-form" class="rhythm" action="#pt-field-form">
+    <Field label="Email" help="We reply within one business day." id="pt-field-email">
+      <input name="email" type="email" required autocomplete="email" />
+    </Field>
+    <Field label="About you" optional help="Plain text." id="pt-field-bio">
+      <textarea name="bio" rows="3" maxlength="80"></textarea>
+    </Field>
+    <Field label="Subscribe to the newsletter" id="pt-field-agree">
+      <input name="subscribe" type="checkbox" />
+    </Field>
+    <Field label="Phone" error="That doesn’t look like a phone number." id="pt-field-phone">
+      <input name="phone" type="tel" value="555" />
+    </Field>
+  </form>
+
+  <h3>Stepper</h3>
+  <p>
+    A long form, one step at a time. With no JS it is the whole form, every section in order, and
+    the links jump down it. With it, one section shows with Back and Next, and a step with a missing
+    required field stops the way forward.
+  </p>
+  <Stepper
+    steps={[
+      { id: 'pt-step-who', title: 'Who' },
+      { id: 'pt-step-where', title: 'Where' },
+      { id: 'pt-step-done', title: 'Done' },
+    ]}
+  >
+    <form id="pt-stepper-form" method="post" action="#pt-stepper-form" class="rhythm">
+      <section id="pt-step-who" data-step class="rhythm">
+        <h4>Who</h4>
+        <Field label="Name">
+          <input name="pt-step-name" required />
+        </Field>
+      </section>
+      <section id="pt-step-where" data-step class="rhythm">
+        <h4>Where</h4>
+        <Field label="City" optional>
+          <input name="pt-step-city" />
+        </Field>
+      </section>
+      <section id="pt-step-done" data-step class="rhythm">
+        <h4>Done</h4>
+        <p>That is everything.</p>
+        <button class="cta" type="submit">
+          Finish
+        </button>
+      </section>
+    </form>
+  </Stepper>
+
+  <h4>Stepper nav (one page per step)</h4>
+  <StepperNav
+    steps={[
+      { id: 'a', title: 'Identity' },
+      { id: 'b', title: 'Contact' },
+      { id: 'c', title: 'Review' },
+    ]}
+    current="b"
+    status={{ a: 'complete', c: 'invalid' }}
+    hrefFor={(step) => (step.id === 'c' ? undefined : `#pt-nav-${step.id}`)}
+    label="Onboarding progress"
+  />
+
+  <h3>Range</h3>
+  <p>
+    Two native range inputs. With no JS: two sliders, both submitted. With it: one track, thumbs
+    that cannot cross, and the value shown.
+  </p>
+  <Range
+    id="pt-range"
+    names={['min', 'max']}
+    labels={['Minimum price', 'Maximum price']}
+    min={0}
+    max={1000}
+    step={10}
+    values={[200, 800]}
+    output
+  />
+
+  <h3>Format</h3>
+  <p>
+    The server writes the text; <code>&lt;wc-format&gt;</code> re-presents it from the machine
+    value. Posted
+    <Format id="pt-format" type="relative" value="2026-11-03T14:05:00Z" locale="en">
+      November 3, 2026
+    </Format>
+    for
+    <Format type="currency" currency="CAD" locale="en-CA" value={1234.5}>
+      $1,234.50 CAD
+    </Format>
+    .
+  </p>
+
+  <h3>Breadcrumbs</h3>
+  <Breadcrumbs
+    id="pt-breadcrumbs"
+    schema={false}
+    items={[
+      { label: 'Home', href: '/' },
+      { label: 'Components', href: '/components' },
+      { label: 'Patterns' },
+    ]}
+  />
 
   <!-- ── Feedback ──────────────────────────────────────────────────────────── -->
   <h2 id="feedback">Feedback</h2>
 
   <h3>Banner</h3>
-  <div class="banner bg-info-muted"><p class="font-caption">An announcement bar. Add <code>.sticky</code> to pin it.</p></div>
+  <div class="banner bg-info-muted">
+    <p class="font-caption">
+      An announcement bar. Add <code>.sticky</code> to pin it.
+    </p>
+  </div>
 
   <h3>Notification</h3>
-  <div class="notification card rhythm">
-    <p class="font-heading">Saved</p>
-    <p class="font-caption text-surface-muted">Toast shell — entry, exit and an auto-dismiss progress bar.</p>
-  </div>
+  <p>
+    A <code>&lt;Notifications /&gt;</code> region stacks them in one labelled place. They stay until
+    closed unless given a duration, pause while hovered or focused, and wait while a modal dialog is
+    open. The one below was rendered by the server, so it reads inline with no script.
+  </p>
+  <Notifications position="bottom end">
+    <div class="notification" role="status" data-tone="info">
+      <div class="notification__content">
+        <p class="notification__title">Server message</p>
+        <p class="notification__message">
+          This one is in the page markup, and is adopted into the stack.
+        </p>
+      </div>
+    </div>
+  </Notifications>
+  <p class="cluster-start">
+    <button class="btn" type="button" id="pt-notify-persist">
+      Notify (stays)
+    </button>
+    <button class="btn" type="button" id="pt-notify-timed">
+      Notify (6 s)
+    </button>
+    <button class="btn" type="button" id="pt-notify-action">
+      Notify with an action
+    </button>
+    <button class="btn" type="button" id="pt-notify-modal">
+      Open a modal, then notify
+    </button>
+  </p>
+  <dialog id="pt-notify-dialog" class="dialog">
+    <div class="dialog__body">
+      <p>A notification raised now waits until this closes.</p>
+    </div>
+    <div class="dialog__footer">
+      <button class="btn" type="button" id="pt-notify-dialog-close">
+        Close
+      </button>
+    </div>
+  </dialog>
 
   <h3>Form controls</h3>
   <form class="rhythm" onsubmit="return false">
     <div class="form-group">
-      <label class="form-label" for="pt-name">Name</label>
-      <input class="form-control" id="pt-name" name="name" type="text" placeholder="Ada Lovelace" />
-      <p class="form-helper">Helper text.</p>
+      <label class="form-group__label" for="pt-name">
+        Name
+      </label>
+      <input id="pt-name" name="name" type="text" placeholder="Ada Lovelace" />
+      <p class="form-group__helper">Helper text.</p>
     </div>
     <div class="form-group">
-      <label class="form-label" for="pt-sel">Format</label>
-      <select class="form-control" id="pt-sel" name="format">
-        <option>css</option><option>tailwind</option><option>bricks</option><option>design</option>
+      <label class="form-group__label" for="pt-sel">
+        Format
+      </label>
+      <select class="custom-select" id="pt-sel" name="format">
+        <option>css</option>
+        <option>tailwind</option>
+        <option>bricks</option>
+        <option>design</option>
       </select>
     </div>
-    <button class="cta" type="submit">Submit</button>
+    <button class="cta" type="submit">
+      Submit
+    </button>
   </form>
+
+  <script>
+    const region = () =>
+      document.querySelector('wc-notifications') as
+        | (HTMLElement & { show(input: Record<string, unknown>): string })
+        | null;
+    const on = (id: string, run: () => void) =>
+      document.getElementById(id)?.addEventListener('click', run);
+    on('pt-notify-persist', () =>
+      region()?.show({ title: 'Saved', message: 'Your draft is safe.', tone: 'success' }),
+    );
+    on('pt-notify-timed', () =>
+      region()?.show({ message: 'This one closes itself.', tone: 'info', duration: 6000 }),
+    );
+    on('pt-notify-action', () =>
+      region()?.show({
+        message: 'Moved to the trash.',
+        tone: 'warning',
+        actions: [{ label: 'Undo' }],
+      }),
+    );
+    const dialog = document.getElementById('pt-notify-dialog') as HTMLDialogElement | null;
+    on('pt-notify-modal', () => {
+      dialog?.showModal();
+      region()?.show({ message: 'Raised while the dialog was open.', tone: 'danger' });
+    });
+    on('pt-notify-dialog-close', () => dialog?.close());
+  </script>
 
   <style>
     /* Demo scaffolding only — spacing between a heading and the example under it.

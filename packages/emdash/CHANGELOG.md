@@ -1,5 +1,701 @@
 # @getvitops/emdash
 
+## 2.0.0-alpha.8
+
+### Minor Changes
+
+- d09d9b5: **Image blocks can serve a responsive AVIF `srcset`, and their image fields are now media pickers.** `vitops_hero` (split layout) and `vitops_imageCompare` pick their image from the media library instead of asking for a URL, and those two plus `vitops_cards` gain an optional **image shape** field (`16:9`, `1200x800`, `1.5`). With a shape stated, the block renders `srcset`/`sizes`/`width`/`height` in AVIF (eight widths, 640–1920) through Astro's image endpoint, which EmDash wraps so the resize happens at request time through the Cloudflare `IMAGES` binding. No build re-encodes the images, so CI has nothing to cache for CMS media. With no shape stated the block renders the same plain `<img>` as before: **existing content is unchanged and nothing needs migrating.**
+
+  - **Needs the site's URL when `astro build` runs.** EmDash only authorizes the site origin for image transforms when it knows it at build time; without it the block falls back to the plain `<img>` (nothing breaks, nothing is optimized). `site-deploy-emdash.yml` now reads it from `site.json` (`site.environments.dev.url` for the dev deploy, `site.environments.production.url` for prod) and sets `EMDASH_SITE_URL` for the build. A build outside that workflow sets `EMDASH_SITE_URL` itself.
+  - **Cost:** Cloudflare bills each unique source image × width once per month (5,000 free). AVIF only, so one format per width; up to eight widths per image.
+  - **AVIF only is deliberate:** a browser without AVIF (~3%) shows a broken image rather than a degraded one. See `TODO(support)` in `BlockImage.astro`.
+  - `vitops_cards` keeps a URL field for its image: the `@emdash-cms/blocks` types in EmDash 1.4.0 allow only text, number, select and toggle sub-fields in a repeater, so a media picker there waits for a newer EmDash (its docs describe one). The shape field works with a pasted URL.
+  - Not changed: `vitops_logos`, `vitops_marquee`, `vitops_gallery` and `vitops_carousel` still take URLs and render plain `<img>`.
+  - `@getvitops/create`: the emdash template declares the `IMAGES` binding explicitly in `wrangler.jsonc` (a missing binding silently serves full-size originals), and `@getvitops/emdash`'s `vitopsHosting()` states `imageService: 'cloudflare-binding'` instead of inheriting the adapter default. Formats reached: n/a (no pattern CSS).
+
+- c38ce48: Scroll-aware chrome (new CSS: all formats).
+
+  - **Scroll states (BREAKING for `site.chrome.masthead`).** `masthead.states` describes the bar as a partial look per scroll state — `atStart`, `atEnd`, `scrollingToEnd`, `scrollingToStart`, later wins — with `layout`, `height`, `inset`, `surface`, `elevation` (or `false`) and `hidden`, and every change animates. That makes a full-width banner at the top that floats once scrolled, a bar hidden until first scroll (a hero fills the viewport), and hide-on-scroll all the same feature. A state that hides the bar at the start, or changes size or layout, implies `position: fixed`; the bar never hides while focused or a menu is open; Firefox (no `scroll-state()`) keeps the settled look. The vocabulary is shared (`SCROLL_STATES` / `scrollStateQuery()` from `@getvitops/config`; the custom-property hooks are `--<pattern>-<state>-<prop>`), and the page container is now named `page`.
+    - **Migration** (`resolveMasthead` throws naming each): `behavior: "reveal-on-scroll"` → `states.atStart.hidden: true`; `behavior: "hide-on-scroll"` → `states.scrollingToEnd.hidden: true`; `surface: "transparent-until-scrolled"` → the settled `surface` plus `states.atStart.surface: "transparent"`; `elevation.onScroll` → `states.atStart.elevation: false`. The old `.masthead--hide-on-scroll` / `--transparent-until-scrolled` / `--shadow-on-scroll` / `--border-on-scroll` classes remain in the CSS as aliases for hand-written markup; `<Masthead>` no longer emits them.
+  - **`.scroll-edges`, `<ScrollEdges>`** (new `scroll-edges.css`): a horizontal strip that fades at an edge while there is more to scroll that way, using the same `at-start` / `at-end` states on the inline axis. Both fades show where `scroll-state()` is unsupported.
+  - **`<BackToTop>`, `site.chrome.backToTop`** (rendered by `<SiteFooter config={site}>`) and **`<ScrollCue>`** (`.back-to-top`, `.scroll-cue`, new `scroll-button.css`). Plain `#anchor` links; hidden by `scroll-state()` queries, always shown where unsupported.
+  - **`<Toc headings>`** and a scrollspy fallback: `polyfills.js` now loads a small IntersectionObserver (`scroll-target-group` polyfill) that sets `.is-current` and `aria-current="location"` where `:target-current` is missing. New polyfill name `scroll-target-group` is valid in `vitops({ polyfills: { disable } })`.
+  - **`vitops_hero`** gains `scrollCue` and `scrollCueLabel` fields.
+
+### Patch Changes
+
+- Updated dependencies [c66bda9]
+- Updated dependencies [0414685]
+- Updated dependencies [c38ce48]
+  - @getvitops/utils@9.0.0-alpha.8
+  - @getvitops/generator@9.0.0-alpha.8
+
+## 2.0.0-alpha.7
+
+### Patch Changes
+
+- caf4f5f: **Performance and security-header fixes from a web-standards audit, batch D.** Checked in a real browser against a deliberately held-open `load` event.
+
+  **Breaking**
+
+  - **`<Carousel>` and `<Gallery>` no longer boost their first image by default.** Both set `loading="eager"` and `fetchpriority="high"` on the first image, and `fetchpriority="low"` on the rest, unconditionally. Priority is zero-sum, so a gallery near the foot of a page competed with the real Largest Contentful Paint image for nothing. New `priority` prop, default `false`: with it off every image is `loading="lazy"` with no priority hint (a horizontal scroll container honours `lazy` with no JavaScript); with it on, the first image is eager and high priority. **Migration:** a hero carousel or gallery that is the page's LCP element passes `priority`. Every other use needs no change and gets faster.
+
+  **Fixed**
+
+  - **`.animate-trigger` no longer waits for `window.load`.** It is `opacity: 0` and paused until `deferred.js` adds `.is-active`, and that happened only after every image and font on the page had loaded, so an above-the-fold trigger stayed invisible that whole time and delayed LCP. The observer now starts when the script runs; an `IntersectionObserver` is asynchronous and forces no layout, so the reflow reason for waiting did not apply. The row-stagger and track-width work, which does read layout, stays on `load`. All formats.
+  - **The EmDash `vitops_hero` image** (eager, and the likely LCP element) now carries `fetchpriority="high"`.
+  - **Scaffolded `public/_headers`** (both templates) gains `Strict-Transport-Security: max-age=31536000` and `Cross-Origin-Opener-Policy: same-origin-allow-popups`. HSTS deliberately omits `includeSubDomains` and `preload`: those commit every subdomain to HTTPS and are hard to take back, so that is the site owner's decision. The comment that said allowing a third-party tag's origin was enough to enforce the CSP was wrong for inline tag bodies (gtag's config, Matomo's `_paq`, Clarity's loader): the consent gate re-creates those as new scripts and each needs its own `'sha256-…'`. It now says so.
+
+  **Not changed, and why:** `<Head />` still preloads `polyfills.js` rather than `elements.js` and its chunks. Preloading the chunks would couple `<Head />` to the bundle's internal chunk names, and nothing here measured a gain. Hashing the gate's inline tag bodies automatically would need the integration to hand the policy the resolved tags, which is a design of its own; the scaffolds stay Report-Only, which is what shows the values to add.
+
+  Affects the browser bundle and components in all formats; no CSS change. Other fixed-group packages: no consumer-facing change.
+
+- 16a63d0: **Right-to-left, dark-mode, tooltip and form fixes from a web-standards audit, batch E.** Checked in a real browser where the behaviour is visible (RTL slide direction, tooltip hover, focus and Escape).
+
+  **Breaking**
+
+  - **`<wc-copy>` fires `copy-success`, not `copy`.** A bubbling `CustomEvent` named `copy` ran every page-level clipboard listener with an event that has no `clipboardData`. The detail is now `{ value }` and carries the copied text even when it came from the slot rather than a `value` attribute. **Migration:** rename `addEventListener('copy', …)` on a `<wc-copy>` to `'copy-success'`. There is no `vitops lint --fix` rule, because the event name lives in consumer JavaScript, not in a class or token.
+  - **`<wc-combobox>` keeps an author's `autocomplete`.** It used to overwrite it with `off`. It now sets `off` only when the attribute is absent. **Migration:** none for a combobox that never set one; one that did gets what it asked for.
+  - **`aria-orientation` on `<wc-image-compare>` and `<wc-split-panel>` is the orientation of the separator line, not the direction it slides.** A handle that slides left and right is a vertical separator, so the default now says `vertical` (it said `horizontal`). Anything keyed on the old value, such as an e2e selector, needs the flip.
+  - **`@getvitops/astro`'s `<Head />` loads `deferred.js` as `type="module"`** instead of a classic `defer` script, so its top-level declarations no longer share a global scope with other scripts on the page. **Migration:** none for `<Head />` users. A hand-written `<script defer src=".../deferred.js">` should become `<script type="module" …>`.
+
+  **Added**
+
+  - **Tooltips respond to hover and keyboard focus, and Escape closes them** (WCAG 1.4.13). The comment above the pattern said `deferred.ts` did this; that code was gone, so a tooltip opened only on click. `js/tooltip.ts` (in `deferred.js`) now opens a `popover="manual"` `.tooltip` on hover and on `:focus-visible`, keeps it open while the pointer is on the tooltip itself (it no longer sets `pointer-events: none`), and gives each trigger its own anchor name plus `role="tooltip"` and `aria-describedby`. The `popovertarget` click toggle remains the no-JS fallback. `TODO(support)`: move to `interestfor` and `popover="hint"` once `interestfor` meets the support threshold in AGENTS.md (Chromium-only today). Marking the tooltip `popover="manual"` rather than a bare `popover` is the one markup change. Browser bundle, all formats; the CSS change is all formats.
+  - **`<wc-color-scheme-toggle>` labels are overridable** with `group-label`, `system-label`, `light-label` and `dark-label` (English defaults), for a non-English page.
+  - **`<Field group>`** renders a `<fieldset>` with the label as its `<legend>` for a radio or checkbox group, linked by `aria-describedby` to its help text and a server-rendered error when the field has an `id`.
+  - **Scaffolded layouts** (both templates) gain a skip link and an `id` on `<main>`, and take `<html lang>` from the first locale in `site.json` instead of a hard-coded `en`.
+  - **`<Details>`** now renders its `items` as a link list when the `content` slot is empty. It declared a required `items` prop and never used it; the prop is optional now.
+
+  **Fixed**
+
+  - **RTL slide direction.** Panels pinned to the inline end slid in from the physical right in an RTL page, because a `translate` does not flip with logical insets. `animation.css` defines `--dir-sign` (`1` or `-1`, following `dir` on any element, so a nested `dir="ltr"` island is handled) and the site nav, nav, drawer, tag and notification translates multiply by it. Progress-bar `transform-origin` is logical. css/bricks and tailwind (patterns are inlined in all formats).
+  - **Dialogs:** `dvh` instead of `vh` so a tall dialog is not hidden behind a phone's address bar, `overscroll-behavior: contain`, and the page behind a modal no longer scrolls. `.sticky` sidebars use `dvh` too. All formats.
+  - **Dark mode:** the badge indicator used the danger text colour (pale in dark mode) behind white text; it now uses the solid and its computed foreground, which the build contrast-checks in both appearances. Table stripes and hover tint the text colour instead of black, and a sticky header has an opaque background. All formats.
+  - **Motion:** `.status-dot--pulse` only animates under `prefers-reduced-motion: no-preference`, and so does the cross-document `@view-transition`. The `::view-transition-children(*)` rule that followed it was not a real pseudo-element and set nothing; it is removed. The scroll progress bar is hidden where `animation-timeline` is unsupported rather than stuck at zero.
+  - **`<wc-dismissable>`'s countdown pauses** while the pointer is over it or keyboard focus is inside, and resumes with the time that was left (WCAG 2.2.1).
+  - **`<wc-combobox>`'s active option** has an outline as well as a background, so it is visible in forced colors.
+  - **`.table--bordered` has a rounded frame and draws each seam once.** `border-radius` did nothing under `border-collapse: collapse`. The table is now `separate`, draws the outer frame itself, and each cell draws only the lines between cells, with `overflow: clip` rounding the corners without breaking `.table--sticky-header`. Checked for `colspan`, `rowspan`, a two-row header, `<colgroup>` and `<tfoot>` at three device pixel ratios. The visible change is slightly different corner rendering, and a consumer rule that borders `td`/`th` on all sides will double the lines again. All formats.
+  - **`.tone--solid` sets `color-scheme` from its fill.** Native form controls and scrollbars inside a dark fill were drawn for the page's scheme, so a light-scheme input sat on a dark solid. The generator now emits `--color-<hue>-<step>-scheme` and `--color-scheme-<role>` (`dark` or `light`, read off the foreground it already picked, so the two cannot disagree, and mode-stable like the solid). `resolveTone()` in `@getvitops/emdash` passes it as `--tone-solid-scheme`, and `tone.css` applies it; unset, nothing changes. These are plain `:root` properties, outside the role-token grammar, so no utility classes appear. All formats; the tailwind output carries the properties too.
+  - **`<wc-range>`:** when both thumbs sit together near the end, the lower one is raised so the pair can be dragged apart again. They were stuck.
+
+  **Packages.** `@getvitops/generator` carries the new scheme tokens, the refreshed asset snapshot and the tooltip line in the component manifest; `@getvitops/emdash` carries the `resolveTone()` change. Other fixed-group packages: no consumer-facing change in this package.
+
+- Updated dependencies [7d5efa0]
+- Updated dependencies [d34ac50]
+- Updated dependencies [16a63d0]
+  - @getvitops/generator@9.0.0-alpha.7
+  - @getvitops/utils@9.0.0-alpha.7
+
+## 2.0.0-alpha.6
+
+### Minor Changes
+
+- a95a4fc: **Added: tabs, breadcrumbs, combobox, format and range.** Each is tier 1 or a tier-2 element whose fallback is real and complete, and each has an Astro wrapper.
+
+  - **`<Breadcrumbs>`** (CSS + Astro, no JS): `<nav aria-label="Breadcrumb" class="breadcrumbs"><ol>`, the last item `aria-current="page"` and never a link, and the `BreadcrumbList` JSON-LD from the same items (`schema={false}` to omit). CSS: **all formats**.
+  - **`<Tabs>` / `<wc-tabs>`**: headed `<section>`s that are all readable with no JS; with it, a WAI-ARIA tablist (arrows on the axis `orientation` names, Home/End, automatic activation, wrapping), URL-fragment deep links including to something inside a panel, `hash` to write the fragment, `tabs-change`. The heading it turns into a tab label is hidden so the name isn't announced twice. EmDash: new `vitops_tabs` block. CSS: **all formats**. This replaces the "generated pattern only" `tabs` entry: the `tabs` config pattern still supplies the `panel` group tokens, now consumed by `patterns/tabs.css`.
+  - **`<Combobox>` / `<wc-combobox>`**: `<input list>` + `<datalist>` with no JS; with it, an ARIA 1.2 combobox (`aria-activedescendant`, Down/Up wrap, Enter chooses without submitting, Escape closes then clears, a live result count). A value that matches no option is kept: it suggests, it does not constrain. Replaces the CSS-only shell; `combobox.css` now opens on `:not([hidden])` so Escape can close it. CSS: **all formats**.
+  - **`<Format>` / `<wc-format>`**: a real `<time datetime>` / `<data value>` with the text already in it; with JS, a locale-aware relative time, date, number, percentage or currency read from the machine value, kept current at the next minute/hour boundary and paused while the tab is hidden. Anything it can't format is left as written. No CSS.
+  - **`<Range>` / `<wc-range>`**: one or two native range inputs (two submit as two fields) with no JS; with it, one track, thumbs that can't cross, the filled span and an `<output>`. A single slider needs no element: `forms.css` already themes `input[type='range']`. CSS: **all formats**.
+
+  `elements.js` grows from 28.1 KB to 31.8 KB gzipped for these four elements; the size budget moves to 33 KB.
+
+  **Fixed:** `<wc-image-compare position="25">` was ignored on first render (see the earlier entry).
+
+  **Not built:** dialog and a `role="menu"` dropdown. A dropdown is the native Popover API plus anchor positioning (`.dropdown--show-on-hover` for hover), which is how it is built today, so nothing was added.
+
+  `@getvitops/utils`, `cli`, `vite`, `config` and `create` — no consumer-facing change in these packages.
+
+- d380b78: **Added: the `vitops_tree` block, and landing pages in the emdash template.**
+
+  - **`vitops_tree`** (`@getvitops/emdash`): an expandable outline for a file tree, a site map or nested sections. Block fields can't nest, so the editor types an indented outline (one node per line, indent to nest, `| badge` for a chip) and the block builds the `<Tree />` from it. Only plain label, badge and a derived id reach the tree: it never sets `descriptionHtml`, which `<Tree />` renders as raw HTML, so markup typed into the outline is shown as text. Capped at 500 nodes and six levels. The `tree` manifest entry no longer carries an `emdashExempt` reason.
+  - **Landing pages** (`@getvitops/create`, emdash template): new scaffolds ship a `landings` collection whose `layout` is a `blocks` field of `vitops_section`, the `vitops_section` block type in `seed/seed.json`, and `src/pages/landings/[slug].astro` (prerendered, like `pages`). Create a landing in the admin and stack sections, each holding any Vitops block. No sample landing is seeded. `templates.test.ts` fails if the seeded block type drifts from `vitopsBlockTypes()`.
+
+  ### Migration
+
+  A seed is applied once, at a site's first boot, so an existing site gets none of this automatically. Either run `vitops emdash schema apply --from <a site that has it> --to <your site>` for the collection, add `...vitopsBlockTypes()` to the seed's `blockTypes` (a new environment only), or add the collection by hand with `emdash schema create landings` and a `blocks` field allowing `vitops_section`, and copy `src/pages/landings/[slug].astro`. Block types are not replayed by `schema apply` (they are reported); add `vitops_section` from the admin or the seed.
+
+  `@getvitops/generator`, `core`, `astro`, `utils`, `cli`, `vite` and `config` — no consumer-facing change in these packages. No CSS changed, so no format is affected.
+
+### Patch Changes
+
+- Updated dependencies [19f9a53]
+- Updated dependencies [8b823d5]
+- Updated dependencies [a95a4fc]
+- Updated dependencies [dbc4dda]
+- Updated dependencies [3a5aa13]
+- Updated dependencies [333880e]
+- Updated dependencies [237a9fd]
+- Updated dependencies [0a3a01f]
+- Updated dependencies [0b7e7f1]
+- Updated dependencies [d380b78]
+- Updated dependencies [0b7e7f1]
+- Updated dependencies [6763587]
+- Updated dependencies [8d00032]
+- Updated dependencies [a5754c1]
+- Updated dependencies [1e5edfc]
+- Updated dependencies [37ea039]
+- Updated dependencies [0b7e7f1]
+- Updated dependencies [e12086a]
+- Updated dependencies [0b7e7f1]
+- Updated dependencies [0e525b8]
+- Updated dependencies [a9d00c9]
+- Updated dependencies [0b7e7f1]
+- Updated dependencies [50ea0f6]
+- Updated dependencies [82774d1]
+- Updated dependencies [0f5c3cc]
+- Updated dependencies [fdbec9c]
+- Updated dependencies [798a04a]
+- Updated dependencies [53683a2]
+- Updated dependencies [1f1a3dd]
+  - @getvitops/generator@9.0.0-alpha.6
+  - @getvitops/utils@9.0.0-alpha.6
+  - @getvitops/core@9.0.0-alpha.6
+  - @getvitops/astro@9.0.0-alpha.6
+
+## 2.0.0-alpha.5
+
+### Minor Changes
+
+- 4d94c8b: **Added: `site.chrome` — a configurable masthead and nav behaviour.** Non-breaking.
+
+  - `site.chrome.masthead` (new `@getvitops/config` schema): `position` (`static|sticky|fixed`), `behavior` (`always|hide-on-scroll`), `surface` (`solid|glass|transparent|transparent-until-scrolled`), `tone` (a `colors.roles` key), `layout` (`full|inset|floating`), `width`, `elevation` (`shadow`, `border`, `onScroll`), `height` and `inset`. `height` and `inset` take fluid lengths (`calc()`, `clamp()`, `min()`, `max()`, with `cqi`/`vw`/… units), checked against a closed grammar because they are written into CSS. `validateConfig` rejects a `tone` or `shadow` the design system does not define (only when the default theme states them directly, not via `extends`).
+  - `site.chrome.nav`: `compact` (`drawer|dropdown`), `drawerSide`, `breakpoint`/`mobileBreakpoint`/`megaBreakpoint`, `depth`, `megaDepth`.
+  - `<Masthead config={site}>` (`@getvitops/astro`, slots `brand`/default/`actions`) and `resolveMasthead()` / `resolveNavOptions()`. A prop overrides one field per layout. The key is `chrome`/`masthead` on purpose: `<header>` is valid in any section and `banner` already means the announcement bar and the landmark role.
+  - `<SiteNav>` gains `compact="dropdown"` (a columnar panel anchored under the toggle), `drawerSide` (previously hardcoded to the end edge in Astro), `megaDepth` and `megaPanel`. `.sitenav--mega` now styles second-level items as column headings and has an optional featured column.
+  - `@getvitops/emdash`: `VitopsMegaPanel` fills that column from the widget area `mega-<item url slug>` (or a `mega-area:<name>` class on the menu item). No area means no column.
+  - `@getvitops/create` (emdash template): the layout renders through `<Masthead>`; `site.json` ships a sticky glass masthead with a shadow once scrolled. The hand-written `.navbar { block-size: 64px }` is gone (use `masthead.height`).
+  - CSS (`patterns/masthead.css`, `patterns/sitenav.css`): **all formats**, including tailwind, where the patterns are inlined into `@layer components`. Hide-on-scroll and the `*-on-scroll` states are `scroll-state()` container queries that only subtract from a settled (solid, elevated, visible) bar, so a browser without them (Firefox today) shows that bar rather than a transparent one. A sticky or fixed masthead sets `--header-offset` / `--top-offset` so anchors land below it.
+  - `@getvitops/generator`: new `TIERS.masthead`; `TIERS.sitenav` documents the new props.
+
+### Patch Changes
+
+- Updated dependencies [785b8b3]
+- Updated dependencies [bb61a35]
+- Updated dependencies [4d94c8b]
+  - @getvitops/utils@8.3.0-alpha.5
+  - @getvitops/generator@8.3.0-alpha.5
+
+## 2.0.0-alpha.4
+
+### Minor Changes
+
+- 99e66a2: Fixes from the vitops.ca build (alpha.3 findings 1–5, 19, 29).
+
+  - **Scaffold patterns.** Both templates now define `cta`, `link` and `details` in `patterns.items` (a `content` group too), and a `ui-accent` role. `.cta` had no CSS at all, so every hero, card and callout button rendered as plain text; a test now fails if a template omits a pattern the blocks emit. `vitops_accordion` renders a sprite chevron like `vitops_details`, and `details.css` styles an `.accordion` group (a divider and padded summaries from the `details` pattern tokens) — all formats.
+  - **Tone paints only on surfaces.** `.tone` now sets colour variables and `border-color`; the background comes from `.tone--tint` (callout, panel card, hero card, toned section/hero/nav/reviews, `theme`) or `.tone--solid`. A steps, stats or form block with a tone is no longer turned into a band. `ResolvedTone` gains `surface` (`tone tone--tint`). **If you styled `.tone` directly,** add `tone--tint` where you want the background. A `.cta` inside a tinted or filled tone takes the tone's solid. all formats.
+  - **`colors.tint: { mix: "8%" }`** derives the tint from the role's solid (`--tone-tint`) instead of its `muted` step, which turns brown for amber on a dark page. Off by default; not covered by the contrast contract.
+  - **Per-card backdrop.** `vitops_cards` and `vitops_hero` rows take a `theme` (tint or fill of a site colour), so one card of a pair can be tinted.
+  - **`colors.roles.<r>.acknowledgeContrast`**: a number of Lc a pairing may miss its APCA bar by and still only warn (e.g. pine's solid at Lc 59.5 against 60). A larger miss still fails.
+  - **Select:** where `appearance: base-select` is supported the wrapper's own chevron is hidden, so a select no longer shows two arrows, and the wrapper and control fill the field (`.custom-select` is `display: block`; add `display: inline-block` if you used it inline). all formats.
+
+- d64fb20: Layout and spacing fixes from the vitops.ca build (findings 6–9).
+
+  - **`vitops_section` is the page opener.** New fields `cta_label`/`cta_href`/`secondary_label`/`secondary_href` (a `.cta` and a `.link` in the head), `*accent*` runs in the heading, and `stack: rhythm`, which puts `.rhythm` on `.section__inner` so head and body use the vertical-rhythm scale. With level 1 it replaces nesting a `vitops_hero` in a section, which rendered `section > .centered > … > section > .centered`. `vitops_hero` stays for a stand-alone hero with option cards. A plain (`stack: grid`) section also puts a gap between head and body now (`--section-gap`, default 2rem) instead of sitting flush. css/bricks/tailwind.
+  - **`.rhythm` spaces blocks.** A card row (`wc-cards`, classed `ul`/`ol`), accordion, `details`, form, table, figure or `.section__body` directly under a `.rhythm` is `--rhythm-block` (2) apart, not a paragraph apart; a button row (`p.cluster`) is `--rhythm-block-action` (1.6). Classless lists stay prose and a form's own field spacing is unchanged. A bare `<a>` that is a direct child of `.rhythm` is now `display: block; inline-size: fit-content`, since an inline box ignored `margin-top` and sat flush under the paragraph above (`.cta` and `.btn` are unaffected). all formats.
+  - **`rhythm-flex`** utility: an opt-in flex-column stack for the case the margin stack does not suit; margins apply to any child. all formats (`@utility` in tailwind).
+
+- 322dd6a: Block fixes from the vitops.ca build (findings 11–13, 15, 17, 18, 21).
+
+  - **Steps.** The marker is an outlined disc in the tone (number and ring in `--tone-solid`, falling back to `currentColor`), so a steps block with no tone no longer shows black discs with no number. Items keep `align-content: start` and no `.rhythm li + li` margin, so markers in a row line up. Two modifiers through the block's `className`: `steps--cards` (each step in a card) and `steps--animated` (the connector draws and the marker fills as each step scrolls in; static under reduced motion or without scroll-driven animations). `steps` is now a config pattern: `patterns.items.steps` in `site.json` owns the card geometry (`content` group tokens) and the marker size (`--steps-marker-size`, `--steps-line-width`); both templates and the reference config ship an entry. all formats.
+  - **Stats.** `<wc-counter>` leaves a figure it cannot count as authored (`"1 in 6"`, `"24/7"`, `"—"`) instead of counting down from zero to a wrong value. `animate: false` on the block still turns the count-up off for a whole block.
+  - **Logos.** `vitops_logos` takes an optional `kicker`, `note` and `linkLabel`/`linkHref`; with any of them set, the row is wrapped in `.logos-block`. The list keeps the block's attributes either way.
+  - **Pricing.** Plans take `yearly` (a second price line) and `note` (under the plan name).
+  - **`<SiteFooter>`** has a `brand` named slot, rendered as the first column (`.sitefooter__brand`) in the site's own markup.
+
+### Patch Changes
+
+- Updated dependencies [99e66a2]
+- Updated dependencies [00a9d86]
+- Updated dependencies [d64fb20]
+- Updated dependencies [322dd6a]
+- Updated dependencies [322dd6a]
+  - @getvitops/generator@8.3.0-alpha.4
+  - @getvitops/utils@8.3.0-alpha.4
+
+## 2.0.0-alpha.3
+
+### Patch Changes
+
+- @getvitops/generator@8.3.0-alpha.3
+- @getvitops/utils@8.3.0-alpha.3
+
+## 2.0.0-alpha.2
+
+### Major Changes
+
+- 0a47856: **Breaking: every block type is now `vitops_<name>`** (`vitops_cards`, `vitops_hero`, `vitops_actionLink`, …), where the Portable Text blocks were `vitops.<name>` and the section block type was already `vitops_section`. EmDash validates a block type's slug as `[a-z][a-z0-9_]*`, so `vitops.section` was never possible and the toolkit had two styles for one kind of thing. Underscore is the one form valid everywhere, so it is now the only one.
+
+  Migration: in stored content and in `seed/seed.json`, rename `_type` values from `vitops.<name>` to `vitops_<name>`; in `PortableText` `components`, rename the keys the same way; the `blocks: { include, exclude }` option takes full type names, so rename those too. `vt_*` names in a site are that site's own types and are unaffected. A search-and-replace of `vitops.(actionLink|imageCompare|copyButton|banner|details|carousel|gallery|cards|accordion|hero|marquee|logos|steps|stats|callout|entries|pricing|embed|form|reviews|nav|badges|widgetArea)` with `vitops_$1` covers it. `vitops emdash build` reports any block left on the old name as having no component.
+
+### Minor Changes
+
+- 0a47856: Build correctness and gaps from the second upstream round.
+
+  - **`@getvitops/emdash`: fixes a circular import that emptied the plugin block map in the static build.** `Section.astro` and `WidgetArea.astro` imported `emdash/ui` statically, which imports `virtual:emdash/block-components`, which is `@getvitops/emdash/astro` again. Depending on import order, every `vitops_*` block inside a section body was dropped from prerendered pages with only a `PortableText [components.type] is missing …` warning. Both now import it lazily, and a test fails if any renderer imports `emdash/ui` statically. No code change needed in sites.
+  - **`@getvitops/cli`: `vitops emdash build`** runs `astro build` and then `check-prerender`, and fails when the build reports a block type with no component (reported once per type). The template's `build`, `deploy` and `deploy:dev` scripts use it; existing sites replace `astro build && vitops emdash check-prerender` with `vitops emdash build`. `check-prerender` also warns (fails with `--strict`) on a page without exactly one `<h1>`.
+  - **`@getvitops/emdash`: `vitops_hero` and `vitops_section` heading level** accepts `h1`–`h6` and `p` (a heading that is styled but not in the outline). The hero defaults to `h1`; set the level to `2` on a page whose layout already renders an `h1` (the template's seed does).
+  - **`@getvitops/emdash`: `vitops_logos`** shows an entry's name as text (`.logos__name`) when it has no image. `@getvitops/core` adds the rule (all formats).
+  - **`@getvitops/emdash`: an empty content widget** (no text, no blocks) no longer renders its title, and an area whose widgets are all empty renders nothing.
+  - **`@getvitops/create`:** the template's `pages` collection gets `urlPattern: "/{slug}"` (the sitemap listed `/pages/<slug>`, which 404s; existing sites change it under Content Types), and `.gitignore` ignores only `src/styles/tailwind.css` and `tokens.json`, so site CSS kept in `src/styles/` is committed.
+  - **`@getvitops/emdash`: per-item colour.** The rows of `vitops_cards`, `vitops_stats`, `vitops_steps` and the hero's `cards` take their own `tone` / `color` (blank inherits the block's), so one block can hold a pine item and an amber one. Hero cards also take an `eyebrow` and a button (`ctaLabel` / `ctaHref`; with a button the card is no longer a stretched link).
+  - **`@getvitops/generator` / `@getvitops/emdash`: solid fills read.** The generator emits `--color-<hue>-<step>-on` for every step of every hue, the foreground for a fill at that step picked by the same APCA rule as `text-on-<role>` (css and tailwind formats, a plain `:root`, not `@theme`). A block fill chosen by `color` (hue and step) uses it instead of a fixed white..
+  - **`@getvitops/core`: `.counter__value.sr-only`** hides itself, so a build that never emitted the `.sr-only` utility no longer shows a counting figure twice (all formats).
+  - **`@getvitops/astro` / `@getvitops/core`: `SiteFooter` groups.** A top-level item of the `footer-sitemap` menu with children becomes a column (its label is the heading, its children the links, one level only); childless items stay in the flat list. Each column is a named `<nav>`.
+  - **`@getvitops/astro`: planned links and header buttons.** A menu item with `draft` in its CSS classes stays in the menu but is not rendered (at every level, in the header and the footer). `<SiteNav>` has an `actions` slot for header buttons that are not menu items, and an item with `cta` in its CSS classes renders as a button.
+  - **`@getvitops/cli`: `check-prerender` warnings** (fail with `--strict`): links to pages the build did not produce, a form with no delivery address (no `site.notifications.email`, location `email` or `site.crm`), and form fields missing from every `site.templates` form entry (the generated privacy policy reads those). It reads `./site.json`, or `--site=<path>`. `vitops setup … --dry-run` is accepted as `--dry`.
+  - **`@getvitops/emdash` / `@getvitops/astro`: "tick any number" form field** (`vitops_form` field kind `checkboxes`): a fieldset of checkboxes sharing one name. The conversion route joins repeated values (`IT, Marketing`) instead of keeping the last. The "required" toggle is not applied to the group (HTML cannot require one of several).
+  - **`@getvitops/core`: size hooks.** `.steps__title`, `.stats__figure` and `.card__title` read `--steps-title-size` (default one step below `heading`), `--stats-figure-size` and `--card-title-size`, set on the block through its `style` field. They set the `--heading-fs` / `--display-fs` properties the type-role utilities already read, so no extra class or prop is needed (all formats).
+  - **`@getvitops/create`:** the template's `site.json` lists its contact form under `site.templates`, so the privacy policy inventory and the new check agree.
+  - **`@getvitops/emdash`: `theme` on every block, on widget areas and on your own markup.** A `theme` select (`<role>` tinted, `<role>:solid` filled, populated from the site's roles by a new `themes/list` route) is a common field on every `vitops_*` block, applied to the block's own root with the role's computed readable text. `<VitopsWidgetArea theme="…">` takes the same, and `themeAttrs('surface')` gives `{ class, style }` for a layout `<body>`. `vitops_section`'s existing `theme` now goes through the same path.
+  - **`@getvitops/cli` / `@getvitops/emdash`: pages with a dropped block fail the build.** `vitops_section` and widget areas emit an invisible `<template data-vitops-unrendered="…">` for any body block with no renderer, and `check-prerender` fails the page naming the types (nested bodies only; `vitops emdash build` also scans the build log, which covers top-level bodies). A regression test imports the plugin entry first with a mock of the real virtual module, so the old import cycle fails it.
+  - **`@getvitops/emdash`: `formTemplateFromBlock(block)`** turns a saved `vitops_form` value into a `site.templates` form entry (names as submitted, a `checkboxes` field as a `checkbox` with options), to paste into `site.json` so the generated privacy policy lists what the form collects. The build cannot read the CMS database, so this is run by hand; `check-prerender` warns when fields are missing.
+  - **`@getvitops/utils`: `hasFormDelivery`** (`@getvitops/utils/notify`): the one test for "has this form anywhere to go", used by `check-prerender`.
+  - **`@getvitops/emdash`:** a `color` hue tint now flips with the colour scheme (`light-dark()`); hero option cards sit at `h2` under an `h1` hero; menu items also accept `hidden: true` (same as the `draft` class); `vitops docs blocks` documents `theme`, the per-row colours, the `--<role>-fs` type-size hook and the form checks.
+  - **`@getvitops/create`:** the template redirects `/home` to `/`, and the guides use `vp exec` instead of `vpx`.
+
+### Patch Changes
+
+- 0a47856: New package `@getvitops/skills`: agent skills for sites built with the toolchain (`custom-blocks`, `content-and-deploys`, `contact-form`, `csp`). The emdash template depends on it and runs `skills experimental_sync` on `prepare`, which links them into `.agents/skills/` and `.claude/skills/`, so they update with `vp update` instead of being copied at scaffold time. Existing sites: `vp add @getvitops/skills && vp add -D skills`, set `prepare` to `vp config && skills experimental_sync -y -a claude-code --no-frozen-lockfile`, gitignore the four linked names, and delete the site's own copies of those four skills (the sync never replaces a directory it did not create).
+
+  The emdash template's `AGENTS.md` is shortened to the always-relevant rules. Deploy and content mechanics (where each kind of data is the truth, prerendering, publish-triggered rebuilds, refreshing dev), the contact form, and the CSP move into those skills. Corrects the nesting guidance: a block type with a `portableText` field (such as `vitops_section`) holds other blocks, while `vitops_*` Portable Text blocks do not. Adds guidance for agents to record reusable toolkit gaps in `UPSTREAM.md`. The generated stylesheet is no longer described as always `tailwind.css`.
+
+- Updated dependencies [0a47856]
+- Updated dependencies [0a47856]
+  - @getvitops/generator@8.3.0-alpha.2
+  - @getvitops/utils@8.3.0-alpha.2
+
+## 2.0.0-alpha.1
+
+### Minor Changes
+
+- 24c568b: Escape hatches on every block, a section theme, widget areas, a badges block, Tailwind scanning of package renderers, and a sturdier `vitops audit`.
+
+  **@getvitops/emdash**
+
+  - Every `vitops.*` block and `vitops_section` gains three fields: `anchor` (rendered as the `id`, so `#contact` works), `className` (`class_name` on the section type: block-type slugs are lowercase) and `style`. `style` takes CSS custom properties only (`--p-card: 2rem`); any other declaration, and any value containing `url(`, `@`, `{`, `}` or a backslash, is dropped. With the `tailwind` format a class typed in the CMS only works if the site already uses it. They are applied to the block's own outermost element (the grid `<ul>` for `vitops.cards`), never an extra wrapper, so a block's markup is the same whether or not an editor fills them in.
+  - `vitops_section` gains a `theme` select: a role, or `<role>:solid`, with readable text chosen by the generator's contrast rules. It overrides `tone`/`color`/`solid`, which stay for existing content. Other site roles still go through `tone`.
+  - New `vitops.badges` block (a row of `.badge` or `.tag` labels, each with an optional tone, icon and link) and `vitops.widgetArea` block, plus `<VitopsWidgetArea name level />` from `@getvitops/emdash/astro`. A widget area is content defined once under Widgets and shown wherever it is placed. An area cannot hold another area, and an area containing a `core:*` component widget is rendered by EmDash's own renderer.
+  - Existing sites: re-run the block-type seed only on a new database; on an existing one add the `theme`, `anchor`, `className` and `style` fields to the `vitops_section` block type in the admin.
+
+  **@getvitops/create**: the emdash template seeds `announcement` and `pre-footer` widget areas, renders them in `Layout.astro`, and documents when to use a Section, a block or a widget area. Sites scaffolded earlier add the two `<VitopsWidgetArea>` lines and the `widgetAreas` seed entries by hand.
+
+  **@getvitops/generator / astro / vite** (`tailwind` format only): the Astro integration now adds `@source` lines for `@getvitops/astro` and `@getvitops/emdash`, because Tailwind v4 does not scan `node_modules`; utilities used only by their renderers (`font-display`, `font-caption`, `font-footnote`) were never emitted and the page silently rendered at body size. New `sources` option on `generate()` and the Vite plugin. A site's `src/package-classes.txt` workaround can be deleted. css and bricks: no change.
+
+  **@getvitops/cli**: `vitops emdash check-prerender` now also warns when a page uses a type-role class (`font-display`, …) the built CSS has no rule for; `--strict` makes it fail. `vitops audit` checks for its optional packages and a Chromium binary before starting the preview server (so a failed run no longer leaves port 4398 busy), stops the server on Ctrl+C and termination, and takes its page list from the built sitemap, then the menus; the guessed defaults (`/privacy`, `/contact`, …) are used only when neither exists.
+
+  **@getvitops/utils**: the audit helpers behind the above (`preflight`, `fetchSitemapPaths`, `sitemapLocs`, `pathsFromSitemapLocs`).
+
+  **@getvitops/core** (all formats): new `.block-anchor` rule gives an anchored block `scroll-margin-top: var(--header-offset, 5rem)`; set `--header-offset` to a sticky header's height. New `widget-area.css` partial. No other consumer-facing change.
+
+  The other fixed-group packages: no consumer-facing change beyond the above.
+
+  **Also fixed in the emdash template** (`site.json`): it defined only the `display`, `heading` and `body` type roles while the blocks use `title`, `eyebrow`, `lead`, `caption` and `footnote`, so those rendered at body size with no rule behind them. The roles are added with the reference design system's specs. A site scaffolded earlier adds the same five entries under `designSystem.themes.default.typography.roles`; `vitops emdash check-prerender` now names any that are missing.
+
+### Patch Changes
+
+- Updated dependencies [24c568b]
+  - @getvitops/generator@8.3.0-alpha.1
+  - @getvitops/utils@8.3.0-alpha.1
+
+## 2.0.0-alpha.0
+
+### Minor Changes
+
+- 161c7f3: A contact form that works end to end: `vitops setup turnstile`, `<wc-turnstile>`, the `vitops.form` EmDash block, and the route the emdash template ships to receive it.
+
+  **CSS, all formats** (no existing class changes): `forms.css` gains `.form-notice--target:not(:target)` (a message revealed only when the URL fragment names it, which is how a prerendered page shows a no-JS form's result) and `:where(wc-turnstile) { display: block }`.
+
+  **`@getvitops/core`:** new `<wc-turnstile sitekey="…">` in `elements.js`. It loads Cloudflare Turnstile on the first interaction with its form (no request to `challenges.cloudflare.com` for a visitor who only reads the page), holds an early submit until the token arrives, and leaves its slotted no-JS explanation in place until JS takes over. Turnstile is category `necessary`, so it is not behind the consent banner.
+
+  **`@getvitops/utils` / `@getvitops/cli`:** new `@getvitops/utils/turnstile` and `vitops setup turnstile [--dry] [--check] [--no-write] [--no-secret]`. It plans from the site's hostnames, creates a managed widget unless one already covers them (an existing widget is adopted, never edited, rotated or deleted), writes the public key to `site.security.turnstile.siteKey`, and pipes the one-time secret to `wrangler secret put VITOPS_TURNSTILE_SECRET` without writing it to any file. Needs `CLOUDFLARE_API_TOKEN` with **Account > Turnstile > Edit** and `CLOUDFLARE_ACCOUNT_ID`.
+
+  **`@getvitops/astro`:** `virtual:getvitops/head` gains `turnstileSiteKey` (read from `site.security.turnstile.siteKey`) so blocks can render the widget. No other change.
+
+  **`@getvitops/generator`:** `TIERS` gains a `turnstile` entry (wc-turnstile, claimed by `vitops.form`); `wc-multi-field`'s `emdashExempt` reason is reworded now the form block exists.
+
+  **`@getvitops/emdash`:** new `vitops.form` block: a field repeater (text, email, phone, long text, choose one, tick box), required flags, help text, success/error messages, optional Turnstile. It renders a semantic `<form method="post">` that works with no JavaScript, with a honeypot named per `createConversionRoute`'s defaults. A field named `phone` submits as `tel`, because the route reserves `phone` and `event`.
+
+  **`@getvitops/create`:** the emdash template ships `src/pages/api/track.ts` (`prerender = false`, `createConversionRoute()`), a seeded contact form, and `challenges.cloudflare.com` in both templates' Report-Only CSP (`script-src`, `frame-src`). The route refuses a post with nowhere to deliver and fails closed when a site key exists without `VITOPS_TURNSTILE_SECRET`. SETUP.html gains the Turnstile step. Existing sites: copy the route and the CSP change, then run `vitops setup turnstile`.
+
+- 1e36b83: Seven new blocks, a section block type, and a shared `tone`.
+
+  **New Portable Text blocks:** `vitops.logos` (a still grid; `marquee` only scrolls), `vitops.steps`, `vitops.stats` (each figure is a `<Counter>`; a `tiles` style adds group, change and good/bad state), `vitops.callout` (a call-to-action band, not the dismissible `banner`), `vitops.entries` (wraps `<wc-entries>`), `vitops.pricing` (aligned plan cards) and `vitops.embed` (a video or map that loads only after consent: the iframe ships with no `src`, the address rides on `data-consent-src`, and a `title` is required).
+
+  **New block TYPE `vitops_section`** (kicker, heading with a level, lead-in, tone, an optional heading-left `split` layout, and a Portable Text body that accepts every `vitops.*` block). It is a schema-level block type, not a Portable Text block, because Block Kit fields cannot hold rich text. Add `...vitopsBlockTypes()` to `seed.json`'s `blockTypes`, allow `vitops_section` on the collection's `blocks` field, and map it with `blockTypeComponents` from `@getvitops/emdash/astro` (`defineBlockComponents`).
+
+  **Extended, non-breaking:** `vitops.hero` gains accent marks (`*words*` in the heading), a heading `level`, `tone`/`color` and an optional row of cards. `vitops.cards` gains a `panel` style (tone, checklist, button), a heading `level`, `tone`/`color`, and `[text](/url)` inline links in the body. **Cards fix:** the card title is now a real heading element (default `h3`, `font-heading`) instead of `<p class="font-heading">`; saved content is unchanged, but the markup and the page outline change. Set `level` to taste.
+
+  **Shared `tone` + `color`** on every block that colours anything: a role from `site.json`, falling back through its semantic relatives to `neutral`, or a palette hue/step. Renderers emit `--tone-*` custom properties (never a class built from a value, which Tailwind cannot see). New option `vitopsEmdash({ tones })` (or the roles are read from `designSystemEditor.config`) fills each block's `tone` select with the site's own roles through a `tones/list` plugin route; with neither, the select offers the semantic names. `vitops.banner.tone` and `vitops.actionLink.role` keep their existing values.
+
+  **Render tests:** `pnpm --filter @getvitops/emdash run test:render` renders the block adapters through Astro's container API in a separate vitest config.
+
+- 175d16e: **Added: `vitops.reviews` and `vitops.nav` EmDash blocks.** Non-breaking.
+
+  - **`vitops.reviews`** renders Google reviews from the committed `.vitops/reviews.json` cache (`vitops reviews`) as a grid, carousel or marquee of `<ReviewCard>`. Fields: location key, layout, columns, limit, lowest rating, order, featured ids, reviewer photos (off by default), tone/colour. Which reviews show is `selectReviews()`, the one shared decision. Review JSON-LD is not offered (Google treats self-marked-up reviews as ineligible for rich results). A new review reaches the page after `vitops reviews` is re-run, committed and the site rebuilt, not when an editor saves; with no cache file the block renders nothing (a note in `astro dev`).
+  - **`vitops.nav`** renders a named EmDash menu inside page content (site map, section links, footer-style columns), never the header. Fields: menu (picked from the site's menus via a new `menus/list` plugin route, with `footer-sitemap`/`footer-legal`/`primary` as the static fallback), accessible name, visible heading and level, layout `list | inline | columns | sitenav`, depth 1-3, tone/colour. It is a `<nav>` with a name that is never `Primary`, `Site map` or `Legal` (the layout's landmarks), `aria-current="page"`, no runtime JS; a missing or empty menu renders nothing.
+  - `@getvitops/astro`: **`virtual:getvitops/reviews`**, served by `vitops()`, is `.vitops/reviews.json` as a build-time import (an empty cache when absent or unreadable), because a Worker cannot read the file. `<ReviewCard>` now renders the review's source link (`.review__source`, `rel="nofollow noopener noreferrer"`), which the pattern already styled. **Fix:** `src/json-ld.ts` was missing from the published `files`, so any consumer importing `<ReviewCard>` (which composes `schemas/Review.astro`) failed to build with an unresolved import. `@getvitops/emdash` now needs this version of `@getvitops/astro` for the `vitops.reviews` block.
+  - `@getvitops/utils`: new Worker-safe subpath **`@getvitops/utils/reviews/select`** (`selectReviews` and the review types, no `node:fs`). `selectReviews` now takes only the display fields (`featured`, `minRating`, `limit`, `sort`), so a caller with no configured `locationId` can use it; existing calls are unchanged.
+  - `@getvitops/core`: new `.navlist` pattern in `patterns/sitenav.css` (`.navlist`, `__item`, `__link`, `__label`, `__sub`, `--inline`, `--columns`). **All formats** (css, bricks, tailwind). No existing class changes.
+  - `@getvitops/generator`: `TIERS.review` lists `vitops.reviews` and `TIERS.sitenav` lists `vitops.nav` (and `.navlist`), so `vitops docs components` and the docsite show them.
+
+- 06d6112: Fix the EmDash `/design-system` admin page erroring on a tailwind site. It fetches `/vitops/design-manifest.json`, which the `tailwind` format never emitted and the integration only mirrored under `editor: true` (which also loads `editor.js` on every public page).
+
+  - **generator** (`tailwind` format only): `design-manifest.json` is now emitted alongside `tailwind.css`. No change to the CSS.
+  - **astro**: new `vitops({ editorManifest: true })` writes everything an outside host needs into `public/vitops/` (`design-manifest.json`, `editor.js`, a standalone `editor.css`, and `design-system-editor.html`) without loading the editor on public pages. `editor: true` still loads it from `<Head />`.
+  - **vite**: `editorManifestDir` also writes `vitops/editor.css`, from a throwaway `css`-format pass on tailwind sites.
+  - **emdash**: the `/design-system` admin page was unstyled and overflowed the admin, because the editor borrows the framework CSS and the admin never loads it. It now embeds `/vitops/design-system-editor.html` in an iframe, so the design system can't leak into the admin's styles. **Requires `editorManifest: true`** in `vitops({ … })`.
+  - **create**: the EmDash template sets `editorManifest: true`. Existing sites: add it to `vitops({ … })` in `astro.config.mjs`.
+
+  No consumer-facing change in the other toolchain packages.
+
+### Patch Changes
+
+- Updated dependencies [efd4e72]
+- Updated dependencies [93d2067]
+- Updated dependencies [161c7f3]
+- Updated dependencies [175d16e]
+- Updated dependencies [83d6f3c]
+- Updated dependencies [892b204]
+- Updated dependencies [06d6112]
+- Updated dependencies [6297337]
+- Updated dependencies [224a731]
+- Updated dependencies [55061e2]
+- Updated dependencies [b47df4d]
+  - @getvitops/astro@8.3.0-alpha.0
+  - @getvitops/core@8.3.0-alpha.0
+  - @getvitops/generator@8.3.0-alpha.0
+  - @getvitops/utils@8.3.0-alpha.0
+
+## 1.0.0
+
+### Major Changes
+
+- c3c1bcb: **New: the design-system editor, mounted inside the EmDash admin.** `vitopsEmdash({
+  designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import config from
+  './site.json' with { type: 'json' }`) adds a `/design-system` admin page mounting
+  `<wc-theme-editor>` — the same live token editor `@getvitops/vite`'s dev server has always
+  offered, now usable by the client directly, no dev server required. An edit is visible
+  site-wide immediately (a runtime `:root` override, served via a new plugin API route and
+  `page:fragments`) and — once `site.deployment.repo`/`branch` and a `VITOPS_GITHUB_TOKEN`
+  secret are set (see the scaffold's `SETUP.html`) — auto-commits to your `dev` branch, so it
+  reaches the git-tracked `site.json` through your repo's normal review path rather than
+  becoming a second, unreviewed source of truth. Until that's configured, the live half still
+  works; only the auto-commit half is skipped (and says so in the admin page). The save route
+  runs the exact same accessibility (APCA contrast) gate `generate()` enforces at build time,
+  synchronously, before persisting — nothing non-compliant ever goes live even momentarily.
+
+  Requires `@astrojs/react` + `react` + `react-dom` (already scaffold dependencies, for
+  EmDash's own admin) and `@getvitops/core` (added as a new scaffold dependency this release).
+  Declares two new plugin capabilities when enabled: `network:request` (for the GitHub
+  auto-commit) and `hooks.page-fragments:register` (for the live override) — reviewed once at
+  plugin-install time.
+
+  **Breaking for `@getvitops/emdash`**: `vitopsEmdash()`'s `hooks.page-fragments:register`
+  capability is now also granted whenever `designSystemEditor` is set, independent of the
+  existing `scripts: 'fragments'` option (which governs something unrelated — web-component
+  script delivery). No change if you don't use `designSystemEditor`.
+
+  Also new, supporting the above:
+
+  - `@getvitops/generator`: `validateColorContract()` and `buildReverseIndex()` (both
+    `/tokens` subpath, Worker-safe) — the monotonicity/contrast gate and the
+    `design-manifest.json` reverse-index, each extracted from `generate()`'s `build()` into
+    standalone, non-throwing functions. `patchToOverrideCss()` turns a design-system patch
+    into the `:root` override `<style>` block. `designSystemPath`/`getAt`/`setAt`/
+    `mergePatch`/`formatConfig` moved from `@getvitops/vite` into `@getvitops/generator/config`
+    (re-exported from `@getvitops/vite` unchanged) — one "patch a config file's design-system
+    subtree" implementation shared by the dev endpoint and the new plugin route. New
+    `site.deployment.repo`/`branch` config fields.
+  - `@getvitops/utils`: new `/git` subpath — `commitFile()`, a Worker-safe (fetch-only)
+    wrapper over GitHub's Contents API.
+  - `@getvitops/core`: `<wc-theme-editor>` gains a `save-endpoint` attribute (default
+    unchanged — `/__vitops/design-system`) so the same element can target the new plugin
+    route instead of the dev-only Vite endpoint.
+
+- 0574388: Bump `emdash`/`@emdash-cms/cloudflare` peers to `>=1.0.0 <2` and `vite-plus` to `^1.0.0`, following
+  both projects' GA releases.
+
+  **Breaking for `@getvitops/emdash` consumers on EmDash 0.x**: the peer range no longer admits
+  `emdash@0.31.x`/`@emdash-cms/cloudflare@0.31.x`. Upgrade `emdash` and `@emdash-cms/cloudflare` to
+  `^1.0.1` first — nothing in `@getvitops/emdash`'s own plugin surface (`admin.portableTextBlocks`,
+  the `hooks.page-fragments:register` capability, `definePlugin()`) changed against EmDash 1.0, so no
+  code here needed to change, only the declared range.
+
+  The `emdash` scaffold template (`vp create @getvitops:emdash`) picks up several fixes alongside
+  the version bump:
+
+  - `tailwindcss`/`@tailwindcss/vite` are now real dependencies — the template selected
+    `css.format: 'tailwind'` without installing either, which threw on build.
+  - `site.json` now sets `site.icons.sprite: true` plus the full `semantic` list the
+    `vitops.actionLink` block's icon picker offers — previously its sprite icons pointed at a file
+    the build never generated.
+  - `astro.config.mjs` sets `migrations: { runtime: 'check', dev: 'auto' }`, and
+    `site-deploy-emdash.yml` runs EmDash 1.0's documented `build → status → apply → deploy → check`
+    migration sequence explicitly, rather than relying solely on first-request auto-migration. This
+    needs a new GitHub Environment variable, `EMDASH_TARGET_FINGERPRINT` (one per environment),
+    which only a human can set — run `emdash migrate --status` against the real deployed database,
+    review the printed identity, then `gh variable set EMDASH_TARGET_FINGERPRINT --env <env> --body
+    <value>`. Deploys fail clearly on the migration-apply step until it's set.
+  - `lint.options.typeAware`/`typeCheck` in the template's own `vite.config.ts` are commented out,
+    not deleted: vite-plus 1.0 only honours that option in a project's actual root config, and hard
+    errors on it in a nested one (which this file is, sitting inside the `design-system` monorepo).
+    Uncomment it once scaffolded into its own repo.
+
+  No config schema changes. `@getvitops/generator` also switches from the `zod/mini` subpath import
+  to the standalone `@zod/mini` package (zod 4.5+; same API) and fixes `validateConfig()` silently
+  losing the offending key name on an `unrecognized_keys` error (e.g. a typo'd `site.ads` platform
+  now names the bad key instead of reporting a bare "Invalid input").
+
+  Also fixed: `vp check`'s `tsconfig-error` for `packages/create/templates/emdash/tsconfig.json`
+  (`extends: "astro/tsconfigs/strict"`, unresolvable from inside this monorepo since the template
+  has no `node_modules` of its own — a pre-existing, structural gap, newly surfaced as a hard error
+  by oxlint 1.85's deeper config discovery, and blocking on every commit since this repo's pre-commit
+  hook runs `vp check --fix`). Fixed with a new `scripts/link-template-deps.mjs`, wired as the root
+  `postinstall` script: symlinks `astro`/`emdash`/`@emdash-cms/cloudflare` into the template's own
+  `node_modules/` (resolved fresh from sibling packages that already depend on them for real, not a
+  hardcoded `.pnpm` hash) and writes a minimal `astro:content` ambient shim at `.astro/types.d.ts`
+  (the same path `astro sync` would generate for real). Both are gitignored and only ever exist
+  inside this monorepo's copy of the template — a real scaffold installs its own real copies instead.
+  Considered and rejected first: inlining astro's strict preset (drift risk against astro's own
+  evolving default) and making the template a real pnpm workspace member (would change how its
+  `@getvitops/*: "latest"` deps resolve locally, which `templates.test.ts` exists to protect).
+
+  **Known gap, not fixed here**: `packages/astro/src/components/container.test.ts` (the
+  `AstroContainer`-based render tests) fails to even load under vite-plus 1.0's Vite 8 — direct
+  `.astro` imports in a Vitest file need the Astro Vite plugin registered, which nothing in this
+  repo's test config actually does (Astro's own docs call for `getViteConfig()`, which doesn't
+  compose with vite-plus's own `defineConfig`). A type-level shim
+  (`packages/astro/src/components/astro-modules.d.ts`) fixes `vp check`'s type-aware pass, but the
+  runtime `vp test` failure for this one file is still open.
+
+### Minor Changes
+
+- b3d9c07: `vitops docs blocks` prints every EmDash block type and its fields, so an agent can write valid Portable Text without reading the plugin source. It reads `@getvitops/emdash` from the project (and says so if it isn't installed); `@getvitops/emdash` exports `renderBlocksDoc()` for it.
+- 2ef2d41: **Tested against EmDash 1.4.** `emdash` and `@emdash-cms/cloudflare` are now `^1.4.0` in the
+  `emdash` template, and `@getvitops/emdash`'s peer ranges for both moved from `>=1.0.0 <2` to
+  `>=1.3.0 <2` — **breaking for a site still on EmDash 1.0–1.2**: upgrade `emdash` and
+  `@emdash-cms/cloudflare` together (EmDash warns at build when the two differ) before upgrading
+  this package. 1.4 fixes a stored XSS in the visual-editing toolbar (an author's published content
+  could run script for a signed-in editor), so an existing client site should take it promptly.
+
+  - **`vitopsHosting()` coalesces D1 reads by default** — new `cloudflare.coalesce` option
+    (default `true`, passed to `d1({ coalesce })`). With `session: 'auto'`, EmDash 1.3 stops
+    preloading settings/menus/widgets for logged-out visitors unless reads are coalesced, so this
+    restores one round trip instead of several. It is experimental upstream: a read and a write
+    started together may run write-first, so `await` a read before a write that must not affect it.
+    Set `coalesce: false` to opt out. No effect without a session.
+  - **Template:** `AGENTS.md` gains an "EmDash 1.x behaviours" section (passkeys are bound to a
+    hostname so use _Change domain_ at cutover; admin-authored HTML blocks run JS and conflict with
+    Astro CSP; link by `entry.data.slug`, not `entry.id`; submit `/sitemap.xml`; clearing a stuck D1
+    lock with `emdash migrate --take-over-lock`).
+  - **Upstream behaviour changes to know about (no code change here):** `cacheHint.lastModified` is
+    no longer auto-populated and pages lose the implicit `Cache-Control: no-cache`; collection
+    sitemaps paginate at 2,000 entries; `entry.id` is always locale-prefixed on multilingual sites.
+
+  No consumer-facing change in `@getvitops/core`, `@getvitops/generator`, `@getvitops/utils`,
+  `@getvitops/cli` or `@getvitops/vite`. `@getvitops/astro` has one — see the scaffold changeset.
+
+- 1a8231d: **EmDash blocks are now a tier of the component manifest, and there are four more of them.**
+
+  `@getvitops/emdash` adds `vitops.gallery`, `vitops.cards`, `vitops.accordion` and `vitops.marquee`
+  (each a thin adapter over the matching `@getvitops/astro` component), and `vitops.carousel` now edits
+  its slides as a **Slides repeater** instead of two newline-separated fields. Blocks saved before this
+  keep rendering: with no `slides`, the carousel still reads `images`/`alts`, and both legacy fields stay
+  in the editor, labelled as legacy. The editor's field type now admits `repeater` and `media_picker`.
+
+  - **New `blocks` plugin option** — `vitopsEmdash({ blocks: { include, exclude, extra } })`. `include` is
+    an allowlist, `exclude` drops blocks, `extra` adds the site's own **editor** definitions (the site
+    supplies their renderers via `<PortableText components={{ type }}>`, the same route that overrides a
+    `vitops.*` renderer). An unknown name or a colliding `type` throws at plugin construction.
+  - Link and image URLs in blocks with a scheme other than `http`, `https`, `mailto` or `tel` are
+    dropped (see the security entry).
+
+  `@getvitops/generator`: `TierEntry` gains an optional `emdash: string[]` (block `_type`s) and `Tier`
+  gains `'emdash'`, so `tierPatterns('emdash')` projects it. **Breaking only for code that exhaustively
+  switches on `Tier` or builds a `Record<Tier, …>`** — add an `emdash` case. The agent doc
+  `vitops docs components` gains an "EmDash blocks" table and the docsite a `components/emdash` page. The
+  guard that every block and every `emdash` entry agree lives in `@getvitops/emdash`'s `blocks.test.ts`,
+  because the generator cannot import the plugin.
+
+  `@getvitops/create`: the EmDash template's agent guidance explains the blocks, their limits (a block
+  cannot contain blocks; `vitops.*` blocks do not render inside EmDash's built-in `columns`) and the
+  `blocks` option.
+
+  Formats reached: none — no CSS change. Other packages in the `fixed` group: No consumer-facing change
+  in this package.
+
+- 779d22e: Add a `vitops.hero` EmDash block (eyebrow, heading, text, two links, optional image; centered or split layout) built on the `.centered`/`.split` layout primitives. The EmDash template's home page now seeds one of each of hero, cards, accordion and marquee. `@getvitops/generator`: the `split` pattern lists the new block in `TIERS`.
+
+### Patch Changes
+
+- 734ab60: EmDash gallery and carousel blocks now derive their element id from the block's `_key`, so two blocks with the same label on one page no longer open each other's dialog. `<wc-entries>` column navigation now honours `prefers-reduced-motion`.
+- 7f4f50e: `@getvitops/utils/url` exports `safeHref()` (a Worker-safe scheme allowlist: http, https, mailto, tel and relative), shared by the EmDash blocks and the Astro components. It now also guards the EmDash image-compare block, the review avatar and the cookie-notice policy link. `nodesToHtml`/`toHtml` throw on invalid tag or attribute names and on `on*` event-handler attributes, and drop `href`/`src`-style values that fail `safeHref`. EmDash cards link text now names the card for screen readers.
+- e5bc937: **Security: JSON-LD can no longer break out of its `<script>` tag.** All 24 `schemas/*.astro`
+  components inlined `JSON.stringify(jsonLd)` as-is, so a review, FAQ answer or forum post containing
+  `</script><script>…` ran as script on the page. They now go through `jsonLdScript()`, which escapes
+  `<`, `>`, `&`, U+2028 and U+2029 (still valid JSON — consumers and search engines parse the same
+  document). Sites rendering any user-supplied text through a schema component should upgrade promptly.
+
+  **`createConversionRoute()` hardening** — behaviour changes:
+
+  - The body-size cap is now enforced on the stream itself, not only on `Content-Length`; a chunked
+    request with no header is refused with 413 once it passes `maxBodyBytes`.
+  - **Breaking for non-Cloudflare hosts:** `X-Forwarded-For` is no longer used as the rate-limit key by
+    default, since off Cloudflare a client can set it freely and mint a new bucket per request. Pass
+    `trustForwardedFor: true` when running behind a proxy that overwrites it. Without
+    `CF-Connecting-IP` or that opt-in there is no IP and rate limiting is skipped. No change on
+    Cloudflare Workers.
+
+  `@getvitops/emdash`: the link/button block (`vitops.actionLink`) drops hrefs with a scheme other
+  than `http`, `https`, `mailto` or `tel` (e.g. `javascript:`, `data:`) and renders nothing for them.
+
+  Formats reached: none — no CSS change. Other packages in the `fixed` group: No consumer-facing
+  change in this package.
+
+- Updated dependencies [65a13cc]
+- Updated dependencies [67e2088]
+- Updated dependencies [89265af]
+- Updated dependencies [0574388]
+- Updated dependencies [c3c1bcb]
+- Updated dependencies [0574388]
+- Updated dependencies [1a8231d]
+- Updated dependencies [779d22e]
+- Updated dependencies [0574388]
+- Updated dependencies [8d8aad7]
+- Updated dependencies [0574388]
+- Updated dependencies [1a3e811]
+- Updated dependencies [0574388]
+- Updated dependencies [dde3df3]
+- Updated dependencies [d9f213b]
+- Updated dependencies [7f4f50e]
+- Updated dependencies [7fd5f8f]
+- Updated dependencies [ceb8310]
+  - @getvitops/generator@8.2.0
+  - @getvitops/utils@8.2.0
+
+## 1.0.0-alpha.0
+
+### Major Changes
+
+- c3c1bcb: **New: the design-system editor, mounted inside the EmDash admin.** `vitopsEmdash({
+  designSystemEditor: { config } })` (`config` is your `site.json`, e.g. `import config from
+  './site.json' with { type: 'json' }`) adds a `/design-system` admin page mounting
+  `<wc-theme-editor>` — the same live token editor `@getvitops/vite`'s dev server has always
+  offered, now usable by the client directly, no dev server required. An edit is visible
+  site-wide immediately (a runtime `:root` override, served via a new plugin API route and
+  `page:fragments`) and — once `site.deployment.repo`/`branch` and a `VITOPS_GITHUB_TOKEN`
+  secret are set (see the scaffold's `SETUP.html`) — auto-commits to your `dev` branch, so it
+  reaches the git-tracked `site.json` through your repo's normal review path rather than
+  becoming a second, unreviewed source of truth. Until that's configured, the live half still
+  works; only the auto-commit half is skipped (and says so in the admin page). The save route
+  runs the exact same accessibility (APCA contrast) gate `generate()` enforces at build time,
+  synchronously, before persisting — nothing non-compliant ever goes live even momentarily.
+
+  Requires `@astrojs/react` + `react` + `react-dom` (already scaffold dependencies, for
+  EmDash's own admin) and `@getvitops/core` (added as a new scaffold dependency this release).
+  Declares two new plugin capabilities when enabled: `network:request` (for the GitHub
+  auto-commit) and `hooks.page-fragments:register` (for the live override) — reviewed once at
+  plugin-install time.
+
+  **Breaking for `@getvitops/emdash`**: `vitopsEmdash()`'s `hooks.page-fragments:register`
+  capability is now also granted whenever `designSystemEditor` is set, independent of the
+  existing `scripts: 'fragments'` option (which governs something unrelated — web-component
+  script delivery). No change if you don't use `designSystemEditor`.
+
+  Also new, supporting the above:
+  - `@getvitops/generator`: `validateColorContract()` and `buildReverseIndex()` (both
+    `/tokens` subpath, Worker-safe) — the monotonicity/contrast gate and the
+    `design-manifest.json` reverse-index, each extracted from `generate()`'s `build()` into
+    standalone, non-throwing functions. `patchToOverrideCss()` turns a design-system patch
+    into the `:root` override `<style>` block. `designSystemPath`/`getAt`/`setAt`/
+    `mergePatch`/`formatConfig` moved from `@getvitops/vite` into `@getvitops/generator/config`
+    (re-exported from `@getvitops/vite` unchanged) — one "patch a config file's design-system
+    subtree" implementation shared by the dev endpoint and the new plugin route. New
+    `site.deployment.repo`/`branch` config fields.
+  - `@getvitops/utils`: new `/git` subpath — `commitFile()`, a Worker-safe (fetch-only)
+    wrapper over GitHub's Contents API.
+  - `@getvitops/core`: `<wc-theme-editor>` gains a `save-endpoint` attribute (default
+    unchanged — `/__vitops/design-system`) so the same element can target the new plugin
+    route instead of the dev-only Vite endpoint.
+
+- 0574388: Bump `emdash`/`@emdash-cms/cloudflare` peers to `>=1.0.0 <2` and `vite-plus` to `^1.0.0`, following
+  both projects' GA releases.
+
+  **Breaking for `@getvitops/emdash` consumers on EmDash 0.x**: the peer range no longer admits
+  `emdash@0.31.x`/`@emdash-cms/cloudflare@0.31.x`. Upgrade `emdash` and `@emdash-cms/cloudflare` to
+  `^1.0.1` first — nothing in `@getvitops/emdash`'s own plugin surface (`admin.portableTextBlocks`,
+  the `hooks.page-fragments:register` capability, `definePlugin()`) changed against EmDash 1.0, so no
+  code here needed to change, only the declared range.
+
+  The `emdash` scaffold template (`vp create @getvitops:emdash`) picks up several fixes alongside
+  the version bump:
+  - `tailwindcss`/`@tailwindcss/vite` are now real dependencies — the template selected
+    `css.format: 'tailwind'` without installing either, which threw on build.
+  - `site.json` now sets `site.icons.sprite: true` plus the full `semantic` list the
+    `vitops.actionLink` block's icon picker offers — previously its sprite icons pointed at a file
+    the build never generated.
+  - `astro.config.mjs` sets `migrations: { runtime: 'check', dev: 'auto' }`, and
+    `site-deploy-emdash.yml` runs EmDash 1.0's documented `build → status → apply → deploy → check`
+    migration sequence explicitly, rather than relying solely on first-request auto-migration. This
+    needs a new GitHub Environment variable, `EMDASH_TARGET_FINGERPRINT` (one per environment),
+    which only a human can set — run `emdash migrate --status` against the real deployed database,
+    review the printed identity, then `gh variable set EMDASH_TARGET_FINGERPRINT --env <env> --body
+    <value>`. Deploys fail clearly on the migration-apply step until it's set.
+  - `lint.options.typeAware`/`typeCheck` in the template's own `vite.config.ts` are commented out,
+    not deleted: vite-plus 1.0 only honours that option in a project's actual root config, and hard
+    errors on it in a nested one (which this file is, sitting inside the `design-system` monorepo).
+    Uncomment it once scaffolded into its own repo.
+
+  No config schema changes. `@getvitops/generator` also switches from the `zod/mini` subpath import
+  to the standalone `@zod/mini` package (zod 4.5+; same API) and fixes `validateConfig()` silently
+  losing the offending key name on an `unrecognized_keys` error (e.g. a typo'd `site.ads` platform
+  now names the bad key instead of reporting a bare "Invalid input").
+
+  Also fixed: `vp check`'s `tsconfig-error` for `packages/create/templates/emdash/tsconfig.json`
+  (`extends: "astro/tsconfigs/strict"`, unresolvable from inside this monorepo since the template
+  has no `node_modules` of its own — a pre-existing, structural gap, newly surfaced as a hard error
+  by oxlint 1.85's deeper config discovery, and blocking on every commit since this repo's pre-commit
+  hook runs `vp check --fix`). Fixed with a new `scripts/link-template-deps.mjs`, wired as the root
+  `postinstall` script: symlinks `astro`/`emdash`/`@emdash-cms/cloudflare` into the template's own
+  `node_modules/` (resolved fresh from sibling packages that already depend on them for real, not a
+  hardcoded `.pnpm` hash) and writes a minimal `astro:content` ambient shim at `.astro/types.d.ts`
+  (the same path `astro sync` would generate for real). Both are gitignored and only ever exist
+  inside this monorepo's copy of the template — a real scaffold installs its own real copies instead.
+  Considered and rejected first: inlining astro's strict preset (drift risk against astro's own
+  evolving default) and making the template a real pnpm workspace member (would change how its
+  `@getvitops/*: "latest"` deps resolve locally, which `templates.test.ts` exists to protect).
+
+  **Known gap, not fixed here**: `packages/astro/src/components/container.test.ts` (the
+  `AstroContainer`-based render tests) fails to even load under vite-plus 1.0's Vite 8 — direct
+  `.astro` imports in a Vitest file need the Astro Vite plugin registered, which nothing in this
+  repo's test config actually does (Astro's own docs call for `getViteConfig()`, which doesn't
+  compose with vite-plus's own `defineConfig`). A type-level shim
+  (`packages/astro/src/components/astro-modules.d.ts`) fixes `vp check`'s type-aware pass, but the
+  runtime `vp test` failure for this one file is still open.
+
+### Patch Changes
+
+- Updated dependencies [65a13cc]
+- Updated dependencies [67e2088]
+- Updated dependencies [0574388]
+- Updated dependencies [c3c1bcb]
+- Updated dependencies [0574388]
+- Updated dependencies [0574388]
+- Updated dependencies [0574388]
+- Updated dependencies [1a3e811]
+- Updated dependencies [2a0a559]
+- Updated dependencies [0574388]
+- Updated dependencies [dde3df3]
+- Updated dependencies [d9f213b]
+- Updated dependencies [0f8c018]
+- Updated dependencies [3bbb8c3]
+  - @getvitops/generator@8.2.0-alpha.0
+  - @getvitops/astro@8.2.0-alpha.0
+  - @getvitops/utils@8.2.0-alpha.0
+  - @getvitops/core@8.2.0-alpha.0
+
 ## 0.3.10
 
 ### Patch Changes

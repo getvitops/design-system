@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { defaultConfig } from './index.ts';
 import { jsonSchema, validate } from './schema.ts';
 import { configJsonSchema } from './config.ts';
@@ -54,7 +54,13 @@ describe('config JSON Schema descriptions', () => {
    */
   it('describes all three sections', () => {
     const props = (configJsonSchema as unknown as Node).properties ?? {};
-    expect(Object.keys(props).sort()).toEqual(['$schema', 'designSystem', 'organization', 'site']);
+    expect(Object.keys(props).sort()).toEqual([
+      '$schema',
+      'configVersion',
+      'designSystem',
+      'organization',
+      'site',
+    ]);
     for (const [key, node] of Object.entries(props))
       expect(node.description, `${key} needs a description`).toBeTruthy();
   });

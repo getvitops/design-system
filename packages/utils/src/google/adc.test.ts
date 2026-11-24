@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { adcCredentialsPath, adcQuotaProject, parseAdcUser } from './adc.ts';
 import { googleHeaders } from './token.ts';
 

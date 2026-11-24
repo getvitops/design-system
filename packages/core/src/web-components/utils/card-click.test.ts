@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { DRAG_THRESHOLD, distance, shouldNavigate, type CardClick } from './card-click.ts';
 
 /**

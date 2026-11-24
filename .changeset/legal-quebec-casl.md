@@ -1,0 +1,7 @@
+---
+'@getvitops/generator': minor
+---
+
+Generated legal documents gain a **Quebec (Law 25) jurisdiction**: `site.legal.jurisdiction: "qc"` renders the privacy policy, terms of use and cookie notice from new, Quebec-specific templates (not the `ca` prose). The privacy policy adds the person in charge of the protection of personal information, technologies that identify, locate or profile, transfers _outside Quebec_ (so a provider elsewhere in Canada counts), retention and anonymization, and the rights of access, rectification, portability, withdrawal, de-indexing and review of automated decisions, with the Commission d'accès à l'information as the complaint body. Every `qc` document carries a second, prominent review banner (counsel review, designated person, impact assessment, French-language requirement). Two optional config facts back it: `privacyPolicy.privacyOfficerTitle` and `privacyPolicy.impactAssessments` (the impact-assessment sentence renders only when attested). The "off until you choose" profiling assurance renders only under an opt-in consent model. **Not legal advice and not reviewed by counsel.**
+
+CASL: when a form collects a newsletter sign-up, the `ca` **and** `qc` privacy policies now include a short "Commercial Electronic Messages" paragraph (consent, sender identification, unsubscribe). Existing `ca` documents change only for sites with such a form. No CSS change; no change to `ca` documents otherwise.

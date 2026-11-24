@@ -1,0 +1,6 @@
+{
+  "permissions": {
+    "allow": ["Bash(vp exec playwright cli:*)"],
+    "deny": ["mcp__claude-in-chrome__*", "mcp__playwright__*"]
+  }
+}

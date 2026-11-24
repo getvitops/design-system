@@ -40,6 +40,7 @@
 /* navbar before sitenav: sitenav's wide state composes it. */
 @import './patterns/navbar.css';
 @import './patterns/sitenav.css';
+@import './patterns/masthead.css';
 /* After sitenav (the nav family stays contiguous) and after drawer.css, whose
    panel surface navshell's desktop block has to undo. */
 @import './patterns/navshell.css';
@@ -50,8 +51,10 @@
 /* was forms.css */
 @import './patterns/forms.css';
 @import './patterns/combobox.css';
+@import './patterns/range.css';
 /* was content.css */
 @import './patterns/table.css';
+@import './patterns/entries.css';
 @import './patterns/details.css';
 @import './patterns/comment.css';
 @import './patterns/review.css';
@@ -59,6 +62,8 @@
 @import './patterns/consent.css';
 @import './patterns/list.css';
 @import './patterns/tree.css';
+@import './patterns/breadcrumbs.css';
+@import './patterns/tabs.css';
 /* was typographic.css */
 @import './patterns/pull-quote.css';
 @import './patterns/tag.css';
@@ -68,11 +73,23 @@
 /* was scroll.css */
 @import './patterns/scroll-based.css';
 @import './patterns/horizontal-scroll.css';
+@import './patterns/scroll-edges.css';
+@import './patterns/scroll-button.css';
 @import './patterns/scroll-target.css';
 @import './patterns/text-effects.css';
 @import './patterns/svg.css';
 @import './patterns/marquee.css';
+@import './patterns/tone.css';
+@import './patterns/section.css';
+@import './patterns/widget-area.css';
+@import './patterns/steps.css';
+@import './patterns/stepper.css';
+@import './patterns/stats.css';
+@import './patterns/callout.css';
+@import './patterns/logos.css';
+@import './patterns/embed.css';
 @import './patterns/counter.css';
+@import './patterns/contrast-toggle.css';
 @import './patterns/nav.css';
 @import './patterns/carousel.css';
 @import './patterns/copy.css';

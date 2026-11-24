@@ -1,0 +1,49 @@
+---
+/**
+ * Stepper — a long form shown one step at a time, as `<wc-stepper>`.
+ *
+ * **This component emits its own `<wc-stepper>`** — do NOT wrap it in one. Same rule as
+ * `Tabs.astro` and `Field.astro`.
+ *
+ *   <Stepper steps={[{ id: 'identity', title: 'Identity' }, { id: 'contact', title: 'Contact' }]}>
+ *     <form method="post">
+ *       <section id="identity" data-step><h2>Identity</h2>…</section>
+ *       <section id="contact" data-step><h2>Contact</h2>…<button class="cta">Save</button></section>
+ *     </form>
+ *   </Stepper>
+ *
+ * The default slot is the form, each step a `<section id data-step>` opening with its own heading,
+ * the submit button inside the last one. `steps` writes the `#anchor` list above it. With no JS
+ * that is a complete long form, every section visible, and the links jump down it; the element then
+ * shows one section at a time with Back and Next, and stops a forward move at the first invalid
+ * step. `hash` writes the step into the URL. It loads `@getvitops/core/stepper`, its own tiny
+ * Lit-free bundle, so it needs no other script.
+ */
+export interface Props {
+  steps: readonly { id: string; title: string }[];
+  /** Write the shown step into the URL fragment as the visitor moves. */
+  hash?: boolean;
+  backLabel?: string;
+  nextLabel?: string;
+  /** The list's accessible name. */
+  label?: string;
+}
+
+const { steps, hash, backLabel, nextLabel, label = 'Progress' } = Astro.props;
+---
+
+<wc-stepper hash={hash} back-label={backLabel} next-label={nextLabel}>
+  <nav aria-label={label}>
+    <ol class="stepper">
+      {steps.map((step) => (
+        <li class="stepper__item">
+          <a href={`#${step.id}`}>{step.title}</a>
+        </li>
+      ))}
+    </ol>
+  </nav>
+  <slot />
+</wc-stepper>
+<script>
+  import '@getvitops/core/stepper';
+</script>

@@ -37,7 +37,9 @@ import Head from '@getvitops/astro/Head.astro';
   <head>
     <Head />
   </head>
-  <body><slot /></body>
+  <body>
+    <slot />
+  </body>
 </html>
 ```
 
@@ -113,6 +115,7 @@ Import the results like any other asset, so Vite content-hashes them:
 import hero from '../assets/processed/hero.webm';
 import poster from '../assets/processed/hero.jpg';
 ---
+
 <video poster={poster.src} autoplay muted loop playsinline>
   <source src={hero} type="video/webm" />
 </video>
@@ -222,6 +225,7 @@ vitops({
 import Head from '@getvitops/astro/Head.astro';
 import Seo from '@getvitops/astro/Seo.astro';
 ---
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -289,6 +293,7 @@ vitops({
 import Analytics from '@getvitops/astro/Analytics.astro';
 import CookieConsent from '@getvitops/astro/CookieConsent.astro';
 ---
+
 <head>
   <Head />
   <Analytics />
@@ -401,13 +406,13 @@ configured with no `consent` gate.
 Thin authoring helpers that emit the framework's HTML/CSS patterns — **none require runtime JS**:
 
 ```astro
-import Subgrid from '@getvitops/astro/components/Subgrid.astro';
-import Cards from '@getvitops/astro/components/Cards.astro';
-import NodeRenderer from '@getvitops/astro/components/NodeRenderer.astro';
-import Popover from '@getvitops/astro/components/Popover.astro';
-import Details from '@getvitops/astro/components/Details.astro';
-import Drawer from '@getvitops/astro/components/Drawer.astro';
-import WebComponentLoader from '@getvitops/astro/components/WebComponentLoader.astro';
+import Subgrid from '@getvitops/astro/components/Subgrid.astro'; import Cards from
+'@getvitops/astro/components/Cards.astro'; import NodeRenderer from
+'@getvitops/astro/components/NodeRenderer.astro'; import Popover from
+'@getvitops/astro/components/Popover.astro'; import Details from
+'@getvitops/astro/components/Details.astro'; import Drawer from
+'@getvitops/astro/components/Drawer.astro'; import WebComponentLoader from
+'@getvitops/astro/components/WebComponentLoader.astro';
 ```
 
 ## Changelog

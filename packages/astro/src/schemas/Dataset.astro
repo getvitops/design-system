@@ -1,4 +1,5 @@
 ---
+import { jsonLdScript } from '../json-ld.ts';
 export interface Props {
   name: string;
   description: string;
@@ -94,7 +95,7 @@ const jsonLd = {
     },
   }),
   ...(distribution && {
-    distribution: distribution.map(d => ({
+    distribution: distribution.map((d) => ({
       '@type': 'DataDownload',
       contentUrl: d.contentUrl,
       encodingFormat: d.encodingFormat,
@@ -123,5 +124,5 @@ const jsonLd = {
 };
 ---
 
-<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<script is:inline type="application/ld+json" set:html={jsonLdScript(jsonLd)} />
 <slot />

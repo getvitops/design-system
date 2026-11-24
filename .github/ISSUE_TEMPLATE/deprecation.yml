@@ -1,0 +1,59 @@
+name: Deprecation
+description: A warning, removal or migration the toolchain should handle better.
+title: '[deprecation] '
+labels: [deprecation, triage:new]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This tracker is public. Leave out client names, domains, contact details and tokens.
+  - type: textarea
+    id: toolchain-version
+    attributes:
+      label: Toolchain version
+      description: Installed `@getvitops/*` versions (`vitops report` fills this in).
+      placeholder: '- @getvitops/cli 9.0.0'
+    validations:
+      required: true
+  - type: dropdown
+    id: affected-package
+    attributes:
+      label: Affected package
+      options: [core, generator, utils, cli, vite, astro, config, create, skills, emdash, Not sure]
+    validations:
+      required: true
+  - type: dropdown
+    id: output-format
+    attributes:
+      label: Output format
+      options: [css, bricks, tailwind, design, Not applicable]
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [EmDash, Static Astro, Bricks / WordPress, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: what-is-deprecated
+    attributes:
+      label: What is deprecated
+    validations:
+      required: true
+  - type: textarea
+    id: what-should-replace-it
+    attributes:
+      label: What should replace it
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+  - type: dropdown
+    id: reported-by
+    attributes:
+      label: Reported by
+      options: [human, agent]
+    validations:
+      required: true

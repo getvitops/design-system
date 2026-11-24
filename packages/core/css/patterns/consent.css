@@ -98,7 +98,7 @@
 }
 
 /* Open, in the top layer. */
-[popover].consent:popover-open {
+[popover].consent:is(:popover-open, .\:popover-open) {
   display: flex;
 }
 

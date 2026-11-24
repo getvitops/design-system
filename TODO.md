@@ -5,7 +5,49 @@ build — WordPress/Bricks **and** Cloudflare EmDash (Astro/Tailwind). Keep toke
 names platform-agnostic so the same schema round-trips through both the Bricks generators and
 the Tailwind (`--format=tailwind`) output.
 
-## Patterns: `badge` + `tag` — still open
+## vNext release scope
+
+Full design detail lives in the vNext release plan
+(`~/.claude/plans/both-emdash-https-emdashcms-com-and-piped-hoare.md`, plus
+`vnext-backlog.md` in the same directory for what's still open — copy the relevant section
+into this repo's own docs if that plan file location is ephemeral).
+
+Plans/entitlements (`site.plan`), runtime A/B traffic-splitting (`vitopsAbTesting()`), and
+server-side ad-platform conversion reporting items 1–5 (per-action `conversionLabel`,
+`vitopsFormConversion()`, the conversion-email action link, the rate-limit-key fix, the
+Google-Ads offline-conversion upload in `utils/notify/google-ads.ts`, and the client/server
+`reporting` switch in `site.ads`) are all built. What's left, in priority order:
+
+1. **`vitops ads provision`** (was item 6 of server-side ad-platform conversion reporting) —
+   not built. Blocked on obtaining a Google Ads developer token + MCC OAuth access — the
+   credential acquisition, not the engineering, is the critical path.
+
+## Unrelated backlog (not part of the vNext release)
+
+### Location and service pages — built; one piece deferred
+
+Built: `serviceGraph()` (`@getvitops/utils/schema`) and `<Service>`, the adapters in
+`packages/astro/src/schemas/graph-adapters.ts` (`resolveSlug`, `locationToLocalBusiness`,
+`serviceToGraph`), and the tier-3 `<LocationPage>` / `<ServicePage>`. Routing is documented in
+`LocationPage.astro`'s docblock, not scaffolded: a `getStaticPaths()` over an empty record is dead weight on
+every site with no locations. Bricks/WordPress is out of scope (no `@getvitops/bricks` yet). Also built:
+`GBP_CATEGORY_TYPES` / `localBusinessTypeForCategory()`, a static stopgap from a Google Business Profile
+category id to a `LocalBusiness` subtype.
+
+**Left:**
+
+- **Verify the GBP category ids and grow the table** from the Business Information API's `categories.list`.
+  The ids in `gbp-categories.ts` are the ones service businesses commonly use, written from knowledge of
+  Google's `gcid:` scheme and not yet checked against Google's list; the API needs the same agency-wide access
+  request as `vitops reviews` (see SETUP.html). Add an entry only when a real client's category doesn't map.
+- **The EmDash editorial-body overlay.** A `locations` collection holding a `slug` and a `portableText` body,
+  matched to `organization.locations`' keys at render time, so a client can add prose and photos around the
+  structured facts without editing `site.json`. A plugin cannot register a collection (a seed applies at first
+  boot only; otherwise `emdash schema create` against a live site), so it is either a scaffold-only seed change
+  or an operator step. `vitops emdash schema apply` now makes the second one scriptable across a site's
+  environments. The page and its JSON-LD ship in full without it.
+
+### Patterns: `badge` + `tag` — still open
 
 The `badge`/`tag`/`chip` split (see AGENTS.md's "Small-label patterns split by behaviour") is
 done. Left:
@@ -13,7 +55,7 @@ done. Left:
 - `typography.roles` has a `tag` type role, unrelated to the `tag` pattern — worth
   disambiguating.
 
-## Typography: fully fluid, Utopia-style
+### Typography: fully fluid, Utopia-style
 
 - Move the type scale to a proper **Utopia** (utopia.fyi) fluid model: a min type scale +
   ratio at a min viewport and a max type scale + ratio at a max viewport, interpolated with
@@ -25,10 +67,11 @@ done. Left:
   The Utopia model must express cleanly in both — verify the clamp math matches what Bricks'
   Scale Generator produces so imports round-trip.
 
-## EmDash editing portal (`@getvitops/emdash`) — v2 backlog
+### EmDash editing portal (`@getvitops/emdash`) — v2 backlog
 
 v1 (native plugin, `admin.portableTextBlocks`, `componentsEntry`/`blockComponents`, dogfooded in
-`apps/portal`) is done. Left:
+`apps/portal`) is done, and the `emdash`/`@emdash-cms/cloudflare` peer range is now pinned to the
+tested `>=1.0.0 <2` line. Left:
 
 - `page:metadata` hook emitting JSON-LD from the shared builders now in
   `packages/utils/src/schema/` (`articleGraph`/`organizationGraph`/`breadcrumbGraph`/`faqGraph`;
@@ -41,7 +84,17 @@ v1 (native plugin, `admin.portableTextBlocks`, `componentsEntry`/`blockComponent
   deleted in `201bfb9`; `NavShell.astro` is a markup-only layout primitive, not that adapter).
 - Carousel field UX: replace the newline-separated-URLs workaround if EmDash grows
   media-picker/repeater PT block fields.
-- Pin the `emdash` peer range per tested version (currently `>=0.31.0`, verified on 0.31.0).
+- Block images: `vitops_logos`, `vitops_marquee`, `vitops_gallery`, `vitops_carousel` still render a
+  plain `<img>` (`BlockImage.astro` covers hero, cards, image compare). Cards' image field is still a URL input: EmDash 1.4.0's repeater sub-fields exclude `media_picker` (its docs say newer versions allow it), so switch it on upgrade. Local `astro build`/`astro dev` from the
+  template sets no `EMDASH_SITE_URL`, so the ratio field only takes effect in the deploy workflow
+  (dev already authorizes any host). The build also always uses `siteEnv: 'production'` for the
+  rest of `site.json` (SEO, robots), even for the dev deploy; the URL is the only per-environment
+  fact wired so far. Spike on EmDash's own `Image`: a Block Kit `media_picker` stores a URL
+  string only and the admin drops the picked item's width/height/blurhash
+  (`@emdash-cms/admin` `BlockKitMediaPickerField`), so `emdash/ui` `Image` cannot render a block
+  field without an upstream change (object-valued media pickers; no issue exists yet). Nested PT
+  `image` nodes work for schema-level block types such as `vitops_section`. A render-time lookup via
+  `normalizeMediaValue(url, getMediaProvider)` from `emdash` is possible but unverified.
 
 ---
 
@@ -49,7 +102,7 @@ Deferred from the `--format=design` (DESIGN.md) work: a **DESIGN.md → config i
 (`design.md` as an _input_, seeding `design-system.json` from a brand brief) and a `diff` gate
 in CI.
 
-## DTCG (`tokens.json`) export — todo
+### DTCG (`tokens.json`) export — todo
 
 No standards-format token export exists — what ships as `tokens.json`
 (`packages/generator/src/generate.ts`) is a bespoke flat mirror (six keys, no `$` metadata).
@@ -77,7 +130,7 @@ scoped as a Google DESIGN.md/DTCG/OKF adoption (the OKF half of that plan alread
   would also need excluding from `StylesheetFormat = Exclude<Format,'design'>`, same as
   `'design'` is).
 
-## Translucent hairline/border token — todo
+### Translucent hairline/border token — todo
 
 There's a `border` colour target, but every value on it is an opaque ramp step. Most UI needs a
 subtle divider that composites over whatever surface it lands on (e.g.
@@ -86,17 +139,17 @@ borrow `--color-surface-xl` as a stand-in. Two things to resolve when building i
 
 - It must survive **`forced-colors` mode** (Windows High Contrast flattens `background-color`,
   so a translucent divider needs a fallback there too).
-- APCA's `CONTRAST.NON_TEXT ≥ 45` check assumes a solid colour — decide whether a translucent
+- The `CONTRAST.NON_TEXT` (3:1) check assumes a solid colour — decide whether a translucent
   token is exempt from that gate or gets checked against a worst-case backdrop.
 
-## Webfont loading outside Astro — todo
+### Webfont loading outside Astro — todo
 
 `site.fonts` delegates to Astro's Fonts API for loading; Bricks/WordPress and plain-HTML
 consumers only get the `--font-*` tokens and must hand-wire `@font-face`/preload themselves.
 Needs a loading path (self-hosted `@font-face` emission, or a documented preload snippet) for
 non-Astro consumers.
 
-## Component auto-loader — todo
+### Component auto-loader — todo
 
 Ship only the components a page actually uses, plus their dependencies, instead of the
 whole `elements.js` bundle. Modelled on Web Awesome's autoloader.
@@ -132,73 +185,136 @@ Notes for whoever picks this up:
 - Check it against the Bricks builder, where markup is injected and re-rendered
   constantly — that is the hardest case for an observer-driven loader.
 
-## Foundational components — todo
+### Foundational components — todo
 
-Not built yet; tracked in full in `elements.ts`'s docblock (`packages/core/src/js/elements.ts`),
-this entry is the index into that list:
+Tabs, breadcrumbs, combobox, format and range (the slider) are built. A dropdown is not a component: it is the
+native Popover API plus anchor positioning, which is how it is built downstream. Not built; tracked in full in
+AGENTS.md's "Component architecture" section:
 
-- **Combobox** — CSS shell only (`patterns/combobox.css`); the Lit component that makes it
-  interactive doesn't exist.
-- **Dropdown / dropdown-item** — `.dropdown` (`patterns/dropdown.css`) is CSS/Popover-only,
-  hover-or-click; needs a component for the ARIA `menu`/`menuitem` pattern (roving-tabindex
-  arrow keys, type-ahead, Escape-returns-focus).
-- **Tabs / tab / tab-panel** — `tabs` is a generated pattern with no structural partial and
-  no component (see its `tiers.ts` entry); needs the WAI-ARIA tabs pattern (roving tabindex,
-  arrow keys, `aria-selected`, `aria-controls`).
-- **Breadcrumbs** — no pattern at all yet. (`schemas/Breadcrumb.astro` is unrelated —
-  Schema.org JSON-LD, not visual nav.) Likely CSS/astro only, no JS: a breadcrumb trail is
-  `<nav aria-label="Breadcrumb"><ol>…` and needs nothing dynamic.
 - **Markdown** — render/enhance markdown content client-side. Library unchosen.
-- **OTP** — segmented one-time-passcode input: auto-advance between digits, paste-splitting
-  a full code across them. Fallback is a plain `<input>`.
+- **OTP** — segmented one-time-passcode input: auto-advance between digits, paste-splitting a full code across
+  them. Fallback is a plain `<input>`.
 - **QR** — QR code generation/display.
-- **Slider** — a range control, distinct from `<wc-split-panel>`'s drag divider (that
-  resizes two panes; this picks a value).
-- **Format** — reads a machine value and renders a presentation of it, e.g. a relative date
-  over `<time datetime>` (`"5 minutes ago"`), re-rendering as it goes stale. Fallback is the
-  value already in the markup.
 
-Whoever picks one of these up should give it the full treatment `<wc-counter>` originally got
-here before it shipped — see its own class docblock, `WCCounter.ts`, for the shape that
-treatment landed in (why it clears the tier-2 bar, shape, load-bearing details) — rather than
-just the one-liners here.
+Whoever picks one of these up should give it the full treatment `<wc-counter>` originally got here before it
+shipped — see its own class docblock, `WCCounter.ts`, for the shape that treatment landed in (why it clears the
+tier-2 bar, shape, load-bearing details) — rather than just the one-liners here.
 
-## GBP category → `LocalBusinessType` mapping — todo
+### Test and a11y coverage gaps — todo
 
-Follows from populating JBL Signs' `organization.locations.ottawa.type` by hand: Google's GBP
-category for that listing (`"Sign shop"`) has no counterpart in our `LocalBusinessType` enum
-(`packages/generator/src/config.ts`), so `HomeAndConstructionBusiness` was a one-off human guess
-made while wiring up `localBusinessGraph()`. That doesn't scale past a handful of clients.
+From the 2026-11 architecture audit; each is a known gap, not a regression.
 
-**Why a lookup table, not a bigger enum.** Google's category taxonomy
-(`mybusinessbusinessinformation.googleapis.com` `categories.list`) has ~4,000 entries; schema.org's
-`LocalBusiness` hierarchy has nowhere near that many, and **Google publishes no mapping between
-the two** — this stays a hand-curated decision regardless of data source. The right shape is a
-small table (GBP `categoryId` → `LocalBusinessType`), built incrementally as real client categories
-are encountered — not an attempt to pre-map all ~4,000 up front.
+- **DOM tests** (`*.dom.test.ts`) missing for `wc-copy`, `wc-dismissable`, `wc-multi-field` and
+  `wc-split-panel`. (`wc-consent` and `wc-image-compare` have them.)
+- **e2e no-JS fallback coverage** (`site/e2e/no-js-fallback.e2e.ts`) missing for cards, consent and the other
+  elements without a spec. (Tabs, combobox, range, format and breadcrumbs have one, plus a JS-on spec in
+  `enhanced-components.e2e.ts`.)
 
-**Data source, in order of preference:**
+### Translation (i18n): French legal documents and runtime strings — plan, not started
 
-1. **`categories.list`** (Business Information API) — canonical, current, `categoryId` +
-   `displayName`, region/language-filterable. Gated behind the pending agency-wide GBP API access
-   request (verified GBP 60+ days old, applicant email domain matching the website domain, 14-day
-   review) — the same approval that gates any future listings-sync work.
-2. **A static export** (the ~4,000-row CSV/gist third parties maintain, since Google itself
-   publishes no downloadable list) as a stopgap while API access is pending — enough to seed the
-   table now, though it can drift from Google's live list.
+The privacy policy, terms, cookie notice and accessibility statement (both `ca` and `qc`) are English
+only, and so is every runtime string we ship. A Quebec client needs French, and a `qc` site gets an
+English statement until this lands. This is a plan to approve on its own; nothing here is built.
 
-**Shape**, following the `AD_PLATFORMS` capability-table pattern
-(`packages/utils/src/ads/providers.ts`): a `Record<string, LocalBusinessType>` keyed by GBP
-`categoryId` (stable across renames), with `displayName` carried alongside for readability, not
-used for matching. Lives beside `LocalBusinessType` in `packages/generator/src/config.ts`, or its
-own module if it grows past a few dozen entries.
+**Is Paraglide worth adding? For a narrow slice, yes; for the long legal prose, no.** Verified from its
+own docs (Paraglide JS 2; a few mirrors disagree on Cloudflare details, so confirm in the spike): it is a
+compiler that turns message files into typed, per-message, tree-shakeable functions; locale resolution is
+strategy based (`url`, `cookie`, `localStorage`, `preferredLanguage`, `baseLocale`) with a server
+middleware that scopes the locale per request, using `AsyncLocalStorage` unless disabled; it has an Astro
+guide and a Vite plugin.
 
-**Build it incrementally**: add an entry only when a real client's GBP category doesn't already map
-cleanly, the same way `HomeAndConstructionBusiness` got picked for JBL Signs — resolve it once,
-record it, move on. Don't cover categories with no client behind them yet.
+| Surface                                                                                                                                                                        | Strings                                                                                | Fit                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Visitor-facing runtime: `wc-*` labels (System/Light/Dark, carousel and lightbox controls), `<ContrastToggle />`, consent banner, Astro component defaults, EmDash block labels | short, many, parameterised                                                             | **Good.** The real need; tree-shaking matters because `consent.js` is a deliberately tiny Lit-free bundle (about 2.8 KB gzip)                                                                                                                                       |
+| Legal documents                                                                                                                                                                | long prose, structure differs by jurisdiction and language, reviewed whole by a lawyer | **Poor.** Per-sentence messages fragment what a reviewer must read top to bottom, and the `qc` French is not a translation of the `ca` text. Keep per-locale template files plus a small typed `Phrases` table (`satisfies Record<Locale, Phrases>`), no dependency |
+| Generator / CLI messages                                                                                                                                                       | many, developer-facing                                                                 | **Low value.** Consumers are developers and agents; revisit if a client asks                                                                                                                                                                                        |
 
-**Forward-looking**: this table is also what a future listings-push command (writing our
-`organization.locations.*` back out to GBP/Bing/Apple, not yet designed) needs in the other
-direction — going from our `type` back to a `categoryId` when _creating_ a listing that doesn't
-exist yet. Worth keying the table by `categoryId` now rather than `displayName` so that direction
-doesn't require re-deriving it later.
+Costs to measure rather than assume:
+
+1. Locale state is global per request. Fine in Astro SSR, but the Worker-safe `@getvitops/utils/*`
+   subpaths and the Lit-free consent bundle must not pull in a runtime they do not need. Messages compiled
+   at our build with the locale passed in may be cleaner than shipping the runtime.
+2. Our packages are consumed prebuilt, so a consumer cannot add a language to `wc-color-scheme-toggle`
+   unless we expose an override (attribute or slot). Decide: fixed `en`/`fr` plus overrides, or ship the
+   message files for consumers to compile.
+3. The `cookie` and `localStorage` strategies are storage. They must go through the consent gate
+   (`preferences`) like `vitops-color-scheme`, or default to `url`/`preferredLanguage` only; a silently set
+   locale cookie is the undisclosed storage the gate exists to prevent, and the cookie notice would have to
+   disclose it.
+4. Bricks/WordPress has no Paraglide runtime; PHP fragments need strings of their own (a generated
+   `strings.php` from the same message files is plausible).
+5. A young, fast-moving compiler becomes a dependency of every package with messages. Pin it, and keep the
+   zero-dependency typed-catalog approach as the fallback.
+
+**Recommendation: a spike, not a commitment.** Prove Paraglide on two things: `<wc-color-scheme-toggle>`
+(shadow DOM) plus the `consent` bundle for the size budget, and `ContrastToggle.astro`. Pass: gzip delta on
+`consent.js` and `elements.js` within budget, works in a Cloudflare Worker, no storage without the gate, a
+consumer can override a string. If it fails any, adopt the typed catalog instead.
+
+Work, once the spike decides:
+
+1. Spike, with a written result.
+2. One `Locale` vocabulary for `legal` and runtime strings (`en`, `fr`; `fr-CA` resolves to `fr`), a
+   `validateConfig` rule that `site.defaultLocale` is supported, and how `site.locales` drives output.
+3. **Legal documents in French**: 4 documents × `ca`/`qc` = 8 new templates plus `casl`.
+   - `TEMPLATES[jurisdiction][locale][doc]` with a `satisfies` guard, so a missing translation is a compile
+     error.
+   - `legal/phrases/{en,fr}.ts` replacing the English literals in `derive.ts` (about 45 sentences), the
+     list connective ("and" / "et"), province and jurisdiction names.
+   - Consumer prose (`retention`, `privacyOfficerTitle`, `governingLaw`, processor `purpose`) becomes
+     `Localizable`; a plain string still validates and is used verbatim, and `validateConfig` warns when a
+     French document will print one. `KNOWN_PROCESSORS` purposes and countries get `fr`. The accessibility
+     statement's free-text fields (`limitations`, `formats`, …) need the same treatment.
+   - Output naming: the default locale stays unsuffixed so nothing changes for existing consumers; others
+     are suffixed (`privacy-policy.fr.md`); Bricks shortcode `lang`; CLI `--lang`; Portable Text keys carry
+     the locale.
+   - Drift guards: identical heading sequence between `en` and `fr`, no unreplaced `${…}`, no English
+     sentinel strings, `Phrases` completeness as a type error. The accessibility statement's AAA content
+     tests (reading level, abbreviations) need French equivalents.
+   - Terminology (Quebec French, **flagged for review by a qualified legal translator**):
+     `responsable de la protection des renseignements personnels`, `Loi 25`, `Commission d'accès à
+     l'information`, `évaluation des facteurs relatifs à la vie privée`; for `ca`, the `Commissariat à la
+     protection de la vie privée du Canada`; for the statement, the `LAPHO`.
+4. Runtime strings per the spike: `wc-*` labels first, then Astro components, EmDash blocks, the consent
+   banner (whose wording is also a legal artifact).
+5. Skills and docs: update `quebec-french-language.md` (French templates now ship), add a translation topic,
+   document how a consumer overrides a string.
+
+French drafting parallelizes well: one agent per document family, with the English template and phrases
+table as the contract and the drift guards as the acceptance test.
+
+Not decided: whether `fr` also covers the CLI's own output; whether consumers get a way to add a third
+language; who reviews the French (required before any client relies on it).
+
+### Cloudflare `cf` CLI — evaluate when its beta ends
+
+`cf` has been in open beta since 2026-09-28 and is Wrangler's successor (typed `cloudflare.config.ts`, `cf migrate`
+from `wrangler.jsonc`). Wrangler gets a final major pointing at `cf` only when the beta ends, then 18 months of
+maintenance; Cloudflare's own agent docs still say to use Wrangler for local dev, deploys and `d1 migrations`.
+Everything here depends on Wrangler today (`@astrojs/cloudflare`, `emdash migrate --wrangler-config`, the hosting
+executors, both templates' `wrangler.jsonc`). Before migrating, check adapter and EmDash support for
+`cloudflare.config.ts`. Stay on Wrangler until then.
+
+### Scheduled publishes vs prerendered pages — review the cron
+
+The emdash template's `triggers.crons` (`* * * * *`, `wrangler.jsonc`) runs the Worker every minute so content
+scheduled in the admin publishes, and plugin cron and maintenance run. Pages are prerendered, so a scheduled publish
+changes the database but the live HTML stays stale until a rebuild. Decide how it should trigger one, and confirm
+whether `content:afterPublish` fires for scheduled publishes (the `emdash-publish` dispatch hook in
+`emdash-content-and-deploys` assumes it does; unverified). Also check whether every-minute is the right cadence.
+
+### Block ideas from the vitops.ca build (UPSTREAM finding 20)
+
+No table or comparison block, no role-setup diagram, no timeline: the licence tracker, the ads comparison and the
+joining-and-leaving diagram became checklists in panel cards. `table.css` and `vitops_entries` are a start for a
+comparison block; a timeline could reuse the steps connector. Needs a second consumer before designing.
+
+### CSS transitions run at page load
+
+Measured on the e2e `/blocks` page (Chromium, Playwright): at `load`, ~150 `CSSTransition`s are running, every pattern
+with `transition-property: … background-color, color` animating from its unstyled value. It happens with every script
+removed from the page when the stylesheet arrives after parsing, and with the scripts in place even when it does not, and
+it stops when the bundle `<script>` tags sit after the `<link rel="stylesheet">`s (1 transition). The effect is a 200 ms
+colour flash on every button at first paint. `vitops audit` now waits for transitions before axe, which removes the false
+contrast failures; the flash itself is open. Candidates: emit the pattern transition only under a class set after first
+paint, or have `<Head />` place the bundle tags after Astro's stylesheet links (Astro appends them after the component).

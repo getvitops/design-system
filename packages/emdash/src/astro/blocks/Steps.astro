@@ -1,0 +1,50 @@
+---
+/**
+ * A numbered sequence on the framework's `.steps` pattern: an `<ol>` (so the order is
+ * semantic with no CSS), a CSS-counter marker and a connector line. Each step's title is a
+ * real heading at the editor's `level`, so the outline survives. Colour is the shared tone
+ * convention — see `tone.ts`.
+ */
+import RichText from './RichText.astro';
+import { resolveTone, joinStyle, rowTone } from './tone.ts';
+import { headingTag, resolveBlockValue, rows, text } from './value.ts';
+
+interface Value {
+  steps?: unknown;
+  level?: string | number;
+  layout?: string;
+  tone?: string;
+  color?: string;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const steps = rows<Record<string, unknown>>(value.steps)
+  .map((row) => ({ title: text(row.title), text: text(row.text), style: rowTone(row) }))
+  .filter((step) => step.title || step.text);
+const Heading = headingTag(value.level, 3);
+const tone = resolveTone(value.tone, value.color);
+import { rootAttrs } from './attrs.ts';
+---
+
+{steps.length > 0 && (
+  <ol
+    {...rootAttrs(
+      value,
+      ['steps', tone.className, value.layout === 'row' && 'steps--row'],
+      joinStyle(tone.style),
+    )}
+  >
+    {steps.map((step) => (
+      <li class="steps__item" style={step.style}>
+        <div class="steps__body">
+          {step.title && <Heading class="steps__title font-heading">{step.title}</Heading>}
+          {step.text && (
+            <p class="steps__text">
+              <RichText text={step.text} />
+            </p>
+          )}
+        </div>
+      </li>
+    ))}
+  </ol>
+)}

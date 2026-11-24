@@ -52,9 +52,7 @@
    Where interpolate-size is supported, animate height directly (no wrapper
    needed). Guarded so unsupported engines keep the grid hack above. */
 @supports (interpolate-size: allow-keywords) {
-  :root {
-    interpolate-size: allow-keywords;
-  }
+  /* `:root { interpolate-size }` is set once, page-wide, in animation.css. */
   .reveal-h {
     height: auto;
     overflow: hidden;

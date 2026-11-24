@@ -6,7 +6,7 @@
  * wrong" rather than "your URLs are wrong", and which Google verdict counts as
  * indexed. Both are places where a plausible reading is the wrong one.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { keyFileContents, newKey, submitBatch, verifyKeyFile } from './indexnow.ts';
 import { inspectUrl, parseServiceAccount, submitSitemap } from './gsc.ts';
 import type { IndexNowPlan } from './plan.ts';

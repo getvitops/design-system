@@ -44,5 +44,7 @@ const { item, ...rest } = Astro.props;
 ---
 
 <wc-cards item={item}>
-  <Subgrid {...rest}><slot /></Subgrid>
+  <Subgrid {...rest}>
+    <slot />
+  </Subgrid>
 </wc-cards>

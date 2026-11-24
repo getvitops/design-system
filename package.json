@@ -3,16 +3,42 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "postinstall": "node scripts/link-template-deps.mjs",
+    "prepare": "skills experimental_install -y -a claude-code --no-frozen-lockfile && playwright cli install --skills"
+  },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
+    "@astrojs/compiler-rs": "catalog:",
+    "@axe-core/playwright": "catalog:",
     "@changesets/cli": "catalog:",
     "@getvitops/generator": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "happy-dom": "catalog:",
+    "lighthouse": "catalog:",
+    "playwright": "catalog:",
     "publint": "catalog:",
+    "skills": "catalog:",
     "typescript": "catalog:",
-    "vite-plus": "catalog:"
+    "verdaccio": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
   },
-  "packageManager": "pnpm@11.8.0"
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.16.1",
+      "onFail": "download"
+    },
+    "runtime": {
+      "name": "node",
+      "version": "^26",
+      "onFail": "download"
+    }
+  },
+  "engines": {
+    "node": "^26"
+  },
+  "packageManager": "pnpm@12.16.1"
 }

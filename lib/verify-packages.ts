@@ -76,7 +76,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const PACKAGES = ['core', 'generator', 'utils', 'cli', 'vite', 'astro', 'emdash'];
+const PACKAGES = ['config', 'core', 'generator', 'utils', 'cli', 'vite', 'astro', 'emdash'];
 const ATTW_SKIP = new Set(['astro', 'emdash']);
 // `@getvitops/core` ships browser-only bundles (elements.js, consent.js,
 // editor.js, deferred.js) — Lit components and DOM-manipulation code that

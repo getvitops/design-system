@@ -5,6 +5,23 @@ type Attrs = Record<string, string | number | boolean>;
 
 interface Props {
   id: string;
+  /**
+   * The drawer's accessible name, announced when it opens. Defaults to the trigger's label
+   * ("Open menu" names the dialog "Open menu", which is why a distinct `label` is better), and
+   * one of the two is required: an unnamed modal dialog is announced as just "dialog".
+   */
+  label?: string;
+  /**
+   * Accessible name of the built-in close button. Default "Close".
+   */
+  closeLabel?: string;
+  /**
+   * Render the built-in close button (default true). A modal needs a visible close control for
+   * voice-control users, and for touch users on engines without `closedby`, where there is no Esc
+   * key and no light dismiss. Turn it off only when the slotted content carries its own
+   * `<button command="close" commandfor="…id…">`.
+   */
+  closeButton?: boolean;
   position?: 'left' | 'right' | 'top' | 'bottom';
   trigger?: {
     label: string;
@@ -29,6 +46,9 @@ interface Props {
 
 const {
   id,
+  label,
+  closeLabel = 'Close',
+  closeButton = true,
   position = 'left',
   trigger,
   attrs,
@@ -38,10 +58,13 @@ const {
   iconResolver = (name: string) => name,
 } = Astro.props;
 
-const styleVars = [
-  maxWidth && `--drawer-max-inline-size: ${maxWidth}`,
-  maxHeight && `--drawer-max-block-size: ${maxHeight}`,
-].filter(Boolean).join('; ') || undefined;
+const styleVars =
+  [
+    maxWidth && `--drawer-max-inline-size: ${maxWidth}`,
+    maxHeight && `--drawer-max-block-size: ${maxHeight}`,
+  ]
+    .filter(Boolean)
+    .join('; ') || undefined;
 
 const { class: triggerAttrClass, ...triggerRestAttrs } = trigger?.attrs ?? {};
 const { class: dialogAttrClass, style: dialogAttrStyle, ...dialogRestAttrs } = attrs ?? {};
@@ -63,10 +86,22 @@ const { class: dialogAttrClass, style: dialogAttrStyle, ...dialogRestAttrs } = a
 <dialog
   id={id}
   closedby="any"
+  aria-label={label ?? trigger?.label}
   class:list={['drawer', `drawer--${position}`, className, dialogAttrClass]}
   style={[styleVars, dialogAttrStyle].filter(Boolean).join('; ') || undefined}
   {...dialogRestAttrs}
 >
+  {closeButton && (
+    <button
+      type="button"
+      class="drawer__close"
+      command="close"
+      commandfor={id}
+      aria-label={closeLabel}
+    >
+      <Icon name={iconResolver('close')} />
+    </button>
+  )}
   <slot />
 </dialog>
 

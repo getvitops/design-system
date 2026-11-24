@@ -6,8 +6,13 @@
  * indistinguishable from no conversion, which is the failure this split exists to
  * make impossible.
  */
-import { describe, expect, it } from 'vitest';
-import { DEFAULT_EMAIL_BINDING, normalizeEmailChannel, planNotifications } from './plan.ts';
+import { describe, expect, it } from 'vite-plus/test';
+import {
+  DEFAULT_EMAIL_BINDING,
+  hasFormDelivery,
+  normalizeEmailChannel,
+  planNotifications,
+} from './plan.ts';
 import { describeEvent, renderEmail } from './render.ts';
 import type { ConversionEvent } from '../tracking/types.ts';
 
@@ -127,6 +132,20 @@ describe('renderEmail', () => {
     expect(msg.text).toMatch(/None — visitor arrived without ad tracking/);
   });
 
+  it('names the tracking number a caller was shown', () => {
+    const msg = renderEmail({
+      type: 'call',
+      phone: '+16135550101',
+      phoneSource: 'meta',
+      tracking: null,
+      at: 0,
+    });
+    expect(msg.text).toContain('meta tracking number');
+    expect(
+      renderEmail({ type: 'call', phone: '+16135550101', tracking: null, at: 0 }).text,
+    ).not.toContain('tracking number');
+  });
+
   it('escapes submitted values into the html half', () => {
     const msg = renderEmail({
       type: 'form',
@@ -146,5 +165,47 @@ describe('renderEmail', () => {
   it('drops empty sections rather than printing a bare heading', () => {
     const { sections } = describeEvent({ type: 'form', formData: {}, tracking: null, at: 0 });
     expect(sections.every((s) => s.lines.length > 0)).toBe(true);
+  });
+
+  it('adds an Actions section with the click ID interpolated, when both are present', () => {
+    const msg = renderEmail(formEvent, { actionUrl: 'https://ads.example.com/view?id={clickId}' });
+    expect(msg.text).toContain('--- Actions ---');
+    expect(msg.text).toContain('View in ad platform: https://ads.example.com/view?id=G1');
+    expect(msg.html).toContain('<a href="https://ads.example.com/view?id=G1">');
+  });
+
+  it('omits the Actions section when actionUrl is set but the event has no click ID', () => {
+    const msg = renderEmail(
+      { type: 'call', phone: '+15550100', tracking: null, at: 0 },
+      { actionUrl: 'https://ads.example.com/view?id={clickId}' },
+    );
+    expect(msg.text).not.toContain('Actions');
+  });
+
+  it('omits the Actions section when no actionUrl is configured', () => {
+    const msg = renderEmail(formEvent);
+    expect(msg.text).not.toContain('Actions');
+  });
+
+  it('renders a Delivery section from notes, unaffected by the Actions addition', () => {
+    const msg = renderEmail(formEvent, {
+      notes: ['Written to HubSpot (contact 1234)'],
+      actionUrl: 'https://ads.example.com/view?id={clickId}',
+    });
+    expect(msg.text).toContain('--- Actions ---');
+    expect(msg.text).toContain('--- Delivery ---');
+    expect(msg.text).toContain('Written to HubSpot (contact 1234)');
+  });
+});
+
+describe('hasFormDelivery', () => {
+  it('is false with no email channel, no location email and no CRM', () => {
+    expect(hasFormDelivery({})).toBe(false);
+    expect(hasFormDelivery({ locationEmails: [] })).toBe(false);
+  });
+  it('is true with any one of them', () => {
+    expect(hasFormDelivery({ notifications: { email: 'a@b.ca' } })).toBe(true);
+    expect(hasFormDelivery({ locationEmails: ['a@b.ca'] })).toBe(true);
+    expect(hasFormDelivery({}, { provider: 'hubspot' })).toBe(true);
   });
 });

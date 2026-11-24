@@ -7,8 +7,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "deploy": "astro build && wrangler deploy",
-    "deploy:dev": "astro build && node scripts/dev-wrangler-config.mjs && wrangler deploy --config .wrangler.dev.json",
+    "deploy": "vitops email check && astro build && wrangler deploy",
+    "deploy:dev": "vitops email check && astro build && node scripts/dev-wrangler-config.mjs && wrangler deploy --config .wrangler.dev.json",
     "init:github": "vitops setup repo",
     "init:hosting": "vitops setup hosting --no-dev-resources",
     "setup": "vitops setup repo && vitops setup hosting --no-dev-resources",
@@ -16,26 +16,38 @@
     "build:css": "vitops generate -i site.json -f css -o src/styles",
     "lint:design": "vitops lint -i site.json -f css --strict",
     "sop": "vitops generate -i site.json -f css -o .vitops/sop",
-    "prepare": "vp config"
+    "prepare": "vp config && skills experimental_install -y -a claude-code --no-frozen-lockfile && skills experimental_sync -y -a claude-code --no-frozen-lockfile && playwright cli install --skills && vitops agents sync -i site.json"
   },
   "dependencies": {
     "@getvitops/astro": "latest",
-    "astro": "^7.1.2"
+    "@getvitops/skills": "latest",
+    "astro": "^7.4.4"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.7",
+    "@astrojs/check": "^0.9.12",
+    "@astrojs/compiler-rs": "^0.5.2",
     "@getvitops/cli": "latest",
+    "playwright": "^1.62.1",
+    "skills": "^1.8.1",
     "typescript": "^6.0.3",
-    "vite": "latest",
-    "vite-plus": "latest",
+    "vite": "npm:@voidzero-dev/vite-plus-core@^1.5.1",
+    "vite-plus": "^1.5.1",
     "wrangler": "^4.111.0"
   },
   "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.16.1",
+      "onFail": "download"
+    },
     "runtime": {
       "name": "node",
-      "version": "24.18.0",
+      "version": "^26",
       "onFail": "download"
     }
   },
-  "packageManager": "pnpm@11.17.0"
+  "engines": {
+    "node": "^26"
+  },
+  "packageManager": "pnpm@12.16.1"
 }
