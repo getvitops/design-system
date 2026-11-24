@@ -1,20 +1,30 @@
 ---
 title: Your design system
-description: How design-system.json is structured — colours, scales, patterns and animations — and what each section generates.
+description: How the design system in site.json is structured — colours, scales, patterns and animations — and what each section generates.
 section: 'Start here'
 order: 20
 ---
 
-`design-system.json` is the only file you edit. Everything the toolchain emits is derived from it,
-and the JSON Schema is published so editors give you autocomplete and hover docs:
+The design system is the `designSystem` section of your `site.json` (under `themes.default`), next to
+`organization` and `site`. Everything the toolchain emits is derived from it. The generator also takes
+a bare `design-system.json` holding just these fields, which is what the examples below show; in
+`site.json` they sit one level down. The JSON Schemas are published so editors give you autocomplete
+and hover docs, one for the whole file and one for the design system itself:
 
-```json title="design-system.json"
+```json title="site.json"
 {
-  "$schema": "./node_modules/@getvitops/generator/schema.json"
+  "$schema": "./node_modules/@getvitops/generator/config.schema.json",
+  "designSystem": {
+    "themes": {
+      "default": {
+        "$schema": "./node_modules/@getvitops/generator/schema.json"
+      }
+    }
+  }
 }
 ```
 
-`vitops init` stamps that for you.
+`vitops init --site` stamps both for you.
 
 ## What each section drives
 
@@ -24,7 +34,7 @@ and the JSON Schema is published so editors give you autocomplete and hover docs
 | `typeScale` / `spaceScale` | Fluid modular scales as `clamp()` steps                                                     |
 | `typography`               | Font families and semantic type roles → `font-<role>` utilities                             |
 | `patterns`                 | Component CSS (`.cta`, `.btn`, `.card`, `.badge`, …) plus the token cascade                 |
-| `animations`               | Effect and journey classes, layered over the hand-written animation engine                  |
+| `animations`               | Effect and journey classes, layered over the animation engine                               |
 | `shadows`                  | `--shadow-<name>` tokens and `.drop-shadow-<name>` utilities                                |
 
 The [Config reference](/reference/config/) documents every field, rendered from the schema itself —
