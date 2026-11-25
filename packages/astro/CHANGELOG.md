@@ -1,5 +1,17 @@
 # @getvitops/astro
 
+## 9.0.0-alpha.12
+
+### Patch Changes
+
+- Updated dependencies [e3edde1]
+- Updated dependencies [44e0d0f]
+  - @getvitops/core@9.0.0-alpha.12
+  - @getvitops/generator@9.0.0-alpha.12
+  - @getvitops/config@9.0.0-alpha.12
+  - @getvitops/utils@9.0.0-alpha.12
+  - @getvitops/vite@9.0.0-alpha.12
+
 ## 9.0.0-alpha.11
 
 ### Patch Changes

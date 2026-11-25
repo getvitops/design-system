@@ -11,6 +11,15 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 9.0.0-alpha.12 (+ `@getvitops/emdash` 2.0.0-alpha.13) — alpha channel
+
+Prerelease on the `alpha` dist-tag; not on `latest`. Two CSS fixes found reviewing two sites on alpha.11. `@getvitops/emdash` carries **no consumer-facing change** (it only follows the toolchain version). `@getvitops/config`, `generator`, `utils`, `cli`, `vite` and `astro` carry no consumer-facing change beyond the `fixed` bump. `@getvitops/create` and `@getvitops/skills` are unchanged.
+
+**Fixed**
+
+- **A call to action on a solid tone was painted in the band's own colour** (`@getvitops/core`, **all formats**): a "Get a Quote" button on a dark band nearly vanished. It now inverts: the tone's `on-solid` as the fill and its `solid` as the label, with a hover that mixes the two. On a tint it is unchanged.
+- **Blocks inside a tab panel ran together** (`@getvitops/core`, **all formats**): panel text written as paragraphs, a quote and a link had no space between blocks. Panels are spaced like `.rhythm` (the `<section>` before upgrade and `.tabs__panel` after).
+
 ## 9.0.0-alpha.11 (+ `@getvitops/emdash` 2.0.0-alpha.12, `@getvitops/create` 0.9.0-alpha.10, `@getvitops/skills` 0.1.0-alpha.5) — alpha channel
 
 Prerelease on the `alpha` dist-tag; not on `latest`. `@getvitops/config`, `generator`, `utils` and `vite` carry **no consumer-facing change** beyond the `fixed` version bump.

@@ -1,5 +1,12 @@
 # @getvitops/core
 
+## 9.0.0-alpha.12
+
+### Patch Changes
+
+- e3edde1: Blocks inside a `.tabs` panel are spaced like `.rhythm` spaces them (`> * + *`), for the `<section>` before upgrade and `.tabs__panel` after. Panel text written as several paragraphs, a quote and a link used to run together. Reaches all formats.
+- 44e0d0f: A `.cta` inside a solid tone (`.tone--solid`) is no longer painted in the band's own colour. It used to take `--tone-solid` as its fill, so a button on a dark band nearly vanished (a "Get a Quote" on a brown band). It now inverts: `--tone-on-solid` as the fill and `--tone-solid` as the label, with a hover that mixes the two. Both are the tone's own computed pair, so the contrast guarantee holds. On a tint (`.tone--tint`) the button keeps `--tone-solid` / `--tone-on-solid`. Reaches all formats.
+
 ## 9.0.0-alpha.11
 
 ### Patch Changes

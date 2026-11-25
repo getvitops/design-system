@@ -1,5 +1,12 @@
 # @getvitops/cli
 
+## 9.0.0-alpha.12
+
+### Patch Changes
+
+- @getvitops/generator@9.0.0-alpha.12
+- @getvitops/utils@9.0.0-alpha.12
+
 ## 9.0.0-alpha.11
 
 ### Minor Changes
