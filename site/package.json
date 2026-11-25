@@ -30,7 +30,7 @@
     "astro-icon": "catalog:",
     "baseline-status": "catalog:",
     "sharp": "catalog:",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "wrangler": "catalog:"
   }
 }
