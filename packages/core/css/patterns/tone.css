@@ -40,10 +40,25 @@
     color-scheme: var(--tone-solid-scheme, normal);
   }
 
-  /* A filled call to action inside a toned surface (the classes are only added with a tone set) takes that block's colour. */
-  &:is(.tone--tint, .tone--solid) .cta {
+  /* A filled call to action inside a toned surface (the classes are only added with a tone set).
+     On a tint it takes the block's solid, which stands out from the pale surface. On a solid
+     band the same pairing would paint the button in the band's own colour, so it inverts: the
+     band's readable foreground as the fill, the band's solid as the label. The pair is the tone's
+     own guarantee (on-solid reads on solid), so contrast holds in both directions. */
+  &.tone--tint .cta {
     background-color: var(--tone-solid);
     color: var(--tone-on-solid);
+  }
+
+  &.tone--solid .cta {
+    background-color: var(--tone-on-solid);
+    color: var(--tone-solid);
+
+    @media (hover: hover) {
+      &:hover {
+        background-color: color-mix(in oklab, var(--tone-on-solid) 88%, var(--tone-solid));
+      }
+    }
   }
 }
 
