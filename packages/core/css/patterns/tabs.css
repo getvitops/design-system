@@ -82,6 +82,18 @@
     }
   }
 
+  /* A panel's own blocks are spaced like `.rhythm` does. The panel is a `<section>` in the markup
+     and gains `.tabs__panel` once upgraded, so both are covered; without it the paragraphs of a
+     panel written as rich text ran into each other. */
+  > section,
+  .tabs__panel {
+    display: flow-root;
+
+    > * + * {
+      margin-block-start: calc(var(--rhythm-base) * var(--rhythm-p-p));
+    }
+  }
+
   .tabs__panel {
     padding-block: var(--_p);
 
