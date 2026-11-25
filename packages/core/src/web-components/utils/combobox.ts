@@ -13,11 +13,7 @@ export interface ComboOption {
 
 /** Case- and accent-insensitive, so `cafe` finds `Café`. */
 export const normalize = (text: string): string =>
-  text
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim();
+  text.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
 /**
  * The options matching `query`: those that START with it first, then those that merely contain it,

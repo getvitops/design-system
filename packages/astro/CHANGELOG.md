@@ -1,5 +1,106 @@
 # @getvitops/astro
 
+## 9.0.0-alpha.12
+
+### Patch Changes
+
+- Updated dependencies [e3edde1]
+- Updated dependencies [44e0d0f]
+  - @getvitops/core@9.0.0-alpha.12
+  - @getvitops/generator@9.0.0-alpha.12
+  - @getvitops/config@9.0.0-alpha.12
+  - @getvitops/utils@9.0.0-alpha.12
+  - @getvitops/vite@9.0.0-alpha.12
+
+## 9.0.0-alpha.11
+
+### Patch Changes
+
+- Updated dependencies [fcc4a30]
+  - @getvitops/core@9.0.0-alpha.11
+  - @getvitops/generator@9.0.0-alpha.11
+  - @getvitops/config@9.0.0-alpha.11
+  - @getvitops/utils@9.0.0-alpha.11
+  - @getvitops/vite@9.0.0-alpha.11
+
+## 9.0.0-alpha.10
+
+### Patch Changes
+
+- Updated dependencies [3b78c4f]
+- Updated dependencies [04d97e7]
+- Updated dependencies [cd9e1b4]
+- Updated dependencies [1907f39]
+  - @getvitops/core@9.0.0-alpha.10
+  - @getvitops/generator@9.0.0-alpha.10
+  - @getvitops/vite@9.0.0-alpha.10
+  - @getvitops/config@9.0.0-alpha.10
+  - @getvitops/utils@9.0.0-alpha.10
+
+## 9.0.0-alpha.9
+
+### Minor Changes
+
+- fcbef9e: **`vitops({ analytics })` and the consent categories now default from the site config, so they are no longer copied by hand.**
+
+  - **`analytics`:** the providers in `site.analytics` (`googleAnalyticsId`, `clarityId`, `plausibleDomain`, `matomo`) are the tags `<Analytics />` loads. The cookie notice already disclosed providers from that block; the tag now comes from the same place, so the two cannot drift. The option still adds a provider, overrides one, or sets `strategy`, and wins per provider; a provider given only in the option still warns that the notice will not disclose it. `googleTagManagerId` has no `<Analytics />` provider and is unchanged.
+  - **`consent`:** an object option used to replace `site.legal.cookieConsent.categories` outright, so `consent: { policyUrl }` silently dropped the categories the notice named and the banner fell back to a default that always offers `preferences` (vitops-website's config carries a paragraph warning about exactly this). The option's `categories`, when given, still wins; anything else in the object now leaves the config's list in place.
+
+  **Behaviour change:** a site whose `site.analytics` names a provider but whose `vitops()` call omitted `analytics` now loads that tag (before, the notice named a provider nothing loaded). A cookie-setting provider with the consent gate off warns, as before. To keep a provider out of the page, remove it from `site.analytics`. **Migration:** a site that copied the provider out of its config (`analytics: { clarity: config.site.analytics.clarityId }`) can delete the option; one that passed `consent: { categories }` only to dodge the replacement can drop it. Other fixed-group packages: no consumer-facing change.
+
+- 0da5f42: **Breaking: the `astro` peer floor is now `>=7.4` (was `>=7`).** The templates, this repo's catalog and every site onboarded so far already run Astro 7.4 or later, and the integration is built and tested only against it; the old range promised support for 7.0 through 7.3 that nothing exercised. **Migration:** a site pinned below 7.4 (`astro: ~7.1`, or a lockfile holding 7.1 to 7.3 under an exact range) raises `astro` to `^7.4.13`; a site on a caret range already resolves to 7.4 or later and changes nothing. The Astro 5 and 6 shims are already gone, so there is no code to remove. Other fixed-group packages: no consumer-facing change.
+- e4262a8: **`<SiteFooter>` and `<Masthead>` read `organization` from the site config, so a site no longer rewrites its logo and contact column by hand.** Pass `config={site}` (the same value `<Masthead>` already takes for `site.chrome`).
+
+  - **`<SiteFooter>`**: the brand column shows `organization.logo` (linked home, `loading="lazy"`) when there is no `brand` slot, and a new **contact column** follows the menus: the postal address as an `<address>`, a `tel:` link built from the phone number, a `mailto:` link, the opening hours of one location (grouped to `Mon–Fri  8 am–5 pm`), and the public profile links (`organization.links`) in a labelled `<nav>`. A column only appears for facts the config states, so a config that states none renders the footer it did before. New props: `contact` and `logo` (both default true), `location` (which `organization.locations` key supplies the hours; default the one `organization.contact` names, else the first), and `contactLabel` / `hoursLabel` / `socialLabel`.
+  - **`<Masthead>`**: with no `brand` slot it shows `organization.logo` as a link to `brandHref` (default `/`); `logo={false}` omits it. A logo link is named by the logo's `alt`, else the organization name, else "Home".
+  - **Gutter.** `.sitefooter:not(.centered)` now has `padding-inline: var(--sitefooter-gutter, 1rem)`, matching the masthead's `width: full` row, so the logo and columns no longer sit flush against the viewport edge on a wide screen. A footer with `class="centered"` is unchanged (the track is its gutter). New hooks: `--sitefooter-gutter`, `--sitefooter-logo-h` (3rem), `--masthead-logo-h` (2rem).
+
+  Every URL that reaches an `href` or `src` (the logo, the profile links) must be a same-site path or an http(s) URL; anything else (`javascript:`, `data:`, `//host`) is dropped. Affects css, bricks and tailwind alike (the partials are shared). **Migration:** none required; a site that fills the `brand` slot keeps its own markup. A site with a hand-built footer contact column can delete it. Other fixed-group packages: no consumer-facing change.
+
+- 29f5aca: **New: `<ContactForm />`**, a contact / enquiry form for a page written in code. `<ContactForm />` renders name, email, phone and message; `fields={[{ label, type, required, name, options }]}` replaces them. It is a real `<form method="post">` that works with no JavaScript and posts to `createConversionRoute()` (`/api/track`), with the honeypot the route recognises, the `_next` return path, both result notices (revealed by the URL fragment after a no-JS submit) and `<wc-turnstile>` when `site.security.turnstile.siteKey` is set (`turnstileSiteKey` overrides it, `null` turns it off). A slot takes a heading and intro.
+
+  Use it instead of a hand-written form. The route reserves four names, and a form that trips one fails silently: an input named `phone` is dropped (it is the `tel:` click payload), so the number never reaches the notification or CRM; a filled `website` / `honeypot` / `_honeypot` makes the route answer success and deliver nothing. `<ContactForm />` submits a phone as `tel` and keeps every field clear of the reserved names. It is also what the `vitops_form` block renders, so a form in code and one in the CMS cannot differ.
+
+  **Migration:** none required. A site with its own `api/contact.ts` and `<form>` (jblsigns, vitops-website) can replace both with `<ContactForm />` and `createConversionRoute()`; the `emdash-contact-form` skill and the `forms` entry of the components reference say how. Affects the Astro component and the generated components reference; no CSS changes in any format. Other fixed-group packages: no consumer-facing change.
+
+- 7da3eea: **A Google Ads conversion that happens before the Google tag has loaded is held and sent, not dropped.** `gtag` and the per-action `send_to` map are defined by the consent-gated bootstrap, so a `tel:`/`mailto:` tap or a `vitopsFormConversion(form)` call that arrived first (consent not given yet, or an `idle` tag not yet at its turn) used to find neither, skip silently, and, for the form, mark the form as converted so a retry could not recover it. The tracking script now queues the action and flushes it when the runtime announces the tag, so the wait is tied to consent instead of a polling deadline. Several taps on one action before the tag loads report once. jblsigns' `AdConversions.astro` poll-for-`gtag` loop is no longer needed.
+
+  **New: `vitops:tag`.** `<wc-consent>`'s runtime dispatches a `vitops:tag` event on `document` each time it activates a gated tag, with `detail.category`. It is the "this tag has loaded" counterpart of `vitops:consent`; `TAG_EVENT` is exported from `@getvitops/core/consent` beside `CONSENT_EVENT`. `consent.js` grows by about 100 bytes gzipped (3177 of 3500 B budget). Affects all formats (the web-component and script bundles are the same in each). Other fixed-group packages: no consumer-facing change.
+
+- 8329394: Add the `vitops_location` block: one of the site's `organization.locations` (address, phone, email, hours, photos) with its `LocalBusiness` JSON-LD.
+
+  It is a thin adapter over `<LocationPage>`, so a hand-built location page and the block cannot differ, and a blank key renders the first location. The data comes from a new `virtual:getvitops/organization` module that the `vitops()` integration serves from `site.json` (only `organization.locations` and the default locale; empty when there is no config). `<LocationPage>` now passes extra HTML attributes and `class` through to its `<article>`, which is how the block applies its anchor, class and style. The `location-pages` entry in the tier manifest lists the block. Reaches the EmDash renderer and Astro integration only; no CSS change.
+
+### Patch Changes
+
+- 9d945b1: **`<Breadcrumbs>` accepts the attributes of the `<nav>` it renders in its types.** It already spread the rest of its props onto the `<nav>`, but `Props` did not admit them, so `<Breadcrumbs id="trail" …>` was a type error under `astro check`. `Props` now extends `HTMLAttributes<'nav'>` (as `<Tabs>` does for its `<div>`); no markup or behaviour changes. All formats (a type-only change). Other fixed-group packages: no consumer-facing change.
+- 7b463e5: **Four small fixes from the first migration of an existing site (wilsonlandscaping.ca).**
+
+  - **`@getvitops/create` (emdash template):** `_gitignore` now ignores `src/styles/design-manifest.json`. The tailwind format has emitted it beside `tailwind.css` since the editor manifest change, and it showed up as untracked in every new site. The static template already ignores all of `src/styles/`.
+  - **`@getvitops/astro`:** the "emdash() is registered, and its `<EmDashHead>` emits the same tags" warning fires only when `vitops({ seo })` is passed explicitly. It used to fire on config-derived defaults too, but `site.seo` also feeds indexing and robots, so any site with a configured environment `robots` or a `site.seo` block was warned about a `<Seo />` it never rendered. The message now says how to silence it (drop the `seo` option).
+  - **`@getvitops/emdash`:** `vitops_embed`'s map provider accepts the classic `https://maps.google.com/maps?q=…&output=embed` address, the form Google's own embed snippet produced for years, so a migrated page's iframe URL is no longer rejected silently. It is accepted on an explicit `output=embed` and a google.com host only; the same URL without it, and any other host, are still refused. The README's tested-against note moves to `emdash@1.5.x`.
+  - **`@getvitops/core`:** a comment on the carousel's `::column` rules records why lightningcss warns about them on every build (it does not know the pseudo-element, through 1.33) and that the warning is harmless; `@supports selector(::column)` does not silence it. No CSS change in any format.
+
+  **Migration:** none. Other fixed-group packages: no consumer-facing change.
+
+- Updated dependencies [1e2c49f]
+- Updated dependencies [65c30b1]
+- Updated dependencies [e4262a8]
+- Updated dependencies [b071515]
+- Updated dependencies [29f5aca]
+- Updated dependencies [200a4a7]
+- Updated dependencies [2406333]
+- Updated dependencies [7da3eea]
+- Updated dependencies [8329394]
+- Updated dependencies [4c149cf]
+- Updated dependencies [d2c8dff]
+- Updated dependencies [7b463e5]
+  - @getvitops/generator@9.0.0-alpha.9
+  - @getvitops/core@9.0.0-alpha.9
+  - @getvitops/utils@9.0.0-alpha.9
+  - @getvitops/vite@9.0.0-alpha.9
+  - @getvitops/config@9.0.0-alpha.9
+
 ## 9.0.0-alpha.8
 
 ### Minor Changes

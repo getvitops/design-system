@@ -1,5 +1,66 @@
 # @getvitops/core
 
+## 9.0.0-alpha.12
+
+### Patch Changes
+
+- e3edde1: Blocks inside a `.tabs` panel are spaced like `.rhythm` spaces them (`> * + *`), for the `<section>` before upgrade and `.tabs__panel` after. Panel text written as several paragraphs, a quote and a link used to run together. Reaches all formats.
+- 44e0d0f: A `.cta` inside a solid tone (`.tone--solid`) is no longer painted in the band's own colour. It used to take `--tone-solid` as its fill, so a button on a dark band nearly vanished (a "Get a Quote" on a brown band). It now inverts: `--tone-on-solid` as the fill and `--tone-solid` as the label, with a hover that mixes the two. Both are the tone's own computed pair, so the contrast guarantee holds. On a tint (`.tone--tint`) the button keeps `--tone-solid` / `--tone-on-solid`. Reaches all formats.
+
+## 9.0.0-alpha.11
+
+### Patch Changes
+
+- fcc4a30: **`<main>` is a landmark, not a layout: remove `centered` from it.** With `<main class="centered">` every section, band and hero inside is a grid item in the reading-width track, so a tone or backdrop stops at the text column and each block had to opt out. Bands now own their width.
+
+  **Breaking, with a migration (`@getvitops/cli`).** `vitops lint` reports `<main class="centered …">` as an error in any `.astro`/`.html`/`.tsx`/`.vue`/`.svelte` file, and `vitops lint --fix` removes the `centered` token (other classes stay). Then wrap hand-written page content in `<div class="centered">`; the fix cannot do that for you, because it is a per-page decision. Content rendered through `<VitopsContent>` needs nothing.
+
+  - `@getvitops/emdash`: `<VitopsContent>` wraps each run of plain blocks (before, between or after bands) in `<div class="centered rhythm">`. A split hero in such a run still goes edge to edge.
+  - `@getvitops/create`: both templates' layouts render `<main id="main">`; their pages put `centered` on the page content instead. Existing sites keep their layout until `vitops lint --fix` is run.
+  - `@getvitops/core` (all formats): the `.centered > .section { grid-column: fullbleed }` rule added in alpha.10 is removed. It only compensated for a `.centered` `<main>`, which is now the thing `vitops lint --fix` removes. A layout that still has `<main class="centered">` holds its sections to the reading width again until migrated.
+  - `@getvitops/skills`: `emdash-building-pages` explains the rule.
+
+## 9.0.0-alpha.10
+
+### Patch Changes
+
+- 3b78c4f: **Fix: scroll-driven animations silently did nothing in Chromium.** lightningcss folds `animation: x linear both; animation-timeline: view()` into one `animation: linear both x view()` when it minifies, and Chromium does not accept a timeline inside the `animation` shorthand, so it dropped the whole declaration. The affected rules never ran: `.text-reveal`, `.scroll-size`, `.scroll-reveal`, the `.steps--animated` items, `.parallax__layer`, the scroll-progress bar, `.stack` cards, `.horizontal-scroll` and the carousel's hint and scrollbar dimming and offscreen-inert rules. They are now written as `animation-name`, `animation-timing-function`, `animation-fill-mode` and `animation-timeline` longhands, which lightningcss leaves alone. All formats (the partials are shared); the visible change is that those effects now run. A new test fails if any bundle carries a timeline inside an `animation:` shorthand. Other fixed-group packages: no consumer-facing change.
+- 04d97e7: A `.cta` or `.btn` placed directly in a `.section` body is sized to its label (start-aligned, centered in `section--center`) instead of stretching across the grid. Reaches all formats.
+- cd9e1b4: A `.section` that is a direct child of a `.centered` parent (the emdash template's `<main>`) now takes the full-bleed track, so its tone and backdrop span the viewport instead of stopping at the reading width. Its content is still laid out on its own inner `.centered` tracks. Reaches all formats.
+- 1907f39: A `<SiteNav>` menu item with the `cta` class now keeps the button's text colour, padding and radius. The link's inherited colour used to win, giving dark text on the dark button. Reaches all formats.
+
+## 9.0.0-alpha.9
+
+### Minor Changes
+
+- e4262a8: **`<SiteFooter>` and `<Masthead>` read `organization` from the site config, so a site no longer rewrites its logo and contact column by hand.** Pass `config={site}` (the same value `<Masthead>` already takes for `site.chrome`).
+
+  - **`<SiteFooter>`**: the brand column shows `organization.logo` (linked home, `loading="lazy"`) when there is no `brand` slot, and a new **contact column** follows the menus: the postal address as an `<address>`, a `tel:` link built from the phone number, a `mailto:` link, the opening hours of one location (grouped to `Mon–Fri  8 am–5 pm`), and the public profile links (`organization.links`) in a labelled `<nav>`. A column only appears for facts the config states, so a config that states none renders the footer it did before. New props: `contact` and `logo` (both default true), `location` (which `organization.locations` key supplies the hours; default the one `organization.contact` names, else the first), and `contactLabel` / `hoursLabel` / `socialLabel`.
+  - **`<Masthead>`**: with no `brand` slot it shows `organization.logo` as a link to `brandHref` (default `/`); `logo={false}` omits it. A logo link is named by the logo's `alt`, else the organization name, else "Home".
+  - **Gutter.** `.sitefooter:not(.centered)` now has `padding-inline: var(--sitefooter-gutter, 1rem)`, matching the masthead's `width: full` row, so the logo and columns no longer sit flush against the viewport edge on a wide screen. A footer with `class="centered"` is unchanged (the track is its gutter). New hooks: `--sitefooter-gutter`, `--sitefooter-logo-h` (3rem), `--masthead-logo-h` (2rem).
+
+  Every URL that reaches an `href` or `src` (the logo, the profile links) must be a same-site path or an http(s) URL; anything else (`javascript:`, `data:`, `//host`) is dropped. Affects css, bricks and tailwind alike (the partials are shared). **Migration:** none required; a site that fills the `brand` slot keeps its own markup. A site with a hand-built footer contact column can delete it. Other fixed-group packages: no consumer-facing change.
+
+- 7da3eea: **A Google Ads conversion that happens before the Google tag has loaded is held and sent, not dropped.** `gtag` and the per-action `send_to` map are defined by the consent-gated bootstrap, so a `tel:`/`mailto:` tap or a `vitopsFormConversion(form)` call that arrived first (consent not given yet, or an `idle` tag not yet at its turn) used to find neither, skip silently, and, for the form, mark the form as converted so a retry could not recover it. The tracking script now queues the action and flushes it when the runtime announces the tag, so the wait is tied to consent instead of a polling deadline. Several taps on one action before the tag loads report once. jblsigns' `AdConversions.astro` poll-for-`gtag` loop is no longer needed.
+
+  **New: `vitops:tag`.** `<wc-consent>`'s runtime dispatches a `vitops:tag` event on `document` each time it activates a gated tag, with `detail.category`. It is the "this tag has loaded" counterpart of `vitops:consent`; `TAG_EVENT` is exported from `@getvitops/core/consent` beside `CONSENT_EVENT`. `consent.js` grows by about 100 bytes gzipped (3177 of 3500 B budget). Affects all formats (the web-component and script bundles are the same in each). Other fixed-group packages: no consumer-facing change.
+
+- 4c149cf: `vitops_section` and `vitops_band` take a backdrop image: a decorative photo behind the whole band.
+
+  The image sits behind the heading and content (`.section--backdrop` with a `.section__backdrop` image) and is darkened by the tone's solid colour at `--section-scrim-strength` (default 60%; black with no tone). The text uses that solid's computed foreground (white with no tone), so readable contrast comes from the tone and not from the photo. The image is always decorative (empty `alt`); an image that carries meaning belongs in the band's body. CSS: all formats (css, bricks and tailwind). The section block type moves to version 2 to add the field; version 1 is kept as shipped, so existing databases stay valid, and the scaffolded seed carries both versions.
+
+### Patch Changes
+
+- b071515: **Consent revoke deletes cookies with an `expires` date as well as `max-age=0`.** Browsers treat the two the same, so there is no behaviour change on a real page. A DOM implementation that reads an expiry of "now" as not yet expired (happy-dom, which the `*.dom.test.ts` suites run on) kept a `_ga` cookie after a revoke on some runs, which made `WCConsent.dom.test.ts` fail intermittently. All formats (the consent bundle is the same in each). Other fixed-group packages: no consumer-facing change.
+- 7b463e5: **Four small fixes from the first migration of an existing site (wilsonlandscaping.ca).**
+
+  - **`@getvitops/create` (emdash template):** `_gitignore` now ignores `src/styles/design-manifest.json`. The tailwind format has emitted it beside `tailwind.css` since the editor manifest change, and it showed up as untracked in every new site. The static template already ignores all of `src/styles/`.
+  - **`@getvitops/astro`:** the "emdash() is registered, and its `<EmDashHead>` emits the same tags" warning fires only when `vitops({ seo })` is passed explicitly. It used to fire on config-derived defaults too, but `site.seo` also feeds indexing and robots, so any site with a configured environment `robots` or a `site.seo` block was warned about a `<Seo />` it never rendered. The message now says how to silence it (drop the `seo` option).
+  - **`@getvitops/emdash`:** `vitops_embed`'s map provider accepts the classic `https://maps.google.com/maps?q=…&output=embed` address, the form Google's own embed snippet produced for years, so a migrated page's iframe URL is no longer rejected silently. It is accepted on an explicit `output=embed` and a google.com host only; the same URL without it, and any other host, are still refused. The README's tested-against note moves to `emdash@1.5.x`.
+  - **`@getvitops/core`:** a comment on the carousel's `::column` rules records why lightningcss warns about them on every build (it does not know the pseudo-element, through 1.33) and that the warning is harmless; `@supports selector(::column)` does not silence it. No CSS change in any format.
+
+  **Migration:** none. Other fixed-group packages: no consumer-facing change.
+
 ## 9.0.0-alpha.8
 
 ### Minor Changes

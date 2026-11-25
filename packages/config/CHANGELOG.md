@@ -1,5 +1,13 @@
 # @getvitops/config
 
+## 9.0.0-alpha.12
+
+## 9.0.0-alpha.11
+
+## 9.0.0-alpha.10
+
+## 9.0.0-alpha.9
+
 ## 9.0.0-alpha.8
 
 ### Minor Changes

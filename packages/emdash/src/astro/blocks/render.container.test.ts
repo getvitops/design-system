@@ -222,7 +222,7 @@ describe('vitops_tabs', () => {
     const html = await render(Tabs, { level: '4', tabs });
     expect(html).toContain('<wc-tabs');
     expect(html).toContain('class="tabs"');
-    expect(html).toContain('<section><h4>Overview</h4><p>About us.</p></section>');
+    expect(html).toContain('<section id="overview"><h4>Overview</h4><p>About us.</p></section>');
     expect(html).toContain('<h4>Pricing</h4>');
   });
 
@@ -396,6 +396,19 @@ const fixtures = vi.hoisted(() => ({
 vi.mock('virtual:getvitops/reviews', () => ({
   get default() {
     return fixtures.cache;
+  },
+}));
+vi.mock('virtual:getvitops/organization', () => ({
+  default: {
+    defaultLocale: 'en',
+    locations: {
+      ottawa: {
+        name: 'Acme Ottawa',
+        phone: '613-555-0100',
+        address: { streetAddress: '1 Main St', addressLocality: 'Ottawa', addressRegion: 'ON' },
+      },
+      kanata: { name: 'Acme Kanata' },
+    },
   },
 }));
 vi.mock('virtual:getvitops/icons', () => ({
@@ -603,6 +616,26 @@ describe('vitops_section', () => {
     expect(html).toContain('Body copy');
     expect(html).toContain('class="logos"');
     expect(html).toContain('alt="Acme"');
+  }, 60_000);
+
+  it('puts a decorative backdrop image behind the band, from a URL or an object', async () => {
+    const { default: Section } = await import('./Section.astro');
+    const container = await AstroContainer.create();
+    const go = async (backdrop: unknown) =>
+      container.renderToString(Section as unknown as Component, {
+        props: { value: { heading: 'Our work', tone: 'brand-primary', backdrop } },
+      });
+    for (const backdrop of ['/img/yard.jpg', { src: '/img/yard.jpg' }]) {
+      const html = await go(backdrop);
+      expect(html).toContain('section--backdrop');
+      const img = /<img[^>]*>/.exec(html)![0];
+      expect(img).toContain('class="section__backdrop"');
+      // Astro writes an empty alt as a bare `alt`, which HTML reads as alt="" (decorative).
+      expect(img).toMatch(/\salt(="")?[\s>]/);
+      expect(html).toContain('/img/yard.jpg');
+    }
+    expect(await go(undefined)).not.toContain('section--backdrop');
+    expect(await go('javascript:alert(1)')).not.toContain('section--backdrop');
   }, 60_000);
 
   it('is a page opener: accent heading, two actions and a rhythm stack', async () => {
@@ -856,5 +889,127 @@ describe('block images (BlockImage)', () => {
   it('ignores a ratio it cannot read', async () => {
     const html = await render(Hero, { ...hero, imageRatio: 'wide' });
     expect(html).not.toContain('srcset');
+  });
+});
+
+describe('vitops_accordion', () => {
+  const items = [
+    { summary: 'When do you plant?', body: 'In [spring](/seasons) and fall.\n\nBook early.' },
+    { summary: 'Do you offer quotes?', body: 'Yes.' },
+  ];
+
+  it('renders bold and lists in a body, and the FAQ answer carries the list as text', async () => {
+    const { default: Accordion } = await import('./Accordion.astro');
+    const rich = [
+      {
+        summary: 'When?',
+        body: '**Spring:** plant early.\n\n- April: shrubs\n- May: annuals',
+      },
+    ];
+    const html = await render(Accordion, { items: rich, schema: true });
+    expect(html).toContain('<strong>Spring:</strong>');
+    expect(html).toContain('<ul>');
+    expect(html).toContain('<li>April: shrubs</li>');
+    const ld = JSON.parse(/<script[^>]*ld\+json[^>]*>([\s\S]*?)<\/script>/.exec(html)![1]!);
+    expect(ld.mainEntity[0].acceptedAnswer.text).toBe(
+      'Spring: plant early. April: shrubs May: annuals',
+    );
+  });
+
+  it('renders links in the body and no JSON-LD by default', async () => {
+    const { default: Accordion } = await import('./Accordion.astro');
+    const html = await render(Accordion, { items });
+    expect(html).toContain('<a class="link" href="/seasons">spring</a>');
+    expect(html).not.toContain('application/ld+json');
+  });
+
+  it('emits FAQPage JSON-LD only when schema is on, with links flattened to text', async () => {
+    const { default: Accordion } = await import('./Accordion.astro');
+    const html = await render(Accordion, { items, schema: true });
+    const ld = JSON.parse(/<script[^>]*ld\+json[^>]*>([\s\S]*?)<\/script>/.exec(html)![1]!);
+    expect(ld['@type']).toBe('FAQPage');
+    expect(ld.mainEntity).toHaveLength(2);
+    expect(ld.mainEntity[0].acceptedAnswer.text).toBe('In spring and fall. Book early.');
+  });
+});
+
+describe('vitops_band', () => {
+  it('turns the marker into a section around the blocks after it', async () => {
+    const { default: Content } = await import('../VitopsContent.astro');
+    const container = await AstroContainer.create();
+    const text = (key: string, t: string) => ({
+      _type: 'block',
+      _key: key,
+      style: 'normal',
+      children: [{ _type: 'span', _key: `${key}s`, text: t }],
+    });
+    const html = await container.renderToString(Content as unknown as Component, {
+      props: {
+        value: [
+          text('a', 'Before'),
+          { _type: 'vitops_band', _key: 'b', heading: 'Our work', level: '2', tone: 'surface' },
+          text('c', 'Inside the band'),
+        ],
+      },
+    });
+    const band = /<section[\s\S]*<\/section>/.exec(html)![0];
+    expect(band).toContain('Our work');
+    expect(band).toContain('Inside the band');
+    expect(html.indexOf('Before')).toBeLessThan(html.indexOf('<section'));
+    expect(html).toContain('tone');
+  }, 60_000);
+});
+
+describe('vitops_testimonial', () => {
+  const base = { quote: 'Great work.', author: 'Dana R.', role: 'Homeowner', rating: '5' };
+
+  it('renders the quote, attribution and stars with no JSON-LD by default', async () => {
+    const { default: Testimonial } = await import('./Testimonial.astro');
+    const html = await render(Testimonial, base);
+    expect(html).toContain('<blockquote class="pull-quote">');
+    expect(html).toContain('Dana R., Homeowner');
+    expect(html).toContain('aria-label="5 out of 5 stars"');
+    expect(html).not.toContain('application/ld+json');
+  });
+
+  it('emits Review JSON-LD only with schema, a rating and the reviewed business', async () => {
+    const { default: Testimonial } = await import('./Testimonial.astro');
+    const html = await render(Testimonial, { ...base, schema: true, itemName: 'Acme Landscaping' });
+    const ld = JSON.parse(/<script[^>]*ld\+json[^>]*>([\s\S]*?)<\/script>/.exec(html)![1]!);
+    expect(ld['@type']).toBe('Review');
+    expect(ld.itemReviewed.name).toBe('Acme Landscaping');
+    expect(ld.reviewRating.ratingValue).toBe(5);
+    expect(await render(Testimonial, { ...base, schema: true })).not.toContain('ld+json');
+    expect(
+      await render(Testimonial, { ...base, rating: '', schema: true, itemName: 'x' }),
+    ).not.toContain('ld+json');
+  });
+});
+
+describe('vitops_location', () => {
+  it('renders the named location with LocalBusiness JSON-LD, and escape hatches on its root', async () => {
+    const { default: Location } = await import('./Location.astro');
+    const html = await render(Location, { location: 'ottawa', anchor: 'visit', level: '3' });
+    expect(html).toMatch(/<article[^>]*id="visit"/);
+    expect(html).toContain('<h3>Acme Ottawa</h3>');
+    expect(html).toContain('1 Main St');
+    const ld = JSON.parse(/<script[^>]*ld\+json[^>]*>([\s\S]*?)<\/script>/.exec(html)![1]!);
+    expect(ld['@type']).toBe('LocalBusiness');
+    expect(ld.name).toBe('Acme Ottawa');
+  });
+
+  it('a blank key is the first location, and schema can be turned off', async () => {
+    const { default: Location } = await import('./Location.astro');
+    const html = await render(Location, { schema: false });
+    expect(html).toContain('Acme Ottawa');
+    expect(html).not.toContain('Acme Kanata');
+    expect(html).not.toContain('ld+json');
+  });
+
+  it('renders nothing for an unknown key outside dev', async () => {
+    const { default: Location } = await import('./Location.astro');
+    expect(
+      (await render(Location, { location: 'nope' })).replace(/<!--.*?-->/g, '').trim(),
+    ).toMatch(/^(<p>.*<\/p>)?$/);
   });
 });

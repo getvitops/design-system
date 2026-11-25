@@ -23,6 +23,8 @@ export default getViteConfig({
       'src/components/head.container-test.ts',
       'src/components/sitenav.container-test.ts',
       'src/components/pages.container-test.ts',
+      'src/components/contact-form.container-test.ts',
+      'src/components/chrome-organization.container-test.ts',
     ],
     environment: 'node',
   },

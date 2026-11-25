@@ -38,6 +38,24 @@ async function codeOf(file: string): Promise<string> {
 
 const componentFiles = await componentFilesFromIndex();
 
+/**
+ * Blocks that are adapters over a shared implementation: the fields they declare are consumed
+ * there, not in the block's own `.astro` file. Paths are relative to the package root, like
+ * `componentFiles`, and the delegate is read alongside the block (never instead of it).
+ */
+const DELEGATES: Record<string, string[]> = {
+  // A band marker is mapped onto `Section` (`band.ts`), which renders the head and backdrop.
+  vitops_band: ['src/astro/blocks/Section.astro', 'src/astro/blocks/band.ts'],
+  // `<ContactForm>` renders the form; `contact-form` decides what each field row becomes.
+  vitops_form: ['../astro/src/components/ContactForm.astro', '../utils/src/contact-form/fields.ts'],
+};
+
+/** A block's own component source plus the delegates it renders through. */
+async function blockSource(type: string): Promise<string> {
+  const files = [componentFiles[type]!, ...(DELEGATES[type] ?? [])];
+  return (await Promise.all(files.map(codeOf))).join('\n');
+}
+
 /** Every `action_id` a block saves, including the sub-fields of a repeater's rows. */
 function actionIds(fields: NonNullable<(typeof BLOCKS)[number]['fields']>): string[] {
   return fields.flatMap((f) => [
@@ -100,7 +118,8 @@ describe('block ↔ component agreement', () => {
   it.each(BLOCKS.map((b) => [b.type, b] as const))(
     '%s: every field action_id is consumed by its component',
     async (type, block) => {
-      const source = await codeOf(componentFiles[type]!);
+      const files = [componentFiles[type]!, ...(DELEGATES[type] ?? [])];
+      const source = (await Promise.all(files.map(codeOf))).join('\n');
       for (const id of actionIds(block.fields ?? [])) {
         // The escape hatches are applied by rootAttrs in each renderer (see the test below).
         if (COMMON.has(id)) continue;
@@ -116,7 +135,7 @@ describe('block ↔ component agreement', () => {
     async (type) => {
       // One rule for every block: id/class/style go on the outermost element it renders, via
       // rootAttrs — never an extra wrapper node, so the DOM shape does not depend on the fields set.
-      const source = await codeOf(componentFiles[type]!);
+      const source = await blockSource(type);
       expect(source).toContain('rootAttrs(');
       expect(source).not.toContain('BlockShell');
     },
@@ -168,7 +187,7 @@ describe('blocks ↔ the TIERS manifest', () => {
   it.each(BLOCKS.map((b) => b.type))(
     '%s renders through the pattern it is listed under',
     async (type) => {
-      const source = await codeOf(componentFiles[type]!);
+      const source = await blockSource(type);
       // The adapter must reach its pattern by something the manifest names: the Astro
       // component it wraps, the web component's tag, or one of the pattern's classes.
       // A block that hand-writes unrelated markup would fail all three.
@@ -214,10 +233,14 @@ describe('semantic icon options', () => {
 describe('vitops_section block type', () => {
   const [section] = vitopsBlockTypes();
 
-  it('is a valid block-type slug (no dot) and versioned from 1', () => {
+  it('is a valid block-type slug (no dot) and versioned from 1, with each shipped version kept', () => {
     expect(section!.slug).toMatch(/^[a-z][a-z0-9_]*$/);
-    expect(section!.currentVersion).toBe(1);
-    expect(section!.versions.map((v) => v.version)).toEqual([1]);
+    expect(section!.currentVersion).toBe(2);
+    expect(section!.versions.map((v) => v.version)).toEqual([1, 2]);
+    // v1 is what existing databases hold: it must not gain a field (the backdrop is v2).
+    const v1 = section!.versions[0]!.fields.map((f) => f.slug);
+    expect(v1).not.toContain('backdrop');
+    expect(section!.versions[1]!.fields.map((f) => f.slug)).toContain('backdrop');
   });
 
   it('has a Portable Text body — the reason it is a block type, not a Portable Text block', () => {
@@ -279,7 +302,7 @@ describe('the shared tone convention', () => {
 
   it('components resolve tone through resolveTone, never a class built from the value', async () => {
     for (const b of colouring) {
-      const source = await codeOf(componentFiles[b.type]!);
+      const source = await blockSource(b.type);
       expect(source, b.type).toContain('resolveTone(');
       expect(source, b.type).not.toMatch(/bg-\$\{|text-\$\{/);
     }

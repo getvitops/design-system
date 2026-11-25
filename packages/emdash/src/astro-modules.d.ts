@@ -19,3 +19,9 @@ declare module 'virtual:getvitops/head' {
 declare module 'virtual:emdash/block-components' {
   export const pluginBlockComponents: Record<string, unknown>;
 }
+
+/** Supplied by the `vitops()` integration: `organization.locations` and the default locale. */
+declare module 'virtual:getvitops/organization' {
+  const organization: { defaultLocale: string; locations: Record<string, unknown> };
+  export default organization;
+}

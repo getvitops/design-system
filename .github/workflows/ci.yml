@@ -1,4 +1,4 @@
-# Tests, types and generated-artifact freshness, on every push and PR.
+# Tests, types and generated-artifact freshness, on pushes to `main` and on pull requests into it.
 #
 # Until this existed the only workflow was the docs deploy, so nothing ran the
 # test suite on a pull request — and the `docs/` guard below is here because that
@@ -9,10 +9,14 @@
 # required a service account. Nothing failed, because nothing was checking.
 name: CI
 
+# Only `main`: a push to `dev` is covered by the open dev → main pull request, so running on both
+# started two identical runs per push. With no PR open, a `dev` push runs nothing here; use
+# workflow_dispatch to run it by hand.
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

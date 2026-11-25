@@ -5,6 +5,32 @@ build — WordPress/Bricks **and** Cloudflare EmDash (Astro/Tailwind). Keep toke
 names platform-agnostic so the same schema round-trips through both the Bricks generators and
 the Tailwind (`--format=tailwind`) output.
 
+## Priority: move to TypeScript 7.1 and the `tsrs`-based Vite+
+
+Do this as soon as **TypeScript 7.1** is released **and** has cleared the 3-day release cooldown
+(`minimumReleaseAge: 4320` in `pnpm-workspace.yaml`), then bump the Vite+ release that follows it.
+Vite+ 1.7.0 already depends on a beta of `tsrs` (`7.1.0-beta.tsrs2`); the next Vite+ is expected to
+ship an Oxc that type-checks through `tsrs`, built on the TypeScript 7.1 API, so `vp check` would stop
+depending on a separate TypeScript install for its type pass.
+
+- Bump `typescript` in the catalog (it is on 7.0.2 now) and the Vite+ pins together, one commit each:
+  `vite-plus`, the `vite` core alias, `vitest` and `@vitest/coverage-v8` (these four move as a set, see
+  the comment in `pnpm-workspace.yaml`).
+- Re-run the full gate: `vp check`, `vp test run`, `vp run build:packages`, `vp run verify:packages`,
+  `vp run verify:scaffold`.
+- **Make TypeScript 7 the templates' floor** (they are on `^6.0.3`). Tried on 7.0.2 and it fails:
+  `astro check` exits with "astro check does not currently support TypeScript 7.0" (and
+  `@astrojs/check` 0.9.12 peers `typescript ^5 || ^6`). Astro's stated path is experimental 7.1+ support
+  through `@astrojs/ts-content-mapper`, and `astro check` is to be deprecated. So 7.1 is what unblocks
+  this: switch both templates' `typecheck` script to that setup, then raise `typescript` to `^7`, and
+  confirm `vp run verify:scaffold` typechecks both.
+- `site/` is pinned to `typescript ^6.0.3` in its own `package.json` (not the catalog) because
+  `astro check` refuses 7.0. Point it back at `catalog:` in the same change. Its typecheck is covered by
+  neither `vp check` nor the scaffold, and currently reports 2 errors from before the TypeScript 7 bump
+  (`src/pages/patterns.astro:1289`, the `<Breadcrumbs schema={false}>` prop; `src/pages/theme.astro:50`,
+  indexing `manifest.colors.roleTokens` by a string): fix those, and consider running it in CI.
+- Check whether the type pass still needs the `@types/node` and DOM lib settings it has today.
+
 ## vNext release scope
 
 Full design detail lives in the vNext release plan

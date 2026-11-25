@@ -1,5 +1,103 @@
 # @getvitops/emdash
 
+## 2.0.0-alpha.13
+
+### Patch Changes
+
+- @getvitops/generator@9.0.0-alpha.12
+- @getvitops/utils@9.0.0-alpha.12
+
+## 2.0.0-alpha.12
+
+### Minor Changes
+
+- fcc4a30: **`<main>` is a landmark, not a layout: remove `centered` from it.** With `<main class="centered">` every section, band and hero inside is a grid item in the reading-width track, so a tone or backdrop stops at the text column and each block had to opt out. Bands now own their width.
+
+  **Breaking, with a migration (`@getvitops/cli`).** `vitops lint` reports `<main class="centered …">` as an error in any `.astro`/`.html`/`.tsx`/`.vue`/`.svelte` file, and `vitops lint --fix` removes the `centered` token (other classes stay). Then wrap hand-written page content in `<div class="centered">`; the fix cannot do that for you, because it is a per-page decision. Content rendered through `<VitopsContent>` needs nothing.
+
+  - `@getvitops/emdash`: `<VitopsContent>` wraps each run of plain blocks (before, between or after bands) in `<div class="centered rhythm">`. A split hero in such a run still goes edge to edge.
+  - `@getvitops/create`: both templates' layouts render `<main id="main">`; their pages put `centered` on the page content instead. Existing sites keep their layout until `vitops lint --fix` is run.
+  - `@getvitops/core` (all formats): the `.centered > .section { grid-column: fullbleed }` rule added in alpha.10 is removed. It only compensated for a `.centered` `<main>`, which is now the thing `vitops lint --fix` removes. A layout that still has `<main class="centered">` holds its sections to the reading width again until migrated.
+  - `@getvitops/skills`: `emdash-building-pages` explains the rule.
+
+### Patch Changes
+
+- @getvitops/generator@9.0.0-alpha.11
+- @getvitops/utils@9.0.0-alpha.11
+
+## 2.0.0-alpha.11
+
+### Patch Changes
+
+- 6d497c0: A split `vitops_hero` is now an equal two-column split with the image capped in height (`clamp(22rem, 60vh, 38rem)`, cropped to fill), instead of a 1:2 split whose tall image dominated the page.
+
+## 2.0.0-alpha.10
+
+### Patch Changes
+
+- cd9e1b4: `vitops_hero` with the `split` layout and an image now spans the viewport edge to edge (`fullbleed`), with the text column centered and padded and the image filling its half, instead of sitting inside the reading column. A hero without an image, or in the single-column layout, is unchanged.
+- 03ba4a1: `vitops_tabs` panel text now takes everything an accordion body does: paragraphs separated by a blank line, `- ` lists, `[text](url)` links and `**bold**`. Plain-text panels render as before.
+- Updated dependencies [3b78c4f]
+  - @getvitops/generator@9.0.0-alpha.10
+  - @getvitops/utils@9.0.0-alpha.10
+
+## 2.0.0-alpha.9
+
+### Minor Changes
+
+- 029546a: `vitops_accordion` can emit `FAQPage` JSON-LD from its items, and its bodies render `[text](url)` links.
+
+  The new "Mark up as FAQ" toggle is off by default: Google shows FAQ rich results only for government and health sites, so marking up every accordion would claim something most sites cannot use. When on, each summary becomes a `Question` and the body (links flattened to text) its `Answer`. Bodies previously rendered links as literal text. Reaches the EmDash block renderer only; no CSS change.
+
+- 0da5f42: **Breaking: the `astro` peer floor is now `>=7.4` (was `>=7`).** The templates, this repo's catalog and every site onboarded so far already run Astro 7.4 or later, and the integration is built and tested only against it; the old range promised support for 7.0 through 7.3 that nothing exercised. **Migration:** a site pinned below 7.4 (`astro: ~7.1`, or a lockfile holding 7.1 to 7.3 under an exact range) raises `astro` to `^7.4.13`; a site on a caret range already resolves to 7.4 or later and changes nothing. The Astro 5 and 6 shims are already gone, so there is no code to remove. Other fixed-group packages: no consumer-facing change.
+- 1e2c49f: Add the `vitops_band` block and `<VitopsContent>`, so a Portable Text page can have full-width tinted sections.
+
+  `vitops_section` only works in a `blocks` field, because a Portable Text block cannot hold other blocks. `vitops_band` is a marker instead: it opens a section (kicker, heading, lead-in, buttons, layout, width, tone or theme) and every block after it, up to the next band, goes inside. Render the field with `<VitopsContent value={content} />` from `@getvitops/emdash/astro` where you used `<PortableText>`; content with no band renders exactly as before, and without `<VitopsContent>` a marker renders only its own heading. Both scaffolded pages now use it. The generator's `section` pattern lists the new block. Reaches the EmDash renderer only; no CSS change.
+
+- 6a63172: Add `vitops emdash check-seed [seed.json]`, which checks the `vitops_*` blocks inside a seed.
+
+  EmDash's `validateSeed` knows the collections but not this plugin's blocks, so a misspelled field (`primaryLabl`) or an unknown block type passed it and then rendered nothing. The command walks every content entry, including section bodies, and reports unknown block types, unknown or misspelled fields (with a suggestion), select values outside their options and rows with no content. Unknown types and fields are errors and exit 1; a select value or a gallery image with an empty `src` is a warning, because a seed written before the photos exist leaves those empty on purpose. The checker is `checkSeedBlocks()` from `@getvitops/emdash`, built from the same block definitions the renderers use. No CSS change.
+
+- 8329394: Add the `vitops_location` block: one of the site's `organization.locations` (address, phone, email, hours, photos) with its `LocalBusiness` JSON-LD.
+
+  It is a thin adapter over `<LocationPage>`, so a hand-built location page and the block cannot differ, and a blank key renders the first location. The data comes from a new `virtual:getvitops/organization` module that the `vitops()` integration serves from `site.json` (only `organization.locations` and the default locale; empty when there is no config). `<LocationPage>` now passes extra HTML attributes and `class` through to its `<article>`, which is how the block applies its anchor, class and style. The `location-pages` entry in the tier manifest lists the block. Reaches the EmDash renderer and Astro integration only; no CSS change.
+
+- 7ef719e: `vitops_accordion` and `vitops_details` bodies take lists and bold, not just paragraphs and links.
+
+  In the body field, a blank line starts a paragraph, lines starting `- ` make a bullet list, lines starting `1.` make a numbered list, and `**bold**` and `[text](url)` work inside any of them. Everything is rendered as elements, never as HTML, so editor text cannot inject markup. `**bold**` now also works anywhere a block already read `[text](url)` links (cards, hero cards, callouts). A body that contained literal `**` text will now show it as bold; unbalanced stars stay literal. When an accordion's FAQ markup is on, a list answer is flattened into the `Answer` text. Reaches the EmDash renderer only; no CSS change.
+
+- 4c149cf: `vitops_section` and `vitops_band` take a backdrop image: a decorative photo behind the whole band.
+
+  The image sits behind the heading and content (`.section--backdrop` with a `.section__backdrop` image) and is darkened by the tone's solid colour at `--section-scrim-strength` (default 60%; black with no tone). The text uses that solid's computed foreground (white with no tone), so readable contrast comes from the tone and not from the photo. The image is always decorative (empty `alt`); an image that carries meaning belongs in the band's body. CSS: all formats (css, bricks and tailwind). The section block type moves to version 2 to add the field; version 1 is kept as shipped, so existing databases stay valid, and the scaffolded seed carries both versions.
+
+- d2c8dff: Add the `vitops_testimonial` block: a customer quote with attribution and optional stars, on the `.pull-quote` pattern.
+
+  Its `Review` JSON-LD is opt-in (a toggle, off by default) and needs the stars and the name of the business reviewed, because Google ignores reviews a business writes about itself and the markup must match what the page shows. The `pull-quote` entry in the generator's tier manifest lists the new block. Reaches the EmDash renderer only; no CSS change.
+
+### Patch Changes
+
+- 200a4a7: **New: `@getvitops/utils/contact-form`**, the pure decisions behind a form that posts to `createConversionRoute()` (which fields become controls, and under what submitted names: a field labelled "Phone" submits as `tel`, because the route drops a field named `phone`, its tel-click payload, and a filled `website`/`honeypot`/`_honeypot` makes it answer success and deliver nothing). Worker-safe, and it exports `DEFAULT_CONTACT_ROWS` (name, email, phone, message). It moved out of `@getvitops/emdash`'s `vitops_form` block so `<ContactForm>` and the block share one implementation. **`@getvitops/emdash`:** no behaviour change; the block and `formTemplateFromBlock` now import it from utils (a hard dependency already). Other fixed-group packages: no consumer-facing change.
+- 7b463e5: **Four small fixes from the first migration of an existing site (wilsonlandscaping.ca).**
+
+  - **`@getvitops/create` (emdash template):** `_gitignore` now ignores `src/styles/design-manifest.json`. The tailwind format has emitted it beside `tailwind.css` since the editor manifest change, and it showed up as untracked in every new site. The static template already ignores all of `src/styles/`.
+  - **`@getvitops/astro`:** the "emdash() is registered, and its `<EmDashHead>` emits the same tags" warning fires only when `vitops({ seo })` is passed explicitly. It used to fire on config-derived defaults too, but `site.seo` also feeds indexing and robots, so any site with a configured environment `robots` or a `site.seo` block was warned about a `<Seo />` it never rendered. The message now says how to silence it (drop the `seo` option).
+  - **`@getvitops/emdash`:** `vitops_embed`'s map provider accepts the classic `https://maps.google.com/maps?q=…&output=embed` address, the form Google's own embed snippet produced for years, so a migrated page's iframe URL is no longer rejected silently. It is accepted on an explicit `output=embed` and a google.com host only; the same URL without it, and any other host, are still refused. The README's tested-against note moves to `emdash@1.5.x`.
+  - **`@getvitops/core`:** a comment on the carousel's `::column` rules records why lightningcss warns about them on every build (it does not know the pseudo-element, through 1.33) and that the warning is harmless; `@supports selector(::column)` does not silence it. No CSS change in any format.
+
+  **Migration:** none. Other fixed-group packages: no consumer-facing change.
+
+- Updated dependencies [1e2c49f]
+- Updated dependencies [65c30b1]
+- Updated dependencies [e4262a8]
+- Updated dependencies [29f5aca]
+- Updated dependencies [200a4a7]
+- Updated dependencies [2406333]
+- Updated dependencies [8329394]
+- Updated dependencies [4c149cf]
+- Updated dependencies [d2c8dff]
+  - @getvitops/generator@9.0.0-alpha.9
+  - @getvitops/utils@9.0.0-alpha.9
+
 ## 2.0.0-alpha.8
 
 ### Minor Changes

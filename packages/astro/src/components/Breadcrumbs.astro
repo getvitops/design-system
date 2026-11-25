@@ -12,10 +12,11 @@
  *
  * Name the landmark if a page has more than one trail: `label` is the `aria-label`.
  */
+import type { HTMLAttributes } from 'astro/types';
 import BreadcrumbSchema from '../schemas/Breadcrumb.astro';
 import { resolveCrumbs, schemaCrumbs, type Crumb } from './breadcrumbs.ts';
 
-export interface Props {
+export interface Props extends Omit<HTMLAttributes<'nav'>, 'slot'> {
   items: Crumb[];
   /** The landmark's accessible name. Default `Breadcrumb`. */
   label?: string;

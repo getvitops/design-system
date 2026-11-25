@@ -394,7 +394,9 @@ export default defineConfig({
         // Tests gate the publish. Without this, `@getvitops/emdash@0.2.1` shipped
         // a descriptor hardcoded to 0.2.0: `changeset version` bumps package.json
         // but not the literal, and the test that asserts they match never ran.
-        command: 'vp test run && vp run build:packages && changeset publish',
+        // `changeset publish` calls plain `npm` for registry lookups, which fails with
+        // EBADDEVENGINES here; scripts/release-publish.mjs explains and works around it.
+        command: 'vp test run && vp run build:packages && node scripts/release-publish.mjs',
       },
 
       // Deploy: rsync dist/ to the remote theme over SSH. Depends on build so

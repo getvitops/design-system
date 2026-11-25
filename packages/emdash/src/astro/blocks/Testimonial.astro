@@ -1,0 +1,77 @@
+---
+/**
+ * One customer quote on the `.pull-quote` pattern: the quote, who said it, and an optional
+ * star rating. Plain HTML, no JS.
+ *
+ * `schema` is off by default. Google treats a business marking up reviews of itself as
+ * ineligible for review rich results and may take manual action, so the toggle is a decision,
+ * not a default. It needs the reviewed business's name (`itemName`), a rating and an author,
+ * and the markup is only ever built from what the page shows: a rating that is not visible
+ * would be markup for content a visitor cannot see, which the same policy forbids.
+ */
+import SchemaReview from '@getvitops/astro/schemas/Review.astro';
+import { rootAttrs } from './attrs.ts';
+import { joinStyle, resolveTone } from './tone.ts';
+import { resolveBlockValue, text } from './value.ts';
+
+interface Value {
+  quote?: string;
+  author?: string;
+  role?: string;
+  rating?: string | number;
+  date?: string;
+  schema?: boolean;
+  itemName?: string;
+  tone?: string;
+  color?: string;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const quote = text(value.quote);
+const author = text(value.author);
+const role = text(value.role);
+const n = Math.round(Number(value.rating));
+const rating = n >= 1 && n <= 5 ? n : 0;
+const date = /^\d{4}-\d{2}-\d{2}/.test(text(value.date)) ? text(value.date) : undefined;
+const tone = resolveTone(value.tone, value.color);
+const itemName = text(value.itemName);
+const ld = Boolean(value.schema && quote && author && rating && itemName);
+---
+
+{quote && (
+  <>
+    {ld && (
+      <SchemaReview
+        itemReviewed={{ type: 'LocalBusiness', name: itemName }}
+        reviewRating={{ ratingValue: rating }}
+        author={{ name: author }}
+        datePublished={date}
+        reviewBody={quote}
+      />
+    )}
+    <figure
+      {...rootAttrs(
+        value,
+        ['pull-quote-figure', tone.style && tone.surface],
+        joinStyle(tone.style),
+      )}
+    >
+      <blockquote class="pull-quote">
+        {rating > 0 && (
+          <span class="testimonial__stars" role="img" aria-label={`${rating} out of 5 stars`}>
+            {'★'.repeat(rating)}
+            <span aria-hidden="true">{'☆'.repeat(5 - rating)}</span>
+          </span>
+        )}
+        <p>{quote}</p>
+        {(author || role) && (
+          <footer class="pull-quote__attribution">
+            {author}
+            {author && role && ', '}
+            {role}
+          </footer>
+        )}
+      </blockquote>
+    </figure>
+  </>
+)}

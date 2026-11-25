@@ -43,11 +43,13 @@
  * Cloudflare Turnstile is a separate, opt-in layer on top of the checks above —
  * pass `turnstile: { secretKey }` and a submission carrying a
  * `cf-turnstile-response` token gets it verified server-side via
- * `verifyTurnstileToken` (`@getvitops/utils/security`). The widget itself is the
- * consumer's own markup (`<script src="https://challenges.cloudflare.com/
- * turnstile/v0/api.js" async defer></script>` + `<div class="cf-turnstile"
- * data-sitekey="…">` on their form) — there is no `FormRenderer` for this to hook
- * into generically, matching how the rest of the form is already hand-written.
+ * `verifyTurnstileToken` (`@getvitops/utils/security`). The widget is
+ * `<wc-turnstile sitekey="…">` inside the form (it loads Cloudflare's script on first
+ * interaction); `<ContactForm />` (`@getvitops/astro/components/ContactForm.astro`) emits
+ * the whole form, widget and honeypot included, and is what to reach for rather than a
+ * hand-written `<form>`: the route reserves the names `phone`, `event`, `_next` and the
+ * honeypots, and `<ContactForm />` keeps every field clear of them (a phone input submits
+ * as `tel`).
  * `site.security.turnstile.siteKey` is what the generated privacy policy reads to
  * name Turnstile as a processor; wiring this option up is what makes that true
  * rather than an assertion nothing checks.

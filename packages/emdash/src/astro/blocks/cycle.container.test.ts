@@ -19,6 +19,9 @@ vi.mock('virtual:emdash/block-components', async () => {
 });
 vi.mock('virtual:emdash/config', () => ({ default: {} }));
 vi.mock('virtual:getvitops/reviews', () => ({ default: { locations: {} } }));
+vi.mock('virtual:getvitops/organization', () => ({
+  default: { defaultLocale: 'en', locations: {} },
+}));
 vi.mock('virtual:getvitops/icons', () => ({
   default: {
     engine: 'sprite',

@@ -101,7 +101,7 @@ export interface GenerateOptions {
    * unless the config asks for it.
    */
   input: string | DesignSystem | Config;
-  /** Output target. Default: 'bricks'. */
+  /** Output target. Default: 'tailwind'. */
   format?: Format;
   /** Directory to write outputs into. Default: 'dist'. */
   outDir?: string;
@@ -916,7 +916,7 @@ function loadInput(
 }
 
 export async function generate(options: GenerateOptions): Promise<GenerateResult> {
-  const format: Format = options.format ?? 'bricks';
+  const format: Format = options.format ?? 'tailwind';
   const outDir = options.outDir ?? 'dist';
   const assetsDir = options.assetsDir ?? DEFAULT_ASSETS;
   const { ds, config: embedded } = loadInput(options.input, {

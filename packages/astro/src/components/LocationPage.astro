@@ -40,6 +40,7 @@
  * `{ src, alt }` in the config and it is described. Override the whole gallery with the `photos` slot
  * (`<Carousel>`, `<Gallery>`); the JSON-LD still lists them.
  */
+import type { HTMLAttributes } from 'astro/types';
 import LocalBusiness from '../schemas/LocalBusiness.astro';
 import { t } from '@getvitops/utils';
 import { locationToLocalBusiness, type LocationSource } from '../schemas/graph-adapters.ts';
@@ -57,7 +58,7 @@ export interface Labels {
   email: string;
 }
 
-export interface Props {
+export interface Props extends Omit<HTMLAttributes<'article'>, 'slot'> {
   location: LocationSource;
   locale?: string;
   defaultLocale: string;
@@ -91,6 +92,8 @@ const {
   level = 1,
   schema = true,
   labels: labelOverrides,
+  class: className,
+  ...rest
 } = Astro.props;
 const labels = { ...DEFAULT_LABELS, ...labelOverrides };
 const active = locale ?? defaultLocale;
@@ -117,7 +120,7 @@ const graph = locationToLocalBusiness(location, {
 });
 ---
 
-<article class="rhythm location">
+<article {...rest} class:list={['rhythm', 'location', className]}>
   <slot name="heading">
     <Heading>{name}</Heading>
   </slot>

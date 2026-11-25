@@ -31,5 +31,14 @@ and it also answers the conversion beacons.
   is invisible to it. When you add or change form fields, mirror them in a `site.templates` form
   entry in `site.json`, or the generated policy under-reports.
 - A field named `phone` submits as `tel` (the route reserves `phone` and `event`).
+- **A form written in code, not edited in the CMS** (a static `.astro` page): use
+  `<ContactForm />` from `@getvitops/astro/components/ContactForm.astro`, not a hand-written
+  `<form>`. It is the same form the `vitops_form` block renders: name, email, phone and message by
+  default, or `fields={[{ label, type, required, name, options }]}`, posting to `/api/track` with the
+  honeypot, the `_next` return path, both notices and `<wc-turnstile>` when the site key is set. The
+  traps it removes: a hand-rolled input named `phone` is **dropped** by the route (the number never
+  reaches the notification or CRM), a filled `website` / `honeypot` field makes the route report
+  success and deliver nothing, and a success-page query parameter replays on refresh. Put a heading
+  and intro in its slot; mirror its fields in a `site.templates` form entry for the privacy policy.
 - The per-IP rate limit is per Worker isolate; add a KV-backed `RateLimitStore` if you need a
   fleet-wide one.

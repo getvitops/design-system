@@ -209,6 +209,25 @@ describe('<wc-consent> choices cover exactly what was on screen', () => {
   });
 });
 
+describe('gated tag activation', () => {
+  const tag = '<div data-consent="analytics" data-consent-src="/lib.js"></div>';
+  const granted = () =>
+    `${COOKIE_NAME}=${encodeURIComponent(
+      JSON.stringify({ v: 2, ts: 1, c: { analytics: true, marketing: false, preferences: false } }),
+    )}; path=/`;
+
+  it('announces each activated tag on document, with its category, so a script need not poll', async () => {
+    const seen: string[] = [];
+    document.addEventListener('vitops:tag', (e) =>
+      seen.push(((e as CustomEvent).detail as { category: string }).category),
+    );
+    await boot({ cookie: granted(), extra: tag });
+    // The idle strategy schedules the scan; give it its turn.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(seen).toEqual(['analytics']);
+  });
+});
+
 describe('revoking', () => {
   const tag =
     '<div data-consent="analytics" data-consent-src="/lib.js" data-consent-cookies="_ga,_ga_*"></div>';

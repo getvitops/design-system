@@ -36,7 +36,8 @@ Usage:
 
 Generate options:
   -i, --input <path>    design-system.json or site config (default: ./design-system.json)
-  -f, --format <list>   bricks | css | tailwind | design (comma-separated; default: bricks)
+  -f, --format <list>   bricks | css | tailwind | design (comma-separated; default: tailwind;
+                        bricks is kept working but not actively maintained)
                         design emits DESIGN.md only (the agent-facing brief) — pair it
                         with --out . to write it beside AGENTS.md, or compose:
                         --format css,design
@@ -109,7 +110,7 @@ Lint options:
   -i, --input <path>    site config or design-system.json (default: ./site.json, else
                         ./design-system.json)
       --theme <name>    Theme to judge classes against, when --input is a site config
-  -f, --format <fmt>    Format you build (bricks | css | tailwind; default: bricks).
+  -f, --format <fmt>    Format you build (bricks | css | tailwind; default: tailwind).
                         Responsive md-* classes are real in css/bricks, inert in tailwind.
   -s, --src <dir>       Directory to scan (default: ./src)
       --strict          Also fail on suggestions (reuse hints), not just on
@@ -568,6 +569,11 @@ export const EMDASH_HELP = `vitops emdash — build-time steps for an EmDash sit
   vitops emdash form-template --from <seed.json> [--name contact] [--site site.json] [--dry]
                                      Copy a vitops_form block into site.templates (the privacy
                                      policy's "what we collect" and a check-prerender input)
+  vitops emdash check-seed [seed.json]
+                                     Check every vitops_* block in a seed (default seed/seed.json):
+                                     unknown types, misspelled fields, bad select values, a gallery
+                                     image with no src. EmDash's own validateSeed does not look
+                                     inside these blocks. Exits 1 on an error
   vitops emdash schema diff --from <url|file> --to <url> [--json|--markdown] [--check]
                                      What would be replayed from one instance's collections and
                                      fields onto another's (additions only; differences and

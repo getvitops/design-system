@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/utils",
-  "version": "9.0.0-alpha.8",
+  "version": "9.0.0-alpha.12",
   "description": "Shared build-time utilities for the Vitops toolchain — favicon generation and friends.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",
@@ -109,6 +109,10 @@
     "./forms": {
       "types": "./dist/forms/index.d.mts",
       "import": "./dist/forms/index.mjs"
+    },
+    "./contact-form": {
+      "types": "./dist/contact-form/index.d.mts",
+      "import": "./dist/contact-form/index.mjs"
     }
   },
   "publishConfig": {

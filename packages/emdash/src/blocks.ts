@@ -290,7 +290,13 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
     placeholder: 'Collapsible details/summary',
     fields: [
       { type: 'text_input', action_id: 'summary', label: 'Summary (always visible)' },
-      { type: 'text_input', action_id: 'body', label: 'Body (revealed)', multiline: true },
+      {
+        type: 'text_input',
+        action_id: 'body',
+        label:
+          'Body (revealed). A blank line starts a paragraph; lines starting with - or 1. make a list; **bold** and [text](url) work',
+        multiline: true,
+      },
       { type: 'toggle', action_id: 'open', label: 'Open by default', initial_value: false },
     ],
   },
@@ -471,7 +477,13 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         min_items: 1,
         fields: [
           { type: 'text_input', action_id: 'summary', label: 'Summary (always visible)' },
-          { type: 'text_input', action_id: 'body', label: 'Body (revealed)', multiline: true },
+          {
+            type: 'text_input',
+            action_id: 'body',
+            label:
+              'Body (revealed). A blank line starts a paragraph; lines starting with - or 1. make a list; **bold** and [text](url) work',
+            multiline: true,
+          },
           { type: 'toggle', action_id: 'open', label: 'Open by default', initial_value: false },
         ],
       },
@@ -479,6 +491,13 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         type: 'toggle',
         action_id: 'exclusive',
         label: 'Only one open at a time',
+        initial_value: false,
+      },
+      {
+        type: 'toggle',
+        action_id: 'schema',
+        label:
+          'Mark up as FAQ for search engines (Google shows these only for government and health sites)',
         initial_value: false,
       },
     ],
@@ -498,7 +517,13 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         min_items: 2,
         fields: [
           { type: 'text_input', action_id: 'label', label: 'Tab label (also the panel heading)' },
-          { type: 'text_input', action_id: 'body', label: 'Panel text', multiline: true },
+          {
+            type: 'text_input',
+            action_id: 'body',
+            label:
+              'Panel text (blank line between paragraphs; - for a list; [text](url) for a link)',
+            multiline: true,
+          },
         ],
       },
       levelField('3'),
@@ -540,6 +565,119 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         initial_value: 0,
         min: 0,
         max: 6,
+      },
+    ],
+  },
+  {
+    type: 'vitops_band',
+    label: 'Band (full-width section)',
+    placeholder:
+      'Starts a section: every block after it, up to the next band, goes inside. Needs <VitopsContent> on the page',
+    category: 'Sections',
+    fields: [
+      { type: 'text_input', action_id: 'kicker', label: 'Kicker (small line above the heading)' },
+      {
+        type: 'text_input',
+        action_id: 'heading',
+        label: 'Heading (wrap words in *stars* to accent them)',
+      },
+      titleLevelField('2'),
+      { type: 'text_input', action_id: 'sub', label: 'Lead-in text', multiline: true },
+      { type: 'text_input', action_id: 'primaryLabel', label: 'Main button text' },
+      { type: 'text_input', action_id: 'primaryHref', label: 'Main button URL' },
+      { type: 'text_input', action_id: 'secondaryLabel', label: 'Second link text' },
+      { type: 'text_input', action_id: 'secondaryHref', label: 'Second link URL' },
+      {
+        type: 'select',
+        action_id: 'layout',
+        label: 'Layout',
+        initial_value: 'stack',
+        options: [
+          { label: 'Heading above content', value: 'stack' },
+          { label: 'Centered', value: 'center' },
+          { label: 'Heading left, content right', value: 'split' },
+        ],
+      },
+      {
+        type: 'select',
+        action_id: 'width',
+        label: 'Width',
+        initial_value: 'measure',
+        options: [
+          { label: 'Reading width', value: 'measure' },
+          { label: 'Wider than text', value: 'breakout' },
+          { label: 'Spotlight', value: 'spotlight' },
+          { label: 'Edge to edge', value: 'fullbleed' },
+        ],
+      },
+      {
+        type: 'media_picker',
+        action_id: 'backdrop',
+        label: 'Backdrop image (decorative, behind the heading and content; the tone darkens it)',
+        mime_type_filter: 'image/',
+      },
+      ...toneFields(),
+      {
+        type: 'toggle',
+        action_id: 'solid',
+        label: 'Fill with the solid colour',
+        initial_value: false,
+      },
+    ],
+  },
+  {
+    type: 'vitops_testimonial',
+    label: 'Testimonial',
+    placeholder: 'A customer quote with who said it and an optional star rating',
+    category: 'Sections',
+    fields: [
+      { type: 'text_input', action_id: 'quote', label: 'Quote', multiline: true },
+      { type: 'text_input', action_id: 'author', label: 'Name' },
+      { type: 'text_input', action_id: 'role', label: 'Role or place (e.g. Homeowner, Kanata)' },
+      {
+        type: 'select',
+        action_id: 'rating',
+        label: 'Stars',
+        initial_value: '',
+        options: [
+          { label: 'None', value: '' },
+          ...['5', '4', '3', '2', '1'].map((n) => ({ label: `${n} out of 5`, value: n })),
+        ],
+      },
+      { type: 'text_input', action_id: 'date', label: 'Date (YYYY-MM-DD, optional)' },
+      ...toneFields(),
+      {
+        type: 'toggle',
+        action_id: 'schema',
+        label:
+          'Mark up as a review for search engines (Google ignores reviews a business writes about itself; needs stars and the business name)',
+        initial_value: false,
+      },
+      {
+        type: 'text_input',
+        action_id: 'itemName',
+        label: 'Business or service reviewed (for the markup)',
+      },
+    ],
+  },
+  {
+    type: 'vitops_location',
+    label: 'Location',
+    placeholder: 'A business location: address, phone, email, hours and photos',
+    category: 'Sections',
+    fields: [
+      {
+        type: 'text_input',
+        action_id: 'location',
+        label: 'Location key (an organization.locations key from site.json; blank = the first)',
+      },
+      levelField('2'),
+      ...toneFields(),
+      {
+        type: 'toggle',
+        action_id: 'schema',
+        label: 'Mark up for search engines (LocalBusiness)',
+        initial_value: true,
       },
     ],
   },

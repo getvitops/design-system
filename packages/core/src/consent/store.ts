@@ -62,6 +62,13 @@ export interface ConsentState {
 export const CONSENT_EVENT = 'vitops:consent';
 /** Fired on `document` when something asks for the banner to be shown again. */
 export const CONSENT_OPEN_EVENT = 'vitops:consent-open';
+/**
+ * Fired on `document` each time the runtime activates a gated tag (`detail.category`). The "this tag
+ * has loaded" counterpart of `CONSENT_EVENT`: a script that needs a gated global (`gtag`) listens
+ * for it instead of polling. Mirrored, not imported, by `@getvitops/astro`'s tracking script, which
+ * is inlined into the document; `store.test.ts` pins the spelling.
+ */
+export const TAG_EVENT = 'vitops:tag';
 
 export const COOKIE_NAME = 'vitops_consent';
 

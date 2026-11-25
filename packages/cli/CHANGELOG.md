@@ -1,5 +1,70 @@
 # @getvitops/cli
 
+## 9.0.0-alpha.12
+
+### Patch Changes
+
+- @getvitops/generator@9.0.0-alpha.12
+- @getvitops/utils@9.0.0-alpha.12
+
+## 9.0.0-alpha.11
+
+### Minor Changes
+
+- fcc4a30: **`<main>` is a landmark, not a layout: remove `centered` from it.** With `<main class="centered">` every section, band and hero inside is a grid item in the reading-width track, so a tone or backdrop stops at the text column and each block had to opt out. Bands now own their width.
+
+  **Breaking, with a migration (`@getvitops/cli`).** `vitops lint` reports `<main class="centered …">` as an error in any `.astro`/`.html`/`.tsx`/`.vue`/`.svelte` file, and `vitops lint --fix` removes the `centered` token (other classes stay). Then wrap hand-written page content in `<div class="centered">`; the fix cannot do that for you, because it is a per-page decision. Content rendered through `<VitopsContent>` needs nothing.
+
+  - `@getvitops/emdash`: `<VitopsContent>` wraps each run of plain blocks (before, between or after bands) in `<div class="centered rhythm">`. A split hero in such a run still goes edge to edge.
+  - `@getvitops/create`: both templates' layouts render `<main id="main">`; their pages put `centered` on the page content instead. Existing sites keep their layout until `vitops lint --fix` is run.
+  - `@getvitops/core` (all formats): the `.centered > .section { grid-column: fullbleed }` rule added in alpha.10 is removed. It only compensated for a `.centered` `<main>`, which is now the thing `vitops lint --fix` removes. A layout that still has `<main class="centered">` holds its sections to the reading width again until migrated.
+  - `@getvitops/skills`: `emdash-building-pages` explains the rule.
+
+### Patch Changes
+
+- @getvitops/generator@9.0.0-alpha.11
+- @getvitops/utils@9.0.0-alpha.11
+
+## 9.0.0-alpha.10
+
+### Patch Changes
+
+- 0dccb01: **Fix: `vitops emdash check-seed` and `form-template` reported `@getvitops/emdash is not installed` when it was.** Both resolved the package with `require.resolve`, which throws for a package whose `exports` carry only an `import` condition, as `@getvitops/emdash` does. They now resolve its `package.json` and import its ESM entry. No change to what either command checks. Other fixed-group packages: no consumer-facing change.
+- Updated dependencies [3b78c4f]
+  - @getvitops/generator@9.0.0-alpha.10
+  - @getvitops/utils@9.0.0-alpha.10
+
+## 9.0.0-alpha.9
+
+### Minor Changes
+
+- 2406333: **Breaking: the default output format is `tailwind`, not `bricks`.** `generate({ input })` with no `format`, `vitops generate` with no `-f`, and `vitops lint` with no `-f` now target Tailwind (`tailwind.css` plus `tokens.json`), which is what EmDash and Astro sites build. The Astro integration (`css.format`) and `@getvitops/vite` already defaulted to `tailwind`, so a site using either is unaffected. **Migration:** a build that relied on the implicit default (a WordPress/Bricks pipeline, or a script calling `vitops generate` with no flag) passes `--format bricks` / `format: 'bricks'`; the Bricks output itself is unchanged and still supported by name. `vitops lint` on a Bricks site passes `-f bricks` for the same reason. Affects the generator library and the CLI only; no CSS changes in any format. Other fixed-group packages: no consumer-facing change.
+- 6a63172: Add `vitops emdash check-seed [seed.json]`, which checks the `vitops_*` blocks inside a seed.
+
+  EmDash's `validateSeed` knows the collections but not this plugin's blocks, so a misspelled field (`primaryLabl`) or an unknown block type passed it and then rendered nothing. The command walks every content entry, including section bodies, and reports unknown block types, unknown or misspelled fields (with a suggestion), select values outside their options and rows with no content. Unknown types and fields are errors and exit 1; a select value or a gallery image with an empty `src` is a warning, because a seed written before the photos exist leaves those empty on purpose. The checker is `checkSeedBlocks()` from `@getvitops/emdash`, built from the same block definitions the renderers use. No CSS change.
+
+- c66ac13: **Downstream agents can report toolchain issues, and a bot triages them.**
+
+  - **`@getvitops/cli`: new `vitops report`** drafts an issue against the toolchain's public tracker. It adds the installed `@getvitops/*` versions and detected platform, redacts the site config's organization name, domains, environment URLs and contact details plus generic secrets (tokens, emails, home paths, IPs), and prints the draft, what it redacted and a prefilled new-issue URL. It files nothing by default; `--submit` files it after a TTY confirmation (`--yes` skips that and is for an agent whose user has approved the draft), and `--search` lists possible duplicates first. Needs `gh` only for `--search` and `--submit`.
+  - **`@getvitops/skills`: new `vitops-report-issue` skill** says when to report, when not to, and the draft → show the person → file-on-yes sequence. Existing sites: `vp install` links it; nothing to change.
+
+  No consumer-facing change in the other packages of the fixed group. Repo-side (not shipped): issue forms under `.github/ISSUE_TEMPLATE/` and a read-only triage workflow, `.github/workflows/issue-triage.yml`.
+
+### Patch Changes
+
+- 65c30b1: **The `bricks` format is labelled not actively maintained.** The generated `formats.md` and Bricks index and `vitops generate --help` now say it: Bricks was the original target, sites are built on `tailwind`, and `bricks` keeps building and working but gets no new patterns or fixes until Bricks support is rebuilt on the `tailwind`/`css` foundation. Documentation only: no output changes in any format. Other fixed-group packages: no consumer-facing change.
+- Updated dependencies [1e2c49f]
+- Updated dependencies [65c30b1]
+- Updated dependencies [e4262a8]
+- Updated dependencies [29f5aca]
+- Updated dependencies [200a4a7]
+- Updated dependencies [2406333]
+- Updated dependencies [8329394]
+- Updated dependencies [4c149cf]
+- Updated dependencies [d2c8dff]
+  - @getvitops/generator@9.0.0-alpha.9
+  - @getvitops/utils@9.0.0-alpha.9
+
 ## 9.0.0-alpha.8
 
 ### Minor Changes

@@ -12,6 +12,7 @@ import { resolveTheme } from './blocks/tone.ts';
 import WidgetArea from './blocks/WidgetArea.astro';
 import Accordion from './blocks/Accordion.astro';
 import ActionLink from './blocks/ActionLink.astro';
+import Band from './blocks/Band.astro';
 import Banner from './blocks/Banner.astro';
 import Callout from './blocks/Callout.astro';
 import Cards from './blocks/Cards.astro';
@@ -24,6 +25,7 @@ import Form from './blocks/Form.astro';
 import Gallery from './blocks/Gallery.astro';
 import Hero from './blocks/Hero.astro';
 import ImageCompare from './blocks/ImageCompare.astro';
+import Location from './blocks/Location.astro';
 import Logos from './blocks/Logos.astro';
 import Marquee from './blocks/Marquee.astro';
 import Nav from './blocks/Nav.astro';
@@ -32,6 +34,7 @@ import Reviews from './blocks/Reviews.astro';
 import Section from './blocks/Section.astro';
 import Stats from './blocks/Stats.astro';
 import Steps from './blocks/Steps.astro';
+import Testimonial from './blocks/Testimonial.astro';
 import Tabs from './blocks/Tabs.astro';
 import Tree from './blocks/Tree.astro';
 
@@ -39,6 +42,7 @@ export const blockComponents = {
   vitops_actionLink: ActionLink,
   vitops_imageCompare: ImageCompare,
   vitops_copyButton: CopyButton,
+  vitops_band: Band,
   vitops_banner: Banner,
   vitops_details: Details,
   vitops_carousel: Carousel,
@@ -46,9 +50,11 @@ export const blockComponents = {
   vitops_cards: Cards,
   vitops_accordion: Accordion,
   vitops_tabs: Tabs,
+  vitops_testimonial: Testimonial,
   vitops_tree: Tree,
   vitops_hero: Hero,
   vitops_marquee: Marquee,
+  vitops_location: Location,
   vitops_logos: Logos,
   vitops_steps: Steps,
   vitops_stats: Stats,
@@ -67,6 +73,9 @@ export const blockComponents = {
 export const blockTypeComponents = {
   vitops_section: Section,
 };
+
+/** Renders a `portableText` field and turns `vitops_band` markers into sections around the blocks after them. */
+export { default as VitopsContent } from './VitopsContent.astro';
 
 /** The framework-styled widget area, for a site layout (the block form is `vitops_widgetArea`). */
 export { default as VitopsWidgetArea } from './WidgetArea.astro';

@@ -53,7 +53,8 @@ export const THEME_ROLES = [
 ];
 export const THEMES = ['none', ...THEME_ROLES, ...THEME_ROLES.map((r) => `${r}:solid`)];
 
-export const SECTION_FIELDS: BlockFieldDefinition[] = [
+/** Version 1 of the section's fields, as first shipped. Never edit: an existing database holds it. */
+const SECTION_FIELDS_V1: BlockFieldDefinition[] = [
   { slug: 'kicker', label: 'Kicker (small line above the heading)', type: 'string' },
   { slug: 'heading', label: 'Heading', type: 'string' },
   select(
@@ -98,6 +99,19 @@ export const SECTION_FIELDS: BlockFieldDefinition[] = [
   { slug: 'style', label: 'CSS custom properties, e.g. --p-card: 2rem', type: 'string' },
 ];
 
+/**
+ * Version 2 adds the backdrop image. An added field is a compatible new version; v1 stays as
+ * shipped so a database still on it validates.
+ */
+export const SECTION_FIELDS: BlockFieldDefinition[] = [
+  ...SECTION_FIELDS_V1,
+  {
+    slug: 'backdrop',
+    label: 'Backdrop image (decorative, behind the heading and content; the tone darkens it)',
+    type: 'image',
+  },
+];
+
 /** `vitops_section`: kicker, heading, lead-in, tone/backdrop, optional heading-left layout, and a body of blocks. */
 export const SECTION_BLOCK_TYPE: ApplySeedBlockTypeInput = {
   slug: SECTION_SLUG,
@@ -105,8 +119,11 @@ export const SECTION_BLOCK_TYPE: ApplySeedBlockTypeInput = {
   description: 'A titled page section whose body can hold any other blocks.',
   category: 'Sections',
   icon: 'layout',
-  currentVersion: 1,
-  versions: [{ version: 1, fields: SECTION_FIELDS }],
+  currentVersion: 2,
+  versions: [
+    { version: 1, fields: SECTION_FIELDS_V1 },
+    { version: 2, fields: SECTION_FIELDS },
+  ],
 };
 
 /**

@@ -144,3 +144,31 @@ describe('outline', () => {
     expect(count(outline(deep))).toBe(12);
   });
 });
+
+describe('rich bodies', () => {
+  it('linkRuns reads **bold**, around and between links, and leaves unbalanced stars literal', async () => {
+    const { linkRuns } = await import('./value.ts');
+    expect(linkRuns('a **b** [c](/d) e')).toEqual([
+      { text: 'a ' },
+      { text: 'b', strong: true },
+      { text: ' ' },
+      { text: 'c', href: '/d' },
+      { text: ' e' },
+    ]);
+    expect(linkRuns('2 ** 3')).toEqual([{ text: '2 ** 3' }]);
+  });
+
+  it('bodyBlocks splits paragraphs and lists', async () => {
+    const { bodyBlocks, bodyPlainText } = await import('./value.ts');
+    const blocks = bodyBlocks(
+      'Intro **now**.\nsame para\n\n- one\n- two\n\n1. first\n2) second\n\n- not\na list',
+    );
+    expect(blocks).toEqual([
+      { kind: 'p', text: 'Intro **now**. same para' },
+      { kind: 'ul', items: ['one', 'two'] },
+      { kind: 'ol', items: ['first', 'second'] },
+      { kind: 'p', text: '- not a list' },
+    ]);
+    expect(bodyPlainText(blocks.slice(0, 2))).toBe('Intro now. same para one two');
+  });
+});

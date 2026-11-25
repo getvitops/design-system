@@ -17,6 +17,7 @@ const WORKER_ENTRIES = [
   'git/index.ts',
   'url/index.ts',
   'forms/index.ts',
+  'contact-form/index.ts',
   'reviews/select.ts',
   'content.ts',
 ];

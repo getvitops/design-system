@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/astro",
-  "version": "9.0.0-alpha.8",
+  "version": "9.0.0-alpha.12",
   "description": "Astro integration for the Vitops design system — favicons/PWA, web-component scripts, and CSS, via a getvitops() integration + <Head /> component.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",
@@ -77,7 +77,9 @@
     "src/exports/tracking.ts",
     "src/components/ReviewCard.astro",
     "src/components/ReviewCardBody.astro",
-    "src/components/Marquee.astro"
+    "src/components/Marquee.astro",
+    "src/components/ContactForm.astro",
+    "src/components/footer.ts"
   ],
   "type": "module",
   "types": "./dist/index.d.mts",
@@ -104,6 +106,7 @@
     "./Ads.astro": "./src/components/Ads.astro",
     "./CookieConsent.astro": "./src/components/CookieConsent.astro",
     "./Tracking.astro": "./src/components/Tracking.astro",
+    "./components/ContactForm.astro": "./src/components/ContactForm.astro",
     "./components/Subgrid.astro": "./src/components/Subgrid.astro",
     "./components/Cards.astro": "./src/components/Cards.astro",
     "./components/Carousel.astro": "./src/components/Carousel.astro",
@@ -173,7 +176,7 @@
   "peerDependencies": {
     "@astrojs/sitemap": ">=3.6",
     "@tailwindcss/vite": ">=4",
-    "astro": ">=7",
+    "astro": ">=7.4",
     "astro-icon": ">=1",
     "tailwindcss": ">=4"
   },

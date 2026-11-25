@@ -1429,6 +1429,11 @@ specificity is ever asked.
 
 ## \`bricks\` — WordPress / Bricks Builder payload
 
+> **Status: not actively maintained.** Bricks was the original target; sites are now built on
+> \`tailwind\` (EmDash and Astro). This format and the Bricks PHP elements still build and are kept
+> working, but get no new patterns or fixes until Bricks support is rebuilt on the \`tailwind\` /
+> \`css\` foundation. Choose \`tailwind\` unless the site is WordPress with Bricks.
+
 Emits the full deployable theme payload: \`styles.min.css\`, the Bricks import JSONs
 (\`bricks-colors-{named,semantic}.json\`, \`bricks-variables.json\`), \`tokens.json\`, the JS
 bundles (polyfills / elements / deferred), the Bricks element PHP under \`bricks/\`, and
@@ -2722,6 +2727,10 @@ function renderBricksIndex(): string {
   return `${INDEX_NOTE}
 
 # Bricks Builder integration
+
+> **Status: not actively maintained.** Bricks was the original target; sites are now built on
+> \`tailwind\` (EmDash and Astro). The elements below still build and are kept working, but get no new
+> patterns or fixes until Bricks support is rebuilt on the \`tailwind\` / \`css\` foundation.
 
 # Styling
 

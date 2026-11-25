@@ -5,6 +5,7 @@
  * imports the schema's literal lists as values from `@getvitops/config` (a zod-free-at-runtime
  * leaf for these constants) and nothing from the generator, so it cannot drag it into a Worker bundle.
  */
+import type { OrganizationLike } from './footer.ts';
 import {
   MASTHEAD_LAYOUTS,
   MASTHEAD_POSITIONS,
@@ -61,6 +62,8 @@ export interface ResolvedMasthead {
  */
 export interface ChromeSource {
   site?: { chrome?: { masthead?: Record<string, any>; nav?: Record<string, any> } };
+  /** Read by `<SiteFooter>` (contact column, logo) and `<Masthead>` (logo); see `footer.ts`. */
+  organization?: OrganizationLike;
 }
 
 function oneOf<T extends string>(

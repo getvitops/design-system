@@ -1,5 +1,43 @@
 # @getvitops/vite
 
+## 9.0.0-alpha.12
+
+### Patch Changes
+
+- @getvitops/generator@9.0.0-alpha.12
+- @getvitops/utils@9.0.0-alpha.12
+
+## 9.0.0-alpha.11
+
+### Patch Changes
+
+- @getvitops/generator@9.0.0-alpha.11
+- @getvitops/utils@9.0.0-alpha.11
+
+## 9.0.0-alpha.10
+
+### Patch Changes
+
+- Updated dependencies [3b78c4f]
+  - @getvitops/generator@9.0.0-alpha.10
+  - @getvitops/utils@9.0.0-alpha.10
+
+## 9.0.0-alpha.9
+
+### Patch Changes
+
+- Updated dependencies [1e2c49f]
+- Updated dependencies [65c30b1]
+- Updated dependencies [e4262a8]
+- Updated dependencies [29f5aca]
+- Updated dependencies [200a4a7]
+- Updated dependencies [2406333]
+- Updated dependencies [8329394]
+- Updated dependencies [4c149cf]
+- Updated dependencies [d2c8dff]
+  - @getvitops/generator@9.0.0-alpha.9
+  - @getvitops/utils@9.0.0-alpha.9
+
 ## 9.0.0-alpha.8
 
 ### Patch Changes

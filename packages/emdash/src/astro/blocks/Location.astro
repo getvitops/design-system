@@ -1,0 +1,54 @@
+---
+/**
+ * One of the site's `organization.locations`: name, address, phone, email, hours and photos on
+ * the framework's `.location` markup, with its `LocalBusiness` JSON-LD. A thin adapter over
+ * `<LocationPage>`, so a location page built by hand and one built from this block cannot differ.
+ *
+ * The data is a build-time import, `virtual:getvitops/organization`, served by the `vitops()`
+ * integration from `site.json` (this renders in a Worker: no filesystem). With no match the
+ * public page gets nothing and `astro dev` gets a note saying why.
+ *
+ * A blank `location` renders the first location, never all of them: several articles would put
+ * the block's `anchor` on more than one element and make the DOM depend on the content.
+ */
+import LocationPage from '@getvitops/astro/components/LocationPage.astro';
+import organization from 'virtual:getvitops/organization';
+import { rootAttrs } from './attrs.ts';
+import { joinStyle, resolveTone } from './tone.ts';
+import { headingTag, resolveBlockValue, text } from './value.ts';
+
+interface Value {
+  location?: string;
+  level?: string | number;
+  schema?: boolean;
+  tone?: string;
+  color?: string;
+}
+
+const value = resolveBlockValue<Value>(Astro.props);
+const entries = Object.entries(organization.locations);
+const key = text(value.location);
+const entry = key ? entries.find(([k]) => k === key) : entries[0];
+const level = Number(headingTag(value.level, 2).slice(1)) as 2 | 3 | 4 | 5 | 6;
+const tone = resolveTone(value.tone, value.color);
+const attrs = rootAttrs(value, [tone.style && tone.surface], joinStyle(tone.style));
+const dev = import.meta.env.DEV;
+---
+
+{entry ? (
+  <LocationPage
+    {...attrs}
+    location={entry[1] as never}
+    defaultLocale={organization.defaultLocale}
+    level={level}
+    schema={value.schema !== false}
+  />
+) : dev ? (
+  <p {...attrs}>
+    <em>
+      {key
+        ? `No organization.locations entry named "${key}" in site.json.`
+        : 'site.json has no organization.locations yet.'}
+    </em>
+  </p>
+) : null}

@@ -71,12 +71,19 @@ import { rootAttrs } from './attrs.ts';
   <section
     {...rootAttrs(
       value,
-      [tone.style && tone.surface],
+      [tone.style && tone.surface, split && 'fullbleed'],
       joinStyle(tone.style, scrollCue && 'position: relative'),
     )}
   >
-    <div class={split ? 'split split-1-2' : 'centered'}>
-      <div class="rhythm">
+    <div class={split ? 'split' : 'centered'}>
+      <div
+        class="rhythm"
+        style={
+          split
+            ? 'display:grid;align-content:center;justify-items:center;text-align:center;padding:var(--space-xl, 3rem) var(--space-l, 2rem)'
+            : undefined
+        }
+      >
         {eyebrow && <p class="font-eyebrow">{eyebrow}</p>}
         {heading && (
           <Heading class="font-display">
@@ -108,6 +115,7 @@ import { rootAttrs } from './attrs.ts';
           displayWidth={960}
           loading="eager"
           fetchpriority="high"
+          style="display:block;inline-size:100%;block-size:clamp(22rem, 60vh, 38rem);object-fit:cover"
         />
       )}
     </div>

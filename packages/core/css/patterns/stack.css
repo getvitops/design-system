@@ -38,7 +38,9 @@
   }
 
   .stack__card__content {
-    animation: stack-scale linear forwards;
+    animation-name: stack-scale;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
     animation-timeline: --card;
     animation-range: contain 0% contain 100%;
   }
@@ -50,9 +52,9 @@
   }
 
   .stack--fade .stack__card__content {
-    animation:
-      stack-scale linear forwards,
-      stack-fade linear forwards;
+    animation-name: stack-scale, stack-fade;
+    animation-timing-function: linear, linear;
+    animation-fill-mode: forwards, forwards;
     animation-timeline: --card, --card;
     animation-range:
       contain 0% contain 100%,

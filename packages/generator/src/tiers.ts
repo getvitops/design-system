@@ -282,7 +282,7 @@ export const TIERS: Record<string, TierEntry> = {
     use: "Add `.tone` and set `--tone-bg` / `--tone-fg` / `--tone-border` / `--tone-solid` / `--tone-on-solid` as custom properties — never a class built from a value, which Tailwind cannot see. `@getvitops/emdash`'s `resolveTone(tone, color)` writes them: role, then semantic fallbacks, then `neutral`, or a palette `color` escape hatch. `.accent` colours a run inside a heading.",
   },
   section: {
-    emdash: ['vitops_section'],
+    emdash: ['vitops_section', 'vitops_band'],
     css: c(
       [
         'section',
@@ -293,11 +293,13 @@ export const TIERS: Record<string, TierEntry> = {
         'section__body',
         'section--split',
         'section--center',
+        'section--backdrop',
+        'section__backdrop',
         'block-anchor',
       ],
       'patterns/section.css',
     ),
-    use: '`.section.region` > `.centered` > `.section__inner` holding `.section__head` (kicker, heading, sub) and `.section__body`. `.section--split` puts the head beside the body when wide. In EmDash it is a block TYPE (`vitops_section`) with a Portable Text body that accepts any other block — see `vitopsBlockTypes()`.',
+    use: '`.section.region` > `.centered` > `.section__inner` holding `.section__head` (kicker, heading, sub) and `.section__body`. `.section--split` puts the head beside the body when wide. `.section--backdrop` with a `.section__backdrop` image puts a decorative photo behind the band, darkened by the tone solid. In EmDash it is a block TYPE (`vitops_section`) with a Portable Text body that accepts any other block — see `vitopsBlockTypes()`. In a Portable Text field, where a block cannot hold blocks, `vitops_band` is a marker that opens a section around the blocks after it; render the field with `<VitopsContent>` (`@getvitops/emdash/astro`).',
   },
   steps: {
     emdash: ['vitops_steps'],
@@ -567,7 +569,7 @@ export const TIERS: Record<string, TierEntry> = {
     astro: [...a('SiteNav', 'css'), ...a('SiteFooter', 'css')],
     emdash: ['vitops_nav'],
     bricks: 'vitops-sitenav',
-    use: "`.sitenav` with `--bp-*` and a drawer direction. `<details>` + Invoker Commands, no JS. In Astro: `<SiteNav {...await loadNavMenus(getMenu)} />` renders EmDash menu `primary` (the default: dropdowns from `md`, drawer below) and, if they exist, `primary-mobile` (depth-1 nav below `md`) and `primary-mega` (mega panels from `xl`) — adding the menu in the admin is the whole change. An item's `titleAttr` is its description. Per-site behaviour lives in `site.chrome.nav` — `<SiteNav {...nav} {...resolveNavOptions(site)} />` sets `compact` (`drawer` | `dropdown`: an anchored, columnar panel under the toggle), `drawerSide`, the breakpoints and depths. For a mega panel's featured column pass `megaPanel={VitopsMegaPanel}` (`@getvitops/emdash/astro`): it renders the widget area `mega-<item slug>` (or the item's `mega-area:<name>` class) and nothing when there is none. `<SiteFooter sitemap legal name>` renders `footer-sitemap` + `footer-legal` + the copyright line. For a menu inside page content (a site map, a section's links, footer-style columns) use `.navlist` — plain nested lists, `--inline` / `--columns` — or, in EmDash, the `vitops_nav` block (menu, layout `list|inline|columns|sitenav`, depth 1–3, heading, tone). Name each `<nav>` uniquely: the header is `Primary` and the footer `Site map` / `Legal`, and the block never reuses those.",
+    use: "`.sitenav` with `--bp-*` and a drawer direction. `<details>` + Invoker Commands, no JS. In Astro: `<SiteNav {...await loadNavMenus(getMenu)} />` renders EmDash menu `primary` (the default: dropdowns from `md`, drawer below) and, if they exist, `primary-mobile` (depth-1 nav below `md`) and `primary-mega` (mega panels from `xl`) — adding the menu in the admin is the whole change. An item's `titleAttr` is its description. Per-site behaviour lives in `site.chrome.nav` — `<SiteNav {...nav} {...resolveNavOptions(site)} />` sets `compact` (`drawer` | `dropdown`: an anchored, columnar panel under the toggle), `drawerSide`, the breakpoints and depths. For a mega panel's featured column pass `megaPanel={VitopsMegaPanel}` (`@getvitops/emdash/astro`): it renders the widget area `mega-<item slug>` (or the item's `mega-area:<name>` class) and nothing when there is none. `<SiteFooter sitemap legal name config={site}>` renders `footer-sitemap` + `footer-legal` + the copyright line, plus `organization.logo` and a contact column (address, tel:/mailto: links, one location's hours, profile links) from the same config: nothing to hand-write, `contact={false}` / `logo={false}` to omit, a `brand` slot to replace the logo, `location` to pick whose hours. For a menu inside page content (a site map, a section's links, footer-style columns) use `.navlist` — plain nested lists, `--inline` / `--columns` — or, in EmDash, the `vitops_nav` block (menu, layout `list|inline|columns|sitenav`, depth 1–3, heading, tone). Name each `<nav>` uniquely: the header is `Primary` and the footer `Site map` / `Legal`, and the block never reuses those.",
   },
   'split-link': {
     css: c(['split-link', 'split-link__toggle', 'split-link__panel'], 'patterns/split-link.css'),
@@ -667,7 +669,8 @@ export const TIERS: Record<string, TierEntry> = {
     // No stylesheet: semantic HTML in the framework's existing vocabulary (`rhythm`, `table`, `cluster`).
     css: c([]),
     astro: [...a('LocationPage', 'css'), ...a('ServicePage', 'css')],
-    use: "`<LocationPage location={…} defaultLocale>` and `<ServicePage service={…} defaultLocale providerName>`: one `organization.locations` / `organization.services` entry as a page (name, address, hours table, photos, offers) plus its `LocalBusiness` / `Service` JSON-LD, with a slot for your own copy. Nothing scaffolds the route: write `src/pages/locations/[slug].astro` with `getStaticPaths()` over the record and `resolveSlug()` from `@getvitops/astro/schemas/graph-adapters.ts` (the idiom is in LocationPage's docblock). The key of the record, not the `slug`, is the entry's identity.",
+    emdash: ['vitops_location'],
+    use: "`<LocationPage location={…} defaultLocale>` and `<ServicePage service={…} defaultLocale providerName>`: one `organization.locations` / `organization.services` entry as a page (name, address, hours table, photos, offers) plus its `LocalBusiness` / `Service` JSON-LD, with a slot for your own copy. In EmDash, `vitops_location` places one location in content (a build-time import of `organization.locations`, `virtual:getvitops/organization`, served by `vitops()`). Nothing scaffolds the route: write `src/pages/locations/[slug].astro` with `getStaticPaths()` over the record and `resolveSlug()` from `@getvitops/astro/schemas/graph-adapters.ts` (the idiom is in LocationPage's docblock). The key of the record, not the `slug`, is the entry's identity.",
   },
   tabs: {
     css: c(
@@ -707,7 +710,7 @@ export const TIERS: Record<string, TierEntry> = {
       'patterns/masthead.css',
     ),
     astro: a('Masthead', 'css'),
-    use: '`<Masthead config={site}>` from `site.chrome.masthead` (position `static|sticky|fixed`, surface `solid|glass|transparent`, layout `full|inset|floating`, `inset` and `height` lengths — fluid ones like `clamp(3.5rem, 8cqi, 4.5rem)` are fine — elevation shadow/border, and `states`: a partial look per scroll state — `atStart`, `atEnd`, `scrollingToEnd`, `scrollingToStart`, later wins, animated — taking `layout`, `height`, `inset`, `surface`, `elevation` (or `false`) and `hidden`; e.g. a full-width banner at the top that floats once scrolled, a bar hidden until first scroll, hide-on-scroll). A prop overrides one field for a layout. A state that hides the bar at the start, or changes its size or layout, makes it `fixed`. Slots `brand`, default (the `<SiteNav>`), `actions`. Pure CSS: states are `scroll-state()` queries that only override a settled bar, so a browser without them (Firefox today) shows a visible, solid, elevated one. It never takes `role="banner"`: a body-level `<header>` already is the landmark, and `.banner` means the announcement bar.',
+    use: '`<Masthead config={site}>` from `site.chrome.masthead` (position `static|sticky|fixed`, surface `solid|glass|transparent`, layout `full|inset|floating`, `inset` and `height` lengths — fluid ones like `clamp(3.5rem, 8cqi, 4.5rem)` are fine — elevation shadow/border, and `states`: a partial look per scroll state — `atStart`, `atEnd`, `scrollingToEnd`, `scrollingToStart`, later wins, animated — taking `layout`, `height`, `inset`, `surface`, `elevation` (or `false`) and `hidden`; e.g. a full-width banner at the top that floats once scrolled, a bar hidden until first scroll, hide-on-scroll). A prop overrides one field for a layout. A state that hides the bar at the start, or changes its size or layout, makes it `fixed`. Slots `brand` (default: `organization.logo` linked to `brandHref`, `logo={false}` to omit), default (the `<SiteNav>`), `actions`. Pure CSS: states are `scroll-state()` queries that only override a settled bar, so a browser without them (Firefox today) shows a visible, solid, elevated one. It never takes `role="banner"`: a body-level `<header>` already is the landmark, and `.banner` means the announcement bar.',
   },
   navbar: {
     css: c(['navbar', 'navbar--sticky', 'nav-items'], 'patterns/navbar.css'),
@@ -728,7 +731,8 @@ export const TIERS: Record<string, TierEntry> = {
   },
   'pull-quote': {
     css: c(['pull-quote', 'pull-quote__attribution'], 'patterns/pull-quote.css', true),
-    use: '`.pull-quote`. Note the type role `quote` is separate.',
+    emdash: ['vitops_testimonial'],
+    use: '`.pull-quote`. Note the type role `quote` is separate. In EmDash, `vitops_testimonial` is a quote with attribution and optional stars; its `Review` JSON-LD is opt-in, because Google ignores reviews a business writes about itself.',
   },
   breadcrumbs: {
     css: c(['breadcrumbs'], 'patterns/breadcrumbs.css'),
@@ -864,7 +868,9 @@ export const TIERS: Record<string, TierEntry> = {
   },
   forms: {
     css: c(['form-group', 'input-group', 'fieldset', 'custom-check'], 'patterns/forms.css', true),
-    use: 'Wrap text controls in `.form-group` or `.input-group` — a bare `<input>` gets browser defaults.',
+    astro: a('ContactForm', 'css'),
+    emdash: ['vitops_form'],
+    use: 'Wrap text controls in `.form-group` or `.input-group` — a bare `<input>` gets browser defaults. For a contact or enquiry form use `<ContactForm />` (name, email, phone, message, or `fields={[{ label, type, required }]}`): a real `<form method="post">` to `createConversionRoute()` with the honeypot and, when `site.security.turnstile.siteKey` is set, Turnstile. Do not hand-write that form: the route drops a field named `phone` (it is the tel-click payload) and treats `website`/`honeypot` as bot traps, and `<ContactForm>` submits a phone as `tel`. In EmDash, `vitops_form` is the same form with editor-defined fields.',
   },
   cluster: {
     css: c(['cluster', 'cluster-between', 'cluster-start'], 'patterns/cluster.css'),

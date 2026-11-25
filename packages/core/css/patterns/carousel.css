@@ -168,7 +168,13 @@ wc-carousel {
 }
 
 /* Paged — CSS multicol. `::column` is left ungated: an engine without it renders
-   a plain multicol strip, which still scrolls and snaps. */
+   a plain multicol strip, which still scrolls and snaps.
+   TODO(support): lightningcss (through 1.33) does not know `::column` and prints
+   "'column' is not recognized as a valid pseudo-element" for it, and for
+   `::column::scroll-marker` below, on every build that minifies this partial. It is a warning,
+   not a failure, and the rules are passed through intact. `@supports selector(::column)` does
+   not silence it (the inner rule is still parsed), so drop this note when lightningcss learns
+   the pseudo-element. */
 .carousel--auto-pages > .carousel__track,
 .carousel--auto-pages:not(:has(> .carousel__track)) {
   columns: var(--carousel-columns, 1);
@@ -556,13 +562,17 @@ wc-carousel {
    shell hoisted with `timeline-scope`. */
 @supports (animation-timeline: scroll()) {
   .carousel__hint {
-    animation: carousel-hint-dim linear both;
+    animation-name: carousel-hint-dim;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
     animation-timeline: --carousel-scroll;
     animation-range: 0 var(--carousel-hint-range, 12%);
   }
 
   .carousel__track {
-    animation: carousel-scrollbar-dim linear both;
+    animation-name: carousel-scrollbar-dim;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
     animation-timeline: --carousel-scroll;
     animation-range: 0 var(--carousel-hint-range, 12%);
   }
@@ -648,7 +658,9 @@ wc-carousel {
 
 .carousel--inert.carousel--auto-pages > .carousel__track > *,
 .carousel--inert.carousel--auto-pages:not(:has(> .carousel__track)) > * {
-  animation: carousel-offscreen-inert linear both;
+  animation-name: carousel-offscreen-inert;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
   animation-timeline: view(x);
 }
 

@@ -36,7 +36,7 @@ export default defineConfig({
 });
 ```
 
-Tested against `emdash@1.4.x`.
+Tested against `emdash@1.5.x`.
 
 ## Rendering mode
 

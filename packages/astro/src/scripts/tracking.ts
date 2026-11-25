@@ -228,6 +228,40 @@ interface AdsGlobal {
 }
 const adsGlobal = (): AdsGlobal => window as unknown as AdsGlobal;
 
+type ConversionAction = 'call' | 'email' | 'form';
+
+// Mirrors `TAG_EVENT` in `@getvitops/core`'s `consent/store.ts`, copied for the same reason as
+// the parameter lists below: this file is inlined into the document (`tracking.test.ts` pins it).
+const TAG_EVENT = 'vitops:tag';
+
+// Conversions that arrived before the Google tag did. `gtag` and `vitopsAdsConversions` are both
+// defined by the gated bootstrap, so before that tag activates (consent not given yet, or an `idle`
+// tag that has not reached its turn) there is neither a function to call nor a target to send to.
+// Dropping the event there lost the lead with no trace; it now waits for the runtime's `TAG_EVENT`
+// and flushes then, which also ties the wait to consent instead of a timeout. A `Set`, so several
+// taps on the same action before the tag loads report once rather than inflating the count.
+const pendingConversions = new Set<ConversionAction>();
+
+/** Fire the Google Ads `conversion` event for `action`, or hold it until the tag is there. */
+function reportConversion(action: ConversionAction): void {
+  const g = adsGlobal();
+  if (typeof g.gtag !== 'function') {
+    pendingConversions.add(action);
+    return;
+  }
+  // The tag is up, so an action with no `send_to` is simply not configured: skipped, as before.
+  const sendTo = g.vitopsAdsConversions?.['google']?.[action];
+  if (sendTo) g.gtag('event', 'conversion', { send_to: sendTo });
+}
+
+document.addEventListener(TAG_EVENT, () => {
+  // Each tag activation re-checks: the bootstrap that defines `gtag` may be activated after others.
+  if (typeof adsGlobal().gtag !== 'function' || pendingConversions.size === 0) return;
+  const waiting = [...pendingConversions];
+  pendingConversions.clear();
+  for (const action of waiting) reportConversion(action);
+});
+
 document.addEventListener('click', (e) => {
   const link = (e.target as Element).closest?.(
     'a[href^="tel:"], a[href^="mailto:"]',
@@ -246,14 +280,11 @@ document.addEventListener('click', (e) => {
   }
 
   // Report the same click as a Google Ads conversion, when that action's
-  // `conversionLabel` is configured. `sendTo` is absent whenever the tag never
-  // loaded (gated and undecided, or `site.ads.google` unset) or that specific
-  // action has no label — silently skipped, same as every other
-  // optional-runtime check in this file.
-  const sendTo = adsGlobal().vitopsAdsConversions?.['google']?.[isEmail ? 'email' : 'call'];
-  if (sendTo && typeof adsGlobal().gtag === 'function') {
-    adsGlobal().gtag!('event', 'conversion', { send_to: sendTo });
-  }
+  // `conversionLabel` is configured. If the tag has not loaded yet (gated and
+  // undecided, or still waiting for its idle turn) the conversion is held and
+  // flushed when the runtime announces the tag; an action with no label is
+  // silently skipped, same as every other optional-runtime check in this file.
+  reportConversion(isEmail ? 'email' : 'call');
 });
 
 // ---------------------------------------------------------------------------
@@ -287,10 +318,7 @@ const CONVERTED_ATTR = 'data-vitops-converted';
 function vitopsFormConversion(formEl: HTMLFormElement): void {
   if (formEl.hasAttribute(CONVERTED_ATTR)) return;
   formEl.setAttribute(CONVERTED_ATTR, '');
-  const sendTo = adsGlobal().vitopsAdsConversions?.['google']?.['form'];
-  if (sendTo && typeof adsGlobal().gtag === 'function') {
-    adsGlobal().gtag!('event', 'conversion', { send_to: sendTo });
-  }
+  reportConversion('form');
 }
 
 (window as unknown as { vitopsFormConversion?: typeof vitopsFormConversion }).vitopsFormConversion =

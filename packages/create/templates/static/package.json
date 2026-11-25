@@ -21,18 +21,18 @@
   "dependencies": {
     "@getvitops/astro": "latest",
     "@getvitops/skills": "latest",
-    "astro": "^7.4.4"
+    "astro": "^7.4.13"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
-    "@astrojs/compiler-rs": "^0.5.2",
+    "@astrojs/compiler-rs": "^0.5.3",
     "@getvitops/cli": "latest",
-    "playwright": "^1.62.1",
-    "skills": "^1.8.1",
+    "playwright": "^1.65.1",
+    "skills": "^1.9.0",
     "typescript": "^6.0.3",
-    "vite": "npm:@voidzero-dev/vite-plus-core@^1.5.1",
-    "vite-plus": "^1.5.1",
-    "wrangler": "^4.111.0"
+    "vite": "npm:@voidzero-dev/vite-plus-core@^8.3.8000",
+    "vite-plus": "^1.7.0",
+    "wrangler": "^4.166.0"
   },
   "devEngines": {
     "packageManager": {

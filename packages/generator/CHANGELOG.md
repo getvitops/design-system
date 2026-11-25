@@ -1,5 +1,69 @@
 # @getvitops/generator
 
+## 9.0.0-alpha.12
+
+### Patch Changes
+
+- @getvitops/config@9.0.0-alpha.12
+- @getvitops/utils@9.0.0-alpha.12
+
+## 9.0.0-alpha.11
+
+### Patch Changes
+
+- @getvitops/config@9.0.0-alpha.11
+- @getvitops/utils@9.0.0-alpha.11
+
+## 9.0.0-alpha.10
+
+### Patch Changes
+
+- 3b78c4f: **Fix: scroll-driven animations silently did nothing in Chromium.** lightningcss folds `animation: x linear both; animation-timeline: view()` into one `animation: linear both x view()` when it minifies, and Chromium does not accept a timeline inside the `animation` shorthand, so it dropped the whole declaration. The affected rules never ran: `.text-reveal`, `.scroll-size`, `.scroll-reveal`, the `.steps--animated` items, `.parallax__layer`, the scroll-progress bar, `.stack` cards, `.horizontal-scroll` and the carousel's hint and scrollbar dimming and offscreen-inert rules. They are now written as `animation-name`, `animation-timing-function`, `animation-fill-mode` and `animation-timeline` longhands, which lightningcss leaves alone. All formats (the partials are shared); the visible change is that those effects now run. A new test fails if any bundle carries a timeline inside an `animation:` shorthand. Other fixed-group packages: no consumer-facing change.
+  - @getvitops/config@9.0.0-alpha.10
+  - @getvitops/utils@9.0.0-alpha.10
+
+## 9.0.0-alpha.9
+
+### Minor Changes
+
+- 1e2c49f: Add the `vitops_band` block and `<VitopsContent>`, so a Portable Text page can have full-width tinted sections.
+
+  `vitops_section` only works in a `blocks` field, because a Portable Text block cannot hold other blocks. `vitops_band` is a marker instead: it opens a section (kicker, heading, lead-in, buttons, layout, width, tone or theme) and every block after it, up to the next band, goes inside. Render the field with `<VitopsContent value={content} />` from `@getvitops/emdash/astro` where you used `<PortableText>`; content with no band renders exactly as before, and without `<VitopsContent>` a marker renders only its own heading. Both scaffolded pages now use it. The generator's `section` pattern lists the new block. Reaches the EmDash renderer only; no CSS change.
+
+- 2406333: **Breaking: the default output format is `tailwind`, not `bricks`.** `generate({ input })` with no `format`, `vitops generate` with no `-f`, and `vitops lint` with no `-f` now target Tailwind (`tailwind.css` plus `tokens.json`), which is what EmDash and Astro sites build. The Astro integration (`css.format`) and `@getvitops/vite` already defaulted to `tailwind`, so a site using either is unaffected. **Migration:** a build that relied on the implicit default (a WordPress/Bricks pipeline, or a script calling `vitops generate` with no flag) passes `--format bricks` / `format: 'bricks'`; the Bricks output itself is unchanged and still supported by name. `vitops lint` on a Bricks site passes `-f bricks` for the same reason. Affects the generator library and the CLI only; no CSS changes in any format. Other fixed-group packages: no consumer-facing change.
+- 8329394: Add the `vitops_location` block: one of the site's `organization.locations` (address, phone, email, hours, photos) with its `LocalBusiness` JSON-LD.
+
+  It is a thin adapter over `<LocationPage>`, so a hand-built location page and the block cannot differ, and a blank key renders the first location. The data comes from a new `virtual:getvitops/organization` module that the `vitops()` integration serves from `site.json` (only `organization.locations` and the default locale; empty when there is no config). `<LocationPage>` now passes extra HTML attributes and `class` through to its `<article>`, which is how the block applies its anchor, class and style. The `location-pages` entry in the tier manifest lists the block. Reaches the EmDash renderer and Astro integration only; no CSS change.
+
+- 4c149cf: `vitops_section` and `vitops_band` take a backdrop image: a decorative photo behind the whole band.
+
+  The image sits behind the heading and content (`.section--backdrop` with a `.section__backdrop` image) and is darkened by the tone's solid colour at `--section-scrim-strength` (default 60%; black with no tone). The text uses that solid's computed foreground (white with no tone), so readable contrast comes from the tone and not from the photo. The image is always decorative (empty `alt`); an image that carries meaning belongs in the band's body. CSS: all formats (css, bricks and tailwind). The section block type moves to version 2 to add the field; version 1 is kept as shipped, so existing databases stay valid, and the scaffolded seed carries both versions.
+
+- d2c8dff: Add the `vitops_testimonial` block: a customer quote with attribution and optional stars, on the `.pull-quote` pattern.
+
+  Its `Review` JSON-LD is opt-in (a toggle, off by default) and needs the stars and the name of the business reviewed, because Google ignores reviews a business writes about itself and the markup must match what the page shows. The `pull-quote` entry in the generator's tier manifest lists the new block. Reaches the EmDash renderer only; no CSS change.
+
+### Patch Changes
+
+- 65c30b1: **The `bricks` format is labelled not actively maintained.** The generated `formats.md` and Bricks index and `vitops generate --help` now say it: Bricks was the original target, sites are built on `tailwind`, and `bricks` keeps building and working but gets no new patterns or fixes until Bricks support is rebuilt on the `tailwind`/`css` foundation. Documentation only: no output changes in any format. Other fixed-group packages: no consumer-facing change.
+- e4262a8: **`<SiteFooter>` and `<Masthead>` read `organization` from the site config, so a site no longer rewrites its logo and contact column by hand.** Pass `config={site}` (the same value `<Masthead>` already takes for `site.chrome`).
+
+  - **`<SiteFooter>`**: the brand column shows `organization.logo` (linked home, `loading="lazy"`) when there is no `brand` slot, and a new **contact column** follows the menus: the postal address as an `<address>`, a `tel:` link built from the phone number, a `mailto:` link, the opening hours of one location (grouped to `Mon–Fri  8 am–5 pm`), and the public profile links (`organization.links`) in a labelled `<nav>`. A column only appears for facts the config states, so a config that states none renders the footer it did before. New props: `contact` and `logo` (both default true), `location` (which `organization.locations` key supplies the hours; default the one `organization.contact` names, else the first), and `contactLabel` / `hoursLabel` / `socialLabel`.
+  - **`<Masthead>`**: with no `brand` slot it shows `organization.logo` as a link to `brandHref` (default `/`); `logo={false}` omits it. A logo link is named by the logo's `alt`, else the organization name, else "Home".
+  - **Gutter.** `.sitefooter:not(.centered)` now has `padding-inline: var(--sitefooter-gutter, 1rem)`, matching the masthead's `width: full` row, so the logo and columns no longer sit flush against the viewport edge on a wide screen. A footer with `class="centered"` is unchanged (the track is its gutter). New hooks: `--sitefooter-gutter`, `--sitefooter-logo-h` (3rem), `--masthead-logo-h` (2rem).
+
+  Every URL that reaches an `href` or `src` (the logo, the profile links) must be a same-site path or an http(s) URL; anything else (`javascript:`, `data:`, `//host`) is dropped. Affects css, bricks and tailwind alike (the partials are shared). **Migration:** none required; a site that fills the `brand` slot keeps its own markup. A site with a hand-built footer contact column can delete it. Other fixed-group packages: no consumer-facing change.
+
+- 29f5aca: **New: `<ContactForm />`**, a contact / enquiry form for a page written in code. `<ContactForm />` renders name, email, phone and message; `fields={[{ label, type, required, name, options }]}` replaces them. It is a real `<form method="post">` that works with no JavaScript and posts to `createConversionRoute()` (`/api/track`), with the honeypot the route recognises, the `_next` return path, both result notices (revealed by the URL fragment after a no-JS submit) and `<wc-turnstile>` when `site.security.turnstile.siteKey` is set (`turnstileSiteKey` overrides it, `null` turns it off). A slot takes a heading and intro.
+
+  Use it instead of a hand-written form. The route reserves four names, and a form that trips one fails silently: an input named `phone` is dropped (it is the `tel:` click payload), so the number never reaches the notification or CRM; a filled `website` / `honeypot` / `_honeypot` makes the route answer success and deliver nothing. `<ContactForm />` submits a phone as `tel` and keeps every field clear of the reserved names. It is also what the `vitops_form` block renders, so a form in code and one in the CMS cannot differ.
+
+  **Migration:** none required. A site with its own `api/contact.ts` and `<form>` (jblsigns, vitops-website) can replace both with `<ContactForm />` and `createConversionRoute()`; the `emdash-contact-form` skill and the `forms` entry of the components reference say how. Affects the Astro component and the generated components reference; no CSS changes in any format. Other fixed-group packages: no consumer-facing change.
+
+- Updated dependencies [200a4a7]
+  - @getvitops/utils@9.0.0-alpha.9
+  - @getvitops/config@9.0.0-alpha.9
+
 ## 9.0.0-alpha.8
 
 ### Minor Changes

@@ -1,4 +1,5 @@
 ---
+import RichBody from './RichBody.astro';
 import { resolveBlockValue } from './value.ts';
 
 interface Value {
@@ -15,6 +16,6 @@ import { rootAttrs } from './attrs.ts';
 {summary && (
   <details open={open} {...rootAttrs(value)}>
     <summary>{summary}</summary>
-    <p>{body}</p>
+    <RichBody text={body} />
   </details>
 )}

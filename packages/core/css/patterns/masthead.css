@@ -90,6 +90,19 @@
   min-block-size: var(--_masthead-h);
 }
 
+/* The logo `<Masthead>` renders from `organization.logo` when there is no `brand` slot. */
+.masthead__brand {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+
+  & .masthead__logo {
+    block-size: var(--masthead-logo-h, 2rem);
+    inline-size: auto;
+    max-inline-size: 100%;
+  }
+}
+
 /* `width: full` has no track to supply a gutter. */
 .masthead__row:not(.centered) > .navbar {
   padding-inline: var(--masthead-gutter, 1rem);

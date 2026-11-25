@@ -17,7 +17,12 @@
  */
 import '../web-components/WCConsent.js';
 
-export { api as consent, CONSENT_EVENT, CONSENT_OPEN_EVENT } from '../consent/runtime.js';
+export {
+  api as consent,
+  CONSENT_EVENT,
+  CONSENT_OPEN_EVENT,
+  TAG_EVENT,
+} from '../consent/runtime.js';
 export type { ConsentApi, ConsentStrategy } from '../consent/runtime.js';
 export {
   CATEGORIES,

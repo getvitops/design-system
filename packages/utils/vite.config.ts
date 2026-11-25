@@ -50,6 +50,7 @@ export default defineConfig({
       'src/email/index.ts',
       'src/git/index.ts',
       'src/forms/index.ts',
+      'src/contact-form/index.ts',
     ],
     outDir: 'dist',
     format: ['es'],

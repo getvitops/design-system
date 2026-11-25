@@ -1,0 +1,38 @@
+---
+/**
+ * A multiline editor field as paragraphs and lists (`bodyBlocks()`), with `[text](url)` links and
+ * `**bold**` inside each. Internal to the block adapters; no `set:html`, so editor text cannot
+ * inject markup.
+ */
+import RichText from './RichText.astro';
+import { bodyBlocks } from './value.ts';
+
+interface Props {
+  text: unknown;
+}
+const blocks = bodyBlocks(Astro.props.text);
+---
+
+{blocks.map((block) =>
+  block.kind === 'p' ? (
+    <p>
+      <RichText text={block.text} />
+    </p>
+  ) : block.kind === 'ul' ? (
+    <ul>
+      {block.items.map((item) => (
+        <li>
+          <RichText text={item} />
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <ol>
+      {block.items.map((item) => (
+        <li>
+          <RichText text={item} />
+        </li>
+      ))}
+    </ol>
+  ),
+)}

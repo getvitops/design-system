@@ -72,8 +72,12 @@ export function resolveEmbed(provider: unknown, input: unknown): ResolvedEmbed |
         : null;
     }
     case 'map': {
-      // Only the embed endpoints: a plain maps.google.com share link refuses framing.
-      const google = host(url, 'google.com') && url.pathname.startsWith('/maps/embed');
+      // Only the embed endpoints: a plain maps.google.com share link refuses framing. The classic
+      // `maps.google.com/maps?q=…&output=embed` form is one too (it is what Google's own "embed a
+      // map" snippet produced for years, so sites migrating from a hand-built page carry it), and
+      // is accepted on its explicit `output=embed`, never on `/maps` alone.
+      const classic = url.pathname === '/maps' && url.searchParams.get('output') === 'embed';
+      const google = host(url, 'google.com') && (url.pathname.startsWith('/maps/embed') || classic);
       const osm =
         url.hostname === 'www.openstreetmap.org' && url.pathname.startsWith('/export/embed');
       return google || osm ? done(url.href) : null;

@@ -1,5 +1,46 @@
 # @getvitops/skills
 
+## 0.1.0-alpha.5
+
+### Patch Changes
+
+- fcc4a30: **`<main>` is a landmark, not a layout: remove `centered` from it.** With `<main class="centered">` every section, band and hero inside is a grid item in the reading-width track, so a tone or backdrop stops at the text column and each block had to opt out. Bands now own their width.
+
+  **Breaking, with a migration (`@getvitops/cli`).** `vitops lint` reports `<main class="centered …">` as an error in any `.astro`/`.html`/`.tsx`/`.vue`/`.svelte` file, and `vitops lint --fix` removes the `centered` token (other classes stay). Then wrap hand-written page content in `<div class="centered">`; the fix cannot do that for you, because it is a per-page decision. Content rendered through `<VitopsContent>` needs nothing.
+
+  - `@getvitops/emdash`: `<VitopsContent>` wraps each run of plain blocks (before, between or after bands) in `<div class="centered rhythm">`. A split hero in such a run still goes edge to edge.
+  - `@getvitops/create`: both templates' layouts render `<main id="main">`; their pages put `centered` on the page content instead. Existing sites keep their layout until `vitops lint --fix` is run.
+  - `@getvitops/core` (all formats): the `.centered > .section { grid-column: fullbleed }` rule added in alpha.10 is removed. It only compensated for a `.centered` `<main>`, which is now the thing `vitops lint --fix` removes. A layout that still has `<main class="centered">` holds its sections to the reading width again until migrated.
+  - `@getvitops/skills`: `emdash-building-pages` explains the rule.
+
+## 0.1.0-alpha.4
+
+### Minor Changes
+
+- c66ac13: **Downstream agents can report toolchain issues, and a bot triages them.**
+
+  - **`@getvitops/cli`: new `vitops report`** drafts an issue against the toolchain's public tracker. It adds the installed `@getvitops/*` versions and detected platform, redacts the site config's organization name, domains, environment URLs and contact details plus generic secrets (tokens, emails, home paths, IPs), and prints the draft, what it redacted and a prefilled new-issue URL. It files nothing by default; `--submit` files it after a TTY confirmation (`--yes` skips that and is for an agent whose user has approved the draft), and `--search` lists possible duplicates first. Needs `gh` only for `--search` and `--submit`.
+  - **`@getvitops/skills`: new `vitops-report-issue` skill** says when to report, when not to, and the draft → show the person → file-on-yes sequence. Existing sites: `vp install` links it; nothing to change.
+
+  No consumer-facing change in the other packages of the fixed group. Repo-side (not shipped): issue forms under `.github/ISSUE_TEMPLATE/` and a read-only triage workflow, `.github/workflows/issue-triage.yml`.
+
+### Patch Changes
+
+- fcbef9e: **`vitops({ analytics })` and the consent categories now default from the site config, so they are no longer copied by hand.**
+
+  - **`analytics`:** the providers in `site.analytics` (`googleAnalyticsId`, `clarityId`, `plausibleDomain`, `matomo`) are the tags `<Analytics />` loads. The cookie notice already disclosed providers from that block; the tag now comes from the same place, so the two cannot drift. The option still adds a provider, overrides one, or sets `strategy`, and wins per provider; a provider given only in the option still warns that the notice will not disclose it. `googleTagManagerId` has no `<Analytics />` provider and is unchanged.
+  - **`consent`:** an object option used to replace `site.legal.cookieConsent.categories` outright, so `consent: { policyUrl }` silently dropped the categories the notice named and the banner fell back to a default that always offers `preferences` (vitops-website's config carries a paragraph warning about exactly this). The option's `categories`, when given, still wins; anything else in the object now leaves the config's list in place.
+
+  **Behaviour change:** a site whose `site.analytics` names a provider but whose `vitops()` call omitted `analytics` now loads that tag (before, the notice named a provider nothing loaded). A cookie-setting provider with the consent gate off warns, as before. To keep a provider out of the page, remove it from `site.analytics`. **Migration:** a site that copied the provider out of its config (`analytics: { clarity: config.site.analytics.clarityId }`) can delete the option; one that passed `consent: { categories }` only to dodge the replacement can drop it. Other fixed-group packages: no consumer-facing change.
+
+- 29f5aca: **New: `<ContactForm />`**, a contact / enquiry form for a page written in code. `<ContactForm />` renders name, email, phone and message; `fields={[{ label, type, required, name, options }]}` replaces them. It is a real `<form method="post">` that works with no JavaScript and posts to `createConversionRoute()` (`/api/track`), with the honeypot the route recognises, the `_next` return path, both result notices (revealed by the URL fragment after a no-JS submit) and `<wc-turnstile>` when `site.security.turnstile.siteKey` is set (`turnstileSiteKey` overrides it, `null` turns it off). A slot takes a heading and intro.
+
+  Use it instead of a hand-written form. The route reserves four names, and a form that trips one fails silently: an input named `phone` is dropped (it is the `tel:` click payload), so the number never reaches the notification or CRM; a filled `website` / `honeypot` / `_honeypot` makes the route answer success and deliver nothing. `<ContactForm />` submits a phone as `tel` and keeps every field clear of the reserved names. It is also what the `vitops_form` block renders, so a form in code and one in the CMS cannot differ.
+
+  **Migration:** none required. A site with its own `api/contact.ts` and `<form>` (jblsigns, vitops-website) can replace both with `<ContactForm />` and `createConversionRoute()`; the `emdash-contact-form` skill and the `forms` entry of the components reference say how. Affects the Astro component and the generated components reference; no CSS changes in any format. Other fixed-group packages: no consumer-facing change.
+
+- 283cab8: `emdash-building-pages` now says how to choose a section's width and layout: `measure` and `stack` suit running text and are the defaults, and a top-level section of a marketing page often reads better wider or with a layout such as `split` or `center`, so consider that first.
+
 ## 0.1.0-alpha.3
 
 ### Minor Changes

@@ -1,4 +1,4 @@
-# Vite+ + Node + install for this repo's own workflows (ci.yml, docs.yml, deploy-dev.yml, deploy-prod.yml).
+# Vite+ + Node + install for this repo's own workflows (ci.yml, deploy-dev.yml, deploy-prod.yml).
 # Not used by site-ci.yml / site-deploy-*.yml: those run in a consumer's own scaffolded repo (no
 # checkout of *this* repo) and take a `working-directory`, which this action doesn't.
 # The caller must run `actions/checkout` FIRST. A local composite action is loaded from the checked-out

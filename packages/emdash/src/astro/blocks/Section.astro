@@ -12,6 +12,10 @@
  * make it the page opener, so a hero is not nested in a section. `stack: rhythm` puts `.rhythm` on the
  * inner element so head and body are spaced by the vertical-rhythm scale.
  *
+ * `backdrop` is a decorative image behind the whole band (`.section__backdrop`, with the tone's
+ * solid as a scrim and its computed foreground as the text colour), so heading and body stay
+ * readable over a photo.
+ *
  * The body is rendered by EmDash's `<PortableText>`, which merges this plugin's
  * `blockComponents`, so a `vitops_cards` or `vitops_actionLink` placed in it renders with its
  * web component. Class names never come from field values (Tailwind could not see them): the
@@ -22,6 +26,7 @@
 // that evaluates the virtual module before `blockComponents` exists, so the static build ships
 // an empty plugin block map and drops every `vitops_*` block in a section body.
 const { PortableText } = await import('emdash/ui');
+import BlockImage from './BlockImage.astro';
 import { unrenderedTypes } from './unrendered.ts';
 import { joinStyle, resolveTone } from './tone.ts';
 import { accentRuns, outlineTag, resolveBlockValue, safeHref, text } from './value.ts';
@@ -44,6 +49,7 @@ interface Value {
   secondary_label?: string;
   secondary_href?: string;
   stack?: string;
+  backdrop?: unknown;
 }
 
 const WIDTHS: Record<string, string> = {
@@ -72,6 +78,15 @@ const secondaryLabel = text(value.secondary_label);
 const secondaryHref = safeHref(value.secondary_href);
 const hasActions = Boolean((ctaLabel && ctaHref) || (secondaryLabel && secondaryHref));
 const stacked = text(value.stack) === 'rhythm';
+// Decorative, so no alt text is asked for: an image that carries meaning belongs in the body. A
+// `blocks`-field image may arrive as a URL or as an object holding one.
+const backdropRaw = value.backdrop;
+const backdrop = safeHref(
+  typeof backdropRaw === 'string'
+    ? backdropRaw
+    : ((backdropRaw as { src?: unknown; url?: unknown } | undefined)?.src ??
+        (backdropRaw as { url?: unknown } | undefined)?.url),
+);
 const hasHead = Boolean(kicker || heading || sub || hasActions);
 import { rootAttrs } from './attrs.ts';
 ---
@@ -85,12 +100,16 @@ import { rootAttrs } from './attrs.ts';
         'region',
         tone.style && (solid ? tone.className : tone.surface),
         tone.style && solid && 'tone--solid',
+        backdrop && 'section--backdrop',
         layout === 'split' && 'section--split',
         layout === 'center' && 'section--center',
       ],
       joinStyle(tone.style),
     )}
   >
+    {backdrop && (
+      <BlockImage class="section__backdrop" src={backdrop} alt="" loading="lazy" decoding="async" />
+    )}
     <div class="centered">
       <div class:list={['section__inner', width, stacked && 'rhythm']}>
         {hasHead && (

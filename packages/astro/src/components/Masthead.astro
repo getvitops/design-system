@@ -12,6 +12,10 @@
  *     <a slot="actions" class="cta" href="/contact">Contact</a>
  *   </Masthead>
  *
+ * With no `brand` slot the masthead shows `organization.logo` from the same config, linked to
+ * `brandHref` (default `/`); give the slot to use your own markup, or `logo={false}` for none. A
+ * linked logo is named by its `alt` (the logo object's, else the organization name, else "Home").
+ *
  * A prop overrides the same field from the config for this layout — e.g. a landing page that
  * sets `position="fixed" states={{ atStart: { surface: 'transparent' } }}` over a hero. The element is a
  * plain header with no `role="banner"`: a body-level header already is the banner landmark,
@@ -25,14 +29,26 @@ import {
   type ChromeSource,
   type MastheadOptions,
 } from './masthead.ts';
+import { resolveLogo } from './footer.ts';
 
 interface Props extends MastheadOptions {
-  /** The site config (or anything shaped `{ site: { chrome } }`). */
+  /** The site config (or anything shaped `{ site: { chrome }, organization }`). */
   config?: ChromeSource;
+  /** Where the logo links. Default `/`. */
+  brandHref?: string;
+  /** Show `organization.logo` when there is no `brand` slot. Default true. */
+  logo?: boolean;
   class?: string;
 }
 
-const { config, class: className, ...override } = Astro.props;
+const {
+  config,
+  brandHref = '/',
+  logo: showLogo = true,
+  class: className,
+  ...override
+} = Astro.props;
+const brandLogo = showLogo && !Astro.slots.has('brand') ? resolveLogo(config?.organization) : null;
 const masthead = resolveMasthead(config, override);
 const rootCss = mastheadRootCss(masthead);
 ---
@@ -41,7 +57,20 @@ const rootCss = mastheadRootCss(masthead);
 <header class:list={[...mastheadClass(masthead), className]} style={mastheadStyle(masthead)}>
   <div class:list={['masthead__row', masthead.width === 'content' && 'centered']}>
     <div class="navbar">
-      <slot name="brand" />
+      <slot name="brand">
+        {brandLogo && (
+          <a class="masthead__brand" href={brandHref}>
+            <img
+              class="masthead__logo"
+              src={brandLogo.src}
+              alt={brandLogo.alt || 'Home'}
+              width={brandLogo.width}
+              height={brandLogo.height}
+              decoding="async"
+            />
+          </a>
+        )}
+      </slot>
       <div class="navbar__spacer">
         <slot />
       </div>

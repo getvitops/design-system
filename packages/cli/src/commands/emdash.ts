@@ -53,6 +53,27 @@ import { cmdEmdashDb, cmdEmdashSchema } from './emdash-env.ts';
 import { fail } from './shared.ts';
 import { EMDASH_HELP } from '../help.ts';
 
+/**
+ * Import `@getvitops/emdash` as the project installed it. `require.resolve('@getvitops/emdash')`
+ * throws for a package whose `exports` carry only an `import` condition, so resolve its
+ * `package.json` (always exported) and read the ESM entry from there.
+ */
+async function importProjectEmdash<T>(): Promise<T | undefined> {
+  try {
+    const req = createRequire(join(process.cwd(), 'noop.js'));
+    const manifestPath = req.resolve('@getvitops/emdash/package.json');
+    const pkg = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      exports?: { '.'?: { import?: string } | string };
+    };
+    const root = pkg.exports?.['.'];
+    const entry = typeof root === 'string' ? root : root?.import;
+    if (!entry) return undefined;
+    return (await import(pathToFileURL(join(manifestPath, '..', entry)).href)) as T;
+  } catch {
+    return undefined;
+  }
+}
+
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
@@ -394,13 +415,8 @@ async function cmdFormTemplate(argv: string[]) {
     );
   const name = requested ?? 'contact';
 
-  let emdash: { formTemplateFromBlock: (b: unknown) => unknown };
-  try {
-    const resolved = createRequire(join(process.cwd(), 'noop.js')).resolve('@getvitops/emdash');
-    emdash = await import(pathToFileURL(resolved).href);
-  } catch {
-    fail('@getvitops/emdash is not installed in this project (run from the site root).');
-  }
+  const emdash = await importProjectEmdash<{ formTemplateFromBlock: (b: unknown) => unknown }>();
+  if (!emdash) fail('@getvitops/emdash is not installed in this project (run from the site root).');
   const template = emdash!.formTemplateFromBlock(blocks[0]);
   const { config, changed } = withTemplate(
     JSON.parse(readFileSync(siteFile, 'utf8')),
@@ -456,6 +472,26 @@ async function cmdBuild(argv: string[]) {
   cmdCheckPrerender(argv);
 }
 
+/**
+ * `vitops emdash check-seed [file]`: check the `vitops_*` blocks in a seed against the plugin's
+ * definitions (EmDash's `validateSeed` does not know them). Exits 1 on any error.
+ */
+async function cmdCheckSeed(args: string[]) {
+  const file = args.find((a) => !a.startsWith('-')) ?? 'seed/seed.json';
+  if (!existsSync(file)) fail(`${file} does not exist (pass the seed path).`);
+  const emdash = await importProjectEmdash<{
+    checkSeedBlocks: (seed: unknown) => { level: string; path: string; message: string }[];
+  }>();
+  if (!emdash) fail('@getvitops/emdash is not installed in this project (run from the site root).');
+  const problems = emdash!.checkSeedBlocks(JSON.parse(readFileSync(file, 'utf8')));
+  for (const p of problems) console.log(`${p.level}: ${file} ${p.path}: ${p.message}`);
+  const errors = problems.filter((p) => p.level === 'error').length;
+  console.log(
+    `check-seed: ${errors} error${errors === 1 ? '' : 's'}, ${problems.length - errors} warning${problems.length - errors === 1 ? '' : 's'} in ${file}.`,
+  );
+  if (errors > 0) process.exit(1);
+}
+
 export async function cmdEmdash(argv: string[]) {
   const [sub, ...rest] = argv;
   switch (sub) {
@@ -467,6 +503,8 @@ export async function cmdEmdash(argv: string[]) {
       return cmdBuild(rest);
     case 'form-template':
       return cmdFormTemplate(rest);
+    case 'check-seed':
+      return cmdCheckSeed(rest);
     case 'schema':
       return cmdEmdashSchema(rest);
     case 'db':
@@ -478,7 +516,7 @@ export async function cmdEmdash(argv: string[]) {
       return;
     default:
       fail(
-        `unknown "emdash" subcommand "${sub}" (expected: prepare-db | check-prerender | build | form-template | schema | db). Try: vitops --help`,
+        `unknown "emdash" subcommand "${sub}" (expected: prepare-db | check-prerender | build | form-template | check-seed | schema | db). Try: vitops --help`,
       );
   }
 }

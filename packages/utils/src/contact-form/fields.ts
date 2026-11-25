@@ -39,6 +39,18 @@ export const HONEYPOT_NAME = 'website';
 
 export const MAX_FIELDS = 20;
 
+/**
+ * The fields a contact form has when its author names none: enough for a lead the route can
+ * notify and the CRM can file (`identifySubmitter` reads name, email and `tel`). "Phone" resolves
+ * to the name `tel`, never the route's reserved `phone`.
+ */
+export const DEFAULT_CONTACT_ROWS: Record<string, unknown>[] = [
+  { label: 'Name', type: 'text', required: true },
+  { label: 'Email', type: 'email', required: true },
+  { label: 'Phone', type: 'tel' },
+  { label: 'Message', type: 'textarea', required: true },
+];
+
 export interface FormField {
   /** Submitted name. */
   name: string;
