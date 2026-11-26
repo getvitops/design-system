@@ -106,6 +106,7 @@ export class WCEntries extends BaseElement {
   #nav: HTMLElement | null = null;
   #navButtons: HTMLButtonElement[] = [];
   #headerCells: HTMLTableCellElement[] = [];
+  #stickyCell: HTMLTableCellElement | null = null;
   #activeIndex = 0;
   #isWide = false;
   #resizeObserver: ResizeObserver | null = null;
@@ -172,6 +173,7 @@ export class WCEntries extends BaseElement {
     this.#table = null;
     this.#tableWrapper = null;
     this.#headerCells = [];
+    this.#stickyCell = null;
 
     this.classList.remove('entries--wide', 'entries--projection', 'entries--singular');
   }
@@ -237,6 +239,7 @@ export class WCEntries extends BaseElement {
     const firstTh = document.createElement('th');
     firstTh.textContent = '';
     headerRow.appendChild(firstTh);
+    this.#stickyCell = firstTh;
 
     this.#headerCells = [];
     for (const header of this.#columnHeaders) {
@@ -378,11 +381,24 @@ export class WCEntries extends BaseElement {
   #setupResizeObserver(): void {
     this.#resizeObserver = new ResizeObserver(this.#handleResize);
     this.#resizeObserver.observe(this);
+    // The sticky first column covers the scroll container's start edge, so a column scrolled to
+    // `inline: start` lands under it. Its width feeds the wrapper's `scroll-padding-inline-start`.
+    if (this.#stickyCell && this.#tableWrapper) this.#resizeObserver.observe(this.#stickyCell);
+  }
+
+  #syncStickyWidth(): void {
+    if (!this.#stickyCell || !this.#tableWrapper) return;
+    // Border-box, so the sticky column's own border is cleared too.
+    this.#tableWrapper.style.setProperty(
+      '--_entries-sticky-width',
+      `${this.#stickyCell.getBoundingClientRect().width}px`,
+    );
   }
 
   #handleResize = (entries: ResizeObserverEntry[]): void => {
-    const entry = entries[0];
-    if (!entry) return;
+    this.#syncStickyWidth();
+    const entry = entries.find((e) => e.target === this) ?? entries[0];
+    if (!entry || entry.target !== this) return;
     const width = entry.contentBoxSize?.[0]?.inlineSize ?? entry.contentRect.width;
     this.#isWide = width >= this.#breakpointPx;
 

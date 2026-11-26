@@ -66,4 +66,24 @@ test.describe('<wc-entries>', () => {
     ].filter(Boolean);
     expect(visibleViews).toHaveLength(1);
   });
+  test('projection: a column picked from the nav stops beside the sticky row titles, not under them', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto('/components/elements');
+    const el = page.locator('wc-entries.entries--projection').first();
+    await expect(el).not.toHaveClass(/entries--wide/);
+    await el.scrollIntoViewIfNeeded();
+    await el.locator('.entries__nav-btn').last().click();
+    // Smooth scrolling: wait until the scroll position settles.
+    await page.waitForTimeout(800);
+    const { stickyRight, thLeft } = await el.evaluate((host) => {
+      const ths = host.querySelectorAll<HTMLElement>('.entries__table thead th');
+      return {
+        stickyRight: ths[0]!.getBoundingClientRect().right,
+        thLeft: ths[ths.length - 1]!.getBoundingClientRect().left,
+      };
+    });
+    expect(thLeft).toBeGreaterThanOrEqual(stickyRight - 1);
+  });
 });

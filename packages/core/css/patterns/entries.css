@@ -102,6 +102,8 @@ wc-entries:defined > .entries__table {
 
 /* ── Projection mode (narrow): scrollable table with sticky first column ── */
 
+/* `--_entries-sticky-width` is set by WCEntries from the sticky first column's width, so a column
+   scrolled into view stops beside the row titles instead of under them. */
 wc-entries:defined.entries--projection > .entries__scroll {
   overflow-x: auto;
   scroll-padding-inline-start: var(--_entries-sticky-width, 0px);
