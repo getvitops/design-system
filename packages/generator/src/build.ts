@@ -247,6 +247,40 @@ export const decls = (obj: Record<string, string>, indent = '  ') =>
     .map(([k, v]) => `${indent}${k}: ${v};`)
     .join('\n');
 
+/**
+ * The composed journey classes (`animations.journeys.compose`) as
+ * `{ name, decls }` pairs — one source for the css/bricks rules and the
+ * tailwind `@utility` blocks, so the two formats cannot drift.
+ */
+export const journeyRules = (
+  anim: DesignSystem['animations'],
+): { name: string; decls: Record<string, string> }[] => {
+  const base = anim?.journeys?.base ?? {};
+  return (anim?.journeys?.compose ?? []).map((parts) => {
+    const d: Record<string, string> = {
+      '--_anim': parts.map((p) => `${p}-journey`).join(', '),
+      // A journey is entry → hold → exit (keyframes at 0%/100% hidden,
+      // 25%–75% held), so it needs the long range that a one-shot entrance
+      // doesn't. It starts on the same pivot as `.animate-view` — the
+      // element's midpoint 15% into the viewport, which is `entry 50%` plus
+      // 10vh (see the note on .animate-view in core's animation.css) — and
+      // runs to the end of the exit phase, so the hold occupies the middle of
+      // the crossing rather than the bottom edge of the screen.
+      //
+      // The END is spelled `exit 100%` rather than the equivalent bare `exit`,
+      // because lightningcss misparses the shorthand: an omitted offset on the
+      // END defaults to 0% there instead of the spec's 100%, so `entry exit`
+      // bundled as `entry exit 0%` and every journey snapped back to its hidden
+      // `from` state as the element reached the top of the viewport. Guarded by
+      // animation-effects.test.ts, which asserts on the BUNDLED css.
+      'animation-range': 'entry calc(50% + 10vh) exit 100%',
+    };
+    for (const p of parts)
+      for (const [k, v] of Object.entries(base[p] ?? {})) d[`--${k}`] = String(v);
+    return { name: `${parts.join('-')}-journey`, decls: d };
+  });
+};
+
 // ── fluid modular scale ───────────────────────────────────────────────────────
 interface ScaleConfig {
   base: string;
@@ -1075,30 +1109,7 @@ export function build(
       for (const [k, v] of Object.entries(e.vars ?? {})) d[`--${k}`] = asStr(v);
       out += block(name, d);
     }
-    const base = anim.journeys?.base ?? {};
-    for (const parts of anim.journeys?.compose ?? []) {
-      const d: Record<string, string> = {
-        '--_anim': parts.map((p) => `${p}-journey`).join(', '),
-        // A journey is entry → hold → exit (keyframes at 0%/100% hidden,
-        // 25%–75% held), so it needs the long range that a one-shot entrance
-        // doesn't. It starts on the same pivot as `.animate-view` — the
-        // element's midpoint 15% into the viewport, which is `entry 50%` plus
-        // 10vh (see the note on .animate-view in core's animation.css) — and
-        // runs to the end of the exit phase, so the hold occupies the middle of
-        // the crossing rather than the bottom edge of the screen.
-        //
-        // The END is spelled `exit 100%` rather than the equivalent bare `exit`,
-        // because lightningcss misparses the shorthand: an omitted offset on the
-        // END defaults to 0% there instead of the spec's 100%, so `entry exit`
-        // bundled as `entry exit 0%` and every journey snapped back to its hidden
-        // `from` state as the element reached the top of the viewport. Guarded by
-        // animation-effects.test.ts, which asserts on the BUNDLED css.
-        'animation-range': 'entry calc(50% + 10vh) exit 100%',
-      };
-      for (const p of parts)
-        for (const [k, v] of Object.entries(base[p] ?? {})) d[`--${k}`] = asStr(v);
-      out += block(`${parts.join('-')}-journey`, d);
-    }
+    for (const j of journeyRules(anim)) out += block(j.name, j.decls);
     // Each state matches the element itself OR its direct parent, mirroring the
     // precedent animation.css already sets for the trigger driver
     // (`:is(.is-active, [data-active]) > .animate-trigger`). The parent form is

@@ -36,6 +36,7 @@ import {
   type TypographyRole,
   blockSet,
   decls,
+  journeyRules,
   STATE_DEFAULT,
   BREAKPOINTS,
   gapUtilities,
@@ -366,6 +367,10 @@ function emitTailwind(ctx: TwCtx): string {
     );
     util.push(`@utility flip-${name} {\n${decls(flip)}\n}`);
   }
+  // Composed journeys (`fade-slide-journey`) — the css path emits these as
+  // `.<parts>-journey`; same rules, same source (`journeyRules`).
+  for (const j of journeyRules(ds.animations))
+    util.push(`@utility ${j.name} {\n${decls(j.decls)}\n}`);
   util.push(`\n/* Split — internal fractions (pair split with a ratio) */`);
   // The `.split` PATTERN itself is not here — it is emitted into `@layer
   // components` with the rest of the structure, so `flex-col` beats it by layer

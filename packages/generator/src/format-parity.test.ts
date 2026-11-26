@@ -729,3 +729,37 @@ describe('tailwind `sources`', () => {
     expect(JSON.stringify(css.generated)).not.toContain('@source');
   });
 });
+
+describe('composed animation journeys', () => {
+  const withJourneys = (): DesignSystem => {
+    const d = ds();
+    const anim = d.animations ?? { effects: {}, journeys: { base: {}, compose: [] } };
+    return {
+      ...d,
+      animations: {
+        ...anim,
+        journeys: {
+          base: { fade: { 'opacity-from': 0 }, slide: {} },
+          compose: [['fade'], ['slide'], ['fade', 'slide']],
+        },
+      },
+    } as DesignSystem;
+  };
+
+  it('emits every composed journey in tailwind, with the css declarations', () => {
+    const css = cssRules(
+      build(withJourneys(), 'css', ASSETS).generated['animation-effects.css'] ?? '',
+    );
+    const tw = utilityRules(build(withJourneys(), 'tailwind', ASSETS).tailwind);
+    for (const name of ['fade-journey', 'slide-journey', 'fade-slide-journey']) {
+      const fromCss = css.find(([cls]) => cls === name);
+      const fromTw = tw.find(([cls]) => cls === name);
+      expect(fromCss, `${name} in css`).toBeDefined();
+      expect(fromTw, `${name} in tailwind`).toBeDefined();
+      expect(fromTw?.[1]).toBe(fromCss?.[1]);
+    }
+    expect(tw.find(([cls]) => cls === 'fade-slide-journey')?.[1]).toContain(
+      '--_anim: fade-journey, slide-journey',
+    );
+  });
+});
