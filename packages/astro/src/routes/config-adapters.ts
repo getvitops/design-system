@@ -13,6 +13,7 @@
  * entry point into a Worker bundle.
  */
 import type { Config } from '@getvitops/generator';
+import type { CampaignsConfig } from '@getvitops/utils/campaigns';
 // The `/content` subpath, not the root barrel: the root re-exports `favicon` (sharp), and a
 // Worker route should not depend on tree-shaking to keep it out.
 import { t, type Localizable } from '@getvitops/utils/content';
@@ -97,6 +98,12 @@ export function toNotifyContext(config: Config, locale?: string): NotifyContext 
  */
 export function toCrmConfig(config: Config): CrmConfig | undefined {
   return config.site.crm;
+}
+
+/** `site.campaigns`, for `createConversionRoute`'s `campaigns.config`. Undefined when the site has no
+ * email-list signup configured, which the route reads as "never attempt one". */
+export function toCampaignsConfig(config: Config): CampaignsConfig | undefined {
+  return config.site.campaigns;
 }
 
 /**

@@ -5,3 +5,4 @@
  * (`@getvitops/emdash`) and `formTemplateFromBlock`, so the three cannot disagree about a name.
  */
 export * from './fields.ts';
+export * from './subscribe.ts';

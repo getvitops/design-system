@@ -39,17 +39,28 @@
  * interaction with the form; its slotted paragraph is the no-JS explanation. With no site key
  * there is no widget and no third-party reference at all.
  *
+ * Email-list opt-in (`site.campaigns`). `subscribeList="waitlist"` adds an unticked "Email me
+ * updates" checkbox plus a hidden list key; the route subscribes the visitor only when it is
+ * ticked, never on the cookie-consent category. `subscribeOnly` makes it a dedicated signup: no
+ * checkbox, the submit button is the opt-in (a hidden consent field), and a visible statement says
+ * what the visitor agrees to. `subscribeLabel` is the checkbox label or that statement. The field
+ * names default to `site.campaigns`'s (`subscribe`, `list`); an author's own field of the same
+ * name is renamed rather than shadowed.
+ *
  * Slot: content shown above the notices, such as a heading and an intro. Extra HTML attributes
  * (`id`, `class`, `style`) go on the outer `<div>`.
  */
 import type { HTMLAttributes } from 'astro/types';
 import head from 'virtual:getvitops/head';
 import {
+  CONSENT_VALUE,
   DEFAULT_CONTACT_ROWS,
   HONEYPOT_NAME,
   resolveFields,
+  resolveSubscribe,
   safeAction,
   safeNext,
+  subscribeReserved,
 } from '@getvitops/utils/contact-form';
 
 export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
@@ -72,6 +83,15 @@ export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
   /** Inline `style` for the notices, for a wrapper that tones them with custom properties. */
   successStyle?: string;
   errorStyle?: string;
+  /** The `site.campaigns` list key(s) this form subscribes to; see above. Omit for a plain enquiry form. */
+  subscribeList?: string;
+  /** The opt-in checkbox label, or for `subscribeOnly` the consent statement. */
+  subscribeLabel?: string;
+  /** A dedicated signup: the submit button is the opt-in, no checkbox. */
+  subscribeOnly?: boolean;
+  /** Override `site.campaigns.consentField` / `listField` when the site renamed them. */
+  subscribeConsentField?: string;
+  subscribeListField?: string;
 }
 
 const {
@@ -87,11 +107,23 @@ const {
   errorClass = 'bg-danger-muted',
   successStyle,
   errorStyle,
+  subscribeList,
+  subscribeLabel,
+  subscribeOnly,
+  subscribeConsentField,
+  subscribeListField,
   class: className,
   ...rest
 } = Astro.props;
 
-const fields = resolveFields(rows);
+const subscribe = resolveSubscribe({
+  list: subscribeList,
+  label: subscribeLabel,
+  only: subscribeOnly,
+  consentField: subscribeConsentField,
+  listField: subscribeListField,
+});
+const fields = resolveFields(rows, subscribeReserved(subscribe));
 const action = safeAction(actionProp);
 const next = safeNext(nextProp ?? Astro.url.pathname) ?? '/';
 const siteKey =
@@ -216,6 +248,28 @@ const siteKey =
         </div>
       );
     })}
+
+    {subscribe && (
+      <>
+        <input type="hidden" name={subscribe.listField} value={subscribe.list} />
+        {subscribe.mode === 'only' ? (
+          <>
+            <input type="hidden" name={subscribe.consentField} value={CONSENT_VALUE} />
+            <p class="form-group__helper">{subscribe.label}</p>
+          </>
+        ) : (
+          <div class="form-group">
+            <label class="custom-check">
+              <input type="checkbox" name={subscribe.consentField} value={CONSENT_VALUE} />
+              <span class="custom-check__box">
+                <span class="custom-check__indicator custom-check__indicator--check" />
+              </span>
+              <span>{subscribe.label}</span>
+            </label>
+          </div>
+        )}
+      </>
+    )}
 
     {/* Honeypot: named per createConversionRoute's default list. Positioned off-screen rather than
           display:none (which simple bots skip), and hidden from assistive tech and the tab order. */}

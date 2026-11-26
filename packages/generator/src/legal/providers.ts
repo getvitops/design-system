@@ -211,6 +211,30 @@ export const KNOWN_PROCESSORS = {
     // never runs in the browser.
     cookies: [],
   },
+  // ── Email campaigns ──────────────────────────────────────────────────────────
+  //
+  // `site.campaigns` makes the toolchain the thing sending a visitor's address to a mailing
+  // tool, so the policy must name it. Neither operator's jurisdiction nor storage is asserted:
+  // both are unverified, and a guessed one would be worse than an unset one.
+  zohoCampaigns: {
+    name: 'Zoho Campaigns',
+    purpose: 'email newsletters and campaigns',
+    // TODO — operatorCountry unverified, for the same reason as `zohoBigin` above. Storage is not
+    // derived from `campaigns.zohoCampaigns.dataCenter` yet; add that refiner with the
+    // verified per-DC countries rather than reusing Bigin's table by assumption.
+    privacyUrl: 'https://www.zoho.com/privacy.html',
+    // No cookie is set by this integration's own server-side subscribe.
+    cookies: [],
+  },
+  sendfox: {
+    name: 'SendFox',
+    purpose: 'email newsletters and campaigns',
+    // TODO — operator and storage jurisdiction unverified. SendFox's privacy page names Sumo Group
+    // Inc. (a Delaware corporation) as operator, but that page is years old and the Terms link a
+    // different policy host, so it is not asserted here. Confirm the live policy first.
+    privacyUrl: 'https://sendfox.com/privacy',
+    cookies: [],
+  },
   jobber: {
     name: 'Jobber',
     purpose: 'CRM and field-service management',
@@ -262,6 +286,9 @@ export function detectProcessorKeys(cfg: Config): KnownProcessorKey[] {
   if (site.crm?.provider === 'hubspot') keys.push('hubspot');
   if (site.crm?.provider === 'bigin') keys.push('zohoBigin');
   if (site.crm?.provider === 'jobber') keys.push('jobber');
+  if (site.campaigns && site.campaigns.enabled !== false) {
+    keys.push(site.campaigns.provider === 'zoho-campaigns' ? 'zohoCampaigns' : 'sendfox');
+  }
 
   const platform = site.deployment?.platform;
   const hosting = platform && HOSTING_PATTERNS.find(([re]) => re.test(platform))?.[1];

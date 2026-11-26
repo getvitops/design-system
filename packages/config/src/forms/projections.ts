@@ -203,6 +203,8 @@ export const UNPROJECTED: Readonly<Record<string, string>> = {
   'site.chrome': 'Design-owned masthead behaviour; promoted from `dev`, not client-edited',
   'site.seo': 'Large and indexing-heavy; a later projection',
   'site.tracking': 'Attribution plumbing; developer-owned',
+  'site.campaigns':
+    'Provider list ids are staff setup; a later projection once `vitops campaigns check` exists',
   'site.reviews': 'Needs Google Business Profile access first; staff-owned',
   'site.security': 'Bot protection keys; staff-owned secrets live in env, not config',
   'site.icons': 'Developer-owned icon set',

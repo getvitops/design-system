@@ -2,6 +2,8 @@
 
 Moved out of AGENTS.md so the root file stays small. Read this before changing the area; the root file keeps only the cross-package rules.
 
+Email-list signups (waitlist, blog updates) are a separate block with their own consent: see [campaigns.md](campaigns.md).
+
 `site.crm` (`@getvitops/utils/crm`) pushes a form submission into a client's CRM — HubSpot, Zoho
 Bigin, or Jobber — server-side, hung off the same `createConversionRoute()` every conversion already
 reaches, rather than a client-side iframe/JS embed. That distinction is the whole reason it exists: a

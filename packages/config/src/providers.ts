@@ -39,3 +39,21 @@ export const CRM_PROVIDERS = ['hubspot', 'bigin', 'jobber'] as const;
 export type CrmProviderConfig = (typeof CRM_PROVIDERS)[number];
 
 export const BIGIN_DATA_CENTERS = ['com', 'ca', 'eu', 'in', 'com.au', 'jp'] as const;
+
+/**
+ * The email-campaign tools a signup can subscribe a visitor to.
+ *
+ * Mirrored by `CampaignProvider` in `@getvitops/utils/campaigns`, for the same reason
+ * `CRM_PROVIDERS` is a literal list: a `z.enum` needs literals to reach the published JSON
+ * Schema. HubSpot joins in a later phase, because it rides on the CRM's own Forms submission.
+ */
+export const CAMPAIGN_PROVIDERS = ['zoho-campaigns', 'sendfox'] as const;
+
+export type CampaignProviderConfig = (typeof CAMPAIGN_PROVIDERS)[number];
+
+/**
+ * Zoho data centres whose Campaigns API host is documented. A narrower list than
+ * `BIGIN_DATA_CENTERS` on purpose: Zoho's Campaigns docs name no Canadian host, and a guessed
+ * one would fail at first submission rather than at validation.
+ */
+export const ZOHO_CAMPAIGNS_DATA_CENTERS = ['com', 'eu', 'in', 'com.au', 'jp'] as const;

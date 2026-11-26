@@ -1183,6 +1183,23 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         action_id: 'action',
         label: 'Where the form posts (leave empty for /api/track)',
       },
+      {
+        type: 'text_input',
+        action_id: 'subscribeList',
+        label:
+          'Email list to join (a list key from the site settings, e.g. waitlist; leave empty for none)',
+      },
+      {
+        type: 'text_input',
+        action_id: 'subscribeLabel',
+        label: 'Words next to the tick box, or the sign-up statement (empty: "Email me updates")',
+      },
+      {
+        type: 'toggle',
+        action_id: 'subscribeOnly',
+        label: 'Sign-up form only (the button itself is the opt-in; no tick box)',
+        initial_value: false,
+      },
       ...toneFields(),
     ],
   },

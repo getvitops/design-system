@@ -314,6 +314,17 @@ Crm setup options:
   Jobber: app-configured custom fields aren't wired up yet, so this prints a
   reminder instead of creating anything.
 
+Campaigns check options:
+  -i, --input <path>    Site config carrying site.campaigns (default: ./site.json)
+      --site-env <env>  Environment to resolve (default: production)
+
+  Fetches the account's live lists (Zoho Campaigns: getmailinglists; SendFox: GET /lists) and
+  reports every configured listKey/listId that does not exist there. A subscribe to a missing
+  list is rejected or misfiled, and nothing in the config can tell you which. Needs
+  VITOPS_ZOHO_CAMPAIGNS_CLIENT_ID/_CLIENT_SECRET/_REFRESH_TOKEN (scope ZohoCampaigns.contact.READ)
+  or VITOPS_SENDFOX_TOKEN (the SendFox API needs a paid plan), matching site.campaigns.provider.
+  Exits non-zero on any missing list.
+
 Setup repo options:
       --dry             Print the plan and exit
       --check           Report drift/blocked steps and exit non-zero, mutating nothing
@@ -550,6 +561,13 @@ export const CRM_HELP = `vitops crm — push form submissions into a client CRM
 Run \`vitops --help\` for the full option list for each subcommand.
 `;
 
+export const CAMPAIGNS_HELP = `vitops campaigns — email-list signups (site.campaigns)
+
+  vitops campaigns check [opts]  Confirm every configured list exists in the live account
+
+Run \`vitops --help\` for the full option list for each subcommand.
+`;
+
 export const EMAIL_HELP = `vitops email — sender-domain onboarding checks
 
   vitops email setup [domain]  Onboard a from-address domain, waiting for its DNS to resolve
@@ -632,6 +650,7 @@ export const COMMANDS = [
   'search',
   'ads',
   'crm',
+  'campaigns',
   'setup',
   'email',
   'emdash',
@@ -645,6 +664,7 @@ export const SUBCOMMANDS: Record<string, readonly string[]> = {
   search: ['setup', 'notify'],
   ads: ['setup', 'tags', 'lint'],
   crm: ['check', 'setup'],
+  campaigns: ['check'],
   setup: ['repo', 'hosting', 'domain', 'turnstile', 'search', 'ads', 'all'],
   email: ['setup', 'check'],
   emdash: ['prepare-db', 'check-prerender', 'build'],
@@ -692,13 +712,15 @@ export function helpFor(command: string, argv: string[]): string {
         ? ADS_HELP
         : command === 'crm'
           ? CRM_HELP
-          : command === 'setup'
-            ? SETUP_HELP
-            : command === 'email'
-              ? EMAIL_HELP
-              : command === 'emdash'
-                ? EMDASH_HELP
-                : undefined) ??
+          : command === 'campaigns'
+            ? CAMPAIGNS_HELP
+            : command === 'setup'
+              ? SETUP_HELP
+              : command === 'email'
+                ? EMAIL_HELP
+                : command === 'emdash'
+                  ? EMDASH_HELP
+                  : undefined) ??
     HELP
   );
 }

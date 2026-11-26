@@ -43,6 +43,14 @@ export interface CrmDeps {
    * than a per-provider option the caller has to pick correctly.
    */
   pageContext?: HubSpotSubmitContext | undefined;
+  /**
+   * An email-list opt-in made in this same submission, e.g. `Opted in to: Waitlist (2026-11-26)`.
+   * Appended to the record's message so the CRM holds the signup as a *fact*, never as
+   * subscription state (that lives in the campaign tool and goes stale on unsubscribe).
+   * Bigin writes it to Description and Jobber to the note; HubSpot does not read `message`, so
+   * it is not rendered there until the campaigns HubSpot provider lands.
+   */
+  signup?: string | undefined;
 }
 
 export async function deliverToCrm(
@@ -58,7 +66,10 @@ export async function deliverToCrm(
     return config ? { ok: false, provider: config.provider, reason: plan.skip } : null;
   }
 
-  const record = mapSubmission(event, config);
+  const mapped = mapSubmission(event, config);
+  const record = deps.signup
+    ? { ...mapped, message: [mapped.message, deps.signup].filter(Boolean).join('\n') }
+    : mapped;
   const fetchImpl = deps.fetch ?? fetch;
   const timeoutMs = deps.timeoutMs ?? 5_000;
   const credentials = deps.credentials;

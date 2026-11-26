@@ -47,6 +47,8 @@ import {
   AdPropertySchema,
   AdProviderSchema,
   BIGIN_DATA_CENTERS,
+  CAMPAIGN_PROVIDERS,
+  CampaignsSchema,
   CRM_PROVIDERS,
   CrmProviderSchema,
   CrmSchema,
@@ -70,7 +72,7 @@ import {
 import { desc, DesignSystemPatchSchema, type DesignSystem } from './schema.ts';
 
 // Re-exported so the generator's public API is unchanged: these moved to `@getvitops/config`.
-export { AD_PROVIDERS, BIGIN_DATA_CENTERS, CRM_PROVIDERS };
+export { AD_PROVIDERS, BIGIN_DATA_CENTERS, CAMPAIGN_PROVIDERS, CRM_PROVIDERS };
 export type { AdProvider, CrmProviderConfig };
 
 // ── Primitives ────────────────────────────────────────────────────────────────
@@ -979,6 +981,10 @@ const SiteSectionSchema = z.strictObject({
     z.optional(CrmSchema),
     "Push form submissions into a client CRM (HubSpot, Zoho Bigin, or Jobber) alongside the notification email. Read by `createConversionRoute()`'s `crm` option and `vitops crm check`/`vitops crm setup`. Credentials never live here.",
   ),
+  campaigns: desc(
+    z.optional(CampaignsSchema),
+    "Email-list signups (waitlist, blog updates, reports) subscribed through a campaign tool (Zoho Campaigns or SendFox). Independent of `site.crm`: a signup carries its own opt-in. Read by `createConversionRoute()`'s `campaigns` option. Credentials never live here.",
+  ),
   security: desc(SecuritySchema, 'Security integrations (bot protection).'),
   legal: desc(
     z.optional(
@@ -1750,6 +1756,30 @@ export function validateConfig(input: unknown): ConfigValidationResult {
           issue(
             [...at, 'trackingFields', key],
             `"${key}" is not a recognised _ac attribution key — a typo'd key silently maps nothing`,
+          ),
+        );
+    }
+  }
+
+  // Campaigns. Same shape as the CRM check above: the provider decides which per-list id and
+  // which block is required, and a list missing its id would only fail at first signup.
+  if (site.campaigns) {
+    const at = ['site', 'campaigns'];
+    const provider = site.campaigns.provider;
+    if (provider === 'zoho-campaigns' && site.campaigns.zohoCampaigns == null)
+      errors.push(
+        issue(
+          [...at, 'zohoCampaigns'],
+          'site.campaigns.provider is "zoho-campaigns" but site.campaigns.zohoCampaigns is missing',
+        ),
+      );
+    for (const [key, list] of Object.entries(site.campaigns.lists)) {
+      const idKey = provider === 'zoho-campaigns' ? 'zohoCampaigns' : 'sendfox';
+      if (list[idKey] == null)
+        errors.push(
+          issue(
+            [...at, 'lists', key, idKey],
+            `list "${key}" has no ${idKey} id, but site.campaigns.provider is "${provider}"`,
           ),
         );
     }

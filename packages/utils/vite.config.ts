@@ -43,6 +43,7 @@ export default defineConfig({
       'src/audit/index.ts',
       'src/notify/index.ts',
       'src/crm/index.ts',
+      'src/campaigns/index.ts',
       'src/tracking/index.ts',
       'src/security/index.ts',
       'src/schema/index.ts',

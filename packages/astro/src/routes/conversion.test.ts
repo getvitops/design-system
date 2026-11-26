@@ -9,6 +9,7 @@
  * response shape without a fake Cloudflare binding.
  */
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import { deliverToCampaigns } from '@getvitops/utils/campaigns';
 import { deliverToCrm } from '@getvitops/utils/crm';
 import { uploadClickConversion } from '@getvitops/utils/notify';
 import { verifyTurnstileToken } from '@getvitops/utils/security';
@@ -20,6 +21,12 @@ vi.mock('@getvitops/utils/crm', async () => {
     await vi.importActual<typeof import('@getvitops/utils/crm')>('@getvitops/utils/crm');
   return { ...actual, deliverToCrm: vi.fn() };
 });
+vi.mock('@getvitops/utils/campaigns', async () => {
+  const actual = await vi.importActual<typeof import('@getvitops/utils/campaigns')>(
+    '@getvitops/utils/campaigns',
+  );
+  return { ...actual, deliverToCampaigns: vi.fn() };
+});
 vi.mock('@getvitops/utils/notify', async () => {
   const actual =
     await vi.importActual<typeof import('@getvitops/utils/notify')>('@getvitops/utils/notify');
@@ -29,6 +36,7 @@ vi.mock('@getvitops/utils/notify', async () => {
 beforeEach(() => {
   vi.mocked(verifyTurnstileToken).mockReset();
   vi.mocked(deliverToCrm).mockReset();
+  vi.mocked(deliverToCampaigns).mockReset();
   vi.mocked(uploadClickConversion).mockReset();
 });
 
@@ -904,5 +912,126 @@ describe('createConversionRoute: which tracking number was dialled', () => {
     const { sent } = await callBeacon({ phoneSource: '<script>alert(1)</script>' });
     expect(sent[0]?.text ?? '').not.toContain('alert(1)');
     expect(sent[0]?.text ?? '').not.toContain('tracking number');
+  });
+});
+
+const campaignsConfig = {
+  provider: 'sendfox' as const,
+  lists: { waitlist: { label: 'Waitlist', sendfox: { listId: 11 } } },
+};
+const campaignsCredentials = { provider: 'sendfox' as const, sendfox: { accessToken: 'tok' } };
+const optIn = { name: 'Ada', email: 'ada@example.com', subscribe: 'on', list: 'waitlist' };
+
+describe('createConversionRoute: email-list signups', () => {
+  it('subscribes an opted-in form and folds the outcome into onResult', async () => {
+    const result = {
+      ok: true,
+      provider: 'sendfox' as const,
+      lists: [{ key: 'waitlist', ok: true }],
+    };
+    vi.mocked(deliverToCampaigns).mockResolvedValue(result);
+    const onResult = vi.fn();
+    const handler = createConversionRoute({
+      context: ctx(),
+      campaigns: { config: campaignsConfig, credentials: () => campaignsCredentials },
+      onResult,
+    });
+    const res = await handler({ request: jsonRequest(optIn) });
+    expect(res.status).toBe(200);
+    expect(deliverToCampaigns).toHaveBeenCalledTimes(1);
+    expect(onResult).toHaveBeenCalledWith(expect.objectContaining({ campaigns: result }));
+  });
+
+  it('records the opt-in on the CRM contact as a fact, after campaigns ran', async () => {
+    vi.mocked(deliverToCampaigns).mockResolvedValue(null);
+    vi.mocked(deliverToCrm).mockResolvedValue({ ok: true, provider: 'hubspot' });
+    const handler = createConversionRoute({
+      context: ctx(),
+      campaigns: { config: campaignsConfig, credentials: () => campaignsCredentials },
+      crm: { config: crmConfig, credentials: () => crmCredentials },
+    });
+    await handler({ request: jsonRequest(optIn) });
+    expect(vi.mocked(deliverToCrm).mock.calls[0]![2]).toMatchObject({
+      signup: expect.stringMatching(/^Opted in to: Waitlist \(\d{4}-\d{2}-\d{2}\)$/),
+    });
+  });
+
+  it('sends no signup fact to the CRM for an ordinary enquiry', async () => {
+    vi.mocked(deliverToCampaigns).mockResolvedValue(null);
+    vi.mocked(deliverToCrm).mockResolvedValue({ ok: true, provider: 'hubspot' });
+    const handler = createConversionRoute({
+      context: ctx(),
+      campaigns: { config: campaignsConfig, credentials: () => campaignsCredentials },
+      crm: { config: crmConfig, credentials: () => crmCredentials },
+    });
+    await handler({ request: jsonRequest({ name: 'Ada', email: 'ada@example.com' }) });
+    expect(vi.mocked(deliverToCrm).mock.calls[0]![2]?.signup).toBeUndefined();
+  });
+
+  it('records the opt-in even when no campaign credentials are available', async () => {
+    vi.mocked(deliverToCampaigns).mockResolvedValue(null);
+    vi.mocked(deliverToCrm).mockResolvedValue({ ok: true, provider: 'hubspot' });
+    const handler = createConversionRoute({
+      context: ctx(),
+      campaigns: { config: campaignsConfig },
+      crm: { config: crmConfig, credentials: () => crmCredentials },
+    });
+    await handler({ request: jsonRequest(optIn) });
+    expect(vi.mocked(deliverToCrm).mock.calls[0]![2]?.signup).toContain('Waitlist');
+  });
+
+  it('skips the CRM for a signup-only form when mirrorToCrm is off, and says so', async () => {
+    vi.mocked(deliverToCampaigns).mockResolvedValue(null);
+    const onResult = vi.fn();
+    const handler = createConversionRoute({
+      context: ctx(),
+      campaigns: {
+        config: { ...campaignsConfig, mirrorToCrm: false },
+        credentials: () => campaignsCredentials,
+      },
+      crm: { config: crmConfig, credentials: () => crmCredentials },
+      onResult,
+    });
+    await handler({ request: jsonRequest(optIn) });
+    expect(deliverToCrm).not.toHaveBeenCalled();
+  });
+
+  it('still writes the CRM when mirrorToCrm is off but the form carries a message', async () => {
+    vi.mocked(deliverToCampaigns).mockResolvedValue(null);
+    vi.mocked(deliverToCrm).mockResolvedValue({ ok: true, provider: 'hubspot' });
+    const handler = createConversionRoute({
+      context: ctx(),
+      campaigns: {
+        config: { ...campaignsConfig, mirrorToCrm: false },
+        credentials: () => campaignsCredentials,
+      },
+      crm: { config: crmConfig, credentials: () => crmCredentials },
+    });
+    await handler({ request: jsonRequest({ ...optIn, message: 'Call me about pricing' }) });
+    expect(deliverToCrm).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(deliverToCrm).mock.calls[0]![2]?.signup).toBeUndefined();
+  });
+
+  it('a failed signup does not fail the request', async () => {
+    vi.mocked(deliverToCampaigns).mockResolvedValue({
+      ok: false,
+      provider: 'sendfox',
+      lists: [{ key: 'waitlist', ok: false, reason: 'SendFox responded 500' }],
+    });
+    const handler = createConversionRoute({
+      context: ctx(),
+      campaigns: { config: campaignsConfig, credentials: () => campaignsCredentials },
+    });
+    expect((await handler({ request: jsonRequest(optIn) })).status).toBe(200);
+  });
+
+  it('never subscribes for a beacon or a honeypot trip', async () => {
+    const handler = createConversionRoute({
+      context: ctx(),
+      campaigns: { config: campaignsConfig, credentials: () => campaignsCredentials },
+    });
+    await handler({ request: jsonRequest({ event: 'call', phone: '+15550100' }) });
+    await handler({ request: jsonRequest({ ...optIn, website: 'spam.biz' }) });
+    expect(deliverToCampaigns).not.toHaveBeenCalled();
   });
 });

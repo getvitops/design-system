@@ -74,6 +74,10 @@
       "types": "./dist/notify/index.d.mts",
       "import": "./dist/notify/index.mjs"
     },
+    "./campaigns": {
+      "types": "./dist/campaigns/index.d.mts",
+      "import": "./dist/campaigns/index.mjs"
+    },
     "./crm": {
       "types": "./dist/crm/index.d.mts",
       "import": "./dist/crm/index.mjs"

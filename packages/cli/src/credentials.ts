@@ -187,6 +187,37 @@ export function loadHubSpotToken(): string | undefined {
 }
 
 /**
+ * The SendFox personal access token, from the environment. Never the config file.
+ */
+export function loadSendFoxToken(): string | undefined {
+  return process.env.VITOPS_SENDFOX_TOKEN || undefined;
+}
+
+/**
+ * The Zoho Campaigns OAuth credential. Its own refresh token, not Bigin's: Campaigns needs scope
+ * `ZohoCampaigns.contact.CREATE` (subscribe) and `.READ` (this check), which a Bigin-scoped token
+ * does not carry. All-or-nothing, like `loadZohoOAuth`.
+ */
+export function loadZohoCampaignsOAuth():
+  | { clientId: string; clientSecret: string; refreshToken: string }
+  | undefined {
+  const clientId = process.env.VITOPS_ZOHO_CAMPAIGNS_CLIENT_ID;
+  const clientSecret = process.env.VITOPS_ZOHO_CAMPAIGNS_CLIENT_SECRET;
+  const refreshToken = process.env.VITOPS_ZOHO_CAMPAIGNS_REFRESH_TOKEN;
+  if (!clientId && !clientSecret && !refreshToken) return undefined;
+  const missing = [
+    ['VITOPS_ZOHO_CAMPAIGNS_CLIENT_ID', clientId],
+    ['VITOPS_ZOHO_CAMPAIGNS_CLIENT_SECRET', clientSecret],
+    ['VITOPS_ZOHO_CAMPAIGNS_REFRESH_TOKEN', refreshToken],
+  ]
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
+  if (missing.length)
+    fail(`incomplete Zoho Campaigns OAuth credential — missing ${missing.join(', ')}`);
+  return { clientId: clientId!, clientSecret: clientSecret!, refreshToken: refreshToken! };
+}
+
+/**
  * The Zoho self-client OAuth credential, for Bigin. All-or-nothing, matching
  * `loadGoogleOAuth`'s own rule: a partial set is a misconfiguration worth
  * naming, not a reason to run degraded.

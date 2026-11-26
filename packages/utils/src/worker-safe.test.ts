@@ -13,6 +13,7 @@ const WORKER_ENTRIES = [
   'tracking/index.ts',
   'security/index.ts',
   'crm/index.ts',
+  'campaigns/index.ts',
   'schema/index.ts',
   'git/index.ts',
   'url/index.ts',

@@ -514,7 +514,11 @@ export function derivePolicyVars(cfg: Config): PolicyVars {
     privacyOfficerTitle: privacy?.privacyOfficerTitle,
     transferAssessment: privacy?.impactAssessments === true,
     trackingTechnologies,
-    newsletterSignup: fields.some((f) => /newsletter|subscribe|mailing/i.test(f.name)),
+    // Either a form carries a newsletter-ish field, or the site declares an email-list signup
+    // (`site.campaigns`) outright. The second is the stronger signal and needs no field-name guess.
+    newsletterSignup:
+      (site.campaigns != null && site.campaigns.enabled !== false) ||
+      fields.some((f) => /newsletter|subscribe|mailing/i.test(f.name)),
     accessibility: deriveAccessibilityVars(cfg),
   };
 }

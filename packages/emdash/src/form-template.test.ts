@@ -25,6 +25,26 @@ describe('formTemplateFromBlock', () => {
     });
   });
 
+  it('adds the opt-in checkbox as a field, so the policy describes it', () => {
+    const tpl = formTemplateFromBlock(SAMPLE_FORM_BLOCK);
+    expect(tpl.fields.at(-1)).toEqual({
+      name: 'subscribe',
+      type: 'checkbox',
+      label: 'Add me to your newsletter',
+    });
+  });
+
+  it('adds no extra field for a signup-only form or a form with no list', () => {
+    const only = formTemplateFromBlock({
+      fields: [{ label: 'Email', type: 'email' }],
+      subscribeList: 'waitlist',
+      subscribeOnly: true,
+    });
+    expect(only.fields.map((f) => f.name)).toEqual(['email']);
+    const none = formTemplateFromBlock({ fields: [{ label: 'Email', type: 'email' }] });
+    expect(none.fields.map((f) => f.name)).toEqual(['email']);
+  });
+
   it('drops unlabeled rows like the renderer and survives junk', () => {
     expect(formTemplateFromBlock({ fields: [{ name: 'x' }, 'no', null] }).fields).toEqual([]);
     expect(formTemplateFromBlock(undefined).fields).toEqual([]);

@@ -719,6 +719,49 @@ describe('vitops_form', () => {
     expect(html).toContain('Send message');
   });
 
+  describe('email-list opt-in', () => {
+    it('renders an unticked checkbox and the list key for the sample form', async () => {
+      const html = await renderForm(SAMPLE_FORM_BLOCK);
+      expect(html).toContain('<input type="hidden" name="list" value="newsletter">');
+      expect(html).toMatch(/<input type="checkbox" name="subscribe" value="yes">/);
+      expect(html).not.toMatch(/name="subscribe"[^>]*checked/);
+      expect(html).toContain('Add me to your newsletter');
+    });
+
+    it('renders no opt-in at all without a list', async () => {
+      const html = await renderForm({ ...SAMPLE_FORM_BLOCK, subscribeList: '' });
+      expect(html).not.toContain('name="subscribe"');
+      expect(html).not.toContain('name="list"');
+    });
+
+    it('a signup-only form has a hidden consent field and a visible statement, no checkbox', async () => {
+      const html = await renderForm({
+        ...SAMPLE_FORM_BLOCK,
+        subscribeList: 'waitlist',
+        subscribeLabel: '',
+        subscribeOnly: true,
+      });
+      expect(html).toContain('<input type="hidden" name="subscribe" value="yes">');
+      expect(html).toContain('<input type="hidden" name="list" value="waitlist">');
+      expect(html).not.toMatch(/<input type="checkbox" name="subscribe"/);
+      expect(html).toContain('You can unsubscribe at any time.');
+    });
+
+    it('renames an author field that would shadow the opt-in names', async () => {
+      const html = await renderForm({
+        ...SAMPLE_FORM_BLOCK,
+        fields: [{ label: 'List', type: 'text' }],
+      });
+      expect(html.match(/name="list"/g)).toHaveLength(1);
+      expect(html).toContain('name="list_2"');
+    });
+
+    it('drops an unsafe list key rather than submitting a different list', async () => {
+      const html = await renderForm({ ...SAMPLE_FORM_BLOCK, subscribeList: 'a/b' });
+      expect(html).not.toContain('name="subscribe"');
+    });
+  });
+
   it('renders "tick any number" as a fieldset of checkboxes sharing one name', async () => {
     const html = await renderForm({
       ...SAMPLE_FORM_BLOCK,

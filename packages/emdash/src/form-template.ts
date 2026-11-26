@@ -13,7 +13,12 @@
  * with its choices as `options`: the policy's schema has no group type and both read as
  * "your answers to the questions we ask".
  */
-import { resolveFields, safeAction } from '@getvitops/utils/contact-form';
+import {
+  resolveFields,
+  resolveSubscribe,
+  safeAction,
+  subscribeReserved,
+} from '@getvitops/utils/contact-form';
 
 /** The `fields` row shape of a `site.templates` form entry (`FormFieldSchema`). */
 export interface FormTemplateField {
@@ -40,17 +45,28 @@ export function formTemplateFromBlock(block: unknown): FormTemplate {
     (r): r is Record<string, unknown> => !!r && typeof r === 'object' && !Array.isArray(r),
   );
   const action = safeAction(value['action']);
+  const subscribe = resolveSubscribe({
+    list: value['subscribeList'],
+    label: value['subscribeLabel'],
+    only: value['subscribeOnly'],
+  });
+  const fields = resolveFields(rows, subscribeReserved(subscribe)).map((f) => ({
+    name: f.name,
+    type: f.type === 'checkboxes' ? ('checkbox' as const) : f.type,
+    label: f.label,
+    ...(f.required ? { required: true } : {}),
+    ...(f.options.length ? { options: f.options.map((o) => ({ label: o, value: o })) } : {}),
+  }));
+  // A checkbox opt-in is a question the policy must describe ("register to receive our
+  // newsletter"), so it is a field of the template. A signup-only form has no extra control: its
+  // email field is already there.
+  if (subscribe?.mode === 'checkbox')
+    fields.push({ name: subscribe.consentField, type: 'checkbox', label: subscribe.label });
   return {
     type: 'form',
     action,
     method: 'post',
     honeypot: true,
-    fields: resolveFields(rows).map((f) => ({
-      name: f.name,
-      type: f.type === 'checkboxes' ? 'checkbox' : f.type,
-      label: f.label,
-      ...(f.required ? { required: true } : {}),
-      ...(f.options.length ? { options: f.options.map((o) => ({ label: o, value: o })) } : {}),
-    })),
+    fields,
   };
 }

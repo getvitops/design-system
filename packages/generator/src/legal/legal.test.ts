@@ -953,3 +953,39 @@ describe('CASL paragraph', () => {
     }
   });
 });
+
+describe('email campaigns', () => {
+  const campaigns = (enabled?: boolean): Partial<Config['site']> => ({
+    campaigns: {
+      provider: 'sendfox',
+      ...(enabled === undefined ? {} : { enabled }),
+      lists: { waitlist: { label: 'Waitlist', sendfox: { listId: 1 } } },
+    },
+  });
+
+  test('a configured signup raises the CASL paragraph with no newsletter field on any form', () => {
+    expect(privacyOf(fixture(campaigns()))).toContain('Anti-Spam Legislation');
+  });
+
+  test('a disabled block does not', () => {
+    expect(privacyOf(fixture(campaigns(false)))).not.toContain('Anti-Spam Legislation');
+  });
+
+  test('the policy names the provider as a processor', () => {
+    expect(privacyOf(fixture(campaigns()))).toContain('SendFox');
+  });
+
+  test('Zoho Campaigns is named too, and beside Bigin rather than instead of it', () => {
+    const cfg = fixture({
+      crm: { provider: 'bigin', bigin: { dataCenter: 'ca' } },
+      campaigns: {
+        provider: 'zoho-campaigns',
+        zohoCampaigns: { dataCenter: 'eu' },
+        lists: { blog: { label: 'Blog', zohoCampaigns: { listKey: 'k' } } },
+      },
+    });
+    const text = privacyOf(cfg);
+    expect(text).toContain('Zoho Campaigns');
+    expect(text).toContain('Zoho Bigin');
+  });
+});

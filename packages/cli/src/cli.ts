@@ -116,6 +116,7 @@ import {
 import { cmdSearch } from './commands/search.ts';
 import { cmdAds } from './commands/ads.ts';
 import { cmdAudit } from './commands/audit.ts';
+import { cmdCampaigns } from './commands/campaigns.ts';
 import { cmdCrm } from './commands/crm.ts';
 import { cmdEmail } from './commands/email.ts';
 import { cmdEmdash } from './commands/emdash.ts';
@@ -1229,6 +1230,8 @@ async function main() {
       return cmdAds(rest);
     case 'crm':
       return cmdCrm(rest);
+    case 'campaigns':
+      return cmdCampaigns(rest);
     case 'email':
       return cmdEmail(rest);
     case 'emdash':

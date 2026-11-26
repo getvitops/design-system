@@ -82,6 +82,16 @@ import type { AdPropertySetup } from '@getvitops/utils/ads';
 import { deliverToCrm, describeCrmResult } from '@getvitops/utils/crm';
 import type { CrmConfig, CrmCredentials, CrmResult } from '@getvitops/utils/crm';
 import {
+  deliverToCampaigns,
+  describeCampaignsResult,
+  planCampaigns,
+} from '@getvitops/utils/campaigns';
+import type {
+  CampaignCredentials,
+  CampaignsConfig,
+  CampaignsResult,
+} from '@getvitops/utils/campaigns';
+import {
   describeGoogleAdsOfflineResult,
   type EmailBinding,
   notify,
@@ -157,6 +167,22 @@ export interface ConversionRouteOptions {
   crm?: {
     config: CrmConfig;
     credentials?: (locals: unknown) => CrmCredentials | undefined;
+    fetch?: typeof fetch;
+    timeoutMs?: number;
+  };
+  /**
+   * Subscribe an opted-in visitor to an email list (Zoho Campaigns or SendFox).
+   *
+   * Independent of `crm`: a contact form wants a reply, a signup wants a stream of messages.
+   * The gate is the visitor's own opt-in field (`campaigns.consentField`, default `subscribe`),
+   * never the `marketing` cookie category. Runs before `crm` so a CRM that is also configured
+   * can record the opt-in as a fact on the contact (unless `campaigns.mirrorToCrm` is false).
+   * A failed subscribe never fails the request; the outcome, with the opt-in evidence, folds
+   * into the notification email's "Delivery" section via `describeCampaignsResult`.
+   */
+  campaigns?: {
+    config: CampaignsConfig;
+    credentials?: (locals: unknown) => CampaignCredentials | undefined;
     fetch?: typeof fetch;
     timeoutMs?: number;
   };
@@ -275,6 +301,7 @@ export interface ConversionRouteOptions {
  * reading `.results`/`.delivered` keeps compiling unchanged. */
 export interface ConversionResult extends Awaited<ReturnType<typeof notify>> {
   crm?: CrmResult | undefined;
+  campaigns?: CampaignsResult | undefined;
   googleAds?: GoogleAdsUploadResult | undefined;
 }
 
@@ -565,12 +592,46 @@ export function createConversionRoute(options: ConversionRouteOptions) {
       at: now(),
     };
 
+    // Campaigns before CRM: a CRM that is also configured records the opt-in as a fact on the
+    // contact, which needs to be known first. Subscription state stays in the campaign tool.
+    const pageUri = request.headers.get('referer') ?? undefined;
+    let campaignsResult: CampaignsResult | null = null;
+    if (!isBeacon && options.campaigns) {
+      campaignsResult = await deliverToCampaigns(event, options.campaigns.config, {
+        credentials: options.campaigns.credentials?.(locals),
+        fetch: options.campaigns.fetch,
+        timeoutMs: options.campaigns.timeoutMs,
+        pageUri,
+      });
+    }
+    const campaignsNote = describeCampaignsResult(campaignsResult);
+
+    // What the visitor opted into, as a fact for the CRM. Only a form that actually opted in
+    // (a plan that names lists) carries one, whether or not the provider call then succeeded.
+    const optIn =
+      !isBeacon && options.campaigns
+        ? planCampaigns(event, options.campaigns.config, options.campaigns.credentials?.(locals))
+        : null;
+    const signup =
+      optIn && optIn.lists.length > 0 && options.campaigns?.config.mirrorToCrm !== false
+        ? `Opted in to: ${optIn.lists.map((l) => l.label).join(', ')} (${new Date(event.at).toISOString().slice(0, 10)})`
+        : undefined;
+    // A signup-only form (opted in, no message of its own) has nothing to say to a CRM when the
+    // client turned the mirror off, so it is not written. The reason is stated in the email.
+    const signupOnly =
+      optIn != null &&
+      optIn.lists.length > 0 &&
+      !event.formData?.['message'] &&
+      !event.formData?.['comments'] &&
+      !event.formData?.['comment'];
+    const skipCrm = signupOnly && options.campaigns?.config.mirrorToCrm === false;
+
     // CRM before notify: the notification email states the CRM outcome, which
     // is only possible once it's known. Never attempted for a `tel:`/`mailto:`
     // beacon — a CRM contact comes from submitted form fields, and neither
     // event has any to map.
     let crmResult: CrmResult | null = null;
-    if (!isBeacon && options.crm) {
+    if (!isBeacon && options.crm && !skipCrm) {
       crmResult = await deliverToCrm(event, options.crm.config, {
         credentials: options.crm.credentials?.(locals),
         fetch: options.crm.fetch,
@@ -581,11 +642,15 @@ export function createConversionRoute(options: ConversionRouteOptions) {
         // rather than gated on `options.crm.config.provider`.
         pageContext: {
           hutk: readCookie(request.headers.get('cookie'), 'hubspotutk') ?? undefined,
-          pageUri: request.headers.get('referer') ?? undefined,
+          pageUri,
         },
+        signup,
       });
     }
-    const crmNote = describeCrmResult(crmResult);
+    const crmNote =
+      options.crm && skipCrm
+        ? 'CRM not written: email-list signup only, and `campaigns.mirrorToCrm` is off.'
+        : describeCrmResult(crmResult);
 
     // Unlike CRM, this runs for a `tel:`/`mailto:` beacon too — those are
     // exactly the actions the client-side gtag handler would otherwise fire
@@ -614,10 +679,11 @@ export function createConversionRoute(options: ConversionRouteOptions) {
         context,
         { email: binding?.(locals) },
         {
-          notes: [crmNote, googleAdsNote].filter((n): n is string => n != null),
+          notes: [campaignsNote, crmNote, googleAdsNote].filter((n): n is string => n != null),
         },
       )),
       ...(crmResult ? { crm: crmResult } : {}),
+      ...(campaignsResult ? { campaigns: campaignsResult } : {}),
       ...(googleAdsResult ? { googleAds: googleAdsResult } : {}),
     };
 
@@ -629,6 +695,13 @@ export function createConversionRoute(options: ConversionRouteOptions) {
       if (crmResult && !crmResult.ok) {
         console.warn(
           `[vitops] CRM write not delivered (${crmResult.provider}): ${crmResult.reason}`,
+        );
+      }
+      if (campaignsResult && !campaignsResult.ok) {
+        console.warn(
+          `[vitops] Campaign signup not delivered (${campaignsResult.provider}): ${
+            campaignsResult.reason ?? campaignsResult.lists.map((l) => l.reason).join('; ')
+          }`,
         );
       }
       if (googleAdsResult && !googleAdsResult.ok) {

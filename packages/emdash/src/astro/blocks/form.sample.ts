@@ -32,8 +32,10 @@ export const SAMPLE_FORM_BLOCK = {
       options: 'Managed IT\nWeb design\nSEO',
     },
     { label: 'Message', name: 'message', type: 'textarea', required: true },
-    { label: 'Add me to your newsletter', name: 'newsletter', type: 'checkbox' },
   ],
+  // The email-list opt-in `site.campaigns` reads: an unticked box plus the list key it joins.
+  subscribeList: 'newsletter',
+  subscribeLabel: 'Add me to your newsletter',
   submitLabel: 'Send message',
   successMessage: 'Thanks, we will be in touch.',
 };

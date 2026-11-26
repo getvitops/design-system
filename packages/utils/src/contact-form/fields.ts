@@ -121,8 +121,12 @@ export function autocompleteFor(name: string, type: FieldType): string | undefin
 }
 
 /** Editor rows to renderable fields. Rows with no label are dropped; at most {@link MAX_FIELDS}. */
-export function resolveFields(rows: Record<string, unknown>[]): FormField[] {
-  const taken = new Set<string>();
+export function resolveFields(
+  rows: Record<string, unknown>[],
+  /** Names an opt-in control submits under; an author's field of the same name is renamed, not shadowed. */
+  reserved: Iterable<string> = [],
+): FormField[] {
+  const taken = new Set<string>(reserved);
   const out: FormField[] = [];
   for (const row of rows) {
     const label = str(row['label']);

@@ -10,6 +10,9 @@
  * the heading and intro, the editor's `tone` on the wrapper and on the two notices, and the
  * universal `anchor` / `className` / `style` escape hatches on its outermost element.
  *
+ * An optional email-list opt-in (`subscribeList`, `subscribeLabel`, `subscribeOnly`) maps onto
+ * `<ContactForm>`'s own `subscribe*` props, which render the opt-in `site.campaigns` reads.
+ *
  * Field names go through `@getvitops/utils/contact-form`, which keeps them clear of the names the
  * route reserves (`phone`, `event`, the honeypots), and a phone field submits as `tel`.
  */
@@ -31,6 +34,9 @@ interface Value {
   action?: string;
   tone?: string;
   color?: string;
+  subscribeList?: string;
+  subscribeLabel?: string;
+  subscribeOnly?: boolean;
 }
 
 const value = resolveBlockValue<Value>(Astro.props);
@@ -58,6 +64,9 @@ const hasForm = resolveFields(fieldRows).length > 0;
     successStyle={joinStyle(successTone.style)}
     errorClass={errorTone.className}
     errorStyle={joinStyle(errorTone.style)}
+    subscribeList={text(value.subscribeList) || undefined}
+    subscribeLabel={text(value.subscribeLabel) || undefined}
+    subscribeOnly={value.subscribeOnly === true}
   >
     {heading && <Heading class="font-heading">{heading}</Heading>}
     {intro && <p>{intro}</p>}
