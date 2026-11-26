@@ -36,6 +36,7 @@ export default defineConfig({
   output: 'server',
   adapter,
   // The seed's `pages` collection serves entries at `/{slug}` (urlPattern), and `home` lives at `/`.
+  // Old `/home` links keep working here; the sitemap lists `/` (src/pages/sitemap-[collection].xml.ts).
   redirects: { '/home': '/' },
   image: {
     layout: 'constrained',
@@ -91,7 +92,8 @@ export default defineConfig({
       // It cannot list src/pages routes, so a build writes public/pages-sitemap.xml for those
       // (git-dated) — and nothing at all while there are none. `/` is excluded because
       // index.astro only renders the `home` entry, so its commit date would be the template's,
-      // not the content's. `vitops search notify` finds and submits both.
+      // not the content's — EmDash's `/sitemap-pages.xml` lists it, via the home-aware route in
+      // src/pages/sitemap-[collection].xml.ts. `vitops search notify` finds and submits both.
       sitemap: { exclude: ['/'] },
       favicon: {
         source: 'src/assets/logo.svg',

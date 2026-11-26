@@ -25,6 +25,7 @@
     },
     "./astro": "./src/astro/index.ts",
     "./admin": "./src/admin/index.tsx",
+    "./sitemap": "./src/astro/sitemap.ts",
     "./package.json": "./package.json"
   },
   "publishConfig": {

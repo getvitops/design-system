@@ -357,6 +357,21 @@ describe('emdash template landing pages', () => {
   });
 });
 
+describe('emdash template sitemap', () => {
+  const read = (file: string) => readFileSync(join(TEMPLATES, 'emdash', file), 'utf8');
+
+  it('lists the home entry as `/`, not the `/home` redirect', () => {
+    // EmDash has no home-entry concept, so without this route its sitemap advertises `/home`
+    // and never `/`. The route file is what EmDash prefers over its own (hasUserDefinedPublicRoute).
+    const route = read('src/pages/sitemap-[collection].xml.ts');
+    expect(route).toContain("from '@getvitops/emdash/sitemap'");
+    expect(route).toContain("homeSlug: 'home'");
+    expect(route).toContain('export const prerender = false');
+    // The redirect stays for old links, and the home route is still where `home` is served.
+    expect(read('astro.config.mjs')).toContain("'/home': '/'");
+  });
+});
+
 /**
  * A reusable workflow only gets permissions its caller grants, and a repo's default token is read-only,
  * so a caller of `site-promote.yml` without them fails at startup (a red run with no logs). Both
