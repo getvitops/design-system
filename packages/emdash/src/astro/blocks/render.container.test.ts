@@ -217,6 +217,22 @@ describe('vitops_entries', () => {
     expect(html).toContain('<dd>9</dd>');
   });
 
+  it('renders a whole-value [label](url) as a link, never as raw Markdown', async () => {
+    const html = await render(Entries, {
+      entries: [
+        {
+          heading: 'Ottawa',
+          pairs:
+            'Phone | [(613) 255-3250](tel:+16132553250)\nHours | 9 to **5**\nNote | see [map](https://x.ca) now',
+        },
+      ],
+    });
+    expect(html).toContain('<dd><a class="link" href="tel:+16132553250">(613) 255-3250</a></dd>');
+    expect(html).toContain('<dd>9 to 5</dd>');
+    expect(html).toContain('<dd>see map now</dd>');
+    expect(html).not.toContain('](');
+  });
+
   it('rejects a breakpoint that is not a CSS length', async () => {
     const html = await render(Entries, {
       breakpoint: '1" onload="x',
@@ -974,6 +990,27 @@ describe('vitops_band', () => {
   }, 60_000);
 });
 
+describe('<VitopsContent components>', () => {
+  it('reaches blocks outside a band and blocks inside one', async () => {
+    const { default: Content } = await import('../VitopsContent.astro');
+    const { default: Override } = await import('./override.stub.astro');
+    const container = await AstroContainer.create();
+    const custom = (key: string, label: string) => ({ _type: 'site_custom', _key: key, label });
+    const html = await container.renderToString(Content as unknown as Component, {
+      props: {
+        components: { type: { site_custom: Override } },
+        value: [
+          custom('a', 'outside'),
+          { _type: 'vitops_band', _key: 'b', heading: 'Band', level: '2' },
+          custom('c', 'inside'),
+        ],
+      },
+    });
+    expect(html).toContain('<mark data-override>outside</mark>');
+    expect(html).toContain('<mark data-override>inside</mark>');
+  }, 60_000);
+});
+
 describe('vitops_testimonial', () => {
   const base = { quote: 'Great work.', author: 'Dana R.', role: 'Homeowner', rating: '5' };
 
@@ -1025,5 +1062,99 @@ describe('vitops_location', () => {
     expect(
       (await render(Location, { location: 'nope' })).replace(/<!--.*?-->/g, '').trim(),
     ).toMatch(/^(<p>.*<\/p>)?$/);
+  });
+});
+
+describe('vitops_gallery thumbnail size', () => {
+  const images = [{ src: '/a.jpg', alt: 'A' }];
+
+  it('maps the size select onto --gallery-thumb-size', async () => {
+    const { default: Gallery } = await import('./Gallery.astro');
+    expect(await render(Gallery, { images, thumbSize: 'medium' })).toContain(
+      '--gallery-thumb-size: 13rem',
+    );
+    expect(await render(Gallery, { images, thumbSize: 'large' })).toContain(
+      '--gallery-thumb-size: 20rem',
+    );
+  });
+
+  it('leaves the pattern default for small, and lets the style field win', async () => {
+    const { default: Gallery } = await import('./Gallery.astro');
+    expect(await render(Gallery, { images, thumbSize: 'small' })).not.toContain(
+      '--gallery-thumb-size',
+    );
+    const html = await render(Gallery, {
+      images,
+      thumbSize: 'medium',
+      style: '--gallery-thumb-size: 8rem',
+    });
+    expect(html.lastIndexOf('--gallery-thumb-size: 8rem')).toBeGreaterThan(
+      html.indexOf('--gallery-thumb-size: 13rem'),
+    );
+  });
+});
+
+describe('themeAttrs', () => {
+  it('merges the element’s own classes into the one class it returns', async () => {
+    const { themeAttrs } = await import('../index.ts');
+    const t = themeAttrs('surface', 'centered region');
+    expect(t.class?.split(' ')).toEqual(expect.arrayContaining(['centered', 'region']));
+    expect(t.class?.split(' ').length).toBeGreaterThan(2);
+    expect(t.style).toBeTruthy();
+  });
+
+  it('is just the classes when there is no theme', async () => {
+    const { themeAttrs } = await import('../index.ts');
+    expect(themeAttrs(undefined, 'centered')).toEqual({ class: 'centered' });
+    expect(themeAttrs(undefined)).toEqual({});
+  });
+});
+
+describe('vitops_hero split options', () => {
+  const split = {
+    heading: 'Move well',
+    layout: 'split',
+    image: '/hero.jpg',
+    imageAlt: 'A gym',
+    primaryLabel: 'Join',
+    primaryHref: '/join',
+    secondaryLabel: 'Tour',
+    secondaryHref: '/tour',
+  };
+
+  it('defaults: full bleed, centred text from classes (no inline layout styles), stacks on mobile', async () => {
+    const html = await render(Hero, split);
+    expect(html).toContain('class="split split-responsive"');
+    expect(html).toContain('hero__text');
+    expect(html).toContain('hero__media');
+    expect(html).toContain('fullbleed');
+    expect(html).not.toContain('justify-items:center');
+    expect(html).not.toContain('hero--start');
+    expect(html).not.toContain('hero--spotlight');
+    expect(html).toContain('<a class="link" href="/tour">');
+  });
+
+  it('align start, spotlight width and an outlined second button', async () => {
+    const html = await render(Hero, {
+      ...split,
+      align: 'start',
+      width: 'spotlight',
+      secondaryVariant: 'btn',
+    });
+    expect(html).toContain('hero--start');
+    expect(html).toContain('spotlight hero--spotlight');
+    expect(html).not.toContain('fullbleed');
+    expect(html).toContain('<a class="btn" href="/tour">');
+  });
+
+  it('the options do nothing to a centred hero', async () => {
+    const html = await render(Hero, {
+      ...split,
+      layout: 'centered',
+      align: 'start',
+      width: 'spotlight',
+    });
+    expect(html).not.toContain('hero--');
+    expect(html).not.toContain('split');
   });
 });

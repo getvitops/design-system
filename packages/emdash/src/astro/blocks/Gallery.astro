@@ -12,6 +12,7 @@ interface Value {
   label?: string;
   images?: unknown;
   aspect?: string;
+  thumbSize?: string;
   loop?: boolean;
 }
 
@@ -26,6 +27,11 @@ const images = rows<{ src?: unknown; alt?: unknown; caption?: unknown }>(value.i
   },
 );
 import { rootAttrs } from './attrs.ts';
+
+// Small is the pattern's own 150px; the others raise `--gallery-thumb-size`. The editor's `style`
+// field still wins, because `rootAttrs` puts it last.
+const THUMB: Record<string, string> = { medium: '13rem', large: '20rem' };
+const thumb = THUMB[text(value.thumbSize)];
 ---
 
 {images.length > 0 && (
@@ -33,7 +39,7 @@ import { rootAttrs } from './attrs.ts';
     label={text(value.label) || 'Gallery'}
     images={images}
     id={id}
-    {...rootAttrs(value)}
+    {...rootAttrs(value, [], thumb && `--gallery-thumb-size: ${thumb}`)}
     aspect={text(value.aspect) || undefined}
     loop={Boolean(value.loop)}
   />

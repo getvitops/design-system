@@ -71,6 +71,12 @@ interface Props {
   contactLabel?: string;
   hoursLabel?: string;
   socialLabel?: string;
+  /**
+   * `content` (default) holds the footer on the page track, like `<Masthead width="content">`;
+   * `full` runs it edge to edge inside a small gutter. Never put `class="centered"` on the
+   * footer itself: the component owns its track (`vitops lint --fix` removes it).
+   */
+  width?: 'content' | 'full';
   class?: string;
 }
 
@@ -90,6 +96,7 @@ const {
   contactLabel = 'Contact',
   hoursLabel = 'Hours',
   socialLabel = 'Social',
+  width = 'content',
   class: className,
 } = Astro.props;
 const backToTop = resolveBackToTop(config);
@@ -110,111 +117,145 @@ const groups = [{ label: sitemapLabel, items: flat, kind: 'sitemap' }].filter(
 const legalItems = menuItems(legal);
 ---
 
-<footer class:list={['sitefooter', className]}>
-  {(groups.length > 0 || columns.length > 0 || hasBrand || contactInfo) && (
-    <div class="sitefooter__nav">
-      {hasBrand && (
-        <div class="sitefooter__brand">
-          <slot name="brand">
-            {logo && (
-              <a class="sitefooter__logo" href="/">
-                <img
-                  src={logo.src}
-                  alt={logo.alt || 'Home'}
-                  width={logo.width}
-                  height={logo.height}
-                  loading="lazy"
-                  decoding="async"
-                />
-              </a>
-            )}
-          </slot>
-        </div>
-      )}
-      {columns.map((col) => (
-        <nav class="sitefooter__group sitefooter__group--column" aria-labelledby={col.id}>
-          <p class="sitefooter__heading font-eyebrow" id={col.id}>
-            {col.heading.label}
-          </p>
-          <ul class="sitefooter__list sitefooter__list--column" role="list">
-            {col.items.map((item) => (
-              <li>
-                <a
-                  class="sitefooter__link"
-                  href={item.url || '#'}
-                  target={item.target || undefined}
-                  rel={linkRel(item)}
-                  aria-current={isCurrent(item.url, current) ? 'page' : undefined}
-                >
-                  {item.label}
+<footer class:list={['sitefooter', width === 'full' && 'sitefooter--full', className]}>
+  <div class:list={['sitefooter__inner', width !== 'full' && 'centered']}>
+    {(groups.length > 0 || columns.length > 0 || hasBrand || contactInfo) && (
+      <div class="sitefooter__nav">
+        {hasBrand && (
+          <div class="sitefooter__brand">
+            <slot name="brand">
+              {logo && (
+                <a class="sitefooter__logo" href="/">
+                  <img
+                    src={logo.src}
+                    alt={logo.alt || 'Home'}
+                    width={logo.width}
+                    height={logo.height}
+                    loading="lazy"
+                    decoding="async"
+                  />
                 </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      ))}
-      {contactInfo && (
-        <div class="sitefooter__group sitefooter__group--contact">
-          <p class="sitefooter__heading font-eyebrow" id="sitefooter-contact">
-            {contactLabel}
-          </p>
-          {contactInfo.address.length > 0 && (
-            <address class="sitefooter__address">
-              {contactInfo.address.map((line, i) => (
-                <>
-                  {i > 0 && <br />}
-                  {line}
-                </>
-              ))}
-            </address>
-          )}
-          {(contactInfo.phone || contactInfo.email) && (
+              )}
+            </slot>
+          </div>
+        )}
+        {columns.map((col) => (
+          <nav class="sitefooter__group sitefooter__group--column" aria-labelledby={col.id}>
+            <p class="sitefooter__heading font-eyebrow" id={col.id}>
+              {col.heading.label}
+            </p>
             <ul class="sitefooter__list sitefooter__list--column" role="list">
-              {contactInfo.phone && (
+              {col.items.map((item) => (
                 <li>
-                  <a class="sitefooter__link" href={contactInfo.phone.href}>
-                    {contactInfo.phone.display}
+                  <a
+                    class="sitefooter__link"
+                    href={item.url || '#'}
+                    target={item.target || undefined}
+                    rel={linkRel(item)}
+                    aria-current={isCurrent(item.url, current) ? 'page' : undefined}
+                  >
+                    {item.label}
                   </a>
                 </li>
-              )}
-              {contactInfo.email && (
-                <li>
-                  <a class="sitefooter__link" href={`mailto:${contactInfo.email}`}>
-                    {contactInfo.email}
-                  </a>
-                </li>
-              )}
-            </ul>
-          )}
-          {contactInfo.hours.length > 0 && (
-            <dl class="sitefooter__hours" aria-label={hoursLabel}>
-              {contactInfo.hours.map((h) => (
-                <div>
-                  <dt>{h.days}</dt>
-                  <dd>{h.time}</dd>
-                </div>
               ))}
-            </dl>
-          )}
-          {contactInfo.links.length > 0 && (
-            <nav aria-label={socialLabel}>
-              <ul class="sitefooter__list" role="list">
-                {contactInfo.links.map((l) => (
+            </ul>
+          </nav>
+        ))}
+        {contactInfo && (
+          <div class="sitefooter__group sitefooter__group--contact">
+            <p class="sitefooter__heading font-eyebrow" id="sitefooter-contact">
+              {contactLabel}
+            </p>
+            {contactInfo.address.length > 0 && (
+              <address class="sitefooter__address">
+                {contactInfo.address.map((line, i) => (
+                  <>
+                    {i > 0 && <br />}
+                    {line}
+                  </>
+                ))}
+              </address>
+            )}
+            {(contactInfo.phone || contactInfo.email) && (
+              <ul class="sitefooter__list sitefooter__list--column" role="list">
+                {contactInfo.phone && (
                   <li>
-                    <a class="sitefooter__link" href={l.href} rel="noopener noreferrer">
-                      {l.label}
+                    <a class="sitefooter__link" href={contactInfo.phone.href}>
+                      {contactInfo.phone.display}
                     </a>
                   </li>
-                ))}
+                )}
+                {contactInfo.email && (
+                  <li>
+                    <a class="sitefooter__link" href={`mailto:${contactInfo.email}`}>
+                      {contactInfo.email}
+                    </a>
+                  </li>
+                )}
               </ul>
-            </nav>
-          )}
-        </div>
-      )}
-      {groups.map((g) => (
-        <nav class={`sitefooter__group sitefooter__group--${g.kind}`} aria-label={g.label}>
+            )}
+            {contactInfo.hours.length > 0 && (
+              <dl class="sitefooter__hours" aria-label={hoursLabel}>
+                {contactInfo.hours.map((h) => (
+                  <div>
+                    <dt>{h.days}</dt>
+                    <dd>{h.time}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            {contactInfo.links.length > 0 && (
+              <nav aria-label={socialLabel}>
+                <ul class="sitefooter__list" role="list">
+                  {contactInfo.links.map((l) => (
+                    <li>
+                      <a class="sitefooter__link" href={l.href} rel="noopener noreferrer">
+                        {l.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            )}
+          </div>
+        )}
+        {groups.map((g) => (
+          <nav class={`sitefooter__group sitefooter__group--${g.kind}`} aria-label={g.label}>
+            <ul class="sitefooter__list" role="list">
+              {g.items.map((item) => (
+                <li>
+                  <a
+                    class="sitefooter__link"
+                    href={item.url || '#'}
+                    target={item.target || undefined}
+                    rel={linkRel(item)}
+                    aria-current={isCurrent(item.url, current) ? 'page' : undefined}
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+      </div>
+    )}
+    <div class="sitefooter__base">
+      <p class="sitefooter__copy">
+        &copy;{' '}
+        {typeof year === 'number' ? (
+          <wc-format type="date" fields="year" now>
+            <time datetime={String(year)}>{year}</time>
+          </wc-format>
+        ) : (
+          year
+        )}{' '}
+        {name}
+      </p>
+      {legalItems.length > 0 && (
+        <nav class="sitefooter__group sitefooter__group--legal" aria-label={legalLabel}>
           <ul class="sitefooter__list" role="list">
-            {g.items.map((item) => (
+            {legalItems.map((item) => (
               <li>
                 <a
                   class="sitefooter__link"
@@ -229,47 +270,15 @@ const legalItems = menuItems(legal);
             ))}
           </ul>
         </nav>
-      ))}
+      )}
+      {credit && (
+        <p class="sitefooter__credit">
+          <a class="sitefooter__link" href="https://vitops.ca">
+            Powered by Vitops
+          </a>
+        </p>
+      )}
     </div>
-  )}
-  <div class="sitefooter__base">
-    <p class="sitefooter__copy">
-      &copy;{' '}
-      {typeof year === 'number' ? (
-        <wc-format type="date" fields="year" now>
-          <time datetime={String(year)}>{year}</time>
-        </wc-format>
-      ) : (
-        year
-      )}{' '}
-      {name}
-    </p>
-    {legalItems.length > 0 && (
-      <nav class="sitefooter__group sitefooter__group--legal" aria-label={legalLabel}>
-        <ul class="sitefooter__list" role="list">
-          {legalItems.map((item) => (
-            <li>
-              <a
-                class="sitefooter__link"
-                href={item.url || '#'}
-                target={item.target || undefined}
-                rel={linkRel(item)}
-                aria-current={isCurrent(item.url, current) ? 'page' : undefined}
-              >
-                {item.label}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    )}
-    {credit && (
-      <p class="sitefooter__credit">
-        <a class="sitefooter__link" href="https://vitops.ca">
-          Powered by Vitops
-        </a>
-      </p>
-    )}
   </div>
 </footer>
 {backToTop && <BackToTop label={backToTop.label} target={backToTop.target} />}

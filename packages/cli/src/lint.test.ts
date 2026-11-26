@@ -7,7 +7,8 @@ import {
   roleKind,
 } from '@getvitops/generator';
 import { describe, expect, it } from 'vite-plus/test';
-import { extractClasses, judge, lintSource, vocabulary } from './lint.ts';
+import { readFileSync } from 'node:fs';
+import { extractClasses, judge, lintSource, SPLIT_RATIOS, vocabulary } from './lint.ts';
 
 /**
  * The two shapes this exists to catch, both found in a real consumer site:
@@ -174,5 +175,29 @@ describe('state-variant spelling', () => {
   it('flags the wrong-format responsive spelling both ways for a split', () => {
     expect(judge('md-split-1-2', v, 'tailwind')?.suggestion).toContain('@md:split-1-2');
     expect(judge('@md:split-1-2', v, 'css')?.suggestion).toBe('md-split-1-2');
+  });
+});
+
+describe('split ratios', () => {
+  it('flags a ratio the framework does not define, in either spelling', () => {
+    expect(judge('split-5-7', v, 'tailwind')?.severity).toBe('error');
+    expect(judge('@md:split-9-1', v, 'tailwind')?.severity).toBe('error');
+    expect(judge('md-split-6-6', v, 'css')?.severity).toBe('error');
+  });
+
+  it('is quiet on the real ones, including 1-1', () => {
+    for (const r of SPLIT_RATIOS) expect(judge(`split-${r}`, v, 'tailwind')).toBeNull();
+    expect(judge('md-split-1-1', v, 'css')).toBeNull();
+  });
+
+  it('matches the ratios layout-utilities.css defines', () => {
+    const css = readFileSync(
+      new URL('../../core/css/layout-utilities.css', import.meta.url),
+      'utf8',
+    );
+    const defined = new Set(
+      [...css.matchAll(/^\.split-(\d+-\d+)\s*\{/gm)].map((m) => m[1] as string),
+    );
+    expect(defined).toEqual(SPLIT_RATIOS);
   });
 });

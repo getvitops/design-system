@@ -20,7 +20,8 @@ import type { HTMLAttributes } from 'astro/types';
 export interface EntriesRow {
   /** The row's name — its heading, and the table's row header. */
   heading: string;
-  pairs: { term: string; value: string }[];
+  /** A pair with an `href` renders its value as a link (`tel:`, `mailto:`, a page). */
+  pairs: { term: string; value: string; href?: string }[];
 }
 
 export interface Props extends Omit<HTMLAttributes<'div'>, 'slot'> {
@@ -47,7 +48,15 @@ const Heading = `h${level}` as 'h3';
         {entry.pairs.map((pair) => (
           <>
             <dt>{pair.term}</dt>
-            <dd>{pair.value}</dd>
+            <dd>
+              {pair.href ? (
+                <a class="link" href={pair.href}>
+                  {pair.value}
+                </a>
+              ) : (
+                pair.value
+              )}
+            </dd>
           </>
         ))}
       </dl>

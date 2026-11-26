@@ -26,6 +26,9 @@ interface Value {
   imageAlt?: string;
   imageRatio?: string;
   layout?: string;
+  align?: string;
+  width?: string;
+  secondaryVariant?: string;
   tone?: string;
   color?: string;
   scrollCue?: boolean;
@@ -48,6 +51,11 @@ const secondaryHref = safeHref(value.secondaryHref);
 const image = safeHref(value.image);
 const imageAlt = text(value.imageAlt);
 const split = value.layout === 'split' && Boolean(image);
+// Split only. `start` left-aligns the text column; `spotlight` keeps the hero on the page column
+// (the image gets the card radius) instead of running it to the viewport edges.
+const alignStart = split && value.align === 'start';
+const spotlight = split && value.width === 'spotlight';
+const secondaryClass = value.secondaryVariant === 'btn' ? 'btn' : 'link';
 const tone = resolveTone(value.tone, value.color);
 const scrollCue = value.scrollCue === true;
 const scrollCueLabel = text(value.scrollCueLabel) || undefined;
@@ -71,19 +79,16 @@ import { rootAttrs } from './attrs.ts';
   <section
     {...rootAttrs(
       value,
-      [tone.style && tone.surface, split && 'fullbleed'],
+      [
+        tone.style && tone.surface,
+        split && (spotlight ? 'spotlight hero--spotlight' : 'fullbleed'),
+        alignStart && 'hero--start',
+      ],
       joinStyle(tone.style, scrollCue && 'position: relative'),
     )}
   >
-    <div class={split ? 'split' : 'centered'}>
-      <div
-        class="rhythm"
-        style={
-          split
-            ? 'display:grid;align-content:center;justify-items:center;text-align:center;padding:var(--space-xl, 3rem) var(--space-l, 2rem)'
-            : undefined
-        }
-      >
+    <div class={split ? 'split split-responsive' : 'centered'}>
+      <div class:list={['rhythm', split && 'hero__text']}>
         {eyebrow && <p class="font-eyebrow">{eyebrow}</p>}
         {heading && (
           <Heading class="font-display">
@@ -99,7 +104,7 @@ import { rootAttrs } from './attrs.ts';
               </a>
             )}
             {secondaryLabel && secondaryHref && (
-              <a class="link" href={secondaryHref}>
+              <a class={secondaryClass} href={secondaryHref}>
                 {secondaryLabel}
               </a>
             )}
@@ -115,7 +120,7 @@ import { rootAttrs } from './attrs.ts';
           displayWidth={960}
           loading="eager"
           fetchpriority="high"
-          style="display:block;inline-size:100%;block-size:clamp(22rem, 60vh, 38rem);object-fit:cover"
+          class="hero__media"
         />
       )}
     </div>

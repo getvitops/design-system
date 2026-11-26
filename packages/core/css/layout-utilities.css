@@ -162,6 +162,12 @@
    resolves its collapsed-border axis from a `@container style(--_flex-direction:
    column)` query, so a `.grouped` inside a re-rowed split collapsed on the wrong
    axis with nothing to indicate why. */
+.split-1-1 {
+  flex-direction: row;
+  --_flex-direction: row;
+  --_split-a: 1;
+  --_split-b: 1;
+}
 .split-1-2 {
   flex-direction: row;
   --_flex-direction: row;
@@ -431,6 +437,12 @@
 }
 
 @container (min-width: 30rem) {
+  .sm-split-1-1 {
+    flex-direction: row;
+    --_flex-direction: row;
+    --_split-a: 1;
+    --_split-b: 1;
+  }
   .sm-split-1-2 {
     flex-direction: row;
     --_flex-direction: row;
@@ -487,6 +499,12 @@
   }
 }
 @container (min-width: 48rem) {
+  .md-split-1-1 {
+    flex-direction: row;
+    --_flex-direction: row;
+    --_split-a: 1;
+    --_split-b: 1;
+  }
   .md-split-1-2 {
     flex-direction: row;
     --_flex-direction: row;
@@ -543,6 +561,12 @@
   }
 }
 @container (min-width: 64rem) {
+  .lg-split-1-1 {
+    flex-direction: row;
+    --_flex-direction: row;
+    --_split-a: 1;
+    --_split-b: 1;
+  }
   .lg-split-1-2 {
     flex-direction: row;
     --_flex-direction: row;
@@ -599,6 +623,12 @@
   }
 }
 @container (min-width: 80rem) {
+  .xl-split-1-1 {
+    flex-direction: row;
+    --_flex-direction: row;
+    --_split-a: 1;
+    --_split-b: 1;
+  }
   .xl-split-1-2 {
     flex-direction: row;
     --_flex-direction: row;

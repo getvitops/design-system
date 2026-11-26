@@ -743,17 +743,33 @@
 /* ── Footer (`<SiteFooter>`) ───────────────────────────────────────────────── */
 .sitefooter {
   margin-block-start: var(--space-2xl, 3rem);
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
   padding-block: var(--space-l, 2rem);
   border-block-start: 1px solid var(--color-border-neutral, currentColor);
 }
 
-/* A footer that is not itself a `.centered` grid has no track to supply a gutter, so the logo and
-   columns would sit flush against the viewport edge on a wide screen. Same rule the masthead
-   applies to its `width: full` row. */
-.sitefooter:not(.centered) {
+/* The inner row owns the layout, so a `.centered` that ends up on `.sitefooter` itself (the old
+   starter did this) cannot be cancelled by it: that grid lost to `display: flex` and the footer
+   sat against the viewport edge. */
+.sitefooter__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* `width="content"`: the inner row is a `.centered` grid, which supplies the gutters. Its
+   children go on the spotlight track (the measure track is too narrow for columns). */
+.sitefooter__inner.centered {
+  display: grid;
+  row-gap: 1rem;
+
+  & > * {
+    grid-column: spotlight;
+  }
+}
+
+/* `width="full"`: no track, so give the row a gutter. Same rule the masthead applies to its
+   `width: full` row. */
+.sitefooter--full {
   padding-inline: var(--sitefooter-gutter, 1rem);
 }
 

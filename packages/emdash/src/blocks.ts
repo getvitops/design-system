@@ -385,6 +385,17 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         label: 'Thumbnail aspect ratio',
         initial_value: '1',
       },
+      {
+        type: 'select',
+        action_id: 'thumbSize',
+        label: 'Thumbnail size',
+        initial_value: 'small',
+        options: [
+          { label: 'Small', value: 'small' },
+          { label: 'Medium', value: 'medium' },
+          { label: 'Large', value: 'large' },
+        ],
+      },
       { type: 'toggle', action_id: 'loop', label: 'Wrap around at the ends', initial_value: false },
     ],
   },
@@ -726,6 +737,36 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         options: [
           { label: 'Centered', value: 'centered' },
           { label: 'Text and image side by side', value: 'split' },
+        ],
+      },
+      {
+        type: 'select',
+        action_id: 'align',
+        label: 'Text alignment (side by side)',
+        initial_value: 'center',
+        options: [
+          { label: 'Centered', value: 'center' },
+          { label: 'Left', value: 'start' },
+        ],
+      },
+      {
+        type: 'select',
+        action_id: 'width',
+        label: 'Width (side by side)',
+        initial_value: 'fullbleed',
+        options: [
+          { label: 'Edge to edge', value: 'fullbleed' },
+          { label: 'Page width, rounded image', value: 'spotlight' },
+        ],
+      },
+      {
+        type: 'select',
+        action_id: 'secondaryVariant',
+        label: 'Second button style',
+        initial_value: 'link',
+        options: [
+          { label: 'Text link', value: 'link' },
+          { label: 'Outlined button', value: 'btn' },
         ],
       },
       {

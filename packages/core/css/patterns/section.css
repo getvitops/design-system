@@ -109,3 +109,40 @@
 .section .section__actions {
   align-items: center;
 }
+
+/*
+ * The `vitops_hero` split layout (`.split.split-responsive`): a text column beside an image.
+ * Defaults are a centred text column and a full-bleed image; `--start` left-aligns the text and
+ * `--spotlight` keeps the hero on the page column with a rounded image. The block used to carry
+ * these as inline styles, which nothing could override without `!important`. All formats.
+ */
+.hero__text {
+  display: grid;
+  align-content: center;
+  justify-items: var(--hero-justify, center);
+  text-align: var(--hero-text-align, center);
+  padding: var(--hero-text-pad-block, var(--space-xl, 3rem))
+    var(--hero-text-pad-inline, var(--space-l, 2rem));
+}
+
+.hero__media {
+  display: block;
+  inline-size: 100%;
+  block-size: var(--hero-media-h, clamp(22rem, 60vh, 38rem));
+  object-fit: cover;
+}
+
+.hero--start {
+  --hero-justify: start;
+  --hero-text-align: start;
+}
+
+.hero--spotlight .hero__media {
+  border-radius: var(--hero-media-radius, var(--br-card, var(--br-default, 0.75rem)));
+}
+
+/* A start-aligned hero on the page column already has the page's gutter; the text does not need
+   a second inline inset. */
+.hero--spotlight.hero--start .hero__text {
+  padding-inline-start: 0;
+}

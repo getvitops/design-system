@@ -5,7 +5,7 @@
  * with it. The editor writes each row's details as `Term | Value` lines.
  */
 import Entries from '@getvitops/astro/components/Entries.astro';
-import { headingTag, pairs, resolveBlockValue, rows, text } from './value.ts';
+import { headingTag, linkRuns, pairs, resolveBlockValue, rows, text } from './value.ts';
 
 interface Value {
   entries?: unknown;
@@ -14,10 +14,28 @@ interface Value {
 }
 
 const value = resolveBlockValue<Value>(Astro.props);
+
+/**
+ * A value of exactly `[label](url)` becomes a link; any other value shows its text with the
+ * markup flattened, so `[a](b)` never reaches the page as raw Markdown. (A cell is one string for
+ * `<wc-entries>`, which rebuilds it as a table cell; one link per value is what that supports.)
+ */
+function entryValue(pair: { term: string; value: string }): {
+  term: string;
+  value: string;
+  href?: string;
+} {
+  const runs = linkRuns(pair.value);
+  const only = runs.length === 1 ? runs[0] : undefined;
+  if (only?.href) return { term: pair.term, value: only.text, href: only.href };
+  return { term: pair.term, value: runs.map((r) => r.text).join('') };
+}
 const entries = rows<Record<string, unknown>>(value.entries)
   .map((row) => ({
     heading: text(row.heading),
-    pairs: pairs(row.pairs).filter((pair) => pair.term),
+    pairs: pairs(row.pairs)
+      .filter((pair) => pair.term)
+      .map((pair) => entryValue(pair)),
   }))
   .filter((entry) => entry.heading && entry.pairs.length > 0);
 const level = Number(headingTag(value.level, 3).slice(1)) as 2 | 3 | 4 | 5 | 6;

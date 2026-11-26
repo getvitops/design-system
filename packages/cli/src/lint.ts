@@ -70,6 +70,19 @@ const emittedModifiers = (roleClasses: Set<string>, fam: string, role: string): 
 };
 
 /** Everything the config makes namable, so we only judge classes we can judge. */
+/** The ratio utilities `layout-utilities.css` defines (a drift test reads the file). */
+export const SPLIT_RATIOS: ReadonlySet<string> = new Set([
+  '1-1',
+  '1-2',
+  '2-1',
+  '1-3',
+  '3-1',
+  '1-4',
+  '4-1',
+  '2-3',
+  '3-2',
+]);
+
 interface Vocabulary {
   roles: string[];
   hues: string[];
@@ -164,6 +177,18 @@ export function judge(
   // In css/bricks the bare-prefix form is real; fall through and judge the base
   // against the rest of the vocabulary.
   const base = bp && format !== 'tailwind' ? (bp[2] as string) : cls;
+
+  // ── a split ratio that does not exist ──────────────────────────────────────
+  // `split-1-1` once looked real because `md-split-1-1` lints clean and does nothing. The ratio
+  // set is closed (layout-utilities.css), so an unknown pair is a typo, not a consumer's class.
+  const ratio = /^split-(\d+)-(\d+)$/.exec(base);
+  if (ratio && !SPLIT_RATIOS.has(`${ratio[1]}-${ratio[2]}`))
+    return {
+      cls: raw,
+      severity: 'error' as const,
+      reason: `\`${base}\` is not a split ratio; the framework defines ${[...SPLIT_RATIOS].map((r) => `split-${r}`).join(', ')}`,
+      suggestion: 'pick one of those, or set `--_split-a` / `--_split-b` yourself',
+    };
 
   // ── <util>-<hue>-<step> ────────────────────────────────────────────────────
   const util = new RegExp(`^(${UTIL_FAMILIES.join('|')})-(.+)$`).exec(base);

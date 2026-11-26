@@ -388,6 +388,7 @@ function emitTailwind(ctx: TwCtx): string {
     `@utility split-reverse {\n  reading-flow: flex-visual;\n  & > :first-child { order: 1; }\n}`,
   );
   const RATIOS: [number, number][] = [
+    [1, 1],
     [1, 2],
     [2, 1],
     [1, 3],
@@ -613,6 +614,21 @@ body {
 }
 .split > :nth-child(2):last-child {
   flex-basis: ${splitBasis('--_split-b')};
+}
+/* Stacks the pair below md of the nearest container, in every format (mirrors layout.css). */
+.split-responsive {
+  @container (width < 48rem) {
+    flex-direction: column;
+    --_flex-direction: column;
+    & > *,
+    & > :first-child,
+    & > :last-child,
+    & > :first-child:nth-last-child(2),
+    & > :nth-child(2):last-child {
+      flex: 0 0 auto;
+      inline-size: 100%;
+    }
+  }
 }
 }
 `);

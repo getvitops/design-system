@@ -135,7 +135,7 @@ import {
 } from './agents.ts';
 import { COMMANDS, HELP, helpFor, wantsHelp } from './help.ts';
 import { lintCss } from './lint-css.ts';
-import { fixMainLayout, lintMainLayout } from './lint-layout.ts';
+import { fixMainLayout, LAYOUT_RULES, lintFooterLayout, lintMainLayout } from './lint-layout.ts';
 import { lintMarkup } from './lint-markup.ts';
 import { applyRenames, lintTokens } from './lint-tokens.ts';
 import { lintSource, vocabulary } from './lint.ts';
@@ -969,7 +969,7 @@ function cmdLint(argv: string[]) {
   // design system by token rather than by class, and the half nothing checked.
   const renames = movedTokens(ds.colors.roles);
   const tokenFindings = lintTokens(cssFiles, renames);
-  const layoutFindings = lintMainLayout(files);
+  const layoutFindings = [...lintMainLayout(files), ...lintFooterLayout(files)];
   const findings = [
     ...lintSource(files, vocabulary(ds, roleClasses), format),
     ...lintCss(cssFiles, format),
@@ -1003,7 +1003,7 @@ function cmdLint(argv: string[]) {
       `✓ rewrote ${tokenFindings.length} token reference${tokenFindings.length === 1 ? '' : 's'} ` +
         `in ${byFile.size} file${byFile.size === 1 ? '' : 's'}` +
         (layoutFiles.size
-          ? `; removed .centered from <main> in ${layoutFiles.size} file${layoutFiles.size === 1 ? '' : 's'} (wrap hand-written page content in <div class="centered">)`
+          ? `; removed .centered from <main>/<SiteFooter> in ${layoutFiles.size} file${layoutFiles.size === 1 ? '' : 's'} (wrap hand-written page content in <div class="centered">)`
           : '') +
         (remaining
           ? `\n! ${remaining} other finding${remaining === 1 ? '' : 's'} need a decision — ` +
@@ -1039,7 +1039,10 @@ function cmdLint(argv: string[]) {
 
   const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   const parts: string[] = [];
-  if (errors.length) parts.push(count(errors.length, 'unresolvable class', 'unresolvable classes'));
+  const layoutErrors = errors.filter((f) => LAYOUT_RULES.has(f.cls));
+  const classErrors = errors.length - layoutErrors.length;
+  if (classErrors) parts.push(count(classErrors, 'unresolvable class', 'unresolvable classes'));
+  if (layoutErrors.length) parts.push(count(layoutErrors.length, 'layout error', 'layout errors'));
   if (suggestions.length) parts.push(count(suggestions.length, 'suggestion', 'suggestions'));
   const failing = errors.length > 0 || (values.strict === true && suggestions.length > 0);
   console.error(

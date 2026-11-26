@@ -86,8 +86,23 @@ export { default as VitopsMegaPanel } from './MegaPanel.astro';
 /**
  * `themeAttrs('surface')` → `{ class, style }` for the layout's `<body>` (or any element a site owns):
  * the same backdrop-and-readable-text every block's `theme` field gives, from the site's own roles.
+ *
+ * An element with its own `class` must not also spread this: two `class` attributes keep only the
+ * first, and the backdrop silently disappears. Pass the element's classes as the second argument,
+ * so the one `class` that comes back carries both:
+ *
+ *     <section {...themeAttrs('brand-primary', 'centered region')}>
+ *
+ * (or `class:list={['centered region', t.class]} style={t.style}`).
  */
-export function themeAttrs(theme: string | undefined): { class?: string; style?: string } {
+export function themeAttrs(
+  theme: string | undefined,
+  className?: string,
+): { class?: string; style?: string } {
   const t = resolveTheme(theme);
-  return t ? { class: t.className, style: t.style } : {};
+  const cls = [className, t?.className].filter(Boolean).join(' ');
+  return {
+    ...(cls ? { class: cls } : {}),
+    ...(t?.style ? { style: t.style } : {}),
+  };
 }

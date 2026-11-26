@@ -1,0 +1,7 @@
+---
+// Test-only stand-in for a site's own block component (see the `components` test in
+// render.container.test.ts). Not exported from the package.
+const { node } = Astro.props as { node?: { label?: string } };
+---
+
+<mark data-override>{node?.label}</mark>

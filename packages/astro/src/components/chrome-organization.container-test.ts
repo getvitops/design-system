@@ -131,3 +131,19 @@ describe('<Masthead /> logo', () => {
     expect(html).toContain('class="masthead__brand" href="/en/"');
   });
 });
+
+describe('<SiteFooter /> track', () => {
+  it('owns a .centered inner row by default, so the page track supplies the gutters', async () => {
+    const html = await footer();
+    expect(html).toMatch(
+      /<footer class="sitefooter"[^>]*>\s*<div class="sitefooter__inner centered"/,
+    );
+  });
+
+  it('width="full" drops the track and takes a gutter instead', async () => {
+    const html = await footer({ width: 'full' });
+    expect(html).toContain('class="sitefooter sitefooter--full"');
+    expect(html).toContain('<div class="sitefooter__inner"');
+    expect(html).not.toContain('sitefooter__inner centered');
+  });
+});

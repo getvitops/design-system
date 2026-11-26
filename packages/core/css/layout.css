@@ -339,3 +339,25 @@ body {
 .split > :nth-child(2):last-child {
   flex-basis: calc(var(--_split-b, 1) / (var(--_split-a, 1) + var(--_split-b, 1)) * 100%);
 }
+
+/* Stacks the pair below `md` (48rem of the nearest container), in every format: a pattern, so it
+   needs neither a `md-` utility (css/bricks only) nor an `@md:` variant (tailwind scans source,
+   and a block's output is not source). The ratio utilities set `flex-direction: row` one layer up,
+   so `md-split-1-2` on the same element still re-rows it at its own breakpoint. */
+.split-responsive {
+  @container (width < 48rem) {
+    flex-direction: column;
+    --_flex-direction: column;
+
+    /* Each selector matches a basis or grow rule above at equal specificity, and this block
+       comes after them: a stacked pair has no row to share, so every child sizes to its content. */
+    & > *,
+    & > :first-child,
+    & > :last-child,
+    & > :first-child:nth-last-child(2),
+    & > :nth-child(2):last-child {
+      flex: 0 0 auto;
+      inline-size: 100%;
+    }
+  }
+}

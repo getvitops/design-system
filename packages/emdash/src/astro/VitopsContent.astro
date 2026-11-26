@@ -14,16 +14,21 @@ const { PortableText } = await import('emdash/ui');
 import Section from './blocks/Section.astro';
 import { bandToSection, groupBands } from './blocks/band.ts';
 
-const { value } = Astro.props as { value: unknown };
+// `components` is `<PortableText>`'s prop, forwarded to the plain runs AND to the blocks inside each band:
+//     <VitopsContent value={page.data.content} components={{ type: { vitops_hero: MyHero } }} />
+const { value, components } = Astro.props as {
+  value: unknown;
+  components?: Record<string, unknown>;
+};
 const groups = groupBands(value);
 ---
 
 {groups.map((group) =>
   group.kind === 'band' ? (
-    <Section node={bandToSection(group.band, group.body)} />
+    <Section node={bandToSection(group.band, group.body)} components={components} />
   ) : (
     <div class="centered rhythm">
-      <PortableText value={group.blocks as never} />
+      <PortableText value={group.blocks as never} components={components as never} />
     </div>
   ),
 )}

@@ -58,6 +58,8 @@ const WIDTHS: Record<string, string> = {
   fullbleed: 'fullbleed',
 };
 
+// Passed down by `<VitopsContent components={…}>` so a site's block overrides reach blocks inside a band.
+const components = (Astro.props as { components?: Record<string, unknown> }).components;
 const value = resolveBlockValue<Value>(Astro.props);
 const kicker = text(value.kicker);
 const heading = text(value.heading);
@@ -141,7 +143,7 @@ import { rootAttrs } from './attrs.ts';
         )}
         {body.length > 0 && (
           <div class="section__body">
-            <PortableText value={body} />
+            <PortableText value={body} components={components as never} />
             {missing.map((type) => (
               <template data-vitops-unrendered={type} />
             ))}

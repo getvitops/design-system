@@ -28,6 +28,11 @@ wc-gallery {
   grid-template-columns: repeat(auto-fill, minmax(var(--gallery-thumb-size, 150px), 1fr));
   gap: var(--gallery-gap, 0.5rem);
 
+  /* One image fills its column: a lone 150px thumbnail is a gallery of nothing. */
+  &:has(> li:only-child) {
+    --gallery-thumb-size: 100%;
+  }
+
   /* Gallery.astro emits this as `<ul role="list">`, so the UA's list padding, block
      margin and markers all apply. The pattern owns no outer spacing — the context it
      sits in does. Conditional so `.gallery` on a `div` is untouched. */

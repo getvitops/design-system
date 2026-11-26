@@ -42,7 +42,9 @@ Reference, rendered from this project: `vp exec vitops docs blocks` (every block
   the tailwind format only ones the site already uses) and `style` (CSS custom properties only,
   e.g. `--p-card: 2rem`; anything else is dropped). The same backdrop is available on a widget area
   (`<VitopsWidgetArea theme="…">`) and on your own markup (`themeAttrs('surface')` from
-  `@getvitops/emdash/astro`, spread on the layout's `<body>`).
+  `@getvitops/emdash/astro`, spread on the layout's `<body>`). On an element that has its own
+  `class`, pass the classes as the second argument (`{...themeAttrs('brand-primary', 'centered region')}`):
+  spreading it beside a literal `class` emits two `class` attributes and the browser keeps only the first.
 - Override a block per site with `<PortableText components={{ type: { 'vitops_cards': MyCards } }} />`;
   hide one with `vitopsEmdash({ blocks: { exclude: [...] } })`. Before adding a block **type**, use
   the `emdash-custom-blocks` skill: types can't be renamed or deleted once pages use them.
