@@ -36,7 +36,7 @@
   position: fixed;
   position-anchor: --tooltip-anchor;
   inset: auto;
-  inset-block-start: anchor(block-end);
+  inset-block-start: anchor(end);
   justify-self: anchor-center;
   position-try-fallbacks:
     flip-block,
@@ -57,6 +57,13 @@
   &.tooltip--toggle {
     white-space: normal;
     inline-size: max-content;
+  }
+
+  /* No scrim: popover.css gives every top-layer element a `::backdrop` tint, and a tooltip is a
+     hint, not a modal, so it must not dim the page. Beats the `:where()` default there. */
+  &::backdrop {
+    background-color: transparent;
+    backdrop-filter: none;
   }
 
   /* The Popover API toggles display; fade across the top-layer transition. */

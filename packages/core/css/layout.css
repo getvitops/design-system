@@ -204,8 +204,10 @@
   margin-top: calc(var(--rhythm-base) * var(--rhythm-block-action));
 }
 /* A bare link is inline, and an inline box ignores `margin-top`, so it sat flush under the
-   paragraph above. Buttons (`.cta`, `.btn`) are inline-flex and already space. */
-.rhythm > :where(a:not(.cta, .btn)) {
+   paragraph above. Buttons (`.cta`, `.btn`) are inline-flex and already space.
+   Not on a `<p>`: it holds only phrasing content, so its links are inline text and blockifying
+   them breaks the sentence onto one line per link. */
+.rhythm:not(p) > :where(a:not(.cta, .btn)) {
   display: block;
   inline-size: fit-content;
 }
