@@ -1,5 +1,14 @@
 # @getvitops/core
 
+## 9.0.0-alpha.14
+
+### Patch Changes
+
+- cdd6256: **`<wc-entries projection>`: the column nav no longer scrolls the chosen column under the sticky row titles.** `WCEntries` now sets `--_entries-sticky-width` on the scroll wrapper from the sticky first column's width, so the existing `scroll-padding-inline-start` clears it. JS bundle only, all formats (no CSS output change). No consumer action needed.
+- 41792ee: **`<wc-range>`: the `<output>` no longer overlaps the dual-thumb track.** `.range--dual` is now a grid: the track and both inputs share the first row and the `<output>` sits in the row beneath, instead of being clipped inside a fixed-height box with absolutely positioned inputs. Markup and JS unchanged. CSS change, all formats. No consumer action needed.
+- be2cf77: `.rhythm` no longer turns a paragraph's own links into blocks when the class sits on a `<p>`. A bare `<a>` that is a direct child of a non-paragraph `.rhythm` is still `display: block; inline-size: fit-content`. all formats.
+- be2cf77: Tooltips now appear next to their trigger and no longer dim the page. `inset-block-start: anchor(block-end)` is not a valid `anchor()` side, so the declaration was dropped and the tooltip rendered at the top-left of the viewport (off-screen on a scrolled page); it is now `anchor(end)`. The shared popover scrim (`::backdrop`) is also cleared for `.tooltip`, which is a hint, not a modal. all formats.
+
 ## 9.0.0-alpha.13
 
 ### Minor Changes

@@ -11,6 +11,17 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 9.0.0-alpha.14 (+ `@getvitops/emdash` 2.0.0-alpha.15) — alpha channel
+
+Prerelease on the `alpha` dist-tag; not on `latest`. `@getvitops/config`, `utils`, `cli`, `vite`, `astro` and `emdash` carry **no consumer-facing change** beyond the `fixed` version bump. No migrations.
+
+**Fixed**
+
+- **`<wc-range>` output no longer overlaps the dual-thumb track** (`@getvitops/core`, `generator`; **all formats**). `.range--dual` is a grid: track and inputs share row 1, the `<output>` sits beneath.
+- **`<wc-entries projection>` column nav** no longer scrolls the chosen column under the sticky row titles (`@getvitops/core`; JS only).
+- **`.rhythm` on a `<p>`** no longer turns the paragraph's own links into blocks (`@getvitops/core`, `generator`; **all formats**).
+- **Tooltips** appear next to their trigger (`anchor(end)`, not the invalid `anchor(block-end)`) and no longer dim the page with the popover scrim (`@getvitops/core`; **all formats**).
+
 ## 9.0.0-alpha.13 (+ `@getvitops/emdash` 2.0.0-alpha.14, `@getvitops/create` 0.9.0-alpha.11, `@getvitops/skills` 0.1.0-alpha.6) — alpha channel
 
 Prerelease on the `alpha` dist-tag; not on `latest`. `@getvitops/vite` carries **no consumer-facing change** beyond the `fixed` version bump, and `@getvitops/config` and `@getvitops/utils` carry none beyond the `site.campaigns` schema and the new `utils/campaigns` subpath listed below.

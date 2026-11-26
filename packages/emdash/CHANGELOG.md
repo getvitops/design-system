@@ -1,5 +1,15 @@
 # @getvitops/emdash
 
+## 2.0.0-alpha.15
+
+### Patch Changes
+
+- Updated dependencies [41792ee]
+- Updated dependencies [be2cf77]
+- Updated dependencies [be2cf77]
+  - @getvitops/generator@9.0.0-alpha.14
+  - @getvitops/utils@9.0.0-alpha.14
+
 ## 2.0.0-alpha.14
 
 ### Minor Changes
