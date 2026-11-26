@@ -527,6 +527,10 @@ Audit options:
                         report.html and pages/<page>.{json,md}. An artifact, not site content:
                         it lists every violation, so never copy it into the build output.
       --warn            Report without failing (exit 0), for first adoption
+      --record          On a passing run, write site.legal.accessibilityStatement.testedOn (today)
+                        and add "automated" to its testing list in --input (JSON configs only).
+                        Never sets conformance: an automated pass is not a conformance claim.
+                        Skipped on a failing run, with level "none", or without a statement.
 
   Needs the optional packages: vp add -D playwright @axe-core/playwright lighthouse
   && vp exec playwright install chromium (checked before any server starts). A pass means no automated axe violations and the

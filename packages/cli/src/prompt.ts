@@ -143,7 +143,7 @@ export function patchRaw(
 }
 
 /** Indentation the file already uses, so a patch doesn't reformat the whole document. */
-function detectIndent(source: string): string | number {
+export function detectIndent(source: string): string | number {
   const match = /\n([ \t]+)"/.exec(source);
   if (!match?.[1]) return 2;
   return match[1].includes('\t') ? '\t' : match[1].length;

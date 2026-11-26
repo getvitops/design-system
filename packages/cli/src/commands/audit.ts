@@ -28,6 +28,7 @@ import {
   type FormFactor,
 } from '@getvitops/utils/audit';
 import { msg, parse } from '../args.ts';
+import { isoDate, writeAuditRecord } from '../audit-record.ts';
 import { fail, loadConfig } from './shared.ts';
 
 /** Dedicated port: not Astro's 4321, which a developer's own `astro dev` is likely on. */
@@ -56,6 +57,7 @@ export async function cmdAudit(argv: string[]): Promise<void> {
     impact: { type: 'string' },
     'form-factor': { type: 'string', default: 'mobile' },
     warn: { type: 'boolean', default: false },
+    record: { type: 'boolean', default: false },
     input: { type: 'string', short: 'i', default: 'vitops.json' },
     'site-env': { type: 'string', default: 'production' },
   });
@@ -197,6 +199,21 @@ export async function cmdAudit(argv: string[]): Promise<void> {
     if (!report.passed) {
       if (args.flag('warn')) console.log('(--warn: reporting only, exit 0)');
       else process.exitCode = 1;
+      if (args.flag('record')) console.log('--record: skipped, the run did not pass.');
+    } else if (args.flag('record')) {
+      // A `none` target stops axe from failing pages, so a pass there says nothing about
+      // accessibility — recording it would put a tested-on date on an untested site.
+      if (target?.level === 'none')
+        console.log('--record: skipped, site.accessibility.level is "none" (axe did not gate).');
+      else if (!existsSync(siteFile)) console.log(`--record: skipped, ${siteFile} does not exist.`);
+      else {
+        const done = writeAuditRecord(siteFile, isoDate());
+        console.log(
+          done.written
+            ? `--record: wrote testedOn and "automated" to site.legal.accessibilityStatement in ${siteFile}. conformance is untouched — set it after the manual checks.`
+            : `--record: skipped, ${done.reason}`,
+        );
+      }
     }
   } catch (err) {
     // `fail` exits the process, which skips `finally` — stop the server first or the
