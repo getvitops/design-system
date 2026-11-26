@@ -12,7 +12,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vite-plus/test';
 import { defaultConfig } from '../index.ts';
-import { DOC_SLUGS } from './templates/index.ts';
+import { DOC_ORDER, DOC_SLUGS, LEGAL_PATHS } from './templates/index.ts';
 import { resolveConfig, validateConfig, type Config, type OrganizationConfig } from '../config.ts';
 import { derivePolicyVars } from './derive.ts';
 import { enabledDocs, generateLegal, renderMarkdown } from './index.ts';
@@ -987,5 +987,15 @@ describe('email campaigns', () => {
     const text = privacyOf(cfg);
     expect(text).toContain('Zoho Campaigns');
     expect(text).toContain('Zoho Bigin');
+  });
+});
+
+describe('LEGAL_PATHS', () => {
+  test('names a short route for every document, distinct from its file stem', () => {
+    expect(Object.keys(LEGAL_PATHS).sort()).toEqual([...DOC_ORDER].sort());
+    // The file stem and the route are deliberately different things (`cookie-notice.*` is
+    // served at `/cookies`); nothing may assume one is the other.
+    expect(LEGAL_PATHS.cookies).toBe('/cookies');
+    for (const doc of DOC_ORDER) expect(LEGAL_PATHS[doc]).toMatch(/^\/[a-z]+$/);
   });
 });

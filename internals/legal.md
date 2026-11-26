@@ -10,6 +10,13 @@ the split the documents already assumed. It is a sibling of
 `generate()` is keyed to a `DesignSystem`, so a legal format would be a format that ignores
 its own input. It returns a `{ filename: content }` map and lets each caller write it.
 
+**File stem is not route.** Each document is written to a long-form stem (`DOC_SLUGS`: `privacy-policy`,
+`terms-of-service`, `cookie-notice`, `accessibility-statement`) but belongs at a short route
+(`LEGAL_PATHS`: `/privacy`, `/terms`, `/cookies`, `/accessibility`). The routes are what the audit's
+default page list, the emdash template's seed and the consent banner's default link assume; nothing
+assumes a stem is a URL. Don't rename a stem to "match" a route: the Bricks `load.php` shortcode
+allowlist is keyed to the stems, and a rename is a breaking output change.
+
 The governing rule is **the config records facts; the template owns prose.** Nothing in
 `derive.ts` writes a sentence a lawyer would review, and no template invents a fact. That is
 what lets wording be corrected without touching a consumer's config, and a consumer's

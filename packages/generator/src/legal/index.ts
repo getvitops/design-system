@@ -104,5 +104,5 @@ export {
 export type { KnownProcessorKey, Processor, ProcessorStorage } from './providers.ts';
 export { parseMarkdown, toContentNodes, toHtmlFragment, toPortableText } from './render.ts';
 export type { Block, Span } from './render.ts';
-export { DOC_ORDER, DOC_SLUGS, TEMPLATES } from './templates/index.ts';
+export { DOC_ORDER, DOC_SLUGS, LEGAL_PATHS, TEMPLATES } from './templates/index.ts';
 export type { DocSet, LegalDoc } from './templates/index.ts';

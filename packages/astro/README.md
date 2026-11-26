@@ -284,7 +284,8 @@ vitops({
     plausible: 'acme.com',
     strategy: 'idle',
   },
-  consent: { policyUrl: '/legal/cookies' },
+  // On a config-driven site the banner already links `/cookies`; set `policyUrl` only to move it.
+  consent: true,
 });
 ```
 

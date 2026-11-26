@@ -49,3 +49,17 @@ export const DOC_SLUGS: Record<LegalDoc, string> = {
   cookies: 'cookie-notice',
   accessibility: 'accessibility-statement',
 };
+
+/**
+ * The route each document is published at by convention. This is NOT the file
+ * stem: `cookies` is written to `cookie-notice.*` but belongs at `/cookies`, the
+ * same way `privacy-policy.*` belongs at `/privacy`. The stems are long-form
+ * filenames; the routes are the short URLs the template seed, the audit's
+ * default page list and the consent banner's default link all assume.
+ */
+export const LEGAL_PATHS: Record<LegalDoc, string> = {
+  privacy: '/privacy',
+  terms: '/terms',
+  cookies: '/cookies',
+  accessibility: '/accessibility',
+};

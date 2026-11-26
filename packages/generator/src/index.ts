@@ -166,6 +166,7 @@ export {
   toPortableText,
   DOC_ORDER,
   DOC_SLUGS,
+  LEGAL_PATHS,
   TEMPLATES,
 } from './legal/index.ts';
 export type {

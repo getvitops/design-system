@@ -541,6 +541,30 @@ describe('vitops({ analytics, consent })', () => {
     expect(headData(h.updates).consentPolicyUrl).toBe('/legal/cookies');
   });
 
+  it('defaults the banner link to /cookies on a config-driven site, and lets policyUrl win', async () => {
+    // The generated notice is written to `cookie-notice.*` but belongs at the short route the
+    // rest of the toolchain assumes. Only a site that reads a config gets the default: without
+    // one nothing generates the page, so a default would be a dead link.
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-'));
+    writeFileSync(join(dir, 'vitops.json'), JSON.stringify({ site: {} }));
+    const ctx = { root: pathToFileURL(`${dir}/`), publicDir: pathToFileURL(`${dir}/public/`) };
+
+    const dflt = harness({ consent: true, site: { input: 'vitops.json' } }, ctx);
+    await dflt.run();
+    expect(headData(dflt.updates).consentPolicyUrl).toBe('/cookies');
+
+    const own = harness(
+      { consent: { policyUrl: '/legal/cookies' }, site: { input: 'vitops.json' } },
+      ctx,
+    );
+    await own.run();
+    expect(headData(own.updates).consentPolicyUrl).toBe('/legal/cookies');
+
+    const bare = harness({ consent: true }, scratch());
+    await bare.run();
+    expect(headData(bare.updates).consentPolicyUrl).toBeNull();
+  });
+
   it('copies consent.js even with webComponents off', async () => {
     // The gate decides whether third-party tags run, so switching off the element
     // runtime must not silently switch off consent along with it.
