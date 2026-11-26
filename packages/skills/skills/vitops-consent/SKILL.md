@@ -27,7 +27,9 @@ The four that bite:
   that, so a script that fires an event into it (a conversion) holds the event, then re-checks on
   each `vitops:tag`; there is no timeout to outlive a visitor who accepts late. `window.vitopsConsent`
   absent means no gate, so call straight through. `window.vitopsFormConversion(form)` already does
-  this for the Google Ads `form` conversion.
+  this for the Google Ads `form` conversion. For your own script, `await window.vitopsAds.ready`
+  resolves once `gtag` exists (the same check, already wired to `vitops:tag`). It stays pending
+  when the visitor never consents or no Google tag runs, so never block a redirect on it.
 - **Patch exactly the categories you put on screen.** `acceptAll()` / `rejectAll()` mean
   literally every optional category — using one to answer a single-category prompt records
   consent nobody gave. "Not asked" is a third value (`null`), distinct from declined, and

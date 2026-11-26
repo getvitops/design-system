@@ -225,6 +225,7 @@ if (Object.keys(trackingData).length > 0) {
 interface AdsGlobal {
   gtag?: (...args: unknown[]) => void;
   vitopsAdsConversions?: Record<string, Partial<Record<'call' | 'email' | 'form', string>>>;
+  vitopsAds?: { ready: Promise<void> };
 }
 const adsGlobal = (): AdsGlobal => window as unknown as AdsGlobal;
 
@@ -254,8 +255,25 @@ function reportConversion(action: ConversionAction): void {
   if (sendTo) g.gtag('event', 'conversion', { send_to: sendTo });
 }
 
+// `window.vitopsAds.ready` resolves once `gtag` exists, so a script that wants to report a
+// conversion on page load (a thank-you page, say) can `await` it instead of polling for `gtag`.
+// "Ready" means the Google bootstrap has run, which is also what makes `gtag(...)` safe to call:
+// it queues onto `dataLayer` even while gtag.js itself is still loading. It stays pending for a
+// visitor who never consents or a site that runs no Google tag, so always treat it as optional —
+// never block a form redirect on it. Created once, so every caller sees the same promise.
+let markAdsReady!: () => void;
+const adsReady = new Promise<void>((resolve) => {
+  markAdsReady = resolve;
+});
+adsGlobal().vitopsAds = { ready: adsReady };
+const checkAdsReady = (): void => {
+  if (typeof adsGlobal().gtag === 'function') markAdsReady();
+};
+checkAdsReady();
+
 document.addEventListener(TAG_EVENT, () => {
   // Each tag activation re-checks: the bootstrap that defines `gtag` may be activated after others.
+  checkAdsReady();
   if (typeof adsGlobal().gtag !== 'function' || pendingConversions.size === 0) return;
   const waiting = [...pendingConversions];
   pendingConversions.clear();
