@@ -63,12 +63,12 @@ the other install routes (Codex, a Claude Code plugin marketplace).
 **The Vitops design-system skill.**
 
 ```sh
-vp exec vitops agents -i site.json
+vp exec vitops agents -i vitops.json
 ```
 
 Links the `vitops-design-system` skill into `.agents/skills/` and `.claude/skills/` and writes a managed
 block into `AGENTS.md`. The skill teaches the agent to fetch the class vocabulary live
-(`vp exec vitops docs <topic>`), rendered from _your_ `site.json`, so it can never describe tokens the site
+(`vp exec vitops docs <topic>`), rendered from _your_ `vitops.json`, so it can never describe tokens the site
 doesn't have. `vp exec vitops docs blocks` lists every EmDash block and its fields.
 
 **The site's own MCP server** (`/_emdash/api/mcp`) is separate: it lets an agent read and write _content_
@@ -79,7 +79,7 @@ narrowest role that does the job (an Editor, not an Admin, for content work). Se
 
 ## 3. Make it the client's
 
-Everything brand-specific is in **`site.json`**:
+Everything brand-specific is in **`vitops.json`**:
 
 - `organization` — name, contact, address, locations, services.
 - `designSystem.themes.default` — colours, type, spacing, patterns. There is no separate
@@ -89,8 +89,8 @@ Everything brand-specific is in **`site.json`**:
 Replace `src/assets/logo.svg` (favicons and the PWA manifest are generated from it), then check your work:
 
 ```sh
-vp exec vitops validate site.json
-vp exec vitops lint -i site.json -f tailwind --strict
+vp exec vitops validate vitops.json
+vp exec vitops lint -i vitops.json -f tailwind --strict
 ```
 
 `lint` catches the failure that is otherwise invisible — a utility class that resolves to nothing. See the
@@ -136,7 +136,7 @@ per step. In order:
 4. **Domain strategy** — go live on `*.workers.dev` first, with `robots: noindex,nofollow`. The custom-domain
    cutover is a separate, deliberate step that takes any existing site at that domain offline the moment
    you deploy.
-5. **Configuration** — fill in `site.json` fully.
+5. **Configuration** — fill in `vitops.json` fully.
 6. **Search Console, ads, sender email** — `vp exec vitops setup search`, `setup ads`, `email setup`.
 7. **Legal** — generate the privacy policy, terms and cookie notice from your config
    (`vp exec vitops legal --format portable-text`), then have them reviewed before publishing.
@@ -147,7 +147,7 @@ need a person: the Cloudflare token, the domain cutover and publishing any legal
 
 ## Where editing happens
 
-Code, pages and `site.json` live in git and promote `dev → main`. **Content lives in production** — editors
+Code, pages and `vitops.json` live in git and promote `dev → main`. **Content lives in production** — editors
 work there, and drafts and preview links are the staging step. The dev site holds a disposable copy of
 production's database, refreshed from prod and never promoted back.
 

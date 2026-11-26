@@ -155,19 +155,23 @@ jobs:
       # EmDash authorizes image transforms for the site's own origin only when it
       # knows it at `astro build`, and bakes the answer into the build, so each
       # environment's build needs its own URL: dev.<domain> for the dev deploy,
-      # <domain> for prod, both read from site.json. Set for the build step only
+      # <domain> for prod, both read from vitops.json. Set for the build step only
       # (a build-time variable, not a runtime one), so it cannot move sign-in to
       # another origin. Without a URL, block images render with no srcset.
       - name: Resolve site URL for image transforms
         env:
           SITE_ENV: ${{ inputs.is-dev && 'dev' || 'production' }}
         run: |
-          url=$(jq -r --arg e "$SITE_ENV" '.site.environments[$e].url // empty' site.json)
+          if [ ! -f vitops.json ] && [ -f site.json ]; then
+            echo "::error::site.json was renamed to vitops.json. Run: git mv site.json vitops.json, then update every import or input that names './site.json' (astro.config.mjs, vite.config.ts, package.json scripts)."
+            exit 1
+          fi
+          url=$(jq -r --arg e "$SITE_ENV" '.site.environments[$e].url // empty' vitops.json)
           if [ -n "$url" ]; then
             echo "EMDASH_SITE_URL=$url" >> "$GITHUB_ENV"
             echo "Image transforms authorized for $url ($SITE_ENV)"
           else
-            echo "::notice::site.json has no site.environments.$SITE_ENV.url; block images will render without a srcset."
+            echo "::notice::vitops.json has no site.environments.$SITE_ENV.url; block images will render without a srcset."
           fi
 
       # ── dev ──────────────────────────────────────────────────────────────

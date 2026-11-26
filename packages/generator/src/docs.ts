@@ -16,14 +16,14 @@ import {
 } from '@getvitops/config';
 import { renderInlineMarkdown } from '@getvitops/config/forms';
 import { jsonSchema, SCHEMA_URL, type DesignSystem } from './schema.ts';
-import { configJsonSchema, CONFIG_SCHEMA_URL } from './config.ts';
+import { configJsonSchema, CONFIG_SCHEMA_URL, CONFIG_FILENAME } from './config.ts';
 import { BASE_HOOK, DARK_SEL, REQUIRED_ROLES, SYSTEM_DARK_SEL, TW_CLASH } from './shared.ts';
 import { expandPalette } from './tokens.ts';
 import { TIERS, TIER_NAMES, tierPatterns } from './tiers.ts';
 
 const DS_PATH = 'design-system.json';
 /** The `resource` a config-reference doc points at. Consumers rename it freely. */
-const CONFIG_PATH = 'site.json';
+const CONFIG_PATH = CONFIG_FILENAME;
 
 // Curated element display order (by $name, sans the vitops- prefix). Unlisted
 // elements fall to the end alphabetically so new ones still appear.
@@ -1274,7 +1274,7 @@ to — \`vitops legal\`, \`vitops icons\`, \`vitops search\` — and it can also
 a \`design-system.json\` anywhere the toolchain takes one, since it carries a full
 \`designSystem\`.
 
-Consumers name the file whatever suits them (\`site.json\`, \`company.json\`,
+Consumers name the file whatever suits them (\`vitops.json\`, \`company.json\`,
 \`vitops.config.json\`); it is recognised by **shape**, not by name — a document with a
 top-level \`designSystem\` key is this, and one without it is a bare
 \`design-system.json\`.
@@ -1522,8 +1522,7 @@ Every colour token is named:
 
 The target sits **inside** the name on purpose. \`--color-bg-danger-muted\` and
 \`--color-text-danger-muted\` are different tokens, so there is nothing to arbitrate between
-them — an earlier grammar put both on one \`<family>-<role>-<modifier>\` name and needed a
-precedence rule, which made half the variants unreachable and the rest non-monotonic.
+them.
 
 **The token name is also the utility class name**, minus the \`--color-\` prefix. Write
 \`class="bg-danger-muted"\` and you are using \`--color-bg-danger-muted\`. One vocabulary, not
@@ -1622,8 +1621,8 @@ function renderScalesConcept(ds: DesignSystem): string {
 
 # Type & space scales
 
-Both scales share one model (authored in \`design-system.json\` as \`typeScale\` /
-\`spaceScale\` — see [authoring.md](../authoring.md)): a **fluid modular scale**.
+Both scales share one model (authored in \`vitops.json\` as \`designSystem.typeScale\` /
+\`designSystem.spaceScale\` — see [authoring.md](../authoring.md)): a **fluid modular scale**.
 
 ## The model
 

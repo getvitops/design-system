@@ -136,14 +136,14 @@ describe('the managed AGENTS.md block', () => {
       summary: '',
     },
   ];
-  const block = renderAgentsBlock({ config: 'site.json', skills });
+  const block = renderAgentsBlock({ config: 'vitops.json', skills });
 
   it('is short and links the skills instead of repeating them', () => {
     expect(block.split('\n').length).toBeLessThanOrEqual(12);
     expect(block).toContain(
       '[vitops-csp](.agents/skills/vitops-csp/SKILL.md) — The Report-Only CSP.',
     );
-    expect(block).toContain('`site.json`');
+    expect(block).toContain('`vitops.json`');
     expect(block.startsWith(AGENTS_START)).toBe(true);
     expect(block.endsWith(AGENTS_END)).toBe(true);
   });
@@ -157,7 +157,7 @@ describe('the managed AGENTS.md block', () => {
 
   it('replaces only its own block, in place, on a later sync', () => {
     const first = upsertAgentsBlock('# Notes\n', block).text;
-    const next = renderAgentsBlock({ config: 'site.json', skills: [] });
+    const next = renderAgentsBlock({ config: 'vitops.json', skills: [] });
     const { text, action } = upsertAgentsBlock(first.replace('# Notes', '# Notes edited'), next);
     expect(action).toBe('updated');
     expect(text).not.toContain('@getvitops/cli@');

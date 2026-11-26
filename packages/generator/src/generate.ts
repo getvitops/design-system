@@ -89,7 +89,7 @@ export interface GenerateOptions {
    * The config to build from — a path, or an already-parsed object.
    *
    * **Either kind is accepted.** A bare `design-system.json`, or the larger
-   * `Config` that embeds one (commonly `company.json` / `site.json`), in
+   * `Config` that embeds one (commonly `company.json` / `vitops.json`), in
    * which case the design system is `designSystem.themes[theme]` with its
    * `extends` chain resolved. The two are told apart by shape, not by filename —
    * see `isConfig`.

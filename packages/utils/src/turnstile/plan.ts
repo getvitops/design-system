@@ -44,7 +44,7 @@ const covers = (w: WidgetSummary, domains: string[]): boolean =>
 
 export function plan(setup: TurnstileSetup, state: TurnstileState): TurnstilePlan {
   const reminders = [
-    'Set the secret on the Worker: `npx wrangler secret put VITOPS_TURNSTILE_SECRET` (and on the dev worker with `--env`/`--config` as your setup uses). It is shown once, at creation, and never written to site.json.',
+    'Set the secret on the Worker: `npx wrangler secret put VITOPS_TURNSTILE_SECRET` (and on the dev worker with `--env`/`--config` as your setup uses). It is shown once, at creation, and never written to vitops.json.',
   ];
 
   if (setup.domains.length === 0)
@@ -112,8 +112,8 @@ export function plan(setup: TurnstileSetup, state: TurnstileState): TurnstilePla
       },
       config:
         setup.siteKey === existing.sitekey
-          ? { action: 'skip', detail: 'site key already in site.json' }
-          : { action: 'create', detail: `write ${existing.sitekey} to site.json` },
+          ? { action: 'skip', detail: 'site key already in vitops.json' }
+          : { action: 'create', detail: `write ${existing.sitekey} to vitops.json` },
       adopt: existing,
       domains: setup.domains,
       reminders: [
@@ -127,7 +127,7 @@ export function plan(setup: TurnstileSetup, state: TurnstileState): TurnstilePla
       action: 'create',
       detail: `create "${setup.name}" (managed) for ${setup.domains.join(', ')}`,
     },
-    config: { action: 'create', detail: 'write the new site key to site.json' },
+    config: { action: 'create', detail: 'write the new site key to vitops.json' },
     domains: setup.domains,
     reminders,
   };

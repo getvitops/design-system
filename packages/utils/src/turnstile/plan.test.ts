@@ -60,7 +60,7 @@ describe('plan', () => {
   it('says where the secret goes, and never claims to write it', () => {
     const p = plan(setup, { accountId: 'a', widgets: [] });
     expect(p.reminders.join(' ')).toContain('wrangler secret put VITOPS_TURNSTILE_SECRET');
-    expect(p.reminders.join(' ')).toContain('never written to site.json');
+    expect(p.reminders.join(' ')).toContain('never written to vitops.json');
   });
 });
 

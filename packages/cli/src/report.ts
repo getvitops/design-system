@@ -2,7 +2,7 @@
  * `vitops report` — the pure half: what an issue against the toolchain says, and what it must not.
  *
  * Downstream agents work inside a client's repo; the issue tracker they report to is public. So
- * the load-bearing job here is **redaction**: a draft written beside a client's `site.json` can
+ * the load-bearing job here is **redaction**: a draft written beside a client's `vitops.json` can
  * carry that client's name, domains, contact details, or a token pasted from an error. Nothing in
  * this file touches the network, the filesystem or `gh` (see `commands/report.ts`), so what a run
  * would publish can be asserted exactly.

@@ -5,9 +5,9 @@ import { resolveOrganizationName } from '@getvitops/astro/routes';
 import { vitopsEmdash, vitopsHosting } from '@getvitops/emdash';
 import { defineConfig } from 'astro/config';
 import emdash from 'emdash/astro';
-import config from './site.json' with { type: 'json' };
+import config from './vitops.json' with { type: 'json' };
 
-// site.json's organization.name is the one build-time-readable source for a
+// vitops.json's organization.name is the one build-time-readable source for a
 // display name — EmDash's own getSiteSettings() only resolves inside a live
 // Worker request (AsyncLocalStorage + a DB binding), so it can't be read here
 // even though it's what Layout.astro shows on rendered pages. See AGENTS.md's
@@ -23,7 +23,7 @@ const organizationName = resolveOrganizationName(config) ?? 'My EmDash Site';
 // data migration, not a rewrite — see README "Hosting".
 const { adapter, database, storage } = await vitopsHosting();
 
-// Favicon/PWA colours come from site.json rather than a second copy here that
+// Favicon/PWA colours come from vitops.json rather than a second copy here that
 // drifts when the palette changes: the browser-UI colour is the `brand-primary`
 // role's hue seed. (The page background behind the maskable icon is a computed
 // ramp step, not a config value, so `backgroundColor` below stays a literal.)
@@ -103,16 +103,16 @@ export default defineConfig({
       // EmDash's /_emdash/admin routes don't inherit the design system while
       // your pages (and EmDash previews rendered through the layout) do.
       //
-      // site.json is the umbrella Config — organization + site facts plus the
+      // vitops.json is the umbrella Config — organization + site facts plus the
       // design system at designSystem.themes.default — so css.input points
       // there instead of a bare design-system.json. legal/fonts/search/ads/
       // reviews all read the same file (see AGENTS.md's "Client onboarding").
-      css: { format: 'tailwind', inject: false, input: 'site.json' },
+      css: { format: 'tailwind', inject: false, input: 'vitops.json' },
       // The /design-system admin page embeds public/vitops/design-system-editor.html in an
       // iframe; this writes it, with its manifest, editor.js and editor.css, without loading
       // the editor on public pages.
       editorManifest: true,
-      site: { input: 'site.json' },
+      site: { input: 'vitops.json' },
     }),
   ],
 });

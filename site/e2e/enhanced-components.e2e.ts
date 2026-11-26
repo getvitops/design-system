@@ -303,7 +303,7 @@ test.describe('/configure', () => {
     await expect(field.locator('input[data-widget="color"]')).toHaveAttribute('name', /seed$/);
   });
 
-  test('builds a site.json as the steps are filled in, and validates it for real', async ({
+  test('builds a vitops.json as the steps are filled in, and validates it for real', async ({
     page,
   }) => {
     await page.goto('/configure');
@@ -318,7 +318,7 @@ test.describe('/configure', () => {
     const out = page.locator('#cfg-out');
     await expect(out).toContainText('"name": "Acme Roofing"');
     await expect(out).toContainText('"configVersion"');
-    await expect(page.locator('#cfg-status')).toHaveText('This site.json is valid.');
+    await expect(page.locator('#cfg-status')).toHaveText('This vitops.json is valid.');
   });
 
   test('a colour role offers a hue as soon as it is added to the palette', async ({ page }) => {
@@ -335,7 +335,7 @@ test.describe('/configure', () => {
     await expect(roleHue.locator('option[value="plum"]')).toHaveCount(1);
   });
 
-  test('a removed row is gone from the site.json, not merged back from the starter', async ({
+  test('a removed row is gone from the vitops.json, not merged back from the starter', async ({
     page,
   }) => {
     await page.goto('/configure#cfg-locations');

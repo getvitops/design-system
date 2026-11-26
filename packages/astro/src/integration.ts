@@ -94,7 +94,7 @@ export interface GetvitopsCssOptions {
    * Path to the config (default `'design-system.json'`).
    *
    * May be a `design-system.json` **or** the larger site config that embeds one
-   * (`company.json` / `site.json`) — they are told apart by shape. Pointing this
+   * (`company.json` / `vitops.json`) — they are told apart by shape. Pointing this
    * at a site config makes the top-level `site` option redundant and lets
    * `legal` and `fonts` default their own `input` to it, so the path is declared
    * once.
@@ -815,7 +815,7 @@ function readSiteConsentTracking(
  * `site.analytics` is what the generated cookie notice discloses providers from, and
  * `vitops({ analytics })` is what loads the tags: two declarations of one fact, with only a
  * one-way check (a provider in the option but not the config warns). A site that copied
- * `clarityId` out of its own `site.json` into the option, as vitops-website did, was keeping the
+ * `clarityId` out of its own `vitops.json` into the option, as vitops-website did, was keeping the
  * pair in step by hand. Reading the config as the default removes the copy; an explicit option
  * still wins per provider (see `mergeAnalytics`). `googleTagManagerId` has no `<Analytics />`
  * provider, so it is left to the notice alone.

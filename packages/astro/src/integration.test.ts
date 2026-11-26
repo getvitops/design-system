@@ -214,8 +214,8 @@ describe('site.seo as the source of <Seo /> defaults', () => {
     };
     cfg.organization.name = 'Acme';
     cfg.site.seo = { titleTemplate: '%s · Acme', openGraph: { locale: 'en_CA' } };
-    writeFileSync(join(dir, 'site.json'), JSON.stringify(cfg));
-    const h = harness({ site: { input: 'site.json' } }, { root: pathToFileURL(`${dir}/`) });
+    writeFileSync(join(dir, 'vitops.json'), JSON.stringify(cfg));
+    const h = harness({ site: { input: 'vitops.json' } }, { root: pathToFileURL(`${dir}/`) });
     await h.run();
     expect(headData(h.updates).seo).toMatchObject({
       siteName: 'Acme',
@@ -228,9 +228,9 @@ describe('site.seo as the source of <Seo /> defaults', () => {
     const dir = mkdtempSync(join(tmpdir(), 'vitops-seo-'));
     const cfg = defaultSiteConfig() as unknown as { site: Record<string, unknown> };
     cfg.site.seo = { titleTemplate: '%s · Acme', siteName: 'Acme' };
-    writeFileSync(join(dir, 'site.json'), JSON.stringify(cfg));
+    writeFileSync(join(dir, 'vitops.json'), JSON.stringify(cfg));
     const h = harness(
-      { site: { input: 'site.json' }, seo: { siteName: 'Override' } },
+      { site: { input: 'vitops.json' }, seo: { siteName: 'Override' } },
       { root: pathToFileURL(`${dir}/`) },
     );
     await h.run();
@@ -563,7 +563,7 @@ describe('vitops({ analytics, consent })', () => {
    */
   it('warns when a provider is missing from the site config the legal docs render from', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'vitops-'));
-    const input = join(dir, 'site.json');
+    const input = join(dir, 'vitops.json');
     writeFileSync(
       input,
       JSON.stringify({ site: { analytics: { plausibleDomain: 'example.com' } } }),
@@ -581,7 +581,7 @@ describe('vitops({ analytics, consent })', () => {
 
   it('stays quiet when the site config declares every configured provider', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'vitops-'));
-    const input = join(dir, 'site.json');
+    const input = join(dir, 'vitops.json');
     writeFileSync(input, JSON.stringify({ site: { analytics: { clarityId: 'abc' } } }));
 
     const h = harness(

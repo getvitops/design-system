@@ -2,7 +2,7 @@
 type: "Design Concept"
 title: "Vitops search — Search Console onboarding and deploy notification"
 description: "What search engines actually accept, why the Indexing API is deliberately not wired, and how `vitops search setup` and `vitops search notify` work."
-resource: "site.json"
+resource: "vitops.json"
 tags: [seo, search-console, indexnow, sitemap, indexing]
 generator: "@getvitops/generator"
 ---

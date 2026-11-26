@@ -686,7 +686,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
       {
         type: 'text_input',
         action_id: 'location',
-        label: 'Location key (an organization.locations key from site.json; blank = the first)',
+        label: 'Location key (an organization.locations key from vitops.json; blank = the first)',
       },
       levelField('2'),
       ...toneFields(),

@@ -5,7 +5,7 @@ description: How ad platforms, pixels, conversions and attribution work on this 
 
 # Ads
 
-An ad platform is recorded as facts in `site.json` under `site.ads.<platform>`; the toolchain turns
+An ad platform is recorded as facts in `vitops.json` under `site.ads.<platform>`; the toolchain turns
 those facts into the tag, the cookie-notice disclosure, the consent behaviour and the lint checks. A
 pixel pasted into a template is invisible to all four, so don't.
 
@@ -30,7 +30,7 @@ pixel pasted into a template is invisible to all four, so don't.
 ## Commands
 
 - `vitops ads setup` — creates the verification TXT (needs `CLOUDFLARE_API_TOKEN`), asks for a missing
-  token and writes it back to `site.json`. It never edits or deletes a DNS record, and calls no
+  token and writes it back to `vitops.json`. It never edits or deletes a DNS record, and calls no
   platform API; the final "Verify" click stays manual (it prints a reminder).
 - `vitops ads tags` — prints the inert, gated `<script>` markup for stacks that aren't Astro.
 - `vitops ads lint` — reports gaps nothing shows at runtime: a click ID that isn't captured, tracking

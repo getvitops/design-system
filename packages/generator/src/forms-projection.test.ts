@@ -133,7 +133,7 @@ describe('form projections against config.schema.json', () => {
   });
 });
 
-describe('step status against a real site.json', () => {
+describe('step status against a real vitops.json', () => {
   it('the default config passes every projection it covers, and is flagged where it is thin', () => {
     const config = defaultSiteConfig({ name: 'Acme', url: 'https://acme.ca', locale: 'en' });
     const status = Object.fromEntries(

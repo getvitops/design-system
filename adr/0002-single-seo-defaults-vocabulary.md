@@ -92,7 +92,7 @@ two names for one thing. Rejected.
 
 ## Action items
 
-1. [x] Inventory (only this repo's docs site sets `vitops({ seo })`; no client `site.json` sets any `site.seo` display field) every existing consumer of `vitops({ seo })` (the two templates do not set it; check
+1. [x] Inventory (only this repo's docs site sets `vitops({ seo })`; no client `vitops.json` sets any `site.seo` display field) every existing consumer of `vitops({ seo })` (the two templates do not set it; check
        `vitops-website` and `vitops-portal`) to size the migration.
 2. [x] Add `SeoSchema` to `@getvitops/config` with the merged fields; point `SiteSchema` at it; regenerate
        `config.schema.json` and the docs bundle.

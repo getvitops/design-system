@@ -110,7 +110,7 @@ export async function cmdReport(argv: string[]) {
     package: { type: 'string' },
     format: { type: 'string' },
     platform: { type: 'string' },
-    input: { type: 'string', short: 'i', default: 'site.json' },
+    input: { type: 'string', short: 'i', default: 'vitops.json' },
     search: { type: 'boolean', default: false },
     submit: { type: 'boolean', default: false },
     yes: { type: 'boolean', default: false },

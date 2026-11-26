@@ -10,7 +10,7 @@
   // Explicit rather than relying on wrangler's default: this is the fact that
   // lets a first deploy go live at <name>.<account>.workers.dev without
   // touching any existing site's DNS — see SETUP.html's "Domain strategy"
-  // stage and site.json's environments.production.url.
+  // stage and vitops.json's environments.production.url.
   "workers_dev": true,
   // Custom domain: uncomment and set your apex. Cloudflare provisions the DNS
   // record + TLS cert on deploy (the zone must already exist in the account) —

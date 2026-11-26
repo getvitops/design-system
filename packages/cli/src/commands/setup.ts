@@ -489,7 +489,7 @@ async function cmdSetupTurnstile(argv: string[]) {
   if (siteKey && p.config.action === 'create' && !a.flag('no-write')) {
     if (!input.endsWith('.json'))
       results.push({
-        step: 'site.json',
+        step: 'vitops.json',
         status: 'blocked',
         detail: `${input} is a module — add site.security.turnstile.siteKey: "${siteKey}" yourself`,
       });
@@ -505,13 +505,13 @@ async function cmdSetupTurnstile(argv: string[]) {
         ) + (source.endsWith('\n') ? '\n' : ''),
       );
       results.push({
-        step: 'site.json',
+        step: 'vitops.json',
         status: 'created',
         detail: 'site.security.turnstile.siteKey',
       });
     }
   } else if (p.config.action === 'skip')
-    results.push({ step: 'site.json', status: 'present', detail: p.config.detail });
+    results.push({ step: 'vitops.json', status: 'present', detail: p.config.detail });
 
   console.log(`\n${formatTurnstileSummary(results)}`);
   for (const r of p.reminders) console.log(`  ${r}`);

@@ -23,7 +23,7 @@ import type { NotifyContext } from '@getvitops/utils/notify';
 
 /**
  * The slice of a `Config` that `resolveOrganizationName` reads. Structural on
- * purpose: `import config from './site.json'` types its literals widened
+ * purpose: `import config from './vitops.json'` types its literals widened
  * (`colors.utilities` becomes `string[]`, not the schema's union), so it is not
  * assignable to the full `Config`, and every scaffolded site calls this with
  * exactly such an import. A resolved `Config` still satisfies it.

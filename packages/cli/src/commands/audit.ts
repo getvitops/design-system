@@ -56,7 +56,7 @@ export async function cmdAudit(argv: string[]): Promise<void> {
     impact: { type: 'string' },
     'form-factor': { type: 'string', default: 'mobile' },
     warn: { type: 'boolean', default: false },
-    input: { type: 'string', short: 'i', default: 'site.json' },
+    input: { type: 'string', short: 'i', default: 'vitops.json' },
     'site-env': { type: 'string', default: 'production' },
   });
 
@@ -74,8 +74,8 @@ export async function cmdAudit(argv: string[]): Promise<void> {
       fail(`audit: ${msg(err)}`);
     }
   }
-  // The accessibility target is read from site.json when there is one. A site without one (or a
-  // directory without a site.json at all) keeps the legacy tags and gate: the file is looked at,
+  // The accessibility target is read from vitops.json when there is one. A site without one (or a
+  // directory without a vitops.json at all) keeps the legacy tags and gate: the file is looked at,
   // never required. An explicit --impact still wins over what the target would imply.
   let target: AuditTarget | undefined;
   const siteFile = resolve(dir, args.str('input'));

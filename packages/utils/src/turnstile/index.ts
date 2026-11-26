@@ -1,6 +1,6 @@
 /**
  * `vitops setup turnstile` — create a Cloudflare Turnstile widget and record its public site
- * key in `site.json`.
+ * key in `vitops.json`.
  *
  * A separate subpath (`@getvitops/utils/turnstile`), matching `./ads` and `./hosting`. It is
  * build-time tooling, unlike `@getvitops/utils/security` (the Worker-side verifier): keep the

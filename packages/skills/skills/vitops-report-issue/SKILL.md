@@ -39,7 +39,7 @@ your own.
    ```
 
    This files nothing. It prints the draft with the installed versions added, what it redacted from
-   `site.json` and generic secret patterns, possible duplicates, and a prefilled new-issue URL.
+   `vitops.json` and generic secret patterns, possible duplicates, and a prefilled new-issue URL.
 
 4. **Show the person the draft, the redactions and any duplicates.** If a duplicate matches, suggest
    adding to it rather than filing. Read the draft for anything redaction missed.

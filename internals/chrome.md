@@ -5,7 +5,7 @@ Moved out of AGENTS.md so the root file stays small. Read this before changing t
 `site.chrome` (`@getvitops/config`'s `ChromeSchema`) is where a site states how its top bar looks and
 how its navigation behaves; `<Masthead>` and `<SiteNav>` (`@getvitops/astro`) read it through
 `resolveMasthead()` / `resolveNavOptions()`, and a prop overrides one field for one layout. It is
-git-owned design (`site.json`, promoted `dev → main`), not an EmDash admin setting: editors own the
+git-owned design (`vitops.json`, promoted `dev → main`), not an EmDash admin setting: editors own the
 menus and widget areas, the design owns how they present.
 
 - **The name is deliberate.** `chrome`, and `masthead` for the bar itself. `<header>` is valid inside
@@ -48,7 +48,7 @@ menus and widget areas, the design owns how they present.
   braces. `cqi` resolves against `body` (the container the nav breakpoints use), `vw` against the
   viewport. `--masthead-inset` is written only for a non-`full` layout and always then (defaulted to
   `0.75rem`), because `--header-offset` adds it unconditionally and must agree with the element.
-- **Config is read loosely, checked at runtime.** A plain `import site from './site.json'` types every
+- **Config is read loosely, checked at runtime.** A plain `import site from './vitops.json'` types every
   enum as `string`, which a strict `Config` rejects (the `resolveOrganizationName` trap), so
   `ChromeSource` is structural and `resolveMasthead` validates each value against the schema's
   literal lists. Height, tone and shadow are also checked to be a plain length / role / name, because

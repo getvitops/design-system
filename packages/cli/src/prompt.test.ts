@@ -77,7 +77,7 @@ describe('patchRaw', () => {
 describe('writeConfigPatch', () => {
   test('writes JSON in place, keeping the file’s own indentation', () => {
     const dir = mkdtempSync(join(tmpdir(), 'vitops-ads-'));
-    const file = join(dir, 'site.json');
+    const file = join(dir, 'vitops.json');
     writeFileSync(file, JSON.stringify({ site: { ads: { meta: {} } } }, null, 4) + '\n');
 
     expect(writeConfigPatch(file, 'meta', 'domainVerification', 'tok').written).toBe(true);

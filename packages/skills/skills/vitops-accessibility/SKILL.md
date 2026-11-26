@@ -35,7 +35,7 @@ example a designer's mocks miss contrast). Either can be a legitimate decision.
 
 ## `site.accessibility`
 
-In `site.json`: `{ standard: 'wcag20' | 'wcag21' | 'wcag22', level: 'none' | 'A' | 'AA' | 'AAA', acceptedRisk?: string }`
+In `vitops.json`: `{ standard: 'wcag20' | 'wcag21' | 'wcag22', level: 'none' | 'A' | 'AA' | 'AAA', acceptedRisk?: string }`
 (schema: `packages/config/src/accessibility.ts`). It records the client's **target**, not a
 conformance claim. New scaffolds default to `wcag21` / `AA`.
 

@@ -164,11 +164,11 @@ describe.each(templateNames)('template %s', (name) => {
     expect(config).toMatch(/^\s*astro:\s*true,?\s*$/m);
   });
 
-  it('ships a site.json that validates as a Config', () => {
+  it('ships a vitops.json that validates as a Config', () => {
     // A shipped config that fails validation is a scaffold that can run no
     // site-anchored command (legal/robots/search/ads/reviews/icons all default
-    // to reading site.json) — see AGENTS.md's "Client onboarding" section.
-    const raw = JSON.parse(readFileSync(join(TEMPLATES, name, 'site.json'), 'utf8'));
+    // to reading vitops.json) — see AGENTS.md's "Client onboarding" section.
+    const raw = JSON.parse(readFileSync(join(TEMPLATES, name, 'vitops.json'), 'utf8'));
     const result = validateConfig(raw);
     expect(result.ok, result.ok ? '' : JSON.stringify(result.errors, null, 2)).toBe(true);
   });
@@ -501,7 +501,7 @@ describe.each(templateNames)('template %s skills from @getvitops/skills', (templ
  * unstyled (the `.cta` gap that shipped through alpha.3).
  */
 describe.each(templateNames)('template %s covers the patterns the blocks emit', (name) => {
-  const site = JSON.parse(readFileSync(join(TEMPLATES, name, 'site.json'), 'utf8'));
+  const site = JSON.parse(readFileSync(join(TEMPLATES, name, 'vitops.json'), 'utf8'));
   const items = Object.keys(site.designSystem.themes.default.patterns.items);
   it.each(['btn', 'cta', 'link', 'card', 'badge', 'tag', 'details', 'steps'])(
     'defines %s',

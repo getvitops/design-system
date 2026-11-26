@@ -36,8 +36,7 @@ Every colour token is named:
 
 The target sits **inside** the name on purpose. `--color-bg-danger-muted` and
 `--color-text-danger-muted` are different tokens, so there is nothing to arbitrate between
-them — an earlier grammar put both on one `<family>-<role>-<modifier>` name and needed a
-precedence rule, which made half the variants unreachable and the rest non-monotonic.
+them.
 
 **The token name is also the utility class name**, minus the `--color-` prefix. Write
 `class="bg-danger-muted"` and you are using `--color-bg-danger-muted`. One vocabulary, not

@@ -1,7 +1,7 @@
 /**
  * Credential loaders shared by `search setup`, `search notify`, `ads setup` and
  * `reviews` — every command that talks to Google or Cloudflare. Never reads a
- * config file: these are secrets, and a `site.json` is committed.
+ * config file: these are secrets, and a `vitops.json` is committed.
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -22,7 +22,7 @@ import { fail } from './commands/shared.ts';
  * The Search Console credential, from either supported source.
  *
  * Never from the config file: it is the one genuine secret in this command, and a
- * `site.json` is committed. Returns `undefined` rather than failing, so a site
+ * `vitops.json` is committed. Returns `undefined` rather than failing, so a site
  * running IndexNow alone doesn't need a GCP project at all.
  */
 export function loadServiceAccount(): ServiceAccount | undefined {
@@ -47,7 +47,7 @@ export function loadServiceAccount(): ServiceAccount | undefined {
 }
 
 /**
- * The Cloudflare DNS credential. From the environment only — a `site.json` is
+ * The Cloudflare DNS credential. From the environment only — a `vitops.json` is
  * committed, and this is a real secret. A `Zone:DNS:Edit` token (the standard
  * "Edit zone DNS" template, which also carries `Zone:Read`).
  */

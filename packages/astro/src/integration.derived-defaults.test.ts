@@ -3,7 +3,7 @@ import { analyticsFromSite, mergeAnalytics, mergeConsentOptions } from './integr
 
 /**
  * The site config supplies the defaults for `vitops({ analytics, consent })`. Both used to be
- * hand-copied from `site.json` into `astro.config`, with only a one-way check between them.
+ * hand-copied from `vitops.json` into `astro.config`, with only a one-way check between them.
  */
 describe('analyticsFromSite', () => {
   it('maps each declared provider to its <Analytics /> option', () => {

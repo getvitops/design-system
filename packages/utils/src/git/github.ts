@@ -2,7 +2,7 @@
  * GitHub's Contents API — `commitFile()` creates or updates a single file with
  * one commit, called from the EmDash design-system-editor plugin route (see
  * AGENTS.md's "EmDash plugin as the design-system editing surface" section)
- * to auto-sync a client's admin edit back into the git-tracked `site.json`.
+ * to auto-sync a client's admin edit back into the git-tracked `vitops.json`.
  *
  * `fetch`-only, no `gh` CLI — a deployed Cloudflare Worker has neither a
  * filesystem nor `child_process`, so this can't shell out the way
@@ -28,7 +28,7 @@ export interface CommitFileOptions {
   repo: string;
   /** Branch to commit to — never `main`/production directly, see module docblock. */
   branch: string;
-  /** File path within the repo, e.g. `"site.json"`. */
+  /** File path within the repo, e.g. `"vitops.json"`. */
   path: string;
   /** The full new file content (already merged — this call replaces it whole). */
   content: string;

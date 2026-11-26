@@ -147,8 +147,12 @@ never stale and always names the project's actual tokens. (If `vitops` isn't on 
 **The config may be a `design-system.json` or the site config that embeds one.** Every
 `--input` (and the Vite plugin / Astro integration equivalent) accepts either; a site
 config holds the design system at `designSystem.themes.<name>`, selected with `--theme`.
-If this project keeps its tokens inside a `company.json` / `site.json`, point `--input`
+If this project keeps its tokens inside a `company.json` / `vitops.json`, point `--input`
 there — do not create a second file for the tooling's sake.
+
+The default config is `vitops.json`. Older sites called it `site.json`: if a command says
+`site.json was renamed to vitops.json`, run the `git mv` it prints and update the imports and
+`input` options that name the old file.
 
 ## Which tier provides a pattern
 

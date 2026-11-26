@@ -4,14 +4,14 @@
  *
  *   vitops generate  --input <json> --format <bricks|css|tailwind|design[,…]> --out <dir>
  *   vitops init      [--out design-system.json] [--force] [--site [--name <n>] [--url <u>]]
- *   vitops validate  <design-system.json|site.json>
+ *   vitops validate  <design-system.json|vitops.json>
  *   vitops favicon   --input <svg|png> --out <dir> [--low-res <svg|png>] [--background <hex>]
  *   vitops agents    [--input <json>] [--out AGENTS.md] [--docs-dir <dir>]
  *   vitops docs      [topic] [--input <json>] [--all]
  *   vitops lint      [--input <json>] [--format <fmt>] [--src <dir>]
- *   vitops legal     [--input <site.json>] [--doc <name>] [--format <md|html|portable-text>] [--out <dir>]
- *   vitops robots    [--input <site.json>] [--site-env <name>] [--out <dir>]
- *   vitops reviews   [--input <site.json>] [--location <key>] [--dry] [--check] [--out <dir>]
+ *   vitops legal     [--input <vitops.json>] [--doc <name>] [--format <md|html|portable-text>] [--out <dir>]
+ *   vitops robots    [--input <vitops.json>] [--site-env <name>] [--out <dir>]
+ *   vitops reviews   [--input <vitops.json>] [--location <key>] [--dry] [--check] [--out <dir>]
  *   vitops search    setup [--domain <name>] [--dry] [--check]  |  notify [--dry] [--all] [--check]
  *   vitops ads       setup [--provider <name>] [--dry] [--check]  |  tags  |  lint
  *   vitops setup     repo | hosting | domain | search | ads | all [--dry] [--check]
@@ -111,6 +111,7 @@ import {
   readJsonOrFail,
   siteConfig,
   SITE_OPTS,
+  withRenameHint,
   writeOut,
 } from './commands/shared.ts';
 import { cmdSearch } from './commands/search.ts';
@@ -166,7 +167,7 @@ async function cmdGenerate(argv: string[]) {
     allowPositionals: false,
   });
   const input = resolve(values.input as string);
-  if (!existsSync(input)) fail(`config not found: ${input}`);
+  if (!existsSync(input)) fail(withRenameHint(`config not found: ${input}`));
   const site = values.site ? resolve(values.site as string) : undefined;
   if (site && !existsSync(site)) fail(`site config not found: ${site}`);
   const formats = (values.format as string)
@@ -196,7 +197,7 @@ async function cmdGenerate(argv: string[]) {
 
 /**
  * `vitops init` writes a starter `design-system.json`; `--site` writes a starter
- * `site.json` instead — the umbrella `Config` that embeds the design system under
+ * `vitops.json` instead — the umbrella `Config` that embeds the design system under
  * `designSystem.themes.default`, since there is no file-level `extends` and a
  * scaffolded config can't merely reference a sibling file (see `defaultSiteConfig`'s
  * docblock in `@getvitops/generator`). `--name`/`--url` fill the two facts a
@@ -216,7 +217,9 @@ function cmdInit(argv: string[]) {
     },
     allowPositionals: false,
   });
-  const out = resolve((values.out as string) ?? (values.site ? 'site.json' : 'design-system.json'));
+  const out = resolve(
+    (values.out as string) ?? (values.site ? 'vitops.json' : 'design-system.json'),
+  );
   if (existsSync(out) && !values.force) fail(`${out} already exists (use --force to overwrite)`);
   if (values.site) {
     const config = defaultSiteConfig({
@@ -808,7 +811,7 @@ function generatorAssetsDir(): string {
 /**
  * Input path for the read-only commands (`docs`, `lint`) when `-i` is absent.
  *
- * `site.json` is the file `vitops init --site` and every scaffold write, so it
+ * `vitops.json` is the file `vitops init --site` and every scaffold write, so it
  * is the default; a bare `design-system.json` is the fallback for projects that
  * keep tokens on their own. An explicit `-i` is never second-guessed. If
  * neither exists the legacy name is returned so the "config not found" message
@@ -817,7 +820,7 @@ function generatorAssetsDir(): string {
 function defaultDesignInput(argv: string[], value: string): string {
   const explicit = argv.some((a) => a === '-i' || a === '--input' || a.startsWith('--input='));
   if (explicit) return value;
-  for (const name of ['site.json', 'design-system.json'])
+  for (const name of ['vitops.json', 'design-system.json'])
     if (existsSync(resolve(name))) return name;
   return value;
 }
@@ -1059,19 +1062,13 @@ function cmdLint(argv: string[]) {
  *
  * Keyed to SHAPE, not just to the filename — `resolveInput` already tells a
  * design system from the config that embeds one, and consumers name that file
- * whatever they like (`company.json`, `site.json`). The candidate list is
+ * whatever they like (`company.json`, `vitops.json`). The candidate list is
  * ordered, and a tie is resolved by taking the first. This is the normal path for
- * a scaffolded site (whose config is `site.json`), so it is silent; the path it
+ * a scaffolded site (whose config is `vitops.json`), so it is silent; the path it
  * picks is written into the managed block, and `-i` overrides it.
  */
 function discoverConfig(cwd: string): string | undefined {
-  const candidates = [
-    'design-system.json',
-    'vitops.json',
-    'site.json',
-    'company.json',
-    'organization.json',
-  ];
+  const candidates = ['design-system.json', 'vitops.json', 'company.json', 'organization.json'];
   for (const name of candidates) {
     const p = resolve(cwd, name);
     if (!existsSync(p)) continue;
@@ -1113,8 +1110,8 @@ function cmdAgents(rawArgv: string[]) {
       inputRel = found;
     } else {
       fail(
-        `config not found: ${resolve(inputRel)}\n` +
-          `  This command writes the path into ${values.out}, so it will not guess one. ` +
+        withRenameHint(`config not found: ${resolve(inputRel)}`) +
+          `\n  This command writes the path into ${values.out}, so it will not guess one. ` +
           `Pass -i <path> if your tokens live elsewhere (a site config works), or run \`vitops init\`.`,
       );
     }

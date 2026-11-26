@@ -5,7 +5,7 @@
  * of type `form`, and a build cannot read the CMS database the editor's block lives in, so a
  * form added in the admin is invisible to the generated privacy policy. This turns a block's
  * saved value (copy it from the admin's JSON view, or from `emdash` content export) into the
- * entry to paste under `site.templates` in `site.json`.
+ * entry to paste under `site.templates` in `vitops.json`.
  *
  * It resolves fields through the SAME `resolveFields` the renderer uses, so the names are the
  * ones the form actually submits (`phone` becomes `tel`, reserved names are renamed) and rows

@@ -12,7 +12,7 @@
  *
  * ```js
  * // astro.config.mjs
- * import config from './site.json' with { type: 'json' };
+ * import config from './vitops.json' with { type: 'json' };
  *
  * integrations: [
  *   react(),

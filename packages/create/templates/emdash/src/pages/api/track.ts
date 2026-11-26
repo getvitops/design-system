@@ -7,7 +7,7 @@
  * Cloudflare adapter handles it in the Worker beside the EmDash admin.
  *
  * Credentials are functions of the request, read from the Worker's bindings and never from
- * `site.json`:
+ * `vitops.json`:
  *   VITOPS_TURNSTILE_SECRET            created by `vitops setup turnstile`
  *   EMAIL                              the `send_email` binding in wrangler.jsonc
  *   VITOPS_HUBSPOT_ACCESS_TOKEN        or VITOPS_ZOHO_* / VITOPS_JOBBER_*, when `site.crm` is set
@@ -24,7 +24,7 @@ import {
   type RateLimitStore,
 } from '@getvitops/astro/routes';
 import type { APIRoute } from 'astro';
-import config from '../../../site.json' with { type: 'json' };
+import config from '../../../vitops.json' with { type: 'json' };
 
 export const prerender = false;
 
@@ -122,7 +122,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     !site.site.crm
   ) {
     console.error(
-      '[vitops] form post refused: set site.notifications.email (or a location email, or site.crm) in site.json',
+      '[vitops] form post refused: set site.notifications.email (or a location email, or site.crm) in vitops.json',
     );
     return Response.redirect(new URL(failed, request.url), 303);
   }

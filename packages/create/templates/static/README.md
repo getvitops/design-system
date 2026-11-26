@@ -10,7 +10,7 @@ Scaffolded from `vp create @getvitops:static --directory <client-slug>` (pass a 
 
 - **Astro** (`output: 'static'`) on **Cloudflare Workers Static Assets** — no
   adapter, no database, no server runtime
-- **`@getvitops/astro`** — generates the design-system CSS from `site.json`
+- **`@getvitops/astro`** — generates the design-system CSS from `vitops.json`
   (design tokens live at `designSystem.themes.default`) and serves the
   web-component runtime
 

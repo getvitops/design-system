@@ -7,7 +7,7 @@
  * passes one resolved entry in.
  *
  * The entries are typed STRUCTURALLY, not as the schema's own `Config`. A plain
- * `import site from './site.json'` types every enum as `string` (a day of the week is `string`, not
+ * `import site from './vitops.json'` types every enum as `string` (a day of the week is `string`, not
  * `'Monday' | …`), which a strict `Config` rejects, and every scaffolded site calls these with exactly
  * such an import. So the weekday is checked at runtime rather than trusted to the type, the same trade
  * `resolveOrganizationName` makes.

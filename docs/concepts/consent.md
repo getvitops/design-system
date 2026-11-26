@@ -2,7 +2,7 @@
 type: "Design Concept"
 title: "Vitops consent — a demand-driven permission gate"
 description: "How the consent gate works: inert `type=\"text/plain\"` tags, demand-driven prompting, three-valued choices, and the invariants that make the gate real rather than a promise."
-resource: "site.json"
+resource: "vitops.json"
 tags: [consent, cookies, privacy, gdpr, analytics]
 generator: "@getvitops/generator"
 ---

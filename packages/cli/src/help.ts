@@ -10,7 +10,7 @@
 export const HELP = `vitops — generate design-system outputs from a design-system.json
 
 Anywhere a command takes --input, that file may be a design-system.json OR the
-larger site config that embeds one (company.json / site.json). The two are told
+larger site config that embeds one (company.json / vitops.json). The two are told
 apart by shape, and a site config also supplies the site-level facts generation
 reads — its default colour scheme, its legal documents, its icon sprite.
 
@@ -52,7 +52,7 @@ Generate options:
 
 Init options:
   -o, --out <path>      Where to write (default: ./design-system.json, or
-                        ./site.json with --site)
+                        ./vitops.json with --site)
       --force           Overwrite an existing file
       --site            Write a site config (Config) instead of a bare
                         design-system.json — embeds a starter design system at
@@ -93,13 +93,13 @@ Agents options:
 Docs options:
   <topic>               classes | authoring | formats | color | scales | patterns | elements
                         (no topic: list topics with summaries)
-  -i, --input <path>    site config or design-system.json (default: ./site.json, else
+  -i, --input <path>    site config or design-system.json (default: ./vitops.json, else
                         ./design-system.json)
       --theme <name>    Theme to render docs from, when --input is a site config
       --all             Print every topic, concatenated
 
 Icons options:
-  -i, --input <path>    Site config carrying the "icons" block (default: ./site.json)
+  -i, --input <path>    Site config carrying the "icons" block (default: ./vitops.json)
       --site-env <env>  Environment whose A/B variant applies (default: production)
       --src <dir>       Source to scan for icon usage (default: ./src)
       --sprite          Also build the SVG sprite
@@ -107,7 +107,7 @@ Icons options:
       --json            Machine-readable report on stdout
 
 Lint options:
-  -i, --input <path>    site config or design-system.json (default: ./site.json, else
+  -i, --input <path>    site config or design-system.json (default: ./vitops.json, else
                         ./design-system.json)
       --theme <name>    Theme to judge classes against, when --input is a site config
   -f, --format <fmt>    Format you build (bricks | css | tailwind; default: tailwind).
@@ -129,7 +129,7 @@ Lint options:
 
 Legal options:
   -i, --input <path>    Site config: .json, or a .js/.ts module with a default
-                        export (default: ./site.json)
+                        export (default: ./vitops.json)
   -d, --doc <name>      privacy | terms | cookies | accessibility (repeatable;
                         default: those enabled in the config)
   -f, --format <fmt>    md | html | portable-text (default: md)
@@ -143,7 +143,7 @@ Legal options:
 
 Robots options:
   -i, --input <path>    Site config: .json, or a .js/.ts module with a default
-                        export (default: ./site.json)
+                        export (default: ./vitops.json)
   -o, --out <dir>       Write robots.txt here (default: print to stdout)
       --site-env <env>  Which site.environments entry to render for (default: production)
 
@@ -154,7 +154,7 @@ Robots options:
   site.seo.indexing.sitemapUrl, or the derived <canonical>/sitemap-index.xml.
 
 Reviews options:
-  -i, --input <path>    Site config carrying site.reviews (default: ./site.json)
+  -i, --input <path>    Site config carrying site.reviews (default: ./vitops.json)
       --site-env <env>  Environment whose A/B variant applies (default: production)
       --location <key>  Fetch only this site.reviews.locations key
       --cache <path>    Where to read/write the cache (default: .vitops/reviews.json)
@@ -179,7 +179,7 @@ Search subcommands:
   vitops search notify [opts]   Tell search engines about a deploy (sitemap + IndexNow)
 
 Search setup options:
-  -i, --input <path>    Site config carrying site.searchConsole (default: ./site.json)
+  -i, --input <path>    Site config carrying site.searchConsole (default: ./vitops.json)
       --site-env <env>  Environment whose A/B variant applies (default: production)
       --domain <name>   Scope to a single site.searchConsole entry
       --dry             Print the plan and exit. Changes nothing, and runs without
@@ -211,7 +211,7 @@ Search setup options:
   is what keeps each site's API usage and billing separate.
 
 Search notify options:
-  -i, --input <path>    Site config carrying seo.indexing (default: ./site.json)
+  -i, --input <path>    Site config carrying seo.indexing (default: ./vitops.json)
       --site-env <env>  Environment to notify for (default: production). An
                         environment whose robots policy says noindex is refused.
       --sitemap <src>   Sitemap URL or local path (default: from the config)
@@ -244,7 +244,7 @@ Ads subcommands:
   vitops ads lint [opts]        Report ad properties the rest of the config can't see
 
 Ads setup options:
-  -i, --input <path>    Site config carrying site.ads (default: ./site.json)
+  -i, --input <path>    Site config carrying site.ads (default: ./vitops.json)
       --site-env <env>  Environment whose A/B variant applies (default: production)
       --provider <name> Scope to one site.ads entry (google | meta | linkedin |
                         reddit | tiktok | microsoft | pinterest | snapchat)
@@ -270,7 +270,7 @@ Ads setup options:
   first run.
 
 Ads tags options:
-  -i, --input <path>    Site config carrying site.ads (default: ./site.json)
+  -i, --input <path>    Site config carrying site.ads (default: ./vitops.json)
       --provider <name> Print one platform's tag
       --strategy <s>    idle | async | interaction (default: idle)
 
@@ -280,7 +280,7 @@ Ads tags options:
   Paste into your template; @getvitops/core's consent runtime activates them.
 
 Ads lint options:
-  -i, --input <path>    Site config carrying site.ads (default: ./site.json)
+  -i, --input <path>    Site config carrying site.ads (default: ./vitops.json)
 
   Reports the gaps that are invisible at runtime: a click-ID parameter this
   platform stamps that attribution doesn't capture, a pixel while site.tracking is
@@ -288,7 +288,7 @@ Ads lint options:
   tag ID. Exits non-zero on a finding.
 
 Crm check options:
-  -i, --input <path>    Site config carrying site.crm (default: ./site.json)
+  -i, --input <path>    Site config carrying site.crm (default: ./vitops.json)
       --site-env <env>  Environment to resolve (default: production)
 
   Fetches the live field/property list (HubSpot: crm/v3/properties/contacts;
@@ -304,7 +304,7 @@ Crm check options:
   on any missing target.
 
 Crm setup options:
-  -i, --input <path>    Site config carrying site.crm (default: ./site.json)
+  -i, --input <path>    Site config carrying site.crm (default: ./vitops.json)
       --site-env <env>  Environment to resolve (default: production)
       --dry             Print what would be created and exit. Creates nothing.
 
@@ -315,7 +315,7 @@ Crm setup options:
   reminder instead of creating anything.
 
 Campaigns check options:
-  -i, --input <path>    Site config carrying site.campaigns (default: ./site.json)
+  -i, --input <path>    Site config carrying site.campaigns (default: ./vitops.json)
       --site-env <env>  Environment to resolve (default: production)
 
   Fetches the account's live lists (Zoho Campaigns: getmailinglists; SendFox: GET /lists) and
@@ -351,19 +351,19 @@ Setup hosting options:
   the printed dashboard link. Requires \`npx wrangler login\` first.
 
 Setup domain options:
-  -i, --input <path>    Site config (default: ./site.json)
+  -i, --input <path>    Site config (default: ./vitops.json)
       --site-env <env>  Environment to check (default: production)
       --dry             Print the plan and exit
       --check           Exit non-zero if the domain state is inconsistent
       --domain <apex>   Print the manual cutover steps for this apex
 
   Plans and checks the consistency between wrangler.jsonc's workers.dev/custom-domain
-  state and site.json's environments/domains/robots — it NEVER edits wrangler.jsonc
+  state and vitops.json's environments/domains/robots — it NEVER edits wrangler.jsonc
   or deploys. Cutover overwrites the zone's DNS record and can take an existing live
   site down; that step is manual, on purpose. See SETUP.html's "Domain strategy" stage.
 
 Setup turnstile options:
-  -i, --input <path>    Site config (default: ./site.json)
+  -i, --input <path>    Site config (default: ./vitops.json)
       --site-env <env>  Environment to read (default: production)
       --dry             Print the plan and exit (needs no token)
       --check           Exit non-zero if no widget/site key is set up; mutates nothing
@@ -411,7 +411,7 @@ Emdash check-prerender options:
           pending-migrations message, is not an HTML document, or has no <title>.
   --strict  Also fail (not just warn) when a page uses a type-role class (font-display, …)
           the built CSS has no rule for, links to pages the build did not produce, a page without
-          exactly one <h1>, or a form with nowhere to send it (reads ./site.json, or --site=<path>).
+          exactly one <h1>, or a form with nowhere to send it (reads ./vitops.json, or --site=<path>).
 
 Emdash build options:
   [dir]   Runs \`astro build\`, then check-prerender on [dir] (default: dist/client). Also fails
@@ -424,7 +424,7 @@ Email subcommands:
   vitops email check [opts]    Non-blocking deploy guard: warn if a from domain isn't onboarded
 
 Email setup options:
-  -i, --input <path>    Site config carrying site.notifications.email (default: ./site.json)
+  -i, --input <path>    Site config carrying site.notifications.email (default: ./vitops.json)
       --site-env <env>  Environment whose A/B variant applies (default: production)
   [domain]              Onboard this exact name instead of deriving candidates from
                         config + a source scan
@@ -447,7 +447,7 @@ Email setup options:
   scope — broader than the "Edit zone DNS" template other commands use).
 
 Email check options:
-  -i, --input <path>    Site config carrying site.notifications.email (default: ./site.json)
+  -i, --input <path>    Site config carrying site.notifications.email (default: ./vitops.json)
       --site-env <env>  Environment whose A/B variant applies (default: production)
       --src <dir>       Source to scan for from: literals (default: ./src)
       --strict          Exit non-zero on drift (the default just warns and exits 0)
@@ -495,7 +495,7 @@ Report options:
       --format <f>      Output format involved (css, bricks, tailwind, design)
       --platform <p>    Default: detected from package.json (EmDash / Static Astro / Other)
   -i, --input <path>    Site config whose names, domains and contact details are
-                        redacted from the draft (default: ./site.json, skipped if absent)
+                        redacted from the draft (default: ./vitops.json, skipped if absent)
       --search          List possible duplicate issues first (needs \`gh\`)
       --submit          File the issue publicly, after a confirmation on a TTY
       --yes             Skip that confirmation. Only after the person approved the draft.
@@ -521,7 +521,7 @@ Audit options:
       --tbt <ms>        Total Blocking Time budget, the INP proxy (default: 200)
       --impact <list>   axe impacts that fail a page (default: serious,critical)
       --form-factor <f> mobile | desktop Lighthouse profile (default: mobile)
-  -i, --input <file>    site.json to read \`site.accessibility\` from (default: site.json, optional):
+  -i, --input <file>    vitops.json to read \`site.accessibility\` from (default: vitops.json, optional):
                         sets the axe tags and whether violations fail the run (\`none\` = report only)
   -o, --out <dir>       Report directory (default: .vitops/audit): report.json, report.md,
                         report.html and pages/<page>.{json,md}. An artifact, not site content:
@@ -584,7 +584,7 @@ export const EMDASH_HELP = `vitops emdash — build-time steps for an EmDash sit
                                      is not a real page
   vitops emdash build [d]            astro build, then check-prerender; also fails when the build
                                      reports a block type with no component (content dropped)
-  vitops emdash form-template --from <seed.json> [--name contact] [--site site.json] [--dry]
+  vitops emdash form-template --from <seed.json> [--name contact] [--site vitops.json] [--dry]
                                      Copy a vitops_form block into site.templates (the privacy
                                      policy's "what we collect" and a check-prerender input)
   vitops emdash check-seed [seed.json]

@@ -10,7 +10,7 @@ import { resolveNavOptions } from '@getvitops/astro/components/masthead.ts';
 import { loadNavMenus } from '@getvitops/astro/components/sitenav.ts';
 import { EmDashHead } from 'emdash/ui';
 import { VitopsMegaPanel, VitopsWidgetArea } from '@getvitops/emdash/astro';
-import config from '../../site.json' with { type: 'json' };
+import config from '../../vitops.json' with { type: 'json' };
 // Design-system CSS, layout-scoped (vitops css.inject: false): only pages
 // rendered through this layout get it — keeps it out of /_emdash/admin, while
 // EmDash previews (rendered through this layout) keep it.
@@ -30,7 +30,7 @@ const settings = await getSiteSettings();
 // getSiteSettings().title is the editable, client-facing display name (set in
 // the EmDash admin) — it wins whenever it's set. resolveOrganizationName(config)
 // is the fallback rather than a second hardcoded string, so a fresh scaffold
-// shows organization.name (from site.json) before anyone's touched the admin.
+// shows organization.name (from vitops.json) before anyone's touched the admin.
 const siteTitle = settings?.title || resolveOrganizationName(config) || 'My EmDash Site';
 const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
 const siteDescription = settings?.tagline || 'An EmDash website with the Vitops design system';
@@ -83,7 +83,7 @@ const lang = Object.keys(config.site?.locales ?? {})[0] ?? 'en';
     </a>
     <!-- Widget areas (Widgets in the admin): the same content wherever they appear. -->
     <VitopsWidgetArea name="announcement" class="centered" />
-    <!-- The masthead's look and the nav's behaviour come from `site.chrome` in site.json
+    <!-- The masthead's look and the nav's behaviour come from `site.chrome` in vitops.json
          (position, scroll states, glass, inset, shadow, drawer vs dropdown). A prop here
          overrides one field for this layout. -->
     <Masthead config={config}>

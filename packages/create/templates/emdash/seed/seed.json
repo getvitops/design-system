@@ -501,7 +501,7 @@
                 {
                   "_key": "c1",
                   "title": "Tokens",
-                  "body": "Colour, type and spacing come from site.json.",
+                  "body": "Colour, type and spacing come from vitops.json.",
                   "href": "https://docs.vitops.ca",
                   "linkLabel": "Read more"
                 },
@@ -570,7 +570,7 @@
               "_type": "vitops_details",
               "_key": "next-steps",
               "summary": "Next steps",
-              "body": "Adjust site.json (under designSystem.themes.default) to your brand (colors, type, patterns), replace src/assets/logo.svg, then deploy with `pnpm deploy`.",
+              "body": "Adjust vitops.json (under designSystem.themes.default) to your brand (colors, type, patterns), replace src/assets/logo.svg, then deploy with `pnpm deploy`.",
               "open": false
             }
           ]
@@ -891,7 +891,7 @@
             {
               "_type": "vitops_banner",
               "_key": "cookies-placeholder",
-              "message": "Placeholder text — replace with your own cookie notice before launch. This is not legal advice. `vitops legal` can generate a draft from site.json.",
+              "message": "Placeholder text — replace with your own cookie notice before launch. This is not legal advice. `vitops legal` can generate a draft from vitops.json.",
               "tone": "warning",
               "dismissible": false
             },

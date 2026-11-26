@@ -31,7 +31,7 @@ import {
 } from 'node:fs';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { validateConfig } from '@getvitops/generator';
+import { legacyConfigHint, validateConfig } from '@getvitops/generator';
 import { createServer } from 'node:net';
 import { join, relative } from 'node:path';
 import {
@@ -169,9 +169,15 @@ const devError = () => {
   return line?.trim();
 };
 
-/** `site.json` must parse and validate before a dev server is asked to read it. */
-function checkSiteConfig(siteFile = 'site.json') {
-  if (!existsSync(siteFile)) return;
+/** `vitops.json` must parse and validate before a dev server is asked to read it. */
+function checkSiteConfig(siteFile = 'vitops.json') {
+  if (!existsSync(siteFile)) {
+    // Silent before the rename; now a project still on `site.json` would skip validation
+    // without a word, so say what to run.
+    const hint = legacyConfigHint();
+    if (hint) fail(hint);
+    return;
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(readFileSync(siteFile, 'utf8'));
@@ -323,7 +329,7 @@ function cmdCheckPrerender(argv: string[]) {
     console.warn(`check-prerender: warning: ${note}`);
   }
   if (formPage) {
-    const siteFile = argv.find((a) => a.startsWith('--site='))?.slice(7) ?? 'site.json';
+    const siteFile = argv.find((a) => a.startsWith('--site='))?.slice(7) ?? 'vitops.json';
     let siteConfig: unknown;
     try {
       if (existsSync(siteFile)) siteConfig = JSON.parse(readFileSync(siteFile, 'utf8'));
@@ -386,7 +392,7 @@ function cmdCheckPrerender(argv: string[]) {
 }
 
 /**
- * `vitops emdash form-template --from <seed.json|export.json> [--name <key>] [--site <site.json>]`:
+ * `vitops emdash form-template --from <seed.json|export.json> [--name <key>] [--site <vitops.json>]`:
  * copy a `vitops_form` block's fields into `site.templates`, so the generated privacy policy and
  * `check-prerender` know what the form collects. Hand-written entries are easy to get wrong (a
  * field type the policy's schema does not have fails with only a path); this uses the renderer's
@@ -399,7 +405,7 @@ async function cmdFormTemplate(argv: string[]) {
     return argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
   };
   const from = flag('from') ?? (existsSync('seed/seed.json') ? 'seed/seed.json' : undefined);
-  const siteFile = flag('site') ?? 'site.json';
+  const siteFile = flag('site') ?? 'vitops.json';
   const dry = argv.includes('--dry');
   if (!from) fail('give --from <seed.json or content export containing a vitops_form block>.');
   if (!existsSync(from!)) fail(`${from} does not exist.`);

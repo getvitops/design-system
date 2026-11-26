@@ -56,7 +56,7 @@ instead of implicit: `migrations.runtime` in `emdash()`'s config defaults to `'a
 `health-check-url` boot probe remains as a defence-in-depth check, not the only guard.
 
 **The `dev → main` flow is for code, not content: truth runs a different direction per kind of
-data.** Code, Astro pages, `site.json` and the design system live in git, so `dev` is their truth
+data.** Code, Astro pages, `vitops.json` and the design system live in git, so `dev` is their truth
 and they promote `dev → main`. EmDash content (entries, media, menus, settings) lives in D1/R2 and
 **production is its truth** — editors work there, and drafts, "Publish changes" on a live entry,
 signed preview links and scheduling _are_ the staging step. The EmDash **schema** (collections and
@@ -184,7 +184,7 @@ pnpm/Node try to download other versions than the runner has) and fails on EmDas
 adapter-version-mismatch warning, which is how an
 upgrade of `emdash` without `@emdash-cms/cloudflare` shows up. It exists because it found real
 defects the first time it ran: `resolveOrganizationName` demanded the full `Config`, which a plain
-`import site from './site.json'` cannot satisfy; `page.data` was `unknown` before `emdash types`
+`import site from './vitops.json'` cannot satisfy; `page.data` was `unknown` before `emdash types`
 had run; and the templates declared `neutral`/`surface` as chromatic roles while using
 `text-neutral-muted`, a class that resolved to nothing.
 

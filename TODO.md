@@ -68,7 +68,7 @@ category id to a `LocalBusiness` subtype.
   request as `vitops reviews` (see SETUP.html). Add an entry only when a real client's category doesn't map.
 - **The EmDash editorial-body overlay.** A `locations` collection holding a `slug` and a `portableText` body,
   matched to `organization.locations`' keys at render time, so a client can add prose and photos around the
-  structured facts without editing `site.json`. A plugin cannot register a collection (a seed applies at first
+  structured facts without editing `vitops.json`. A plugin cannot register a collection (a seed applies at first
   boot only; otherwise `emdash schema create` against a live site), so it is either a scaffold-only seed change
   or an operator step. `vitops emdash schema apply` now makes the second one scriptable across a site's
   environments. The page and its JSON-LD ship in full without it.
@@ -114,7 +114,7 @@ tested `>=1.0.0 <2` line. Left:
   plain `<img>` (`BlockImage.astro` covers hero, cards, image compare). Cards' image field is still a URL input: EmDash 1.4.0's repeater sub-fields exclude `media_picker` (its docs say newer versions allow it), so switch it on upgrade. Local `astro build`/`astro dev` from the
   template sets no `EMDASH_SITE_URL`, so the ratio field only takes effect in the deploy workflow
   (dev already authorizes any host). The build also always uses `siteEnv: 'production'` for the
-  rest of `site.json` (SEO, robots), even for the dev deploy; the URL is the only per-environment
+  rest of `vitops.json` (SEO, robots), even for the dev deploy; the URL is the only per-environment
   fact wired so far. Spike on EmDash's own `Image`: a Block Kit `media_picker` stores a URL
   string only and the admin drops the picked item's width/height/blurhash
   (`@emdash-cms/admin` `BlockKitMediaPickerField`), so `emdash/ui` `Image` cannot render a block

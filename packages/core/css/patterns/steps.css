@@ -84,7 +84,7 @@
 }
 
 /* Each step in a card (`className: steps--cards`). The card's geometry is the `steps` pattern's
-   (`patterns.items.steps` in site.json: padding, border, radius, shadow), so a site restyles it
+   (`patterns.items.steps` in vitops.json: padding, border, radius, shadow), so a site restyles it
    there. The connector then runs in the gap between cards, at the marker's height. */
 .steps.steps--cards {
   .steps__item {

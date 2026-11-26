@@ -88,7 +88,7 @@ export const prerender = false;
 | `consent`       | off unless given     | the consent gate + `<CookieConsent />`                            |
 
 **`css.input` takes either config kind.** Point it at a `design-system.json`, or at the larger site
-config that embeds one (`company.json` / `site.json`) — they're told apart by shape, so the file can
+config that embeds one (`company.json` / `vitops.json`) — they're told apart by shape, so the file can
 be called anything. A site config also supplies what `site`, `legal` and `fonts` would otherwise need
 their own path for, so `legal: {}` and `fonts: true` become the whole declaration.
 

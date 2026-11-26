@@ -25,7 +25,7 @@ function fakeFetch(responses: Record<string, { ok: boolean; status?: number; bod
   return { fetchImpl, calls };
 }
 
-const base = { owner: 'getvitops', repo: 'client-site', branch: 'dev', path: 'site.json' };
+const base = { owner: 'getvitops', repo: 'client-site', branch: 'dev', path: 'vitops.json' };
 
 describe('commitFile', () => {
   it('creates a new file when the GET 404s — no sha in the PUT body', async () => {

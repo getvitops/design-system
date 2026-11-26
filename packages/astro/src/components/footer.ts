@@ -3,7 +3,7 @@
  * (address, phone, email, hours) and the public profile links. Pure, so each rule is asserted
  * without rendering.
  *
- * The config is read loosely (see `ChromeSource`): a plain `import site from './site.json'` types
+ * The config is read loosely (see `ChromeSource`): a plain `import site from './vitops.json'` types
  * every enum as `string`, which a strict `Config` rejects, so these are structural and each value
  * is checked at runtime instead. Anything that lands in an `href` or `src` is checked to be a safe
  * URL first: a config is edited by a person, and sometimes by a portal's form.

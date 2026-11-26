@@ -2,7 +2,7 @@
 type: "Config Reference"
 title: "Vitops — config authoring reference"
 description: "Every field of the three-section config (designSystem / organization / site), generated from the published JSON Schema so it always matches validation."
-resource: "site.json"
+resource: "vitops.json"
 tags: [config, schema, authoring, site, organization]
 generator: "@getvitops/generator"
 ---
@@ -15,7 +15,7 @@ to — `vitops legal`, `vitops icons`, `vitops search` — and it can also stand
 a `design-system.json` anywhere the toolchain takes one, since it carries a full
 `designSystem`.
 
-Consumers name the file whatever suits them (`site.json`, `company.json`,
+Consumers name the file whatever suits them (`vitops.json`, `company.json`,
 `vitops.config.json`); it is recognised by **shape**, not by name — a document with a
 top-level `designSystem` key is this, and one without it is a bare
 `design-system.json`.
@@ -637,6 +637,25 @@ Push form submissions into a client CRM (HubSpot, Zoho Bigin, or Jobber) alongsi
     - `enabled` (boolean) — Attach a best-effort note carrying the message and unmapped attribution (default true). A failure here never loses the client record itself.
 - `fieldMap` (map) — Submitted form field name → CRM property name. A field with no entry here is dropped, not guessed — an unmapped field never reaches the CRM.
 - `trackingFields` (map) — `_ac` attribution key (a click-ID param, a UTM param, `landingPage`, `referrer`, or `ab_variant`) → CRM property name. Same drop-if-unmapped rule as `fieldMap`; a visitor with no `_ac` cookie maps to no attribution fields at all, never an error.
+
+### `campaigns` *(optional)*
+
+Email-list signups (waitlist, blog updates, reports) subscribed through a campaign tool (Zoho Campaigns or SendFox). Independent of `site.crm`: a signup carries its own opt-in. Read by `createConversionRoute()`'s `campaigns` option. Credentials never live here.
+
+- `provider` (zoho-campaigns | sendfox, required) — Which email-campaign tool holds the subscriber lists.
+- `enabled` (boolean) — Set false to keep the block on record without subscribing anyone.
+- `lists` (map, required) — Subscribable lists, keyed by the name a form submits (`waitlist`, `blog`, `reports`).
+  - `<name>` (object)
+    - `label` (string, required) — Human name for the list ("Waitlist"). Shown in the notification email that records the opt-in.
+    - `zohoCampaigns` (object) — Zoho Campaigns list key. Required when `provider` is `zoho-campaigns`.
+      - `listKey` (string, required)
+    - `sendfox` (object) — SendFox list id. Required when `provider` is `sendfox`.
+      - `listId` (number, required)
+- `zohoCampaigns` (object) — Required when `provider` is `zoho-campaigns`.
+  - `dataCenter` (com | eu | in | com.au | jp, required) — The account's data centre — decides both the OAuth accounts host and the Campaigns API host (`campaigns.zoho.<dc>`).
+- `consentField` (string) — Form field that carries the visitor's explicit opt-in (default `subscribe`). A signup is only attempted when it is ticked or submitted truthy; the tick is the consent record.
+- `listField` (string) — Form field naming the list key(s) to join (default `list`). May hold several keys; omit it when exactly one list is configured.
+- `mirrorToCrm` (boolean) — When `site.crm` is also configured, record the signup on the CRM contact as a fact ("Signed up: waitlist"), never as subscription state (default true). Turn off when the client already syncs the CRM to the campaign tool.
 
 ### `security` *(optional)*
 

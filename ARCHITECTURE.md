@@ -83,7 +83,7 @@ Fifteen commands, dispatched in `packages/cli/src/cli.ts`.
 | Command    | Function      | Input      | Purpose                                                                               |
 | ---------- | ------------- | ---------- | ------------------------------------------------------------------------------------- |
 | `generate` | `cmdGenerate` | either     | Emit the design-system output(s) for one or more `--format`s                          |
-| `init`     | `cmdInit`     | —          | Scaffold a starter `design-system.json`, or a `site.json` with `--site`               |
+| `init`     | `cmdInit`     | —          | Scaffold a starter `design-system.json`, or a `vitops.json` with `--site`             |
 | `validate` | `cmdValidate` | either     | Validate a config against the schema                                                  |
 | `favicon`  | `cmdFavicon`  | either     | Rasterize a source SVG/PNG into the favicon set                                       |
 | `media`    | `cmdMedia`    | **Config** | Raw video → WebM + MP4 fallback + poster                                              |
@@ -364,18 +364,18 @@ adding a component (notably: there is deliberately no site-model layer here).
 
 ### Other packages
 
-| Path                              | Purpose                                                                                                                                                         |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/vite/src/index.ts`      | The entire plugin: generate on build/dev, watch configs, the editor endpoint                                                                                    |
-| `packages/cli/src/cli.ts`         | Entry; `main()` runs at import, `parseArgs` then a command switch                                                                                               |
-| `packages/cli/src/help.ts`        | All help text — separate because `cli.ts` self-executes                                                                                                         |
-| `packages/cli/src/lint*.ts`       | Four linters: classes that resolve to nothing, CSS re-implementing a primitive, markup skipping a pattern, pre-1.0 token refs                                   |
-| `packages/cli/skill/SKILL.md`     | The static agent skill `vitops agents` links into a project                                                                                                     |
-| `packages/utils/src/*/`           | Each network-touching area is `plan.ts` + executor(s) + `types.ts`                                                                                              |
-| `packages/emdash/src/`            | `blocks.ts` (Portable Text types), `hosting.ts`, `icon-options.ts`, `astro/blocks/*.astro`                                                                      |
-| `packages/create/templates/`      | Verbatim scaffold payload — no `src/`, no build task. Each ships `site.json` + `SETUP.html` (mirrored from `packages/create/assets/`) + `.agents/skills/setup/` |
-| `bricks/load.php`                 | Registers the 13 elements, enqueues the bundles, adds the builder category                                                                                      |
-| `site/scripts/sync-reference.mjs` | Calls `generateDocs()` and writes the site's Reference section                                                                                                  |
+| Path                              | Purpose                                                                                                                                                           |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/vite/src/index.ts`      | The entire plugin: generate on build/dev, watch configs, the editor endpoint                                                                                      |
+| `packages/cli/src/cli.ts`         | Entry; `main()` runs at import, `parseArgs` then a command switch                                                                                                 |
+| `packages/cli/src/help.ts`        | All help text — separate because `cli.ts` self-executes                                                                                                           |
+| `packages/cli/src/lint*.ts`       | Four linters: classes that resolve to nothing, CSS re-implementing a primitive, markup skipping a pattern, pre-1.0 token refs                                     |
+| `packages/cli/skill/SKILL.md`     | The static agent skill `vitops agents` links into a project                                                                                                       |
+| `packages/utils/src/*/`           | Each network-touching area is `plan.ts` + executor(s) + `types.ts`                                                                                                |
+| `packages/emdash/src/`            | `blocks.ts` (Portable Text types), `hosting.ts`, `icon-options.ts`, `astro/blocks/*.astro`                                                                        |
+| `packages/create/templates/`      | Verbatim scaffold payload — no `src/`, no build task. Each ships `vitops.json` + `SETUP.html` (mirrored from `packages/create/assets/`) + `.agents/skills/setup/` |
+| `bricks/load.php`                 | Registers the 13 elements, enqueues the bundles, adds the builder category                                                                                        |
+| `site/scripts/sync-reference.mjs` | Calls `generateDocs()` and writes the site's Reference section                                                                                                    |
 
 ## 2.4 Build pipeline
 

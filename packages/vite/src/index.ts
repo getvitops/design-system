@@ -98,7 +98,7 @@ export interface VitopsPluginOptions {
    * Path to the config. Default: `'design-system.json'`.
    *
    * May be a `design-system.json` **or** the larger site config that embeds one
-   * (`company.json` / `site.json`) — told apart by shape. Pointing it at a site
+   * (`company.json` / `vitops.json`) — told apart by shape. Pointing it at a site
    * config also supplies `site` below, so a consumer who keeps their tokens
    * there declares the path once instead of three times.
    */

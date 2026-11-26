@@ -2039,6 +2039,16 @@ export function resolveConfig(input: unknown, siteEnv = 'production'): Config {
 // ── Accepting either config kind ────────────────────────────────────────────────
 
 /**
+ * The default file name for the umbrella `Config`. Pure data, so it is safe to import
+ * from a Worker; the filesystem check that notices a leftover pre-rename file lives in
+ * `legacy-config.ts`, which is Node-only.
+ *
+ * Named for the toolchain, not for one output: the document carries the design system
+ * and the organization as well as the site, and those serve more than websites.
+ */
+export const CONFIG_FILENAME = 'vitops.json';
+
+/**
  * Is this raw config a full `Config` rather than a bare `design-system.json`?
  *
  * The discriminator is **total**, not a heuristic, and both halves are load-
@@ -2051,7 +2061,7 @@ export function resolveConfig(input: unknown, siteEnv = 'production'): Config {
  * precisely so the discriminator kept working unchanged.
  *
  * Deliberately shape-based rather than filename-based: consumers name this file
- * whatever suits them (`company.json`, `site.json`, `vitops.config.json`), and a
+ * whatever suits them (`company.json`, `vitops.json`, `vitops.config.json`), and a
  * rule keyed to a name would silently stop working the moment someone renamed it.
  */
 export function isConfig(raw: unknown): boolean {

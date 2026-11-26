@@ -1,6 +1,6 @@
 ---
 name: accessibility-statement
-description: How to generate a client's accessibility statement from site.json, which fields to set for which Ontario headcount tier, what the document will and will not claim, and what the page itself must do to be accessible (aim: WCAG 2.1 AAA).
+description: How to generate a client's accessibility statement from vitops.json, which fields to set for which Ontario headcount tier, what the document will and will not claim, and what the page itself must do to be accessible (aim: WCAG 2.1 AAA).
 verified: 2026-11-11
 sources:
   - https://www.ontario.ca/page/accessibility-rules-businesses-and-non-profits
@@ -14,7 +14,7 @@ sources:
 # The generated accessibility statement
 
 `vitops legal --doc accessibility` renders a statement beside the privacy policy, terms and cookie
-notice. It is the agency's AODA statement template turned into a document generated from `site.json`,
+notice. It is the agency's AODA statement template turned into a document generated from `vitops.json`,
 so it cannot drift from what the site declares and nobody fills in `[PLACEHOLDERS]`. This is
 orientation, not legal advice: the client's legal or HR contact should read it before publication, and
 the review banner at the top says so.
@@ -22,7 +22,7 @@ the review banner at the top says so.
 ## Turning it on
 
 ```jsonc
-// site.json
+// vitops.json
 "site": {
   "accessibility": { "standard": "wcag21", "level": "AA", "contrastToggle": true },
   "legal": {

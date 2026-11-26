@@ -13,10 +13,10 @@
     "init:hosting": "vitops setup hosting --no-dev-resources",
     "setup": "vitops setup repo && vitops setup hosting --no-dev-resources",
     "typecheck": "astro check",
-    "build:css": "vitops generate -i site.json -f css -o src/styles",
-    "lint:design": "vitops lint -i site.json -f css --strict",
-    "sop": "vitops generate -i site.json -f css -o .vitops/sop",
-    "prepare": "vp config && skills experimental_install -y -a claude-code --no-frozen-lockfile && skills experimental_sync -y -a claude-code --no-frozen-lockfile && playwright cli install --skills && vitops agents sync -i site.json"
+    "build:css": "vitops generate -i vitops.json -f css -o src/styles",
+    "lint:design": "vitops lint -i vitops.json -f css --strict",
+    "sop": "vitops generate -i vitops.json -f css -o .vitops/sop",
+    "prepare": "vp config && skills experimental_install -y -a claude-code --no-frozen-lockfile && skills experimental_sync -y -a claude-code --no-frozen-lockfile && playwright cli install --skills && vitops agents sync -i vitops.json"
   },
   "dependencies": {
     "@getvitops/astro": "latest",

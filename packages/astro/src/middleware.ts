@@ -6,7 +6,7 @@
  * ```ts
  * import { defineConfig } from 'astro:config';
  * import { vitopsAbTesting } from '@getvitops/astro/middleware';
- * import config from '../site.json' with { type: 'json' };
+ * import config from '../vitops.json' with { type: 'json' };
  *
  * export const onRequest = vitopsAbTesting({ experiments: config.site.experiments ?? {} });
  * ```

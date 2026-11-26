@@ -56,7 +56,7 @@ name one:
 ## 3. Field and renderer conventions
 
 - **Colour: `tone` plus optional `color`.** `tone` takes a **role** name from
-  `site.json`'s `colors.roles` (preferred), falling back to a semantic name
+  `vitops.json`'s `colors.roles` (preferred), falling back to a semantic name
   (`info` `success` `warning` `danger`); `color` is the escape hatch for a palette
   hue/step and should be rare — a site that sets it on every item is telling you a
   role is missing. A select field can only list static options, so either list the

@@ -66,7 +66,7 @@
  * `NotifyContext` literal:
  *
  * ```ts
- * import config from '../../site.json' with { type: 'json' };
+ * import config from '../../vitops.json' with { type: 'json' };
  * import { createConversionRoute, toNotifyContext, toCrmConfig } from '@getvitops/astro/routes';
  *
  * export const POST = createConversionRoute({

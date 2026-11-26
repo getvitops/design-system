@@ -10,7 +10,7 @@ Scaffolded from `vp create @getvitops:emdash --directory <client-slug>` (pass a 
 - **Astro** (SSR) on **Cloudflare Workers** — D1 database, R2 media storage
 - **EmDash** — the admin lives at `/_emdash/admin`; content is queried with
   `getEmDashCollection` / `getEmDashEntry` (Astro live content collections)
-- **`@getvitops/astro`** — generates the design-system CSS from `site.json`
+- **`@getvitops/astro`** — generates the design-system CSS from `vitops.json`
   (Tailwind v4 format), generates favicons/PWA assets from
   `src/assets/logo.svg`, and serves the web-component runtime
 - **`@getvitops/emdash`** — design-system Portable Text blocks in the editor
@@ -56,7 +56,7 @@ reaches the build (`scripts/pull-content.mjs`) and for the publish-triggered reb
 In `vpr dev` the pages read your local database, so edits appear straight away.
 
 The two legal pages are placeholders. To generate real ones from what your site
-actually does, fill in `site.json`'s `organization`/`site.legal` fields and run:
+actually does, fill in `vitops.json`'s `organization`/`site.legal` fields and run:
 
 ```sh
 vp exec vitops legal --format portable-text --out ./legal
@@ -161,7 +161,7 @@ and media in the storage backend (bucket/directory copy).
 
 ## The design system
 
-`site.json`'s `designSystem.themes.default` is the single source of truth for
+`vitops.json`'s `designSystem.themes.default` is the single source of truth for
 colors, type, spacing, shadows, patterns, and animations — there is no
 separate `design-system.json`, since a scaffolded config can't merely
 reference a sibling file. The `vitops()` integration regenerates
@@ -172,7 +172,7 @@ routes stay unstyled by it.
 Useful commands (via `@getvitops/cli`):
 
 ```bash
-vp exec vitops validate site.json   # check the config against the schema
+vp exec vitops validate vitops.json   # check the config against the schema
 vp exec vitops agents sync          # refresh the managed block at the top of AGENTS.md and link the skills
 vpr build:css                  # regenerate the CSS manually
 ```
@@ -181,7 +181,7 @@ vpr build:css                  # regenerate the CSS manually
 
 | Path                                   | Purpose                                                                                            |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `site.json`                            | Org + site config; design tokens/patterns at `designSystem.themes.default` → generated CSS         |
+| `vitops.json`                          | Org + site config; design tokens/patterns at `designSystem.themes.default` → generated CSS         |
 | `seed/seed.json`                       | First-boot content model + starter content                                                         |
 | `src/worker.ts`                        | Worker entry (fetch + EmDash scheduled handler)                                                    |
 | `src/live.config.ts`                   | Astro live content collections wiring for EmDash                                                   |

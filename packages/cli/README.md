@@ -29,7 +29,7 @@ npx vitops generate --format bricks,css --out dist
 | `vitops media [--raw <dir>] [-o <dir>]`            | encode raw video to WebM + MP4 + poster         |
 
 Every `--input` takes a `design-system.json` **or** the larger site config that embeds one
-(`company.json` / `site.json`) — told apart by shape, so name the file whatever you like. Add
+(`company.json` / `vitops.json`) — told apart by shape, so name the file whatever you like. Add
 `--theme <name>` to build a `designSystem.themes` entry other than the default. `vitops validate`
 routes the same way and checks a site config as a site config.
 

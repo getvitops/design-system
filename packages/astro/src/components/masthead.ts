@@ -56,7 +56,7 @@ export interface ResolvedMasthead {
 
 /**
  * What `resolveMasthead` needs from a config — a whole `Config`, or just `{ site: { chrome } }`.
- * Deliberately loose: a plain `import site from './site.json'` types every enum as `string`, which
+ * Deliberately loose: a plain `import site from './vitops.json'` types every enum as `string`, which
  * the strict `ChromeConfig` would reject (the same trap `resolveOrganizationName` fell into). The
  * values are checked at runtime instead, with the names of the allowed ones in the error.
  */

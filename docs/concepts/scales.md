@@ -9,8 +9,8 @@ generator: "@getvitops/generator"
 
 # Type & space scales
 
-Both scales share one model (authored in `design-system.json` as `typeScale` /
-`spaceScale` — see [authoring.md](../authoring.md)): a **fluid modular scale**.
+Both scales share one model (authored in `vitops.json` as `designSystem.typeScale` /
+`designSystem.spaceScale` — see [authoring.md](../authoring.md)): a **fluid modular scale**.
 
 ## The model
 

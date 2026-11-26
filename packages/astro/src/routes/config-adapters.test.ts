@@ -92,7 +92,7 @@ describe('resolveOrganizationName', () => {
     expect(resolveOrganizationName(cfg)).toBe(toNotifyContext(cfg).organizationName);
   });
 
-  it('accepts the loosely-typed object a `import site from "./site.json"` produces', () => {
+  it('accepts the loosely-typed object a `import site from "./vitops.json"` produces', () => {
     // A JSON import is not assignable to `Config` (its literals widen to
     // `string`), so this is the shape every scaffolded Layout.astro passes.
     const imported = {

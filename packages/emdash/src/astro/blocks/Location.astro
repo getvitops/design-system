@@ -5,7 +5,7 @@
  * `<LocationPage>`, so a location page built by hand and one built from this block cannot differ.
  *
  * The data is a build-time import, `virtual:getvitops/organization`, served by the `vitops()`
- * integration from `site.json` (this renders in a Worker: no filesystem). With no match the
+ * integration from `vitops.json` (this renders in a Worker: no filesystem). With no match the
  * public page gets nothing and `astro dev` gets a note saying why.
  *
  * A blank `location` renders the first location, never all of them: several articles would put
@@ -47,8 +47,8 @@ const dev = import.meta.env.DEV;
   <p {...attrs}>
     <em>
       {key
-        ? `No organization.locations entry named "${key}" in site.json.`
-        : 'site.json has no organization.locations yet.'}
+        ? `No organization.locations entry named "${key}" in vitops.json.`
+        : 'vitops.json has no organization.locations yet.'}
     </em>
   </p>
 ) : null}

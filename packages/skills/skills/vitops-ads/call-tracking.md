@@ -101,6 +101,6 @@ watch the Report-Only console on a landing page with `#google-wcc-debug` for the
 
 ## Verifying a change
 
-- `vitops validate` / `vitops ads lint` after editing `site.json`.
+- `vitops validate` / `vitops ads lint` after editing `vitops.json`.
 - In a browser: load `/?fbclid=test` and confirm the Meta number appears and the `tel:` href matches;
   load `/` and confirm the real number; load with JavaScript disabled and confirm the real number.

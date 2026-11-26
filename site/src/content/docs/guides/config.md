@@ -9,7 +9,7 @@ A `design-system.json` describes your **tokens**. Once a project needs more than
 policy, an icon set, a canonical domain, a Search Console property — it wants a **config**: one
 document that describes the whole project.
 
-```json title="site.json"
+```json title="vitops.json"
 {
   "$schema": "./node_modules/@getvitops/generator/config.schema.json",
   "designSystem": { "themes": { "default": { "colors": { "…": "…" } } } },
@@ -22,7 +22,7 @@ document that describes the whole project.
 }
 ```
 
-Name the file whatever suits you — `site.json`, `company.json`, `vitops.config.json`. It is
+Name the file whatever suits you — `vitops.json`, `company.json`, `vitops.config.json`. It is
 recognised by **shape, not filename**: a document with a top-level `designSystem` key is a config,
 one without it is a bare `design-system.json`. Nothing breaks when you rename it.
 
@@ -53,7 +53,7 @@ rewrite your registered address.
 import vitops from '@getvitops/astro';
 
 export default defineConfig({
-  integrations: [vitops({ css: { input: 'site.json', format: 'css' }, legal: {} })],
+  integrations: [vitops({ css: { input: 'vitops.json', format: 'css' }, legal: {} })],
 });
 ```
 

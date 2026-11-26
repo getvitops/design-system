@@ -16,7 +16,7 @@
  *    edit visible without a rebuild.
  * 2. **Canonical**: auto-commit the merged file to `site.deployment.branch`
  *    (default `dev`) via `@getvitops/utils/git`'s `commitFile()`, so the edit
- *    reaches the git-tracked `site.json` through this repo's own normal
+ *    reaches the git-tracked `vitops.json` through this repo's own normal
  *    `dev → promote → main` review path — never a silent second source of
  *    truth. A commit failure (missing token, misconfigured repo, a transient
  *    GitHub error) is logged and surfaces as a warning, but never fails the
@@ -24,7 +24,7 @@
  *
  * **Assumes `config` is a full site `Config`** (has `organization`/`site`),
  * not a bare `design-system.json` — true for any real EmDash site (it always
- * has a `site.json`), and the only case this plugin already handles anywhere
+ * has a `vitops.json`), and the only case this plugin already handles anywhere
  * else (`vitopsHosting()`, `BLOCKS`).
  *
  * The GitHub token is read as `process.env.VITOPS_GITHUB_TOKEN` — matching
@@ -38,6 +38,7 @@
 import { pluginResponse } from 'emdash';
 import type { PageFragmentContribution, PluginContext, PluginRoute, RouteContext } from 'emdash';
 import {
+  CONFIG_FILENAME,
   designSystemPath,
   formatConfig,
   getAt,
@@ -55,7 +56,7 @@ import { commitFile } from '@getvitops/utils/git';
 
 export interface DesignSystemEditorOptions {
   /**
-   * The site's own config, typically `import config from '../../site.json'
+   * The site's own config, typically `import config from '../../vitops.json'
    * with { type: 'json' }`. A static, build-time-bundled value — this plugin
    * never reads it from disk at runtime (a deployed Worker has no
    * filesystem), so an edit doesn't take effect here until the *next*
@@ -166,7 +167,7 @@ export function createDesignSystemRoute(opts: DesignSystemEditorOptions): Plugin
             owner,
             repo,
             branch: config.site.deployment?.branch ?? 'dev',
-            path: 'site.json',
+            path: CONFIG_FILENAME,
             content,
             message: 'Sync design-system edit from EmDash admin',
             token,

@@ -177,7 +177,7 @@ Page metadata: `<title>`, description, canonical, Open Graph, Twitter cards, rob
 falls back to `organization.name`); pages pass what differs.
 
 ```json
-// site.json
+// vitops.json
 {
   "site": {
     "seo": {

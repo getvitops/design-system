@@ -27,7 +27,7 @@ Report gap and risk; get the decision; record who, when and why.
 
 ## 3. Intake questions
 
-Look in `site.json` first (`organization`, `site.locales`, `site.analytics`, `site.ads`,
+Look in `vitops.json` first (`organization`, `site.locales`, `site.analytics`, `site.ads`,
 `site.crm`, `site.tracking`, `site.legal`, `site.accessibility`), then ask only what is missing.
 
 1. Where is the organisation based?

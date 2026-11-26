@@ -1,6 +1,6 @@
 <!-- vitops:start -->
 
-Built with the Vitops design system (`@getvitops/*`); tokens and site facts live in `site.json`.
+Built with the Vitops design system (`@getvitops/*`); tokens and site facts live in `vitops.json`.
 Prefer its classes and patterns over hand-written CSS. Load the skill that matches the task:
 
 - [emdash-building-pages](.agents/skills/emdash-building-pages/SKILL.md) — Use when authoring or changing a page's layout or content on this EmDash site — composing `vitops_*` blocks
@@ -21,14 +21,14 @@ Worker serving the admin and API) styled by the Vitops design system.
 
 ## Ground rules
 
-- `site.json` is the single source of truth: organization + site facts, and the design system under
+- `vitops.json` is the single source of truth: organization + site facts, and the design system under
   `designSystem.themes.default`. Never edit the generated stylesheet (`src/styles/tailwind.css`,
-  rebuilt from `site.json` on every dev/build, gitignored); put your own CSS in a separate file
+  rebuilt from `vitops.json` on every dev/build, gitignored); put your own CSS in a separate file
   (e.g. `src/site.css`, imported from the layout) and commit it.
 - Content lives in the EmDash database, not the repo. Read it with `getEmDashCollection` /
   `getEmDashEntry` from `emdash`; render Portable Text with `<PortableText />` from `emdash/ui`.
 - **Where truth lives:** content (entries, media, menus) is **production's**, edited there; code,
-  `site.json` and schema are **git's** (`dev` → `main`). The dev database is a disposable copy
+  `vitops.json` and schema are **git's** (`dev` → `main`). The dev database is a disposable copy
   refreshed from prod, never promoted back.
 - `seed/seed.json` applies only to an empty database. To change a running site's content model, use
   the admin (`/_emdash/admin`) or its MCP server (`/_emdash/api/mcp`).

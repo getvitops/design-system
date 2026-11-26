@@ -185,7 +185,7 @@
                 to any other repo — then <code>gh secret set VITOPS_GITHUB_TOKEN</code>. Also set
                 <code>site.deployment.repo</code> (<code>"owner/name"</code>) and
                 <code>site.deployment.branch</code> (default <code>"dev"</code>) in
-                <code>site.json</code>. Without these the live design-system editor still works —
+                <code>vitops.json</code>. Without these the live design-system editor still works —
                 only the auto-commit-to-source half is skipped, and the admin page's response says
                 so.
               </span>
@@ -201,7 +201,7 @@
                 staging step. Dev is a long-lived staging site: its database starts as a copy of
                 production's and is synced from prod on request (content is never promoted back),
                 while collections and fields are developed on it. Code, pages and
-                <code>site.json</code> still go dev → main.
+                <code>vitops.json</code> still go dev → main.
               </span>
             </label>
             <label class="custom-check">
@@ -292,7 +292,7 @@
               <span>
                 Deploy once (<code>vpr deploy</code>), note the printed
                 <code>*.workers.dev</code> URL, and set
-                <code>site.environments.production.url</code> in <code>site.json</code> to it.
+                <code>site.environments.production.url</code> in <code>vitops.json</code> to it.
               </span>
             </label>
             <label class="custom-check">
@@ -377,10 +377,11 @@
                 ><span class="custom-check__indicator custom-check__indicator--check"></span
               ></span>
               <span>
-                Fill in <code>site.json</code>: <code>organization</code> (name, address, contact),
-                <code>site.locales</code>, <code>site.environments</code>, <code>site.seo</code>,
-                <code>site.analytics</code>, <code>site.legal.*.enabled</code>,
-                <code>site.favicon</code>, <code>site.icons</code>.
+                Fill in <code>vitops.json</code>: <code>organization</code> (name, address,
+                contact), <code>site.locales</code>, <code>site.environments</code>,
+                <code>site.seo</code>, <code>site.analytics</code>,
+                <code>site.legal.*.enabled</code>, <code>site.favicon</code>,
+                <code>site.icons</code>.
               </span>
             </label>
             <label class="custom-check">
@@ -388,7 +389,7 @@
               <span class="custom-check__box"
                 ><span class="custom-check__indicator custom-check__indicator--check"></span
               ></span>
-              <span> Check it: <code>vp exec vitops validate site.json</code> </span>
+              <span> Check it: <code>vp exec vitops validate vitops.json</code> </span>
             </label>
           </div>
         </details>
@@ -465,7 +466,7 @@
                 <code>CLOUDFLARE_ACCOUNT_ID</code>) and <code>wrangler login</code>. The public site
                 key goes into <code>site.security.turnstile.siteKey</code>; the secret is saved as
                 the Worker secret <code>VITOPS_TURNSTILE_SECRET</code> and never touches
-                <code>site.json</code>. It never edits or deletes an existing widget.
+                <code>vitops.json</code>. It never edits or deletes an existing widget.
               </span>
             </label>
             <label class="custom-check">
@@ -547,7 +548,7 @@
                 ><span class="custom-check__indicator custom-check__indicator--check"></span
               ></span>
               <span>
-                Canonical domain in <code>site.json</code> matches the actual live origin.
+                Canonical domain in <code>vitops.json</code> matches the actual live origin.
               </span>
             </label>
             <label class="custom-check">

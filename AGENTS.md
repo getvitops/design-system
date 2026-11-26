@@ -116,7 +116,7 @@ packages under `packages/` (a pnpm workspace), by layer:
 - **`@getvitops/cli`** — `vitops generate|init|validate|favicon|agents|docs|lint|legal|robots|reviews|
   icons|search|ads|crm|campaigns|email|emdash|setup|media` (bin `vitops`), a thin wrapper over the generator + utils.
   `legal`/`search`/`ads`/`crm`/`email`
-  are covered in their own sections below; `robots` (`vitops robots [--input <site.json>]
+  are covered in their own sections below; `robots` (`vitops robots [--input <vitops.json>]
   [--site-env <name>] [--out <dir>]`) is `legal`'s sibling — same `Config`-anchoring, same
   stdout-or-`--out` shape — rendering `robots.txt` from the resolved environment's robots
   directive (falling back to `site.seo.robots`), the same fact `search notify`'s `noindex` gate

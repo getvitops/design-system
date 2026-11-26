@@ -2,7 +2,7 @@
 type: "Design Concept"
 title: "Vitops legal documents — generated policy, terms, cookie notice and accessibility statement"
 description: "How the privacy policy, terms of service, cookie notice and accessibility statement are derived from config facts, why the provider table exists, and the four delivery paths."
-resource: "site.json"
+resource: "vitops.json"
 tags: [legal, privacy, cookies, pipeda, compliance]
 generator: "@getvitops/generator"
 ---

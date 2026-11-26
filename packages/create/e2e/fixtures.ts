@@ -275,7 +275,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
     sort: 'recent',
     avatars: false,
   },
-  // One form per page (fixed ids), so this is the only form on `/blocks`. The site.json has no
+  // One form per page (fixed ids), so this is the only form on `/blocks`. The vitops.json has no
   // Turnstile key, so no widget or third-party request is part of the audited page.
   vitops_form: (({ _type: _t, _key: _k, ...fields }) => fields)(SAMPLE_FORM_BLOCK),
   vitops_badges: {

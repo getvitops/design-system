@@ -1,12 +1,12 @@
 /**
- * Helpers shared by the `vitops` subcommands that read a `Config` (site.json) —
+ * Helpers shared by the `vitops` subcommands that read a `Config` (vitops.json) —
  * `legal`, `robots`, `reviews`, `icons`, and the `search`/`ads` subcommand groups
  * (in `commands/search.ts` / `commands/ads.ts`).
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { resolveConfig, type Config } from '@getvitops/generator';
+import { legacyConfigHint, resolveConfig, type Config } from '@getvitops/generator';
 import { msg } from '../args.ts';
 
 export function fail(message: string): never {
@@ -14,15 +14,25 @@ export function fail(message: string): never {
   process.exit(1);
 }
 
+/**
+ * A not-found message, with the rename instruction appended when the project still has
+ * the pre-rename `site.json`. The default config name changed once, with no fallback, so
+ * this is what tells a person or an agent which command fixes it.
+ */
+export function withRenameHint(message: string): string {
+  const hint = legacyConfigHint();
+  return hint ? `${message}\n  ${hint}` : message;
+}
+
 /** The `--input`/`--site-env` pair every `Config`-anchored command accepts. */
 export const SITE_OPTS = {
-  input: { type: 'string', short: 'i', default: 'site.json' },
+  input: { type: 'string', short: 'i', default: 'vitops.json' },
   'site-env': { type: 'string', default: 'production' },
 } as const;
 
 /** Read a JSON file, or exit — the shape shared by every config loader below. */
 export function readJsonOrFail(path: string, notFoundLabel: string): unknown {
-  if (!existsSync(path)) fail(`${notFoundLabel} not found: ${path}`);
+  if (!existsSync(path)) fail(withRenameHint(`${notFoundLabel} not found: ${path}`));
   try {
     return JSON.parse(readFileSync(path, 'utf8'));
   } catch (err) {
@@ -39,7 +49,7 @@ export function readJsonOrFail(path: string, notFoundLabel: string): unknown {
  * consumer's choice; anyone on YAML can convert it or export from a module.
  */
 export async function loadConfig(path: string, siteEnv: string): Promise<Config> {
-  if (!existsSync(path)) fail(`site config not found: ${path}`);
+  if (!existsSync(path)) fail(withRenameHint(`site config not found: ${path}`));
   let raw: unknown;
   if (/\.(json)$/.test(path)) {
     raw = readJsonOrFail(path, 'site config');

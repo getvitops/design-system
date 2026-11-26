@@ -2,7 +2,7 @@
 type: "Design Concept"
 title: "Vitops conversion tracking — ad attribution and notifications"
 description: "How an ad click becomes a notified conversion: the `_ac` cookie, consent-demanding capture, the pure notification planner, and the Cloudflare email channel."
-resource: "site.json"
+resource: "vitops.json"
 tags: [tracking, attribution, conversions, notifications, consent]
 generator: "@getvitops/generator"
 ---

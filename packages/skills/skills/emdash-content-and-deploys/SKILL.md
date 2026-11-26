@@ -9,11 +9,14 @@ description: How content, builds and deploys fit together on this EmDash site �
 
 Truth runs a different direction per kind of data.
 
-| Data                                                        | Truth                                        | Moves by                                                                                                                 |
-| ----------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Code, Astro pages, `site.json`, design system, seed, schema | git (`dev`)                                  | promote `dev → main`                                                                                                     |
-| Content: entries, media, menus, settings                    | **production** D1/R2                         | editors work there; drafts and "Publish changes" are the staging step                                                    |
-| Dev database                                                | staging site, starts as a copy of production | the `site-sync-dev` workflow (`vitops emdash db`), one way only; keeps dev's schema, refuses to overwrite edited content |
+(`vitops.json` was `site.json` before the rename. A site that still has the old name fails its
+deploy with the `git mv` to run; rename it and update the imports that name it.)
+
+| Data                                                          | Truth                                        | Moves by                                                                                                                 |
+| ------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Code, Astro pages, `vitops.json`, design system, seed, schema | git (`dev`)                                  | promote `dev → main`                                                                                                     |
+| Content: entries, media, menus, settings                      | **production** D1/R2                         | editors work there; drafts and "Publish changes" are the staging step                                                    |
+| Dev database                                                  | staging site, starts as a copy of production | the `site-sync-dev` workflow (`vitops emdash db`), one way only; keeps dev's schema, refuses to overwrite edited content |
 
 The dev site is where code and schema changes are developed against real content. Never promote
 its content back. A sync refuses any target not named `*-dev`, refuses when dev content changed
@@ -131,7 +134,7 @@ when the sitemap lists URLs the build has no page for. Set the pattern on the co
 ## Legal pages and the audit
 
 - The sample `/terms` and `/privacy` pages are short placeholders. To replace them, fill in
-  `site.json`'s `organization`/`site.legal`, run
+  `vitops.json`'s `organization`/`site.legal`, run
   `vp exec vitops legal --format portable-text --out ./legal`, and paste each document into the page
   in the admin. The output still needs review before launch.
 - `vitops audit` needs optional packages and a browser, checked before it starts a server:

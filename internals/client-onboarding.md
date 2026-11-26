@@ -3,18 +3,18 @@
 Moved out of AGENTS.md so the root file stays small. Read this before changing the area; the root file keeps only the cross-package rules.
 
 Standing up a new client site is the one job every other subsystem above assumes has already
-happened — a `site.json`, a GitHub repo with the right branch policy, hosting resources, a domain
+happened — a `vitops.json`, a GitHub repo with the right branch policy, hosting resources, a domain
 decision. `SETUP.html` (`packages/create/assets/sop/`, mirrored byte-identically into both
 `@getvitops/create` templates) is the checklist; `vitops setup` (`packages/cli/src/commands/setup.ts`
 → `@getvitops/utils/hosting`) is what most of it runs.
 
-**Every scaffolded template ships a `site.json`, not a bare `design-system.json`.**
+**Every scaffolded template ships a `vitops.json`, not a bare `design-system.json`.**
 `ConfigSchema` requires `designSystem` and there is no file-level `extends`, so a config that
 merely referenced a sibling design-system file was never expressible — the token set has to be
 embedded, under `designSystem.themes.default`. `defaultSiteConfig()`
 (`packages/generator/src/index.ts`, beside `defaultConfig()`) is what `vitops init --site` writes.
 This is what turns on `legal`/`robots`/`search`/`ads`/`reviews`/`icons` for a fresh scaffold — all
-six default to reading `site.json` and previously had nothing to read.
+six default to reading `vitops.json` and previously had nothing to read.
 
 **`vitops setup` absorbs what used to be template-local `init-github.mjs`/`init-hosting.mjs`
 scripts**, so the capability reaches every consumer, not just a fresh `vp create` scaffold — the

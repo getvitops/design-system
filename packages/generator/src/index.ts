@@ -103,6 +103,7 @@ export {
   // keeps their tokens inside the larger three-section config points the same
   // option at that file rather than maintaining a second one.
   isConfig,
+  CONFIG_FILENAME,
   resolveInput,
   stripNulls,
   deepMerge,
@@ -122,6 +123,7 @@ export {
   mergePatch,
   formatConfig,
 } from './config.ts';
+export { legacyConfigHint } from './legacy-config.ts';
 export type {
   AdProvider,
   SiteAdProperty,

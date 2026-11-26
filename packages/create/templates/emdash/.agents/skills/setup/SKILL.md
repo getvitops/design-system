@@ -19,7 +19,7 @@ gates, and where to stop. It does not restate the steps; read `SETUP.html`
 
    Read the plan before doing anything. It names every step it would take and
    why any step is blocked — a missing credential, a field not yet in
-   `site.json`, GitHub Pro/Team gating branch protection.
+   `vitops.json`, GitHub Pro/Team gating branch protection.
 
 2. **Run it.**
 
@@ -63,7 +63,7 @@ gates, and where to stop. It does not restate the steps; read `SETUP.html`
 `vitops setup --check` names the field or credential and where to get it —
 report that verbatim rather than guessing at a fix. A step reported as
 "blocked" is not a failure to retry; it is waiting on one of the hard stops
-above, or on a `site.json` field the user still needs to fill in (stage 5,
+above, or on a `vitops.json` field the user still needs to fill in (stage 5,
 Configuration).
 
 ## Naming the project

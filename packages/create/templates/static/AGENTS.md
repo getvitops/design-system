@@ -1,6 +1,6 @@
 <!-- vitops:start -->
 
-Built with the Vitops design system (`@getvitops/*`); tokens and site facts live in `site.json`.
+Built with the Vitops design system (`@getvitops/*`); tokens and site facts live in `vitops.json`.
 Prefer its classes and patterns over hand-written CSS. Load the skill that matches the task:
 
 - [vitops-ads](.agents/skills/vitops-ads/SKILL.md) — Use when adding or changing a Google/Meta/LinkedIn/TikTok/Microsoft/Reddit/Pinterest/Snapchat pixel
@@ -17,8 +17,8 @@ static assets (no server runtime, no database).
 
 ## Ground rules
 
-- `site.json` is the single source of truth: organization + site facts, and the design system under
-  `designSystem.themes.default`. Never edit `src/styles/`: it is generated from `site.json` on every
+- `vitops.json` is the single source of truth: organization + site facts, and the design system under
+  `designSystem.themes.default`. Never edit `src/styles/`: it is generated from `vitops.json` on every
   dev/build and gitignored.
 - Every page is prerendered (`output: 'static'`): nothing can read request-time data (cookies,
   headers, query params). A page that needs that needs an adapter and a different template.

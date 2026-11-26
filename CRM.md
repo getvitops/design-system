@@ -338,7 +338,7 @@ options:` block in `HELP`.
    filter) against a real account's GraphiQL schema before treating the executor as done, and
    record what was found in `jobber.ts`'s docblock. If either doesn't exist as expected, the
    stated fallback (no note / `dedupe` staying `false`) is what ships, not a guess.
-4. **End-to-end against a real Bigin sandbox.** `vitops crm check --input site.json` should
+4. **End-to-end against a real Bigin sandbox.** `vitops crm check --input vitops.json` should
    report a clean map; then POST a urlencoded body to a locally-served `/api/track` with a
    `_ac` cookie set, and confirm via `Bigin_searchRecords` that the contact exists with the
    attribution fields populated. A `Bigin_getFieldsMetadata` call is the ground truth for the

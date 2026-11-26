@@ -9,7 +9,7 @@ taught by the `vitops-report-issue` skill. Four rules carry the design:
 - **The tracker is public and the client repo is not, so the agent drafts and the person confirms.**
   The default run files nothing: it prints a redacted draft and a prefilled new-issue URL.
   `--submit` still asks on a TTY, and `--yes` exists only for an agent the person has already said
-  yes to. Redaction (`redact()`, terms read loosely from the raw `site.json` so it works when the
+  yes to. Redaction (`redact()`, terms read loosely from the raw `vitops.json` so it works when the
   config is the broken thing) is a net, not a guarantee, which is why the draft is shown first.
 - **One body shape, two producers.** `FORM_FIELDS` in `report.ts` mirrors the labels in
   `.github/ISSUE_TEMPLATE/*.yml`; `report.test.ts` reads the forms and fails on drift, so the bot parses

@@ -8,12 +8,12 @@ export default defineConfig({
   output: 'static',
   integrations: [
     vitops({
-      // site.json is the umbrella Config — organization + site facts plus the
+      // vitops.json is the umbrella Config — organization + site facts plus the
       // design system at designSystem.themes.default — so css.input points
       // there instead of a bare design-system.json. legal/robots/search/ads/
       // reviews all read the same file (see AGENTS.md's "Client onboarding").
       css: {
-        input: 'site.json',
+        input: 'vitops.json',
         format: 'css',
         out: 'src/styles',
       },

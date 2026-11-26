@@ -12,7 +12,7 @@
  * so this only says when the two disagree, at the one layer that already
  * legitimately reads both — the Astro integration's `astro:config:setup`
  * hook, which has Astro's resolved `config.i18n` in hand alongside whatever
- * `site.json` `readSiteAds`/`readSiteConsentTracking` beside it already read.
+ * `vitops.json` `readSiteAds`/`readSiteConsentTracking` beside it already read.
  *
  * A **warning**, not the hard error `consentTrackingConflicts` throws for a
  * consent contradiction: plenty of legitimate sites configure `site.locales`

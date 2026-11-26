@@ -1,6 +1,6 @@
 ---
 /**
- * Configure — build a `site.json` in the browser, one step at a time.
+ * Configure — build a `vitops.json` in the browser, one step at a time.
  *
  * The docs dogfood of the config-form stack: `ONBOARDING_STEPS` (`@getvitops/config/forms`) says
  * what the steps are, `renderStepHtml` (`@getvitops/utils/forms`) writes each step's fields as a
@@ -21,7 +21,7 @@ import Docs from '../layouts/Docs.astro';
 
 const title = 'Configure a site';
 const description =
-  'Build a site.json step by step in the browser: identity, contact, brand, accessibility, privacy and more, validated against the real config schema as you type.';
+  'Build a vitops.json step by step in the browser: identity, contact, brand, accessibility, privacy and more, validated against the real config schema as you type.';
 
 const schema = configJsonSchema as unknown as JsonSchema;
 const base = defaultSiteConfig({ name: '' });
@@ -56,8 +56,8 @@ const baseJson = JSON.stringify(base).replace(/</g, '\\u003c');
 <Docs title={title} description={description}>
   <p>
     The same steps a new client works through when onboarding a site. Fill in what applies, skip
-    what doesn't, and finish with a <code>site.json</code> you can drop into a project. Every field
-    is checked against the config schema <code>vitops validate</code> uses.
+    what doesn't, and finish with a <code>vitops.json</code> you can drop into a project. Every
+    field is checked against the config schema <code>vitops validate</code> uses.
   </p>
 
   <Stepper
@@ -75,20 +75,20 @@ const baseJson = JSON.stringify(base).replace(/</g, '\\u003c');
             <section id={id} data-step class="rhythm" aria-labelledby={`${id}-h`}>
               <h2 id={`${id}-h`}>{step.title}</h2>
               <p class="field__notice" id="cfg-nojs">
-                This page builds your <code>site.json</code> in the browser, so the preview and the
-                validation below need JavaScript. Without it you can still read every field above;{' '}
-                <code>vitops init --site</code> writes the same starter file.
+                This page builds your <code>vitops.json</code> in the browser, so the preview and
+                the validation below need JavaScript. Without it you can still read every field
+                above; <code>vitops init --site</code> writes the same starter file.
               </p>
               <p id="cfg-status" role="status" hidden />
               <div class="stepper__actions" id="cfg-actions" hidden>
                 <button type="button" class="cta" id="cfg-copy">
-                  Copy site.json
+                  Copy vitops.json
                 </button>
                 <button type="button" class="btn" id="cfg-download">
                   Download
                 </button>
               </div>
-              <pre id="cfg-out" aria-label="site.json" hidden />
+              <pre id="cfg-out" aria-label="vitops.json" hidden />
             </section>
           ) : (
             <section id={id} data-step class="rhythm" aria-labelledby={`${id}-h`}>
@@ -163,7 +163,7 @@ const baseJson = JSON.stringify(base).replace(/</g, '\\u003c');
         status.hidden = false;
         status.dataset.valid = String(result.ok);
         status.textContent = result.ok
-          ? 'This site.json is valid.'
+          ? 'This vitops.json is valid.'
           : `${result.errors.length} problem${result.errors.length === 1 ? '' : 's'}: ${result.errors
               .slice(0, 3)
               .map((e) => `${e.path.length ? e.path.join('.') + ': ' : ''}${e.message}`)
@@ -182,7 +182,7 @@ const baseJson = JSON.stringify(base).replace(/</g, '\\u003c');
     });
     document.getElementById('cfg-download')?.addEventListener('click', () => {
       const url = URL.createObjectURL(new Blob([text()], { type: 'application/json' }));
-      const a = Object.assign(document.createElement('a'), { href: url, download: 'site.json' });
+      const a = Object.assign(document.createElement('a'), { href: url, download: 'vitops.json' });
       a.click();
       URL.revokeObjectURL(url);
     });
