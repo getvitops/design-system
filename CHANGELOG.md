@@ -11,6 +11,32 @@ bundles into your `public/` — mixing versions can leave the CSS and the compon
 Per-package detail — including every release before 0.7.0 — ships with each package:
 `node_modules/@getvitops/<pkg>/CHANGELOG.md`.
 
+## 9.0.0-alpha.13 (+ `@getvitops/emdash` 2.0.0-alpha.14, `@getvitops/create` 0.9.0-alpha.11, `@getvitops/skills` 0.1.0-alpha.6) — alpha channel
+
+Prerelease on the `alpha` dist-tag; not on `latest`. `@getvitops/vite` carries **no consumer-facing change** beyond the `fixed` version bump, and `@getvitops/config` and `@getvitops/utils` carry none beyond the `site.campaigns` schema and the new `utils/campaigns` subpath listed below.
+
+**Breaking**
+
+- **The default config file is `vitops.json`, not `site.json`** (`@getvitops/generator`, `cli`, `emdash`, `create`, `skills`). The file holds the design system and the organization as well as the site, and the first two serve more than websites, so it is named for the toolchain. Its shape is unchanged and it is still recognised by shape (a top-level `designSystem` key), so a file you named something else keeps working. There is no fallback to the old name. **Migration:** `git mv site.json vitops.json`, then update every import or `input` that names `./site.json` (`astro.config.mjs`, `vite.config.ts`, `package.json` scripts). The CLI commands, `vitops emdash` and the reusable `site-deploy-emdash.yml` print that `git mv` line when they find a `site.json` that is a config and no `vitops.json`. `vitops lint --fix` does not rename files, so that message is the migration path. A client repo on the reusable workflow should rename the file in the same commit that picks up this release. The EmDash design-system editor now commits to `vitops.json`. New exports: `CONFIG_FILENAME` (Worker-safe, from `@getvitops/generator/config`) and `legacyConfigHint()` (Node-only). No CSS change.
+
+**Added**
+
+- **`site.campaigns`: email-list signups through Zoho Campaigns or SendFox** (`@getvitops/generator`, `config`, `cli`, `astro`, `emdash`, `utils`). It sits beside `site.crm` because a signup wants a stream of messages and carries different consent from an enquiry. A visitor is subscribed only when the opt-in field is ticked (the `marketing` cookie category is not the gate), a failed subscribe never fails the request, and with `site.crm` also set the contact records the opt-in as a fact. `<ContactForm>` and `vitops_form` take `subscribeList`, `subscribeLabel` and `subscribeOnly`; the legal documents raise the CASL paragraph and name the processor; `vitops campaigns check` verifies the configured list ids against the live account. HubSpot and Jobber providers are not shipped yet. No existing config or saved form needs migration. No CSS change.
+- **`vitops_hero` options** (`@getvitops/core`, `emdash`; **all formats**): Text alignment, Width (edge to edge, or page width with a rounded image) and Second button style. Defaults reproduce the previous look, and the text column and image no longer carry inline styles.
+- **`.split-responsive`** (`@getvitops/core`, **all formats**) stacks a `.split` below `md` with no utility class, so a block can ask for it in every format. `split-1-1` exists as a ratio, and `vitops lint` flags a `split-<a>-<b>` class that does not exist.
+- **`vitops_gallery` Thumbnail size** (`@getvitops/core`, `emdash`; **all formats**), and a one-image gallery fills its column.
+- **`vitops_cards` Tags** (`@getvitops/emdash`): one per line, rendered as `.tag` badges. The checklist becomes `list list--divided list--check`, so `<li>` gains `class="list__item"`, and card rows collapse to two then one column on narrow screens.
+- **`vitops_entries` links** (`@getvitops/astro`, `emdash`): a value that is exactly `[label](url)` renders as a link; `<Entries>` pairs take an optional `href`.
+- **`<VitopsContent components={…}>`** (`@getvitops/emdash`) forwards `<PortableText>`'s `components` to the text runs and to the blocks inside every band. `themeAttrs(theme, className?)` takes the element's own classes and returns one merged `class` (a second literal `class` was silently dropped by the browser).
+
+**Changed**
+
+- **`<SiteFooter>` owns its page track** (`@getvitops/astro`, `cli`, `create`, `core`; **all formats**). It renders an inner `.sitefooter__inner.centered` row (`width="content"`, the default; `width="full"` runs edge to edge). **Migration:** run `vitops lint --fix`; the new `SiteFooter.centered` error removes the `centered` class from `<SiteFooter class="centered">`. A site that styled `.sitefooter` as the flex container should retarget `.sitefooter__inner`. The lint summary now says "layout errors" for layout findings.
+
+**Fixed**
+
+- **Fixes from the vitops.ca build** (`@getvitops/core`, **all formats**): a bare link in `.section__body` is sized to its label instead of stretching; `.subgrid` and `.pricing-grid` use `minmax(0, 1fr)` tracks so wide content cannot overflow on mobile; `.rhythm` gives `.form-block`, `.callout` and `.logos-block` the block gap; and a `<select>` without `appearance: base-select` drops the native arrow so it no longer shows two chevrons.
+
 ## 9.0.0-alpha.12 (+ `@getvitops/emdash` 2.0.0-alpha.13) — alpha channel
 
 Prerelease on the `alpha` dist-tag; not on `latest`. Two CSS fixes found reviewing two sites on alpha.11. `@getvitops/emdash` carries **no consumer-facing change** (it only follows the toolchain version). `@getvitops/config`, `generator`, `utils`, `cli`, `vite` and `astro` carry no consumer-facing change beyond the `fixed` bump. `@getvitops/create` and `@getvitops/skills` are unchanged.

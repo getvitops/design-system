@@ -1,5 +1,52 @@
 # @getvitops/emdash
 
+## 2.0.0-alpha.14
+
+### Minor Changes
+
+- 9b6f819: `vitops_cards` panels gain a **Tags** field (one per line, rendered as `.tag` badges) and render the checklist as a ticked `list list--divided list--check`. Cards and hero option cards now emit `subgrid-responsive`, so rows collapse to two then one column on narrow screens. Existing content is unchanged apart from the checklist markup (`<li>` becomes `<li class="list__item">`) and the responsive collapse. Needs `@getvitops/core` with `.list--check`. Cards also size their row tracks to their busiest card (`--subgrid-card-rows`), so an image, tags and a checklist no longer overflow into the button row.
+- 95367bf: Added: `site.campaigns`, email-list signups (waitlist, blog updates, reports) subscribed through **Zoho Campaigns** or **SendFox**. It sits beside `site.crm` rather than inside it: an enquiry wants a reply, a signup wants a stream of messages, and the two carry different consent.
+
+  - `site.campaigns` takes a `provider`, named `lists` (`{ label, zohoCampaigns: { listKey } | sendfox: { listId } }`), and optional `consentField` (default `subscribe`), `listField` (default `list`) and `mirrorToCrm` (default `true`). `validateConfig` requires the provider's block and per-list id. Zoho Campaigns accepts `com`, `eu`, `in`, `com.au` and `jp` data centres; there is no Canadian one because Zoho documents no Canadian Campaigns host.
+  - `createConversionRoute()` takes a `campaigns: { config, credentials }` option (`toCampaignsConfig(config)` adapts it). A visitor is subscribed only when the opt-in field is ticked; the `marketing` cookie category is not the gate. Credentials come from `locals`: `VITOPS_ZOHO_CAMPAIGNS_CLIENT_ID` / `_CLIENT_SECRET` / `_REFRESH_TOKEN`, or `VITOPS_SENDFOX_TOKEN`. A failed subscribe never fails the request, and the opt-in time, page and IP go into the notification email's Delivery section as the consent record.
+  - When `site.crm` is also configured, the CRM contact records the opt-in as a fact ("Opted in to: Waitlist (2026-11-26)") in Bigin's Description or Jobber's note, never as subscription state. Set `mirrorToCrm: false` for clients who already sync their CRM to the campaign tool; a signup-only form then skips the CRM write. The fact is not rendered for a HubSpot CRM yet.
+  - New Worker-safe subpath `@getvitops/utils/campaigns` (`planCampaigns`, `deliverToCampaigns`, `describeCampaignsResult`).
+  - Legal documents: a configured, enabled `site.campaigns` raises the CASL paragraph without needing a newsletter-named form field, and names Zoho Campaigns or SendFox as a processor. Their operator and storage jurisdiction are left unset pending verification.
+
+  - Forms: `<ContactForm>` and the EmDash `vitops_form` block take an optional email-list opt-in (`subscribeList`, `subscribeLabel`, `subscribeOnly`). By default it is an unticked "Email me updates" checkbox plus a hidden list key; `subscribeOnly` makes a dedicated signup whose button is the opt-in, with a visible consent statement. An author's own field named `subscribe` or `list` is renamed (`subscribe_2`) rather than shadowed. `formTemplateFromBlock` adds the checkbox to the generated `site.templates` entry so the privacy policy describes it. The sample form now uses it instead of a bare `newsletter` checkbox, which was never wired to anything.
+  - CLI: `vitops campaigns check` fetches the account's live lists and exits non-zero when a configured `listKey`/`listId` does not exist. It needs `VITOPS_ZOHO_CAMPAIGNS_CLIENT_ID` / `_CLIENT_SECRET` / `_REFRESH_TOKEN` (a token with `ZohoCampaigns.contact.READ`) or `VITOPS_SENDFOX_TOKEN`. SendFox's API needs a paid plan and answers 402 on the Free plan.
+
+  Formats: `@getvitops/astro` (route, `<ContactForm>`), `@getvitops/emdash` (block), `@getvitops/generator` (config, legal), `@getvitops/config` (schema) and `@getvitops/cli` only; no CSS changed, so no format output differs. Not yet shipped: HubSpot and Jobber providers. No existing config or saved form needs migration.
+
+  No consumer-facing change in `@getvitops/core` or `@getvitops/vite`.
+
+- b8535eb: `vitops_gallery` gains a **Thumbnail size** field (small, medium, large), and a gallery with a single image fills its column instead of showing one 150px thumbnail (`.gallery:has(> li:only-child)`). The block's `style` field still wins. CSS: **all formats**.
+- b8535eb: `vitops_hero` (split layout) gains **Text alignment** (centered or left), **Width** (edge to edge, or page width with a rounded image) and **Second button style** (text link or outlined button). Defaults reproduce the previous look. The text column and image no longer carry inline styles: `.hero__text` and `.hero__media` (with `--hero-justify`, `--hero-text-align`, `--hero-media-h`, `--hero-media-radius`) in `section.css`, so a site can restyle them without `!important`. CSS: **all formats**.
+- b8535eb: `themeAttrs(theme, className?)` takes the element's own classes as a second argument and returns one merged `class`. Spreading it next to a literal `class` emits two `class` attributes, and the browser keeps only the first, so the backdrop silently disappeared. The building-pages skill and the docblock show the merged form. Existing one-argument calls are unchanged.
+- b8535eb: `<VitopsContent components={…}>` takes `<PortableText>`'s `components` prop and forwards it to the text runs and to the blocks inside every band, so a site can override a block (`{ type: { vitops_hero: MyHero } }`) without losing the band support.
+
+### Patch Changes
+
+- 20662f7: **Breaking: the default config file is now `vitops.json`, not `site.json`** (`@getvitops/generator`, `@getvitops/cli`, `@getvitops/emdash`, `@getvitops/create`, `@getvitops/skills`). The file holds the design system and the organization as well as the site, and the first two serve more than websites, so it is named for the toolchain. Nothing about its shape changed, and it is still recognised by shape (a top-level `designSystem` key), so a file you named something else keeps working. There is no fallback to the old name.
+
+  Migration: `git mv site.json vitops.json`, then update every import or `input` that names `./site.json` (`astro.config.mjs`, `vite.config.ts`, `package.json` scripts, `wrangler.jsonc` comments). A command that cannot find the config now says this when it sees a `site.json` that is a config and no `vitops.json`: the CLI commands, `vitops emdash` and the site deploy workflow all print the `git mv` line. `vitops lint --fix` does not rename files, so that message is the migration path. A client repo on the reusable `site-deploy-emdash.yml` should rename the file in the same commit that picks up this release.
+
+  - `@getvitops/generator`: exports `CONFIG_FILENAME` (`'vitops.json'`, Worker-safe, from `@getvitops/generator/config`) and `legacyConfigHint()` (Node-only). `vitops docs` and the generated reference name `vitops.json`.
+  - `@getvitops/cli`: `-i/--input` defaults, `init --site`, the `--site` flag of `emdash form-template`/`check-prerender`, `report`, `audit` and `setup` all use `vitops.json`; config discovery no longer lists `site.json`; help text updated.
+  - `@getvitops/emdash`: the design-system editor's git sync commits to `vitops.json`.
+  - `@getvitops/create`: both templates ship `vitops.json` and import it by that name. Existing sites are unchanged until they rename.
+  - `@getvitops/skills`: the agent skills name `vitops.json` and say older sites used `site.json`.
+  - No consumer-facing change in `@getvitops/core`, `@getvitops/utils`, `@getvitops/vite` or `@getvitops/astro` beyond comments and the `fixed` bump. No CSS change in any format.
+
+- b8535eb: `vitops_entries` values that are exactly `[label](url)` render as links (`tel:`, `mailto:`, pages) instead of raw Markdown, and other values show their text with the markup flattened. `<Entries>` pairs take an optional `href`.
+- b8535eb: `.split-responsive` stacks a `.split` below `md` (48rem of the nearest container) with no utility class, so a block or any markup can ask for it in every format. A block cannot emit `md-split-1-2` (css/bricks only) or `@md:split-1-2` (Tailwind scans source, and a block's output is not source). `split-1-1` now exists as a ratio, with its breakpoint forms, and `vitops lint` flags a `split-<a>-<b>` class the framework does not define (`@md:split-1-1` used to lint clean and do nothing). The hero's split layout emits `split split-responsive`, so it no longer squeezes into a narrow column on a phone. CSS: **all formats**.
+- Updated dependencies [20662f7]
+- Updated dependencies [95367bf]
+- Updated dependencies [b8535eb]
+- Updated dependencies [9b6f819]
+  - @getvitops/generator@9.0.0-alpha.13
+  - @getvitops/utils@9.0.0-alpha.13
+
 ## 2.0.0-alpha.13
 
 ### Patch Changes

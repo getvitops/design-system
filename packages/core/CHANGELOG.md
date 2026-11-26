@@ -1,5 +1,42 @@
 # @getvitops/core
 
+## 9.0.0-alpha.13
+
+### Minor Changes
+
+- b8535eb: `vitops_hero` (split layout) gains **Text alignment** (centered or left), **Width** (edge to edge, or page width with a rounded image) and **Second button style** (text link or outlined button). Defaults reproduce the previous look. The text column and image no longer carry inline styles: `.hero__text` and `.hero__media` (with `--hero-justify`, `--hero-text-align`, `--hero-media-h`, `--hero-media-radius`) in `section.css`, so a site can restyle them without `!important`. CSS: **all formats**.
+- b8535eb: `.split-responsive` stacks a `.split` below `md` (48rem of the nearest container) with no utility class, so a block or any markup can ask for it in every format. A block cannot emit `md-split-1-2` (css/bricks only) or `@md:split-1-2` (Tailwind scans source, and a block's output is not source). `split-1-1` now exists as a ratio, with its breakpoint forms, and `vitops lint` flags a `split-<a>-<b>` class the framework does not define (`@md:split-1-1` used to lint clean and do nothing). The hero's split layout emits `split split-responsive`, so it no longer squeezes into a narrow column on a phone. CSS: **all formats**.
+
+### Patch Changes
+
+- 20662f7: **Breaking: the default config file is now `vitops.json`, not `site.json`** (`@getvitops/generator`, `@getvitops/cli`, `@getvitops/emdash`, `@getvitops/create`, `@getvitops/skills`). The file holds the design system and the organization as well as the site, and the first two serve more than websites, so it is named for the toolchain. Nothing about its shape changed, and it is still recognised by shape (a top-level `designSystem` key), so a file you named something else keeps working. There is no fallback to the old name.
+
+  Migration: `git mv site.json vitops.json`, then update every import or `input` that names `./site.json` (`astro.config.mjs`, `vite.config.ts`, `package.json` scripts, `wrangler.jsonc` comments). A command that cannot find the config now says this when it sees a `site.json` that is a config and no `vitops.json`: the CLI commands, `vitops emdash` and the site deploy workflow all print the `git mv` line. `vitops lint --fix` does not rename files, so that message is the migration path. A client repo on the reusable `site-deploy-emdash.yml` should rename the file in the same commit that picks up this release.
+
+  - `@getvitops/generator`: exports `CONFIG_FILENAME` (`'vitops.json'`, Worker-safe, from `@getvitops/generator/config`) and `legacyConfigHint()` (Node-only). `vitops docs` and the generated reference name `vitops.json`.
+  - `@getvitops/cli`: `-i/--input` defaults, `init --site`, the `--site` flag of `emdash form-template`/`check-prerender`, `report`, `audit` and `setup` all use `vitops.json`; config discovery no longer lists `site.json`; help text updated.
+  - `@getvitops/emdash`: the design-system editor's git sync commits to `vitops.json`.
+  - `@getvitops/create`: both templates ship `vitops.json` and import it by that name. Existing sites are unchanged until they rename.
+  - `@getvitops/skills`: the agent skills name `vitops.json` and say older sites used `site.json`.
+  - No consumer-facing change in `@getvitops/core`, `@getvitops/utils`, `@getvitops/vite` or `@getvitops/astro` beyond comments and the `fixed` bump. No CSS change in any format.
+
+- b8535eb: `<SiteFooter>` owns its page track. The footer now renders an inner `.sitefooter__inner.centered` row (`width="content"`, the default), so the gutters come from the page track like `<Masthead width="content">`; `width="full"` runs it edge to edge inside `--sitefooter-gutter`. The starter used to pass `class="centered"` to the footer, where `.sitefooter { display: flex }` cancelled it and left the footer against the viewport edge.
+
+  **Migration:** run `vitops lint --fix`. The new `SiteFooter.centered` error finds `<SiteFooter class="centered">` and removes the token. A site that styled `.sitefooter` as the flex container should retarget `.sitefooter__inner`. The lint summary now reports layout findings as "layout errors" rather than "unresolvable classes". CSS: **all formats**.
+
+- b8535eb: `vitops_gallery` gains a **Thumbnail size** field (small, medium, large), and a gallery with a single image fills its column instead of showing one 150px thumbnail (`.gallery:has(> li:only-child)`). The block's `style` field still wins. CSS: **all formats**.
+- 9b6f819: Fixes from the vitops.ca build, none of which need a code edit in a consumer.
+
+  - **Section body links** no longer stretch: a bare `<a>` in `.section__body` is sized to its label like a button. `.subgrid` and `.pricing-grid` use `minmax(0, 1fr)` tracks so wide content cannot overflow on mobile. (css/bricks/tailwind: all formats)
+  - **`.rhythm`** gives `.form-block`, `.callout` and `.logos-block` the block gap. (all formats; the tailwind output carries the same selector list)
+  - **`<select>`** without `appearance: base-select` drops the native arrow so it no longer shows two chevrons. (all formats)
+  - **`<Masthead width="content">`** keeps its row on the page track (`.masthead__row:not(.centered)` is the only row forced to `block`). (all formats)
+  - **`vitops_logos` text-only entries** size through `--heading-fs`, so they are no longer 45px. (all formats)
+  - **`.btn` on an `<a>`** is no longer underlined: a pattern on the bare `a` element (`link`) is now emitted before the other element patterns, whatever order `patterns.items` is authored in, so `.btn` wins the tie. (generator; css/bricks/tailwind)
+  - **`<SiteFooter>`** puts a space between the year and the name and moves the legal links onto the copyright row (`.sitefooter__base`). Sites that styled `.sitefooter__group--legal` inside `.sitefooter__nav` should retarget it. (astro)
+
+  `@getvitops/core` also gains `.list--check` (a ticked, flush list) in `list.css`. No consumer-facing change in `@getvitops/cli`, `@getvitops/vite`, `@getvitops/utils` or `@getvitops/config` beyond the fixed-group bump.
+
 ## 9.0.0-alpha.12
 
 ### Patch Changes

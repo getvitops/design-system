@@ -1,5 +1,67 @@
 # @getvitops/astro
 
+## 9.0.0-alpha.13
+
+### Minor Changes
+
+- 95367bf: Added: `site.campaigns`, email-list signups (waitlist, blog updates, reports) subscribed through **Zoho Campaigns** or **SendFox**. It sits beside `site.crm` rather than inside it: an enquiry wants a reply, a signup wants a stream of messages, and the two carry different consent.
+
+  - `site.campaigns` takes a `provider`, named `lists` (`{ label, zohoCampaigns: { listKey } | sendfox: { listId } }`), and optional `consentField` (default `subscribe`), `listField` (default `list`) and `mirrorToCrm` (default `true`). `validateConfig` requires the provider's block and per-list id. Zoho Campaigns accepts `com`, `eu`, `in`, `com.au` and `jp` data centres; there is no Canadian one because Zoho documents no Canadian Campaigns host.
+  - `createConversionRoute()` takes a `campaigns: { config, credentials }` option (`toCampaignsConfig(config)` adapts it). A visitor is subscribed only when the opt-in field is ticked; the `marketing` cookie category is not the gate. Credentials come from `locals`: `VITOPS_ZOHO_CAMPAIGNS_CLIENT_ID` / `_CLIENT_SECRET` / `_REFRESH_TOKEN`, or `VITOPS_SENDFOX_TOKEN`. A failed subscribe never fails the request, and the opt-in time, page and IP go into the notification email's Delivery section as the consent record.
+  - When `site.crm` is also configured, the CRM contact records the opt-in as a fact ("Opted in to: Waitlist (2026-11-26)") in Bigin's Description or Jobber's note, never as subscription state. Set `mirrorToCrm: false` for clients who already sync their CRM to the campaign tool; a signup-only form then skips the CRM write. The fact is not rendered for a HubSpot CRM yet.
+  - New Worker-safe subpath `@getvitops/utils/campaigns` (`planCampaigns`, `deliverToCampaigns`, `describeCampaignsResult`).
+  - Legal documents: a configured, enabled `site.campaigns` raises the CASL paragraph without needing a newsletter-named form field, and names Zoho Campaigns or SendFox as a processor. Their operator and storage jurisdiction are left unset pending verification.
+
+  - Forms: `<ContactForm>` and the EmDash `vitops_form` block take an optional email-list opt-in (`subscribeList`, `subscribeLabel`, `subscribeOnly`). By default it is an unticked "Email me updates" checkbox plus a hidden list key; `subscribeOnly` makes a dedicated signup whose button is the opt-in, with a visible consent statement. An author's own field named `subscribe` or `list` is renamed (`subscribe_2`) rather than shadowed. `formTemplateFromBlock` adds the checkbox to the generated `site.templates` entry so the privacy policy describes it. The sample form now uses it instead of a bare `newsletter` checkbox, which was never wired to anything.
+  - CLI: `vitops campaigns check` fetches the account's live lists and exits non-zero when a configured `listKey`/`listId` does not exist. It needs `VITOPS_ZOHO_CAMPAIGNS_CLIENT_ID` / `_CLIENT_SECRET` / `_REFRESH_TOKEN` (a token with `ZohoCampaigns.contact.READ`) or `VITOPS_SENDFOX_TOKEN`. SendFox's API needs a paid plan and answers 402 on the Free plan.
+
+  Formats: `@getvitops/astro` (route, `<ContactForm>`), `@getvitops/emdash` (block), `@getvitops/generator` (config, legal), `@getvitops/config` (schema) and `@getvitops/cli` only; no CSS changed, so no format output differs. Not yet shipped: HubSpot and Jobber providers. No existing config or saved form needs migration.
+
+  No consumer-facing change in `@getvitops/core` or `@getvitops/vite`.
+
+- b8535eb: `vitops_entries` values that are exactly `[label](url)` render as links (`tel:`, `mailto:`, pages) instead of raw Markdown, and other values show their text with the markup flattened. `<Entries>` pairs take an optional `href`.
+- b8535eb: `<SiteFooter>` owns its page track. The footer now renders an inner `.sitefooter__inner.centered` row (`width="content"`, the default), so the gutters come from the page track like `<Masthead width="content">`; `width="full"` runs it edge to edge inside `--sitefooter-gutter`. The starter used to pass `class="centered"` to the footer, where `.sitefooter { display: flex }` cancelled it and left the footer against the viewport edge.
+
+  **Migration:** run `vitops lint --fix`. The new `SiteFooter.centered` error finds `<SiteFooter class="centered">` and removes the token. A site that styled `.sitefooter` as the flex container should retarget `.sitefooter__inner`. The lint summary now reports layout findings as "layout errors" rather than "unresolvable classes". CSS: **all formats**.
+
+### Patch Changes
+
+- 20662f7: **Breaking: the default config file is now `vitops.json`, not `site.json`** (`@getvitops/generator`, `@getvitops/cli`, `@getvitops/emdash`, `@getvitops/create`, `@getvitops/skills`). The file holds the design system and the organization as well as the site, and the first two serve more than websites, so it is named for the toolchain. Nothing about its shape changed, and it is still recognised by shape (a top-level `designSystem` key), so a file you named something else keeps working. There is no fallback to the old name.
+
+  Migration: `git mv site.json vitops.json`, then update every import or `input` that names `./site.json` (`astro.config.mjs`, `vite.config.ts`, `package.json` scripts, `wrangler.jsonc` comments). A command that cannot find the config now says this when it sees a `site.json` that is a config and no `vitops.json`: the CLI commands, `vitops emdash` and the site deploy workflow all print the `git mv` line. `vitops lint --fix` does not rename files, so that message is the migration path. A client repo on the reusable `site-deploy-emdash.yml` should rename the file in the same commit that picks up this release.
+
+  - `@getvitops/generator`: exports `CONFIG_FILENAME` (`'vitops.json'`, Worker-safe, from `@getvitops/generator/config`) and `legacyConfigHint()` (Node-only). `vitops docs` and the generated reference name `vitops.json`.
+  - `@getvitops/cli`: `-i/--input` defaults, `init --site`, the `--site` flag of `emdash form-template`/`check-prerender`, `report`, `audit` and `setup` all use `vitops.json`; config discovery no longer lists `site.json`; help text updated.
+  - `@getvitops/emdash`: the design-system editor's git sync commits to `vitops.json`.
+  - `@getvitops/create`: both templates ship `vitops.json` and import it by that name. Existing sites are unchanged until they rename.
+  - `@getvitops/skills`: the agent skills name `vitops.json` and say older sites used `site.json`.
+  - No consumer-facing change in `@getvitops/core`, `@getvitops/utils`, `@getvitops/vite` or `@getvitops/astro` beyond comments and the `fixed` bump. No CSS change in any format.
+
+- 9b6f819: Fixes from the vitops.ca build, none of which need a code edit in a consumer.
+
+  - **Section body links** no longer stretch: a bare `<a>` in `.section__body` is sized to its label like a button. `.subgrid` and `.pricing-grid` use `minmax(0, 1fr)` tracks so wide content cannot overflow on mobile. (css/bricks/tailwind: all formats)
+  - **`.rhythm`** gives `.form-block`, `.callout` and `.logos-block` the block gap. (all formats; the tailwind output carries the same selector list)
+  - **`<select>`** without `appearance: base-select` drops the native arrow so it no longer shows two chevrons. (all formats)
+  - **`<Masthead width="content">`** keeps its row on the page track (`.masthead__row:not(.centered)` is the only row forced to `block`). (all formats)
+  - **`vitops_logos` text-only entries** size through `--heading-fs`, so they are no longer 45px. (all formats)
+  - **`.btn` on an `<a>`** is no longer underlined: a pattern on the bare `a` element (`link`) is now emitted before the other element patterns, whatever order `patterns.items` is authored in, so `.btn` wins the tie. (generator; css/bricks/tailwind)
+  - **`<SiteFooter>`** puts a space between the year and the name and moves the legal links onto the copyright row (`.sitefooter__base`). Sites that styled `.sitefooter__group--legal` inside `.sitefooter__nav` should retarget it. (astro)
+
+  `@getvitops/core` also gains `.list--check` (a ticked, flush list) in `list.css`. No consumer-facing change in `@getvitops/cli`, `@getvitops/vite`, `@getvitops/utils` or `@getvitops/config` beyond the fixed-group bump.
+
+- Updated dependencies [20662f7]
+- Updated dependencies [95367bf]
+- Updated dependencies [b8535eb]
+- Updated dependencies [b8535eb]
+- Updated dependencies [b8535eb]
+- Updated dependencies [b8535eb]
+- Updated dependencies [9b6f819]
+  - @getvitops/generator@9.0.0-alpha.13
+  - @getvitops/core@9.0.0-alpha.13
+  - @getvitops/utils@9.0.0-alpha.13
+  - @getvitops/vite@9.0.0-alpha.13
+  - @getvitops/config@9.0.0-alpha.13
+
 ## 9.0.0-alpha.12
 
 ### Patch Changes

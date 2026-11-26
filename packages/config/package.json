@@ -1,6 +1,6 @@
 {
   "name": "@getvitops/config",
-  "version": "9.0.0-alpha.12",
+  "version": "9.0.0-alpha.13",
   "description": "The site-config schema blocks the Vitops toolchain's provider integrations read — CRM, ads, reviews, indexing, notifications, tracking — as zod schemas and inferred types. A leaf package: it imports nothing else in the toolchain.",
   "homepage": "https://docs.vitops.ca",
   "bugs": "https://github.com/getvitops/design-system/issues",
