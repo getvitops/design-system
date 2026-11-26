@@ -18,6 +18,7 @@
 
 import type { PortableTextBlockConfig } from 'emdash';
 import { SEMANTIC_ICON_OPTIONS } from './icon-options.ts';
+import { REVEALS } from './astro/blocks/reveal.ts';
 import { SEMANTIC_TONES } from './astro/blocks/tone.ts';
 import { THEME_ROLES } from './block-types.ts';
 
@@ -79,6 +80,31 @@ function toneFields(): BlockKitFieldDef[] {
       label: 'Palette colour instead of a tone (e.g. amber or amber-300)',
     },
   ];
+}
+
+/**
+ * The staggered-entrance select for blocks made of repeated items (Cards, Steps, Stats). Its
+ * values are `REVEALS`' keys (`astro/blocks/reveal.ts` owns the classes; a test pins the two).
+ */
+function revealField(): BlockKitFieldDef {
+  const labels: Record<keyof typeof REVEALS, string> = {
+    fade: 'Fade in, one after another',
+    slide: 'Slide up, one after another',
+    'fade-slide': 'Fade and slide up, one after another',
+  };
+  return {
+    type: 'select',
+    action_id: 'reveal',
+    label: 'Entrance (items animate in as they scroll into view)',
+    initial_value: '',
+    options: [
+      { label: 'None', value: '' },
+      ...(Object.keys(REVEALS) as (keyof typeof REVEALS)[]).map((k) => ({
+        label: labels[k],
+        value: k,
+      })),
+    ],
+  };
 }
 
 /** Route that lists the site's widget areas for `vitops_widgetArea`'s `area` select. */
@@ -478,6 +504,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
           { label: '4', value: '4' },
         ],
       },
+      revealField(),
     ],
   },
   {
@@ -906,6 +933,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
           { label: 'Side by side when wide', value: 'row' },
         ],
       },
+      revealField(),
       ...toneFields(),
     ],
   },
@@ -963,6 +991,7 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
         label: 'Count up when scrolled into view',
         initial_value: true,
       },
+      revealField(),
       ...toneFields(),
     ],
   },

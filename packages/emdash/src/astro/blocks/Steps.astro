@@ -6,6 +6,7 @@
  * convention — see `tone.ts`.
  */
 import RichText from './RichText.astro';
+import { reveal } from './reveal.ts';
 import { resolveTone, joinStyle, rowTone } from './tone.ts';
 import { headingTag, resolveBlockValue, rows, text } from './value.ts';
 
@@ -15,6 +16,7 @@ interface Value {
   layout?: string;
   tone?: string;
   color?: string;
+  reveal?: string;
 }
 
 const value = resolveBlockValue<Value>(Astro.props);
@@ -23,6 +25,7 @@ const steps = rows<Record<string, unknown>>(value.steps)
   .filter((step) => step.title || step.text);
 const Heading = headingTag(value.level, 3);
 const tone = resolveTone(value.tone, value.color);
+const entrance = reveal(value.reveal);
 import { rootAttrs } from './attrs.ts';
 ---
 
@@ -30,12 +33,12 @@ import { rootAttrs } from './attrs.ts';
   <ol
     {...rootAttrs(
       value,
-      ['steps', tone.className, value.layout === 'row' && 'steps--row'],
+      ['steps', tone.className, value.layout === 'row' && 'steps--row', entrance.root],
       joinStyle(tone.style),
     )}
   >
     {steps.map((step) => (
-      <li class="steps__item" style={step.style}>
+      <li class:list={['steps__item', entrance.item]} style={step.style}>
         <div class="steps__body">
           {step.title && <Heading class="steps__title font-heading">{step.title}</Heading>}
           {step.text && (

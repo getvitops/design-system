@@ -86,6 +86,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
     level: '3',
     tone: 'brand-primary',
     columns: '3',
+    reveal: 'fade-slide',
     cards: [
       {
         title: 'Design',

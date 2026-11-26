@@ -79,6 +79,9 @@ export function renderBlocksDoc(blocks: readonly PortableTextBlockDef[] = BLOCKS
     'on scroll; static with reduced motion). `rhythm-flex` is an opt-in flex stack for any block.',
     'Steps, stats and cards also have per-part hooks: `--steps-title-size` (default one step below the',
     'heading role), `--stats-figure-size` and `--card-title-size`.',
+    'Cards, steps and stats also take an **Entrance** (`reveal`: fade, slide, or both): the items animate in one after',
+    'another as they scroll into view. The block adds `stagger` to its list and the effect plus `animate-view` to each',
+    'item, which `className` alone cannot do (it reaches only the root). Needs the `fade-in` / `slide-up` effects.',
     '',
   ];
   for (const b of blocks) {

@@ -9,6 +9,7 @@
  * `animate: false` renders the plain fragment (`enhance={false}`) — no count-up.
  */
 import Counter from '@getvitops/astro/components/Counter.astro';
+import { reveal } from './reveal.ts';
 import { resolveTone, joinStyle, rowTone } from './tone.ts';
 import { resolveBlockValue, rows, text } from './value.ts';
 
@@ -18,6 +19,7 @@ interface Value {
   animate?: boolean;
   tone?: string;
   color?: string;
+  reveal?: string;
 }
 
 const STATES = new Set(['up', 'down']);
@@ -36,16 +38,21 @@ const stats = rows<Record<string, unknown>>(value.stats)
 const tiles = value.variant === 'tiles';
 const animate = value.animate !== false;
 const tone = resolveTone(value.tone, value.color);
+const entrance = reveal(value.reveal);
 import { rootAttrs } from './attrs.ts';
 ---
 
 {stats.length > 0 && (
   <ul
-    {...rootAttrs(value, ['stats', tone.className, tiles && 'stats--tiles'], joinStyle(tone.style))}
+    {...rootAttrs(
+      value,
+      ['stats', tone.className, tiles && 'stats--tiles', entrance.root],
+      joinStyle(tone.style),
+    )}
     role="list"
   >
     {stats.map((stat) => (
-      <li class="stats__item" data-state={stat.state} style={stat.style}>
+      <li class:list={['stats__item', entrance.item]} data-state={stat.state} style={stat.style}>
         {tiles && stat.group && <p class="stats__group font-eyebrow">{stat.group}</p>}
         <p class="stats__figure font-display">
           <Counter value={stat.value} enhance={animate} />

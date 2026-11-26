@@ -20,6 +20,7 @@ import Cards from '@getvitops/astro/components/Cards.astro';
 import Subgrid from '@getvitops/astro/components/Subgrid.astro';
 import BlockImage from './BlockImage.astro';
 import RichText from './RichText.astro';
+import { reveal } from './reveal.ts';
 import { joinStyle, resolveTheme, resolveTone, rowTone } from './tone.ts';
 import { headingTag, lines, resolveBlockValue, rows, safeHref, text } from './value.ts';
 
@@ -30,6 +31,7 @@ interface Value {
   level?: string | number;
   tone?: string;
   color?: string;
+  reveal?: string;
 }
 
 const value = resolveBlockValue<Value>(Astro.props);
@@ -55,6 +57,7 @@ const panel = value.variant === 'panel';
 const Heading = headingTag(value.level, 3);
 const tone = resolveTone(value.tone, value.color);
 const Grid = panel ? Subgrid : Cards;
+const entrance = reveal(value.reveal);
 // A card is a subgrid of `--subgrid-card-rows` tracks (default 4), one per child, so its children
 // must fit in them or the extras spill over the footer. Size the tracks to the busiest card.
 const cardRows = Math.max(
@@ -76,13 +79,19 @@ import { rootAttrs } from './attrs.ts';
   <Grid
     {...rootAttrs(
       value,
-      ['subgrid-responsive'],
+      ['subgrid-responsive', entrance.root],
       `--subgrid-cols: ${columns}; --subgrid-card-rows: ${cardRows}`,
     )}
   >
     {cards.map((card) => (
       <li
-        class:list={['card', 'subgrid-card', panel && tone.surface, card.theme?.className]}
+        class:list={[
+          'card',
+          'subgrid-card',
+          panel && tone.surface,
+          card.theme?.className,
+          entrance.item,
+        ]}
         style={joinStyle(panel ? joinStyle(tone.style, card.style) : card.style, card.theme?.style)}
       >
         {card.image && (

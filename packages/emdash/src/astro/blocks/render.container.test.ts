@@ -1201,3 +1201,53 @@ describe('vitops_hero split options', () => {
     expect(html).not.toContain('split');
   });
 });
+
+describe('reveal (staggered entrance)', () => {
+  const cards = [
+    { title: 'One', body: 'a' },
+    { title: 'Two', body: 'b' },
+  ];
+  const steps = [{ title: 'First' }, { title: 'Second' }];
+  const stats = [
+    { value: '10', label: 'a' },
+    { value: '20', label: 'b' },
+  ];
+  const count = (html: string, needle: string) => html.split(needle).length - 1;
+
+  it.each([
+    ['cards', Cards, { cards }, 'card subgrid-card'],
+    ['steps', Steps, { steps }, 'steps__item'],
+    ['stats', Stats, { stats }, 'stats__item'],
+  ] as const)(
+    '%s: puts .stagger on the root and effect + driver on every item',
+    async (_name, component, props, itemClass) => {
+      const html = await render(component, { ...props, reveal: 'fade-slide' });
+      expect(html).toMatch(/class="[^"]*\bstagger\b/);
+      expect(count(html, `${itemClass} fade-in slide-up animate-view`)).toBe(2);
+    },
+  );
+
+  it.each([
+    ['cards', Cards, { cards }],
+    ['steps', Steps, { steps }],
+    ['stats', Stats, { stats }],
+  ] as const)('%s: adds nothing when unset or unrecognised', async (_name, component, props) => {
+    for (const reveal of [undefined, '', 'bogus', 'constructor']) {
+      const html = await render(component, { ...props, reveal });
+      expect(html).not.toContain('stagger');
+      expect(html).not.toContain('animate-view');
+    }
+  });
+
+  it('offers exactly the reveals the renderer understands', async () => {
+    const { BLOCKS } = await import('../../blocks.ts');
+    const { REVEALS } = await import('./reveal.ts');
+    for (const type of ['vitops_cards', 'vitops_steps', 'vitops_stats']) {
+      const field = BLOCKS.find((b) => b.type === type)?.fields?.find(
+        (f) => f.action_id === 'reveal',
+      ) as { options: { value: string }[] } | undefined;
+      expect(field, `${type} declares reveal`).toBeDefined();
+      expect(field?.options.map((o) => o.value)).toEqual(['', ...Object.keys(REVEALS)]);
+    }
+  });
+});
