@@ -69,6 +69,29 @@
     border-block-start: 1px solid var(--list-divider-color, var(--color-bg-surface-muted));
   }
 
+  /* A ticked checklist: flush to its container (a panel card), a tick before each item.
+     The tick is drawn with borders, so it follows the item's text colour. */
+  &.list--check {
+    padding: 0;
+    --list-item-padding: 0.6rem 0;
+    align-items: stretch;
+
+    .list__item {
+      align-items: baseline;
+    }
+
+    .list__item::before {
+      content: '';
+      flex-shrink: 0;
+      inline-size: 0.3em;
+      block-size: 0.6em;
+      border-inline-end: 2px solid currentColor;
+      border-block-end: 2px solid currentColor;
+      transform: rotate(45deg) translateY(-0.1em);
+      margin-inline-end: 0.15em;
+    }
+  }
+
   &.list--bordered {
     border: var(--_b);
     border-radius: var(--_br);

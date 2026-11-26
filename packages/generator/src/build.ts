@@ -980,7 +980,15 @@ export function build(
 
   let pat = `/* GENERATED component patterns — do not edit by hand. */\n`;
   pat += `/* Interaction transitions for patterned elements (independent props compose). */\n`;
-  for (const [pname, p] of Object.entries((patterns?.items ?? {}) as Record<string, Pattern>)) {
+  // Zero-specificity element rules tie, so SOURCE ORDER decides: `:where(a, .link)` matches an
+  // `<a class="btn">` as much as `:where(button, .btn)` does, and a link emitted after the button
+  // underlined it. A pattern on the bare `a` element matches every anchor, so it is the weakest
+  // statement of intent and goes first; `Array.prototype.sort` is stable, so authored order holds
+  // within each group.
+  const orderedPatterns = Object.entries((patterns?.items ?? {}) as Record<string, Pattern>).sort(
+    ([, a], [, b]) => Number(b.element === 'a') - Number(a.element === 'a'),
+  );
+  for (const [pname, p] of orderedPatterns) {
     if (!p.base) continue;
     const states = p.states ?? {};
     // `class` defaults to the pattern key only for class-only patterns, so an

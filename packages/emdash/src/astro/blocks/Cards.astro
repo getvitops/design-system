@@ -42,6 +42,7 @@ const cards = rows<Record<string, unknown>>(value.cards)
     imageRatio: row.imageRatio,
     href: safeHref(row.href),
     linkLabel: text(row.linkLabel) || 'Read more',
+    tags: lines(row.tags),
     checklist: lines(row.checklist),
     ctaLabel: text(row.ctaLabel),
     ctaHref: safeHref(row.ctaHref),
@@ -54,11 +55,31 @@ const panel = value.variant === 'panel';
 const Heading = headingTag(value.level, 3);
 const tone = resolveTone(value.tone, value.color);
 const Grid = panel ? Subgrid : Cards;
+// A card is a subgrid of `--subgrid-card-rows` tracks (default 4), one per child, so its children
+// must fit in them or the extras spill over the footer. Size the tracks to the busiest card.
+const cardRows = Math.max(
+  4,
+  ...cards.map(
+    (card) =>
+      Number(Boolean(card.image)) +
+      Number(Boolean(card.title)) +
+      Number(Boolean(card.body)) +
+      Number(panel && card.tags.length > 0) +
+      Number(panel && card.checklist.length > 0) +
+      Number(Boolean((panel && card.ctaLabel && card.ctaHref) || (!panel && card.href))),
+  ),
+);
 import { rootAttrs } from './attrs.ts';
 ---
 
 {cards.length > 0 && (
-  <Grid {...rootAttrs(value, [], `--subgrid-cols: ${columns}`)}>
+  <Grid
+    {...rootAttrs(
+      value,
+      ['subgrid-responsive'],
+      `--subgrid-cols: ${columns}; --subgrid-card-rows: ${cardRows}`,
+    )}
+  >
     {cards.map((card) => (
       <li
         class:list={['card', 'subgrid-card', panel && tone.surface, card.theme?.className]}
@@ -79,10 +100,17 @@ import { rootAttrs } from './attrs.ts';
             <RichText text={card.body} />
           </p>
         )}
+        {panel && card.tags.length > 0 && (
+          <ul class="cluster" role="list">
+            {card.tags.map((tag) => (
+              <li class="tag">{tag}</li>
+            ))}
+          </ul>
+        )}
         {panel && card.checklist.length > 0 && (
-          <ul class="rhythm" role="list">
+          <ul class="list list--divided list--check" role="list">
             {card.checklist.map((item) => (
-              <li>{item}</li>
+              <li class="list__item">{item}</li>
             ))}
           </ul>
         )}

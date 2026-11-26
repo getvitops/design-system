@@ -426,3 +426,28 @@ describe('tailwind vocabulary parity', () => {
     expect(tw()).toContain('calc(var(--rhythm-base) * var(--rhythm-h-p))');
   });
 });
+
+/**
+ * Element patterns are zero-specificity, so source order decides a tie: `:where(a, .link)` matches
+ * `<a class="btn">` as well as `:where(button, .btn)` does. A link authored before the button won
+ * the cascade the other way round and underlined every anchor button.
+ */
+describe('pattern order', () => {
+  it('emits a bare-`a` pattern before any other element pattern, whatever the authored order', () => {
+    const ds = defaultConfig();
+    const items = ds.patterns?.items ?? {};
+    // `btn` is authored FIRST, `link` after it: source order alone would let the link win.
+    ds.patterns = {
+      ...ds.patterns,
+      items: {
+        btn: { ...items.btn!, element: 'button', class: 'btn', fill: false },
+        link: { class: 'link', element: 'a', base: { 'text-decoration': 'underline' } },
+      },
+    } as typeof ds.patterns;
+    const css = build(ds, 'css', '/nonexistent-assets').generated['patterns.css'] ?? '';
+    const linkAt = css.indexOf(':where(a, .link)');
+    const btnAt = css.indexOf(':where(button, .btn)');
+    expect(linkAt).toBeGreaterThan(-1);
+    expect(btnAt).toBeGreaterThan(linkAt); // button emitted after link, so it wins the tie
+  });
+});

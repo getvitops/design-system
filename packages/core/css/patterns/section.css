@@ -32,11 +32,11 @@
   }
 
   /* A button in a grid body would stretch to the full width: size it to its label. */
-  .section__body > :is(.cta, .btn) {
+  .section__body > :is(a, .cta, .btn) {
     justify-self: start;
   }
 
-  &.section--center .section__body > :is(.cta, .btn) {
+  &.section--center .section__body > :is(a, .cta, .btn) {
     justify-self: center;
   }
 

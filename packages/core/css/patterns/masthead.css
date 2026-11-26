@@ -81,8 +81,13 @@
     backdrop-filter 0.25s ease;
 }
 
-.masthead__row {
+/* `.centered` is its own grid; forcing `block` would drop the row off the page track. */
+.masthead__row:not(.centered) {
   display: block;
+}
+
+.masthead__row.centered > .navbar {
+  grid-column: spotlight;
 }
 
 /* The row's flex child carries the height; `.centered` (when used) is the grid around it. */

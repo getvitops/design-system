@@ -1056,9 +1056,9 @@ function cmdLint(argv: string[]) {
  * Keyed to SHAPE, not just to the filename — `resolveInput` already tells a
  * design system from the config that embeds one, and consumers name that file
  * whatever they like (`company.json`, `site.json`). The candidate list is
- * ordered, and a tie is resolved by taking the first: this only ever supplies a
- * default that the run then prints, so a wrong guess is visible rather than
- * silent, and `-i` overrides it.
+ * ordered, and a tie is resolved by taking the first. This is the normal path for
+ * a scaffolded site (whose config is `site.json`), so it is silent; the path it
+ * picks is written into the managed block, and `-i` overrides it.
  */
 function discoverConfig(cwd: string): string | undefined {
   const candidates = [
@@ -1107,7 +1107,6 @@ function cmdAgents(rawArgv: string[]) {
     const found = discoverConfig(process.cwd());
     if (found) {
       inputRel = found;
-      console.warn(`  ⚠ no design-system.json here — using ${found} (pass -i to choose another)`);
     } else {
       fail(
         `config not found: ${resolve(inputRel)}\n` +

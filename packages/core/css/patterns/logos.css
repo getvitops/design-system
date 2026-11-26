@@ -34,7 +34,9 @@
   }
 
   .logos__name {
-    font-size: calc(var(--logos-height, 2.5rem) * 0.55);
+    /* `.font-heading` (utilities layer) reads --heading-fs and beats a plain `font-size` here. */
+    --heading-fs: calc(var(--logos-height, 2.5rem) * 0.55);
+    font-size: var(--heading-fs);
     line-height: 1.1;
     font-weight: 600;
     text-align: center;

@@ -429,6 +429,12 @@ const BASE_BLOCKS: PortableTextBlockDef[] = [
           },
           {
             type: 'text_input',
+            action_id: 'tags',
+            label: 'Tags (panel style; one per line)',
+            multiline: true,
+          },
+          {
+            type: 'text_input',
             action_id: 'checklist',
             label: 'Checklist (panel style; one item per line)',
             multiline: true,

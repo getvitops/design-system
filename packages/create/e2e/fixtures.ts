@@ -80,26 +80,30 @@ export const FIXTURES: Record<string, BlockFixture> = {
     loop: false,
   },
   vitops_cards: {
-    variant: 'default',
+    // `panel` is the variant with tags, a ticked checklist and a button; the default variant is
+    // covered by the render tests in `packages/emdash`.
+    variant: 'panel',
     level: '3',
-    tone: '',
+    tone: 'brand-primary',
     columns: '3',
     cards: [
       {
         title: 'Design',
         body: 'A plan drawn to the site and the budget.',
-        image: IMG.wide,
-        imageAlt: 'Wireframe of a garden plan',
-        href: '/contact',
-        linkLabel: 'Ask about design',
+        tags: 'Planting\nLighting',
+        checklist: 'Site visit\nDrawn plan\nItemised quote',
+        ctaLabel: 'Ask about design',
+        ctaHref: '/contact',
       },
       {
         title: 'Build',
         body: 'Installed by our own crew, on schedule.',
-        href: '/contact',
-        linkLabel: 'Ask about building',
+        tags: 'Hardscape',
+        checklist: 'Fixed start date\nOne crew',
+        ctaLabel: 'Ask about building',
+        ctaHref: '/contact',
       },
-      { title: 'Care', body: 'Seasonal visits to keep it looking right.' },
+      { title: 'Care', body: 'Seasonal visits to keep it looking right.', tags: 'Seasonal' },
     ],
   },
   vitops_tree: {
@@ -186,6 +190,7 @@ export const FIXTURES: Record<string, BlockFixture> = {
       { image: IMG.square, alt: 'Example Client One', href: 'https://example.com' },
       { image: IMG.square, alt: 'Example Client Two' },
       { image: IMG.square, alt: 'Example Client Three' },
+      { alt: 'Text Only Partner' },
     ],
     grayscale: true,
     size: 'md',

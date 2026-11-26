@@ -25,7 +25,7 @@
   --_row-gap: var(--subgrid-row-gap, 0px);
 
   display: grid;
-  grid-template-columns: repeat(var(--_cols), 1fr);
+  grid-template-columns: repeat(var(--_cols), minmax(0, 1fr));
   gap: var(--_gap);
 
   > * {
@@ -148,7 +148,7 @@
 /* Pricing table with aligned feature rows */
 .pricing-grid {
   display: grid;
-  grid-template-columns: repeat(var(--pricing-columns, 3), 1fr);
+  grid-template-columns: repeat(var(--pricing-columns, 3), minmax(0, 1fr));
 }
 
 .pricing-card {

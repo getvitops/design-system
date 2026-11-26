@@ -130,12 +130,23 @@ export function linkSkill(linkPath: string, targetDir: string): string | null {
         return `left ${linkPath} alone (exists and is not a symlink) — link it to ${targetDir} yourself if wanted`;
       rmSync(linkPath, { recursive: true }); // old generated skill layout → replace
     } else if (st) {
-      if (readlinkSync(linkPath) === target) return null;
-      rmSync(linkPath);
+      const current = readlinkSync(linkPath);
+      // A Windows junction reads back as an absolute path, so compare resolved.
+      if (current === target || resolve(dirname(linkPath), current) === resolve(targetDir))
+        return null;
+      rmSync(linkPath, { recursive: true });
     } else {
       mkdirSync(dirname(linkPath), { recursive: true });
     }
-    symlinkSync(target, linkPath);
+    try {
+      symlinkSync(target, linkPath);
+    } catch (err) {
+      // Windows without Developer Mode/admin refuses symlinks (EPERM). A directory
+      // junction needs no privilege and resolves the same way (absolute target).
+      if (process.platform !== 'win32' || (err as NodeJS.ErrnoException).code !== 'EPERM')
+        throw err;
+      symlinkSync(resolve(targetDir), linkPath, 'junction');
+    }
     return null;
   } catch (err) {
     return `could not symlink ${linkPath}: ${(err as Error).message}`;

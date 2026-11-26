@@ -59,11 +59,25 @@ describe('vitops_cards', () => {
     const html = await render(Cards, {
       variant: 'panel',
       tone: 'brand-primary',
-      cards: [{ title: 'Pillar', checklist: 'one\ntwo', ctaLabel: 'Go', ctaHref: '/go' }],
+      cards: [
+        {
+          title: 'Pillar',
+          body: 'Managed IT',
+          tags: 'IT\nSupport',
+          checklist: 'one\ntwo',
+          ctaLabel: 'Go',
+          ctaHref: '/go',
+        },
+      ],
     });
     expect(html).toContain('class="card subgrid-card tone tone--tint"');
     expect(html).toContain('--tone-bg: var(--color-bg-brand-primary-muted');
-    expect(html).toContain('<li>one</li>');
+    expect(html).toContain('class="list list--divided list--check"');
+    expect(html).toContain('<li class="list__item">one</li>');
+    expect(html).toContain('<li class="tag">IT</li>');
+    expect(html).toContain('subgrid-responsive');
+    // title, body, tags, checklist and button: five tracks, or the extras spill over the footer.
+    expect(html).toContain('--subgrid-card-rows: 5');
     expect(html).toContain('class="cta" href="/go"');
     // A panel holds its own button, so it is not a click-forwarding <wc-cards>.
     expect(html).not.toContain('<wc-cards');

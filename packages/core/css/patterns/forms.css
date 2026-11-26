@@ -387,6 +387,16 @@ input[type='color'] {
   }
 }
 
+/* Without base-select the native arrow stays and the wrapper's `::after` draws a second one:
+   drop the native arrow and make room for ours. */
+@supports not (appearance: base-select) {
+  .custom-select > select,
+  select.custom-select {
+    appearance: none;
+    padding-inline-end: 2.25rem;
+  }
+}
+
 .custom-select select,
 select.custom-select {
   appearance: base-select;

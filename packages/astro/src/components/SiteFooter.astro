@@ -103,10 +103,11 @@ const columns = sitemapItems
   .filter((item) => (item.children?.length ?? 0) > 0)
   .map((item, i) => ({ id: `sitefooter-col-${i}`, heading: item, items: item.children! }));
 const flat = sitemapItems.filter((item) => !(item.children?.length ?? 0));
-const groups = [
-  { label: sitemapLabel, items: flat, kind: 'sitemap' },
-  { label: legalLabel, items: menuItems(legal), kind: 'legal' },
-].filter((g) => g.items.length > 0);
+const groups = [{ label: sitemapLabel, items: flat, kind: 'sitemap' }].filter(
+  (g) => g.items.length > 0,
+);
+// Legal links sit on the copyright row, not in the link-column row.
+const legalItems = menuItems(legal);
 ---
 
 <footer class:list={['sitefooter', className]}>
@@ -233,16 +234,35 @@ const groups = [
   )}
   <div class="sitefooter__base">
     <p class="sitefooter__copy">
-      &copy;
+      &copy;{' '}
       {typeof year === 'number' ? (
         <wc-format type="date" fields="year" now>
           <time datetime={String(year)}>{year}</time>
         </wc-format>
       ) : (
         year
-      )}
+      )}{' '}
       {name}
     </p>
+    {legalItems.length > 0 && (
+      <nav class="sitefooter__group sitefooter__group--legal" aria-label={legalLabel}>
+        <ul class="sitefooter__list" role="list">
+          {legalItems.map((item) => (
+            <li>
+              <a
+                class="sitefooter__link"
+                href={item.url || '#'}
+                target={item.target || undefined}
+                rel={linkRel(item)}
+                aria-current={isCurrent(item.url, current) ? 'page' : undefined}
+              >
+                {item.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )}
     {credit && (
       <p class="sitefooter__credit">
         <a class="sitefooter__link" href="https://vitops.ca">
