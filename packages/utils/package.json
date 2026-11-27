@@ -114,6 +114,10 @@
       "types": "./dist/forms/index.d.mts",
       "import": "./dist/forms/index.mjs"
     },
+    "./purge": {
+      "types": "./dist/purge/index.d.mts",
+      "import": "./dist/purge/index.mjs"
+    },
     "./contact-form": {
       "types": "./dist/contact-form/index.d.mts",
       "import": "./dist/contact-form/index.mjs"
@@ -127,6 +131,7 @@
     "colorjs.io": "catalog:",
     "parse5": "catalog:",
     "png-to-ico": "catalog:",
+    "purgecss": "catalog:",
     "sharp": "catalog:"
   },
   "devDependencies": {

@@ -110,3 +110,7 @@ Two non-obvious caching/ordering gotchas:
   If the second prints it and the first doesn't, it is the cache, not the manifest.
 
 There is no format-on-edit hook (a `PostToolUse` hook was tried and removed: it ran a project-wide typecheck after every single edit, so any multi-edit change reported a correct intermediate state as a failure). The `staged` key wires `vp check --fix` into the pre-commit hook, which is the real gate. **Do** run `vp check` yourself at a verification point — after a change is complete, before committing — and read its output.
+
+## CSS purge
+
+`vitops()` runs a post-build purge (`@getvitops/utils/purge`, `css.purge`, default on; `VITOPS_PURGE_CSS=0` opts out). It lives in an Astro `astro:build:done` hook, not the Vite plugin, because Vite's last hooks run before Astro prerenders the HTML, and only Astro knows which routes are prerendered (purged sheet, repointed) and which are on-demand (they keep the original). The scan reads the built HTML plus `public/vitops/**/*.js`, since the web components add classes at runtime. The safelist is `packages/utils/src/purge/safelist.ts`; `safelist.test.ts` fails when `@getvitops/core`'s CSS selects on a `data-*` / `aria-*` attribute that is not listed, so a new state rule has to be classified when it is written. `@layer components` is otherwise never pruned by Tailwind.

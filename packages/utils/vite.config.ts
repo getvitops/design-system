@@ -52,6 +52,7 @@ export default defineConfig({
       'src/git/index.ts',
       'src/forms/index.ts',
       'src/contact-form/index.ts',
+      'src/purge/index.ts',
     ],
     outDir: 'dist',
     format: ['es'],
