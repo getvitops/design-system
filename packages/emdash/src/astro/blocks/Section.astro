@@ -110,7 +110,15 @@ import { rootAttrs } from './attrs.ts';
     )}
   >
     {backdrop && (
-      <BlockImage class="section__backdrop" src={backdrop} alt="" loading="lazy" decoding="async" />
+      <BlockImage
+        class="section__backdrop"
+        src={backdrop}
+        alt=""
+        ratio="16:9"
+        displayWidth={1920}
+        loading="lazy"
+        decoding="async"
+      />
     )}
     <div class="centered">
       <div class:list={['section__inner', width, stacked && 'rhythm']}>

@@ -47,6 +47,7 @@ import {
   resolvePolyfills,
 } from './polyfills.ts';
 import type { GetvitopsSeoOptions } from './seo.ts';
+import { resolveSiteOrigin, type SiteOriginSource } from './site-origin.ts';
 import { tailwindSources } from './tailwind-sources.ts';
 import { mergeSeoDefaults, resolveSeoDefaults } from './seo-defaults.ts';
 import { TRACKING_ENDPOINT, type GetvitopsTrackingOptions, resolveTracking } from './tracking.ts';
@@ -703,6 +704,28 @@ function readSiteAds(
   }
 }
 
+const SITE_ORIGIN_LABEL: Record<SiteOriginSource, string> = {
+  env: 'EMDASH_SITE_URL',
+  environment: 'site.environments.<env>.url',
+  canonical: 'site.domains.canonical',
+};
+
+/** `site.environments[env].url` and `site.domains.canonical`. Best-effort, like `readSiteAds`. */
+function readSiteOriginFacts(
+  configPath: string,
+  siteEnv: string,
+): { environmentUrl?: string | undefined; canonical?: string | undefined } {
+  try {
+    const cfg = resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv);
+    return {
+      environmentUrl: cfg.site.environments?.[siteEnv]?.url,
+      canonical: cfg.site.domains?.canonical,
+    };
+  } catch {
+    return {};
+  }
+}
+
 /** Read `site.security.turnstile.siteKey`. Best-effort, like `readSiteAds`. */
 function readSiteTurnstileKey(configPath: string, siteEnv: string): string | null {
   try {
@@ -1209,6 +1232,23 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
             'site: needs a `css` config — it is read during generation, which runs in the Vite ' +
               'plugin that `css` registers. Without it the site config changes nothing here.',
           );
+        // Astro's `site` is where block images learn which origin they may transform
+        // (`BlockImage` reads `Astro.site`; a prerender's own origin is localhost, so without
+        // this a page silently ships the full-size original). Derive it for builds only, never
+        // overriding a `site` the project set, and never touching `emdash({ siteUrl })`, which
+        // also becomes the passkey origin.
+        if (command === 'build' && !config.site) {
+          const siteEnv = opts.site?.siteEnv ?? 'production';
+          const found = resolveSiteOrigin({
+            env: process.env.EMDASH_SITE_URL,
+            siteEnv,
+            ...(siteInput ? readSiteOriginFacts(resolve(root, siteInput), siteEnv) : {}),
+          });
+          if (found) {
+            updateConfig({ site: found.origin });
+            logger.info(`site: ${found.origin} (from ${SITE_ORIGIN_LABEL[found.source]})`);
+          }
+        }
         // `legal` only needs its own `input` when it points somewhere other than
         // the site config; the two are almost always the same file.
         const legalInput = opts.legal?.input ?? siteInput;

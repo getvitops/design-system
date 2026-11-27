@@ -12,6 +12,8 @@
  * still read when there are no `slides`, so existing content keeps rendering.
  */
 import Carousel from '@getvitops/astro/components/Carousel.astro';
+import { getImage } from 'astro:assets';
+import { parseRatio, resolveImageOrigin, transformBlockImage, warnImageFallback } from './image.ts';
 import { resolveBlockValue, rows, safeHref, splitLines, text } from './value.ts';
 
 interface Value {
@@ -35,7 +37,37 @@ const fromLegacy = splitLines(value.images).flatMap((raw, i) => {
   const src = safeHref(raw);
   return src ? [{ src, alt: legacyAlts[i] ?? '' }] : [];
 });
-const slides = fromRepeater.length > 0 ? fromRepeater : fromLegacy;
+const rawSlides = fromRepeater.length > 0 ? fromRepeater : fromLegacy;
+
+// Slides are cropped to the block's `aspect` (object-fit), so that is the ratio to request. With
+// no usable aspect, or an origin the image service has not authorized, the plain `<img>` renders
+// as before.
+const ratio = parseRatio(value.aspect || '16 / 9');
+const emdash = (Astro.locals as { emdash?: { config?: { siteUrl?: string } } }).emdash;
+const origin = resolveImageOrigin({
+  siteUrl: emdash?.config?.siteUrl,
+  env: typeof process === 'undefined' ? undefined : process.env.EMDASH_SITE_URL,
+  site: Astro.site?.origin,
+  requestOrigin: Astro.url.origin,
+});
+const slides = await Promise.all(
+  rawSlides.map(async (slide) => {
+    if (!ratio) return slide;
+    const result = await transformBlockImage({
+      src: slide.src,
+      ratio,
+      displayWidth: 1280,
+      origin,
+      getImage,
+    });
+    if ('image' in result) {
+      const { src, srcset, sizes, width, height } = result.image;
+      return { ...slide, src, srcset, sizes, width, height };
+    }
+    warnImageFallback(result.reason, slide.src, origin);
+    return slide;
+  }),
+);
 // Two blocks with the same label would derive the same id; `_key` is unique per block.
 const id = value._key ? `carousel-${value._key.replace(/[^a-z0-9_-]/gi, '')}` : undefined;
 const autoplay = Number(value.autoplay) || 0;
