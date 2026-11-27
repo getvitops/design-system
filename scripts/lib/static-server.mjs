@@ -8,12 +8,17 @@
  * prerendered HTML + assets, so serving the files is faithful — with one thing worth
  * reproducing: `public/_headers`. The report-only CSP and security headers are real
  * assets-layer behaviour, so this applies the file's rules the way Cloudflare does
- * (path patterns with `*` splats; header lines indented beneath). Not reproduced: `_redirects`,
+ * (path patterns with `*` splats; header lines indented beneath). The edge also compresses text
+ * responses (brotli, else gzip), and so does this: the budgets are about what a visitor downloads,
+ * and an uncompressed 143KB stylesheet is ~25KB on the wire, which moved a mobile LCP by seconds
+ * under Lighthouse's throttling. Not reproduced: HTTP/2 (this is HTTP/1.1, so a page with many
+ * module requests queues behind six connections where the edge multiplexes them), `_redirects`,
  * and the Worker-rendered routes (`/_emdash/*`), which an audit of prerendered pages never hits.
  */
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, normalize, sep } from 'node:path';
+import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -34,6 +39,32 @@ const TYPES = {
   '.xml': 'application/xml',
   '.webmanifest': 'application/manifest+json',
 };
+
+/** Types the edge compresses: text, scripts, data and SVG. Images and fonts are already packed. */
+const COMPRESSIBLE = /^(text\/|application\/(json|xml|manifest\+json)|image\/svg\+xml)|javascript/;
+
+/**
+ * Compress `bytes` for the client's `accept-encoding`, memoised by file and encoding (an audit
+ * requests the same assets for every page). Returns the encoding used, or null for identity.
+ */
+function encode(cache, key, bytes, acceptEncoding) {
+  const encoding = /\bbr\b/.test(acceptEncoding)
+    ? 'br'
+    : /\bgzip\b/.test(acceptEncoding)
+      ? 'gzip'
+      : null;
+  if (!encoding) return { encoding: null, body: bytes };
+  const id = `${encoding}:${key}`;
+  let body = cache.get(id);
+  if (!body) {
+    body =
+      encoding === 'br'
+        ? brotliCompressSync(bytes, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } })
+        : gzipSync(bytes);
+    cache.set(id, body);
+  }
+  return { encoding, body };
+}
 
 /** Parse a Cloudflare `_headers` file into `[{ test(path), headers: [[name, value]] }]`. */
 export function parseHeaders(source) {
@@ -75,6 +106,7 @@ export function serveStatic(root, port) {
   const headersFile = join(root, '_headers');
   const rules = existsSync(headersFile) ? parseHeaders(readFileSync(headersFile, 'utf8')) : [];
   const notFound = join(root, '404.html');
+  const cache = new Map();
 
   const server = createServer((req, res) => {
     const { pathname } = new URL(req.url ?? '/', 'http://localhost');
@@ -96,8 +128,22 @@ export function serveStatic(root, port) {
           headers[key] && key !== 'cache-control' ? `${headers[key]}, ${value}` : value;
       }
     }
+    const bytes = body ? readFileSync(body) : Buffer.from('Not found');
+    if (body && COMPRESSIBLE.test(headers['content-type'] ?? '')) {
+      const { encoding, body: packed } = encode(
+        cache,
+        body,
+        bytes,
+        req.headers['accept-encoding'] ?? '',
+      );
+      headers.vary = 'accept-encoding';
+      if (encoding) headers['content-encoding'] = encoding;
+      res.writeHead(status, headers);
+      res.end(packed);
+      return;
+    }
     res.writeHead(status, headers);
-    res.end(body ? readFileSync(body) : 'Not found');
+    res.end(bytes);
   });
 
   return new Promise((resolve, reject) => {
