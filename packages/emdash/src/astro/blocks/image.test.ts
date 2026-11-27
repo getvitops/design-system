@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { absoluteMediaUrl, parseRatio, srcsetWidths } from './image.ts';
+import {
+  absoluteMediaUrl,
+  parseRatio,
+  resolveImageOrigin,
+  srcsetWidths,
+  transformBlockImage,
+  warnImageFallback,
+  type GetImage,
+} from './image.ts';
 
 describe('parseRatio', () => {
   it.each([
@@ -55,5 +63,75 @@ describe('absoluteMediaUrl', () => {
   it('refuses a path that leaves the origin', () => {
     expect(absoluteMediaUrl('//evil.test/a.jpg', origin)).toBe('//evil.test/a.jpg');
     expect(absoluteMediaUrl('/\\evil.test/a.jpg', origin)).toBe('/\\evil.test/a.jpg');
+  });
+});
+
+describe('transformBlockImage', () => {
+  const ok: GetImage = async ({ src }) => ({
+    src: `/_image?href=${encodeURIComponent(src)}&f=avif`,
+    srcSet: { attribute: '/_image?w=640 640w, /_image?w=960 960w' },
+  });
+  const unchanged: GetImage = async ({ src }) => ({ src, srcSet: { attribute: '' } });
+
+  it('returns a srcset with the stated box', async () => {
+    const result = await transformBlockImage({
+      src: '/_emdash/api/media/file/a.jpg',
+      ratio: 4 / 5,
+      displayWidth: 960,
+      origin: 'https://gofitness.ca',
+      getImage: ok,
+    });
+    expect(result).toMatchObject({ image: { width: 960, height: 1200 } });
+  });
+  it('names the reason when the origin is not authorized', async () => {
+    expect(
+      await transformBlockImage({
+        src: '/m/a.jpg',
+        ratio: 1,
+        displayWidth: 600,
+        origin: 'http://localhost:4321',
+        getImage: unchanged,
+      }),
+    ).toEqual({ reason: 'unauthorized-origin' });
+  });
+  it('names the reason when the service throws or the src is relative with no origin', async () => {
+    const boom: GetImage = async () => {
+      throw new Error('no service');
+    };
+    expect(
+      await transformBlockImage({
+        src: '/m/a.jpg',
+        ratio: 1,
+        displayWidth: 600,
+        origin: 'https://x.ca',
+        getImage: boom,
+      }),
+    ).toEqual({ reason: 'transform-failed' });
+    expect(
+      await transformBlockImage({
+        src: '/m/a.jpg',
+        ratio: 1,
+        displayWidth: 600,
+        origin: undefined,
+        getImage: ok,
+      }),
+    ).toEqual({ reason: 'not-absolute' });
+  });
+});
+
+describe('resolveImageOrigin / warnImageFallback', () => {
+  it('prefers siteUrl, then env, then site, then the request', () => {
+    const base = { requestOrigin: 'http://localhost' };
+    expect(resolveImageOrigin({ ...base, siteUrl: 'a', env: 'b', site: 'c' })).toBe('a');
+    expect(resolveImageOrigin({ ...base, env: 'b', site: 'c' })).toBe('b');
+    expect(resolveImageOrigin({ ...base, site: 'c' })).toBe('c');
+    expect(resolveImageOrigin(base)).toBe('http://localhost');
+  });
+  it('warns once per origin and reason', () => {
+    const lines: string[] = [];
+    warnImageFallback('unauthorized-origin', '/a.jpg', 'http://t1', (m) => lines.push(m));
+    warnImageFallback('unauthorized-origin', '/b.jpg', 'http://t1', (m) => lines.push(m));
+    warnImageFallback('not-absolute', '/b.jpg', 'http://t1', (m) => lines.push(m));
+    expect(lines).toHaveLength(1);
   });
 });

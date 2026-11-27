@@ -20,12 +20,20 @@
  * and resizes R2 bytes through the Cloudflare `IMAGES` binding at request time, so this adds no
  * CI work. It only transforms a URL on an authorized host: EmDash registers the site origin in
  * `image.remotePatterns` when `siteUrl` / `EMDASH_SITE_URL` is known at build, and without it
- * the service hands the URL back unchanged. That case is detected and falls back to the plain
- * `<img>`; setting `siteUrl` is what turns the srcset on.
+ * the service hands the URL back unchanged. That case is detected, warned about once per build,
+ * and falls back to the plain `<img>`. `@getvitops/astro` sets Astro's `site` from the config's
+ * environment url (or `EMDASH_SITE_URL`), which is what turns the srcset on; do not pass
+ * `emdash({ siteUrl })` for this, it also becomes the passkey origin.
  */
 import { getImage } from 'astro:assets';
 import type { HTMLAttributes } from 'astro/types';
-import { absoluteMediaUrl, parseRatio, srcsetWidths } from './image.ts';
+import {
+  parseRatio,
+  resolveImageOrigin,
+  transformBlockImage,
+  warnImageFallback,
+  type ResponsiveImage,
+} from './image.ts';
 
 export interface Props extends Omit<
   HTMLAttributes<'img'>,
@@ -42,45 +50,19 @@ export interface Props extends Omit<
 const { src, alt, ratio: rawRatio, displayWidth = 1200, loading = 'lazy', ...rest } = Astro.props;
 
 const ratio = parseRatio(rawRatio);
-let responsive:
-  | { src: string; srcset: string | undefined; sizes: string; width: number; height: number }
-  | undefined;
+let responsive: ResponsiveImage | undefined;
 
 if (ratio) {
   const emdash = (Astro.locals as { emdash?: { config?: { siteUrl?: string } } }).emdash;
-  // The build-time URL first: a prerendered page has no real request, so `Astro.url` is
-  // localhost there, which is not the host EmDash authorized. At request time on a Worker
-  // `process.env` does not carry it, so the request's own origin applies (the right host).
-  const buildUrl = typeof process === 'undefined' ? undefined : process.env.EMDASH_SITE_URL;
-  const origin = emdash?.config?.siteUrl ?? buildUrl ?? Astro.site?.origin ?? Astro.url.origin;
-  const absolute = absoluteMediaUrl(src, origin);
-  const width = Math.round(displayWidth);
-  const height = Math.round(width / ratio);
-  const sizes = `(min-width: ${width}px) ${width}px, 100vw`;
-  if (/^https?:\/\//i.test(absolute)) {
-    try {
-      const image = await getImage({
-        src: absolute,
-        width,
-        height,
-        widths: srcsetWidths(width),
-        sizes,
-        format: 'avif',
-      });
-      // An unauthorized host comes back unchanged: no srcset beats a srcset of one URL.
-      if (image.src && image.src !== absolute) {
-        responsive = {
-          src: image.src,
-          srcset: image.srcSet.attribute || undefined,
-          sizes,
-          width,
-          height,
-        };
-      }
-    } catch {
-      // No image service, or it refused the source: fall through to the plain <img>.
-    }
-  }
+  const origin = resolveImageOrigin({
+    siteUrl: emdash?.config?.siteUrl,
+    env: typeof process === 'undefined' ? undefined : process.env.EMDASH_SITE_URL,
+    site: Astro.site?.origin,
+    requestOrigin: Astro.url.origin,
+  });
+  const result = await transformBlockImage({ src, ratio, displayWidth, origin, getImage });
+  if ('image' in result) responsive = result.image;
+  else warnImageFallback(result.reason, src, origin);
 }
 ---
 

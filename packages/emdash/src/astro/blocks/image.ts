@@ -66,3 +66,94 @@ export function absoluteMediaUrl(src: string, origin: string | undefined): strin
     return src;
   }
 }
+
+/** What the image service needs from `getImage` (a structural slice, so tests need no Astro). */
+export type GetImage = (options: {
+  src: string;
+  width: number;
+  height: number;
+  widths: number[];
+  sizes: string;
+  format: 'avif';
+}) => Promise<{ src: string; srcSet: { attribute: string } }>;
+
+export interface ResponsiveImage {
+  src: string;
+  srcset: string | undefined;
+  sizes: string;
+  width: number;
+  height: number;
+}
+
+/**
+ * The origin a block image is authorized against. The build-time `siteUrl` first: a prerendered
+ * page has no real request, so `Astro.url` is localhost there, which is not the host EmDash
+ * authorized. At request time on a Worker `process.env` does not carry it, so the request's own
+ * origin applies (the right host).
+ */
+export function resolveImageOrigin(input: {
+  siteUrl?: string | undefined;
+  env?: string | undefined;
+  site?: string | undefined;
+  requestOrigin: string;
+}): string {
+  return input.siteUrl ?? input.env ?? input.site ?? input.requestOrigin;
+}
+
+export type ImageFallbackReason = 'unauthorized-origin' | 'transform-failed' | 'not-absolute';
+
+/**
+ * Ask the image service for a responsive AVIF `srcset`. Returns the result, or the reason it fell
+ * back to the plain `<img>` so the caller can say so (a silent fallback ships the full-size
+ * original with no width or height).
+ */
+export async function transformBlockImage(input: {
+  src: string;
+  ratio: number;
+  displayWidth: number;
+  origin: string | undefined;
+  getImage: GetImage;
+}): Promise<{ image: ResponsiveImage } | { reason: ImageFallbackReason }> {
+  const absolute = absoluteMediaUrl(input.src, input.origin);
+  if (!/^https?:\/\//i.test(absolute)) return { reason: 'not-absolute' };
+  const width = Math.round(input.displayWidth);
+  const height = Math.round(width / input.ratio);
+  const sizes = `(min-width: ${width}px) ${width}px, 100vw`;
+  try {
+    const image = await input.getImage({
+      src: absolute,
+      width,
+      height,
+      widths: srcsetWidths(width),
+      sizes,
+      format: 'avif',
+    });
+    // An unauthorized host comes back unchanged: no srcset beats a srcset of one URL.
+    if (!image.src || image.src === absolute) return { reason: 'unauthorized-origin' };
+    return {
+      image: { src: image.src, srcset: image.srcSet.attribute || undefined, sizes, width, height },
+    };
+  } catch {
+    return { reason: 'transform-failed' };
+  }
+}
+
+const warned = new Set<string>();
+
+/** Warn once per origin and reason, so a page of images is one line, not one per image. */
+export function warnImageFallback(
+  reason: ImageFallbackReason,
+  src: string,
+  origin: string | undefined,
+  warn: (message: string) => void = console.warn,
+): void {
+  if (reason === 'not-absolute') return;
+  const key = `${reason}:${origin}`;
+  if (warned.has(key)) return;
+  warned.add(key);
+  warn(
+    `[vitops] block image not transformed (${reason}): ${src} on ${origin ?? 'no origin'}. ` +
+      'It renders as the full-size original with no width or height. Set Astro `site`, or ' +
+      'EMDASH_SITE_URL, to the origin the media is served from.',
+  );
+}

@@ -5,6 +5,8 @@
  * pipeline all live there; this only maps the repeater rows onto `images`.
  */
 import Gallery from '@getvitops/astro/components/Gallery.astro';
+import { getImage } from 'astro:assets';
+import { parseRatio, resolveImageOrigin, transformBlockImage, warnImageFallback } from './image.ts';
 import { resolveBlockValue, rows, safeHref, text } from './value.ts';
 
 interface Value {
@@ -19,7 +21,7 @@ interface Value {
 const value = resolveBlockValue<Value>(Astro.props);
 // Two blocks with the same label would derive the same id; `_key` is unique per block.
 const id = value._key ? `gallery-${value._key.replace(/[^a-z0-9_-]/gi, '')}` : undefined;
-const images = rows<{ src?: unknown; alt?: unknown; caption?: unknown }>(value.images).flatMap(
+const rawImages = rows<{ src?: unknown; alt?: unknown; caption?: unknown }>(value.images).flatMap(
   (row) => {
     const src = safeHref(row.src);
     const caption = text(row.caption);
@@ -27,6 +29,34 @@ const images = rows<{ src?: unknown; alt?: unknown; caption?: unknown }>(value.i
   },
 );
 import { rootAttrs } from './attrs.ts';
+
+// Thumbnails are cropped to the block's `aspect` (object-fit), so that is the ratio to request;
+// the full-size image in the dialog keeps its own shape and is left alone. With no usable aspect,
+// or an origin the image service has not authorized, the original URL is used, as before.
+const THUMB_WIDTH = 400;
+const ratio = parseRatio(value.aspect ?? 1);
+const emdash = (Astro.locals as { emdash?: { config?: { siteUrl?: string } } }).emdash;
+const origin = resolveImageOrigin({
+  siteUrl: emdash?.config?.siteUrl,
+  env: typeof process === 'undefined' ? undefined : process.env.EMDASH_SITE_URL,
+  site: Astro.site?.origin,
+  requestOrigin: Astro.url.origin,
+});
+const images = await Promise.all(
+  rawImages.map(async (img) => {
+    if (!ratio) return img;
+    const result = await transformBlockImage({
+      src: img.src,
+      ratio,
+      displayWidth: THUMB_WIDTH,
+      origin,
+      getImage,
+    });
+    if ('image' in result) return { ...img, thumb: result.image.src };
+    warnImageFallback(result.reason, img.src, origin);
+    return img;
+  }),
+);
 
 // Small is the pattern's own 150px; the others raise `--gallery-thumb-size`. The editor's `style`
 // field still wins, because `rootAttrs` puts it last.
