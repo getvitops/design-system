@@ -92,6 +92,12 @@ export interface VitopsEmdashOptions {
   /** Public base path of the web-component bundles (default '/vitops'). */
   wcBase?: string;
   /**
+   * `'fragments'` mode only: `'auto'` (default) loads `loader.js`, which imports just the
+   * `<wc-*>` elements a page uses; `'eager'` loads `elements.js`, which registers all of them.
+   * Mirrors `vitops({ componentLoading })`, which governs `<Head />`.
+   */
+  elements?: 'auto' | 'eager';
+  /**
    * Mounts a `<wc-theme-editor>` admin page at `/design-system`, backed by a
    * plugin API route — see AGENTS.md's "EmDash plugin as the design-system
    * editing surface" section and `design-system-route.ts`'s own docblock.
@@ -164,7 +170,7 @@ export function createPlugin(options: VitopsEmdashOptions = {}) {
           html:
             `<link rel="modulepreload" href="${wcBase}/polyfills.js">` +
             `<script type="module" src="${wcBase}/polyfills.js"></script>` +
-            `<script type="module" src="${wcBase}/elements.js"></script>`,
+            `<script type="module" src="${wcBase}/${options.elements === 'eager' ? 'elements' : 'loader'}.js"></script>`,
           key: 'vitops-wc',
         },
         {

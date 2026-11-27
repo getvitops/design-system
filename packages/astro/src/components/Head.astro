@@ -141,7 +141,11 @@ const wc = head.wcBase;
       }
     ></script>
     <script is:inline type="module" src={`${wc}/deferred.js`}></script>
-    <script is:inline type="module" src={`${wc}/elements.js`}></script>
+    <script
+      is:inline
+      type="module"
+      src={`${wc}/${head.componentLoading === 'eager' ? 'elements' : 'loader'}.js`}
+    ></script>
   </>
 )}
 

@@ -565,6 +565,29 @@ describe('vitops({ analytics, consent })', () => {
     expect(headData(bare.updates).consentPolicyUrl).toBeNull();
   });
 
+  it('loads elements on demand by default, and eagerly when asked', async () => {
+    const auto = harness({}, scratch());
+    await auto.run();
+    expect(headData(auto.updates).componentLoading).toBe('auto');
+
+    const eager = harness({ componentLoading: 'eager' }, scratch());
+    await eager.run();
+    expect(headData(eager.updates).componentLoading).toBe('eager');
+  });
+
+  it('copies the loader, both entries, per-element modules and shared chunks', async () => {
+    const dir = scratch();
+    const h = harness({}, dir);
+    await h.run();
+    const dest = join(fileURLToPath(dir.publicDir), 'vitops');
+    // Skipped rather than failed when core hasn't been built (the integration warns then).
+    if (existsSync(dest)) {
+      for (const f of ['loader.js', 'elements.js', 'elements/manifest.json', 'chunks'])
+        expect(existsSync(join(dest, f)), f).toBe(true);
+      expect(existsSync(join(dest, 'polyfills'))).toBe(false);
+    }
+  });
+
   it('copies consent.js even with webComponents off', async () => {
     // The gate decides whether third-party tags run, so switching off the element
     // runtime must not silently switch off consent along with it.

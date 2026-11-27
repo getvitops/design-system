@@ -102,8 +102,23 @@ describe('descriptor + runtime', () => {
     const hook = plugin.hooks['page:fragments'];
     const fragments = await (hook.handler ?? hook)();
     expect(JSON.stringify(fragments)).toContain('/assets/wc/polyfills.js');
-    expect(JSON.stringify(fragments)).toContain('/assets/wc/elements.js');
+    // On demand by default: the loader, not the all-in-one `elements.js`.
+    expect(JSON.stringify(fragments)).toContain('/assets/wc/loader.js');
+    expect(JSON.stringify(fragments)).not.toContain('/assets/wc/elements.js');
     expect(JSON.stringify(fragments)).toContain('/assets/wc/deferred.js');
+  });
+
+  it('fragments hook loads the eager bundle when asked', async () => {
+    type Hook = (() => Promise<unknown>) & { handler?: () => Promise<unknown> };
+    const plugin = createPlugin({
+      scripts: 'fragments',
+      wcBase: '/assets/wc',
+      elements: 'eager',
+    }) as unknown as { hooks: { 'page:fragments': Hook } };
+    const hook = plugin.hooks['page:fragments'];
+    const fragments = JSON.stringify(await (hook.handler ?? hook)());
+    expect(fragments).toContain('/assets/wc/elements.js');
+    expect(fragments).not.toContain('/assets/wc/loader.js');
   });
 });
 

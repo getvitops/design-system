@@ -35,6 +35,8 @@ declare module 'virtual:getvitops/head' {
     faviconLinks: FaviconLink[];
     themeColor: string | null;
     webComponents: boolean;
+    /** Which element entry `<Head />` loads: the on-demand `loader.js`, or the all-in-one `elements.js`. */
+    componentLoading: 'auto' | 'eager';
     polyfills: HeadPolyfillData;
     wcBase: string;
     editor: boolean;

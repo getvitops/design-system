@@ -1,37 +1,22 @@
 /**
- * Custom-element registration entry (docs + theme).
+ * Eager entry (`dist/elements.js`, and `@getvitops/core/elements`): every `wc-*` element, up front.
  *
- * Each import is side-effectful: the module runs its `customElements.define(...)`
- * at load, upgrading any matching light-DOM markup. Bundled to `dist/elements.js`
- * via `vp pack` (see vite.config.ts `pack.entry`) and loaded as an ES module.
+ * This no longer bundles the elements itself. Each is its own module under `dist/elements/` (see
+ * `element-tags.ts`, the one table the build, the loader and the tests read), and this loads all of
+ * them at once with no observer. It exists for a host that wants a fixed script tag rather than a
+ * scan: the Bricks theme enqueues it, because a builder re-renders markup constantly, which is the
+ * hardest case for an observer-driven loader. Everyone else uses `loader.js`.
  *
- * Every tag here is `wc-*` prefixed, and that is a rule rather than a convention:
- * `tiers.test.ts` asserts the prefix over every `customElements.define` in
- * `src/web-components/`. `color-scheme-toggle` and `wc-multifield` were the two
- * that drifted, renamed in 4.0.
+ * Every tag in the table is `wc-*` prefixed, and that is a rule rather than a convention:
+ * `tiers.test.ts` asserts the prefix over every `customElements.define` in `src/web-components/`.
  *
- * What isn't registered here yet — the unbuilt components,
- * the element-display gap — is tracked in AGENTS.md's "Component architecture"
- * section, not here.
+ * What isn't registered here yet (the unbuilt components, the element-display gap) is tracked in
+ * AGENTS.md's "Component architecture" section, not here.
  */
-import '../web-components/WCSplitPanel.js';
-import '../web-components/WCImageCompare.js';
-import '../web-components/WCDismissable.js';
-import '../web-components/WCCopy.js';
-import '../web-components/WCCarousel.js';
-import '../web-components/WCEntries.js';
-import '../web-components/WCColorSchemeToggle.js';
-import '../web-components/WCContrastToggle.js';
-import '../web-components/WCMultiField.js';
-import '../web-components/WCMarquee.js';
-import '../web-components/WCTree.js';
-import '../web-components/WCCards.js';
-import '../web-components/WCGallery.js';
-import '../web-components/WCCounter.js';
-import '../web-components/WCTurnstile.js';
-import '../web-components/WCTabs.js';
-import '../web-components/WCCombobox.js';
-import '../web-components/WCFormat.js';
-import '../web-components/WCRange.js';
-import '../web-components/WCField.js';
-import '../web-components/WCNotifications.js';
+import { expose, setBase, loadAll } from './loader-core.ts';
+
+if (typeof document !== 'undefined') {
+  setBase(new URL('./elements/', import.meta.url).href);
+  expose();
+  void loadAll();
+}

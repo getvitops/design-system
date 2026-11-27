@@ -59,19 +59,13 @@ function definedTags(): { tag: string; file: string }[] {
   return out;
 }
 
-/** Components imported by `elements.js` — the shipped set. */
+/** Components `elements.js` loads — the shipped set, which is the table in `element-tags.ts`. */
 function bundledTags(): Set<string> {
-  const els = readFileSync(join(ROOT, 'packages', 'core', 'src', 'js', 'elements.ts'), 'utf8');
-  const bundled = new Set<string>();
-  const imported = [...els.matchAll(/^import '\.\.\/web-components\/(WC\w+)\.js';/gm)].map(
-    (m) => m[1]!,
+  const table = readFileSync(
+    join(ROOT, 'packages', 'core', 'src', 'js', 'element-tags.ts'),
+    'utf8',
   );
-  for (const base of imported) {
-    const src = readFileSync(join(WC_DIR, `${base}.ts`), 'utf8');
-    const m = /customElements\.define\(\s*'([^']+)'/.exec(src);
-    if (m) bundled.add(m[1]!);
-  }
-  return bundled;
+  return new Set([...table.matchAll(/^\s*'(wc-[\w-]+)':\s*\{\s*source:/gm)].map((m) => m[1]!));
 }
 
 describe('the wc-* prefix rule', () => {

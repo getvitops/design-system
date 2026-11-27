@@ -175,41 +175,13 @@ consumers only get the `--font-*` tokens and must hand-wire `@font-face`/preload
 Needs a loading path (self-hosted `@font-face` emission, or a documented preload snippet) for
 non-Astro consumers.
 
-### Component auto-loader — todo
+### Component auto-loader — done
 
-Ship only the components a page actually uses, plus their dependencies, instead of the
-whole `elements.js` bundle. Modelled on Web Awesome's autoloader.
-
-**Why now.** `elements.js` is one eager bundle registering every element, so a page with
-a single `<wc-copy>` still downloads the carousel, the split panel, the image compare,
-the entries table and the marquee — and it grows with every element we add (`wc-marquee`
-made it nine). The cost lands on every consumer of `@getvitops/astro`, whether or not
-they use any of it.
-
-**Shape.** A `MutationObserver` over the document that, on seeing an unregistered
-`<wc-*>` tag, dynamically imports that element's chunk and lets `customElements.define`
-upgrade it in place. The observer stays live so elements added later (a popover's
-contents, an EmDash block, a Bricks builder preview) resolve too.
-
-Notes for whoever picks this up:
-
-- It suits this framework unusually well, because **tier 2 already guarantees a usable
-  no-JS fallback**. The window before a chunk lands is the same state a
-  scripting-disabled visitor gets permanently, which is exactly the state we already
-  commit to — so late upgrade is not a new failure mode, and there is no flash of
-  nothing to design around.
-- Needs per-element chunks from the build. `packages/core` currently emits one
-  `elements.js`; splitting it changes what `@getvitops/astro` copies into `public/`
-  and what `<Head />` references. Keep the eager bundle as an opt-in for consumers who
-  would rather have one request.
-- The dependency edge is real: several elements extend `BaseElement` and
-  `WCImageCompare`/`WCSplitPanel` share `DragController`. Those must land in a shared
-  chunk, not be duplicated per element.
-- `<wc-consent>` must stay out of it. It ships in its own Lit-free bundle on purpose:
-  it gates every third-party tag on the page, so it has to be free to load _ahead_ of
-  anything else rather than behind an observer.
-- Check it against the Bricks builder, where markup is injected and re-rendered
-  constantly — that is the hardest case for an observer-driven loader.
+`loader.js` (default) and the per-element `dist/elements/<tag>.js` entries shipped; see
+`internals/components.md`. Not done: the Bricks theme still enqueues the eager `elements.js`
+(a builder re-renders markup constantly, the hardest case for an observer; check the loader against
+it before switching), and `wc-consent`/`wc-stepper`/`wc-config-form`/`wc-color-field`/
+`wc-config-preview` keep their own entries and are not discovered by the loader.
 
 ### Foundational components — todo
 

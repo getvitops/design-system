@@ -7,7 +7,15 @@
  * The `<Head />` component (shipped alongside) renders the tags, reading resolved
  * config from the `virtual:getvitops/head` module this integration provides.
  */
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -47,6 +55,7 @@ import {
   resolvePolyfills,
 } from './polyfills.ts';
 import type { GetvitopsSeoOptions } from './seo.ts';
+import { injectElementPreloads, type ElementManifest } from './preload-elements.ts';
 import { tailwindSources } from './tailwind-sources.ts';
 import { mergeSeoDefaults, resolveSeoDefaults } from './seo-defaults.ts';
 import { TRACKING_ENDPOINT, type GetvitopsTrackingOptions, resolveTracking } from './tracking.ts';
@@ -272,6 +281,14 @@ export interface GetvitopsOptions {
   media?: GetvitopsMediaOptions;
   /** Copy + link the web-component bundles (default true). */
   webComponents?: boolean;
+  /**
+   * How the `<wc-*>` elements reach the page. `'auto'` (default) loads `loader.js`, which finds
+   * the tags a page uses and imports only those modules (and what each depends on), and keeps
+   * watching for tags that arrive later. `'eager'` loads `elements.js`, which registers every
+   * element up front: one request, but a page with a single `<wc-copy>` still downloads the
+   * carousel, the tree and the combobox. Needs `webComponents`.
+   */
+  componentLoading?: 'auto' | 'eager';
   /**
    * Which feature-detected polyfills the page may load. Everything core depends on is on by
    * default; `disable` leaves one out, and `enable: ['temporal']` turns on the one opt-in
@@ -536,6 +553,8 @@ interface HeadData {
   faviconLinks: FaviconLink[];
   themeColor: string | null;
   webComponents: boolean;
+  /** Which element entry `<Head />` loads: the on-demand `loader.js`, or the all-in-one `elements.js`. */
+  componentLoading: 'auto' | 'eager';
   /** Written onto the polyfills `<script>` tag as `data-polyfills-enable` / `-disable`. */
   polyfills: HeadPolyfillData;
   wcBase: string;
@@ -1166,7 +1185,36 @@ function writeEditorHost(dest: string): void {
   );
 }
 
+/**
+ * Add `modulepreload` hints for each prerendered page's `<wc-*>` elements. Returns the number of
+ * pages changed. A build without the manifest (an older core) is left alone.
+ */
+function preloadElementsInBuild(clientDir: string): number {
+  const manifestFile = join(clientDir, 'vitops', 'elements', 'manifest.json');
+  if (!existsSync(manifestFile)) return 0;
+  const manifest = JSON.parse(readFileSync(manifestFile, 'utf8')) as ElementManifest;
+  let changed = 0;
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith('.html')) {
+        const html = readFileSync(path, 'utf8');
+        const next = injectElementPreloads(html, manifest, '/vitops');
+        if (next !== html) {
+          writeFileSync(path, next);
+          changed++;
+        }
+      }
+    }
+  };
+  walk(clientDir);
+  return changed;
+}
+
 export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
+  // Decided in `astro:config:setup` (needs the command), read in `astro:build:done`.
+  let preloadElements = false;
   return {
     name: '@getvitops/astro',
     hooks: {
@@ -1174,6 +1222,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
         const root = fileURLToPath(config.root);
         const publicDir = fileURLToPath(config.publicDir);
         const webComponents = opts.webComponents !== false;
+        preloadElements = command === 'build' && webComponents && opts.componentLoading !== 'eager';
         // Validated here so a typo fails the build instead of silently loading the wrong set.
         const polyfills = resolvePolyfills(opts.polyfills);
         if (opts.polyfills && !webComponents)
@@ -1527,9 +1576,13 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
           const coreDist = join(dirname(corePkg), 'dist');
           const dest = join(publicDir, 'vitops');
           if (existsSync(coreDist)) {
+            // Both entries are always copied (`elements.js` is a few hundred bytes of imports): the
+            // EmDash `fragments` mode picks its own, and the two must not have to agree.
             const bundles = webComponents
-              ? ['polyfills.js', 'deferred.js', 'elements.js', 'polyfills']
+              ? ['polyfills.js', 'deferred.js', 'loader.js', 'elements.js', 'elements', 'chunks']
               : [];
+            // `chunks/` replaced `polyfills/` as the shared-chunk folder; do not leave a stale copy.
+            rmSync(join(dest, 'polyfills'), { recursive: true, force: true });
             if (consentRuntime) bundles.push('consent.js');
             if (editor || opts.editorManifest) bundles.push('editor.js');
             for (const f of bundles) {
@@ -1841,6 +1894,7 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
                 faviconLinks: opts.favicon ? faviconLinks({ hasSvg, manifest: hasManifest }) : [],
                 themeColor: opts.favicon?.themeColor ?? null,
                 webComponents,
+                componentLoading: opts.componentLoading ?? 'auto',
                 polyfills,
                 wcBase: '/vitops',
                 editor,
@@ -1975,6 +2029,11 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
             );
           }
         }
+      },
+      'astro:build:done': ({ dir, logger }) => {
+        if (!preloadElements) return;
+        const n = preloadElementsInBuild(fileURLToPath(dir));
+        if (n) logger.info(`modulepreload hints added to ${n} page(s)`);
       },
     },
   };
