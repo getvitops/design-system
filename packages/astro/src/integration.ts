@@ -123,6 +123,15 @@ export interface GetvitopsCssOptions {
    */
   inject?: boolean;
   /**
+   * Strip stylesheet rules no prerendered page uses (default true). The tailwind format inlines
+   * every pattern partial into `@layer components`, which Tailwind never prunes, so without this a
+   * site ships the rules for patterns it never renders (roughly 40% of the sheet on a typical
+   * site). Runs after the build against the built HTML and the web-component bundles; on-demand
+   * routes (CMS pages, admin) keep the full sheet. Set `false`, or `VITOPS_PURGE_CSS=0`, to turn
+   * it off, for example to bisect a visual difference.
+   */
+  purge?: boolean;
+  /**
    * Also flip to dark when the visitor's OS asks and they have made no explicit
    * choice — `@media (prefers-color-scheme: dark)`.
    *
@@ -1167,6 +1176,8 @@ function writeEditorHost(dest: string): void {
 }
 
 export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
+  // Decided in `astro:config:setup` (needs the resolved format), read in `astro:build:done`.
+  let purgeCss = false;
   return {
     name: '@getvitops/astro',
     hooks: {
@@ -1965,6 +1976,11 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
           // built from real Vite plugins above, so the cast loses nothing a check would catch.
           updateConfig({ vite: { plugins: plugins as never } });
           const cssFile = format === 'tailwind' ? 'tailwind.css' : 'styles.css';
+          purgeCss =
+            command === 'build' &&
+            opts.css.purge !== false &&
+            process.env.VITOPS_PURGE_CSS !== '0' &&
+            format !== 'bricks';
           if (opts.css.inject !== false) {
             const cssPath = resolve(root, out, cssFile);
             injectScript('page-ssr', `import ${JSON.stringify(cssPath)};`);
@@ -1975,6 +1991,13 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
             );
           }
         }
+      },
+      'astro:build:done': async ({ dir, logger }) => {
+        if (!purgeCss) return;
+        const { purgeBuildOutput } = await import('@getvitops/utils/purge');
+        const reports = await purgeBuildOutput({ clientDir: fileURLToPath(dir) });
+        const kb = (n: number) => `${(n / 1024).toFixed(1)}KB`;
+        for (const r of reports) logger.info(`purged ${r.href}: ${kb(r.before)} -> ${kb(r.after)}`);
       },
     },
   };

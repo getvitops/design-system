@@ -59,6 +59,7 @@ catalog:
   postcss: ^8.5.33
   postcss-lit: ^1.4.1
   publint: ^0.3.25
+  purgecss: ^9.1.0
   skills: ^1.9.0
   react: ^19.3.1
   react-dom: ^19.3.1

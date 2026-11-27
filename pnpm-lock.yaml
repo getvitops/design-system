@@ -327,6 +327,9 @@ catalogs:
     publint:
       specifier: ^0.3.25
       version: 0.3.25
+    purgecss:
+      specifier: ^9.1.0
+      version: 9.1.0
     react:
       specifier: ^19.3.1
       version: 19.3.1
@@ -629,6 +632,9 @@ importers:
       png-to-ico:
         specifier: 'catalog:'
         version: 3.0.2
+      purgecss:
+        specifier: 'catalog:'
+        version: 9.1.0
       sharp:
         specifier: 'catalog:'
         version: 0.35.5(@types/node@26.6.6)
@@ -4370,6 +4376,10 @@ packages:
     resolution: {integrity: sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ==}
     engines: {node: '>=16'}
 
+  commander@15.1.0:
+    resolution: {integrity: sha512-cgnQ88TRrWcC7pVq46RzJVRMktu3W2RcbnoidnfBsl1bmDCBwJS/udcIZpKoCrbAYYaCqsz1yZCVIgbIaU3ddQ==}
+    engines: {node: '>=22.12.0'}
+
   commander@2.20.3:
     resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
 
@@ -6198,6 +6208,10 @@ packages:
       yaml:
         optional: true
 
+  postcss-selector-parser@7.2.1:
+    resolution: {integrity: sha512-GwxlMgTTXwIom+ebC7an3k6RaJDwklRQQnfiXsLPGicu8FYV/k/+1/9YY2OU2+r938H2t4X0TDxoif+HP2rjzQ==}
+    engines: {node: '>=4'}
+
   postcss@8.5.33:
     resolution: {integrity: sha512-RVHEU9/Pp1Fnjr/MpAJsZoADukCKhfIi15OunEYiGktIkYLkPVvC1sioWolGDS7XByMTx9m/IGbro0Js13zhnQ==}
     engines: {node: ^10 || ^12 || >=14}
@@ -6316,6 +6330,11 @@ packages:
   puppeteer-core@25.18.1:
     resolution: {integrity: sha512-C0wHOJHDfAggGBtN5uUfsJGpeSKtPL5jzhgQYDuz4XKeOG1FUkxeZI2M5yK7AUyrdHO+RgDuiCfjmOpcw3PYTA==}
     engines: {node: '>=22.12.0'}
+
+  purgecss@9.1.0:
+    resolution: {integrity: sha512-KUuJWwloltnB1NhRFAjpkC9URvAenZWpKwUjpg/+cYPQGtVj65Iw7XpiF9NkPGBEPhJu9Rw5DbCn7NFlIAg8OQ==}
+    engines: {node: '>=22.12.0'}
+    hasBin: true
 
   qs@6.17.1:
     resolution: {integrity: sha512-jd3COkaKVgGUW+ZHyEHCG9bH7RoaaiWuMgzsIBjUMVjLAaWGWpoUAVwljVvBHxRu/2qEHnadLGZrkutYUBPQJA==}
@@ -11361,6 +11380,8 @@ snapshots:
 
   commander@11.1.0: {}
 
+  commander@15.1.0: {}
+
   commander@2.20.3: {}
 
   common-ancestor-path@2.0.0: {}
@@ -13139,6 +13160,10 @@ snapshots:
       postcss: 8.5.33
       yaml: 2.9.1
 
+  postcss-selector-parser@7.2.1:
+    dependencies:
+      util-deprecate: 1.0.2
+
   postcss@8.5.33:
     dependencies:
       nanoid: 3.3.20
@@ -13300,6 +13325,13 @@ snapshots:
       - proxy-agent
       - utf-8-validate
       - yauzl
+
+  purgecss@9.1.0:
+    dependencies:
+      commander: 15.1.0
+      fast-glob: 3.3.3
+      postcss: 8.5.33
+      postcss-selector-parser: 7.2.1
 
   qs@6.17.1:
     dependencies:
