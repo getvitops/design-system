@@ -407,7 +407,7 @@ export const TIERS: Record<string, TierEntry> = {
   },
   'color-scheme-toggle': {
     emdashExempt: 'site chrome (header/footer), not page content; belongs in the nav/layout',
-    css: c([], 'patterns/icon.css'),
+    css: c([], 'patterns/color-scheme-toggle.css'),
     wc: {
       tag: 'wc-color-scheme-toggle',
       fallback: 'partial',
@@ -415,7 +415,7 @@ export const TIERS: Record<string, TierEntry> = {
       adds: 'segmented light/dark/system control; persists the choice (consent-gated)',
     },
     bricks: 'vitops-color-scheme-toggle',
-    use: '`<wc-color-scheme-toggle></wc-color-scheme-toggle>`. Renamed from `<color-scheme-toggle>` in 4.0. Shadow DOM, so it is absent rather than broken without JS.',
+    use: '`<wc-color-scheme-toggle></wc-color-scheme-toggle>`. Renamed from `<color-scheme-toggle>` in 4.0. Shadow DOM, so it is absent rather than broken without JS. While scripts run and the element has not upgraded yet its ~15.5rem × 2.3rem box is reserved (`--color-scheme-toggle-reserve-inline` / `-block` to resize), so it does not shift the header.',
   },
   'contrast-toggle': {
     emdashExempt:

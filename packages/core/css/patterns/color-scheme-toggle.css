@@ -1,0 +1,20 @@
+/**
+ * Colour-scheme toggle — the space it will occupy, held until the element upgrades.
+ *
+ * `<wc-color-scheme-toggle>` renders its three-button group on upgrade and is `display: none` until
+ * then (it has no no-JS form). In a header that is a layout shift: the group appears after first
+ * paint, takes ~248px, squeezes the brand and nav beside it, and moves everything below (CLS 0.21
+ * on the scaffolded site's mobile home page, from this alone).
+ *
+ * So while a visitor who runs scripts is waiting for the element, reserve its box. Without
+ * scripting nothing will ever upgrade it, and a permanent blank gap in the header would be worse
+ * than the shift, hence the media query. The defaults are the English labels; a translated or
+ * restyled toggle sets `--color-scheme-toggle-reserve-inline` / `-block` to its own size.
+ */
+@media (scripting: enabled) {
+  wc-color-scheme-toggle:not(:defined) {
+    display: inline-block;
+    inline-size: var(--color-scheme-toggle-reserve-inline, 15.5rem);
+    block-size: var(--color-scheme-toggle-reserve-block, 2.3125rem);
+  }
+}
