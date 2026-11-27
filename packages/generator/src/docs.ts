@@ -906,8 +906,11 @@ has the same dependency — this is not a limit of the transition driver.`
 **When it plays.** \`animate-view\` and \`.is-active\` are both timed off the element's **midpoint**:
 motion starts once that midpoint is 10% of the viewport in, and a one-shot entrance completes at
 25%. Both stops are the element's position on screen rather than a fraction of its own height, so a
-small card and a full-bleed section behave alike. Shift the window with \`--anim-start\` /
-\`--anim-end\`, or replace it outright with \`--anim-range\`.
+small card and a full-bleed section behave alike. A tall element would otherwise wait for its own
+midpoint and sit partly faded on the first screen, so the window is capped at 30vh / 45vh from the
+element's leading edge (\`--anim-start-cap\` / \`--anim-end-cap\`); anything shorter than about 40vh
+is unaffected. Shift the window with \`--anim-start\` / \`--anim-end\`, or replace it outright with
+\`--anim-range\`.
 
 Composed **journeys** chain multiple effects into one entrance: rule \`<parts>-journey\`
 (e.g. \`fade-slide-journey\`, \`fade-scale-blur-journey\`). They need a **keyframe** driver, not

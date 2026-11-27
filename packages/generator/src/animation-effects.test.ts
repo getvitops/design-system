@@ -166,9 +166,13 @@ describe.skipIf(!hasAssets)('generated animation effects', () => {
     // on the viewport edge, whatever its height — and are then pushed in by
     // viewport units. Earlier defaults were fractions of the element's OWN
     // height, which is why they fired before it was on screen.
-    expect(view).toContain('entry calc(50%');
+    expect(view).toContain('50%');
     expect(view).toContain('10vh');
     expect(view).toContain('25vh');
+    // ...and capped, so a tall element finishes while enough of it is on screen at rest: a 530px
+    // card sat at 68% opacity on the first screen (axe: 2.9:1) with the bare midpoint pivot.
+    expect(view).toContain('--anim-start-cap');
+    expect(view).toContain('--anim-end-cap');
     expect(view).not.toContain('entry 0% entry 20%');
   });
 

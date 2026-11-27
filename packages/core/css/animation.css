@@ -436,14 +436,30 @@
      Percentages here resolve against the entry range (the element's height) and
      lengths against the scrollport, so the two mix in one calc() by design.
 
+     **The caps.** The midpoint pivot grows with the element, so a tall one (a 530px card row) did
+     not finish until its midpoint was 25vh in, which can be PAST what a visitor sees at rest:
+     such a card sat at 68% opacity on the first screen until the page was scrolled, and axe
+     reported its text at 2.9:1. `--anim-start-cap` / `--anim-end-cap` (default 30vh / 45vh from the
+     leading edge) bound where the window can start and end, so a tall element completes once a
+     reasonable slice is on screen. An element shorter than about 40vh never reaches a cap, so
+     small cards and tiles keep exactly the timing above.
+
      --anim-start / --anim-end move the window without restating the pivot;
      --anim-range replaces it outright; --_anim-range-offset shifts both stops
      together (that's how .stagger offsets scroll-driven children — see Stagger
      Support). Journeys declare their own range and ignore all of it. */
   animation-range: var(
     --anim-range,
-    entry calc(50% + var(--anim-start, 10vh) + var(--_anim-range-offset, 0%)) entry
-      calc(50% + var(--anim-end, 25vh) + var(--_anim-range-offset, 0%))
+    entry
+      calc(
+        min(calc(50% + var(--anim-start, 10vh)), var(--anim-start-cap, 30vh)) +
+          var(--_anim-range-offset, 0%)
+      )
+      entry
+      calc(
+        min(calc(50% + var(--anim-end, 25vh)), var(--anim-end-cap, 45vh)) +
+          var(--_anim-range-offset, 0%)
+      )
   );
 }
 
