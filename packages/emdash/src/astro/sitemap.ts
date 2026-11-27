@@ -20,6 +20,11 @@
  * and set it in the seed instead.
  */
 import type { APIRoute } from 'astro';
+// A static import on purpose. A dynamic one (even `@vite-ignore`d) is left as a runtime specifier
+// that a Worker bundle cannot resolve ("No such module chunks/emdash/internal/routes/…"), so the
+// route 500s; a static one is bundled with the rest of the site.
+import { GET as emdashSitemap } from 'emdash/internal/routes/sitemap-_collection_.xml';
+import { rewriteHomeEntry } from './sitemap-rewrite.ts';
 
 export interface HomeAwareSitemapOptions {
   /** The collection that holds the home entry. Default `pages`. */
@@ -28,35 +33,10 @@ export interface HomeAwareSitemapOptions {
   homeSlug?: string;
 }
 
-/** An optional locale prefix (`/fr`, `/pt-BR`) before the slug. */
-const LOCALE = '(?:/[a-z]{2}(?:-[A-Za-z]{2,4})?)?';
-
-/**
- * Rewrite `…/<homeSlug>` to `…/` in every `<loc>` and `hreflang` `href` of a sitemap document.
- * Only a path that is exactly the slug (or locale + slug) matches, so `/about/home` and
- * `/homepage` are left alone. Pure, so it is tested without a server.
- */
-export function rewriteHomeEntry(xml: string, homeSlug = 'home'): string {
-  const slug = homeSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const tail = new RegExp(`^(https?://[^/<"]+${LOCALE})/${slug}(/?)$`);
-  const fix = (url: string) => url.replace(tail, '$1/');
-  return xml
-    .replace(/<loc>([^<]*)<\/loc>/g, (_m, url: string) => `<loc>${fix(url)}</loc>`)
-    .replace(
-      /(\shref=")([^"]*)(")/g,
-      (_m, a: string, url: string, b: string) => `${a}${fix(url)}${b}`,
-    );
-}
-
 export function homeAwareSitemap(options: HomeAwareSitemapOptions = {}): APIRoute {
   const { collection = 'pages', homeSlug = 'home' } = options;
   return async (context) => {
-    // Imported here, not at the top: the module reads EmDash's virtual config, which only exists
-    // inside the Vite pipeline, so a plain import of this file (a test, a type check) must not load it.
-    const mod = (await import(
-      /* @vite-ignore */ 'emdash/internal/routes/sitemap-_collection_.xml'
-    )) as { GET: APIRoute };
-    const res = await mod.GET(context);
+    const res = await emdashSitemap(context);
     const name = context.params.collection ?? '';
     // `pages` and its pages (`pages-2`); any other collection passes through untouched.
     if (res.status !== 200 || !(name === collection || name.startsWith(`${collection}-`)))

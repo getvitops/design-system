@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
-import { rewriteHomeEntry } from './sitemap.ts';
+import { rewriteHomeEntry } from './sitemap-rewrite.ts';
 
 const xml = (...locs: string[]) =>
   `<urlset>${locs.map((l) => `<url><loc>${l}</loc></url>`).join('')}</urlset>`;
