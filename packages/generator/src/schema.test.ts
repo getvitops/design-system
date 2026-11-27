@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 import { defaultConfig } from './index.ts';
-import { jsonSchema, validate } from './schema.ts';
+import { DesignSystemPatchSchema, jsonSchema, validate } from './schema.ts';
 import { configJsonSchema } from './config.ts';
 
 interface Node {
@@ -137,5 +137,13 @@ describe('validate() is as strict as the published schema', () => {
     expect(validate(withHue({ seed: '#2e9b73' })).ok).toBe(true);
     expect(validate(withHue({ seed: '#2e9b73', anchors: { 600: '#1f6b50' } })).ok).toBe(true);
     expect(validate(withHue({ tones: ['#eafaf3', '#2e9b73', '#0d3b2b'] })).ok).toBe(true);
+  });
+});
+
+describe('theme patch colours', () => {
+  it('accepts `tint`, which the full colours schema already accepts', () => {
+    const patch = { colors: { tint: { mix: '8%' } } };
+    expect(DesignSystemPatchSchema.safeParse(patch).success).toBe(true);
+    expect(DesignSystemPatchSchema.safeParse({ colors: { tint: { mix: 8 } } }).success).toBe(false);
   });
 });

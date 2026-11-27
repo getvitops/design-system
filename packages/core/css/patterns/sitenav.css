@@ -761,6 +761,10 @@
 .sitefooter__inner.centered {
   display: grid;
   row-gap: 1rem;
+  /* `.sitefooter__inner`'s `gap` also sets the column gap, which would land between `.centered`'s
+     zero-width named tracks and push the row past the page track (a 390px viewport scrolled to
+     454px). The tracks are gutters, not columns: no gap between them. */
+  column-gap: 0;
 
   & > * {
     grid-column: spotlight;

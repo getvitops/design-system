@@ -114,7 +114,10 @@ Lint options:
                         Responsive md-* classes are real in css/bricks, inert in tailwind.
   -s, --src <dir>       Directory to scan (default: ./src)
       --strict          Also fail on suggestions (reuse hints), not just on
-                        classes that resolve to nothing
+                        classes that resolve to nothing. A heavy default for CI:
+                        a hint on an element a block renders cannot be acted on.
+                        Put /* vitops-lint-ignore */ on the line above such a
+                        CSS rule to skip it.
   [files...]            Lint these paths instead of scanning --src. Unreadable
                         and non-source paths are skipped, so this can be wired
                         into a pre-commit hook that appends the staged files.

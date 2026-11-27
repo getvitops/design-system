@@ -120,7 +120,7 @@ const wc = head.wcBase;
       `head.test.ts` asserts they stay in step. Wrapped in try/catch because
       localStorage throws in private/partitioned contexts.
     */}
-    <script is:inline set:html={THEME_SCRIPT} />
+    {!head.darkOnly && <script is:inline set:html={THEME_SCRIPT} />}
     {contrast && <script is:inline set:html={CONTRAST_SCRIPT} />}
     <link rel="modulepreload" href={`${wc}/polyfills.js`} />
     {/*

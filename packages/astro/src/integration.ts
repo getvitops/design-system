@@ -565,6 +565,8 @@ interface HeadData {
   webComponents: boolean;
   /** Which element entry `<Head />` loads: the on-demand `loader.js`, or the all-in-one `elements.js`. */
   componentLoading: 'auto' | 'eager';
+  /** A dark-only site: `<Head />` omits the stored colour-scheme bootstrap (nothing to flip to). */
+  darkOnly: boolean;
   /** Written onto the polyfills `<script>` tag as `data-polyfills-enable` / `-disable`. */
   polyfills: HeadPolyfillData;
   wcBase: string;
@@ -751,6 +753,20 @@ function readSiteOriginFacts(
     };
   } catch {
     return {};
+  }
+}
+
+/**
+ * Whether the site is dark-only (`designSystem.defaultColorScheme: "dark"`). Its generated CSS has
+ * no light appearance, so a remembered `light` choice cannot render correctly: `<Head />` skips
+ * the bootstrap that would apply it. Best-effort, like `readSiteAds`.
+ */
+function readSiteDarkOnly(configPath: string, siteEnv: string): boolean {
+  try {
+    const cfg = resolveConfig(JSON.parse(readFileSync(configPath, 'utf8')), siteEnv);
+    return cfg.designSystem?.defaultColorScheme === 'dark';
+  } catch {
+    return false;
   }
 }
 
@@ -1946,6 +1962,11 @@ export default function vitops(opts: GetvitopsOptions = {}): AstroIntegration {
                 themeColor: opts.favicon?.themeColor ?? null,
                 webComponents,
                 componentLoading: opts.componentLoading ?? 'auto',
+                darkOnly: opts.css?.systemColorScheme
+                  ? false
+                  : siteInput
+                    ? readSiteDarkOnly(resolve(root, siteInput), opts.site?.siteEnv ?? 'production')
+                    : false,
                 polyfills,
                 wcBase: '/vitops',
                 editor,

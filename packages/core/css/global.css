@@ -75,6 +75,11 @@ body {
 html {
   scrollbar-gutter: stable;
   scroll-padding-block-start: var(--top-offset, 0);
+  /* The page ground. Without it the ground is the browser's own `Canvas`, which differs per engine
+     and under `color-scheme: dark`, and which axe treats as white: a correct dark site reported
+     1.2 to 1.7:1 contrast failures for light text on every page. `Canvas` stays the fallback for a
+     config that defines no neutral plane. */
+  background-color: var(--color-bg-neutral, Canvas);
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -16,7 +16,8 @@
  *   vitops ads       setup [--provider <name>] [--dry] [--check]  |  tags  |  lint
  *   vitops setup     repo | hosting | domain | search | ads | all [--dry] [--check]
  *   vitops email     setup [domain] [--dry] [--check]  |  check [--strict] [--skip]
- *   vitops emdash    prepare-db  |  check-prerender [dir]
+ *   vitops emdash    prepare-db  |  check-prerender [dir]  |  build [dir]  |  form-template  |  check-seed
+ *                    schema diff|apply|export  |  db copy|snapshot|…   (`vitops emdash --help` has them all)
  *   vitops media     [--raw <dir>] [--out <dir>] [--force] [--dry]
  *   vitops audit     [--url <base>] [--build] [--pages <list>] [--warn] [--out <dir>]
  *

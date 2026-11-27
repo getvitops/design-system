@@ -37,6 +37,8 @@ declare module 'virtual:getvitops/head' {
     webComponents: boolean;
     /** Which element entry `<Head />` loads: the on-demand `loader.js`, or the all-in-one `elements.js`. */
     componentLoading: 'auto' | 'eager';
+    /** A dark-only site: `<Head />` omits the stored colour-scheme bootstrap (nothing to flip to). */
+    darkOnly: boolean;
     polyfills: HeadPolyfillData;
     wcBase: string;
     editor: boolean;
