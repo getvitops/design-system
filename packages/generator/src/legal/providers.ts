@@ -201,11 +201,12 @@ export const KNOWN_PROCESSORS = {
   zohoBigin: {
     name: 'Zoho Bigin',
     purpose: 'CRM',
-    // TODO — operatorCountry unconfirmed. Zoho Corporation has both an Indian
-    // entity (Zoho Corporation Pvt. Ltd., Chennai) and a US one (Zoho
-    // Corporation, California); which one is the data controller for a given
-    // account depends on the signup entity, and CRM.md flags this as needing
-    // verification before this policy sentence is trusted. Do not guess.
+    // `operatorCountry` is deliberately unset, and checked: Zoho's privacy policy (updated
+    // 2025-12-22) is made by the whole Zoho Group, whose entities are named joint controllers
+    // (zoho.com/privacy/zoho-group.html), and it does not say which entity contracts for Bigin.
+    // Hosted data centers are per entity (US: Zoho Technologies, California; EU: Zoho Corporation
+    // B.V.; Australia: Zoho Corporation Pty. Ltd.), so one country would be a guess. Revisit
+    // only if a per-account data center is derived from config, as `jobber` does.
     privacyUrl: 'https://www.zoho.com/privacy.html',
     // No cookie is set by this integration's own server-side write, which
     // never runs in the browser.
@@ -219,7 +220,7 @@ export const KNOWN_PROCESSORS = {
   zohoCampaigns: {
     name: 'Zoho Campaigns',
     purpose: 'email newsletters and campaigns',
-    // TODO — operatorCountry unverified, for the same reason as `zohoBigin` above. Storage is not
+    // `operatorCountry` is unset for the same verified reason as `zohoBigin` above. Storage is not
     // derived from `campaigns.zohoCampaigns.dataCenter` yet; add that refiner with the
     // verified per-DC countries rather than reusing Bigin's table by assumption.
     privacyUrl: 'https://www.zoho.com/privacy.html',
@@ -229,9 +230,11 @@ export const KNOWN_PROCESSORS = {
   sendfox: {
     name: 'SendFox',
     purpose: 'email newsletters and campaigns',
-    // TODO — operator and storage jurisdiction unverified. SendFox's privacy page names Sumo Group
-    // Inc. (a Delaware corporation) as operator, but that page is years old and the Terms link a
-    // different policy host, so it is not asserted here. Confirm the live policy first.
+    // Sumo Group Inc., a Delaware corporation (Austin, Texas), trading as SendFox — verified
+    // 2026-11-27 against sendfox.com/privacy, whose GDPR section names the same entity, and whose
+    // Terms links are on the same host. This is the operator's jurisdiction only: the policy names
+    // no hosting country or region, so no `storage` is asserted.
+    operatorCountry: 'the United States',
     privacyUrl: 'https://sendfox.com/privacy',
     cookies: [],
   },

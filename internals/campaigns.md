@@ -61,8 +61,10 @@ Forms submission) and Jobber are open items, below.
   developer docs an integer array. `sendfox.ts` sends JSON with an integer array; confirm on a
   test account. Double opt-in is an account-level SendFox setting, a setup requirement rather
   than a request flag.
-- **Operator and storage jurisdiction** for both providers are unset in `legal/providers.ts`
-  (SendFox's page names Sumo Group Inc., Delaware, but is years old).
+- **Operator and storage jurisdiction.** SendFox's `operatorCountry` is the United States (Sumo Group Inc.,
+  Delaware, checked against its live policy 2026-11-27); its storage is unset because the policy names no
+  hosting location. Zoho Campaigns' is unset on purpose: Zoho's policy names the whole group as joint
+  controllers and hosted data centers are per entity, so no single country is true.
 - **HubSpot** is not a provider yet. It should ride on the existing Forms submission with
   `legalConsentOptions` rather than a second contact write. Until then the CRM signup fact is not
   rendered for a HubSpot CRM, because `hubspot.ts` does not read `message`.

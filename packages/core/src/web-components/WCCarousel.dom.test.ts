@@ -262,6 +262,10 @@ describe("<wc-carousel> autoplay holds and the visitor's choice", () => {
   };
 
   afterEach(() => {
+    // Detach the carousel so `disconnectedCallback` clears its pending settle timer. Left
+    // connected, the 150ms timer fires after the file's happy-dom globals are torn down and
+    // throws `HTMLElement is not defined` as an unhandled error.
+    document.body.innerHTML = '';
     vi.useRealTimers();
   });
 
