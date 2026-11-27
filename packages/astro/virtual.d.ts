@@ -35,6 +35,8 @@ declare module 'virtual:getvitops/head' {
     faviconLinks: FaviconLink[];
     themeColor: string | null;
     webComponents: boolean;
+    /** A dark-only site: `<Head />` omits the stored colour-scheme bootstrap (nothing to flip to). */
+    darkOnly: boolean;
     polyfills: HeadPolyfillData;
     wcBase: string;
     editor: boolean;

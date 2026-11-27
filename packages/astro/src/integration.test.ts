@@ -565,6 +565,23 @@ describe('vitops({ analytics, consent })', () => {
     expect(headData(bare.updates).consentPolicyUrl).toBeNull();
   });
 
+  it('omits the stored colour-scheme bootstrap on a dark-only site', async () => {
+    // A dark-only build emits no light appearance, so a `light` value saved by another Vitops site
+    // on the same origin (localhost ports are shared) would render every untoned band white.
+    const dir = mkdtempSync(join(tmpdir(), 'vitops-'));
+    const ctx = { root: pathToFileURL(`${dir}/`), publicDir: pathToFileURL(`${dir}/public/`) };
+    const cfg = defaultSiteConfig() as unknown as { designSystem: Record<string, unknown> };
+    cfg.designSystem.defaultColorScheme = 'dark';
+    writeFileSync(join(dir, 'vitops.json'), JSON.stringify(cfg));
+    const dark = harness({ site: { input: 'vitops.json' } }, ctx);
+    await dark.run();
+    expect(headData(dark.updates).darkOnly).toBe(true);
+
+    const bare = harness({}, scratch());
+    await bare.run();
+    expect(headData(bare.updates).darkOnly).toBe(false);
+  });
+
   it('copies consent.js even with webComponents off', async () => {
     // The gate decides whether third-party tags run, so switching off the element
     // runtime must not silently switch off consent along with it.

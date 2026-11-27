@@ -27,6 +27,9 @@
 
   .section__body {
     display: grid;
+    /* An implicit `auto` track sizes to its widest child, so one long word or an unshrinkable
+       figure pushed the body wider than the section. `minmax(0, 1fr)` lets the track shrink. */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--section-body-gap, 1.5rem);
     min-inline-size: 0;
   }

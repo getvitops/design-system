@@ -227,11 +227,8 @@ describe('the split rule', () => {
     );
   });
 
-  it('does not suggest a split-1-1, because there is no such class', () => {
-    // `.split` is equal by default — a ratio class only exists for uneven
-    // splits. Suggesting `split-1-1` would be this file committing the exact
-    // defect `lint.ts` exists to report.
-    expect(lintCss(at('a.css', twoCol('1fr 1fr')), 'css')).toEqual([]);
+  it('suggests split-1-1 for equal columns, which is a real utility', () => {
+    expect(lintCss(at('a.css', twoCol('1fr 1fr')), 'css')[0]?.suggestion).toContain('split-1-1');
   });
 
   it('stays quiet outside a min-width query', () => {
@@ -312,5 +309,22 @@ describe('generated output', () => {
     const authored =
       '/* generated content goes here */\n.row { display: flex; align-items: center; }';
     expect(lintCss(at('a.css', authored), 'css')).toHaveLength(1);
+  });
+});
+
+describe('vitops-lint-ignore', () => {
+  const rule =
+    '.band-videos .section__body { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }';
+  it('reports the rule without the comment', () => {
+    expect(lintCss(at('a.css', rule), 'css').length).toBeGreaterThan(0);
+  });
+  it('skips a rule with the comment on the line above', () => {
+    expect(lintCss(at('a.css', `/* vitops-lint-ignore */\n${rule}`), 'css')).toEqual([]);
+  });
+  it('skips across a blank line, and only the rule it precedes', () => {
+    const css = `/* vitops-lint-ignore */\n\n${rule}\n${rule.replace('band-videos', 'other')}`;
+    const findings = lintCss(at('a.css', css), 'css');
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.line).toBe(4);
   });
 });

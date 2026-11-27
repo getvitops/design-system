@@ -686,3 +686,16 @@ fieldset.field__control,
     forced-color-adjust: none;
   }
 }
+
+/* ── Form block — a themed form reads as a card ────────────────────────────── */
+/* `.tone` is colour variables first: only a surface paints (tone.css). A form that carries a tint
+   or a fill is painted, so it needs the card's padding and edge or its fields sit against the
+   colour's boundary. Unthemed, a form block stays the bare stack it always was. */
+.form-block {
+  &.tone--tint,
+  &.tone--solid {
+    padding: var(--form-block-padding, clamp(1.25rem, 4cqi, 2rem));
+    border: var(--b-card, var(--b-card-group, var(--b-default)));
+    border-radius: var(--br-card, var(--br-card-group, var(--br-default)));
+  }
+}

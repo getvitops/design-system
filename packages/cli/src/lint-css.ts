@@ -93,13 +93,26 @@ function widthScale(value: string): { rem: number; ch: number } {
 /**
  * Column ratios that correspond to a `split-<a>-<b>` class.
  *
- * `.split` is FLEX, not grid — `display: flex` with `flex: 1` children, and a
- * ratio class setting `--_split-a`/`--_split-b`. Equal columns are the base
- * `.split` with no ratio class, which is why `1fr 1fr` is deliberately absent:
- * suggesting `split-1-1` would name a class that does not exist, and this file
- * would then be committing the very defect `lint.ts` reports.
+ * `.split` is FLEX, not grid: `display: flex` with `flex: 1` children, and a ratio class setting
+ * `--_split-a`/`--_split-b`. `split-1-1` is a real utility (layout-utilities.css), so equal
+ * columns are suggested like any other ratio; the bare `.split` is equal too, but a hand-written
+ * `1fr 1fr` is better told to use the named class that also carries the breakpoint forms.
  */
+const IGNORE = /\/\*\s*vitops-lint-ignore\s*\*\//;
+
+/** Whether the rule starting on `line` (1-indexed) carries the ignore comment above or on it. */
+function isIgnored(css: string, line: number): boolean {
+  const lines = css.split('\n');
+  // Walk up over blank lines to the comment, so a blank line between them does not defeat it.
+  let i = line - 1;
+  if (IGNORE.test(lines[i] ?? '')) return true;
+  i -= 1;
+  while (i >= 0 && !(lines[i] ?? '').trim()) i -= 1;
+  return i >= 0 && IGNORE.test(lines[i] ?? '');
+}
+
 const SPLITS: Record<string, string> = {
+  '1fr 1fr': '1-1',
   '1fr 2fr': '1-2',
   '2fr 1fr': '2-1',
   '1fr 3fr': '1-3',
@@ -291,6 +304,10 @@ export function lintCss(files: { path: string; text: string }[], format: Format)
     for (const block of blocks)
       for (const rule of scanCss(block.css))
         for (const check of RULES) {
+          // `/* vitops-lint-ignore */` on the line above a rule (or the same line) skips it: a
+          // site cannot add a class to markup a block renders, so a reuse hint it cannot act on
+          // must be dismissible rather than worked around.
+          if (isIgnored(block.css, rule.line)) break;
           const verdict = check(rule, format);
           if (!verdict) continue;
           const line = block.line + rule.line - 1;

@@ -547,7 +547,7 @@ body {
    argument (0-1-1), so this beats the paragraph-to-list pairs above (0-1-2 would not tie it).
    Classless \`ul\`/\`ol\` stay prose. A form's own \`.rhythm\` holds \`div\` fields, which are not listed,
    so its tight field spacing is untouched. */
-.rhythm > * + :is(wc-cards, ul[class], ol[class], details, form, table, figure, .accordion, .section__body) {
+.rhythm > * + :is(wc-cards, ul[class], ol[class], details, form, table, figure, .accordion, .section__body, .form-block, .callout, .logos-block) {
   margin-top: calc(var(--rhythm-base) * var(--rhythm-block));
 }
 /* A row of buttons after the lead. */
