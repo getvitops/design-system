@@ -7,7 +7,7 @@
  *
  *   assets/css      ← @getvitops/core/css/*.css (+ patterns/), excluding generated/
  *   assets/bricks   ← ../../bricks/{elements,load.php}  (interim; → @getvitops/bricks later)
- *   assets/js       ← @getvitops/core/dist/{polyfills,elements,deferred}.js (+ polyfills/)
+ *   assets/js       ← @getvitops/core/dist/{polyfills,elements,deferred}.js (+ elements/, chunks/)
  *   schema.json     ← toJSONSchema(DesignSystemSchema)
  *
  * The framework CSS + JS bundles are owned by @getvitops/core (sibling package);
@@ -56,8 +56,12 @@ for (const f of ['polyfills.js', 'elements.js', 'deferred.js', 'consent.js', 'ed
     jsCount++;
   }
 }
-if (existsSync(join(coreDist, 'polyfills')))
-  cpSync(join(coreDist, 'polyfills'), join(assets, 'js', 'polyfills'), { recursive: true });
+// `elements.js` imports `./elements/*` and every module reaches shared code in `./chunks/`. Bricks
+// enqueues the eager `elements.js` (a builder re-renders markup constantly, the hardest case for
+// an observer-driven loader), so `loader.js` is not copied here.
+for (const dir of ['elements', 'chunks'])
+  if (existsSync(join(coreDist, dir)))
+    cpSync(join(coreDist, dir), join(assets, 'js', dir), { recursive: true });
 
 // Published JSON Schemas (design-system + the three-section config).
 writeFileSync(join(PKG, 'schema.json'), JSON.stringify(jsonSchema, null, 2) + '\n');

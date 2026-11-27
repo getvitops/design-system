@@ -24,14 +24,16 @@ test.describe('no-JS fallback: elements.js never loads at all', () => {
     // emits `<link rel="modulepreload" href=".../polyfills.js">` beside its
     // `<script>` tag, and a modulepreload hint is a resource hint processed at
     // parse time — it still fires with scripting off, same as `<link
-    // rel="stylesheet">` would. `elements.js` and `deferred.js` carry no such
+    // rel="stylesheet">` would. `elements.js`, `loader.js` and `deferred.js` carry no such
     // hint, so they are the ones that prove the point.
     const scriptRequests: string[] = [];
     page.on('request', (req) => {
       if (/\.(js)(\?|$)/.test(req.url())) scriptRequests.push(req.url());
     });
     await page.goto('/patterns');
-    expect(scriptRequests.filter((u) => /elements\.js|deferred\.js/.test(u))).toEqual([]);
+    expect(scriptRequests.filter((u) => /elements\.js|loader\.js|deferred\.js/.test(u))).toEqual(
+      [],
+    );
   });
 });
 

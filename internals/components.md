@@ -88,7 +88,7 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    only submitted control) and offers the theme editor's `<wc-oklch-color-picker>` in a `<details>`.
    **The picker is a dynamic import, fetched when the details is first opened**: it is a Lit element
    over a colour-science library, ~40 KB gzipped, which a visitor who types a hex must not pay for. That
-   split is also why Lit now sits in a shared chunk (`polyfills/BaseElement.js`); `verify-bundle-size`
+   split is also why Lit sits in a shared chunk (`chunks/BaseElement.js`); `verify-bundle-size`
    counts an entry's static chunks for that reason. `<ConfigForm colorPicker>` loads it.
 
    **`<wc-stepper>` is the third element outside `elements.js`** (`@getvitops/core/stepper`, ~1 KB
@@ -97,7 +97,28 @@ Three tiers, chosen by **whether a pattern actually needs JavaScript**:
    `<section data-step>`s inside one `<form>`, `#anchor` links); the element shows one at a time and
    stops a forward move at the first invalid step. Its silent validity check is `validity.valid`, not
    `checkValidity()`, because that fires `invalid`, which the element itself listens for to reveal a
-   hidden step. Whether these standalone bundles become an auto-loader is an open decision (TODO.md).
+   hidden step.
+
+   **How elements reach a page.** `elements.js` no longer bundles the elements. Each of the 21
+   registered ones is its own entry, `dist/elements/<tag>.js`, generated from one table,
+   `packages/core/src/js/element-tags.ts` (tag, source file, `dependencies`), which the build, the
+   loader and `element-tags.test.ts` all read. Two entries use them. **`loader.js`** (default in
+   `<Head />`, `componentLoading: 'auto'`) scans the document for undefined owned `wc-*` tags,
+   imports just those modules, then each class's `static dependencies` (`wc-gallery` →
+   `wc-carousel`: the lightbox is server-rendered markup around a carousel, not created at
+   runtime), and keeps a `MutationObserver` for tags that arrive later. Late upgrade is not a new
+   failure mode because the pre-upgrade state is the tier-2 no-JS fallback. Tags it does not own
+   (`wc-consent`, which must load ahead of what it gates, and a site's own `wc-*`) are ignored, so
+   nothing 404s. **`elements.js`** (`componentLoading: 'eager'`, and what the Bricks theme enqueues,
+   since a builder re-renders markup constantly) loads every element at once, with no observer.
+   Neither imports an element statically, which is what keeps each element's module self-contained;
+   a page using one Lit element pays ~11 KB gzipped (Lit and `BaseElement`, shared) plus its own
+   code, where it used to pay ~38 KB. The build also emits `elements/manifest.json`, and the Astro
+   integration uses it to add `modulepreload` hints to **prerendered** pages for the elements each
+   uses (loader, element, then Lit is otherwise a three-hop waterfall). The shared-chunk folder is
+   `chunks/` (it was `polyfills/`, named for the first things that landed there). Add an element:
+   an entry in `element-tags.ts`, a `static dependencies` if it hands off to another, and a
+   `TIERS` row; the tests fail until all three agree.
 
    **Every element states its no-JS standing with a `@fallback` tag in its docblock:**
    `@fallback full <what it is>` (complete and usable with no JS, given its fallback markup),

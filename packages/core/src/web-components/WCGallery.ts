@@ -71,6 +71,8 @@ interface GalleryItem {
  * @fallback full each trigger is a link to its slide, which works in the lightbox
  */
 export class WCGallery extends BaseElement {
+  static override dependencies = ['wc-carousel'] as const;
+
   /** Light DOM — the framework's `.gallery` / `.lightbox-dialog` CSS must style the slotted markup. */
   override createRenderRoot(): HTMLElement {
     return this;

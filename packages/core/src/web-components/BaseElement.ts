@@ -6,6 +6,13 @@ const SignalWatcherLitElement = SignalWatcher(LitElement) as typeof LitElement;
 export abstract class BaseElement extends SignalWatcherLitElement {
   static styles: CSSResultGroup = [];
 
+  /**
+   * Other `wc-*` tags this element needs on the page to work, so the on-demand loader fetches
+   * them with it (a gallery's lightbox is a `<wc-carousel>`). Mirrored in `js/element-tags.ts`,
+   * which the build reads; `element-tags.test.ts` fails when the two disagree.
+   */
+  static dependencies: readonly string[] = [];
+
   #connection: AbortController | undefined;
 
   /**

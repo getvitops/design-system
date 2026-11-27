@@ -318,15 +318,17 @@ built `dist/*.js`, the repo's `bricks/`, plus `schema.json` and `config.schema.j
 
 ### `packages/core/`
 
-Five independent browser bundles, each separate for a reason:
+Independent browser bundles, each separate for a reason (shared code lands in `chunks/`; the
+loadable elements are one entry each, from the table in `src/js/element-tags.ts`):
 
-| Entry                 | Ships                                 | Why its own bundle                                        |
-| --------------------- | ------------------------------------- | --------------------------------------------------------- |
-| `src/js/polyfills.ts` | Feature-detected `{test, load}` pairs | Each polyfill is its own async chunk; belongs in `<head>` |
-| `src/js/elements.ts`  | The tier-2 Lit registrations          | The deferred main bundle                                  |
-| `src/js/deferred.ts`  | Non-critical PE, zero imports         | Nothing to load, runs late                                |
-| `src/js/consent.ts`   | The consent gate + `<wc-consent>`     | Must load **ahead** of elements and must not drag in Lit  |
-| `src/js/editor.ts`    | `<wc-theme-editor>` only              | Tooling, no no-JS fallback — quarantined, opt-in          |
+| Entry                 | Ships                                   | Why its own bundle                                        |
+| --------------------- | --------------------------------------- | --------------------------------------------------------- |
+| `src/js/polyfills.ts` | Feature-detected `{test, load}` pairs   | Each polyfill is its own async chunk; belongs in `<head>` |
+| `src/js/loader.ts`    | Scan for `wc-*` tags, import only those | Default in `<Head />`; modules are `elements/<tag>.js`    |
+| `src/js/elements.ts`  | Loads every element at once             | Eager opt-in (`componentLoading: 'eager'`); Bricks        |
+| `src/js/deferred.ts`  | Non-critical PE, zero imports           | Nothing to load, runs late                                |
+| `src/js/consent.ts`   | The consent gate + `<wc-consent>`       | Must load **ahead** of elements and must not drag in Lit  |
+| `src/js/editor.ts`    | `<wc-theme-editor>` only                | Tooling, no no-JS fallback — quarantined, opt-in          |
 
 Elements under `src/web-components/`, all `wc-*`: `WCCards` `WCCarousel`
 `WCColorSchemeToggle` `WCColorWheel` `WCConsent` `WCCopy` `WCCounter` `WCDismissable`

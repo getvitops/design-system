@@ -7,6 +7,7 @@ import postcss from 'postcss';
 // bundler) — import the default and destructure instead.
 import postcssLit from 'postcss-lit';
 import { defineConfig } from 'vite-plus';
+import { ELEMENTS } from './src/js/element-tags.js';
 
 const { parse: parseLitCss, stringify: stringifyLitCss } = postcssLit;
 
@@ -48,17 +49,27 @@ let htmlHits = 0;
 
 export default defineConfig({
   pack: {
-    entry: [
-      'src/js/polyfills.ts',
-      'src/js/deferred.ts',
-      'src/js/elements.ts',
-      'src/js/consent.ts',
-      'src/js/config-form.ts',
-      'src/js/stepper.ts',
-      'src/js/color-field.ts',
-      'src/js/config-preview.ts',
-      'src/js/editor.ts',
-    ],
+    entry: {
+      polyfills: 'src/js/polyfills.ts',
+      deferred: 'src/js/deferred.ts',
+      // Eager: every element in one request. The opt-in path, and what Bricks enqueues.
+      elements: 'src/js/elements.ts',
+      // On demand: `loader.js` finds the tags a page uses and imports `elements/<tag>.js`.
+      loader: 'src/js/loader.ts',
+      consent: 'src/js/consent.ts',
+      'config-form': 'src/js/config-form.ts',
+      stepper: 'src/js/stepper.ts',
+      'color-field': 'src/js/color-field.ts',
+      'config-preview': 'src/js/config-preview.ts',
+      editor: 'src/js/editor.ts',
+      // One entry per loadable element, generated from the table the loader reads.
+      ...Object.fromEntries(
+        Object.entries(ELEMENTS).map(([tag, { source }]) => [
+          `elements/${tag}`,
+          `src/web-components/${source}.ts`,
+        ]),
+      ),
+    },
     outDir: 'dist',
     format: ['es'],
     minify: true,
@@ -138,6 +149,36 @@ export default defineConfig({
         },
       },
       {
+        // `elements/manifest.json`: per tag, the module and every chunk it statically imports, so a
+        // consumer can `modulepreload` what a page uses instead of waiting for the loader to find
+        // each import in turn (loader, then element, then Lit).
+        name: 'vitops:element-manifest',
+        generateBundle(
+          _options: unknown,
+          bundle: Record<string, { type: string; imports?: string[] }>,
+        ) {
+          const closure = (file: string, seen = new Set<string>()): Set<string> => {
+            for (const dep of bundle[file]?.imports ?? [])
+              if (!seen.has(dep)) {
+                seen.add(dep);
+                closure(dep, seen);
+              }
+            return seen;
+          };
+          const manifest: Record<string, unknown> = {};
+          for (const [tag, { dependencies }] of Object.entries(ELEMENTS)) {
+            const file = `elements/${tag}.js`;
+            if (!bundle[file]) throw new Error(`element-manifest: ${file} was not emitted`);
+            manifest[tag] = { file, imports: [...closure(file)], dependencies };
+          }
+          (this as unknown as { emitFile(f: object): void }).emitFile({
+            type: 'asset',
+            fileName: 'elements/manifest.json',
+            source: `${JSON.stringify(manifest, null, 2)}\n`,
+          });
+        },
+      },
+      {
         name: 'vitops:dedupe-legal-comments',
         renderChunk(code: string) {
           // elements.js accumulates one @license block per source file that
@@ -161,6 +202,6 @@ export default defineConfig({
     ],
     // Stable (unhashed) chunk names in a dedicated subdir; cache-bust via the
     // theme's enqueue version, not content hashes.
-    outputOptions: { chunkFileNames: 'polyfills/[name].js' },
+    outputOptions: { chunkFileNames: 'chunks/[name].js' },
   },
 });

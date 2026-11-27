@@ -29,23 +29,16 @@
  */
 import { gzipSync } from 'node:zlib';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, normalize } from 'node:path';
 
 const CORE_DIST = join('packages', 'core', 'dist');
 
 /** Gzipped-byte ceilings. Bump deliberately; see this file's docblock. */
 const BUDGETS: Record<string, number> = {
-  // 28.1 KB -> 31.8 KB gzipped with `<wc-tabs>`, `<wc-combobox>`, `<wc-format>` and `<wc-range>`
-  // (about 0.9 KB each; they share Lit, `BaseElement` and `RovingTabindex`, which were already in
-  // the bundle). Intended growth, so the ceiling moves with ~4% headroom. Since `<wc-color-field>`
-  // shares Lit with it the bundler lifts Lit into `polyfills/BaseElement.js`; the figure counts that
-  // chunk (see `sharedSize`), and gzips it apart from the entry, hence the +600 B on 33,000. `<wc-multifield>` (light DOM, Lit-free, replacing the Lit `<wc-multi-field>`) and its row helper, a chunk shared with `config-form.js`, add ~400 B more. `<wc-contrast-toggle>` (the WCAG G174 switch, merged from the accessibility branch) adds ~300 B more, so 34,500. `<wc-copy>`'s polite live region (copied-label/failed-label), `BaseElement.connectionSignal` and `initFromLightDom`'s second, DOMContentLoaded retry add ~300 B, so 35,000.
-  // The accessibility audit batches (announcer, field groups, lifecycle fixes) added ~900 B to the
-  // merged bundle (35,877 B). The ceiling is a working figure, not a target: it varies with what a
-  // client's build includes, and how components are delivered is being investigated separately.
-  // `<wc-notifications>` (the stacking region, countdown, announcements, modal gating) added ~1.7 KB
-  // (37,564 B total); 39,000 leaves room without a ceiling that hides the next addition.
-  'elements.js': 39_000,
+  // `elements.js` no longer bundles the elements: it is the eager entry, which loads every
+  // `elements/<tag>.js` at once (see `ELEMENT_BUDGET` below, where the per-element weight is held).
+  // Before the split it was one 37.5 KB bundle that every page paid for.
+  'elements.js': 1_500,
   'consent.js': 3_500,
   // The validator, the form codec and `<wc-config-form>`; Lit-free, loaded only by a page with a
   // config form (3.6 KB gzipped, ~10% headroom). Counts the row helper it shares with `elements.js`.
@@ -64,23 +57,35 @@ const BUDGETS: Record<string, number> = {
   // Toggletip handling (click pin, aria-expanded) added ~165 B, so 1,800.
   'deferred.js': 1_800,
   'polyfills.js': 1_200,
+  // The on-demand loader: a tag table, the scan, the observer. Each element it fetches is budgeted
+  // below, so this is only the loader itself.
+  'loader.js': 1_500,
 };
 
 /**
- * Gzipped size of the chunks an entry imports statically (`from"./polyfills/BaseElement.js"`), which
- * the entry cannot run without. When two entries share a module the bundler lifts it into a chunk
- * and each entry's own file shrinks, so measuring the entry alone would let a bundle grow without
- * the number moving. A dynamic `import("./x.js")` is not counted: it is fetched on demand.
+ * What one `elements/<tag>.js` may weigh with every chunk it statically imports (Lit, `BaseElement`
+ * and the helpers it shares), gzipped. A page using one element pays this and nothing for the
+ * rest, so the number that matters is how far it sits below `elements.js`: a ceiling here (the heaviest, `<wc-carousel>`, is 15.0 KB, of which ~10 KB is Lit) is what
+ * catches an element that quietly drags in something large (the colour library is 90 KB raw).
  */
-function sharedSize(source: string, seen = new Set<string>()): number {
+const ELEMENT_BUDGET = 16_000;
+
+/**
+ * Gzipped size of the chunks a file imports statically (`from"../chunks/BaseElement.js"`), which it
+ * cannot run without. When two entries share a module the bundler lifts it into a chunk and each
+ * entry's own file shrinks, so measuring the entry alone would let a bundle grow without the number
+ * moving. A dynamic `import("./x.js")` is not counted: it is fetched on demand. Paths resolve
+ * against the importing file, because `elements/*.js` reach `chunks/` through `../`.
+ */
+function sharedSize(file: string, source: string, seen = new Set<string>()): number {
   let total = 0;
-  for (const match of source.matchAll(/(?:^|[;}])import[^"';]*?from"\.\/([^"]+)"/g)) {
-    const file = match[1]!;
-    if (seen.has(file) || file in BUDGETS) continue;
-    seen.add(file);
+  for (const match of source.matchAll(/(?:^|[;}])(?:import|export)[^"';()]*?"(\.{1,2}\/[^"]+)"/g)) {
+    const target = normalize(join(dirname(file), match[1]!));
+    if (seen.has(target) || target in BUDGETS) continue;
+    seen.add(target);
     try {
-      const chunk = readFileSync(join(CORE_DIST, file));
-      total += gzipSync(chunk).length + sharedSize(chunk.toString('utf8'), seen);
+      const chunk = readFileSync(join(CORE_DIST, target));
+      total += gzipSync(chunk).length + sharedSize(target, chunk.toString('utf8'), seen);
     } catch {
       // A missing chunk is the build's failure to report, not this budget's.
     }
@@ -101,13 +106,31 @@ for (const [file, budget] of Object.entries(BUDGETS)) {
     failed = true;
     continue;
   }
-  const gzipped = gzipSync(raw).length + sharedSize(raw.toString('utf8'));
+  const gzipped = gzipSync(raw).length + sharedSize(file, raw.toString('utf8'));
   const over = gzipped > budget;
   if (over) failed = true;
   const pct = ((gzipped / budget) * 100).toFixed(0);
   console.log(
     `${over ? '✗' : '✓'} ${file.padEnd(14)} ${String(gzipped).padStart(6)} B / ${budget} B budget (${pct}%)`,
   );
+}
+
+// Per element, from the manifest the build emits (tag → `elements/<tag>.js`).
+try {
+  const manifest = JSON.parse(
+    readFileSync(join(CORE_DIST, 'elements', 'manifest.json'), 'utf8'),
+  ) as Record<string, { file: string }>;
+  console.log(`\nPer element (gzipped, with static chunks; budget ${ELEMENT_BUDGET} B each):\n`);
+  for (const [tag, { file }] of Object.entries(manifest)) {
+    const raw = readFileSync(join(CORE_DIST, file));
+    const gzipped = gzipSync(raw).length + sharedSize(file, raw.toString('utf8'));
+    const over = gzipped > ELEMENT_BUDGET;
+    if (over) failed = true;
+    console.log(`${over ? '✗' : '✓'} ${tag.padEnd(24)} ${String(gzipped).padStart(6)} B`);
+  }
+} catch {
+  console.error('✗ elements/manifest.json not found — did build:core run?');
+  failed = true;
 }
 
 if (failed) {

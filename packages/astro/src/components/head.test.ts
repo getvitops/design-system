@@ -28,7 +28,7 @@ describe('<Head /> pre-paint colour-scheme script', () => {
 
   it('applies the scheme before the deferred element bundle', () => {
     // Order matters: if the element script came first the page could paint light.
-    expect(head.indexOf('localStorage.getItem')).toBeLessThan(head.indexOf('elements.js'));
+    expect(head.indexOf('localStorage.getItem')).toBeLessThan(head.indexOf('componentLoading'));
   });
 
   it('sets the attribute the generated dark block actually matches', () => {
